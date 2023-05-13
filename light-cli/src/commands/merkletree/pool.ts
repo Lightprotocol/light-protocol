@@ -9,11 +9,7 @@ import {
 } from "light-sdk";
 
 import * as anchor from "@coral-xyz/anchor";
-import {
-  getLocalProvider,
-  getWalletConfig,
-  readPayerFromIdJson,
-} from "../../utils";
+import { getLightProvider, getPayer, getWalletConfig } from "../../utils";
 import { PublicKey } from "@solana/web3.js";
 
 class PoolCommand extends Command {
@@ -46,13 +42,9 @@ class PoolCommand extends Command {
     const { method } = args;
     const { publicKey } = flags;
 
-    const payer = new anchor.Wallet(readPayerFromIdJson());
-    const provider = await getLocalProvider(payer);
-    let merkleTreeConfig = await getWalletConfig(
-      provider,
-      TRANSACTION_MERKLE_TREE_KEY,
-      readPayerFromIdJson()
-    );
+    const provider = await getLightProvider(getPayer());
+    let merkleTreeConfig = await getWalletConfig(provider.provider!);
+  
 
     try {
       if (method === "pooltype") {
@@ -89,12 +81,11 @@ class PoolCommand extends Command {
       } else if (method === "list") {
         this.log("Listing Pools");
 
-        const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
-        const provider = await getLocalProvider(payer);
+        const provider = await getLightProvider(ADMIN_AUTH_KEYPAIR);
         const merkleProgram = new anchor.Program(
           IDL_MERKLE_TREE_PROGRAM,
           merkleTreeProgramId,
-          provider
+          provider.provider!
         );
 
         try {

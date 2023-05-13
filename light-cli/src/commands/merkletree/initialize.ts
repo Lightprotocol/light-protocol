@@ -2,9 +2,9 @@ import { Command, Flags } from "@oclif/core";
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import {
-  getLocalProvider,
+  getLightProvider,
+  getPayer,
   getWalletConfig,
-  readPayerFromIdJson,
 } from "../../utils";
 
 class InitializeCommand extends Command {
@@ -27,21 +27,15 @@ class InitializeCommand extends Command {
     const MERKLE_TREE_KEY = new PublicKey(pubKey);
 
     try {
-      const payer = new anchor.Wallet(readPayerFromIdJson());
-      const provider = await getLocalProvider(payer);
+      const provider = await getLightProvider(getPayer());
 
-      const merkleTreeAccountInfo = await provider.connection.getAccountInfo(
-        MERKLE_TREE_KEY
-      );
+      const merkleTreeAccountInfo =
+        await provider.provider!.connection.getAccountInfo(MERKLE_TREE_KEY);
       if (!merkleTreeAccountInfo) {
-        let merkleTreeConfig = await getWalletConfig(
-          provider,
-          MERKLE_TREE_KEY,
-          readPayerFromIdJson()
-        );
+      let merkleTreeConfig = await getWalletConfig(provider.provider!);
         this.log("Initializing new Merkle Tree Account", "info");
         try {
-          const ix = await merkleTreeConfig.initializeNewMerkleTree();
+          const ix = await merkleTreeConfig.initializeNewTransactionMerkleTree();
           this.log("Merkle Tree Account initialized successfully");
           this.log(`Merkle Tree PubKey: ${MERKLE_TREE_KEY}\n`);
         } catch (error) {

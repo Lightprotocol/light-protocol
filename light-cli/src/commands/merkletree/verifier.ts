@@ -2,18 +2,13 @@ import { Args, Command, Flags } from "@oclif/core";
 import {
   ADMIN_AUTH_KEYPAIR,
   TRANSACTION_MERKLE_TREE_KEY,
-  MerkleTreeProgram,
   merkleTreeProgramId,
   IDL_MERKLE_TREE_PROGRAM,
 } from "light-sdk";
 
 import * as anchor from "@coral-xyz/anchor";
 
-import {
-  getLocalProvider,
-  getWalletConfig,
-  readPayerFromIdJson,
-} from "../../utils";
+import { getLightProvider, getPayer, getWalletConfig } from "../../utils";
 
 import { PublicKey } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";
@@ -58,13 +53,8 @@ class VerifierCommand extends Command {
 
         this.log("Registering Verifiers...");
 
-        const payer = new anchor.Wallet(readPayerFromIdJson());
-        const provider = await getLocalProvider(payer);
-        let merkleTreeConfig = await getWalletConfig(
-          provider,
-          TRANSACTION_MERKLE_TREE_KEY,
-          readPayerFromIdJson()
-        );
+        const provider = await getLightProvider(getPayer());
+        let merkleTreeConfig = await getWalletConfig(provider.provider!);
 
         try {
           await merkleTreeConfig.registerVerifier(verifierKey);
@@ -82,9 +72,8 @@ class VerifierCommand extends Command {
 
         this.log("Getting Verifier");
 
-        const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
-        const provider = await getLocalProvider(payer);
-        let merkleTreeConfig = await getWalletConfig(provider);
+        const provider = await getLightProvider(getPayer());
+        let merkleTreeConfig = await getWalletConfig(provider.provider!);
 
         try {
           const verifierPdaAccount =
@@ -99,7 +88,7 @@ class VerifierCommand extends Command {
         this.log("Listing Verifier");
 
         const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
-        const provider = await getLocalProvider(payer);
+        const provider = await getLightProvider(getPayer());
 
         const merkleProgram = new Program(
           IDL_MERKLE_TREE_PROGRAM,

@@ -1,5 +1,5 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { getUser } from "../../utils"; // Assuming you have a file named 'utils.ts' exporting the 'connection' and 'provider' objects
+import { getUser } from "../../utils";
 
 class TransferCommand extends Command {
   static description = "Transfer tokens to a recipient";

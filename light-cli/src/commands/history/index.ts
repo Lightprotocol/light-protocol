@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { IndexedTransaction } from "light-sdk"; // Replace 'your-library' with the appropriate library name
+import { IndexedTransaction } from "light-sdk";
 import { getUser } from "../../utils";
 
 class TransactionHistoryCommand extends Command {

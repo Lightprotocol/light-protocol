@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { getUser } from "../../utils"; // Assuming you have a file named 'utils.ts' exporting the 'connection' and 'provider' objects
+import { getUser } from "../../utils"; 
 
 class ShieldCommand extends Command {
   static description = "Shield tokens for a user";

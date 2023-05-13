@@ -3362,6 +3362,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dotenv@npm:^16.0.3":
+  version: 16.0.3
+  resolution: "dotenv@npm:16.0.3"
+  checksum: afcf03f373d7a6d62c7e9afea6328e62851d627a4e73f2e12d0a8deae1cd375892004f3021883f8aec85932cd2834b091f568ced92b4774625b321db83b827f8
+  languageName: node
+  linkType: hard
+
 "ejs@npm:^3.1.6, ejs@npm:^3.1.8":
   version: 3.1.8
   resolution: "ejs@npm:3.1.8"
@@ -5479,39 +5486,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"light-cli@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "light-cli@workspace:."
-  dependencies:
-    "@coral-xyz/anchor": ^0.27.0
-    "@oclif/core": ^2
-    "@oclif/plugin-help": ^5
-    "@oclif/plugin-plugins": ^2.4.7
-    "@oclif/test": ^2.3.17
-    "@solana/web3.js": ^1.76.0
-    "@types/chai": ^4
-    "@types/mocha": ^9.0.0
-    "@types/node": ^16.18.26
-    chai: ^4
-    eslint: ^7.32.0
-    eslint-config-oclif: ^4
-    eslint-config-oclif-typescript: ^1.0.3
-    fs: ^0.0.1-security
-    light-sdk: "file:../light-sdk-ts"
-    mocha: ^9
-    oclif: ^3
-    shx: ^0.3.3
-    ts-node: ^10.9.1
-    tslib: ^2.5.0
-    typescript: ^4.9.5
-  bin:
-    light-cli: ./bin/run
-  languageName: unknown
-  linkType: soft
-
-"light-sdk@file:../light-sdk-ts::locator=light-cli%40workspace%3A.":
+"light-sdk@file:../light-sdk-ts::locator=light%40workspace%3A.":
   version: 0.0.1
-  resolution: "light-sdk@file:../light-sdk-ts#../light-sdk-ts::hash=5527b7&locator=light-cli%40workspace%3A."
+  resolution: "light-sdk@file:../light-sdk-ts#../light-sdk-ts::hash=5527b7&locator=light%40workspace%3A."
   dependencies:
     "@coral-xyz/anchor": 0.27.0
     "@coral-xyz/borsh": ^0.27.0
@@ -5531,6 +5508,37 @@ __metadata:
   checksum: 5a31b48969d7c665ebe8e656cc2c25e2ae63e4febc36160105eeb6d0934e192f966ddb2b6be532c5a338085711cf3c52f56299d55ac982de528262d66a6161e9
   languageName: node
   linkType: hard
+
+"light@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "light@workspace:."
+  dependencies:
+    "@coral-xyz/anchor": ^0.27.0
+    "@oclif/core": ^2
+    "@oclif/plugin-help": ^5
+    "@oclif/plugin-plugins": ^2.4.7
+    "@oclif/test": ^2.3.17
+    "@solana/web3.js": ^1.76.0
+    "@types/chai": ^4
+    "@types/mocha": ^9.0.0
+    "@types/node": ^16.18.26
+    chai: ^4
+    dotenv: ^16.0.3
+    eslint: ^7.32.0
+    eslint-config-oclif: ^4
+    eslint-config-oclif-typescript: ^1.0.3
+    fs: ^0.0.1-security
+    light-sdk: "file:../light-sdk-ts"
+    mocha: ^9
+    oclif: ^3
+    shx: ^0.3.3
+    ts-node: ^10.9.1
+    tslib: ^2.5.0
+    typescript: ^4.9.5
+  bin:
+    light: ./bin/run
+  languageName: unknown
+  linkType: soft
 
 "lines-and-columns@npm:^1.1.6":
   version: 1.2.4

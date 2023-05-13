@@ -3,11 +3,7 @@ import {
   MERKLE_TREE_AUTHORITY_PDA,
   TRANSACTION_MERKLE_TREE_KEY,
 } from "light-sdk";
-import {
-  getLocalProvider,
-  getWalletConfig,
-  readPayerFromIdJson,
-} from "../../utils";
+import { getLightProvider, getPayer, getWalletConfig } from "../../utils";
 
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
@@ -42,15 +38,9 @@ class AuthorityCommand extends Command {
     const { publicKey } = flags;
 
     try {
-      const payer = new anchor.Wallet(readPayerFromIdJson());
+      const provider = await getLightProvider(getPayer());
 
-      const provider = await getLocalProvider(payer);
-
-      let merkleTreeConfig = await getWalletConfig(
-        provider,
-        TRANSACTION_MERKLE_TREE_KEY,
-        readPayerFromIdJson()
-      );
+      let merkleTreeConfig = await getWalletConfig(provider.provider!);
 
       if (method === "init") {
         this.log("Initializing Merkle Tree Authority");

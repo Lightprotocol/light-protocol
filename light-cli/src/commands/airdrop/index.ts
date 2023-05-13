@@ -1,6 +1,6 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
-import { getConnection } from "../../utils"; // Assuming you have a file named 'utils.ts' exporting the 'connection' object
+import { getConnection } from "../../utils";
 
 class AirdropCommand extends Command {
   static description = "Perform an airdrop to a user";

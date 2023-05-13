@@ -5,9 +5,12 @@ import * as solana from "@solana/web3.js";
 import {
   ADMIN_AUTH_KEYPAIR,
   confirmConfig,
+  MerkleTreeConfig,
+  MESSAGE_MERKLE_TREE_KEY,
   Provider,
   Relayer,
   RELAYER_FEES,
+  TRANSACTION_MERKLE_TREE_KEY,
   User,
 } from "light-sdk";
 
@@ -21,16 +24,28 @@ export const createNewWallet = () => {
   const keypair: solana.Keypair = solana.Keypair.generate();
   const secretKey: solana.Ed25519SecretKey = keypair.secretKey;
   try {
-    fs.mkdirSync(getDirName("./light-test-cache/secret.txt"));
-    fs.writeFileSync(
-      "./light-test-cache/secret.txt",
-      JSON.stringify(Array.from(secretKey))
-    );
+    setSecretKey(JSON.stringify(Array.from(secretKey)));
     console.log("- secret created and cached");
     return keypair;
   } catch (e: any) {
     throw new Error(`error writing secret.txt: ${e}`);
   }
+};
+
+export const getWalletConfig = async (
+  provider: anchor.AnchorProvider,
+): Promise<MerkleTreeConfig> => {
+
+  let merkleTreeConfig = new MerkleTreeConfig({
+    messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
+    transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+    payer: getPayer(),
+    connection: provider.connection,
+  });
+
+  await merkleTreeConfig.getMerkleTreeAuthorityPda();
+
+  return merkleTreeConfig;
 };
 
 export const getConnection = () =>
@@ -39,8 +54,7 @@ export const getConnection = () =>
 export const readWalletFromFile = () => {
   let secretKey: Array<number> = [];
   try {
-    let data: string = fs.readFileSync("./light-test-cache/secret.txt", "utf8");
-    secretKey = JSON.parse(data);
+    secretKey = JSON.parse(getSecretKey());
 
     let asUint8Array: Uint8Array = new Uint8Array(secretKey);
     let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
@@ -56,10 +70,10 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   const configPath = "rpc-config.json";
   const rpcUrl = (process.env.ANCHOR_WALLET =
     process.env.HOME + "/.config/solana/id.json");
-  process.env.ANCHOR_PROVIDER_URL = await readRpcEndpointFromFile(configPath); // runscript starts dedicated validator on this port.
+  process.env.ANCHOR_PROVIDER_URL = await getSolanaRpcUrl(); // runscript starts dedicated validator on this port.
 
   const providerAnchor = anchor.AnchorProvider.local(
-    await readRpcEndpointFromFile(configPath),
+    await getSolanaRpcUrl(),
     confirmConfig
   );
 
@@ -68,12 +82,12 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   return providerAnchor;
 };
 
-export const getLightProvider = async () => {
+export const getLightProvider = async (payer?: solana.Keypair) => {
   if (!provider) {
     const relayer = await getRelayer();
 
     provider = await Provider.init({
-      wallet: readWalletFromFile(),
+      wallet: payer ? payer : readWalletFromFile(),
       relayer,
     });
 
@@ -94,7 +108,7 @@ export const getRelayer = async () => {
     relayer = new Relayer(
       wallet.publicKey,
       new solana.PublicKey(process.env.LOOK_UP_TABLE || ""),
-      getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
+      getRelayerRecipient(),
       RELAYER_FEES
     );
 
@@ -103,97 +117,90 @@ export const getRelayer = async () => {
   return relayer;
 };
 
-export function updateRpcEndpoint(rpcEndpoint: string) {
-  const configPath = "rpc-config.json"; // Path to the configuration file
+type Config = {
+  solanaRpcUrl: string;
+  relayerUrl: string;
+  secretKey: string;
+  relayerRecipient: string;
+  lookUpTable: string;
+  payer: string;
+};
 
-  return new Promise<void>((resolve, reject) => {
-    fs.readFile(configPath, "utf8", (err, data) => {
-      if (err) {
-        if (err.code === "ENOENT") {
-          // Config file doesn't exist, create a new one
-          const config = { rpcEndpoint };
+export const getSolanaRpcUrl = (): string => {
+  const config = getConfig();
+  return config.solanaRpcUrl;
+};
 
-          fs.writeFile(
-            configPath,
-            JSON.stringify(config, null, 2),
-            "utf8",
-            (err) => {
-              if (err) {
-                reject(
-                  new Error(
-                    `Failed to create the configuration file: ${err.message}`
-                  )
-                );
-                return;
-              }
+export const setSolanaRpcUrl = (url: string): void => {
+  setConfig({ solanaRpcUrl: url });
+};
 
-              resolve();
-            }
-          );
-        } else {
-          reject(
-            new Error(`Failed to read the configuration file: ${err.message}`)
-          );
-        }
-        return;
-      }
+export const getRelayerUrl = (): string => {
+  const config = getConfig();
+  return config.relayerUrl;
+};
 
-      try {
-        const config = JSON.parse(data);
-        config.rpcEndpoint = rpcEndpoint;
+export const setRelayerUrl = (url: string): void => {
+  setConfig({ relayerUrl: url });
+};
 
-        fs.writeFile(
-          configPath,
-          JSON.stringify(config, null, 2),
-          "utf8",
-          (err) => {
-            if (err) {
-              reject(
-                new Error(
-                  `Failed to update the RPC endpoint in the configuration file: ${err.message}`
-                )
-              );
-              return;
-            }
+export const getSecretKey = () => {
+  const config = getConfig();
+  return config.secretKey;
+};
 
-            resolve();
-          }
-        );
-      } catch (err) {
-        reject(
-          new Error(`Failed to parse the configuration file: ${err}`)
-        );
-      }
-    });
-  });
-}
+export const setSecretKey = (key: string) => {
+  setConfig({ secretKey: key });
+};
 
-export function readRpcEndpointFromFile(configPath: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    fs.readFile(configPath, "utf8", (err, data) => {
-      if (err) {
-        if (err.code === "ENOENT") {
-          reject(
-            new Error(`Configuration file not found at path: ${configPath}`)
-          );
-        } else {
-          reject(
-            new Error(`Failed to read the configuration file: ${err.message}`)
-          );
-        }
-        return;
-      }
+export const getRelayerRecipient = () => {
+  const config = getConfig();
+  return new solana.PublicKey(config.relayerRecipient);
+};
 
-      try {
-        const config = JSON.parse(data);
-        const rpcEndpoint = config.rpcEndpoint;
+export const setRelayerRecipient = (address: string) => {
+  setConfig({ relayerRecipient: address });
+};
 
-        resolve(rpcEndpoint);
-      } catch (err) {
-        reject(
-          new Error(`Failed to parse the configuration file: ${err}`)
-        );
-      }
-    });
-  });
-}
+export const getLookUpTable = () => {
+  const config = getConfig();
+  return new solana.PublicKey(config.lookUpTable);
+};
+
+export const setLookUpTable = (address: string): void => {
+  setConfig({ lookUpTable: address });
+};
+
+export const getPayer = () => {
+  const config = getConfig();
+
+  const payer = JSON.parse(config.payer);
+
+  let asUint8Array: Uint8Array = new Uint8Array(payer);
+  let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
+
+  return keypair;
+};
+
+export const setPayer = (key: string) => {
+  setConfig({ payer: key });
+};
+
+export const getConfig = (): Config => {
+  try {
+    const data = fs.readFileSync("config.json", "utf-8");
+    return JSON.parse(data);
+  } catch (err) {
+    throw new Error("Failed to read configuration file");
+  }
+};
+
+export const setConfig = (config: Partial<Config>): void => {
+  try {
+    const existingConfig = getConfig();
+    const updatedConfig = { ...existingConfig, ...config };
+    fs.writeFileSync("config.json", JSON.stringify(updatedConfig, null, 2));
+  } catch (err) {
+    throw new Error("Failed to update configuration file");
+  }
+};
