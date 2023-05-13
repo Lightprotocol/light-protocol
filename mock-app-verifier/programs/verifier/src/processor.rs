@@ -1,6 +1,6 @@
 use crate::verifying_key::VERIFYINGKEY;
 use crate::LightInstructionFirst;
-use crate::LightInstructionSecond;
+use crate::LightInstructionThird;
 use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
@@ -37,7 +37,10 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     root_index: &'a u64,
     relayer_fee: &'a u64,
 ) -> Result<()> {
-    let output_commitment = [[output_commitment[0], output_commitment[1]], [output_commitment[2], output_commitment[3]]];
+    let output_commitment = [
+        [output_commitment[0], output_commitment[1]],
+        [output_commitment[2], output_commitment[3]],
+    ];
     let tx = Transaction::<2, 4, TransactionsConfig>::new(
         None,
         None,
@@ -61,8 +64,8 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     Ok(())
 }
 
-pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
+pub fn process_transfer_4_ins_4_outs_4_checked_third<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, LightInstructionThird<'info>>,
     proof_a_app: &'a [u8; 64],
     proof_b_app: &'a [u8; 128],
     proof_c_app: &'a [u8; 64],

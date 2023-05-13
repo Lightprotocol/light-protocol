@@ -476,7 +476,7 @@ describe("Masp circuit tests", () => {
     var tx: Transaction = new Transaction({
       provider: lightProvider,
       params: txParamsApp,
-      appParams: { mock: "1231" , verifier: { pubkey: new PublicKey(0) } }
+      appParams: { mock: "1231" , verifierIdl: IDL_VERIFIER_PROGRAM_ZERO }
     });
 
     await tx.compile();
@@ -701,7 +701,7 @@ describe("App system circuit tests", () => {
     var tx: Transaction = new Transaction({
       provider: lightProvider,
       params: txParams,
-      appParams: { mock: "123", verifier: { pubkey: new PublicKey(0) } },
+      appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO  },
     });
     await tx.compile();
 
@@ -716,7 +716,7 @@ describe("App system circuit tests", () => {
     var tx: Transaction = new Transaction({
       provider: lightProvider,
       params: txParamsApp,
-      appParams: { mock: "123" },
+      appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO  },
     });
     await tx.compile();
     tx.proofInput.publicAppVerifier = new anchor.BN("123").toString();

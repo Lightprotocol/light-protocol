@@ -16,10 +16,13 @@ async function generateCircuit(circuitName: string): Promise<void> {
   const POWERS_OF_TAU = 17;
   const ptauFileName = `ptau${POWERS_OF_TAU}`;
   const buildDir = path.join('build');
-  const sdkBuildCircuitDir = path.join('sdk', 'build-circuit');
+  const sdkBuildCircuitDir = path.join('build-circuit');
 
   if (!fs.existsSync(buildDir)) {
     fs.mkdirSync(buildDir, { recursive: true });
+  }
+  if (!fs.existsSync(sdkBuildCircuitDir)) {
+    fs.mkdirSync(sdkBuildCircuitDir, { recursive: true });
   }
 
   const ptauFilePath = path.join(buildDir, ptauFileName);
@@ -38,9 +41,9 @@ async function generateCircuit(circuitName: string): Promise<void> {
   console.log("groth16 test setup complete \n", stdoutSetup.toString().trim());
   execSync(`yarn snarkjs zkey export verificationkey ${sdkBuildCircuitDir}/${circuitName}.zkey ${sdkBuildCircuitDir}/verifyingkey.json`);
     const program = "verifier" //`${process.argv[3]}`;
-    const vKeyJsonPath = "./sdk/build-circuit/verifyingkey.json";
+    const vKeyJsonPath = "./build-circuit/verifyingkey.json";
     const vKeyRsPath = "./programs/" + program + "/src/verifying_key.rs";
-    const artifiactPath = "./sdk/build-circuit/" + circuitName;
+    const artifiactPath = "./build-circuit/" + circuitName;
     while (!fs.existsSync(vKeyJsonPath)) {
         execSync(`yarn snarkjs zkey export verificationkey ${sdkBuildCircuitDir}/${circuitName}.zkey ${sdkBuildCircuitDir}/verifyingkey.json`);
     }
@@ -90,9 +93,9 @@ function extractFilename(input: string): string | null {
 */
 async function buildPSP(circuitDir: string) {
   let circuitFileName = findLightFile(circuitDir)
-
+  let programName = "verifier"
   console.log("Creating circom files");
-  let stdout = execSync(`./../macro-circom/target/debug/rust-circom-dsl ./circuit/${circuitFileName}`);
+  let stdout = execSync(`./../macro-circom/target/debug/rust-circom-dsl ./circuit/${circuitFileName} ${programName}`);
   console.log(stdout.toString().trim());
 
   const circuitMainFileName = extractFilename(stdout.toString().trim());

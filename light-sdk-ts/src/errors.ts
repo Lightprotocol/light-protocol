@@ -199,10 +199,6 @@ export enum ProgramUtxoBalanceErrorCode {
   INVALID_PROGRAM_ADDRESS = "INVALID_PROGRAM_ADDRESS",
   TOKEN_DATA_NOT_FOUND = "TOKEN_DATA_NOT_FOUND",
 }
-export enum ProgramUtxoBalanceErrorCode {
-  INVALID_PROGRAM_ADDRESS = "INVALID_PROGRAM_ADDRESS",
-  TOKEN_DATA_NOT_FOUND = "TOKEN_DATA_NOT_FOUND",
-}
 
 export class MetaError extends Error {
   code: string;

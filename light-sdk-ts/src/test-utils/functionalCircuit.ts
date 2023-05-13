@@ -7,6 +7,7 @@ import {
   Transaction,
   Action,
   TransactionParameters,
+  IDL_VERIFIER_PROGRAM_ZERO,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
@@ -55,7 +56,8 @@ export async function functionalCircuitTest(
       params: txParams,
       appParams: {
         mock: "123",
-        verifier: { pubkey: new anchor.BN(1) },
+        // just a placeholder the test does not compute an app proof
+        verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
         path: "./build-circuits",
       },
     });
