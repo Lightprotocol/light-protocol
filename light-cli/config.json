@@ -1,8 +1,8 @@
 {
-  "solanaRpcUrl": "https://api.mainnet-beta.solana.com",
-  "relayerUrl": "https://your-relayer-url.com",
-  "secretKey": "your-secret-key-in-string-format",
-  "relayerRecipient": "RELAYER_RECIPIENT_ADDRESS",
-  "lookUpTable": "LOOK_UP_TABLE_ADDRESS",
-  "payer": "PAYER_SECRET_KEY_IN_STRING_FORMAT"
+  "relayerUrl": "https://182.1.0.2",
+  "secretKey": "12345",
+  "relayerRecipient": "J5dwRdnADSqJoyCsf5N9cGqeGfWkZvJN3upiYd5qv6X5",
+  "lookupTable": "12345",
+  "payer": "12345",
+  "rpcUrl": "https://182.1.0.2"
 }
