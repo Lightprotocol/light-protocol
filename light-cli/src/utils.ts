@@ -67,10 +67,9 @@ export const readWalletFromFile = () => {
 };
 
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
-  const configPath = "rpc-config.json";
-  const rpcUrl = (process.env.ANCHOR_WALLET =
-    process.env.HOME + "/.config/solana/id.json");
-  process.env.ANCHOR_PROVIDER_URL = await getSolanaRpcUrl(); // runscript starts dedicated validator on this port.
+
+  process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json"
+  process.env.ANCHOR_PROVIDER_URL = await getSolanaRpcUrl(); 
 
   const providerAnchor = anchor.AnchorProvider.local(
     await getSolanaRpcUrl(),

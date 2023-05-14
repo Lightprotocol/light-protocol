@@ -36,6 +36,7 @@ class AirdropCommand extends Command {
         new PublicKey(userPublicKey),
         amount
       );
+
       await connection.confirmTransaction(res, "confirmed");
 
       this.log(
