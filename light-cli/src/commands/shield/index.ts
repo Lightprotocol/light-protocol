@@ -1,10 +1,11 @@
 import { Command, Flags } from "@oclif/core";
-import { getUser } from "../../utils"; 
+import { User } from "light-sdk";
+import { getUser } from "../../utils";
 
 class ShieldCommand extends Command {
   static description = "Shield tokens for a user";
 
-  static examples = ["$ light shield --token USDC --publicAmountSpl 10"];
+  static examples = ["$ light shield --token USDC --amountSpl 10"];
 
   static flags = {
     token: Flags.string({
@@ -14,10 +15,10 @@ class ShieldCommand extends Command {
     recipient: Flags.string({
       description: "The recipient address",
     }),
-    publicAmountSpl: Flags.integer({
+    amountSpl: Flags.integer({
       description: "The amount of token to shield (SPL)",
     }),
-    publicAmountSol: Flags.integer({
+    amountSol: Flags.integer({
       description: "The amount of token to shield (SOL)",
     }),
     minimumLamports: Flags.boolean({
@@ -37,25 +38,31 @@ class ShieldCommand extends Command {
     const {
       token,
       recipient,
-      publicAmountSpl,
-      publicAmountSol,
+      amountSpl,
+      amountSol,
       minimumLamports,
       skipDecimalConversions,
     } = flags;
 
     try {
-      const user = await getUser();
+      const user: User = await getUser();
 
-      await user.shield({
+      const response = await user.shield({
         token,
         recipient,
-        publicAmountSpl,
-        publicAmountSol,
+        publicAmountSpl: amountSpl,
+        publicAmountSol: amountSol,
         minimumLamports,
         skipDecimalConversions,
       });
 
-      this.log(`Tokens successfully shielded for token: ${token}`);
+      console.log(response);
+
+      const balance = await user.getBalance();
+
+      console.log({ balance });
+
+      this.log(`Successfully shielded: ${token}`);
     } catch (error) {
       this.error(`Shielding tokens failed: ${error}`);
     }

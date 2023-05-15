@@ -1,15 +1,23 @@
 import { Command, Flags } from "@oclif/core";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { exec } from "child_process";
-import { createTestAccounts, setUpMerkleTree, sleep } from "light-sdk";
-import { setRelayerRecipient, setAnchorProvider } from "../../utils";
+import {
+  createTestAccounts,
+  initLookUpTableFromFile,
+  setUpMerkleTree,
+  sleep,
+} from "light-sdk";
+import {
+  setRelayerRecipient,
+  setAnchorProvider,
+  setLookUpTable,
+} from "../../utils";
 
 class SetupCommand extends Command {
   static description = "Perform setup tasks";
 
   async run() {
     try {
-
       exec("sh runScript.sh", (error, stdout, stderr) => {
         if (error) {
           console.error("Failed to execute runScript.sh:", error);
@@ -18,11 +26,15 @@ class SetupCommand extends Command {
         console.log("Setup completed successfully.");
       });
 
-      await sleep(7000);
+      await sleep(9000);
 
       const provider = await setAnchorProvider();
 
       await createTestAccounts(provider.connection);
+
+      const lookupTable = await initLookUpTableFromFile(provider);
+
+      await setLookUpTable(lookupTable.toString());
 
       await setUpMerkleTree(provider);
 

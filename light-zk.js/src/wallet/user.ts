@@ -156,6 +156,8 @@ export class User {
     balance: Balance | InboxBalance,
     merkleTreePdaPublicKey: PublicKey,
   ): Promise<Balance | InboxBalance> {
+    console.log("syncing the state ==============>");
+
     // reduce balance by spent utxos
     if (!this.provider.provider)
       throw new UserError(
@@ -188,6 +190,8 @@ export class User {
       await this.provider.relayer.getIndexedTransactions(
         this.provider.provider!.connection,
       );
+
+    console.log({ indexedTransactions });
 
     await this.provider.latestMerkleTree(indexedTransactions);
 
@@ -1065,6 +1069,7 @@ export class User {
       if (!provider.poseidon) {
         provider.poseidon = await circomlibjs.buildPoseidonOpt();
       }
+
       if (!account) {
         account = new Account({
           poseidon: provider.poseidon,
@@ -1072,6 +1077,8 @@ export class User {
         });
       }
       const user = new User({ provider, appUtxoConfig, account });
+
+      console.log("getting the user balance", user);
 
       await user.getBalance();
 

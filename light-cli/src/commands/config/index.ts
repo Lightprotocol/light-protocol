@@ -1,8 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import * as fs from "fs";
 
-// TODO: add validations
-
 class ConfigCommand extends Command {
   static description = "Update the configuration values";
 
@@ -64,7 +62,7 @@ class ConfigCommand extends Command {
         config.relayerRecipient = relayerRecipient;
       }
       if (lookupTable) {
-        config.lookupTable = lookupTable;
+        config.lookUpTable = lookupTable;
       }
       if (payer) {
         config.payer = payer;
