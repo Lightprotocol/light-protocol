@@ -693,6 +693,8 @@ export class Utxo {
       const iv16 = commitment.slice(0, 16);
 
       try {
+        console.log("decrypting the utxos ============>");
+
         const cleartext = await decrypt(
           encBytes,
           account.getAesUtxoViewingKey(

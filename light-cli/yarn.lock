@@ -5488,7 +5488,7 @@ __metadata:
 
 "light-sdk@file:../light-sdk-ts::locator=light%40workspace%3A.":
   version: 0.0.1
-  resolution: "light-sdk@file:../light-sdk-ts#../light-sdk-ts::hash=5527b7&locator=light%40workspace%3A."
+  resolution: "light-sdk@file:../light-sdk-ts#../light-sdk-ts::hash=c898a6&locator=light%40workspace%3A."
   dependencies:
     "@coral-xyz/anchor": 0.27.0
     "@coral-xyz/borsh": ^0.27.0
@@ -5505,7 +5505,7 @@ __metadata:
     lodash: ^4.17.21
     snarkjs: ^0.5.0
     tweetnacl: ^1.0.3
-  checksum: 5a31b48969d7c665ebe8e656cc2c25e2ae63e4febc36160105eeb6d0934e192f966ddb2b6be532c5a338085711cf3c52f56299d55ac982de528262d66a6161e9
+  checksum: d74f81f3b1bbb9c0084c51e3a79318b2cabf39a7c422ffa89a1e149d57d18cdbcc40b9a16791c7447975f4db8336dc267e53d5f9ef417eeac8ad1b3e479d3911
   languageName: node
   linkType: hard
 
