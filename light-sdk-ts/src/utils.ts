@@ -139,9 +139,7 @@ export const convertAndComputeDecimals = (
     if (fractional.length >= decimals.toString().length) {
       throw new Error("The amount has more decimal places than allowed.");
     }
-    // fractional = (new BN(fractional).mul(decimals.div(new BN(10).pow(new BN(fractional.length))))).toString();
     while (fractional.length < decimals.toString().length - 1) {
-      //.div(new BN(10).pow(new BN(decimals.toString().length + 1))).toNumber()) {
       fractional += "0"; // Add trailing zeros to match the decimals count
     }
     const res = whole + fractional;
