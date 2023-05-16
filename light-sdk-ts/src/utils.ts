@@ -82,11 +82,6 @@ export const arrToStr = (uint8arr: Uint8Array) =>
 export const strToArr = (str: string) =>
   new Uint8Array(Buffer.from(str.slice(3), "hex"));
 
-export const isNegative = (value: BN | string | number) => {
-  const strValue = value.toString();
-  return strValue.startsWith("-");
-};
-
 export function decimalConversion({
   tokenCtx,
   skipDecimalConversions,
