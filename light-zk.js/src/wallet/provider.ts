@@ -154,6 +154,14 @@ export class Provider {
     };
   }
 
+  /**
+   * Static method to load a mock Provider.
+   * - This method is used for testing purposes to generate a mock Provider.
+   * - It initializes a Provider with a mock wallet and URL.
+   * - It also loads Poseidon hash function and initializes a Solana lookup table and a Solana Merkle Tree.
+   *
+   * @returns A promise that resolves to a mock Provider.
+   */
   static async loadMock() {
     let mockProvider = new Provider({
       wallet: ADMIN_AUTH_KEYPAIR,
@@ -246,6 +254,14 @@ export class Provider {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     this.poseidon = poseidon;
   }
+
+  /**
+   * Fetches the latest Merkle tree by calling the fetchMerkleTree method with the TRANSACTION_MERKLE_TREE_KEY as the key.
+   *
+   * @param indexedTransactions - An optional array of IndexedTransaction objects. If provided, the fetch operation will use these transactions.
+   *
+   * @returns {Promise<void>} A Promise that resolves when the operation is completed.
+   */
   async latestMerkleTree(indexedTransactions?: IndexedTransaction[]) {
     await this.fetchMerkleTree(
       TRANSACTION_MERKLE_TREE_KEY,
@@ -255,11 +271,25 @@ export class Provider {
   // TODO: add loadEddsa
 
   /**
-   * Only use this if you use the WalletAdapter, e.g. in the browser. If you use a local keypair, use getNodeProvider().
-   * @param walletContext get from useWallet() hook
-   * @param confirmConfig optional, default = 'confirmed'
-   * @param connection get from useConnection() hook
-   * @param url full-node rpc endpoint to instantiate a Connection
+   * Initializes a Provider instance. This method should only be used if you use the WalletAdapter, such as in the browser.
+   * If you use a local keypair, use getNodeProvider() instead.
+   *
+   * @param wallet - An instance of Wallet or SolanaKeypair or Keypair.
+   * @param connection - An optional Connection instance, to be used if already available.
+   * @param confirmConfig - An optional ConfirmOptions instance, to configure the confirmation process. By default, it is 'confirmed'.
+   * @param url - An optional string, specifying the full-node RPC endpoint to instantiate a Connection.
+   * @param relayer - An optional Relayer instance.
+   *
+   * @throws {ProviderError} Throws an error if the wallet parameter is not provided.
+   *
+   * @returns {Promise<Provider>} A promise that resolves to a Provider instance.
+   *
+   * @remarks
+   * This method is used to initialize a new instance of the Provider class.
+   * - It loads the Poseidon hash function.
+   * - Fetches the lookup table.
+   * - Fetches the Merkle tree with the TRANSACTION_MERKLE_TREE_KEY.
+   * - Finally returns the initialized Provider instance.
    */
   static async init({
     wallet,

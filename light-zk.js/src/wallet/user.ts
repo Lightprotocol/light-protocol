@@ -63,10 +63,10 @@ const message = new TextEncoder().encode(SIGN_MESSAGE);
 // TODO: add support for wallet adapter (no access to payer keypair)
 
 /**
- *
- * @param provider Either a nodeProvider or browserProvider
- * @param account User account (optional)
- * @param utxos User utxos (optional)
+ * This class represents a user in the system. It includes properties and methods that allow users to:
+ * - Perform transactions.
+ * - Manage balances.
+ * - Interact with the provider.
  *
  */
 export class User {
@@ -82,6 +82,26 @@ export class User {
   inboxBalance: InboxBalance;
   verifierIdl: Idl;
 
+  /**
+   *
+   * @remarks
+   * - The User class is designed to work with a provider, which must be passed in as an argument during instantiation.
+   * - It also takes an optional account parameter, which represents the user's account.
+   * - The User class includes methods to transact with parameters, retrieve balance information, store data, and more.
+   *
+   * @param provider - An instance of a Provider, which can be either a nodeProvider or a browserProvider.
+   * @param account - An optional parameter representing the user's account.
+   * @param serializedUtxos - An optional Buffer object representing the user's unspent transaction outputs (UTXOs).
+   * @param serialiezdSpentUtxos - An optional Buffer object representing the user's spent UTXOs.
+   * @param transactionNonce - An optional parameter representing the current transaction nonce.
+   * @param appUtxoConfig - An optional parameter for the app UTXO configuration.
+   * @param verifierIdl - An optional parameter for the verifier interface description language (IDL). Defaults to IDL_VERIFIER_PROGRAM_ZERO if not provided.
+   *
+   * @throws `UserError`
+   * - If no wallet is provided in the provider.
+   * - If the provider is not properly initialized.
+   * - If there is no app-enabled verifier defined when an appUtxoConfig is provided.
+   */
   constructor({
     provider,
     serializedUtxos, // balance
@@ -151,6 +171,22 @@ export class User {
   // TODO: should update merkle tree as well
   // TODO: test robustness
   // TODO: nonce incrementing is very ugly revisit
+
+  /**
+   * @async
+   * This method updates the balance state by identifying spent UTXOs and decrypting new UTXOs.
+   * - It iterates through the UTXOs in the balance and moves spent UTXOs to spentUtxos.
+   * - It then fetches indexed transactions, decrypts the new UTXOs and adds them to the balance.
+   * - Finally, it calculates the total Solana balance and updates the balance object.
+   *
+   * @param {boolean} aes - A flag to indicate whether AES encryption is used. Defaults to `true`.
+   * @param {Balance | InboxBalance} balance - The balance to be updated. It can be either a `Balance` or an `InboxBalance`.
+   * @param {PublicKey} merkleTreePdaPublicKey - The public key of the Merkle Tree PDA.
+   *
+   * @throws {UserError} UserError: When the provider is undefined or not initialized.
+   *
+   * @returns {Promise<Balance | InboxBalance>} A promise that resolves to the updated balance. It can be either a `Balance` or an `InboxBalance`.
+   */
   async syncState(
     aes: boolean = true,
     balance: Balance | InboxBalance,
@@ -270,8 +306,14 @@ export class User {
   }
 
   /**
-   * returns all non-accepted utxos.
-   * would not be part of the main balance
+   * @async
+   * This method retrieves all the non-accepted UTXOs that are not part of the main balance.
+   * @note
+   * If the `latest` parameter is set to true (which is the default), it will sync the state of the inbox balance before returning it.
+   *
+   * @param {boolean} latest - A flag to indicate whether to sync the state of the inbox balance before returning it. Defaults to `true`.
+   *
+   * @returns {Promise<InboxBalance>} A promise that resolves to the inbox balance containing all non-accepted UTXOs.
    */
   async getUtxoInbox(latest: boolean = true): Promise<InboxBalance> {
     if (latest) {
@@ -284,6 +326,23 @@ export class User {
     return this.inboxBalance;
   }
 
+  /**
+   * @async
+   * This method retrieves the current balance of the user's account.
+   * If the `latest` parameter is set to true (which is the default), it will sync the state of the balance before returning it.
+   *
+   * @note
+   * This function checks if the necessary components such as account, provider, Poseidon hasher, Merkle Tree, and Lookup Table are initialized.
+   * If any of these components are not initialized, an error will be thrown.
+   *
+   * @param {boolean} latest - A flag to indicate whether to sync the state of the balance before returning it. Defaults to `true`.
+   *
+   * @returns {Promise<Balance>} A promise that resolves to the current balance of the user's account.
+   *
+   * @throws {UserError} UserError:
+   * - If the account or the provider is not initialized.
+   * - If the Poseidon hasher, the Merkle Tree, or the Lookup Table is not initialized.
+   */
   async getBalance(latest: boolean = true): Promise<Balance> {
     if (!this.account)
       throw new UserError(
@@ -321,12 +380,35 @@ export class User {
   }
 
   /**
+   * @async
+   * This method asynchronously creates transaction parameters for a shield operation.
+   * - The shield operation is the process of hiding tokens in a privacy-preserving manner.
+   * - The method takes an options object with various properties for the operation.
+   * - The function performs various validations including checking if a public amount is provided, if the token is defined,
+   * and if the provider is set, among other validations. If the validations fail, an error is thrown.
    *
-   * @param amount e.g. 1 SOL = 1, 2 USDC = 2
-   * @param token "SOL", "USDC", "USDT",
-   * @param recipient optional, if not set, will shield to self
-   * @param extraSolAmount optional, if set, will add extra SOL to the shielded amount
-   * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
+   * @param {object} options - The configuration object for the operation.
+   * @param {string} options.token - The type of the token to shield ("SOL", "USDC", "USDT").
+   * @param {Account} options.recipient - Optional recipient account. If not set, will shield to self.
+   * @param {number | BN | string} options.publicAmountSpl - The amount of tokens to shield.
+   * @param {number | BN | string} options.publicAmountSol - The amount of SOL to add to the shielded amount.
+   * @param {PublicKey} options.senderTokenAccount - Optional token account to shield from, else derives ATA.
+   * @param {boolean} options.minimumLamports - Optional, if set, will add minimum SOL to the shielded amount. Default is true.
+   * @param {AppUtxoConfig} options.appUtxo - Optional configuration object for app-specific UTXO.
+   * @param {boolean} options.mergeExistingUtxos - Optional flag to indicate whether to merge existing UTXOs. Default is true.
+   * @param {Idl} options.verifierIdl - Optional, the Interface Description Language (IDL) for the verifier.
+   * @param {Buffer} options.message - Optional message to include in the transaction.
+   * @param {boolean} options.skipDecimalConversions - Optional flag to skip decimal conversions for public amounts. Default is false.
+   * @param {Utxo} options.utxo - Optional UTXO to include in the transaction.
+   *
+   * @returns {Promise<TransactionParameters>} A promise that resolves to the transaction parameters for the shield operation.
+   *
+   * @throws {UserError} UserError:
+   * - If the token is "SOL" and publicAmountSpl is provided.
+   * - If both publicAmountSpl and publicAmountSol are not provided.
+   * - If token is not defined but publicAmountSpl is provided.
+   * - If the provider is not set.
+   * - If the token is not supported or token account is defined for SOL.
    */
   async createShieldTransactionParameters({
     token,
@@ -479,6 +561,19 @@ export class User {
     return txParams;
   }
 
+  /**
+   * @async
+   * This method compiles and proves a transaction.
+   * - It is primarily used for creating privacy-preserving transactions on the Solana blockchain.
+   * - Before this method is invoked, the createShieldTransactionParameters method must be called to create the parameters for the transaction.
+   *
+   * @param {any} appParams - Optional parameters for a general application.
+   *
+   * @returns {Promise<Transaction>} A promise that resolves to the compiled and proven transaction.
+   *
+   * @throws {UserError} UserError:
+   * - If the createShieldTransactionParameters method was not called before invoking this method.
+   */
   async compileAndProveTransaction(appParams?: any): Promise<Transaction> {
     if (!this.recentTransactionParameters)
       throw new UserError(
@@ -497,6 +592,20 @@ export class User {
     return tx;
   }
 
+  /**
+   * @async
+   * This method approves a transaction that is waiting to be executed.
+   * - Before invoking this method, createShieldTransactionParameters needs to be called to prepare the parameters for the transaction.
+   * - This method is primarily used to grant permissions for the transfer of SPL tokens before a shield transaction.
+   *
+   * @returns {Promise<void>} A promise that resolves when the approval is completed.
+   *
+   * @throws {UserError} UserError:
+   * - If the createShieldTransactionParameters method was not called before invoking this method.
+   * - If the associated token account does not exist.
+   * - If there are insufficient token balance for the transaction.
+   * - If there was an error in approving the token transfer.
+   */
   async approve() {
     if (!this.recentTransactionParameters)
       throw new UserError(
@@ -557,6 +666,19 @@ export class User {
     }
   }
 
+  /**
+   * @async
+   * This method sends a transaction that has been compiled and approved, and waits for confirmation of the transaction.
+   * @note
+   * This method is primarily used to execute a shield transaction involving SPL tokens.
+   *
+   * @returns {Promise<string | undefined>} A promise that resolves to the transaction hash when the transaction is confirmed.
+   *
+   * @throws {UserError} UserError:
+   * - If SPL funds are not approved before invoking this method for a shield transaction.
+   * - If the transaction is not compiled and proof is not generated before calling this method.
+   * - If there was an error in sending and confirming the transaction.
+   */
   async sendAndConfirm() {
     if (
       this.recentTransactionParameters?.action === Action.SHIELD &&
@@ -593,6 +715,15 @@ export class User {
     return txHash;
   }
 
+  /**
+   * @async
+   * This method updates the Merkle tree. After updating, it resets the recent transaction parameters and approval status.
+   *
+   * @returns {Promise<any>} A promise that resolves when the Merkle tree update request to the relayer is complete.
+   *
+   * @remarks This method is primarily used to update the state of the Merkle tree after a transaction.
+   * It uses the provider's relayer to update the Merkle tree and resets the transaction-related state.
+   */
   async updateMerkleTree() {
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
@@ -607,12 +738,27 @@ export class User {
   }
 
   /**
+   * @async
+   * This method processes a shield operation.
    *
-   * @param amount e.g. 1 SOL = 1, 2 USDC = 2
-   * @param token "SOL", "USDC", "USDT",
-   * @param recipient optional, if not set, will shield to self
-   * @param extraSolAmount optional, if set, will add extra SOL to the shielded amount
-   * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
+   * @param {object} params - Object containing parameters for the shield operation.
+   * @param {string} params.token - The token to be shielded, e.g., "SOL", "USDC", "USDT".
+   * @param {number | BN | string} [params.publicAmountSpl] - The amount to shield, e.g., 1 SOL = 1, 2 USDC = 2.
+   * @param {string} [params.recipient] - Optional recipient account. If not set, the operation will shield to self.
+   * @param {number | BN | string} [params.publicAmountSol] - Optional extra SOL amount to add to the shielded amount.
+   * @param {PublicKey} [params.senderTokenAccount] - Optional sender's token account. If set, this account will be used to shield from, else derives an ATA.
+   * @param {boolean} [params.minimumLamports=true] - Optional flag to indicate whether to use minimum lamports or not.
+   * @param {AppUtxoConfig} [params.appUtxo] - Optional application UTXO configuration.
+   * @param {boolean} [params.skipDecimalConversions=false] - Optional flag to skip decimal conversions.
+   *
+   * @returns {Promise<{txHash: string, response: any}>} - A promise that resolves to an object containing the transaction hash and the response from updating the Merkle tree.
+   *
+   * @remarks This method performs a shield operation, which involves:
+   * - creating transaction parameters
+   * - compiling and proving the transaction
+   * - approving the transaction
+   * - sending and confirming the transaction
+   * - finally updating the Merkle tree.
    */
   async shield({
     token,
@@ -654,6 +800,26 @@ export class User {
     return { txHash, response };
   }
 
+  /**
+   * @async
+   * This method processes an unshield operation.
+   *
+   * @param {object} params - Object containing parameters for the unshield operation.
+   * @param {string} params.token - The token to be unshielded.
+   * @param {PublicKey} [params.recipientSpl=AUTHORITY] - Recipient of the SPL token. Defaults to AUTHORITY.
+   * @param {PublicKey} [params.recipientSol=AUTHORITY] - Recipient of the SOL token. Defaults to AUTHORITY.
+   * @param {number | BN | string} [params.publicAmountSpl] - The amount of SPL to unshield.
+   * @param {number | BN | string} [params.publicAmountSol] - The amount of SOL to unshield.
+   * @param {boolean} [params.minimumLamports=true] - Optional flag to indicate whether to use minimum lamports or not.
+   *
+   * @returns {Promise<{txHash: string, response: any}>} - A promise that resolves to an object containing the transaction hash and the response from updating the Merkle tree.
+   *
+   * @remarks This method performs an unshield operation, which involves:
+   * - creating transaction parameters
+   * - compiling and proving the transaction
+   * - sending and confirming the transaction
+   * - finally updating the Merkle tree.
+   */
   async unshield({
     token,
     publicAmountSpl,
@@ -687,11 +853,24 @@ export class User {
   // TODO: add unshieldSol and unshieldSpl
   // TODO: add optional passs-in token mint
   // TODO: add pass-in mint
+
   /**
-   * @params token: string
-   * @params amount: number - in base units (e.g. lamports for 'SOL')
-   * @params recipient: PublicKey - Solana address
-   * @params extraSolAmount: number - optional, if not set, will use MINIMUM_LAMPORTS
+   * @async
+   * This method prepares transaction parameters for an unshield operation. This involves:
+   * - checking the token context, recipients, balances, and UTXOs.
+   * - It eventually calls `TransactionParameters.getTxParams` to get the final transaction parameters.
+   * - The recent transaction parameters are then updated with the result.
+   *
+   * @param {object} params - Object containing parameters for the unshield operation.
+   * @param {string} params.token - The token to be unshielded.
+   * @param {PublicKey} [params.recipientSpl=AUTHORITY] - Recipient of the SPL token. Defaults to AUTHORITY.
+   * @param {PublicKey} [params.recipientSol=AUTHORITY] - Recipient of the SOL token. Defaults to AUTHORITY.
+   * @param {number | BN | string} [params.publicAmountSpl] - The amount of SPL to unshield.
+   * @param {number | BN | string} [params.publicAmountSol] - The amount of SOL to unshield.
+   * @param {boolean} [params.minimumLamports=true] - Optional flag to indicate whether to use minimum lamports or not.
+   *
+   * @returns {Promise<any>} - A promise that resolves to the transaction parameters.
+   *
    */
   async createUnshieldTransactionParameters({
     token,
@@ -802,6 +981,23 @@ export class User {
   }
 
   // TODO: replace recipient with recipient light publickey
+  /**
+   * @async
+   * This method initiates a shielded transfer operation.
+   * - It first checks if the recipient is provided
+   * - Then creates transaction parameters using the `createTransferTransactionParameters` method.
+   * - It then calls `transactWithParameters` with the obtained parameters.
+   *
+   * @param {object} params - Object containing parameters for the transfer operation.
+   * @param {string} params.token - The token to be transferred.
+   * @param {string} params.recipient - The recipient of the transfer.
+   * @param {BN | number | string} [params.amountSpl] - The amount of SPL tokens to transfer.
+   * @param {BN | number | string} [params.amountSol] - The amount of SOL tokens to transfer.
+   * @param {AppUtxoConfig} [params.appUtxo] - Configuration for the application UTXO.
+   *
+   * @returns {Promise<any>} - A promise that resolves to the result of the transaction with the parameters.
+   *
+   */
   async transfer({
     token,
     recipient,
@@ -838,13 +1034,28 @@ export class User {
 
   // TODO: add separate lookup function for users.
   // TODO: add account parsing from and to string which is concat shielded pubkey and encryption key
+
   /**
-   * @description transfers to one recipient utxo and creates a change utxo with remainders of the input
-   * @param token mint
-   * @param amount
-   * @param recipient shieldedAddress (BN)
-   * @param recipientEncryptionPublicKey (use strToArr)
-   * @returns
+   * @async
+   *  This method prepares the transaction parameters for a shielded transfer operation .i.e transfer method.
+   * - It first checks if at least one amount is provided and if the token is defined.
+   * - It then retrieves the token context, converts the amounts if required, and creates output UTXOs.
+   * - Finally, it retrieves the input UTXOs and creates transaction parameters using the `getTxParams` method of `TransactionParameters`.
+   *
+   * @param {object} params - Object containing parameters for the transfer operation.
+   * @param {string} [params.token] - The token to be transferred.
+   * @param {BN | number | string} [params.amountSpl] - The amount of SPL tokens to transfer.
+   * @param {BN | number | string} [params.amountSol] - The amount of SOL tokens to transfer.
+   * @param {Account} [params.recipient] - The recipient of the transfer.
+   * @param {AppUtxoConfig} [params.appUtxo] - Configuration for the application UTXO.
+   * @param {Buffer} [params.message] - Buffer containing a message to be included in the transaction.
+   * @param {Utxo} [params.outUtxo] - An UTXO to be included in the transaction.
+   * @param {Idl} [params.verifierIdl] - An Interface Definition Language (IDL) for the verifier.
+   * @param {boolean} [params.skipDecimalConversions] - Whether to skip decimal conversions.
+   * @param {boolean} [params.addInUtxos] - Whether to add in UTXOs to the transaction.
+   *
+   * @returns {Promise<any>} - A promise that resolves to the transaction parameters.
+   *
    */
   async createTransferTransactionParameters({
     token,
@@ -998,6 +1209,19 @@ export class User {
     return txParams;
   }
 
+  /**
+   * @async
+   * This method performs a transaction using the provided transaction parameters.
+   * - It first sets the recent transaction parameters, compiles and proves the transaction, approves it, sends it and confirms it, and then updates the Merkle tree.
+   * - The method returns the transaction hash and the response from updating the Merkle tree.
+   *
+   * @param {object} params - Object containing the transaction parameters.
+   * @param {TransactionParameters} params.txParams - The parameters for the transaction.
+   * @param {any} [params.appParams] - Additional parameters for the application.
+   *
+   * @returns {Promise<object>} - A promise that resolves to an object containing the transaction hash and the response from updating the Merkle tree.
+   *
+   */
   async transactWithParameters({
     txParams,
     appParams,
@@ -1014,6 +1238,20 @@ export class User {
     return { txHash, response };
   }
 
+  /**
+   * @async
+   * This method is intended to perform a transaction using the provided input and output UTXOs and the specified action.
+   *
+   * @note
+   * Currently, this method is not implemented and will throw an error if called.
+   *
+   * @param {object} params - Object containing the transaction parameters.
+   * @param {Utxo[]} params.inUtxos - The UTXOs that are being spent in this transaction.
+   * @param {Utxo[]} params.outUtxos - The UTXOs that are being created by this transaction.
+   * @param {Action} params.action - The type of action being performed by this transaction (e.g., TRANSFER, SHIELD, UNSHIELD).
+   * @param {string[]} params.inUtxoCommitments - The commitments of the input UTXOs.
+   *
+   */
   async transactWithUtxos({
     inUtxos,
     outUtxos,
@@ -1029,10 +1267,24 @@ export class User {
   }
 
   /**
+   * @async
+   * This method asynchronously initializes a User instance.
+   * - This method initializes a User instance by using the provided Light provider, optional user seed and UTXOs, application UTXO configuration, and account.
+   * - If no seed is provided, a signature prompt will appear for login. If no Poseidon function is provided, it will build one. If no account is provided, it will create a new one with the given Poseidon function and seed.
+   * - After initializing the user, it will retrieve the user's balance.
    *
-   * @param provider - Light provider
-   * @param seed - Optional user seed to instantiate from; e.g. if the seed is supplied, skips the log-in signature prompt.
-   * @param utxos - Optional user utxos to instantiate from
+   * @param {object} params - Object containing the initialization parameters.
+   * @param {Provider} params.provider - The Light provider to be used.
+   * @param {string} [params.seed] - Optional user seed to instantiate from. If the seed is supplied, it skips the log-in signature prompt.
+   * @param {Utxo[]} [params.utxos] - Optional user UTXOs (Unspent Transaction Outputs) to instantiate from.
+   * @param {AppUtxoConfig} [params.appUtxoConfig] - Optional application UTXO configuration.
+   * @param {Account} [params.account] - Optional account to be used.
+   *
+   * @returns {Promise<User>} - Returns a Promise that resolves to the initialized User instance.
+   *
+   * @throws {UserError} UserError:
+   * - Throws a UserError if no wallet is provided or if there is an error while loading the user.
+   *
    */
   static async init({
     provider,
@@ -1086,10 +1338,21 @@ export class User {
   }
 
   // TODO: how do we handle app utxos?, some will not be able to be accepted we can only mark these as accepted
-  /** shielded transfer to self, merge 10-1;
-   * get utxo inbox
-   * merge highest first
-   * loops in steps of 9 or 10
+
+  /**
+   * @async
+   * Merges all UTXOs (Unspent Transaction Outputs) for a specific asset.
+   * - This method retrieves the UTXO inbox and balance of the user for the specified asset.
+   * - If the inbox for the asset is empty, it throws an error.
+   * - Otherwise, it retrieves the UTXOs from the balance and inbox. If the total number of UTXOs is greater than 10, it selects only the first 10.
+   * - It then prepares transaction parameters for a TRANSFER action and performs the transaction.
+   * - Finally, it updates the Merkle tree and returns the transaction hash and the response of the update.
+   *
+   * @param {PublicKey} asset - The public key of the asset whose UTXOs are to be merged.
+   * @param {boolean} [latest=true] - Optional parameter indicating whether to get the latest UTXO inbox and balance. Defaults to true.
+   *
+   * @returns {Promise<object>} - Returns a Promise that resolves to an object containing the transaction hash and the response of the update to the Merkle tree.
+   *
    */
   async mergeAllUtxos(asset: PublicKey, latest: boolean = true) {
     await this.getUtxoInbox(latest);
@@ -1154,10 +1417,22 @@ export class User {
   }
 
   // TODO: how do we handle app utxos?, some will not be able to be accepted we can only mark these as accepted
-  /** shielded transfer to self, merge 10-1;
-   * get utxo inbox
-   * merge highest first
-   * loops in steps of 9 or 10
+
+  /**
+   * @async
+   * Performs a shielded transfer to self, merging UTXOs in the process.
+   * - This method retrieves the UTXO inbox and balance of the user for the specified asset.
+   * - It validates the commitments provided, and if any are not found in the UTXO inbox, it throws an error.
+   * - It then retrieves the UTXOs from the balance and the commitments.
+   * - If the total number of UTXOs is greater than 10, it throws an error.
+   * - Otherwise, it prepares transaction parameters for a TRANSFER action and performs the transaction.
+   * - Finally, it updates the Merkle tree and returns the transaction hash and the response of the update.
+   * @param {string[]} commitments - An array of commitment strings for merging.
+   * @param {PublicKey} asset - The public key of the asset whose UTXOs are to be merged.
+   * @param {boolean} [latest=false] - Optional parameter indicating whether to get the latest UTXO inbox and balance. Defaults to false.
+   *
+   * @returns {Promise<object>} - Returns a Promise that resolves to an object containing the transaction hash and the response of the update to the Merkle tree.
+   *
    */
   async mergeUtxos(
     commitments: string[],
@@ -1237,6 +1512,18 @@ export class User {
     return { txHash, response };
   }
 
+  /**
+   * @async
+   * This method retrieves the transaction history of the user.
+   * - If the 'latest' parameter is true, it first gets the latest balance of the user.
+   * - The transaction history is then retrieved and returned.
+   * - If any error occurs during this process, it is caught and a UserError is thrown with a specific error code.
+   *
+   * @param {boolean} [latest=true] - Optional parameter indicating whether to get the latest balance. Defaults to true.
+   *
+   * @returns {Promise<IndexedTransaction[]>} - Returns a Promise that resolves to an array of indexed transactions.
+   *
+   */
   async getTransactionHistory(
     latest: boolean = true,
   ): Promise<IndexedTransaction[]> {
@@ -1257,16 +1544,56 @@ export class User {
   // TODO: add proof-of-origin call.
   // TODO: merge with getUtxoStatus?
 
+  /**
+   * Retrieves the status of the Unspent Transaction Output (UTXO).
+   *
+   * @remarks
+   * - This method is intended to retrieve the status of the Unspent Transaction Output (UTXO).
+   * - However, it's currently not implemented and will throw an error when called.
+   * - Future implementations should provide the functionality for fetching and returning the UTXO status.
+   */
   getUtxoStatus() {
     throw new Error("not implemented yet");
   }
-  // getPrivacyScore() -> for unshields only, can separate into its own helper method
-  // Fetch utxos should probably be a function such the user object is not occupied while fetching
-  // but it would probably be more logical to fetch utxos here as well
+
+  /**
+   * Adds Unspent Transaction Outputs (UTXOs) to the user.
+   *
+   * @remarks
+   * - This method is intended to add UTXOs to the user.
+   * - This method may also be responsible for fetching UTXOs such that the user object is not occupied while fetching.
+   * - Furthermore, the implementation could include calculating the user's privacy score for unshielded transactions.
+   * - However, it's currently not implemented and will throw an error when called.
+   * - Future implementations should provide the functionality for adding UTXOs.
+   */
   addUtxos() {
     throw new Error("not implemented yet");
   }
 
+  /**
+   * @async
+   * This method is used to create the transaction parameters for storing application UTXO.
+   * - It performs a series of checks and operations to generate the necessary parameters.
+   * - The method can handle both shielding and transfer actions.
+   *
+   * @param token - The token symbol.
+   * @param amountSol - The amount of SOL tokens.
+   * @param amountSpl - The amount of SPL tokens.
+   * @param minimumLamports - A flag to indicate whether to include minimum lamports.
+   * @param senderTokenAccount - The public key of the sender's token account.
+   * @param recipientPublicKey - The public key of the recipient.
+   * @param appUtxo - The application UTXO.
+   * @param stringUtxo - The string representation of the UTXO.
+   * @param action - The action to be performed (Action.SHIELD or Action.TRANSFER).
+   * @param appUtxoConfig - The configuration of the application UTXO.
+   * @param skipDecimalConversions - A flag to skip decimal conversions.
+   *
+   * @throws {UserError} UserError:
+   * - Throws an error if the required parameters are not provided or if the max storage message size is exceeded.
+   *
+   * @returns Promise which resolves to the created transaction parameters.
+   *
+   */
   async createStoreAppUtxoTransactionParameters({
     token,
     amountSol,
@@ -1423,11 +1750,31 @@ export class User {
     }
   }
 
-  /**
-   * is shield or transfer
-   */
   // TODO: group shield parameters into type
   // TODO: group transfer parameters into type
+
+  /**
+   * @async
+   * This method is used to store the application UTXO.
+   * - It creates the transaction parameters using the provided parameters.
+   * - Then performs the transaction with the created parameters.
+   * - The method can handle both shielding and transfer actions.
+   *
+   * @param token - The token symbol.
+   * @param amountSol - The amount of SOL tokens.
+   * @param amountSpl - The amount of SPL tokens.
+   * @param minimumLamports - A flag to indicate whether to include minimum lamports.
+   * @param senderTokenAccount - The public key of the sender's token account.
+   * @param recipientPublicKey - The public key of the recipient.
+   * @param appUtxo - The application UTXO.
+   * @param stringUtxo - The string representation of the UTXO.
+   * @param action - The action to be performed (Action.SHIELD or Action.TRANSFER).
+   * @param appUtxoConfig - The configuration of the application UTXO.
+   * @param skipDecimalConversions - A flag to skip decimal conversions.
+   *
+   * @returns Promise which resolves to the response of the transaction with the created parameters.
+   *
+   */
   async storeAppUtxo({
     token,
     amountSol,
@@ -1472,9 +1819,19 @@ export class User {
 
   // TODO: add storage transaction nonce to rotate keypairs
   /**
-   * - get indexed transactions for a storage compressed account
-   * - try to decrypt all and add to appUtxos or decrypted data map
-   * - add custom descryption strategies for arbitrary data
+   * This method is used to sync the storage of the user account.
+   * - It gets all transactions of the storage verifier.
+   * - Filters for the ones including noop program.
+   * - Then it builds the merkle tree and checks versus root on-chain.
+   *
+   * @note - The method tries to decrypt each transaction and adds it to the appUtxos or decrypted data map.
+   *
+   * @param idl - The Interface Description Language (IDL) for the program.
+   * @param aes - A flag indicating whether to use AES for decryption. Default is true.
+   * @param merkleTree - The public key of the Merkle tree.
+   *
+   * @returns A promise which resolves to the balances of the programs after synchronization.
+   *
    */
   async syncStorage(
     idl: anchor.Idl,
@@ -1621,6 +1978,14 @@ export class User {
     return this.balance.programBalances;
   }
 
+  /**
+   * Returns an array of all UTXOs (unspent transaction outputs) across all tokens in the balance.
+   * - This method aggregates all UTXOs across all tokens stored in the balance of the user's account.
+   * - It's a utility method that can be used whenever you need to get an overview of all UTXOs the user has.
+   *
+   * @returns An array of Utxo objects.
+   *
+   */
   getAllUtxos(): Utxo[] {
     var allUtxos: Utxo[] = [];
 
@@ -1631,7 +1996,21 @@ export class User {
   }
 
   // TODO: do checks based on IDL, are all accounts set, are all amounts which are not applicable zero?
+
   /**
+   * Stores a data message as a UTXO (unspent transaction output) in the user's account.
+   * - If the `shield` flag is set to true, it creates a shield transaction parameter using the data message.
+   * - If the `shield` flag is set to false, it attempts to find a UTXO with a non-zero SOL balance and creates a transfer transaction parameter using the data message.
+   * - The transaction parameters are then used to carry out the transaction.
+   *
+   * @param message - A Buffer object containing the data to be stored.
+   * @param shield - A boolean flag indicating whether to use the shield action for storing the data.
+   *
+   * @throws `UserError`
+   * - If the size of the message exceeds the maximum allowed message size.
+   * - If no UTXO with sufficient SOL balance is found.
+   *
+   * @returns The result of the transaction.
    *
    */
   async storeData(message: Buffer, shield: boolean = false) {

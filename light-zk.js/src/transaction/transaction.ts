@@ -58,6 +58,18 @@ type PublicInputs = {
   publicAppVerifier?: Array<number>;
 };
 
+/**
+ * The Transaction class represents a transaction in the context of the application.
+ * - It handles various transaction operations like fetching PDA addresses, shuffling UTXOs, sending transactions and more.
+ * - This class encapsulates data related to a transaction, including inputs, parameters, remaining accounts and more.
+ *
+ * @property {Boolean} shuffleEnabled - A flag to enable shuffling of UTXOs.
+ * @property {TransactionParameters} params - Contains all the parameters required for a transaction.
+ * @property {any} appParams - Parameters required for application-specific transactions.
+ * @property {Provider} provider - The provider used for the transaction.
+ * @property {Object} transactionInputs - The inputs for the transaction.
+ * @property {Object} remainingAccounts - The remaining accounts after the transaction.
+ */
 export class Transaction {
   merkleTreeProgram?: Program<typeof IDL_MERKLE_TREE_PROGRAM>;
   shuffleEnabled: Boolean;
@@ -84,10 +96,17 @@ export class Transaction {
   firstPath!: string;
 
   /**
-   * Initialize transaction
+   * Creates an instance of the Transaction class.
    *
-   * @param relayer recipient of the unshielding
-   * @param shuffleEnabled
+   * @param {Object} params - The parameters for the constructor.
+   * @param {Provider} params.provider - The provider used for the transaction.
+   * @param {boolean} params.shuffleEnabled - A flag to enable shuffling of UTXOs.
+   * @param {TransactionParameters} params.params - Contains all the parameters required for a transaction.
+   * @param {any} params.appParams - Parameters required for application-specific transactions.
+   *
+   * @throws {TransactionError} TransactionError:
+   * - When the verifier needs to be application enabled but it's not.
+   * - When the node or browser wallet and senderFee used to instantiate yourself as relayer at deposit are inconsistent.
    */
   constructor({
     provider,
@@ -200,6 +219,27 @@ export class Transaction {
   //   }
   // }
 
+  /**
+   * @async
+   * This asynchronous method is an extension of the compile method that includes additional steps.
+   *  - It not only compiles the transaction which includes preparing proof inputs and arranging
+   * the UTXOs in a specific order, but also generates the zk-SNARK proofs, fetches the root index from the on-chain
+   * Merkle tree and calculates the Program Derived Addresses (PDAs).
+   *
+   * - Next, it generates the proof for the transaction. If application parameters (`appParams`) are
+   * defined, it generates an additional proof for application-specific logic.
+   *
+   * - The method then fetches the index of the root of the local Merkle tree in the Merkle tree stored
+   * on-chain. This is an important step in validating the transaction, as it verifies that the state
+   * of the transaction matches the state of the on-chain Merkle tree.
+   *
+   * - Finally, it calculates and stores the Program Derived Addresses (PDAs) for the transaction. PDAs
+   * are used in the Solana program to handle accounts that are dynamically created during the execution
+   * of the program.
+   *
+   * @returns {Promise<void>} Returns a Promise that resolves when the method has finished executing.
+   *
+   */
   async compileAndProve() {
     await this.compile();
     if (!this.params)
@@ -216,7 +256,26 @@ export class Transaction {
   }
 
   /**
-   * @description Prepares proof inputs.
+   * @async
+   * This asynchronous method prepares proof inputs for a transaction.
+   * - It starts by shuffling the UTXOs (Unspent Transaction Outputs) for both inputs and outputs.
+   *
+   * - The method then fetches the transaction integrity hash and ensures it is defined, otherwise throws an error.
+   * - It then proceeds to generate Merkle proofs for the input UTXOs and uses these proofs along with other transaction parameters to build the `proofInput` object.
+   *
+   * - If `appParams` are provided, the method calculates the transaction hash accordingly and adds it to the `proofInput` object.
+   * - Additionally, it prepares the proofInput for the application-specific logic by incorporating `appParams.inputs` and public keys of the input UTXOs.
+   *
+   * - The `proofInput` object is used later on in the transaction process to generate zk-SNARK proofs.
+   *
+   * @throws {TransactionError} TransactionError: Throws an error if the transaction integrity hash is undefined after calling `getTxIntegrityHash`.
+   * @returns {Promise<void>} Returns a Promise that resolves when the method has finished executing.
+   *
+   * @example
+   * ```typescript
+   * const transaction = new Transaction(params);
+   * await transaction.compile();
+   * ```
    */
   async compile() {
     this.firstPath = path.resolve(__dirname, "../../build-circuits/");
@@ -298,6 +357,14 @@ export class Transaction {
     }
   }
 
+  /**
+   * This method returns the mint of the spl token in the utxo.
+   * @remark
+   * - If the publicAmountSpl parameter of the transaction parameters is zero, the method returns zero.
+   * - If the assetPubkeysCircuit property exists in the transaction parameters, the method returns the second item in the array.
+   * @throws {TransactionError} TransactionError: When the assetPubkeysCircuit property is not available in the transaction parameters.
+   * @returns {BN} Returns a Big Number (BN) instance representing the mint value of the transaction.
+   */
   getMint() {
     if (this.params.publicAmountSpl.toString() == "0") {
       return new BN(0);
@@ -312,12 +379,32 @@ export class Transaction {
     }
   }
 
+  /**
+   * @async
+   * This method generates a proof and assigns the results to 'proofBytes' and 'publicInputs' of 'transactionInputs'.
+   * It is used for system verifier programs.
+   *
+   * @throws {TransactionError} Will throw an error if any issue arises in the 'getProofInternal' method.
+   *
+   * @returns {Promise<void>} A promise that resolves when the proof generation and assignment is complete.
+   *
+   */
   async getProof() {
     const res = await this.getProofInternal(this.params, this.firstPath);
     this.transactionInputs.proofBytes = res.parsedProof;
     this.transactionInputs.publicInputs = res.parsedPublicInputsObject;
   }
 
+  /**
+   * @async
+   * This method generates an application-specific proof and assigns the results to 'proofBytesApp' and 'publicInputsApp' of 'transactionInputs'.
+   * It is used for general app verifier programs
+   *
+   * @throws {TransactionError} Will throw an error if 'appParams' is not defined or 'path' is not defined in 'appParams'.
+   *
+   * @returns {Promise<void>} A promise that resolves when the application-specific proof generation and assignment is complete.
+   *
+   */
   async getAppProof() {
     if (!this.appParams)
       throw new TransactionError(
@@ -343,6 +430,21 @@ export class Transaction {
     this.transactionInputs.publicInputsApp = res.parsedPublicInputsObject;
   }
 
+  /**
+   * @async
+   * This method generates and verifies a proof.
+   * @note - The proof inputs and public inputs are stored in the application verifier program's idl.
+   * @param {TransactionParameters | any} params - An object that contains parameters for the transaction.
+   * @param {string} firstPath - The first path to be used by the Prover Class.
+   *
+   * @throws {TransactionError} TransactionError:
+   * - Will throw an error if 'verifierIdl' is missing in TransactionParameters.
+   * - Will throw an error if the proof generation fails.
+   * - Will throw an error if the proof is invalid.
+   *
+   * @returns {Promise<object>} A promise that resolves to an object with 'parsedProof' and 'parsedPublicInputsObject'.
+   *
+   */
   async getProofInternal(
     params: TransactionParameters | any,
     firstPath: string,
@@ -390,6 +492,16 @@ export class Transaction {
     return { parsedProof, parsedPublicInputsObject };
   }
 
+  /**
+   * @static
+   * This static method is used to generate the hash of a transaction. It is a poseidon hash that commits to all parameters contained in the shielded transaction (all commitment hashes, and the tx integrity hash).
+   * - It takes the transaction parameters and a poseidon instance as arguments.
+   * - It generates separate hashes for input UTXOs and output UTXOs and combines them with the txIntegrityHash to produce the transaction hash.
+   * @param {TransactionParameters} params - The transaction parameters object. It should contain the inputUtxos, outputUtxos and txIntegrityHash properties.
+   * @param {any} poseidon - The Poseidon hash function instance used for hashing.
+   * @throws {TransactionError} TransactionError:When the txIntegrityHash property is not available in the transaction parameters.
+   * @returns {string} Returns a string representing the transaction hash.
+   */
   static getTransactionHash(
     params: TransactionParameters,
     poseidon: any,
@@ -415,8 +527,18 @@ export class Transaction {
 
   // TODO: add index to merkle tree and check correctness at setup
   // TODO: repeat check for example at tx init to acertain that the merkle tree is not outdated
+
   /**
-   * @description fetches the merkle tree pda from the chain and checks in which index the root of the local merkle tree is.
+   * @async
+   * For this method the essence is that the merkle tree root index is sent to the program onchain as instruction data instead of the complete root because of two things.
+   * - To check that the root exists onchain (which we can check in constant time if we know the index of the root in the root history array of the Merkle tree pda).
+   * - To save 24 bytes of data in the instruction data by sending a u64 of 8 bytes instead of the root hash of 32 bytes.
+   * @remark
+   * - If the provider or the merkle tree are not defined in the provider.solMerkleTree, it defaults the root index to 0.
+   * - Otherwise, it fetches the merkle tree account data and finds the root index from there.
+   * @throws {TransactionError} TransactionError:
+   * - If the root index is not found in the merkle tree account data.
+   * @returns {Promise<void>} Returns a promise that resolves when the method has completed. The resolved value is undefined.
    */
   async getRootIndex() {
     if (!this.provider.solMerkleTree)
@@ -471,16 +593,21 @@ export class Transaction {
     }
   }
 
-  /**
-   * @description Computes the indices in which the asset for the utxo is in the asset pubkeys array.
-   * @note Using the indices the zero knowledege proof circuit enforces that only utxos containing the
-   * @note assets in the asset pubkeys array are contained in the transaction.
-   * @param utxos
-   * @returns
-   */
   // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
   // TODO: fix edge case of an assetpubkey being 0
   // TODO: !== !! and check non-null
+
+  /**
+   * This method computes the indices in which the asset for the UTXO is in the asset pubkeys array.
+   * Using these indices, the zero-knowledge proof circuit enforces that only UTXOs containing the assets in the asset pubkeys array
+   * are included in the transaction. This means that the UTXOs that are part of the transaction must correspond to the assets specified
+   * in the `assetPubkeysCircuit` array.
+   *
+   * @param {Utxo[]} utxos - An array of UTXOs that are part of the transaction.
+   * @throws {TransactionError} TransactionError: If the `assetPubkeysCircuit` property is not defined in the `params` object.
+   * @returns {string[][][]} Returns a three-dimensional array of strings that represent the indices of the assets in the asset pubkeys array.
+   *
+   */
   getIndices(utxos: Utxo[]): string[][][] {
     if (!this.params.assetPubkeysCircuit)
       throw new TransactionError(
@@ -521,8 +648,22 @@ export class Transaction {
   }
 
   /**
-   * @description Gets the merkle proofs for every input utxo with amounts > 0.
-   * @description For input utxos with amounts == 0 it returns merkle paths with all elements = 0.
+   * This method retrieves the Merkle proofs for each input UTXO where amounts are greater than 0.
+   * - For input UTXOs where amounts equal 0, it returns Merkle paths with all elements equal to 0.
+   * - This is important for the verification of transactions, where a Merkle proof is used to demonstrate
+   * the inclusion of a transaction within a Merkle tree stored on the Solana blockchain, without revealing the entire tree.
+   *
+   * @param {Provider} provider - The provider instance that includes the solMerkleTree.
+   * @param {Utxo[]} inputUtxos - An array of input UTXOs to retrieve the Merkle proofs for.
+   * @throws {TransactionError} TransactionError: If the `solMerkleTree` is not defined in the provider object.
+   * @returns {Object} Returns an object that includes two properties: `inputMerklePathIndices` and `inputMerklePathElements`.
+   * `inputMerklePathIndices` is an array of strings representing the indices of the input UTXOs within the Merkle tree.
+   * `inputMerklePathElements` is a two-dimensional array of strings representing the path elements of the input UTXOs within the Merkle tree.
+   *
+   * @example
+   * ```typescript
+   * const { inputMerklePathIndices, inputMerklePathElements } = Transaction.getMerkleProofs(provider, inputUtxos);
+   * ```
    */
   static getMerkleProofs(
     provider: Provider,
@@ -582,6 +723,18 @@ export class Transaction {
     return { inputMerklePathIndices, inputMerklePathElements };
   }
 
+  /**
+   * @description This method derives the Program Derived Address (PDA) for a signer authority by using the provided Merkle tree and verifier program public keys. The PDA serves as an account that the program itself controls, providing an additional layer of security and flexibility in Solana programs.
+   *
+   * @param {PublicKey} merkleTreeProgramId - The public key of the Merkle tree program.
+   * @param {PublicKey} verifierProgramId - The public key of the verifier program.
+   * @returns {PublicKey} Returns the derived PublicKey of the signer authority PDA.
+   *
+   * @example
+   * ```typescript
+   * const signerAuthorityPda = Transaction.getSignerAuthorityPda(merkleTreeProgramId, verifierProgramId);
+   * ```
+   */
   static getSignerAuthorityPda(
     merkleTreeProgramId: PublicKey,
     verifierProgramId: PublicKey,
@@ -592,6 +745,19 @@ export class Transaction {
     )[0];
   }
 
+  /**
+   * This method derives the Program Derived Address (PDA) for a registered verifier by using the provided Merkle tree and verifier program public keys.
+   * Similar to `getSignerAuthorityPda` method, this derived address can be used by the program for additional control and security.
+   *
+   * @param {PublicKey} merkleTreeProgramId - The public key of the Merkle tree program.
+   * @param {PublicKey} verifierProgramId - The public key of the verifier program.
+   * @returns {PublicKey} Returns the derived PublicKey of the registered verifier PDA.
+   *
+   * @example
+   * ```typescript
+   * const registeredVerifierPda = Transaction.getRegisteredVerifierPda(merkleTreeProgramId, verifierProgramId);
+   * ```
+   */
   static getRegisteredVerifierPda(
     merkleTreeProgramId: PublicKey,
     verifierProgramId: PublicKey,
@@ -622,6 +788,21 @@ export class Transaction {
   //   }
   // }
 
+  /**
+   * This method sends a transaction to the Solana blockchain.
+   * - If the action of the transaction parameters is not `SHIELD`, the transaction will be sent to a relayer.
+   * - Otherwise, it will be sent directly using the provider's connection.
+   *
+   * @param {any} ix - The transaction instruction to be sent.
+   * @returns {Promise<TransactionSignature | undefined>} Returns a promise that resolves to the transaction signature if the transaction was successfully sent, or `undefined` if there was an issue.
+   *
+   * @throws {TransactionError} TransactionError: If the provider's connection, transaction parameters, relayer, root index, or remaining accounts are not properly defined.
+   *
+   * @example
+   * ```typescript
+   * const transactionSignature = await myTransaction.sendTransaction(instruction);
+   * ```
+   */
   async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
     if (this.params.action !== Action.SHIELD) {
       // TODO: replace this with (this.provider.wallet.pubkey != new relayer... this.relayer
@@ -794,6 +975,20 @@ export class Transaction {
     return instructions;
   }
 
+  /**
+   * This method prepares, sends, and then confirms a transaction on the Solana blockchain.
+   * - The transaction is sent using the provider's connection and the transaction parameters.
+   * - If the `appParams` property is set, it uses those parameters to get the instructions.
+   *
+   * @returns {Promise<TransactionSignature>} Returns a promise that resolves to the transaction signature if the transaction was successfully sent and confirmed.
+   *
+   * @throws {TransactionError} TransactionError: If there's an issue with sending the transaction, or if it fails to get the transaction instructions.
+   *
+   * @example
+   * ```typescript
+   * const transactionSignature = await myTransaction.sendAndConfirmTransaction();
+   * ```
+   */
   async sendAndConfirmTransaction(): Promise<TransactionSignature> {
     if (!this.params)
       throw new TransactionError(
@@ -848,7 +1043,19 @@ export class Transaction {
   }
 
   // TODO: deal with this: set own payer just for that? where is this used?
-  // This is used by applications not the relayer
+  /**
+   * This method creates a Solana transaction to close the state of the verifier.
+   * - The transaction is sent and confirmed using the provider's wallet.
+   * - The method first checks if the necessary dependencies like the provider's wallet and the transaction parameters are properly defined.
+   * - If the `appParams` property is set, it uses those parameters to create the instruction.
+   *
+   * @note
+   * This method is used by applications not the relayer.
+   * @returns {Promise<TransactionSignature>} Returns a promise that resolves to the transaction signature if the transaction was successfully sent and confirmed.
+   *
+   * @throws {TransactionError} TransactionError: If the provider's wallet or the transaction parameters are not properly defined, or if the verifier program is undefined.
+   *
+   */
   async closeVerifierState(): Promise<TransactionSignature> {
     if (!this.provider.wallet)
       throw new TransactionError(
@@ -893,6 +1100,19 @@ export class Transaction {
     }
   }
 
+  /**
+   * This method generates and stores PDA (Program Derived Addresses) for nullifier, leaves, and verifier state.
+   * - It first validates that all necessary data is present (transaction inputs, verifier IDL, relayer, remaining accounts).
+   * - It then generates PDAs for the nullifiers and output commitments (leaves) from the transaction inputs.
+   * - Finally, it generates the PDA for the verifier state, using the relayer's public key and the verifier program ID.
+   *
+   * @throws {TransactionError} TransactionError: If any of the required properties (transaction inputs, verifier IDL, relayer, remaining accounts) are not properly defined.
+   *
+   * @example
+   * ```typescript
+   * myTransaction.getPdaAddresses();
+   * ```
+   */
   getPdaAddresses() {
     if (!this.transactionInputs.publicInputs)
       throw new TransactionError(
@@ -982,6 +1202,19 @@ export class Transaction {
   }
 
   // TODO: use higher entropy rnds
+  /**
+   * Shuffles the array of Unspent Transaction Outputs (UTXOs) in-place using the Fisher-Yates (aka Knuth) algorithm.
+   * @note The method is useful when you want to add an additional layer of unpredictability to the transactions.
+   *
+   * @param {Utxo[]} utxos - An array of unspent transaction outputs that will be shuffled.
+   *
+   * @throws {TransactionError} TransactionError: If the shuffle operation is not enabled.
+   *
+   * @returns {Utxo[]} - The shuffled array of UTXOs.
+   *
+   * @example
+   * const shuffledUtxos = shuffleUtxos(utxosArray);
+   */
   shuffleUtxos(utxos: Utxo[]) {
     if (this.shuffleEnabled) {
       console.log("shuffling utxos");
@@ -1008,6 +1241,15 @@ export class Transaction {
     return utxos;
   }
 
+  /**
+   * This static method retrieves the Program Derived Address (PDA) that is associated with the SPL tokens within the context of the Merkle Tree Program.
+   *
+   * @remarks
+   * - This method utilizes the findProgramAddressSync method of the PublicKey class which returns a PDA based on the provided seeds and program ID.
+   * - The seed here is a UTF-8 encoded string "spl".
+   *
+   * @returns {PublicKey} The PDA related to the SPL tokens within the context of the Merkle Tree Program.
+   */
   static getTokenAuthority(): PublicKey {
     return PublicKey.findProgramAddressSync(
       [utils.bytes.utf8.encode("spl")],

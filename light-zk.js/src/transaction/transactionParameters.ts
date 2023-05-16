@@ -42,11 +42,25 @@ import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 const { keccak_256 } = require("@noble/hashes/sha3");
 
+/**
+ * Represents the configuration of a verifier.
+ *
+ * This object contains the lengths of the `inputNullifier` and `outputCommitment` fields
+ * from a verifier program's IDL object. These lengths are used to verify the validity of
+ * the inputs and outputs.
+ *
+ * @typedef {Object} VerifierConfig
+ * @property {number} in - The number of nullifiers which is the length of the `inputNullifier` field in the verifier program's IDL object.
+ * @property {number} out - The number of leaves which is the length of the `outputCommitment` field in the verifier program's IDL object.
+ */
 type VerifierConfig = {
   in: number;
   out: number;
 };
 
+/**
+ * A class that represents the parameters required for a transaction.
+ */
 export class TransactionParameters implements transactionParameters {
   message?: Buffer;
   inputUtxos: Array<Utxo>;
@@ -68,6 +82,35 @@ export class TransactionParameters implements transactionParameters {
   verifierProgramId: PublicKey;
   verifierConfig: VerifierConfig;
 
+  /**
+   * Creates an instance of TransactionParameters.
+   *
+   * @param {object} options - An object containing the parameters for the transaction.
+   * @param {Buffer} [options.message] - Optional message for the transaction.
+   * @param {PublicKey} [options.messageMerkleTreePubkey] - Optional public key of the message Merkle tree.
+   * @param {PublicKey} options.transactionMerkleTreePubkey - Public key of the transaction Merkle tree.
+   * @param {PublicKey} [options.senderSpl] - Optional public key of the sender for SPL transactions.
+   * @param {PublicKey} [options.recipientSpl] - Optional public key of the recipient for SPL transactions.
+   * @param {PublicKey} [options.senderSol] - Optional public key of the sender for SOL transactions.
+   * @param {PublicKey} [options.recipientSol] - Optional public key of the recipient for SOL transactions.
+   * @param {Utxo[]} [options.inputUtxos] - Optional array of input UTXOs for the transaction.
+   * @param {Utxo[]} [options.outputUtxos] - Optional array of output UTXOs for the transaction.
+   * @param {Relayer} [options.relayer] - Optional relayer for the transaction.
+   * @param {Uint8Array} [options.encryptedUtxos] - Optional encrypted UTXOs for the transaction.
+   * @param {any} options.poseidon - Poseidon hasher for the transaction.
+   * @param {Action} options.action - Action to perform in the transaction.
+   * @param {PublicKey} [options.lookUpTable] - Optional lookup table for the transaction.
+   * @param {Provider} [options.provider] - Optional provider for the transaction.
+   * @param {boolean} [options.ataCreationFee] - Optional flag indicating whether to include the ATA creation fee in the transaction.
+   * @param {number} options.transactionNonce - Nonce for the transaction.
+   * @param {boolean} [options.validateUtxos] - Optional flag indicating whether to validate UTXOs in the transaction.
+   * @param {Idl} options.verifierIdl - Interface description language for the transaction verifier.
+   *
+   * @throws {TransactioParametersError} TransactionParametersError: If no output UTXOs and input UTXOs are provided,
+   * no verifier IDL is provided, no Poseidon hasher is provided, no action is defined,
+   * message Merkle tree pubkey needs to be defined if a message is provided,
+   * message needs to be defined if a message Merkle tree is provided, etc.
+   */
   constructor({
     message,
     messageMerkleTreePubkey,
@@ -479,6 +522,20 @@ export class TransactionParameters implements transactionParameters {
     this.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
   }
 
+  /**
+   * Asynchronously converts transaction parameters to bytes using the BorshAccountsCoder.
+   *
+   * This method performs the following operations:
+   * 1. Initializes a new BorshAccountsCoder with the IDL_VERIFIER_PROGRAM_ZERO.
+   * 2. Converts each utxo in the `inputUtxos` array to bytes and stores them in `inputUtxosBytes`.
+   * 3. Converts each utxo in the `outputUtxos` array to bytes and stores them in `outputUtxosBytes`.
+   * 4. Prepares an object containing the `outputUtxosBytes`, `inputUtxosBytes`, `relayerPubkey`, `relayerFee`, current object's properties, accounts' properties, and `transactionNonce` (converted to a BN instance).
+   * 5. Encodes the prepared object under the "transactionParameters" key using the BorshAccountsCoder.
+   *
+   * @returns {Promise<Buffer>} A promise that resolves to a Buffer containing the encoded transaction parameters.
+   *
+   * @throws {Error} Throws an error if the encoding fails.
+   */
   async toBytes(): Promise<Buffer> {
     let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
     let inputUtxosBytes: any[] = [];
@@ -501,6 +558,22 @@ export class TransactionParameters implements transactionParameters {
     return await coder.encode("transactionParameters", preparedObject);
   }
 
+  /**
+   * A static method to find the index of a specific IDL object in an array of IDL objects based on a given program ID.
+   *
+   * @param {string} programId - The ID of the program for which to find the IDL object.
+   * @param {anchor.Idl[]} idlObjects - An array of IDL objects among which to search.
+   * @returns {number} The index of the IDL object that contains the provided program ID. Returns -1 if the program ID is not found.
+   * @throws {Error} If an IDL object in the provided array does not have any constants.
+   *
+   * @example
+   * ```typescript
+   * let index = TransactionParameters.findIdlIndex("someProgramId", idlArray);
+   * if(index !== -1) {
+   *   console.log("Program ID found at index: " + index);
+   * }
+   * ```
+   */
   static findIdlIndex(programId: string, idlObjects: anchor.Idl[]): number {
     for (let i = 0; i < idlObjects.length; i++) {
       const constants = idlObjects[i].constants;
@@ -521,6 +594,21 @@ export class TransactionParameters implements transactionParameters {
     return -1; // Return -1 if the programId is not found in any IDL object
   }
 
+  /**
+   * A static method to retrieve the verifier program ID from a given IDL object.
+   *
+   * @static
+   * @param {Idl} verifierIdl - The IDL object containing the verifier program ID.
+   * @returns {PublicKey} The verifier program ID as a PublicKey object.
+   *
+   * @example
+   * ```typescript
+   * let verifierProgramId = TransactionParameters.getVerifierProgramId(verifierIdl);
+   * console.log("Verifier program ID: " + verifierProgramId);
+   * ```
+   * @remarks
+   * The programID is expected to be appended as a constant to the program that can be read directly from the IDL.
+   */
   static getVerifierProgramId(verifierIdl: Idl): PublicKey {
     const programId = new PublicKey(
       verifierIdl.constants![0].value.slice(1, -1),
@@ -528,6 +616,15 @@ export class TransactionParameters implements transactionParameters {
     return programId;
   }
 
+  /**
+   * A static method to instantiate a new verifier program from a given IDL object.
+   *
+   * @static
+   * @param {Idl} verifierIdl - The IDL object of the verifier program.
+   * @returns {Program<Idl>} A new Anchor Program object for the verifier program.
+   * @remarks
+   * The programID is expected to be appended as a constant to the program that can be read directly from the IDL.
+   */
   static getVerifierProgram(verifierIdl: Idl): Program<Idl> {
     const programId = new PublicKey(
       verifierIdl.constants![0].value.slice(1, -1),
@@ -536,6 +633,22 @@ export class TransactionParameters implements transactionParameters {
     return verifierProgram;
   }
 
+  /**
+   * A static method to fetch the verifier configuration from a given IDL object.
+   *
+   * This method parses the IDL object to identify an account with a name
+   * that starts with "zK" and ends with "ProofInputs". It then examines the fields
+   * of this account to identify the `inputNullifier` and `outputCommitment` fields,
+   * checking that they are of the correct array type, and retrieves their lengths.
+   * The lengths of these fields are then returned as a VerifierConfig object.
+   *
+   * @static
+   * @param {Idl} verifierIdl - The IDL object of the verifier program.
+   * @returns {VerifierConfig} A VerifierConfig object with the lengths of the `inputNullifier` and `outputCommitment` fields.
+   *
+   * @throws {Error} Throws an error if no matching account is found in the IDL, or if the `inputNullifier` or `outputCommitment` fields are not found or are of incorrect type.
+   *
+   */
   static getVerifierConfig(verifierIdl: Idl): VerifierConfig {
     const accounts = verifierIdl.accounts;
     const resultElement = accounts!.find(
@@ -577,6 +690,28 @@ export class TransactionParameters implements transactionParameters {
     return { in: inputNullifierLength, out: outputCommitmentLength };
   }
 
+  /**
+   * A static method to create a new TransactionParameters instance from a given set of bytes.
+   *
+   * This method decodes the provided bytes using a BorshAccountsCoder and checks the validity of the resulting data.
+   * It retrieves the input and output UTXOs from the decoded data, ensuring that they match the provided IDLs.
+   * It also checks that the relayer's public key matches the one in the decoded data.
+   *
+   * If the decoded recipient is not the AUTHORITY, the action is set to UNSHIELD, otherwise, it's set to TRANSFER.
+   * The method then creates a new TransactionParameters instance with the retrieved data and returns it.
+   *
+   * @static
+   * @param {Object} params - The parameters for the method.
+   * @param {any} params.poseidon - The Poseidon hash function instance.
+   * @param {anchor.Idl[]} [params.utxoIdls] - An optional array of IDLs for the UTXOs.
+   * @param {Buffer} params.bytes - The bytes to decode into a TransactionParameters instance.
+   * @param {Relayer} params.relayer - The relayer for the transaction.
+   * @param {Idl} params.verifierIdl - The IDL of the verifier program.
+   * @returns {Promise<TransactionParameters>} A promise that resolves to a new TransactionParameters instance.
+   *
+   * @throws {TransactioParametersError} Throws a TransactionParametersError if the UTXO IDLs are not provided when needed, or if the relayer's public key does not match the one in the decoded data.
+   *
+   */
   static async fromBytes({
     poseidon,
     utxoIdls,
@@ -677,6 +812,43 @@ export class TransactionParameters implements transactionParameters {
     });
   }
 
+  /**
+   * Static async method to generate transaction parameters.
+   *
+   * @static
+   * @async
+   * @param {Object} params - Parameters for generating transaction parameters.
+   * @param {TokenData} params.tokenCtx - The context of the token involved in the transaction.
+   * @param {BN} params.publicAmountSpl - The amount of SPL tokens involved in the transaction.
+   * @param {BN} params.publicAmountSol - The amount of SOL tokens involved in the transaction.
+   * @param {PublicKey} params.userSplAccount - The SPL account of the user.
+   * @param {Account} params.account - The account involved in the transaction.
+   * @param {Utxo[]} params.utxos - Array of UTXO (Unspent Transaction Outputs) objects.
+   * @param {PublicKey} params.recipientSol - The Solana address of the recipient.
+   * @param {PublicKey} params.recipientSplAddress - The SPL address of the recipient.
+   * @param {Utxo[]} params.inUtxos - Array of input UTXOs for the transaction.
+   * @param {Utxo[]} params.outUtxos - Array of output UTXOs for the transaction.
+   * @param {Action} params.action - The action being performed (shield, unshield, transfer).
+   * @param {Provider} params.provider - The provider for the transaction.
+   * @param {Relayer} params.relayer - The relayer for the transaction.
+   * @param {boolean} params.ataCreationFee - Whether to include the ATA (Associated Token Account) creation fee.
+   * @param {number} params.transactionNonce - The nonce for the transaction.
+   * @param {AppUtxoConfig} params.appUtxo - The configuration for the application UTXO.
+   * @param {boolean} params.addInUtxos - Whether to add input UTXOs to the transaction.
+   * @param {boolean} params.addOutUtxos - Whether to add output UTXOs to the transaction.
+   * @param {Idl} params.verifierIdl - The IDL (Interface Description Language) for the verifier program.
+   * @param {boolean} params.mergeUtxos - Whether to merge UTXOs in the transaction.
+   * @param {Buffer} params.message - The message data for the transaction.
+   * @returns {Promise<TransactionParameters>} - A Promise that resolves with the generated TransactionParameters object.
+   *
+   * @throws {TransactioParametersError} - A TransactionParametersError if action is TRANSFER and no outUtxos and mergeUtxos is not set, or if the action is not SHIELD and relayer fee is undefined, or if the account is undefined.
+   * @throws {CreateUtxoErrorCode} - A CreateUtxoErrorCode if the account is undefined.
+   *
+   * @remarks
+   * The method constructs a TransactionParameters object which includes all the necessary parameters for a transaction.
+   * It selects the necessary input UTXOs, creates the output UTXOs, and validates the relayer and action of the transaction.
+   * It also handles various transaction actions like shield, unshield and transfer.
+   */
   static async getTxParams({
     tokenCtx,
     publicAmountSpl,
@@ -815,12 +987,17 @@ export class TransactionParameters implements transactionParameters {
   }
 
   /**
-   * @description Adds empty utxos until the desired number of utxos is reached.
-   * @note The zero knowledge proof circuit needs all inputs to be defined.
-   * @note Therefore, we have to pass in empty inputs for values we don't use.
-   * @param utxos
-   * @param len
-   * @returns
+   * Adds empty UTXOs to the given array until the array reaches a specified length.
+   *
+   * The zero-knowledge proof circuit requires all inputs to be defined, hence the need
+   * to populate the array with empty UTXOs when necessary. This function ensures that
+   * the number of UTXOs in the array matches the expected number as defined by the zk-SNARKs
+   * protocol.
+   *
+   * @param utxos - The array of UTXOs to which empty UTXOs will be added. Default is an empty array.
+   * @param len - The desired number of UTXOs in the array after the function is executed.
+   *
+   * @returns An array of UTXOs of the desired length, populated with empty UTXOs as needed.
    */
   addEmptyUtxos(utxos: Utxo[] = [], len: number): Utxo[] {
     while (utxos.length < len) {
@@ -836,7 +1013,27 @@ export class TransactionParameters implements transactionParameters {
   }
 
   /**
-   * @description Assigns spl and sol senderSpl or recipientSpl accounts to transaction parameters based on action.
+   * This method assigns sender and recipient accounts for Solana and SPL tokens to the transaction parameters
+   * based on the action (either 'unshield', 'transfer', or 'shield').
+   *
+   * For 'unshield' and 'transfer' actions, it assigns the sender accounts for both SPL and Solana tokens
+   * and checks if the recipient accounts are defined. If not, it throws an error.
+   *
+   * For the 'shield' action, it assigns the recipient accounts and checks if the sender accounts are defined.
+   * If not, it throws an error.
+   *
+   * @throws {TransactioParametersError}
+   * TransactionParametersError:
+   *
+   * - If the action is 'unshield' or 'transfer' and the recipient accounts for SPL or Solana tokens are undefined.
+   *
+   * - If the action is 'shield' and the sender accounts for SPL or Solana tokens are undefined.
+   *
+   * - If the assetPubkeys are undefined.
+   *
+   * - If the action is not 'deposit' but should be, based on the provided sender and recipient accounts and relayer.
+   *
+   * @returns {void}
    */
   assignAccounts() {
     if (!this.assetPubkeys)
@@ -920,6 +1117,14 @@ export class TransactionParameters implements transactionParameters {
     }
   }
 
+  /**
+   * This method generates a Program Derived Address (PDA) with the seed "escrow" for the verifier program.
+   * PDAs in Solana are addresses that are based off of the public key of a deployed program and are
+   * unique to each specific program and seed. This method is used to get the PDA that is used as the escrow account.
+   *
+   * @param {PublicKey} verifierProgramId - The public key of the verifier program.
+   * @returns {PublicKey} - The public key of the escrow Program Derived Address.
+   */
   static getEscrowPda(verifierProgramId: PublicKey): PublicKey {
     return PublicKey.findProgramAddressSync(
       [anchor.utils.bytes.utf8.encode("escrow")],
@@ -927,6 +1132,17 @@ export class TransactionParameters implements transactionParameters {
     )[0];
   }
 
+  /**
+   * This method collects and returns public keys of assets involved in a transaction, from both input and output UTXOs.
+   * It also checks whether the number of different assets involved in the transaction exceeds the maximum limit.
+   * If there are less assets than the maximum allowed, it fills up the remaining space with the System Program's public key.
+   *
+   * @param {Utxo[]} inputUtxos - The input UTXOs for the transaction.
+   * @param {Utxo[]} outputUtxos - The output UTXOs for the transaction.
+   * @returns {{assetPubkeysCircuit: string[]; assetPubkeys: PublicKey[]}} - An object containing arrays of circuit and regular public keys of assets.
+   *
+   * @throws {TransactionError} - TransactionError: If no UTXOs are provided or if the number of different assets exceeds the maximum allowed.
+   */
   static getAssetPubkeys(
     inputUtxos?: Utxo[],
     outputUtxos?: Utxo[],
@@ -1007,10 +1223,16 @@ export class TransactionParameters implements transactionParameters {
   }
 
   /**
-   * @description Calculates the external amount for one asset.
-   * @note This function might be too specific since the circuit allows assets to be in any index
-   * @param assetIndex the index of the asset the external amount should be computed for
-   * @returns {BN} the public amount of the asset
+   * This method calculates the external amount for a specified asset.
+   * It achieves this by adding all output UTXOs of the same asset and subtracting all input UTXOs of the same asset.
+   * The result is then added to the field size and the modulus of the field size is returned.
+   *
+   * @param {number} assetIndex - The index of the asset for which the external amount should be computed.
+   * @param {Utxo[]} inputUtxos - The input UTXOs for the transaction.
+   * @param {Utxo[]} outputUtxos - The output UTXOs for the transaction.
+   * @param {string[]} assetPubkeysCircuit - An array of circuit public keys of assets.
+   * @returns {BN} - The public amount of the asset.
+   *
    */
   static getExternalAmount(
     assetIndex: number,
@@ -1070,7 +1292,9 @@ export class TransactionParameters implements transactionParameters {
    * relayer fee, or encrypted UTXOs are undefined, or if the encryption of UTXOs fails.
    *
    * @example
+   * ```typescript
    * const integrityHash = await getTxIntegrityHash(poseidonInstance);
+   * ```
    */
   async getTxIntegrityHash(poseidon: any): Promise<BN> {
     if (!this.relayer)
@@ -1143,6 +1367,23 @@ export class TransactionParameters implements transactionParameters {
     }
   }
 
+  /**
+   * @async
+   *
+   * This method is used to encrypt the output UTXOs.
+   *
+   * It first checks if there are encrypted UTXOs provided. If so, it uses those as the encrypted outputs.
+   * If not, it goes through the output UTXOs for this transaction. If the UTXO has application data and this is to be included, it throws an error as this is currently not implemented.
+   * Otherwise, it encrypts the UTXO and adds it to the list of encrypted outputs.
+   *
+   * Depending on the verifier configuration, it either combines two encrypted outputs into a single 256 byte output or adds padding to the encrypted outputs to ensure their length is correct.
+   *
+   * @param {any} poseidon - The poseidon hash function.
+   * @param {Uint8Array} [encryptedUtxos] - An optional parameter for previously encrypted UTXOs.
+   * @returns {Promise<Uint8Array>} - A Uint8Array of the encrypted output UTXOs.
+   * @throws {TransactionError} - TransactionError: If automatic encryption for UTXOs with application data is attempted, as this is currently not implemented.
+   *
+   */
   async encryptOutUtxos(poseidon: any, encryptedUtxos?: Uint8Array) {
     let encryptedOutputs = new Array<any>();
     if (encryptedUtxos) {

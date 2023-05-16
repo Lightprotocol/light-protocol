@@ -14,6 +14,21 @@
     "sourceMap": true,
     "skipLibCheck": true
   },
+  "typedocOptions": {
+    "entryPoints":[ 
+      "src/account.ts",
+      "src/constants.ts",
+      "src/errors.ts",
+      "src/relayer.ts",
+      "src/utxo.ts",
+      "src/wallet",
+      "src/types",
+      "src/merkleTree",
+      "src/transaction",
+      "src/cli-utils",
+    ],
+    "out": "docs"
+  },
   "include": ["src", "__tests__", "tests"],
   "exclude": ["node_modules", "**/tests/*"],
   "dry": false,
