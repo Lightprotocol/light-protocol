@@ -1,9 +1,9 @@
 import * as fs from "fs";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
+const spinner = require("cli-spinners");
 
 import {
-  ADMIN_AUTH_KEYPAIR,
   confirmConfig,
   MerkleTreeConfig,
   MESSAGE_MERKLE_TREE_KEY,
@@ -13,11 +13,12 @@ import {
   TestRelayer,
   TRANSACTION_MERKLE_TREE_KEY,
   User,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Spinner } from "cli-spinners";
 
 require("dotenv").config();
 
-var getDirName = require("path").dirname;
 let provider: Provider;
 let relayer: Relayer;
 
@@ -26,7 +27,6 @@ export const createNewWallet = () => {
   const secretKey: solana.Ed25519SecretKey = keypair.secretKey;
   try {
     setSecretKey(JSON.stringify(Array.from(secretKey)));
-    console.log("- secret created and cached");
     return keypair;
   } catch (e: any) {
     throw new Error(`error writing secret.txt: ${e}`);
@@ -34,38 +34,35 @@ export const createNewWallet = () => {
 };
 
 export const getWalletConfig = async (
-  provider: anchor.AnchorProvider
+  connection: solana.Connection
 ): Promise<MerkleTreeConfig> => {
-  let merkleTreeConfig = new MerkleTreeConfig({
-    messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
-    transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
-    payer: getPayer(),
-    connection: provider.connection,
-  });
+  try {
+    let merkleTreeConfig = new MerkleTreeConfig({
+      messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+      payer: getPayer(),
+      connection,
+    });
 
-  await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
 
-  return merkleTreeConfig;
+    return merkleTreeConfig;
+  } catch (error) {
+    console.log({ error });
+    throw error;
+  }
 };
 
 export const getConnection = () =>
   new solana.Connection("http://127.0.0.1:8899");
 
 export const readWalletFromFile = () => {
-  let secretKey: Array<number> = [];
   try {
-    // console.log("secret keyy ====>",getSecretKey())
+    const secretKey = bs58.decode(getSecretKey());
 
-    // secretKey = JSON.parse(getSecretKey());
-
-    let asUint8Array: Uint8Array = new Uint8Array([
-      17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202,
-      187, 228, 110, 146, 97, 112, 131, 180, 164, 96, 220, 57, 207, 65, 107, 2,
-      99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105,
-      144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
-    ]);
-
-    let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
+    let keypair: solana.Keypair = solana.Keypair.fromSecretKey(
+      new Uint8Array(secretKey)
+    );
 
     return keypair;
   } catch (e: any) {
@@ -106,8 +103,6 @@ export const getLightProvider = async (payer?: solana.Keypair) => {
 export const getUser = async () => {
   const provider = await getLightProvider();
 
-  console.log("loading the user ===========>")
-
   return await User.init({ provider });
 };
 
@@ -118,7 +113,7 @@ export const getRelayer = async () => {
       wallet.publicKey,
       new solana.PublicKey(getLookUpTable() || ""),
       getRelayerRecipient(),
-      RELAYER_FEES
+      new anchor.BN(RELAYER_FEES)
     );
 
     return relayer;
@@ -183,7 +178,7 @@ export const setLookUpTable = (address: string): void => {
 export const getPayer = () => {
   const config = getConfig();
 
-  const payer = JSON.parse(config.payer);
+  const payer = bs58.decode(config.payer);
 
   let asUint8Array: Uint8Array = new Uint8Array(payer);
   let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
@@ -213,3 +208,99 @@ export const setConfig = (config: Partial<Config>): void => {
     throw new Error("Failed to update configuration file");
   }
 };
+
+export function generateSolanaTransactionURL(
+  transactionType: "tx" | "address",
+  transactionHash: string,
+  cluster: string
+): string {
+  const url = `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
+
+  return url;
+}
+
+export class CustomLoader {
+  message: string;
+  logInterval: any;
+  logTimer: number | null;
+  startTime: number;
+
+  constructor(message: string, logInterval = 1000) {
+    this.message = message;
+    this.logInterval = logInterval;
+    this.logTimer = null;
+    this.startTime = Date.now();
+  }
+
+  start() {
+    this.startTime = Date.now();
+    const elapsedTime = ((Date.now() - this.startTime) / 1000).toFixed(2);
+    process.stdout.write(
+      `${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${this.message}\n`
+    );
+    this.logInterval = setInterval(() => {}, this.logInterval);
+  }
+
+  stop() {
+    clearInterval(this.logInterval);
+    this.logElapsedTime();
+  }
+
+  logElapsedTime() {
+    const elapsedTime = ((Date.now() - this.startTime) / 1000).toFixed(2);
+    process.stdout.write(
+      `${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
+        this.message
+      } (Elapsed time: ${elapsedTime}s)\n`
+    );
+  }
+}
+
+export function isValidURL(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+export function isValidBase58SecretKey(secretKey: string): boolean {
+  const base58Regex =
+    /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
+  return base58Regex.test(secretKey);
+}
+
+// async discoverFromPath(startFrom: string): Promise<string | null> {
+//   let currentPath: string | null = startFrom;
+
+//   while (currentPath) {
+//     try {
+//       const files = fs.readdirSync(currentPath);
+
+//       for (const file of files) {
+//         const filePath = path.join(currentPath, file);
+
+//         if (file === "package.json") {
+//           return filePath;
+//         }
+//       }
+
+//       // Not found. Go up a directory level.
+//       const parentPath = path.dirname(currentPath);
+//       if (parentPath === currentPath) {
+//         currentPath = null;
+//       } else {
+//         currentPath = parentPath;
+//       }
+//     } catch (err) {
+//       this.error(
+//         `Error reading the directory with path: ${currentPath}`,
+//         err
+//       );
+//       currentPath = null;
+//     }
+//   }
+
+//   return null;
+// }

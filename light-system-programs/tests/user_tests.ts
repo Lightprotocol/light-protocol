@@ -67,7 +67,6 @@ describe("Test User", () => {
       relayerRecipientSol,
       new BN(100000),
     );
-    
   });
 
   it.skip("(user class) shield SPL random infinite", async () => {

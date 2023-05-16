@@ -1,11 +1,22 @@
 import { Command, Flags } from "@oclif/core";
-import { User } from "light-sdk";
-import { getUser } from "../../utils";
+import { User } from "@lightprotocol/zk.js";
+import {
+  CustomLoader,
+  generateSolanaTransactionURL,
+  getUser,
+} from "../../utils/utils";
 
 class ShieldCommand extends Command {
   static description = "Shield tokens for a user";
 
-  static examples = ["$ light shield --token USDC --amountSpl 10"];
+  static examples = [
+    "$ light shield --token USDC --amountSpl 10",
+    "$ light shield --token SOL --amountSpl 1 --recipient ",
+  ];
+
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
 
   static flags = {
     token: Flags.string({
@@ -13,7 +24,7 @@ class ShieldCommand extends Command {
       required: true,
     }),
     recipient: Flags.string({
-      description: "The recipient address",
+      description: "The recipient shielded/encryption publickey",
     }),
     amountSpl: Flags.string({
       description: "The amount of token to shield (SPL)",
@@ -44,17 +55,12 @@ class ShieldCommand extends Command {
       skipDecimalConversions,
     } = flags;
 
+    const loader = new CustomLoader("Performing shield operation...");
+
+    loader.start();
+
     try {
       const user: User = await getUser();
-
-      console.log({
-        token,
-        recipient,
-        publicAmountSpl: amountSpl ? amountSpl : undefined,
-        publicAmountSol: amountSol ? amountSol : undefined,
-        minimumLamports,
-        skipDecimalConversions,
-      })
 
       const response = await user.shield({
         token,
@@ -65,11 +71,16 @@ class ShieldCommand extends Command {
         skipDecimalConversions,
       });
 
-      this.log(`Successfully shielded: ${token}`);
-      this.log("transaction hash", response.txHash);
-      console.log("transaction hash ==========>", response.txHash);
+      this.log(
+        `Successfully shielded ${
+          token.toLowerCase() === "sol" ? amountSol : amountSpl
+        } ${token}`
+      );
+      this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
+      loader.stop();
     } catch (error) {
-      this.error(`Shielding tokens failed: ${error}`);
+      loader.stop();
+      this.error(`\nShielding tokens failed: ${error}`);
     }
   }
 }

@@ -1,8 +1,11 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { getUser } from "../../utils";
-import { Account } from "light-sdk";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-let circomlibjs = require("circomlibjs");
+import {
+  CustomLoader,
+  generateSolanaTransactionURL,
+  getUser,
+  readWalletFromFile,
+} from "../../utils/utils";
+import { User } from "@lightprotocol/zk.js";
 
 class TransferCommand extends Command {
   static description = "Transfer tokens to a recipient";
@@ -16,18 +19,22 @@ class TransferCommand extends Command {
       description: "The token to transfer",
       required: true,
     }),
-    amountSpl: Flags.integer({
+    amountSpl: Flags.string({
       description: "The amount of token to transfer (SPL)",
     }),
-    amountSol: Flags.integer({
+    amountSol: Flags.string({
       description: "The amount of token to transfer (SOL)",
     }),
   };
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
   static args = {
     recipient: Args.string({
       name: "recipient",
-      description: "The recipient address",
+      description: "The recipient shielded/encryption publickey",
       required: true,
     }),
   };
@@ -38,28 +45,33 @@ class TransferCommand extends Command {
     const { recipient } = args;
     const { token, amountSpl, amountSol } = flags;
 
+    const loader = new CustomLoader("Performing token transfer...");
+
+    loader.start();
+
     try {
-      const user = await getUser();
+      await readWalletFromFile();
 
-      console.log(new Uint8Array(32).fill(9));
+      const user: User = await getUser();
 
-      console.log({
+      const response = await user.transfer({
         token,
         amountSpl,
         amountSol,
         recipient,
       });
 
-      await user.transfer({
-        token,
-        amountSpl,
-        amountSol,
-        recipient,
-      });
-
-      this.log(`Tokens successfully transferred to recipient: ${recipient}`);
+      this.log(
+        `Successfully transferred ${
+          token.toLowerCase() === "sol" ? amountSol : amountSpl
+        } ${token}`
+      );
+      this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
+      loader.stop();
     } catch (error) {
-      this.error(`Transfer failed: ${error}`);
+      loader.stop();
+
+      this.error(`\nToken transfer failed: ${error}`);
     }
   }
 }

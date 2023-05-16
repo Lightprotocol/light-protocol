@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
-import { IndexedTransaction } from "light-sdk";
-import { getUser } from "../../utils";
+import { IndexedTransaction } from "@lightprotocol/zk.js";
+import { CustomLoader, getUser } from "../../utils/utils";
 
 class TransactionHistoryCommand extends Command {
   static description = "Retrieve transaction history for the user";
@@ -13,9 +13,23 @@ class TransactionHistoryCommand extends Command {
     }),
   };
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
+  static examples: Command.Example[] = [
+    "$ light history",
+    "$ light history --latest=false",
+  ];
+
   async run() {
     const { flags } = await this.parse(TransactionHistoryCommand);
+
     const { latest } = flags;
+
+    const loader = new CustomLoader("Retrieving user transaction history...");
+
+    loader.start();
 
     const user = await getUser();
 
@@ -25,42 +39,31 @@ class TransactionHistoryCommand extends Command {
 
       // Log the transaction history
       transactions.forEach((transaction) => {
-        console.log("--- Transaction ---");
-        console.log("Block Time:", transaction.blockTime);
-        console.log("Signer:", transaction.signer.toString());
-        console.log("Signature:", transaction.signature);
-        console.log("From:", transaction.from.toString());
-        console.log("To:", transaction.to.toString());
-        console.log(
+        this.log("\n--- Transaction ---");
+        this.log("Block Time:", transaction.blockTime);
+        this.log("Signer:", transaction.signer.toString());
+        this.log("Signature:", transaction.signature);
+        this.log("From:", transaction.from.toString());
+        this.log("To:", transaction.to.toString());
+        this.log(
           "Relayer Recipient Sol:",
           transaction.relayerRecipientSol.toString()
         );
-        console.log("Type:", transaction.type);
-        console.log(
-          "Change Sol Amount:",
-          transaction.changeSolAmount.toString()
-        );
-        console.log(
-          "Public Amount Sol:",
-          transaction.publicAmountSol.toString()
-        );
-        console.log(
-          "Public Amount SPL:",
-          transaction.publicAmountSpl.toString()
-        );
-        console.log("Relayer Fee:", transaction.relayerFee.toString());
-        console.log("Message:", transaction.message);
-        console.log("------------------");
+        this.log("Type:", transaction.type);
+        this.log("Change Sol Amount:", transaction.changeSolAmount.toString());
+        this.log("Public Amount Sol:", transaction.publicAmountSol.toString());
+        this.log("Public Amount SPL:", transaction.publicAmountSpl.toString());
+        this.log("Relayer Fee:", transaction.relayerFee.toString());
+        this.log("Message:", transaction.message);
+        this.log("------------------");
       });
+
+      loader.stop();
     } catch (error) {
-      console.error("Error retrieving transaction history:", error);
+      loader.stop();
+      this.error(`\nError retrieving transaction history: ${error}`);
     }
   }
 }
 
-TransactionHistoryCommand.examples = [
-  "$ light getTransactionHistory",
-  "$ light getTransactionHistory --latest=false",
-];
-
-module.exports = TransactionHistoryCommand;
+export default TransactionHistoryCommand;

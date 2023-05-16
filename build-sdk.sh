@@ -6,6 +6,11 @@ pushd light-zk.js
 yarn run build
 popd
 
+pushd light-cli
+rm -rf node_modules
+yarn
+popd
+
 pushd light-circuits
 rm -rf node_modules
 yarn
