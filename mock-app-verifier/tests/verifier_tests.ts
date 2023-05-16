@@ -39,6 +39,7 @@ import {
   useWallet,
   TestRelayer,
   IDL_VERIFIER_PROGRAM_TWO,
+  LOOK_UP_TABLE
 } from "light-sdk";
 
 import { IDL } from "../target/types/mock_verifier";
@@ -69,8 +70,6 @@ describe("Verifier Two test", () => {
 
   before(async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-    await setUpMerkleTree(provider);
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 

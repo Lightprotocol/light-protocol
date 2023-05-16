@@ -27,6 +27,8 @@ import {
   MINT,
   airdropShieldedMINTSpl,
   IDL_VERIFIER_PROGRAM_ZERO,
+  Provider,
+  LOOK_UP_TABLE
 } from "light-sdk";
 import {
   Keypair as SolanaKeypair,
@@ -41,7 +43,7 @@ import { IDL } from "../target/types/mock_verifier";
 import { assert, expect } from "chai";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const verifierProgramId = new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
-var POSEIDON, LOOK_UP_TABLE, RELAYER, KEYPAIR, relayerRecipientSol: PublicKey ,outputUtxoSpl: Utxo, outputUtxoSol: Utxo;
+var POSEIDON, RELAYER, KEYPAIR, relayerRecipientSol: PublicKey ,outputUtxoSpl: Utxo, outputUtxoSol: Utxo;
 const performStoreAppUtxo = async (seed: string, testInputs: any, airdrop: boolean) => {
   const lightProvider = await LightProvider.init({
     wallet: ADMIN_AUTH_KEYPAIR,
@@ -60,7 +62,7 @@ const performStoreAppUtxo = async (seed: string, testInputs: any, airdrop: boole
     action: testInputs.action,
   });
   const res: Map<string, ProgramUtxoBalance> = await user.syncStorage(IDL);
-  
+
   Utxo.equal(testInputs.poseidon, res.get(verifierProgramId.toBase58()).tokenBalances.get(testInputs.utxo.assets[1].toBase58()).utxos.get(testInputs.utxo.getCommitment(testInputs.poseidon)), testInputs.utxo);
 }
 
@@ -89,11 +91,6 @@ describe("Mock verifier functional", () => {
       poseidon: POSEIDON,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
-    await setUpMerkleTree(provider);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(
-      provider,
-      "lookUpTable.txt" /*Array.from([relayerRecipientSol])*/,
-    );
 
     relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
