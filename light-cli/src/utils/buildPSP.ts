@@ -162,6 +162,7 @@ export async function buildPSP(
   let stdout = execSync(
     `${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`
   );
+  
   console.log(stdout.toString().trim());
 
   const circuitMainFileName = extractFilename(stdout.toString().trim());

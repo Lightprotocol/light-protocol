@@ -8,7 +8,7 @@
 node_modules
 oclif.manifest.json
 .yarn
-./yarn
-/test-ledger
 test-ledger
-
+.DS_store
+/**/.DS_store
+/cli/bin

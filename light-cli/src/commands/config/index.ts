@@ -1,6 +1,11 @@
 import { Command, Flags } from "@oclif/core";
 import * as fs from "fs";
-import { CustomLoader } from "../../utils/utils";
+import {
+  CustomLoader,
+  isValidBase58SecretKey,
+  isValidURL,
+} from "../../utils/utils";
+import { PublicKey } from "@solana/web3.js";
 
 class ConfigCommand extends Command {
   static description = "Update the configuration values";
@@ -16,7 +21,7 @@ class ConfigCommand extends Command {
     }),
     secretKey: Flags.string({
       char: "s",
-      description: "Secret key in string format",
+      description: "solana keypair secretkey in base58 string format",
     }),
     relayerRecipient: Flags.string({
       char: "u",
@@ -25,10 +30,6 @@ class ConfigCommand extends Command {
     lookupTable: Flags.string({
       char: "t",
       description: "Look-up table",
-    }),
-    payer: Flags.string({
-      char: "p",
-      description: "Payer secret key",
     }),
   };
 
@@ -39,7 +40,7 @@ class ConfigCommand extends Command {
   static examples = [
     "$ light config --rpcUrl https://solana-api.example.com",
     "$ light config --relayerUrl https://relayer.example.com",
-    "$ light config --secretKey your-secret-key-in-base58-string-format",
+    "$ light config --secretKey your solana-keypair-secretkey-in-base58-string-format",
     "$ light config --relayerRecipient <recipient_address>",
     "$ light config --lookupTable <lookup_table>",
   ];
@@ -57,19 +58,39 @@ class ConfigCommand extends Command {
       const config = JSON.parse(fs.readFileSync("config.json", "utf-8"));
 
       if (rpcUrl) {
-        config.rpcUrl = rpcUrl;
+        if (isValidURL(rpcUrl)) {
+          config.rpcUrl = rpcUrl;
+        } else {
+          this.error(`\nInvalid URL format`);
+        }
       }
       if (relayerUrl) {
-        config.relayerUrl = relayerUrl;
+        if (isValidURL(relayerUrl)) {
+          config.relayerUrl = relayerUrl;
+        } else {
+          this.error(`\nInvalid URL format`);
+        }
       }
       if (secretKey) {
-        config.secretKey = secretKey;
+        if (isValidBase58SecretKey(secretKey)) {
+          config.secretKey = secretKey;
+        } else {
+          this.error(`\nInvalid solana keypair base58 string format`);
+        }
       }
       if (relayerRecipient) {
-        config.relayerRecipient = relayerRecipient;
+        if (new PublicKey(relayerRecipient)) {
+          config.relayerRecipient = relayerRecipient;
+        } else {
+          this.error(`\nInvalid publickey format`);
+        }
       }
       if (lookupTable) {
-        config.lookUpTable = lookupTable;
+        if (new PublicKey(lookupTable)) {
+          config.lookUpTable = lookupTable;
+        } else {
+          this.error(`\nInvalid publickey format`);
+        }
       }
 
       fs.writeFileSync("config.json", JSON.stringify(config, null, 2));

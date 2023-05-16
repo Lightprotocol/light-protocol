@@ -20,13 +20,18 @@ class MergeUtxosCommand extends Command {
       description: "Token of the UTXOs to merge",
       required: true,
     }),
+    all: Flags.boolean({
+      name: "all-inbox",
+      description: "merges all inbox utxos of a asset",
+      default: false,
+    }),
   };
 
   static args = {
     commitments: Args.string({
       name: "commitments",
       description: "Commitments of the UTXOs to merge",
-      required: true,
+      required: false,
       multiple: true,
     }),
   };
@@ -37,12 +42,13 @@ class MergeUtxosCommand extends Command {
 
   static examples = [
     "$ light merge-utxos --latest --token USDC 0xcommitment1 0xcommitment2 0xcommitment3",
+    "$ light merge-utxos --latest --token USDC --allInbox",
   ];
 
   async run() {
     const { flags, args } = await this.parse(MergeUtxosCommand);
     const { commitments } = args;
-    const { latest, token } = flags;
+    const { latest, token, all } = flags;
 
     const loader = new CustomLoader("Performing UTXO merge...");
 
@@ -55,12 +61,16 @@ class MergeUtxosCommand extends Command {
     const tokenCtx = TOKEN_REGISTRY.get(tokenSymbol);
 
     try {
-      const response = await user.mergeUtxos(
-        [commitments],
-        tokenCtx?.mint!,
-        latest
-      );
-
+      let response;
+      if (all) {
+        response = await user.mergeAllUtxos(tokenCtx?.mint!, latest);
+      } else {
+        response = await user.mergeUtxos(
+          [commitments!],
+          tokenCtx?.mint!,
+          latest
+        );
+      }
       this.log("\nUTXOs merged successfully!");
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
       loader.stop();
