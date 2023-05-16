@@ -13,7 +13,6 @@ import {
   TOKEN_REGISTRY,
 } from "../constants";
 import { Utxo } from "utxo";
-import { MINT } from "./constants_system_verifier";
 
 export type TestInputs = {
   amountSpl?: number;
@@ -150,18 +149,16 @@ export class TestStateValidator {
 
     if (amountSpl && type) {
       assert.strictEqual(
-        this.recentTransaction!.publicAmountSpl.div(
-          this.tokenCtx!.decimals,
-        ).toNumber(),
+        this.recentTransaction!.publicAmountSpl.toNumber() /
+          this.tokenCtx!.decimals.toNumber(),
         type === Action.TRANSFER ? 0 : amountSpl,
       );
     }
 
     if (amountSol) {
       assert.strictEqual(
-        this.recentTransaction!.publicAmountSol.div(
-          this.tokenCtx!.decimals,
-        ).toNumber(),
+        this.recentTransaction!.publicAmountSol.toNumber() /
+          this.tokenCtx!.decimals.toNumber(),
         type === Action.TRANSFER ? 0 : amountSol,
       );
     }
@@ -393,16 +390,19 @@ export class TestStateValidator {
     let tokenBalancePre = _tokenBalancePre ? _tokenBalancePre : new BN(0);
 
     assert.equal(
-      tokenBalanceAfter!.toNumber(),
-      tokenBalancePre!.toNumber() + amount * this.tokenCtx?.decimals.toNumber(),
+      tokenBalanceAfter!
+        .toNumber()
+        .toFixed(this.tokenCtx.decimals.toString().length - 1),
+      (
+        tokenBalancePre!.toNumber() +
+        amount * this.tokenCtx?.decimals.toNumber()
+      ).toFixed(this.tokenCtx.decimals.toString().length - 1),
       `Token shielded balance isSender ${
         userBalances.isSender
       } after ${tokenBalanceAfter!} != token shield amount ${tokenBalancePre!.toNumber()} + ${
         amount * this.tokenCtx?.decimals.toNumber()
       }
-       balance ${userBalances.user.balance} utxos: ${
-        userBalances.user.balance.tokenBalances
-      }`,
+       balance utxos: ${userBalances.user.balance.tokenBalances}`,
     );
   }
 
@@ -413,8 +413,12 @@ export class TestStateValidator {
       );
 
     assert.equal(
-      postTokenBalance.value.uiAmount,
-      userBalances.preTokenBalance! + amount,
+      postTokenBalance.value.uiAmount?.toFixed(
+        this.tokenCtx.decimals.toString().length - 1,
+      ),
+      (userBalances.preTokenBalance! + amount).toFixed(
+        this.tokenCtx.decimals.toString().length - 1,
+      ),
       `user is sender ${userBalances.isSender} token balance after ${
         postTokenBalance.value.uiAmount
       } != user token balance before ${userBalances.preTokenBalance!} + shield amount ${amount}`,
@@ -431,10 +435,12 @@ export class TestStateValidator {
     );
 
     assert.equal(
-      postSolBalance,
-      userBalances.preSolBalance! +
+      postSolBalance.toFixed(this.tokenCtx.decimals.toString().length - 1),
+      (
+        userBalances.preSolBalance! +
         amount * this.tokenCtx.decimals.toNumber() +
-        tempAccountCost,
+        tempAccountCost
+      ).toFixed(this.tokenCtx.decimals.toString().length - 1),
       `user token balance after ${postSolBalance} != user token balance before ${userBalances.preSolBalance} + shield amount ${amount} sol`,
     );
   }
@@ -458,8 +464,12 @@ export class TestStateValidator {
       : userBalances.preShieldedInboxBalance!.totalSolBalance;
 
     assert.equal(
-      solBalanceAfter!.toNumber(),
-      solBalancePre!.toNumber() + amount,
+      solBalanceAfter!
+        .toNumber()
+        .toFixed(this.tokenCtx.decimals.toString().length - 1),
+      (solBalancePre!.toNumber() + amount).toFixed(
+        this.tokenCtx.decimals.toString().length - 1,
+      ),
       `shielded sol balance after ${solBalanceAfter!} != shield amount ${solBalancePre!.toNumber()} + ${amount}`,
     );
   }
@@ -549,6 +559,7 @@ export class TestStateValidator {
     const spentUtxoLength = this.recipient.user.balance.tokenBalances.get(
       this.tokenCtx.mint.toBase58(),
     )?.spentUtxos.size;
+
     assert.equal(
       spentUtxoLength ? spentUtxoLength : 0,
       this.testInputs.expectedSpentUtxosLength,
