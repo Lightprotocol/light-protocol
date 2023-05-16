@@ -3,10 +3,16 @@ import { PublicKey } from "@solana/web3.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
-  getConnection,
+  setAnchorProvider,
 } from "../../utils/utils";
 import { getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
-import { ADMIN_AUTH_KEYPAIR, MINT } from "@lightprotocol/zk.js";
+import {
+  ADMIN_AUTH_KEYPAIR,
+  MINT,
+  airdropSol,
+  convertAndComputeDecimals,
+} from "@lightprotocol/zk.js";
+import { BN } from "@coral-xyz/anchor";
 
 class AirdropCommand extends Command {
   static description = "Perform a native Solana or SPL airdrop to a user";
@@ -29,8 +35,8 @@ class AirdropCommand extends Command {
   };
 
   static examples = [
-    `$ light airdrop --token SOL --amount 2000000000 <userPublicKey>`,
-    `$ light airdrop --token USDC --amount 10000 <userPublicKey>`,
+    `$ light airdrop --token SOL --amount 1.0 <userPublicKey>`,
+    `$ light airdrop --token USDC --amount 10 <userPublicKey>`,
   ];
 
   static args = {
@@ -53,27 +59,24 @@ class AirdropCommand extends Command {
     let response;
 
     try {
-      const connection = await getConnection();
+      const provider = await setAnchorProvider();
 
       if (token.toLowerCase() === "sol") {
-        console.log("here -==========>",connection.rpcEndpoint);
-
-        response = await connection.requestAirdrop(
-          new PublicKey(userPublicKey),
-          amount
-        );
-
-        await connection.confirmTransaction(response, "confirmed");
+        response = await airdropSol({
+          provider: provider,
+          amount: convertAndComputeDecimals(amount, new BN(1e9)),
+          recipientPublicKey: new PublicKey(userPublicKey),
+        });
       } else {
         let tokenAccount = await getOrCreateAssociatedTokenAccount(
-          connection,
+          provider.connection,
           ADMIN_AUTH_KEYPAIR,
           MINT,
           new PublicKey(userPublicKey)
         );
 
         response = await mintTo(
-          connection,
+          provider.connection,
           ADMIN_AUTH_KEYPAIR,
           MINT,
           tokenAccount.address,
@@ -86,9 +89,7 @@ class AirdropCommand extends Command {
       this.log(
         `\nAirdrop successful for user: ${userPublicKey}, amount: ${amount} ${token}`
       );
-      this.log(
-        generateSolanaTransactionURL("tx", response.toString(), "custom")
-      );
+      this.log(generateSolanaTransactionURL("tx", response!, "custom"));
       loader.stop();
     } catch (error) {
       loader.stop();

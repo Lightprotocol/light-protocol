@@ -136,6 +136,7 @@ export function decimalConversion({
   }
   return { publicAmountSpl, publicAmountSol };
 }
+
 export const convertAndComputeDecimals = (
   amount: BN | string | number,
   decimals: BN,
