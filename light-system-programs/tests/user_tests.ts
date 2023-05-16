@@ -28,7 +28,7 @@ import {
   Action,
   TestStateValidator,
   airdropShieldedSol,
-  LOOK_UP_TABLE
+  LOOK_UP_TABLE,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
