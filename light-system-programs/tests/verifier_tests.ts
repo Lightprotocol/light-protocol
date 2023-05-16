@@ -35,11 +35,12 @@ import {
   TestRelayer,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
+  LOOK_UP_TABLE,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 
-var LOOK_UP_TABLE, POSEIDON, KEYPAIR, RELAYER, deposit_utxo1;
+var POSEIDON, KEYPAIR, RELAYER, deposit_utxo1;
 
 var transactions: Transaction[] = [];
 console.log = () => {};
@@ -60,8 +61,6 @@ describe("Verifier Zero and One Tests", () => {
 
   before(async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-    await setUpMerkleTree(provider);
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 

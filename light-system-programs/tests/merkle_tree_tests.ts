@@ -44,12 +44,12 @@ import {
   Provider,
   Action,
   TestRelayer,
-  Relayer,
+  LOOK_UP_TABLE,
   MESSAGE_MERKLE_TREE_KEY,
 } from "light-sdk";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
-var LOOK_UP_TABLE, POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
+var POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
@@ -68,8 +68,6 @@ describe("Merkle Tree Tests", () => {
   var INVALID_MERKLE_TREE_AUTHORITY_PDA, INVALID_SIGNER;
   before(async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-    // await setUpMerkleTree(provider);
 
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       TRANSACTION_MERKLE_TREE_KEY,

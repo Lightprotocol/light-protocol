@@ -9,7 +9,7 @@ let circomlibjs = require("circomlibjs");
 import {
   Transaction,
   Utxo,
-  setUpMerkleTree,
+  LOOK_UP_TABLE,
   initLookUpTableFromFile,
   MerkleTreeProgram,
   merkleTreeProgramId,
@@ -43,7 +43,6 @@ import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Account } from "light-sdk/lib/account";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
-var LOOK_UP_TABLE;
 var POSEIDON;
 var RELAYER;
 var KEYPAIR;
@@ -63,8 +62,7 @@ describe("verifier_program", () => {
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-    await setUpMerkleTree(provider);
+
     POSEIDON = await circomlibjs.buildPoseidonOpt();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     KEYPAIR = new Account({

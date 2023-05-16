@@ -57,6 +57,10 @@ export const verifierProgramTwoProgramId = new PublicKey(
   "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8",
 );
 
+export const LOOK_UP_TABLE = new PublicKey(
+  "DyZnme4h32E66deCvsAV6pVceVw8s6ucRhNcwoofVCem",
+);
+
 export type merkleTreeProgram = Program<MerkleTreeProgram>;
 export type verifierProgramZero = Program<VerifierProgramZero>;
 export type verifierProgramOne = Program<VerifierProgramOne>;

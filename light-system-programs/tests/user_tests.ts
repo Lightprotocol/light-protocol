@@ -28,11 +28,11 @@ import {
   Action,
   TestStateValidator,
   airdropShieldedSol,
+  LOOK_UP_TABLE,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 
-var LOOK_UP_TABLE;
 var POSEIDON;
 var RELAYER: TestRelayer, provider: Provider;
 
@@ -51,8 +51,6 @@ describe("Test User", () => {
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(anchorProvider);
-    await setUpMerkleTree(anchorProvider);
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
@@ -350,7 +348,6 @@ describe("Test User Errors", () => {
   before("init test setup Merkle tree lookup table etc ", async () => {
     if ((await providerAnchor.connection.getBalance(ADMIN_AUTH_KEY)) === 0) {
       await createTestAccounts(providerAnchor.connection);
-      LOOK_UP_TABLE = await initLookUpTableFromFile(providerAnchor);
     }
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();

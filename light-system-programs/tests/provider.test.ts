@@ -35,11 +35,11 @@ import {
   DEFAULT_ZERO,
   TRANSACTION_MERKLE_TREE_KEY,
   TestRelayer,
+  LOOK_UP_TABLE,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 
-var LOOK_UP_TABLE;
 var POSEIDON, KEYPAIR;
 var RELAYER;
 
@@ -61,9 +61,7 @@ describe("verifier_program", () => {
     let initLog = console.log;
     // console.log = () => {};
     await createTestAccounts(provider.connection);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-    await setUpMerkleTree(provider);
-    // console.log = initLog;
+
     POSEIDON = await circomlibjs.buildPoseidonOpt();
     KEYPAIR = new Account({
       poseidon: POSEIDON,
