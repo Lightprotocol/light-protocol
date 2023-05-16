@@ -67,7 +67,6 @@ export const readWalletFromFile = () => {
 
     let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
 
-    console.log("Wallet found!", keypair.publicKey.toString());
     return keypair;
   } catch (e: any) {
     throw new Error("secret key not found or corrupted!");
@@ -76,7 +75,6 @@ export const readWalletFromFile = () => {
 
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  console.log({ hello: getrpcUrl() });
   process.env.ANCHOR_PROVIDER_URL = await getrpcUrl();
 
   const providerAnchor = anchor.AnchorProvider.local(

@@ -15,10 +15,10 @@ class ShieldCommand extends Command {
     recipient: Flags.string({
       description: "The recipient address",
     }),
-    amountSpl: Flags.integer({
+    amountSpl: Flags.string({
       description: "The amount of token to shield (SPL)",
     }),
-    amountSol: Flags.integer({
+    amountSol: Flags.string({
       description: "The amount of token to shield (SOL)",
     }),
     minimumLamports: Flags.boolean({
@@ -47,22 +47,27 @@ class ShieldCommand extends Command {
     try {
       const user: User = await getUser();
 
+      console.log({
+        token,
+        recipient,
+        publicAmountSpl: amountSpl ? amountSpl : undefined,
+        publicAmountSol: amountSol ? amountSol : undefined,
+        minimumLamports,
+        skipDecimalConversions,
+      })
+
       const response = await user.shield({
         token,
         recipient,
-        publicAmountSpl: amountSpl,
-        publicAmountSol: amountSol,
+        publicAmountSpl: amountSpl ? amountSpl : 0,
+        publicAmountSol: amountSol ? amountSol : 0,
         minimumLamports,
         skipDecimalConversions,
       });
 
-      console.log(response);
-
-      const balance = await user.getBalance();
-
-      console.log({ balance });
-
       this.log(`Successfully shielded: ${token}`);
+      this.log("transaction hash", response.txHash);
+      console.log("transaction hash ==========>", response.txHash);
     } catch (error) {
       this.error(`Shielding tokens failed: ${error}`);
     }

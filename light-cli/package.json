@@ -18,12 +18,15 @@
     "@oclif/plugin-help": "^5",
     "@oclif/plugin-plugins": "^2.4.7",
     "@solana/web3.js": "^1.76.0",
+    "bn.js": "^5.2.1",
+    "circomlibjs": "^0.1.7",
     "dotenv": "^16.0.3",
     "fs": "^0.0.1-security",
     "light-sdk": "file:../light-sdk-ts"
   },
   "devDependencies": {
     "@oclif/test": "^2.3.17",
+    "@types/bn.js": "^5.1.1",
     "@types/chai": "^4",
     "@types/mocha": "^9.0.0",
     "@types/node": "^16.18.26",

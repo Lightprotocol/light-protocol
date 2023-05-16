@@ -1,11 +1,13 @@
 import { Command, Flags } from "@oclif/core";
 import { getUser } from "../../utils";
+import { PublicKey } from "@solana/web3.js";
+import { User } from "light-sdk";
 
 class UnshieldCommand extends Command {
   static description = "Unshield tokens for a user";
 
   static examples: Command.Example[] = [
-    "$ light unshield --token ABC123 --publicAmountSpl 1000000",
+    "$ light unshield --token USDC --amountSpl 1000000 --recipienSpl <address>",
   ];
 
   static flags = {
@@ -19,10 +21,10 @@ class UnshieldCommand extends Command {
     recipientSol: Flags.string({
       description: "The recipient SOL address",
     }),
-    publicAmountSpl: Flags.integer({
+    amountSpl: Flags.integer({
       description: "The amount of token to unshield (SPL)",
     }),
-    publicAmountSol: Flags.integer({
+    amountSol: Flags.integer({
       description: "The amount of token to unshield (SOL)",
     }),
     minimumLamports: Flags.boolean({
@@ -39,25 +41,29 @@ class UnshieldCommand extends Command {
       token,
       recipientSpl,
       recipientSol,
-      publicAmountSpl,
-      publicAmountSol,
+      amountSpl,
+      amountSol,
       minimumLamports,
     } = flags;
 
     try {
+      const user: User = await getUser();
 
-      const user = await getUser()
-
-      await user.unshield({
+      const response = await user.unshield({
         token,
-        recipientSpl,
-        recipientSol,
-        publicAmountSpl,
-        publicAmountSol,
+        recipientSpl: recipientSpl
+          ? new PublicKey(recipientSpl)
+          : PublicKey.default,
+        recipientSol: recipientSol
+          ? new PublicKey(recipientSol)
+          : PublicKey.default,
+        publicAmountSpl: amountSpl,
+        publicAmountSol: amountSol,
         minimumLamports,
       });
 
-      this.log(`Tokens successfully unshielded for token: ${token}`);
+      this.log(`Successfully unshielded ${token}`);
+      this.log("transaction hash ======>", response.txHash);
     } catch (error) {
       this.error(`Unshielding tokens failed: ${error}`);
     }

@@ -47,9 +47,9 @@ class SetupCommand extends Command {
         2_000_000_000
       );
 
-      console.log("Setup completed successfully.");
+      this.log("Setup completed successfully.");
     } catch (error) {
-      console.error("Setup failed:", error);
+      this.error(`Setup failed: ${error}`);
     }
   }
 }

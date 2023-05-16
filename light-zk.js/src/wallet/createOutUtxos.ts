@@ -116,7 +116,7 @@ export function createOutUtxos({
 
   if (relayerFee) {
     publicAmountSol = publicAmountSol
-      ? publicAmountSol.add(relayerFee)
+      ? publicAmountSol.add(new BN(relayerFee))
       : relayerFee;
   }
 
