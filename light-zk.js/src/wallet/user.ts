@@ -7,6 +7,7 @@ import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
+
 import {
   CreateUtxoErrorCode,
   UtxoErrorCode,
@@ -57,6 +58,7 @@ import {
   decimalConversion,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
+import { isBN } from "bn.js";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 // TODO: Utxos should be assigned to a merkle tree
@@ -156,8 +158,6 @@ export class User {
     balance: Balance | InboxBalance,
     merkleTreePdaPublicKey: PublicKey,
   ): Promise<Balance | InboxBalance> {
-    console.log("syncing the state ==============>");
-
     // reduce balance by spent utxos
     if (!this.provider.provider)
       throw new UserError(
@@ -190,8 +190,6 @@ export class User {
       await this.provider.relayer.getIndexedTransactions(
         this.provider.provider!.connection,
       );
-
-    console.log({ indexedTransactions });
 
     await this.provider.latestMerkleTree(indexedTransactions);
 
@@ -360,18 +358,6 @@ export class User {
     utxo?: Utxo;
   }): Promise<TransactionParameters> {
     // TODO: add errors for if appUtxo appDataHash or appData, no verifierAddress
-    if (publicAmountSpl && token === "SOL")
-      throw new UserError(
-        UserErrorCode.INVALID_TOKEN,
-        "shield",
-        "No public amount provided. Shield needs a public amount.",
-      );
-    if (!publicAmountSpl && !publicAmountSol)
-      throw new UserError(
-        CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
-        "shield",
-        "No public amounts provided. Shield needs a public amount.",
-      );
 
     if (publicAmountSpl && !token)
       throw new UserError(
@@ -423,7 +409,135 @@ export class User {
           tokenCtx!.mint,
           this.provider!.wallet!.publicKey,
         );
+      if (!publicAmountSpl && !publicAmountSol)
+        throw new UserError(
+          CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
+          "shield",
+          "No public amounts provided. Shield needs a public amount.",
+        );
+
+      if (publicAmountSpl && !token)
+        throw new UserError(
+          UserErrorCode.TOKEN_UNDEFINED,
+          "shield",
+          "No public amounts provided. Shield needs a public amount.",
+        );
+
+      if (!this.provider)
+        throw new UserError(
+          UserErrorCode.PROVIDER_NOT_INITIALIZED,
+          "shield",
+          "Provider not set!",
+        );
+
+      let tokenCtx = TOKEN_REGISTRY.get(token);
+
+      if (!tokenCtx)
+        throw new UserError(
+          UserErrorCode.TOKEN_NOT_FOUND,
+          "shield",
+          "Token not supported!",
+        );
+      if (tokenCtx.isNative && senderTokenAccount)
+        throw new UserError(
+          UserErrorCode.TOKEN_ACCOUNT_DEFINED,
+          "shield",
+          "Cannot use senderTokenAccount for SOL!",
+        );
+      let userSplAccount: PublicKey | undefined = undefined;
+
+      publicAmountSpl = publicAmountSpl
+        ? new BN(publicAmountSpl.toString())
+        : undefined;
+
+      if (!skipDecimalConversions) {
+        publicAmountSpl = publicAmountSpl
+          ? convertAndComputeDecimals(publicAmountSpl, tokenCtx.decimals)
+          : undefined;
       }
+
+      console.log("before processing ======>", {
+        amount: publicAmountSol?.toString(),
+      });
+
+      publicAmountSol = publicAmountSol
+        ? new BN(publicAmountSol?.toString())
+        : new BN(0);
+
+      console.log("after processing ======>", { publicAmountSol });
+
+      if (!skipDecimalConversions) {
+        // If SOL amount is not provided, the default value is either minimum amount (if defined) or 0.
+        publicAmountSol = !publicAmountSol.eq(new BN(0))
+          ? convertAndComputeDecimals(publicAmountSol, new BN(1e9))
+          : minimumLamports
+          ? this.provider.minimumLamports
+          : new BN(0);
+      }
+
+      if (!tokenCtx.isNative && publicAmountSpl) {
+        if (senderTokenAccount) {
+          userSplAccount = senderTokenAccount;
+        } else {
+          userSplAccount = splToken.getAssociatedTokenAddressSync(
+            tokenCtx!.mint,
+            this.provider!.wallet!.publicKey,
+          );
+        }
+      }
+      // TODO: add get utxos as array method
+      let utxosEntries = this.balance.tokenBalances
+        .get(tokenCtx.mint.toBase58())
+        ?.utxos.values();
+      let utxos: Utxo[] =
+        utxosEntries && mergeExistingUtxos ? Array.from(utxosEntries) : [];
+      let outUtxos: Utxo[] = [];
+      if (recipient) {
+        const amounts = publicAmountSpl
+          ? [publicAmountSol, publicAmountSpl]
+          : [publicAmountSol];
+        const assets = !tokenCtx.isNative
+          ? [SystemProgram.programId, tokenCtx.mint]
+          : [SystemProgram.programId];
+        outUtxos.push(
+          new Utxo({
+            poseidon: this.provider.poseidon,
+            assets,
+            amounts,
+            account: recipient,
+            appDataHash: appUtxo?.appDataHash,
+            verifierAddress: appUtxo?.verifierAddress,
+            includeAppData: appUtxo?.includeAppData,
+            appData: appUtxo?.appData,
+          }),
+        );
+        // no merging of utxos when shielding to another recipient
+        mergeExistingUtxos = false;
+        utxos = [];
+      }
+      if (utxo) outUtxos.push(utxo);
+      const txParams = await TransactionParameters.getTxParams({
+        tokenCtx,
+        action: Action.SHIELD,
+        account: this.account,
+        utxos,
+        publicAmountSol,
+        publicAmountSpl,
+        userSplAccount,
+        provider: this.provider,
+        transactionNonce: this.balance.transactionNonce,
+        appUtxo,
+        verifierIdl: verifierIdl ? verifierIdl : this.verifierIdl,
+        outUtxos,
+        addInUtxos: recipient ? false : true,
+        addOutUtxos: recipient ? false : true,
+        message,
+      });
+      this.recentTransactionParameters = txParams;
+      return txParams;
+    } catch (err) {
+      console.log(err);
+      throw err;
     }
     // TODO: add get utxos as array method
     let utxosEntries = this.balance.tokenBalances
@@ -641,6 +755,11 @@ export class User {
       ? Account.fromPubkey(recipient, this.provider.poseidon)
       : undefined;
 
+    console.log({
+      publicAmountSpl,
+      publicAmountSol,
+    });
+
     await this.createShieldTransactionParameters({
       token,
       publicAmountSpl,
@@ -673,6 +792,8 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
   }) {
+    console.log("creating the parameters =========>");
+
     await this.createUnshieldTransactionParameters({
       token,
       publicAmountSpl,
@@ -681,6 +802,8 @@ export class User {
       recipientSol,
       minimumLamports,
     });
+
+    console.log("creating the parameters =========>,xsaxax");
 
     await this.compileAndProveTransaction();
     const txHash = await this.sendAndConfirm();
@@ -712,6 +835,8 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
   }) {
+    console.log("amount ==============>", publicAmountSol);
+
     const tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx)
       throw new UserError(
@@ -781,6 +906,8 @@ export class User {
     let utxos: Utxo[] = utxosEntries
       ? Array.from([...utxosEntries, ...utxosEntriesSol])
       : [];
+
+    console.log("failed before the txParams");
 
     const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
@@ -1077,8 +1204,6 @@ export class User {
         });
       }
       const user = new User({ provider, appUtxoConfig, account });
-
-      console.log("getting the user balance", user);
 
       await user.getBalance();
 

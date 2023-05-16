@@ -29,10 +29,8 @@ class TransactionHistoryCommand extends Command {
         console.log("Block Time:", transaction.blockTime);
         console.log("Signer:", transaction.signer.toString());
         console.log("Signature:", transaction.signature);
-        console.log("Accounts:", transaction.accounts);
         console.log("From:", transaction.from.toString());
         console.log("To:", transaction.to.toString());
-        console.log("Verifier:", transaction.verifier.toString());
         console.log(
           "Relayer Recipient Sol:",
           transaction.relayerRecipientSol.toString()
@@ -50,10 +48,6 @@ class TransactionHistoryCommand extends Command {
           "Public Amount SPL:",
           transaction.publicAmountSpl.toString()
         );
-        console.log("Encrypted UTXOs:", transaction.encryptedUtxos);
-        console.log("Leaves:", transaction.leaves);
-        console.log("First Leaf Index:", transaction.firstLeafIndex.toString());
-        console.log("Nullifiers:", transaction.nullifiers);
         console.log("Relayer Fee:", transaction.relayerFee.toString());
         console.log("Message:", transaction.message);
         console.log("------------------");

@@ -1,8 +1,8 @@
 {
   "relayerUrl": "https://182.1.0.2",
   "secretKey": "[\n  17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202, 187,\n  228, 110, 146, 97, 112, 131, 180, 164, 96, 220, 57, 207, 65, 107, 2, 99, 226,\n  251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121,\n  176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,\n]",
-  "relayerRecipient": "F7xGQEGxGNwDPnxraGHgcT6RQeWKkF1ZxXCzZQbw7BK7",
+  "relayerRecipient": "J5X66hn9gKaCBiBiYGrqRZr3eRYCEkhkVURuU3F9ehRF",
   "payer": "12345",
   "rpcUrl": "http://127.0.0.1:8899",
-  "lookUpTable": "FUsep4sWUqAYSNNz9xzQBwAchwzm4Ccv1dkrkraaeBze"
+  "lookUpTable": "5RjBuaa6Lt6E419GLCdXMDbSYnrZGESLGJkPEVbP1QYN"
 }

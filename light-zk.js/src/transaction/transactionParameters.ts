@@ -772,6 +772,7 @@ export class TransactionParameters implements transactionParameters {
           TransactionParameters.getVerifierConfig(verifierIdl).in,
       });
     }
+
     if (addOutUtxos) {
       outputUtxos = createOutUtxos({
         publicMint: tokenCtx.mint,
@@ -1123,7 +1124,10 @@ export class TransactionParameters implements transactionParameters {
         ...recipientSpl,
         ...this.accounts.recipientSol.toBytes(),
         ...this.relayer.accounts.relayerPubkey.toBytes(),
-        ...this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
+        ...new BN(this.relayer.getRelayerFee(this.ataCreationFee)).toArray(
+          "le",
+          8,
+        ),
         ...this.encryptedUtxos,
       ]);
 

@@ -13,6 +13,7 @@ import {
   Recipient,
   Utxo,
   Account,
+  TOKEN_REGISTRY,
 } from "../index";
 
 // TODO: turn these into static user.class methods
@@ -112,6 +113,8 @@ const selectBiggestSmallest = (
           selectedUtxos.push(filteredUtxos[utxo]);
         }
       } else {
+        console.log({ selectedUtxosAmount });
+
         if (selectedUtxosAmount.lt(sumOutSpl)) {
           throw new Error(
             `Could not find a utxo combination for spl token ${mint} and amount ${sumOutSpl}`,
@@ -148,6 +151,8 @@ export function selectInUtxos({
   action: Action;
   numberMaxInUtxos: number;
 }) {
+  console.log("getting the in selective utxos =========>");
+
   if (!publicMint && publicAmountSpl)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,
@@ -226,8 +231,16 @@ export function selectInUtxos({
   var sumInSol = getUtxoArrayAmount(SystemProgram.programId, utxos);
   var sumOutSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
   var sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
-  if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
+  if (relayerFee) sumOutSol = sumOutSol.add(new BN(relayerFee));
   if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
+
+  console.log("mint =====================>", {
+    mint,
+    sumInSol,
+    sumOutSol,
+    sumInSpl,
+    sumOutSpl,
+  });
 
   if (mint) {
     filteredUtxos = utxos.filter((utxo) =>
@@ -248,7 +261,7 @@ export function selectInUtxos({
       SelectInUtxosErrorCode.INVALID_NUMBER_OF_IN_UTXOS,
       "selectInUtxos",
     );
-  if (mint) {
+  if (mint != TOKEN_REGISTRY.get("SOL")?.mint) {
     var { selectedUtxosSolAmount, selectedUtxos } = selectBiggestSmallest(
       filteredUtxos,
       1,
@@ -256,6 +269,7 @@ export function selectInUtxos({
       numberMaxInUtxos - selectedUtxosR.length,
       mint,
     );
+
     if (selectedUtxos.length === 0)
       throw new SelectInUtxosError(
         SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
@@ -281,6 +295,7 @@ export function selectInUtxos({
             utxo.assets[1].toBase58() === SystemProgram.programId.toBase58(),
         );
 
+        console.log("getting the second biggesr smallets =======>");
         // search for suitable sol utxo in remaining utxos
         var { selectedUtxosSolAmount, selectedUtxos: selectedUtxo1 } =
           selectBiggestSmallest(

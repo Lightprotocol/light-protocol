@@ -1,5 +1,8 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { getUser } from "../../utils";
+import { Account } from "light-sdk";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+let circomlibjs = require("circomlibjs");
 
 class TransferCommand extends Command {
   static description = "Transfer tokens to a recipient";
@@ -37,6 +40,15 @@ class TransferCommand extends Command {
 
     try {
       const user = await getUser();
+
+      console.log(new Uint8Array(32).fill(9));
+
+      console.log({
+        token,
+        amountSpl,
+        amountSol,
+        recipient,
+      });
 
       await user.transfer({
         token,
