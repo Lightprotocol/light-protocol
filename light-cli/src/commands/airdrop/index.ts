@@ -1,6 +1,8 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
 import { getConnection } from "../../utils";
+import { getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
+import { ADMIN_AUTH_KEYPAIR, MINT } from "light-sdk";
 
 class AirdropCommand extends Command {
   static description = "Perform an airdrop to a user";
@@ -11,9 +13,15 @@ class AirdropCommand extends Command {
       description: "The amount to airdrop",
       required: true,
     }),
+    token: Flags.string({
+      description: "The token to shield",
+      required: true,
+    }),
   };
 
-  static examples = [`$ light airdrop --amount 2000000000 <userPublicKey>`];
+  static examples = [
+    `$ light airdrop --token SOL --amount 2000000000 <userPublicKey>`,
+  ];
 
   static args = {
     userPublicKey: Args.string({
@@ -27,21 +35,45 @@ class AirdropCommand extends Command {
     const { args, flags } = await this.parse(AirdropCommand);
 
     const { userPublicKey } = args;
-    const { amount } = flags;
+    const { amount, token } = flags;
+
+    let response;
 
     try {
       const connection = await getConnection();
 
-      const res = await connection.requestAirdrop(
-        new PublicKey(userPublicKey),
-        amount
-      );
+      if (token.toLowerCase() === "sol") {
+        console.log("here ==========>");
 
-      await connection.confirmTransaction(res, "confirmed");
+        const res = await connection.requestAirdrop(
+          new PublicKey(userPublicKey),
+          amount
+        );
+
+        response = await connection.confirmTransaction(res, "confirmed");
+      } else {
+        let tokenAccount = await getOrCreateAssociatedTokenAccount(
+          connection,
+          ADMIN_AUTH_KEYPAIR,
+          MINT,
+          new PublicKey(userPublicKey)
+        );
+
+        response = await mintTo(
+          connection,
+          ADMIN_AUTH_KEYPAIR,
+          MINT,
+          tokenAccount.address,
+          new PublicKey(userPublicKey),
+          amount,
+          []
+        );
+      }
 
       this.log(
         `Airdrop successful for user: ${userPublicKey}, amount: ${amount}`
       );
+      this.log("transaction hash: ", response);
     } catch (error) {
       this.error(`Airdrop failed: ${error}`);
     }
