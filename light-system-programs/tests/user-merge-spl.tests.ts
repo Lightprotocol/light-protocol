@@ -44,7 +44,6 @@ describe("Test User", () => {
     environmentConfig.lookUpTable = await initLookUpTableFromFile(
       anchorProvider,
     );
-    await setUpMerkleTree(anchorProvider);
 
     environmentConfig.poseidon = await circomlibjs.buildPoseidonOpt();
     // this keypair is used to derive the shielded account seed from the light message signature
