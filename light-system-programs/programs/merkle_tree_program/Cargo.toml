@@ -50,8 +50,8 @@ arkworks-gadgets = "0.3.14"
 
 # Light dependencies
 light-account-compression = { path = "../../../light-account-compression" }
-light-macros = { path = "../../../light-macros" }
-light-merkle-tree = { path = "../../../light-merkle-tree/light-merkle-tree", features = ["solana"] }
+light-macros = "0.1.0"
+light-merkle-tree = { version = "0.1.0", features = ["solana"] }
 
 [dev-dependencies]
 solana-program-test = "1.9.16"
