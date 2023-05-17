@@ -15,7 +15,7 @@ import { MetaError, UtilsError, UtilsErrorCode } from "./errors";
 import { TokenUtxoBalance } from "wallet";
 import { TokenData } from "types";
 const { keccak_256 } = require("@noble/hashes/sha3");
-
+import { Decimal } from "decimal.js";
 export function hashAndTruncateToCircuit(data: Uint8Array) {
   return new BN(
     keccak_256
@@ -128,28 +128,24 @@ export const convertAndComputeDecimals = (
   if (typeof amount === "string" && amount.startsWith("-")) {
     throw new Error("Negative amounts are not allowed.");
   }
-  if (decimals.lt(new BN(0))) {
-    throw new Error("Negative decimals are not allowed.");
+  if (decimals.lt(new BN(1))) {
+    throw new Error(
+      "Decimal numbers have to be at least 1 since we precompute 10**decimalValue.",
+    );
   }
 
   let amountStr = amount.toString();
 
-  if (amountStr.includes(".")) {
-    let [whole, fractional] = amountStr.split(".");
-    if (fractional.length >= decimals.toString().length) {
-      throw new Error("The amount has more decimal places than allowed.");
-    }
-    while (fractional.length < decimals.toString().length - 1) {
-      fractional += "0"; // Add trailing zeros to match the decimals count
-    }
-    const res = whole + fractional;
-    return new BN(res);
+  if (!new Decimal(amountStr).isInt()) {
+    const convertedFloat = new Decimal(amountStr).times(
+      new Decimal(decimals.toString()),
+    );
+    if (!convertedFloat.isInt())
+      throw new Error(`Decimal conversion of value ${amountStr} failed`);
+    return new BN(convertedFloat.toString());
   }
 
   const bnAmount = new BN(amountStr);
-  if (bnAmount.lt(new BN("0")))
-    throw new Error("Negative amounts are not allowed.");
-  if (decimals.toString() === "0") decimals = new BN(1);
   return bnAmount.mul(decimals);
 };
 
