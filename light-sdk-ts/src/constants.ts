@@ -71,18 +71,6 @@ export const confirmConfig: ConfirmOptions = {
   preflightCommitment: "confirmed",
 };
 
-// TODO: reactivate this
-// const constants:any = {};
-
-// IDL_MERKLE_TREE_PROGRAM.constants.map((item) => {
-//   if(_.isEqual(item.type, TYPE_SEED)) {
-//     constants[item.name] = item.value.replace("b\"", "").replace("\"", "");
-//   } else //if(_.isEqual(item.type, TYPE_PUBKEY) || _.isEqual(item.type, TYPE_INIT_DATA))
-//   {
-//     constants[item.name] = JSON.parse(item.value)
-//   }
-// });
-
 export const COMPRESSED_UTXO_BYTES_LENGTH = 96 + ACCOUNT_DISCRIMINATOR_SIZE;
 export const ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH =
   parseInt(((COMPRESSED_UTXO_BYTES_LENGTH + 16) / 16).toString()) * 16;
