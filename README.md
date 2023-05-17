@@ -82,20 +82,3 @@ solana-test-validator \
 - `anchor test --skip-build --skip-deploy --skip-local-validator`
 
 Check logs in anchor_programs/.anchor/program-logs
-w
-
-## Todos
-
-### Swen
-
-[ ] - add encryption to file storage (cli)
-
-[ ] - "privamount" -> "shieldedAmount", 2 amounts passable w SPL support
-
-[ ] - userTokenPda -> as variable input w SPL support
-
-[ ] - relayer should recevie ixs instead of txs
-
-[ ] - remove testaccountsetup fns (part of spl support)
-
-[ ] - remove 2 airdrop checks for relayer recipient (currently randomly generated inside transfer/unshield), part of relayer activation
