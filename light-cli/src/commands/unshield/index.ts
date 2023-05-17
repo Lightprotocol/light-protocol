@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { getUser } from "../../utils";
+import { generateSolanaTransactionURL, getUser } from "../../utils";
 import { PublicKey } from "@solana/web3.js";
 import { User } from "light-sdk";
 
@@ -63,7 +63,7 @@ class UnshieldCommand extends Command {
       });
 
       this.log(`Successfully unshielded ${token}`);
-      this.log("transaction hash ======>", response.txHash);
+      this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
     } catch (error) {
       this.error(`Unshielding tokens failed: ${error}`);
     }

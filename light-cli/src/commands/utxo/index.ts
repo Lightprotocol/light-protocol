@@ -1,5 +1,6 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { getUser } from "../../utils";
+import { TOKEN_REGISTRY, User } from "light-sdk";
 
 class MergeUtxosCommand extends Command {
   static description = "Merge multiple UTXOs into a single UTXO";
@@ -8,21 +9,21 @@ class MergeUtxosCommand extends Command {
     latest: Flags.boolean({
       char: "l",
       description: "Use the latest UTXOs",
-      default: false,
+      default: true,
+    }),
+    token: Flags.string({
+      name: "token",
+      description: "Token of the UTXOs to merge",
+      required: true,
     }),
   };
 
   static args = {
-    commitments: Args.string({
+    commitment: Args.string({
       name: "commitments",
       description: "Commitments of the UTXOs to merge",
       required: true,
       multiple: true,
-    }),
-    token: Args.string({
-      name: "token",
-      description: "Token of the UTXOs to merge",
-      required: true,
     }),
   };
 
@@ -32,13 +33,15 @@ class MergeUtxosCommand extends Command {
 
   async run() {
     const { flags, args } = await this.parse(MergeUtxosCommand);
-    const { commitments, token } = args;
-    const { latest } = flags;
+    const { commitment } = args;
+    const { latest, token } = flags;
 
-    const user = await getUser();
+    const user: User = await getUser();
+
+    let tokenCtx = TOKEN_REGISTRY.get(token.toUpperCase());
 
     try {
-      await user.mergeUtxos(commitments, token, latest);
+      await user.mergeUtxos([commitment], tokenCtx?.mint!, latest);
       this.log("UTXOs merged successfully!");
     } catch (error) {
       this.error(`Error merging UTXOs: ${error}`);

@@ -23,7 +23,8 @@
     "circomlibjs": "^0.1.7",
     "dotenv": "^16.0.3",
     "fs": "^0.0.1-security",
-    "light-sdk": "file:../light-sdk-ts"
+    "light-sdk": "file:../light-sdk-ts",
+    "ora": "^6.3.1"
   },
   "devDependencies": {
     "@oclif/test": "^2.3.17",

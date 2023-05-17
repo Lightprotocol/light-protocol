@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import { User } from "light-sdk";
-import { getUser } from "../../utils";
+import { generateSolanaTransactionURL, getUser } from "../../utils";
 
 class ShieldCommand extends Command {
   static description = "Shield tokens for a user";
@@ -57,7 +57,7 @@ class ShieldCommand extends Command {
       });
 
       this.log(`Successfully shielded: ${token}`);
-      this.log("transaction hash", response.txHash);
+      this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
     } catch (error) {
       this.error(`Shielding tokens failed: ${error}`);
     }

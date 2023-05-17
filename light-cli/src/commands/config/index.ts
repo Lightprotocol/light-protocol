@@ -46,6 +46,7 @@ class ConfigCommand extends Command {
       payer,
     } = flags;
 
+
     try {
       const config = JSON.parse(fs.readFileSync("config.json", "utf-8"));
 

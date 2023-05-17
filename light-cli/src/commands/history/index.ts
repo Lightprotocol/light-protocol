@@ -15,7 +15,9 @@ class TransactionHistoryCommand extends Command {
 
   async run() {
     const { flags } = await this.parse(TransactionHistoryCommand);
+
     const { latest } = flags;
+
 
     const user = await getUser();
 
@@ -59,8 +61,8 @@ class TransactionHistoryCommand extends Command {
 }
 
 TransactionHistoryCommand.examples = [
-  "$ light getTransactionHistory",
-  "$ light getTransactionHistory --latest=false",
+  "$ light history",
+  "$ light history --latest=false",
 ];
 
 module.exports = TransactionHistoryCommand;
