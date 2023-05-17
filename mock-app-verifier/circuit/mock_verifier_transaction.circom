@@ -1,9 +1,9 @@
 pragma circom 2.0.0;
-include "../node_modules/circomlib/circuits/poseidon.circom";
-include "./merkleProof.circom";
-include "./keypair.circom";
-include "../node_modules/circomlib/circuits/gates.circom";
-include "../node_modules/circomlib/circuits/comparators.circom";
+include "../node_modules/light-sdk/node_modules/circomlib/circuits/poseidon.circom";
+include "../node_modules/light-sdk/circuit-lib/merkleProof.circom";
+include "../node_modules/light-sdk/circuit-lib/keypair.circom";
+include "../node_modules/light-sdk/node_modules/circomlib/circuits/gates.circom";
+include "../node_modules/light-sdk/node_modules/circomlib/circuits/comparators.circom";
 
 
 template mockVerifierTransaction( levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {

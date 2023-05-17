@@ -582,12 +582,16 @@ export class TransactionParameters implements transactionParameters {
     bytes,
     relayer,
     verifierIdl,
+    assetLookupTable,
+    verifierProgramLookupTable,
   }: {
     poseidon: any;
     utxoIdls?: anchor.Idl[];
     bytes: Buffer;
     relayer: Relayer;
     verifierIdl: Idl;
+    assetLookupTable: string[];
+    verifierProgramLookupTable: string[];
   }): Promise<TransactionParameters> {
     let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
     let decoded = coder.decodeUnchecked("transactionParameters", bytes);
@@ -621,6 +625,8 @@ export class TransactionParameters implements transactionParameters {
             poseidon,
             bytes: utxoBytes,
             appDataIdl,
+            assetLookupTable,
+            verifierProgramLookupTable,
           }),
         );
       }
@@ -694,6 +700,8 @@ export class TransactionParameters implements transactionParameters {
     verifierIdl,
     mergeUtxos = false,
     message,
+    assetLookupTable,
+    verifierProgramLookupTable,
   }: {
     tokenCtx: TokenData;
     publicAmountSpl?: BN;
@@ -716,6 +724,8 @@ export class TransactionParameters implements transactionParameters {
     verifierIdl: Idl;
     mergeUtxos?: boolean;
     message?: Buffer;
+    assetLookupTable: string[];
+    verifierProgramLookupTable: string[];
   }): Promise<TransactionParameters> {
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
@@ -775,6 +785,8 @@ export class TransactionParameters implements transactionParameters {
         appUtxo,
         numberMaxOutUtxos:
           TransactionParameters.getVerifierConfig(verifierIdl).out,
+        assetLookupTable,
+        verifierProgramLookupTable,
       });
     }
 
@@ -811,7 +823,13 @@ export class TransactionParameters implements transactionParameters {
    */
   addEmptyUtxos(utxos: Utxo[] = [], len: number): Utxo[] {
     while (utxos.length < len) {
-      utxos.push(new Utxo({ poseidon: this.poseidon }));
+      utxos.push(
+        new Utxo({
+          poseidon: this.poseidon,
+          assetLookupTable: [SystemProgram.programId.toBase58()],
+          verifierProgramLookupTable: [SystemProgram.programId.toBase58()],
+        }),
+      );
     }
     return utxos;
   }

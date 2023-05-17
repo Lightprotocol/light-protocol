@@ -24,7 +24,6 @@ import {
   SystemProgram,
   PublicKey,
 } from "@solana/web3.js";
-import { marketPlaceVerifierProgramId, MockVerifier } from "../sdk/src/index";
 
 import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@coral-xyz/anchor";
@@ -44,8 +43,12 @@ describe("Mock verifier functional", () => {
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
   anchor.setProvider(provider);
-  var poseidon;
+  var poseidon, lightProvider: LightProvider;
   before(async () => {
+    lightProvider = await LightProvider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+    });
     poseidon = await buildPoseidonOpt();
     KEYPAIR = new Account({
       poseidon,
@@ -66,8 +69,10 @@ describe("Mock verifier functional", () => {
       amounts: [new BN(1_000_000)],
       appData: { testInput1: new BN(1), testInput2: new BN(1) },
       appDataIdl: IDL,
-      verifierAddress: marketPlaceVerifierProgramId,
+      verifierAddress: new PublicKey(lightProvider.lookUpTables.assetLookupTable[1]),
       index: 0,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     let bytes = await outputUtxo.toBytes();
 
@@ -77,6 +82,8 @@ describe("Mock verifier functional", () => {
       index: 0,
       account,
       appDataIdl: IDL,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     Utxo.equal(poseidon, outputUtxo, utxo1);
   });

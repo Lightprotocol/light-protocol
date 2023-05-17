@@ -12,7 +12,7 @@ import {
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import {buildBabyjub, buildEddsa } from "circomlibjs";
+import { buildBabyjub, buildEddsa } from "circomlibjs";
 
 import {
   TransactionErrorCode,
@@ -29,13 +29,14 @@ import {
   RelayerErrorCode,
   SelectInUtxosErrorCode,
   Account,
-  createRecipientUtxos
+  createRecipientUtxos,
+  Provider,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 const numberMaxInUtxos = 2;
 
 // TODO: add more tests with different numbers of utxos
@@ -57,7 +58,9 @@ describe("Test selectInUtxos Functional", () => {
     utxo2Burner,
     utxo1Burner,
     recipientAccount;
+  let lightProvider: Provider;
   before(async () => {
+    lightProvider = await Provider.loadMock();
     poseidon = await circomlibjs.buildPoseidonOpt();
     eddsa = await buildEddsa();
     babyJub = await buildBabyjub();
@@ -77,26 +80,37 @@ describe("Test selectInUtxos Functional", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals)],
       index: 0,
-      account: utxo1Burner
+      account: utxo1Burner,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     utxo2 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
       index: 0,
-      account: utxo2Burner
-
+      account: utxo2Burner,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     utxoSol = new Utxo({
       poseidon,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
       index: 1,
-      account: utxoSolBurner
+      account: utxoSolBurner,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     relayerFee = new BN(1000);
 
-    let recipientAccountRoot = new Account({poseidon, seed: bs58.encode(new Uint8Array(32).fill(3))})
+    let recipientAccountRoot = new Account({
+      poseidon,
+      seed: bs58.encode(new Uint8Array(32).fill(3)),
+    });
 
     recipientAccount = Account.fromPubkey(
       recipientAccountRoot.getPublicKey(),
@@ -114,9 +128,9 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       utxos: inUtxos,
       action: Action.UNSHIELD,
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
-    Utxo.equal(poseidon,selectedUtxo[0], utxo1 );
+    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
   });
 
   it("Unshield select sol", async () => {
@@ -128,10 +142,10 @@ describe("Test selectInUtxos Functional", () => {
       publicAmountSol: new BN(1e7),
       poseidon,
       action: Action.UNSHIELD,
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
 
-    Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
+    Utxo.equal(poseidon, selectedUtxo[0], utxoSol);
     assert.equal(selectInUtxos.length, 1);
   });
 
@@ -146,23 +160,29 @@ describe("Test selectInUtxos Functional", () => {
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
       publicAmountSpl: new BN(1),
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
 
-    Utxo.equal(poseidon,selectedUtxo[1], utxoSol);
-    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxo[1], utxoSol);
+    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
   });
 
   it("Transfer select sol & spl", async () => {
     const inUtxos = [utxoSol, utxo1];
-    const outUtxos = createRecipientUtxos({recipients: [
-      {
-        mint: utxo1.assets[1],
-        solAmount: new BN(1e7),
-        splAmount: new BN(1),
-        account: new Account({ poseidon }),
-      },
-    ], poseidon});
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: new BN(1e7),
+          splAmount: new BN(1),
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
 
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
@@ -170,46 +190,58 @@ describe("Test selectInUtxos Functional", () => {
       relayerFee: new BN(1000),
       poseidon,
       outUtxos,
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
 
-    Utxo.equal(poseidon,selectedUtxo[1], utxoSol);
-    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxo[1], utxoSol);
+    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
   });
 
   it("Transfer select sol", async () => {
     const inUtxos = [utxoSol, utxo1];
-    const outUtxos = createRecipientUtxos({recipients: [
-      {
-        mint: utxo1.assets[1],
-        solAmount: new BN(1e7),
-        splAmount: new BN(0),
-        account: new Account({ poseidon }),
-      },
-    ], poseidon});
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: new BN(1e7),
+          splAmount: new BN(0),
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
       poseidon,
       outUtxos,
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
 
-    Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
-    Utxo.equal(poseidon,selectedUtxo[1], utxo1);
+    Utxo.equal(poseidon, selectedUtxo[0], utxoSol);
+    Utxo.equal(poseidon, selectedUtxo[1], utxo1);
   });
 
   it("Transfer select spl", async () => {
     const inUtxos = [utxoSol, utxo1];
-    const outUtxos = createRecipientUtxos({recipients: [
-      {
-        mint: utxo1.assets[1],
-        solAmount: new BN(0),
-        splAmount: new BN(1),
-        account: new Account({ poseidon }),
-      },
-    ], poseidon});
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: new BN(0),
+          splAmount: new BN(1),
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
 
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
@@ -217,10 +249,10 @@ describe("Test selectInUtxos Functional", () => {
       relayerFee: new BN(1000),
       poseidon,
       outUtxos,
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
 
-    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
   });
 
   it("Shield select sol & spl", async () => {
@@ -233,10 +265,10 @@ describe("Test selectInUtxos Functional", () => {
       publicAmountSol: new BN(1e7),
       poseidon,
       publicAmountSpl: new BN(1),
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
 
-    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
   });
 
   it("Shield select sol", async () => {
@@ -247,11 +279,11 @@ describe("Test selectInUtxos Functional", () => {
       action: Action.SHIELD,
       poseidon,
       publicAmountSol: new BN(1e7),
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
 
-    Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
-    Utxo.equal(poseidon,selectedUtxo[1], utxo1);
+    Utxo.equal(poseidon, selectedUtxo[0], utxoSol);
+    Utxo.equal(poseidon, selectedUtxo[1], utxo1);
   });
 
   it("Shield select spl", async () => {
@@ -263,23 +295,29 @@ describe("Test selectInUtxos Functional", () => {
       publicMint: utxo1.assets[1],
       poseidon,
       publicAmountSpl: new BN(1),
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
 
-    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
     assert.equal(selectedUtxo.length, 1);
   });
 
   it("3 utxos spl & sol", async () => {
     const inUtxos = [utxoSol, utxo1, utxo2];
-    const outUtxos = createRecipientUtxos({recipients: [
-      {
-        mint: utxo1.assets[1],
-        solAmount: utxo2.amounts[0],
-        splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-        account: new Account({ poseidon }),
-      },
-    ], poseidon});
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: utxo2.amounts[0],
+          splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
 
     var selectedUtxo = selectInUtxos({
       utxos: inUtxos,
@@ -287,17 +325,16 @@ describe("Test selectInUtxos Functional", () => {
       relayerFee: new BN(1000),
       poseidon,
       outUtxos,
-      numberMaxInUtxos
+      numberMaxInUtxos,
     });
 
-    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
-    Utxo.equal(poseidon,selectedUtxo[1], utxo2);
+    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxo[1], utxo2);
   });
 });
 
 describe("Test selectInUtxos Errors", () => {
   var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
-
 
   var splAmount,
     solAmount,
@@ -308,7 +345,9 @@ describe("Test selectInUtxos Errors", () => {
     relayerFee,
     utxoSol,
     recipientAccount;
+  let lightProvider: Provider;
   before(async () => {
+    lightProvider = await Provider.loadMock();
     poseidon = await circomlibjs.buildPoseidonOpt();
     eddsa = await buildEddsa();
     babyJub = await buildBabyjub();
@@ -327,22 +366,34 @@ describe("Test selectInUtxos Errors", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
       index: 0,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     utxo2 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
       index: 0,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     utxoSol = new Utxo({
       poseidon,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
       index: 1,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     relayerFee = new BN(1000);
 
-    let recipientAccountRoot = new Account({poseidon, seed: bs58.encode(new Uint8Array(32).fill(3))})
+    let recipientAccountRoot = new Account({
+      poseidon,
+      seed: bs58.encode(new Uint8Array(32).fill(3)),
+    });
     recipientAccount = Account.fromPubkey(
       recipientAccountRoot.getPublicKey(),
       poseidon,
@@ -351,21 +402,27 @@ describe("Test selectInUtxos Errors", () => {
 
   it("NO_PUBLIC_AMOUNTS_PROVIDED", async () => {
     const inUtxos = [utxoSol, utxo1];
-    const outUtxos = createRecipientUtxos({recipients: [
-      {
-        mint: utxo1.assets[1],
-        solAmount: new BN(1e7),
-        splAmount: new BN(1),
-        account: new Account({ poseidon }),
-      },
-    ], poseidon});
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: new BN(1e7),
+          splAmount: new BN(1),
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
         poseidon,
         outUtxos,
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -387,7 +444,7 @@ describe("Test selectInUtxos Errors", () => {
         // publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -408,7 +465,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -430,7 +487,7 @@ describe("Test selectInUtxos Errors", () => {
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -452,7 +509,7 @@ describe("Test selectInUtxos Errors", () => {
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -474,7 +531,7 @@ describe("Test selectInUtxos Errors", () => {
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -496,7 +553,7 @@ describe("Test selectInUtxos Errors", () => {
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -507,21 +564,31 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("INVALID_NUMER_OF_RECIPIENTS", async () => {
+    const mint = SolanaKeypair.generate().publicKey;
     const inUtxos = [utxoSol, utxo1];
-    const outUtxos = createRecipientUtxos({recipients: [
-      {
-        mint: utxo1.assets[1],
-        solAmount: new BN(1e7),
-        splAmount: new BN(1),
-        account: new Account({ poseidon }),
-      },
-      {
-        mint: SolanaKeypair.generate().publicKey,
-        solAmount: new BN(1e7),
-        splAmount: new BN(1),
-        account: new Account({ poseidon }),
-      },
-    ], poseidon});
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: new BN(1e7),
+          splAmount: new BN(1),
+          account: new Account({ poseidon }),
+        },
+        {
+          mint,
+          solAmount: new BN(1e7),
+          splAmount: new BN(1),
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: [
+        ...lightProvider.lookUpTables.assetLookupTable,
+        ...[mint.toBase58()],
+      ],
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
@@ -529,7 +596,7 @@ describe("Test selectInUtxos Errors", () => {
         relayerFee: new BN(1000),
         poseidon,
         outUtxos,
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -541,14 +608,20 @@ describe("Test selectInUtxos Errors", () => {
 
   it("FAILED_TO_FIND_UTXO_COMBINATION sol", async () => {
     const inUtxos = [utxoSol, utxo1];
-    const outUtxos = createRecipientUtxos({recipients: [
-      {
-        mint: utxo1.assets[1],
-        solAmount: new BN(2e10),
-        splAmount: new BN(1),
-        account: new Account({ poseidon }),
-      },
-    ], poseidon});
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: new BN(2e10),
+          splAmount: new BN(1),
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
@@ -556,7 +629,7 @@ describe("Test selectInUtxos Errors", () => {
         relayerFee: new BN(1000),
         poseidon,
         outUtxos,
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -568,14 +641,20 @@ describe("Test selectInUtxos Errors", () => {
 
   it("FAILED_TO_FIND_UTXO_COMBINATION spl", async () => {
     const inUtxos = [utxoSol, utxo1];
-    const outUtxos = createRecipientUtxos({recipients: [
-      {
-        mint: utxo1.assets[1],
-        solAmount: new BN(0),
-        splAmount: new BN(1e10),
-        account: new Account({ poseidon }),
-      },
-    ], poseidon});
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: new BN(0),
+          splAmount: new BN(1e10),
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
@@ -583,7 +662,7 @@ describe("Test selectInUtxos Errors", () => {
         relayerFee: new BN(1000),
         poseidon,
         outUtxos,
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -595,14 +674,20 @@ describe("Test selectInUtxos Errors", () => {
 
   it("FAILED_TO_FIND_UTXO_COMBINATION spl & sol", async () => {
     const inUtxos = [utxoSol, utxo1, utxo2];
-    const outUtxos = createRecipientUtxos({recipients: [
-      {
-        mint: utxo1.assets[1],
-        solAmount: utxo2.amounts[0].add(utxo1.amounts[0]),
-        splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-        account: new Account({ poseidon }),
-      },
-    ], poseidon});
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: utxo2.amounts[0].add(utxo1.amounts[0]),
+          splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
@@ -610,7 +695,7 @@ describe("Test selectInUtxos Errors", () => {
         relayerFee: new BN(1000),
         poseidon,
         outUtxos,
-        numberMaxInUtxos
+        numberMaxInUtxos,
       });
     })
       .to.throw(SelectInUtxosError)

@@ -18,7 +18,6 @@ import {
   AUTHORITY,
   MINT,
   Provider,
-  KEYPAIR_PRIVKEY,
   AUTHORITY_ONE,
   USER_TOKEN_ACCOUNT,
   createTestAccounts,
@@ -27,8 +26,6 @@ import {
   FEE_ASSET,
   confirmConfig,
   TransactionParameters,
-  IDL_MERKLE_TREE_PROGRAM,
-  verifierStorageProgramId,
   User,
   Action,
   TestRelayer,
@@ -39,7 +36,7 @@ import {
   IDL_VERIFIER_PROGRAM_STORAGE,
 } from "light-sdk";
 
-import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { Account } from "light-sdk/lib/account";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -84,28 +81,6 @@ describe("verifier_program", () => {
       new BN(100_000),
     );
   });
-
-  async function airdrop() {
-    let balance = await provider.connection.getBalance(
-      Transaction.getSignerAuthorityPda(
-        merkleTreeProgram.programId,
-        verifierStorageProgramId,
-      ),
-      "confirmed",
-    );
-    if (balance === 0) {
-      await provider.connection.confirmTransaction(
-        await provider.connection.requestAirdrop(
-          Transaction.getSignerAuthorityPda(
-            merkleTreeProgram.programId,
-            verifierStorageProgramId,
-          ),
-          1_000_000_000,
-        ),
-        "confirmed",
-      );
-    }
-  }
 
   const performDeposit = async ({
     delegate,
@@ -156,11 +131,17 @@ describe("verifier_program", () => {
             new anchor.BN(depositAmount),
           ],
           account: KEYPAIR,
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
         })
       : new Utxo({
           poseidon: POSEIDON,
           amounts: [new anchor.BN(depositFeeAmount)],
           account: KEYPAIR,
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
         });
 
     let txParams = new TransactionParameters({
@@ -359,6 +340,9 @@ describe("verifier_program", () => {
           poseidon: POSEIDON,
           assets: inputUtxos[0].assets,
           amounts: [new BN(0), inputUtxos[0].amounts[1]],
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
       tokenProgram: MINT,

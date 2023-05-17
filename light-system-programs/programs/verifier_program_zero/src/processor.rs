@@ -13,8 +13,6 @@ impl Config for TransactionConfig {
     const NR_NULLIFIERS: usize = 2;
     /// Number of output utxos.
     const NR_LEAVES: usize = 2;
-    /// Number of checked public inputs.
-    const NR_CHECKED_PUBLIC_INPUTS: usize = 0;
     /// ProgramId in bytes.
     const ID: Pubkey = pubkey!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 }

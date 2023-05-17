@@ -5,6 +5,7 @@ import { execSync } from "child_process";
 import { randomBytes } from "tweetnacl";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { utils } from "@coral-xyz/anchor";
+import { sleep } from "../utils";
 
 /**
  * Generates a zk-SNARK circuit given a circuit name.
@@ -82,6 +83,10 @@ async function generateCircuit(
     artifiactPath,
   );
   console.log("created rust verifying key");
+
+  while (!fs.existsSync(vKeyRsPath)) {
+    await sleep(10);
+  }
 
   fs.unlinkSync(path.join(sdkBuildCircuitDir, "verifyingkey.json"));
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}_tmp.zkey`));

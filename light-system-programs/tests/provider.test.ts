@@ -134,8 +134,16 @@ describe("verifier_program", () => {
       assets: [SystemProgram.programId, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: KEYPAIR,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let deposit_utxo2 = new Utxo({ poseidon: POSEIDON });
+    let deposit_utxo2 = new Utxo({
+      poseidon: POSEIDON,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
 
     let txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1, deposit_utxo2],

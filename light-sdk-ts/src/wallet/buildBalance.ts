@@ -201,6 +201,8 @@ export async function decryptAddUtxoToBalance({
   leftLeaf,
   aes,
   decryptionTransactionNonce,
+  verifierProgramLookupTable,
+  assetLookupTable,
 }: {
   encBytes: Uint8Array;
   index: number;
@@ -213,6 +215,8 @@ export async function decryptAddUtxoToBalance({
   leftLeaf: Uint8Array;
   aes: boolean;
   decryptionTransactionNonce: number;
+  verifierProgramLookupTable: string[];
+  assetLookupTable: string[];
 }): Promise<number> {
   let decryptedUtxo = await Utxo.decrypt({
     poseidon,
@@ -223,6 +227,8 @@ export async function decryptAddUtxoToBalance({
     aes,
     merkleTreePdaPublicKey,
     transactionNonce: decryptionTransactionNonce,
+    verifierProgramLookupTable,
+    assetLookupTable,
   });
 
   // null if utxo did not decrypt -> return nothing and continue
