@@ -21,10 +21,10 @@ class UnshieldCommand extends Command {
     recipientSol: Flags.string({
       description: "The recipient SOL address",
     }),
-    amountSpl: Flags.integer({
+    amountSpl: Flags.string({
       description: "The amount of token to unshield (SPL)",
     }),
-    amountSol: Flags.integer({
+    amountSol: Flags.string({
       description: "The amount of token to unshield (SOL)",
     }),
     minimumLamports: Flags.boolean({

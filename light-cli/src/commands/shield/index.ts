@@ -47,15 +47,6 @@ class ShieldCommand extends Command {
     try {
       const user: User = await getUser();
 
-      console.log({
-        token,
-        recipient,
-        publicAmountSpl: amountSpl ? amountSpl : undefined,
-        publicAmountSol: amountSol ? amountSol : undefined,
-        minimumLamports,
-        skipDecimalConversions,
-      })
-
       const response = await user.shield({
         token,
         recipient,
@@ -67,7 +58,6 @@ class ShieldCommand extends Command {
 
       this.log(`Successfully shielded: ${token}`);
       this.log("transaction hash", response.txHash);
-      console.log("transaction hash ==========>", response.txHash);
     } catch (error) {
       this.error(`Shielding tokens failed: ${error}`);
     }
