@@ -1,13 +1,6 @@
 export type VerifierProgramOne = {
   version: "0.1.0";
   name: "verifier_program_one";
-  constants: [
-    {
-      name: "PROGRAM_ID";
-      type: "string";
-      value: '"3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"';
-    },
-  ];
   instructions: [
     {
       name: "shieldedTransferFirst";
@@ -160,40 +153,80 @@ export type VerifierProgramOne = {
   ];
   accounts: [
     {
-      name: "zKtransactionMasp10PublicInputs";
+      name: "instructionDataShieldedTransferFirst";
       type: {
         kind: "struct";
         fields: [
           {
-            name: "root";
-            type: "u8";
-          },
-          {
             name: "publicAmountSpl";
-            type: "u8";
-          },
-          {
-            name: "txIntegrityHash";
-            type: "u8";
-          },
-          {
-            name: "publicAmountSol";
-            type: "u8";
-          },
-          {
-            name: "publicMintPubkey";
-            type: "u8";
+            type: {
+              array: ["u8", 32];
+            };
           },
           {
             name: "inputNullifier";
             type: {
-              array: ["u8", 10];
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                10,
+              ];
             };
           },
           {
             name: "outputCommitment";
             type: {
-              array: ["u8", 2];
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "publicAmountSol";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "rootIndex";
+            type: "u64";
+          },
+          {
+            name: "relayerFee";
+            type: "u64";
+          },
+          {
+            name: "encryptedUtxos";
+            type: "bytes";
+          },
+        ];
+      };
+    },
+    {
+      name: "instructionDataShieldedTransferSecond";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "proofA";
+            type: {
+              array: ["u8", 64];
+            };
+          },
+          {
+            name: "proofB";
+            type: {
+              array: ["u8", 128];
+            };
+          },
+          {
+            name: "proofC";
+            type: {
+              array: ["u8", 64];
             };
           },
         ];
@@ -385,80 +418,40 @@ export type VerifierProgramOne = {
       };
     },
     {
-      name: "instructionDataShieldedTransferFirst";
+      name: "zKtransactionMasp10PublicInputs";
       type: {
         kind: "struct";
         fields: [
           {
+            name: "root";
+            type: "u8";
+          },
+          {
             name: "publicAmountSpl";
-            type: {
-              array: ["u8", 32];
-            };
+            type: "u8";
+          },
+          {
+            name: "txIntegrityHash";
+            type: "u8";
+          },
+          {
+            name: "publicAmountSol";
+            type: "u8";
+          },
+          {
+            name: "publicMintPubkey";
+            type: "u8";
           },
           {
             name: "inputNullifier";
             type: {
-              array: [
-                {
-                  array: ["u8", 32];
-                },
-                10,
-              ];
+              array: ["u8", 10];
             };
           },
           {
             name: "outputCommitment";
             type: {
-              array: [
-                {
-                  array: ["u8", 32];
-                },
-                2,
-              ];
-            };
-          },
-          {
-            name: "publicAmountSol";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-          {
-            name: "rootIndex";
-            type: "u64";
-          },
-          {
-            name: "relayerFee";
-            type: "u64";
-          },
-          {
-            name: "encryptedUtxos";
-            type: "bytes";
-          },
-        ];
-      };
-    },
-    {
-      name: "instructionDataShieldedTransferSecond";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "proofA";
-            type: {
-              array: ["u8", 64];
-            };
-          },
-          {
-            name: "proofB";
-            type: {
-              array: ["u8", 128];
-            };
-          },
-          {
-            name: "proofC";
-            type: {
-              array: ["u8", 64];
+              array: ["u8", 2];
             };
           },
         ];
@@ -470,13 +463,6 @@ export type VerifierProgramOne = {
 export const IDL: VerifierProgramOne = {
   version: "0.1.0",
   name: "verifier_program_one",
-  constants: [
-    {
-      name: "PROGRAM_ID",
-      type: "string",
-      value: '"3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"',
-    },
-  ],
   instructions: [
     {
       name: "shieldedTransferFirst",
@@ -629,40 +615,80 @@ export const IDL: VerifierProgramOne = {
   ],
   accounts: [
     {
-      name: "zKtransactionMasp10PublicInputs",
+      name: "instructionDataShieldedTransferFirst",
       type: {
         kind: "struct",
         fields: [
           {
-            name: "root",
-            type: "u8",
-          },
-          {
             name: "publicAmountSpl",
-            type: "u8",
-          },
-          {
-            name: "txIntegrityHash",
-            type: "u8",
-          },
-          {
-            name: "publicAmountSol",
-            type: "u8",
-          },
-          {
-            name: "publicMintPubkey",
-            type: "u8",
+            type: {
+              array: ["u8", 32],
+            },
           },
           {
             name: "inputNullifier",
             type: {
-              array: ["u8", 10],
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                10,
+              ],
             },
           },
           {
             name: "outputCommitment",
             type: {
-              array: ["u8", 2],
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "publicAmountSol",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "rootIndex",
+            type: "u64",
+          },
+          {
+            name: "relayerFee",
+            type: "u64",
+          },
+          {
+            name: "encryptedUtxos",
+            type: "bytes",
+          },
+        ],
+      },
+    },
+    {
+      name: "instructionDataShieldedTransferSecond",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "proofA",
+            type: {
+              array: ["u8", 64],
+            },
+          },
+          {
+            name: "proofB",
+            type: {
+              array: ["u8", 128],
+            },
+          },
+          {
+            name: "proofC",
+            type: {
+              array: ["u8", 64],
             },
           },
         ],
@@ -854,80 +880,40 @@ export const IDL: VerifierProgramOne = {
       },
     },
     {
-      name: "instructionDataShieldedTransferFirst",
+      name: "zKtransactionMasp10PublicInputs",
       type: {
         kind: "struct",
         fields: [
           {
+            name: "root",
+            type: "u8",
+          },
+          {
             name: "publicAmountSpl",
-            type: {
-              array: ["u8", 32],
-            },
+            type: "u8",
+          },
+          {
+            name: "txIntegrityHash",
+            type: "u8",
+          },
+          {
+            name: "publicAmountSol",
+            type: "u8",
+          },
+          {
+            name: "publicMintPubkey",
+            type: "u8",
           },
           {
             name: "inputNullifier",
             type: {
-              array: [
-                {
-                  array: ["u8", 32],
-                },
-                10,
-              ],
+              array: ["u8", 10],
             },
           },
           {
             name: "outputCommitment",
             type: {
-              array: [
-                {
-                  array: ["u8", 32],
-                },
-                2,
-              ],
-            },
-          },
-          {
-            name: "publicAmountSol",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-          {
-            name: "rootIndex",
-            type: "u64",
-          },
-          {
-            name: "relayerFee",
-            type: "u64",
-          },
-          {
-            name: "encryptedUtxos",
-            type: "bytes",
-          },
-        ],
-      },
-    },
-    {
-      name: "instructionDataShieldedTransferSecond",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "proofA",
-            type: {
-              array: ["u8", 64],
-            },
-          },
-          {
-            name: "proofB",
-            type: {
-              array: ["u8", 128],
-            },
-          },
-          {
-            name: "proofC",
-            type: {
-              array: ["u8", 64],
+              array: ["u8", 2],
             },
           },
         ],

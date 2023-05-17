@@ -1,13 +1,6 @@
 export type VerifierProgramStorage = {
   version: "0.1.0";
   name: "verifier_program_storage";
-  constants: [
-    {
-      name: "PROGRAM_ID";
-      type: "string";
-      value: '"DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj"';
-    },
-  ];
   instructions: [
     {
       name: "shieldedTransferFirst";
@@ -31,7 +24,7 @@ export type VerifierProgramStorage = {
       ];
       args: [
         {
-          name: "message";
+          name: "inputs";
           type: "bytes";
         },
       ];
@@ -87,7 +80,6 @@ export type VerifierProgramStorage = {
           name: "logWrapper";
           isMut: false;
           isSigner: false;
-          docs: ["CHECK"];
         },
         {
           name: "messageMerkleTree";
@@ -143,6 +135,86 @@ export type VerifierProgramStorage = {
           {
             name: "msg";
             type: "bytes";
+          },
+        ];
+      };
+    },
+    {
+      name: "instructionDataShieldedTransferFirst";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "message";
+            type: "bytes";
+          },
+        ];
+      };
+    },
+    {
+      name: "instructionDataShieldedTransferSecond";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "proofA";
+            type: {
+              array: ["u8", 64];
+            };
+          },
+          {
+            name: "proofB";
+            type: {
+              array: ["u8", 128];
+            };
+          },
+          {
+            name: "proofC";
+            type: {
+              array: ["u8", 64];
+            };
+          },
+          {
+            name: "inputNullifier";
+            type: {
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "outputCommitment";
+            type: {
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "publicAmountSol";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "rootIndex";
+            type: "u64";
+          },
+          {
+            name: "relayerFee";
+            type: "u64";
+          },
+          {
+            name: "encryptedUtxos";
+            type: {
+              array: ["u8", 256];
+            };
           },
         ];
       };
@@ -372,86 +444,6 @@ export type VerifierProgramStorage = {
         ];
       };
     },
-    {
-      name: "instructionDataShieldedTransferFirst";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "message";
-            type: "bytes";
-          },
-        ];
-      };
-    },
-    {
-      name: "instructionDataShieldedTransferSecond";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "proofA";
-            type: {
-              array: ["u8", 64];
-            };
-          },
-          {
-            name: "proofB";
-            type: {
-              array: ["u8", 128];
-            };
-          },
-          {
-            name: "proofC";
-            type: {
-              array: ["u8", 64];
-            };
-          },
-          {
-            name: "inputNullifier";
-            type: {
-              array: [
-                {
-                  array: ["u8", 32];
-                },
-                2,
-              ];
-            };
-          },
-          {
-            name: "outputCommitment";
-            type: {
-              array: [
-                {
-                  array: ["u8", 32];
-                },
-                2,
-              ];
-            };
-          },
-          {
-            name: "publicAmountSol";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-          {
-            name: "rootIndex";
-            type: "u64";
-          },
-          {
-            name: "relayerFee";
-            type: "u64";
-          },
-          {
-            name: "encryptedUtxos";
-            type: {
-              array: ["u8", 256];
-            };
-          },
-        ];
-      };
-    },
   ];
   errors: [
     {
@@ -475,13 +467,6 @@ export type VerifierProgramStorage = {
 export const IDL: VerifierProgramStorage = {
   version: "0.1.0",
   name: "verifier_program_storage",
-  constants: [
-    {
-      name: "PROGRAM_ID",
-      type: "string",
-      value: '"DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj"',
-    },
-  ],
   instructions: [
     {
       name: "shieldedTransferFirst",
@@ -505,7 +490,7 @@ export const IDL: VerifierProgramStorage = {
       ],
       args: [
         {
-          name: "message",
+          name: "inputs",
           type: "bytes",
         },
       ],
@@ -561,7 +546,6 @@ export const IDL: VerifierProgramStorage = {
           name: "logWrapper",
           isMut: false,
           isSigner: false,
-          docs: ["CHECK"],
         },
         {
           name: "messageMerkleTree",
@@ -617,6 +601,86 @@ export const IDL: VerifierProgramStorage = {
           {
             name: "msg",
             type: "bytes",
+          },
+        ],
+      },
+    },
+    {
+      name: "instructionDataShieldedTransferFirst",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "message",
+            type: "bytes",
+          },
+        ],
+      },
+    },
+    {
+      name: "instructionDataShieldedTransferSecond",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "proofA",
+            type: {
+              array: ["u8", 64],
+            },
+          },
+          {
+            name: "proofB",
+            type: {
+              array: ["u8", 128],
+            },
+          },
+          {
+            name: "proofC",
+            type: {
+              array: ["u8", 64],
+            },
+          },
+          {
+            name: "inputNullifier",
+            type: {
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "outputCommitment",
+            type: {
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "publicAmountSol",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "rootIndex",
+            type: "u64",
+          },
+          {
+            name: "relayerFee",
+            type: "u64",
+          },
+          {
+            name: "encryptedUtxos",
+            type: {
+              array: ["u8", 256],
+            },
           },
         ],
       },
@@ -841,86 +905,6 @@ export const IDL: VerifierProgramStorage = {
             name: "outputCommitment",
             type: {
               array: ["u8", 2],
-            },
-          },
-        ],
-      },
-    },
-    {
-      name: "instructionDataShieldedTransferFirst",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "message",
-            type: "bytes",
-          },
-        ],
-      },
-    },
-    {
-      name: "instructionDataShieldedTransferSecond",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "proofA",
-            type: {
-              array: ["u8", 64],
-            },
-          },
-          {
-            name: "proofB",
-            type: {
-              array: ["u8", 128],
-            },
-          },
-          {
-            name: "proofC",
-            type: {
-              array: ["u8", 64],
-            },
-          },
-          {
-            name: "inputNullifier",
-            type: {
-              array: [
-                {
-                  array: ["u8", 32],
-                },
-                2,
-              ],
-            },
-          },
-          {
-            name: "outputCommitment",
-            type: {
-              array: [
-                {
-                  array: ["u8", 32],
-                },
-                2,
-              ],
-            },
-          },
-          {
-            name: "publicAmountSol",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-          {
-            name: "rootIndex",
-            type: "u64",
-          },
-          {
-            name: "relayerFee",
-            type: "u64",
-          },
-          {
-            name: "encryptedUtxos",
-            type: {
-              array: ["u8", 256],
             },
           },
         ],

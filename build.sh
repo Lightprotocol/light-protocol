@@ -13,12 +13,12 @@ popd
 
 pushd light-system-programs
 yarn install --force
-anchor build
+light-anchor build
 popd
 
 pushd mock-app-verifier
 yarn install --force
-anchor build
+light-anchor build
 popd
 
 pushd light-circuits

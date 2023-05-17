@@ -1,13 +1,6 @@
 export type VerifierProgramZero = {
   version: "0.1.0";
   name: "verifier_program_zero";
-  constants: [
-    {
-      name: "PROGRAM_ID";
-      type: "string";
-      value: '"J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"';
-    },
-  ];
   instructions: [
     {
       name: "shieldedTransferFirst";
@@ -170,6 +163,104 @@ export type VerifierProgramZero = {
           {
             name: "encryptedUtxos";
             type: "bytes";
+          },
+        ];
+      };
+    },
+    {
+      name: "u256";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "x";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: "utxo";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "amounts";
+            type: {
+              array: ["u64", 2];
+            };
+          },
+          {
+            name: "splAssetIndex";
+            type: "u64";
+          },
+          {
+            name: "verifierAddressIndex";
+            type: "u64";
+          },
+          {
+            name: "blinding";
+            type: "u256";
+          },
+          {
+            name: "appDataHash";
+            type: "u256";
+          },
+          {
+            name: "accountShieldedPublicKey";
+            type: "u256";
+          },
+          {
+            name: "accountEncryptionPublicKey";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: "transactionParameters";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "message";
+            type: "bytes";
+          },
+          {
+            name: "inputUtxosBytes";
+            type: {
+              vec: "bytes";
+            };
+          },
+          {
+            name: "outputUtxosBytes";
+            type: {
+              vec: "bytes";
+            };
+          },
+          {
+            name: "recipientSpl";
+            type: "publicKey";
+          },
+          {
+            name: "recipientSol";
+            type: "publicKey";
+          },
+          {
+            name: "relayerPubkey";
+            type: "publicKey";
+          },
+          {
+            name: "relayerFee";
+            type: "u64";
+          },
+          {
+            name: "transactionNonce";
+            type: "u64";
           },
         ];
       };
@@ -399,113 +490,12 @@ export type VerifierProgramZero = {
         ];
       };
     },
-    {
-      name: "u256";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "x";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "utxo";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "amounts";
-            type: {
-              array: ["u64", 2];
-            };
-          },
-          {
-            name: "splAssetIndex";
-            type: "u64";
-          },
-          {
-            name: "verifierAddressIndex";
-            type: "u64";
-          },
-          {
-            name: "blinding";
-            type: "u256";
-          },
-          {
-            name: "appDataHash";
-            type: "u256";
-          },
-          {
-            name: "accountShieldedPublicKey";
-            type: "u256";
-          },
-          {
-            name: "accountEncryptionPublicKey";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "transactionParameters";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "inputUtxosBytes";
-            type: {
-              vec: "bytes";
-            };
-          },
-          {
-            name: "outputUtxosBytes";
-            type: {
-              vec: "bytes";
-            };
-          },
-          {
-            name: "recipientSpl";
-            type: "publicKey";
-          },
-          {
-            name: "recipientSol";
-            type: "publicKey";
-          },
-          {
-            name: "relayerPubkey";
-            type: "publicKey";
-          },
-          {
-            name: "relayerFee";
-            type: "u64";
-          },
-          {
-            name: "transactionNonce";
-            type: "u64";
-          },
-        ];
-      };
-    },
   ];
 };
 
 export const IDL: VerifierProgramZero = {
   version: "0.1.0",
   name: "verifier_program_zero",
-  constants: [
-    {
-      name: "PROGRAM_ID",
-      type: "string",
-      value: '"J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"',
-    },
-  ],
   instructions: [
     {
       name: "shieldedTransferFirst",
@@ -668,6 +658,104 @@ export const IDL: VerifierProgramZero = {
           {
             name: "encryptedUtxos",
             type: "bytes",
+          },
+        ],
+      },
+    },
+    {
+      name: "u256",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "x",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: "utxo",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "amounts",
+            type: {
+              array: ["u64", 2],
+            },
+          },
+          {
+            name: "splAssetIndex",
+            type: "u64",
+          },
+          {
+            name: "verifierAddressIndex",
+            type: "u64",
+          },
+          {
+            name: "blinding",
+            type: "u256",
+          },
+          {
+            name: "appDataHash",
+            type: "u256",
+          },
+          {
+            name: "accountShieldedPublicKey",
+            type: "u256",
+          },
+          {
+            name: "accountEncryptionPublicKey",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: "transactionParameters",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "message",
+            type: "bytes",
+          },
+          {
+            name: "inputUtxosBytes",
+            type: {
+              vec: "bytes",
+            },
+          },
+          {
+            name: "outputUtxosBytes",
+            type: {
+              vec: "bytes",
+            },
+          },
+          {
+            name: "recipientSpl",
+            type: "publicKey",
+          },
+          {
+            name: "recipientSol",
+            type: "publicKey",
+          },
+          {
+            name: "relayerPubkey",
+            type: "publicKey",
+          },
+          {
+            name: "relayerFee",
+            type: "u64",
+          },
+          {
+            name: "transactionNonce",
+            type: "u64",
           },
         ],
       },
@@ -893,100 +981,6 @@ export const IDL: VerifierProgramZero = {
             type: {
               array: ["u8", 2],
             },
-          },
-        ],
-      },
-    },
-    {
-      name: "u256",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "x",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-        ],
-      },
-    },
-    {
-      name: "utxo",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "amounts",
-            type: {
-              array: ["u64", 2],
-            },
-          },
-          {
-            name: "splAssetIndex",
-            type: "u64",
-          },
-          {
-            name: "verifierAddressIndex",
-            type: "u64",
-          },
-          {
-            name: "blinding",
-            type: "u256",
-          },
-          {
-            name: "appDataHash",
-            type: "u256",
-          },
-          {
-            name: "accountShieldedPublicKey",
-            type: "u256",
-          },
-          {
-            name: "accountEncryptionPublicKey",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-        ],
-      },
-    },
-    {
-      name: "transactionParameters",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "inputUtxosBytes",
-            type: {
-              vec: "bytes",
-            },
-          },
-          {
-            name: "outputUtxosBytes",
-            type: {
-              vec: "bytes",
-            },
-          },
-          {
-            name: "recipientSpl",
-            type: "publicKey",
-          },
-          {
-            name: "recipientSol",
-            type: "publicKey",
-          },
-          {
-            name: "relayerPubkey",
-            type: "publicKey",
-          },
-          {
-            name: "relayerFee",
-            type: "u64",
-          },
-          {
-            name: "transactionNonce",
-            type: "u64",
           },
         ],
       },
