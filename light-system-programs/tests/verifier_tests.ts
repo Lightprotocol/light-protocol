@@ -119,6 +119,9 @@ describe("Verifier Zero and One Tests", () => {
           new anchor.BN(depositAmount),
         ],
         account: KEYPAIR,
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
       let txParams = new TransactionParameters({
@@ -159,6 +162,9 @@ describe("Verifier Zero and One Tests", () => {
           new anchor.BN(depositAmount),
         ],
         account: KEYPAIR,
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
       let txParams1 = new TransactionParameters({

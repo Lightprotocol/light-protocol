@@ -1,5 +1,9 @@
 import { assert, expect } from "chai";
-import { SystemProgram, Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import {
+  SystemProgram,
+  Keypair as SolanaKeypair,
+  PublicKey,
+} from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
@@ -31,7 +35,12 @@ describe("Utxo Functional", () => {
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon, lightProvider, deposit_utxo1: Utxo , outputUtxo, relayer, keypair;
+  let poseidon,
+    lightProvider,
+    deposit_utxo1: Utxo,
+    outputUtxo,
+    relayer,
+    keypair;
   before(async () => {
     poseidon = await buildPoseidonOpt();
     // TODO: make fee mandatory
@@ -49,44 +58,79 @@ describe("Utxo Functional", () => {
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
       index: 1,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
-  it("Test Balance movetToSpentUtxos", async ()=> {
-
+  it("Test Balance movetToSpentUtxos", async () => {
     let balance: Balance = {
-      tokenBalances: new Map([[SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()]]),
+      tokenBalances: new Map([
+        [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
+      ]),
       transactionNonce: 0,
-      committedTransactionNonce:0,
+      committedTransactionNonce: 0,
       decryptionTransactionNonce: 0,
       totalSolBalance: new anchor.BN(0),
       programBalances: new Map(),
-      nftBalances: new Map()
+      nftBalances: new Map(),
     };
     let tokenBalanceUsdc = new TokenUtxoBalance(TOKEN_REGISTRY.get("USDC")!);
-    balance.tokenBalances.set(tokenBalanceUsdc.tokenData.mint.toBase58(), tokenBalanceUsdc);
-    
-    balance.tokenBalances.get(MINT.toBase58())?.addUtxo(deposit_utxo1.getCommitment(poseidon), deposit_utxo1, 'utxos');
-    
-    Utxo.equal(poseidon,
-        await balance.tokenBalances.get(MINT.toBase58())?.utxos.get(deposit_utxo1.getCommitment(poseidon))!,
-        await deposit_utxo1
+    balance.tokenBalances.set(
+      tokenBalanceUsdc.tokenData.mint.toBase58(),
+      tokenBalanceUsdc,
     );
-    assert.equal(balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(), deposit_utxo1.amounts[0].toString());
-    assert.equal(balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSpl.toString(), deposit_utxo1.amounts[1].toString());
-    assert.equal(balance.tokenBalances.get(SystemProgram.programId.toBase58())?.spentUtxos.size, 0);
 
-    balance.tokenBalances.get(MINT.toBase58())?.movetToSpentUtxos(deposit_utxo1.getCommitment(poseidon));
-    assert.equal(balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(), "0");
-    assert.equal(balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSpl.toString(), "0");
-    assert.equal(balance.tokenBalances.get(MINT.toBase58())?.spentUtxos.size, 1);
+    balance.tokenBalances
+      .get(MINT.toBase58())
+      ?.addUtxo(deposit_utxo1.getCommitment(poseidon), deposit_utxo1, "utxos");
+
+    Utxo.equal(
+      poseidon,
+      await balance.tokenBalances
+        .get(MINT.toBase58())
+        ?.utxos.get(deposit_utxo1.getCommitment(poseidon))!,
+      await deposit_utxo1,
+    );
+    assert.equal(
+      balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
+      deposit_utxo1.amounts[0].toString(),
+    );
+    assert.equal(
+      balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSpl.toString(),
+      deposit_utxo1.amounts[1].toString(),
+    );
+    assert.equal(
+      balance.tokenBalances.get(SystemProgram.programId.toBase58())?.spentUtxos
+        .size,
+      0,
+    );
+
+    balance.tokenBalances
+      .get(MINT.toBase58())
+      ?.movetToSpentUtxos(deposit_utxo1.getCommitment(poseidon));
+    assert.equal(
+      balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
+      "0",
+    );
+    assert.equal(
+      balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSpl.toString(),
+      "0",
+    );
+    assert.equal(
+      balance.tokenBalances.get(MINT.toBase58())?.spentUtxos.size,
+      1,
+    );
 
     assert.equal(balance.tokenBalances.get(MINT.toBase58())?.utxos.size, 0);
 
-    Utxo.equal(poseidon,
-        await balance.tokenBalances.get(MINT.toBase58())?.spentUtxos.get(deposit_utxo1.getCommitment(poseidon))!,
-        await deposit_utxo1
+    Utxo.equal(
+      poseidon,
+      await balance.tokenBalances
+        .get(MINT.toBase58())
+        ?.spentUtxos.get(deposit_utxo1.getCommitment(poseidon))!,
+      await deposit_utxo1,
     );
-  })
-
-})
+  });
+});

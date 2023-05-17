@@ -29,7 +29,7 @@ import {
   updateMerkleTree,
 } from "../src/services";
 import { testSetup } from "../src/setup";
-import { getKeyPairFromEnv } from "../src/utils/provider";
+import { getKeyPairFromEnv, getLightProvider } from "../src/utils/provider";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
@@ -67,7 +67,7 @@ describe("API tests", () => {
     chai
       .request(app)
       .get("/merkletree")
-      .end((err, res) => {
+      .end( (err, res) => {
         expect(res).to.have.status(200);
 
         const fetchedMerkleTree: MerkleTree = res.body.data.merkleTree;
@@ -79,13 +79,15 @@ describe("API tests", () => {
           poseidon,
           fetchedMerkleTree._layers[0],
         );
-
+          let lookUpTable = [FEE_ASSET.toBase58(), MINT.toBase58()];
         const deposit_utxo1 = new Utxo({
           poseidon: poseidon,
           assets: [FEE_ASSET, MINT],
           amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
           account: new Account({ poseidon: poseidon, seed: seed32 }),
           blinding: new BN(new Array(31).fill(1)),
+          assetLookupTable: lookUpTable,
+          verifierProgramLookupTable: lookUpTable,
         });
 
         expect(res.body.data.merkleTree).to.exist;

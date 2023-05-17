@@ -24,13 +24,17 @@ import {
   TRANSACTION_MERKLE_TREE_KEY,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
-  IDL_VERIFIER_PROGRAM_TWO
+  IDL_VERIFIER_PROGRAM_TWO,
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-const VERIFIER_IDLS = [IDL_VERIFIER_PROGRAM_ZERO, IDL_VERIFIER_PROGRAM_ONE, IDL_VERIFIER_PROGRAM_TWO];
+const VERIFIER_IDLS = [
+  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_VERIFIER_PROGRAM_ONE,
+  IDL_VERIFIER_PROGRAM_TWO,
+];
 
 describe("Transaction Parameters Functional", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
@@ -59,6 +63,9 @@ describe("Transaction Parameters Functional", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -71,6 +78,9 @@ describe("Transaction Parameters Functional", () => {
         new anchor.BN(depositAmount),
       ],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     let j = 0;
@@ -86,7 +96,7 @@ describe("Transaction Parameters Functional", () => {
       action: Action.TRANSFER,
       relayer,
       transactionNonce: 0,
-      verifierIdl: VERIFIER_IDLS[j]
+      verifierIdl: VERIFIER_IDLS[j],
     });
 
     let bytes = await paramsOriginal.toBytes();
@@ -96,15 +106,15 @@ describe("Transaction Parameters Functional", () => {
       utxoIdls: [IDL_VERIFIER_PROGRAM_ZERO],
       relayer,
       bytes,
-      verifierIdl: VERIFIER_IDLS[j]
-    })
+      verifierIdl: VERIFIER_IDLS[j],
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
     assert.equal(params.action.toString(), Action.TRANSFER.toString());
     assert.equal(params.publicAmountSpl.toString(), "0");
     assert.equal(
-      params.publicAmountSol
-        .sub(FIELD_SIZE)
-        .mul(new anchor.BN(-1))
-        .toString(),
+      params.publicAmountSol.sub(FIELD_SIZE).mul(new anchor.BN(-1)).toString(),
       relayer.getRelayerFee().toString(),
     );
     assert.equal(
@@ -116,7 +126,10 @@ describe("Transaction Parameters Functional", () => {
       params.assetPubkeys[2].toBase58(),
       SystemProgram.programId.toBase58(),
     );
-    assert.equal(params.accounts.recipientSpl?.toBase58(), AUTHORITY.toBase58());
+    assert.equal(
+      params.accounts.recipientSpl?.toBase58(),
+      AUTHORITY.toBase58(),
+    );
     assert.equal(
       params.accounts.recipientSol?.toBase58(),
       AUTHORITY.toBase58(),
@@ -149,7 +162,7 @@ describe("Transaction Parameters Functional", () => {
         TransactionParameters.getVerifierProgramId(VERIFIER_IDLS[j]),
       ).toBase58(),
     );
-    
+
     assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
     assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
     assert.equal(
@@ -164,8 +177,14 @@ describe("Transaction Parameters Functional", () => {
       params.relayer.accounts.lookUpTable.toBase58(),
       relayer.accounts.lookUpTable?.toBase58(),
     );
-    assert.equal(params.inputUtxos.length, TransactionParameters.getVerifierConfig(params.verifierIdl).in);
-    assert.equal(params.outputUtxos.length, TransactionParameters.getVerifierConfig(params.verifierIdl).out);
+    assert.equal(
+      params.inputUtxos.length,
+      TransactionParameters.getVerifierConfig(params.verifierIdl).in,
+    );
+    assert.equal(
+      params.outputUtxos.length,
+      TransactionParameters.getVerifierConfig(params.verifierIdl).out,
+    );
 
     for (var i in inputUtxos) {
       assert.equal(
@@ -180,7 +199,6 @@ describe("Transaction Parameters Functional", () => {
         outputUtxos[i].getCommitment(poseidon),
       );
     }
-
   });
 
   it("Transfer Functional", async () => {
@@ -192,6 +210,9 @@ describe("Transaction Parameters Functional", () => {
         new anchor.BN(depositAmount),
       ],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (var j in VERIFIER_IDLS) {
@@ -207,7 +228,7 @@ describe("Transaction Parameters Functional", () => {
         action: Action.TRANSFER,
         relayer,
         transactionNonce: 0,
-        verifierIdl: VERIFIER_IDLS[j]
+        verifierIdl: VERIFIER_IDLS[j],
       });
 
       assert.equal(params.action.toString(), Action.TRANSFER.toString());
@@ -228,7 +249,10 @@ describe("Transaction Parameters Functional", () => {
         params.assetPubkeys[2].toBase58(),
         SystemProgram.programId.toBase58(),
       );
-      assert.equal(params.accounts.recipientSpl?.toBase58(), AUTHORITY.toBase58());
+      assert.equal(
+        params.accounts.recipientSpl?.toBase58(),
+        AUTHORITY.toBase58(),
+      );
       assert.equal(
         params.accounts.recipientSol?.toBase58(),
         AUTHORITY.toBase58(),
@@ -268,15 +292,23 @@ describe("Transaction Parameters Functional", () => {
         Transaction.getTokenAuthority().toBase58(),
       );
       assert.equal(
-        TransactionParameters.getVerifierConfig(params.verifierIdl).in.toString(),
+        TransactionParameters.getVerifierConfig(
+          params.verifierIdl,
+        ).in.toString(),
         TransactionParameters.getVerifierConfig(VERIFIER_IDLS[j]).in.toString(),
       );
       assert.equal(
         params.relayer.accounts.lookUpTable.toBase58(),
         relayer.accounts.lookUpTable?.toBase58(),
       );
-      assert.equal(params.inputUtxos.length, TransactionParameters.getVerifierConfig(params.verifierIdl).in);
-      assert.equal(params.outputUtxos.length, TransactionParameters.getVerifierConfig(params.verifierIdl).out);
+      assert.equal(
+        params.inputUtxos.length,
+        TransactionParameters.getVerifierConfig(params.verifierIdl).in,
+      );
+      assert.equal(
+        params.outputUtxos.length,
+        TransactionParameters.getVerifierConfig(params.verifierIdl).out,
+      );
 
       for (var i in inputUtxos) {
         assert.equal(
@@ -306,7 +338,7 @@ describe("Transaction Parameters Functional", () => {
         poseidon,
         action: Action.SHIELD,
         transactionNonce: 0,
-        verifierIdl: VERIFIER_IDLS[j]
+        verifierIdl: VERIFIER_IDLS[j],
       });
 
       assert.equal(params.publicAmountSpl.toString(), depositAmount.toString());
@@ -323,7 +355,10 @@ describe("Transaction Parameters Functional", () => {
         params.assetPubkeys[2].toBase58(),
         SystemProgram.programId.toBase58(),
       );
-      assert.equal(params.accounts.senderSpl?.toBase58(), mockPubkey.toBase58());
+      assert.equal(
+        params.accounts.senderSpl?.toBase58(),
+        mockPubkey.toBase58(),
+      );
       assert.equal(
         params.accounts.senderSol?.toBase58(),
         TransactionParameters.getEscrowPda(
@@ -362,7 +397,9 @@ describe("Transaction Parameters Functional", () => {
         Transaction.getTokenAuthority().toBase58(),
       );
       assert.equal(
-        TransactionParameters.getVerifierConfig(params.verifierIdl).in.toString(),
+        TransactionParameters.getVerifierConfig(
+          params.verifierIdl,
+        ).in.toString(),
         TransactionParameters.getVerifierConfig(VERIFIER_IDLS[j]).in.toString(),
       );
       assert.equal(params.action.toString(), Action.SHIELD.toString());
@@ -370,8 +407,14 @@ describe("Transaction Parameters Functional", () => {
         params.relayer.accounts.lookUpTable.toBase58(),
         lightProvider.lookUpTable?.toBase58(),
       );
-      assert.equal(params.inputUtxos.length, TransactionParameters.getVerifierConfig(params.verifierIdl).in);
-      assert.equal(params.outputUtxos.length, TransactionParameters.getVerifierConfig(params.verifierIdl).out);
+      assert.equal(
+        params.inputUtxos.length,
+        TransactionParameters.getVerifierConfig(params.verifierIdl).in,
+      );
+      assert.equal(
+        params.outputUtxos.length,
+        TransactionParameters.getVerifierConfig(params.verifierIdl).out,
+      );
 
       for (var i in outputUtxos) {
         assert.equal(
@@ -395,7 +438,7 @@ describe("Transaction Parameters Functional", () => {
         action: Action.UNSHIELD,
         relayer,
         transactionNonce: 0,
-        verifierIdl: VERIFIER_IDLS[j]
+        verifierIdl: VERIFIER_IDLS[j],
       });
       assert.equal(params.action.toString(), Action.UNSHIELD.toString());
       assert.equal(
@@ -464,15 +507,23 @@ describe("Transaction Parameters Functional", () => {
         Transaction.getTokenAuthority().toBase58(),
       );
       assert.equal(
-        TransactionParameters.getVerifierConfig(params.verifierIdl).in.toString(),
+        TransactionParameters.getVerifierConfig(
+          params.verifierIdl,
+        ).in.toString(),
         TransactionParameters.getVerifierConfig(VERIFIER_IDLS[j]).in.toString(),
       );
       assert.equal(
         params.relayer.accounts.lookUpTable.toBase58(),
         relayer.accounts.lookUpTable?.toBase58(),
       );
-      assert.equal(params.inputUtxos.length, TransactionParameters.getVerifierConfig(params.verifierIdl).in);
-      assert.equal(params.outputUtxos.length, TransactionParameters.getVerifierConfig(params.verifierIdl).out);
+      assert.equal(
+        params.inputUtxos.length,
+        TransactionParameters.getVerifierConfig(params.verifierIdl).in,
+      );
+      assert.equal(
+        params.outputUtxos.length,
+        TransactionParameters.getVerifierConfig(params.verifierIdl).out,
+      );
 
       for (var i in inputUtxos) {
         assert.equal(
@@ -485,16 +536,39 @@ describe("Transaction Parameters Functional", () => {
 });
 
 describe("Test TransactionParameters Methods", () => {
+  let lightProvider: LightProvider;
   it("Test getAssetPubkeys", async () => {
+    lightProvider = await LightProvider.loadMock();
     const poseidon = await buildPoseidonOpt();
-    let inputUtxos = [new Utxo({ poseidon }), new Utxo({ poseidon })];
+    let inputUtxos = [
+      new Utxo({
+        poseidon,
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
+      }),
+      new Utxo({
+        poseidon,
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
+      }),
+    ];
     let outputUtxos = [
       new Utxo({
         poseidon,
         amounts: [new anchor.BN(2), new anchor.BN(4)],
         assets: [SystemProgram.programId, MINT],
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
       }),
-      new Utxo({ poseidon }),
+      new Utxo({
+        poseidon,
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
+      }),
     ];
 
     let { assetPubkeysCircuit, assetPubkeys } =
@@ -522,14 +596,35 @@ describe("Test TransactionParameters Methods", () => {
 
   it("Test getExtAmount", async () => {
     const poseidon = await buildPoseidonOpt();
-    let inputUtxos = [new Utxo({ poseidon }), new Utxo({ poseidon })];
+    let inputUtxos = [
+      new Utxo({
+        poseidon,
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
+      }),
+      new Utxo({
+        poseidon,
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
+      }),
+    ];
     let outputUtxos = [
       new Utxo({
         poseidon,
         amounts: [new anchor.BN(2), new anchor.BN(4)],
         assets: [SystemProgram.programId, MINT],
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
       }),
-      new Utxo({ poseidon }),
+      new Utxo({
+        poseidon,
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
+      }),
     ];
     let { assetPubkeysCircuit, assetPubkeys } =
       TransactionParameters.getAssetPubkeys(inputUtxos, outputUtxos);
@@ -554,6 +649,9 @@ describe("Test TransactionParameters Methods", () => {
       poseidon,
       amounts: [new anchor.BN(3), new anchor.BN(5)],
       assets: [SystemProgram.programId, MINT],
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     let publicAmountSpl2Outputs = TransactionParameters.getExternalAmount(
       1,
@@ -574,7 +672,7 @@ describe("Test TransactionParameters Methods", () => {
 });
 
 describe("Test General TransactionParameters Errors", () => {
-    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
@@ -600,6 +698,9 @@ describe("Test General TransactionParameters Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -614,7 +715,7 @@ describe("Test General TransactionParameters Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -636,7 +737,7 @@ describe("Test General TransactionParameters Errors", () => {
           senderSol: mockPubkey,
           lookUpTable: lightProvider.lookUpTable,
           action: Action.SHIELD,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -658,7 +759,7 @@ describe("Test General TransactionParameters Errors", () => {
           senderSol: mockPubkey,
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -691,7 +792,7 @@ describe("Test General TransactionParameters Errors", () => {
 });
 
 describe("Test TransactionParameters Transfer Errors", () => {
-    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
@@ -714,6 +815,9 @@ describe("Test TransactionParameters Transfer Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     outputUtxo = new Utxo({
@@ -724,6 +828,9 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new anchor.BN(depositAmount),
       ],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const params = new TransactionParameters({
@@ -734,7 +841,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       action: Action.TRANSFER,
       relayer,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
 
@@ -748,7 +855,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           poseidon,
           action: Action.TRANSFER,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -768,6 +875,9 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new anchor.BN(0),
       ],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (var verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -779,7 +889,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -796,6 +906,9 @@ describe("Test TransactionParameters Transfer Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN(depositAmount)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (var verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -807,7 +920,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -830,7 +943,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           recipientSpl: mockPubkey,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -853,7 +966,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           recipientSol: mockPubkey,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -876,7 +989,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           senderSol: mockPubkey,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -899,7 +1012,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           senderSpl: mockPubkey,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -912,7 +1025,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
 });
 
 describe("Test TransactionParameters Deposit Errors", () => {
-    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
@@ -935,6 +1048,9 @@ describe("Test TransactionParameters Deposit Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const params = new TransactionParameters({
@@ -946,7 +1062,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon,
       action: Action.SHIELD,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
 
@@ -961,7 +1077,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -983,7 +1099,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1005,7 +1121,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1029,7 +1145,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           action: Action.SHIELD,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1049,12 +1165,18 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new anchor.BN(depositAmount),
       ],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (var verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -1067,7 +1189,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1084,6 +1206,9 @@ describe("Test TransactionParameters Deposit Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     let utxo_spl_amount_no_u642 = new Utxo({
@@ -1091,6 +1216,9 @@ describe("Test TransactionParameters Deposit Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("1")],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (var verifier in VERIFIER_IDLS) {
@@ -1104,7 +1232,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1128,7 +1256,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1152,7 +1280,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1174,7 +1302,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1196,7 +1324,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1213,6 +1341,9 @@ describe("Test TransactionParameters Deposit Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (var verifier in VERIFIER_IDLS) {
       // senderSpl fee always needs to be defined because we use it as the signer
@@ -1225,7 +1356,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         poseidon,
         action: Action.SHIELD,
         transactionNonce: 0,
-        verifierIdl: VERIFIER_IDLS[verifier]
+        verifierIdl: VERIFIER_IDLS[verifier],
       });
     }
   });
@@ -1243,7 +1374,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1267,7 +1398,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1280,7 +1411,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
 });
 
 describe("Test TransactionParameters Withdrawal Errors", () => {
-    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
@@ -1304,6 +1435,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     outputUtxo = new Utxo({
@@ -1314,6 +1448,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new anchor.BN(depositAmount),
       ],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -1330,7 +1467,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1352,7 +1489,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1372,12 +1509,19 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new anchor.BN(depositAmount),
       ],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
+
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (var verifier in VERIFIER_IDLS) {
@@ -1391,7 +1535,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1408,6 +1552,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     let utxo_spl_amount_no_u642 = new Utxo({
@@ -1415,6 +1562,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("1")],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (var verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -1428,7 +1578,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1453,7 +1603,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1478,7 +1628,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1495,6 +1645,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (var verifier in VERIFIER_IDLS) {
@@ -1508,7 +1661,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         action: Action.UNSHIELD,
         relayer,
         transactionNonce: 0,
-        verifierIdl: VERIFIER_IDLS[verifier]
+        verifierIdl: VERIFIER_IDLS[verifier],
       });
     }
   });
@@ -1519,6 +1672,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (var verifier in VERIFIER_IDLS) {
@@ -1532,7 +1688,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         action: Action.UNSHIELD,
         relayer,
         transactionNonce: 0,
-        verifierIdl: VERIFIER_IDLS[verifier]
+        verifierIdl: VERIFIER_IDLS[verifier],
       });
     }
   });
@@ -1551,7 +1707,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)
@@ -1576,7 +1732,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           transactionNonce: 0,
-          verifierIdl: VERIFIER_IDLS[verifier]
+          verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
         .to.throw(TransactioParametersError)

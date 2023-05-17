@@ -42,8 +42,6 @@ pub trait Config {
     const NR_NULLIFIERS: usize;
     /// Number of output utxos.
     const NR_LEAVES: usize;
-    /// Number of checked public inputs.
-    const NR_CHECKED_PUBLIC_INPUTS: usize;
     /// Program ID of the verifier program.
     const ID: Pubkey;
 }

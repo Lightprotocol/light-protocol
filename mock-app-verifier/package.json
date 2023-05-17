@@ -1,12 +1,12 @@
 {
   "scripts": {
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-    "format": "prettier --write \"src/**/*.{ts,js}\" -w",
+    "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
     "test-verifiers": "sh runTest.sh 'ts-mocha -t 2000000 tests/verifier_tests.ts --exit'",
     "test-functional": "sh runTest.sh 'ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit'",
     "test-app-utxo": "ts-mocha -p ./tsconfig.json -t 1000000 tests/appUtxo.test.ts --exit",
     "build-circom": "./../macro-circom/target/debug/rust-circom-dsl ./circuit/mock_verifier_transaction.light",
-    "build": "ts-node ./scripts/buildPSP.ts circuit",
+    "build": "ts-node ./scripts/buildPSP.ts circuit verifier",
     "test": "yarn test-functional"
   },
   "dependencies": {

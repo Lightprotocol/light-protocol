@@ -20,13 +20,14 @@ import {
   DEFAULT_ZERO,
   ProviderError,
   useWallet,
+  MINT,
 } from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Test Provider Functional", () => {
-  let poseidon
+  let poseidon;
 
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
@@ -50,6 +51,33 @@ describe("Test Provider Functional", () => {
     assert.equal(
       lightProviderMock.solMerkleTree?.merkleTree.zeroElement,
       DEFAULT_ZERO,
+    );
+    const additionalMint = SolanaKeypair.generate().publicKey;
+    assert.equal(
+      lightProviderMock.lookUpTables.assetLookupTable[0],
+      SystemProgram.programId.toBase58(),
+    );
+    assert.equal(
+      lightProviderMock.lookUpTables.assetLookupTable[1],
+      MINT.toBase58(),
+    );
+    assert.equal(
+      lightProviderMock.lookUpTables.verifierProgramLookupTable[0],
+      SystemProgram.programId.toBase58(),
+    );
+    assert.equal(
+      lightProviderMock.lookUpTables.verifierProgramLookupTable[1],
+      "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+    );
+    lightProviderMock.addAssetPublickeyToLookUpTable(additionalMint);
+    assert.equal(
+      lightProviderMock.lookUpTables.assetLookupTable[2],
+      additionalMint.toBase58(),
+    );
+    lightProviderMock.addVerifierProgramPublickeyToLookUpTable(additionalMint);
+    assert.equal(
+      lightProviderMock.lookUpTables.verifierProgramLookupTable[2],
+      additionalMint.toBase58(),
     );
   });
 

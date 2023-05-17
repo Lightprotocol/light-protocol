@@ -10,6 +10,7 @@ import {
   Connection,
   ConfirmOptions,
   Keypair,
+  SystemProgram,
 } from "@solana/web3.js";
 import {
   ProviderError,
@@ -24,6 +25,7 @@ import {
   SolMerkleTree,
   RELAYER_RECIPIENT_KEYPAIR,
   IndexedTransaction,
+  MINT,
 } from "../index";
 
 const axios = require("axios");
@@ -55,6 +57,10 @@ export class Provider {
   url?: string;
   minimumLamports: BN;
   relayer: Relayer;
+  lookUpTables: {
+    assetLookupTable: string[];
+    verifierProgramLookupTable: string[];
+  };
 
   /**
    * Initialize with Wallet or SolanaKeypair. Feepayer is the provided wallet
@@ -67,6 +73,8 @@ export class Provider {
     url = "http://127.0.0.1:8899",
     minimumLamports = new BN(5000 * 30),
     relayer,
+    verifierProgramLookupTable,
+    assetLookupTable,
   }: {
     wallet: Wallet | SolanaKeypair;
     confirmConfig?: ConfirmOptions;
@@ -74,6 +82,8 @@ export class Provider {
     url?: string;
     minimumLamports?: BN;
     relayer?: Relayer;
+    verifierProgramLookupTable?: PublicKey[];
+    assetLookupTable?: PublicKey[];
   }) {
     if (!wallet)
       throw new ProviderError(
@@ -122,6 +132,25 @@ export class Provider {
         new BN(100000),
       );
     }
+    let tmpAssetLookupTable = assetLookupTable
+      ? [...assetLookupTable?.map((entry) => entry.toBase58())]
+      : [];
+
+    let tmpVerifierProgramLookupTable = verifierProgramLookupTable
+      ? [...verifierProgramLookupTable?.map((entry) => entry.toBase58())]
+      : [];
+    this.lookUpTables = {
+      assetLookupTable: [
+        SystemProgram.programId.toBase58(),
+        MINT.toBase58(),
+        ...tmpAssetLookupTable,
+      ],
+      verifierProgramLookupTable: [
+        SystemProgram.programId.toBase58(),
+        "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+        ...tmpVerifierProgramLookupTable,
+      ],
+    };
   }
 
   static async loadMock() {
@@ -237,12 +266,16 @@ export class Provider {
     confirmConfig,
     url,
     relayer,
+    assetLookupTable,
+    verifierProgramLookupTable,
   }: {
     wallet: Wallet | SolanaKeypair | Keypair;
     connection?: Connection;
     confirmConfig?: ConfirmOptions;
     url?: string;
     relayer?: Relayer;
+    assetLookupTable?: PublicKey[];
+    verifierProgramLookupTable?: PublicKey[];
   }): Promise<Provider> {
     if (!wallet) {
       throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
@@ -253,10 +286,20 @@ export class Provider {
       connection,
       url,
       relayer,
+      assetLookupTable,
+      verifierProgramLookupTable,
     });
     await provider.loadPoseidon();
     await provider.fetchLookupTable();
     await provider.fetchMerkleTree(TRANSACTION_MERKLE_TREE_KEY);
     return provider;
+  }
+
+  addVerifierProgramPublickeyToLookUpTable(address: PublicKey) {
+    this.lookUpTables.verifierProgramLookupTable.push(address.toBase58());
+  }
+
+  addAssetPublickeyToLookUpTable(address: PublicKey) {
+    this.lookUpTables.assetLookupTable.push(address.toBase58());
   }
 }

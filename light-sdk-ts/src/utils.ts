@@ -52,28 +52,25 @@ export async function getAssetLookUpId({
   return registeredAssets.index;
 }
 
-// TODO: fetch from chain
-// TODO: separate testing variables from prod env
-export const assetLookupTable: string[] = [
-  SystemProgram.programId.toBase58(),
-  MINT.toBase58(),
-];
-
-export const verifierLookupTable: string[] = [
-  SystemProgram.programId.toBase58(),
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
-];
-
-export function getAssetIndex(assetPubkey: PublicKey): BN {
+export function getAssetIndex(
+  assetPubkey: PublicKey,
+  assetLookupTable: string[],
+): BN {
   return new BN(assetLookupTable.indexOf(assetPubkey.toBase58()));
 }
 
-export function fetchAssetByIdLookUp(assetIndex: BN): PublicKey {
+export function fetchAssetByIdLookUp(
+  assetIndex: BN,
+  assetLookupTable: string[],
+): PublicKey {
   return new PublicKey(assetLookupTable[assetIndex.toNumber()]);
 }
 
-export function fetchVerifierByIdLookUp(index: BN): PublicKey {
-  return new PublicKey(verifierLookupTable[index.toNumber()]);
+export function fetchVerifierByIdLookUp(
+  index: BN,
+  verifierProgramLookupTable: string[],
+): PublicKey {
+  return new PublicKey(verifierProgramLookupTable[index.toNumber()]);
 }
 
 export const arrToStr = (uint8arr: Uint8Array) =>

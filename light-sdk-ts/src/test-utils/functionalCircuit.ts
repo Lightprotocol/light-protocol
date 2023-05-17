@@ -20,6 +20,8 @@ export async function functionalCircuitTest(
   app: boolean = false,
   verifierIdl: Idl,
 ) {
+  let lightProvider = await LightProvider.loadMock();
+
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let keypair = new Account({ poseidon: poseidon, seed: seed32 });
@@ -30,10 +32,11 @@ export async function functionalCircuitTest(
     assets: [FEE_ASSET, MINT],
     amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
     account: keypair,
+    assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+    verifierProgramLookupTable:
+      lightProvider.lookUpTables.verifierProgramLookupTable,
   });
   let mockPubkey = SolanaKeypair.generate().publicKey;
-
-  let lightProvider = await LightProvider.loadMock();
 
   let txParams = new TransactionParameters({
     outputUtxos: [deposit_utxo1],
