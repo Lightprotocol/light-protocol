@@ -1,0 +1,55 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+name: test
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Log in to the container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.PAT_TOKEN }}
+
+      - name: Pre-build dev container image
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/lightprotocol/devcontainer-cache
+          cacheFrom: ghcr.io/lightprotocol/devcontainer-cache
+          push: always
+
+      - name: Create env file
+        run: |
+          cd relayer
+          touch .env
+          echo KEY_PAIR=${{ secrets.KEY_PAIR }} > .env
+          echo RELAYER_RECIPIENT=${{ secrets.RELAYER_RECIPIENT }} >> .env
+          echo LOOK_UP_TABLE=${{ secrets.LOOK_UP_TABLE }} >> .env
+          echo TEST_ENVIROMENT=${{ secrets.TEST_ENVIROMENT }} >> .env
+
+      - name: Build and test
+        uses: devcontainers/ci@v0.3
+        with:    
+          cacheFrom: ghcr.io/lightprotocol/devcontainer-cache
+          push: always
+          runCmd: |
+            solana-keygen new --no-bip39-passphrase -o /home/node/.config/solana/id.json
+            ./build.sh
+            ./test.sh
