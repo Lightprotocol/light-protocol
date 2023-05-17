@@ -13,8 +13,9 @@ import * as anchor from "@coral-xyz/anchor";
 import { Utxo } from "utxo";
 import { MetaError, UtilsError, UtilsErrorCode } from "./errors";
 import { TokenUtxoBalance } from "wallet";
+import { TokenData } from "types";
 const { keccak_256 } = require("@noble/hashes/sha3");
-
+import { Decimal } from "decimal.js";
 export function hashAndTruncateToCircuit(data: Uint8Array) {
   return new BN(
     keccak_256
@@ -81,11 +82,71 @@ export const arrToStr = (uint8arr: Uint8Array) =>
 export const strToArr = (str: string) =>
   new Uint8Array(Buffer.from(str.slice(3), "hex"));
 
+export function decimalConversion({
+  tokenCtx,
+  skipDecimalConversions,
+  publicAmountSpl,
+  publicAmountSol,
+  minimumLamports,
+  minimumLamportsAmount,
+}: {
+  tokenCtx: TokenData;
+  skipDecimalConversions?: boolean;
+  publicAmountSpl?: BN | string | number;
+  publicAmountSol?: BN | string | number;
+  minimumLamports?: boolean;
+  minimumLamportsAmount?: BN;
+}) {
+  if (!skipDecimalConversions) {
+    publicAmountSpl = publicAmountSpl
+      ? convertAndComputeDecimals(publicAmountSpl, tokenCtx.decimals)
+      : undefined;
+    // If SOL amount is not provided, the default value is either minimum amount (if defined) or 0.
+    publicAmountSol = publicAmountSol
+      ? convertAndComputeDecimals(publicAmountSol, new BN(1e9))
+      : minimumLamports
+      ? minimumLamportsAmount
+      : new BN(0);
+  } else {
+    publicAmountSpl = publicAmountSpl
+      ? new BN(publicAmountSpl.toString())
+      : undefined;
+    publicAmountSol = publicAmountSol
+      ? new BN(publicAmountSol?.toString())
+      : new BN(0);
+  }
+  return { publicAmountSpl, publicAmountSol };
+}
 export const convertAndComputeDecimals = (
   amount: BN | string | number,
   decimals: BN,
 ) => {
-  return new BN(amount.toString()).mul(decimals);
+  if (typeof amount === "number" && amount < 0) {
+    throw new Error("Negative amounts are not allowed.");
+  }
+
+  if (typeof amount === "string" && amount.startsWith("-")) {
+    throw new Error("Negative amounts are not allowed.");
+  }
+  if (decimals.lt(new BN(1))) {
+    throw new Error(
+      "Decimal numbers have to be at least 1 since we precompute 10**decimalValue.",
+    );
+  }
+
+  let amountStr = amount.toString();
+
+  if (!new Decimal(amountStr).isInt()) {
+    const convertedFloat = new Decimal(amountStr).times(
+      new Decimal(decimals.toString()),
+    );
+    if (!convertedFloat.isInt())
+      throw new Error(`Decimal conversion of value ${amountStr} failed`);
+    return new BN(convertedFloat.toString());
+  }
+
+  const bnAmount = new BN(amountStr);
+  return bnAmount.mul(decimals);
 };
 
 export const getUpdatedSpentUtxos = (
@@ -107,7 +168,13 @@ export const fetchNullifierAccountInfo = async (
     ],
     merkleTreeProgramId,
   )[0];
-  return connection.getAccountInfo(nullifierPubkey, "confirmed");
+  var retries = 2;
+  while (retries > 0) {
+    const res = await connection.getAccountInfo(nullifierPubkey, "processed");
+    if (res) return res;
+    retries--;
+  }
+  return connection.getAccountInfo(nullifierPubkey, "processed");
 };
 
 // use

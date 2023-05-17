@@ -776,7 +776,7 @@ describe("Test createOutUtxos Errors", () => {
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
-        outUtxos: [new Utxo({poseidon, assets: [SystemProgram.programId, utxo1.assets[1]], amounts: [new BN(0), new BN(1e1)]})],
+        outUtxos: [new Utxo({poseidon, assets: [SystemProgram.programId, utxo1.assets[1]], amounts: [new BN(0), new BN(1)]})],
         numberMaxOutUtxos
       });
     })

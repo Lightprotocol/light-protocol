@@ -29,6 +29,7 @@ import {
   TestStateValidator,
   airdropShieldedSol,
   LOOK_UP_TABLE,
+  generateRandomTestAmount,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -68,14 +69,73 @@ describe("Test User", () => {
     );
   });
 
+  it.skip("(user class) shield SPL random infinite", async () => {
+    const getRandomElement = () => {
+      const randomIndex = parseInt(Math.floor(Math.random() * 7).toString());
+      return randomIndex;
+    };
+    var expectedSpentUtxosLength = 0;
+    var expectedUtxoHistoryLength = 1;
+    var totalSplAmount = 0;
+    while (true) {
+      let testInputs = {
+        amountSpl: generateRandomTestAmount(0, 100000, 2),
+        amountSol: 0,
+        token: "USDC",
+        type: Action.SHIELD,
+        expectedUtxoHistoryLength,
+        expectedSpentUtxosLength,
+      };
+      totalSplAmount += testInputs.amountSpl;
+      console.log("total spl amount ", totalSplAmount);
+      console.log("testinputs: ", testInputs.amountSpl);
+
+      const provider = await Provider.init({
+        wallet: userKeypair,
+        relayer: RELAYER,
+      });
+
+      let res = await provider.provider.connection.requestAirdrop(
+        userKeypair.publicKey,
+        2_000_000_000,
+      );
+
+      await provider.provider.connection.confirmTransaction(res, "confirmed");
+
+      const user: User = await User.init({ provider });
+
+      const testStateValidator = new TestStateValidator({
+        userSender: user,
+        userRecipient: user,
+        provider,
+        testInputs,
+      });
+
+      await testStateValidator.fetchAndSaveState();
+
+      await user.shield({
+        publicAmountSpl: testInputs.amountSpl,
+        token: testInputs.token,
+      });
+
+      // TODO: add random amount and amount checks
+      await user.provider.latestMerkleTree();
+
+      await testStateValidator.checkTokenShielded();
+      expectedSpentUtxosLength++;
+      expectedUtxoHistoryLength++;
+    }
+  });
   it("(user class) shield SPL", async () => {
+    var expectedSpentUtxosLength = 0;
+    var expectedUtxoHistoryLength = 1;
     let testInputs = {
-      amountSpl: 20,
+      amountSpl: generateRandomTestAmount(0, 100000, 2),
       amountSol: 0,
       token: "USDC",
       type: Action.SHIELD,
-      expectedUtxoHistoryLength: 1,
-      expectedSpentUtxosLength: 0,
+      expectedUtxoHistoryLength,
+      expectedSpentUtxosLength,
     };
 
     const provider = await Provider.init({

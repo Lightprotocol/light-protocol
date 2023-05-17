@@ -55,6 +55,8 @@ import {
   UtxoError,
   IDL_VERIFIER_PROGRAM_TWO,
   isProgramVerifier,
+  TokenData,
+  decimalConversion,
 } from "../index";
 import { bytes } from "@coral-xyz/anchor/dist/cjs/utils";
 import { Idl } from "@coral-xyz/anchor";
@@ -347,7 +349,7 @@ export class User {
     mergeExistingUtxos?: boolean;
     verifierIdl?: Idl;
     message?: Buffer;
-    skipDecimalConversions?: Boolean;
+    skipDecimalConversions?: boolean;
     utxo?: Utxo;
   }): Promise<TransactionParameters> {
     // TODO: add errors for if appUtxo appDataHash or appData, no verifierAddress
@@ -393,26 +395,18 @@ export class User {
         "Cannot use senderTokenAccount for SOL!",
       );
     let userSplAccount: PublicKey | undefined = undefined;
-    publicAmountSpl = publicAmountSpl
-      ? new BN(publicAmountSpl.toString())
-      : undefined;
-    if (!skipDecimalConversions) {
-      publicAmountSpl = publicAmountSpl
-        ? convertAndComputeDecimals(publicAmountSpl, tokenCtx.decimals)
-        : undefined;
-    }
-
-    publicAmountSol = publicAmountSol
-      ? new BN(publicAmountSol?.toString())
+    const convertedPublicAmounts = decimalConversion({
+      tokenCtx,
+      skipDecimalConversions,
+      publicAmountSol,
+      publicAmountSpl,
+      minimumLamports,
+      minimumLamportsAmount: this.provider.minimumLamports,
+    });
+    publicAmountSol = convertedPublicAmounts.publicAmountSol
+      ? convertedPublicAmounts.publicAmountSol
       : new BN(0);
-    if (!skipDecimalConversions) {
-      // If SOL amount is not provided, the default value is either minimum amount (if defined) or 0.
-      publicAmountSol = !publicAmountSol.eq(new BN(0))
-        ? convertAndComputeDecimals(publicAmountSol, new BN(1e9))
-        : minimumLamports
-        ? this.provider.minimumLamports
-        : new BN(0);
-    }
+    publicAmountSpl = convertedPublicAmounts.publicAmountSpl;
 
     if (!tokenCtx.isNative && publicAmountSpl) {
       if (senderTokenAccount) {
@@ -432,7 +426,7 @@ export class User {
       utxosEntries && mergeExistingUtxos ? Array.from(utxosEntries) : [];
     let outUtxos: Utxo[] = [];
     if (recipient) {
-      const amounts = publicAmountSpl
+      const amounts: BN[] = publicAmountSpl
         ? [publicAmountSol, publicAmountSpl]
         : [publicAmountSol];
       const assets = !tokenCtx.isNative
@@ -891,20 +885,33 @@ export class User {
         "createTransferTransactionParameters",
         "Token not supported!",
       );
+    const convertedPublicAmounts = decimalConversion({
+      tokenCtx,
+      skipDecimalConversions,
+      publicAmountSol: amountSol,
+      publicAmountSpl: amountSpl,
+      minimumLamportsAmount: this.provider.minimumLamports,
+    });
+    var parsedSolAmount = convertedPublicAmounts.publicAmountSol
+      ? convertedPublicAmounts.publicAmountSol
+      : new BN(0);
+    var parsedSplAmount = convertedPublicAmounts.publicAmountSpl
+      ? convertedPublicAmounts.publicAmountSpl
+      : new BN(0);
 
-    var parsedSplAmount: BN = amountSpl
-      ? new BN(amountSpl.toString())
-      : new BN(0);
-    if (!skipDecimalConversions && amountSpl && tokenCtx) {
-      parsedSplAmount = convertAndComputeDecimals(amountSpl, tokenCtx.decimals);
-    }
-    // if no sol amount by default min amount if disabled 0
-    var parsedSolAmount: BN = amountSol
-      ? new BN(amountSol.toString())
-      : new BN(0);
-    if (!skipDecimalConversions && amountSol) {
-      parsedSolAmount = convertAndComputeDecimals(amountSol, new BN(1e9));
-    }
+    // var parsedSplAmount: BN = amountSpl
+    //   ? new BN(amountSpl.toString())
+    //   : new BN(0);
+    // if (!skipDecimalConversions && amountSpl && tokenCtx) {
+    //   parsedSplAmount = convertAndComputeDecimals(amountSpl, tokenCtx.decimals);
+    // }
+    // // if no sol amount by default min amount if disabled 0
+    // var parsedSolAmount: BN = amountSol
+    //   ? new BN(amountSol.toString())
+    //   : new BN(0);
+    // if (!skipDecimalConversions && amountSol) {
+    //   parsedSolAmount = convertAndComputeDecimals(amountSol, new BN(1e9));
+    // }
 
     if (recipient && !tokenCtx)
       throw new UserError(
