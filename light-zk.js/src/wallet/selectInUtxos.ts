@@ -234,14 +234,6 @@ export function selectInUtxos({
   if (relayerFee) sumOutSol = sumOutSol.add(new BN(relayerFee));
   if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
 
-  console.log("mint =====================>", {
-    mint,
-    sumInSol,
-    sumOutSol,
-    sumInSpl,
-    sumOutSpl,
-  });
-
   if (mint) {
     filteredUtxos = utxos.filter((utxo) =>
       utxo.assets.find((asset) => asset.toBase58() === mint?.toBase58()),

@@ -2,7 +2,7 @@
 
 set -e
 
-# ./build-sdk.sh
+./build-sdk.sh
 
 pushd light-system-programs
 light-anchor build

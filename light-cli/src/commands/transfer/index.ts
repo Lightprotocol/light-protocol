@@ -16,10 +16,10 @@ class TransferCommand extends Command {
       description: "The token to transfer",
       required: true,
     }),
-    amountSpl: Flags.integer({
+    amountSpl: Flags.string({
       description: "The amount of token to transfer (SPL)",
     }),
-    amountSol: Flags.integer({
+    amountSol: Flags.string({
       description: "The amount of token to transfer (SOL)",
     }),
   };

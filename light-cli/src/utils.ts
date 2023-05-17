@@ -54,8 +54,7 @@ export const getConnection = () =>
 
 export const readWalletFromFile = () => {
   try {
-
-    const secretKey = bs58.decode(JSON.parse(getSecretKey()));
+    const secretKey = bs58.decode(getSecretKey());
 
     let keypair: solana.Keypair = solana.Keypair.fromSecretKey(secretKey);
 
@@ -97,8 +96,6 @@ export const getLightProvider = async (payer?: solana.Keypair) => {
 
 export const getUser = async () => {
   const provider = await getLightProvider();
-
-  console.log("loading the user ===========>");
 
   return await User.init({ provider });
 };
