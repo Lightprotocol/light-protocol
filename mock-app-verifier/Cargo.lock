@@ -1479,6 +1479,8 @@ dependencies = [
 [[package]]
 name = "light-macros"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f032792df1b0157cee19e7e5de18009e171b22154e07432fe92f1c7e8bb5e1d5"
 dependencies = [
  "bs58 0.4.0",
  "proc-macro2",
@@ -1489,6 +1491,8 @@ dependencies = [
 [[package]]
 name = "light-merkle-tree"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4361d7e92eea43953731884c7826fc794237cc756acacabdf6d7cd40ce14d04"
 dependencies = [
  "anchor-lang",
 ]
