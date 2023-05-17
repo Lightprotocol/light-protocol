@@ -11,7 +11,7 @@ describe("Airdrop", () => {
     .command([
       "airdrop",
       "--token=SOL",
-      `--amount=1000000`,
+      `--amount=1000000000000000`,
       "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
     ])
     .it(
@@ -50,7 +50,7 @@ describe("Shield Sol", () => {
 
   test
     .stdout()
-    .command(["shield", "--token=SOL", `--amountSol=3`])
+    .command(["shield", "--token=SOL", `--amountSol=3.7`])
     .it("runs shield sol 3 cmd", (ctx) => {
       console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("Successfully shielded");
@@ -58,7 +58,7 @@ describe("Shield Sol", () => {
 
   test
     .stdout()
-    .command(["shield", "--token=SOL", `--amountSol=6`])
+    .command(["shield", "--token=SOL", `--amountSol=8.2`])
     .it("runs shield sol 6 cmd", (ctx) => {
       console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("Successfully shielded");
@@ -99,3 +99,9 @@ describe("Transfer Sol", () => {
       expect(ctx.stdout).to.contain("Successfully unshielded");
     });
 });
+
+// add the usdc shield test
+// add the udc unshield test
+// add the usdc transfer test
+// check balance test
+// histiory tests
