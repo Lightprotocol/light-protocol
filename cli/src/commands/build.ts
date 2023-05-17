@@ -2,7 +2,7 @@ import { buildPSP } from "../utils/buildPSP";
 import type { Arguments, CommandBuilder, Options } from "yargs";
 
 export const command: string = "build";
-export const desc: string = "build and deploy your PSP";
+export const desc: string = "build your PSP";
 
 export const builder: CommandBuilder<Options> = (yargs) =>
   yargs.options({

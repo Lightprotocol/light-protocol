@@ -61,7 +61,7 @@ export async function initLookUpTableFromFile(
     console.log(".txt not found", e);
   }
 
-  let LOOK_UP_TABLE = await initLookUpTable(
+  let LOOK_UP_TABLE = await initLookUpTableTest(
     provider,
     lookUpTable,
     recentSlot,
@@ -76,7 +76,7 @@ export async function initLookUpTableFromFile(
   return LOOK_UP_TABLE; //new Promise((resolveOuter) => {LOOK_UP_TABLE});
 }
 
-export async function initLookUpTable(
+export async function initLookUpTableTest(
   provider: Provider,
   lookupTableAddress: PublicKey,
   recentSlot: number,

@@ -12,6 +12,7 @@ import {
   Keypair,
   SystemProgram,
 } from "@solana/web3.js";
+import { initLookUpTable } from "../utils";
 import {
   ProviderError,
   ProviderErrorCode,
@@ -180,7 +181,7 @@ export class Provider {
       }
       if (!this.provider) throw new Error("No provider set.");
       // TODO: remove this should not exist
-      const lookUpTable = await initLookUpTableFromFile(this.provider);
+      const lookUpTable = await initLookUpTable(this.wallet, this.provider);
       this.lookUpTable = lookUpTable;
       this.relayer.accounts.lookUpTable = lookUpTable;
     } catch (err) {
