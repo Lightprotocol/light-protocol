@@ -304,6 +304,7 @@ export class TestTransaction {
         this.provider.solMerkleTree.pubkey.toBase58(),
         "merkleTreePubkey not inserted correctly",
       );
+      let lightProvider = await Provider.loadMock();
 
       for (var j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
         let decryptedUtxo1 = await Utxo.decrypt({
@@ -317,6 +318,9 @@ export class TestTransaction {
             j === 0
               ? Buffer.from(leavesAccountData.nodeLeft)
               : Buffer.from(leavesAccountData.nodeRight),
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
         });
         if (decryptedUtxo1 !== null) {
           Utxo.equal(

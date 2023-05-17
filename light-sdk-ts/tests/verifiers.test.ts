@@ -14,7 +14,7 @@ import {
   TransactionErrorCode,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
-  IDL_VERIFIER_PROGRAM_TWO
+  IDL_VERIFIER_PROGRAM_TWO,
 } from "../src";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -22,7 +22,7 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const verifiers = [
   { verifierIdl: IDL_VERIFIER_PROGRAM_ZERO, isApp: false },
   { verifierIdl: IDL_VERIFIER_PROGRAM_ONE, isApp: false },
-  { verifierIdl: IDL_VERIFIER_PROGRAM_TWO , isApp: true },
+  { verifierIdl: IDL_VERIFIER_PROGRAM_TWO, isApp: true },
 ];
 
 describe("Verifier tests", () => {

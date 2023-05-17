@@ -30,7 +30,7 @@ import {
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_TWO,
   IDL_VERIFIER_PROGRAM_STORAGE,
-  MESSAGE_MERKLE_TREE_KEY
+  MESSAGE_MERKLE_TREE_KEY,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -68,6 +68,9 @@ describe("Transaction Error Tests", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     params = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
@@ -78,7 +81,7 @@ describe("Transaction Error Tests", () => {
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
 
@@ -151,7 +154,7 @@ describe("Transaction Error Tests", () => {
       senderSol: mockPubkey,
       action: Action.SHIELD,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     expect(() => {
       new Transaction({
@@ -176,7 +179,7 @@ describe("Transaction Error Tests", () => {
       senderSol: mockPubkey,
       action: Action.SHIELD,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     expect(() => {
       // @ts-ignore:
@@ -192,7 +195,6 @@ describe("Transaction Error Tests", () => {
   });
 
   it("getProof VERIFIER_IDL_UNDEFINED", async () => {
-
     expect(() => {
       new Transaction({
         provider: lightProvider,
@@ -314,6 +316,9 @@ describe("Transaction Functional Tests", () => {
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
       blinding: new anchor.BN(new Array(31).fill(1)),
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     paramsDeposit = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
@@ -324,8 +329,7 @@ describe("Transaction Functional Tests", () => {
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
-      
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(poseidon),
@@ -346,7 +350,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
 
@@ -360,7 +364,7 @@ describe("Transaction Functional Tests", () => {
 
   it("Functional storage ", async () => {
     const paramsDepositStorage = new TransactionParameters({
-      message : Buffer.alloc(928).fill(1),
+      message: Buffer.alloc(928).fill(1),
       inputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey2,
       lookUpTable: lightProvider.lookUpTable,
@@ -371,7 +375,7 @@ describe("Transaction Functional Tests", () => {
       transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
       messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
-      relayer
+      relayer,
     });
     let tx = new Transaction({
       provider: lightProvider,
@@ -413,6 +417,9 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(1), new anchor.BN(2)],
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const relayer = new Relayer(
@@ -432,7 +439,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
     let tx = new Transaction({
@@ -460,6 +467,9 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       assets: [FEE_ASSET],
       amounts: [new anchor.BN(1)],
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const indices3 = tx.getIndices([deposit_utxo2]);
@@ -472,6 +482,9 @@ describe("Transaction Functional Tests", () => {
 
     var deposit_utxo3 = new Utxo({
       poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const indices4 = tx.getIndices([deposit_utxo3]);
@@ -486,6 +499,9 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN(2)],
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const indices5 = tx.getIndices([deposit_utxo4]);
@@ -515,6 +531,9 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(2), new anchor.BN(0)],
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const indices7 = tx.getIndices([deposit_utxo5]);
@@ -544,11 +563,12 @@ describe("Transaction Functional Tests", () => {
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
-
-    let txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(poseidon);
+    let txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(
+      poseidon,
+    );
 
     assert.equal(
       txIntegrityHash.toString(),
@@ -639,7 +659,7 @@ describe("Transaction Functional Tests", () => {
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     let tx = new Transaction({
       provider: lightProvider,
@@ -661,9 +681,7 @@ describe("Transaction Functional Tests", () => {
       "A3rueqakAhxjJVUrygVZdpd3wUNUHiGuKy2M7zR7uHDh",
     ];
 
-    const refLeaves = [
-      "6UuSTaJpEemGVuPkmtTiNe7VndXXenWCDU49aTkGSQqY",
-    ];
+    const refLeaves = ["6UuSTaJpEemGVuPkmtTiNe7VndXXenWCDU49aTkGSQqY"];
     for (var i = 0; i < 2; i++) {
       assert.equal(
         tx.remainingAccounts?.nullifierPdaPubkeys![i].pubkey.toBase58(),
@@ -690,7 +708,7 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       action: Action.SHIELD,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
     expect(() => {
       let tx = new Transaction({
@@ -715,13 +733,13 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       action: Action.SHIELD,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     expect(() => {
       let tx = new Transaction({
         provider: lightProvider,
         params,
-        appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO  },
+        appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
       });
     })
       .to.throw(TransactionError)

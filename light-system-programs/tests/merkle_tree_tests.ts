@@ -581,6 +581,9 @@ describe("Merkle Tree Tests", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: KEYPAIR,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     let txParams = new TransactionParameters({

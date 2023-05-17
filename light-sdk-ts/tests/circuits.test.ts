@@ -3,7 +3,11 @@ const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-import { SystemProgram, Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import {
+  SystemProgram,
+  Keypair as SolanaKeypair,
+  PublicKey,
+} from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
@@ -21,7 +25,8 @@ import {
   TransactionParameters,
   Action,
   IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_TWO
+  IDL_VERIFIER_PROGRAM_TWO,
+  Provider,
 } from "../src";
 import { MerkleTree } from "../src/merkleTree/merkleTree";
 import { IDL } from "./testData/mock_verifier";
@@ -45,11 +50,12 @@ let keypair: Account,
   paramsWithdrawal: TransactionParameters,
   appData,
   relayer: Relayer;
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 // TODO: check more specific errors in tests
 describe("Masp circuit tests", () => {
   before(async () => {
+    lightProvider = await LightProvider.loadMock();
     poseidon = await buildPoseidonOpt();
     keypair = new Account({ poseidon: poseidon, seed: seed32, eddsa });
     await keypair.getEddsaPublicKey();
@@ -60,18 +66,23 @@ describe("Masp circuit tests", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     let deposit_utxoSol = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(0)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     let mockPubkey2 = SolanaKeypair.generate().publicKey;
     let mockPubkey3 = SolanaKeypair.generate().publicKey;
 
-    lightProvider = await LightProvider.loadMock();
     txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey,
@@ -81,7 +92,7 @@ describe("Masp circuit tests", () => {
       action: Action.SHIELD,
       poseidon,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
     txParamsSol = new TransactionParameters({
@@ -93,7 +104,7 @@ describe("Masp circuit tests", () => {
       action: Action.SHIELD,
       poseidon,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(poseidon),
@@ -122,7 +133,7 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       relayer,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     appData = { testInput1: new anchor.BN(1), testInput2: new anchor.BN(1) };
     txParamsApp = new TransactionParameters({
@@ -131,6 +142,9 @@ describe("Masp circuit tests", () => {
           poseidon,
           appData,
           appDataIdl: IDL,
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
       transactionMerkleTreePubkey: mockPubkey,
@@ -141,10 +155,18 @@ describe("Masp circuit tests", () => {
       poseidon,
       relayer,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
     txParamsPoolType = new TransactionParameters({
-      inputUtxos: [new Utxo({ poseidon, poolType: new anchor.BN("12312") })],
+      inputUtxos: [
+        new Utxo({
+          poseidon,
+          poolType: new anchor.BN("12312"),
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
+        }),
+      ],
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
@@ -153,10 +175,18 @@ describe("Masp circuit tests", () => {
       poseidon,
       relayer,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     txParamsPoolTypeOut = new TransactionParameters({
-      outputUtxos: [new Utxo({ poseidon, poolType: new anchor.BN("12312") })],
+      outputUtxos: [
+        new Utxo({
+          poseidon,
+          poolType: new anchor.BN("12312"),
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
+        }),
+      ],
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
@@ -165,7 +195,7 @@ describe("Masp circuit tests", () => {
       poseidon,
       relayer,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     txParamsOutApp = new TransactionParameters({
       outputUtxos: [
@@ -173,6 +203,9 @@ describe("Masp circuit tests", () => {
           poseidon,
           appData,
           appDataIdl: IDL,
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
       transactionMerkleTreePubkey: mockPubkey,
@@ -184,7 +217,7 @@ describe("Masp circuit tests", () => {
       // automatic encryption for app utxos is not implemented
       encryptedUtxos: new Uint8Array(256).fill(1),
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
 
@@ -476,7 +509,7 @@ describe("Masp circuit tests", () => {
     var tx: Transaction = new Transaction({
       provider: lightProvider,
       params: txParamsApp,
-      appParams: { mock: "1231" , verifierIdl: IDL_VERIFIER_PROGRAM_ZERO }
+      appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
     });
 
     await tx.compile();
@@ -636,7 +669,9 @@ describe("Masp circuit tests", () => {
 
 // TODO: check more specific errors in tests
 describe("App system circuit tests", () => {
+  let lightProvider: LightProvider;
   before(async () => {
+    lightProvider = await LightProvider.loadMock();
     poseidon = await buildPoseidonOpt();
     keypair = new Account({ poseidon: poseidon, seed: seed32, eddsa });
     await keypair.getEddsaPublicKey();
@@ -647,12 +682,18 @@ describe("App system circuit tests", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     let deposit_utxoSol = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(0)],
       account: keypair,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     let mockPubkey2 = SolanaKeypair.generate().publicKey;
@@ -668,7 +709,7 @@ describe("App system circuit tests", () => {
       action: Action.SHIELD,
       poseidon,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
 
     relayer = new Relayer(
@@ -683,6 +724,9 @@ describe("App system circuit tests", () => {
           poseidon,
           appData,
           appDataIdl: IDL,
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
       transactionMerkleTreePubkey: mockPubkey,
@@ -693,7 +737,7 @@ describe("App system circuit tests", () => {
       poseidon,
       relayer,
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
   });
 
@@ -701,7 +745,7 @@ describe("App system circuit tests", () => {
     var tx: Transaction = new Transaction({
       provider: lightProvider,
       params: txParams,
-      appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO  },
+      appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
     });
     await tx.compile();
 
@@ -716,7 +760,7 @@ describe("App system circuit tests", () => {
     var tx: Transaction = new Transaction({
       provider: lightProvider,
       params: txParamsApp,
-      appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO  },
+      appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
     });
     await tx.compile();
     tx.proofInput.publicAppVerifier = new anchor.BN("123").toString();

@@ -1,4 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
+const path = require("path");
 
 import {
   Utxo,
@@ -28,7 +29,8 @@ import {
   airdropShieldedMINTSpl,
   IDL_VERIFIER_PROGRAM_ZERO,
   Provider,
-  LOOK_UP_TABLE
+  LOOK_UP_TABLE,
+  ProgramParameters
 } from "light-sdk";
 import {
   Keypair as SolanaKeypair,
@@ -42,9 +44,10 @@ import { it } from "mocha";
 import { IDL } from "../target/types/mock_verifier";
 import { assert, expect } from "chai";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { transfer } from "@solana/spl-token";
 const verifierProgramId = new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
 var POSEIDON, RELAYER, KEYPAIR, relayerRecipientSol: PublicKey ,outputUtxoSpl: Utxo, outputUtxoSol: Utxo;
-const performStoreAppUtxo = async (seed: string, testInputs: any, airdrop: boolean) => {
+const storeAndExecuteAppUtxo = async (seed: string, testInputs: any, airdrop: boolean) => {
   const lightProvider = await LightProvider.init({
     wallet: ADMIN_AUTH_KEYPAIR,
     relayer: RELAYER,
@@ -57,13 +60,36 @@ const performStoreAppUtxo = async (seed: string, testInputs: any, airdrop: boole
       await airdropShieldedSol({seed: testInputs.seed, amount: (testInputs.utxo.amounts[0].div(new BN(1e9))).toNumber()});
     }
   }
+  console.log("storing app utxo");
+
   await user.storeAppUtxo({
     appUtxo: testInputs.utxo,
     action: testInputs.action,
   });
-  const res: Map<string, ProgramUtxoBalance> = await user.syncStorage(IDL);
 
-  Utxo.equal(testInputs.poseidon, res.get(verifierProgramId.toBase58()).tokenBalances.get(testInputs.utxo.assets[1].toBase58()).utxos.get(testInputs.utxo.getCommitment(testInputs.poseidon)), testInputs.utxo);
+  const {utxo, status} = await user.getUtxo(testInputs.utxo.getCommitment(testInputs.poseidon), true, IDL);
+  testInputs.utxo.index = utxo.index
+  assert.equal(status, "ready");
+  Utxo.equal(testInputs.poseidon, utxo, testInputs.utxo);
+  const circuitPath =  path.join("build-circuit");
+
+  const programParameters: ProgramParameters = {
+    inputs: {
+      releaseSlot: utxo.appData.releaseSlot,
+      currentSlot: utxo.appData.releaseSlot // for testing we can use the same value
+    },
+    verifierIdl: IDL,
+    path: circuitPath
+  };
+
+  await user.executeAppUtxo({
+    appUtxo: utxo,
+    programParameters,
+    action: Action.TRANSFER,
+  });
+  const utxoSpent = await user.getUtxo(testInputs.utxo.getCommitment(testInputs.poseidon), true, IDL);
+  assert.equal(utxoSpent.status, "spent");
+  Utxo.equal(testInputs.poseidon, utxoSpent.utxo, utxo);
 }
 
 describe("Mock verifier functional", () => {
@@ -74,18 +100,17 @@ describe("Mock verifier functional", () => {
     confirmConfig,
   );
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  const path = require("path");
   const circuitPath =  path.join("build-circuit");
 
   anchor.setProvider(provider);
   var poseidon, account: Account, outputUtxo: Utxo;
   const seed = bs58.encode(new Uint8Array(32).fill(1));
-
+  let lightProvider: Provider;
   before(async () => {
     poseidon = await buildPoseidonOpt();
-
     console.log("Initing accounts");
     await createTestAccounts(provider.connection, userTokenAccount);
+    await setUpMerkleTree(provider);
     POSEIDON = await buildPoseidonOpt();
     KEYPAIR = new Account({
       poseidon: POSEIDON,
@@ -105,6 +130,10 @@ describe("Mock verifier functional", () => {
       relayerRecipientSol,
       new BN(100000),
     );
+    lightProvider = await LightProvider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+    });
     account = new Account({
       poseidon,
       seed: bs58.encode(new Uint8Array(32).fill(1)),
@@ -118,6 +147,8 @@ describe("Mock verifier functional", () => {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       index: 0,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     outputUtxoSol = new Utxo({
       poseidon,
@@ -128,6 +159,8 @@ describe("Mock verifier functional", () => {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       index: 0,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     outputUtxoSpl = new Utxo({
       poseidon,
@@ -138,6 +171,8 @@ describe("Mock verifier functional", () => {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       index: 0,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -151,6 +186,8 @@ describe("Mock verifier functional", () => {
       index: 0,
       account,
       appDataIdl: IDL,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable
     });
     Utxo.equal(poseidon, outputUtxo, utxo1);
   });
@@ -181,17 +218,13 @@ describe("Mock verifier functional", () => {
   });
 
   it("sol 1 ", async () =>{
-    await airdropShieldedSol({
-      amount: 2,
-      seed
-    });
     const testInputsSol1 = {
       utxo: outputUtxoSol,
-      action: Action.TRANSFER,
+      action: Action.SHIELD,
       poseidon
     }
 
-    await performStoreAppUtxo(
+    await storeAndExecuteAppUtxo(
       seed,
       testInputsSol1,
       false
@@ -199,7 +232,10 @@ describe("Mock verifier functional", () => {
   })
 
   it("spl ", async () =>{
-
+    await airdropShieldedSol({
+      amount: 2,
+      seed
+    });
     await airdropShieldedMINTSpl({
       amount: outputUtxoSpl.amounts[1].toNumber(),
       seed
@@ -211,17 +247,13 @@ describe("Mock verifier functional", () => {
       poseidon
     }
 
-    await performStoreAppUtxo(
+    await storeAndExecuteAppUtxo(
       seed,
       testInputsSpl,
       false
     )
   })
 
-  // TODO: add storage verifier transactionNonce -> make transaction nonce a map<MerkleTreePubkey, transactionNonce>
-  // TODO: add getAll programUtxos
-  // TODO: replace compressed flag in encrypt/decrypt with includeProgramData
-  // TODO: cleanup -> do pr -> do build process for
   it("Test Deposit MockVerifier cpi VerifierTwo", async () => {
     let lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,

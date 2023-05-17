@@ -90,6 +90,8 @@ export function createOutUtxos({
   action,
   appUtxo,
   numberMaxOutUtxos,
+  assetLookupTable,
+  verifierProgramLookupTable,
 }: {
   inUtxos?: Utxo[];
   publicMint?: PublicKey;
@@ -102,6 +104,8 @@ export function createOutUtxos({
   action: Action;
   appUtxo?: AppUtxoConfig;
   numberMaxOutUtxos: number;
+  assetLookupTable: string[];
+  verifierProgramLookupTable: string[];
 }) {
   if (!poseidon)
     throw new CreateUtxoError(
@@ -167,6 +171,9 @@ export function createOutUtxos({
     assetPubkeys,
     inUtxos,
     outUtxos,
+    publicAmountSol,
+    publicAmountSpl,
+    action,
   });
   let publicSolAssetIndex = assets.findIndex(
     (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
@@ -302,6 +309,8 @@ export function createOutUtxos({
       appDataHash: appUtxo?.appDataHash,
       includeAppData: appUtxo?.includeAppData,
       verifierAddress: appUtxo?.verifierAddress,
+      assetLookupTable,
+      verifierProgramLookupTable,
     });
     outputUtxos.push(changeUtxo);
   }
@@ -328,9 +337,13 @@ export function createOutUtxos({
 export function createRecipientUtxos({
   recipients,
   poseidon,
+  assetLookupTable,
+  verifierProgramLookupTable,
 }: {
   recipients: Recipient[];
   poseidon: any;
+  assetLookupTable: string[];
+  verifierProgramLookupTable: string[];
 }): Utxo[] {
   var outputUtxos: Utxo[] = [];
 
@@ -363,6 +376,8 @@ export function createRecipientUtxos({
       includeAppData: recipients[j].appUtxo?.includeAppData,
       appDataHash: recipients[j].appUtxo?.appDataHash,
       verifierAddress: recipients[j].appUtxo?.verifierAddress,
+      assetLookupTable,
+      verifierProgramLookupTable,
     });
 
     outputUtxos.push(recipientUtxo);
@@ -383,23 +398,64 @@ export function validateUtxoAmounts({
   assetPubkeys,
   inUtxos,
   outUtxos,
+  publicAmountSol,
+  publicAmountSpl,
+  action,
 }: {
   assetPubkeys: PublicKey[];
   inUtxos?: Utxo[];
   outUtxos: Utxo[];
+  publicAmountSol?: BN;
+  publicAmountSpl?: BN;
+  action?: Action;
 }): Asset[] {
+  const publicAmountMultiplier =
+    action === Action.SHIELD ? new BN(1) : new BN(-1);
+  const _publicAmountSol = publicAmountSol
+    ? publicAmountSol.mul(publicAmountMultiplier)
+    : new BN(0);
+  const _publicAmountSpl = publicAmountSpl
+    ? publicAmountSpl.mul(publicAmountMultiplier)
+    : new BN(0);
+
   let assets: Asset[] = [];
-  for (const assetPubkey of assetPubkeys) {
-    const sumIn = inUtxos
-      ? getUtxoArrayAmount(assetPubkey, inUtxos)
-      : new BN(0);
-    const sumOut = getUtxoArrayAmount(assetPubkey, outUtxos);
+  for (const [index, assetPubkey] of assetPubkeys.entries()) {
+    var sumIn = inUtxos ? getUtxoArrayAmount(assetPubkey, inUtxos) : new BN(0);
+    var sumOut =
+      action === Action.TRANSFER && outUtxos.length === 0
+        ? sumIn
+        : getUtxoArrayAmount(assetPubkey, outUtxos);
+    var sumInAdd =
+      assetPubkey.toBase58() === SystemProgram.programId.toBase58()
+        ? sumIn.add(_publicAmountSol)
+        : index < 2
+        ? sumIn.add(_publicAmountSpl)
+        : sumIn;
+    var sumOutAdd =
+      assetPubkey.toBase58() === SystemProgram.programId.toBase58()
+        ? sumOut.add(_publicAmountSol)
+        : index < 2
+        ? sumOut.add(_publicAmountSpl)
+        : sumOut;
+    sumInAdd = action === Action.SHIELD ? sumInAdd : sumIn;
+    sumOutAdd = action === Action.SHIELD ? sumOut : sumOutAdd;
+
     assets.push({
       asset: assetPubkey,
       sumIn,
       sumOut,
     });
-    if (!sumIn.gte(sumOut)) {
+    if (sumInAdd.lt(new BN(0)))
+      throw new CreateUtxoError(
+        CreateUtxoErrorCode.RECIPIENTS_SUM_AMOUNT_MISSMATCH,
+        "validateUtxoAmounts",
+        `utxos don't cover the required amount for asset ${assetPubkey.toBase58()} sumIn ${sumIn}  public amount: ${
+          assetPubkey.toBase58() === SystemProgram.programId.toBase58()
+            ? publicAmountSol
+            : publicAmountSpl
+        } action: ${action}`,
+      );
+    if (!sumInAdd.gte(sumOutAdd)) {
       throw new CreateUtxoError(
         CreateUtxoErrorCode.RECIPIENTS_SUM_AMOUNT_MISSMATCH,
         "validateUtxoAmounts",

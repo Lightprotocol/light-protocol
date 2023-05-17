@@ -242,10 +242,11 @@ export async function checkRentExemption({
 export async function checkNfInserted(
   pubkeys: { isSigner: boolean; isWritatble: boolean; pubkey: PublicKey }[],
   connection: Connection,
+  returnValue: boolean = false,
 ) {
   for (var i = 0; i < pubkeys.length; i++) {
     var accountInfo = await connection.getAccountInfo(pubkeys[i].pubkey);
-
-    assert.equal(accountInfo, null);
+    if (!returnValue) assert.equal(accountInfo, null);
+    else return accountInfo;
   }
 }

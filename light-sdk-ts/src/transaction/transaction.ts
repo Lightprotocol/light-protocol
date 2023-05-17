@@ -563,7 +563,7 @@ export class Transaction {
               "getMerkleProofs",
               `Input commitment ${inputUtxo.getCommitment(
                 provider.poseidon,
-              )} was not found`,
+              )} was not found. Was the local merkle tree synced since the utxo was inserted?`,
             );
           }
           inputMerklePathIndices.push(inputUtxo.index.toString());
@@ -927,10 +927,10 @@ export class Transaction {
       this.remainingAccounts.nullifierPdaPubkeys.push({
         isSigner: false,
         isWritable: true,
-        pubkey: PublicKey.findProgramAddressSync(
-          [Uint8Array.from([...nullifiers[i]]), utils.bytes.utf8.encode("nf")],
+        pubkey: Transaction.getNullifierPdaPublicKey(
+          nullifiers[i],
           merkleTreeProgramId,
-        )[0],
+        ),
       });
     }
 
@@ -969,6 +969,16 @@ export class Transaction {
         this.params.verifierProgramId,
       )[0];
     }
+  }
+
+  static getNullifierPdaPublicKey(
+    nullifier: number[],
+    merkleTreeProgramId: PublicKey,
+  ) {
+    return PublicKey.findProgramAddressSync(
+      [Uint8Array.from([...nullifier]), utils.bytes.utf8.encode("nf")],
+      merkleTreeProgramId,
+    )[0];
   }
 
   // TODO: use higher entropy rnds

@@ -17,8 +17,6 @@ impl Config for TransactionsConfig {
     const NR_NULLIFIERS: usize = 4;
     /// Number of output utxos.
     const NR_LEAVES: usize = 4;
-    /// Number of checked public inputs, Kyc, Invoking Verifier, Apphash.
-    const NR_CHECKED_PUBLIC_INPUTS: usize = 3;
     /// ProgramId.
     const ID: Pubkey = pubkey!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 }

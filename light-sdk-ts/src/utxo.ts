@@ -37,7 +37,6 @@ import {
   ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   fetchVerifierByIdLookUp,
-  verifierLookupTable,
 } from "./index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -81,8 +80,9 @@ export class Utxo {
   _nullifier?: string;
   includeAppData: boolean;
   transactionVersion: string;
-  splAssetIndex?: BN;
   appDataIdl?: Idl;
+  splAssetIndex: BN;
+  verifierProgramIndex: BN;
 
   /**
    * @description Initialize a new utxo - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
@@ -114,6 +114,8 @@ export class Utxo {
     appData,
     appDataIdl,
     includeAppData = true,
+    assetLookupTable,
+    verifierProgramLookupTable,
   }: {
     poseidon: any;
     assets?: PublicKey[];
@@ -127,6 +129,8 @@ export class Utxo {
     appDataIdl?: Idl;
     includeAppData?: boolean;
     appDataHash?: BN;
+    assetLookupTable: string[];
+    verifierProgramLookupTable: string[];
   }) {
     // check that blinding is 31 bytes
     try {
@@ -234,13 +238,32 @@ export class Utxo {
     if (verifierAddress.toBase58() == SystemProgram.programId.toBase58()) {
       this.verifierAddress = verifierAddress;
       this.verifierAddressCircuit = new BN(0);
+      this.verifierProgramIndex = new BN(0);
     } else {
       this.verifierAddress = verifierAddress;
       this.verifierAddressCircuit = hashAndTruncateToCircuit(
         verifierAddress.toBytes(),
       );
-    }
 
+      this.verifierProgramIndex = new BN(
+        verifierProgramLookupTable.findIndex((verifierAddress: string) => {
+          return verifierAddress === this.verifierAddress.toBase58();
+        }),
+      );
+      if (this.verifierProgramIndex.isNeg())
+        throw new UtxoError(
+          UtxoErrorCode.VERIFIER_INDEX_NOT_FOUND,
+          "constructor",
+          `verifier pubkey ${this.verifierAddress}, not found in lookup table`,
+        );
+    }
+    this.splAssetIndex = getAssetIndex(this.assets[1], assetLookupTable);
+    if (this.splAssetIndex.isNeg())
+      throw new UtxoError(
+        UtxoErrorCode.ASSET_NOT_FOUND,
+        "constructor",
+        `asset pubkey ${this.assets[1]}, not found in lookup table`,
+      );
     // if appDataBytes parse appData from bytes
     if (appData) {
       if (!appDataIdl)
@@ -262,11 +285,7 @@ export class Utxo {
           UtxoErrorCode.UTXO_APP_DATA_NOT_FOUND_IN_IDL,
           "constructor",
         );
-      let accountClient = new AccountClient(
-        appDataIdl,
-        appDataIdl.accounts[i],
-        SystemProgram.programId,
-      );
+
       // TODO: perform type check that appData has all the attributes and these have the correct types and not more
       let hashArray: any[] = [];
       for (var attribute in appData) {
@@ -300,32 +319,11 @@ export class Utxo {
    * @returns {Uint8Array}
    */
   async toBytes(compressed: boolean = false) {
-    this.splAssetIndex = getAssetIndex(this.assets[1]);
-
-    if (this.splAssetIndex.eq(new BN("-1"))) {
-      throw new UtxoError(
-        UtxoErrorCode.ASSET_NOT_FOUND,
-        "toBytes",
-        "Asset not found in lookup table",
-      );
-    }
-
-    const verifierAddressIndex = verifierLookupTable.findIndex(
-      (verifierAddress: string) => {
-        return verifierAddress === this.verifierAddress.toBase58();
-      },
-    );
-    if (verifierAddressIndex === -1)
-      throw new UtxoError(
-        UtxoErrorCode.VERIFIER_INDEX_NOT_FOUND,
-        "toBytes",
-        `verifier address ${this.verifierAddress}, not found in lookup table`,
-      );
     let serializeObject = {
       ...this,
       accountShieldedPublicKey: this.account.pubkey,
       accountEncryptionPublicKey: this.account.encryptionKeypair.publicKey,
-      verifierAddressIndex: new BN(verifierAddressIndex),
+      verifierAddressIndex: this.verifierProgramIndex,
     };
     let serializedData;
     if (!this.appDataIdl || !this.includeAppData) {
@@ -336,10 +334,7 @@ export class Utxo {
       serializeObject = {
         ...serializeObject,
         ...this.appData,
-        verifierAddressIndex:
-          this.verifierAddress.toBase58() === SystemProgram.programId.toBase58()
-            ? new BN("0")
-            : new BN("1"),
+        verifierAddressIndex: this.verifierProgramIndex,
       };
       serializedData = await coder.encode("utxo", serializeObject);
     } else {
@@ -378,6 +373,8 @@ export class Utxo {
     index,
     appDataIdl,
     verifierAddress,
+    assetLookupTable,
+    verifierProgramLookupTable,
   }: {
     poseidon: any;
     bytes: Buffer;
@@ -386,6 +383,8 @@ export class Utxo {
     index?: number;
     appDataIdl?: Idl;
     verifierAddress?: PublicKey;
+    assetLookupTable: string[];
+    verifierProgramLookupTable: string[];
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding
     if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
@@ -429,11 +428,12 @@ export class Utxo {
     }
     assets = [
       SystemProgram.programId,
-      fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex),
+      fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
     ];
 
     verifierAddress = fetchVerifierByIdLookUp(
       decodedUtxoData.verifierAddressIndex,
+      verifierProgramLookupTable,
     );
     if (!account) {
       let concatPublicKey = bs58.encode(
@@ -455,6 +455,8 @@ export class Utxo {
       appData,
       verifierAddress,
       ...decodedUtxoData,
+      verifierProgramLookupTable,
+      assetLookupTable,
     });
   }
 
@@ -609,7 +611,7 @@ export class Utxo {
           "For aes encryption the transaction index is necessary to derive the viewingkey",
         );
 
-      const iv16 = nonce.subarray(0, 16);
+      const iv16 = nonce.slice(0, 16);
       const ciphertext = await encrypt(
         bytes_message,
         this.account.getAesUtxoViewingKey(
@@ -652,6 +654,8 @@ export class Utxo {
     commitment,
     appDataIdl,
     compressed = true,
+    assetLookupTable,
+    verifierProgramLookupTable,
   }: {
     poseidon: any;
     encBytes: Uint8Array;
@@ -663,6 +667,8 @@ export class Utxo {
     commitment: Uint8Array;
     appDataIdl?: Idl;
     compressed?: boolean;
+    assetLookupTable: string[];
+    verifierProgramLookupTable: string[];
   }): Promise<Utxo | null> {
     if (aes) {
       if (!account.aesSecret) {
@@ -706,6 +712,8 @@ export class Utxo {
           account,
           index,
           appDataIdl,
+          assetLookupTable,
+          verifierProgramLookupTable,
         });
       } catch (e) {
         // TODO: return sth different than null on e?.message.includes("Invalid account discriminator")
@@ -746,6 +754,8 @@ export class Utxo {
           account,
           index,
           appDataIdl,
+          assetLookupTable,
+          verifierProgramLookupTable,
         });
       } else {
         return null;
@@ -759,8 +769,18 @@ export class Utxo {
    * @param {string} string - The base58 encoded string representation of the Utxo.
    * @returns {Utxo} The newly created Utxo.
    */
-  static fromString(string: string, poseidon: any): Utxo {
-    return Utxo.fromBytes({ bytes: bs58.decode(string), poseidon });
+  static fromString(
+    string: string,
+    poseidon: any,
+    assetLookupTable: string[],
+    verifierProgramLookupTable: string[],
+  ): Utxo {
+    return Utxo.fromBytes({
+      bytes: bs58.decode(string),
+      poseidon,
+      assetLookupTable,
+      verifierProgramLookupTable,
+    });
   }
 
   /**

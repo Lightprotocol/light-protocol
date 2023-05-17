@@ -62,7 +62,6 @@ impl<const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
     ) -> VerifierState10Ins<T> {
         assert_eq!(T::NR_LEAVES / 2, light_tx.leaves.len());
         assert_eq!(T::NR_NULLIFIERS, light_tx.nullifiers.len());
-        // assert_eq!(T::NR_CHECKED_PUBLIC_INPUTS, light_tx.checked_public_inputs.len());
 
         // need to remove one nested layer because serde cannot handle three layered nesting
         let mut leaves = Vec::new();
