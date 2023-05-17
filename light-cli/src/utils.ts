@@ -14,6 +14,7 @@ import {
   TRANSACTION_MERKLE_TREE_KEY,
   User,
 } from "light-sdk";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 require("dotenv").config();
 
@@ -52,20 +53,11 @@ export const getConnection = () =>
   new solana.Connection("http://127.0.0.1:8899");
 
 export const readWalletFromFile = () => {
-  let secretKey: Array<number> = [];
   try {
-    // console.log("secret keyy ====>",getSecretKey())
 
-    // secretKey = JSON.parse(getSecretKey());
+    const secretKey = bs58.decode(JSON.parse(getSecretKey()));
 
-    let asUint8Array: Uint8Array = new Uint8Array([
-      17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202,
-      187, 228, 110, 146, 97, 112, 131, 180, 164, 96, 220, 57, 207, 65, 107, 2,
-      99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105,
-      144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
-    ]);
-
-    let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
+    let keypair: solana.Keypair = solana.Keypair.fromSecretKey(secretKey);
 
     return keypair;
   } catch (e: any) {
@@ -106,7 +98,7 @@ export const getLightProvider = async (payer?: solana.Keypair) => {
 export const getUser = async () => {
   const provider = await getLightProvider();
 
-  console.log("loading the user ===========>")
+  console.log("loading the user ===========>");
 
   return await User.init({ provider });
 };
