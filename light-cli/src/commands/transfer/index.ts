@@ -1,5 +1,9 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { getUser, readWalletFromFile } from "../../utils";
+import {
+  generateSolanaTransactionURL,
+  getUser,
+  readWalletFromFile,
+} from "../../utils";
 import { Account } from "light-sdk";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 let circomlibjs = require("circomlibjs");
@@ -43,7 +47,7 @@ class TransferCommand extends Command {
 
       const user = await getUser();
 
-      await user.transfer({
+      const response = await user.transfer({
         token,
         amountSpl,
         amountSol,
@@ -51,6 +55,7 @@ class TransferCommand extends Command {
       });
 
       this.log(`Tokens successfully transferred to recipient: ${recipient}`);
+      this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
     } catch (error) {
       this.error(`Transfer failed: ${error}`);
     }

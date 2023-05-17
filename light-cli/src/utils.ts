@@ -202,3 +202,13 @@ export const setConfig = (config: Partial<Config>): void => {
     throw new Error("Failed to update configuration file");
   }
 };
+
+export function generateSolanaTransactionURL(
+  transactionType: "tx" | "address",
+  transactionHash: string,
+  cluster: string
+): string {
+  const url = `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
+
+  return url;
+}

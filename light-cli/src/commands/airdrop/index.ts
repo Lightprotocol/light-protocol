@@ -1,6 +1,6 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
-import { getConnection } from "../../utils";
+import { generateSolanaTransactionURL, getConnection, readWalletFromFile } from "../../utils";
 import { getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
 import { ADMIN_AUTH_KEYPAIR, MINT } from "light-sdk";
 
@@ -43,8 +43,6 @@ class AirdropCommand extends Command {
       const connection = await getConnection();
 
       if (token.toLowerCase() === "sol") {
-        console.log("here ==========>");
-
         const res = await connection.requestAirdrop(
           new PublicKey(userPublicKey),
           amount
@@ -73,7 +71,9 @@ class AirdropCommand extends Command {
       this.log(
         `Airdrop successful for user: ${userPublicKey}, amount: ${amount}`
       );
-      this.log("transaction hash: ", response);
+      this.log(
+        generateSolanaTransactionURL("tx", response.toString(), "custom")
+      );
     } catch (error) {
       this.error(`Airdrop failed: ${error}`);
     }

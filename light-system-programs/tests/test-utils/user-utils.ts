@@ -137,6 +137,7 @@ export async function performMergeUtxos({
     provider,
     seed: testInputs.recipientSeed,
   });
+  
   await userSender.getUtxoInbox();
 
   const testStateValidator = new TestStateValidator({

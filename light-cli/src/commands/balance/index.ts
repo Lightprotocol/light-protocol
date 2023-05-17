@@ -1,6 +1,8 @@
 import { Command, Flags } from "@oclif/core";
 import { User, Balance, InboxBalance, Utxo } from "light-sdk";
-import { getUser } from "../../utils";
+import { getLightProvider, getUser } from "../../utils";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Keypair } from "@solana/web3.js";
 
 class BalanceCommand extends Command {
   static description =
@@ -10,20 +12,26 @@ class BalanceCommand extends Command {
     balance: Flags.boolean({
       char: "b",
       description: "Retrieve the balance",
-      default: true,
-      exclusive: ["inbox", "utxos"],
+      default: false,
+      exclusive: ["inbox", "utxos", "inboxUtxos"],
     }),
     inbox: Flags.boolean({
       char: "i",
       description: "Retrieve the inbox balance",
       default: false,
-      exclusive: ["balance", "utxos"],
+      exclusive: ["balance", "utxos", "inboxUtxos"],
     }),
     utxos: Flags.boolean({
       char: "u",
       description: "Retrieve the UTXOs",
       default: false,
-      exclusive: ["balance", "inbox"],
+      exclusive: ["balance", "inbox", "inboxUtxos"],
+    }),
+    inboxUtxos: Flags.boolean({
+      char: "u",
+      description: "Retrieve the UTXOs",
+      default: false,
+      exclusive: ["balance", "inbox", "utxos"],
     }),
     latest: Flags.boolean({
       char: "l",
@@ -33,17 +41,18 @@ class BalanceCommand extends Command {
   };
 
   static examples = [
-    "$ light balance",
+    "$ light balance --balance",
     "$ light balance --inbox",
     "$ light balance --utxos",
+    "$ light balance --utxos-inbox",
     "$ light balance --latest=false",
   ];
 
   async run() {
     const { flags } = await this.parse(BalanceCommand);
-    const { balance, inbox, utxos, latest } = flags;
+    const { balance, inbox, utxos, latest, inboxUtxos } = flags;
 
-    const user = await getUser();
+    const user: User = await getUser();
 
     try {
       if (balance) {
@@ -53,8 +62,20 @@ class BalanceCommand extends Command {
         const result = await user.getUtxoInbox(latest);
         this.logInboxBalance(result);
       } else if (utxos) {
-        const result = await user.getUtxos(latest);
+        const result = await user.getAllUtxos();
         this.logUTXOs(result);
+      } else if (inboxUtxos) {
+        const result = await user.getUtxoInbox();
+        const utxos: Utxo[] = [];
+
+        console.log(result.tokenBalances);
+
+        for (const iterator of result.tokenBalances.values()) {
+          iterator.utxos.forEach((value) => {
+            utxos.push(value);
+          });
+        }
+        this.logUTXOs(utxos);
       }
     } catch (error) {
       this.error(`Error retrieving balance, inbox balance, or UTXOs ${error}`);

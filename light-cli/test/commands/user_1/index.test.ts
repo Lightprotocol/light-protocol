@@ -1,5 +1,6 @@
 import { expect, test } from "@oclif/test";
 import { Keypair } from "@solana/web3.js";
+import { User } from "../../../../light-sdk-ts/src";
 
 // TODO: balance tests
 // TODO: history tests
@@ -99,7 +100,7 @@ describe("Unshield Sol", () => {
 
 describe("Transfer Sol", () => {
   let recipient =
-    "7zf5dv4sc7m2xskswD6J3CtoUoDApyGXRYodUtxTyPAXHmV121zqZR3aqBiL8SHPB4kxSFx12E9aiwmgtGWCjAT";
+    "JsVivKKxef5rNPdxKc9xsp2WRpomhg1DtEmzm3M8zXCF4b4MBuzy3KQmybErBNrv9SMreTadzpNLQECU4WhsJTw";
   test
     .stdout()
     .command(["transfer", "--token=SOL", "--amountSol=1.5", recipient])
@@ -109,9 +110,46 @@ describe("Transfer Sol", () => {
     });
 });
 
+describe("Merge Utxos", () => {
+  test
+    .stdout()
+    .command([
+      "shield",
+      "--token=SOL",
+      "--amountSol=4",
+      "--recipien=sKRXAPf5cAzA28WcMASpEUTVZjc87HSHqVxrGNEW19TjEduQgfFitiVhCnc4EjMhKXSJ15uhTSCRuDUMDmdHhsAt",
+    ])
+    .it("SHIELD 4 sol to address", (ctx) => {
+      console.log(ctx.stdout);
+      expect(ctx.stdout).to.contain("Tokens successfully transferred");
+    });
+  test
+    .stdout()
+    .command([
+      "config",
+      "--secretKey=4roFuZvNJeh9KwZcRYEedsUsh3E8NTY26RvBgqivBbaYA93aCa1bPe4eRFuX6i7p3GwpyfjNvMYNm1t84PoA5g12",
+    ])
+    .it("runs user update cmd", (ctx) => {
+      expect(ctx.stdout).to.contain(
+        "Configuration values updated successfully"
+      );
+    });
+
+  //TODO: find a way to get the commitment from the inbox balance command and then merge it
+  // test
+  //   .stdout()
+  //   .command([
+  //     "utxo",
+  //     "--token=SOL",
+  //     "17863225529163624094949960837831973135282069025808310217647542102196003863196",
+  //   ])
+  //   .it("should merge the utxo", (ctx) => {
+  //     expect(ctx.stdout).to.contain("UTXOs merged successfully!");
+  //   });
+});
+
 // add the usdc shield test
 // add the udc unshield test
 // add the usdc transfer test
-// check balance test
 // histiory tests
 // fix usdc airdrop error in first iteration
