@@ -169,7 +169,7 @@ export class Utxo {
     }
 
     for (var i = 0; i < N_ASSETS; i++) {
-      if (amounts[i] < new BN(0)) {
+      if (amounts[i] && amounts[i].lt(new BN(0))) {
         throw new UtxoError(
           UtxoErrorCode.NEGATIVE_AMOUNT,
           "constructor",
