@@ -31,7 +31,8 @@
   "files": [
     "lib/**/*",
     "build-circuits/**/*",
-    "bin/*"
+    "bin/*",
+    "circuit-lib/*"
   ],
   "keywords": [
     "sdk",

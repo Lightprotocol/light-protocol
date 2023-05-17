@@ -10,6 +10,8 @@
 /cli/build/cli.js
 /cli/build/lookupTable.txt
 */light-test-cache/
+/**/.DS_store
+/cli/bin
 
 
 # relayer
