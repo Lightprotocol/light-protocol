@@ -24,13 +24,14 @@ if [ -f /.dockerenv ]; then
         --bpf-program $VERIFIER_PROGRAM_ZERO_ID ./target/deploy/verifier_program_zero.so \
         --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ./target/deploy/verifier_program_storage.so \
         --bpf-program $VERIFIER_PROGRAM_ONE_ID ./target/deploy/verifier_program_one.so \
+        --bpf-program $VERIFIER_PROGRAM_TWO_ID ./target/deploy/verifier_program_two.so \
         --account-dir ../accounts \
         --bpf-program $3 /usr/local/lib/test_programs/$4\
         &
     PID=$!
 
     sleep 7
-    $1
+    $5
 
     kill $PID
 else
@@ -40,8 +41,7 @@ else
         --net=host \
         --pull=always \
         -v $HOME/.config/solana/id.json:/home/node/.config/solana/id.json \
-        -v $(pwd)/target/deploy:/home/node/.local/light-protocol/lib/light-protocol \
-        -v $(pwd)/../accounts:/home/node/.local/light-protocol/lib/accounts \
+        -v $2/target/deploy:/usr/local/lib/test_programs \
         ghcr.io/lightprotocol/solana-test-validator:main \
         --reset \
         --limit-ledger-size=$LIMIT_LEDGER_SIZE \
@@ -51,11 +51,12 @@ else
         --bpf-program $VERIFIER_PROGRAM_ZERO_ID /home/node/.local/light-protocol/lib/light-protocol/verifier_program_zero.so \
         --bpf-program $VERIFIER_PROGRAM_STORAGE_ID /home/node/.local/light-protocol/lib/light-protocol/verifier_program_storage.so \
         --bpf-program $VERIFIER_PROGRAM_ONE_ID /home/node/.local/light-protocol/lib/light-protocol/verifier_program_one.so \
-        --account-dir /home/node/.local/light-protocol/lib/accounts
+        --bpf-program $VERIFIER_PROGRAM_TWO_ID /home/node/.local/light-protocol/lib/light-protocol/verifier_program_two.so \
+        --account-dir /home/node/.local/light-protocol/lib/accounts \
         --bpf-program $3 /usr/local/lib/test_programs/$4\
 
     sleep 15
-    $1
+    $5
 
     docker rm -f solana-validator
 fi
