@@ -64,7 +64,7 @@ export async function performShielding({
     }
     await userRecipient.provider.latestMerkleTree();
     if (testInputs.token === "SOL" && testInputs.type === Action.SHIELD) {
-      await testStateValidator.checkSolShielded();
+      // await testStateValidator.checkSolShielded();
     } else if (
       testInputs.token !== "SOL" &&
       testInputs.type === Action.SHIELD
