@@ -1,6 +1,7 @@
 import { Args, Command, Flags } from "@oclif/core";
 import {
   generateSolanaTransactionURL,
+  getLoader,
   getUser,
   readWalletFromFile,
 } from "../../utils";
@@ -42,6 +43,8 @@ class TransferCommand extends Command {
     const { recipient } = args;
     const { token, amountSpl, amountSol } = flags;
 
+    const { loader, end } = getLoader("Performing unshield...");
+
     try {
       await readWalletFromFile();
 
@@ -56,7 +59,9 @@ class TransferCommand extends Command {
 
       this.log(`Tokens successfully transferred to recipient: ${recipient}`);
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
+      end(loader);
     } catch (error) {
+      end(loader);
       this.error(`Transfer failed: ${error}`);
     }
   }

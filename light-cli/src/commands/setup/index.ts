@@ -11,12 +11,15 @@ import {
   setRelayerRecipient,
   setAnchorProvider,
   setLookUpTable,
+  getLoader,
 } from "../../utils";
 
 class SetupCommand extends Command {
   static description = "Perform setup tasks";
 
   async run() {
+    const { loader, end } = getLoader("Performing test setup...");
+
     try {
       exec("sh runScript.sh", (error, stdout, stderr) => {
         if (error) {
@@ -48,7 +51,9 @@ class SetupCommand extends Command {
       );
 
       this.log("Setup completed successfully.");
+      end(loader);
     } catch (error) {
+      end(loader);
       this.error(`Setup failed: ${error}`);
     }
   }

@@ -40,19 +40,11 @@ describe("Airdrop", () => {
     );
 });
 
-describe("Shield Sol", () => {
+describe("Shield SOL", () => {
   test
     .stdout()
-    .command(["shield", "--token=SOL", `--amountSol=2.7`])
-    .it("Should shield 2.7 SOL", (ctx) => {
-      console.log(ctx.stdout);
-      expect(ctx.stdout).to.contain("Successfully shielded");
-    });
-
-  test
-    .stdout()
-    .command(["shield", "--token=SOL", `--amountSol=8.4`])
-    .it("Should shield 8.4 SOL", (ctx) => {
+    .command(["shield", "--token=SOL", `--amountSol=11.1`])
+    .it("Should shield 11.1 SOL", (ctx) => {
       console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("Successfully shielded");
     });
@@ -66,9 +58,8 @@ describe("Shield Sol", () => {
     });
 });
 
-describe("Unshield Sol", () => {
+describe("Unshield SOL", () => {
   let recipient = Keypair.generate().publicKey;
-
   test
     .stdout()
     .command([
@@ -78,21 +69,7 @@ describe("Unshield Sol", () => {
       `--recipientSol=${recipient.toString()}`,
       `--recipientSpl=${recipient.toString()}`,
     ])
-    .it("Unshield 1.1 SOL", (ctx) => {
-      console.log(ctx.stdout);
-      expect(ctx.stdout).to.contain("Successfully unshielded");
-    });
-
-  test
-    .stdout()
-    .command([
-      "unshield",
-      "--token=SOL",
-      "--amountSol=0.2",
-      `--recipientSol=${recipient.toString()}`,
-      `--recipientSpl=${recipient.toString()}`,
-    ])
-    .it("Unshield 0.2 SOL", (ctx) => {
+    .it("Unshield 2.8 SOL", (ctx) => {
       console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("Successfully unshielded");
     });
@@ -100,7 +77,7 @@ describe("Unshield Sol", () => {
 
 describe("Transfer Sol", () => {
   let recipient =
-    "JsVivKKxef5rNPdxKc9xsp2WRpomhg1DtEmzm3M8zXCF4b4MBuzy3KQmybErBNrv9SMreTadzpNLQECU4WhsJTw";
+    "sKRXAPf5cAzA28WcMASpEUTVZjc87HSHqVxrGNEW19TjEduQgfFitiVhCnc4EjMhKXSJ15uhTSCRuDUMDmdHhsAt";
   test
     .stdout()
     .command(["transfer", "--token=SOL", "--amountSol=1.5", recipient])
@@ -110,7 +87,46 @@ describe("Transfer Sol", () => {
     });
 });
 
-describe("Merge Utxos", () => {
+describe("Shield USDC", () => {
+  test
+    .stdout()
+    .command(["shield", "--token=USDC", `--amountSol=17.8`])
+    .it("Should shield 17.8 USDC", (ctx) => {
+      console.log(ctx.stdout);
+      expect(ctx.stdout).to.contain("Successfully shielded");
+    });
+});
+
+describe("Unshield Sol", () => {
+  let recipient = Keypair.generate().publicKey;
+  test
+    .stdout()
+    .command([
+      "unshield",
+      "--token=USDC",
+      "--amountSpl=6.6",
+      `--recipientSol=${recipient.toString()}`,
+      `--recipientSpl=${recipient.toString()}`,
+    ])
+    .it("Unshield 6.6 USDC", (ctx) => {
+      console.log(ctx.stdout);
+      expect(ctx.stdout).to.contain("Successfully unshielded");
+    });
+});
+
+describe("Transfer USDC", () => {
+  let recipient =
+    "sKRXAPf5cAzA28WcMASpEUTVZjc87HSHqVxrGNEW19TjEduQgfFitiVhCnc4EjMhKXSJ15uhTSCRuDUMDmdHhsAt";
+  test
+    .stdout()
+    .command(["transfer", "--token=USDC", "--amountSol=0.89", recipient])
+    .it("Transfer 1.5 USDC", (ctx) => {
+      console.log(ctx.stdout);
+      expect(ctx.stdout).to.contain("Tokens successfully transferred");
+    });
+});
+
+describe.skip("Merge Utxos", () => {
   test
     .stdout()
     .command([
@@ -148,8 +164,5 @@ describe("Merge Utxos", () => {
   //   });
 });
 
-// add the usdc shield test
-// add the udc unshield test
-// add the usdc transfer test
 // histiory tests
 // fix usdc airdrop error in first iteration

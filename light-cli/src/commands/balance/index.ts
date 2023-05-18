@@ -1,8 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import { User, Balance, InboxBalance, Utxo } from "light-sdk";
-import { getLightProvider, getUser } from "../../utils";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Keypair } from "@solana/web3.js";
+import { getLightProvider, getLoader, getUser } from "../../utils";
 
 class BalanceCommand extends Command {
   static description =
@@ -51,6 +49,8 @@ class BalanceCommand extends Command {
   async run() {
     const { flags } = await this.parse(BalanceCommand);
     const { balance, inbox, utxos, latest, inboxUtxos } = flags;
+    
+    const { loader, end } = getLoader("Retrieving balance...");
 
     const user: User = await getUser();
 
@@ -67,9 +67,6 @@ class BalanceCommand extends Command {
       } else if (inboxUtxos) {
         const result = await user.getUtxoInbox();
         const utxos: Utxo[] = [];
-
-        console.log(result.tokenBalances);
-
         for (const iterator of result.tokenBalances.values()) {
           iterator.utxos.forEach((value) => {
             utxos.push(value);
@@ -77,6 +74,7 @@ class BalanceCommand extends Command {
         }
         this.logUTXOs(utxos);
       }
+      end(loader);
     } catch (error) {
       this.error(`Error retrieving balance, inbox balance, or UTXOs ${error}`);
     }

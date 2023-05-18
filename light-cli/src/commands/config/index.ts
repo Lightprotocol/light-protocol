@@ -1,5 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import * as fs from "fs";
+import { getLoader } from "../../utils";
 
 class ConfigCommand extends Command {
   static description = "Update the configuration values";
@@ -46,6 +47,7 @@ class ConfigCommand extends Command {
       payer,
     } = flags;
 
+    const { loader, end } = getLoader("Updating configuration...");
 
     try {
       const config = JSON.parse(fs.readFileSync("config.json", "utf-8"));
@@ -70,9 +72,10 @@ class ConfigCommand extends Command {
       }
 
       fs.writeFileSync("config.json", JSON.stringify(config, null, 2));
-
       this.log("Configuration values updated successfully");
+      end(loader);
     } catch (err) {
+      end(loader);
       this.error(`Failed to update configuration values: ${err}`);
     }
   }

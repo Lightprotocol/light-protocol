@@ -1,6 +1,11 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
-import { generateSolanaTransactionURL, getConnection, readWalletFromFile } from "../../utils";
+import {
+  generateSolanaTransactionURL,
+  getConnection,
+  getLoader,
+  readWalletFromFile,
+} from "../../utils";
 import { getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
 import { ADMIN_AUTH_KEYPAIR, MINT } from "light-sdk";
 
@@ -36,6 +41,8 @@ class AirdropCommand extends Command {
 
     const { userPublicKey } = args;
     const { amount, token } = flags;
+
+    const { loader, end } = getLoader("Performing airdrop...");
 
     let response;
 
@@ -74,7 +81,9 @@ class AirdropCommand extends Command {
       this.log(
         generateSolanaTransactionURL("tx", response.toString(), "custom")
       );
+      end(loader);
     } catch (error) {
+      end(loader);
       this.error(`Airdrop failed: ${error}`);
     }
   }
