@@ -9,7 +9,7 @@ anchor build
 yarn test
 popd
 
-pushd light-sdk-ts
+pushd light-zk.js
 yarn test
 sleep 1
 popd

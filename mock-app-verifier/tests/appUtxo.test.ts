@@ -18,7 +18,7 @@ import {
   TestRelayer,
   hashAndTruncateToCircuit,
   createAccountObject,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 import {
   Keypair as SolanaKeypair,
   SystemProgram,

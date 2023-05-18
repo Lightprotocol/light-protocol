@@ -34,10 +34,10 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_STORAGE,
-} from "light-sdk";
+  Account,
+} from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
-import { Account } from "light-sdk/lib/account";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 var POSEIDON;

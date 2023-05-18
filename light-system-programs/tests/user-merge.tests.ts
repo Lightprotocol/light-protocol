@@ -10,7 +10,7 @@ import {
   confirmConfig,
   TestRelayer,
   Action,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 
 import {
   performShielding,

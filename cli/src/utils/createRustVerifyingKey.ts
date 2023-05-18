@@ -28,7 +28,7 @@ async function getProofInputsFromSymFile(artifiactPath: string) {
 
       const idx = acc.findIndex(
         (obj: PropertiesObject) =>
-          obj.inputName === inputName && obj.sumSize! < sumSize,
+          obj.inputName === inputName && obj.sumSize! < sumSize
       );
 
       if (idx === -1) {
@@ -42,7 +42,7 @@ async function getProofInputsFromSymFile(artifiactPath: string) {
 
     const filteredArr = uniqueArr.reduce((acc: PropertiesObject[], cur) => {
       const idx = acc.findIndex(
-        (obj: PropertiesObject) => obj.inputName === cur.inputName,
+        (obj: PropertiesObject) => obj.inputName === cur.inputName
       );
       if (idx === -1) {
         delete cur.sumSize;
@@ -104,7 +104,7 @@ async function getProofInputsFromSymFile(artifiactPath: string) {
 
 function createStringRsIdlAccountStruct(
   preparedInputs: PropertiesObject[],
-  circuitName: string,
+  circuitName: string
 ) {
   function camelToSnakeCase(str: string) {
     return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
@@ -138,7 +138,7 @@ function createStringRsIdlAccountStruct(
 async function createVerifyingKeyRsFile(
   vKeyJsonPath: string,
   paths: string[],
-  appendingString: string,
+  appendingString: string
 ) {
   let file = await fs.readFile(
     vKeyJsonPath,
@@ -153,16 +153,16 @@ async function createVerifyingKeyRsFile(
           for (let j in mydata[i]) {
             mydata[i][j] = leInt2Buff(
               unstringifyBigInts(mydata[i][j]),
-              32,
+              32
             ).reverse();
           }
         } else if (i == "vk_beta_2") {
           for (let j in mydata[i]) {
             let tmp = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
+              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
             )
               .concat(
-                Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
+                Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32))
               )
               .reverse();
             mydata[i][j][0] = tmp.slice(0, 32);
@@ -171,10 +171,10 @@ async function createVerifyingKeyRsFile(
         } else if (i == "vk_gamma_2") {
           for (var j in mydata[i]) {
             let tmp = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
+              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
             )
               .concat(
-                Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
+                Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32))
               )
               .reverse();
             mydata[i][j][0] = tmp.slice(0, 32);
@@ -183,10 +183,10 @@ async function createVerifyingKeyRsFile(
         } else if (i == "vk_delta_2") {
           for (var j in mydata[i]) {
             let tmp = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
+              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
             )
               .concat(
-                Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
+                Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32))
               )
               .reverse();
             mydata[i][j][0] = tmp.slice(0, 32);
@@ -197,7 +197,7 @@ async function createVerifyingKeyRsFile(
             for (var z in mydata[i][j]) {
               for (var u in mydata[i][j][z]) {
                 mydata[i][j][z][u] = leInt2Buff(
-                  unstringifyBigInts(mydata[i][j][z][u]),
+                  unstringifyBigInts(mydata[i][j][z][u])
                 );
               }
             }
@@ -207,7 +207,7 @@ async function createVerifyingKeyRsFile(
             for (let z in mydata[i][j]) {
               mydata[i][j][z] = leInt2Buff(
                 unstringifyBigInts(mydata[i][j][z]),
-                32,
+                32
               ).reverse();
             }
           }
@@ -265,10 +265,11 @@ async function createVerifyingKeyRsFile(
 
         fs.writeSync(resFile, s);
       }
-    },
+    }
   );
 }
 
+//TODO: check if unused
 export async function createVerfyingkeyRsFileArgv() {
   let nrInputs = process.argv[2];
   if (!nrInputs) {
@@ -308,43 +309,43 @@ export async function createVerfyingkeyRsFileArgv() {
       "../light-system-programs/programs/" + program + "/src/verifying_key.rs";
     circuitName = "transaction" + process.argv[3];
     artifiactPath =
-      "../light-sdk-ts/build-circuits/transaction" + process.argv[3];
+      "../light-zk.js/build-circuits/transaction" + process.argv[3];
   }
-  await createVerfyingkeyRsFile(
+  await createVerifyingkeyRsFile(
     program,
     paths,
     vKeyJsonPath,
     vKeyRsPath,
     circuitName,
-    artifiactPath,
+    artifiactPath
   );
 }
 
-export async function createVerfyingkeyRsFile(
+export async function createVerifyingkeyRsFile(
   program: string,
   paths: string[],
   vKeyJsonPath: string,
   vKeyRsPath: string,
   circuitName: string,
-  artifiactPath: string,
+  artifiactPath: string
 ) {
   if (!vKeyRsPath)
     throw new Error("Undefined output path for the verifying_key.rs file!");
   paths.push(vKeyRsPath);
 
   const ProofInputs: PropertiesObject[] = await getProofInputsFromSymFile(
-    artifiactPath,
+    artifiactPath
   );
   const PublicInputs = ProofInputs.filter(
-    (ProofInputs) => ProofInputs.public === 1,
+    (ProofInputs) => ProofInputs.public === 1
   );
   let appendingStrings = createStringRsIdlAccountStruct(
     ProofInputs,
-    circuitName + "Proof",
+    circuitName + "Proof"
   );
   appendingStrings += createStringRsIdlAccountStruct(
     PublicInputs,
-    circuitName + "Public",
+    circuitName + "Public"
   );
 
   // Write verifying_key.rs file for the circuit

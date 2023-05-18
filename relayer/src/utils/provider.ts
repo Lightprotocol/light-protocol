@@ -6,7 +6,7 @@ import {
   confirmConfig,
   Provider,
   Relayer,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 require("dotenv").config();
 
 let provider: Provider;

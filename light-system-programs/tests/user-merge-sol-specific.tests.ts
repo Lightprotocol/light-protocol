@@ -15,7 +15,7 @@ import {
   airdropShieldedSol,
   ADMIN_AUTH_KEY,
   airdropSol,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";

@@ -4,8 +4,8 @@ import {
   Provider,
   SolMerkleTree,
   updateMerkleTreeForTest,
-} from "light-sdk";
-import { getLightProvider, getRelayer } from "../utils/provider";
+} from "@lightprotocol/zk.js";
+import { getLightProvider, getRelayer, getKeyPairFromEnv } from "../utils/provider";
 
 export const initMerkleTree = async (req: any, res: any) => {
   try {
@@ -41,7 +41,7 @@ export const initMerkleTree = async (req: any, res: any) => {
 export const updateMerkleTree = async (req: any, res: any) => {
   try {
     const provider = await getLightProvider();
-    await updateMerkleTreeForTest(provider.provider?.connection!);
+    await updateMerkleTreeForTest(getKeyPairFromEnv("KEY_PAIR"), provider.provider!);
     return res.status(200).json({ status: "ok" });
   } catch (e) {
     return res.status(500).json({ status: "error", message: e.message });

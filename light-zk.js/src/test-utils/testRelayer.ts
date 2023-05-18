@@ -1,4 +1,4 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { Relayer } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
@@ -8,8 +8,10 @@ import {
   sendVersionedTransaction,
 } from "../transaction";
 import { IndexedTransaction } from "../types";
+import { airdropSol } from "./airdrop";
 export class TestRelayer extends Relayer {
   indexedTransactions: IndexedTransaction[] = [];
+  relayerKeypair: Keypair;
 
   constructor(
     relayerPubkey: PublicKey,
@@ -25,12 +27,20 @@ export class TestRelayer extends Relayer {
       relayerFee,
       highRelayerFee,
     );
+    this.relayerKeypair = Keypair.generate();
   }
 
   async updateMerkleTree(provider: Provider): Promise<any> {
+    if (!provider.provider) throw new Error("Provider.provider is undefined.");
+    await airdropSol({
+      provider: provider.provider,
+      amount: 1_000_000_000,
+      recipientPublicKey: this.relayerKeypair.publicKey,
+    });
     try {
       const response = await updateMerkleTreeForTest(
-        provider.provider?.connection!,
+        this.relayerKeypair,
+        provider.provider,
       );
       return response;
     } catch (e) {

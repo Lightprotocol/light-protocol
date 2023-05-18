@@ -8,7 +8,7 @@ yarn run lint
 cargo fmt --all -- --check
 popd
 
-pushd light-sdk-ts
+pushd light-zk.js
 yarn install
 yarn run lint
 popd

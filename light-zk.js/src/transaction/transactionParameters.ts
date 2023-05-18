@@ -396,6 +396,7 @@ export class TransactionParameters implements transactionParameters {
         );
 
       const tmpSol = this.publicAmountSol;
+
       if (
         !tmpSol
           .sub(FIELD_SIZE)
