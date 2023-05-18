@@ -34,7 +34,7 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_STORAGE,
-  Account
+  Account,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
