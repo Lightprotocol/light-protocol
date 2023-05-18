@@ -2,6 +2,7 @@
 name = "mock-verifier"
 version = "0.1.0"
 description = "Created with Anchor"
+license = "GPL-3.0"
 edition = "2021"
 
 [lib]
