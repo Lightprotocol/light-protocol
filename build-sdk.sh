@@ -2,7 +2,7 @@
 
 set -e
 
-pushd light-sdk-ts
+pushd light-zk.js
 yarn run build
 popd
 

@@ -17,7 +17,7 @@ import {
   TransactionParameters,
   userTokenAccount,
   IDL_VERIFIER_PROGRAM_ZERO,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 
 let circomlibjs = require("circomlibjs");
 
@@ -36,7 +36,7 @@ import {
   TRANSACTION_MERKLE_TREE_KEY,
   TestRelayer,
   LOOK_UP_TABLE,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
 

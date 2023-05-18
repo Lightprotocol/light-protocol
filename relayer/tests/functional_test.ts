@@ -13,14 +13,12 @@ import {
   TRANSACTION_MERKLE_TREE_KEY,
   MINT,
   Provider,
-  SolMerkleTree,
   TOKEN_REGISTRY,
   Utxo,
-  LOOK_UP_TABLE,
   airdropSol,
-  confirmConfig
-} from "light-sdk";
-import { User } from "light-sdk/lib/wallet/user";
+  confirmConfig,
+  User
+} from "@lightprotocol/zk.js";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
 import {

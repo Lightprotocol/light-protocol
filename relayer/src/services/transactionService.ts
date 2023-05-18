@@ -3,7 +3,7 @@ import {
   IndexedTransaction,
   indexRecentTransactions,
   sendVersionedTransaction,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 import { getLightProvider, setAnchorProvider } from "../utils/provider";
 
 export async function sendTransaction(req: any, res: any) {

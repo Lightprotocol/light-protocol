@@ -6,7 +6,7 @@ import {
   TestStateValidator,
   User,
   TestInputs,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 
 export type EnvironmentConfig = {
   relayer?: TestRelayer;

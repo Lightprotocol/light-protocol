@@ -31,7 +31,7 @@ import {
   Provider,
   LOOK_UP_TABLE,
   ProgramParameters
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 import {
   Keypair as SolanaKeypair,
   SystemProgram,

@@ -46,7 +46,7 @@ import {
   TestRelayer,
   LOOK_UP_TABLE,
   MESSAGE_MERKLE_TREE_KEY,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
 var POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;

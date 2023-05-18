@@ -36,7 +36,7 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
   LOOK_UP_TABLE,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
 

@@ -1,2 +1,2 @@
-import { createVerifyingkeyRsFile } from "../../light-sdk-ts/src/cli-utils/createRustVerifyingKey";
+import { createVerifyingkeyRsFile } from "../../light-zk.js/src/cli-utils/createRustVerifyingKey";
 createVerifyingkeyRsFile();

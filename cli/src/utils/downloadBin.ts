@@ -11,6 +11,12 @@ export const anchorBinUrlMap = new Map([
     ["arm64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-linux-arm64"]
 ])
 
+export const macroCircomBinUrlMap = new Map([
+    ["linux-amd64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-amd64"],
+    ["macos-arm64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-arm64"],
+    ["arm64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-macos-arm64"]
+])
+
 function getSystem(): string {
   const arch = os.arch();
   switch (arch) {

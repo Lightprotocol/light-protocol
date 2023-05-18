@@ -1,5 +1,5 @@
 {
-  "name": "light",
+  "name": "@lightprotocol/light",
   "version": "0.1.0",
   "description": "",
   "main": "build/cli.js",
@@ -20,7 +20,7 @@
     "@coral-xyz/anchor": "^0.27.0",
     "@solana/web3.js": "^1.73.3",
     "circomlibjs": "^0.1.7",
-    "light-sdk": "file:../light-sdk-ts",
+    "@lightprotocol/zk.js": "file:../light-sdk-ts",
     "tweetnacl": "^1.0.3",
     "yargs": "^17.6.2"
   },

@@ -4,7 +4,7 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_TWO
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
 import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";

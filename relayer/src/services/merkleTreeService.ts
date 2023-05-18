@@ -4,7 +4,7 @@ import {
   Provider,
   SolMerkleTree,
   updateMerkleTreeForTest,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 import { getLightProvider, getRelayer, getKeyPairFromEnv } from "../utils/provider";
 
 export const initMerkleTree = async (req: any, res: any) => {
