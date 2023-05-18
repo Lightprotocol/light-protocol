@@ -1,4 +1,8 @@
-## CLI
+## Light Protocol CLI
+
+Helps you build Private Solana Programs.
+
+Find the code here: https://github.com/Lightprotocol/light-protocol/tree/main/cli
 
 ### Installation
 
@@ -12,13 +16,21 @@ npm install -g @lightprotocol/light
 yarn global add @lightprotocol/light
 ```
 
-### COMMANDS
-
+### Commands
+Sets up all the boilerplate you need, includes a PSP template:
+```
 light init --name <project-name>
+```
 
+Builds the project:
+```
 light build --name <project-name>
+```
 
-  optional flags are --ptau <ptau-parameter> --circuitDir <directory-containing-a-.light-file>
+  optional flags:  ```--ptau <ptau-parameter> --circuitDir <directory-containing-a-.light-file>```
 
+
+Runs tests:
+```
 light test --projectName <project-name> --programAddress <program-address>
-
+```
