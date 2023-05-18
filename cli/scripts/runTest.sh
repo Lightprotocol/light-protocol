@@ -11,28 +11,6 @@ VERIFIER_PROGRAM_ONE_ID="3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"
 VERIFIER_PROGRAM_TWO_ID="GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8"
 MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
-# docker rm -f solana-validator || true
-# docker run -d \
-#     --name solana-validator \
-#     --net=host \
-#     --pull=always \
-#     -v $HOME/.config/solana/id.json:/root/.config/solana/id.json \
-#     -v $2/target/deploy:/usr/local/lib/test_programs \
-#     ghcr.io/lightprotocol/solana-test-validator:main \
-#     --reset \
-#     --limit-ledger-size=$LIMIT_LEDGER_SIZE \
-#     --quiet \
-#     --bpf-program $NOOP_PROGRAM_ID /home/node/.local/light-protocol/lib/solana-program-library/spl_noop.so \
-#     --bpf-program $MERKLE_TREE_PROGRAM_ID /home/node/.local/light-protocol/lib/light-protocol/merkle_tree_program.so \
-#     --bpf-program $VERIFIER_PROGRAM_ZERO_ID /home/node/.local/light-protocol/lib/light-protocol/verifier_program_zero.so \
-#     --bpf-program $VERIFIER_PROGRAM_STORAGE_ID /home/node/.local/light-protocol/lib/light-protocol/verifier_program_storage.so \
-#     --bpf-program $VERIFIER_PROGRAM_ONE_ID /home/node/.local/light-protocol/lib/light-protocol/verifier_program_one.so \
-#     --bpf-program $MOCK_VERIFIER_PROGRAM_ID /home/node/.local/light-protocol/lib/mock-app-verifier/mock_verifier.so \
-#     --account-dir /home/node/.local/light-protocol/lib/accounts
-#     --bpf-program $3 /usr/local/lib/test_programs/$4\
-#     --quiet
-# sleep 10
-# $1
 
 docker rm -f solana-validator
 
