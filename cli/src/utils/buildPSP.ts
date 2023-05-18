@@ -54,6 +54,9 @@ async function generateCircuit(
   let randomContributionBytes = utils.bytes.hex.encode(
     Buffer.from(randomBytes(128))
   );
+  try {
+    fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
+  } catch (_) { }
   const stdoutContribution = execSync(
     `yarn snarkjs zkey contribute ${sdkBuildCircuitDir}/${circuitName}_tmp.zkey ${sdkBuildCircuitDir}/${circuitName}.zkey -e="${randomContributionBytes}"`
   );
@@ -68,11 +71,17 @@ async function generateCircuit(
   const vKeyJsonPath = "./build-circuit/verifyingkey.json";
   const vKeyRsPath = "./programs/" + programName + "/src/verifying_key.rs";
   const artifiactPath = "./build-circuit/" + circuitName;
+  try {
+    fs.unlinkSync(vKeyJsonPath);
+  } catch (_) { }
   while (!fs.existsSync(vKeyJsonPath)) {
     execSync(
       `yarn snarkjs zkey export verificationkey ${sdkBuildCircuitDir}/${circuitName}.zkey ${sdkBuildCircuitDir}/verifyingkey.json`
     );
   }
+  try {
+    fs.unlinkSync(vKeyRsPath);
+  } catch (_) { }
   await createVerifyingkeyRsFile(
     programName,
     [],

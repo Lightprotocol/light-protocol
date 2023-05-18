@@ -14,6 +14,10 @@ export const builder: CommandBuilder<Options> = (yargs) =>
 
 export const handler = async (argv: Arguments<Options>): Promise<void> => {
   let { name }: any = argv;
+  if(!name) {
+    console.log("Project name is undefined add a project name with --name <project-name>");
+    process.exit(0);
+  }
 
   console.log("initing PSP...");
   const anchorPath = path.resolve(__dirname, "../../bin/light-anchor");

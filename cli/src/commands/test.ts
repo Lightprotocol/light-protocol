@@ -7,20 +7,25 @@ import { program } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { toSnakeCase } from "@lightprotocol/zk.js";
 
 export const command: string = "test";
-export const desc: string = "test and deploy your PSP";
+export const desc: string = "Deploys your PSP on a local testnet and runs test";
 
 export const builder: CommandBuilder<Options> = (yargs) =>
   yargs.options({
     // network: { type: "string" },
     projectName: {type: "string"},
     programAddress: {type: "string"},
-    // ptau: { type: "number" },
-    // TODO: pass along anchor build options // execsync thingy alt.
   });
-//TODO: move all cli-utils to cli ... -> build into bin buildPsP uses macrocircom...
 
 export const handler = async (argv: Arguments<Options>): Promise<void> => {
   let { projectName, programAddress }: any = argv;
+  if(!projectName) {
+    console.log("Project name is undefined add a project name with --projectName <project-name>");
+    process.exit(0);
+  }
+  if(!programAddress) {
+    console.log("Program address is undefined add a program address with --programAddress <program-address>");
+    process.exit(0);
+  }
   const programName = toSnakeCase(projectName);
   const commandPath = path.resolve(__dirname, "../../scripts/runTest.sh");
   const systemProgramPath = path.resolve(__dirname, "../../");
@@ -67,4 +72,3 @@ export async function discoverFromPath(startFrom: string): Promise<string | null
 
   return null;
 }
-
