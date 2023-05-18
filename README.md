@@ -1,84 +1,104 @@
-# Light Protocol Program V3
+[![Light Protocol](assets/logo.svg)](https://lightprotocol.com)
 
-## Setup
+# Light Protocol
 
-_Requirements:_
+[![Discord](https://img.shields.io/discord/892771619687268383?label=discord&logo=discord)](https://discord.gg/WDAAaX6je2)
+[![Workflow Status](https://github.com/Lightprotocol/light-protocol-onchain/workflows/programs-test/badge.svg)](https://github.com/Lightprotocol/light-poseidon/actions?query=workflow)
 
-- solana cli v1.11.10 or higher
-  - `sh -c "$(curl -sSfL https://release.solana.com/v1.14.13/install)"`
-- anchor cli
-  https://project-serum.github.io/anchor/getting-started/installation.html
-  - `yarn i -g @coral-xyz/anchor-cli`
-- node v19
+**The Privacy Layer for Solana**
 
-- Execute the build script to download a custom solana test validator and build the project:
-- `sh build.sh`
+Light Protocol powers apps with fast and secure on-chain privacy and compliance
+controls so that web3 can go mainstream.
 
-## Setup Dev
+## Development environment
 
-- In order to properly execute the prettier format pre-commit hook, you may first need to configure light-zk.js/husky/pre-commit as executable:
-- `chmod ug+x ./light-zk.js/husky/* `
+### Development Containers
+
+Light Protocol supports [Development Containers](https://containers.dev/) and provides
+[a container image](https://hub.docker.com/repository/docker/vadorovsky/lightprotocol-dev)
+with all dependencies which are needed for building and testing.
+
+Visual Studio Code comes with out of the box support for Development Containers,
+but they are also supported by other editors:
+
+* [Neovim](https://github.com/esensar/nvim-dev-container)
+
+### Manual setup
+
+If you still want to setup dependencies manually, these are the requirements:
+
+* [Rust installed with Rustup](https://rustup.rs/), stable and nightly toolchains
+* [NodeJS](https://nodejs.org/) [(16.16 LTS)](https://nodejs.org/en/blog/release/v16.16.0)
+* [Anchor](https://www.anchor-lang.com/) [(0.26.0)](https://crates.io/crates/anchor-cli/0.26.0)
+
+## Building
+
+To build the project, use the following commands:
+
+```bash
+./build.sh
+./build-sdk.sh
+```
+
+## Git hook
+
+In order to properly execute the prettier format pre-commit hook, you may first
+need to configure light-zk.js/husky/pre-commit as executable:
+
+```bash
+chmod ug+x ./light-zk.js/husky/*
+```
+
+## Solana keypair
+
+Before doing any development or running any tets, you need to generate a new
+local keypair:
+
+```bash
+solana-keygen new -o ~/.config/solana/id.json
+```
 
 ## Tests
 
-_Global:_
+### Global
 
-- `sh test.sh`
+```bash
+./test.sh
+```
 
-_Rust tests:_
+### Rust tests
 
-- `cd groth16-solana/`
-- `cargo test`
-- `cd light-verifier-sdk/`
-- `cargo test`
+```bash
+cd light-verifier-sdk/
+cargo test
+```
 
-_Sdk tests:_
+### SDK tests
 
-- `cd light-zk.js/`
-- `yarn test`
+```bash
+cd light-zk.js/
+yarn test
+```
 
-_Circuit tests:_
+### Circuit tests
 
-- `cd light-circuits`
-- `yarn test`
+```bash
+cd light-circuits
+yarn test
+```
 
-_Anchor tests:_
+### Anchor tests
 
-Tests are located in tests/ .
-The default test is a functional test, setting up a test environment with a merkle tree and an spl token, conducting two deposits and withdrawals.
+Tests are located in `tests/` directory.
+
+The default test is a functional test, setting up a test environment with a
+Merkle tree and an spl token, conducting two deposits and withdrawals.
 
 Tests can be executed in bulk or one by one.
 
-**Without external validator:**
-
-- `cd light-system-programs/`
-- `yarn test`
-- `yarn test-verifiers`
-- `yarn test-merkle-tree`
-
-**Manual:**
-
-- Assuming that your clones of `solana` and `light-protocol-onchain` git
-  repositories share the same parent directory and you are currently in the
-  `light-protocol-onchain` directory, launch a validator with the following
-  command:
-
-1. cargo build in light-verifier-sdk (optional)
-2. anchor build in light-system-programs
-3. anchor build in mock-app-verifier
-
+```bash
+cd light-system-programs/
+yarn test
+yarn test-verifiers
+yarn test-merkle-tree
 ```
-solana-test-validator \
-    --reset \
-    --limit-ledger-size 500000000 \
-    --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i ./light-system-programs/target/deploy/verifier_program_zero.so \
-    --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 ./light-system-programs/target/deploy/merkle_tree_program.so \
-    --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL ./light-system-programs/target/deploy/verifier_program_one.so \
-    --bpf-program GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8  ./light-system-programs/target/deploy/verifier_program_two.so  \
-    --bpf-program noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV ../solana/web3.js/test/fixtures/noop-program/solana_sbf_rust_noop.so \
-    --bpf-program Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS ./mock-app-verifier/target/deploy/mock_verifier.so
-```
-
-- `anchor test --skip-build --skip-deploy --skip-local-validator`
-
-Check logs in anchor_programs/.anchor/program-logs
