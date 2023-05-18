@@ -138,6 +138,8 @@ export async function buildPSP(
   // let programName = "verifier"
   console.log("Creating circom files");
   const macroCircomBinPath = path.resolve(__dirname, "../../bin/macro-circom");
+  // TODO: check whether macro circom binary exists if not fetch it
+  // TODO: check whether circom binary exists if not load it
 
   let stdout = execSync(
     `${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`

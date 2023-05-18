@@ -1,11 +1,12 @@
 {
-  "name": "cli",
-  "version": "1.0.0",
+  "name": "light",
+  "version": "0.1.0",
   "description": "",
-  "main": "index.js",
+  "main": "build/cli.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "yarn prettier --write \"src/**/*.{ts,js}\""
+    "format": "yarn prettier --write \"src/**/*.{ts,js}\"",
+    "build": "ncc build src/cli.ts -o dist"
   },
   "keywords": [],
   "author": "",
@@ -23,8 +24,12 @@
     "tweetnacl": "^1.0.3",
     "yargs": "^17.6.2"
   },
+  "bin": {
+    "light": "./build/cli.js"
+  },
   "files": [
     "build/**/*",
-    "bin/*"
+    "bin/*",
+    "scripts/*"
   ]
 }

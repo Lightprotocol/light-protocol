@@ -22,7 +22,7 @@ export const builder: CommandBuilder<Options> = (yargs) =>
 export const handler = async (argv: Arguments<Options>): Promise<void> => {
   let { projectName, programAddress }: any = argv;
   const programName = toSnakeCase(projectName);
-  const commandPath = path.resolve(__dirname, "../../runTest.sh");
+  const commandPath = path.resolve(__dirname, "../../scripts/runTest.sh");
   const systemProgramPath = path.resolve(__dirname, "../../");
 
   try {
