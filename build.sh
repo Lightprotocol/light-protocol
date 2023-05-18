@@ -2,10 +2,6 @@
 
 set -e
 
-pushd macro-circom
-sh build.sh
-popd
-
 pushd light-zk.js
 yarn install --force
 yarn run build
