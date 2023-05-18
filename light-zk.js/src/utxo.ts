@@ -716,15 +716,28 @@ export class Utxo {
           verifierProgramLookupTable,
         });
       } catch (e) {
-        // TODO: return sth different than null on e?.message.includes("Invalid account discriminator")
-        if (e?.message.includes("Invalid account discriminator")) {
-          return null;
-        } else if (
-          e?.name !== "OperationError" ||
-          e?.message !== "The operation failed for an operation-specific reason"
-        ) {
-          throw e;
-        }
+        // NOTE(vadorovsky): On many systems, this fails with the following
+        // error:
+        //
+        // Error: error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt
+        //
+        // which is due to OpenSSL version mismatch. More context:
+        // https://freeshell.de/~jose/366/kludges/openssl-and-digital-envelope-routinesevp_decryptfinal_exbad-decrypt-crypto-evp-evp_enc-c536-error/
+        //
+        // TODO: One of solutions:
+        // 1) Use a different AES library (without runtime dependencies).
+        // 2) Try to fix the ethereum-cryptography/aes library (unlikely).
+        //
+        // For now, sadly, we need to ignore this error. :(
+
+        // if (e?.message.includes("Invalid account discriminator")) {
+        //   return null;
+        // } else if (
+        //   e?.name !== "OperationError" ||
+        //   e?.message !== "The operation failed for an operation-specific reason"
+        // ) {
+        //   throw e;
+        // }
         return null;
       }
     } else {
