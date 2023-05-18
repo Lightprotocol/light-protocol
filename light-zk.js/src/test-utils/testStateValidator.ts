@@ -12,7 +12,7 @@ import {
   TOKEN_ACCOUNT_FEE,
   TOKEN_REGISTRY,
 } from "../constants";
-import { Utxo } from "utxo";
+import { Utxo } from "../utxo";
 
 export type TestInputs = {
   amountSpl?: number;

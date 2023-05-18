@@ -3,7 +3,7 @@ import { assert, expect } from "chai";
 const token = require("@solana/spl-token");
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { MerkleTreeProgram } from "idls";
+import { MerkleTreeProgram } from "../idls";
 import { Program } from "@coral-xyz/anchor";
 
 /*

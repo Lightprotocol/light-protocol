@@ -21,7 +21,7 @@ import {
   hashAndTruncateToCircuit,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
-import { remainingAccount } from "types/accounts";
+import { remainingAccount } from "../types/accounts";
 import { Prover } from "./prover";
 
 var ffjavascript = require("ffjavascript");

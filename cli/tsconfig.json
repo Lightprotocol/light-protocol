@@ -4,8 +4,13 @@
     "noImplicitAny": true,
     "module": "commonjs",
     "target": "es5",
+    "esModuleInterop": true,
     "sourceMap": true
   },
-  "exclude": ["node_modules"],
-  "include": ["./src/**/*"]
+  "exclude": [
+    "node_modules"
+  ],
+  "include": [
+    "./src/**/*"
+  ]
 }
