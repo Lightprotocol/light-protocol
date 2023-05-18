@@ -160,7 +160,6 @@ export async function buildPSP(
     ptau,
     programName
   );
-  await sleep(2000);
   console.log("\nbuilding anchor program\n");
   execSync("anchor build");
   console.log("anchor build success");
