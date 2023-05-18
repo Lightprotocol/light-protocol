@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
+const spinner = require("cli-spinners");
 
 import {
   ADMIN_AUTH_KEYPAIR,
@@ -56,7 +57,9 @@ export const readWalletFromFile = () => {
   try {
     const secretKey = bs58.decode(getSecretKey());
 
-    let keypair: solana.Keypair = solana.Keypair.fromSecretKey(secretKey);
+    let keypair: solana.Keypair = solana.Keypair.fromSecretKey(
+      new Uint8Array(secretKey)
+    );
 
     return keypair;
   } catch (e: any) {
@@ -212,3 +215,17 @@ export function generateSolanaTransactionURL(
 
   return url;
 }
+
+export const getLoader = (message: string) => {
+  const frames = spinner.dots.frames;
+  let i = 0;
+
+  const loader = setInterval(() => {
+    const frame = frames[(i = ++i % frames.length)];
+    process.stdout.write("\r" + frame + " " + message);
+  }, spinner.dots.interval);
+
+  const end = clearInterval;
+
+  return { loader, end };
+};

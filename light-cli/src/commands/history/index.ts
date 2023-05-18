@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import { IndexedTransaction } from "light-sdk";
-import { getUser } from "../../utils";
+import { getLoader, getUser } from "../../utils";
 
 class TransactionHistoryCommand extends Command {
   static description = "Retrieve transaction history for the user";
@@ -18,6 +18,7 @@ class TransactionHistoryCommand extends Command {
 
     const { latest } = flags;
 
+    const { loader, end } = getLoader("Retrieving use transaction histrory...");
 
     const user = await getUser();
 
@@ -54,7 +55,10 @@ class TransactionHistoryCommand extends Command {
         console.log("Message:", transaction.message);
         console.log("------------------");
       });
+
+      end(loader);
     } catch (error) {
+      end(loader);
       console.error("Error retrieving transaction history:", error);
     }
   }

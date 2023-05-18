@@ -1,5 +1,5 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { getUser } from "../../utils";
+import { generateSolanaTransactionURL, getLoader, getUser } from "../../utils";
 import { TOKEN_REGISTRY, User } from "light-sdk";
 
 class MergeUtxosCommand extends Command {
@@ -36,14 +36,23 @@ class MergeUtxosCommand extends Command {
     const { commitment } = args;
     const { latest, token } = flags;
 
+    const { loader, end } = getLoader("Performing utxo merge...");
+
     const user: User = await getUser();
 
     let tokenCtx = TOKEN_REGISTRY.get(token.toUpperCase());
 
     try {
-      await user.mergeUtxos([commitment], tokenCtx?.mint!, latest);
+      const response = await user.mergeUtxos(
+        [commitment],
+        tokenCtx?.mint!,
+        latest
+      );
       this.log("UTXOs merged successfully!");
+      this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
+      end(loader);
     } catch (error) {
+      end(loader);
       this.error(`Error merging UTXOs: ${error}`);
     }
   }
