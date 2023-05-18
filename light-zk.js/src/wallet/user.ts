@@ -1484,19 +1484,6 @@ export class User {
     if (!aes) return undefined;
     // TODO: move to relayer
     // TODO: implement the following
-    for (var [program, programBalance] of this.balance.programBalances) {
-      for (var [token, tokenBalance] of programBalance.tokenBalances) {
-        for (var [key, utxo] of tokenBalance.utxos) {
-          let nullifierAccountInfo = await fetchNullifierAccountInfo(
-            utxo.getNullifier(this.provider.poseidon)!,
-            this.provider.provider!.connection,
-          );
-          if (nullifierAccountInfo !== null) {
-            tokenBalance.movetToSpentUtxos(key);
-          }
-        }
-      }
-    }
     /**
      * get all transactions of the storage verifier and filter for the ones including noop program
      * build merkle tree and check versus root onchain
@@ -1617,6 +1604,19 @@ export class User {
           utxo,
           "spentUtxos",
         );
+    }
+    for (var [program, programBalance] of this.balance.programBalances) {
+      for (var [token, tokenBalance] of programBalance.tokenBalances) {
+        for (var [key, utxo] of tokenBalance.utxos) {
+          let nullifierAccountInfo = await fetchNullifierAccountInfo(
+            utxo.getNullifier(this.provider.poseidon)!,
+            this.provider.provider!.connection,
+          );
+          if (nullifierAccountInfo !== null) {
+            tokenBalance.movetToSpentUtxos(key);
+          }
+        }
+      }
     }
     return this.balance.programBalances;
   }

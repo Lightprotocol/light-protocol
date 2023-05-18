@@ -7,6 +7,7 @@ import {
   Provider,
   IndexedTransaction,
   TOKEN_ACCOUNT_FEE,
+  LOOK_UP_TABLE,
 } from "./index";
 
 export class Relayer {

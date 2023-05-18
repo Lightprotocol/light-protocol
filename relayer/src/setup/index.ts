@@ -2,7 +2,7 @@ import {
   createTestAccounts,
   initLookUpTableFromFile,
   setUpMerkleTree,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 import { getLightProvider, setAnchorProvider } from "../utils/provider";
 
 export const testSetup = async () => {

@@ -18,6 +18,7 @@ import {
   SystemProgram,
   Keypair,
   Connection,
+  sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";
 
@@ -64,18 +65,13 @@ export async function executeUpdateMerkleTreeTransactions({
         .preInstructions([
           ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ])
-        .signers([signer])
-        .rpc({
-          commitment: "confirmed",
-          preflightCommitment: "confirmed",
-        });
+        .transaction();
+      await sendAndConfirmTransaction(connection, tx1, [signer], confirmConfig);
     } else {
       const transaction = new Transaction();
       transaction.add(
         await merkleTreeProgram.methods
-          .initializeMerkleTreeUpdateState
-          // new anchor.BN(merkleTreeIndex) // merkle tree index
-          ()
+          .initializeMerkleTreeUpdateState()
           .accounts({
             authority: signer.publicKey,
             merkleTreeUpdateState: merkleTreeUpdateState,
@@ -133,7 +129,7 @@ export async function executeUpdateMerkleTreeTransactions({
 
   try {
     if (typeof window === "undefined") {
-      await merkleTreeProgram.methods
+      const tx1 = await merkleTreeProgram.methods
         .insertRootMerkleTree(new anchor.BN(254))
         .accounts({
           authority: signer.publicKey,
@@ -145,11 +141,8 @@ export async function executeUpdateMerkleTreeTransactions({
         .preInstructions([
           ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ])
-        .signers([signer])
-        .rpc({
-          commitment: "confirmed",
-          preflightCommitment: "confirmed",
-        });
+        .transaction();
+      await sendAndConfirmTransaction(connection, tx1, [signer], confirmConfig);
     } else {
       const transaction = new Transaction();
 

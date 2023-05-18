@@ -6,7 +6,7 @@ pushd macro-circom
 sh build.sh
 popd
 
-pushd light-sdk-ts
+pushd light-zk.js
 yarn install --force
 yarn run build
 popd

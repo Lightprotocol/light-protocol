@@ -7,12 +7,12 @@ import { merkleTreeProgramId, TRANSACTION_MERKLE_TREE_KEY } from "../constants";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 const circomlibjs = require("circomlibjs");
 import { ADMIN_AUTH_KEYPAIR } from "./constants_system_verifier";
-import { Provider } from "wallet";
-import { Connection } from "@solana/web3.js";
+import { Provider, Wallet } from "../wallet";
+import { Connection, Keypair } from "@solana/web3.js";
 
 export async function updateMerkleTreeForTest(
-  connection: Connection,
-  provider?: anchor.Provider,
+  payer: Keypair,
+  provider: anchor.Provider,
 ) {
   try {
     const merkleTreeProgram = new anchor.Program(
@@ -26,11 +26,10 @@ export async function updateMerkleTreeForTest(
       TRANSACTION_MERKLE_TREE_KEY,
       provider && provider,
     );
-    // let poseidon = await circomlibjs.buildPoseidonOpt();
 
     await executeUpdateMerkleTreeTransactions({
-      connection,
-      signer: ADMIN_AUTH_KEYPAIR,
+      connection: provider.connection,
+      signer: payer,
       merkleTreeProgram,
       leavesPdas,
       transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,

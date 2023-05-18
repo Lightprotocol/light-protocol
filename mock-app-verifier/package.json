@@ -21,7 +21,7 @@
     "ethereum-cryptography": "^2.0.0",
     "ffjavascript": "^0.2.57",
     "fs": "^0.0.1-security",
-    "light-sdk": "file:../light-sdk-ts",
+    "@lightprotocol/zk.js": "file:../light-zk.js",
     "rimraf": "^3.0.2",
     "snarkjs": "^0.4.24",
     "tweetnacl": "^1.0.3",

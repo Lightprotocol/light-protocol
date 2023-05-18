@@ -1,6 +1,6 @@
 {
-  "name": "light-sdk",
-  "version": "0.0.1",
+  "name": "@lightprotocol/zk.js",
+  "version": "0.0.3",
   "description": "",
   "main": "lib/index.js",
   "scripts": {
@@ -21,7 +21,7 @@
     "build": "yarn tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
     "lint": "prettier \"src/**/*{ts,js}\" --check",
-    "prepare": "cd .. && husky install ./light-sdk-ts/husky"
+    "prepare": "cd .. && husky install ./light-zk.js/husky"
   },
   "format-staged": {
     "**/*.{js,jsx}": [
@@ -31,7 +31,8 @@
   "files": [
     "lib/**/*",
     "build-circuits/**/*",
-    "bin/*"
+    "bin/*",
+    "circuit-lib/*"
   ],
   "keywords": [
     "sdk",

@@ -10,6 +10,8 @@
 /cli/build/cli.js
 /cli/build/lookupTable.txt
 */light-test-cache/
+/**/.DS_store
+/cli/bin
 
 
 # relayer
@@ -25,10 +27,10 @@
 /**/lookUpTable.txt
 */yarn-error.log
 **/yarn-error.log
-# light-sdk-ts
-/light-sdk-ts/node_modules/
-/light-sdk-ts/lib/
-/light-sdk-ts/lookUpTable.txt
+# light-zk.js
+/light-zk.js/node_modules/
+/light-zk.js/lib/
+/light-zk.js/lookUpTable.txt
 
 # light-system-programs
 /light-system-programs/node_modules/

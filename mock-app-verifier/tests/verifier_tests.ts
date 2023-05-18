@@ -40,7 +40,7 @@ import {
   TestRelayer,
   IDL_VERIFIER_PROGRAM_TWO,
   LOOK_UP_TABLE
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 
 import { IDL } from "../target/types/mock_verifier";
 import { BN } from "@coral-xyz/anchor";

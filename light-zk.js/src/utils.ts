@@ -1,21 +1,43 @@
 import { BN } from "@coral-xyz/anchor";
 import {
+  AUTHORITY,
   confirmConfig,
+  DEFAULT_PROGRAMS,
   merkleTreeProgram,
   merkleTreeProgramId,
   MESSAGE_MERKLE_TREE_KEY,
+  PRE_INSERTED_LEAVES_INDEX,
+  REGISTERED_POOL_PDA_SOL,
+  REGISTERED_POOL_PDA_SPL_TOKEN,
+  REGISTERED_VERIFIER_ONE_PDA,
+  REGISTERED_VERIFIER_PDA,
+  REGISTERED_VERIFIER_TWO_PDA,
+  TOKEN_AUTHORITY,
   TRANSACTION_MERKLE_TREE_KEY,
+  verifierProgramTwoProgramId,
+  verifierProgramZeroProgramId,
 } from "./constants";
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  AccountInfo,
+  AddressLookupTableProgram,
+  Connection,
+  Keypair,
+  PublicKey,
+  sendAndConfirmTransaction,
+  Transaction,
+  SystemProgram,
+} from "@solana/web3.js";
 import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
 import { Utxo } from "utxo";
 import { MetaError, UtilsError, UtilsErrorCode } from "./errors";
-import { TokenUtxoBalance } from "wallet";
+import { TokenUtxoBalance, Wallet } from "wallet";
 import { TokenData } from "types";
 const { keccak_256 } = require("@noble/hashes/sha3");
 import { Decimal } from "decimal.js";
+import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 export function hashAndTruncateToCircuit(data: Uint8Array) {
   return new BN(
     keccak_256
@@ -278,4 +300,93 @@ export function isProgramVerifier(idl: anchor.Idl): boolean {
       account.name.endsWith("PublicInputs") &&
       account.type.fields.some((field) => field.name === "publicAppVerifier"),
   );
+}
+
+export async function initLookUpTable(
+  payer: Wallet,
+  provider: anchor.Provider,
+  extraAccounts?: Array<PublicKey>,
+): Promise<PublicKey> {
+  const payerPubkey = payer.publicKey;
+  const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
+
+  var [lookUpTable] = await PublicKey.findProgramAddressSync(
+    [payerPubkey.toBuffer(), new anchor.BN(recentSlot).toBuffer("le", 8)],
+    AddressLookupTableProgram.programId,
+  );
+
+  const createInstruction = AddressLookupTableProgram.createLookupTable({
+    authority: payerPubkey,
+    payer: payerPubkey,
+    recentSlot,
+  })[0];
+
+  let escrows = (
+    await PublicKey.findProgramAddressSync(
+      [anchor.utils.bytes.utf8.encode("escrow")],
+      verifierProgramZeroProgramId,
+    )
+  )[0];
+
+  var transaction = new Transaction().add(createInstruction);
+
+  const addressesToAdd = [
+    SystemProgram.programId,
+    merkleTreeProgramId,
+    DEFAULT_PROGRAMS.rent,
+    SPL_NOOP_PROGRAM_ID,
+    MESSAGE_MERKLE_TREE_KEY,
+    TRANSACTION_MERKLE_TREE_KEY,
+    PRE_INSERTED_LEAVES_INDEX,
+    AUTHORITY,
+    TOKEN_PROGRAM_ID,
+    escrows,
+    TOKEN_AUTHORITY,
+    REGISTERED_POOL_PDA_SOL,
+    REGISTERED_POOL_PDA_SPL_TOKEN,
+    verifierProgramTwoProgramId,
+    REGISTERED_VERIFIER_ONE_PDA,
+    REGISTERED_VERIFIER_PDA,
+    REGISTERED_VERIFIER_TWO_PDA,
+    MINT,
+  ];
+
+  if (extraAccounts) {
+    for (var i in extraAccounts) {
+      addressesToAdd.push(extraAccounts[i]);
+    }
+  }
+
+  const extendInstruction = AddressLookupTableProgram.extendLookupTable({
+    lookupTable: lookUpTable,
+    authority: payerPubkey,
+    payer: payerPubkey,
+    addresses: addressesToAdd,
+  });
+
+  transaction.add(extendInstruction);
+
+  let recentBlockhash = await provider.connection.getRecentBlockhash(
+    "confirmed",
+  );
+  transaction.feePayer = payerPubkey;
+  transaction.recentBlockhash = recentBlockhash.blockhash;
+
+  try {
+    await payer.sendAndConfirmTransaction(transaction);
+  } catch (e) {
+    console.log("e : ", e);
+  }
+
+  let lookupTableAccount = await provider.connection.getAccountInfo(
+    lookUpTable,
+    "confirmed",
+  );
+  if (lookupTableAccount == null)
+    throw new Error("Creating lookup table failed");
+  return lookUpTable;
+}
+
+export function toSnakeCase(str: string): string {
+  return str.replace(/-/g, "_");
 }
