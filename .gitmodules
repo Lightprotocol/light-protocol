@@ -1,3 +1,0 @@
-[submodule "macro-circom"]
-	path = macro-circom
-	url = git@github.com:Lightprotocol/macro-circom.git
