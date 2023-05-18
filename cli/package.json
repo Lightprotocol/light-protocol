@@ -1,25 +1,28 @@
 {
   "name": "@lightprotocol/light",
-  "version": "0.1.0",
+  "version": "0.1.1-alpha.1",
   "description": "",
   "main": "build/cli.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "yarn prettier --write \"src/**/*.{ts,js}\"",
-    "build": "ncc build src/cli.ts -o dist"
+    "build": "yarn tsc"
   },
   "keywords": [],
   "author": "",
   "license": "GPL-3.0",
   "devDependencies": {
+    "@types/bn.js": "^5.1.0",
+    "@types/chai": "^4.3.0",
     "@types/node": "^18.11.18",
     "@types/yargs": "^17.0.20",
+    "chai": "^4.3.4",
     "typescript": "^4.9.4"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.27.0",
-    "@lightprotocol/zk.js": "file:../light-zk.js",
-    "@solana/web3.js": "^1.73.3",
+    "@lightprotocol/zk.js": "0.3.2-alpha.2",
+    "@solana/web3.js": "1.76.0",
     "circomlibjs": "^0.1.7",
     "node-fetch": "^3.3.1",
     "tweetnacl": "^1.0.3",

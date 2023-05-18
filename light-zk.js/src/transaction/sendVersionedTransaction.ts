@@ -5,7 +5,7 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 
-import { Provider } from "wallet";
+import { Provider } from "../wallet";
 import { confirmConfig } from "../constants";
 export const sendVersionedTransaction = async (ix: any, provider: Provider) => {
   const recentBlockhash = (
