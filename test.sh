@@ -5,7 +5,7 @@ set -e
 ./build-sdk.sh
 
 pushd light-system-programs
-anchor build
+light-anchor build
 yarn test
 popd
 
@@ -15,7 +15,7 @@ sleep 1
 popd
 
 pushd mock-app-verifier
-anchor build
+light-anchor build
 yarn test
 popd
 
