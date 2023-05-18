@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/light",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "build/cli.js",
   "scripts": {
@@ -30,7 +30,6 @@
   },
   "files": [
     "build/**/*",
-    "bin/*",
     "scripts/*"
   ]
 }

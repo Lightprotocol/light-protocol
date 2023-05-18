@@ -394,7 +394,7 @@
     ffjavascript "^0.2.48"
 
 "@lightprotocol/zk.js@file:../light-zk.js":
-  version "0.0.1"
+  version "0.3.0"
   dependencies:
     "@coral-xyz/anchor" "0.27.0"
     "@coral-xyz/borsh" "^0.27.0"
