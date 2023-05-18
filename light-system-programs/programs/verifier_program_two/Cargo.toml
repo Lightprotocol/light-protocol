@@ -2,6 +2,7 @@
 name = "verifier_program_two"
 version = "0.1.0"
 description = "Verifier program 2 can verify 4 inputs and 4 outputs without 2 public inputs."
+license = "GPL-3.0"
 edition = "2021"
 
 [lib]

@@ -40,7 +40,7 @@
     "lightprotocol"
   ],
   "author": "ananas-block",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0",
   "dependencies": {
     "@coral-xyz/anchor": "0.27.0",
     "@coral-xyz/borsh": "^0.27.0",
