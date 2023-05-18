@@ -30,10 +30,10 @@ import {
 import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
-import { Utxo } from "utxo";
+import { Utxo } from "./utxo";
 import { MetaError, UtilsError, UtilsErrorCode } from "./errors";
-import { TokenUtxoBalance, Wallet } from "wallet";
-import { TokenData } from "types";
+import { TokenUtxoBalance, Wallet } from "./wallet";
+import { TokenData } from "./types";
 const { keccak_256 } = require("@noble/hashes/sha3");
 import { Decimal } from "decimal.js";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";

@@ -1,14 +1,15 @@
 ## CLI
 
-### Install
-install with  npm or yarn
+### Installation
+
+Install with npm or yarn:
 
 ```
-npm -g @lightprotocol/cli
+npm install -g @lightprotocol/light
 ```
 
 ```
-yarn global add @lightprotocol/cli
+yarn global add @lightprotocol/light
 ```
 
 ### COMMANDS
