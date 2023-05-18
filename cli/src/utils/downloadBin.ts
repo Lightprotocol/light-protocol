@@ -6,15 +6,15 @@ import * as os from 'os';
 const fileExists = promisify(fs.exists);
 
 export const anchorBinUrlMap = new Map([
-    ["linux-amd64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-linux-amd64"],
-    ["macos-arm64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-macos-arm64"],
-    ["arm64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-linux-arm64"]
+  ["linux-amd64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-linux-amd64"],
+  ["macos-arm64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-macos-arm64"],
+  ["linux-arm64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-linux-arm64"]
 ])
 
 export const macroCircomBinUrlMap = new Map([
-    ["linux-amd64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-amd64"],
-    ["macos-arm64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-arm64"],
-    ["arm64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-macos-arm64"]
+  ["linux-amd64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-amd64"],
+  ["macos-arm64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-arm64"],
+  ["linux-arm64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-macos-arm64"]
 ])
 
 function getSystem(): string {
@@ -39,7 +39,7 @@ export async function downloadFileIfNotExists(urlMap: Map<string, string>, fileP
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
-  
+
   // Check if file exists
   if (await fileExists(filePath)) {
     return;
@@ -47,7 +47,7 @@ export async function downloadFileIfNotExists(urlMap: Map<string, string>, fileP
 
   const system = getSystem()
   const url = urlMap.get(system);
-  
+
   if (!url) {
     throw new Error(`No binary found for the detected system ${system}`);
   }
