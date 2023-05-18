@@ -16,8 +16,8 @@ _Requirements:_
 
 ## Setup Dev
 
-- In order to properly execute the prettier format pre-commit hook, you may first need to configure light-sdk-ts/husky/pre-commit as executable:
-- `chmod ug+x ./light-sdk-ts/husky/* `
+- In order to properly execute the prettier format pre-commit hook, you may first need to configure light-zk.js/husky/pre-commit as executable:
+- `chmod ug+x ./light-zk.js/husky/* `
 
 ## Tests
 
@@ -34,7 +34,7 @@ _Rust tests:_
 
 _Sdk tests:_
 
-- `cd light-sdk-ts/`
+- `cd light-zk.js/`
 - `yarn test`
 
 _Circuit tests:_

@@ -5,7 +5,7 @@ import { execSync } from "child_process";
 import { randomBytes } from "tweetnacl";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { utils } from "@coral-xyz/anchor";
-import { sleep } from "light-sdk";
+import { sleep } from "@lightprotocol/zk.js";
 import { downloadFileIfNotExists, macroCircomBinUrlMap } from "./downloadBin";
 
 /**

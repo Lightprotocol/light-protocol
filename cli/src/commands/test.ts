@@ -4,7 +4,7 @@ import { execSync } from "child_process";
 import path = require("path");
 import * as fs from "fs";
 import { program } from "@coral-xyz/anchor/dist/cjs/native/system";
-import { toSnakeCase } from "light-sdk";
+import { toSnakeCase } from "@lightprotocol/zk.js";
 
 export const command: string = "test";
 export const desc: string = "test and deploy your PSP";

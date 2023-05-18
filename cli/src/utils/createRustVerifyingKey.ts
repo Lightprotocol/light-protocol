@@ -309,7 +309,7 @@ export async function createVerfyingkeyRsFileArgv() {
       "../light-system-programs/programs/" + program + "/src/verifying_key.rs";
     circuitName = "transaction" + process.argv[3];
     artifiactPath =
-      "../light-sdk-ts/build-circuits/transaction" + process.argv[3];
+      "../light-zk.js/build-circuits/transaction" + process.argv[3];
   }
   await createVerifyingkeyRsFile(
     program,
