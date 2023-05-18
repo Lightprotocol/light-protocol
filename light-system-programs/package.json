@@ -1,4 +1,6 @@
-{ "version": "0.3.0",
+{
+  "version": "0.3.0",
+  "license": "GPL-3.0",
   "scripts": {
     "lint": "prettier \"tests/**/*.{ts,js}\" --check",
     "test-functional": "sh runTest.sh 'ts-mocha -t 2000000 tests/functional_tests.ts --exit'",

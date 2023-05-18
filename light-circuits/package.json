@@ -2,6 +2,7 @@
   "name": "light_circuits",
   "version": "1.0.0",
   "description": "",
+  "license": "GPL-3.0",
   "scripts": {
     "build-masp": "sh buildCircuit.sh Masp",
     "build-app": "sh buildCircuit.sh App",
