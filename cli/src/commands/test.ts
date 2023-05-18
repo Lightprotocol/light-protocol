@@ -14,10 +14,7 @@ export const builder: CommandBuilder<Options> = (yargs) =>
     // network: { type: "string" },
     projectName: {type: "string"},
     programAddress: {type: "string"},
-    // ptau: { type: "number" },
-    // TODO: pass along anchor build options // execsync thingy alt.
   });
-//TODO: move all cli-utils to cli ... -> build into bin buildPsP uses macrocircom...
 
 export const handler = async (argv: Arguments<Options>): Promise<void> => {
   let { projectName, programAddress }: any = argv;
