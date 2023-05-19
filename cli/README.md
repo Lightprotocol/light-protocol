@@ -9,22 +9,22 @@ Find the code here: https://github.com/Lightprotocol/light-protocol/tree/main/cl
 Install with npm or yarn:
 
 ```
-npm install -g @lightprotocol/light
+npm install -g @lightprotocol/cli
 ```
 
 ```
-yarn global add @lightprotocol/light
+yarn global add @lightprotocol/cli
 ```
 
 ### Commands
 Sets up all the boilerplate you need, includes a PSP template:
 ```
-light init --name <project-name>
+light init <project-name>
 ```
 
 Builds the project:
 ```
-light build --name <project-name>
+yarn build
 ```
 
   optional flags:  ```--ptau <ptau-parameter> --circuitDir <directory-containing-a-.light-file>```
