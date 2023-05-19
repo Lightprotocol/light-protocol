@@ -7,28 +7,42 @@ const fileExists = promisify(fs.exists);
 
 export const anchorBinUrlMap = new Map([
   ["linux-amd64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-linux-amd64"],
+  ["macos-amd64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-macos-amd64"],
   ["macos-arm64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-macos-arm64"],
   ["linux-arm64", "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-linux-arm64"]
 ])
 
 export const macroCircomBinUrlMap = new Map([
   ["linux-amd64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-amd64"],
+  ["macos-amd64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-macos-amd64"],
   ["macos-arm64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-arm64"],
   ["linux-arm64", "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-macos-arm64"]
 ])
 
 function getSystem(): string {
   const arch = os.arch();
-  switch (arch) {
-    case 'x64':
-      return 'linux-amd64';
-    case 'arm64':
-      return 'linux-arm64';
-    case 'arm':
-      return 'macos-arm64';
-    default:
-      throw new Error(`Architecture ${arch} is not supported.`);
+  const platform = os.platform();
+
+  let platformName: string;
+  let archName: string;
+
+  if (platform === 'darwin') {
+    platformName = 'macos';
+  } else if (platform === 'linux') {
+    platformName = 'linux';
+  } else {
+    throw new Error(`Platform ${platform} is not supported.`);
   }
+
+  if (arch === 'x64') {
+    archName = 'amd64';
+  } else if (arch === 'arm' || arch === 'arm64') {
+    archName = 'arm64';
+  } else {
+    throw new Error(`Architecture ${arch} is not supported.`);
+  }
+
+  return `${platformName}-${archName}`;
 }
 
 function makeExecutable(filePath: string): void {
