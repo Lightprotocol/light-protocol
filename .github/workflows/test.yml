@@ -14,7 +14,7 @@ jobs:
       fail-fast: true # In case one of the jobs fails, the other jobs will be cancelled
       matrix:
         runs-on:
-          - buildjet-4vcpu-ubuntu-2204
+          - buildjet-16vcpu-ubuntu-2204
     name: Test - ${{matrix.runs-on}}
     runs-on: ${{matrix.runs-on}}
     steps:

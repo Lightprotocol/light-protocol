@@ -69,10 +69,13 @@ describe("Mock verifier functional", () => {
       amounts: [new BN(1_000_000)],
       appData: { testInput1: new BN(1), testInput2: new BN(1) },
       appDataIdl: IDL,
-      verifierAddress: new PublicKey(lightProvider.lookUpTables.assetLookupTable[1]),
+      verifierAddress: new PublicKey(
+        lightProvider.lookUpTables.assetLookupTable[1],
+      ),
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     let bytes = await outputUtxo.toBytes();
 
@@ -83,7 +86,8 @@ describe("Mock verifier functional", () => {
       account,
       appDataIdl: IDL,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     Utxo.equal(poseidon, outputUtxo, utxo1);
   });

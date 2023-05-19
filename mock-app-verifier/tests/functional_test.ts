@@ -30,7 +30,7 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   Provider,
   LOOK_UP_TABLE,
-  ProgramParameters
+  ProgramParameters,
 } from "@lightprotocol/zk.js";
 import {
   Keypair as SolanaKeypair,
@@ -45,9 +45,20 @@ import { IDL } from "../target/types/mock_verifier";
 import { assert, expect } from "chai";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { transfer } from "@solana/spl-token";
-const verifierProgramId = new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
-var POSEIDON, RELAYER, KEYPAIR, relayerRecipientSol: PublicKey ,outputUtxoSpl: Utxo, outputUtxoSol: Utxo;
-const storeAndExecuteAppUtxo = async (seed: string, testInputs: any, airdrop: boolean) => {
+const verifierProgramId = new PublicKey(
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+);
+var POSEIDON,
+  RELAYER,
+  KEYPAIR,
+  relayerRecipientSol: PublicKey,
+  outputUtxoSpl: Utxo,
+  outputUtxoSol: Utxo;
+const storeAndExecuteAppUtxo = async (
+  seed: string,
+  testInputs: any,
+  airdrop: boolean,
+) => {
   const lightProvider = await LightProvider.init({
     wallet: ADMIN_AUTH_KEYPAIR,
     relayer: RELAYER,
@@ -55,9 +66,12 @@ const storeAndExecuteAppUtxo = async (seed: string, testInputs: any, airdrop: bo
   const user: User = await User.init({ provider: lightProvider, seed });
 
   await user.getBalance();
-  if(airdrop) {
-    if(testInputs.utxo.amounts[0]) {
-      await airdropShieldedSol({seed: testInputs.seed, amount: (testInputs.utxo.amounts[0].div(new BN(1e9))).toNumber()});
+  if (airdrop) {
+    if (testInputs.utxo.amounts[0]) {
+      await airdropShieldedSol({
+        seed: testInputs.seed,
+        amount: testInputs.utxo.amounts[0].div(new BN(1e9)).toNumber(),
+      });
     }
   }
   console.log("storing app utxo");
@@ -67,19 +81,23 @@ const storeAndExecuteAppUtxo = async (seed: string, testInputs: any, airdrop: bo
     action: testInputs.action,
   });
 
-  const {utxo, status} = await user.getUtxo(testInputs.utxo.getCommitment(testInputs.poseidon), true, IDL);
-  testInputs.utxo.index = utxo.index
+  const { utxo, status } = await user.getUtxo(
+    testInputs.utxo.getCommitment(testInputs.poseidon),
+    true,
+    IDL,
+  );
+  testInputs.utxo.index = utxo.index;
   assert.equal(status, "ready");
   Utxo.equal(testInputs.poseidon, utxo, testInputs.utxo);
-  const circuitPath =  path.join("build-circuit");
+  const circuitPath = path.join("build-circuit");
 
   const programParameters: ProgramParameters = {
     inputs: {
       releaseSlot: utxo.appData.releaseSlot,
-      currentSlot: utxo.appData.releaseSlot // for testing we can use the same value
+      currentSlot: utxo.appData.releaseSlot, // for testing we can use the same value
     },
     verifierIdl: IDL,
-    path: circuitPath
+    path: circuitPath,
   };
 
   await user.executeAppUtxo({
@@ -87,10 +105,14 @@ const storeAndExecuteAppUtxo = async (seed: string, testInputs: any, airdrop: bo
     programParameters,
     action: Action.TRANSFER,
   });
-  const utxoSpent = await user.getUtxo(testInputs.utxo.getCommitment(testInputs.poseidon), true, IDL);
+  const utxoSpent = await user.getUtxo(
+    testInputs.utxo.getCommitment(testInputs.poseidon),
+    true,
+    IDL,
+  );
   assert.equal(utxoSpent.status, "spent");
   Utxo.equal(testInputs.poseidon, utxoSpent.utxo, utxo);
-}
+};
 
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.
@@ -100,7 +122,7 @@ describe("Mock verifier functional", () => {
     confirmConfig,
   );
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  const circuitPath =  path.join("build-circuit");
+  const circuitPath = path.join("build-circuit");
 
   anchor.setProvider(provider);
   var poseidon, account: Account, outputUtxo: Utxo;
@@ -148,7 +170,8 @@ describe("Mock verifier functional", () => {
       verifierAddress: verifierProgramId,
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     outputUtxoSol = new Utxo({
       poseidon,
@@ -160,19 +183,21 @@ describe("Mock verifier functional", () => {
       verifierAddress: verifierProgramId,
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     outputUtxoSpl = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, MINT],
       account,
       amounts: [new BN(1_000_000), new BN(1234)],
-      appData: { releaseSlot: new BN(1)},
+      appData: { releaseSlot: new BN(1) },
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -187,7 +212,8 @@ describe("Mock verifier functional", () => {
       account,
       appDataIdl: IDL,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     Utxo.equal(poseidon, outputUtxo, utxo1);
   });
@@ -217,42 +243,34 @@ describe("Mock verifier functional", () => {
     }).to.throw(Error);
   });
 
-  it("sol 1 ", async () =>{
+  it("sol 1 ", async () => {
     const testInputsSol1 = {
       utxo: outputUtxoSol,
       action: Action.SHIELD,
-      poseidon
-    }
+      poseidon,
+    };
 
-    await storeAndExecuteAppUtxo(
-      seed,
-      testInputsSol1,
-      false
-    )
-  })
+    await storeAndExecuteAppUtxo(seed, testInputsSol1, false);
+  });
 
-  it("spl ", async () =>{
+  it("spl ", async () => {
     await airdropShieldedSol({
       amount: 2,
-      seed
+      seed,
     });
     await airdropShieldedMINTSpl({
       amount: outputUtxoSpl.amounts[1].toNumber(),
-      seed
+      seed,
     });
 
     const testInputsSpl = {
       utxo: outputUtxoSpl,
       action: Action.TRANSFER,
-      poseidon
-    }
+      poseidon,
+    };
 
-    await storeAndExecuteAppUtxo(
-      seed,
-      testInputsSpl,
-      false
-    )
-  })
+    await storeAndExecuteAppUtxo(seed, testInputsSpl, false);
+  });
 
   it("Test Deposit MockVerifier cpi VerifierTwo", async () => {
     let lightProvider = await LightProvider.init({
@@ -338,7 +356,7 @@ describe("Mock verifier functional", () => {
     });
 
     const appParams = {
-      inputs: { releaseSlot: new BN(1), currentSlot: new BN(1)},
+      inputs: { releaseSlot: new BN(1), currentSlot: new BN(1) },
       path: circuitPath,
       verifierIdl: IDL,
     };
