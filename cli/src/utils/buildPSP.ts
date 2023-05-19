@@ -91,7 +91,9 @@ async function generateCircuit(
     artifiactPath
   );
   console.log("created rust verifying key");
-
+  const sleep = (ms: number) => {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  };
   while (!fs.existsSync(vKeyRsPath)) {
     await sleep(10);
   }
@@ -151,7 +153,9 @@ export async function buildPSP(
   // TODO: check whether macro circom binary exists if not fetch it
   // TODO: check whether circom binary exists if not load it
   const dirPath = path.resolve(__dirname, "../../bin/");
-  await downloadFileIfNotExists(macroCircomBinUrlMap, macroCircomBinPath,dirPath,"macro-circom")
+  console.log("commented downloadFileIfNotExists");
+  
+  // await downloadFileIfNotExists(macroCircomBinUrlMap, macroCircomBinPath,dirPath,"macro-circom")
 
   let stdout = execSync(
     `${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`
@@ -164,6 +168,8 @@ export async function buildPSP(
     throw new Error("Could not extract circuit main file name");
 
   const suffix = ".circom";
+  console.log("generateCircuit");
+  
   await generateCircuit(
     circuitMainFileName.slice(0, -suffix.length),
     ptau,
@@ -172,4 +178,9 @@ export async function buildPSP(
   console.log("\nbuilding anchor program\n");
   execSync("anchor build");
   console.log("anchor build success");
+}
+
+
+export function toSnakeCase(str: string): string {
+  return str.replace(/-/g, "_");
 }

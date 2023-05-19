@@ -1,10 +1,8 @@
-import { buildPSP } from "../utils/buildPSP";
+import { toSnakeCase } from "../utils/buildPSP";
 import type { Arguments, CommandBuilder, Options } from "yargs";
 import { execSync } from "child_process";
 import path = require("path");
 import * as fs from "fs";
-import { program } from "@coral-xyz/anchor/dist/cjs/native/system";
-import { toSnakeCase } from "@lightprotocol/zk.js";
 
 export const command: string = "test";
 export const desc: string = "Deploys your PSP on a local testnet and runs test";
