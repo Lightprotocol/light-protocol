@@ -86,12 +86,12 @@ export async function executeUpdateMerkleTreeTransactions({
           .signers([signer])
           .instruction(),
       );
-      const response = await connection.sendTransaction(
+      await sendAndConfirmTransaction(
+        connection,
         transaction,
         [signer],
         confirmConfig,
       );
-      await connection.confirmTransaction(response);
     }
   } catch (err) {
     console.error("failed while initing the merkle tree update state", err);
@@ -161,12 +161,12 @@ export async function executeUpdateMerkleTreeTransactions({
           ])
           .instruction(),
       );
-      const response = await connection.sendTransaction(
+      await sendAndConfirmTransaction(
+        connection,
         transaction,
         [signer],
         confirmConfig,
       );
-      await connection.confirmTransaction(response);
     }
   } catch (e) {
     console.log(e);
@@ -239,12 +239,12 @@ export async function executeMerkleTreeUpdateTransactions({
   await Promise.all(
     transactions.map(async (tx, index) => {
       try {
-        const response = await connection.sendTransaction(
+        await sendAndConfirmTransaction(
+          connection,
           tx,
           [signer],
           confirmConfig,
         );
-        await connection.confirmTransaction(response);
       } catch (err) {
         console.error(
           "failed at executing the merkle tree transaction:",
