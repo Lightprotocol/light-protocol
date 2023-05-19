@@ -32,7 +32,7 @@ class TransferCommand extends Command {
   static args = {
     recipient: Args.string({
       name: "recipient",
-      description: "The recipient address",
+      description: "The recipient shielded publickey",
       required: true,
     }),
   };
@@ -43,7 +43,7 @@ class TransferCommand extends Command {
     const { recipient } = args;
     const { token, amountSpl, amountSol } = flags;
 
-    const { loader, end } = getLoader("Performing unshield...");
+    const { loader, end } = getLoader("Performing token transfer...");
 
     try {
       await readWalletFromFile();
@@ -57,12 +57,12 @@ class TransferCommand extends Command {
         recipient,
       });
 
-      this.log(`Tokens successfully transferred to recipient: ${recipient}`);
+      this.log(`Tokens transferred successfully to recipient: ${recipient}`);
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
       end(loader);
     } catch (error) {
       end(loader);
-      this.error(`Transfer failed: ${error}`);
+      this.error(`Token transfer failed: ${error}`);
     }
   }
 }

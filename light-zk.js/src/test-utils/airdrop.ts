@@ -135,7 +135,7 @@ export async function airdropShieldedMINTSpl({
   });
 }
 
-export async function airdropSplToAssociatedTokenAccount(
+async function airdropSplToAssociatedTokenAccount(
   connection: Connection,
   amount: number,
   authorityPublicKey: PublicKey,

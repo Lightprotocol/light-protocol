@@ -26,7 +26,7 @@ class VerifierCommand extends Command {
   static flags = {
     publicKey: Flags.string({
       char: "p",
-      description: "Public key of the Verifier",
+      description: "Solana public key of the Verifier",
     }),
   };
 
@@ -35,7 +35,7 @@ class VerifierCommand extends Command {
     const { method } = args;
     const { publicKey } = flags;
 
-    const { loader, end } = getLoader(`Registering Verifier...`);
+    const { loader, end } = getLoader(`Performing Verifier operation...`);
 
     const { connection } = await setAnchorProvider();
     const merkleTreeConfig = await getWalletConfig(connection);
@@ -52,7 +52,7 @@ class VerifierCommand extends Command {
           await merkleTreeConfig.registerVerifier(verifierKey);
           this.log("Verifier registered successfully!");
         } catch (err) {
-          this.error(`${err}`);
+          this.error(`Failed to register the verifier: ${err}`);
         }
       } else if (method === "get") {
         if (!publicKey) {
@@ -65,13 +65,13 @@ class VerifierCommand extends Command {
           const verifierPdaAccount =
             await merkleTreeConfig.getRegisteredVerifierPda(verifierKey);
           console.log(verifierPdaAccount);
-          this.log("Verifier Successfully Logged");
+          this.log("Verifier logged successfully!");
         } catch (err) {
-          console.log(`Error while registering verifier ${verifierKey}`);
-          this.error(`${err}`);
+          console.log(`Error while retrieving the verifier: ${verifierKey}`);
+          this.error(`Failed to retrieve the verifier: ${err}`);
         }
       } else if (method === "list") {
-        this.log("Listing Verifier");
+        this.log("Listing Verifiers");
 
         const merkleProgram = new Program(
           IDL_MERKLE_TREE_PROGRAM,
@@ -91,11 +91,11 @@ class VerifierCommand extends Command {
               ["pubKey"]
             );
           } else {
-            this.log("No verifier account found");
+            this.log("No verifier accounts found");
           }
         } catch (err) {
-          this.log("Error while listing verifiers");
-          this.error(`${err}`);
+          this.log("Error while listing the verifiers");
+          this.error(`Failed to list the verifiers: ${err}`);
         }
       } else {
         this.error('Invalid command. Please use "set", "get", or "list"');
@@ -103,7 +103,7 @@ class VerifierCommand extends Command {
       end(loader);
     } catch (error) {
       end(loader);
-      this.error(`Command Failed: ${error}`);
+      this.error(`Failed to perform the Verifier operation: ${error}`);
     }
   }
 }

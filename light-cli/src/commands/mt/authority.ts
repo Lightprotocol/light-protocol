@@ -16,7 +16,7 @@ class AuthorityCommand extends Command {
   static flags = {
     publicKey: Flags.string({
       char: "p",
-      description: "Solana Publickey of the authority",
+      description: "Solana Public key of the authority",
     }),
   };
 
@@ -40,7 +40,7 @@ class AuthorityCommand extends Command {
           : method === "init"
           ? "Initializing"
           : "Setting"
-      } authority...\n`
+      } the authority...\n`
     );
 
     try {
@@ -50,10 +50,10 @@ class AuthorityCommand extends Command {
 
       if (method === "init") {
         try {
-          const ix = await merkleTreeConfig.initMerkleTreeAuthority();
+          await merkleTreeConfig.initMerkleTreeAuthority();
           this.log("Merkle Tree Authority initialized successfully");
         } catch (error) {
-          this.error(`${error}`);
+          this.error(`Failed to initialize Merkle Tree Authority: ${error}`);
         }
       } else if (method === "set") {
         if (!publicKey) {
@@ -66,9 +66,9 @@ class AuthorityCommand extends Command {
             new PublicKey(publicKey),
             true
           );
-          this.log(`Updated authority: ${new PublicKey(publicKey)}`);
+          this.log(`Authority account updated: ${new PublicKey(publicKey)}`);
         } catch (error) {
-          this.error(`${error}`);
+          this.error(`Failed to update authority account: ${error}`);
         }
       } else if (method === "get") {
         try {
@@ -78,7 +78,7 @@ class AuthorityCommand extends Command {
             );
           this.log("Authority Account:", authority);
         } catch (error) {
-          this.error(`${error}`);
+          this.error(`Failed to retrieve authority account: ${error}`);
         }
       } else {
         this.error("Invalid command. Please use 'init', 'set', or 'get'");
@@ -86,7 +86,7 @@ class AuthorityCommand extends Command {
       end(loader);
     } catch (error) {
       end(loader);
-      this.error(`${error}`);
+      this.error(`Failed to perform authority operation: ${error}`);
     }
   }
 }

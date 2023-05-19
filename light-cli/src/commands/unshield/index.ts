@@ -6,8 +6,8 @@ import { User } from "light-sdk";
 class UnshieldCommand extends Command {
   static description = "Unshield tokens for a user";
 
-  static examples: Command.Example[] = [
-    "$ light unshield --token USDC --amountSpl 1000000 --recipienSpl <address>",
+  static examples = [
+    "$ light unshield --token USDC --amountSpl 1000000 --recipientSpl <address>",
   ];
 
   static flags = {
@@ -16,10 +16,10 @@ class UnshieldCommand extends Command {
       required: true,
     }),
     recipientSpl: Flags.string({
-      description: "The recipient SPL address",
+      description: "The SPL recipient shielded publickey",
     }),
     recipientSol: Flags.string({
-      description: "The recipient SOL address",
+      description: "The SOL recipient shielded publickey",
     }),
     amountSpl: Flags.string({
       description: "The amount of token to unshield (SPL)",
@@ -46,30 +46,26 @@ class UnshieldCommand extends Command {
       minimumLamports,
     } = flags;
 
-    const { loader, end } = getLoader("Performing transfer...");
+    const { loader, end } = getLoader("Performing token unshield...");
 
     try {
       const user: User = await getUser();
 
       const response = await user.unshield({
         token,
-        recipientSpl: recipientSpl
-          ? new PublicKey(recipientSpl)
-          : PublicKey.default,
-        recipientSol: recipientSol
-          ? new PublicKey(recipientSol)
-          : PublicKey.default,
-        publicAmountSpl: amountSpl,
-        publicAmountSol: amountSol,
+        recipientSpl: recipientSpl ? new PublicKey(recipientSpl) : undefined,
+        recipientSol: recipientSol ? new PublicKey(recipientSol) : undefined,
+        publicAmountSpl: amountSpl ? Number(amountSpl) : undefined,
+        publicAmountSol: amountSol ? Number(amountSol) : undefined,
         minimumLamports,
       });
 
-      this.log(`Successfully unshielded ${token}`);
+      this.log(`Tokens successfully unshielded: ${token}`);
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
       end(loader);
     } catch (error) {
       end(loader);
-      this.error(`Unshielding tokens failed: ${error}`);
+      this.error(`Token unshield failed: ${error}`);
     }
   }
 }

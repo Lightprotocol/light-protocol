@@ -1,9 +1,5 @@
 import { Args, Command, Flags } from "@oclif/core";
-import {
-  getLoader,
-  getWalletConfig,
-  setAnchorProvider,
-} from "../../utils";
+import { getLoader, getWalletConfig, setAnchorProvider } from "../../utils";
 
 class ConfigureCommand extends Command {
   static description =
@@ -17,7 +13,7 @@ class ConfigureCommand extends Command {
   static args = {
     method: Args.string({
       name: "method",
-      description: "Method to perform: spl, or lock",
+      description: "Method to perform: spl or lock",
       required: true,
     }),
   };
@@ -34,7 +30,7 @@ class ConfigureCommand extends Command {
     const { method } = args;
     const { lockDuration } = flags;
 
-    const { loader, end } = getLoader(`Updating merkle tree configuration...`);
+    const { loader, end } = getLoader("Updating Merkle Tree configuration...");
 
     try {
       const { connection } = await setAnchorProvider();
@@ -48,12 +44,19 @@ class ConfigureCommand extends Command {
               merkleTreeConfig.merkleTreeAuthorityPda!
             );
 
+          const enablePermissionlessSplTokens =
+            !merkleTreeAuthority.enablePermissionlessSplTokens;
+
           await merkleTreeConfig.enablePermissionlessSplTokens(
-            !merkleTreeAuthority.enablePermissionlessSplTokens
+            enablePermissionlessSplTokens
           );
-          this.log("SPL tokens toggled");
+          this.log(
+            `Permissionless SPL tokens ${
+              enablePermissionlessSplTokens ? "enabled" : "disabled"
+            }`
+          );
         } catch (err) {
-          this.error(`${err}`);
+          this.error(`Failed to update SPL token configuration: ${err}`);
         }
       } else if (method === "lock") {
         if (!lockDuration) {
@@ -61,26 +64,17 @@ class ConfigureCommand extends Command {
         }
         try {
           await merkleTreeConfig.updateLockDuration(parseInt(lockDuration));
-          this.log(`Lock Duration updated: ${parseInt(lockDuration)}`);
+          this.log(`Lock duration updated: ${parseInt(lockDuration)} seconds`);
         } catch (err) {
-          this.error(`${err}`);
+          this.error(`Failed to update lock duration configuration: ${err}`);
         }
       } else {
-        this.error('Invalid command. Please use "spl", or "lock"');
+        this.error('Invalid command. Please use "spl" or "lock"');
       }
       end(loader);
     } catch (error) {
-      let errorMessage = "Aborted.";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      // @ts-ignore
-      if (error.logs && error.logs.length > 0) {
-        // @ts-ignore
-        errorMessage = error.logs;
-      }
       end(loader);
-      this.error(errorMessage);
+      this.error(`Failed to update Merkle Tree configuration: ${error}`);
     }
   }
 }

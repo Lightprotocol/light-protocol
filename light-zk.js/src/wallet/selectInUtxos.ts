@@ -113,8 +113,6 @@ const selectBiggestSmallest = (
           selectedUtxos.push(filteredUtxos[utxo]);
         }
       } else {
-        console.log({ selectedUtxosAmount });
-
         if (selectedUtxosAmount.lt(sumOutSpl)) {
           throw new Error(
             `Could not find a utxo combination for spl token ${mint} and amount ${sumOutSpl}`,
@@ -151,8 +149,6 @@ export function selectInUtxos({
   action: Action;
   numberMaxInUtxos: number;
 }) {
-  console.log("getting the in selective utxos =========>");
-
   if (!publicMint && publicAmountSpl)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,

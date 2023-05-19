@@ -18,7 +18,7 @@ class SetupCommand extends Command {
   static description = "Perform setup tasks";
 
   async run() {
-    const { loader, end } = getLoader("Performing test setup...");
+    const { loader, end } = getLoader("Performing setup tasks...");
 
     try {
       exec("sh runScript.sh", (error, stdout, stderr) => {
@@ -26,7 +26,7 @@ class SetupCommand extends Command {
           console.error("Failed to execute runScript.sh:", error);
           return;
         }
-        console.log("Setup completed successfully.");
+        console.log("Setup script executed successfully.");
       });
 
       await sleep(9000);
@@ -50,11 +50,11 @@ class SetupCommand extends Command {
         2_000_000_000
       );
 
-      this.log("Setup completed successfully.");
+      this.log("Setup tasks completed successfully.");
       end(loader);
     } catch (error) {
       end(loader);
-      this.error(`Setup failed: ${error}`);
+      this.error(`Setup tasks failed: ${error}`);
     }
   }
 }

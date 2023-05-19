@@ -15,8 +15,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.27.0",
     "@oclif/core": "^2",
-    "@oclif/plugin-help": "^5",
-    "@oclif/plugin-plugins": "^2.4.7",
+    "@oclif/plugin-plugins": "^3.0.1",
     "@solana/spl-token": "^0.3.7",
     "@solana/web3.js": "^1.76.0",
     "bn.js": "^5.2.1",
