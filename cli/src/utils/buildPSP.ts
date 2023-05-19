@@ -153,9 +153,8 @@ export async function buildPSP(
   // TODO: check whether macro circom binary exists if not fetch it
   // TODO: check whether circom binary exists if not load it
   const dirPath = path.resolve(__dirname, "../../bin/");
-  console.log("commented downloadFileIfNotExists");
   
-  // await downloadFileIfNotExists(macroCircomBinUrlMap, macroCircomBinPath,dirPath,"macro-circom")
+  await downloadFileIfNotExists(macroCircomBinUrlMap, macroCircomBinPath,dirPath,"macro-circom")
 
   let stdout = execSync(
     `${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`
@@ -175,8 +174,9 @@ export async function buildPSP(
     ptau,
     programName
   );
+  const lightAnchorBinPath = path.resolve(__dirname, "../../bin/light-anchor");
   console.log("\nbuilding anchor program\n");
-  execSync("anchor build");
+  execSync(`${lightAnchorBinPath} build`);
   console.log("anchor build success");
 }
 
