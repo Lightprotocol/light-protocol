@@ -148,7 +148,7 @@ export type VerifierProgramStorage = {
       };
     },
     {
-      name: "zKtransactionMasp2ProofInputs";
+      name: "zKtransactionMasp2MainProofInputs";
       type: {
         kind: "struct";
         fields: [
@@ -333,7 +333,7 @@ export type VerifierProgramStorage = {
       };
     },
     {
-      name: "zKtransactionMasp2PublicInputs";
+      name: "zKtransactionMasp2MainPublicInputs";
       type: {
         kind: "struct";
         fields: [
@@ -622,7 +622,7 @@ export const IDL: VerifierProgramStorage = {
       },
     },
     {
-      name: "zKtransactionMasp2ProofInputs",
+      name: "zKtransactionMasp2MainProofInputs",
       type: {
         kind: "struct",
         fields: [
@@ -807,7 +807,7 @@ export const IDL: VerifierProgramStorage = {
       },
     },
     {
-      name: "zKtransactionMasp2PublicInputs",
+      name: "zKtransactionMasp2MainPublicInputs",
       type: {
         kind: "struct",
         fields: [

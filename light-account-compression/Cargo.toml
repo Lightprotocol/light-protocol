@@ -10,3 +10,5 @@ name = "light_account_compression"
 
 [dependencies]
 anchor-lang = "0.26.0"
+[patch.crates-io]
+solana-program = { git = "https://github.com/Lightprotocol/solana", branch="v1.15" }

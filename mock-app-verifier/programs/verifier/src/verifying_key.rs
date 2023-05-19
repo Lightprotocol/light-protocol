@@ -49,7 +49,7 @@ pub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {
 	]
 };
 #[account]
-pub struct ZKMockVerifierTransactionProofInputs {
+pub struct ZKMockVerifierTransactionMainProofInputs {
     public_app_verifier: u8,
     transaction_hash: u8,
     current_slot: u8,
@@ -74,7 +74,7 @@ pub struct ZKMockVerifierTransactionProofInputs {
     release_slot: u8,
 }
 #[account]
-pub struct ZKMockVerifierTransactionPublicInputs {
+pub struct ZKMockVerifierTransactionMainPublicInputs {
     public_app_verifier: u8,
     transaction_hash: u8,
     current_slot: u8,
