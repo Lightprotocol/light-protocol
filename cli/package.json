@@ -1,11 +1,11 @@
 {
-  "name": "@lightprotocol/light",
-  "version": "0.1.0",
+  "name": "@lightprotocol/cli",
+  "version": "0.1.1-alpha.8",
   "description": "",
   "main": "build/cli.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "yarn prettier --write \"src/**/*.{ts,js}\"",
+    "format": "prettier --write \"src/**/*.{ts,js}\"",
     "build": "yarn tsc"
   },
   "keywords": [],
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.27.0",
-    "@lightprotocol/zk.js": "file:../light-zk.js",
+    "@lightprotocol/zk.js": "0.3.2-alpha.8",
     "@solana/web3.js": "1.76.0",
     "circomlibjs": "^0.1.7",
     "node-fetch": "^3.3.1",

@@ -56,7 +56,7 @@ async function generateCircuit(
   );
   try {
     fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
-  } catch (_) { }
+  } catch (_) {}
   const stdoutContribution = execSync(
     `yarn snarkjs zkey contribute ${sdkBuildCircuitDir}/${circuitName}_tmp.zkey ${sdkBuildCircuitDir}/${circuitName}.zkey -e="${randomContributionBytes}"`
   );
@@ -73,7 +73,7 @@ async function generateCircuit(
   const artifiactPath = "./build-circuit/" + circuitName;
   try {
     fs.unlinkSync(vKeyJsonPath);
-  } catch (_) { }
+  } catch (_) {}
   while (!fs.existsSync(vKeyJsonPath)) {
     execSync(
       `yarn snarkjs zkey export verificationkey ${sdkBuildCircuitDir}/${circuitName}.zkey ${sdkBuildCircuitDir}/verifyingkey.json`
@@ -81,7 +81,7 @@ async function generateCircuit(
   }
   try {
     fs.unlinkSync(vKeyRsPath);
-  } catch (_) { }
+  } catch (_) {}
   await createVerifyingkeyRsFile(
     programName,
     [],
@@ -91,7 +91,9 @@ async function generateCircuit(
     artifiactPath
   );
   console.log("created rust verifying key");
-
+  const sleep = (ms: number) => {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  };
   while (!fs.existsSync(vKeyRsPath)) {
     await sleep(10);
   }
@@ -151,7 +153,13 @@ export async function buildPSP(
   // TODO: check whether macro circom binary exists if not fetch it
   // TODO: check whether circom binary exists if not load it
   const dirPath = path.resolve(__dirname, "../../bin/");
-  await downloadFileIfNotExists(macroCircomBinUrlMap, macroCircomBinPath,dirPath,"macro-circom")
+
+  await downloadFileIfNotExists(
+    macroCircomBinUrlMap,
+    macroCircomBinPath,
+    dirPath,
+    "macro-circom"
+  );
 
   let stdout = execSync(
     `${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`
@@ -164,12 +172,19 @@ export async function buildPSP(
     throw new Error("Could not extract circuit main file name");
 
   const suffix = ".circom";
+  console.log("generateCircuit");
+
   await generateCircuit(
     circuitMainFileName.slice(0, -suffix.length),
     ptau,
     programName
   );
+  const lightAnchorBinPath = path.resolve(__dirname, "../../bin/light-anchor");
   console.log("\nbuilding anchor program\n");
-  execSync("anchor build");
+  execSync(`${lightAnchorBinPath} build`);
   console.log("anchor build success");
+}
+
+export function toSnakeCase(str: string): string {
+  return str.replace(/-/g, "_");
 }
