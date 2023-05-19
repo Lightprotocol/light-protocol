@@ -32,7 +32,7 @@ class AirdropCommand extends Command {
   static args = {
     userPublicKey: Args.string({
       name: "userPublicKey",
-      description: "The Solana public key of the user",
+      description: "The solana public key of the user",
       required: true,
     }),
   };

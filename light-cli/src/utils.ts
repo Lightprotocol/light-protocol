@@ -221,16 +221,24 @@ export function generateSolanaTransactionURL(
 }
 
 export const getLoader = (message: string) => {
-  const frames = spinner.dots.frames;
-  let i = 0;
+  let previousLength = 0;
 
   const loader = setInterval(() => {
-    const frame = frames[(i = ++i % frames.length)];
-    process.stdout.write("\r" + frame + " " + message + "\n");
-    message = "";
+    const frame = spinner.dots.frames[0];
+    const output = "\r" + frame + " " + message;
+
+    // Clear previous stdout by printing empty spaces
+    process.stdout.write("\r" + " ".repeat(previousLength));
+
+    process.stdout.write(output);
+    previousLength = output.length;
   }, spinner.dots.interval);
 
-  const end = clearInterval;
+  const end = (loader: any) => {
+    // Clear the loader interval and reset the stdout
+    clearInterval(loader);
+    process.stdout.write("\r" + " ".repeat(previousLength) + "\r");
+  };
 
   return { loader, end };
 };

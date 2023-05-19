@@ -5,7 +5,10 @@ import { generateSolanaTransactionURL, getLoader, getUser } from "../../utils";
 class ShieldCommand extends Command {
   static description = "Shield tokens for a user";
 
-  static examples = ["$ light shield --token USDC --amountSpl 10"];
+  static examples = [
+    "$ light shield --token USDC --amountSpl 10",
+    "$ light shield --token SOL --amountSpl 1 --recipient address",
+  ];
 
   static flags = {
     token: Flags.string({
@@ -13,7 +16,7 @@ class ShieldCommand extends Command {
       required: true,
     }),
     recipient: Flags.string({
-      description: "The recipient address",
+      description: "The recipient shielded publickey",
     }),
     amountSpl: Flags.string({
       description: "The amount of token to shield (SPL)",
@@ -44,7 +47,7 @@ class ShieldCommand extends Command {
       skipDecimalConversions,
     } = flags;
 
-    const { loader, end } = getLoader("Performing shield...");
+    const { loader, end } = getLoader("Performing shield operation...");
 
     try {
       const user: User = await getUser();
@@ -58,7 +61,7 @@ class ShieldCommand extends Command {
         skipDecimalConversions,
       });
 
-      this.log(`Successfully shielded: ${token}`);
+      this.log(`Token shielded successfully: ${token}`);
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
       end(loader);
     } catch (error) {

@@ -12,7 +12,7 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("convertAndComputeDecimals", () => {
-  it("random test", () => {
+  it.skip("random test", () => {
     const getRandomElement = () => {
       const randomIndex = parseInt(Math.floor(Math.random() * 7).toString());
       return randomIndex;

@@ -19,7 +19,7 @@ class MergeUtxosCommand extends Command {
   };
 
   static args = {
-    commitment: Args.string({
+    commitments: Args.string({
       name: "commitments",
       description: "Commitments of the UTXOs to merge",
       required: true,
@@ -33,29 +33,31 @@ class MergeUtxosCommand extends Command {
 
   async run() {
     const { flags, args } = await this.parse(MergeUtxosCommand);
-    const { commitment } = args;
+    const { commitments } = args;
     const { latest, token } = flags;
 
-    const { loader, end } = getLoader("Performing utxo merge...");
+    const { loader, end } = getLoader("Performing UTXO merge...");
 
     const user: User = await getUser();
 
-    let tokenCtx = TOKEN_REGISTRY.get(token.toUpperCase());
+    const tokenSymbol = token.toUpperCase();
+    const tokenCtx = TOKEN_REGISTRY.get(tokenSymbol);
 
     try {
       const response = await user.mergeUtxos(
-        [commitment],
+        [commitments],
         tokenCtx?.mint!,
         latest
       );
+
       this.log("UTXOs merged successfully!");
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
       end(loader);
     } catch (error) {
       end(loader);
-      this.error(`Error merging UTXOs: ${error}`);
+      this.error(`UTXO merge failed: ${error}`);
     }
   }
 }
 
-module.exports = MergeUtxosCommand;
+export default MergeUtxosCommand;

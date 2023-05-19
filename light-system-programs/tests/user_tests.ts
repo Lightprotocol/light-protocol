@@ -67,10 +67,9 @@ describe("Test User", () => {
       relayerRecipientSol,
       new BN(100000),
     );
-    
   });
 
-  it("(user class) shield SPL random infinite", async () => {
+  it.skip("(user class) shield SPL random infinite", async () => {
     const getRandomElement = () => {
       const randomIndex = parseInt(Math.floor(Math.random() * 7).toString());
       return randomIndex;

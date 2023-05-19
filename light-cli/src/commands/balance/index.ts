@@ -11,25 +11,21 @@ class BalanceCommand extends Command {
       char: "b",
       description: "Retrieve the balance",
       default: false,
-      exclusive: ["inbox", "utxos", "inboxUtxos"],
     }),
     inbox: Flags.boolean({
       char: "i",
       description: "Retrieve the inbox balance",
       default: false,
-      exclusive: ["balance", "utxos", "inboxUtxos"],
     }),
     utxos: Flags.boolean({
       char: "u",
       description: "Retrieve the UTXOs",
       default: false,
-      exclusive: ["balance", "inbox", "inboxUtxos"],
     }),
     inboxUtxos: Flags.boolean({
       char: "x",
       description: "Retrieve the inbox UTXOs",
       default: false,
-      exclusive: ["balance", "inbox", "utxos"],
     }),
     latest: Flags.boolean({
       char: "l",
@@ -41,7 +37,7 @@ class BalanceCommand extends Command {
   static examples = [
     "$ light balance --balance",
     "$ light balance --inbox",
-    "$ light balance --utxos",
+    "$ light balance --utxos --inbox",
     "$ light balance --inboxUtxos",
     "$ light balance --latest=false",
   ];
@@ -58,13 +54,16 @@ class BalanceCommand extends Command {
       if (balance) {
         const result = await user.getBalance(latest);
         this.logBalance(result);
-      } else if (inbox) {
+      }
+      if (inbox) {
         const result = await user.getUtxoInbox(latest);
         this.logInboxBalance(result);
-      } else if (utxos) {
+      }
+      if (utxos) {
         const result = await user.getAllUtxos();
         this.logUTXOs(result);
-      } else if (inboxUtxos) {
+      }
+      if (inboxUtxos) {
         const result = await user.getUtxoInbox();
         const utxos: Utxo[] = [];
         for (const iterator of result.tokenBalances.values()) {
