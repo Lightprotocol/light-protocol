@@ -24,17 +24,17 @@ jobs:
 
     - name: Install Dependencies
       run: yarn install
-      working-directory: ./light-sdk-ts/
+      working-directory: ./light-zk.js/
 
     - name: Build Typedoc
       run: yarn docs
-      working-directory: ./light-sdk-ts/
+      working-directory: ./light-zk.js/
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.PAT_TOKEN }}
-        publish_dir: ./light-sdk-ts/docs
+        publish_dir: ./light-zk.js/docs
         keep_files: true
         user_name: 'github-actions[bot]'
         user_email: 'github-actions[bot]@users.noreply.github.com'

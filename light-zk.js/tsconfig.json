@@ -27,7 +27,8 @@
       "src/transaction",
       "src/cli-utils",
     ],
-    "out": "docs"
+    "out": "docs",
+    "readme": "../README.md"
   },
   "include": ["src", "__tests__", "tests"],
   "exclude": ["node_modules", "**/tests/*"],
