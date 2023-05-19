@@ -529,14 +529,20 @@ export class User {
             [this.provider.wallet!.publicKey],
           ),
         );
-
+        transaction.recentBlockhash = (
+          await this.provider.provider?.connection.getLatestBlockhash(
+            "confirmed",
+          )
+        )?.blockhash;
+        console.log(transaction);
+        console.log("wallet: ", this.provider.wallet);
         await this.provider.wallet!.sendAndConfirmTransaction(transaction);
         this.approved = true;
       } catch (e) {
         throw new UserError(
           UserErrorCode.APPROVE_ERROR,
           "shield",
-          `Error approving token transfer! ${e}`,
+          `Error approving token transfer! ${e.stack}`,
         );
       }
     } else {
@@ -690,7 +696,7 @@ export class User {
     if (!tokenCtx)
       throw new UserError(
         UserErrorCode.TOKEN_NOT_FOUND,
-        "shield",
+        "unshield",
         "Token not supported!",
       );
 
