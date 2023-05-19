@@ -1162,7 +1162,7 @@ export class User {
   async mergeUtxos(
     commitments: string[],
     asset: PublicKey,
-    latest: boolean = false,
+    latest: boolean = true,
   ) {
     if (commitments.length == 0)
       throw new UserError(

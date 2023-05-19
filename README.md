@@ -5,10 +5,15 @@
 [![Discord](https://img.shields.io/discord/892771619687268383?label=discord&logo=discord)](https://discord.gg/WDAAaX6je2)
 [![Workflow Status](https://github.com/Lightprotocol/light-protocol-onchain/workflows/programs-test/badge.svg)](https://github.com/Lightprotocol/light-poseidon/actions?query=workflow)
 
-**The Privacy Layer for Solana**
+**The ZK Layer for Solana**
 
-Light Protocol powers apps with fast and secure on-chain privacy and compliance
-controls so that web3 can go mainstream.
+Light is a zkLayer enabling private program execution, purpose-built for Solana. 
+
+Developers can use Light to build applications such as 
+- fast private payments
+- encrypted orderbooks
+- public on-chain games with private state
+
 
 ## Development environment
 
@@ -92,7 +97,7 @@ yarn test
 Tests are located in `tests/` directory.
 
 The default test is a functional test, setting up a test environment with a
-Merkle tree and an spl token, conducting two deposits and withdrawals.
+Merkle tree and an spl token, conducting two shields and unshields.
 
 Tests can be executed in bulk or one by one.
 
