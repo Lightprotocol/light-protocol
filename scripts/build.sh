@@ -7,6 +7,12 @@ yarn install --force
 yarn run build
 popd
 
+
+pushd light-cli
+yarn install --force
+yarn run build
+popd
+
 pushd light-system-programs
 yarn install --force
 light-anchor build

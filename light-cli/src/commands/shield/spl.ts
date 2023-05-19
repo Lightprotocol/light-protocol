@@ -1,0 +1,102 @@
+import { Command, Flags, Args } from "@oclif/core";
+import { User, TOKEN_REGISTRY } from "@lightprotocol/zk.js";
+import {
+  CustomLoader,
+  generateSolanaTransactionURL,
+  getUser,
+} from "../../utils/utils";
+
+class ShieldSplCommand extends Command {
+  static summary = "Shield SPL tokens for a user";
+
+  static examples = [
+    "$ light shield:spl 10 USDC",
+    "$ light shield:spl 13 USDT --recipient <SHIELDED_RECIPIENT_ADDRESS>",
+  ];
+
+  static flags = {
+    'recipient': Flags.string({
+      char: "r",
+      description: "The recipient shielded/encryption publickey. If not set, the operation will shield to self.",
+      required: false
+    }),
+    'skip-minimum-lamports': Flags.boolean({
+      description:
+        "Whether to use the minimum required lamports for the shield transaction",
+      default: false,
+    }),
+    'skip-decimal-conversions': Flags.boolean({
+      char: 'd',
+      description: "Skip decimal conversions during shield",
+      default: false,
+    }),
+  };
+
+  static args = {
+    amount: Args.string({
+      name: "AMOUNT",
+      description: "The SPL token amount to shield",
+      required: true,
+    }),
+    token: Args.string({
+      name: "TOKEN",
+      description: "The SPL token symbol",
+      parse: async (token) => token.toUpperCase(), 
+      required: true,
+    }),
+  };
+
+  async run() {
+    const { args, flags } = await this.parse(ShieldSplCommand);
+
+    const amountSpl = args.amount;
+    const token = args.token;
+    
+    const recipient = flags['recipient'];
+    const minimumLamports = flags["minimum-lamports"];
+    const skipDecimalConversions = flags["skip-decimal-conversions"];
+    
+    const loader = new CustomLoader("Performing shield operation...\n");
+    loader.start();
+
+    try {
+      const originalConsoleLog = console.log;      
+      console.log = function(...args) {
+        if (args[0] !== 'shuffle disabled') {
+          originalConsoleLog.apply(console, args);
+        }
+      };
+
+      const decimals = TOKEN_REGISTRY.get(token)?.decimals;
+      const user: User = await getUser();
+      console.log({
+        token,
+        recipient,
+        publicAmountSpl: amountSpl,
+        minimumLamports,
+        skipDecimalConversions,
+      })
+      const response = await user.shield({
+        token,
+        recipient,
+        publicAmountSpl: amountSpl,
+        minimumLamports,
+        skipDecimalConversions,
+      });
+
+      this.log(generateSolanaTransactionURL("tx", `${response.txHash.signatures}`, "custom"));
+      let amount = skipDecimalConversions ? Number(amountSpl) / decimals : amountSpl;
+
+      this.log(
+        `\nSuccessfully shielded ${amount} ${token}`,
+        "\x1b[32m✔\x1b[0m"
+      );
+      loader.stop();
+    } catch (error) {
+      loader.stop();
+      this.error(`\nFailed to shield ${token}\n${error}`);
+    }
+  }
+}
+
+export default ShieldSplCommand;
