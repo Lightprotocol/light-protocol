@@ -175,7 +175,7 @@ export type VerifierProgramZero = {
       };
     },
     {
-      name: "zKtransactionMasp2ProofInputs";
+      name: "zKtransactionMasp2MainProofInputs";
       type: {
         kind: "struct";
         fields: [
@@ -360,7 +360,7 @@ export type VerifierProgramZero = {
       };
     },
     {
-      name: "zKtransactionMasp2PublicInputs";
+      name: "zKtransactionMasp2MainPublicInputs";
       type: {
         kind: "struct";
         fields: [
@@ -673,7 +673,7 @@ export const IDL: VerifierProgramZero = {
       },
     },
     {
-      name: "zKtransactionMasp2ProofInputs",
+      name: "zKtransactionMasp2MainProofInputs",
       type: {
         kind: "struct",
         fields: [
@@ -858,7 +858,7 @@ export const IDL: VerifierProgramZero = {
       },
     },
     {
-      name: "zKtransactionMasp2PublicInputs",
+      name: "zKtransactionMasp2MainPublicInputs",
       type: {
         kind: "struct",
         fields: [
