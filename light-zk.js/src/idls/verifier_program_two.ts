@@ -124,7 +124,7 @@ export type VerifierProgramTwo = {
   ];
   accounts: [
     {
-      name: "zKtransactionApp4ProofInputs";
+      name: "zKtransactionApp4MainProofInputs";
       type: {
         kind: "struct";
         fields: [
@@ -317,7 +317,7 @@ export type VerifierProgramTwo = {
       };
     },
     {
-      name: "zKtransactionApp4PublicInputs";
+      name: "zKtransactionApp4MainPublicInputs";
       type: {
         kind: "struct";
         fields: [
@@ -500,7 +500,7 @@ export const IDL: VerifierProgramTwo = {
   ],
   accounts: [
     {
-      name: "zKtransactionApp4ProofInputs",
+      name: "zKtransactionApp4MainProofInputs",
       type: {
         kind: "struct",
         fields: [
@@ -693,7 +693,7 @@ export const IDL: VerifierProgramTwo = {
       },
     },
     {
-      name: "zKtransactionApp4PublicInputs",
+      name: "zKtransactionApp4MainPublicInputs",
       type: {
         kind: "struct",
         fields: [

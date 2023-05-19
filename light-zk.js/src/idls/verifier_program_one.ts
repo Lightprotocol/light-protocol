@@ -160,7 +160,7 @@ export type VerifierProgramOne = {
   ];
   accounts: [
     {
-      name: "zKtransactionMasp10PublicInputs";
+      name: "zKtransactionMasp10MainPublicInputs";
       type: {
         kind: "struct";
         fields: [
@@ -200,7 +200,7 @@ export type VerifierProgramOne = {
       };
     },
     {
-      name: "zKtransactionMasp10ProofInputs";
+      name: "zKtransactionMasp10MainProofInputs";
       type: {
         kind: "struct";
         fields: [
@@ -629,7 +629,7 @@ export const IDL: VerifierProgramOne = {
   ],
   accounts: [
     {
-      name: "zKtransactionMasp10PublicInputs",
+      name: "zKtransactionMasp10MainPublicInputs",
       type: {
         kind: "struct",
         fields: [
@@ -669,7 +669,7 @@ export const IDL: VerifierProgramOne = {
       },
     },
     {
-      name: "zKtransactionMasp10ProofInputs",
+      name: "zKtransactionMasp10MainProofInputs",
       type: {
         kind: "struct",
         fields: [
