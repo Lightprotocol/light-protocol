@@ -54,7 +54,7 @@ else
         --bpf-program $VERIFIER_PROGRAM_ONE_ID /home/node/.local/light-protocol/lib/light-protocol/verifier_program_one.so \
         --bpf-program $MOCK_VERIFIER_PROGRAM_ID /home/node/.local/light-protocol/lib/mock-app-verifier/mock_verifier.so \
         --account-dir /home/node/.local/light-protocol/lib/accounts
-    trap "docker rm -f solana-validator"
+    trap "docker rm -f solana-validator" EXIT
 
     sleep 15
     $1

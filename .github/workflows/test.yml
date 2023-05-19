@@ -13,7 +13,8 @@ jobs:
     strategy:
       fail-fast: true # In case one of the jobs fails, the other jobs will be cancelled
       matrix:
-        runs-on: [ buildjet-2vcpu-ubuntu-2204, buildjet-4vcpu-ubuntu-2204, buildjet-8vcpu-ubuntu-2204, buildjet-16vcpu-ubuntu-2204 ]
+        runs-on:
+          - buildjet-4vcpu-ubuntu-2204
     name: Test - ${{matrix.runs-on}}
     runs-on: ${{matrix.runs-on}}
     steps:
@@ -31,6 +32,12 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+
+      - name: Install nightly Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
 
       - name: Install Node.js
         uses: actions/setup-node@v2
