@@ -13,12 +13,17 @@ class TransactionHistoryCommand extends Command {
     }),
   };
 
+  static examples: Command.Example[] = [
+    "$ light history",
+    "$ light history --latest=false",
+  ];
+
   async run() {
     const { flags } = await this.parse(TransactionHistoryCommand);
 
     const { latest } = flags;
 
-    const { loader, end } = getLoader("Retrieving use transaction histrory...");
+    const { loader, end } = getLoader("Retrieving user transaction history...");
 
     const user = await getUser();
 
@@ -28,45 +33,31 @@ class TransactionHistoryCommand extends Command {
 
       // Log the transaction history
       transactions.forEach((transaction) => {
-        console.log("--- Transaction ---");
-        console.log("Block Time:", transaction.blockTime);
-        console.log("Signer:", transaction.signer.toString());
-        console.log("Signature:", transaction.signature);
-        console.log("From:", transaction.from.toString());
-        console.log("To:", transaction.to.toString());
-        console.log(
+        this.log("--- Transaction ---");
+        this.log("Block Time:", transaction.blockTime);
+        this.log("Signer:", transaction.signer.toString());
+        this.log("Signature:", transaction.signature);
+        this.log("From:", transaction.from.toString());
+        this.log("To:", transaction.to.toString());
+        this.log(
           "Relayer Recipient Sol:",
           transaction.relayerRecipientSol.toString()
         );
-        console.log("Type:", transaction.type);
-        console.log(
-          "Change Sol Amount:",
-          transaction.changeSolAmount.toString()
-        );
-        console.log(
-          "Public Amount Sol:",
-          transaction.publicAmountSol.toString()
-        );
-        console.log(
-          "Public Amount SPL:",
-          transaction.publicAmountSpl.toString()
-        );
-        console.log("Relayer Fee:", transaction.relayerFee.toString());
-        console.log("Message:", transaction.message);
-        console.log("------------------");
+        this.log("Type:", transaction.type);
+        this.log("Change Sol Amount:", transaction.changeSolAmount.toString());
+        this.log("Public Amount Sol:", transaction.publicAmountSol.toString());
+        this.log("Public Amount SPL:", transaction.publicAmountSpl.toString());
+        this.log("Relayer Fee:", transaction.relayerFee.toString());
+        this.log("Message:", transaction.message);
+        this.log("------------------");
       });
 
       end(loader);
     } catch (error) {
       end(loader);
-      console.error("Error retrieving transaction history:", error);
+      this.error(`Error retrieving transaction history: ${error}`);
     }
   }
 }
 
-TransactionHistoryCommand.examples = [
-  "$ light history",
-  "$ light history --latest=false",
-];
-
-module.exports = TransactionHistoryCommand;
+export default TransactionHistoryCommand;

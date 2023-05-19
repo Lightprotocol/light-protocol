@@ -282,8 +282,6 @@ export class User {
       );
     }
 
-    console.log("utxoss here ==============>", this.inboxBalance);
-
     return this.inboxBalance;
   }
 

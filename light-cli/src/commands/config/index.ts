@@ -7,21 +7,27 @@ class ConfigCommand extends Command {
 
   static flags = {
     rpcUrl: Flags.string({
+      char: "r",
       description: "Solana RPC URL",
     }),
     relayerUrl: Flags.string({
+      char: "l",
       description: "Relayer URL",
     }),
     secretKey: Flags.string({
+      char: "s",
       description: "Secret key in string format",
     }),
     relayerRecipient: Flags.string({
+      char: "u",
       description: "Relayer recipient",
     }),
     lookupTable: Flags.string({
+      char: "t",
       description: "Look-up table",
     }),
     payer: Flags.string({
+      char: "p",
       description: "Payer secret key",
     }),
   };

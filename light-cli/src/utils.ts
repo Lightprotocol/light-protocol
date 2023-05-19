@@ -19,7 +19,6 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 require("dotenv").config();
 
-var getDirName = require("path").dirname;
 let provider: Provider;
 let relayer: Relayer;
 
@@ -36,18 +35,23 @@ export const createNewWallet = () => {
 };
 
 export const getWalletConfig = async (
-  provider: anchor.AnchorProvider
+  connection: solana.Connection
 ): Promise<MerkleTreeConfig> => {
-  let merkleTreeConfig = new MerkleTreeConfig({
-    messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
-    transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
-    payer: getPayer(),
-    connection: provider.connection,
-  });
+  try {
+    let merkleTreeConfig = new MerkleTreeConfig({
+      messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+      payer: getPayer(),
+      connection,
+    });
 
-  await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
 
-  return merkleTreeConfig;
+    return merkleTreeConfig;
+  } catch (error) {
+    console.log({ error });
+    throw error;
+  }
 };
 
 export const getConnection = () =>
@@ -175,7 +179,7 @@ export const setLookUpTable = (address: string): void => {
 export const getPayer = () => {
   const config = getConfig();
 
-  const payer = JSON.parse(config.payer);
+  const payer = bs58.decode(config.payer);
 
   let asUint8Array: Uint8Array = new Uint8Array(payer);
   let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
@@ -222,7 +226,8 @@ export const getLoader = (message: string) => {
 
   const loader = setInterval(() => {
     const frame = frames[(i = ++i % frames.length)];
-    process.stdout.write("\r" + frame + " " + message);
+    process.stdout.write("\r" + frame + " " + message + "\n");
+    message = "";
   }, spinner.dots.interval);
 
   const end = clearInterval;
