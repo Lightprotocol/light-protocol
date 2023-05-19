@@ -13,6 +13,7 @@ import {
   Recipient,
   Utxo,
   Account,
+  TOKEN_REGISTRY,
 } from "../index";
 
 // TODO: turn these into static user.class methods
@@ -226,7 +227,7 @@ export function selectInUtxos({
   var sumInSol = getUtxoArrayAmount(SystemProgram.programId, utxos);
   var sumOutSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
   var sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
-  if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
+  if (relayerFee) sumOutSol = sumOutSol.add(new BN(relayerFee));
   if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
 
   if (mint) {
@@ -248,7 +249,7 @@ export function selectInUtxos({
       SelectInUtxosErrorCode.INVALID_NUMBER_OF_IN_UTXOS,
       "selectInUtxos",
     );
-  if (mint) {
+  if (mint != TOKEN_REGISTRY.get("SOL")?.mint) {
     var { selectedUtxosSolAmount, selectedUtxos } = selectBiggestSmallest(
       filteredUtxos,
       1,
@@ -256,6 +257,7 @@ export function selectInUtxos({
       numberMaxInUtxos - selectedUtxosR.length,
       mint,
     );
+
     if (selectedUtxos.length === 0)
       throw new SelectInUtxosError(
         SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,

@@ -3,9 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { randomBytes } from "tweetnacl";
 import { utils } from "@coral-xyz/anchor";
-import { downloadFile } from "./download";
-import { executeCommand } from "./process";
-import { executeAnchor, executeCircom, executeMacroCircom } from "./toolchain";
+import { sleep } from "@lightprotocol/zk.js";
+import { downloadFileIfNotExists } from "./downloadBin";
 
 /**
  * Generates a zk-SNARK circuit given a circuit name.
@@ -185,6 +184,17 @@ export async function buildPSP(
   programName: string
 ) {
   let circuitFileName = findLightFile(circuitDir);
+  console.log("Creating circom files");
+  const macroCircomBinPath = path.resolve(__dirname, "../../bin/macro-circom");
+  // TODO: check whether circom binary exists if not load it
+  const dirPath = path.resolve(__dirname, "../../bin/");
+
+  await downloadFileIfNotExists({
+    filePath: macroCircomBinPath,
+    dirPath,
+    repoName: "macro-circom",
+    fileName: "macro-circom",
+  });
 
   console.log("📜 Generating circom files");
   let stdout = await executeMacroCircom({
