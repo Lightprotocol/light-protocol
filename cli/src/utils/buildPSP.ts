@@ -56,7 +56,7 @@ async function generateCircuit(
   );
   try {
     fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
-  } catch (_) { }
+  } catch (_) {}
   const stdoutContribution = execSync(
     `yarn snarkjs zkey contribute ${sdkBuildCircuitDir}/${circuitName}_tmp.zkey ${sdkBuildCircuitDir}/${circuitName}.zkey -e="${randomContributionBytes}"`
   );
@@ -73,7 +73,7 @@ async function generateCircuit(
   const artifiactPath = "./build-circuit/" + circuitName;
   try {
     fs.unlinkSync(vKeyJsonPath);
-  } catch (_) { }
+  } catch (_) {}
   while (!fs.existsSync(vKeyJsonPath)) {
     execSync(
       `yarn snarkjs zkey export verificationkey ${sdkBuildCircuitDir}/${circuitName}.zkey ${sdkBuildCircuitDir}/verifyingkey.json`
@@ -81,7 +81,7 @@ async function generateCircuit(
   }
   try {
     fs.unlinkSync(vKeyRsPath);
-  } catch (_) { }
+  } catch (_) {}
   await createVerifyingkeyRsFile(
     programName,
     [],
@@ -153,8 +153,13 @@ export async function buildPSP(
   // TODO: check whether macro circom binary exists if not fetch it
   // TODO: check whether circom binary exists if not load it
   const dirPath = path.resolve(__dirname, "../../bin/");
-  
-  await downloadFileIfNotExists(macroCircomBinUrlMap, macroCircomBinPath,dirPath,"macro-circom")
+
+  await downloadFileIfNotExists(
+    macroCircomBinUrlMap,
+    macroCircomBinPath,
+    dirPath,
+    "macro-circom"
+  );
 
   let stdout = execSync(
     `${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`
@@ -168,7 +173,7 @@ export async function buildPSP(
 
   const suffix = ".circom";
   console.log("generateCircuit");
-  
+
   await generateCircuit(
     circuitMainFileName.slice(0, -suffix.length),
     ptau,
@@ -179,7 +184,6 @@ export async function buildPSP(
   execSync(`${lightAnchorBinPath} build`);
   console.log("anchor build success");
 }
-
 
 export function toSnakeCase(str: string): string {
   return str.replace(/-/g, "_");

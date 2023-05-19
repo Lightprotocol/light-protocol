@@ -26,12 +26,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   const anchorPath = path.resolve(__dirname, "../../bin/light-anchor");
   const dirPath = path.resolve(__dirname, "../../bin/");
 
-  await downloadFileIfNotExists(
-    anchorBinUrlMap,
-    anchorPath,
-    dirPath,
-    "light-anchor"
-  );
+  await downloadFileIfNotExists(anchorBinUrlMap, anchorPath, dirPath, "anchor");
 
   execSync(`${anchorPath} init-psp ${name}`);
 

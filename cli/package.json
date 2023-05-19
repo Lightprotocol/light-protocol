@@ -5,7 +5,7 @@
   "main": "build/cli.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "yarn prettier --write \"src/**/*.{ts,js}\"",
+    "format": "prettier --write \"src/**/*.{ts,js}\"",
     "build": "yarn tsc"
   },
   "keywords": [],
