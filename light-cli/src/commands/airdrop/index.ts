@@ -4,13 +4,12 @@ import {
   generateSolanaTransactionURL,
   getConnection,
   getLoader,
-  readWalletFromFile,
 } from "../../utils";
 import { getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
 import { ADMIN_AUTH_KEYPAIR, MINT } from "light-sdk";
 
 class AirdropCommand extends Command {
-  static description = "Perform an airdrop to a user";
+  static description = "Perform a native Solana or SPL airdrop to a user";
 
   static flags = {
     amount: Flags.integer({
@@ -19,19 +18,21 @@ class AirdropCommand extends Command {
       required: true,
     }),
     token: Flags.string({
-      description: "The token to shield",
+      char: "t",
+      description: "The token to airdrop",
       required: true,
     }),
   };
 
   static examples = [
     `$ light airdrop --token SOL --amount 2000000000 <userPublicKey>`,
+    `$ light airdrop --token USDC --amount 10000 <userPublicKey>`,
   ];
 
   static args = {
     userPublicKey: Args.string({
       name: "userPublicKey",
-      description: "The public key of the user",
+      description: "The Solana public key of the user",
       required: true,
     }),
   };
@@ -42,7 +43,7 @@ class AirdropCommand extends Command {
     const { userPublicKey } = args;
     const { amount, token } = flags;
 
-    const { loader, end } = getLoader("Performing airdrop...");
+    const { loader, end } = getLoader("Performing the airdrop...");
 
     let response;
 

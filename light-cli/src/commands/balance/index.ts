@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import { User, Balance, InboxBalance, Utxo } from "light-sdk";
-import { getLightProvider, getLoader, getUser } from "../../utils";
+import { getLoader, getUser } from "../../utils";
 
 class BalanceCommand extends Command {
   static description =
@@ -26,14 +26,14 @@ class BalanceCommand extends Command {
       exclusive: ["balance", "inbox", "inboxUtxos"],
     }),
     inboxUtxos: Flags.boolean({
-      char: "u",
-      description: "Retrieve the UTXOs",
+      char: "x",
+      description: "Retrieve the inbox UTXOs",
       default: false,
       exclusive: ["balance", "inbox", "utxos"],
     }),
     latest: Flags.boolean({
       char: "l",
-      description: "Retrieve the latest balance/inbox balance/UTXOs",
+      description: "Retrieve the latest balance, inbox balance, or UTXOs",
       default: true,
     }),
   };
@@ -42,14 +42,14 @@ class BalanceCommand extends Command {
     "$ light balance --balance",
     "$ light balance --inbox",
     "$ light balance --utxos",
-    "$ light balance --utxos-inbox",
+    "$ light balance --inboxUtxos",
     "$ light balance --latest=false",
   ];
 
   async run() {
     const { flags } = await this.parse(BalanceCommand);
     const { balance, inbox, utxos, latest, inboxUtxos } = flags;
-    
+
     const { loader, end } = getLoader("Retrieving balance...");
 
     const user: User = await getUser();
@@ -76,7 +76,7 @@ class BalanceCommand extends Command {
       }
       end(loader);
     } catch (error) {
-      this.error(`Error retrieving balance, inbox balance, or UTXOs ${error}`);
+      this.error(`Error retrieving balance, inbox balance, or UTXOs: ${error}`);
     }
   }
 
@@ -118,10 +118,10 @@ class BalanceCommand extends Command {
     this.log("--- UTXOs ---");
     for (const utxo of utxos) {
       this.log("UTXO:");
-      this.log(`  Amount: ${utxo.amounts}`);
-      this.log(`  Asset: ${utxo.assets}`);
-      this.log(`  Commitment: ${utxo._commitment}`);
-      this.log(`  Index: ${utxo.index}`);
+      this.log(`Amount: ${utxo.amounts}`);
+      this.log(`Asset: ${utxo.assets}`);
+      this.log(`Commitment: ${utxo._commitment}`);
+      this.log(`Index: ${utxo.index}`);
     }
     this.log("----------------");
   }

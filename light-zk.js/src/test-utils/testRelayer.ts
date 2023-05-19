@@ -55,7 +55,7 @@ export class TestRelayer extends Relayer {
       const response = await sendVersionedTransaction(instruction, provider);
       return response;
     } catch (err) {
-      console.error("erorr here =========>", { err });
+      console.log({ err });
       throw err;
     }
   }
