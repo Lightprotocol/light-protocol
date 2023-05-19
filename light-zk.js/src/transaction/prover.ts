@@ -68,9 +68,8 @@ export class Prover {
 
     // After Retrieving circuitName ==> build wasm and zkey paths for the circuit
     this.wasmPath =
-      this.firstPath +
-      `/${this.circuitName}Main_js/${this.circuitName}Main.wasm`;
-    this.zkeyPath = this.firstPath + `/${this.circuitName}Main.zkey`;
+      this.firstPath + `/${this.circuitName}_js/${this.circuitName}.wasm`;
+    this.zkeyPath = this.firstPath + `/${this.circuitName}.zkey`;
 
     const circuitIdlObject = this.idl.accounts!.find(
       (account) =>
