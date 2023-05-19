@@ -269,7 +269,6 @@ async function createVerifyingKeyRsFile(
   );
 }
 
-//TODO: check if unused
 export async function createVerfyingkeyRsFileArgv() {
   let nrInputs = process.argv[2];
   if (!nrInputs) {
@@ -287,7 +286,7 @@ export async function createVerfyingkeyRsFileArgv() {
     vKeyJsonPath = "./verifyingkey.json";
     vKeyRsPath = "./programs/" + program + "/src/verifying_key.rs";
     circuitName = process.argv[4] ? `${process.argv[4]}` : "appTransaction";
-    artifiactPath = "./sdk/build-circuit/" + circuitName;
+    artifiactPath = "./sdk/build-circuit/" + toCamelCase(circuitName);
   } else {
     if (nrInputs == "2") {
       program = "verifier_program_zero";
@@ -350,4 +349,11 @@ export async function createVerifyingkeyRsFile(
 
   // Write verifying_key.rs file for the circuit
   await createVerifyingKeyRsFile(vKeyJsonPath, paths, appendingStrings);
+}
+
+export function toCamelCase(input: string): string {
+  return input.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, function (match, index) {
+    if (+match === 0) return ""; // or if (/\s+/.test(match)) for white spaces
+    return index == 0 ? match.toLowerCase() : match.toUpperCase();
+  });
 }
