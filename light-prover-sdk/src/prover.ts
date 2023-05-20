@@ -9,7 +9,8 @@ import {
   ProofInputs, 
   ParsedPublicInputs,
   CircuitNames
-} from "./generics"
+} from "./generics";
+
 export type proofData = {
   pi_a: string[];
   pi_b: string[][];
@@ -36,7 +37,7 @@ export class Prover<VerifierIdl extends VerifierIdls, CircuitName extends Circui
   public firstPath: string;
   public wasmPath!: string;
   public zkeyPath!: string;
-  public proofInputs: ProofInputs<VerifierIdl, CircuitName>;
+  public proofInputs!: ProofInputs<VerifierIdl, CircuitName>;
   public publicInputs: string[] = [];
   public vKey!: vKeyData;
   public proof!: proofData;
