@@ -1,0 +1,27 @@
+{
+  "name": "generic-zk-prover-class",
+  "version": "0.1.0",
+  "description": "Circom generic prover sdk offering precompile errors for proofInputs as well as parsed publicInputs & proof for private solana programs",
+  "main": "index.js",
+  "scripts": {
+    "test": "ts-mocha --timeout 500000 tests/*.test.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.27.0",
+    "circomlibjs": "^0.1.7",
+    "ffjavascript": "^0.2.59",
+    "snarkjs": "^0.6.11"
+  },
+  "devDependencies": {
+    "@solana/web3.js": "^1.76.0",
+    "@types/chai": "^4.3.5",
+    "@types/chai-as-promised": "^7.1.5",
+    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.7",
+    "chai-as-promised": "^7.1.1",
+    "mocha": "^10.2.0",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  }
+}

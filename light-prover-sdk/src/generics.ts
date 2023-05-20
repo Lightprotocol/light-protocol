@@ -4,7 +4,7 @@ import {
     IDL_VERIFIER_PROGRAM_TWO,
     IDL_VERIFIER_PROGRAM_STORAGE,
     IDL_MERKLE_TREE_PROGRAM
-} from "../light-zk.js/src/idls";
+} from "../../light-zk.js/src/idls";
 
 export type VerifierIdls = 
     typeof IDL_VERIFIER_PROGRAM_ZERO |
