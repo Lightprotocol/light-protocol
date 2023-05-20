@@ -5,12 +5,12 @@ import {
   POOL_TYPE,
   merkleTreeProgramId,
   IDL_MERKLE_TREE_PROGRAM,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 
 import * as anchor from "@coral-xyz/anchor";
 import {
+  CustomLoader,
   getLightProvider,
-  getLoader,
   getWalletConfig,
   setAnchorProvider,
 } from "../../utils";
@@ -41,16 +41,22 @@ class PoolCommand extends Command {
     }),
   };
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
   async run() {
     const { args, flags } = await this.parse(PoolCommand);
     const { method } = args;
     const { publicKey } = flags;
 
-    const { loader, end } = getLoader(
+    const loader = new CustomLoader(
       method === "list"
         ? "Listing Pool Accounts..."
         : `Registering pool type...`
     );
+
+    loader.start();
 
     const { connection } = await setAnchorProvider();
 
@@ -60,14 +66,14 @@ class PoolCommand extends Command {
       if (method === "default") {
         try {
           await merkleTreeConfig.registerPoolType(POOL_TYPE);
-          this.log("Successfully registered the default pool type");
+          this.log("\nSuccessfully registered the default pool type");
         } catch (error) {
-          this.error("Failed to register the default pool type");
+          this.error("\nFailed to register the default pool type");
         }
       } else if (method === "spl") {
         if (!publicKey) {
           this.error(
-            "Please provide the mint public key to register an SPL pool"
+            "\nPlease provide the mint public key to register an SPL pool"
           );
         }
 
@@ -75,16 +81,16 @@ class PoolCommand extends Command {
 
         try {
           await merkleTreeConfig.registerSplPool(POOL_TYPE, mintKey);
-          this.log("Successfully registered the SPL pool");
+          this.log("\nSuccessfully registered the SPL pool");
         } catch (error) {
-          this.error("Failed to register the SPL pool");
+          this.error("\nFailed to register the SPL pool");
         }
       } else if (method === "sol") {
         try {
           await merkleTreeConfig.registerSolPool(POOL_TYPE);
-          this.log("Successfully registered the Sol pool");
+          this.log("\nSuccessfully registered the Sol pool");
         } catch (error) {
-          this.error("Failed to register the Sol pool");
+          this.error("\nFailed to register the Sol pool");
         }
       } else if (method === "list") {
         const provider = await getLightProvider(ADMIN_AUTH_KEYPAIR);
@@ -109,11 +115,11 @@ class PoolCommand extends Command {
               ["pubKey"]
             );
           } else {
-            this.log("No asset pool accounts found");
+            this.log("\nNo asset pool accounts found");
             this.log("\n");
           }
           if (poolAccounts.length > 0) {
-            this.log("Pool Accounts:");
+            this.log("\nPool Accounts:");
             console.table(
               poolAccounts.map((account: any) => ({
                 pubKey: `${account.publicKey}`,
@@ -122,22 +128,23 @@ class PoolCommand extends Command {
             );
             this.log("\n");
           } else {
-            this.log("No pool accounts found");
+            this.log("\nNo pool accounts found");
           }
-          this.log("Successfully listed the pools");
+          this.log("\nSuccessfully listed the pools");
         } catch (error) {
-          this.error("Error while listing the pools");
+          this.error("\nError while listing the pools");
         }
       } else {
         this.error(
-          'Invalid method. Please use "default", "spl", "sol", or "list"'
+          '\nInvalid method. Please use "default", "spl", "sol", or "list"'
         );
       }
 
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Failed to perform the pool operation: ${error}`);
+      loader.stop();
+
+      this.error(`\nFailed to perform the pool operation: ${error}`);
     }
   }
 }

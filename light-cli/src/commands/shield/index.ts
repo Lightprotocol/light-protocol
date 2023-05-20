@@ -1,6 +1,10 @@
 import { Command, Flags } from "@oclif/core";
-import { User } from "light-sdk";
-import { generateSolanaTransactionURL, getLoader, getUser } from "../../utils";
+import { User } from "@lightprotocol/zk.js";
+import {
+  CustomLoader,
+  generateSolanaTransactionURL,
+  getUser,
+} from "../../utils";
 
 class ShieldCommand extends Command {
   static description = "Shield tokens for a user";
@@ -9,6 +13,10 @@ class ShieldCommand extends Command {
     "$ light shield --token USDC --amountSpl 10",
     "$ light shield --token SOL --amountSpl 1 --recipient address",
   ];
+
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
 
   static flags = {
     token: Flags.string({
@@ -47,7 +55,9 @@ class ShieldCommand extends Command {
       skipDecimalConversions,
     } = flags;
 
-    const { loader, end } = getLoader("Performing shield operation...");
+    const loader = new CustomLoader("Performing shield operation...");
+
+    loader.start();
 
     try {
       const user: User = await getUser();
@@ -61,12 +71,12 @@ class ShieldCommand extends Command {
         skipDecimalConversions,
       });
 
-      this.log(`Token shielded successfully: ${token}`);
+      this.log(`\nToken shielded successfully: ${token}`);
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Shielding tokens failed: ${error}`);
+      loader.stop();
+      this.error(`\nShielding tokens failed: ${error}`);
     }
   }
 }

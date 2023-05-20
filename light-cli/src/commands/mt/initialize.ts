@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
-import { getLoader, getWalletConfig, setAnchorProvider } from "../../utils";
+import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils";
 
 class InitializeCommand extends Command {
   static description = "Initialize the Merkle Tree Authority";
@@ -26,6 +26,9 @@ class InitializeCommand extends Command {
       exclusive: ["message"],
     }),
   };
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
 
   async run() {
     const { flags } = await this.parse(InitializeCommand);
@@ -33,9 +36,8 @@ class InitializeCommand extends Command {
 
     const merkleTreeKey = new PublicKey(pubKey);
 
-    const { loader, end } = getLoader(
-      `Initializing new Merkle Tree Account...`
-    );
+    const loader = new CustomLoader(`Initializing new Merkle Tree Account...`);
+    loader.start();
 
     try {
       const { connection } = await setAnchorProvider();
@@ -49,23 +51,24 @@ class InitializeCommand extends Command {
         try {
           if (transaction) {
             merkleTreeConfig.initializeNewTransactionMerkleTree();
-            this.log("Initialized a new transaction Merkle Tree");
+            this.log("\nInitialized a new transaction Merkle Tree");
           } else if (message) {
             await merkleTreeConfig.initializeNewMessageMerkleTree();
-            this.log("Initialized a new message Merkle Tree");
+            this.log("\nInitialized a new message Merkle Tree");
           }
-          this.log("Merkle Tree Account initialized successfully");
-          this.log(`Merkle Tree PubKey: ${merkleTreeKey}\n`);
+          this.log("\nMerkle Tree Account initialized successfully");
+          this.log(`\nMerkle Tree PubKey: ${merkleTreeKey}\n`);
         } catch (error) {
-          this.error(`Failed to initialize Merkle Tree Account: ${error}`);
+          this.error(`\nFailed to initialize Merkle Tree Account: ${error}`);
         }
       } else {
-        this.log("Merkle Tree Account already exists");
+        this.log("\nMerkle Tree Account already exists");
       }
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Failed to initialize Merkle Tree Account: ${error}`);
+      loader.stop();
+
+      this.error(`\nFailed to initialize Merkle Tree Account: ${error}`);
     }
   }
 }

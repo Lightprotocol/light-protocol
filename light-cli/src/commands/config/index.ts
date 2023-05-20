@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import * as fs from "fs";
-import { getLoader } from "../../utils";
+import { CustomLoader } from "../../utils";
 
 class ConfigCommand extends Command {
   static description = "Update the configuration values";
@@ -32,6 +32,10 @@ class ConfigCommand extends Command {
     }),
   };
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
   static examples = [
     "$ light config --rpcUrl https://solana-api.example.com",
     "$ light config --relayerUrl https://relayer.example.com",
@@ -53,7 +57,8 @@ class ConfigCommand extends Command {
       payer,
     } = flags;
 
-    const { loader, end } = getLoader("Updating configuration...");
+    const loader = new CustomLoader("Updating configuration...");
+    loader.start();
 
     try {
       const config = JSON.parse(fs.readFileSync("config.json", "utf-8"));
@@ -78,11 +83,12 @@ class ConfigCommand extends Command {
       }
 
       fs.writeFileSync("config.json", JSON.stringify(config, null, 2));
-      this.log("Configuration values updated successfully");
-      end(loader);
+      this.log("\nConfiguration values updated successfully");
+      loader.stop();
     } catch (err) {
-      end(loader);
-      this.error(`Failed to update configuration values: ${err}`);
+      loader.stop();
+
+      this.error(`\nFailed to update configuration values: ${err}`);
     }
   }
 }

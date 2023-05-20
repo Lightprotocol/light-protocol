@@ -1,6 +1,6 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { MERKLE_TREE_AUTHORITY_PDA } from "light-sdk";
-import { getLoader, getWalletConfig, setAnchorProvider } from "../../utils";
+import { MERKLE_TREE_AUTHORITY_PDA } from "@lightprotocol/zk.js";
+import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils";
 
 import { PublicKey } from "@solana/web3.js";
 
@@ -12,6 +12,10 @@ class AuthorityCommand extends Command {
     "light authority set -p <publicKey>",
     "light authority get",
   ];
+
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
 
   static flags = {
     publicKey: Flags.string({
@@ -33,7 +37,7 @@ class AuthorityCommand extends Command {
     const { method } = args;
     const { publicKey } = flags;
 
-    const { loader, end } = getLoader(
+    const loader = new CustomLoader(
       `${
         method === "get"
           ? "Retrieving"
@@ -43,6 +47,8 @@ class AuthorityCommand extends Command {
       } the authority...\n`
     );
 
+    loader.start();
+
     try {
       const { connection } = await setAnchorProvider();
 
@@ -51,14 +57,14 @@ class AuthorityCommand extends Command {
       if (method === "init") {
         try {
           await merkleTreeConfig.initMerkleTreeAuthority();
-          this.log("Merkle Tree Authority initialized successfully");
+          this.log("\nMerkle Tree Authority initialized successfully");
         } catch (error) {
-          this.error(`Failed to initialize Merkle Tree Authority: ${error}`);
+          this.error(`\nFailed to initialize Merkle Tree Authority: ${error}`);
         }
       } else if (method === "set") {
         if (!publicKey) {
           this.error(
-            "Please provide the public key of the new authority account"
+            "\nPlease provide the public key of the new authority account"
           );
         }
         try {
@@ -66,9 +72,9 @@ class AuthorityCommand extends Command {
             new PublicKey(publicKey),
             true
           );
-          this.log(`Authority account updated: ${new PublicKey(publicKey)}`);
+          this.log(`\nAuthority account updated: ${new PublicKey(publicKey)}`);
         } catch (error) {
-          this.error(`Failed to update authority account: ${error}`);
+          this.error(`\nFailed to update authority account: ${error}`);
         }
       } else if (method === "get") {
         try {
@@ -76,17 +82,18 @@ class AuthorityCommand extends Command {
             await merkleTreeConfig.merkleTreeProgram.account.merkleTreeAuthority.fetch(
               MERKLE_TREE_AUTHORITY_PDA
             );
-          this.log("Authority Account:", authority);
+          this.log("\nAuthority Account:", authority);
         } catch (error) {
-          this.error(`Failed to retrieve authority account: ${error}`);
+          this.error(`\nFailed to retrieve authority account: ${error}`);
         }
       } else {
-        this.error("Invalid command. Please use 'init', 'set', or 'get'");
+        this.error("\nInvalid command. Please use 'init', 'set', or 'get'");
       }
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Failed to perform authority operation: ${error}`);
+      loader.stop();
+
+      this.error(`\nFailed to perform authority operation: ${error}`);
     }
   }
 }

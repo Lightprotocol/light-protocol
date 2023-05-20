@@ -283,7 +283,6 @@ export function selectInUtxos({
             utxo.assets[1].toBase58() === SystemProgram.programId.toBase58(),
         );
 
-        console.log("getting the second biggesr smallets =======>");
         // search for suitable sol utxo in remaining utxos
         var { selectedUtxosSolAmount, selectedUtxos: selectedUtxo1 } =
           selectBiggestSmallest(

@@ -1,10 +1,5 @@
 import { expect, test } from "@oclif/test";
 import { Keypair } from "@solana/web3.js";
-import { User } from "../../../../light-sdk-ts/src";
-
-// TODO: balance tests
-// TODO: history tests
-// TODO: change user tests
 
 describe("Airdrop", () => {
   test
@@ -133,7 +128,7 @@ describe.skip("Merge Utxos", () => {
       "shield",
       "--token=SOL",
       "--amountSol=4",
-      "--recipien=sKRXAPf5cAzA28WcMASpEUTVZjc87HSHqVxrGNEW19TjEduQgfFitiVhCnc4EjMhKXSJ15uhTSCRuDUMDmdHhsAt",
+      "--recipient=sKRXAPf5cAzA28WcMASpEUTVZjc87HSHqVxrGNEW19TjEduQgfFitiVhCnc4EjMhKXSJ15uhTSCRuDUMDmdHhsAt",
     ])
     .it("SHIELD 4 sol to address", (ctx) => {
       console.log(ctx.stdout);
@@ -163,6 +158,3 @@ describe.skip("Merge Utxos", () => {
   //     expect(ctx.stdout).to.contain("UTXOs merged successfully!");
   //   });
 });
-
-// histiory tests
-// fix usdc airdrop error in first iteration
