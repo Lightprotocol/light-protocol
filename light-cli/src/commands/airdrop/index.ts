@@ -1,15 +1,19 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
 import {
+  CustomLoader,
   generateSolanaTransactionURL,
   getConnection,
-  getLoader,
 } from "../../utils";
 import { getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
-import { ADMIN_AUTH_KEYPAIR, MINT } from "light-sdk";
+import { ADMIN_AUTH_KEYPAIR, MINT } from "@lightprotocol/zk.js";
 
 class AirdropCommand extends Command {
   static description = "Perform a native Solana or SPL airdrop to a user";
+
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
 
   static flags = {
     amount: Flags.integer({
@@ -43,7 +47,8 @@ class AirdropCommand extends Command {
     const { userPublicKey } = args;
     const { amount, token } = flags;
 
-    const { loader, end } = getLoader("Performing the airdrop...");
+    const loader = new CustomLoader("Performing the airdrop...");
+    loader.start();
 
     let response;
 
@@ -51,12 +56,12 @@ class AirdropCommand extends Command {
       const connection = await getConnection();
 
       if (token.toLowerCase() === "sol") {
-        const res = await connection.requestAirdrop(
+        response = await connection.requestAirdrop(
           new PublicKey(userPublicKey),
           amount
         );
 
-        response = await connection.confirmTransaction(res, "confirmed");
+        await connection.confirmTransaction(response, "confirmed");
       } else {
         let tokenAccount = await getOrCreateAssociatedTokenAccount(
           connection,
@@ -77,15 +82,15 @@ class AirdropCommand extends Command {
       }
 
       this.log(
-        `Airdrop successful for user: ${userPublicKey}, amount: ${amount}`
+        `\nAirdrop successful for user: ${userPublicKey}, amount: ${amount} ${token}`
       );
       this.log(
         generateSolanaTransactionURL("tx", response.toString(), "custom")
       );
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Airdrop failed: ${error}`);
+      loader.stop();
+      this.error(`\nAirdrop failed: ${error}`);
     }
   }
 }

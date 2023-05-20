@@ -6,27 +6,33 @@ import {
   initLookUpTableFromFile,
   setUpMerkleTree,
   sleep,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 import {
   setRelayerRecipient,
   setAnchorProvider,
   setLookUpTable,
-  getLoader,
+  CustomLoader,
 } from "../../utils";
 
 class SetupCommand extends Command {
   static description = "Perform setup tasks";
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
   async run() {
-    const { loader, end } = getLoader("Performing setup tasks...");
+    const loader = new CustomLoader("Performing setup tasks...");
+
+    loader.start();
 
     try {
       exec("sh runScript.sh", (error, stdout, stderr) => {
         if (error) {
-          console.error("Failed to execute runScript.sh:", error);
+          console.error("\nFailed to execute runScript.sh:", error);
           return;
         }
-        console.log("Setup script executed successfully.");
+        console.log("\nSetup script executed successfully.");
       });
 
       await sleep(9000);
@@ -50,11 +56,12 @@ class SetupCommand extends Command {
         2_000_000_000
       );
 
-      this.log("Setup tasks completed successfully.");
-      end(loader);
+      this.log("\nSetup tasks completed successfully.");
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Setup tasks failed: ${error}`);
+      loader.stop();
+
+      this.error(`\nSetup tasks failed: ${error}`);
     }
   }
 }

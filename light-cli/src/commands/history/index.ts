@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
-import { IndexedTransaction } from "light-sdk";
-import { getLoader, getUser } from "../../utils";
+import { IndexedTransaction } from "@lightprotocol/zk.js";
+import { CustomLoader, getUser } from "../../utils";
 
 class TransactionHistoryCommand extends Command {
   static description = "Retrieve transaction history for the user";
@@ -13,6 +13,10 @@ class TransactionHistoryCommand extends Command {
     }),
   };
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
   static examples: Command.Example[] = [
     "$ light history",
     "$ light history --latest=false",
@@ -23,7 +27,9 @@ class TransactionHistoryCommand extends Command {
 
     const { latest } = flags;
 
-    const { loader, end } = getLoader("Retrieving user transaction history...");
+    const loader = new CustomLoader("Retrieving user transaction history...");
+
+    loader.start();
 
     const user = await getUser();
 
@@ -33,7 +39,7 @@ class TransactionHistoryCommand extends Command {
 
       // Log the transaction history
       transactions.forEach((transaction) => {
-        this.log("--- Transaction ---");
+        this.log("\n--- Transaction ---");
         this.log("Block Time:", transaction.blockTime);
         this.log("Signer:", transaction.signer.toString());
         this.log("Signature:", transaction.signature);
@@ -52,10 +58,10 @@ class TransactionHistoryCommand extends Command {
         this.log("------------------");
       });
 
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Error retrieving transaction history: ${error}`);
+      loader.stop();
+      this.error(`\nError retrieving transaction history: ${error}`);
     }
   }
 }

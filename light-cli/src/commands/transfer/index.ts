@@ -1,13 +1,11 @@
 import { Args, Command, Flags } from "@oclif/core";
 import {
+  CustomLoader,
   generateSolanaTransactionURL,
-  getLoader,
   getUser,
   readWalletFromFile,
 } from "../../utils";
-import { Account } from "light-sdk";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-let circomlibjs = require("circomlibjs");
+import { User } from "@lightprotocol/zk.js";
 
 class TransferCommand extends Command {
   static description = "Transfer tokens to a recipient";
@@ -29,6 +27,10 @@ class TransferCommand extends Command {
     }),
   };
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
   static args = {
     recipient: Args.string({
       name: "recipient",
@@ -43,12 +45,14 @@ class TransferCommand extends Command {
     const { recipient } = args;
     const { token, amountSpl, amountSol } = flags;
 
-    const { loader, end } = getLoader("Performing token transfer...");
+    const loader = new CustomLoader("Performing token transfer...");
+
+    loader.start();
 
     try {
       await readWalletFromFile();
 
-      const user = await getUser();
+      const user: User = await getUser();
 
       const response = await user.transfer({
         token,
@@ -57,12 +61,13 @@ class TransferCommand extends Command {
         recipient,
       });
 
-      this.log(`Tokens transferred successfully to recipient: ${recipient}`);
+      this.log(`\nTokens transferred successfully to recipient: ${recipient}`);
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Token transfer failed: ${error}`);
+      loader.stop();
+
+      this.error(`\nToken transfer failed: ${error}`);
     }
   }
 }

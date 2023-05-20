@@ -1,7 +1,10 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { merkleTreeProgramId, IDL_MERKLE_TREE_PROGRAM } from "light-sdk";
+import {
+  merkleTreeProgramId,
+  IDL_MERKLE_TREE_PROGRAM,
+} from "@lightprotocol/zk.js";
 
-import { getLoader, getWalletConfig, setAnchorProvider } from "../../utils";
+import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils";
 
 import { PublicKey } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";
@@ -30,12 +33,18 @@ class VerifierCommand extends Command {
     }),
   };
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
   async run() {
     const { args, flags } = await this.parse(VerifierCommand);
     const { method } = args;
     const { publicKey } = flags;
 
-    const { loader, end } = getLoader(`Performing Verifier operation...`);
+    const loader = new CustomLoader(`Performing Verifier operation...`);
+
+    loader.start();
 
     const { connection } = await setAnchorProvider();
     const merkleTreeConfig = await getWalletConfig(connection);
@@ -43,20 +52,20 @@ class VerifierCommand extends Command {
     try {
       if (method === "set") {
         if (!publicKey) {
-          this.error("Please provide the public key of the verifier");
+          this.error("\nPlease provide the public key of the verifier");
         }
 
         const verifierKey = new PublicKey(publicKey);
 
         try {
           await merkleTreeConfig.registerVerifier(verifierKey);
-          this.log("Verifier registered successfully!");
+          this.log("\nVerifier registered successfully!");
         } catch (err) {
-          this.error(`Failed to register the verifier: ${err}`);
+          this.error(`\nFailed to register the verifier: ${err}`);
         }
       } else if (method === "get") {
         if (!publicKey) {
-          this.error("Please provide the public key of the verifier");
+          this.error("\nPlease provide the public key of the verifier");
         }
 
         const verifierKey = new PublicKey(publicKey);
@@ -65,13 +74,13 @@ class VerifierCommand extends Command {
           const verifierPdaAccount =
             await merkleTreeConfig.getRegisteredVerifierPda(verifierKey);
           console.log(verifierPdaAccount);
-          this.log("Verifier logged successfully!");
+          this.log("\nVerifier logged successfully!");
         } catch (err) {
-          console.log(`Error while retrieving the verifier: ${verifierKey}`);
-          this.error(`Failed to retrieve the verifier: ${err}`);
+          console.log(`\nError while retrieving the verifier: ${verifierKey}`);
+          this.error(`\nFailed to retrieve the verifier: ${err}`);
         }
       } else if (method === "list") {
-        this.log("Listing Verifiers");
+        this.log("\nListing Verifiers");
 
         const merkleProgram = new Program(
           IDL_MERKLE_TREE_PROGRAM,
@@ -91,19 +100,20 @@ class VerifierCommand extends Command {
               ["pubKey"]
             );
           } else {
-            this.log("No verifier accounts found");
+            this.log("\nNo verifier accounts found");
           }
         } catch (err) {
-          this.log("Error while listing the verifiers");
-          this.error(`Failed to list the verifiers: ${err}`);
+          this.log("\nError while listing the verifiers");
+          this.error(`\nFailed to list the verifiers: ${err}`);
         }
       } else {
-        this.error('Invalid command. Please use "set", "get", or "list"');
+        this.error('\nInvalid command. Please use "set", "get", or "list"');
       }
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Failed to perform the Verifier operation: ${error}`);
+      loader.stop();
+
+      this.error(`\nFailed to perform the Verifier operation: ${error}`);
     }
   }
 }

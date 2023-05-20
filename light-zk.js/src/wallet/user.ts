@@ -281,7 +281,6 @@ export class User {
         TRANSACTION_MERKLE_TREE_KEY,
       );
     }
-
     return this.inboxBalance;
   }
 

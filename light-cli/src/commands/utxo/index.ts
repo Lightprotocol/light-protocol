@@ -1,6 +1,10 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { generateSolanaTransactionURL, getLoader, getUser } from "../../utils";
-import { TOKEN_REGISTRY, User } from "light-sdk";
+import {
+  CustomLoader,
+  generateSolanaTransactionURL,
+  getUser,
+} from "../../utils";
+import { TOKEN_REGISTRY, User } from "@lightprotocol/zk.js";
 
 class MergeUtxosCommand extends Command {
   static description = "Merge multiple UTXOs into a single UTXO";
@@ -27,6 +31,10 @@ class MergeUtxosCommand extends Command {
     }),
   };
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
   static examples = [
     "$ light merge-utxos --latest --token USDC 0xcommitment1 0xcommitment2 0xcommitment3",
   ];
@@ -36,11 +44,14 @@ class MergeUtxosCommand extends Command {
     const { commitments } = args;
     const { latest, token } = flags;
 
-    const { loader, end } = getLoader("Performing UTXO merge...");
+    const loader = new CustomLoader("Performing UTXO merge...");
+
+    loader.start();
 
     const user: User = await getUser();
 
     const tokenSymbol = token.toUpperCase();
+
     const tokenCtx = TOKEN_REGISTRY.get(tokenSymbol);
 
     try {
@@ -50,12 +61,12 @@ class MergeUtxosCommand extends Command {
         latest
       );
 
-      this.log("UTXOs merged successfully!");
+      this.log("\nUTXOs merged successfully!");
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`UTXO merge failed: ${error}`);
+      loader.stop();
+      this.error(`\nUTXO merge failed: ${error}`);
     }
   }
 }

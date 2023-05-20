@@ -4,7 +4,6 @@ import * as solana from "@solana/web3.js";
 const spinner = require("cli-spinners");
 
 import {
-  ADMIN_AUTH_KEYPAIR,
   confirmConfig,
   MerkleTreeConfig,
   MESSAGE_MERKLE_TREE_KEY,
@@ -14,8 +13,9 @@ import {
   TestRelayer,
   TRANSACTION_MERKLE_TREE_KEY,
   User,
-} from "light-sdk";
+} from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Spinner } from "cli-spinners";
 
 require("dotenv").config();
 
@@ -27,7 +27,6 @@ export const createNewWallet = () => {
   const secretKey: solana.Ed25519SecretKey = keypair.secretKey;
   try {
     setSecretKey(JSON.stringify(Array.from(secretKey)));
-    console.log("- secret created and cached");
     return keypair;
   } catch (e: any) {
     throw new Error(`error writing secret.txt: ${e}`);
@@ -220,25 +219,40 @@ export function generateSolanaTransactionURL(
   return url;
 }
 
-export const getLoader = (message: string) => {
-  let previousLength = 0;
+export class CustomLoader {
+  message: string;
+  logInterval: any;
+  logTimer: number | null;
+  startTime: number;
 
-  const loader = setInterval(() => {
-    const frame = spinner.dots.frames[0];
-    const output = "\r" + frame + " " + message;
+  constructor(message: string, logInterval = 1000) {
+    this.message = message;
+    this.logInterval = logInterval;
+    this.logTimer = null;
+    this.startTime = Date.now();
+  }
 
-    // Clear previous stdout by printing empty spaces
-    process.stdout.write("\r" + " ".repeat(previousLength));
+  start() {
+    this.startTime = Date.now();
+    this.logInterval = setInterval(
+      () => this.logElapsedTime(),
+      this.logInterval
+    );
+  }
 
-    process.stdout.write(output);
-    previousLength = output.length;
-  }, spinner.dots.interval);
+  stop() {
+    clearInterval(this.logInterval);
+    this.logElapsedTime();
+  }
 
-  const end = (loader: any) => {
-    // Clear the loader interval and reset the stdout
-    clearInterval(loader);
-    process.stdout.write("\r" + " ".repeat(previousLength) + "\r");
-  };
-
-  return { loader, end };
-};
+  logElapsedTime() {
+    const elapsedTime = ((Date.now() - this.startTime) / 1000).toFixed(2);
+    process.stdout.clearLine(0); // Clears the previous log message
+    process.stdout.cursorTo(0); // Moves the cursor to the beginning of the line
+    process.stdout.write(
+      `${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
+        this.message
+      } (Elapsed time: ${elapsedTime}s)`
+    ); // Writes the updated log message
+  }
+}

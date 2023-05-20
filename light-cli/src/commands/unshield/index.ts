@@ -1,7 +1,11 @@
 import { Command, Flags } from "@oclif/core";
-import { generateSolanaTransactionURL, getLoader, getUser } from "../../utils";
+import {
+  CustomLoader,
+  generateSolanaTransactionURL,
+  getUser,
+} from "../../utils";
 import { PublicKey } from "@solana/web3.js";
-import { User } from "light-sdk";
+import { User } from "@lightprotocol/zk.js";
 
 class UnshieldCommand extends Command {
   static description = "Unshield tokens for a user";
@@ -34,6 +38,10 @@ class UnshieldCommand extends Command {
     }),
   };
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
   async run() {
     const { flags } = await this.parse(UnshieldCommand);
 
@@ -46,7 +54,9 @@ class UnshieldCommand extends Command {
       minimumLamports,
     } = flags;
 
-    const { loader, end } = getLoader("Performing token unshield...");
+    const loader = new CustomLoader("Performing token unshield...");
+
+    loader.start();
 
     try {
       const user: User = await getUser();
@@ -60,12 +70,13 @@ class UnshieldCommand extends Command {
         minimumLamports,
       });
 
-      this.log(`Tokens successfully unshielded: ${token}`);
+      this.log(`\nTokens successfully unshielded: ${token}`);
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
-      end(loader);
+      loader.stop();
     } catch (error) {
-      end(loader);
-      this.error(`Token unshield failed: ${error}`);
+      loader.stop();
+
+      this.error(`\nToken unshield failed: ${error}`);
     }
   }
 }

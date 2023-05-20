@@ -1,15 +1,20 @@
 import { Command, Flags } from "@oclif/core";
 import { getUser } from "../../utils";
-import { User } from "light-sdk";
-import { PublicKey } from "@solana/web3.js";
+import { User } from "@lightprotocol/zk.js";
 
 class AccountCommand extends Command {
   static description = "Get the current account details";
 
+  protected finally(_: Error | undefined): Promise<any> {
+    process.exit();
+  }
+
+  static examples: Command.Example[] = ["$ light account"];
+
   async run() {
     const user: User = await getUser();
 
-    this.log(`shielded public key: ${await user.account.getPublicKey()}`);
+    this.log(`\nshielded public key: ${await user.account.getPublicKey()}`);
   }
 }
 
