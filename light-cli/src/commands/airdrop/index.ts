@@ -4,7 +4,7 @@ import {
   CustomLoader,
   generateSolanaTransactionURL,
   getConnection,
-} from "../../utils";
+} from "../../utils/utils";
 import { getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
 import { ADMIN_AUTH_KEYPAIR, MINT } from "@lightprotocol/zk.js";
 

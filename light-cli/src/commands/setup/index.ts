@@ -12,7 +12,7 @@ import {
   setAnchorProvider,
   setLookUpTable,
   CustomLoader,
-} from "../../utils";
+} from "../../utils/utils";
 
 class SetupCommand extends Command {
   static description = "Perform setup tasks";

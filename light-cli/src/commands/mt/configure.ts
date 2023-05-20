@@ -1,5 +1,5 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils";
+import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils/utils";
 
 class ConfigureCommand extends Command {
   static description =

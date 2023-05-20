@@ -4,7 +4,7 @@ import {
   CustomLoader,
   generateSolanaTransactionURL,
   getUser,
-} from "../../utils";
+} from "../../utils/utils";
 
 class ShieldCommand extends Command {
   static description = "Shield tokens for a user";

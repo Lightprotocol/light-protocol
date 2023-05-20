@@ -3,7 +3,7 @@ import {
   CustomLoader,
   generateSolanaTransactionURL,
   getUser,
-} from "../../utils";
+} from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
 import { User } from "@lightprotocol/zk.js";
 

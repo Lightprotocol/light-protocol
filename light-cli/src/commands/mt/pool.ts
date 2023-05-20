@@ -13,7 +13,7 @@ import {
   getLightProvider,
   getWalletConfig,
   setAnchorProvider,
-} from "../../utils";
+} from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
 
 class PoolCommand extends Command {

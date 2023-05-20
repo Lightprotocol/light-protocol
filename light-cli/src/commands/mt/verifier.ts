@@ -4,7 +4,7 @@ import {
   IDL_MERKLE_TREE_PROGRAM,
 } from "@lightprotocol/zk.js";
 
-import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils";
+import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils/utils";
 
 import { PublicKey } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";

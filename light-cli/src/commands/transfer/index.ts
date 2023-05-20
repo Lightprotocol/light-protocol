@@ -4,7 +4,7 @@ import {
   generateSolanaTransactionURL,
   getUser,
   readWalletFromFile,
-} from "../../utils";
+} from "../../utils/utils";
 import { User } from "@lightprotocol/zk.js";
 
 class TransferCommand extends Command {

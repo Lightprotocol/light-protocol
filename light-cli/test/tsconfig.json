@@ -1,9 +1,21 @@
 {
-  "extends": "../tsconfig",
   "compilerOptions": {
-    "noEmit": true
+    "target": "es6",
+    "module": "commonjs",
+    "declaration": true,
+    "outDir": "./lib",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "rootDirs": ["src", "generated"],
+    "baseUrl": "src",
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": false
   },
-  "references": [
-    {"path": ".."}
-  ]
+  "include": ["src", "__tests__", "tests"],
+  "exclude": ["node_modules", "**/tests/*"],
+
+  "dry": false,
+  "debug": false
 }
