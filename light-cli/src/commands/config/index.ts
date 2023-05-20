@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import * as fs from "fs";
-import { CustomLoader } from "../../utils";
+import { CustomLoader } from "../../utils/utils";
 
 class ConfigCommand extends Command {
   static description = "Update the configuration values";

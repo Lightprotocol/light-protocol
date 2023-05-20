@@ -3,7 +3,7 @@ import {
   CustomLoader,
   generateSolanaTransactionURL,
   getUser,
-} from "../../utils";
+} from "../../utils/utils";
 import { TOKEN_REGISTRY, User } from "@lightprotocol/zk.js";
 
 class MergeUtxosCommand extends Command {

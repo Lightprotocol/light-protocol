@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import { IndexedTransaction } from "@lightprotocol/zk.js";
-import { CustomLoader, getUser } from "../../utils";
+import { CustomLoader, getUser } from "../../utils/utils";
 
 class TransactionHistoryCommand extends Command {
   static description = "Retrieve transaction history for the user";

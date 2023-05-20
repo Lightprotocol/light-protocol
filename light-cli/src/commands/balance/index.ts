@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import { User, Balance, InboxBalance, Utxo } from "@lightprotocol/zk.js";
-import { CustomLoader, getUser } from "../../utils";
+import { CustomLoader, getUser } from "../../utils/utils";
 
 class BalanceCommand extends Command {
   static description =

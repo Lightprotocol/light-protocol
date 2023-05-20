@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { getUser } from "../../utils";
+import { getUser } from "../../utils/utils";
 import { User } from "@lightprotocol/zk.js";
 
 class AccountCommand extends Command {

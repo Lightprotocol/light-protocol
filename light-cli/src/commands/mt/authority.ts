@@ -1,6 +1,6 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { MERKLE_TREE_AUTHORITY_PDA } from "@lightprotocol/zk.js";
-import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils";
+import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils/utils";
 
 import { PublicKey } from "@solana/web3.js";
 

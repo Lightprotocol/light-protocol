@@ -253,6 +253,40 @@ export class CustomLoader {
       `${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
         this.message
       } (Elapsed time: ${elapsedTime}s)`
-    ); // Writes the updated log message
+    );
   }
 }
+
+// async discoverFromPath(startFrom: string): Promise<string | null> {
+//   let currentPath: string | null = startFrom;
+
+//   while (currentPath) {
+//     try {
+//       const files = fs.readdirSync(currentPath);
+
+//       for (const file of files) {
+//         const filePath = path.join(currentPath, file);
+
+//         if (file === "package.json") {
+//           return filePath;
+//         }
+//       }
+
+//       // Not found. Go up a directory level.
+//       const parentPath = path.dirname(currentPath);
+//       if (parentPath === currentPath) {
+//         currentPath = null;
+//       } else {
+//         currentPath = parentPath;
+//       }
+//     } catch (err) {
+//       this.error(
+//         `Error reading the directory with path: ${currentPath}`,
+//         err
+//       );
+//       currentPath = null;
+//     }
+//   }
+
+//   return null;
+// }
