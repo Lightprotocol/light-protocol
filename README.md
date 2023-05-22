@@ -10,23 +10,26 @@
 Light is a zkLayer enabling private program execution, purpose-built for Solana. 
 
 Developers can use Light to build applications such as 
+
 - fast private payments
 - encrypted orderbooks
 - public on-chain games with private state
-
 
 ## Development environment
 
 ### Development Containers
 
-Light Protocol supports [Development Containers](https://containers.dev/) and provides
-[a container image](https://hub.docker.com/repository/docker/vadorovsky/lightprotocol-dev)
-with all dependencies which are needed for building and testing.
+Light Protocol fully embraces [Development Containers](https://containers.dev/),
+providing a ready-to-use
+[Docker container image](https://github.com/Lightprotocol/dockerfiles/pkgs/container/devcontainer)
+that comes pre-configured with all necessary dependencies for building and testing.
 
-Visual Studio Code comes with out of the box support for Development Containers,
-but they are also supported by other editors:
+Support for Development Containers (either native or through a plugin) is
+provided by the following IDEs and editors:
 
+* [Visual Studio Code](https://code.visualstudio.com/docs/devcontainers/containers)
 * [Neovim](https://github.com/esensar/nvim-dev-container)
+* [Emacs](https://github.com/emacs-lsp/lsp-docker)
 
 ### Manual setup
 
