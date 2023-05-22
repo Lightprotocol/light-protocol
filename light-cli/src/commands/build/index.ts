@@ -22,7 +22,7 @@ class BuildCommand extends Command {
       description: "The value of ptau",
       default: 15,
     }),
-    circuitDir: Flags.string({
+    dir: Flags.string({
       description: "The circuit directory",
       default: "circuit",
     }),
@@ -30,18 +30,20 @@ class BuildCommand extends Command {
 
   async run() {
     const { flags } = await this.parse(BuildCommand);
-    const { name, ptau, circuitDir } = flags;
+    const { name, ptau, dir } = flags;
 
     const loader = new CustomLoader("Building PSP...");
 
     loader.start();
 
     try {
-      await buildPSP(circuitDir, ptau, name);
+      await buildPSP(dir, ptau, name);
+      console.log("building the psp");
       this.log("\n Built successfully");
       loader.stop();
     } catch (error) {
       loader.stop();
+      console.log({ error });
       this.error(`${error}`);
     }
   }
