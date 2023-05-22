@@ -47,3 +47,24 @@ export async function executeCommand(
     });
   });
 }
+
+/**
+ * Executes a command in a given directory and logs the output to the console.
+ * @param command - Path to the command to be executed.
+ * @param args - Arguments to be passed to the command.
+ * @param dir - Directory in which the command should be executed.
+ * @param options - Options to be passed to the command.
+ * @returns {Promise<string>} - The output of the command.
+ */
+export async function executeCommandInDir(
+  command: string,
+  args: string[],
+  dir: string,
+  options: SpawnOptionsWithoutStdio = {}
+): Promise<string> {
+  const oldDir = process.cwd();
+  process.chdir(dir);
+  const result = await executeCommand(command, args, options);
+  process.chdir(oldDir);
+  return result;
+}

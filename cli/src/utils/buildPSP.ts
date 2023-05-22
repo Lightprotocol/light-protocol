@@ -4,7 +4,7 @@ import * as path from "path";
 import { execSync } from "child_process";
 import { randomBytes } from "tweetnacl";
 import { utils } from "@coral-xyz/anchor";
-import { downloadFileIfNotExists } from "./downloadBin";
+import { downloadFile, downloadLightBinIfNotExists } from "./download";
 import { executeCommand } from "./process";
 
 /**
@@ -36,9 +36,10 @@ async function generateCircuit(
   const ptauFilePath = buildDir + "/" + ptauFileName;
   if (!fs.existsSync(ptauFilePath)) {
     console.log("Downloading powers of tau file");
-    execSync(
-      `curl -L https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_${POWERS_OF_TAU}.ptau --create-dirs -o ${ptauFilePath}`
-    );
+    await downloadFile({
+      localFilePath: ptauFilePath,
+      url: `https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_${POWERS_OF_TAU}.ptau`,
+    });
   }
 
   await executeCommand(circomBinPath, [
@@ -64,7 +65,7 @@ async function generateCircuit(
   );
   try {
     fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
-  } catch (_) {}
+  } catch (_) { }
   await executeCommand("yarn", [
     "snarkjs",
     "zkey",
@@ -87,7 +88,7 @@ async function generateCircuit(
   const artifiactPath = "./build-circuit/" + circuitName;
   try {
     fs.unlinkSync(vKeyJsonPath);
-  } catch (_) {}
+  } catch (_) { }
   while (!fs.existsSync(vKeyJsonPath)) {
     await executeCommand("yarn", [
       "snarkjs",
@@ -100,7 +101,7 @@ async function generateCircuit(
   }
   try {
     fs.unlinkSync(vKeyRsPath);
-  } catch (_) {}
+  } catch (_) { }
   await createVerifyingkeyRsFile(
     programName,
     [],
@@ -172,23 +173,23 @@ export async function buildPSP(
   const lightAnchorBinPath = path.resolve(__dirname, "../../bin/light-anchor");
   const dirPath = path.resolve(__dirname, "../../bin/");
 
-  await downloadFileIfNotExists({
-    filePath: circomBinPath,
+  await downloadLightBinIfNotExists({
+    localFilePath: circomBinPath,
     dirPath,
     repoName: "circom",
-    fileName: "circom",
+    remoteFileName: "circom",
   });
-  await downloadFileIfNotExists({
-    filePath: macroCircomBinPath,
+  await downloadLightBinIfNotExists({
+    localFilePath: macroCircomBinPath,
     dirPath,
     repoName: "macro-circom",
-    fileName: "macro-circom",
+    remoteFileName: "macro-circom",
   });
-  await downloadFileIfNotExists({
-    filePath: lightAnchorBinPath,
+  await downloadLightBinIfNotExists({
+    localFilePath: lightAnchorBinPath,
     dirPath,
     repoName: "anchor",
-    fileName: "light-anchor",
+    remoteFileName: "light-anchor",
   });
 
   console.log("Creating circom files");
