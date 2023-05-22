@@ -1,11 +1,14 @@
 import type { Arguments, CommandBuilder } from "yargs";
 import { execSync } from "child_process";
 import { Options } from "yargs-parser";
-import { downloadFileIfNotExists } from "../utils/downloadBin";
+import { snakeCase } from "snake-case";
+import { downloadCargoGenerateIfNotExists } from "../utils/downloadBin";
 
 const path = require("path");
 export const command: string = "init [name]";
 export const desc: string = "Initialize a PSP project";
+
+const defaultProgramId = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 
 export const builder: CommandBuilder<Options> = (yargs) =>
   yargs.positional(`name`, {
@@ -23,17 +26,27 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   }
 
   console.log("initing PSP...");
-  const anchorPath = path.resolve(__dirname, "../../bin/light-anchor");
+  const cargoGeneratePath = path.resolve(__dirname, "../../bin/cargo-generate");
   const dirPath = path.resolve(__dirname, "../../bin/");
 
-  await downloadFileIfNotExists({
-    filePath: anchorPath,
+  await downloadCargoGenerateIfNotExists({
+    localFilePath: cargoGeneratePath,
     dirPath,
-    repoName: "anchor",
-    fileName: "light-anchor",
   });
 
-  execSync(`${anchorPath} init-psp ${name}`);
+  const circomName = snakeCase(name);
+  const rustName = snakeCase(name);
+  execSync(
+    `${cargoGeneratePath} generate \
+    --git https://github.com/Lightprotocol/psp-template \
+    --branch vadorovsky/cargo-generate-template \
+    --name ${name} \
+    --define circom-name=${circomName} \
+    --define rust-name=${rustName} \
+    --define program-id=${defaultProgramId}`
+  );
+
+  console.log("Project initialized successfully");
 
   process.exit(0);
 };

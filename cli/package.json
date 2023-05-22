@@ -23,8 +23,12 @@
     "@solana/web3.js": "1.76.0",
     "circomlibjs": "^0.1.7",
     "node-fetch": "^3.3.1",
+    "progress-stream": "^2.0.0",
+    "snake-case": "^3.0.4",
+    "tar": "^6.1.15",
     "tweetnacl": "^1.0.3",
-    "yargs": "^17.6.2"
+    "yargs": "^17.6.2",
+    "zlib": "^1.0.5"
   },
   "bin": {
     "light": "./build/cli.js"
