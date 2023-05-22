@@ -109,7 +109,8 @@ async function generateCircuit(
  * @returns {string} - The name of the .light file found in the directory.
  */
 function findLightFile(directory: string): string {
-  const files = fs.readdirSync(directory);
+  const files = fs.readdirSync(path.resolve(process.cwd(), directory));
+
   const lightFiles = files.filter((file) => file.endsWith(".light"));
 
   if (lightFiles.length > 1) {
@@ -146,7 +147,7 @@ export async function buildPSP(
 ) {
   let circuitFileName = findLightFile(circuitDir);
   // let programName = "verifier"
-  console.log("Creating circom files");
+  console.log("Creating circom files", circuitFileName);
   const macroCircomBinPath = path.resolve(__dirname, "../../bin/macro-circom");
   // TODO: check whether macro circom binary exists if not fetch it
   // TODO: check whether circom binary exists if not load it
@@ -159,13 +160,22 @@ export async function buildPSP(
     "macro-circom"
   );
 
-  let stdout = execSync(
-    `${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`
-  );
+  console.log("============>");
+
+  const p = path.resolve(process.cwd(), `/${circuitDir}/${circuitFileName}`);
+
+  console.log({ p });
+
+  console.log("***********", `${macroCircomBinPath} ${p} ${programName}`);
+
+  let stdout = execSync(`${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`);
+
   console.log(stdout.toString().trim());
 
   const circuitMainFileName = extractFilename(stdout.toString().trim());
+  
   console.log("Building circom circuit ", circuitMainFileName);
+
   if (!circuitMainFileName)
     throw new Error("Could not extract circuit main file name");
 
