@@ -24,7 +24,6 @@ class BuildCommand extends Command {
     }),
     dir: Flags.string({
       description: "The circuit directory",
-      default: "circuit",
     }),
   };
 
@@ -37,7 +36,7 @@ class BuildCommand extends Command {
     loader.start();
 
     try {
-      await buildPSP(dir, ptau, name);
+      await buildPSP(dir ? dir : `${name}/circuit`, ptau, name);
       console.log("building the psp");
       this.log("\n Built successfully");
       loader.stop();
