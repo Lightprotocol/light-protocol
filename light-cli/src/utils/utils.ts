@@ -107,13 +107,15 @@ export const getUser = async () => {
 };
 
 export const getRelayer = async () => {
+  console.log(getLookUpTable());
+
   if (!relayer) {
     const wallet = readWalletFromFile();
     relayer = new TestRelayer(
       wallet.publicKey,
       new solana.PublicKey(getLookUpTable() || ""),
       getRelayerRecipient(),
-      RELAYER_FEES
+      new anchor.BN(RELAYER_FEES)
     );
 
     return relayer;
@@ -234,10 +236,11 @@ export class CustomLoader {
 
   start() {
     this.startTime = Date.now();
-    this.logInterval = setInterval(
-      () => this.logElapsedTime(),
-      this.logInterval
+    const elapsedTime = ((Date.now() - this.startTime) / 1000).toFixed(2);
+    process.stdout.write(
+      `${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${this.message}\n`
     );
+    this.logInterval = setInterval(() => {}, this.logInterval);
   }
 
   stop() {
@@ -247,12 +250,10 @@ export class CustomLoader {
 
   logElapsedTime() {
     const elapsedTime = ((Date.now() - this.startTime) / 1000).toFixed(2);
-    process.stdout.clearLine(0); // Clears the previous log message
-    process.stdout.cursorTo(0); // Moves the cursor to the beginning of the line
     process.stdout.write(
       `${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
         this.message
-      } (Elapsed time: ${elapsedTime}s)`
+      } (Elapsed time: ${elapsedTime}s)\n`
     );
   }
 }

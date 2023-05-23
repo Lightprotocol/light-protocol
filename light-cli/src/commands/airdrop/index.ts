@@ -56,6 +56,8 @@ class AirdropCommand extends Command {
       const connection = await getConnection();
 
       if (token.toLowerCase() === "sol") {
+        console.log("here -==========>",connection.rpcEndpoint);
+
         response = await connection.requestAirdrop(
           new PublicKey(userPublicKey),
           amount

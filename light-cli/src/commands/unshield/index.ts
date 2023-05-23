@@ -23,7 +23,7 @@ class UnshieldCommand extends Command {
       description: "The SPL recipient shielded publickey",
     }),
     recipientSol: Flags.string({
-      description: "The SOL recipient shielded publickey",
+      description: "The SOL recipient shielded/encryption publickey",
     }),
     amountSpl: Flags.string({
       description: "The amount of token to unshield (SPL)",
@@ -70,7 +70,11 @@ class UnshieldCommand extends Command {
         minimumLamports,
       });
 
-      this.log(`\nTokens successfully unshielded: ${token}`);
+      this.log(
+        `Successfully unshielded ${
+          token.toLowerCase() === "sol" ? amountSol : amountSpl
+        } ${token}`
+      );
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
       loader.stop();
     } catch (error) {

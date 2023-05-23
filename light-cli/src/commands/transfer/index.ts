@@ -34,7 +34,7 @@ class TransferCommand extends Command {
   static args = {
     recipient: Args.string({
       name: "recipient",
-      description: "The recipient shielded publickey",
+      description: "The recipient shielded/encryption publickey",
       required: true,
     }),
   };
@@ -61,7 +61,11 @@ class TransferCommand extends Command {
         recipient,
       });
 
-      this.log(`\nTokens transferred successfully to recipient: ${recipient}`);
+      this.log(
+        `Successfully transferred ${
+          token.toLowerCase() === "sol" ? amountSol : amountSpl
+        } ${token}`
+      );
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
       loader.stop();
     } catch (error) {
