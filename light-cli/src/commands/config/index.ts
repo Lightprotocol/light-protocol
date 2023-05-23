@@ -39,23 +39,16 @@ class ConfigCommand extends Command {
   static examples = [
     "$ light config --rpcUrl https://solana-api.example.com",
     "$ light config --relayerUrl https://relayer.example.com",
-    "$ light config --secretKey 0123456789abcdef",
+    "$ light config --secretKey your-secret-key-in-base58-string-format",
     "$ light config --relayerRecipient <recipient_address>",
     "$ light config --lookupTable <lookup_table>",
-    "$ light config --payer <payer_secret_key>",
   ];
 
   async run() {
     const { flags } = await this.parse(ConfigCommand);
 
-    const {
-      rpcUrl,
-      relayerUrl,
-      secretKey,
-      relayerRecipient,
-      lookupTable,
-      payer,
-    } = flags;
+    const { rpcUrl, relayerUrl, secretKey, relayerRecipient, lookupTable } =
+      flags;
 
     const loader = new CustomLoader("Updating configuration...");
     loader.start();
@@ -77,9 +70,6 @@ class ConfigCommand extends Command {
       }
       if (lookupTable) {
         config.lookUpTable = lookupTable;
-      }
-      if (payer) {
-        config.payer = payer;
       }
 
       fs.writeFileSync("config.json", JSON.stringify(config, null, 2));
