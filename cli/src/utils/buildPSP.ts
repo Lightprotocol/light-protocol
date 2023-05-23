@@ -6,7 +6,7 @@ import { randomBytes } from "tweetnacl";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { utils } from "@coral-xyz/anchor";
 import { sleep } from "@lightprotocol/zk.js";
-import { downloadFileIfNotExists, macroCircomBinUrlMap } from "./downloadBin";
+import { downloadFileIfNotExists } from "./downloadBin";
 
 /**
  * Generates a zk-SNARK circuit given a circuit name.
@@ -147,19 +147,17 @@ export async function buildPSP(
   programName: string
 ) {
   let circuitFileName = findLightFile(circuitDir);
-  // let programName = "verifier"
   console.log("Creating circom files");
   const macroCircomBinPath = path.resolve(__dirname, "../../bin/macro-circom");
-  // TODO: check whether macro circom binary exists if not fetch it
   // TODO: check whether circom binary exists if not load it
   const dirPath = path.resolve(__dirname, "../../bin/");
 
-  await downloadFileIfNotExists(
-    macroCircomBinUrlMap,
-    macroCircomBinPath,
+  await downloadFileIfNotExists({
+    filePath: macroCircomBinPath,
     dirPath,
-    "macro-circom"
-  );
+    repoName: "macro-circom",
+    fileName: "macro-circom",
+  });
 
   let stdout = execSync(
     `${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`

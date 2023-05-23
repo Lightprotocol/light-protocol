@@ -107,7 +107,6 @@ export const getUser = async () => {
 };
 
 export const getRelayer = async () => {
-  console.log(getLookUpTable());
 
   if (!relayer) {
     const wallet = readWalletFromFile();
