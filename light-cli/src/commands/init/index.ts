@@ -1,6 +1,6 @@
 import { Command, Args } from "@oclif/core";
 import { execSync } from "child_process";
-import { anchorBinUrlMap, downloadFileIfNotExists } from "../../utils";
+import { downloadFileIfNotExists } from "../../utils";
 import { CustomLoader } from "../../utils/utils";
 const path = require("path");
 
@@ -38,12 +38,12 @@ class InitCommand extends Command {
       const anchorPath = path.resolve(__dirname, "../../bin/light-anchor");
       const dirPath = path.resolve(__dirname, "../../bin/");
 
-      await downloadFileIfNotExists(
-        anchorBinUrlMap,
-        anchorPath,
+      await downloadFileIfNotExists({
+        filePath: anchorPath,
         dirPath,
-        "anchor"
-      );
+        repoName: "anchor",
+        fileName: "light-anchor",
+      });
 
       execSync(`${anchorPath} init-psp ${name}`);
       this.log("Inited successfully");

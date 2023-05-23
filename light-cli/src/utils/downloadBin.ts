@@ -5,55 +5,19 @@ import * as os from "os";
 
 const fileExists = promisify(fs.exists);
 
-export const anchorBinUrlMap = new Map([
-  [
-    "linux-amd64",
-    "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-linux-amd64",
-  ],
-  [
-    "macos-amd64",
-    "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-macos-amd64",
-  ],
-  [
-    "macos-arm64",
-    "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-macos-arm64",
-  ],
-  [
-    "linux-arm64",
-    "https://github.com/Lightprotocol/anchor/releases/download/v0.27.0/light-anchor-linux-arm64",
-  ],
-]);
-
-export const macroCircomBinUrlMap = new Map([
-  [
-    "linux-amd64",
-    "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-amd64",
-  ],
-  [
-    "macos-amd64",
-    "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-macos-amd64",
-  ],
-  [
-    "macos-arm64",
-    "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-linux-arm64",
-  ],
-  [
-    "linux-arm64",
-    "https://github.com/Lightprotocol/macro-circom/releases/download/v0.1.1/macro-circom-macos-arm64",
-  ],
-]);
-function replaceVersionTagInUrl(url: string, newTag: string): string {
-  // Matches the version pattern (e.g., v0.1.1) in the URL
-  const versionPattern = /v\d+\.\d+\.\d+/g;
-  return url.replace(versionPattern, newTag);
-}
 async function latestRelease(owner: string, repo: string) {
-  const GITHUB = "https://api.github.com";
-  console.log(`${GITHUB}/repos/${owner}/${repo}/releases/latest`);
+  const github = "https://api.github.com";
+  console.log(
+    `Checking the latest release of ${github}/repos/${owner}/${repo}/releases/latest`
+  );
 
   const response = await axios.get(
-    `${GITHUB}/repos/${owner}/${repo}/releases/latest`
+    `${github}/repos/${owner}/${repo}/releases/latest`
   );
+  const tag_name = response.data.tag_name;
+
+  console.log(`The newest release of ${repo} is ${tag_name}`);
+
   return response.data.tag_name;
 }
 
@@ -87,12 +51,17 @@ function makeExecutable(filePath: string): void {
   fs.chmodSync(filePath, "755");
 }
 
-export async function downloadFileIfNotExists(
-  urlMap: Map<string, string>,
-  filePath: string,
-  dirPath: string,
-  name: string
-) {
+export async function downloadFileIfNotExists({
+  filePath,
+  dirPath,
+  repoName,
+  fileName,
+}: {
+  filePath: string;
+  dirPath: string;
+  repoName: string;
+  fileName: string;
+}) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
@@ -103,18 +72,16 @@ export async function downloadFileIfNotExists(
   }
 
   const system = getSystem();
-  var url = urlMap.get(system);
-  const tag = await latestRelease("lightprotocol", name);
+  const tag = await latestRelease("lightprotocol", repoName);
 
-  url = replaceVersionTagInUrl(url as string, tag);
-  console.log(url);
+  const url = `https://github.com/Lightprotocol/${repoName}/releases/download/${tag}/${fileName}-${system}`;
 
   if (!url) {
     throw new Error(`No binary found for the detected system ${system}`);
   }
 
   // Download the file
-  console.log(` ${name} binary does not exist, starting download...`);
+  console.log(`Downloading ${fileName} from ${url}...`);
   const { data } = await axios({
     url,
     method: "GET",

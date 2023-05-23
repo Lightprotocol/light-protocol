@@ -3,8 +3,10 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 import { randomBytes } from "tweetnacl";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { utils } from "@coral-xyz/anchor";
-import { downloadFileIfNotExists, macroCircomBinUrlMap } from "./downloadBin";
+import { sleep } from "@lightprotocol/zk.js";
+import { downloadFileIfNotExists } from "./downloadBin";
 
 /**
  * Generates a zk-SNARK circuit given a circuit name.
@@ -109,8 +111,7 @@ async function generateCircuit(
  * @returns {string} - The name of the .light file found in the directory.
  */
 function findLightFile(directory: string): string {
-  const files = fs.readdirSync(path.resolve(process.cwd(), directory));
-
+  const files = fs.readdirSync(directory);
   const lightFiles = files.filter((file) => file.endsWith(".light"));
 
   if (lightFiles.length > 1) {
@@ -146,36 +147,25 @@ export async function buildPSP(
   programName: string
 ) {
   let circuitFileName = findLightFile(circuitDir);
-  // let programName = "verifier"
-  console.log("Creating circom files", circuitFileName);
+  console.log("Creating circom files");
   const macroCircomBinPath = path.resolve(__dirname, "../../bin/macro-circom");
-  // TODO: check whether macro circom binary exists if not fetch it
   // TODO: check whether circom binary exists if not load it
   const dirPath = path.resolve(__dirname, "../../bin/");
 
-  await downloadFileIfNotExists(
-    macroCircomBinUrlMap,
-    macroCircomBinPath,
+  await downloadFileIfNotExists({
+    filePath: macroCircomBinPath,
     dirPath,
-    "macro-circom"
+    repoName: "macro-circom",
+    fileName: "macro-circom",
+  });
+
+  let stdout = execSync(
+    `${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`
   );
-
-  console.log("============>");
-
-  const p = path.resolve(process.cwd(), `/${circuitDir}/${circuitFileName}`);
-
-  console.log({ p });
-
-  console.log("***********", `${macroCircomBinPath} ${p} ${programName}`);
-
-  let stdout = execSync(`${macroCircomBinPath} ./${circuitDir}/${circuitFileName} ${programName}`);
-
   console.log(stdout.toString().trim());
 
   const circuitMainFileName = extractFilename(stdout.toString().trim());
-  
   console.log("Building circom circuit ", circuitMainFileName);
-
   if (!circuitMainFileName)
     throw new Error("Could not extract circuit main file name");
 
