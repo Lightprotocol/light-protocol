@@ -1,11 +1,11 @@
 import { createVerifyingkeyRsFile } from "./createRustVerifyingKey";
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
 import { randomBytes } from "tweetnacl";
 import { utils } from "@coral-xyz/anchor";
-import { downloadFile, downloadLightBinIfNotExists } from "./download";
+import { downloadFile } from "./download";
 import { executeCommand } from "./process";
+import { executeAnchor, executeCircom, executeMacroCircom } from "./toolchain";
 
 /**
  * Generates a zk-SNARK circuit given a circuit name.
@@ -15,12 +15,15 @@ import { executeCommand } from "./process";
  * @param circuitName - The name of the circuit to be generated.
  * @returns {Promise<void>}
  */
-async function generateCircuit(
-  circomBinPath: string,
+async function generateCircuit({
+  circuitName,
+  ptau,
+  programName,
+}: {
   circuitName: string,
   ptau: number,
   programName: string
-): Promise<void> {
+}): Promise<void> {
   const POWERS_OF_TAU = ptau;
   const ptauFileName = `ptau${POWERS_OF_TAU}`;
   const buildDir = "./target";
@@ -42,23 +45,28 @@ async function generateCircuit(
     });
   }
 
-  await executeCommand(circomBinPath, [
-    "--r1cs",
-    "--wasm",
-    "--sym",
-    `./circuit/${circuitName}.circom`,
-    "-o",
-    `${sdkBuildCircuitDir}/`,
-  ]);
+  await executeCircom({
+    args: [
+      "--r1cs",
+      "--wasm",
+      "--sym",
+      `./circuit/${circuitName}.circom`,
+      "-o",
+      `${sdkBuildCircuitDir}/`,
+    ]
+  });
 
-  await executeCommand("yarn", [
-    "snarkjs",
-    "groth16",
-    "setup",
-    `${sdkBuildCircuitDir}/${circuitName}.r1cs`,
-    ptauFilePath,
-    `${sdkBuildCircuitDir}/${circuitName}_tmp.zkey`,
-  ]);
+  await executeCommand({
+    command: "yarn",
+    args: [
+      "snarkjs",
+      "groth16",
+      "setup",
+      `${sdkBuildCircuitDir}/${circuitName}.r1cs`,
+      ptauFilePath,
+      `${sdkBuildCircuitDir}/${circuitName}_tmp.zkey`,
+    ]
+  });
 
   let randomContributionBytes = utils.bytes.hex.encode(
     Buffer.from(randomBytes(128))
@@ -66,23 +74,29 @@ async function generateCircuit(
   try {
     fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
   } catch (_) { }
-  await executeCommand("yarn", [
-    "snarkjs",
-    "zkey",
-    "contribute",
-    `${sdkBuildCircuitDir}/${circuitName}_tmp.zkey`,
-    `${sdkBuildCircuitDir}/${circuitName}.zkey`,
-    `-e=${randomContributionBytes}`,
-  ]);
+  await executeCommand({
+    command: "yarn",
+    args: [
+      "snarkjs",
+      "zkey",
+      "contribute",
+      `${sdkBuildCircuitDir}/${circuitName}_tmp.zkey`,
+      `${sdkBuildCircuitDir}/${circuitName}.zkey`,
+      `-e=${randomContributionBytes}`,
+    ]
+  });
 
-  await executeCommand("yarn", [
-    "snarkjs",
-    "zkey",
-    "export",
-    "verificationkey",
-    `${sdkBuildCircuitDir}/${circuitName}.zkey`,
-    `${sdkBuildCircuitDir}/verifyingkey.json`,
-  ]);
+  await executeCommand({
+    command: "yarn",
+    args: [
+      "snarkjs",
+      "zkey",
+      "export",
+      "verificationkey",
+      `${sdkBuildCircuitDir}/${circuitName}.zkey`,
+      `${sdkBuildCircuitDir}/verifyingkey.json`,
+    ]
+  });
   const vKeyJsonPath = "./build-circuit/verifyingkey.json";
   const vKeyRsPath = "./programs/" + programName + "/src/verifying_key.rs";
   const artifiactPath = "./build-circuit/" + circuitName;
@@ -90,14 +104,17 @@ async function generateCircuit(
     fs.unlinkSync(vKeyJsonPath);
   } catch (_) { }
   while (!fs.existsSync(vKeyJsonPath)) {
-    await executeCommand("yarn", [
-      "snarkjs",
-      "zkey",
-      "export",
-      "verificationkey",
-      `${sdkBuildCircuitDir}/${circuitName}.zkey`,
-      `${sdkBuildCircuitDir}/verifyingkey.json`,
-    ]);
+    await executeCommand({
+      command: "yarn",
+      args: [
+        "snarkjs",
+        "zkey",
+        "export",
+        "verificationkey",
+        `${sdkBuildCircuitDir}/${circuitName}.zkey`,
+        `${sdkBuildCircuitDir}/verifyingkey.json`,
+      ]
+    });
   }
   try {
     fs.unlinkSync(vKeyRsPath);
@@ -168,36 +185,14 @@ export async function buildPSP(
 ) {
   let circuitFileName = findLightFile(circuitDir);
 
-  const circomBinPath = path.resolve(__dirname, "../../bin/circom");
-  const macroCircomBinPath = path.resolve(__dirname, "../../bin/macro-circom");
-  const lightAnchorBinPath = path.resolve(__dirname, "../../bin/light-anchor");
-  const dirPath = path.resolve(__dirname, "../../bin/");
-
-  await downloadLightBinIfNotExists({
-    localFilePath: circomBinPath,
-    dirPath,
-    repoName: "circom",
-    remoteFileName: "circom",
-  });
-  await downloadLightBinIfNotExists({
-    localFilePath: macroCircomBinPath,
-    dirPath,
-    repoName: "macro-circom",
-    remoteFileName: "macro-circom",
-  });
-  await downloadLightBinIfNotExists({
-    localFilePath: lightAnchorBinPath,
-    dirPath,
-    repoName: "anchor",
-    remoteFileName: "light-anchor",
-  });
-
   console.log("Creating circom files");
 
-  let stdout = await executeCommand(macroCircomBinPath, [
-    `./${circuitDir}/${circuitFileName}`,
-    programName,
-  ]);
+  let stdout = await executeMacroCircom({
+    args: [
+      `./${circuitDir}/${circuitFileName}`,
+      programName,
+    ]
+  });
 
   const circuitMainFileName = extractFilename(stdout.toString().trim());
   console.log("Building circom circuit ", circuitMainFileName);
@@ -206,15 +201,14 @@ export async function buildPSP(
 
   const suffix = ".circom";
 
-  await generateCircuit(
-    circomBinPath,
-    circuitMainFileName.slice(0, -suffix.length),
+  await generateCircuit({
+    circuitName: circuitMainFileName.slice(0, -suffix.length),
     ptau,
     programName
-  );
+  });
 
   console.log("Building on-chain program");
-  await executeCommand(lightAnchorBinPath, ["build"]);
+  await executeAnchor({ args: ["build"] });
   console.log("Build finished successfully");
 }
 

@@ -2,7 +2,8 @@ import type { Arguments, CommandBuilder } from "yargs";
 import { Options } from "yargs-parser";
 import { snakeCase } from "snake-case";
 import { downloadCargoGenerateIfNotExists } from "../utils/download";
-import { executeCommand, executeCommandInDir } from "../utils/process";
+import { executeCommandInDir } from "../utils/process";
+import { executeCargoGenerate } from "../utils/toolchain";
 
 const path = require("path");
 export const command: string = "init [name]";
@@ -36,9 +37,8 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
 
   const circomName = snakeCase(name);
   const rustName = snakeCase(name);
-  await executeCommand(
-    cargoGeneratePath,
-    [
+  await executeCargoGenerate({
+    args: [
       "generate",
       "--git",
       "https://github.com/Lightprotocol/psp-template",
@@ -53,7 +53,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
       "--define",
       `program-id=${defaultProgramId}`,
     ],
-  );
+  });
   await executeCommandInDir("yarn", ["install"], name);
 
   console.log("Project initialized successfully");

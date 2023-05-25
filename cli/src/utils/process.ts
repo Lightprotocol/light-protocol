@@ -7,14 +7,18 @@ import path from "path";
  * @param args - Arguments to be passed to the command.
  * @param options - Options to be passed to the command.
  */
-export async function executeCommand(
-  command: string,
-  args: string[],
-  options: SpawnOptionsWithoutStdio = {}
-): Promise<string> {
+export async function executeCommand({
+  command,
+  args,
+}: {
+  command: string;
+  args: string[];
+}): Promise<string> {
   return new Promise((resolve, reject) => {
     let commandBase = path.basename(command);
     let stdoutData = "";
+
+    const options: SpawnOptionsWithoutStdio = {};
 
     let childProcess;
     try {
@@ -64,7 +68,10 @@ export async function executeCommandInDir(
 ): Promise<string> {
   const oldDir = process.cwd();
   process.chdir(dir);
-  const result = await executeCommand(command, args, options);
+  const result = await executeCommand({
+    command,
+    args,
+  });
   process.chdir(oldDir);
   return result;
 }
