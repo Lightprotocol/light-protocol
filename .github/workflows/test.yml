@@ -2,9 +2,17 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'light-zk.js/**'
+      - 'light-system-programs/**'
+      - 'mock-app-verifier/**'
   pull_request:
     branches:
       - main
+    paths:
+      - 'light-zk.js/**'
+      - 'light-system-programs/**'
+      - 'mock-app-verifier/**'
 
 name: test
 
