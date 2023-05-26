@@ -26,7 +26,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     process.exit(0);
   }
 
-  console.log("initing PSP...");
+  console.log("🚀 Initializing PSP project...");
   const cargoGeneratePath = path.resolve(__dirname, "../../bin/cargo-generate");
   const dirPath = path.resolve(__dirname, "../../bin/");
 
@@ -56,7 +56,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   });
   await executeCommandInDir("yarn", ["install"], name);
 
-  console.log("Project initialized successfully");
+  console.log("✅ Project initialized successfully");
 
   process.exit(0);
 };

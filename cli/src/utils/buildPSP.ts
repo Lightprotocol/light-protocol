@@ -185,31 +185,33 @@ export async function buildPSP(
 ) {
   let circuitFileName = findLightFile(circuitDir);
 
-  console.log("Creating circom files");
-
+  console.log("📜 Generating circom files");
   let stdout = await executeMacroCircom({
     args: [
       `./${circuitDir}/${circuitFileName}`,
       programName,
     ]
   });
+  console.log("✅ Circom files generated successfully");
 
   const circuitMainFileName = extractFilename(stdout.toString().trim());
-  console.log("Building circom circuit ", circuitMainFileName);
+  console.log("🛠️️ Building circuit ", circuitMainFileName);
   if (!circuitMainFileName)
     throw new Error("Could not extract circuit main file name");
 
   const suffix = ".circom";
 
+  console.log("🔑 Generating circuit");
   await generateCircuit({
     circuitName: circuitMainFileName.slice(0, -suffix.length),
     ptau,
     programName
   });
+  console.log("✅ Circuit generated successfully");
 
-  console.log("Building on-chain program");
+  console.log("🛠️ Building on-chain program");
   await executeAnchor({ args: ["build"] });
-  console.log("Build finished successfully");
+  console.log("✅ Build finished successfully");
 }
 
 export function toSnakeCase(str: string): string {

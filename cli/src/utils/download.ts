@@ -12,7 +12,7 @@ const fileExists = promisify(fs.exists);
 async function latestRelease(owner: string, repo: string) {
   const github = "https://api.github.com";
   console.log(
-    `Checking the latest release of ${github}/repos/${owner}/${repo}/releases/latest`
+    `🔍 Checking the latest release of ${github}/repos/${owner}/${repo}/releases/latest`
   );
 
   const response = await axios.get(
@@ -20,7 +20,7 @@ async function latestRelease(owner: string, repo: string) {
   );
   const tag_name = response.data.tag_name;
 
-  console.log(`The newest release of ${repo} is ${tag_name}`);
+  console.log(`📦 The newest release of ${repo} is ${tag_name}`);
 
   return response.data.tag_name;
 }
@@ -81,6 +81,7 @@ export async function downloadFile({
   localFilePath: string;
   url: string;
 }) {
+  console.log(`📥 Downloading ${url}...`);
   const { data, headers } = await axios({
     url,
     method: "GET",
@@ -104,7 +105,7 @@ export async function downloadFile({
 
   // If the file is a tar.gz file, unzip and untar it while it's being written.
   if (url.endsWith(".tar.gz")) {
-    console.log(`Extracting ${url}...`);
+    console.log(`📦 Extracting ${url}...`);
     const gunzip = zlib.createGunzip();
     const parser = new tar.Parse();
     data.pipe(gunzip).pipe(parser);
@@ -176,9 +177,6 @@ export async function downloadBinIfNotExists({
 
   const tag = await latestRelease(owner, repoName);
   const url = `https://github.com/${owner}/${repoName}/releases/download/${tag}/${remoteFileName}`;
-
-  // Download the file
-  console.log(`Downloading ${remoteFileName} from ${url}...`);
 
   await downloadFile({
     localFilePath,
