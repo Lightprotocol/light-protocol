@@ -42,8 +42,6 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
       "generate",
       "--git",
       "https://github.com/Lightprotocol/psp-template",
-      "--branch",
-      "vadorovsky/cargo-generate-template",
       "--name",
       name,
       "--define",
