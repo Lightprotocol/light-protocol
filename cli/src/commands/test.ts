@@ -1,8 +1,8 @@
 import { toSnakeCase } from "../utils/buildPSP";
 import type { Arguments, CommandBuilder, Options } from "yargs";
-import { execSync } from "child_process";
 import path = require("path");
 import * as fs from "fs";
+import { executeCommand } from "../utils/process";
 
 export const command: string = "test";
 export const desc: string = "Deploys your PSP on a local testnet and runs test";
@@ -33,10 +33,16 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   const systemProgramPath = path.resolve(__dirname, "../../");
 
   try {
-    let stdout = execSync(
-      `${commandPath} ${systemProgramPath} ${process.cwd()} ${programAddress} ${programName}.so 'yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit'`
-    );
-    console.log(stdout.toString().trim());
+    executeCommand({
+      command: commandPath,
+      args: [
+        systemProgramPath,
+        process.cwd(),
+        programAddress,
+        `${programName}.so`,
+        `'yarn ts-mocha 2000000 tests/${projectName}.ts --exit'`
+      ]
+    });
   } catch (err) {
     console.error(err.stderr.toString());
     console.error(err.toString().trim());
