@@ -32,21 +32,18 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   const commandPath = path.resolve(__dirname, "../../scripts/runTest.sh");
   const systemProgramPath = path.resolve(__dirname, "../../");
 
-  try {
-    executeCommand({
-      command: commandPath,
-      args: [
-        systemProgramPath,
-        process.cwd(),
-        programAddress,
-        `${programName}.so`,
-        `'yarn ts-mocha 2000000 tests/${projectName}.ts --exit'`
-      ]
-    });
-  } catch (err) {
-    console.error(err.stderr.toString());
-    console.error(err.toString().trim());
-  }
+  console.log(`${commandPath} ${systemProgramPath} ${process.cwd()} ${programAddress} ${programName}.so 'yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit'`);
+  await executeCommand({
+    command: "/bin/bash",
+    args: [
+      commandPath,
+      systemProgramPath,
+      process.cwd(),
+      programAddress,
+      `${programName}.so`,
+      `yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit`
+    ]
+  });
   process.exit(0);
 };
 
