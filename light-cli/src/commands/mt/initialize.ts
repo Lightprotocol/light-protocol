@@ -1,9 +1,13 @@
 import { Command, Flags } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
-import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils/utils";
+import {
+  CustomLoader,
+  getWalletConfig,
+  setAnchorProvider,
+} from "../../utils/utils";
 
 class InitializeCommand extends Command {
-  static description = "Initialize the Merkle Tree Authority";
+  static description = "Initialize the Merkle Tree";
 
   static examples = ["light initialize -p <pubKey>"];
 

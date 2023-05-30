@@ -11,4 +11,4 @@ oclif.manifest.json
 test-ledger
 .DS_store
 /**/.DS_store
-/cli/bin
+/bin

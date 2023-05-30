@@ -22,7 +22,7 @@ class AirdropCommand extends Command {
   }
 
   static flags = {
-    amount: Flags.integer({
+    amount: Flags.string({
       char: "a",
       description: "The amount to airdrop",
       required: true,
@@ -64,7 +64,7 @@ class AirdropCommand extends Command {
       if (token.toLowerCase() === "sol") {
         response = await airdropSol({
           provider: provider,
-          amount: convertAndComputeDecimals(amount, new BN(1e9)),
+          amount: convertAndComputeDecimals(amount, new BN(1e9)).toNumber(),
           recipientPublicKey: new PublicKey(userPublicKey),
         });
       } else {
@@ -81,7 +81,7 @@ class AirdropCommand extends Command {
           MINT,
           tokenAccount.address,
           new PublicKey(userPublicKey),
-          amount,
+          parseInt(amount),
           []
         );
       }

@@ -17,7 +17,7 @@ import {
 import { PublicKey } from "@solana/web3.js";
 
 class PoolCommand extends Command {
-  static description = "Register a new pool type [default, spl, sol]";
+  static description = "Register a new pool type [default, spl, sol";
 
   static examples = [
     "light pool default",

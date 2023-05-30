@@ -216,7 +216,6 @@ export function generateSolanaTransactionURL(
   cluster: string
 ): string {
   const url = `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
-
   return url;
 }
 

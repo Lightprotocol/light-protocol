@@ -103,9 +103,7 @@ export class Relayer {
   }
 
   getRelayerFee(ataCreationFee?: boolean): BN {
-    return ataCreationFee
-      ? new BN(this.highRelayerFee)
-      : new BN(this.relayerFee);
+    return ataCreationFee ? this.highRelayerFee : this.relayerFee;
   }
 
   async getIndexedTransactions(
