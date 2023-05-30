@@ -216,7 +216,6 @@ export function generateSolanaTransactionURL(
   cluster: string
 ): string {
   const url = `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
-
   return url;
 }
 
@@ -255,6 +254,21 @@ export class CustomLoader {
       } (Elapsed time: ${elapsedTime}s)\n`
     );
   }
+}
+
+export function isValidURL(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+export function isValidBase58SecretKey(secretKey: string): boolean {
+  const base58Regex =
+    /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
+  return base58Regex.test(secretKey);
 }
 
 // async discoverFromPath(startFrom: string): Promise<string | null> {

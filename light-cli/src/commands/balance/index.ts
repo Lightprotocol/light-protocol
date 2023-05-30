@@ -1,6 +1,13 @@
 import { Command, Flags } from "@oclif/core";
-import { User, Balance, InboxBalance, Utxo } from "@lightprotocol/zk.js";
+import {
+  User,
+  Balance,
+  InboxBalance,
+  Utxo,
+  TOKEN_REGISTRY,
+} from "@lightprotocol/zk.js";
 import { CustomLoader, getUser } from "../../utils/utils";
+import { PublicKey } from "@solana/web3.js";
 
 class BalanceCommand extends Command {
   static description =
@@ -32,6 +39,16 @@ class BalanceCommand extends Command {
       description: "Retrieve the latest balance, inbox balance, or UTXOs",
       default: true,
     }),
+    verbose: Flags.boolean({
+      char: "v",
+      description: "level of detailed output",
+      default: false,
+    }),
+    token: Flags.string({
+      char: "t",
+      description: "The token to get balance of",
+      default: "SOL",
+    }),
   };
 
   protected finally(_: Error | undefined): Promise<any> {
@@ -48,22 +65,23 @@ class BalanceCommand extends Command {
 
   async run() {
     const { flags } = await this.parse(BalanceCommand);
-    const { balance, inbox, utxos, latest, inboxUtxos } = flags;
+    const { balance, inbox, utxos, latest, inboxUtxos, verbose, token } = flags;
 
     const loader = new CustomLoader("Retrieving balance...");
 
     loader.start();
 
     const user: User = await getUser();
+    const tokenCtx = TOKEN_REGISTRY.get(token.toUpperCase());
 
     try {
       if (balance) {
         const result = await user.getBalance(latest);
-        this.logBalance(result);
+        await this.logBalance(result, verbose, tokenCtx!.mint);
       }
       if (inbox) {
         const result = await user.getUtxoInbox(latest);
-        this.logInboxBalance(result);
+        await this.logBalance(result, verbose, tokenCtx!.mint);
       }
       if (utxos) {
         const result = await user.getAllUtxos();
@@ -86,38 +104,39 @@ class BalanceCommand extends Command {
     }
   }
 
-  private logBalance(balance: Balance) {
+  private async logBalance(
+    balance: Balance,
+    verbose: boolean,
+    token: PublicKey
+  ) {
     this.log("\n--- Balance ---");
-    this.log("Token Balances:", balance.tokenBalances);
-    this.log("Program Balances:", balance.programBalances);
-    this.log("NFT Balances:", balance.nftBalances);
-    this.log("Transaction Nonce:", balance.transactionNonce);
-    this.log(
-      "Decryption Transaction Nonce:",
-      balance.decryptionTransactionNonce
-    );
-    this.log("Committed Transaction Nonce:", balance.committedTransactionNonce);
-    this.log("Total Sol Balance:", balance.totalSolBalance.toString());
-    this.log("----------------");
-  }
 
-  private logInboxBalance(inboxBalance: InboxBalance) {
-    this.log("\n--- Inbox Balance ---");
-    this.log("Token Balances:", inboxBalance.tokenBalances);
-    this.log("Program Balances:", inboxBalance.programBalances);
-    this.log("NFT Balances:", inboxBalance.nftBalances);
-    this.log("Transaction Nonce:", inboxBalance.transactionNonce);
-    this.log(
-      "Decryption Transaction Nonce:",
-      inboxBalance.decryptionTransactionNonce
-    );
-    this.log(
-      "Committed Transaction Nonce:",
-      inboxBalance.committedTransactionNonce
-    );
-    this.log("Total Sol Balance:", inboxBalance.totalSolBalance.toString());
-    this.log("Number of Inbox UTXOs:", inboxBalance.numberInboxUtxos);
-    this.log("---------------------");
+    const tokenBalance = balance.tokenBalances.get(token.toString());
+
+    if (tokenBalance && tokenBalance?.tokenData.symbol !== "SOL") {
+      this.log(`${tokenBalance!.tokenData.symbol}:\n`);
+      this.log(`total amount: ${tokenBalance!.totalBalanceSpl.toNumber()}`);
+      this.log(`total sol amount: ${tokenBalance!.totalBalanceSol.toNumber()}`);
+      this.log(`number of utxos:: ${tokenBalance!.utxos.size}`);
+      this.log("\nUTXOS:");
+      for (const iterator of tokenBalance?.utxos.values()!) {
+        this.log(
+          `${
+            tokenBalance!.tokenData.symbol
+          }: ${iterator.amounts[1].toNumber()} sol: ${iterator.amounts[0].toNumber()} commitmentHash: ${
+            iterator._commitment
+          }`
+        );
+        if (verbose) {
+          const utxo = await iterator.toString();
+          this.log("Stringified utxo: ", utxo);
+        }
+      }
+    } else {
+      this.log("Total Sol Balance:", balance.totalSolBalance.toString());
+    }
+
+    this.log("----------------");
   }
 
   private logUTXOs(utxos: Utxo[]) {
