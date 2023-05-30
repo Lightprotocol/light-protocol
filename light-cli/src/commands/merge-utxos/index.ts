@@ -42,7 +42,7 @@ class MergeUtxosCommand extends Command {
 
   static examples = [
     "$ light merge-utxos --latest --token USDC 0xcommitment1 0xcommitment2 0xcommitment3",
-    "$ light merge-utxos --latest --token USDC --allInbox",
+    "$ light merge-utxos --latest --token USDC --all",
   ];
 
   async run() {

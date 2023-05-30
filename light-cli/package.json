@@ -9,7 +9,7 @@
   "files": [
     "/bin",
     "/dist",
-    "/config.json",
+    "./config.json",
     "/npm-shrinkwrap.json",
     "/oclif.manifest.json"
   ],

@@ -7,7 +7,7 @@ describe("Airdrop", () => {
     .command([
       "airdrop",
       "--token=SOL",
-      `--amount=1000000000000000`,
+      `--amount=1.0`,
       "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
     ])
     .it(
