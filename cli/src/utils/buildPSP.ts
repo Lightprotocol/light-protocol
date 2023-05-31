@@ -41,6 +41,7 @@ async function generateCircuit({
     console.log("Downloading powers of tau file");
     await downloadFile({
       localFilePath: ptauFilePath,
+      dirPath: buildDir,
       url: `https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_${POWERS_OF_TAU}.ptau`,
     });
   }

@@ -5,20 +5,29 @@ import path from "path";
  * Executes a command and logs the output to the console.
  * @param command - Path to the command to be executed.
  * @param args - Arguments to be passed to the command.
- * @param options - Options to be passed to the command.
+ * @param additionalPath - Additional path to be added to the PATH environment
+ * variable.
  */
 export async function executeCommand({
   command,
   args,
+  additionalPath,
 }: {
   command: string;
   args: string[];
+  additionalPath?: string;
 }): Promise<string> {
   return new Promise((resolve, reject) => {
     let commandBase = path.basename(command);
     let stdoutData = "";
 
-    const options: SpawnOptionsWithoutStdio = {};
+    const childPathEnv = additionalPath ? process.env.PATH + path.delimiter + additionalPath : process.env.PATH;
+    const options: SpawnOptionsWithoutStdio = {
+      env: {
+        ...process.env,
+        PATH: childPathEnv,
+      }
+    };
 
     let childProcess;
     try {

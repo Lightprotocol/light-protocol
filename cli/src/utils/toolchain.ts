@@ -1,12 +1,13 @@
 import * as path from "path";
 
-import { downloadCargoGenerateIfNotExists, downloadLightBinIfNotExists } from "./download";
+import { downloadCargoGenerateIfNotExists, downloadLightBinIfNotExists, downloadSolanaIfNotExists } from "./download";
 import { executeCommand } from "./process";
 
 const defaultCargoGeneratePath = "../../bin/cargo-generate";
 const defaultCircomPath = "../../bin/circom";
 const defaultMacroCircomPath = "../../bin/macro-circom";
 const defaultAnchorPath = "../../bin/light-anchor";
+const defaultSolanaPath = "../../bin/solana";
 
 /**
  * Create a function which looks up for a Light Protocol toolchain binary.
@@ -96,6 +97,23 @@ const anchorPath = createPathFunction({
 });
 
 /**
+ * Look up for the path to the Solana toolchain.
+ * @returns {Promise<string>}
+ */
+async function solanaPath(): Promise<string> {
+  const envPath = process.env['LIGHT_PROTOCOL_SOLANA_PATH'];
+  if (envPath) {
+    return Promise.resolve(envPath);
+  }
+
+  const dirPath = path.resolve(__dirname, defaultSolanaPath);
+  await downloadSolanaIfNotExists({
+    dirPath,
+  });
+  return dirPath;
+}
+
+/**
  * Create a function which executes a binary with the given arguments.
  * @param pathFunction - The function which looks up for the path to the binary.
  * @returns {Function}
@@ -136,4 +154,16 @@ export const executeMacroCircom = createExecuteFunction(macroCircomPath);
  * @param args - The arguments for the anchor binary.
  * @returns {Promise<string>}
  */
-export const executeAnchor = createExecuteFunction(anchorPath);
+export async function executeAnchor({
+  args
+}: {
+  args: string[]
+}): Promise<string> {
+  const command = await anchorPath();
+  const additionalPath = await solanaPath();
+  return await executeCommand({
+    command,
+    args,
+    additionalPath,
+  });
+}

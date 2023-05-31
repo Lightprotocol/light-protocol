@@ -64,21 +64,121 @@ function getSystem(): System {
   throw new Error(`Platform ${platform} is not supported.`);
 }
 
+/**
+ * Makes the given file executable.
+ * @param filePath - The path to the file to make executable.
+ */
 function makeExecutable(filePath: string): void {
   fs.chmodSync(filePath, "755");
 }
 
 /**
+ * Makes all files without extensions in the given directory executable.
+ * @param dirPath - The path to the directory to make files executable.
+ * @returns {Promise<void>}
+ */
+async function makeExecutableInDir(dirPath: string): Promise<void> {
+  const files = fs.readdirSync(dirPath);
+
+  for (const file of files) {
+    const filePath = path.join(dirPath, file);
+    const stat = fs.statSync(filePath);
+    const extname = path.extname(filePath);
+
+    if (stat.isDirectory()) {
+      await makeExecutableInDir(filePath);
+    } else if (!filePath.startsWith(".") && (extname === "" || extname === ".sh")) {
+      fs.chmodSync(filePath, "755");
+    }
+  }
+}
+
+/**
+ * Decompresses the given downloaded data stream to the given local file path.
+ * @param decompressor - The decompressor to use.
+ * @param data - The data stream to decompress.
+ * @param localFilePath - The local file path to decompress the data to. If
+ * provided, that only file will be decompressed from the archive. If not
+ * provided, all files will be decompressed to `dirPath`.
+ * @param dirPath - The directory path to decompress the data to.
+ * @returns {Promise<void>}
+ */
+function handleTarFile({
+  decompressor,
+  data,
+  localFilePath,
+  dirPath,
+}: {
+  decompressor: any;
+  data: any;
+  localFilePath?: string;
+  dirPath: string;
+}) {
+  const parser = new tar.Parse();
+
+  data.pipe(decompressor).pipe(parser);
+
+  parser.on("entry", (entry: any) => {
+    const baseName = path.parse(entry.path).base;
+    const outputFilePath = localFilePath
+      ? localFilePath
+      : path.join(dirPath, entry.path);
+
+    if (baseName.startsWith("._")) {
+      // Ignore AppleDouble files.
+      entry.resume();
+    } else if (!localFilePath || entry.path === path.parse(localFilePath).base) {
+      // Unpack the file if it's the one we want, or if we want all files.
+
+      // Create directory if it does not exist.
+      const dir = path.dirname(outputFilePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      // Check if entry is a file before attempting to create a write stream for it
+      if (entry.type === 'file') {
+        entry.pipe(fs.createWriteStream(outputFilePath));
+      } else if (entry.type === 'File') {
+        entry.pipe(fs.createWriteStream(outputFilePath));
+      } else {
+        entry.resume();
+      }
+    } else {
+      entry.resume();
+    }
+  });
+
+  return new Promise<void>((resolve, reject) => {
+    parser.on("end", () => {
+      // Make the file executable after it has been written.
+      if (localFilePath) {
+        makeExecutable(localFilePath);
+      } else {
+        makeExecutableInDir(dirPath);
+      }
+      resolve();
+    });
+  });
+}
+
+/**
  * Downloads a file from the given URL to the given local file path.
- * @param localFilePath - The local file path to download the file to.
+ * @param localFilePath - The local file path to download the file to. If
+ * provided and the download file is an archive, only the file with the same
+ * name as `localFilePath` will be extracted from the archive. If not provided,
+ * all files will be extracted to `dirPath`.
+ * @param dirPath - The path to the directory where the file(s) will be created.
  * @param url - The URL to download the file from.
  * @returns {Promise<void>}
  */
 export async function downloadFile({
   localFilePath,
+  dirPath,
   url,
 }: {
-  localFilePath: string;
+  localFilePath?: string;
+  dirPath: string;
   url: string;
 }) {
   console.log(`📥 Downloading ${url}...`);
@@ -103,29 +203,15 @@ export async function downloadFile({
     progressBar.stop();
   });
 
-  // If the file is a tar.gz file, unzip and untar it while it's being written.
+  // If the file is a tar.gz file, decompress it while it's being written.
   if (url.endsWith(".tar.gz")) {
     console.log(`📦 Extracting ${url}...`);
-    const gunzip = zlib.createGunzip();
-    const parser = new tar.Parse();
-    data.pipe(gunzip).pipe(parser);
-
-    // Sadly, `tar` doesn't expose any interface which would describe all
-    // properties we need, so we have to use `any` here.
-    parser.on("entry", (entry: any) => {
-      if (entry.path === path.parse(localFilePath).base) {
-        entry.pipe(fs.createWriteStream(localFilePath));
-      } else {
-        entry.resume();
-      }
-    });
-
-    return new Promise<void>((resolve, reject) => {
-      parser.on("end", () => {
-        // Make the file executable after it has been written.
-        makeExecutable(localFilePath);
-        resolve();
-      });
+    const decompressor = zlib.createGunzip();
+    return handleTarFile({
+      decompressor,
+      data,
+      localFilePath,
+      dirPath,
     });
   } else {
     let writeStream = fs.createWriteStream(localFilePath);
@@ -147,7 +233,7 @@ export async function downloadFile({
  * if it was not already downloaded.
  * @param localFilePath - The path to the local file (which either already
  * exists or will be created).
- * @param dirPath - The path to the directory where the file will be created.
+ * @param dirPath - The path to the directory where the file(s) will be created.
  * @param owner - The owner of the GitHub repository.
  * @param repoName - The name of the GitHub repository.
  * @param remoteFileName - The name of the file in the GitHub release artifact.
@@ -180,8 +266,28 @@ export async function downloadBinIfNotExists({
 
   await downloadFile({
     localFilePath,
+    dirPath,
     url,
   });
+}
+
+function lightSystemSuffix(): string {
+  let systemSuffix: string;
+  switch (getSystem()) {
+    case System.LinuxAmd64:
+      systemSuffix = "linux-amd64";
+      break;
+    case System.LinuxArm64:
+      systemSuffix = "linux-arm64";
+      break;
+    case System.MacOsAmd64:
+      systemSuffix = "macos-amd64";
+      break;
+    case System.MacOsArm64:
+      systemSuffix = "macos-arm64";
+      break;
+  }
+  return systemSuffix;
 }
 
 /**
@@ -205,22 +311,7 @@ export async function downloadLightBinIfNotExists({
   repoName: string;
   remoteFileName: string;
 }) {
-  let systemSuffix: string;
-  switch (getSystem()) {
-    case System.LinuxAmd64:
-      systemSuffix = "linux-amd64";
-      break;
-    case System.LinuxArm64:
-      systemSuffix = "linux-arm64";
-      break;
-    case System.MacOsAmd64:
-      systemSuffix = "macos-amd64";
-      break;
-    case System.MacOsArm64:
-      systemSuffix = "macos-arm64";
-      break;
-  }
-
+  const systemSuffix = lightSystemSuffix();
   const fullRemoteFileName = `${remoteFileName}-${systemSuffix}`;
   await downloadBinIfNotExists({
     localFilePath,
@@ -228,6 +319,39 @@ export async function downloadLightBinIfNotExists({
     owner: "Lightprotocol",
     repoName,
     remoteFileName: fullRemoteFileName,
+  });
+}
+
+export async function downloadSolanaIfNotExists({
+  dirPath,
+}: {
+  dirPath: string;
+}) {
+  if (fs.existsSync(dirPath)) {
+    return;
+  }
+  fs.mkdirSync(dirPath, { recursive: true });
+
+  const systemSuffix = lightSystemSuffix();
+
+  const depsDirPath = path.join(dirPath, "deps");
+
+  const tag = await latestRelease("Lightprotocol", "solana");
+  const solanaUrl = `https://github.com/Lightprotocol/solana/releases/download/${tag}/solana-${systemSuffix}.tar.gz`;
+  const solanaDepsUrl = `https://github.com/Lightprotocol/solana/releases/download/${tag}/solana-deps-${systemSuffix}.tar.gz`;
+  const solanaSdkUrl = `https://github.com/Lightprotocol/solana/releases/download/${tag}/solana-sdk-sbf-${systemSuffix}.tar.gz`;
+
+  await downloadFile({
+    dirPath,
+    url: solanaUrl,
+  });
+  await downloadFile({
+    dirPath: depsDirPath,
+    url: solanaDepsUrl,
+  });
+  await downloadFile({
+    dirPath,
+    url: solanaSdkUrl,
   });
 }
 
