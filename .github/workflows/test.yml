@@ -2,9 +2,21 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "light-zk.js/**/*.ts"
+      - "light-system-programs/**/*.rs"
+      - "light-system-programs/**/*.ts"
+      - "mock-app-verifier/**/*.rs"
+      - "mock-app-verifier/**/*.ts"
   pull_request:
     branches:
       - main
+    paths:
+      - "light-zk.js/**/*.ts"
+      - "light-system-programs/**/*.rs"
+      - "light-system-programs/**/*.ts"
+      - "mock-app-verifier/**/*.rs"
+      - "mock-app-verifier/**/*.ts"
 
 name: test
 
@@ -46,7 +58,7 @@ jobs:
 
       - name: Build and test
         uses: devcontainers/ci@v0.3
-        with:    
+        with:
           cacheFrom: ghcr.io/lightprotocol/devcontainer-cache
           push: always
           runCmd: |
