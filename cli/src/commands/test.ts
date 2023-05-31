@@ -1,8 +1,8 @@
 import { toSnakeCase } from "../utils/buildPSP";
 import type { Arguments, CommandBuilder, Options } from "yargs";
-import { execSync } from "child_process";
 import path = require("path");
 import * as fs from "fs";
+import { executeCommand } from "../utils/process";
 
 export const command: string = "test";
 export const desc: string = "Deploys your PSP on a local testnet and runs test";
@@ -32,15 +32,18 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   const commandPath = path.resolve(__dirname, "../../scripts/runTest.sh");
   const systemProgramPath = path.resolve(__dirname, "../../");
 
-  try {
-    let stdout = execSync(
-      `${commandPath} ${systemProgramPath} ${process.cwd()} ${programAddress} ${programName}.so 'yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit'`
-    );
-    console.log(stdout.toString().trim());
-  } catch (err) {
-    console.error(err.stderr.toString());
-    console.error(err.toString().trim());
-  }
+  console.log(`${commandPath} ${systemProgramPath} ${process.cwd()} ${programAddress} ${programName}.so 'yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit'`);
+  await executeCommand({
+    command: "/bin/bash",
+    args: [
+      commandPath,
+      systemProgramPath,
+      process.cwd(),
+      programAddress,
+      `${programName}.so`,
+      `yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit`
+    ]
+  });
   process.exit(0);
 };
 

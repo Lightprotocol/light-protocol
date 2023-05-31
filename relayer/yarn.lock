@@ -419,7 +419,7 @@
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
 "@lightprotocol/zk.js@file:../light-zk.js":
-  version "0.3.0"
+  version "0.3.2-alpha.8"
   dependencies:
     "@coral-xyz/anchor" "0.27.0"
     "@coral-xyz/borsh" "^0.27.0"
