@@ -182,7 +182,7 @@ export const fetchNullifierAccountInfo = async (
 ) => {
   const nullifierPubkey = PublicKey.findProgramAddressSync(
     [
-      Buffer.from(new anchor.BN(nullifier.toString()).toArray()),
+      Buffer.from(new anchor.BN(nullifier.toString()).toArray("be", 32)),
       anchor.utils.bytes.utf8.encode("nf"),
     ],
     merkleTreeProgramId,
