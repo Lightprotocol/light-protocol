@@ -11,12 +11,12 @@ use anchor_lang::prelude::*;
 )]
 pub struct InsertTwoLeaves<'info> {
     /// CHECK:` should only be accessed by a registered verifier.
-    #[account(mut, seeds=[program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
+    #[account(mut, seeds=[__program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     // /// CHECK:` Leaves account should be checked by invoking verifier.
     #[account(init, seeds= [&leaf_left, LEAVES_SEED], bump, payer=authority, space= 8 + 3 * 32 + 256 + 8 + 8)]
     pub two_leaves_pda: Account<'info, TwoLeavesBytesPda>,
-    #[account(mut, seeds = [&program_id.to_bytes()[..], transaction_merkle_tree.load().unwrap().merkle_tree_nr.to_le_bytes().as_ref()], bump)]
+    #[account(mut, seeds = [&__program_id.to_bytes()[..], transaction_merkle_tree.load().unwrap().merkle_tree_nr.to_le_bytes().as_ref()], bump)]
     pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     pub system_program: Program<'info, System>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]

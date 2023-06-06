@@ -8,7 +8,7 @@ use crate::{message_merkle_tree::MessageMerkleTree, utils::constants::MESSSAGE_M
     leaf_right: [u8; 32],
 )]
 pub struct InsertTwoLeavesMessage<'info> {
-    #[account(mut, seeds = [&program_id.to_bytes()[..], MESSSAGE_MERKLE_TREE_SEED], bump)]
+    #[account(mut, seeds = [&__program_id.to_bytes()[..], MESSSAGE_MERKLE_TREE_SEED], bump)]
     pub message_merkle_tree: AccountLoader<'info, MessageMerkleTree>,
     pub system_program: Program<'info, System>,
 }

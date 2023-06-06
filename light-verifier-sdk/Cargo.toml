@@ -10,8 +10,8 @@ name = "light_verifier_sdk"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-anchor-lang = "0.26.0"
-anchor-spl = "0.26.0"
+anchor-lang = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce" }
+anchor-spl = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce" }
 merkle_tree_program = { path = "../light-system-programs/programs/merkle_tree_program", features = ["cpi"] }
 
 ark-ff = { version = "^0.3.0", default-features = false }
@@ -21,6 +21,4 @@ ark-std = { version = "^0.3.0", default-features = false }
 spl-token = "3.3.0"
 borsh = "0.9.3"
 groth16-solana = "0.0.1"
-light-merkle-tree = "0.1.0"
-[patch.crates-io]
-solana-program = { git = "https://github.com/Lightprotocol/solana", branch="v1.15" }
+light-merkle-tree = { git = "https://github.com/Lightprotocol/light-merkle-tree", branch = "main" }

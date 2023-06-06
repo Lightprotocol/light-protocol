@@ -13,7 +13,7 @@ pub struct InitializeNewTransactionMerkleTree<'info> {
     /// CHECK: it should be unpacked internally
     #[account(
         init,
-        seeds = [&program_id.to_bytes()[..], merkle_tree_authority_pda.merkle_tree_index.to_le_bytes().as_ref()
+        seeds = [&__program_id.to_bytes()[..], merkle_tree_authority_pda.merkle_tree_index.to_le_bytes().as_ref()
         ],
         bump,
         payer = authority,
