@@ -50,7 +50,7 @@ describe("Test User", () => {
   );
   anchor.setProvider(anchorProvider);
   const userKeypair = ADMIN_AUTH_KEYPAIR;
-  
+
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
     POSEIDON = await circomlibjs.buildPoseidonOpt();
@@ -71,7 +71,11 @@ describe("Test User", () => {
       wallet: userKeypair,
       relayer: RELAYER,
     });
-    await airdropSol({provider: anchorProvider,amount: 2_000_000_000, recipientPublicKey: userKeypair.publicKey })
+    await airdropSol({
+      provider: anchorProvider,
+      amount: 2_000_000_000,
+      recipientPublicKey: userKeypair.publicKey,
+    });
 
     user = await User.init({ provider });
   });
@@ -144,8 +148,6 @@ describe("Test User", () => {
       expectedUtxoHistoryLength,
       expectedSpentUtxosLength,
     };
-
-
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
