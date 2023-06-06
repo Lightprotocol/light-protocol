@@ -1,5 +1,5 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Relayer } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
 import { Provider } from "../wallet";
@@ -9,6 +9,8 @@ import {
 } from "../transaction";
 import { IndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
+import { TRANSACTION_MERKLE_TREE_KEY, IDL_MERKLE_TREE_PROGRAM } from "../index";
+
 export class TestRelayer extends Relayer {
   indexedTransactions: IndexedTransaction[] = [];
   relayerKeypair: Keypair;
@@ -63,11 +65,25 @@ export class TestRelayer extends Relayer {
   async getIndexedTransactions(
     connection: Connection,
   ): Promise<IndexedTransaction[]> {
+    const merkleTreeAccountInfo = await connection.getAccountInfo(
+      TRANSACTION_MERKLE_TREE_KEY,
+      "confirmed",
+    );
+    const coder = new BorshAccountsCoder(IDL_MERKLE_TREE_PROGRAM);
+    if (!merkleTreeAccountInfo)
+      throw new Error("Failed to fetch merkle tree account");
+    const merkleTreeAccount = coder.decode(
+      "transactionMerkleTree",
+      merkleTreeAccountInfo.data,
+    );
+    const merkleTreeIndex = merkleTreeAccount.nextIndex;
+
+    const limit = 1000 + 260 * merkleTreeIndex.toNumber();
     if (this.indexedTransactions.length === 0) {
       this.indexedTransactions = await indexRecentTransactions({
         connection,
         batchOptions: {
-          limit: 5000,
+          limit,
         },
         dedupe: false,
       });
@@ -83,7 +99,7 @@ export class TestRelayer extends Relayer {
       let newTransactions = await indexRecentTransactions({
         connection,
         batchOptions: {
-          limit: 5000,
+          limit,
           until: mostRecentTransaction.signature,
         },
         dedupe: false,
