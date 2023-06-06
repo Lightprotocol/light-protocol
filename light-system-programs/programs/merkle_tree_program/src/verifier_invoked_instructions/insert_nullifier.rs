@@ -6,7 +6,7 @@ use anchor_lang::solana_program::{pubkey::Pubkey, sysvar};
 #[derive(Accounts)]
 pub struct InitializeNullifiers<'info> {
     /// CHECK:` Signer is owned by registered verifier program.
-    #[account(mut, seeds=[program_id.to_bytes().as_ref()], bump,seeds::program=registered_verifier_pda.pubkey)]
+    #[account(mut, seeds=[__program_id.to_bytes().as_ref()], bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump )]

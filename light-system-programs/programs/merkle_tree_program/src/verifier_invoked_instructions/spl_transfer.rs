@@ -5,7 +5,7 @@ use anchor_spl::token::{Token, TokenAccount, Transfer};
 #[derive(Accounts)]
 pub struct WithdrawSpl<'info> {
     /// CHECK:` Signer is registered verifier program.
-    #[account(mut, seeds=[program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
+    #[account(mut, seeds=[__program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     /// CHECK:` That the merkle tree token belongs to a registered Merkle tree.
     #[account(mut)]

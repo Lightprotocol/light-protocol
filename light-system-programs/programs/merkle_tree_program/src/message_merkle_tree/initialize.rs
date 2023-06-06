@@ -16,7 +16,7 @@ pub struct InitializeNewMessageMerkleTree<'info> {
     /// CHECK: it should be unpacked internally
     #[account(
         init,
-        seeds = [&program_id.to_bytes()[..], MESSSAGE_MERKLE_TREE_SEED],
+        seeds = [&__program_id.to_bytes()[..], MESSSAGE_MERKLE_TREE_SEED],
         bump,
         payer = authority,
         // discriminator + height (u64) + filled subtrees ([[u8; 32]; 18]) +

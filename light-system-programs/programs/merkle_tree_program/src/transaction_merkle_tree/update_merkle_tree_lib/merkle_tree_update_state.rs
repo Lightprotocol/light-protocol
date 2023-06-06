@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 
 #[account(zero_copy)]
 #[derive(Debug)]
+#[repr(C)]
 pub struct MerkleTreeUpdateState {
     pub node_left: [u8; 32],
     pub node_right: [u8; 32],
@@ -23,5 +24,7 @@ pub struct MerkleTreeUpdateState {
 
     pub leaves: [[[u8; 32]; 2]; 16],
     pub number_of_leaves: u8,
+    _padding1: [u8; 7],
     pub insert_leaves_index: u8,
+    _padding2: [u8; 7],
 }

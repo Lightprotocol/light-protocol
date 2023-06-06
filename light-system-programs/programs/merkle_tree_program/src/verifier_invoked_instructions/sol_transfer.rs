@@ -4,7 +4,7 @@ use anchor_lang::prelude::*;
 #[derive(Accounts)]
 pub struct WithdrawSol<'info> {
     /// CHECK:` Signer is registered verifier program.
-    #[account(mut , seeds=[program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
+    #[account(mut , seeds=[__program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     #[account(mut)]
     pub merkle_tree_token: Account<'info, RegisteredAssetPool>,

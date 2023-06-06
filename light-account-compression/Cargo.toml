@@ -9,6 +9,4 @@ crate-type = ["lib"]
 name = "light_account_compression"
 
 [dependencies]
-anchor-lang = "0.26.0"
-[patch.crates-io]
-solana-program = { git = "https://github.com/Lightprotocol/solana", branch="v1.15" }
+anchor-lang = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce" }
