@@ -1,6 +1,5 @@
 use crate::light_transaction::{Config, Transaction};
 use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
 use std::marker::PhantomData;
 
 /// Verifier state is a boiler plate struct which should be versatile enough to serve many use cases.

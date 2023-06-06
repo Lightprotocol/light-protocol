@@ -179,7 +179,7 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut)]
     pub relayer_recipient_sol: UncheckedAccount<'info>,
     /// Verifier config pda which needs to exist.
-    #[account(mut, seeds=[program_id.key().to_bytes().as_ref()], bump, seeds::program=MerkleTreeProgram::id())]
+    #[account(mut, seeds=[__program_id.key().to_bytes().as_ref()], bump, seeds::program=MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }
 
