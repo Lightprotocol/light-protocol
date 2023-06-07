@@ -32,7 +32,7 @@ class SetupCommand extends Command {
           console.error("\nFailed to execute runScript.sh:", error);
           return;
         }
-        console.log("\nSetup script executed successfully.");
+        console.log("\nSetup script executed successfully \x1b[32m✔\x1b[0m");
       });
 
       await sleep(9000);
@@ -56,7 +56,7 @@ class SetupCommand extends Command {
         2_000_000_000
       );
 
-      this.log("\nSetup tasks completed successfully.");
+      this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
       loader.stop();
     } catch (error) {
       loader.stop();

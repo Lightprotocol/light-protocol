@@ -1,29 +1,25 @@
 import { Args, Command, Flags } from "@oclif/core";
+import { User } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
   getUser,
   readWalletFromFile,
 } from "../../utils/utils";
-import { User } from "@lightprotocol/zk.js";
 
 class TransferCommand extends Command {
-  static description = "Transfer tokens to a recipient";
+  static summary = "Transfer shielded funds between light users";
 
   static examples = [
-    "$ light transfer --token ABC123 --amountSpl 1000000 <recipient>",
+    "$ light transfer 10 <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light transfer 10 <SHIELDED_RECIPIENT_ADDRESS> -t USDC"
   ];
 
   static flags = {
     token: Flags.string({
-      description: "The token to transfer",
-      required: true,
-    }),
-    amountSpl: Flags.string({
-      description: "The amount of token to transfer (SPL)",
-    }),
-    amountSol: Flags.string({
-      description: "The amount of token to transfer (SOL)",
+      char: "t",
+      description: "The SPL token symbol",
+      default: "SOL"
     }),
   };
 
@@ -32,8 +28,13 @@ class TransferCommand extends Command {
   }
 
   static args = {
-    recipient: Args.string({
-      name: "recipient",
+    amount: Args.string({
+      name: "AMOUNT",
+      description: "The token amount to tranfer",
+      required: true,
+    }),
+    psp_recipient_address: Args.string({
+      name: "SHIELDED_RECIPIENT_ADDRESS",
       description: "The recipient shielded/encryption publickey",
       required: true,
     }),
@@ -42,10 +43,10 @@ class TransferCommand extends Command {
   async run() {
     const { args, flags } = await this.parse(TransferCommand);
 
-    const { recipient } = args;
-    const { token, amountSpl, amountSol } = flags;
+    const { psp_recipient_address, amount } = args;
+    const { token } = flags;
 
-    const loader = new CustomLoader("Performing token transfer...");
+    const loader = new CustomLoader(`Performing shielded ${token} transfer...\n`);
 
     loader.start();
 
@@ -54,26 +55,39 @@ class TransferCommand extends Command {
 
       const user: User = await getUser();
 
+      let amountSol, amountSpl;
+      if (token === "SOL") amountSol = amount;
+      else amountSpl = amount;
+
+      const originalConsoleLog = console.log;      
+      console.log = function(...args) {
+        if (args[0] !== 'shuffle disabled') {
+          originalConsoleLog.apply(console, args);
+        }
+      };
       const response = await user.transfer({
         token,
         amountSpl,
         amountSol,
-        recipient,
+        recipient: psp_recipient_address,
       });
 
-      this.log(
-        `Successfully transferred ${
-          token.toLowerCase() === "sol" ? amountSol : amountSpl
-        } ${token}`
-      );
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
+
+      this.log(
+        `\nSuccessfully transferred ${
+          token.toLowerCase() === "sol" ? amountSol : amountSpl
+        } ${token}`,
+        "\x1b[32m✔\x1b[0m"
+      );
       loader.stop();
     } catch (error) {
+      this.warn(error as Error);
       loader.stop();
-
       this.error(`\nToken transfer failed: ${error}`);
     }
   }
+
 }
 
 TransferCommand.strict = false;

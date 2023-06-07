@@ -56,7 +56,7 @@ chmod ug+x ./light-zk.js/husky/*
 
 ## Solana keypair
 
-Before doing any development or running any tets, you need to generate a new
+Before doing any development or running any tests, you need to generate a new
 local keypair:
 
 ```bash

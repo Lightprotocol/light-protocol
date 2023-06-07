@@ -5,13 +5,12 @@ import {
   generateSolanaTransactionURL,
   getUser,
 } from "../../utils/utils";
-
 class ShieldCommand extends Command {
-  static description = "Shield tokens for a user";
-
+  static summary = "Shield tokens for a user";
   static examples = [
-    "$ light shield --token USDC --amountSpl 10",
-    "$ light shield --token SOL --amountSpl 1 --recipient ",
+    "$ light shield 1.3 --recipient <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light shield --amount-spl 15 -t USDC",
+    "$ light shield --amount-sol 1 --amount-spl 22 -t USDC"
   ];
 
   protected finally(_: Error | undefined): Promise<any> {
@@ -19,25 +18,36 @@ class ShieldCommand extends Command {
   }
 
   static flags = {
-    token: Flags.string({
-      description: "The token to shield",
-      required: true,
+    'token': Flags.string({
+      char: "t",
+      description: "The SPL token symbol",
+      default: "SOL",
     }),
-    recipient: Flags.string({
-      description: "The recipient shielded/encryption publickey",
+    'recipient': Flags.string({
+      char: "r",
+      description: "The recipient shielded/encryption publickey. If not set, the operation will shield to self.",
+      required: false
     }),
-    amountSpl: Flags.string({
-      description: "The amount of token to shield (SPL)",
+    'amount-spl': Flags.string({
+      char: "p",
+      description: "The SPL token amount to shield",
+      relationships: [
+        {type: 'some', flags: [
+          {name: 'token', when: async (flags: any) => flags['token'] !== 'SOL'}
+        ]}  
+      ]
     }),
-    amountSol: Flags.string({
-      description: "The amount of token to shield (SOL)",
+    'amount-sol': Flags.string({
+      char: "l",
+      description: "The SOL amount to shield",
     }),
-    minimumLamports: Flags.boolean({
+    'skip-minimum-lamports': Flags.boolean({
       description:
         "Whether to use the minimum required lamports for the shield transaction",
       default: false,
     }),
-    skipDecimalConversions: Flags.boolean({
+    'skip-decimal-conversions': Flags.boolean({
+      char: "d",
       description: "Skip decimal conversions during shield",
       default: false,
     }),
@@ -45,23 +55,26 @@ class ShieldCommand extends Command {
 
   async run() {
     const { flags } = await this.parse(ShieldCommand);
-
-    const {
-      token,
-      recipient,
-      amountSpl,
-      amountSol,
-      minimumLamports,
-      skipDecimalConversions,
-    } = flags;
-
-    const loader = new CustomLoader("Performing shield operation...");
-
+    const token = flags['token']
+    const amountSol = flags['amount-sol'];
+    const amountSpl = flags['amount-spl'];
+    const recipient = flags['recipient'];
+    const minimumLamports = flags['skip-minimum-lamports'];
+    const skipDecimalConversions = flags['skip-decimal-conversions'];
+    
+    const loader = new CustomLoader("Performing shield operation...\n");
     loader.start();
 
     try {
-      const user: User = await getUser();
+      // ignore undesired logs
+      const originalConsoleLog = console.log;      
+      console.log = function(...args) {
+        if (args[0] !== 'shuffle disabled') {
+          originalConsoleLog.apply(console, args);
+        }
+      };
 
+      const user: User = await getUser();
       const response = await user.shield({
         token,
         recipient,
@@ -71,14 +84,25 @@ class ShieldCommand extends Command {
         skipDecimalConversions,
       });
 
-      this.log(
-        `Successfully shielded ${
-          token.toLowerCase() === "sol" ? amountSol : amountSpl
-        } ${token}`
-      );
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
+
+      if (!amountSol || !amountSpl ) {
+        this.log(
+          `\nSuccessfully shielded ${
+            token.toLowerCase() === "sol" ? amountSol : amountSpl
+          } ${token}`,
+          "\x1b[32m✔\x1b[0m"
+        );
+      }
+      else {
+        this.log(
+          `\nSuccessfully shielded ${amountSol} SOL & ${amountSpl} ${token}`,
+          "\x1b[32m✔\x1b[0m"
+        );
+      }
       loader.stop();
     } catch (error) {
+      this.warn(error as Error);
       loader.stop();
       this.error(`\nShielding tokens failed: ${error}`);
     }

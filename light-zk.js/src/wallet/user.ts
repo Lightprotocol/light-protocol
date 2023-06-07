@@ -542,7 +542,12 @@ export class User {
             [this.provider.wallet!.publicKey],
           ),
         );
-
+        console.log("transaction: ", transaction);
+        transaction.recentBlockhash = (
+          await this.provider.provider?.connection.getRecentBlockhash(
+            "confirmed",
+          )
+        )?.blockhash;
         await this.provider.wallet!.sendAndConfirmTransaction(transaction);
         this.approved = true;
       } catch (e) {

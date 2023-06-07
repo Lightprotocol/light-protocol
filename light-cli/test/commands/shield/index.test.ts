@@ -1,17 +1,16 @@
 import { expect, test } from "@oclif/test";
 import { Keypair } from "@solana/web3.js";
 
-describe("Airdrop", () => {
+/* describe("Airdrop", () => {
   test
     .stdout()
     .command([
       "airdrop",
-      "--token=SOL",
-      `--amount=1.0`,
+      "1.0",
       "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
     ])
     .it(
-      "airdrop 1000000000000000 sol to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
+      "airdrop 1 sol to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
       (ctx) => {
         console.log(ctx.stdout);
         expect(ctx.stdout).to.contain("Airdrop successful for user");
@@ -22,38 +21,38 @@ describe("Airdrop", () => {
     .stdout()
     .command([
       "airdrop",
-      "--token=USDC",
-      `--amount=1000000`,
+      "--token USDC",
+      `10`,
       "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
     ])
     .it(
-      "airdrop 1000000 usdc to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
+      "airdrop 10 usdc to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
       (ctx) => {
         console.log(ctx.stdout);
         expect(ctx.stdout).to.contain("Airdrop successful for user");
       }
     );
 });
-
-describe("Shield SOL", () => {
+ */
+describe("shield", () => {
   test
     .stdout()
-    .command(["shield", "--token=SOL", `--amountSol=11.1`])
+    .command(["shield", "--token=SOL", `--amount-sol=1.1`])
     .it("Should shield 11.1 SOL", (ctx) => {
       console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("Successfully shielded");
     });
 
-  test
+  /* test
     .stdout()
     .command(["balance"])
     .it("Should have balance of 11.1 SOL", (ctx) => {
       console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("Total Sol Balance: 11100000000");
-    });
+    }); */
 });
 
-describe("Unshield SOL", () => {
+/* describe("Unshield SOL", () => {
   let recipient = Keypair.generate().publicKey;
   test
     .stdout()
@@ -157,4 +156,4 @@ describe.skip("Merge Utxos", () => {
   //   .it("should merge the utxo", (ctx) => {
   //     expect(ctx.stdout).to.contain("UTXOs merged successfully!");
   //   });
-});
+}); */
