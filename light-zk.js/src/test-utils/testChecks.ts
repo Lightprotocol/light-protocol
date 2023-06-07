@@ -105,7 +105,6 @@ export async function checkMerkleTreeUpdateStateCreated({
     MerkleTreeAccountInfo.pubkeyLocked.toBase58(),
     merkleTreeUpdateState.toBase58(),
   );
-  // assert(U64.readLE(MerkleTreeAccountInfo.data.slice(16658-8,16658), 0) >= (await connection.getSlot()) - 5, "Lock has not been taken at this or in the 5 prior slots");
   console.log("checkMerkleTreeUpdateStateCreated: success");
   console.log = x;
 }
@@ -148,7 +147,6 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     merkleTreeAccount.pubkeyLocked.toBase58(),
     new solana.PublicKey(new Uint8Array(32).fill(0)).toBase58(),
   );
-  // console.log("merkleTreeAccount.time_locked ", merkleTreeAccount.timeLocked);
 
   assert.equal(
     merkleTreeAccount.timeLocked.toNumber(),
@@ -156,70 +154,24 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     "Lock has not been taken within prior  20 slots",
   );
 
-  let merkle_tree_prior_leaves_index = merkleTreeAccountPrior.nextIndex; //U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0);
+  let merkle_tree_prior_leaves_index = merkleTreeAccountPrior.nextIndex;
   let merkle_tree_prior_current_root_index =
-    merkleTreeAccountPrior.currentRootIndex; //U64.readLE(merkleTreeAccountPrior.data.slice(594 - 8, 594),0).toNumber()
-
-  let current_root_index = merkleTreeAccount.currentRootIndex; //tU64.readLE(merkleTreeAccount.data.slice(594 - 8, 594),0).toNumber()
-  // console.log(
-  //   "merkle_tree_prior_current_root_index: ",
-  //   merkle_tree_prior_current_root_index,
-  // );
-  // console.log("current_root_index: ", current_root_index);
-  // console.log(
-  //   `${merkle_tree_prior_current_root_index.add(
-  //     new anchor.BN("1"),
-  //   )} == ${current_root_index}`,
-  // );
+    merkleTreeAccountPrior.currentRootIndex;
+  let current_root_index = merkleTreeAccount.currentRootIndex;
 
   assert.equal(
-    merkle_tree_prior_current_root_index.add(new anchor.BN("1")).toString(),
+    merkle_tree_prior_current_root_index
+      .add(new anchor.BN("1"))
+      .mod(new anchor.BN(256))
+      .toString(),
     current_root_index.toString(),
   );
-  let current_root_start_range = 610 + current_root_index.toNumber() * 32;
-  let current_root_end_range = 610 + (current_root_index.toNumber() + 1) * 32;
-  // console.log(`root: ${BigNumber.from(merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range).reverse()).toHexString()}`)
-
-  // console.log(`prior +${numberOfLeaves} ${merkle_tree_prior_leaves_index.add(new anchor.BN(numberOfLeaves)).toString()}, now ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
-  // // index has increased by numberOfLeaves
-  // console.log(`index has increased by numberOfLeaves: ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()}, ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
-
-  // console.log(
-  //   `${merkle_tree_prior_leaves_index.add(new anchor.BN(numberOfLeaves))} == ${
-  //     merkleTreeAccount.nextIndex
-  //   }`,
-  // );
 
   assert(
     merkle_tree_prior_leaves_index
       .add(new anchor.BN(numberOfLeaves.toString()))
       .toString() == merkleTreeAccount.nextIndex.toString(),
-  ); //U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())
-
-  // let leavesPdasPubkeys = []
-  // leavesPdas.map( (pda) => { leavesPdasPubkeys.push(pda.pubkey) })
-  // var leavesAccounts = await merkleTreeProgram.account.twoLeavesBytesPda.fetchMultiple(
-  //   leavesPdasPubkeys
-  //     )
-  // let leaves_to_sort = []
-  // leavesAccounts.map((acc) => {
-  //   // Checking that all leaves have been marked as inserted.
-  //   assert(leavesAccounts.isInserted == true);
-  //     leaves_to_sort.push(leavesAccounts);
-  //   });
-  // leaves_to_sort.sort((a, b) => parseFloat(a.left_leaf_index) - parseFloat(b.left_leaf_index));
-  // let numberOfLeavesPdas = 0
-  // for (var i = Number(merkle_tree_prior_leaves_index); i < Number(merkle_tree_prior_leaves_index) + Number(numberOfLeaves); i+=2) {
-  //   merkleTree.update(i, BigNumber.from(leaves_to_sort[numberOfLeavesPdas].leaves.slice(0,32).reverse()))
-  //   merkleTree.update(i + 1, BigNumber.from(leaves_to_sort[numberOfLeavesPdas].leaves.slice(32,64).reverse()))
-  //   numberOfLeavesPdas++;
-  // }
-  //
-  // // Comparing root from chain with locally updated merkle tree.
-  // assert(BigNumber.from(merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range).reverse()).toHexString(),
-  //   merkleTree.root().toHexString()
-  // )
-  // // Comparing locally generated root with merkle tree built from leaves fetched from chain.
+  );
 }
 
 export async function checkRentExemption({
