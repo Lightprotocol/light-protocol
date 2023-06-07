@@ -310,11 +310,14 @@ const getTransactionsBatch = async ({
   const lastSignature = signatures[signatures.length - 1];
   let txs: (ParsedTransactionWithMeta | null)[] = [];
   let index = 0;
+  const signaturesPerRequest = 25;
 
   while (index < signatures.length) {
     try {
       const txsBatch = await connection.getParsedTransactions(
-        signatures.slice(index, index + 25).map((sig) => sig.signature),
+        signatures
+          .slice(index, index + signaturesPerRequest)
+          .map((sig) => sig.signature),
         {
           maxSupportedTransactionVersion: 0,
           commitment: "confirmed",
@@ -323,7 +326,7 @@ const getTransactionsBatch = async ({
 
       if (!txsBatch.some((t) => !t)) {
         txs = txs.concat(txsBatch);
-        index += 25;
+        index += signaturesPerRequest;
       }
     } catch (e) {
       console.log("retry");

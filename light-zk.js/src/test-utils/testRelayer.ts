@@ -1,5 +1,5 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Relayer } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
 import { Provider } from "../wallet";
@@ -9,6 +9,8 @@ import {
 } from "../transaction";
 import { IndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
+import { TRANSACTION_MERKLE_TREE_KEY, IDL_MERKLE_TREE_PROGRAM } from "../index";
+
 export class TestRelayer extends Relayer {
   indexedTransactions: IndexedTransaction[] = [];
   relayerKeypair: Keypair;
@@ -60,14 +62,39 @@ export class TestRelayer extends Relayer {
     }
   }
 
+  /**
+   * Indexes light transactions by:
+   * - getting all signatures the merkle tree was involved in
+   * - trying to extract and parse event cpi for every signature's transaction
+   * - if there are indexed transactions already in the relayer object only transactions after the last indexed event are indexed
+   * @param connection
+   * @returns
+   */
   async getIndexedTransactions(
     connection: Connection,
   ): Promise<IndexedTransaction[]> {
+    const merkleTreeAccountInfo = await connection.getAccountInfo(
+      TRANSACTION_MERKLE_TREE_KEY,
+      "confirmed",
+    );
+    if (!merkleTreeAccountInfo)
+      throw new Error("Failed to fetch merkle tree account");
+    const coder = new BorshAccountsCoder(IDL_MERKLE_TREE_PROGRAM);
+    const merkleTreeAccount = coder.decode(
+      "transactionMerkleTree",
+      merkleTreeAccountInfo.data,
+    );
+
+    // limits the number of signatures which are queried
+    // if the number is too low it is not going to index all transactions
+    // hence the dependency on the merkle tree account index times 260 transactions
+    // which is approximately the number of transactions sent to send one shielded transaction and update the merkle tree
+    const limit = 1000 + 260 * merkleTreeAccount.nextIndex.toNumber();
     if (this.indexedTransactions.length === 0) {
       this.indexedTransactions = await indexRecentTransactions({
         connection,
         batchOptions: {
-          limit: 5000,
+          limit,
         },
         dedupe: false,
       });
@@ -83,7 +110,7 @@ export class TestRelayer extends Relayer {
       let newTransactions = await indexRecentTransactions({
         connection,
         batchOptions: {
-          limit: 5000,
+          limit,
           until: mostRecentTransaction.signature,
         },
         dedupe: false,
