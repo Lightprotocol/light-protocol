@@ -215,7 +215,7 @@ pub fn permute_custom_split(
 
     for r in nr_start..nr_end {
         state.iter_mut().enumerate().for_each(|(i, a)| {
-            let c = params.round_keys[((r - nr_start) * PoseidonCircomRounds3::WIDTH + i)];
+            let c = params.round_keys[(r - nr_start) * PoseidonCircomRounds3::WIDTH + i];
             a.add_assign(c);
         });
 

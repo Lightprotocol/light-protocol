@@ -26,42 +26,11 @@ pub mod utils;
 pub mod config_accounts;
 pub use config_accounts::*;
 
-use crate::config_accounts::{
-    init_asset_pda::{RegisterSolPool, RegisterSplPool},
-    merkle_tree_authority::{
-        InitializeMerkleTreeAuthority, UpdateMerkleTreeAuthority, UpdateMerkleTreeAuthorityConfig,
-    },
-    register_verifier::RegisterVerifier,
-};
-
 use crate::errors::ErrorCode;
-
-use crate::transaction_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
 use crate::utils::{
     config::{self, ZERO_BYTES_MERKLE_TREE_18},
     constants::MESSAGE_MERKLE_TREE_HEIGHT,
-};
-
-use crate::verifier_invoked_instructions::{
-    insert_nullifier::{process_insert_nullifiers, InitializeNullifiers},
-    insert_two_leaves_transaction::{process_insert_two_leaves, InsertTwoLeaves},
-    sol_transfer::{process_sol_transfer, WithdrawSol},
-    spl_transfer::{process_spl_transfer, WithdrawSpl},
-};
-
-use crate::{
-    message_merkle_tree::InitializeNewMessageMerkleTree,
-    transaction_merkle_tree::{
-        initialize_new_merkle_tree_18::{
-            process_initialize_new_merkle_tree_18, InitializeNewTransactionMerkleTree,
-        },
-        update_instructions::{
-            initialize_update_state::{process_initialize_update_state, InitializeUpdateState},
-            insert_root::{process_insert_root, InsertRoot},
-            update_merkle_tree::{process_update_merkle_tree, UpdateTransactionMerkleTree},
-        },
-    },
 };
 
 #[program]

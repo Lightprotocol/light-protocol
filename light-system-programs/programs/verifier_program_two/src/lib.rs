@@ -11,7 +11,6 @@ pub mod processor;
 pub mod verifying_key;
 pub use processor::*;
 
-use crate::processor::process_shielded_transfer;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 
