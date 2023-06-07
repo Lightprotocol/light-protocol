@@ -17,11 +17,13 @@ class MergeUtxosCommand extends Command {
     }),
     token: Flags.string({
       name: "token",
+      char: "t",
       description: "Token of the UTXOs to merge",
       required: true,
     }),
     all: Flags.boolean({
       name: "all-inbox",
+      char: "a",
       description: "merges all inbox utxos of a asset",
       default: false,
     }),
@@ -30,6 +32,7 @@ class MergeUtxosCommand extends Command {
   static args = {
     commitments: Args.string({
       name: "commitments",
+      char: "c",
       description: "Commitments of the UTXOs to merge",
       required: false,
       multiple: true,
@@ -50,7 +53,7 @@ class MergeUtxosCommand extends Command {
     const { commitments } = args;
     const { latest, token, all } = flags;
 
-    const loader = new CustomLoader("Performing UTXO merge...");
+    const loader = new CustomLoader("Performing UTXO merge...\n");
 
     loader.start();
 
@@ -59,6 +62,13 @@ class MergeUtxosCommand extends Command {
     const tokenSymbol = token.toUpperCase();
 
     const tokenCtx = TOKEN_REGISTRY.get(tokenSymbol);
+
+    const originalConsoleLog = console.log;      
+      console.log = function(...args) {
+        if (args[0] !== 'shuffle disabled') {
+          originalConsoleLog.apply(console, args);
+        }
+      };
 
     try {
       let response;
@@ -71,8 +81,8 @@ class MergeUtxosCommand extends Command {
           latest
         );
       }
-      this.log("\nUTXOs merged successfully!");
       this.log(generateSolanaTransactionURL("tx", response.txHash, "custom"));
+      this.log("\nUTXOs merged successfully \x1b[32m✔\x1b[0m");
       loader.stop();
     } catch (error) {
       loader.stop();

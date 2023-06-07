@@ -48,7 +48,6 @@ else
     docker run -d \
         --name solana-validator \
         --net=host \
-        --pull=always \
         -v $HOME/.config/solana/id.json:/home/node/.config/solana/id.json \
         -v $(pwd)/../light-system-programs/target/deploy:/home/node/.local/light-protocol/lib/light-protocol \
         -v $(pwd)/../accounts:/home/node/.local/light-protocol/lib/accounts \

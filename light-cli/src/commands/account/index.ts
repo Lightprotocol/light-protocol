@@ -13,8 +13,7 @@ class AccountCommand extends Command {
 
   async run() {
     const user: User = await getUser();
-
-    this.log(`\nshielded public key: ${await user.account.getPublicKey()}`);
+    this.log(`\n\x1b[1mShielded Public Key:\x1b[0m ${await user.account.getPublicKey()}`);
   }
 }
 

@@ -1,7 +1,7 @@
 {
   "relayerUrl": "http://localhost:3331",
   "secretKey": "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8",
-  "relayerRecipient": "14PXMbjiVXeZNegf46qZJM7zs2rwitnW3dc5t8tVsmr5",
+  "relayerRecipient": "GmwGfHu6QiCzekHVkyXLG8J9atZSorAu3urKkiHSXg2F",
   "rpcUrl": "http://127.0.0.1:8899",
-  "lookUpTable": "FbzCWM3EfMU6YhVukNZo86DuL9WLoDrMStztqkgAodKf"
+  "lookUpTable": "7hoJiqHpHSUHcjt2iDF7CMMPw3BA5aavF9QwGTK544E8"
 }

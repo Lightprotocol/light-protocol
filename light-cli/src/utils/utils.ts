@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
 const spinner = require("cli-spinners");
-
+import { ux } from "@oclif/core";
 import {
   confirmConfig,
   MerkleTreeConfig,
@@ -15,7 +15,6 @@ import {
   User,
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Spinner } from "cli-spinners";
 
 require("dotenv").config();
 
@@ -236,8 +235,10 @@ export class CustomLoader {
     this.startTime = Date.now();
     const elapsedTime = ((Date.now() - this.startTime) / 1000).toFixed(2);
     process.stdout.write(
-      `${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${this.message}\n`
+      `\n${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${this.message}\n`
     );
+    // ux.action.start(this.message, 'initializing', {stdout: true});
+    // ux.action.start(this.message);
     this.logInterval = setInterval(() => {}, this.logInterval);
   }
 
@@ -248,11 +249,15 @@ export class CustomLoader {
 
   logElapsedTime() {
     const elapsedTime = ((Date.now() - this.startTime) / 1000).toFixed(2);
+    // process.stdout.write(
+    //   `${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
+    //     this.message
+    //   } (Elapsed time: ${elapsedTime}s)\n`
+    // );
     process.stdout.write(
-      `${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
-        this.message
-      } (Elapsed time: ${elapsedTime}s)\n`
+      `Elapsed time: ${elapsedTime}s\n`
     );
+    // ux.action.stop(this.message + ` (Elapsed time: ${elapsedTime}s)\n`)
   }
 }
 
@@ -270,6 +275,7 @@ export function isValidBase58SecretKey(secretKey: string): boolean {
     /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
   return base58Regex.test(secretKey);
 }
+
 
 // async discoverFromPath(startFrom: string): Promise<string | null> {
 //   let currentPath: string | null = startFrom;

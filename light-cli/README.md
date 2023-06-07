@@ -49,7 +49,7 @@ This will display the list of available commands and their respective usage info
 - `config`: Update the configuration values
 - `history`: Retrieve transaction history for the user
 - `merge-utxos`: Merge multiple UTXOs into a single UTXO
-- `setup`: Perform setup tasks
+- `test-validator`: Perform setup tasks
 - `shield`: Shield tokens for a user
 - `transfer`: Transfer tokens to a recipient
 - `unshield`: Unshield tokens for a user

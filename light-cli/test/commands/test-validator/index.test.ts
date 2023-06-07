@@ -1,10 +1,10 @@
 import {expect, test} from '@oclif/test'
 
-describe('setup', () => {
+describe('test-validator', () => {
   test
   .stdout()
-  .command(['setup'])
-  .it('runs setup cmd', ctx => {
+  .command(['test-validator'])
+  .it('runs test-validator cmd', ctx => {
     expect(ctx.stdout).to.contain('Setup completed successfully.')
   })
 })
