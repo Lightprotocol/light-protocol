@@ -12,7 +12,6 @@ pub mod verifying_key;
 
 pub use processor::*;
 
-use crate::processor::TransactionConfig;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
