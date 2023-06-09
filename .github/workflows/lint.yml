@@ -15,9 +15,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
-        with:
-          submodules: true
-          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Install stable Rust toolchain
         uses: actions-rs/toolchain@v1

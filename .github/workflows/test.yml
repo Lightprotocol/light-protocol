@@ -34,6 +34,11 @@ jobs:
           submodules: true
 
       - name: Log in to the container registry
+        # NOTE(vadorovsky): We don't want to push the cache image if the PR is
+        # from the needed PAT_TOKEN. That's not ideal (because external
+        # contributions are not going to be cached immediately), but for now
+        # that's the best we can do.
+        if: github.event.pull_request.head.repo.fork == false
         uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY }}
@@ -41,6 +46,8 @@ jobs:
           password: ${{ secrets.PAT_TOKEN }}
 
       - name: Pre-build dev container image
+        # Same here.
+        if: github.event.pull_request.head.repo.fork == false
         uses: devcontainers/ci@v0.3
         with:
           imageName: ghcr.io/lightprotocol/devcontainer-cache
