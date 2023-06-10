@@ -232,39 +232,41 @@ async function processIndexedTransaction(
  * @param {(ParsedTransactionWithMeta | null)[]} indexerEventsTransactions - An array of indexer event transactions to process
  * @returns {Promise<void>}
  */
+// xonoxitron@matteo: flatMaps run faster than forEach
 const processIndexerEventsTransactions = async (
   indexerEventsTransactions: (ParsedTransactionWithMeta | null)[],
 ) => {
-  const indexerTransactionEvents: IndexedTransactionData[] = [];
+  const indexerTransactionEvents: IndexedTransactionData[] =
+    indexerEventsTransactions
+      .filter(
+        (tx) =>
+          tx &&
+          tx.meta &&
+          !tx.meta.err &&
+          tx.meta.innerInstructions &&
+          tx.meta.innerInstructions.length > 0,
+      )
+      .flatMap((tx) =>
+        (tx?.meta?.innerInstructions || []).flatMap((ix) => {
+          if (!ix.instructions) return [];
 
-  indexerEventsTransactions.forEach((tx) => {
-    if (
-      !tx ||
-      !tx.meta ||
-      tx.meta.err ||
-      !tx.meta.innerInstructions ||
-      tx.meta.innerInstructions.length <= 0
-    ) {
-      return;
-    }
+          return ix.instructions.flatMap((ixInner: any) => {
+            if (!ixInner.data) return [];
 
-    tx.meta.innerInstructions.forEach((ix) => {
-      ix.instructions.forEach((ixInner: any) => {
-        if (!ixInner.data) return;
+            const data = bs58.decode(ixInner.data);
+            const decodeData = TransactionIndexerEvent.deserialize(data);
 
-        const data = bs58.decode(ixInner.data);
-
-        const decodeData = TransactionIndexerEvent.deserialize(data); // xonoxitrong@matteo: since it is now static, makes no more sense to instantiate
-
-        if (decodeData) {
-          indexerTransactionEvents.push({
-            ...decodeData,
-            tx,
+            if (decodeData) {
+              return {
+                ...decodeData,
+                tx,
+              };
+            } else {
+              return [];
+            }
           });
-        }
-      });
-    });
-  });
+        }),
+      );
 
   return indexerTransactionEvents;
 };
