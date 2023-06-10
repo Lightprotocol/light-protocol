@@ -34,6 +34,8 @@ export class TestRelayer extends Relayer {
 
   async updateMerkleTree(provider: Provider): Promise<any> {
     if (!provider.provider) throw new Error("Provider.provider is undefined.");
+    if (!provider.url) throw new Error("Provider.provider is undefined.");
+
     await airdropSol({
       provider: provider.provider,
       amount: 1_000_000_000,
@@ -42,7 +44,7 @@ export class TestRelayer extends Relayer {
     try {
       const response = await updateMerkleTreeForTest(
         this.relayerKeypair,
-        provider.provider,
+        provider.url,
       );
       return response;
     } catch (e) {

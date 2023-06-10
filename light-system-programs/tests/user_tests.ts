@@ -36,7 +36,7 @@ import {
 import { BN } from "@coral-xyz/anchor";
 
 var POSEIDON;
-var RELAYER: TestRelayer, provider: Provider;
+var RELAYER: TestRelayer, provider: Provider, user: User;
 
 // TODO: remove deprecated function calls
 describe("Test User", () => {
@@ -67,6 +67,17 @@ describe("Test User", () => {
       relayerRecipientSol,
       new BN(100000),
     );
+    provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    });
+    await airdropSol({
+      provider: anchorProvider,
+      amount: 2_000_000_000,
+      recipientPublicKey: userKeypair.publicKey,
+    });
+
+    user = await User.init({ provider });
   });
 
   it.skip("(user class) shield SPL random infinite", async () => {
@@ -138,20 +149,6 @@ describe("Test User", () => {
       expectedSpentUtxosLength,
     };
 
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    });
-
-    let res = await provider.provider.connection.requestAirdrop(
-      userKeypair.publicKey,
-      2_000_000_000,
-    );
-
-    await provider.provider.connection.confirmTransaction(res, "confirmed");
-
-    const user: User = await User.init({ provider });
-
     const testStateValidator = new TestStateValidator({
       userSender: user,
       userRecipient: user,
@@ -180,20 +177,6 @@ describe("Test User", () => {
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,
     };
-
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    }); // userKeypair
-
-    let res = await provider.provider.connection.requestAirdrop(
-      userKeypair.publicKey,
-      4_000_000_000,
-    );
-
-    await provider.provider.connection.confirmTransaction(res, "confirmed");
-
-    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -227,19 +210,6 @@ describe("Test User", () => {
       recipientSpl: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
-
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    }); // userKeypair
-
-    let res = await provider.provider.connection.requestAirdrop(
-      userKeypair.publicKey,
-      2_000_000_000,
-    );
-
-    await provider.provider.connection.confirmTransaction(res, "confirmed");
-
     // TODO: add test case for if recipient doesnt have account yet -> relayer must create it
     await newAccountWithTokens({
       connection: provider.provider.connection,
@@ -248,8 +218,6 @@ describe("Test User", () => {
       userAccount: solRecipient,
       amount: new anchor.BN(0),
     });
-
-    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -282,17 +250,11 @@ describe("Test User", () => {
       expectedRecipientUtxoLength: 1,
     };
 
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    });
-
     const recipientAccount = new Account({
       poseidon: POSEIDON,
       seed: testInputs.recipientSeed,
     });
 
-    const user: User = await User.init({ provider });
     const userRecipient: User = await User.init({
       provider,
       seed: testInputs.recipientSeed,
@@ -328,12 +290,6 @@ describe("Test User", () => {
       storage: true,
       message: Buffer.alloc(512).fill(1),
     };
-    provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    });
-
-    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -361,19 +317,9 @@ describe("Test User", () => {
       message: Buffer.alloc(672).fill(2),
     };
 
-    provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    });
     const seed = bs58.encode(new Uint8Array(32).fill(4));
     await airdropShieldedSol({ provider, amount: 1, seed });
 
-    let res = await provider.provider.connection.requestAirdrop(
-      userKeypair.publicKey,
-      4_000_000_000,
-    );
-
-    await provider.provider.connection.confirmTransaction(res, "confirmed");
     await provider.latestMerkleTree();
     const user: User = await User.init({ provider, seed });
 
