@@ -3,32 +3,39 @@ import {
   executeUpdateMerkleTreeTransactions,
   SolMerkleTree,
 } from "../merkleTree/index";
-import { merkleTreeProgramId, TRANSACTION_MERKLE_TREE_KEY } from "../constants";
+import {
+  confirmConfig,
+  merkleTreeProgramId,
+  TRANSACTION_MERKLE_TREE_KEY,
+} from "../constants";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 const circomlibjs = require("circomlibjs");
 import { ADMIN_AUTH_KEYPAIR } from "./constants_system_verifier";
 import { Provider, Wallet } from "../wallet";
 import { Connection, Keypair } from "@solana/web3.js";
 
-export async function updateMerkleTreeForTest(
-  payer: Keypair,
-  provider: anchor.Provider,
-) {
+export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
+  const connection = new Connection(url, confirmConfig);
+  const anchorProvider = new anchor.AnchorProvider(
+    connection,
+    new anchor.Wallet(Keypair.generate()),
+    confirmConfig,
+  );
   try {
     const merkleTreeProgram = new anchor.Program(
       IDL_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
-      provider && provider,
+      anchorProvider && anchorProvider,
     );
 
     // fetch uninserted utxos from chain
     let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
       TRANSACTION_MERKLE_TREE_KEY,
-      provider && provider,
+      anchorProvider && anchorProvider,
     );
 
     await executeUpdateMerkleTreeTransactions({
-      connection: provider.connection,
+      connection,
       signer: payer,
       merkleTreeProgram,
       leavesPdas,
