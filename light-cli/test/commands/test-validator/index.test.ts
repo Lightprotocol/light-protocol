@@ -5,6 +5,6 @@ describe('test-validator', () => {
   .stdout()
   .command(['test-validator'])
   .it('runs test-validator cmd', ctx => {
-    expect(ctx.stdout).to.contain('Setup completed successfully.')
+    expect(ctx.stdout).to.contain("Setup tasks completed successfully ✔")
   })
 })

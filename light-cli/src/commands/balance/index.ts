@@ -25,11 +25,6 @@ class BalanceCommand extends Command {
       description: "Retrieve the UTXOs",
       default: false,
     }),
-    "inbox-utxos": Flags.boolean({
-      char: "x",
-      description: "Retrieve the inbox UTXOs",
-      default: false,
-    }),
     latest: Flags.boolean({
       char: "l",
       description: "Retrieve the latest balance, inbox balance, or UTXOs",
@@ -41,16 +36,17 @@ class BalanceCommand extends Command {
       dependsOn: ['token'],
       default: false,
     }),
-    table: Flags.boolean({
-      char: "T",
-      description: "Print balance in table format",
-      default: false,
-    }),
     token: Flags.string({
       char: "t",
       description: "The SPL token symbol",
       default: "SOL",
+      parse: async (token) => token.toUpperCase(), 
       required: false
+    }),
+    "inbox-utxos": Flags.boolean({
+      char: "x",
+      description: "Retrieve the inbox UTXOs",
+      default: false,
     }),
   };
 
@@ -68,37 +64,42 @@ class BalanceCommand extends Command {
 
   async run() {
     const { flags } = await this.parse(BalanceCommand);
-    const { inbox, utxos, latest, verbose, table } = flags;
-    const token = flags.token ?? "none";
+    const { inbox, utxos, latest, verbose, token } = flags;
     const inboxUtxos = flags["inbox-utxos"];
 
     const loader = new CustomLoader("Retrieving balance...");
     loader.start();
 
     const user: User = await getUser();
-    //const tokenCtx = TOKEN_REGISTRY.get(token.toUpperCase());
+    const tokenCtx = TOKEN_REGISTRY.get(token);
 
     const balances = await user.getBalance(latest);
     
+    const PURPLE = "\x1b[35m%s\x1b[0m";
+
     if(token === "SOL") {
-      this.log("\n--- Balance ---");
-      this.logMainBalances(balances, table);
+      
+      this.log(PURPLE, "\n--- Shielded Balance ---\n");
+      this.logMainBalances(balances);
       this.log('\n');
     }
     else {
-      this.logTokenBalance(balances, token.toString());
+      const inboxBalances = await user.getUtxoInbox(latest);
+      this.log('\n');
+      this.logTokenBalance(balances, inboxBalances, token);
     } 
 
     try {
-      if (inbox) {
+      if (inbox && token === "SOL") {
         const inboxBalances = await user.getUtxoInbox(latest);
-        this.log("--- Inbox Balance ---");
+        this.log(PURPLE, "--- Inbox Balance ---\n");
         this.logMainBalances(inboxBalances);
         this.log("\n");      
       }
       if (utxos) {
         const utxos = await user.getAllUtxos();
-        this.logUTXOs(utxos);
+        //this.logUTXOs(utxos);
+        this.logTokenUtxos(balances, tokenCtx!.mint)
       }
       if (inboxUtxos) {
         const result = await user.getUtxoInbox();
@@ -119,46 +120,96 @@ class BalanceCommand extends Command {
     }
   }
 
-  private logMainBalances(balances: Balance | InboxBalance, table?: boolean) {
+  private logMainBalances(balances: Balance | InboxBalance) {
     let tableData = [];
     for (const tokenBalance of balances.tokenBalances) {
       //this.log('token balance: ', tokenBalance);
       let _token = tokenBalance[1].tokenData.symbol;
       let decimals = tokenBalance[1].tokenData.decimals;
       let balance: BN = _token === "SOL" 
-        ? tokenBalance[1].totalBalanceSol.div(decimals)
-        : tokenBalance[1].totalBalanceSpl.div(decimals);
+        ? tokenBalance[1].totalBalanceSol / decimals
+        : tokenBalance[1].totalBalanceSpl / decimals;
       let utxoNumber = tokenBalance[1].utxos.size;
       tableData.push({
         token: _token,
-        balance: balance.toNumber(),
+        balance: balance,
         utxos: utxoNumber
       })
-      this.log(`${_token} Balance: ${balance} => ${utxoNumber} utxos`);
-    }
-    if (table) {
-      this.log("\n")
-      ux.table(tableData, {
+    } 
+    ux.table(tableData, {
       token: {},
       balance: {},
       utxos: {},
-      })
-    } 
+    })
   }
 
-  private logTokenBalance(balances: Balance | InboxBalance, token: string) {
+  private fetchTokenBalance(balances: Balance | InboxBalance, token: string, inbox=false) {
     for (const tokenBalance of balances.tokenBalances) {
       let _token = tokenBalance[1].tokenData.symbol;
       if (token === _token) {
         let decimals = tokenBalance[1].tokenData.decimals;
         let balance = token === "SOL" 
-          ? tokenBalance[1].totalBalanceSol.div(decimals)
-          : tokenBalance[1].totalBalanceSpl.div(decimals);
+          ? tokenBalance[1].totalBalanceSol / decimals
+          : tokenBalance[1].totalBalanceSpl / decimals;
         let utxoNumber = tokenBalance[1].utxos.size;
-        this.log(`\n${_token} Balance: ${balance} => ${utxoNumber} utxos\n`);
-        break
+        let type = inbox ? 'inbox' : 'normal';
+        return {
+          token: _token,
+          amount: balance,
+          balance: type,
+          utxos: utxoNumber
+        }
       }
     }
+  }
+
+  private logTokenUtxos(balance: Balance, token: PublicKey, verbose=false) {
+    const tokenBalance = balance.tokenBalances.get(token.toString());
+    
+    if (tokenBalance && tokenBalance?.tokenData.symbol !== "SOL") {
+      let i=0;
+      let decimals = tokenBalance.tokenData.decimals;
+      let tables = [];
+      for (const iterator of tokenBalance?.utxos.values()!) {
+        i++;
+        let amountSpl = iterator.amounts[1] / decimals;
+        let amountSol = this.convertToSol(iterator.amounts[0]);
+        let symbol = tokenBalance.tokenData.symbol;
+        let mint = tokenBalance.tokenData.mint.toString();
+        let commitmentHash = iterator._commitment;
+        let tableData = [
+          {key: 'No', value: i},
+          {key: 'Token', value: symbol},
+          {key: 'Amount SOL', value: amountSol},
+          {key: 'Amount SPL', value: amountSpl},
+          {key: 'Mint', value: mint},
+          {key: 'Commitment Hash', value: commitmentHash}
+        ];
+        tables.push(tableData)
+        /* if (verbose) {
+          const utxo = await iterator.toString();
+          this.log("\tStringified UTXO: ", utxo);
+        } */
+      }
+      ux.table(tables[0], {
+        utxo: {},
+        value: {},
+      })
+    }
+  }
+
+  private logTokenBalance(balances: Balance, inboxBalances: InboxBalance, token: string) {
+    
+    let balanceObj = this.fetchTokenBalance(balances, token) ?? {};
+    let inboxBalanceObj = this.fetchTokenBalance(inboxBalances, token, true) ?? {};
+    let tableData = [balanceObj, inboxBalanceObj];
+    ux.table(tableData, {
+      token: {},
+      amount: {},
+      balance: {},
+      utxos: {},
+    })
+    this.log('\n');
   }
 
   private async logBalance(
@@ -201,6 +252,7 @@ class BalanceCommand extends Command {
   private logUTXOs(utxos: Utxo[]) {
     this.log("\n--- UTXOs ---");
     for (const utxo of utxos) {
+      //this.log(`${JSON.stringify(utxo)}`)
       this.log("UTXO:");
       this.log(`Amount: ${utxo.amounts}`);
       this.log(`Asset: ${utxo.assets}`);
@@ -211,8 +263,8 @@ class BalanceCommand extends Command {
   }
   // apply to all flags
   private convertToSol(amount: BN): number {
-    const SOL_DECIMALS = new BN(1_000_000_000);
-    return amount.div(SOL_DECIMALS).toNumber()
+    const SOL_DECIMALS = 1_000_000_000;
+    return amount / SOL_DECIMALS
   }
 }
 

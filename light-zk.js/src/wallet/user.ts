@@ -717,7 +717,7 @@ export class User {
     if (!tokenCtx)
       throw new UserError(
         UserErrorCode.TOKEN_NOT_FOUND,
-        "shield",
+        "unshield",
         "Token not supported!",
       );
 

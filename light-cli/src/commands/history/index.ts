@@ -1,7 +1,7 @@
-import { Command, Flags, ux } from "@oclif/core";
+import { Command, Flags } from "@oclif/core";
+import { BN } from "@coral-xyz/anchor";
 import { IndexedTransaction } from "@lightprotocol/zk.js";
 import { CustomLoader, getUser } from "../../utils/utils";
-import { BN } from "@coral-xyz/anchor";
 
 type TransactionHistory = {
   Timestamp: string,
@@ -9,23 +9,23 @@ type TransactionHistory = {
   Signature: string,
   From: string,
   To: string,
-  RelayerRecipientSol: string,
+  RelayerRecipientSOL: string,
   Type: string,
-  ChangeSolAmount: number,
-  PublicAmountSol: number,
+  PublicAmountSOL: number,
   PublicAmountSPL: number,
-  RelayerFee: number
+  RelayerFeeSOL: number
 }
 class TransactionHistoryCommand extends Command {
   static description = "Retrieve transaction history for the user";
 
-  static flags = {
-    latest: Flags.boolean({
-      char: "l",
-      description: "Retrieve the latest transaction history",
+/*   static flags = {
+    'skip-fetch': Flags.boolean({
+      char: "s",
+      description: "Retrieve the latest transaction history: skip fetching from the indexer",
       default: true,
+      parse: async () => false, 
     }),
-  };
+  }; */
 
   protected finally(_: Error | undefined): Promise<any> {
     process.exit();
@@ -33,14 +33,12 @@ class TransactionHistoryCommand extends Command {
 
   static examples: Command.Example[] = [
     "$ light history",
-    "$ light history --latest=false",
+    "$ light history --skip-fetch",
   ];
-
 
   async run() {
     const { flags } = await this.parse(TransactionHistoryCommand);
-
-    const { latest } = flags;
+    const latest = flags["skip-fetch"];
 
     const loader = new CustomLoader("Retrieving user transaction history...");
     loader.start();
@@ -49,65 +47,41 @@ class TransactionHistoryCommand extends Command {
 
     try {
       const transactions: IndexedTransaction[] =
-        await user.getTransactionHistory(latest);
-
-      // Log the transaction history
-      /* transactions.forEach((transaction) => {
-        this.log('\x1b[35m%s\x1b[0m', "\n--- Transaction ---");
-        const date = new Date(transaction.blockTime);
-        this.log('\x1b[34m%s\x1b[0m', "Block Time:", date.toString());
-        this.log('\x1b[34m%s\x1b[0m', "Signer:", transaction.signer.toString());
-        this.log('\x1b[34m%s\x1b[0m', "Signature:", transaction.signature);
-        this.log('\x1b[34m%s\x1b[0m', "From:", transaction.from.toString());
-        this.log('\x1b[34m%s\x1b[0m', "To:", transaction.to.toString());
-        this.log('\x1b[34m%s\x1b[0m', 
-          "Relayer Recipient Sol:",
-          transaction.relayerRecipientSol.toString()
-        );
-        this.log('\x1b[34m%s\x1b[0m', "Type:", transaction.type);
-        this.log('\x1b[34m%s\x1b[0m', "Change Sol Amount:", transaction.changeSolAmount.toString());
-        this.log('\x1b[34m%s\x1b[0m', "Public Amount SOl:", transaction.publicAmountSol.toString());
-        this.log('\x1b[34m%s\x1b[0m', "Public Amount SPL:", transaction.publicAmountSpl.toString());
-        this.log('\x1b[34m%s\x1b[0m', "Relayer Fee:", transaction.relayerFee.toString());
-        //this.log('\x1b[34m%s\x1b[0m', "Message:", transaction.message.toString('utf-8'));
-        this.log("------------------");
-      }); */
+        await user.getTransactionHistory();
 
       transactions.reverse().forEach((transaction) => {
         let date = new Date(transaction.blockTime);
         let transactionHistory: TransactionHistory = {
           Timestamp: date.toString(),
-          Signer: transaction.signer.toString(),
-          Signature: transaction.signature,
+          Type: transaction.type,
+          PublicAmountSOL: this.convertToSol(transaction.publicAmountSol),
+          PublicAmountSPL: transaction.publicAmountSpl / 100,
           From: transaction.from.toString(),
           To: transaction.to.toString(),
-          RelayerRecipientSol: transaction.relayerRecipientSol.toString(),
-          Type: transaction.type,
-          ChangeSolAmount: this.convertToSol(transaction.changeSolAmount),
-          PublicAmountSol: this.convertToSol(transaction.publicAmountSol),
-          PublicAmountSPL: transaction.publicAmountSpl.toNumber() / 100,
-          RelayerFee: this.convertToSol(transaction.relayerFee)
-        };
+          RelayerRecipientSOL: transaction.relayerRecipientSol.toString(),
+          RelayerFeeSOL: this.convertToSol(transaction.relayerFee),
+          Signer: transaction.signer.toString(),
+          Signature: transaction.signature,
 
+        };
         switch (transaction.type) {
           case "SHIELD":
-            this.logTransaction(transactionHistory, ["RelayerFee", "To"]);
+            this.logTransaction(transactionHistory, ["RelayerFee", "To", "RelayerRecipientSOL"]);
             break;
           case "UNSHIELD":
             this.logTransaction(transactionHistory, ["From", "To", "RelayerFee"]);
             break;
           case "TRANSFER":
-            this.logTransaction(transactionHistory, ["PublicAmountSol", "PublicAmountSPL", "ChangeSolAmount"]);
+            this.logTransaction(transactionHistory, ["PublicAmountSOL", "PublicAmountSPL", "ChangeSolAmount", "From", "To"]);
             break;
           default:
             this.logTransaction(transactionHistory); // If none of the cases match, it logs all keys and values
             break;
         }
-        
-      })
- 
+      });
       loader.stop();
     } catch (error) {
+      this.warn(error as Error);
       loader.stop();
       this.error(`\nError retrieving transaction history: ${error}`);
     }
@@ -123,29 +97,12 @@ class TransactionHistoryCommand extends Command {
         this.log(`\x1b[34m${capitalizedKey}\x1b[0m: ${transaction[key as keyof TransactionHistory]}`);
       }
     });
-    // console.log("------------------");
   }
   
   private convertToSol(amount: BN): number {
     const SOL_DECIMALS = new BN(1_000_000_000);
-    return amount.div(SOL_DECIMALS).toNumber()
+    return amount / SOL_DECIMALS
   }
-  /* // Usage:
-  let transaction: TransactionHistory = {
-      BlockTime: "Sat Jun 03 2023 14:30:47 GMT+0100 (Western European Summer Time)",
-      Signer: "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
-      Signature: "2iobSrDujicrAUSg4WVZiYZa4B9FeJSuhiAfzRpeCV1H7fJ2fTxmEghgCALKxbVqKdhnDyGGKu18LwimY7ee66mj",
-      From: "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
-      To: "Eti4Rjkx7ow88XkaFbxRStmwadTp8p9J2nSv7NhtuqDU",
-      RelayerRecipientSol: "11111111111111111111111111111111",
-      Type: "SHIELD",
-      ChangeSolAmount: 340000000,
-      PublicAmountSol: 340000000,
-      PublicAmountSPL: 0,
-      RelayerFee: 0
-  };
-  
-  logTransaction(transaction, "From", "To"); */
 }
 
 export default TransactionHistoryCommand;

@@ -14,16 +14,17 @@ import {
 } from "../../utils/utils";
 class AirdropCommand extends Command {
   static description = "Perform a native Solana or SPL airdrop to a user";
-
-  protected finally(_: Error | undefined): Promise<any> {
-    process.exit();
-  }
+  static examples = [
+    `$ light airdrop 1.5 <RECIPIENT_ADDRESS>`,
+    `$ light airdrop --token USDC 15 <RECIPIENT_ADDRESS> -v`,
+  ];
 
   static flags = {
     token: Flags.string({
       char: "t",
       description: "The SPL token symbol",
       default: "SOL",
+      parse: async (token) => token.toUpperCase(), 
       required: false,
     }),
     verbose: Flags.boolean({
@@ -33,11 +34,6 @@ class AirdropCommand extends Command {
       required: false,
     }),
   };
-
-  static examples = [
-    `$ light airdrop 1.5 <RECIPIENT_ADDRESS>`,
-    `$ light airdrop --token USDC 15 <RECIPIENT_ADDRESS> -v`,
-  ];
 
   static args = {
     amount: Args.string({
@@ -83,12 +79,13 @@ class AirdropCommand extends Command {
           MINT,
           new PublicKey(recipient_address)
         );
+        this.log(`Associated recipient token account: ${tokenAccount.address.toBase58()}`);
         transactionSignature = await mintTo(
           provider.connection,
           ADMIN_AUTH_KEYPAIR,
           MINT,
           tokenAccount.address,
-          new PublicKey(recipient_address),
+          ADMIN_AUTH_KEYPAIR.publicKey,
           parseInt(amount) * 100,
           []
         );
@@ -136,9 +133,11 @@ class AirdropCommand extends Command {
       
       loader.stop();
     } catch (error) {
+      this.logToStderr(`${error}\n`)
+      this.exit(2);
       loader.stop();
-      this.warn(error as Error);
-      this.error(`\nAirdrop failed: ${error}`);
+      //this.error(`${error}`);
+      //this.error(`\nAirdrop failed: ${error}`);
     }
   }
 }

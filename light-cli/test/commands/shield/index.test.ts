@@ -1,46 +1,29 @@
 import { expect, test } from "@oclif/test";
 import { Keypair } from "@solana/web3.js";
 
-/* describe("Airdrop", () => {
-  test
+describe("shield", async() => {
+   
+    test
     .stdout()
-    .command([
-      "airdrop",
-      "1.0",
-      "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
-    ])
-    .it(
-      "airdrop 1 sol to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
-      (ctx) => {
-        console.log(ctx.stdout);
-        expect(ctx.stdout).to.contain("Airdrop successful for user");
-      }
-    );
+    .command(['shield', '--amount-sol=1.1'])
+    .it("shielding 1.1 SOL with the main cli", async (ctx) => {
+      expect(ctx.stdout).to.contain('Successfully shielded 1.1 SOL ✔');
+    });
 
+    test
+    .stdout()
+    .command(['shield', '--amount-spl=5', '--token=USDC'])
+    .it("shielding 5 SPL:USDC with the main cli", async (ctx) => {
+      expect(ctx.stdout).to.contain('Successfully shielded 5 USDC ✔');
+    });
+})
+
+describe("shield sol and spl", async() => {
   test
     .stdout()
-    .command([
-      "airdrop",
-      "--token USDC",
-      `10`,
-      "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
-    ])
-    .it(
-      "airdrop 10 usdc to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
-      (ctx) => {
-        console.log(ctx.stdout);
-        expect(ctx.stdout).to.contain("Airdrop successful for user");
-      }
-    );
-});
- */
-describe("shield", () => {
-  test
-    .stdout()
-    .command(["shield", "--token=SOL", `--amount-sol=1.1`])
-    .it("Should shield 11.1 SOL", (ctx) => {
-      console.log(ctx.stdout);
-      expect(ctx.stdout).to.contain("Successfully shielded");
+    .command(['shield', '--amount-sol=1.5', '--amount-spl=3', '--token=USDC'])
+    .it("shielding 1.5 SOL & 4 SPL:USDC at the same time with the main cli", async (ctx) => {
+      expect(ctx.stdout).to.contain('Successfully shielded 1.5 SOL & 3 USDC ✔');
     });
 
   /* test

@@ -22,17 +22,15 @@ class SetupCommand extends Command {
   }
 
   async run() {
-    const loader = new CustomLoader("Performing setup tasks...");
-
+    const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
 
     try {
       exec("sh runScript.sh", (error, stdout, stderr) => {
         if (error) {
-          console.error("\nFailed to execute runScript.sh:", error);
-          return;
+          this.error(`Failed to execute runScript.sh: ${error}`)
         }
-        console.log("\nSetup script executed successfully \x1b[32m✔\x1b[0m");
+        this.log("\nSetup script executed successfully \x1b[32m✔\x1b[0m");
       });
 
       await sleep(9000);
@@ -60,7 +58,6 @@ class SetupCommand extends Command {
       loader.stop();
     } catch (error) {
       loader.stop();
-      console.log(error);
       this.error(`\nSetup tasks failed: ${error}`);
     }
   }
