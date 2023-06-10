@@ -11,7 +11,7 @@ class TransferCommand extends Command {
   static summary = "Transfer shielded funds between light users";
 
   static examples = [
-    "$ light transfer 10 <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light transfer 1.8 <SHIELDED_RECIPIENT_ADDRESS>",
     "$ light transfer 10 <SHIELDED_RECIPIENT_ADDRESS> -t USDC"
   ];
 

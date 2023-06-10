@@ -69,8 +69,9 @@
     "test": "mocha --forbid-only \"test/**/*.test.ts\"",
     "test-account": "mocha --reporter spec ./test/commands/account/index.test.ts",
     "test-user": "mocha ./test/commands/shield/index.test.ts",
-    "test-airdrop": "mocha --bail --forbid-only ./test/commands/airdrop/index.test.ts",
-    "test-test-validator": "mocha --forbid-only ./test/commands/test-validator/index.test.ts",
+    "test-airdrop": "mocha --bail --forbid-only ./test/commands/airdrop/index.test.ts --exit",
+    "test-testValidator": "mocha --forbid-only ./test/commands/test-validator/index.test.ts",
+    "test-shield": "mocha ./test/commands/shield/index.test.ts --exit",
     "version": "oclif readme && git add README.md"
   },
   "engines": {

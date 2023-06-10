@@ -8,14 +8,10 @@ import {
 class ShieldCommand extends Command {
   static summary = "Shield tokens for a user";
   static examples = [
-    "$ light shield 1.3 --recipient <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light shield --amount-sol 1.3 --recipient <SHIELDED_RECIPIENT_ADDRESS>",
     "$ light shield --amount-spl 15 -t USDC",
     "$ light shield --amount-sol 1 --amount-spl 22 -t USDC"
   ];
-
-  protected finally(_: Error | undefined): Promise<any> {
-    process.exit();
-  }
 
   static flags = {
     'token': Flags.string({

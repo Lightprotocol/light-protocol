@@ -7,7 +7,7 @@ import {
 import { TOKEN_REGISTRY, User } from "@lightprotocol/zk.js";
 
 class MergeUtxosCommand extends Command {
-  static description = "Merge multiple UTXOs into a single UTXO";
+  static description = "Merge multiple inbox UTXOs into a single UTXO";
 
   static flags = {
     latest: Flags.boolean({
@@ -19,6 +19,7 @@ class MergeUtxosCommand extends Command {
       name: "token",
       char: "t",
       description: "Token of the UTXOs to merge",
+      parse: async (token) => token.toUpperCase(), 
       required: true,
     }),
     all: Flags.boolean({

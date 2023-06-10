@@ -7,7 +7,6 @@ import {
   getUser,
 } from "../../utils/utils";
 
-
 class UnshieldCommand extends Command {
   static description = "Unshield SPL tokens for a user";
   static usage = "unshield:spl <AMOUNT> <TOKEN> <RECIPIENT_ADDRESS> [FLAGS]";
@@ -63,7 +62,7 @@ class UnshieldCommand extends Command {
         if (args[0] !== 'shuffle disabled') {
           originalConsoleLog.apply(console, args);
         }
-       };
+      };
 
       const user: User = await getUser();
       const response = await user.unshield({

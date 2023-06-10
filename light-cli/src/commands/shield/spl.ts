@@ -10,8 +10,8 @@ class ShieldCommand extends Command {
   static summary = "Shield SPL tokens for a user";
 
   static examples = [
-    "$ light shield 10 USDC",
-    "$ light shield 13 USDT --recipient <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light shield:spl 10 USDC",
+    "$ light shield:spl 13 USDT --recipient <SHIELDED_RECIPIENT_ADDRESS>",
   ];
 
   protected finally(_: Error | undefined): Promise<any> {
@@ -44,6 +44,7 @@ class ShieldCommand extends Command {
     token: Args.string({
       name: "TOKEN",
       description: "The SPL token symbol",
+      parse: async (token) => token.toUpperCase(), 
       required: true,
     }),
   };
