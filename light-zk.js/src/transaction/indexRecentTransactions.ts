@@ -114,7 +114,6 @@ async function processIndexedTransaction(
   event: IndexedTransactionData,
   transactions: IndexedTransaction[],
 ) {
-  // check if transaction contains the meta data or not , else return without processing transaction
   const {
     tx,
     publicAmountSol,
@@ -129,26 +128,23 @@ async function processIndexedTransaction(
   if (!tx || !tx.meta || tx.meta.err) return;
 
   const signature = tx.transaction.signatures[0];
-
   const solTokenPool = REGISTERED_POOL_PDA_SOL;
+  const accountKeys = tx.transaction.message.accountKeys;
 
-  let accountKeys = tx.transaction.message.accountKeys;
+  const bn0 = new BN(0);
+  const nullifiers = event.nullifiers;
 
   let type: Action = Action.SHIELD;
-  let relayerRecipientSol = PublicKey.default;
-  let from = PublicKey.default;
-  let to = PublicKey.default;
-  let verifier = accountKeys[2];
+  let relayerRecipientSol: PublicKey = PublicKey.default;
+  let from: PublicKey = PublicKey.default;
+  let to: PublicKey = PublicKey.default;
+  let verifier: PublicKey = PublicKey.default;
 
-  // gets the index of REGISTERED_POOL_PDA_SOL in the accountKeys array
-  let solTokenPoolIndex = accountKeys.findIndex(
-    (item: ParsedMessageAccount) => {
-      const itemStr =
-        typeof item === "string" || item instanceof String
-          ? item
-          : item.pubkey.toBase58();
-      return itemStr === solTokenPool.toBase58();
-    },
+  const solTokenPoolIndex = accountKeys.findIndex(
+    (item: ParsedMessageAccount | string) =>
+      typeof item === "string"
+        ? item === solTokenPool.toBase58()
+        : item.pubkey.toBase58() === solTokenPool.toBase58(),
   );
 
   let changeSolAmount = new BN(
@@ -158,28 +154,21 @@ async function processIndexedTransaction(
 
   let amountSpl = new BN(publicAmountSpl);
   let amountSol = new BN(publicAmountSol);
-  const bn0 = new BN(0);
-
-  const nullifiers = event.nullifiers;
 
   if (changeSolAmount.lt(bn0)) {
     amountSpl = amountSpl.sub(FIELD_SIZE).mod(FIELD_SIZE).abs();
-
     amountSol = amountSol.sub(FIELD_SIZE).mod(FIELD_SIZE).abs().sub(relayerFee);
-
-    changeSolAmount = new BN(changeSolAmount).abs().sub(relayerFee);
+    changeSolAmount = changeSolAmount.abs().sub(relayerFee);
 
     type =
       amountSpl.eq(bn0) && amountSol.eq(bn0)
-        ? // TRANSFER
-          Action.TRANSFER
-        : // UNSHIELD
-          Action.UNSHIELD;
+        ? Action.TRANSFER
+        : Action.UNSHIELD;
 
     tx.meta.postBalances.forEach((el: any, index: number) => {
       if (
-        new BN(tx.meta!.postBalances[index])
-          .sub(new BN(tx.meta!.preBalances[index]))
+        new BN(tx.meta.postBalances[index])
+          .sub(new BN(tx.meta.preBalances[index]))
           .eq(relayerFee)
       ) {
         relayerRecipientSol = accountKeys[index].pubkey;
@@ -189,25 +178,24 @@ async function processIndexedTransaction(
     if (type === Action.UNSHIELD) {
       to = accountKeys[1].pubkey;
 
-      from = amountSpl.gt(bn0)
-        ? // SPL
-          accountKeys[10].pubkey
-        : // SOL
-          accountKeys[9].pubkey;
+      from = amountSpl.gt(bn0) ? accountKeys[10].pubkey : accountKeys[9].pubkey;
     }
   } else if (changeSolAmount.gt(bn0) || amountSpl.gt(bn0)) {
-    type = Action.SHIELD;
     from = accountKeys[0].pubkey;
     to = accountKeys[10].pubkey;
   }
+
+  verifier = accountKeys[2].pubkey;
 
   transactions.push({
     blockTime: tx.blockTime! * 1000,
     signer: accountKeys[0].pubkey,
     signature,
-    accounts: accountKeys,
+    accounts: accountKeys.map((item: ParsedMessageAccount | string) =>
+      typeof item === "string" ? item : item.pubkey,
+    ),
     to,
-    from: from,
+    from,
     verifier,
     relayerRecipientSol,
     type,
@@ -221,8 +209,6 @@ async function processIndexedTransaction(
     firstLeafIndex,
     message: Buffer.from(message),
   });
-
-  return;
 }
 
 /**
