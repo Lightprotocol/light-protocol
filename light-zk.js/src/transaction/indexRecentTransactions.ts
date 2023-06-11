@@ -71,7 +71,7 @@ export const getUserIndexTransactions = async (
       const isFromUser =
         trx.from.toBase58() === provider.wallet.publicKey.toBase58();
 
-      const inSpentUtxos = spentUtxos?.filter(
+      const inSpentUtxos: Utxo[] = spentUtxos?.filter(
         (sUtxo) =>
           sUtxo._nullifier === nullifierOne ||
           sUtxo._nullifier === nullifierZero,
@@ -165,19 +165,19 @@ async function processIndexedTransaction(
         ? Action.TRANSFER
         : Action.UNSHIELD;
 
-    tx.meta.postBalances.forEach((el: any, index: number) => {
+    for (let index = 0; index < tx.meta.postBalances.length; index++) {
       if (
         new BN(tx.meta.postBalances[index])
           .sub(new BN(tx.meta.preBalances[index]))
           .eq(relayerFee)
       ) {
         relayerRecipientSol = accountKeys[index].pubkey;
+        break;
       }
-    });
+    }
 
     if (type === Action.UNSHIELD) {
       to = accountKeys[1].pubkey;
-
       from = amountSpl.gt(bn0) ? accountKeys[10].pubkey : accountKeys[9].pubkey;
     }
   } else if (changeSolAmount.gt(bn0) || amountSpl.gt(bn0)) {
@@ -225,33 +225,26 @@ const processIndexerEventsTransactions = async (
   const indexerTransactionEvents: IndexedTransactionData[] =
     indexerEventsTransactions
       .filter(
-        (tx) =>
-          tx &&
-          tx.meta &&
+        (tx): tx is ParsedTransactionWithMeta =>
+          !!tx &&
+          !!tx.meta &&
           !tx.meta.err &&
-          tx.meta.innerInstructions &&
+          !!tx.meta.innerInstructions &&
           tx.meta.innerInstructions.length > 0,
       )
       .flatMap((tx) =>
-        (tx?.meta?.innerInstructions || []).flatMap((ix) => {
-          if (!ix.instructions) return [];
+        tx!.meta!.innerInstructions!.flatMap((ix) =>
+          ix.instructions
+            ?.flatMap((ixInner: any) => {
+              if (!ixInner.data) return [];
 
-          return ix.instructions.flatMap((ixInner: any) => {
-            if (!ixInner.data) return [];
+              const data = bs58.decode(ixInner.data);
+              const decodeData = TransactionIndexerEvent.deserialize(data);
 
-            const data = bs58.decode(ixInner.data);
-            const decodeData = TransactionIndexerEvent.deserialize(data);
-
-            if (decodeData) {
-              return {
-                ...decodeData,
-                tx,
-              };
-            } else {
-              return [];
-            }
-          });
-        }),
+              return decodeData ? { ...decodeData, tx } : [];
+            })
+            .filter(Boolean),
+        ),
       );
 
   return indexerTransactionEvents;
@@ -286,30 +279,31 @@ const getTransactionsBatch = async ({
   );
 
   const lastSignature = signatures[signatures.length - 1];
-  let txs: (ParsedTransactionWithMeta | null)[] = [];
-  let index = 0;
   const signaturesPerRequest = 25;
 
-  while (index < signatures.length) {
+  const fetchTransactions = async (sigs: string[]) => {
     try {
-      const txsBatch = await connection.getParsedTransactions(
-        signatures
-          .slice(index, index + signaturesPerRequest)
-          .map((sig) => sig.signature),
-        {
-          maxSupportedTransactionVersion: 0,
-          commitment: "confirmed",
-        },
-      );
+      const txsBatch = await connection.getParsedTransactions(sigs, {
+        maxSupportedTransactionVersion: 0,
+        commitment: "confirmed",
+      });
 
-      if (!txsBatch.some((t) => !t)) {
-        txs = txs.concat(txsBatch);
-        index += signaturesPerRequest;
-      }
+      return txsBatch.every((t) => t) ? txsBatch : [];
     } catch (e) {
       console.log("retry");
       await sleep(2000);
+      return [];
     }
+  };
+
+  const txs = [];
+  for (let i = 0; i < signatures.length; i += signaturesPerRequest) {
+    const sigsBatch = signatures
+      .slice(i, i + signaturesPerRequest)
+      .map((sig) => sig.signature);
+
+    const txsBatch = await fetchTransactions(sigsBatch);
+    txs.push(...txsBatch);
   }
 
   const indexerEventTransactions = txs.filter((tx: any) => {
@@ -322,9 +316,7 @@ const getTransactionsBatch = async ({
       return itemStr === new PublicKey(SPL_NOOP_ADDRESS).toBase58();
     });
 
-    if (splNoopIndex) {
-      return txs;
-    }
+    return splNoopIndex !== -1;
   });
 
   const indexerTransactionEvents = await processIndexerEventsTransactions(
@@ -367,9 +359,11 @@ export const indexRecentTransactions = async ({
 
   let batchBefore = batchOptions.before;
 
-  for (let i = 0; i < rounds; i++) {
-    const batchLimit =
-      i === rounds - 1 ? batchOptions.limit! - i * batchSize : batchSize;
+  const getBatchLimit = (index: number) =>
+    index === rounds - 1 ? batchOptions.limit! - index * batchSize : batchSize;
+
+  const processBatch = async (index: number) => {
+    const batchLimit = getBatchLimit(index);
     const lastSignature = await getTransactionsBatch({
       connection,
       merkleTreeProgramId,
@@ -382,12 +376,15 @@ export const indexRecentTransactions = async ({
     });
 
     if (!lastSignature) {
-      break;
+      return null;
     }
 
     batchBefore = lastSignature.signature;
     await sleep(500);
-  }
+    return lastSignature;
+  };
+  // xonoxitron@matteo: Promise.all exploits parallelism
+  await Promise.all(Array.from({ length: rounds }, (_, i) => processBatch(i)));
 
   return transactions.sort(
     (a, b) => a.firstLeafIndex.toNumber() - b.firstLeafIndex.toNumber(),
