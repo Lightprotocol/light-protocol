@@ -20,20 +20,20 @@ if [ -f /.dockerenv ]; then
         --limit-ledger-size=$LIMIT_LEDGER_SIZE \
         --quiet \
         --bpf-program $NOOP_PROGRAM_ID ~/.local/light-protocol/lib/solana-program-library/spl_noop.so \
-        --bpf-program $MERKLE_TREE_PROGRAM_ID ./target/deploy/merkle_tree_program.so \
-        --bpf-program $VERIFIER_PROGRAM_ZERO_ID ./target/deploy/verifier_program_zero.so \
-        --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ./target/deploy/verifier_program_storage.so \
-        --bpf-program $VERIFIER_PROGRAM_ONE_ID ./target/deploy/verifier_program_one.so \
-        --bpf-program $VERIFIER_PROGRAM_TWO_ID ./target/deploy/verifier_program_two.so \
-        --account-dir ../accounts \
-        --bpf-program $3 /usr/local/lib/test_programs/$4\
+        --bpf-program $MERKLE_TREE_PROGRAM_ID ../../light-system-programs/target/deploy/merkle_tree_program.so \
+        --bpf-program $VERIFIER_PROGRAM_ZERO_ID ../../light-system-programs/target/deploy/verifier_program_zero.so \
+        --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ../../light-system-programs/target/deploy/verifier_program_storage.so \
+        --bpf-program $VERIFIER_PROGRAM_ONE_ID ../../light-system-programs/target/deploy/verifier_program_one.so \
+        --bpf-program $VERIFIER_PROGRAM_TWO_ID ../../light-system-programs/target/deploy/verifier_program_two.so \
+        --account-dir ../../accounts \
+        # --bpf-program $3 /usr/local/lib/test_programs/$4\
         &
     PID=$!
 
     sleep 7
     $5
 
-    kill $PID
+    # kill $PID
 else
     docker rm -f solana-validator || true
     docker run -d \

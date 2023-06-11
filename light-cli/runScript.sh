@@ -27,7 +27,7 @@ if [ -f /.dockerenv ]; then
         --account-dir ../accounts \
         &
     PID=$!
-    trap "kill $PID" EXIT
+    # trap "kill $PID" EXIT
 
     sleep 7
 else
@@ -44,6 +44,7 @@ else
         --faucet-port 9002 \
         --rpc-port 8899 \
         --quiet \
+        --pull=always \
         --bpf-program $NOOP_PROGRAM_ID /home/node/.local/light-protocol/lib/solana-program-library/spl_noop.so \
         --bpf-program $MERKLE_TREE_PROGRAM_ID /home/node/.local/light-protocol/lib/light-protocol/merkle_tree_program.so \
         --bpf-program $VERIFIER_PROGRAM_ZERO_ID /home/node/.local/light-protocol/lib/light-protocol/verifier_program_zero.so \
