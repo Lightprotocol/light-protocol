@@ -296,7 +296,7 @@ const getTransactionsBatch = async ({
     }
   };
 
-  const txs = [];
+  let txs = [];
   for (let i = 0; i < signatures.length; i += signaturesPerRequest) {
     const sigsBatch = signatures
       .slice(i, i + signaturesPerRequest)
