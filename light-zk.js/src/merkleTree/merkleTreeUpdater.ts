@@ -5,14 +5,7 @@ import {
   checkMerkleTreeBatchUpdateSuccess,
 } from "../test-utils/testChecks";
 
-import {
-  confirmConfig,
-  DEFAULT_PROGRAMS,
-  MerkleTreeProgram,
-  Provider,
-  sendTransactionWithConnection,
-  sendVersionedTransaction,
-} from "../index";
+import { confirmConfig, DEFAULT_PROGRAMS, MerkleTreeProgram } from "../index";
 import {
   ComputeBudgetProgram,
   PublicKey,
