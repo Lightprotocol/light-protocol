@@ -68,38 +68,3 @@ export const sendVersionedTransaction = async (ix: any, provider: Provider) => {
   }
   return res;
 };
-
-// currently not used
-export const sendTransactionWithConnection = async (
-  instructions: [TransactionInstruction],
-  connection: Connection,
-  signer: Keypair,
-) => {
-  const recentBlockhash = (await connection.getLatestBlockhash(confirmConfig))
-    .blockhash;
-
-  const txMsg = new TransactionMessage({
-    payerKey: signer.publicKey,
-    instructions,
-    recentBlockhash,
-  });
-  const v0Message = txMsg.compileToV0Message();
-
-  var tx = new VersionedTransaction(v0Message);
-  tx.sign([signer]);
-  let retries = 3;
-  let res;
-  while (retries > 0) {
-    try {
-      res = await connection.sendTransaction(tx, confirmConfig);
-      retries = 0;
-    } catch (e: any) {
-      retries--;
-      if (retries == 0 || e.logs !== undefined) {
-        console.log(e);
-        return e;
-      }
-    }
-  }
-  return res;
-};
