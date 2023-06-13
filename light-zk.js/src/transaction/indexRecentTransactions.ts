@@ -55,7 +55,6 @@ export class TransactionIndexerEvent {
  * @param {spentUtxos} Utxo[] - The array of user spentUtxos
  * @returns {Promise<void>}
  */
-
 // xonoxitron@matteo: filter/map run as twice as fast than forEach
 export const getUserIndexTransactions = async (
   indexedTransactions: IndexedTransaction[],
@@ -63,41 +62,69 @@ export const getUserIndexTransactions = async (
   tokenBalances: Map<string, TokenUtxoBalance>,
 ) => {
   const spentUtxos = getUpdatedSpentUtxos(tokenBalances);
+  const transactionHistory: UserIndexedTransaction[] = [];
 
-  const transactionHistory: UserIndexedTransaction[] = indexedTransactions
-    .map((trx) => {
-      const nullifierZero = new BN(trx.nullifiers[0]).toString();
-      const nullifierOne = new BN(trx.nullifiers[1]).toString();
-      const isFromUser =
-        trx.from.toBase58() === provider.wallet.publicKey.toBase58();
+  for (const trx of indexedTransactions) {
+    const nullifierZero = new BN(trx.nullifiers[0]).toString();
+    const nullifierOne = new BN(trx.nullifiers[1]).toString();
+    const isFromUser =
+      trx.from.toBase58() === provider.wallet.publicKey.toBase58();
 
-      const inSpentUtxos: Utxo[] = spentUtxos?.filter(
-        (sUtxo) =>
-          sUtxo._nullifier === nullifierOne ||
-          sUtxo._nullifier === nullifierZero,
-      );
-      const outSpentUtxos = spentUtxos?.filter((sUtxo) => {
-        for (const leaf of trx.leaves) {
-          if (sUtxo._commitment === new BN(leaf, "le").toString()) {
-            return true;
-          }
-        }
-        return false;
+    const inSpentUtxos: Utxo[] = filterSpentUtxosByNullifiers(
+      spentUtxos,
+      nullifierZero,
+      nullifierOne,
+    );
+    const leaves = trx.leaves.map((leaf) => leaf.toString()); // Convert leaves to strings
+    const outSpentUtxos = filterSpentUtxosByLeaves(spentUtxos, leaves);
+
+    const found =
+      isFromUser || inSpentUtxos.length > 0 || outSpentUtxos.length > 0;
+
+    if (found) {
+      transactionHistory.push({
+        ...trx,
+        inSpentUtxos,
+        outSpentUtxos,
       });
+    }
+  }
 
-      const found =
-        isFromUser || inSpentUtxos.length > 0 || outSpentUtxos.length > 0;
+  return sortTransactionHistory(transactionHistory);
+};
 
-      return found
-        ? {
-            ...trx,
-            inSpentUtxos,
-            outSpentUtxos,
-          }
-        : null;
-    })
-    .filter((trx): trx is UserIndexedTransaction => trx !== null);
+const filterSpentUtxosByNullifiers = (
+  spentUtxos: Utxo[] | undefined,
+  nullifierZero: string,
+  nullifierOne: string,
+) => {
+  return (
+    spentUtxos?.filter(
+      (sUtxo) =>
+        sUtxo._nullifier === nullifierOne || sUtxo._nullifier === nullifierZero,
+    ) ?? []
+  );
+};
 
+const filterSpentUtxosByLeaves = (
+  spentUtxos: Utxo[] | undefined,
+  leaves: string[],
+) => {
+  return (
+    spentUtxos?.filter((sUtxo) => {
+      for (const leaf of leaves) {
+        if (sUtxo._commitment === new BN(leaf, "le").toString()) {
+          return true;
+        }
+      }
+      return false;
+    }) ?? []
+  );
+};
+
+const sortTransactionHistory = (
+  transactionHistory: UserIndexedTransaction[],
+) => {
   return transactionHistory.sort((a, b) => b.blockTime - a.blockTime);
 };
 
@@ -125,12 +152,13 @@ async function processIndexedTransaction(
     message,
   } = event;
 
-  if (!tx || !tx.meta || tx.meta.err) return;
+  if (!tx || !tx.meta || tx.meta.err) {
+    return;
+  }
 
   const signature = tx.transaction.signatures[0];
   const solTokenPool = REGISTERED_POOL_PDA_SOL;
   const accountKeys = tx.transaction.message.accountKeys;
-
   const bn0 = new BN(0);
   const nullifiers = event.nullifiers;
 
@@ -139,21 +167,24 @@ async function processIndexedTransaction(
   let from: PublicKey = PublicKey.default;
   let to: PublicKey = PublicKey.default;
   let verifier: PublicKey = PublicKey.default;
-
-  const solTokenPoolIndex = accountKeys.findIndex(
-    (item: ParsedMessageAccount | string) =>
-      typeof item === "string"
-        ? item === solTokenPool.toBase58()
-        : item.pubkey.toBase58() === solTokenPool.toBase58(),
-  );
-
-  let changeSolAmount = new BN(
-    tx.meta.postBalances[solTokenPoolIndex] -
-      tx.meta.preBalances[solTokenPoolIndex],
-  );
-
+  let solTokenPoolIndex = -1;
+  let changeSolAmount = new BN(0);
   let amountSpl = new BN(publicAmountSpl);
   let amountSol = new BN(publicAmountSol);
+
+  if (tx.meta && tx.meta.preBalances && tx.meta.postBalances) {
+    solTokenPoolIndex = accountKeys.findIndex(
+      (item: ParsedMessageAccount | string) =>
+        typeof item === "string"
+          ? item === solTokenPool.toBase58()
+          : item.pubkey.toBase58() === solTokenPool.toBase58(),
+    );
+
+    changeSolAmount = new BN(
+      tx.meta.postBalances[solTokenPoolIndex] -
+        tx.meta.preBalances[solTokenPoolIndex],
+    );
+  }
 
   if (changeSolAmount.lt(bn0)) {
     amountSpl = amountSpl.sub(FIELD_SIZE).mod(FIELD_SIZE).abs();
@@ -166,11 +197,10 @@ async function processIndexedTransaction(
         : Action.UNSHIELD;
 
     for (let index = 0; index < tx.meta.postBalances.length; index++) {
-      if (
-        new BN(tx.meta.postBalances[index])
-          .sub(new BN(tx.meta.preBalances[index]))
-          .eq(relayerFee)
-      ) {
+      const postBalance = new BN(tx.meta.postBalances[index]);
+      const preBalance = new BN(tx.meta.preBalances[index]);
+
+      if (postBalance.sub(preBalance).eq(relayerFee)) {
         relayerRecipientSol = accountKeys[index].pubkey;
         break;
       }
@@ -187,7 +217,7 @@ async function processIndexedTransaction(
 
   verifier = accountKeys[2].pubkey;
 
-  transactions.push({
+  const processedTransaction: IndexedTransaction = {
     blockTime: tx.blockTime! * 1000,
     signer: accountKeys[0].pubkey,
     signature,
@@ -208,7 +238,9 @@ async function processIndexedTransaction(
     relayerFee,
     firstLeafIndex,
     message: Buffer.from(message),
-  });
+  };
+
+  transactions.push(processedTransaction);
 }
 
 /**
@@ -222,32 +254,42 @@ async function processIndexedTransaction(
 const processIndexerEventsTransactions = async (
   indexerEventsTransactions: (ParsedTransactionWithMeta | null)[],
 ) => {
-  const indexerTransactionEvents: IndexedTransactionData[] =
-    indexerEventsTransactions
-      .filter(
-        (tx): tx is ParsedTransactionWithMeta =>
-          !!tx &&
-          !!tx.meta &&
-          !tx.meta.err &&
-          !!tx.meta.innerInstructions &&
-          tx.meta.innerInstructions.length > 0,
-      )
-      .flatMap((tx) =>
-        tx!.meta!.innerInstructions!.flatMap((ix) =>
-          ix.instructions
-            ?.flatMap((ixInner: any) => {
-              if (!ixInner.data) return [];
+  const filteredTransactions = indexerEventsTransactions.filter(
+    (tx): tx is ParsedTransactionWithMeta =>
+      !!tx &&
+      !!tx.meta &&
+      !tx.meta.err &&
+      !!tx.meta.innerInstructions &&
+      tx.meta.innerInstructions.length > 0,
+  );
 
-              const data = bs58.decode(ixInner.data);
-              const decodeData = TransactionIndexerEvent.deserialize(data);
-
-              return decodeData ? { ...decodeData, tx } : [];
-            })
-            .filter(Boolean),
-        ),
-      );
+  const indexerTransactionEvents = filteredTransactions.flatMap((tx) =>
+    processInnerInstructions(tx),
+  );
 
   return indexerTransactionEvents;
+};
+
+const processInnerInstructions = (tx: ParsedTransactionWithMeta) => {
+  const innerInstructions = tx.meta!.innerInstructions!;
+
+  const indexerEvents = innerInstructions.flatMap((ix) =>
+    ix.instructions?.flatMap((ixInner: any) => processInstruction(tx, ixInner)),
+  );
+
+  return indexerEvents.filter(Boolean);
+};
+
+const processInstruction = (
+  tx: ParsedTransactionWithMeta,
+  instruction: any,
+) => {
+  if (!instruction.data) return [];
+
+  const data = bs58.decode(instruction.data);
+  const decodeData = TransactionIndexerEvent.deserialize(data);
+
+  return decodeData ? { ...decodeData, tx } : [];
 };
 
 /**
@@ -281,53 +323,58 @@ const getTransactionsBatch = async ({
   const lastSignature = signatures[signatures.length - 1];
   const signaturesPerRequest = 25;
 
-  const fetchTransactions = async (sigs: string[]) => {
-    try {
-      const txsBatch = await connection.getParsedTransactions(sigs, {
-        maxSupportedTransactionVersion: 0,
-        commitment: "confirmed",
-      });
-
-      return txsBatch.every((t) => t) ? txsBatch : [];
-    } catch (e) {
-      console.log("retry");
-      await sleep(2000);
-      return [];
-    }
-  };
-
   let txs = [];
   for (let i = 0; i < signatures.length; i += signaturesPerRequest) {
     const sigsBatch = signatures
       .slice(i, i + signaturesPerRequest)
       .map((sig) => sig.signature);
 
-    const txsBatch = await fetchTransactions(sigsBatch);
+    const txsBatch = await fetchTransactions(connection, sigsBatch);
     txs.push(...txsBatch);
   }
 
-  const indexerEventTransactions = txs.filter((tx: any) => {
-    const accountKeys = tx.transaction.message.accountKeys;
-    const splNoopIndex = accountKeys.findIndex((item: ParsedMessageAccount) => {
-      const itemStr =
-        typeof item === "string" || item instanceof String
-          ? item
-          : item.pubkey.toBase58();
-      return itemStr === new PublicKey(SPL_NOOP_ADDRESS).toBase58();
-    });
-
-    return splNoopIndex !== -1;
-  });
-
+  const filteredTxs = filterFetchedTransactions(txs);
   const indexerTransactionEvents = await processIndexerEventsTransactions(
-    indexerEventTransactions,
+    filteredTxs,
   );
 
   indexerTransactionEvents.forEach((event) => {
-    processIndexedTransaction(event!, transactions);
+    processIndexedTransaction(event, transactions);
   });
 
   return lastSignature;
+};
+
+const fetchTransactions = async (connection: Connection, sigs: string[]) => {
+  try {
+    const txsBatch = await connection.getParsedTransactions(sigs, {
+      maxSupportedTransactionVersion: 0,
+      commitment: "confirmed",
+    });
+
+    return txsBatch.every((t) => t) ? txsBatch : [];
+  } catch (e) {
+    console.log("retry");
+    await sleep(2000);
+    return [];
+  }
+};
+
+const filterFetchedTransactions = (txs: any[]) => {
+  return txs.filter((tx) => {
+    const accountKeys = tx.transaction.message.accountKeys;
+    const splNoopIndex = accountKeys.findIndex(
+      (item: { pubkey: { toBase58: () => any } }) => {
+        const itemStr =
+          typeof item === "string" || item instanceof String
+            ? item
+            : item.pubkey.toBase58();
+        return itemStr === new PublicKey(SPL_NOOP_ADDRESS).toBase58();
+      },
+    );
+
+    return splNoopIndex !== -1;
+  });
 };
 
 /**
@@ -339,7 +386,6 @@ const getTransactionsBatch = async ({
  * @param {boolean} dedupe=false - Whether to deduplicate transactions or not.
  * @returns {Promise<indexedTransaction[]>} Array of indexedTransactions
  */
-
 export const indexRecentTransactions = async ({
   connection,
   batchOptions = {
