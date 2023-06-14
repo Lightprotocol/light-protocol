@@ -1,6 +1,9 @@
 import {
   AddressLookupTableAccount,
   ComputeBudgetProgram,
+  Connection,
+  Keypair,
+  TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
@@ -9,7 +12,7 @@ import { Provider } from "../wallet";
 import { confirmConfig } from "../constants";
 export const sendVersionedTransaction = async (ix: any, provider: Provider) => {
   const recentBlockhash = (
-    await provider.provider!.connection.getRecentBlockhash("confirmed")
+    await provider.provider!.connection.getLatestBlockhash(confirmConfig)
   ).blockhash;
 
   const txMsg = new TransactionMessage({
@@ -50,10 +53,8 @@ export const sendVersionedTransaction = async (ix: any, provider: Provider) => {
   while (retries > 0) {
     tx = await provider.wallet.signTransaction(tx);
     try {
-      let serializedTx = tx.serialize();
-
-      res = await provider.provider!.connection.sendRawTransaction(
-        serializedTx,
+      res = await provider.provider!.connection.sendTransaction(
+        tx,
         confirmConfig,
       );
       retries = 0;
