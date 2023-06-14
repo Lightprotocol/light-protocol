@@ -107,7 +107,7 @@ export const newProgramOwnedAccount = async ({
       );
 
       tx.feePayer = payer.publicKey;
-      tx.recentBlockhash = await connection.getRecentBlockhash();
+      tx.recentBlockhash = await connection.getLatestBlockhash();
       let x = await solana.sendAndConfirmTransaction(
         connection,
         tx,

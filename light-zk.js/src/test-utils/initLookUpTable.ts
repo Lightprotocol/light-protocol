@@ -154,7 +154,7 @@ export async function initLookUpTableTest(
     transaction.add(extendInstruction);
     transaction.add(ix0);
     // transaction.add(ix1);
-    let recentBlockhash = await provider.connection.getRecentBlockhash(
+    let recentBlockhash = await provider.connection.getLatestBlockhash(
       "confirmed",
     );
     transaction.feePayer = payerPubkey;

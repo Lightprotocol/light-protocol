@@ -366,7 +366,7 @@ export async function initLookUpTable(
 
   transaction.add(extendInstruction);
 
-  let recentBlockhash = await provider.connection.getRecentBlockhash(
+  let recentBlockhash = await provider.connection.getLatestBlockhash(
     "confirmed",
   );
   transaction.feePayer = payerPubkey;
