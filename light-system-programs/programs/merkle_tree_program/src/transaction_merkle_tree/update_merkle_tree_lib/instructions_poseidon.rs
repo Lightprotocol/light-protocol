@@ -186,7 +186,6 @@ pub fn prepare_inputs(
         .chain(right_input.iter())
         .copied()
         .collect();
-    msg!("chained: {:?}", chained);
     let f_inputs = utils::to_field_elements(&chained).unwrap();
     if f_inputs.len() >= PoseidonCircomRounds3::WIDTH {
         panic!(
