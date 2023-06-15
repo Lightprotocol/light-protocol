@@ -4,7 +4,12 @@ import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 
-import { Relayer, RelayerError, RelayerErrorCode } from "../src";
+import {
+  Relayer,
+  RelayerError,
+  RelayerErrorCode,
+  TOKEN_ACCOUNT_FEE,
+} from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -53,7 +58,7 @@ describe("Test Relayer Functional", () => {
     let relayer = new Relayer(mockKeypair.publicKey, mockKeypair1.publicKey);
     assert.equal(relayer.relayerFee.toString(), "0");
     assert.equal(
-      new anchor.BN(500000).toNumber(),
+      TOKEN_ACCOUNT_FEE.toNumber(),
       relayer.getRelayerFee(true).toNumber(),
     );
     assert.equal(

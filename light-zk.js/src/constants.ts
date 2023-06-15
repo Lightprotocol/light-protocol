@@ -95,12 +95,11 @@ export const DEFAULT_PROGRAMS = {
   clock: SYSVAR_CLOCK_PUBKEY,
 };
 
-// TODO: adjust according to relayer fees
 // recommented minimum amount of lamports to be able to pay for transaction fees
-// needs to be more than 100k to be rentexempt
-export const MINIMUM_LAMPORTS = 150_000;
+// needs to be more than 890_880 to be rentexempt
+export const MINIMUM_LAMPORTS = new anchor.BN(890_880 + 150_000);
 
-export const TOKEN_ACCOUNT_FEE = 500_000;
+export const TOKEN_ACCOUNT_FEE = new anchor.BN(1_461_600 + 5000);
 
 // TODO: make account object with important accounts
 export const MESSAGE_MERKLE_TREE_KEY = new PublicKey(
