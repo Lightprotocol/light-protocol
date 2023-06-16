@@ -7,15 +7,9 @@ const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 let circomlibjs = require("circomlibjs");
-
-// TODO: add and use  namespaces in SDK
 import {
-  setUpMerkleTree,
-  initLookUpTableFromFile,
   ADMIN_AUTH_KEYPAIR,
-  MINT,
   Provider,
-  newAccountWithTokens,
   createTestAccounts,
   confirmConfig,
   User,
@@ -38,7 +32,6 @@ import { BN } from "@coral-xyz/anchor";
 var POSEIDON;
 var RELAYER: TestRelayer, provider: Provider, user: User;
 
-// TODO: remove deprecated function calls
 describe("Test User", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -81,10 +74,6 @@ describe("Test User", () => {
   });
 
   it.skip("(user class) shield SPL random infinite", async () => {
-    const getRandomElement = () => {
-      const randomIndex = parseInt(Math.floor(Math.random() * 7).toString());
-      return randomIndex;
-    };
     var expectedSpentUtxosLength = 0;
     var expectedUtxoHistoryLength = 1;
     var totalSplAmount = 0;
@@ -137,6 +126,7 @@ describe("Test User", () => {
       expectedUtxoHistoryLength++;
     }
   });
+
   it("(user class) shield SPL", async () => {
     var expectedSpentUtxosLength = 0;
     var expectedUtxoHistoryLength = 1;
@@ -210,14 +200,6 @@ describe("Test User", () => {
       recipientSpl: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
-    // TODO: add test case for if recipient doesnt have account yet -> relayer must create it
-    await newAccountWithTokens({
-      connection: provider.provider.connection,
-      MINT,
-      ADMIN_AUTH_KEYPAIR: userKeypair,
-      userAccount: solRecipient,
-      amount: new anchor.BN(0),
-    });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -231,7 +213,7 @@ describe("Test User", () => {
     await user.unshield({
       publicAmountSpl: testInputs.amountSpl,
       token: testInputs.token,
-      recipientSpl: testInputs.recipientSpl,
+      recipient: testInputs.recipientSpl,
     });
 
     await user.provider.latestMerkleTree();

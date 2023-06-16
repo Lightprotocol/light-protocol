@@ -13,6 +13,7 @@ import {
   TOKEN_REGISTRY,
 } from "../constants";
 import { Utxo } from "../utxo";
+import { MINT } from "./constants_system_verifier";
 
 export type TestInputs = {
   amountSpl?: number;
@@ -105,11 +106,15 @@ export class TestStateValidator {
         }
 
         if (userBalances.splAccount) {
-          userBalances.preTokenBalance = (
-            await this.provider.provider?.connection.getTokenAccountBalance(
-              userBalances.splAccount,
-            )
-          )?.value.uiAmount;
+          var balance = undefined;
+          try {
+            balance = (
+              await this.provider.provider?.connection.getTokenAccountBalance(
+                userBalances.splAccount,
+              )
+            )?.value.uiAmount;
+          } catch (error) {}
+          userBalances.preTokenBalance = balance ? balance : 0;
         }
 
         userBalances.preSolBalance =
@@ -205,7 +210,7 @@ export class TestStateValidator {
     assert.strictEqual(
       this.recentTransaction!.relayerFee.toString(),
       type === Action.UNSHIELD
-        ? "500000"
+        ? TOKEN_ACCOUNT_FEE.toString()
         : type === Action.TRANSFER
         ? "100000"
         : "0",
@@ -551,7 +556,7 @@ export class TestStateValidator {
 
     // assert that the user's sol shielded balance has increased by the additional sol amount
     await this.assertShieldedSolBalance(
-      150000,
+      MINIMUM_LAMPORTS.toNumber(),
       this.recipient,
       this.testInputs.shieldToRecipient,
     );
@@ -645,7 +650,8 @@ export class TestStateValidator {
     // assert that the recipient token balance has increased by the amount shielded
     await this.assertTokenBalance(this.testInputs.amountSpl!, this.recipient);
 
-    const solDecreasedAmount = MINIMUM_LAMPORTS + TOKEN_ACCOUNT_FEE;
+    const solDecreasedAmount =
+      MINIMUM_LAMPORTS.add(TOKEN_ACCOUNT_FEE).toNumber();
     // assert that the user's sol shielded balance has decreased by fee
     await this.assertShieldedSolBalance(solDecreasedAmount, this.sender);
 

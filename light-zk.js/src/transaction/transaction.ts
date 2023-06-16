@@ -3,6 +3,9 @@ import {
   TransactionSignature,
   TransactionInstruction,
   Transaction as SolanaTransaction,
+  TransactionConfirmationStrategy,
+  BlockheightBasedTransactionConfirmationStrategy,
+  GetVersionedBlockConfig,
 } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl, Program, utils } from "@coral-xyz/anchor";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
@@ -19,10 +22,14 @@ import {
   createAccountObject,
   firstLetterToLower,
   hashAndTruncateToCircuit,
+  TOKEN_AUTHORITY,
+  MINT,
+  confirmConfig,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types/accounts";
 import { Prover } from "./prover";
+import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
@@ -758,6 +765,34 @@ export class Transaction {
     }
 
     var instructions = [];
+    // TODO: make mint dynamic
+    /**
+     * Problem:
+     * - for spl withdrawals we need an initialized associated token we can withdraw to
+     * - this transaction needs to be signed by the owner of the associated token account? has it?
+     */
+    if (this.params.ataCreationFee) {
+      if (!this.params.accounts.recipientSpl)
+        throw new TransactionError(
+          TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+          "getInstructions",
+          "Probably sth in the associated token address generation went wrong",
+        );
+      if (!this.params.accounts.recipientSol)
+        throw new TransactionError(
+          TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+          "getInstructions",
+          "Probably sth in the associated token address generation went wrong",
+        );
+      let ix = createAssociatedTokenAccountInstruction(
+        this.params.relayer.accounts.relayerPubkey,
+        this.params.accounts.recipientSpl,
+        this.params.accounts.recipientSol,
+        MINT,
+      );
+      instructions.push(ix);
+    }
+
     const instructionNames = getOrderedInstructionNames(params.verifierIdl);
     for (let i = 0; i < instructionNames.length; i++) {
       const instruction = instructionNames[i];
@@ -824,8 +859,17 @@ export class Transaction {
       for (var ix in instructions) {
         let txTmp = await this.sendTransaction(instructions[ix]);
         if (txTmp) {
+          const latestBlockhash =
+            await this.provider.provider?.connection.getLatestBlockhash(
+              confirmConfig,
+            );
+          let txStrat: BlockheightBasedTransactionConfirmationStrategy = {
+            signature: txTmp,
+            lastValidBlockHeight: latestBlockhash!.lastValidBlockHeight,
+            blockhash: latestBlockhash!.blockhash,
+          };
           await this.provider.provider?.connection.confirmTransaction(
-            txTmp,
+            txStrat,
             "confirmed",
           );
           tx = txTmp;
