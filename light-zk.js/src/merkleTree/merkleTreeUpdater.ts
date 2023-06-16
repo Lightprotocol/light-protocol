@@ -5,7 +5,12 @@ import {
   checkMerkleTreeBatchUpdateSuccess,
 } from "../test-utils/testChecks";
 
-import { confirmConfig, DEFAULT_PROGRAMS, MerkleTreeProgram } from "../index";
+import {
+  confirmConfig,
+  DEFAULT_PROGRAMS,
+  MerkleTreeProgram,
+  sleep,
+} from "../index";
 import {
   ComputeBudgetProgram,
   PublicKey,
@@ -79,7 +84,6 @@ export async function executeUpdateMerkleTreeTransactions({
     merkleTreeProgram,
     transactionMerkleTree: transactionMerkleTree,
     merkleTreeUpdateState,
-    numberOfTransactions: 251,
     connection,
   });
 
@@ -123,28 +127,22 @@ export async function executeUpdateMerkleTreeTransactions({
     merkleTreeProgram,
   });
 }
-
-export async function executeMerkleTreeUpdateTransactions({
+const createTransactions = async ({
+  counter,
   merkleTreeProgram,
+  numberOfTransactions,
+  signer,
   merkleTreeUpdateState,
   transactionMerkleTree,
-  signer,
-  numberOfTransactions,
-  connection,
 }: {
+  counter: number;
   merkleTreeProgram: Program<MerkleTreeProgram>;
+  numberOfTransactions: number;
+  signer: Keypair;
   merkleTreeUpdateState: PublicKey;
   transactionMerkleTree: PublicKey;
-  signer: Keypair;
-  numberOfTransactions: number;
-  connection: Connection;
-}) {
+}) => {
   let transactions: Transaction[] = [];
-  let i = 0;
-  // console.log("Sending Merkle tree update transactions: ",numberOfTransactions)
-  // the number of tx needs to increase with greater batchsize
-  // 29 + 2 * leavesPdas.length is a first approximation
-
   for (let ix_id = 0; ix_id < numberOfTransactions; ix_id++) {
     const transaction = new Transaction();
     transaction.add(
@@ -152,7 +150,7 @@ export async function executeMerkleTreeUpdateTransactions({
     );
     transaction.add(
       await merkleTreeProgram.methods
-        .updateTransactionMerkleTree(new anchor.BN(i))
+        .updateTransactionMerkleTree(new anchor.BN(counter))
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState,
@@ -160,10 +158,10 @@ export async function executeMerkleTreeUpdateTransactions({
         })
         .instruction(),
     );
-    i += 1;
+    counter += 1;
     transaction.add(
       await merkleTreeProgram.methods
-        .updateTransactionMerkleTree(new anchor.BN(i))
+        .updateTransactionMerkleTree(new anchor.BN(counter))
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
@@ -171,11 +169,17 @@ export async function executeMerkleTreeUpdateTransactions({
         })
         .instruction(),
     );
-    i += 1;
+    counter += 1;
     transactions.push(transaction);
   }
+  return { transactions, incrementedCounter: counter };
+};
 
-  let error;
+const sendAndConfirmTransactions = async (
+  transactions: Transaction[],
+  signer: Keypair,
+  connection: Connection,
+) => {
   await Promise.all(
     transactions.map(async (tx, index) => {
       try {
@@ -186,15 +190,70 @@ export async function executeMerkleTreeUpdateTransactions({
           confirmConfig,
         );
       } catch (err) {
-        console.error(
+        console.log(
           "failed at executing the merkle tree transaction:",
           index,
           err,
         );
-
-        throw err;
+        return err;
       }
     }),
   );
-  return error;
+};
+
+const checkComputeInstructionsCompleted = async (
+  merkleTreeProgram: Program<MerkleTreeProgram>,
+  merkleTreeUpdateState: PublicKey,
+) => {
+  const accountInfo =
+    await merkleTreeProgram.account.merkleTreeUpdateState.fetch(
+      merkleTreeUpdateState,
+    );
+  return accountInfo.currentInstructionIndex.toNumber() === 56;
+};
+
+export async function executeMerkleTreeUpdateTransactions({
+  merkleTreeProgram,
+  merkleTreeUpdateState,
+  transactionMerkleTree,
+  signer,
+  connection,
+}: {
+  merkleTreeProgram: Program<MerkleTreeProgram>;
+  merkleTreeUpdateState: PublicKey;
+  transactionMerkleTree: PublicKey;
+  signer: Keypair;
+  connection: Connection;
+}) {
+  /**
+   * Strategy:
+   * - send 28 transactions check whether update is complete
+   * - if not send batches of 10 additional transactions at a time
+   */
+  var numberOfTransactions = 56 / 2;
+  var counter = 0;
+  var error = undefined;
+  while (
+    !(await checkComputeInstructionsCompleted(
+      merkleTreeProgram,
+      merkleTreeUpdateState,
+    ))
+  ) {
+    numberOfTransactions = counter == 0 ? numberOfTransactions : 10;
+    if (counter != 0) await sleep(1000);
+    const { transactions, incrementedCounter } = await createTransactions({
+      numberOfTransactions,
+      signer,
+      counter,
+      merkleTreeProgram,
+      merkleTreeUpdateState,
+      transactionMerkleTree,
+    });
+    counter = incrementedCounter;
+    if (counter >= 240) {
+      console.log("Reached retry limit of 240 compute instructions");
+      throw error;
+    }
+    error = await sendAndConfirmTransactions(transactions, signer, connection);
+  }
 }
