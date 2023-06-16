@@ -807,6 +807,7 @@ describe("Merkle Tree Tests", () => {
       connection: provider.connection,
       merkleTreeUpdateState,
       numberOfTransactions: 10,
+      interrupt: true
     });
     console.log("checkMerkleTreeUpdateStateCreated 22");
 
@@ -843,8 +844,9 @@ describe("Merkle Tree Tests", () => {
         connection: provider.connection,
         merkleTreeUpdateState,
         numberOfTransactions: 1,
+        interrupt: true
       });
-    } catch (err) {
+    } catch (err) {      
       error = err;
     }
     assert(
