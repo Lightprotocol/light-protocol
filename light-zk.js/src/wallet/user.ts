@@ -657,14 +657,12 @@ export class User {
   async unshield({
     token,
     publicAmountSpl,
-    recipientSpl = AUTHORITY,
     publicAmountSol,
-    recipientSol = AUTHORITY,
+    recipient = AUTHORITY,
     minimumLamports = true,
   }: {
     token: string;
-    recipientSpl?: PublicKey;
-    recipientSol?: PublicKey;
+    recipient?: PublicKey;
     publicAmountSpl?: number | BN | string;
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
@@ -672,9 +670,8 @@ export class User {
     await this.createUnshieldTransactionParameters({
       token,
       publicAmountSpl,
-      recipientSpl,
       publicAmountSol,
-      recipientSol,
+      recipient,
       minimumLamports,
     });
 
@@ -696,14 +693,12 @@ export class User {
   async createUnshieldTransactionParameters({
     token,
     publicAmountSpl,
-    recipientSpl = AUTHORITY,
     publicAmountSol,
-    recipientSol = AUTHORITY,
+    recipient = AUTHORITY,
     minimumLamports = true,
   }: {
     token: string;
-    recipientSpl?: PublicKey;
-    recipientSol?: PublicKey;
+    recipient?: PublicKey;
     publicAmountSpl?: number | BN | string;
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
@@ -722,13 +717,13 @@ export class User {
         "unshield",
         "Need to provide at least one amount for an unshield",
       );
-    if (publicAmountSol && recipientSol.toBase58() == AUTHORITY.toBase58())
+    if (publicAmountSol && recipient.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
         TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
         "getTxParams",
         "no recipient provided for sol unshield",
       );
-    if (publicAmountSpl && recipientSpl.toBase58() == AUTHORITY.toBase58())
+    if (publicAmountSpl && recipient.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getTxParams",
@@ -736,10 +731,10 @@ export class User {
       );
 
     let ataCreationFee = false;
-
-    if (!tokenCtx.isNative && publicAmountSpl) {
+    let recipientSpl = undefined;
+    if (publicAmountSpl) {
       let tokenBalance = await this.provider.connection?.getTokenAccountBalance(
-        recipientSpl,
+        recipient,
       );
       if (!tokenBalance?.value.uiAmount) {
         /** Signal relayer to create the ATA and charge an extra fee for it */
@@ -747,7 +742,7 @@ export class User {
       }
       recipientSpl = splToken.getAssociatedTokenAddressSync(
         tokenCtx!.mint,
-        recipientSpl,
+        recipient,
       );
     }
 
@@ -785,7 +780,7 @@ export class User {
       account: this.account,
       utxos,
       publicAmountSol: _publicSolAmount,
-      recipientSol: recipientSol,
+      recipientSol: recipient,
       recipientSplAddress: recipientSpl,
       provider: this.provider,
       relayer: this.provider.relayer,

@@ -27,6 +27,7 @@ import {
   RELAYER_RECIPIENT_KEYPAIR,
   IndexedTransaction,
   MINT,
+  MINIMUM_LAMPORTS,
 } from "../index";
 
 const axios = require("axios");
@@ -72,7 +73,7 @@ export class Provider {
     confirmConfig,
     connection,
     url = "http://127.0.0.1:8899",
-    minimumLamports = new BN(5000 * 30),
+    minimumLamports = MINIMUM_LAMPORTS,
     relayer,
     verifierProgramLookupTable,
     assetLookupTable,

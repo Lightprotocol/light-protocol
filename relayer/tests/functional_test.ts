@@ -282,7 +282,7 @@ describe("API tests", () => {
     await user.unshield({
       publicAmountSol: amount,
       token,
-      recipientSol: recipient,
+      recipient,
     });
 
     await user.provider.latestMerkleTree();
