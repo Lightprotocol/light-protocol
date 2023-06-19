@@ -378,10 +378,6 @@ const fetchTransactions = async (
   return [];
 };
 
-const sleep = (ms: number) => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
-
 const filterFetchedTransactions = (txs: any[]) => {
   return txs.filter((tx) => {
     const accountKeys = tx.transaction.message.accountKeys;
