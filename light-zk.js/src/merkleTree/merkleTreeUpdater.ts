@@ -135,7 +135,7 @@ const createTransactions = async ({
   merkleTreeUpdateState,
   transactionMerkleTree,
 }: {
-  counter: number;
+  counter: { value: number };
   merkleTreeProgram: Program<MerkleTreeProgram>;
   numberOfTransactions: number;
   signer: Keypair;
@@ -150,7 +150,7 @@ const createTransactions = async ({
     );
     transaction.add(
       await merkleTreeProgram.methods
-        .updateTransactionMerkleTree(new anchor.BN(counter))
+        .updateTransactionMerkleTree(new anchor.BN(counter.value))
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState,
@@ -158,10 +158,10 @@ const createTransactions = async ({
         })
         .instruction(),
     );
-    counter += 1;
+    counter.value += 1;
     transaction.add(
       await merkleTreeProgram.methods
-        .updateTransactionMerkleTree(new anchor.BN(counter))
+        .updateTransactionMerkleTree(new anchor.BN(counter.value))
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
@@ -169,10 +169,10 @@ const createTransactions = async ({
         })
         .instruction(),
     );
-    counter += 1;
+    counter.value += 1;
     transactions.push(transaction);
   }
-  return { transactions, incrementedCounter: counter };
+  return transactions;
 };
 
 const checkComputeInstructionsCompleted = async (
@@ -214,6 +214,28 @@ const sendAndConfirmTransactions = async (
   if (errors.length > 0) throw errors[0];
 };
 
+/**
+ * executeMerkleTreeUpdateTransactions attempts to execute a Merkle tree update.
+ *
+ * Strategy Overview:
+ * - Sends an initial batch of 28 transactions including two compute instructions each.
+ * - Checks if the update is complete.
+ * - If not, sends additional batches of 10 transactions.
+ * - This continues until the update is complete or a maximum retry limit of 240 instructions (120 transactions) is reached.
+ *
+ * @param {object} {
+ *   merkleTreeProgram: Program<MerkleTreeProgram>,  // The Merkle tree program anchor instance.
+ *   merkleTreeUpdateState: PublicKey,              // The public key of the temporary update state of the Merkle tree.
+ *   transactionMerkleTree: PublicKey,              // The public key of the transaction Merkle tree which is updated.
+ *   signer: Keypair,                               // The keypair used to sign the transactions.
+ *   connection: Connection,                        // The network connection object.
+ *   numberOfTransactions: number = 28,             // (optional) Initial number of transactions to send. Default is 28.
+ *   interrupt: boolean = false                     // (optional) If true, interrupts the process. Default is false.
+ * } - The input parameters for the function.
+ *
+ * @returns {Promise<void>} A promise that resolves when the update is complete or the maximum retry limit is reached.
+ * @throws {Error} If an issue occurs while sending and confirming transactions.
+ */
 export async function executeMerkleTreeUpdateTransactions({
   merkleTreeProgram,
   merkleTreeUpdateState,
@@ -231,12 +253,7 @@ export async function executeMerkleTreeUpdateTransactions({
   connection: Connection;
   interrupt?: boolean;
 }) {
-  /**
-   * Strategy:
-   * - send 28 transactions check whether update is complete
-   * - if not send batches of 10 additional transactions at a time
-   */
-  var counter = 0;
+  var counter = { value: 0 };
   var error = undefined;
   while (
     !(await checkComputeInstructionsCompleted(
@@ -244,9 +261,9 @@ export async function executeMerkleTreeUpdateTransactions({
       merkleTreeUpdateState,
     ))
   ) {
-    numberOfTransactions = counter == 0 ? numberOfTransactions : 10;
-    if (counter != 0) await sleep(1000);
-    const { transactions, incrementedCounter } = await createTransactions({
+    numberOfTransactions = counter.value == 0 ? numberOfTransactions : 10;
+    if (counter.value != 0) await sleep(1000);
+    const transactions = await createTransactions({
       numberOfTransactions,
       signer,
       counter,
@@ -254,13 +271,13 @@ export async function executeMerkleTreeUpdateTransactions({
       merkleTreeUpdateState,
       transactionMerkleTree,
     });
-    counter = incrementedCounter;
+
     try {
       await sendAndConfirmTransactions(transactions, signer, connection);
     } catch (err) {
       error = err;
     }
-    if (interrupt || counter >= 240) {
+    if (interrupt || counter.value >= 240) {
       console.log("Reached retry limit of 240 compute instructions");
       if (error) throw error;
       else return;
