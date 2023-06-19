@@ -345,19 +345,41 @@ const getTransactionsBatch = async ({
   return lastSignature;
 };
 
-const fetchTransactions = async (connection: Connection, sigs: string[]) => {
-  try {
-    const txsBatch = await connection.getParsedTransactions(sigs, {
-      maxSupportedTransactionVersion: 0,
-      commitment: "confirmed",
-    });
+const fetchTransactions = async (
+  connection: Connection,
+  sigs: string[],
+  maxRetries: number = 3,
+  retryDelay: number = 2000,
+) => {
+  let retries = 0;
 
-    return txsBatch.every((t) => t) ? txsBatch : [];
-  } catch (e) {
-    console.log("retry");
-    await sleep(2000);
-    return [];
+  while (retries < maxRetries) {
+    try {
+      const txsBatch = await connection.getParsedTransactions(sigs, {
+        maxSupportedTransactionVersion: 0,
+        commitment: "confirmed",
+      });
+
+      if (txsBatch.every((t) => t)) {
+        return txsBatch;
+      } else {
+        console.debug("Incomplete transactions batch, retrying...");
+      }
+    } catch (e) {
+      console.error("Error occurred:", e);
+      console.debug(`Retry attempt ${retries + 1} of ${maxRetries}`);
+    }
+
+    await sleep(retryDelay);
+    retries++;
   }
+
+  console.debug(`Max retries reached (${maxRetries}), returning empty array.`);
+  return [];
+};
+
+const sleep = (ms: number) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
 const filterFetchedTransactions = (txs: any[]) => {
