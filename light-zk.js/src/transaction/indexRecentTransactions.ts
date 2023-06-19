@@ -378,18 +378,13 @@ const fetchTransactions = async (
   return [];
 };
 
-const filterFetchedTransactions = (txs: any[]) => {
-  return txs.filter((tx) => {
+const filterFetchedTransactions = (txs: any[]): any[] => {
+  return txs.filter((tx: any) => {
     const accountKeys = tx.transaction.message.accountKeys;
-    const splNoopIndex = accountKeys.findIndex(
-      (item: { pubkey: { toBase58: () => any } }) => {
-        const itemStr =
-          typeof item === "string" || item instanceof String
-            ? item
-            : item.pubkey.toBase58();
-        return itemStr === new PublicKey(SPL_NOOP_ADDRESS).toBase58();
-      },
-    );
+    const splNoopIndex = accountKeys.findIndex((item: any) => {
+      const itemStr = item.pubkey.toBase58();
+      return itemStr === new PublicKey(SPL_NOOP_ADDRESS).toBase58();
+    });
 
     return splNoopIndex !== -1;
   });
