@@ -2,6 +2,11 @@
 
 set -e
 
+if [ -z "${LIGHT_PROTOCOL_DEVENV:-}" ]; then
+    LIGHT_PROTOCOL_OLD_PATH="${PATH}"
+    export PATH="$(git rev-parse --show-toplevel)/.local/bin:$PATH"
+fi
+
 pushd light-zk.js
 yarn run build
 popd
@@ -25,3 +30,7 @@ pushd relayer
 rm -rf node_modules
 yarn
 popd
+
+if [ -z "${LIGHT_PROTOCOL_DEVENV:-}" ]; then
+    export PATH="${LIGHT_PROTOCOL_OLD_PATH}"
+fi
