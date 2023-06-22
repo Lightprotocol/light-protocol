@@ -107,6 +107,13 @@ echo "🔍 Detected system $ARCH_SUFFIX_LP"
 echo "📁 Creating directory $PREFIX"
 mkdir -p $PREFIX/bin/deps
 
+echo "🦀 Installing Rust"
+export RUSTUP_HOME=$PREFIX/rustup
+export CARGO_HOME=$PREFIX/cargo
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    --no-modify-path # We want to control the PATH ourselves.
+source $CARGO_HOME/env
+
 echo "📥 Downloading Node.js"
 download_and_extract \
     node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz \

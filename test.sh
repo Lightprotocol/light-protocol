@@ -2,7 +2,7 @@
 
 set -e
 
-./build-sdk.sh
+./build.sh
 
 if [ -z "${LIGHT_PROTOCOL_DEVENV:-}" ]; then
     LIGHT_PROTOCOL_OLD_PATH="${PATH}"
@@ -10,7 +10,6 @@ if [ -z "${LIGHT_PROTOCOL_DEVENV:-}" ]; then
 fi
 
 pushd light-system-programs
-light-anchor build
 yarn test
 popd
 
@@ -20,7 +19,6 @@ sleep 1
 popd
 
 pushd mock-app-verifier
-light-anchor build
 yarn test
 popd
 
