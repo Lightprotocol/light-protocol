@@ -36,9 +36,10 @@ function download_and_extract() {
     local archive_name=$1
     local url=$2
     local dest=$3
+    local strip_components=${4:-0}
 
     echo "📥 Downloading ${archive_name}"
-    curl -L ${url} | tar -zxf - -C ${dest} 
+    curl -L ${url} | tar -zxf - --strip-components ${strip_components} -C ${dest}
 }
 
 # Downloads a file from the given GitHub repository and places it in the given
@@ -63,11 +64,13 @@ function download_and_extract_github () {
     local git_release=$2
     local archive_name=$3
     local dest=$4
+    local strip_components=${5:-0}
 
     download_and_extract \
         ${archive_name} \
         https://github.com/Lightprotocol/${git_repo}/releases/download/${git_release}/${archive_name} \
-        ${dest}
+        ${dest} \
+        ${strip_components}
 }
 
 NODE_VERSION="18.16.1"
@@ -118,7 +121,19 @@ echo "📥 Downloading Node.js"
 download_and_extract \
     node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz \
     https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz \
-    ${PREFIX}
+    ${PREFIX} \
+    1
+
+NPM_DIR=$PREFIX/npm-global
+mkdir -p $NPM_DIR
+export PATH=$PREFIX/bin:$NPM_DIR/bin:$PATH
+export NPM_CONFIG_PREFIX=$NPM_DIR
+
+echo "📦 Installing yarn"
+npm install -g yarn
+
+echo "📦 Installing TypeScript"
+yarn global add typescript
 
 echo "📥 Downloading Solana toolchain"
 
