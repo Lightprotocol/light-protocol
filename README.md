@@ -35,25 +35,18 @@ First, install the dependencies (they are going to be installed in `.local`
 directory inside your repository clone):
 
 ```bash
-./install.sh
+./scripts/install.sh
 ```
 
 Then, optionally, you can activate the development environment:
 
 ```bash
-source devenv.sh
+source ./scripts/devenv.sh
 ```
 
-Then you can use the following commands to build and test the project:
-
-```bash
-./build.sh
-./build-sdk.sh
-./test.sh
-```
-
-(The scripts above are going to work even without activating the development
-environment with `source devenv.sh`.)
+(The scripts mentioned later, like `./scripts/build.sh` or `./scripts/test.sh`
+are going to work even without activating the development environment with
+`source devenv.sh`, they take care of setting the correct `PATH` variable.)
 
 If you activated the development environment, you can manually run commands
 like `yarn`, `cargo`, `solana`, `solana-test-validator`. They are going to
@@ -88,7 +81,6 @@ To build the project, use the following commands:
 
 ```bash
 ./build.sh
-./build-sdk.sh
 ```
 
 ## Git hook

@@ -2,7 +2,7 @@
 
 set -e
 
-./build.sh
+$(dirname "${BASH_SOURCE[0]}")/build.sh
 
 if [ -z "${LIGHT_PROTOCOL_DEVENV:-}" ]; then
     LIGHT_PROTOCOL_OLD_PATH="${PATH}"
