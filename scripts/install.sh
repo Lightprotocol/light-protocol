@@ -45,14 +45,15 @@ function download_and_extract() {
 # Downloads a file from the given GitHub repository and places it in the given
 # destination.
 function download_file_github () {
-    local git_repo=$1
-    local git_release=$2
-    local src_name=$3
-    local dest_name=$4
-    local dest=$5
+    local git_org=$1
+    local git_repo=$2
+    local git_release=$3
+    local src_name=$4
+    local dest_name=$5
+    local dest=$6
 
     download_file \
-        https://github.com/Lightprotocol/${git_repo}/releases/download/${git_release}/${src_name} \
+        https://github.com/${git_org}/${git_repo}/releases/download/${git_release}/${src_name} \
         ${dest_name} \
         ${dest}
 }
@@ -60,21 +61,22 @@ function download_file_github () {
 # Downloads a tarball from the given GitHub repository and extracts it to the
 # given destination.
 function download_and_extract_github () {
-    local git_repo=$1
-    local git_release=$2
-    local archive_name=$3
-    local dest=$4
-    local strip_components=${5:-0}
+    local git_org=$1
+    local git_repo=$2
+    local git_release=$3
+    local archive_name=$4
+    local dest=$5
+    local strip_components=${6:-0}
 
     download_and_extract \
         ${archive_name} \
-        https://github.com/Lightprotocol/${git_repo}/releases/download/${git_release}/${archive_name} \
+        https://github.com/${git_org}/${git_repo}/releases/download/${git_release}/${archive_name} \
         ${dest} \
         ${strip_components}
 }
 
-NODE_VERSION="18.16.1"
-SOLANA_VERSION=$(latest_release Lightprotocol solana)
+NODE_VERSION="16.20.1"
+SOLANA_VERSION="1.16.1"
 ANCHOR_VERSION=$(latest_release Lightprotocol anchor)
 CIRCOM_VERSION=$(latest_release Lightprotocol circom)
 MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
@@ -88,14 +90,17 @@ fi
 
 case $ARCH in
     "x86_64")
+        ARCH_SUFFIX_SOLANA="x86_64-unknown-linux-gnu"
         ARCH_SUFFIX_LP="linux-amd64"
         ARCH_SUFFIX_NODE="linux-x64"
         ;;
     "aarch64")
+        ARCH_SUFFIX_SOLANA="aarch64-unknown-linux-gnu"
         ARCH_SUFFIX_LP="linux-arm64"
         ARCH_SUFFIX_NODE="linux-arm64"
         ;;
     "arm64")
+        ARCH_SUFFIX_SOLANA="aarch64-apple-darwin"
         ARCH_SUFFIX_LP="macos-arm64"
         ARCH_SUFFIX_NODE="darwin-arm64"
         ;;
@@ -136,25 +141,17 @@ echo "📦 Installing TypeScript"
 yarn global add typescript
 
 echo "📥 Downloading Solana toolchain"
-
 download_and_extract_github \
+    solana-labs \
     solana \
-    ${SOLANA_VERSION} \
-    solana-${ARCH_SUFFIX_LP}.tar.gz \
-    ${PREFIX}/bin
-download_and_extract_github \
-    solana \
-    ${SOLANA_VERSION} \
-    solana-sdk-sbf-${ARCH_SUFFIX_LP}.tar.gz \
-    ${PREFIX}/bin
-download_and_extract_github \
-    solana \
-    ${SOLANA_VERSION} \
-    solana-deps-${ARCH_SUFFIX_LP}.tar.gz \
-    ${PREFIX}/bin/deps
+    v${SOLANA_VERSION} \
+    solana-release-${ARCH_SUFFIX_SOLANA}.tar.bz2 \
+    ${PREFIX}/bin \
+    2
 
 echo "📥 Downloading Light Anchor"
 download_file_github \
+    Lightprotocol \
     anchor \
     ${ANCHOR_VERSION} \
     light-anchor-${ARCH_SUFFIX_LP} \
@@ -163,6 +160,7 @@ download_file_github \
 
 echo "📥 Downloading Circom"
 download_file_github \
+    Lightprotocol \
     circom \
     ${CIRCOM_VERSION} \
     circom-${ARCH_SUFFIX_LP} \
@@ -171,6 +169,7 @@ download_file_github \
 
 echo "📥 Downloading macro-circom"
 download_file_github \
+    Lightprotocol \
     macro-circom \
     ${MACRO_CIRCOM_VERSION} \
     macro-circom-${ARCH_SUFFIX_LP} \
