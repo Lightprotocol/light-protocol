@@ -24,7 +24,10 @@ import {
   hashAndTruncateToCircuit,
   TOKEN_AUTHORITY,
   MINT,
-  confirmConfig,
+  ConfirmOptions,
+  sendVersionedTransactions,
+  RelayerSendTransactionsResponse,
+  SendVersionedTransactionsResult,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types/accounts";
@@ -629,15 +632,37 @@ export class Transaction {
   //   }
   // }
 
-  async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
+  async sendAndConfirmTransaction(
+    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
+  ): Promise<
+    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
+  > {
+    return await this.sendTransaction(confirmOptions);
+  }
+
+  // TODO: evaluate whether confirm options should be here or in transaction parameters
+  async sendTransaction(
+    confirmOptions: ConfirmOptions = ConfirmOptions.finalized,
+  ): Promise<
+    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
+  > {
+    var instructions;
+    if (!this.appParams) {
+      instructions = await this.getInstructions(this.params);
+    } else {
+      instructions = await this.getInstructions(this.appParams);
+    }
+    let response = undefined;
     if (this.params.action !== Action.SHIELD) {
       // TODO: replace this with (this.provider.wallet.pubkey != new relayer... this.relayer
       // then we know that an actual relayer was passed in and that it's supposed to be sent to one.
       // we cant do that tho as we'd want to add the default relayer to the provider itself.
       // so just pass in a flag here "shield, unshield, transfer" -> so devs don't have to know that it goes to a relayer.
       // send tx to relayer
-      const res = await this.params.relayer.sendTransaction(ix, this.provider);
-      return res;
+      response = await this.params.relayer.sendTransactions(
+        instructions,
+        this.provider,
+      );
     } else {
       if (!this.provider.provider)
         throw new TransactionError(
@@ -674,9 +699,10 @@ export class Transaction {
         );
       }
 
-      const response = await sendVersionedTransaction(ix, this.provider);
-      return response;
+      response = await sendVersionedTransactions(instructions, this.provider);
     }
+    if (response.error) throw response.error;
+    return response;
   }
 
   /**
@@ -827,68 +853,6 @@ export class Transaction {
       instructions?.push(ix);
     }
     return instructions;
-  }
-
-  async sendAndConfirmTransaction(): Promise<TransactionSignature> {
-    if (!this.params)
-      throw new TransactionError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-        "sendAndConfirmTransaction",
-        "",
-      );
-
-    if (!this.provider.wallet)
-      throw new TransactionError(
-        TransactionErrorCode.WALLET_UNDEFINED,
-        "sendAndConfirmTransaction",
-        "Cannot use sendAndConfirmTransaction without wallet",
-      );
-
-    await this.getRootIndex();
-    await this.getPdaAddresses();
-
-    var instructions;
-
-    if (!this.appParams) {
-      instructions = await this.getInstructions(this.params);
-    } else {
-      instructions = await this.getInstructions(this.appParams);
-    }
-    if (instructions) {
-      let tx = "Something went wrong";
-      for (var ix in instructions) {
-        let txTmp = await this.sendTransaction(instructions[ix]);
-        if (txTmp) {
-          const latestBlockhash =
-            await this.provider.provider?.connection.getLatestBlockhash(
-              confirmConfig,
-            );
-          let txStrat: BlockheightBasedTransactionConfirmationStrategy = {
-            signature: txTmp,
-            lastValidBlockHeight: latestBlockhash!.lastValidBlockHeight,
-            blockhash: latestBlockhash!.blockhash,
-          };
-          await this.provider.provider?.connection.confirmTransaction(
-            txStrat,
-            "confirmed",
-          );
-          tx = txTmp;
-        } else {
-          throw new TransactionError(
-            TransactionErrorCode.SEND_TRANSACTION_FAILED,
-            "sendAndConfirmTransaction",
-            "",
-          );
-        }
-      }
-      return tx;
-    } else {
-      throw new TransactionError(
-        TransactionErrorCode.GET_INSTRUCTIONS_FAILED,
-        "sendAndConfirmTransaction",
-        "",
-      );
-    }
   }
 
   // TODO: deal with this: set own payer just for that? where is this used?

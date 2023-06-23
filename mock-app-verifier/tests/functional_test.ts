@@ -30,7 +30,8 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   Provider,
   LOOK_UP_TABLE,
-  ProgramParameters
+  ProgramParameters,
+  sleep
 } from "@lightprotocol/zk.js";
 import {
   Keypair as SolanaKeypair,
@@ -44,9 +45,10 @@ import { it } from "mocha";
 import { IDL } from "../target/types/mock_verifier";
 import { assert, expect } from "chai";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { transfer } from "@solana/spl-token";
+
 const verifierProgramId = new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
 var POSEIDON, RELAYER, KEYPAIR, relayerRecipientSol: PublicKey ,outputUtxoSpl: Utxo, outputUtxoSol: Utxo;
+
 const storeAndExecuteAppUtxo = async (seed: string, testInputs: any, airdrop: boolean) => {
   const lightProvider = await LightProvider.init({
     wallet: ADMIN_AUTH_KEYPAIR,
@@ -54,13 +56,13 @@ const storeAndExecuteAppUtxo = async (seed: string, testInputs: any, airdrop: bo
   });
   const user: User = await User.init({ provider: lightProvider, seed });
 
-  await user.getBalance();
+  let balance = await user.getBalance();
+  
   if(airdrop) {
     if(testInputs.utxo.amounts[0]) {
       await airdropShieldedSol({seed: testInputs.seed, amount: (testInputs.utxo.amounts[0].div(new BN(1e9))).toNumber()});
     }
   }
-  console.log("storing app utxo");
 
   await user.storeAppUtxo({
     appUtxo: testInputs.utxo,
@@ -108,7 +110,6 @@ describe("Mock verifier functional", () => {
   let lightProvider: Provider;
   before(async () => {
     poseidon = await buildPoseidonOpt();
-    console.log("Initing accounts");
     await createTestAccounts(provider.connection, userTokenAccount);
     await setUpMerkleTree(provider);
     POSEIDON = await buildPoseidonOpt();
@@ -217,7 +218,7 @@ describe("Mock verifier functional", () => {
     }).to.throw(Error);
   });
 
-  it("sol 1 ", async () =>{
+  it("create app utxo with shield and sol ", async () =>{
     const testInputsSol1 = {
       utxo: outputUtxoSol,
       action: Action.SHIELD,
@@ -231,9 +232,9 @@ describe("Mock verifier functional", () => {
     )
   })
 
-  it("spl ", async () =>{
+  it("create app utxo with transfer and spl", async () =>{
     await airdropShieldedSol({
-      amount: 2,
+      amount: 10,
       seed
     });
     await airdropShieldedMINTSpl({
@@ -273,16 +274,9 @@ describe("Mock verifier functional", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
-    const appParams = {
-      inputs: { releaseSlot: new BN(1), currentSlot: new BN(1) },
-      path: circuitPath,
-      verifierIdl: IDL,
-    };
-
     let transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
-      // appParams,
     });
 
     await transactionTester.getTestValues();
@@ -290,7 +284,6 @@ describe("Mock verifier functional", () => {
     let tx = new Transaction({
       provider: lightProvider,
       params: txParams,
-      // appParams,
     });
 
     await tx.compile();
@@ -301,7 +294,8 @@ describe("Mock verifier functional", () => {
       ),
     );
     await tx.getProof();
-    // await tx.getAppProof();
+    await tx.getRootIndex();
+    tx.getPdaAddresses();
     await tx.sendAndConfirmTransaction();
     await transactionTester.checkBalances(
       tx.transactionInputs,
@@ -359,6 +353,8 @@ describe("Mock verifier functional", () => {
     await tx.compile();
     await tx.getProof();
     await tx.getAppProof();
+    await tx.getRootIndex();
+    tx.getPdaAddresses();
     await tx.sendAndConfirmTransaction();
     await transactionTester.checkBalances(
       tx.transactionInputs,

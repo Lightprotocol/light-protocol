@@ -1,6 +1,6 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { assert } from "chai";
-import { fetchNullifierAccountInfo } from "../utils";
+import { fetchNullifierAccountInfo, sleep } from "../utils";
 import { Action, indexRecentTransactions } from "../transaction";
 import { IndexedTransaction, TokenData } from "../types";
 import { Balance, Provider, User } from "../wallet";
@@ -485,6 +485,7 @@ export class TestStateValidator {
       null,
     );
   }
+
   async assertNullifierAccountExists(nullifier: string) {
     assert.notEqual(
       fetchNullifierAccountInfo(nullifier, this.provider.connection!),
@@ -885,5 +886,100 @@ export class TestStateValidator {
       postSolBalance,
     );
     await this.checkMessageStored();
+  }
+
+  async checkCommittedBalanceSpl() {
+    if (this.tokenCtx.isNative)
+      throw new Error("checkCommittedBalanceSpl is not implemented for sol");
+    let transactionNonce;
+    if (this.testInputs.type !== Action.TRANSFER) {
+      let balance = await this.sender.user.getBalance();
+      transactionNonce = this.sender.preShieldedBalance!.transactionNonce += 1;
+      let numberOfUtxos = balance.tokenBalances.get(
+        this.tokenCtx.mint.toBase58(),
+      )?.utxos.size
+        ? balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size
+        : 0;
+      assert.equal(numberOfUtxos, 0);
+
+      assert.equal(
+        balance.tokenBalances.get(this.tokenCtx.mint.toBase58())!.committedUtxos
+          .size,
+        1,
+      );
+      assert.equal(balance.transactionNonce, transactionNonce);
+    } else {
+      let balance = await this.recipient.user.getBalance();
+      transactionNonce =
+        this.recipient.preShieldedBalance!.transactionNonce += 1;
+      let numberOfUtxos = balance.tokenBalances.get(
+        this.tokenCtx.mint.toBase58(),
+      )?.utxos.size
+        ? balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size
+        : 0;
+      let numberOfComittedUtxos = balance.tokenBalances.get(
+        this.tokenCtx.mint.toBase58(),
+      )?.committedUtxos.size
+        ? balance.tokenBalances.get(this.tokenCtx.mint.toBase58())
+            ?.committedUtxos.size
+        : 0;
+
+      assert.equal(numberOfComittedUtxos, 0);
+      assert.equal(numberOfUtxos, 0);
+    }
+
+    const userSpendable = await User.init({
+      provider: this.provider,
+      seed: this.testInputs.recipientSeed,
+    });
+    let balanceSpendable =
+      this.testInputs.type !== Action.TRANSFER
+        ? await userSpendable.getBalance()
+        : await userSpendable.getUtxoInbox();
+    let retries = 20;
+    let numberOfUtxos = balanceSpendable.tokenBalances.get(
+      this.tokenCtx.mint.toBase58(),
+    )?.utxos.size
+      ? balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos
+          .size
+      : 0;
+
+    while (numberOfUtxos == 0) {
+      await sleep(1000);
+      if (retries === 0)
+        throw new Error(
+          `Didn't get any utxos for for action ${this.testInputs.type} ${this.tokenCtx.symbol}`,
+        );
+      retries--;
+      balanceSpendable =
+        this.testInputs.type !== Action.TRANSFER
+          ? await userSpendable.getBalance()
+          : await userSpendable.getUtxoInbox();
+      numberOfUtxos = balanceSpendable.tokenBalances.get(
+        this.tokenCtx.mint.toBase58(),
+      )?.utxos.size
+        ? balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())
+            ?.utxos.size
+        : 0;
+    }
+
+    assert.equal(
+      balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())
+        .committedUtxos.size,
+      0,
+    );
+    assert.equal(
+      balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58()).utxos
+        .size,
+      1,
+    );
+    assert.equal(balanceSpendable.transactionNonce, transactionNonce);
+    if (this.testInputs.type === Action.SHIELD) {
+      this.checkTokenShielded();
+    } else if (this.testInputs.type === Action.TRANSFER) {
+      this.checkTokenTransferred();
+    } else if (this.testInputs.type === Action.UNSHIELD) {
+      this.checkTokenUnshielded();
+    }
   }
 }

@@ -64,7 +64,7 @@ describe("Utxo Functional", () => {
     });
   });
 
-  it("Test Balance movetToSpentUtxos", async () => {
+  it("Test Balance moveToSpentUtxos", async () => {
     let balance: Balance = {
       tokenBalances: new Map([
         [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
@@ -109,7 +109,7 @@ describe("Utxo Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.movetToSpentUtxos(deposit_utxo1.getCommitment(poseidon));
+      ?.moveToSpentUtxos(deposit_utxo1.getCommitment(poseidon));
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       "0",

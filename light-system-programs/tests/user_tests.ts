@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair } from "@solana/web3.js";
+import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
 import _ from "lodash";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -25,9 +25,12 @@ import {
   LOOK_UP_TABLE,
   generateRandomTestAmount,
   airdropSol,
+  ConfirmOptions,
+  sleep,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
+import { assert, use } from "chai";
 
 var POSEIDON;
 var RELAYER: TestRelayer, provider: Provider, user: User;
@@ -189,6 +192,99 @@ describe("Test User", () => {
     // await testStateValidator.checkSolShielded();
   });
 
+  it("(user class) confirm options SPL", async () => {
+    const userSeed = bs58.encode(new Uint8Array(32).fill(3));
+    await airdropShieldedSol({ provider, amount: 10, seed: userSeed });
+    let testInputs = {
+      amountSpl: 15,
+      token: "USDC",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength: 1,
+      recipientSeed: userSeed,
+    };
+    const user: User = await User.init({ provider, seed: userSeed });
+
+    const testStateValidator = new TestStateValidator({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs,
+    });
+
+    await testStateValidator.fetchAndSaveState();
+
+    await user.shield({
+      publicAmountSpl: testInputs.amountSpl,
+      token: testInputs.token,
+      confirmOptions: ConfirmOptions.finalized,
+    });
+
+    await testStateValidator.checkCommittedBalanceSpl();
+
+    const recipientSeed = bs58.encode(new Uint8Array(32).fill(8));
+    const recipientUser: User = await User.init({
+      provider,
+      seed: recipientSeed,
+    });
+
+    let testInputsTransfer = {
+      amountSpl: 1,
+      token: "USDC",
+      type: Action.TRANSFER,
+      expectedUtxoHistoryLength: 1,
+      recipientSeed,
+    };
+
+    const testStateValidatorTransfer = new TestStateValidator({
+      userSender: user,
+      userRecipient: recipientUser,
+      provider,
+      testInputs: testInputsTransfer,
+    });
+    await testStateValidatorTransfer.fetchAndSaveState();
+
+    await user.getBalance();
+    await user.transfer({
+      amountSpl: testInputsTransfer.amountSpl,
+      token: testInputsTransfer.token,
+      confirmOptions: ConfirmOptions.finalized,
+      recipient: recipientUser.account.getPublicKey(),
+    });
+
+    await testStateValidatorTransfer.checkCommittedBalanceSpl();
+
+    let testInputsUnshield = {
+      amountSpl: 0.5,
+      token: "USDC",
+      type: Action.UNSHIELD,
+      expectedUtxoHistoryLength: 2,
+      recipientSeed: userSeed,
+    };
+
+    const testStateValidatorUnshield = new TestStateValidator({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs: testInputsUnshield,
+    });
+    await testStateValidatorUnshield.fetchAndSaveState();
+
+    const recipient = SolanaKeypair.generate();
+    await user.getBalance();
+    await user.unshield({
+      publicAmountSol: testInputsUnshield.amountSpl,
+      token: testInputsUnshield.token,
+      confirmOptions: ConfirmOptions.finalized,
+      recipient: recipient.publicKey,
+    });
+    let recipientBalance = await provider.provider.connection.getBalance(
+      recipient.publicKey,
+    );
+    assert.equal(recipientBalance, 0.5e9);
+    // user, 13.5e9 - 2* RELAYER.relayerFee.toNumber(), provider,Action.UNSHIELD, transactionNonce, userSeed
+    await testStateValidatorUnshield.checkCommittedBalanceSpl();
+  });
+
   it("(user class) unshield SPL", async () => {
     const solRecipient = SolanaKeypair.generate();
 
@@ -281,7 +377,7 @@ describe("Test User", () => {
     });
 
     await testStateValidator.fetchAndSaveState();
-    await user.storeData(testInputs.message, true);
+    await user.storeData(testInputs.message, ConfirmOptions.spendable, true);
     await user.provider.latestMerkleTree();
 
     await testStateValidator.assertStoredWithShield();
@@ -314,7 +410,7 @@ describe("Test User", () => {
 
     await testStateValidator.fetchAndSaveState();
 
-    await user.storeData(testInputs.message, false);
+    await user.storeData(testInputs.message, ConfirmOptions.spendable, false);
     await user.provider.latestMerkleTree();
     await testStateValidator.assertStoredWithTransfer();
   });
