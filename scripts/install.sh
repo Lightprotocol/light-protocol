@@ -35,11 +35,12 @@ function download_file() {
 function download_and_extract() {
     local archive_name=$1
     local url=$2
-    local dest=$3
-    local strip_components=${4:-0}
+    local archive_type=$3
+    local dest=$4
+    local strip_components=${5:-0}
 
     echo "📥 Downloading ${archive_name}"
-    curl -L ${url} | tar -zxf - --strip-components ${strip_components} -C ${dest}
+    curl -L ${url} | tar -x${archive_type}f - --strip-components ${strip_components} -C ${dest}
 }
 
 # Downloads a file from the given GitHub repository and places it in the given
@@ -65,12 +66,14 @@ function download_and_extract_github () {
     local git_repo=$2
     local git_release=$3
     local archive_name=$4
-    local dest=$5
-    local strip_components=${6:-0}
+    local archive_type=$5
+    local dest=$6
+    local strip_components=${7:-0}
 
     download_and_extract \
         ${archive_name} \
         https://github.com/${git_org}/${git_repo}/releases/download/${git_release}/${archive_name} \
+        ${archive_type} \
         ${dest} \
         ${strip_components}
 }
@@ -126,6 +129,7 @@ echo "📥 Downloading Node.js"
 download_and_extract \
     node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz \
     https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz \
+    z \
     ${PREFIX} \
     1
 
@@ -146,6 +150,7 @@ download_and_extract_github \
     solana \
     v${SOLANA_VERSION} \
     solana-release-${ARCH_SUFFIX_SOLANA}.tar.bz2 \
+    j \
     ${PREFIX}/bin \
     2
 

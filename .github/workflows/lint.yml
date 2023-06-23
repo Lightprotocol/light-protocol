@@ -16,30 +16,11 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
 
-      - name: Install stable Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-
-      - name: Install Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: "16"
-
-      - name: Install Typescript
+      - name: Install dependencies
         run: |
-          npm i -g typescript
+          ./scripts/install.sh
 
       - name: Run linters
         run: |
-          ./lint.sh
-
-      # TODO(vadorovsky): Enable clippy once we fix the issue in Solana:
-      # https://github.com/solana-labs/solana/issues/29971
-      # - name: Run cargo clippy
-      #   working-directory: ./light-system-programs
-      #   run: |
-      #     cargo clippy -- -D warnings
+          source ./scripts/devenv.sh
+          ./scripts/lint.sh

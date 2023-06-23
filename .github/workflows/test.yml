@@ -20,40 +20,37 @@ on:
 
 name: test
 
-env:
-  REGISTRY: ghcr.io
-
 jobs:
-  test:
+  functional:
+    name: functional
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    steps:
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: Test
+        run: |
+          source ./scripts/devenv.sh
+          cd light-system-programs
+          yarn test-functional
+
+  user:
+    name: user
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    steps:
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: Test
+        run: |
+          source ./scripts/devenv.sh
+          cd light-system-programs
+          yarn test-user
+
+  relayer:
     name: test
     runs-on: buildjet-8vcpu-ubuntu-2204
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Log in to the container registry
-        # NOTE(vadorovsky): We don't want to push the cache image if the PR is
-        # from the needed PAT_TOKEN. That's not ideal (because external
-        # contributions are not going to be cached immediately), but for now
-        # that's the best we can do.
-        if: github.event.pull_request.head.repo.fork == false
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.PAT_TOKEN }}
-
-      - name: Pre-build dev container image
-        # Same here.
-        if: github.event.pull_request.head.repo.fork == false
-        uses: devcontainers/ci@v0.3
-        with:
-          imageName: ghcr.io/lightprotocol/devcontainer-cache
-          cacheFrom: ghcr.io/lightprotocol/devcontainer-cache
-          push: always
-
       - name: Create env file
         run: |
           cd relayer
@@ -63,12 +60,11 @@ jobs:
           echo LOOK_UP_TABLE=${{ secrets.LOOK_UP_TABLE }} >> .env
           echo TEST_ENVIROMENT=${{ secrets.TEST_ENVIROMENT }} >> .env
 
-      - name: Build and test
-        uses: devcontainers/ci@v0.3
-        with:
-          cacheFrom: ghcr.io/lightprotocol/devcontainer-cache
-          push: always
-          runCmd: |
-            solana-keygen new --no-bip39-passphrase -o /home/node/.config/solana/id.json
-            ./build.sh
-            ./test.sh
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: Test relayer
+        run: |
+          source ./scripts/devenv.sh
+          cd relayer
+          yarn test
