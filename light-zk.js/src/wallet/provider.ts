@@ -11,6 +11,7 @@ import {
   ConfirmOptions,
   Keypair,
   SystemProgram,
+  AddressLookupTableAccount,
 } from "@solana/web3.js";
 import { initLookUpTable } from "../utils";
 import {
@@ -173,22 +174,66 @@ export class Provider {
 
   private async fetchLookupTable() {
     try {
-      if (!this.wallet.isNodeWallet) {
-        const response = await axios.get("http://localhost:3331/lookuptable");
-        const lookUpTable = new PublicKey(response.data.data);
-        this.lookUpTable = lookUpTable;
-        this.relayer.accounts.lookUpTable = lookUpTable;
-        return;
+      if (this.wallet.isNodeWallet) {
+        await this.fetchLookupTableNodeWallet();
+      } else {
+        await this.fetchLookupTableExternal();
       }
-      if (!this.provider) throw new Error("No provider set.");
-      // TODO: remove this should not exist
-      const lookUpTable = await initLookUpTable(this.wallet, this.provider);
-      this.lookUpTable = lookUpTable;
-      this.relayer.accounts.lookUpTable = lookUpTable;
     } catch (err) {
       console.error(err);
       throw err;
     }
+  }
+
+  private async fetchLookupTableExternal() {
+    const response = await axios.get(this.relayer.url + "/lookuptable");
+    const lookUpTable = new PublicKey(response.data.data);
+    this.setLookUpTable(lookUpTable);
+  }
+
+  private async fetchLookupTableNodeWallet() {
+    if (!this.provider)
+      throw new ProviderError(
+        ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
+        "fetchLookupTableNodeWallet",
+      );
+    var lookupTableAccount;
+    try {
+      lookupTableAccount = await this.provider.connection.getAccountInfo(
+        this.relayer.accounts.lookUpTable,
+        "confirmed",
+      );
+    } catch (error) {}
+
+    if (
+      !lookupTableAccount ||
+      !this.checkUnpackedLookupTableAccount(lookupTableAccount.data)
+    ) {
+      await this.initLookUpTable();
+    } else {
+      this.setLookUpTable(this.relayer.accounts.lookUpTable);
+    }
+  }
+
+  private setLookUpTable(lookUpTable: PublicKey) {
+    this.lookUpTable = lookUpTable;
+    this.relayer.accounts.lookUpTable = lookUpTable;
+  }
+
+  private async initLookUpTable() {
+    if (!this.provider)
+      throw new ProviderError(
+        ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
+        "initLookUpTable",
+      );
+    const lookUpTable = await initLookUpTable(this.wallet, this.provider);
+    this.setLookUpTable(lookUpTable);
+  }
+
+  private checkUnpackedLookupTableAccount(data: any) {
+    const unpackedLookupTableAccount =
+      AddressLookupTableAccount.deserialize(data);
+    return unpackedLookupTableAccount !== null;
   }
 
   private async fetchMerkleTree(
@@ -197,7 +242,7 @@ export class Provider {
   ) {
     try {
       if (!this.wallet.isNodeWallet) {
-        const response = await axios.get("http://localhost:3331/merkletree");
+        const response = await axios.get(this.relayer.url + "/merkletree");
 
         const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
 
