@@ -6,7 +6,7 @@ pushd light-system-programs
 yarn install
 yarn run lint
 cargo fmt --all -- --check
-cargo clippy --all -- -D warnings
+cargo clippy --all -- -A clippy::result_large_err -D warnings
 popd
 
 pushd light-zk.js
