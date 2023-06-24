@@ -25,6 +25,9 @@ jobs:
     name: functional
     runs-on: buildjet-8vcpu-ubuntu-2204
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
@@ -38,6 +41,9 @@ jobs:
     name: user
     runs-on: buildjet-8vcpu-ubuntu-2204
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
@@ -51,6 +57,9 @@ jobs:
     name: test
     runs-on: buildjet-8vcpu-ubuntu-2204
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
       - name: Create env file
         run: |
           cd relayer

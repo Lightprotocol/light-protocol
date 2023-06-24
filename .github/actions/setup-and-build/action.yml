@@ -3,14 +3,13 @@ description: Checkout sources, install dependencies, build and prepare for tests
 runs:
   using: "composite"
   steps:
-    - name: Checkout sources
-      uses: actions/checkout@v2
-
     - name: Install dependencies
+      shell: bash
       run: |
         ./scripts/install.sh
 
     - name: Build and prepare for tests
+      shell: bash
       run: |
         source ./scripts/devenv.sh
         solana-keygen new --no-bip39-passphrase -o ${{ env.HOME }}/.config/solana/id.json
