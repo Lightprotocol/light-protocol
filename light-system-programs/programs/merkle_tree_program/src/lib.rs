@@ -235,15 +235,15 @@ pub mod merkle_tree_program {
     /// passed in during the following instructions which compute the poseidon hashes to update the tree.
     /// The hashes are computed with the update merkle tree instruction and the new root is inserted
     /// with the insert root merkle tree instruction.
-    pub fn initialize_merkle_tree_update_state<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InitializeUpdateState<'info>>,
+    pub fn initialize_merkle_tree_update_state<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeUpdateState<'info>>,
     ) -> Result<()> {
         process_initialize_update_state(ctx)
     }
 
     /// Computes poseidon hashes to update the Merkle tree.
-    pub fn update_transaction_merkle_tree<'a, 'b, 'c, 'info>(
-        mut ctx: Context<'a, 'b, 'c, 'info, UpdateTransactionMerkleTree<'info>>,
+    pub fn update_transaction_merkle_tree<'info>(
+        mut ctx: Context<'_, '_, '_, 'info, UpdateTransactionMerkleTree<'info>>,
         _bump: u64,
     ) -> Result<()> {
         process_update_merkle_tree(&mut ctx)
@@ -251,8 +251,8 @@ pub mod merkle_tree_program {
 
     /// This is the last step of a Merkle tree update which inserts the prior computed Merkle tree
     /// root.
-    pub fn insert_root_merkle_tree<'a, 'b, 'c, 'info>(
-        mut ctx: Context<'a, 'b, 'c, 'info, InsertRoot<'info>>,
+    pub fn insert_root_merkle_tree<'info>(
+        mut ctx: Context<'_, '_, '_, 'info, InsertRoot<'info>>,
         _bump: u64,
     ) -> Result<()> {
         process_insert_root(&mut ctx)
@@ -270,8 +270,8 @@ pub mod merkle_tree_program {
     /// The inserted leaves are not part of the Merkle tree yet and marked accordingly.
     /// The Merkle tree has to be updated after.
     /// Can only be called from a registered verifier program.
-    pub fn insert_two_leaves<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeaves<'info>>,
+    pub fn insert_two_leaves<'info>(
+        ctx: Context<'_, '_, '_, 'info, InsertTwoLeaves<'info>>,
         leaf_left: [u8; 32],
         leaf_right: [u8; 32],
         encrypted_utxo: [u8; 256],
@@ -279,8 +279,8 @@ pub mod merkle_tree_program {
         process_insert_two_leaves(ctx, leaf_left, leaf_right, encrypted_utxo)
     }
 
-    pub fn insert_two_leaves_message<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeavesMessage<'info>>,
+    pub fn insert_two_leaves_message<'info>(
+        ctx: Context<'_, '_, '_, 'info, InsertTwoLeavesMessage<'info>>,
         leaf_left: [u8; 32],
         leaf_right: [u8; 32],
     ) -> Result<()> {
@@ -290,8 +290,8 @@ pub mod merkle_tree_program {
     /// Withdraws sol from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
     /// Can only be called from a registered verifier program.
-    pub fn withdraw_sol<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, WithdrawSol<'info>>,
+    pub fn withdraw_sol<'info>(
+        ctx: Context<'_, '_, '_, 'info, WithdrawSol<'info>>,
         amount: u64,
     ) -> Result<()> {
         process_sol_transfer(
@@ -304,15 +304,15 @@ pub mod merkle_tree_program {
     /// Withdraws spl tokens from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
     /// Can only be called from a registered verifier program.
-    pub fn withdraw_spl<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, WithdrawSpl<'info>>,
+    pub fn withdraw_spl<'info>(
+        ctx: Context<'_, '_, '_, 'info, WithdrawSpl<'info>>,
         amount: u64,
     ) -> Result<()> {
         process_spl_transfer(ctx, amount)
     }
 
-    pub fn initialize_nullifiers<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InitializeNullifiers<'info>>,
+    pub fn initialize_nullifiers<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeNullifiers<'info>>,
         nullifiers: Vec<[u8; 32]>,
     ) -> Result<()> {
         process_insert_nullifiers(ctx, nullifiers)

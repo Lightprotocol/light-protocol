@@ -24,7 +24,7 @@ use merkle_tree_program::{
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 
 #[constant]
-pub const PROGRAM_ID: &'static str = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL";
+pub const PROGRAM_ID: &str = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL";
 
 #[program]
 pub mod verifier_program_one {
@@ -34,8 +34,8 @@ pub mod verifier_program_one {
     /// It creates and initializes a verifier state account which stores public inputs and other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the verification and
     /// protocol logicin the second transaction.
-    pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
+    pub fn shielded_transfer_first<'info>(
+        ctx: Context<'_, '_, '_, 'info, LightInstructionFirst<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferFirst =
@@ -61,8 +61,8 @@ pub mod verifier_program_one {
     /// This instruction is the second step of a shieled transaction.
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
-    pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
+    pub fn shielded_transfer_second<'info>(
+        ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferSecond =
@@ -77,8 +77,8 @@ pub mod verifier_program_one {
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
-    pub fn close_verifier_state<'a, 'b, 'c, 'info>(
-        _ctx: Context<'a, 'b, 'c, 'info, CloseVerifierState<'info>>,
+    pub fn close_verifier_state<'info>(
+        _ctx: Context<'_, '_, '_, 'info, CloseVerifierState<'info>>,
     ) -> Result<()> {
         Ok(())
     }

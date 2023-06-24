@@ -9,9 +9,8 @@ pub fn insert_0_double(
     merkle_tree_account: &mut RefMut<'_, TransactionMerkleTree>,
     update_state_data: &mut MerkleTreeUpdateState,
 ) -> Result<(), ProgramError> {
-    update_state_data.current_index = (merkle_tree_account.next_index as u64
-        + update_state_data.insert_leaves_index as u64 * 2)
-        / 2;
+    update_state_data.current_index =
+        (merkle_tree_account.next_index + update_state_data.insert_leaves_index as u64 * 2) / 2;
 
     if update_state_data.current_index == 262144 {
         msg!("Merkle tree full");
