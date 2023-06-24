@@ -12,5 +12,6 @@ runs:
       shell: bash
       run: |
         source ./scripts/devenv.sh
-        solana-keygen new --no-bip39-passphrase -o ${{ env.HOME }}/.config/solana/id.json
-        ./build.sh
+        mkdir -p /home/runner/.config/solana/
+        solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+        ./scripts/build.sh

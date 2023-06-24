@@ -21,9 +21,38 @@ on:
 name: test
 
 jobs:
-  functional:
-    name: functional
-    runs-on: buildjet-8vcpu-ubuntu-2204
+  light-system-programs:
+    name: light-system-programs
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    strategy:
+      matrix:
+        test:
+          - functional
+          - user
+          - user-merge
+          - user-merge-sol
+          - user-merge-sol-specific
+          - user-merge-spl
+          - user-merge-spl-specific
+          - verifiers
+          - merkle-tree
+          - provider
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: ${{ matrix.test }}
+        run: |
+          source ./scripts/devenv.sh
+          cd light-system-programs
+          yarn test-${{ matrix.test }}
+
+  light-zk-js:
+    name: light-zk.js
+    runs-on: buildjet-16vcpu-ubuntu-2204
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -35,45 +64,37 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           cd light-system-programs
-          yarn test-functional
-
-  user:
-    name: user
-    runs-on: buildjet-8vcpu-ubuntu-2204
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
-
-      - name: Test
-        run: |
-          source ./scripts/devenv.sh
-          cd light-system-programs
-          yarn test-user
-
-  relayer:
-    name: test
-    runs-on: buildjet-8vcpu-ubuntu-2204
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Create env file
-        run: |
-          cd relayer
-          touch .env
-          echo KEY_PAIR=${{ secrets.KEY_PAIR }} > .env
-          echo RELAYER_RECIPIENT=${{ secrets.RELAYER_RECIPIENT }} >> .env
-          echo LOOK_UP_TABLE=${{ secrets.LOOK_UP_TABLE }} >> .env
-          echo TEST_ENVIROMENT=${{ secrets.TEST_ENVIROMENT }} >> .env
-
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
-
-      - name: Test relayer
-        run: |
-          source ./scripts/devenv.sh
-          cd relayer
           yarn test
+
+  
+  mock-app-verifier:
+    name: mock-app-verifier
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: Test
+        run: |
+          source ./scripts/devenv.sh
+          cd mock-app-verifier
+          yarn test
+
+  light-circuits:
+    name: light-circuits
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: Test
+        run: |
+          source ./scripts/devenv.sh
+          cd light-circuits
+          yarn run test
