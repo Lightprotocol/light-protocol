@@ -124,6 +124,7 @@ export CARGO_HOME=$PREFIX/cargo
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
     --no-modify-path # We want to control the PATH ourselves.
 source $CARGO_HOME/env
+cargo install cargo-expand
 
 echo "📥 Downloading Node.js"
 download_and_extract \
