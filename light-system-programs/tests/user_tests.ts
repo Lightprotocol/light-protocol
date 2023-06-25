@@ -343,15 +343,11 @@ describe("Test User Errors", () => {
     amount = 20;
     token = "USDC";
 
-    provider = await await Provider.init({
+    provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
-    }); // userKeypair
-    let res = await provider.provider.connection.requestAirdrop(
-      userKeypair.publicKey,
-      2_000_000_000,
-    );
-    await provider.provider.connection.confirmTransaction(res, "confirmed");
+    });
+
     user = await User.init({ provider });
   });
   it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {

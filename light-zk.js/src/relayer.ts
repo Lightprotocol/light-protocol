@@ -19,6 +19,7 @@ export class Relayer {
   relayerFee: BN;
   highRelayerFee: BN;
   indexedTransactions: IndexedTransaction[] = [];
+  url: string;
 
   /**
    *
@@ -32,7 +33,8 @@ export class Relayer {
     lookUpTable: PublicKey,
     relayerRecipientSol?: PublicKey,
     relayerFee: BN = new BN(0),
-    highRelayerFee: BN = TOKEN_ACCOUNT_FEE,
+    highRelayerFee: BN = new BN(TOKEN_ACCOUNT_FEE),
+    url: string = "http://localhost:3331",
   ) {
     if (!relayerPubkey) {
       throw new RelayerError(
@@ -73,13 +75,12 @@ export class Relayer {
     }
     this.highRelayerFee = highRelayerFee;
     this.relayerFee = relayerFee;
+    this.url = url;
   }
 
   async updateMerkleTree(provider: Provider) {
     try {
-      const response = await axios.post(
-        "http://localhost:3331/updatemerkletree",
-      );
+      const response = await axios.post(this.url + "/updatemerkletree");
       return response;
     } catch (err) {
       console.error({ err });
@@ -89,12 +90,9 @@ export class Relayer {
 
   async sendTransaction(instruction: any, provider: Provider): Promise<any> {
     try {
-      const response = await axios.post(
-        "http://localhost:3331/relayInstruction",
-        {
-          instruction,
-        },
-      );
+      const response = await axios.post(this.url + "/relayInstruction", {
+        instruction,
+      });
       return response.data.data;
     } catch (err) {
       console.error({ err });
@@ -110,9 +108,7 @@ export class Relayer {
     connection: Connection,
   ): Promise<IndexedTransaction[]> {
     try {
-      const response = await axios.get(
-        "http://localhost:3331/indexedTransactions",
-      );
+      const response = await axios.get(this.url + "/indexedTransactions");
 
       const indexedTransactions: IndexedTransaction[] = response.data.data.map(
         (trx: IndexedTransaction) => {
