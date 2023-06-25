@@ -73,10 +73,12 @@ export async function airdropSol({
   amount: number;
   recipientPublicKey: PublicKey;
 }) {
-  await provider.connection.confirmTransaction(
-    await provider.connection.requestAirdrop(recipientPublicKey, amount),
-    "confirmed",
+  const txHash = await provider.connection.requestAirdrop(
+    recipientPublicKey,
+    amount,
   );
+  await provider.connection.confirmTransaction(txHash, "confirmed");
+  return txHash;
 }
 
 /**
@@ -148,7 +150,7 @@ export async function airdropSplToAssociatedTokenAccount(
     MINT,
     payer.publicKey,
   );
-  await mintTo(
+  return await mintTo(
     connection,
     ADMIN_AUTH_KEYPAIR,
     MINT,

@@ -32,6 +32,7 @@ export class TestRelayer extends Relayer {
     relayerRecipientSol?: PublicKey,
     relayerFee: BN = new BN(0),
     highRelayerFee?: BN,
+    payer?: Keypair,
   ) {
     super(
       relayerPubkey,
@@ -40,18 +41,25 @@ export class TestRelayer extends Relayer {
       relayerFee,
       highRelayerFee,
     );
-    this.relayerKeypair = Keypair.generate();
+    this.relayerKeypair = payer ? payer : Keypair.generate();
   }
 
   async updateMerkleTree(provider: Provider): Promise<any> {
     if (!provider.provider) throw new Error("Provider.provider is undefined.");
     if (!provider.url) throw new Error("Provider.provider is undefined.");
 
-    await airdropSol({
-      provider: provider.provider,
-      amount: 1_000_000_000,
-      recipientPublicKey: this.relayerKeypair.publicKey,
-    });
+    const balance = await provider.provider.connection?.getBalance(
+      this.relayerKeypair.publicKey,
+    );
+
+    if (!balance || balance < 1e9) {
+      await airdropSol({
+        provider: provider.provider,
+        amount: 1_000_000_000,
+        recipientPublicKey: this.relayerKeypair.publicKey,
+      });
+    }
+
     try {
       const response = await updateMerkleTreeForTest(
         this.relayerKeypair,
