@@ -111,12 +111,6 @@ const selectBiggestSmallest = (
           // add utxo
           selectedUtxos.push(filteredUtxos[utxo]);
         }
-      } else {
-        if (selectedUtxosAmount.lt(sumOutSpl)) {
-          throw new Error(
-            `Could not find a utxo combination for spl token ${mint} and amount ${sumOutSpl}`,
-          );
-        }
       }
     }
   }
@@ -291,16 +285,13 @@ export function selectInUtxos({
           );
 
         // if a sol utxo was found replace small spl utxo
-        if (selectedUtxo1.length === 0)
-          throw new SelectInUtxosError(
-            SelectInUtxosErrorCode.FAILED_TO_SELECT_SOL_UTXO,
-            "selectInUtxos",
-            `Failed to select a sol utxo sumOutSol ${sumOutSol}, sumInSol ${sumInSol}`,
-          );
-        if (selectedUtxosR.length == numberMaxInUtxos) {
+        if (
+          (selectedUtxo1.length !== 0,
+          selectedUtxosR.length == numberMaxInUtxos)
+        ) {
           // overwrite existing utxo
           selectedUtxosR[1] = selectedUtxo1[0];
-        } else {
+        } else if (selectedUtxo1.length !== 0) {
           // add utxo
           selectedUtxosR.push(selectedUtxo1[0]);
         }

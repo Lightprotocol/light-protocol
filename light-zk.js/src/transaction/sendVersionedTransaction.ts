@@ -1,10 +1,14 @@
 import {
   AddressLookupTableAccount,
+  BlockheightBasedTransactionConfirmationStrategy,
   ComputeBudgetProgram,
+  ConfirmOptions,
   Connection,
   Keypair,
+  TransactionConfirmationStrategy,
   TransactionInstruction,
   TransactionMessage,
+  TransactionSignature,
   VersionedTransaction,
 } from "@solana/web3.js";
 
@@ -68,3 +72,34 @@ export const sendVersionedTransaction = async (ix: any, provider: Provider) => {
   }
   return res;
 };
+
+export type SendVersionedTransactionsResult = {
+  signatures?: TransactionSignature[];
+  error?: any;
+};
+
+export async function sendVersionedTransactions(
+  instructions: any[],
+  provider: Provider,
+): Promise<SendVersionedTransactionsResult> {
+  let signature;
+  try {
+    if (!provider.provider) throw new Error("no provider set");
+    var signatures: TransactionSignature[] = [];
+    for (var instruction of instructions) {
+      signature = await sendVersionedTransaction(instruction, provider);
+      signatures.push(signature);
+      const latestBlockHash =
+        await provider.provider!.connection!.getLatestBlockhash("confirmed");
+      let strategy: TransactionConfirmationStrategy = {
+        signature: signature.toString(),
+        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+        blockhash: latestBlockHash.blockhash,
+      };
+      await provider.provider.connection?.confirmTransaction(strategy);
+    }
+    return { signatures };
+  } catch (error) {
+    return { error: signature };
+  }
+}

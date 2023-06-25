@@ -10,6 +10,7 @@ import {
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import {
   ADMIN_AUTH_KEYPAIR,
+  ConfirmOptions,
   MINT,
   Provider,
   RELAYER_FEES,
@@ -132,6 +133,7 @@ export async function airdropShieldedMINTSpl({
     token: TOKEN_PUBKEY_SYMBOL.get(MINT.toBase58())!,
     recipient: recipientPublicKey,
     skipDecimalConversions: true,
+    confirmOptions: ConfirmOptions.spendable,
   });
 }
 

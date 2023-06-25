@@ -3,32 +3,37 @@ import {
   IndexedTransaction,
   indexRecentTransactions,
   sendVersionedTransaction,
+  sendVersionedTransactions,
 } from "@lightprotocol/zk.js";
 import { getLightProvider, setAnchorProvider } from "../utils/provider";
 
 export async function sendTransaction(req: any, res: any) {
+ 
   try {
-    if (!req.body.instruction) throw new Error("No instructions provided");
+    if (!req.body.instructions) throw new Error("No instructions provided");
     const provider = await getLightProvider();
+
     if (!provider.provider) throw new Error("no provider set");
 
-    const instruction = req.body.instruction;
+    let instructions: TransactionInstruction[] = [];
+    for (let instruction of req.body.instructions){
+      const accounts = instruction.keys.map((key: any) => {
+        return {
+          pubkey: new PublicKey(key.pubkey),
+          isWritable: key.isWritable,
+          isSigner: key.isSigner,
+        };
+      });
+      const newInstruction = new TransactionInstruction({
+        keys: accounts,
+        programId: new PublicKey(instruction.programId),
+        data: Buffer.from(instruction.data),
+      });
+      instructions.push(newInstruction);
+    }
 
-    const accounts = instruction.keys.map((key: any) => {
-      return {
-        pubkey: new PublicKey(key.pubkey),
-        isWritable: key.isWritable,
-        isSigner: key.isSigner,
-      };
-    });
-
-    const newInstruction = new TransactionInstruction({
-      keys: accounts,
-      programId: new PublicKey(instruction.programId),
-      data: Buffer.from(instruction.data),
-    });
-    const response = await sendVersionedTransaction(newInstruction, provider);
-    return res.status(200).json({ data: response });
+    var response = await sendVersionedTransactions(instructions, provider)
+    return res.status(200).json({ data: { transactionStatus: "confirmed", ...response }  });
   } catch (error) {
     return res.status(500).json({ status: "error", message: error.message });
   }

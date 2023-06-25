@@ -7,6 +7,7 @@ import {
   IndexedTransaction,
   indexRecentTransactions,
   Relayer,
+  sleep,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "./merkleTree";
@@ -48,7 +49,7 @@ export class SolMerkleTree {
     const mtFetched =
       await merkleTreeProgram.account.transactionMerkleTree.fetch(
         merkleTreePubkey,
-        "confirmed",
+        "processed",
       );
     const merkleTreeIndex = mtFetched.nextIndex;
     // ProgramAccount<MerkleTreeProgram["accounts"][7]>
@@ -74,11 +75,10 @@ export class SolMerkleTree {
       provider,
     );
 
-    const mtFetched =
-      await merkleTreeProgram.account.transactionMerkleTree.fetch(
-        pubkey,
-        "confirmed",
-      );
+    let mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
+      pubkey,
+      "processed",
+    );
 
     const merkleTreeIndex = mtFetched.nextIndex;
 
@@ -103,7 +103,7 @@ export class SolMerkleTree {
     );
 
     // @ts-ignore: unknown type error
-    const index = mtFetched.roots.findIndex((root) => {
+    let index = mtFetched.roots.findIndex((root) => {
       return (
         Array.from(
           leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
@@ -111,6 +111,24 @@ export class SolMerkleTree {
         ).toString() === root.toString()
       );
     });
+    let retries = 3;
+    while (index < 0 && retries > 0) {
+      await sleep(100);
+      retries--;
+      mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
+        pubkey,
+        "processed",
+      );
+      // @ts-ignore: unknown type error
+      index = mtFetched.roots.findIndex((root) => {
+        return (
+          Array.from(
+            leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
+            // @ts-ignore: unknown type error
+          ).toString() === root.toString()
+        );
+      });
+    }
 
     if (index < 0) {
       throw new Error(

@@ -2,6 +2,7 @@ import {
   PublicKey,
   SystemProgram,
   Transaction as SolanaTransaction,
+  TransactionConfirmationStrategy,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
@@ -60,7 +61,10 @@ import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 // TODO: Utxos should be assigned to a merkle tree
-// TODO: add support for wallet adapter (no access to payer keypair)
+export enum ConfirmOptions {
+  finalized = "finalized",
+  spendable = "spendable",
+}
 
 /**
  *
@@ -172,7 +176,8 @@ export class User {
           this.provider.provider.connection,
         );
         if (nullifierAccountInfo !== null) {
-          tokenBalance.movetToSpentUtxos(key);
+          // tokenBalance.utxos.delete(key)
+          tokenBalance.moveToSpentUtxos(key);
         }
       }
     }
@@ -557,53 +562,54 @@ export class User {
     }
   }
 
-  async sendAndConfirm() {
+  async sendTransaction(
+    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
+  ) {
+    if (!this.recentTransactionParameters)
+      throw new UserError(
+        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        "sendTransaction",
+        "transaction needs to be compiled and a proof generated before send.",
+      );
     if (
       this.recentTransactionParameters?.action === Action.SHIELD &&
       !this.approved
     )
       throw new UserError(
         UserErrorCode.SPL_FUNDS_NOT_APPROVED,
-        "sendAndConfirmed",
+        "sendTransaction",
         "spl funds need to be approved before a shield with spl tokens can be executed",
       );
     if (!this.recentTransaction)
       throw new UserError(
         UserErrorCode.TRANSACTION_UNDEFINED,
-        "sendAndConfirmed",
+        "sendTransaction",
         "transaction needs to be compiled and a proof generated before send.",
       );
-    let txHash;
+    let txResult;
     try {
-      txHash = await this.recentTransaction?.sendAndConfirmTransaction();
+      txResult = await this.recentTransaction.sendTransaction(confirmOptions);
     } catch (e) {
       throw new UserError(
         TransactionErrorCode.SEND_TRANSACTION_FAILED,
         "shield",
-        `Error in tx.sendAndConfirmTransaction! ${e}`,
+        `Error in tx.sendTransaction ${e}`,
       );
     }
     let transactionContainsEncryptedUtxo = false;
-    this.recentTransactionParameters?.outputUtxos.map((utxo) => {
+    this.recentTransactionParameters.outputUtxos.map((utxo) => {
       if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
         transactionContainsEncryptedUtxo = true;
       }
     });
     this.balance.transactionNonce += 1;
-    return txHash;
+    return txResult;
   }
 
-  async updateMerkleTree() {
-    const response = await this.provider.relayer.updateMerkleTree(
-      this.provider,
-    );
-
-    await this.syncState(true, this.balance, TRANSACTION_MERKLE_TREE_KEY);
-
+  resetTxState() {
     this.recentTransaction = undefined;
     this.recentTransactionParameters = undefined;
     this.approved = undefined;
-    return response;
   }
 
   /**
@@ -623,6 +629,7 @@ export class User {
     minimumLamports = true,
     appUtxo,
     skipDecimalConversions = false,
+    confirmOptions = ConfirmOptions.spendable,
   }: {
     token: string;
     recipient?: string;
@@ -632,12 +639,13 @@ export class User {
     senderTokenAccount?: PublicKey;
     appUtxo?: AppUtxoConfig;
     skipDecimalConversions?: boolean;
+    confirmOptions?: ConfirmOptions;
   }) {
     let recipientAccount = recipient
       ? Account.fromPubkey(recipient, this.provider.poseidon)
       : undefined;
 
-    await this.createShieldTransactionParameters({
+    const txParams = await this.createShieldTransactionParameters({
       token,
       publicAmountSpl,
       recipient: recipientAccount,
@@ -647,11 +655,7 @@ export class User {
       appUtxo,
       skipDecimalConversions,
     });
-    await this.compileAndProveTransaction();
-    await this.approve();
-    const txHash = await this.sendAndConfirm();
-    const response = await this.updateMerkleTree();
-    return { txHash, response };
+    return await this.transactWithParameters({ txParams, confirmOptions });
   }
 
   async unshield({
@@ -660,25 +664,23 @@ export class User {
     publicAmountSol,
     recipient = AUTHORITY,
     minimumLamports = true,
+    confirmOptions = ConfirmOptions.spendable,
   }: {
     token: string;
     recipient?: PublicKey;
     publicAmountSpl?: number | BN | string;
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
+    confirmOptions?: ConfirmOptions;
   }) {
-    await this.createUnshieldTransactionParameters({
+    const txParams = await this.createUnshieldTransactionParameters({
       token,
       publicAmountSpl,
       publicAmountSol,
       recipient,
       minimumLamports,
     });
-
-    await this.compileAndProveTransaction();
-    const txHash = await this.sendAndConfirm();
-    const response = await this.updateMerkleTree();
-    return { txHash, response };
+    return await this.transactWithParameters({ txParams, confirmOptions });
   }
 
   // TODO: add unshieldSol and unshieldSpl
@@ -803,12 +805,14 @@ export class User {
     amountSpl,
     amountSol,
     appUtxo,
+    confirmOptions = ConfirmOptions.spendable,
   }: {
     token: string;
     amountSpl?: BN | number | string;
     amountSol?: BN | number | string;
     recipient: string;
     appUtxo?: AppUtxoConfig;
+    confirmOptions?: ConfirmOptions;
   }) {
     if (!recipient)
       throw new UserError(
@@ -828,7 +832,7 @@ export class User {
       amountSol,
       appUtxo,
     });
-    return this.transactWithParameters({ txParams });
+    return this.transactWithParameters({ txParams, confirmOptions });
   }
 
   // TODO: add separate lookup function for users.
@@ -907,20 +911,6 @@ export class User {
       ? convertedPublicAmounts.publicAmountSpl
       : new BN(0);
 
-    // var parsedSplAmount: BN = amountSpl
-    //   ? new BN(amountSpl.toString())
-    //   : new BN(0);
-    // if (!skipDecimalConversions && amountSpl && tokenCtx) {
-    //   parsedSplAmount = convertAndComputeDecimals(amountSpl, tokenCtx.decimals);
-    // }
-    // // if no sol amount by default min amount if disabled 0
-    // var parsedSolAmount: BN = amountSol
-    //   ? new BN(amountSol.toString())
-    //   : new BN(0);
-    // if (!skipDecimalConversions && amountSol) {
-    //   parsedSolAmount = convertAndComputeDecimals(amountSol, new BN(1e9));
-    // }
-
     if (recipient && !tokenCtx)
       throw new UserError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
@@ -996,17 +986,36 @@ export class User {
   async transactWithParameters({
     txParams,
     appParams,
+    confirmOptions,
   }: {
     txParams: TransactionParameters;
     appParams?: any;
+    confirmOptions?: ConfirmOptions;
   }) {
     this.recentTransactionParameters = txParams;
 
     await this.compileAndProveTransaction(appParams);
     await this.approve();
-    const txHash = await this.sendAndConfirm();
-    const response = await this.updateMerkleTree();
-    return { txHash, response };
+
+    // we send an array of instructions to the relayer and the relayer sends 3 transaction
+    const txHash = await this.sendTransaction(confirmOptions);
+
+    var relayerMerkleTreeUpdateResponse = "notPinged";
+
+    if (confirmOptions === ConfirmOptions.finalized) {
+      this.provider.relayer.updateMerkleTree(this.provider);
+      relayerMerkleTreeUpdateResponse = "pinged relayer";
+    }
+
+    if (confirmOptions === ConfirmOptions.spendable) {
+      await this.provider.relayer.updateMerkleTree(this.provider);
+      relayerMerkleTreeUpdateResponse = "success";
+    }
+
+    await this.getBalance();
+
+    this.resetTxState();
+    return { txHash, response: relayerMerkleTreeUpdateResponse };
   }
 
   async transactWithUtxos({
@@ -1086,7 +1095,11 @@ export class User {
    * merge highest first
    * loops in steps of 9 or 10
    */
-  async mergeAllUtxos(asset: PublicKey, latest: boolean = true) {
+  async mergeAllUtxos(
+    asset: PublicKey,
+    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
+    latest: boolean = true,
+  ) {
     await this.getUtxoInbox(latest);
     await this.getBalance(latest);
     let inboxTokenBalance: TokenUtxoBalance | undefined =
@@ -1141,11 +1154,7 @@ export class User {
       verifierProgramLookupTable:
         this.provider.lookUpTables.verifierProgramLookupTable,
     });
-    this.recentTransactionParameters = txParams;
-    await this.compileAndProveTransaction();
-    const txHash = await this.sendAndConfirm();
-    const response = await this.updateMerkleTree();
-    return { txHash, response };
+    return await this.transactWithParameters({ txParams, confirmOptions });
   }
 
   // TODO: how do we handle app utxos?, some will not be able to be accepted we can only mark these as accepted
@@ -1157,6 +1166,7 @@ export class User {
   async mergeUtxos(
     commitments: string[],
     asset: PublicKey,
+    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
     latest: boolean = false,
   ) {
     if (commitments.length == 0)
@@ -1225,11 +1235,7 @@ export class User {
       verifierProgramLookupTable:
         this.provider.lookUpTables.verifierProgramLookupTable,
     });
-    this.recentTransactionParameters = txParams;
-    await this.compileAndProveTransaction();
-    const txHash = await this.sendAndConfirm();
-    const response = await this.updateMerkleTree();
-    return { txHash, response };
+    return this.transactWithParameters({ txParams, confirmOptions });
   }
 
   async getTransactionHistory(
@@ -1435,6 +1441,7 @@ export class User {
     action,
     appUtxoConfig,
     skipDecimalConversions = false,
+    confirmOptions = ConfirmOptions.spendable,
   }: {
     token?: string;
     amountSol?: BN;
@@ -1447,6 +1454,7 @@ export class User {
     action: Action;
     appUtxoConfig?: AppUtxoConfig;
     skipDecimalConversions?: boolean;
+    confirmOptions?: ConfirmOptions;
   }) {
     let txParams = await this.createStoreAppUtxoTransactionParameters({
       token,
@@ -1462,7 +1470,7 @@ export class User {
       skipDecimalConversions,
     });
 
-    return this.transactWithParameters({ txParams });
+    return this.transactWithParameters({ txParams, confirmOptions });
   }
 
   // TODO: add storage transaction nonce to rotate keypairs
@@ -1608,7 +1616,7 @@ export class User {
             this.provider.provider!.connection,
           );
           if (nullifierAccountInfo !== null) {
-            tokenBalance.movetToSpentUtxos(key);
+            tokenBalance.moveToSpentUtxos(key);
           }
         }
       }
@@ -1629,7 +1637,11 @@ export class User {
   /**
    *
    */
-  async storeData(message: Buffer, shield: boolean = false) {
+  async storeData(
+    message: Buffer,
+    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
+    shield: boolean = false,
+  ) {
     if (message.length > MAX_MESSAGE_SIZE)
       throw new UserError(
         UserErrorCode.MAX_STORAGE_MESSAGE_SIZE_EXCEEDED,
@@ -1637,13 +1649,14 @@ export class User {
         `${message.length}/${MAX_MESSAGE_SIZE}`,
       );
     if (shield) {
-      await this.createShieldTransactionParameters({
+      const txParams = await this.createShieldTransactionParameters({
         token: "SOL",
         publicAmountSol: new BN(0),
         minimumLamports: false,
         message,
         verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
       });
+      this.recentTransactionParameters = txParams;
     } else {
       var inUtxos: Utxo[] = [];
       // any utxo just select any utxo with a non-zero sol balance preferably sol balance
@@ -1689,8 +1702,10 @@ export class User {
       });
       this.recentTransactionParameters = txParams;
     }
+
     return this.transactWithParameters({
       txParams: this.recentTransactionParameters!,
+      confirmOptions,
     });
   }
 
@@ -1699,12 +1714,14 @@ export class User {
     outUtxos,
     action,
     programParameters,
+    confirmOptions,
   }: {
     appUtxo: Utxo;
     outUtxos?: Utxo[];
     action: Action;
     programParameters: any;
     recipient?: Account;
+    confirmOptions?: ConfirmOptions;
   }) {
     if (!programParameters.verifierIdl)
       throw new UserError(
@@ -1723,6 +1740,7 @@ export class User {
       return this.transactWithParameters({
         txParams,
         appParams: programParameters,
+        confirmOptions,
       });
     } else {
       throw new Error("Not implemented");
