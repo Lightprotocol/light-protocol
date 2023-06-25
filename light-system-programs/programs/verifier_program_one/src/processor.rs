@@ -18,8 +18,9 @@ impl Config for TransactionConfig {
     const ID: Pubkey = pubkey!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 }
 
-pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
+#[allow(clippy::too_many_arguments)]
+pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
+    ctx: Context<'a, '_, '_, 'info, LightInstructionFirst<'info>>,
     proof_a: &'a [u8; 64],
     proof_b: &'a [u8; 128],
     proof_c: &'a [u8; 64],
@@ -44,7 +45,7 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(
         &checked_public_inputs, // checked_public_inputs
         nullifiers,
         leaves,
-        &encrypted_utxos,
+        encrypted_utxos,
         *relayer_fee,
         (*root_index).try_into().unwrap(),
         &pool_type, //pool_type
@@ -56,8 +57,8 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(
     Ok(())
 }
 
-pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
+pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
+    ctx: Context<'a, '_, '_, 'info, LightInstructionSecond<'info>>,
     proof_a: &'a [u8; 64],
     proof_b: &'a [u8; 128],
     proof_c: &'a [u8; 64],

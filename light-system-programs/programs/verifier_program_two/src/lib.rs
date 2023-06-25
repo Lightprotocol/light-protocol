@@ -22,7 +22,7 @@ use merkle_tree_program::{
 declare_id!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
 
 #[constant]
-pub const PROGRAM_ID: &'static str = "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8";
+pub const PROGRAM_ID: &str = "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8";
 
 #[error_code]
 pub enum ErrorCode {
@@ -35,8 +35,8 @@ pub mod verifier_program_two {
     use super::*;
 
     /// This instruction is used to invoke this system verifier and can only be invoked via cpi.
-    pub fn shielded_transfer_inputs<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
+    pub fn shielded_transfer_inputs<'info>(
+        ctx: Context<'_, '_, '_, 'info, LightInstruction<'info>>,
         proof_a: [u8; 64],
         proof_b: [u8; 128],
         proof_c: [u8; 64],

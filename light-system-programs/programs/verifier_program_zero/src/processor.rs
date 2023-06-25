@@ -17,8 +17,9 @@ impl Config for TransactionConfig {
     const ID: Pubkey = pubkey!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 }
 
-pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
+#[allow(clippy::too_many_arguments)]
+pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
+    ctx: Context<'a, '_, '_, 'info, LightInstruction<'info>>,
     proof_a: &'a [u8; 64],
     proof_b: &'a [u8; 128],
     proof_c: &'a [u8; 64],

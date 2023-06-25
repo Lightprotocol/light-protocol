@@ -17,6 +17,42 @@ Developers can use Light to build applications such as
 
 ## Development environment
 
+There are three ways of setting up the development environment:
+
+* [devenv.sh script](#devenv.sh) - the most recommended one, both for Linux and
+  macOS. Works with Bash and zsh.
+* [Development Containers](#development-containers) - recommended on Linux,
+  unfortunately has performance problems on macOS.
+* [Manual setup](#manual-setup) - not recommended, but may be useful if the
+  methods above don't work for you.
+
+### devenv.sh
+
+The easiest way to setup the development environment is to use our scripts
+and development environment.
+
+First, install the dependencies (they are going to be installed in `.local`
+directory inside your repository clone):
+
+```bash
+./scripts/install.sh
+```
+
+Then, optionally, you can activate the development environment:
+
+```bash
+source ./scripts/devenv.sh
+```
+
+(The scripts mentioned later, like `./scripts/build.sh` or `./scripts/test.sh`
+are going to work even without activating the development environment with
+`source devenv.sh`, they take care of setting the correct `PATH` variable.)
+
+If you activated the development environment, you can manually run commands
+like `yarn`, `cargo`, `solana`, `solana-test-validator`. They are going to
+use the dependencies installed in `.local` directory, so even if you have
+different global installations, they are not going to interfere.
+
 ### Development Containers
 
 Light Protocol fully embraces [Development Containers](https://containers.dev/),
@@ -45,7 +81,6 @@ To build the project, use the following commands:
 
 ```bash
 ./build.sh
-./build-sdk.sh
 ```
 
 ## Git hook
