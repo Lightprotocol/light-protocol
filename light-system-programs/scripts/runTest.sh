@@ -22,7 +22,7 @@ if [ -f /.dockerenv ]; then
         --bpf-program $VERIFIER_PROGRAM_ZERO_ID ./target/deploy/verifier_program_zero.so \
         --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ./target/deploy/verifier_program_storage.so \
         --bpf-program $VERIFIER_PROGRAM_ONE_ID ./target/deploy/verifier_program_one.so \
-        --account-dir ../accounts \
+        --account-dir ../../test-env/accounts \
         &
     PID=$!
     trap "kill $PID" EXIT
@@ -51,7 +51,7 @@ else
         -p 8009:8009 \
         -v $HOME/.config/solana/id.json:/home/node/.config/solana/id.json \
         -v $(pwd)/target/deploy:/home/node/.local/light-protocol/lib/light-protocol \
-        -v $(pwd)/../accounts:/home/node/.local/light-protocol/lib/accounts \
+        -v $(pwd)/../test-env/accounts:/home/node/.local/light-protocol/lib/accounts \
         ghcr.io/lightprotocol/solana-test-validator:main \
         --reset \
         --limit-ledger-size=$LIMIT_LEDGER_SIZE \

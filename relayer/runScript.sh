@@ -22,7 +22,7 @@ if [ -f /.dockerenv ]; then
         --bpf-program $VERIFIER_PROGRAM_ZERO_ID ../light-system-programs/target/deploy/verifier_program_zero.so \
         --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ../light-system-programs/target/deploy/verifier_program_storage.so \
         --bpf-program $VERIFIER_PROGRAM_ONE_ID ../light-system-programs/target/deploy/verifier_program_one.so \
-        --account-dir ../accounts \
+        --account-dir ../../test-env/accounts \
         &
     PID=$!
 

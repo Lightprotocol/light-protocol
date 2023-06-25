@@ -111,7 +111,6 @@ describe("Mock verifier functional", () => {
   before(async () => {
     poseidon = await buildPoseidonOpt();
     await createTestAccounts(provider.connection, userTokenAccount);
-    await setUpMerkleTree(provider);
     POSEIDON = await buildPoseidonOpt();
     KEYPAIR = new Account({
       poseidon: POSEIDON,
