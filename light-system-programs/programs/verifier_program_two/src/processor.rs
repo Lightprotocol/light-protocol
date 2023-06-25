@@ -21,8 +21,8 @@ impl Config for TransactionConfig {
     const ID: Pubkey = pubkey!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
 }
 
-pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
+pub fn process_shielded_transfer<'a, 'info>(
+    ctx: Context<'a, '_, '_, 'info, LightInstruction<'info>>,
     proof_a: &'a [u8; 64],
     proof_b: &'a [u8; 128],
     proof_c: &'a [u8; 64],

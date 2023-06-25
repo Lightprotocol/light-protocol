@@ -1,0 +1,17 @@
+name: Setup and build
+description: Checkout sources, install dependencies, build and prepare for tests
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        ./scripts/install.sh
+
+    - name: Build and prepare for tests
+      shell: bash
+      run: |
+        source ./scripts/devenv.sh
+        mkdir -p /home/runner/.config/solana/
+        solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+        ./scripts/build.sh

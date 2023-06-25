@@ -10,7 +10,7 @@ pub mod verifying_key;
 declare_id!("DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj");
 
 #[constant]
-pub const PROGRAM_ID: &'static str = "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj";
+pub const PROGRAM_ID: &str = "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj";
 
 /// Size of the transaction message (per one method call).
 pub const MESSAGE_PER_CALL_SIZE: usize = 1024;
@@ -43,8 +43,8 @@ pub mod verifier_program_storage {
     use super::*;
 
     /// Saves the provided message in a temporary PDA.
-    pub fn shielded_transfer_first<'info>(
-        ctx: Context<LightInstructionFirst<'info>>,
+    pub fn shielded_transfer_first(
+        ctx: Context<LightInstructionFirst<'_>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferFirst =
@@ -74,16 +74,14 @@ pub mod verifier_program_storage {
 
     /// Close the temporary PDA. Should be used when we don't intend to perform
     /// the second transfer and want to reclaim the funds.
-    pub fn shielded_transfer_close<'info>(
-        _ctx: Context<LightInstructionClose<'info>>,
-    ) -> Result<()> {
+    pub fn shielded_transfer_close(_ctx: Context<LightInstructionClose<'_>>) -> Result<()> {
         Ok(())
     }
 
     /// Stores the provided message in a compressed account, closes the
     /// temporary PDA.
-    pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
+    pub fn shielded_transfer_second<'info>(
+        ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferSecond =

@@ -2,10 +2,9 @@
 
 set -e
 
-./build-sdk.sh
+$(dirname "${BASH_SOURCE[0]}")/build.sh
 
 pushd light-system-programs
-light-anchor build
 yarn test
 popd
 
@@ -15,7 +14,6 @@ sleep 1
 popd
 
 pushd mock-app-verifier
-light-anchor build
 yarn test
 popd
 

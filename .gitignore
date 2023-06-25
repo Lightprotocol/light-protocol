@@ -57,3 +57,6 @@
 /.env
 */.env
 **/.env
+
+# Third-party dependencies
+/.local

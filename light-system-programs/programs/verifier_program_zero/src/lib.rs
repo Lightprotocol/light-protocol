@@ -21,7 +21,7 @@ use merkle_tree_program::{
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
 #[constant]
-pub const PROGRAM_ID: &'static str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";
+pub const PROGRAM_ID: &str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";
 
 #[program]
 pub mod verifier_program_zero {
@@ -33,8 +33,8 @@ pub mod verifier_program_zero {
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
-    pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
+    pub fn shielded_transfer_first<'info>(
+        ctx: Context<'_, '_, '_, 'info, LightInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferFirst =
