@@ -25,7 +25,7 @@ if [ -f /.dockerenv ]; then
         --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ./target/deploy/verifier_program_storage.so \
         --bpf-program $VERIFIER_PROGRAM_ONE_ID ./target/deploy/verifier_program_one.so \
         --bpf-program $VERIFIER_PROGRAM_TWO_ID ./target/deploy/verifier_program_two.so \
-        --account-dir ../accounts \
+        --account-dir ../../test-env/accounts \
         --bpf-program $3 /usr/local/lib/test_programs/$4\
         &
     PID=$!
