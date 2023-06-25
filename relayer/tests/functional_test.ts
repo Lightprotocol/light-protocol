@@ -47,7 +47,7 @@ app.use(addCorsHeadersStub);
 app.post("/updatemerkletree", updateMerkleTree);
 app.get("/merkletree", initMerkleTree);
 app.get("/lookuptable", initLookupTable);
-app.post("/relayInstruction", sendTransaction);
+app.post("/relayTransaction", sendTransaction);
 app.get("/indexedTransactions", indexedTransactions);
 
 describe("API tests", () => {
@@ -314,12 +314,12 @@ describe("API tests", () => {
     );
   });
 
-  it("Should fail transaction with empty instruction", (done) => {
-    const instruction = {}; // Replace with a valid instruction object
+  it("Should fail transaction with empty instructions", (done) => {
+    const instructions = [{}]; // Replace with a valid instruction object
     chai
       .request(app)
-      .post("/relayInstruction")
-      .send({ instruction })
+      .post("/relayTransaction")
+      .send({ instructions })
       .end((err, res) => {
         expect(res).to.have.status(500);
         assert.isTrue(

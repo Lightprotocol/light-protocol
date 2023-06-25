@@ -63,6 +63,7 @@ export class TokenUtxoBalance {
     this[attribute].set(commitment, utxo);
 
     if (attribute === ("utxos" as VariableType) && !utxoExists) {
+      this.committedUtxos.delete(commitment);
       this.totalBalanceSol = this.totalBalanceSol.add(utxo.amounts[0]);
       if (utxo.amounts[1])
         this.totalBalanceSpl = this.totalBalanceSpl.add(utxo.amounts[1]);
@@ -70,28 +71,13 @@ export class TokenUtxoBalance {
     return !utxoExists;
   }
 
-  // movetToCommittedUtxos(commitment: string) {
-  //   let utxo = this.utxos.get(commitment);
-  //   if (!utxo)
-  //     throw new TokenUtxoBalanceError(
-  //       TokenUtxoBalanceErrorCode.UTXO_UNDEFINED,
-  //       "moveToCommittedUtxos",
-  //       `utxo with committment ${commitment} does not exist in utxos`,
-  //     );
-  //   this.totalBalanceSol = this.totalBalanceSol.sub(utxo.amounts[0]);
-  //   if (utxo.amounts[1])
-  //     this.totalBalanceSpl = this.totalBalanceSpl.sub(utxo.amounts[1]);
-  //   this.committedUtxos.set(commitment, utxo);
-  //   this.utxos.delete(commitment);
-  // }
-
-  movetToSpentUtxos(commitment: string) {
+  moveToSpentUtxos(commitment: string) {
     let utxo = this.utxos.get(commitment);
     if (!utxo)
       throw new TokenUtxoBalanceError(
         TokenUtxoBalanceErrorCode.UTXO_UNDEFINED,
-        "movetToSpentUtxos",
-        `utxo with committment ${commitment} does not exist in committed utxos`,
+        "moveToSpentUtxos",
+        `utxo with committment ${commitment} does not exist in utxos`,
       );
     this.totalBalanceSol = this.totalBalanceSol.sub(utxo.amounts[0]);
     if (utxo.amounts[1])
@@ -272,8 +258,7 @@ export async function decryptAddUtxoToBalance({
         tokenBalanceUsdc,
       );
     }
-    const assetKey =
-      decryptedUtxo.assets[queuedLeavesPdaExists ? 1 : assetIndex].toBase58();
+    const assetKey = decryptedUtxo.assets[assetIndex].toBase58();
     const utxoType = queuedLeavesPdaExists
       ? "committedUtxos"
       : nullifierExists

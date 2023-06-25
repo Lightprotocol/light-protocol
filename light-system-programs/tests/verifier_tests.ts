@@ -54,7 +54,6 @@ describe("Verifier Zero and One Tests", () => {
   );
   anchor.setProvider(provider);
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  console.log = () => {};
 
   var depositAmount, depositFeeAmount;
   const VERIFIER_IDLS = [IDL_VERIFIER_PROGRAM_ZERO, IDL_VERIFIER_PROGRAM_ONE];
@@ -233,19 +232,11 @@ describe("Verifier Zero and One Tests", () => {
     );
     tx.provider.provider = provider;
     var e;
-
-    for (var ix = 0; ix < instructions.length; ix++) {
-      console.log("ix ", ix);
-      if (ix != instructions.length - 1) {
-        e = await tx.sendTransaction(instructions[ix]);
-
-        // // confirm throws socket hangup error thus waiting a second instead
-        await new Promise((resolve) => setTimeout(resolve, 700));
-      } else {
-        e = await tx.sendTransaction(instructions[ix]);
-      }
+    try {
+      e = await tx.sendTransaction();
+    } catch (error) {
+      e = error;
     }
-    console.log(e);
 
     if (type === "ProofVerificationFails") {
       assert.isTrue(
@@ -264,8 +255,6 @@ describe("Verifier Zero and One Tests", () => {
         ),
       );
     } else if (type === "Includes") {
-      console.log("trying includes: ", account);
-
       assert.isTrue(e.logs.includes(account));
     }
     if (instructions.length > 1) {
@@ -425,7 +414,7 @@ describe("Verifier Zero and One Tests", () => {
   it("Wrong nullifier accounts", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      // await tmp_tx.getPdaAddresses();
+      tmp_tx.getPdaAddresses();
       for (
         var i = 0;
         i < tmp_tx.remainingAccounts.nullifierPdaPubkeys.length;
@@ -447,25 +436,13 @@ describe("Verifier Zero and One Tests", () => {
   it("Wrong leavesPdaPubkeys accounts", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      await tmp_tx.getPdaAddresses();
-      if (tmp_tx.remainingAccounts.leavesPdaPubkeys.length > 1) {
-        for (
-          var i = 0;
-          i < tmp_tx.remainingAccounts.leavesPdaPubkeys.length;
-          i++
-        ) {
-          tmp_tx.remainingAccounts.leavesPdaPubkeys[i] =
-            tmp_tx.remainingAccounts.leavesPdaPubkeys[
-              (i + 1) % tmp_tx.remainingAccounts.leavesPdaPubkeys.length
-            ];
-          await sendTestTx(
-            tmp_tx,
-            "Includes",
-            "Program log: Instruction: InsertTwoLeaves",
-          );
-        }
-      } else {
-        tmp_tx.remainingAccounts.leavesPdaPubkeys[0] = {
+      tmp_tx.getPdaAddresses();
+      for (
+        var i = 0;
+        i < tmp_tx.remainingAccounts.leavesPdaPubkeys.length;
+        i++
+      ) {
+        tmp_tx.remainingAccounts.leavesPdaPubkeys[i] = {
           isSigner: false,
           isWritable: true,
           pubkey: SolanaKeypair.generate().publicKey,

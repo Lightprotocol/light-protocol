@@ -1,15 +1,26 @@
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import {
+  BlockheightBasedTransactionConfirmationStrategy,
+  Connection,
+  Keypair,
+  PublicKey,
+  TransactionSignature,
+} from "@solana/web3.js";
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
-import { Relayer } from "../relayer";
+import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
-import { Provider } from "../wallet";
+import { ConfirmOptions, Provider } from "../wallet";
 import {
   indexRecentTransactions,
   sendVersionedTransaction,
+  sendVersionedTransactions,
 } from "../transaction";
 import { IndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
-import { TRANSACTION_MERKLE_TREE_KEY, IDL_MERKLE_TREE_PROGRAM } from "../index";
+import {
+  TRANSACTION_MERKLE_TREE_KEY,
+  IDL_MERKLE_TREE_PROGRAM,
+  confirmConfig,
+} from "../index";
 
 export class TestRelayer extends Relayer {
   indexedTransactions: IndexedTransaction[] = [];
@@ -53,15 +64,13 @@ export class TestRelayer extends Relayer {
     }
   }
 
-  async sendTransaction(instruction: any, provider: Provider): Promise<any> {
-    try {
-      if (!provider.provider) throw new Error("no provider set");
-      const response = await sendVersionedTransaction(instruction, provider);
-      return response;
-    } catch (err) {
-      console.error("erorr here =========>", { err });
-      throw err;
-    }
+  async sendTransactions(
+    instructions: any[],
+    provider: Provider,
+  ): Promise<RelayerSendTransactionsResponse> {
+    var res = await sendVersionedTransactions(instructions, provider);
+    if (res.error) return { transactionStatus: "error", ...res };
+    else return { transactionStatus: "confirmed", ...res };
   }
 
   /**

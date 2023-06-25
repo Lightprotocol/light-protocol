@@ -23,7 +23,7 @@ app.get("/merkletree", initMerkleTree);
 
 app.get("/lookuptable", initLookupTable);
 
-app.post("/relayInstruction", sendTransaction);
+app.post("/relayTransaction", sendTransaction);
 
 app.get("/indexedTransactions", indexedTransactions);
 

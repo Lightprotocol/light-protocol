@@ -269,7 +269,7 @@ export class TestTransaction {
         await this.provider.provider!.connection.getAccountInfo(
           remainingAccounts.nullifierPdaPubkeys[i].pubkey,
           {
-            commitment: "confirmed",
+            commitment: "processed",
           },
         );
 
@@ -284,7 +284,7 @@ export class TestTransaction {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           remainingAccounts.leavesPdaPubkeys[i / 2].pubkey,
-          "confirmed",
+          "processed",
         );
 
       assert.equal(

@@ -1,4 +1,10 @@
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  RpcResponseAndContext,
+  SignatureResult,
+} from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import axios from "axios";
 import {
@@ -8,7 +14,15 @@ import {
   IndexedTransaction,
   TOKEN_ACCOUNT_FEE,
   LOOK_UP_TABLE,
+  ConfirmOptions,
+  SendVersionedTransactionsResult,
 } from "./index";
+
+export type RelayerSendTransactionsResponse =
+  SendVersionedTransactionsResult & {
+    transactionStatus: string;
+    rpcResponse?: RpcResponseAndContext<SignatureResult>;
+  };
 
 export class Relayer {
   accounts: {
@@ -88,10 +102,13 @@ export class Relayer {
     }
   }
 
-  async sendTransaction(instruction: any, provider: Provider): Promise<any> {
+  async sendTransactions(
+    instructions: any[],
+    provider: Provider,
+  ): Promise<RelayerSendTransactionsResponse> {
     try {
       const response = await axios.post(this.url + "/relayInstruction", {
-        instruction,
+        instructions,
       });
       return response.data.data;
     } catch (err) {

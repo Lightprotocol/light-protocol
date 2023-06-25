@@ -6,7 +6,6 @@ import {
   AUTHORITY,
   MESSAGE_MERKLE_TREE_KEY,
   TRANSACTION_MERKLE_TREE_KEY,
-  verifierProgramZeroProgramId,
   verifierProgramStorageProgramId,
 } from "../constants";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
@@ -33,9 +32,7 @@ import {
   lightAccounts,
   IDL_VERIFIER_PROGRAM_ZERO,
   AppUtxoConfig,
-  validateUtxoAmounts,
   createOutUtxos,
-  IDL_VERIFIER_PROGRAM_ONE,
 } from "../index";
 import nacl from "tweetnacl";
 import { sha256 } from "@noble/hashes/sha256";
@@ -679,8 +676,8 @@ export class TransactionParameters implements transactionParameters {
 
   static async getTxParams({
     tokenCtx,
-    publicAmountSpl,
-    publicAmountSol,
+    publicAmountSpl = new BN(0),
+    publicAmountSol = new BN(0),
     action,
     userSplAccount = AUTHORITY,
     account,
@@ -728,9 +725,6 @@ export class TransactionParameters implements transactionParameters {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<TransactionParameters> {
-    publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
-    publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
-
     if (action === Action.TRANSFER && !outUtxos && !mergeUtxos)
       throw new TransactioParametersError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
@@ -772,6 +766,7 @@ export class TransactionParameters implements transactionParameters {
           TransactionParameters.getVerifierConfig(verifierIdl).in,
       });
     }
+
     if (addOutUtxos) {
       outputUtxos = createOutUtxos({
         publicMint: tokenCtx.mint,
