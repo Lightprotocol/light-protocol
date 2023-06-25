@@ -19,10 +19,10 @@ use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
 use merkle_tree_program::{
     transaction_merkle_tree::state::TransactionMerkleTree, RegisteredVerifier,
 };
-declare_id!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
+declare_id!("2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86");
 
 #[constant]
-pub const PROGRAM_ID: &str = "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8";
+pub const PROGRAM_ID: &str = "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86";
 
 #[error_code]
 pub enum ErrorCode {

@@ -51,10 +51,10 @@ export const verifierProgramZeroProgramId = new PublicKey(
   "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i",
 );
 export const verifierProgramOneProgramId = new PublicKey(
-  "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL",
+  "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc",
 );
 export const verifierProgramTwoProgramId = new PublicKey(
-  "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8",
+  "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86",
 );
 
 export const LOOK_UP_TABLE = new PublicKey(
@@ -112,16 +112,16 @@ export const REGISTERED_VERIFIER_PDA = new PublicKey(
   "Eo3jtUstuMCvapqXdWiYvoUJS1PJDtKVf6LdsMPdyoNn",
 );
 export const REGISTERED_VERIFIER_ONE_PDA = new PublicKey(
-  "CqUS5VyuGscwLMTbfUSAA1grmJYzDAkSR39zpbwW2oV5",
+  "9Q5JQPJEqC71R3jTnrnrSEhjMouCVf2dNjURp1L25Wnr",
 );
 export const REGISTERED_VERIFIER_TWO_PDA = new PublicKey(
-  "7RCgKAJkaR4Qsgve8D7Q3MrVt8nVY5wdKsmTYVswtJWn",
+  "DRwtrkmoUe9VD4T2KRN2A41jqtHgdDeEH8b3sXu7dHVW",
 );
 export const AUTHORITY = new PublicKey(
   "KitaXMAzb8GPZcc6NW6mE7P6gV2fY3Bp8NqZWfeUwqM",
 );
 export const AUTHORITY_ONE = new PublicKey(
-  "EjGpk73m5KxndbUVXcoT3UQsPLp5eK4h1H8kXVHEbf3f",
+  "6n2eREPP6bMLLYVJSGcSCULFy7u2WDrx3v5GJR7bByMa",
 );
 export const PRE_INSERTED_LEAVES_INDEX = new PublicKey(
   "2MQ7XkirVZZhRQQKcaDiJsrXHCuRHjbu72sUEeW4eZjq",
