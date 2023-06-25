@@ -143,6 +143,10 @@ export const MERKLE_TREE_AUTHORITY_PDA = new PublicKey(
   "5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y",
 );
 
+export const TESTNET_LOOK_UP_TABLE = new PublicKey(
+  "64Act4KKVEHFAnjaift46c4ZkutkmT4msN1esSnE6gaJ",
+);
+
 export const FEE_ASSET = anchor.web3.SystemProgram.programId;
 export const MERKLE_TREE_HEIGHT = 18;
 /** Threshold (per asset) at which new in-UTXOs get merged, in order to reduce UTXO pool size */

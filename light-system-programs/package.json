@@ -16,6 +16,7 @@
     "test-provider": "sh ./scripts/runTest.sh 'ts-mocha -t 2000000 tests/provider.test.ts --exit'",
     "test": "yarn test-functional && yarn run test-merkle-tree && yarn run test-user && yarn run test-provider && yarn test-user-merge && yarn run test-user-merge-sol && yarn run test-user-merge-spl && yarn run test-user-merge-sol-specific && yarn run test-user-merge-spl-specific && yarn run test-verifiers",
     "airdrop-testnet": "yarn ts-node ./scripts/airdropTestnet.ts",
+    "createLookupTable-testnet": "yarn ts-node ./scripts/createLookUpTable.ts",
     "format": "prettier --write \"tests/**/*.{ts,js}\""
   },
   "dependencies": {
