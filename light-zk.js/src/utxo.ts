@@ -13,13 +13,7 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
-import {
-  AccountClient,
-  ACCOUNT_DISCRIMINATOR_SIZE,
-  BN,
-  BorshAccountsCoder,
-  Idl,
-} from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import { assert } from "chai";
 import {
   UtxoError,
@@ -37,6 +31,7 @@ import {
   ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   fetchVerifierByIdLookUp,
+  setEnvironment,
 } from "./index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -611,6 +606,7 @@ export class Utxo {
           "For aes encryption the transaction index is necessary to derive the viewingkey",
         );
 
+      setEnvironment();
       const iv16 = nonce.slice(0, 16);
       const ciphertext = await encrypt(
         bytes_message,
@@ -689,7 +685,7 @@ export class Utxo {
       if (compressed) {
         encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
       }
-
+      setEnvironment();
       const iv16 = commitment.slice(0, 16);
 
       try {

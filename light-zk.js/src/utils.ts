@@ -38,6 +38,8 @@ const { keccak_256 } = require("@noble/hashes/sha3");
 import { Decimal } from "decimal.js";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+const crypto = require("@noble/hashes/crypto");
+
 export function hashAndTruncateToCircuit(data: Uint8Array) {
   return new BN(
     keccak_256
@@ -389,4 +391,17 @@ export async function initLookUpTable(
 
 export function toSnakeCase(str: string): string {
   return str.replace(/-/g, "_");
+}
+
+// setting environment correctly for ethereum-crypto
+export function setEnvironment() {
+  if (
+    typeof process !== "undefined" &&
+    process.versions != null &&
+    process.versions.node != null
+  ) {
+    crypto.node = require("crypto");
+  } else {
+    crypto.web = window.crypto;
+  }
 }
