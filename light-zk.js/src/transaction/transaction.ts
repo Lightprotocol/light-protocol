@@ -773,7 +773,9 @@ export class Transaction {
 
       return orderedInstructionNames;
     };
-
+    if (this.params.verifierConfig.out == 2) {
+      this.params.encryptedUtxos! = this.params.encryptedUtxos!.slice(0, 240);
+    }
     let inputObject = {
       message: this.params.message,
       ...this.transactionInputs.proofBytes,

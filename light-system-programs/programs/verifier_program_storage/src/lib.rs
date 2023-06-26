@@ -88,7 +88,7 @@ pub mod verifier_program_storage {
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferSecond =
             InstructionDataShieldedTransferSecond::try_deserialize_unchecked(
-                &mut [vec![0u8; 8], inputs].concat().as_slice(),
+                &mut [vec![0u8; 8], inputs, vec![0u8; 16]].concat().as_slice(),
             )?;
         let message = &ctx.accounts.verifier_state.msg;
         let message_hash = hash(message).to_bytes();

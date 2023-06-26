@@ -45,6 +45,9 @@ pub mod verifier_program_one {
         let proof_a = [0u8; 64];
         let proof_b = [0u8; 128];
         let proof_c = [0u8; 64];
+        let len_missing_bytes = 256 - inputs.encrypted_utxos.len();
+        let mut enc_utxos = inputs.encrypted_utxos;
+        enc_utxos.append(&mut vec![0u8; len_missing_bytes]);
         process_transfer_10_ins_2_outs_first(
             ctx,
             &proof_a,
@@ -54,7 +57,7 @@ pub mod verifier_program_one {
             &inputs.input_nullifier,
             &[[inputs.output_commitment[0], inputs.output_commitment[1]]; 1],
             &inputs.public_amount_sol,
-            &inputs.encrypted_utxos,
+            &enc_utxos,
             &inputs.root_index,
             &inputs.relayer_fee,
         )

@@ -84,9 +84,7 @@ pub mod mock_verifier {
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        // cut off discriminator
-        let vec = &inputs[8..];
-        let _ = vec
+        let _ = inputs
             .chunks(32)
             .map(|input| {
                 ctx.accounts
