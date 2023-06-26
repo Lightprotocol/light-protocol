@@ -5,7 +5,7 @@ export type VerifierProgramOne = {
     {
       name: "PROGRAM_ID";
       type: "string";
-      value: '"3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"';
+      value: '"J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"';
     },
   ];
   instructions: [
@@ -474,7 +474,7 @@ export const IDL: VerifierProgramOne = {
     {
       name: "PROGRAM_ID",
       type: "string",
-      value: '"3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"',
+      value: '"J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"',
     },
   ],
   instructions: [

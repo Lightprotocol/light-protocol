@@ -8,7 +8,7 @@
     ],
     "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     "executable": false,
-    "rentEpoch": 0,
+    "rentEpoch": 18446744073709551615,
     "space": 165
   }
 }

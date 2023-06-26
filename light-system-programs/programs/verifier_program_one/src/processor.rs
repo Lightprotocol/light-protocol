@@ -15,7 +15,7 @@ impl Config for TransactionConfig {
     /// Number of output utxos.
     const NR_LEAVES: usize = 2;
     /// ProgramId.
-    const ID: Pubkey = pubkey!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
+    const ID: Pubkey = pubkey!("J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc");
 }
 
 #[allow(clippy::too_many_arguments)]

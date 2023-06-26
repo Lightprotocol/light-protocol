@@ -107,7 +107,7 @@ export class Relayer {
     provider: Provider,
   ): Promise<RelayerSendTransactionsResponse> {
     try {
-      const response = await axios.post(this.url + "/relayInstruction", {
+      const response = await axios.post(this.url + "/relayTransaction", {
         instructions,
       });
       return response.data.data;

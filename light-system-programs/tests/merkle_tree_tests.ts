@@ -7,7 +7,7 @@ import {
 } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import _ from "lodash";
-import { assert, expect } from "chai";
+import { assert } from "chai";
 const token = require("@solana/spl-token");
 let circomlibjs = require("circomlibjs");
 
@@ -15,7 +15,6 @@ import {
   Transaction,
   Utxo,
   createMintWrapper,
-  initLookUpTableFromFile,
   MerkleTreeProgram,
   merkleTreeProgramId,
   IDL_MERKLE_TREE_PROGRAM,
@@ -30,7 +29,6 @@ import {
   confirmConfig,
   TransactionParameters,
   SolMerkleTree,
-  VerifierProgramZero,
   verifierProgramZeroProgramId,
   MerkleTreeConfig,
   DEFAULT_PROGRAMS,
@@ -152,7 +150,6 @@ describe("Merkle Tree Tests", () => {
 
     assert.isTrue(
       error.logs.includes(
-        // "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
         "Program log: Instruction: InitializeMerkleTreeAuthority",
       ),
     );
@@ -165,8 +162,7 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    console.log(error);
-
+    console.log("error ", error);
     assert.isTrue(
       error.logs.includes(
         "Program log: Instruction: InitializeMerkleTreeAuthority",
@@ -199,7 +195,14 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    assert.equal(error.error.errorMessage, "InvalidAuthority");
+    console.log("InvalidAuthority ", error);
+
+    // assert.equal(error.error.errorMessage, "InvalidAuthority");
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: authority. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      ),
+    );
     error = undefined;
     merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
 
@@ -215,9 +218,12 @@ describe("Merkle Tree Tests", () => {
       error = e;
     }
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
-    assert.equal(
-      error.error.errorMessage,
-      "The program expected this account to be already initialized",
+    console.log("updateMerkleTreeAuthority ", error);
+
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.",
+      ),
     );
     error = undefined;
 
@@ -237,7 +243,11 @@ describe("Merkle Tree Tests", () => {
     }
     console.log(error);
 
-    assert.equal(error.error.errorMessage, "InvalidAuthority");
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: authority. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      ),
+    );
     error = undefined;
     merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
 
@@ -307,7 +317,11 @@ describe("Merkle Tree Tests", () => {
       error = e;
     }
 
-    assert.equal(error.error.errorMessage, "InvalidAuthority");
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: authority. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      ),
+    );
     error = undefined;
     merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
 
@@ -320,9 +334,10 @@ describe("Merkle Tree Tests", () => {
     }
 
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
-    assert.equal(
-      error.error.errorMessage,
-      "The program expected this account to be already initialized",
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.",
+      ),
     );
     error = undefined;
 
@@ -338,7 +353,11 @@ describe("Merkle Tree Tests", () => {
       error = e;
     }
 
-    assert.equal(error.error.errorMessage, "InvalidAuthority");
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: authority. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      ),
+    );
     error = undefined;
     merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
 
@@ -351,9 +370,10 @@ describe("Merkle Tree Tests", () => {
     }
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
 
-    assert.equal(
-      error.error.errorMessage,
-      "The program expected this account to be already initialized",
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.",
+      ),
     );
     error = undefined;
 
@@ -378,8 +398,13 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
+    console.log("register pool type ", error);
 
-    assert.equal(error.error.errorMessage, "InvalidAuthority");
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError thrown in programs/merkle_tree_program/src/lib.rs:160. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      ),
+    );
     error = undefined;
     merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
 
@@ -392,9 +417,10 @@ describe("Merkle Tree Tests", () => {
     }
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
 
-    assert.equal(
-      error.error.errorMessage,
-      "The program expected this account to be already initialized",
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.",
+      ),
     );
     error = undefined;
 
@@ -419,7 +445,11 @@ describe("Merkle Tree Tests", () => {
     }
     console.log(error);
 
-    assert.equal(error.error.errorMessage, "InvalidAuthority");
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError thrown in programs/merkle_tree_program/src/lib.rs:214. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      ),
+    );
     error = undefined;
     merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
 
@@ -433,9 +463,10 @@ describe("Merkle Tree Tests", () => {
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
     console.log("error ", error);
 
-    assert.equal(
-      error.error.errorMessage,
-      "The program expected this account to be already initialized",
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.",
+      ),
     );
     error = undefined;
 
@@ -469,8 +500,13 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
+    console.log(" registerSplPool ", error);
 
-    assert.equal(error.error.errorMessage, "InvalidAuthority");
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError thrown in programs/merkle_tree_program/src/lib.rs:189. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      ),
+    );
     error = undefined;
     merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
 
@@ -483,9 +519,10 @@ describe("Merkle Tree Tests", () => {
     }
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
 
-    assert.equal(
-      error.error.errorMessage,
-      "The program expected this account to be already initialized",
+    assert.isTrue(
+      error.logs.includes(
+        "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.",
+      ),
     );
     error = undefined;
 

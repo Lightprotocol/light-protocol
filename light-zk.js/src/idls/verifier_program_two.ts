@@ -5,7 +5,7 @@ export type VerifierProgramTwo = {
     {
       name: "PROGRAM_ID";
       type: "string";
-      value: '"GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8"';
+      value: '"2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"';
     },
   ];
   instructions: [
@@ -381,7 +381,7 @@ export const IDL: VerifierProgramTwo = {
     {
       name: "PROGRAM_ID",
       type: "string",
-      value: '"GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8"',
+      value: '"2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"',
     },
   ],
   instructions: [

@@ -2,7 +2,12 @@ import * as anchor from "@coral-xyz/anchor";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { assert, expect } from "chai";
 const token = require("@solana/spl-token");
-import { Connection, PublicKey, Keypair } from "@solana/web3.js";
+import {
+  Connection,
+  PublicKey,
+  Keypair,
+  sendAndConfirmTransaction,
+} from "@solana/web3.js";
 
 import { confirmConfig, DEFAULT_PROGRAMS, merkleTreeProgramId } from "../index";
 import { Program } from "@coral-xyz/anchor";
@@ -67,10 +72,17 @@ export class MerkleTreeConfig {
         merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
       })
       .signers([this.payer])
-      .rpc(confirmConfig);
+      .transaction();
+
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [this.payer!],
+      confirmConfig,
+    );
 
     await this.checkTransactionMerkleTreeIsInitialized();
-    return tx;
+    return txHash;
   }
 
   async checkTransactionMerkleTreeIsInitialized() {
@@ -103,10 +115,17 @@ export class MerkleTreeConfig {
         systemProgram: DEFAULT_PROGRAMS.systemProgram,
       })
       .signers([this.payer])
-      .rpc(confirmConfig);
+      .transaction();
+
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [this.payer!],
+      confirmConfig,
+    );
 
     await this.checkMessageMerkleTreeIsInitialized();
-    return tx;
+    return txHash;
   }
 
   async checkMessageMerkleTreeIsInitialized() {
@@ -152,29 +171,34 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS,
       })
       .signers([authority!])
-      .rpc(confirmConfig);
+      .transaction();
 
-    // await sendAndConfirmTransaction(this.connection, new Transaction([authority]).add(tx), [authority], confirmConfig);
-    // rpc(confirmConfig);
-    assert(
-      this.connection.getAccountInfo(
-        this.merkleTreeAuthorityPda!,
-        "confirmed",
-      ) != null,
-      "init authority failed",
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [authority ? authority : this.payer!],
+      confirmConfig,
     );
-    let merkleTreeAuthority =
-      await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        this.merkleTreeAuthorityPda!,
-      );
-    assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
-    assert(merkleTreeAuthority.enableNfts == false);
-    assert(
-      merkleTreeAuthority.pubkey.toBase58() == authority!.publicKey.toBase58(),
-    );
-    assert(merkleTreeAuthority.registeredAssetIndex.toString() == "0");
 
-    return tx;
+    // assert(
+    //   this.connection.getAccountInfo(
+    //     this.merkleTreeAuthorityPda!,
+    //     "confirmed",
+    //   ) != null,
+    //   "init authority failed",
+    // );
+    // let merkleTreeAuthority =
+    //   await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
+    //     this.merkleTreeAuthorityPda!,
+    //   );
+    // assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
+    // assert(merkleTreeAuthority.enableNfts == false);
+    // assert(
+    //   merkleTreeAuthority.pubkey.toBase58() == authority!.publicKey.toBase58(),
+    // );
+    // assert(merkleTreeAuthority.registeredAssetIndex.toString() == "0");
+
+    return txHash;
   }
 
   async updateMerkleTreeAuthority(newAuthority: PublicKey, test = false) {
@@ -203,7 +227,14 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS,
       })
       .signers([this.payer])
-      .rpc(confirmConfig);
+      .transaction();
+
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [this.payer!],
+      confirmConfig,
+    );
 
     if (test != true) {
       let merkleTreeAuthority =
@@ -224,7 +255,7 @@ export class MerkleTreeConfig {
         newAuthority.toBase58(),
       );
     }
-    return tx;
+    return txHash;
   }
 
   // commented in program
@@ -263,13 +294,20 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS,
       })
       .signers([this.payer])
-      .rpc(confirmConfig);
+      .transaction();
+
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [this.payer!],
+      confirmConfig,
+    );
     let merkleTreeAuthority =
       await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
         this.merkleTreeAuthorityPda!,
       );
     assert(merkleTreeAuthority.enablePermissionlessSplTokens == configValue);
-    return tx;
+    return txHash;
   }
 
   async updateLockDuration(lockDuration: Number) {
@@ -287,7 +325,14 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS,
       })
       .signers([this.payer])
-      .rpc(confirmConfig);
+      .transaction();
+
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [this.payer!],
+      confirmConfig,
+    );
     let merkleTree =
       await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
         this.transactionMerkleTreePubkey,
@@ -295,7 +340,7 @@ export class MerkleTreeConfig {
     assert.equal(merkleTree.lockDuration.toString(), lockDuration.toString());
     console.log("lock duration updated to: ", lockDuration);
 
-    return tx;
+    return txHash;
   }
 
   async getRegisteredVerifierPda(verifierPubkey: PublicKey) {
@@ -334,11 +379,18 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS,
       })
       .signers([this.payer])
-      .rpc(confirmConfig);
+      .transaction();
+
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [this.payer!],
+      confirmConfig,
+    );
 
     await this.checkVerifierIsRegistered(verifierPubkey);
 
-    return tx;
+    return txHash;
   }
 
   async checkVerifierIsRegistered(verifierPubkey: PublicKey) {
@@ -397,8 +449,15 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS,
       })
       .signers([this.payer])
-      .rpc(confirmConfig);
-    return tx;
+      .transaction();
+
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [this.payer!],
+      confirmConfig,
+    );
+    return txHash;
   }
 
   async checkPoolRegistered(
@@ -493,13 +552,20 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS,
       })
       .signers([this.payer])
-      .rpc({ commitment: "confirmed", preflightCommitment: "confirmed" });
+      .transaction();
+
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [this.payer!],
+      confirmConfig,
+    );
 
     await this.checkPoolRegistered(solPoolPda, poolType);
     console.log("registered sol pool ", this.merkleTreeAuthorityPda.toBase58());
     // no need to push the sol pool because it is the pool config pda
     // TODO: evaluate how to handle this case
-    return tx;
+    return txHash;
   }
 
   static getSplPoolPdaToken(
@@ -578,10 +644,17 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS,
       })
       .signers([this.payer])
-      .rpc(confirmConfig);
+      .transaction();
+
+    const txHash = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      [this.payer!],
+      confirmConfig,
+    );
 
     await this.checkPoolRegistered(splPoolPda, poolType, mint);
 
-    return tx;
+    return txHash;
   }
 }

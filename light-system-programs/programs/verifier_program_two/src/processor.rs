@@ -18,7 +18,7 @@ impl Config for TransactionConfig {
     /// Number of output utxos.
     const NR_LEAVES: usize = 4;
     /// ProgramId.
-    const ID: Pubkey = pubkey!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
+    const ID: Pubkey = pubkey!("2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86");
 }
 
 pub fn process_shielded_transfer<'a, 'info>(
