@@ -210,7 +210,7 @@ export class TestStateValidator {
     assert.strictEqual(
       this.recentTransaction!.relayerFee.toString(),
       type === Action.UNSHIELD
-        ? TOKEN_ACCOUNT_FEE.toString()
+        ? this.provider.relayer.getRelayerFee(true).toString()
         : type === Action.TRANSFER
         ? "100000"
         : "0",
@@ -651,8 +651,9 @@ export class TestStateValidator {
     // assert that the recipient token balance has increased by the amount shielded
     await this.assertTokenBalance(this.testInputs.amountSpl!, this.recipient);
 
-    const solDecreasedAmount =
-      MINIMUM_LAMPORTS.add(TOKEN_ACCOUNT_FEE).toNumber();
+    const solDecreasedAmount = MINIMUM_LAMPORTS.add(
+      this.provider.relayer.getRelayerFee(true),
+    ).toNumber();
     // assert that the user's sol shielded balance has decreased by fee
     await this.assertShieldedSolBalance(solDecreasedAmount, this.sender);
 

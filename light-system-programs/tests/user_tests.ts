@@ -57,11 +57,13 @@ describe("Test User", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer(
+    RELAYER = new TestRelayer(
       userKeypair.publicKey,
       LOOK_UP_TABLE,
       relayerRecipientSol,
       new BN(100000),
+      new BN(10_100_000),
+      userKeypair,
     );
     provider = await Provider.init({
       wallet: userKeypair,
@@ -90,8 +92,6 @@ describe("Test User", () => {
         expectedSpentUtxosLength,
       };
       totalSplAmount += testInputs.amountSpl;
-      console.log("total spl amount ", totalSplAmount);
-      console.log("testinputs: ", testInputs.amountSpl);
 
       const provider = await Provider.init({
         wallet: userKeypair,
