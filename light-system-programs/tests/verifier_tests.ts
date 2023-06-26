@@ -80,6 +80,8 @@ describe("Verifier Zero and One Tests", () => {
       LOOK_UP_TABLE,
       relayerRecipientSol,
       new BN(100000),
+      new BN(10_100_000),
+      ADMIN_AUTH_KEYPAIR,
     );
 
     depositAmount =

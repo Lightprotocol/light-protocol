@@ -81,6 +81,8 @@ describe("verifier_program", () => {
       LOOK_UP_TABLE,
       relayerRecipientSol,
       new BN(100000),
+      new BN(10_100_000),
+      userKeypair,
     );
   });
 

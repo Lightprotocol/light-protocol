@@ -700,7 +700,12 @@ export class Transaction {
         );
       }
 
-      response = await sendVersionedTransactions(instructions, this.provider);
+      response = await sendVersionedTransactions(
+        instructions,
+        this.provider.provider.connection,
+        this.provider.relayer.accounts.lookUpTable,
+        this.provider.wallet,
+      );
     }
     if (response.error) throw response.error;
     return response;

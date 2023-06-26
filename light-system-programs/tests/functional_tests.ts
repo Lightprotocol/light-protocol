@@ -79,6 +79,8 @@ describe("verifier_program", () => {
       LOOK_UP_TABLE,
       relayerRecipientSol,
       new BN(100_000),
+      new BN(10_100_000),
+      ADMIN_AUTH_KEYPAIR,
     );
   });
 

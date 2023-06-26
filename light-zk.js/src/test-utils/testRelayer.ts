@@ -8,7 +8,7 @@ import {
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
-import { ConfirmOptions, Provider } from "../wallet";
+import { ConfirmOptions, Provider, useWallet, Wallet } from "../wallet";
 import {
   indexRecentTransactions,
   sendVersionedTransaction,
@@ -41,6 +41,7 @@ export class TestRelayer extends Relayer {
       relayerFee,
       highRelayerFee,
     );
+
     this.relayerKeypair = payer ? payer : Keypair.generate();
   }
 
@@ -76,7 +77,12 @@ export class TestRelayer extends Relayer {
     instructions: any[],
     provider: Provider,
   ): Promise<RelayerSendTransactionsResponse> {
-    var res = await sendVersionedTransactions(instructions, provider);
+    var res = await sendVersionedTransactions(
+      instructions,
+      provider.provider!.connection!,
+      this.accounts.lookUpTable,
+      useWallet(this.relayerKeypair),
+    );
     if (res.error) return { transactionStatus: "error", ...res };
     else return { transactionStatus: "confirmed", ...res };
   }

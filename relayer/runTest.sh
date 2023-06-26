@@ -19,7 +19,7 @@ solana-test-validator \
     --reset \
     --limit-ledger-size=$LIMIT_LEDGER_SIZE \
     --quiet \
-    --bpf-program $NOOP_PROGRAM_ID ../../solana-program-library/account-compression/target/deploy/spl_noop.so \
+    --bpf-program $NOOP_PROGRAM_ID ../test-env/programs/spl_noop.so \
     --bpf-program $MERKLE_TREE_PROGRAM_ID ../light-system-programs/target/deploy/merkle_tree_program.so \
     --bpf-program $VERIFIER_PROGRAM_ZERO_ID ../light-system-programs/target/deploy/verifier_program_zero.so \
     --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ../light-system-programs/target/deploy/verifier_program_storage.so \
