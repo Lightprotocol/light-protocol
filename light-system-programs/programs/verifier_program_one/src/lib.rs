@@ -21,10 +21,10 @@ use merkle_tree_program::{
     utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
 };
 
-declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
+declare_id!("J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc");
 
 #[constant]
-pub const PROGRAM_ID: &str = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL";
+pub const PROGRAM_ID: &str = "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc";
 
 #[program]
 pub mod verifier_program_one {

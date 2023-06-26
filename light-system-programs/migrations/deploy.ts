@@ -2,11 +2,18 @@
 // single deploy script that's invoked from the CLI, injecting a provider
 // configured from the workspace's Anchor.toml.
 
-const anchor = require("@coral-xyz/anchor");
+import { ADMIN_AUTH_KEYPAIR, airdropSol, confirmConfig, createTestAccounts, setUpMerkleTree, sleep } from '@lightprotocol/zk.js';
+import * as anchor from "@coral-xyz/anchor";
+import { PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from '@solana/web3.js';
+
 
 module.exports = async function (provider) {
-  // Configure client to use the provider.
   anchor.setProvider(provider);
 
-  // Add your deploy script here.
+ const newAuthority = new PublicKey("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG")
+ await createTestAccounts(provider.connection);
+
+ await setUpMerkleTree(provider, newAuthority, true);
+  
+  process.exit()
 };
