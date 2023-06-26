@@ -1,9 +1,10 @@
-import nacl, { box, randomBytes } from "tweetnacl";
+import nacl, { box } from "tweetnacl";
 
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
 import { encrypt, decrypt } from "ethereum-cryptography/aes";
+const { sha3_256 } = require("@noble/hashes/sha3");
 
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
@@ -588,10 +589,7 @@ export class Utxo {
         CONSTANT_SECRET_AUTHKEY,
       );
 
-      return Uint8Array.from([
-        ...ciphertext,
-        ...new Array(128 - ciphertext.length).fill(0),
-      ]);
+      return Uint8Array.from([...ciphertext]);
     } else {
       if (!merkleTreePdaPublicKey)
         throw new UtxoError(
@@ -618,15 +616,14 @@ export class Utxo {
         "aes-256-cbc",
         true,
       );
+      if (!compressed) return ciphertext;
+      const padding = sha3_256
+        .create()
+        .update(Uint8Array.from([...nonce, ...bytes_message]))
+        .digest();
 
-      if (!compressed) {
-        return ciphertext;
-      }
-      // adding the 8 unused nonce bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts
-      return Uint8Array.from([
-        ...ciphertext,
-        ...new Array(128 - ciphertext.length).fill(0),
-      ]);
+      // adding the 8 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of 120 bytes
+      return Uint8Array.from([...ciphertext, ...padding.subarray(0, 8)]);
     }
   }
 

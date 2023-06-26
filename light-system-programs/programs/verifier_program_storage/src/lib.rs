@@ -48,7 +48,9 @@ pub mod verifier_program_storage {
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferFirst =
-            InstructionDataShieldedTransferFirst::try_deserialize(&mut inputs.as_slice())?;
+            InstructionDataShieldedTransferFirst::try_deserialize_unchecked(
+                &mut [vec![0u8; 8], inputs].concat().as_slice(),
+            )?;
         let message = inputs.message;
         if message.len() > MESSAGE_PER_CALL_SIZE {
             return Err(VerifierError::MessageTooLarge.into());
@@ -85,7 +87,9 @@ pub mod verifier_program_storage {
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferSecond =
-            InstructionDataShieldedTransferSecond::try_deserialize(&mut inputs.as_slice())?;
+            InstructionDataShieldedTransferSecond::try_deserialize_unchecked(
+                &mut [vec![0u8; 8], inputs, vec![0u8; 16]].concat().as_slice(),
+            )?;
         let message = &ctx.accounts.verifier_state.msg;
         let message_hash = hash(message).to_bytes();
 
