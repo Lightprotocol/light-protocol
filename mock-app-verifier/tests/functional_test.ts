@@ -145,11 +145,13 @@ describe("Mock verifier functional", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer(
+    RELAYER = new TestRelayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       LOOK_UP_TABLE,
       relayerRecipientSol,
       new BN(100000),
+      new BN(10_000_000),
+      ADMIN_AUTH_KEYPAIR
     );
     lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,

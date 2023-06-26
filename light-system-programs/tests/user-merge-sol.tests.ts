@@ -68,6 +68,8 @@ describe("Test User", () => {
       environmentConfig.lookUpTable,
       relayerRecipientSol,
       new BN(100000),
+      new BN(10_100_000),
+      userKeypair,
     );
 
     await airdropShieldedSol({

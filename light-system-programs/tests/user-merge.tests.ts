@@ -58,6 +58,8 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       environmentConfig.lookUpTable,
       relayerRecipientSol,
       new BN(100000),
+      new BN(10_100_000),
+      userKeypair,
     );
   });
 
