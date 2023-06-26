@@ -25,7 +25,7 @@ solana-test-validator \
     --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ../light-system-programs/target/deploy/verifier_program_storage.so \
     --bpf-program $VERIFIER_PROGRAM_ONE_ID ../light-system-programs/target/deploy/verifier_program_one.so \
     --bpf-program $VERIFIER_PROGRAM_TWO_ID ../light-system-programs/target/deploy/verifier_program_two.so \
-    --account-dir ../accounts \
+    --account-dir ../test-env/accounts \
     &
 PID=$!
 trap "kill $PID" EXIT INT TERM HUP
