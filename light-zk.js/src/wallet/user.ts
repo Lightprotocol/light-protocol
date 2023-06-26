@@ -229,8 +229,8 @@ export class User {
         const decryptionTransactionNonce1 = await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
             trx.encryptedUtxos.slice(
-              128,
-              128 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              120,
+              120 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
             ),
           ),
           index: leftLeafIndex + 1,

@@ -254,7 +254,7 @@ export function selectInUtxos({
       throw new SelectInUtxosError(
         SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
         "selectInUtxos",
-        `Failed to find any utxo of this token${utxos}`,
+        `Failed to find any utxo of this token${publicMint}`,
       );
     selectedUtxosR = selectedUtxos;
 

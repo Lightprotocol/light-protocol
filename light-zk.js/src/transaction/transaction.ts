@@ -28,6 +28,7 @@ import {
   sendVersionedTransactions,
   RelayerSendTransactionsResponse,
   SendVersionedTransactionsResult,
+  AUTHORITY,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types/accounts";
@@ -772,7 +773,9 @@ export class Transaction {
 
       return orderedInstructionNames;
     };
-
+    if (this.params.verifierConfig.out == 2) {
+      this.params.encryptedUtxos! = this.params.encryptedUtxos!.slice(0, 240);
+    }
     let inputObject = {
       message: this.params.message,
       ...this.transactionInputs.proofBytes,
@@ -831,13 +834,17 @@ export class Transaction {
         accountName,
       );
 
-      let inputsVec = await coder.encode(accountName, inputs);
+      let inputsVec = (await coder.encode(accountName, inputs)).subarray(8);
       const methodName = firstLetterToLower(instruction);
       const method = verifierProgram.methods[
         methodName as keyof typeof verifierProgram.methods
       ](inputsVec).accounts({
         ...this.params.accounts,
         ...this.params.relayer.accounts,
+        relayerRecipientSol:
+          this.params.action === Action.SHIELD
+            ? AUTHORITY
+            : this.params.relayer.accounts.relayerRecipientSol,
       });
 
       // Check if it's the last iteration
@@ -991,10 +998,7 @@ export class Transaction {
 
   // TODO: use higher entropy rnds
   shuffleUtxos(utxos: Utxo[]) {
-    if (this.shuffleEnabled) {
-      console.log("shuffling utxos");
-    } else {
-      console.log("shuffle disabled");
+    if (!this.shuffleEnabled) {
       return;
     }
     let currentIndex: number = utxos.length;
