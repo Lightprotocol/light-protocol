@@ -32,7 +32,7 @@ export async function sendTransaction(req: any, res: any) {
       instructions.push(newInstruction);
     }
 
-    var response = await sendVersionedTransactions(instructions, provider)
+    var response = await sendVersionedTransactions(instructions, provider.provider.connection, provider.relayer.accounts.lookUpTable, provider.wallet)
     return res.status(200).json({ data: { transactionStatus: "confirmed", ...response }  });
   } catch (error) {
     return res.status(500).json({ status: "error", message: error.message });
