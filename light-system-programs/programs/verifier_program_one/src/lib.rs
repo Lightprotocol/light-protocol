@@ -39,7 +39,9 @@ pub mod verifier_program_one {
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferFirst =
-            InstructionDataShieldedTransferFirst::try_deserialize(&mut inputs.as_slice())?;
+            InstructionDataShieldedTransferFirst::try_deserialize_unchecked(
+                &mut [vec![0u8; 8], inputs].concat().as_slice(),
+            )?;
         let proof_a = [0u8; 64];
         let proof_b = [0u8; 128];
         let proof_c = [0u8; 64];
@@ -66,7 +68,9 @@ pub mod verifier_program_one {
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferSecond =
-            InstructionDataShieldedTransferSecond::try_deserialize(&mut inputs.as_slice())?;
+            InstructionDataShieldedTransferSecond::try_deserialize_unchecked(
+                &mut [vec![0u8; 8], inputs].concat().as_slice(),
+            )?;
         process_transfer_10_ins_2_outs_second(
             ctx,
             &inputs.proof_a,

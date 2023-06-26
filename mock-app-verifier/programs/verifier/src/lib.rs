@@ -48,7 +48,7 @@ pub mod mock_verifier {
     ) -> Result<()> {
         let inputs_des: InstructionDataLightInstructionFirst =
             InstructionDataLightInstructionFirst::try_deserialize_unchecked(
-                &mut inputs.as_slice(),
+                &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
         let proof_a = [0u8; 64];
         let proof_b = [0u8; 128];
@@ -106,8 +106,9 @@ pub mod mock_verifier {
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs_des: InstructionDataLightInstructionThird =
-            InstructionDataLightInstructionThird::try_deserialize(&mut inputs.as_slice())?;
-
+            InstructionDataLightInstructionThird::try_deserialize_unchecked(
+                &mut [vec![0u8; 8], inputs].concat().as_slice(),
+            )?;
         process_transfer_4_ins_4_outs_4_checked_third(
             ctx,
             &inputs_des.proof_a_app,

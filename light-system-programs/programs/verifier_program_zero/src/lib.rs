@@ -38,7 +38,9 @@ pub mod verifier_program_zero {
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferFirst =
-            InstructionDataShieldedTransferFirst::try_deserialize(&mut inputs.as_slice())?;
+            InstructionDataShieldedTransferFirst::try_deserialize_unchecked(
+                &mut [vec![0u8; 8], inputs].concat().as_slice(),
+            )?;
         let len_missing_bytes = 256 - inputs.encrypted_utxos.len();
         let mut enc_utxos = inputs.encrypted_utxos;
         enc_utxos.append(&mut vec![0u8; len_missing_bytes]);
