@@ -265,10 +265,10 @@ export class Account {
    */
   getAesUtxoViewingKey(
     merkleTreePdaPublicKey: PublicKey,
-    index: number,
+    salt: string,
   ): Uint8Array {
     return this.getDomainSeparatedAesSecretKey(
-      merkleTreePdaPublicKey.toBase58() + index.toString(),
+      merkleTreePdaPublicKey.toBase58() + salt.toString(),
     );
   }
 

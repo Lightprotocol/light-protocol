@@ -88,7 +88,6 @@ describe("verifier_program", () => {
     message,
     messageMerkleTreePubkey,
     senderSpl,
-    transactionNonce,
     shuffleEnabled = true,
     verifierIdl,
   }: {
@@ -97,7 +96,6 @@ describe("verifier_program", () => {
     message?: Buffer;
     messageMerkleTreePubkey?: anchor.web3.PublicKey;
     senderSpl: anchor.web3.PublicKey;
-    transactionNonce: number;
     shuffleEnabled: boolean;
     verifierIdl: Idl;
   }) => {
@@ -154,7 +152,6 @@ describe("verifier_program", () => {
       lookUpTable: LOOK_UP_TABLE,
       action: Action.SHIELD,
       poseidon: POSEIDON,
-      transactionNonce,
       verifierIdl: verifierIdl,
     });
     let transactionTester = new TestTransaction({
@@ -189,7 +186,6 @@ describe("verifier_program", () => {
       delegate: AUTHORITY_ONE,
       spl: true,
       senderSpl: userTokenAccount,
-      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: true,
       verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
     });
@@ -202,7 +198,6 @@ describe("verifier_program", () => {
       message: Buffer.alloc(900).fill(1),
       messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
       senderSpl: null,
-      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: false,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
     });
@@ -213,7 +208,6 @@ describe("verifier_program", () => {
       delegate: AUTHORITY,
       spl: true,
       senderSpl: userTokenAccount,
-      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: true,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
@@ -230,7 +224,6 @@ describe("verifier_program", () => {
     message,
     messageMerkleTreePubkey,
     recipientSpl,
-    transactionNonce,
     shuffleEnabled = true,
     verifierIdl,
   }: {
@@ -239,7 +232,6 @@ describe("verifier_program", () => {
     message?: Buffer;
     messageMerkleTreePubkey?: anchor.web3.PublicKey;
     recipientSpl?: anchor.web3.PublicKey;
-    transactionNonce: number;
     shuffleEnabled: boolean;
     verifierIdl: Idl;
   }) => {
@@ -270,7 +262,6 @@ describe("verifier_program", () => {
       relayer: RELAYER,
       action: Action.UNSHIELD,
       poseidon: POSEIDON,
-      transactionNonce,
       verifierIdl: verifierIdl,
     });
 
@@ -303,7 +294,6 @@ describe("verifier_program", () => {
       outputUtxos: [],
       tokenProgram: MINT,
       recipientSpl: recipientTokenAccount,
-      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: false,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
@@ -315,7 +305,6 @@ describe("verifier_program", () => {
       tokenProgram: SystemProgram.programId,
       message: Buffer.alloc(900).fill(1),
       messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
-      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: false,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
     });
@@ -347,7 +336,6 @@ describe("verifier_program", () => {
       ],
       tokenProgram: MINT,
       recipientSpl: recipientTokenAccount,
-      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: true,
       verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
     });

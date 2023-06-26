@@ -121,12 +121,10 @@ describe("Utxo Functional", () => {
       const encBytes4 = await utxo4.encrypt(
         poseidon,
         TRANSACTION_MERKLE_TREE_KEY,
-        0,
       );
       const encBytes41 = await utxo4.encrypt(
         poseidon,
         TRANSACTION_MERKLE_TREE_KEY,
-        0,
       );
       assert.equal(encBytes4.toString(), encBytes41.toString());
       const utxo41 = await Utxo.decrypt({
@@ -139,7 +137,6 @@ describe("Utxo Functional", () => {
           "le",
           32,
         ),
-        transactionNonce: 0,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -305,11 +302,7 @@ describe("Utxo Functional", () => {
     Utxo.equal(poseidon, utxo0, utxo1);
 
     // encrypt
-    const encBytes = await utxo1.encrypt(
-      poseidon,
-      TRANSACTION_MERKLE_TREE_KEY,
-      0,
-    );
+    const encBytes = await utxo1.encrypt(poseidon, TRANSACTION_MERKLE_TREE_KEY);
 
     // decrypt
     const utxo3 = await Utxo.decrypt({
@@ -318,7 +311,6 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       index: inputs.index,
       merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
-      transactionNonce: 0,
       commitment: new anchor.BN(utxo1.getCommitment(poseidon)).toBuffer(
         "le",
         32,
@@ -349,7 +341,6 @@ describe("Utxo Functional", () => {
     const encBytesNacl = await receivingUtxo.encrypt(
       poseidon,
       TRANSACTION_MERKLE_TREE_KEY,
-      0,
     );
 
     // decrypt
@@ -359,7 +350,6 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       index: inputs.index,
       merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
-      transactionNonce: 0,
       aes: false,
       commitment: new anchor.BN(receivingUtxo.getCommitment(poseidon)).toBuffer(
         "le",

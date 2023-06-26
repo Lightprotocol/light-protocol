@@ -159,7 +159,6 @@ describe("verifier_program", () => {
       poseidon: POSEIDON,
       lookUpTable: LOOK_UP_TABLE,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     let tx = new Transaction({

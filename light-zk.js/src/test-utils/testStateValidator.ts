@@ -891,10 +891,8 @@ export class TestStateValidator {
   async checkCommittedBalanceSpl() {
     if (this.tokenCtx.isNative)
       throw new Error("checkCommittedBalanceSpl is not implemented for sol");
-    let transactionNonce;
     if (this.testInputs.type !== Action.TRANSFER) {
       let balance = await this.sender.user.getBalance();
-      transactionNonce = this.sender.preShieldedBalance!.transactionNonce += 1;
       let numberOfUtxos = balance.tokenBalances.get(
         this.tokenCtx.mint.toBase58(),
       )?.utxos.size
@@ -907,11 +905,8 @@ export class TestStateValidator {
           .size,
         1,
       );
-      assert.equal(balance.transactionNonce, transactionNonce);
     } else {
       let balance = await this.recipient.user.getBalance();
-      transactionNonce =
-        this.recipient.preShieldedBalance!.transactionNonce += 1;
       let numberOfUtxos = balance.tokenBalances.get(
         this.tokenCtx.mint.toBase58(),
       )?.utxos.size
@@ -973,7 +968,6 @@ export class TestStateValidator {
         .size,
       1,
     );
-    assert.equal(balanceSpendable.transactionNonce, transactionNonce);
     if (this.testInputs.type === Action.SHIELD) {
       this.checkTokenShielded();
     } else if (this.testInputs.type === Action.TRANSFER) {

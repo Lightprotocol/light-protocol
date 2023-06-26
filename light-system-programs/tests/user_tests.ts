@@ -281,7 +281,6 @@ describe("Test User", () => {
       recipient.publicKey,
     );
     assert.equal(recipientBalance, 0.5e9);
-    // user, 13.5e9 - 2* RELAYER.relayerFee.toNumber(), provider,Action.UNSHIELD, transactionNonce, userSeed
     await testStateValidatorUnshield.checkCommittedBalanceSpl();
   });
 

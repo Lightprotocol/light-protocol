@@ -312,7 +312,6 @@ export class TestTransaction {
           encBytes: this.params!.encryptedUtxos,
           account: account ? account : this.params!.outputUtxos![0].account,
           index: 0, // this is just a placeholder
-          transactionNonce: this.params!.transactionNonce,
           merkleTreePdaPublicKey: this.params!.accounts.transactionMerkleTree,
           commitment:
             j === 0
