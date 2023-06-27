@@ -91,7 +91,6 @@ describe("Masp circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
@@ -103,7 +102,6 @@ describe("Masp circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
@@ -132,7 +130,6 @@ describe("Masp circuit tests", () => {
       recipientSol: lightProvider.wallet.publicKey,
       action: Action.UNSHIELD,
       relayer,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     appData = { testInput1: new anchor.BN(1), testInput2: new anchor.BN(1) };
@@ -154,7 +151,6 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
     txParamsPoolType = new TransactionParameters({
@@ -174,7 +170,6 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     txParamsPoolTypeOut = new TransactionParameters({
@@ -194,7 +189,6 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     txParamsOutApp = new TransactionParameters({
@@ -216,7 +210,6 @@ describe("Masp circuit tests", () => {
       poseidon,
       // automatic encryption for app utxos is not implemented
       encryptedUtxos: new Uint8Array(256).fill(1),
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
@@ -708,7 +701,6 @@ describe("App system circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
 
@@ -736,7 +728,6 @@ describe("App system circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
   });

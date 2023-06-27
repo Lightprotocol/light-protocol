@@ -569,14 +569,11 @@ export class Utxo {
   async encrypt(
     poseidon: any,
     merkleTreePdaPublicKey?: PublicKey,
-    transactionNonce?: number,
     compressed: boolean = true,
   ): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(compressed);
-
-    var nonce = new BN(this.getCommitment(poseidon))
-      .toBuffer("le", 32)
-      .subarray(0, 24);
+    const commitment = new BN(this.getCommitment(poseidon)).toBuffer("le", 32);
+    var nonce = commitment.subarray(0, 24);
 
     if (!this.account.aesSecret) {
       // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
@@ -597,12 +594,6 @@ export class Utxo {
           "encrypt",
           "For aes encryption the merkle tree pda publickey is necessary to derive the viewingkey",
         );
-      if (transactionNonce === undefined)
-        throw new UtxoError(
-          UtxoErrorCode.TRANSACTION_INDEX_UNDEFINED,
-          "encrypt",
-          "For aes encryption the transaction index is necessary to derive the viewingkey",
-        );
 
       setEnvironment();
       const iv16 = nonce.slice(0, 16);
@@ -610,7 +601,7 @@ export class Utxo {
         bytes_message,
         this.account.getAesUtxoViewingKey(
           merkleTreePdaPublicKey,
-          transactionNonce,
+          bs58.encode(commitment),
         ),
         iv16,
         "aes-256-cbc",
@@ -642,7 +633,6 @@ export class Utxo {
     account,
     index,
     merkleTreePdaPublicKey,
-    transactionNonce,
     aes = true,
     commitment,
     appDataIdl,
@@ -655,7 +645,6 @@ export class Utxo {
     account: Account;
     index: number;
     merkleTreePdaPublicKey?: PublicKey;
-    transactionNonce?: number;
     aes?: boolean;
     commitment: Uint8Array;
     appDataIdl?: Idl;
@@ -673,12 +662,6 @@ export class Utxo {
           "encrypt",
           "For aes decryption the merkle tree pda publickey is necessary to derive the viewingkey",
         );
-      if (transactionNonce === undefined)
-        throw new UtxoError(
-          UtxoErrorCode.TRANSACTION_INDEX_UNDEFINED,
-          "encrypt",
-          "For aes decryption the transaction index is necessary to derive the viewingkey",
-        );
       if (compressed) {
         encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
       }
@@ -690,7 +673,7 @@ export class Utxo {
           encBytes,
           account.getAesUtxoViewingKey(
             merkleTreePdaPublicKey,
-            transactionNonce,
+            bs58.encode(commitment),
           ),
           iv16,
           "aes-256-cbc",

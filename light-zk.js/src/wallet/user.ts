@@ -91,7 +91,6 @@ export class User {
     serializedUtxos, // balance
     serialiezdSpentUtxos, // inboxBalance idk
     account,
-    transactionNonce,
     appUtxoConfig,
     verifierIdl = IDL_VERIFIER_PROGRAM_ZERO,
   }: {
@@ -99,7 +98,6 @@ export class User {
     serializedUtxos?: Buffer;
     serialiezdSpentUtxos?: Buffer;
     account: Account;
-    transactionNonce?: number;
     appUtxoConfig?: AppUtxoConfig;
     verifierIdl?: Idl;
   }) {
@@ -133,9 +131,6 @@ export class User {
       ]),
       programBalances: new Map(),
       nftBalances: new Map(),
-      transactionNonce: 0,
-      committedTransactionNonce: 0,
-      decryptionTransactionNonce: 0,
       totalSolBalance: new BN(0),
     };
     this.inboxBalance = {
@@ -144,10 +139,7 @@ export class User {
       ]),
       programBalances: new Map(),
       nftBalances: new Map(),
-      transactionNonce: 0,
-      committedTransactionNonce: 0,
       numberInboxUtxos: 0,
-      decryptionTransactionNonce: 0,
       totalSolBalance: new BN(0),
     };
   }
@@ -187,7 +179,6 @@ export class User {
     if (!this.provider.provider)
       throw new UserError(UserErrorCode.PROVIDER_NOT_INITIALIZED, "syncState");
     // TODO: adapt to indexedTransactions such that this works with verifier two for
-    var decryptionTransactionNonce = balance.decryptionTransactionNonce;
 
     const indexedTransactions =
       await this.provider.relayer.getIndexedTransactions(
@@ -204,8 +195,7 @@ export class User {
         const leafRight = trx.leaves[index + 1];
 
         // transaction nonce is the same for all utxos in one transaction
-        const tmpNonce = decryptionTransactionNonce;
-        decryptionTransactionNonce = await decryptAddUtxoToBalance({
+        await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
             trx.encryptedUtxos.slice(
               0,
@@ -221,12 +211,11 @@ export class User {
           merkleTreePdaPublicKey,
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
-          decryptionTransactionNonce: tmpNonce,
           verifierProgramLookupTable:
             this.provider.lookUpTables.verifierProgramLookupTable,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         });
-        const decryptionTransactionNonce1 = await decryptAddUtxoToBalance({
+        await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
             trx.encryptedUtxos.slice(
               120,
@@ -242,19 +231,13 @@ export class User {
           merkleTreePdaPublicKey,
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
-          decryptionTransactionNonce: tmpNonce,
           verifierProgramLookupTable:
             this.provider.lookUpTables.verifierProgramLookupTable,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         });
-        // handle case that only one utxo decrypted and assign incremented decryption transaction nonce accordingly
-        decryptionTransactionNonce = decryptionTransactionNonce
-          ? decryptionTransactionNonce
-          : decryptionTransactionNonce1;
       }
     }
 
-    balance.transactionNonce = decryptionTransactionNonce;
     // caclulate total sol balance
     const calaculateTotalSolBalance = (balance: Balance) => {
       let totalSolBalance = new BN(0);
@@ -469,7 +452,6 @@ export class User {
       publicAmountSpl,
       userSplAccount,
       provider: this.provider,
-      transactionNonce: this.balance.transactionNonce,
       appUtxo,
       verifierIdl: verifierIdl ? verifierIdl : this.verifierIdl,
       outUtxos,
@@ -602,7 +584,6 @@ export class User {
         transactionContainsEncryptedUtxo = true;
       }
     });
-    this.balance.transactionNonce += 1;
     return txResult;
   }
 
@@ -787,7 +768,6 @@ export class User {
       provider: this.provider,
       relayer: this.provider.relayer,
       ataCreationFee,
-      transactionNonce: this.balance.transactionNonce,
       appUtxo: this.appUtxoConfig,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
@@ -969,7 +949,6 @@ export class User {
       outUtxos: _outUtxos,
       provider: this.provider,
       relayer: this.provider.relayer,
-      transactionNonce: this.balance.transactionNonce,
       verifierIdl: verifierIdl ? verifierIdl : this.verifierIdl,
       appUtxo: this.appUtxoConfig,
       message,
@@ -1142,7 +1121,6 @@ export class User {
       tokenCtx: inboxTokenBalance.tokenData,
       action: Action.TRANSFER,
       provider: this.provider,
-      transactionNonce: this.balance.transactionNonce,
       inUtxos,
       addInUtxos: false,
       addOutUtxos: true,
@@ -1223,7 +1201,6 @@ export class User {
       tokenCtx: inboxTokenBalance.tokenData,
       action: Action.TRANSFER,
       provider: this.provider,
-      transactionNonce: this.balance.transactionNonce,
       inUtxos,
       addInUtxos: false,
       addOutUtxos: true,
@@ -1371,7 +1348,6 @@ export class User {
       await appUtxo.encrypt(
         this.provider.poseidon,
         MESSAGE_MERKLE_TREE_KEY,
-        0,
         false,
       ),
     );
@@ -1535,7 +1511,6 @@ export class User {
               account: this.account,
               encBytes: Uint8Array.from(data.message),
               appDataIdl: idl,
-              transactionNonce: 0,
               aes: true,
               index: index,
               commitment: Uint8Array.from(leaf),
@@ -1690,7 +1665,6 @@ export class User {
         inUtxos,
         provider: this.provider,
         relayer: this.provider.relayer,
-        transactionNonce: this.balance.transactionNonce,
         appUtxo: this.appUtxoConfig,
         message,
         mergeUtxos: true,

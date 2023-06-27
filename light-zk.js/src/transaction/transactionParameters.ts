@@ -59,7 +59,6 @@ export class TransactionParameters implements transactionParameters {
   assetPubkeysCircuit: string[];
   action: Action;
   ataCreationFee?: boolean;
-  transactionNonce: number;
   txIntegrityHash?: BN;
   verifierIdl: Idl;
   verifierProgramId: PublicKey;
@@ -81,7 +80,6 @@ export class TransactionParameters implements transactionParameters {
     action,
     lookUpTable,
     ataCreationFee,
-    transactionNonce,
     validateUtxos = true,
     verifierIdl,
   }: {
@@ -101,7 +99,6 @@ export class TransactionParameters implements transactionParameters {
     lookUpTable?: PublicKey;
     provider?: Provider;
     ataCreationFee?: boolean;
-    transactionNonce: number;
     validateUtxos?: boolean;
     verifierIdl: Idl;
   }) {
@@ -154,7 +151,6 @@ export class TransactionParameters implements transactionParameters {
     this.verifierProgramId =
       TransactionParameters.getVerifierProgramId(verifierIdl);
     this.verifierConfig = TransactionParameters.getVerifierConfig(verifierIdl);
-    this.transactionNonce = transactionNonce;
     this.message = message;
     this.verifierIdl = verifierIdl;
     this.poseidon = poseidon;
@@ -493,7 +489,6 @@ export class TransactionParameters implements transactionParameters {
       relayerFee: this.relayer.relayerFee,
       ...this,
       ...this.accounts,
-      transactionNonce: new BN(this.transactionNonce),
     };
     return await coder.encode("transactionParameters", preparedObject);
   }
@@ -691,7 +686,6 @@ export class TransactionParameters implements transactionParameters {
     relayer,
     provider,
     ataCreationFee, // associatedTokenAccount = ata
-    transactionNonce,
     appUtxo,
     addInUtxos = true,
     addOutUtxos = true,
@@ -715,7 +709,6 @@ export class TransactionParameters implements transactionParameters {
     provider: Provider;
     relayer?: Relayer;
     ataCreationFee?: boolean;
-    transactionNonce: number;
     appUtxo?: AppUtxoConfig;
     addInUtxos?: boolean;
     addOutUtxos?: boolean;
@@ -800,7 +793,6 @@ export class TransactionParameters implements transactionParameters {
       lookUpTable: provider.lookUpTable!,
       relayer: relayer,
       ataCreationFee,
-      transactionNonce,
       verifierIdl,
       message,
       messageMerkleTreePubkey: message ? MESSAGE_MERKLE_TREE_KEY : undefined,
@@ -1157,7 +1149,6 @@ export class TransactionParameters implements transactionParameters {
           await this.outputUtxos[utxo].encrypt(
             poseidon,
             this.accounts.transactionMerkleTree,
-            this.transactionNonce,
           ),
         );
       }

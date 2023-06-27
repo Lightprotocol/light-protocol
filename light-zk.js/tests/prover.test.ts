@@ -84,7 +84,6 @@ describe("Test Prover Functional", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
@@ -105,7 +104,6 @@ describe("Test Prover Functional", () => {
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
       relayer,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
@@ -197,7 +195,6 @@ describe("Test Prover Functional", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       encryptedUtxos: new Uint8Array(256).fill(2),
     });
