@@ -80,7 +80,6 @@ describe("Transaction Error Tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
@@ -153,7 +152,6 @@ describe("Transaction Error Tests", () => {
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     expect(() => {
@@ -178,7 +176,6 @@ describe("Transaction Error Tests", () => {
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     expect(() => {
@@ -328,7 +325,6 @@ describe("Transaction Functional Tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
@@ -349,7 +345,6 @@ describe("Transaction Functional Tests", () => {
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
       relayer,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
@@ -372,7 +367,6 @@ describe("Transaction Functional Tests", () => {
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
       messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
       relayer,
@@ -438,7 +432,6 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       action: Action.UNSHIELD,
       relayer,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
@@ -562,7 +555,6 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
@@ -658,7 +650,6 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     let tx = new Transaction({
@@ -707,7 +698,6 @@ describe("Transaction Functional Tests", () => {
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
     expect(() => {
@@ -732,7 +722,6 @@ describe("Transaction Functional Tests", () => {
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     expect(() => {

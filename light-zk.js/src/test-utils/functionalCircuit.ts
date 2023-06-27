@@ -46,7 +46,6 @@ export async function functionalCircuitTest(
     lookUpTable: mockPubkey,
     action: Action.SHIELD,
     poseidon,
-    transactionNonce: 0,
     verifierIdl: verifierIdl,
   });
 

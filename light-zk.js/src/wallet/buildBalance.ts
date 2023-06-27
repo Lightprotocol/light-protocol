@@ -24,9 +24,6 @@ export type Balance = {
   tokenBalances: Map<string, TokenUtxoBalance>;
   programBalances: Map<string, ProgramUtxoBalance>;
   nftBalances: Map<string, TokenUtxoBalance>;
-  transactionNonce: number;
-  decryptionTransactionNonce: number;
-  committedTransactionNonce: number;
   totalSolBalance: BN;
 };
 
@@ -186,7 +183,6 @@ export async function decryptAddUtxoToBalance({
   merkleTreePdaPublicKey,
   leftLeaf,
   aes,
-  decryptionTransactionNonce,
   verifierProgramLookupTable,
   assetLookupTable,
 }: {
@@ -200,10 +196,9 @@ export async function decryptAddUtxoToBalance({
   balance: Balance;
   leftLeaf: Uint8Array;
   aes: boolean;
-  decryptionTransactionNonce: number;
   verifierProgramLookupTable: string[];
   assetLookupTable: string[];
-}): Promise<number> {
+}): Promise<void> {
   let decryptedUtxo = await Utxo.decrypt({
     poseidon,
     encBytes: encBytes,
@@ -212,18 +207,15 @@ export async function decryptAddUtxoToBalance({
     commitment,
     aes,
     merkleTreePdaPublicKey,
-    transactionNonce: decryptionTransactionNonce,
     verifierProgramLookupTable,
     assetLookupTable,
   });
 
   // null if utxo did not decrypt -> return nothing and continue
-  if (!decryptedUtxo) return decryptionTransactionNonce;
-  // found utxo and increment transactionNonce
+  if (!decryptedUtxo) return;
 
   const nullifier = decryptedUtxo.getNullifier(poseidon);
-  if (!nullifier) return decryptionTransactionNonce;
-  decryptionTransactionNonce += 1;
+  if (!nullifier) return;
 
   const nullifierExists = await fetchNullifierAccountInfo(
     nullifier,
@@ -269,5 +261,4 @@ export async function decryptAddUtxoToBalance({
       .get(assetKey)
       ?.addUtxo(decryptedUtxo.getCommitment(poseidon), decryptedUtxo, utxoType);
   }
-  return decryptionTransactionNonce;
 }

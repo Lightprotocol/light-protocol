@@ -39,7 +39,6 @@ import {
   useWallet,
   TestRelayer,
   IDL_VERIFIER_PROGRAM_TWO,
-  LOOK_UP_TABLE,
 } from "@lightprotocol/zk.js";
 
 import { IDL } from "../target/types/mock_verifier";
@@ -137,7 +136,6 @@ describe("Verifier Two test", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionNonce: 0,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
 
@@ -181,7 +179,6 @@ describe("Verifier Two test", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionNonce: 1,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
       const appParams = {
@@ -217,7 +214,6 @@ describe("Verifier Two test", () => {
         relayer: lightProviderWithdrawal.relayer,
         poseidon: POSEIDON,
         action: Action.UNSHIELD,
-        transactionNonce: 2,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
       var tx = new Transaction({

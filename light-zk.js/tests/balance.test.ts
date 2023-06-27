@@ -69,9 +69,6 @@ describe("Utxo Functional", () => {
       tokenBalances: new Map([
         [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
       ]),
-      transactionNonce: 0,
-      committedTransactionNonce: 0,
-      decryptionTransactionNonce: 0,
       totalSolBalance: new anchor.BN(0),
       programBalances: new Map(),
       nftBalances: new Map(),

@@ -291,7 +291,6 @@ describe("Mock verifier functional", () => {
         ...new Uint8Array(240).fill(1),
         ...new Uint8Array(16).fill(0),
       ]), // manual padding required
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
@@ -348,7 +347,6 @@ describe("Mock verifier functional", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer: RELAYER,
-      transactionNonce: 1,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
 

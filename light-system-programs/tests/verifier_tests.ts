@@ -133,7 +133,6 @@ describe("Verifier Zero and One Tests", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionNonce: 0,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
 
@@ -176,7 +175,6 @@ describe("Verifier Zero and One Tests", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionNonce: 1,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
 
@@ -208,7 +206,6 @@ describe("Verifier Zero and One Tests", () => {
         relayer: RELAYER,
         poseidon: POSEIDON,
         action: Action.UNSHIELD,
-        transactionNonce: 2,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
       var tx = new Transaction({

@@ -95,7 +95,6 @@ describe("Transaction Parameters Functional", () => {
       poseidon,
       action: Action.TRANSFER,
       relayer,
-      transactionNonce: 0,
       verifierIdl: VERIFIER_IDLS[j],
     });
 
@@ -227,7 +226,7 @@ describe("Transaction Parameters Functional", () => {
         poseidon,
         action: Action.TRANSFER,
         relayer,
-        transactionNonce: 0,
+
         verifierIdl: VERIFIER_IDLS[j],
       });
 
@@ -337,7 +336,7 @@ describe("Transaction Parameters Functional", () => {
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
-        transactionNonce: 0,
+
         verifierIdl: VERIFIER_IDLS[j],
       });
 
@@ -437,7 +436,7 @@ describe("Transaction Parameters Functional", () => {
         poseidon,
         action: Action.UNSHIELD,
         relayer,
-        transactionNonce: 0,
+
         verifierIdl: VERIFIER_IDLS[j],
       });
       assert.equal(params.action.toString(), Action.UNSHIELD.toString());
@@ -714,7 +713,7 @@ describe("Test General TransactionParameters Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
+
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -840,7 +839,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon,
       action: Action.TRANSFER,
       relayer,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
@@ -854,7 +852,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           poseidon,
           action: Action.TRANSFER,
-          transactionNonce: 0,
+
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -888,7 +886,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
           poseidon,
           action: Action.TRANSFER,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -919,7 +916,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
           poseidon,
           action: Action.TRANSFER,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -942,7 +938,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           recipientSpl: mockPubkey,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -965,7 +960,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           recipientSol: mockPubkey,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -988,7 +982,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           senderSol: mockPubkey,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1011,7 +1004,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           senderSpl: mockPubkey,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1061,7 +1053,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
       lookUpTable: mockPubkey,
       poseidon,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
@@ -1076,7 +1067,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1098,7 +1088,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1120,7 +1109,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSol: mockPubkey,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1144,7 +1132,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1188,7 +1175,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1231,7 +1217,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1255,7 +1240,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1279,7 +1263,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1301,7 +1284,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1323,7 +1305,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1355,7 +1336,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
-        transactionNonce: 0,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
     }
@@ -1373,7 +1353,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1397,7 +1376,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1466,7 +1444,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1488,7 +1465,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           recipientSol: mockPubkey,
           poseidon,
           action: Action.UNSHIELD,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1534,7 +1510,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1577,7 +1552,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1602,7 +1576,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1627,7 +1600,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1660,7 +1632,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         poseidon,
         action: Action.UNSHIELD,
         relayer,
-        transactionNonce: 0,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
     }
@@ -1687,7 +1658,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         poseidon,
         action: Action.UNSHIELD,
         relayer,
-        transactionNonce: 0,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
     }
@@ -1706,7 +1676,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
@@ -1731,7 +1700,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
