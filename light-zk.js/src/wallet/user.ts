@@ -534,8 +534,6 @@ export class User {
             "confirmed",
           )
         )?.blockhash;
-        console.log(transaction);
-        console.log("wallet: ", this.provider.wallet);
         await this.provider.wallet!.sendAndConfirmTransaction(transaction);
         this.approved = true;
       } catch (e) {
@@ -979,8 +977,10 @@ export class User {
   }) {
     this.recentTransactionParameters = txParams;
 
-    await this.compileAndProveTransaction(appParams);
+    const tx = await this.compileAndProveTransaction(appParams);
+    //console.log('tx: ',tx)
     await this.approve();
+    this.approved = true;
 
     // we send an array of instructions to the relayer and the relayer sends 3 transaction
     const txHash = await this.sendTransaction(confirmOptions);

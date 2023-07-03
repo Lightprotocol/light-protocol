@@ -1,6 +1,5 @@
 import { Command, Flags } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
-import { User } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
@@ -9,9 +8,9 @@ import {
 class UnshieldCommand extends Command {
   static summary = "Unshield tokens for a user";
   static examples = [
-    "$ light unshield --amount-sol 2.4 --recipient-sol <RECIPIENT_ADDRESS>",
-    "$ light unshield --token USDC --amount-spl 22 --recipient-spl <RECIPIENT_ADDRESS>",
-    "$ light unshield --amount-sol 1.2 --recipient-sol <RECIPIENT_ADDRESS> --amount-spl 12 --token USDC --recipient-spl <RECIPIENT_ADDRESS>"
+    "$ light unshield --amount-sol 2.4 --recipient <RECIPIENT_ADDRESS>",
+    "$ light unshield --token USDC --amount-spl 22 --recipient <RECIPIENT_ADDRESS>",
+    "$ light unshield --amount-sol 1.2 --amount-spl 12 --token USDC --recipient <RECIPIENT_ADDRESS>"
   ];
 
   static flags = {
@@ -20,9 +19,9 @@ class UnshieldCommand extends Command {
       description: "The token to unshield",
       default: "SOL",
       parse: async (token) => token.toUpperCase(), 
-      required: false,
     }),
     'recipient': Flags.string({
+      char: "r",
       description: "The recipient SOL account address",
     }),
     'amount-spl': Flags.string({
@@ -51,15 +50,8 @@ class UnshieldCommand extends Command {
     loader.start();
 
     try {
-      // ignore undesired logs
-      const originalConsoleLog = console.log;      
-      console.log = function(...args) {
-        if (args[0] !== 'shuffle disabled') {
-          originalConsoleLog.apply(console, args);
-        }
-      };
 
-      const user: User = await getUser();
+      const user = await getUser();
       const response = await user.unshield({
         token,
         recipient: recipient ? new PublicKey(recipient) : undefined,
@@ -85,7 +77,6 @@ class UnshieldCommand extends Command {
       this.log(generateSolanaTransactionURL("tx", `${response.txHash.signatures}`, "custom"));
       loader.stop();
     } catch (error) {
-      loader.stop();
       this.error(`Failed to unshield ${token}!\n${error}`);
     }
   }

@@ -1,6 +1,5 @@
 import { Command, Flags, Args } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
-import { User } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
@@ -46,15 +45,8 @@ class UnshieldCommand extends Command {
     loader.start();
 
     try {
-      // ignore undesired logs
-      const originalConsoleLog = console.log;      
-      console.log = function(...args) {
-        if (args[0] !== 'shuffle disabled') {
-          originalConsoleLog.apply(console, args);
-        }
-      };
 
-      const user: User = await getUser();
+      const user = await getUser();
       const response = await user.unshield({
         token: "SOL",
         recipient: new PublicKey(recipient),
@@ -69,9 +61,7 @@ class UnshieldCommand extends Command {
       );
       loader.stop();
     } catch (error) {
-      this.warn(error as Error);
-      loader.stop();
-      this.error(`\nToken unshield failed: ${error}`);
+      this.error(`Failed to unshield SOL!\n${error}`);
     }
   }
 }

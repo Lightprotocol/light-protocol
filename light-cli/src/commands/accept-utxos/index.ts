@@ -9,7 +9,7 @@ import {
 class MergeUtxosCommand extends Command {
   static description = "Merge multiple inbox UTXOs into a single UTXO";
   static examples = [
-    "$ light accept-utxos --token USDC --commitments <COMMITMENT1> <COMMITMENT2> <COMMITMENT3>",
+    "$ light accept-utxos --token USDC --commitment-hashes <COMMITMENT1> <COMMITMENT2> <COMMITMENT3>",
     "$ light accept-utxos --latest --token USDC --all",
   ];
 
@@ -48,19 +48,18 @@ class MergeUtxosCommand extends Command {
     const loader = new CustomLoader("Performing UTXO merge...\n");
     loader.start();
     try {
-      const originalConsoleLog = console.log;      
-      console.log = function(...args) {
-        if (args[0] !== 'shuffle disabled') {
-          originalConsoleLog.apply(console, args);
-        }
-      };
 
       const user: User = await getUser();
       const tokenCtx = TOKEN_REGISTRY.get(token);
       
       let response;
-      if (all) response = await user.mergeAllUtxos(tokenCtx?.mint!, ConfirmOptions.spendable, latest);
-      else {
+      if (all) {
+        response = await user.mergeAllUtxos(
+          tokenCtx?.mint!, 
+          ConfirmOptions.spendable, 
+          latest
+        );
+      } else {
         response = await user.mergeUtxos(
           commitments!,
           tokenCtx?.mint!,
@@ -73,7 +72,7 @@ class MergeUtxosCommand extends Command {
       loader.stop();
     } catch (error) {
       loader.stop();
-      this.error(`\nFailed to accept ${token} inbox UTXOs\n${error}`);
+      this.error(`\nFailed to accept ${token} inbox UTXOs!\n${error}`);
     }
   }
 }

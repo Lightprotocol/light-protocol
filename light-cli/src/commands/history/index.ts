@@ -40,13 +40,12 @@ class TransactionHistoryCommand extends Command {
       this.log('\n');
 
       const user = await getUser();
-      
       const transactions: IndexedTransaction[] = await user.getTransactionHistory(false);
 
       transactions.reverse().forEach((transaction, index) => {
         let date = new Date(transaction.blockTime);
         let transactionHistory: TransactionHistory = {
-          TransactionNumber: index,
+          TransactionNumber: index + 1,
           Timestamp: date.toString(),
           Type: `\x1b[32m${transaction.type}\x1b[0m`,
           PublicAmountSOL: this.convertToSol(transaction.publicAmountSol),
@@ -58,6 +57,7 @@ class TransactionHistoryCommand extends Command {
           Signer: transaction.signer.toString(),
           Signature: transaction.signature,
         };
+        
         switch (transaction.type) {
           case "SHIELD":
             this.logTransaction(transactionHistory, ["RelayerFee", "RelayerFeeSOL", "To", "RelayerRecipientSOL", "From"]);
@@ -73,9 +73,8 @@ class TransactionHistoryCommand extends Command {
             break;
         }
       });
-      loader.stop();
+      loader.stop(false);
     } catch (error) {
-      loader.stop();
       this.error(`\nFailed to retrieve transaction history!\n${error}`);
     }
   }

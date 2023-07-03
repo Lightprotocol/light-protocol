@@ -92,12 +92,9 @@ class AuthorityCommand extends Command {
       loader.stop();
     } catch (error) {
       loader.stop();
-
       this.error(`\nFailed to perform authority operation: ${error}`);
     }
   }
 }
-
-AuthorityCommand.strict = false;
 
 export default AuthorityCommand;

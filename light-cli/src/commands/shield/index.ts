@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { User } from "@lightprotocol/zk.js";
+import { ADMIN_AUTH_KEYPAIR, User } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
@@ -23,7 +23,6 @@ class ShieldCommand extends Command {
     'recipient': Flags.string({
       char: "r",
       description: "The recipient shielded/encryption publickey. If not set, the operation will shield to self.",
-      required: false
     }),
     'amount-spl': Flags.string({
       char: "p",
@@ -63,15 +62,8 @@ class ShieldCommand extends Command {
     loader.start();
 
     try {
-      // ignore undesired logs
-      const originalConsoleLog = console.log;      
-      console.log = function(...args) {
-        if (args[0] !== 'shuffle disabled') {
-          originalConsoleLog.apply(console, args);
-        }
-      };
-
-      const user: User = await getUser();
+    
+      const user: User = await getUser(ADMIN_AUTH_KEYPAIR);
       const response = await user.shield({
         token,
         recipient,
@@ -81,7 +73,7 @@ class ShieldCommand extends Command {
         skipDecimalConversions,
       });
 
-      this.log(generateSolanaTransactionURL("tx", `${`${response.txHash.signatures}`}`, "custom"));
+      this.log(generateSolanaTransactionURL("tx", `${response.txHash.signatures}`, "custom"));
 
       if (!amountSol || !amountSpl ) {
         this.log(

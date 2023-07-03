@@ -10,11 +10,11 @@ import { PublicKey } from "@solana/web3.js";
 class ConfigCommand extends Command {
   static description = "Update the configuration values";
   static examples = [
-    "$ light psp-config --rpcUrl https://solana-api.example.com",
-    "$ light psp-config --relayerUrl https://relayer.example.com",
-    "$ light psp-config --secretKey your <SOLANA_SECRET_KEY>",
-    "$ light psp-config --relayerRecipient <RECIPIENT_ADDRESS>",
-    "$ light psp-config --lookupTable <LOOKUP_TABLE>",
+    "$ light config --rpcUrl https://solana-api.example.com",
+    "$ light config --relayerUrl https://relayer.example.com",
+    "$ light config --secretKey your <SOLANA_SECRET_KEY>",
+    "$ light config --relayerRecipient <RECIPIENT_ADDRESS>",
+    "$ light config --lookupTable <LOOKUP_TABLE>",
   ];
 
   static flags = {
@@ -84,12 +84,12 @@ class ConfigCommand extends Command {
           this.error(`\nInvalid publickey format`);
         }
       }
+
       fs.writeFileSync("config.json", JSON.stringify(config, null, 2));
       this.log("\nConfiguration values updated successfully \x1b[32m✔\x1b[0m");
-      loader.stop();
-    } catch (err) {
-      loader.stop();
-      this.error(`\nFailed to update configuration values\n${err}`);
+      loader.stop(false);
+    } catch (error) {
+      this.error(`\nFailed to update configuration values\n${error}`);
     }
   }
 }

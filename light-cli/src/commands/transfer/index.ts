@@ -1,10 +1,8 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { User, ConfirmOptions } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
   getUser,
-  readWalletFromFile,
 } from "../../utils/utils";
 
 class TransferCommand extends Command {
@@ -50,13 +48,7 @@ class TransferCommand extends Command {
       if (token === "SOL") amountSol = amount;
       else amountSpl = amount;
 
-      const originalConsoleLog = console.log;      
-      console.log = function(...args) {
-        if (args[0] !== 'shuffle disabled') {
-          originalConsoleLog.apply(console, args);
-        }
-      };
-      const user: User = await getUser();
+      const user = await getUser();
       const response = await user.transfer({
         token,
         amountSpl,
@@ -73,7 +65,6 @@ class TransferCommand extends Command {
       );
       loader.stop();
     } catch (error) {
-      loader.stop();
       this.error(`Failed to transfer ${token}!\n${error}`);
     }
   }

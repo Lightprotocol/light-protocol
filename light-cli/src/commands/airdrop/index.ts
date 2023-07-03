@@ -1,9 +1,7 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { PublicKey, RpcResponseAndContext, SignatureResult, Connection, Keypair } from "@solana/web3.js";
-import { getOrCreateAssociatedTokenAccount, mintTo, Account } from "@solana/spl-token";
+import { PublicKey, RpcResponseAndContext, SignatureResult } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import {
-  ADMIN_AUTH_KEYPAIR,
   MINT,
   convertAndComputeDecimals,
   airdropSplToAssociatedTokenAccount
@@ -27,13 +25,11 @@ class AirdropCommand extends Command {
       description: "The SPL token symbol",
       default: "SOL",
       parse: async (token) => token.toUpperCase(), 
-      required: false,
     }),
     verbose: Flags.boolean({
       char: "v",
       description: "Show additional information",
       default: false,
-      required: false,
     }),
   };
 
@@ -52,7 +48,6 @@ class AirdropCommand extends Command {
 
   async run() {
     const { args, flags } = await this.parse(AirdropCommand);
-
     const amount = args.amount;
     const recipient_address = new PublicKey(args.recipient_address);
     const { token, verbose } = flags;
@@ -65,7 +60,6 @@ class AirdropCommand extends Command {
 
     try {
       const provider = await setAnchorProvider();
-      let tokenAccount: Account;
 
       if (token.toLowerCase() === "sol") {
         transactionSignature = await provider.connection.requestAirdrop(
@@ -76,37 +70,20 @@ class AirdropCommand extends Command {
           transactionSignature,
           "confirmed",
         );
+        
       } else {
-        /* tokenAccount = await getOrCreateAssociatedTokenAccount(
+        transactionSignature = await airdropSplToAssociatedTokenAccount(
           provider.connection,
-          ADMIN_AUTH_KEYPAIR,
-          MINT,
+          parseInt(amount) * 100,
           recipient_address
         );
-        // use decimals from tokenCtx not hardcoded for usdc
-        transactionSignature = await mintTo(
-          provider.connection,
-          ADMIN_AUTH_KEYPAIR,
-          MINT,
-          tokenAccount.address,
-          ADMIN_AUTH_KEYPAIR.publicKey,
-          parseInt(amount) * 100,
-          []
+  
+        transactionInfo = await provider.connection.confirmTransaction(
+          transactionSignature,
+          "confirmed",
         );
-        
-        */
       } 
-      transactionSignature = await airdropSplToAssociatedTokenAccount(
-        provider.connection,
-        parseInt(amount) * 100,
-        recipient_address
-      );
 
-      transactionInfo = await provider.connection.confirmTransaction(
-        transactionSignature,
-        "confirmed",
-      );
-     
       if (verbose) {
         this.log(`
         ===========================
@@ -136,23 +113,16 @@ class AirdropCommand extends Command {
       else {
         this.log(`\n\x1b[1mRecipient:\x1b[0m ${recipient_address}`);
         this.log(`\x1b[1mSignature:\x1b[0m ${transactionSignature}`);
-        if (token.toLowerCase() !== "sol") {
-          this.log(`\x1b[1mMint:\x1b[0m      ${MINT}`);
-          //this.log(`\x1b[1mAssociated Recipient Token Account:\x1b[0m ${tokenAccount!.address.toBase58()}\n`);
-        }
+        if (token.toLowerCase() !== "sol") this.log(`\x1b[1mMint:\x1b[0m      ${MINT}`);
         this.log(generateSolanaTransactionURL("tx", transactionSignature!, "custom"));
         this.log("\nAirdrop Successful \x1b[32m✔\x1b[0m");
       }  
       
-      loader.stop();
+      loader.stop(false);
     } catch (error) {
-      loader.stop();
-      this.exit(2);
       this.error(`Failed to airdrop ${token}!\n${error}`);
     }
   }
 }
-
-AirdropCommand.strict = false;
 
 export default AirdropCommand;

@@ -50,7 +50,6 @@ else
         -p 8007:8007 \
         -p 8008:8008 \
         -p 8009:8009 \
-        --net=host \
         -v $HOME/.config/solana/id.json:/home/node/.config/solana/id.json \
         -v $(pwd)/../light-system-programs/target/deploy:/home/node/.local/light-protocol/lib/light-protocol \
         -v $(pwd)/../test-env/accounts:/home/node/.local/light-protocol/lib/accounts \

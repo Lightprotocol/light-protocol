@@ -46,9 +46,43 @@ describe("Test light-cli for user", () => {
     await createTestAccounts(anchorProvider.connection);
     POSEIDON = await circomlibjs.buildPoseidonOpt();
     RELAYER = await getRelayer();
-    provider = await getLightProvider();
-    user = await getUser();
+    provider = await getLightProvider(ADMIN_AUTH_KEYPAIR);
+    user = await getUser(ADMIN_AUTH_KEYPAIR);
   }) 
+
+  test.
+  skip().
+  it("(user class) shield SPL", async () => {
+    var expectedSpentUtxosLength = 0;
+    var expectedUtxoHistoryLength = 1;
+    let testInputs = {
+      amountSpl: generateRandomTestAmount(0, 100000, 2),
+      amountSol: 0,
+      token: "USDC",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength,
+      expectedSpentUtxosLength,
+    };
+
+    const testStateValidator = new TestStateValidator({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs,
+    });
+
+    await testStateValidator.fetchAndSaveState();
+
+    await user.shield({
+      publicAmountSpl: testInputs.amountSpl,
+      token: testInputs.token,
+    });
+
+    // TODO: add random amount and amount checks
+    await user.provider.latestMerkleTree();
+
+    await testStateValidator.checkTokenShielded();
+  });
 
   test
   .do((async () => {
@@ -65,7 +99,7 @@ describe("Test light-cli for user", () => {
     testStateValidator = new TestStateValidator({
       userSender: user,
       userRecipient: user,
-      provider: user.provider,
+      provider,
       testInputs,
     });
 
@@ -118,13 +152,14 @@ describe("Test light-cli for user", () => {
   });
 
   test
+  .skip()
   .do(async () => {
     //const solRecipient = SolanaKeypair.generate();
     const solRecipient = new PublicKey('E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc');
     const testInputs = {
-      amountSpl: 1,
-      amountSol: 0,
-      token: "USDC",
+      amountSpl: 0,
+      amountSol: 2,
+      token: "SOL",
       type: Action.UNSHIELD,
       recipientSpl: solRecipient,
       expectedUtxoHistoryLength: 1,
@@ -137,7 +172,7 @@ describe("Test light-cli for user", () => {
       testInputs,
     });
 
-    // await testStateValidator.fetchAndSaveState();    
+    await testStateValidator.fetchAndSaveState();    
   })
   .stdout()
   .command([
@@ -148,17 +183,42 @@ describe("Test light-cli for user", () => {
   .it("(light-cli) unshield SOL", async () => {
 
     await user.provider.latestMerkleTree();
-
     // await testStateValidator.checkTokenUnshielded();
+  });
+
+  test
+  .do(async () => {
+    // const solRecipient = SolanaKeypair.generate();
+    const solRecipient = new PublicKey('E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc');
+    const testInputs = {
+      amountSpl: 1,
+      amountSol: 0,
+      token: "USDC",
+      type: Action.UNSHIELD,
+      recipientSpl: solRecipient,
+      expectedUtxoHistoryLength: 1,
+    };
+    const testStateValidator = new TestStateValidator({
+      userSender: user,
+      userRecipient: user,
+      provider: user.provider,
+      testInputs,
+    });
+
+    await testStateValidator.fetchAndSaveState();
+  })
+  .stdout()
+  .command([
+    'unshield:spl',
+    '1',
+    'USDC',
+    `E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc`
+  ])
+  .it("(light-cli) unshield SPL", async () => {
+
+    await user.provider.latestMerkleTree();
+
+    await testStateValidator.checkTokenUnshielded();
   });
 })
 
-
-
-
-// AirdropCommand.run(['5', 'E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc']);
-// ShieldCommand.run(['--amount-sol=2']).finally(() => {
-//     ShieldCommand.run(['--amount-sol=2']).finally(() => {
-//         ShieldCommand.run(['--amount-spl=15', '--token=USDC']).finally(() => process.exit())
-//     });
-// });

@@ -23,7 +23,6 @@ class BalanceCommand extends Command {
       default: undefined,
       exclusive: ['inbox'],
       parse: async (token) => token.toUpperCase(), 
-      required: false,
     }),
     inbox: Flags.boolean({
       char: "i",
@@ -97,6 +96,7 @@ class BalanceCommand extends Command {
             "Token not supported!",
         );
         this.logTokenBalance(balances, inboxBalances, token!);
+
         if (utxos) {
           if (token === "SOL") {
             this.logUtxos(balances, false, 'sol');
@@ -111,10 +111,9 @@ class BalanceCommand extends Command {
           }
         }
       } 
-      loader.stop();
+      loader.stop(false);
     } catch (error) {
-      loader.stop();
-      this.error(`Failed to show balance\n${error}`);
+      this.error(`Failed to show balance!\n${error}`);
     }
   }
 
@@ -131,12 +130,14 @@ class BalanceCommand extends Command {
         ? tokenBalance[1].totalBalanceSol / decimals
         : tokenBalance[1].totalBalanceSpl / decimals;
       let utxoNumber = tokenBalance[1].utxos.size;
+
       tableData.push({
         token: _token,
         balance: balance,
         utxos: utxoNumber,
-      })
+      });
     } 
+
     ux.table(tableData, {
       token: {},
       balance: {},
@@ -168,6 +169,7 @@ class BalanceCommand extends Command {
           let amountSol = this.convertToSol(iterator.amounts[0]);
           let symbol = tokenBalance[1].tokenData.symbol;
           let commitmentHash = iterator._commitment;
+
           tableData.push(
             {prop: 'Utxo No', value: i},
             {prop: 'Token', value: `\x1b[32m${symbol}\x1b[0m`},
@@ -202,6 +204,7 @@ class BalanceCommand extends Command {
           let symbol = tokenBalance[1].tokenData.symbol;
           let mint = tokenBalance[1].tokenData.mint.toString();
           let commitmentHash = iterator._commitment;
+
           tableData.push(
             {prop: 'Utxo No', value: i},
             {prop: 'Token', value: `\x1b[32m${symbol}\x1b[0m`},
@@ -243,8 +246,19 @@ class BalanceCommand extends Command {
       }
     }
       
-    let balanceObj = fetchTokenBalance(balances, token) ?? {token: token, amount: 0, balance: 'main', utxos: 0};;
-    let inboxBalanceObj = fetchTokenBalance(inboxBalances, token, true) ?? {token: token, amount: 0, balance: 'inbox', utxos: 0};;
+    let balanceObj = fetchTokenBalance(balances, token) ?? {
+      token: token, 
+      amount: 0, 
+      balance: 'main', 
+      utxos: 0
+    };
+    let inboxBalanceObj = fetchTokenBalance(inboxBalances, token, true) ?? {
+      token: token, 
+      amount: 0, 
+      balance: 'inbox', 
+      utxos: 0
+    };
+
     let tableData = [balanceObj, inboxBalanceObj];
     ux.table(tableData, {
       token: {},
@@ -282,6 +296,7 @@ class BalanceCommand extends Command {
       })
     }
   }
+
   //TODO: use the SOL converter from the light-zk.js => convertAndComputeDecimals(amount, new BN(1e9)).toNumber())
   private convertToSol(amount: BN): number {
     const SOL_DECIMALS = 1_000_000_000;
@@ -289,5 +304,6 @@ class BalanceCommand extends Command {
   }
 }
 
-module.exports = BalanceCommand;
+export default BalanceCommand;
+
 
