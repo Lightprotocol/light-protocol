@@ -1,6 +1,6 @@
 import { expect, test } from "@oclif/test";
 
-describe("shield:sol", () => {
+describe("shield:sol sub-cli", () => {
     test
     .stdout()
     .command([

@@ -1,11 +1,11 @@
 import { Command, Flags, Args } from "@oclif/core";
 import { PublicKey } from "@solana/web3.js";
-import { User } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
   getUser,
 } from "../../utils/utils";
+import { ADMIN_AUTH_KEYPAIR } from "@lightprotocol/zk.js";
 
 class UnshieldCommand extends Command {
   static description = "Unshield SPL tokens for a user";
@@ -43,6 +43,7 @@ class UnshieldCommand extends Command {
   };
 
   async run() {
+
     const { args, flags } = await this.parse(UnshieldCommand);
     const amountSpl = args.amount;
     const token = args.token;
@@ -53,31 +54,22 @@ class UnshieldCommand extends Command {
     loader.start();
 
     try {
-      // ignore undesired logs
-      const originalConsoleLog = console.log;      
-      console.log = function(...args) {
-        if (args[0] !== 'shuffle disabled') {
-          originalConsoleLog.apply(console, args);
-        }
-      };
 
-      const user: User = await getUser();
+      const user = await getUser();
       const response = await user.unshield({
         token,
         recipient: new PublicKey(recipient),
         publicAmountSpl: amountSpl,
         minimumLamports,
       });
-      this.log(generateSolanaTransactionURL("tx", `${response.txHash.signatures}`, "custom"));
+      this.log(generateSolanaTransactionURL("tx", `${response.txHash.signatures?.slice(-1)}`, "custom"));
       this.log(
         `\nSuccessfully unshielded ${amountSpl} ${token}`,
         "\x1b[32m✔\x1b[0m"
       );
       loader.stop();
     } catch (error) {
-      this.warn(error as Error);
-      loader.stop();
-      this.error(`\nToken unshield failed!\n${error}`);
+      this.error(`Failed to unshield ${token}!\n${error}`);
     }
   }
 }

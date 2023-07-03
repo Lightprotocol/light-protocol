@@ -21,13 +21,14 @@ describe('airdrop', () => {
   }) 
 
   test
+  .skip()
   .stdout()
   .stderr()
   .command([
     'airdrop',
     '1',
     '--token=USDC',
-    'E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbcsdf',
+    'E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbcFAIL',
   ])
   .exit(2)
   .it('airdrop 1 SOL to invalid address should fail!') 

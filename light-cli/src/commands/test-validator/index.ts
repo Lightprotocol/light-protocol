@@ -1,10 +1,9 @@
-import { Command, Flags } from "@oclif/core";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Command } from "@oclif/core";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { exec } from "child_process";
 import {
   createTestAccounts,
   initLookUpTableFromFile,
-  setUpMerkleTree,
   sleep,
 } from "@lightprotocol/zk.js";
 import {
@@ -35,29 +34,26 @@ class SetupCommand extends Command {
 
       await sleep(9000);
 
-      const provider = await setAnchorProvider();
+      const anchorProvider = await setAnchorProvider();
 
-      await createTestAccounts(provider.connection);
+      await createTestAccounts(anchorProvider.connection);
 
-      const lookupTable = await initLookUpTableFromFile(provider);
+      const lookupTable = await initLookUpTableFromFile(anchorProvider);
 
-      await setLookUpTable(lookupTable.toString());
-      const newAuthority = new PublicKey("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG")
-      await setUpMerkleTree(provider, newAuthority);
-
-      const relayerRecipientSol = Keypair.generate().publicKey;
+      setLookUpTable(lookupTable.toString());
+      
+      const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
       setRelayerRecipient(relayerRecipientSol.toString());
 
-      await provider.connection.requestAirdrop(
+      await anchorProvider.connection.requestAirdrop(
         relayerRecipientSol,
         2_000_000_000
-      );
-
+      ); 
+      
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
-      loader.stop();
+      loader.stop(false);
     } catch (error) {
-      loader.stop();
       this.error(`\nSetup tasks failed: ${error}`);
     }
   }

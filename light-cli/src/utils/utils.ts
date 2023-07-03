@@ -2,14 +2,13 @@ import * as fs from "fs";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
 const spinner = require("cli-spinners");
-import { ux } from "@oclif/core";
+import { BN } from "@coral-xyz/anchor";
 import {
   confirmConfig,
   MerkleTreeConfig,
   MESSAGE_MERKLE_TREE_KEY,
   Provider,
   Relayer,
-  RELAYER_FEES,
   TestRelayer,
   TRANSACTION_MERKLE_TREE_KEY,
   User,
@@ -26,9 +25,9 @@ export const createNewWallet = () => {
   const secretKey: solana.Ed25519SecretKey = keypair.secretKey;
   try {
     setSecretKey(JSON.stringify(Array.from(secretKey)));
-    return keypair;
-  } catch (e: any) {
-    throw new Error(`error writing secret.txt: ${e}`);
+    return keypair
+  } catch (error) {
+    throw new Error(`error writing secret.txt: ${error}`);
   }
 };
 
@@ -45,45 +44,40 @@ export const getWalletConfig = async (
 
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
 
-    return merkleTreeConfig;
+    return merkleTreeConfig
   } catch (error) {
     console.log({ error });
     throw error;
   }
 };
 
-export const getConnection = () =>
-  new solana.Connection("http://127.0.0.1:8899");
-
 export const readWalletFromFile = () => {
   try {
     const secretKey = bs58.decode(getSecretKey());
-
-    let keypair: solana.Keypair = solana.Keypair.fromSecretKey(
+    const keypair = solana.Keypair.fromSecretKey(
       new Uint8Array(secretKey)
     );
-
-    return keypair;
-  } catch (e: any) {
-    throw new Error("secret key not found or corrupted!");
+    
+    return keypair
+  } catch (error) {
+    throw new Error("Secret key not found or corrupted!");
   }
 };
 
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  process.env.ANCHOR_PROVIDER_URL = await getrpcUrl();
+  process.env.ANCHOR_PROVIDER_URL = getrpcUrl();
 
-  const providerAnchor = anchor.AnchorProvider.local(
-    await getrpcUrl(),
+  const anchorProvider = anchor.AnchorProvider.local(
+    getrpcUrl(),
     confirmConfig
   );
 
-  anchor.setProvider(providerAnchor);
-
-  return providerAnchor;
+  anchor.setProvider(anchorProvider);
+  return anchorProvider
 };
 
-export const getLightProvider = async (payer?: solana.Keypair) => {
+export const getLightProvider = async (payer?: anchor.web3.Keypair) => {
   if (!provider) {
     const relayer = await getRelayer();
 
@@ -94,15 +88,15 @@ export const getLightProvider = async (payer?: solana.Keypair) => {
       relayer,
     });
 
-    return provider;
+    return provider
   }
-  return provider;
+  return provider
 };
 
-export const getUser = async () => {
-  const provider = await getLightProvider();
+export const getUser = async (payer?: anchor.web3.Keypair): Promise<User> => {
+  const provider = await getLightProvider(payer);
 
-  return await User.init({ provider });
+  return await User.init({ provider })
 };
 
 export const getRelayer = async () => {
@@ -113,12 +107,13 @@ export const getRelayer = async () => {
       wallet.publicKey,
       new solana.PublicKey(getLookUpTable() || ""),
       getRelayerRecipient(),
-      new anchor.BN(RELAYER_FEES)
+      new BN(100_000),
+      new BN(10_100_000),
+      wallet
     );
-
-    return relayer;
+    return relayer
   }
-  return relayer;
+  return relayer
 };
 
 type Config = {
@@ -132,7 +127,7 @@ type Config = {
 
 export const getrpcUrl = (): string => {
   const config = getConfig();
-  return config.rpcUrl;
+  return config.rpcUrl
 };
 
 export const setrpcUrl = (url: string): void => {
@@ -141,7 +136,7 @@ export const setrpcUrl = (url: string): void => {
 
 export const getRelayerUrl = (): string => {
   const config = getConfig();
-  return config.relayerUrl;
+  return config.relayerUrl
 };
 
 export const setRelayerUrl = (url: string): void => {
@@ -150,7 +145,7 @@ export const setRelayerUrl = (url: string): void => {
 
 export const getSecretKey = () => {
   const config = getConfig();
-  return config.secretKey;
+  return config.secretKey
 };
 
 export const setSecretKey = (key: string) => {
@@ -159,7 +154,7 @@ export const setSecretKey = (key: string) => {
 
 export const getRelayerRecipient = () => {
   const config = getConfig();
-  return new solana.PublicKey(config.relayerRecipient);
+  return new solana.PublicKey(config.relayerRecipient)
 };
 
 export const setRelayerRecipient = (address: string) => {
@@ -168,7 +163,7 @@ export const setRelayerRecipient = (address: string) => {
 
 export const getLookUpTable = () => {
   const config = getConfig();
-  return new solana.PublicKey(config.lookUpTable);
+  return new solana.PublicKey(config.lookUpTable)
 };
 
 export const setLookUpTable = (address: string): void => {
@@ -183,18 +178,18 @@ export const getPayer = () => {
   let asUint8Array: Uint8Array = new Uint8Array(payer);
   let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
 
-  return keypair;
+  return keypair
 };
 
 export const setPayer = (key: string) => {
-  setConfig({ payer: key });
+  setConfig({ payer: key })
 };
 
 export const getConfig = (): Config => {
   try {
     const data = fs.readFileSync("config.json", "utf-8");
-    return JSON.parse(data);
-  } catch (err) {
+    return JSON.parse(data)
+  } catch (error) {
     throw new Error("Failed to read configuration file");
   }
 };
@@ -204,7 +199,7 @@ export const setConfig = (config: Partial<Config>): void => {
     const existingConfig = getConfig();
     const updatedConfig = { ...existingConfig, ...config };
     fs.writeFileSync("config.json", JSON.stringify(updatedConfig, null, 2));
-  } catch (err) {
+  } catch (error) {
     throw new Error("Failed to update configuration file");
   }
 };
@@ -215,7 +210,7 @@ export function generateSolanaTransactionURL(
   cluster: string
 ): string {
   const url = `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
-  return url;
+  return url
 }
 
 export class CustomLoader {
@@ -240,8 +235,9 @@ export class CustomLoader {
     this.logInterval = setInterval(() => {}, this.logInterval);
   }
 
-  stop() {
+  stop(terminateCurve=true) {
     clearInterval(this.logInterval);
+    if (terminateCurve) (globalThis as any).curve_bn128.terminate();
     this.logElapsedTime();
   }
 
@@ -256,15 +252,15 @@ export class CustomLoader {
 export function isValidURL(url: string): boolean {
   try {
     new URL(url);
-    return true;
+    return true
   } catch (error) {
-    return false;
+    return false
   }
 }
 
 export function isValidBase58SecretKey(secretKey: string): boolean {
   const base58Regex =
     /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
-  return base58Regex.test(secretKey);
+  return base58Regex.test(secretKey)
 }
 

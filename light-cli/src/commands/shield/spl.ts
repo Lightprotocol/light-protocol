@@ -1,5 +1,5 @@
 import { Command, Flags, Args } from "@oclif/core";
-import { User, TOKEN_REGISTRY } from "@lightprotocol/zk.js";
+import { TOKEN_REGISTRY, ADMIN_AUTH_KEYPAIR } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
@@ -60,22 +60,9 @@ class ShieldSplCommand extends Command {
     loader.start();
 
     try {
-      const originalConsoleLog = console.log;      
-      console.log = function(...args) {
-        if (args[0] !== 'shuffle disabled') {
-          originalConsoleLog.apply(console, args);
-        }
-      };
-
-      const decimals = TOKEN_REGISTRY.get(token)?.decimals;
-      const user: User = await getUser();
-      console.log({
-        token,
-        recipient,
-        publicAmountSpl: amountSpl,
-        minimumLamports,
-        skipDecimalConversions,
-      })
+      const decimals = TOKEN_REGISTRY.get(token)?.decimals.toNumber();
+      
+      const user = await getUser(ADMIN_AUTH_KEYPAIR);
       const response = await user.shield({
         token,
         recipient,
@@ -85,7 +72,7 @@ class ShieldSplCommand extends Command {
       });
 
       this.log(generateSolanaTransactionURL("tx", `${response.txHash.signatures}`, "custom"));
-      let amount = skipDecimalConversions ? Number(amountSpl) / decimals : amountSpl;
+      let amount = skipDecimalConversions ? Number(amountSpl) / decimals! : amountSpl;
 
       this.log(
         `\nSuccessfully shielded ${amount} ${token}`,
@@ -93,7 +80,6 @@ class ShieldSplCommand extends Command {
       );
       loader.stop();
     } catch (error) {
-      loader.stop();
       this.error(`\nFailed to shield ${token}\n${error}`);
     }
   }

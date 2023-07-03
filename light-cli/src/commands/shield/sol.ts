@@ -5,8 +5,7 @@ import {
   generateSolanaTransactionURL,
   getUser,
 } from "../../utils/utils";
-import { Stream } from "stream";
-const wtf = require('wtfnode');
+
 class ShieldSolCommand extends Command {
   static summary = "Shield SOL for a user";
   static usage = "shield:sol <AMOUNT> [FLAGS]"
@@ -54,12 +53,6 @@ class ShieldSolCommand extends Command {
     loader.start();
 
     try {      
-      const originalConsoleLog = console.log;      
-      console.log = function(...args) {
-        if (args[0] !== 'shuffle disabled') {
-          originalConsoleLog.apply(console, args);
-        }
-      };
       const user: User = await getUser();
       const response = await user.shield({
         token: "SOL",
@@ -75,20 +68,7 @@ class ShieldSolCommand extends Command {
         "\x1b[32m✔\x1b[0m"
       );
       loader.stop();
-      
-      // setTimeout(() => {
-      //   wtf.dump();
-      // }, 1000);
-
-      // const whyIsNodeRunning = require('why-is-node-running');
-      // setTimeout(() => {
-      //   console.log('Node.js event loop is still running. Why?');
-      //   whyIsNodeRunning(); // logs out active handles that are keeping event loop alive
-      // }, 10000); // wait a bit before calling whyIsNodeRunning
-
     } catch (error) {
-      this.warn(error as Error);
-      loader.stop();
       this.error(`Shielding tokens failed!\n${error}`);
     }
   }

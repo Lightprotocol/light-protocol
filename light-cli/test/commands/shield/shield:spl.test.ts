@@ -1,19 +1,18 @@
 import { expect, test } from "@oclif/test";
 
-describe("shield:spl", () => {
+describe("shield:spl sub-cli", () => {
   test
   .stdout()
   .command([
     'shield:spl',
-    '1',
+    '10',
     'USDC',
   ])
   .it("shielding 1 USDC", (ctx) => {
-    expect(ctx.stdout).to.contain('Successfully shielded 1 USDC ✔');
+    expect(ctx.stdout).to.contain('Successfully shielded 10 USDC ✔');
   })
 
   test
-  .skip()
   .stdout()
   .command([
     'shield:spl',
