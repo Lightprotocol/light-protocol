@@ -10,6 +10,7 @@ import {
 } from "../constants";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { Connection, Keypair } from "@solana/web3.js";
+import { sleep } from "../index";
 
 export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
   const connection = new Connection(url, confirmConfig);
@@ -27,11 +28,16 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
       anchorProvider && anchorProvider,
     );
 
-    // fetch uninserted utxos from chain
-    let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
-      TRANSACTION_MERKLE_TREE_KEY,
-      anchorProvider && anchorProvider,
-    );
+    let leavesPdas: any[] = [];
+    let retries = 3;
+    while (leavesPdas.length === 0 && retries > 0) {
+      if (retries !== 3) await sleep(1000);
+      leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
+        TRANSACTION_MERKLE_TREE_KEY,
+        anchorProvider && anchorProvider,
+      );
+      retries--;
+    }
 
     await executeUpdateMerkleTreeTransactions({
       connection,

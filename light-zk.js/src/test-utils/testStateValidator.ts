@@ -1,26 +1,42 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { assert } from "chai";
-import { fetchNullifierAccountInfo, sleep } from "../utils";
-import { Action, indexRecentTransactions } from "../transaction";
+import assert = require("assert");
+
+import {
+  fetchNullifierAccountInfo,
+  sleep,
+  convertAndComputeDecimals,
+} from "../utils";
+import {
+  Action,
+  Transaction,
+  TransactionParameters,
+  indexRecentTransactions,
+} from "../transaction";
 import { IndexedTransaction, TokenData } from "../types";
 import { Balance, Provider, User } from "../wallet";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 
 import {
+  AUTHORITY,
+  MESSAGE_MERKLE_TREE_KEY,
   MINIMUM_LAMPORTS,
   TOKEN_ACCOUNT_FEE,
   TOKEN_REGISTRY,
+  TRANSACTION_MERKLE_TREE_KEY,
+  merkleTreeProgramId,
+  verifierProgramOneProgramId,
+  verifierProgramZeroProgramId,
 } from "../constants";
 import { Utxo } from "../utxo";
-import { MINT } from "./constants_system_verifier";
+import { MerkleTreeConfig } from "../index";
 
 export type TestInputs = {
   amountSpl?: number;
   amountSol?: number;
   token: string;
   type: Action;
-  recipientSpl?: PublicKey;
+  recipient?: PublicKey;
   expectedUtxoHistoryLength: number;
   expectedSpentUtxosLength?: number;
   recipientSeed?: string;
@@ -30,6 +46,7 @@ export type TestInputs = {
   utxoCommitments?: string[];
   storage?: boolean;
   message?: Buffer;
+  isMerge?: boolean;
 };
 
 export type TestUserBalances = {
@@ -39,16 +56,18 @@ export type TestUserBalances = {
   preTokenBalance?: number | null;
   preSolBalance?: number;
   isSender: boolean;
-  splAccount?: PublicKey;
+  recipientSplAccount?: PublicKey;
 };
 
-export class TestStateValidator {
+export class UserTestAssertHelper {
   private recentTransaction?: IndexedTransaction;
   public provider: Provider;
   public sender: TestUserBalances;
   public recipient: TestUserBalances;
   public testInputs: TestInputs;
   public tokenCtx: TokenData;
+  public relayerPreSolBalance?: number;
+  public recipientPreSolBalance?: number;
 
   constructor({
     userSender,
@@ -71,157 +90,279 @@ export class TestStateValidator {
     this.tokenCtx = tokenCtx;
   }
 
-  async fetchAndSaveState(latest: boolean = true) {
-    try {
-      const saveUserState = async (
-        userBalances: TestUserBalances,
-        testInputs: TestInputs,
-      ) => {
-        userBalances.preShieldedBalance = (
-          await User.init({
-            provider: this.provider,
-            account: userBalances.user.account,
-          })
-        ).balance;
-        userBalances.preShieldedInboxBalance = await (
-          await User.init({
-            provider: this.provider,
-            account: userBalances.user.account,
-          })
-        ).getUtxoInbox();
-
-        if (userBalances.isSender) {
-          userBalances.splAccount =
-            testInputs.token !== "SOL"
-              ? getAssociatedTokenAddressSync(
-                  this.tokenCtx.mint,
-                  this.provider.wallet.publicKey,
-                )
-              : undefined;
-        } else if (testInputs.recipientSpl) {
-          userBalances.splAccount = getAssociatedTokenAddressSync(
-            this.tokenCtx.mint,
-            testInputs.recipientSpl,
-          );
-        }
-
-        if (userBalances.splAccount) {
-          var balance = undefined;
-          try {
-            balance = (
-              await this.provider.provider?.connection.getTokenAccountBalance(
-                userBalances.splAccount,
+  async fetchAndSaveState() {
+    const saveUserState = async (
+      userBalances: TestUserBalances,
+      testInputs: TestInputs,
+    ) => {
+      userBalances.preShieldedBalance = (
+        await User.init({
+          provider: this.provider,
+          account: userBalances.user.account,
+        })
+      ).balance;
+      userBalances.preShieldedInboxBalance = await (
+        await User.init({
+          provider: this.provider,
+          account: userBalances.user.account,
+        })
+      ).getUtxoInbox();
+      if (this.testInputs.recipient) {
+        userBalances.recipientSplAccount = getAssociatedTokenAddressSync(
+          this.tokenCtx.mint,
+          this.testInputs.recipient,
+        );
+      }
+      if (userBalances.isSender) {
+        userBalances.recipientSplAccount =
+          testInputs.token !== "SOL"
+            ? getAssociatedTokenAddressSync(
+                this.tokenCtx.mint,
+                this.provider.wallet.publicKey,
               )
-            )?.value.uiAmount;
-          } catch (error) {}
-          userBalances.preTokenBalance = balance ? balance : 0;
-        }
+            : undefined;
+      }
 
-        userBalances.preSolBalance =
-          await this.provider.provider?.connection.getBalance(
-            this.provider.wallet.publicKey,
-          );
-      };
-      await saveUserState(this.sender, this.testInputs);
-      await saveUserState(this.recipient, this.testInputs);
+      if (userBalances.recipientSplAccount) {
+        var balance = undefined;
+        try {
+          balance = (
+            await this.provider.provider?.connection.getTokenAccountBalance(
+              userBalances.recipientSplAccount,
+            )
+          )?.value.uiAmount;
+        } catch (error) {}
+        userBalances.preTokenBalance = balance ? balance : 0;
+      }
 
-      this.provider = this.provider;
-    } catch (error) {
-      console.log("error while fetching the state", { error });
+      userBalances.preSolBalance =
+        await this.provider.provider?.connection.getBalance(
+          this.provider.wallet.publicKey,
+        );
+    };
+    await saveUserState(this.sender, this.testInputs);
+    await saveUserState(this.recipient, this.testInputs);
+    this.relayerPreSolBalance =
+      await this.provider.provider?.connection.getBalance(
+        this.provider.relayer.accounts.relayerRecipientSol,
+      );
+    if (this.testInputs.recipient) {
+      this.recipientPreSolBalance =
+        await this.provider.provider?.connection.getBalance(
+          this.testInputs.recipient,
+        );
     }
+    this.provider = this.provider;
   }
 
-  public async assertRecentTransaction({
-    userHistory = false,
-  }: {
-    userHistory?: boolean;
-  }) {
-    const { amountSol, amountSpl, type, token } = this.testInputs;
-    const tokenMint = TOKEN_REGISTRY.get(token)?.mint;
+  public async assertRecentTransactionIsIndexedCorrectly() {
+    type ReferenceTransaction = {
+      signer: PublicKey;
+      to: PublicKey;
+      from: PublicKey;
+      verifier: PublicKey;
+      relayerRecipientSol: PublicKey;
+      type: Action;
+      publicAmountSol: BN;
+      publicAmountSpl: BN;
+      encryptedUtxos?: Buffer | any[];
+      leaves?: number[][];
+      nullifiers?: BN[];
+      relayerFee: BN;
+      message?: Buffer;
+    };
 
-    let transactions;
-    if (userHistory) {
-      transactions = await this.sender.user.getTransactionHistory();
-    } else {
-      transactions = await this.provider.relayer.getIndexedTransactions(
-        this.provider.provider!.connection,
+    const assertTransactionProperties = (
+      reference: ReferenceTransaction,
+      transaction: IndexedTransaction,
+    ) => {
+      assert.equal(
+        transaction.type,
+        reference.type,
+        "Transaction type mismatch",
       );
-    }
+      assert.equal(
+        transaction.signer.toBase58(),
+        reference.signer.toBase58(),
+        "Signer mismatch",
+      );
+      assert.equal(
+        transaction.publicAmountSol.toString(),
+        reference.publicAmountSol.toString(),
+        "Public SOL amount mismatch",
+      );
+      assert.equal(
+        transaction.publicAmountSpl.toString(),
+        reference.publicAmountSpl.toString(),
+        "Public SPL amount mismatch",
+      );
+      assert.equal(
+        transaction.to.toBase58(),
+        reference.to.toBase58(),
+        "Recipient mismatch",
+      );
+      assert.equal(
+        transaction.from.toBase58(),
+        reference.from.toBase58(),
+        "Sender mismatch",
+      );
+      assert.equal(
+        transaction.verifier.toBase58(),
+        reference.verifier.toBase58(),
+        "Verifier mismatch",
+      );
+      assert.equal(
+        transaction.relayerRecipientSol.toBase58(),
+        reference.relayerRecipientSol.toBase58(),
+        "Relayer recipient SOL mismatch",
+      );
+      assert.equal(
+        transaction.relayerFee.toString(),
+        reference.relayerFee.toString(),
+        "Relayer fee mismatch",
+      );
+
+      if (reference.encryptedUtxos !== undefined)
+        assert.deepStrictEqual(
+          transaction.encryptedUtxos,
+          reference.encryptedUtxos,
+          "Encrypted UTXOs mismatch",
+        );
+      if (reference.leaves !== undefined)
+        assert.deepStrictEqual(
+          transaction.leaves,
+          reference.leaves,
+          "Leaves mismatch",
+        );
+      if (reference.nullifiers !== undefined)
+        assert.deepStrictEqual(
+          transaction.nullifiers,
+          reference.nullifiers,
+          "Nullifiers mismatch",
+        );
+      if (reference.message !== undefined)
+        assert.deepStrictEqual(
+          transaction.message,
+          reference.message,
+          "Message mismatch",
+        );
+    };
+    const { amountSol, amountSpl, type, token } = this.testInputs;
+
+    let transactions = await this.sender.user.getTransactionHistory();
 
     transactions.sort((a, b) => b.blockTime - a.blockTime);
 
     this.recentTransaction = transactions[0];
 
-    if (amountSpl && type) {
-      assert.strictEqual(
-        this.recentTransaction!.publicAmountSpl.toNumber() /
-          this.tokenCtx!.decimals.toNumber(),
-        type === Action.TRANSFER ? 0 : amountSpl,
-      );
+    const currentSlot = await this.provider.provider!.connection.getSlot();
+    if (
+      this.recentTransaction &&
+      this.recentTransaction.blockTime < currentSlot - 60
+    ) {
+      let retries = 3;
+      while (retries > 0) {
+        await sleep(1000);
+        transactions = await this.sender.user.getTransactionHistory();
+        transactions.sort((a, b) => b.blockTime - a.blockTime);
+        this.recentTransaction = transactions[0];
+        if (this.recentTransaction.blockTime > currentSlot - 60) break;
+        retries--;
+        console.log("Retrying to get recent transaction");
+      }
     }
 
-    if (amountSol) {
-      assert.strictEqual(
-        this.recentTransaction!.publicAmountSol.toNumber() /
-          this.tokenCtx!.decimals.toNumber(),
-        type === Action.TRANSFER ? 0 : amountSol,
-      );
+    try {
+      switch (type) {
+        case Action.TRANSFER: {
+          // there is a case that a fresh account just received a transfer but has no other balance yet
+          if (this.testInputs.isMerge === true && transactions.length === 0)
+            break;
+          assertTransactionProperties(
+            {
+              signer: this.provider.relayer.accounts.relayerPubkey,
+              publicAmountSpl: new BN(0),
+              publicAmountSol: new BN(0),
+              relayerFee: this.sender.user.provider.relayer.getRelayerFee(),
+              to: AUTHORITY,
+              from: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
+              relayerRecipientSol:
+                this.sender.user.provider.relayer.accounts.relayerRecipientSol,
+              type: Action.TRANSFER,
+              verifier: this.testInputs.isMerge
+                ? verifierProgramOneProgramId
+                : verifierProgramZeroProgramId,
+              message: undefined,
+            },
+            this.recentTransaction!,
+          );
+          break;
+        }
+        case Action.SHIELD: {
+          assertTransactionProperties(
+            {
+              signer: this.sender.user.provider.wallet.publicKey,
+              to: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
+              from: TransactionParameters.getEscrowPda(
+                verifierProgramZeroProgramId,
+              ),
+              publicAmountSpl: amountSpl
+                ? convertAndComputeDecimals(amountSpl, this.tokenCtx!.decimals)
+                : new BN(0),
+              publicAmountSol: amountSol
+                ? convertAndComputeDecimals(amountSol, new BN(1e9))
+                : new BN(0),
+              relayerFee: new BN(0),
+              relayerRecipientSol: AUTHORITY,
+              type: Action.SHIELD,
+              verifier: verifierProgramZeroProgramId,
+              message: undefined,
+            },
+            this.recentTransaction!,
+          );
+          break;
+        }
+        case Action.UNSHIELD: {
+          // index transaction is broken
+          // - invalid recipient
+          // - invalid sender
+          // - invalid verifier
+          assertTransactionProperties(
+            {
+              signer: this.provider.relayer.accounts.relayerPubkey,
+              publicAmountSpl: amountSpl
+                ? convertAndComputeDecimals(amountSpl, this.tokenCtx!.decimals)
+                : new BN(0),
+              publicAmountSol: amountSol
+                ? convertAndComputeDecimals(amountSol, new BN(1e9))
+                : new BN(0),
+              relayerFee:
+                this.tokenCtx!.symbol != "SOL" &&
+                !this.recipient.preTokenBalance
+                  ? this.sender.user.provider.relayer.getRelayerFee(true)
+                  : this.sender.user.provider.relayer.getRelayerFee(),
+              to: this.testInputs.recipient!,
+              from: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
+              relayerRecipientSol:
+                this.sender.user.provider.relayer.accounts.relayerRecipientSol,
+              type: Action.UNSHIELD,
+              verifier: verifierProgramZeroProgramId,
+              message: undefined,
+            },
+            this.recentTransaction!,
+          );
+          break;
+        }
+        default: {
+          throw new Error("Unknown transaction type");
+        }
+      }
+    } catch (error) {
+      console.log("transactions", transactions);
+      console.log("recent transaction", this.recentTransaction);
+      console.log("testInputs ", this.testInputs);
+      throw error;
     }
-
-    if (type === Action.SHIELD) {
-      assert.strictEqual(
-        this.recentTransaction!.from.toBase58(),
-        this.provider.wallet.publicKey.toBase58(),
-      );
-    }
-
-    if (type === Action.TRANSFER) {
-      assert.strictEqual(
-        this.recentTransaction!.to.toBase58(),
-        PublicKey.default.toBase58(),
-      );
-
-      assert.strictEqual(
-        this.recentTransaction!.from.toBase58(),
-        PublicKey.default.toBase58(),
-      );
-    }
-
-    if (this.recipient.splAccount) {
-      assert.strictEqual(
-        this.recentTransaction.to.toBase58(),
-        this.recipient.splAccount.toBase58(),
-      );
-    }
-
-    if (type !== Action.TRANSFER && !this.testInputs.shieldToRecipient) {
-      assert.strictEqual(
-        this.recipient.user.balance.tokenBalances
-          .get(tokenMint?.toBase58()!)
-          ?.utxos.get(
-            new BN(this.recentTransaction!.leaves[0], "le").toString(),
-          )?._commitment,
-        new BN(this.recentTransaction!.leaves[0], "le").toString(),
-      );
-    }
-
-    assert.strictEqual(this.recentTransaction!.type, type);
-
-    assert.strictEqual(
-      this.recentTransaction!.relayerFee.toString(),
-      type === Action.UNSHIELD
-        ? this.provider.relayer.getRelayerFee(true).toString()
-        : type === Action.TRANSFER
-        ? "100000"
-        : "0",
-    );
-
-    assert.strictEqual(
-      this.recentTransaction!.relayerRecipientSol.toBase58(),
-      type === Action.SHIELD
-        ? PublicKey.default.toBase58()
-        : this.provider.relayer.accounts.relayerRecipientSol.toBase58(),
-    );
   }
 
   /**
@@ -369,7 +510,7 @@ export class TestStateValidator {
       assert(amountSpl.gte(new BN(this.testInputs.amountSpl)));
   }
 
-  async assertShieldedTokenBalance(
+  async assertShieldedSplBalance(
     amount: number,
     userBalances: TestUserBalances,
     shieldToRecipient?: boolean,
@@ -411,10 +552,13 @@ export class TestStateValidator {
     );
   }
 
-  async assertTokenBalance(amount: number, userBalances: TestUserBalances) {
+  async assertSplBalance(amount: number, userBalances: TestUserBalances) {
+    if (userBalances.isSender) {
+      amount = amount * -1;
+    }
     const postTokenBalance =
       await userBalances.user.provider.provider!.connection.getTokenAccountBalance(
-        userBalances.splAccount!,
+        userBalances.recipientSplAccount!,
       );
 
     assert.equal(
@@ -431,34 +575,30 @@ export class TestStateValidator {
   }
 
   async assertSolBalance(
-    amount: number,
-    tempAccountCost: number,
-    userBalances: TestUserBalances,
+    lamports: number,
+    transactionCost: number,
+    preSolBalance: number,
+    recipient: PublicKey,
   ) {
     const postSolBalance = await this.provider.provider!.connection.getBalance(
-      this.provider.wallet.publicKey,
+      recipient,
     );
 
     assert.equal(
-      postSolBalance.toFixed(this.tokenCtx.decimals.toString().length - 1),
-      (
-        userBalances.preSolBalance! +
-        amount * this.tokenCtx.decimals.toNumber() +
-        tempAccountCost
-      ).toFixed(this.tokenCtx.decimals.toString().length - 1),
-      `user token balance after ${postSolBalance} != user token balance before ${userBalances.preSolBalance} + shield amount ${amount} sol`,
+      postSolBalance,
+      preSolBalance! + lamports - transactionCost,
+      `user sol balance after ${postSolBalance} != user sol balance before ${preSolBalance} + shield amount ${lamports} sol`,
     );
   }
 
   async assertShieldedSolBalance(
-    amount: number,
+    lamports: number,
     userBalances: TestUserBalances,
     shieldToRecipient?: boolean,
   ) {
     if (userBalances.isSender) {
-      amount = amount * -1;
+      lamports = lamports * -1;
     }
-
     const postShieldedBalances = !shieldToRecipient
       ? await userBalances.user.getBalance(false)
       : await userBalances.user.getUtxoInbox();
@@ -469,13 +609,9 @@ export class TestStateValidator {
       : userBalances.preShieldedInboxBalance!.totalSolBalance;
 
     assert.equal(
-      solBalanceAfter!
-        .toNumber()
-        .toFixed(this.tokenCtx.decimals.toString().length - 1),
-      (solBalancePre!.toNumber() + amount).toFixed(
-        this.tokenCtx.decimals.toString().length - 1,
-      ),
-      `shielded sol balance after ${solBalanceAfter!} != shield amount ${solBalancePre!.toNumber()} + ${amount}`,
+      solBalanceAfter!.toNumber(),
+      solBalancePre!.toNumber() + lamports,
+      `shielded sol balance after ${solBalanceAfter!} != shield amount ${solBalancePre!.toNumber()} + ${lamports}`,
     );
   }
 
@@ -512,24 +648,58 @@ export class TestStateValidator {
       : this.testInputs.expectedRecipientUtxoLength;
     assert.equal(nrUtxos!, expectedNrUtxos!);
 
+    const recipientPreBalancePlusTransferSpl =
+      this.recipient.preShieldedInboxBalance!.tokenBalances.get(mint.toBase58())
+        ? this.recipient
+            .preShieldedInboxBalance!.tokenBalances.get(mint.toBase58())!
+            .totalBalanceSpl!.toNumber() + transferAmountSpl
+        : transferAmountSpl;
     assert.equal(
       this.recipient.user.inboxBalance.tokenBalances
         .get(mint.toBase58())
         ?.totalBalanceSpl!.toString(),
-      transferAmountSpl.toString(),
+      recipientPreBalancePlusTransferSpl.toString(),
     );
+
+    const recipientPreBalancePlusTransfer =
+      this.recipient.preShieldedInboxBalance!.tokenBalances.get(mint.toBase58())
+        ? this.recipient
+            .preShieldedInboxBalance!.tokenBalances.get(mint.toBase58())!
+            .totalBalanceSol!.toNumber() + transferAmountSol
+        : transferAmountSol;
 
     assert.equal(
       this.recipient.user.inboxBalance.tokenBalances
         .get(mint.toBase58())
         ?.totalBalanceSol!.toString(),
-      transferAmountSol.toString(),
+      recipientPreBalancePlusTransfer.toString(),
     );
   }
 
+  async standardAsserts() {
+    await this.assertBalance(this.sender.user);
+    await this.assertBalance(this.recipient.user);
+    await this.assertRecentTransactionIsIndexedCorrectly();
+    if (this.testInputs.type !== Action.SHIELD) {
+      await this.assertRelayerFee();
+    }
+  }
+  async assertRelayerFee() {
+    // relayer recipient's sol balance should be increased by the relayer fee
+    await this.assertSolBalance(
+      this.tokenCtx!.symbol != "SOL" &&
+        !this.recipient.preTokenBalance &&
+        this.testInputs.type == Action.UNSHIELD
+        ? this.sender.user.provider.relayer.getRelayerFee(true).toNumber()
+        : this.sender.user.provider.relayer.getRelayerFee().toNumber(),
+      0,
+      this.relayerPreSolBalance!,
+      this.sender.user.provider!.relayer.accounts.relayerRecipientSol,
+    );
+  }
   /**
    * Asynchronously checks if token shielding has been performed correctly for a user.
-   * This function performs the following checks:
+   * This method performs the following checks:
    *
    * 1. Asserts that the user's shielded token balance has increased by the amount shielded.
    * 2. Asserts that the user's token balance has decreased by the amount shielded.
@@ -540,24 +710,28 @@ export class TestStateValidator {
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
-  async checkTokenShielded() {
-    await this.recipient.user.getBalance();
-    await this.assertBalance(this.sender.user);
-    await this.assertBalance(this.recipient.user);
+  async checkSplShielded() {
+    await this.standardAsserts();
     // assert that the user's shielded balance has increased by the amount shielded
-    await this.assertShieldedTokenBalance(
+    await this.assertShieldedSplBalance(
       this.testInputs.amountSpl!,
       this.recipient,
       this.testInputs.shieldToRecipient,
     );
 
     // assert that the user's token balance has decreased by the amount shielded
-    const tokenDecreasedAmount = this.testInputs.amountSpl! * -1;
-    await this.assertTokenBalance(tokenDecreasedAmount, this.sender);
+    await this.assertSplBalance(this.testInputs.amountSpl!, this.sender);
 
+    const lamports =
+      this.testInputs.amountSol != undefined
+        ? convertAndComputeDecimals(
+            this.testInputs.amountSol,
+            new BN(1e9),
+          ).toNumber()
+        : MINIMUM_LAMPORTS.toNumber();
     // assert that the user's sol shielded balance has increased by the additional sol amount
     await this.assertShieldedSolBalance(
-      MINIMUM_LAMPORTS.toNumber(),
+      lamports,
       this.recipient,
       this.testInputs.shieldToRecipient,
     );
@@ -566,9 +740,13 @@ export class TestStateValidator {
       this.tokenCtx.mint.toBase58(),
     )?.spentUtxos.size;
 
+    const preUtxoLength = this.recipient.preShieldedBalance!.tokenBalances.get(
+      this.tokenCtx.mint.toBase58(),
+    )?.utxos.size;
+
     assert.equal(
       spentUtxoLength ? spentUtxoLength : 0,
-      this.testInputs.expectedSpentUtxosLength,
+      preUtxoLength ? spentUtxoLength : 0,
     );
 
     // TODO: make this less hardcoded
@@ -579,19 +757,14 @@ export class TestStateValidator {
         .next()!
         .value.getNullifier(this.provider.poseidon),
     );
-
-    // assert that recentIndexedTransaction is of type SHIELD and have right values
-    await this.assertRecentTransaction({});
-
-    await this.assertRecentTransaction({ userHistory: true });
   }
 
   /**
    * Asynchronously checks if SOL shielding has been performed correctly for a user.
-   * This function performs the following checks:
+   * This method performs the following checks:
    *
-   * 1. Asserts that the user's shielded SOL balance has increased by the amount shielded.
-   * 2. Asserts that the user's SOL balance has decreased by the amount shielded, considering the temporary account cost.
+   * 1. Asserts recipient user balance increased by shielded amount.
+   * 2. Asserts sender users sol balance decreased by shielded amount.
    * 3. Asserts that user UTXOs are spent and updated correctly.
    * 4. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
    *
@@ -601,37 +774,78 @@ export class TestStateValidator {
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
   async checkSolShielded() {
-    await this.recipient.user.getBalance();
-    await this.assertBalance(this.sender.user);
-    await this.assertBalance(this.recipient.user);
+    await this.standardAsserts();
     // assert that the user's shielded balance has increased by the amount shielded
     await this.assertShieldedSolBalance(
-      this.testInputs.amountSol! * this.tokenCtx?.decimals.toNumber(),
+      convertAndComputeDecimals(
+        this.testInputs.amountSol!,
+        this.tokenCtx!.decimals,
+      ).toNumber(),
       this.recipient,
       this.testInputs.shieldToRecipient,
     );
-    let additonalTransactionCost = this.testInputs.storage ? 5000 : 0;
-    // TODO: investigate since weird behavior
-    const tempAccountCost = 3502840 - 1255000 - additonalTransactionCost; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
-
-    // assert that the user's sol balance has decreased by the amount
-    const solDecreasedAmount = this.testInputs.amountSol! * -1;
 
     await this.assertSolBalance(
-      solDecreasedAmount,
-      tempAccountCost,
-      this.recipient,
+      convertAndComputeDecimals(
+        this.testInputs.amountSol!,
+        this.tokenCtx!.decimals,
+      ).toNumber() * -1,
+      5000,
+      this.recipient.preSolBalance!,
+      this.recipient.user.provider.wallet.publicKey,
     );
+  }
 
-    // assert that recentIndexedTransaction is of type SHIELD and have right values
-    await this.assertRecentTransaction({});
+  async checkSolUnshielded() {
+    await this.standardAsserts();
+    // recipient's sol balance should be increased by the amount unshielded
+    await this.assertSolBalance(
+      convertAndComputeDecimals(
+        this.testInputs.amountSol!,
+        this.tokenCtx!.decimals,
+      ).toNumber(),
+      0,
+      this.recipientPreSolBalance!,
+      this.testInputs.recipient!,
+    );
+    // sender's shielded sol balance should be decreased by the amount unshielded
+    await this.assertShieldedSolBalance(
+      convertAndComputeDecimals(
+        this.testInputs.amountSol!,
+        this.tokenCtx!.decimals,
+      ).toNumber() + this.provider.relayer.getRelayerFee().toNumber(),
+      this.sender,
+      false,
+    );
+  }
 
-    await this.assertRecentTransaction({ userHistory: true });
+  async checkSolTransferred() {
+    await this.standardAsserts();
+    // senders's sol balance should be decreased by the amount transfered
+    await this.assertShieldedSolBalance(
+      convertAndComputeDecimals(
+        this.testInputs.amountSol!,
+        this.tokenCtx!.decimals,
+      )
+        .add(this.provider.relayer.getRelayerFee())
+        .toNumber(),
+      this.sender,
+      false,
+    );
+    // recipient's sol balance should be increased by the amount transfered
+    await this.assertShieldedSolBalance(
+      convertAndComputeDecimals(
+        this.testInputs.amountSol!,
+        this.tokenCtx!.decimals,
+      ).toNumber(),
+      this.recipient,
+      true,
+    );
   }
 
   /**
    * Asynchronously checks if token unshielding has been performed correctly for a user.
-   * This function performs the following checks:
+   * This method performs the following checks:
    *
    * 1. Asserts that the user's shielded token balance has decreased by the amount unshielded.
    * 2. Asserts that the recipient's token balance has increased by the amount unshielded.
@@ -641,32 +855,37 @@ export class TestStateValidator {
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
-  async checkTokenUnshielded() {
+  async checkSplUnshielded() {
     // assert that the user's shielded token balance has decreased by the amount unshielded
-    await this.assertBalance(this.sender.user);
-    await this.assertBalance(this.recipient.user);
+    await this.standardAsserts();
     const tokenDecreasedAmount = this.testInputs.amountSpl!;
-    await this.assertShieldedTokenBalance(tokenDecreasedAmount, this.sender);
+    await this.assertShieldedSplBalance(tokenDecreasedAmount, this.sender);
 
     // assert that the recipient token balance has increased by the amount shielded
-    await this.assertTokenBalance(this.testInputs.amountSpl!, this.recipient);
+    await this.assertSplBalance(this.testInputs.amountSpl!, this.recipient);
 
-    const solDecreasedAmount = MINIMUM_LAMPORTS.add(
+    let solDecreasedAmount =
+      this.testInputs.amountSol != undefined
+        ? convertAndComputeDecimals(this.testInputs.amountSol, new BN(1e9))
+        : MINIMUM_LAMPORTS;
+    solDecreasedAmount = solDecreasedAmount.add(
       this.provider.relayer.getRelayerFee(true),
-    ).toNumber();
+    );
     // assert that the user's sol shielded balance has decreased by fee
-    await this.assertShieldedSolBalance(solDecreasedAmount, this.sender);
+    await this.assertShieldedSolBalance(
+      solDecreasedAmount.toNumber(),
+      this.sender,
+    );
 
     // assert that user utxos are spent and updated correctly
     await this.assertUserUtxoSpent();
 
     // assert that recentIndexedTransaction is of type UNSHIELD and have right values
-    await this.assertRecentTransaction({ userHistory: true });
   }
 
   /**
    * Asynchronously checks if a shielded token transfer has been performed correctly for a user.
-   * This function performs the following checks:
+   * This method performs the following checks:
    *
    * 1. Asserts that the user's shielded token balance has decreased by the amount transferred.
    * 2. Asserts that the user's shielded SOL balance has decreased by the relayer fee.
@@ -676,44 +895,49 @@ export class TestStateValidator {
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
-  async checkTokenTransferred() {
+  async checkSplTransferred() {
     // assert that the user's shielded balance has decreased by the amount transferred
-    await this.assertBalance(this.sender.user);
-    await this.assertBalance(this.recipient.user);
+    await this.standardAsserts();
     await this.assertInboxBalance(this.recipient.user);
 
     // assert that the user's spl shielded balance has decreased by amountSpl
-    await this.assertShieldedTokenBalance(
+    await this.assertShieldedSplBalance(
       this.testInputs.amountSpl!,
       this.sender,
     );
 
-    await this.assertShieldedTokenBalance(
+    await this.assertShieldedSplBalance(
       this.testInputs.amountSpl!,
       this.recipient,
       true,
     );
 
+    let shieldedLamports =
+      this.testInputs.amountSol != undefined
+        ? convertAndComputeDecimals(
+            this.testInputs.amountSol,
+            new BN(1e9),
+          ).toNumber()
+        : 0;
+    shieldedLamports += this.provider.relayer.getRelayerFee().toNumber();
     // assert that the user's sol shielded balance has decreased by fee
-    await this.assertShieldedSolBalance(
-      this.provider.relayer.relayerFee.toNumber(),
-      this.sender,
-    );
+    await this.assertShieldedSolBalance(shieldedLamports, this.sender);
 
     // assert that user utxos are spent and updated correctly
     await this.assertUserUtxoSpent();
 
-    // assert that recentIndexedTransaction is of type SHIELD and have right values
-    await this.assertRecentTransaction({});
-
-    await this.assertRecentTransaction({ userHistory: true });
-
     await this.checkShieldedTransferReceived(
       this.testInputs.amountSpl !== undefined
-        ? this.testInputs.amountSpl * this.tokenCtx.decimals.toNumber()
+        ? convertAndComputeDecimals(
+            this.testInputs.amountSpl!,
+            this.tokenCtx!.decimals,
+          ).toNumber()
         : 0,
       this.testInputs.amountSol !== undefined
-        ? this.testInputs.amountSol * 10e9
+        ? convertAndComputeDecimals(
+            this.testInputs.amountSol,
+            new BN(1e9),
+          ).toNumber()
         : 0,
       this.tokenCtx.mint,
     );
@@ -721,8 +945,7 @@ export class TestStateValidator {
 
   async checkMergedAll() {
     // assert that the user's shielded balance has decreased by the amount transferred
-    await this.assertBalance(this.sender.user);
-    await this.assertBalance(this.recipient.user);
+    await this.standardAsserts();
     await this.assertInboxBalance(this.recipient.user);
     assert.equal(
       this.sender.user.account.getPublicKey(),
@@ -768,8 +991,7 @@ export class TestStateValidator {
 
   async checkMerged() {
     // assert that the user's shielded balance has decreased by the amount transferred
-    await this.assertBalance(this.sender.user);
-    await this.assertBalance(this.recipient.user);
+    await this.standardAsserts();
     await this.assertInboxBalance(this.recipient.user);
     assert.equal(
       this.sender.user.account.getPublicKey(),
@@ -970,11 +1192,11 @@ export class TestStateValidator {
       1,
     );
     if (this.testInputs.type === Action.SHIELD) {
-      this.checkTokenShielded();
+      this.checkSplShielded();
     } else if (this.testInputs.type === Action.TRANSFER) {
-      this.checkTokenTransferred();
+      this.checkSplTransferred();
     } else if (this.testInputs.type === Action.UNSHIELD) {
-      this.checkTokenUnshielded();
+      this.checkSplUnshielded();
     }
   }
 }

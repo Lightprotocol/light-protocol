@@ -61,6 +61,13 @@ export const LOOK_UP_TABLE = new PublicKey(
   "DyZnme4h32E66deCvsAV6pVceVw8s6ucRhNcwoofVCem",
 );
 
+export const MAX_U64 = new anchor.BN("18446744073709551615");
+export const VERIFIER_PUBLIK_KEYS = [
+  verifierProgramZeroProgramId,
+  verifierProgramOneProgramId,
+  verifierProgramTwoProgramId,
+  verifierProgramStorageProgramId,
+];
 export type merkleTreeProgram = Program<MerkleTreeProgram>;
 export type verifierProgramZero = Program<VerifierProgramZero>;
 export type verifierProgramOne = Program<VerifierProgramOne>;

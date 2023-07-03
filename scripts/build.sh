@@ -2,26 +2,29 @@
 
 set -eux
 
-pushd light-zk.js
-yarn install --force
-yarn run build
-popd
+cleanup_and_install() {
+  dir=$1
+  build=$2
 
-pushd light-system-programs
-yarn install --force
-light-anchor build
-popd
+  pushd $dir
 
-pushd mock-app-verifier
-yarn install --force
-light-anchor build
-popd
+  for sub_dir in node_modules lib bin; do
+    if [ -d ./$sub_dir ]; then
+      rm -rf $sub_dir
+    fi
+  done
 
-pushd light-circuits
-yarn install --force
-popd
+  yarn install
 
-pushd relayer
-yarn install --force
-yarn run build
-popd
+  if [ "$build" = true ] ; then
+    yarn run build
+  fi
+
+  popd
+}
+
+cleanup_and_install "light-zk.js" true
+cleanup_and_install "light-system-programs" false
+cleanup_and_install "mock-app-verifier" false
+cleanup_and_install "light-circuits" false
+cleanup_and_install "relayer" true

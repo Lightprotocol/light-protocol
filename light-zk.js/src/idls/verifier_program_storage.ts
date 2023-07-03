@@ -74,11 +74,6 @@ export type VerifierProgramStorage = {
           isSigner: false;
         },
         {
-          name: "verifierState";
-          isMut: true;
-          isSigner: false;
-        },
-        {
           name: "programMerkleTree";
           isMut: false;
           isSigner: false;
@@ -124,6 +119,11 @@ export type VerifierProgramStorage = {
           isMut: true;
           isSigner: false;
           docs: ["Verifier config pda which needs to exist."];
+        },
+        {
+          name: "verifierState";
+          isMut: true;
+          isSigner: false;
         },
       ];
       args: [
@@ -548,11 +548,6 @@ export const IDL: VerifierProgramStorage = {
           isSigner: false,
         },
         {
-          name: "verifierState",
-          isMut: true,
-          isSigner: false,
-        },
-        {
           name: "programMerkleTree",
           isMut: false,
           isSigner: false,
@@ -598,6 +593,11 @@ export const IDL: VerifierProgramStorage = {
           isMut: true,
           isSigner: false,
           docs: ["Verifier config pda which needs to exist."],
+        },
+        {
+          name: "verifierState",
+          isMut: true,
+          isSigner: false,
         },
       ],
       args: [

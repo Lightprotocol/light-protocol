@@ -1,15 +1,24 @@
 import {
+  CompiledInnerInstruction,
   ConfirmedSignaturesForAddress2Options,
   Connection,
+  ParsedInstruction,
   ParsedMessageAccount,
   ParsedTransactionWithMeta,
   PublicKey,
   TokenBalance,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import {
   merkleTreeProgramId,
   FIELD_SIZE,
   REGISTERED_POOL_PDA_SOL,
+  verifierProgramZeroProgramId,
+  verifierProgramOneProgramId,
+  verifierProgramTwoProgramId,
+  verifierProgramStorageProgramId,
+  VERIFIER_PUBLIK_KEYS,
+  MAX_U64,
 } from "../constants";
 
 import { Action } from "./transaction";
@@ -72,7 +81,7 @@ export const getUserIndexTransactions = async (
     const nullifierOne = new BN(trx.nullifiers[1]).toString();
 
     const isFromUser =
-      trx.from.toBase58() === provider.wallet.publicKey.toBase58();
+      trx.signer.toBase58() === provider.wallet.publicKey.toBase58();
 
     const inSpentUtxos: Utxo[] = [];
     const outSpentUtxos: Utxo[] = [];
@@ -99,7 +108,6 @@ export const getUserIndexTransactions = async (
 
     const found =
       isFromUser || inSpentUtxos.length > 0 || outSpentUtxos.length > 0;
-
     if (found) {
       transactionHistory.push({
         ...trx,
@@ -112,6 +120,21 @@ export const getUserIndexTransactions = async (
   return transactionHistory.sort((a, b) => b.blockTime - a.blockTime);
 };
 
+type Instruction = {
+  accounts: any[];
+  data: string;
+  programId: PublicKey;
+  stackHeight: null | number;
+};
+const findMatchingInstruction = (
+  instructions: Instruction[],
+  publicKeys: PublicKey[],
+): Instruction | undefined => {
+  return instructions.find((instruction) =>
+    publicKeys.some((pubKey) => pubKey.equals(instruction.programId)),
+  );
+};
+
 /**
  * @async
  * @description This functions takes the indexer transaction event data and transaction,
@@ -121,7 +144,7 @@ export const getUserIndexTransactions = async (
  * @param {IndexedTransaction[]} transactions - An array to which the processed transaction data will be pushed.
  * @returns {Promise<void>}
  */
-async function processIndexedTransaction(
+function processIndexedTransaction(
   event: IndexedTransactionData,
   transactions: IndexedTransaction[],
 ) {
@@ -138,86 +161,84 @@ async function processIndexedTransaction(
   } = event;
 
   if (!tx || !tx.meta || tx.meta.err) return;
-
-  const signature = tx.transaction.signatures[0];
-
-  const solTokenPool = REGISTERED_POOL_PDA_SOL;
-
-  let accountKeys = tx.transaction.message.accountKeys;
-
-  let type: Action = Action.SHIELD;
-  let relayerRecipientSol = PublicKey.default;
-  let from = PublicKey.default;
-  let to = PublicKey.default;
-  let verifier = accountKeys[2];
-
-  // gets the index of REGISTERED_POOL_PDA_SOL in the accountKeys array
-  let solTokenPoolIndex = accountKeys.findIndex(
-    (item: ParsedMessageAccount) => {
-      const itemStr =
-        typeof item === "string" || item instanceof String
-          ? item
-          : item.pubkey.toBase58();
-      return itemStr === solTokenPool.toBase58();
-    },
+  const instruction = findMatchingInstruction(
+    tx.transaction.message.instructions,
+    VERIFIER_PUBLIK_KEYS,
   );
+  if (!instruction) return;
+  const signature = tx.transaction.signatures[0];
+  let accountKeys = instruction.accounts;
+  let verifier = instruction.programId;
 
+  const getTypeAndAmounts = (
+    publicAmountSpl: Uint8Array,
+    publicAmountSol: Uint8Array,
+  ) => {
+    let type = Action.SHIELD;
+    let amountSpl = new BN(publicAmountSpl, 32, "be");
+    let amountSol = new BN(publicAmountSol, 32, "be");
+
+    let splIsu64 = amountSpl.lte(MAX_U64);
+    let solIsu64 = amountSol.lte(MAX_U64);
+    if (!splIsu64 || !solIsu64) {
+      amountSpl = amountSpl.sub(FIELD_SIZE).mod(FIELD_SIZE).abs();
+      amountSol = amountSol
+        .sub(FIELD_SIZE)
+        .mod(FIELD_SIZE)
+        .abs()
+        .sub(relayerFee);
+      type =
+        amountSpl.eq(new BN(0)) && amountSol.eq(new BN(0))
+          ? Action.TRANSFER
+          : Action.UNSHIELD;
+    }
+    return { amountSpl, amountSol, type };
+  };
+
+  const { type, amountSpl, amountSol } = getTypeAndAmounts(
+    publicAmountSpl,
+    publicAmountSol,
+  );
+  // 0: signingAddress
+  // 1: systemProgram
+  // 2: programMerkleTree
+  // 3: transactionMerkleTree
+  // 4: authority
+  // 5: tokenProgram
+  // 6: senderSpl
+  // 7: recipientSpl
+  // 8: senderSol
+  // 9: recipientSol
+  // 10: relayerRecipientSol
+  // 11: tokenAuthority
+  // 12: registeredVerifierPda
+  // 13: logWrapper
+  let fromSpl = accountKeys[6];
+  let toSpl = accountKeys[7];
+  let from = accountKeys[8];
+  let to = accountKeys[9];
+  let relayerRecipientSol = accountKeys[10];
+
+  const nullifiers = event.nullifiers;
+
+  let solTokenPoolIndex = type === Action.SHIELD ? 9 : 8;
   let changeSolAmount = new BN(
     tx.meta.postBalances[solTokenPoolIndex] -
       tx.meta.preBalances[solTokenPoolIndex],
   );
-
-  let amountSpl = new BN(publicAmountSpl);
-  let amountSol = new BN(publicAmountSol);
-
-  const nullifiers = event.nullifiers;
-
-  if (changeSolAmount.lt(new BN(0))) {
-    amountSpl = amountSpl.sub(FIELD_SIZE).mod(FIELD_SIZE).abs();
-
-    amountSol = amountSol.sub(FIELD_SIZE).mod(FIELD_SIZE).abs().sub(relayerFee);
-
-    changeSolAmount = new BN(changeSolAmount).abs().sub(relayerFee);
-
-    type =
-      amountSpl.eq(new BN(0)) && amountSol.eq(new BN(0))
-        ? // TRANSFER
-          Action.TRANSFER
-        : // UNSHIELD
-          Action.UNSHIELD;
-
-    tx.meta.postBalances.forEach((el: any, index: number) => {
-      if (
-        new BN(tx.meta!.postBalances[index])
-          .sub(new BN(tx.meta!.preBalances[index]))
-          .eq(relayerFee)
-      ) {
-        relayerRecipientSol = accountKeys[index].pubkey;
-      }
-    });
-
-    if (type === Action.UNSHIELD) {
-      to = accountKeys[1].pubkey;
-
-      from = amountSpl.gt(new BN(0))
-        ? // SPL
-          accountKeys[10].pubkey
-        : // SOL
-          accountKeys[9].pubkey;
-    }
-  } else if (changeSolAmount.gt(new BN(0)) || amountSpl.gt(new BN(0))) {
-    type = Action.SHIELD;
-    from = accountKeys[0].pubkey;
-    to = accountKeys[10].pubkey;
-  }
+  changeSolAmount = changeSolAmount.lt(new BN(0))
+    ? changeSolAmount.abs().sub(relayerFee)
+    : changeSolAmount;
 
   transactions.push({
     blockTime: tx.blockTime! * 1000,
-    signer: accountKeys[0].pubkey,
+    signer: accountKeys[0],
     signature,
     accounts: accountKeys,
     to,
-    from: from,
+    from,
+    toSpl,
+    fromSpl,
     verifier,
     relayerRecipientSol,
     type,
@@ -231,8 +252,6 @@ async function processIndexedTransaction(
     firstLeafIndex,
     message: Buffer.from(message),
   });
-
-  return;
 }
 
 /**
@@ -242,7 +261,7 @@ async function processIndexedTransaction(
  * @param {(ParsedTransactionWithMeta | null)[]} indexerEventsTransactions - An array of indexer event transactions to process
  * @returns {Promise<void>}
  */
-const processIndexerEventsTransactions = async (
+const processIndexerEventsTransactions = (
   indexerEventsTransactions: (ParsedTransactionWithMeta | null)[],
 ) => {
   const indexerTransactionEvents: IndexedTransactionData[] = [];
@@ -306,7 +325,6 @@ const getTransactionsBatch = async ({
     batchOptions,
     "confirmed",
   );
-
   const lastSignature = signatures[signatures.length - 1];
   let txs: (ParsedTransactionWithMeta | null)[] = [];
   let index = 0;
@@ -329,7 +347,6 @@ const getTransactionsBatch = async ({
         index += signaturesPerRequest;
       }
     } catch (e) {
-      console.log("retry");
       await sleep(2000);
     }
   }
@@ -349,14 +366,12 @@ const getTransactionsBatch = async ({
     }
   });
 
-  const indexerTransactionEvents = await processIndexerEventsTransactions(
+  const indexerTransactionEvents = processIndexerEventsTransactions(
     indexerEventTransactions,
   );
-
   indexerTransactionEvents.forEach((event) => {
     processIndexedTransaction(event!, transactions);
   });
-
   return lastSignature;
 };
 
@@ -378,14 +393,16 @@ export const indexRecentTransactions = async ({
     until: undefined,
   },
   dedupe = false,
+  transactions = [],
 }: {
   connection: Connection;
   batchOptions: ConfirmedSignaturesForAddress2Options;
   dedupe?: boolean;
+  transactions?: IndexedTransaction[];
 }): Promise<IndexedTransaction[]> => {
   const batchSize = 1000;
   const rounds = Math.ceil(batchOptions.limit! / batchSize);
-  const transactions: IndexedTransaction[] = [];
+  // const transactions: IndexedTransaction[] = [];
 
   let batchBefore = batchOptions.before;
 
