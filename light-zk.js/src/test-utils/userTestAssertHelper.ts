@@ -56,6 +56,7 @@ export type TestUserBalances = {
   preSolBalance?: number;
   isSender: boolean;
   recipientSplAccount?: PublicKey;
+  senderSplAccount?: PublicKey;
 };
 
 export class UserTestAssertHelper {
@@ -111,6 +112,11 @@ export class UserTestAssertHelper {
           this.tokenCtx.mint,
           this.testInputs.recipient,
         );
+      } else {
+        userBalances.senderSplAccount = getAssociatedTokenAddressSync(
+          this.tokenCtx.mint,
+          this.sender.user.provider.wallet.publicKey,
+        );
       }
 
       if (userBalances.recipientSplAccount) {
@@ -119,6 +125,16 @@ export class UserTestAssertHelper {
           balance = (
             await this.provider.provider?.connection.getTokenAccountBalance(
               userBalances.recipientSplAccount,
+            )
+          )?.value.uiAmount;
+        } catch (error) {}
+        userBalances.preTokenBalance = balance ? balance : 0;
+      } else {
+        var balance = undefined;
+        try {
+          balance = (
+            await this.provider.provider?.connection.getTokenAccountBalance(
+              userBalances.senderSplAccount!,
             )
           )?.value.uiAmount;
         } catch (error) {}
@@ -543,12 +559,16 @@ export class UserTestAssertHelper {
   }
 
   async assertSplBalance(amount: number, userBalances: TestUserBalances) {
+    let splAccount;
     if (userBalances.isSender) {
       amount = amount * -1;
+      splAccount = userBalances.senderSplAccount!;
+    } else {
+      splAccount = userBalances.recipientSplAccount!;
     }
     const postTokenBalance =
       await userBalances.user.provider.provider!.connection.getTokenAccountBalance(
-        userBalances.recipientSplAccount!,
+        splAccount!,
       );
 
     assert.equal(
