@@ -138,9 +138,7 @@ export class Relayer {
         },
       );
 
-      return indexedTransactions.sort(
-        (a, b) => a.firstLeafIndex.toNumber() - b.firstLeafIndex.toNumber(),
-      );
+      return indexedTransactions;
     } catch (err) {
       console.log({ err });
       throw err;

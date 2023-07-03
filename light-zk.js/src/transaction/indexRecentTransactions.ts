@@ -402,7 +402,6 @@ export const indexRecentTransactions = async ({
 }): Promise<IndexedTransaction[]> => {
   const batchSize = 1000;
   const rounds = Math.ceil(batchOptions.limit! / batchSize);
-  // const transactions: IndexedTransaction[] = [];
 
   let batchBefore = batchOptions.before;
 

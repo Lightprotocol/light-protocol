@@ -402,7 +402,7 @@ describe("Test User", () => {
      */
     let transactions = 0;
     while (true) {
-      console.log("\n----------------------------------\n")
+      console.log("\n----------------------------------\n");
       const res = getRandomObjectAndArray(testUsers);
       const rndUser = res[0].user;
       const wallet = res[0].wallet;

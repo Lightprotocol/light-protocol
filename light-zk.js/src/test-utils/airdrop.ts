@@ -53,7 +53,7 @@ export async function airdropShieldedSol({
   await airdropSol({
     provider: provider.provider!,
     recipientPublicKey: userKeypair.publicKey,
-    lamports: amount * 10e9,
+    lamports: amount * 1e9,
   });
 
   const user: User = await User.init({ provider, seed });

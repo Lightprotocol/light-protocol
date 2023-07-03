@@ -134,7 +134,7 @@ export class TestRelayer extends Relayer {
         a.blockTime > b.blockTime ? a : b,
       );
 
-      let newTransactions = await indexRecentTransactions({
+      await indexRecentTransactions({
         connection,
         batchOptions: {
           limit,
@@ -143,12 +143,6 @@ export class TestRelayer extends Relayer {
         dedupe: false,
         transactions: this.indexedTransactions,
       });
-      // this.indexedTransactions = [
-      //   ...newTransactions,
-      //   ...this.indexedTransactions,
-      // ].sort(
-      //   (a, b) => a.firstLeafIndex.toNumber() - b.firstLeafIndex.toNumber(),
-      // );
       return this.indexedTransactions;
     }
   }
