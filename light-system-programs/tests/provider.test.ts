@@ -98,7 +98,7 @@ describe("verifier_program", () => {
     const mockKeypair = SolanaKeypair.generate();
     await airdropSol({
       provider,
-      amount: 1e9,
+      lamports: 1e9,
       recipientPublicKey: mockKeypair.publicKey,
     });
     const lightProviderMock = await LightProvider.init({

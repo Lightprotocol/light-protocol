@@ -86,7 +86,6 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   it("(user class) shield SPL to recipient", async () => {
     let testInputs = {
       amountSpl: 20,
-      amountSol: 0,
       token: "USDC",
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,

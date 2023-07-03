@@ -7,7 +7,7 @@ export * from "./functionalCircuit";
 export * from "./constants_system_verifier";
 export * from "./updateMerkleTree";
 export * from "./testRelayer";
-export * from "./testStateValidator";
+export * from "./userTestAssertHelper";
 export * from "./testTransaction";
 export * from "./airdrop";
 
