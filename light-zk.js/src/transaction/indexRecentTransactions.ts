@@ -23,7 +23,11 @@ import {
 
 import { Action } from "./transaction";
 
-import { getUpdatedSpentUtxos, sleep } from "../utils";
+import {
+  fetchQueuedLeavesAccountInfo,
+  getUpdatedSpentUtxos,
+  sleep,
+} from "../utils";
 import { BN } from "@coral-xyz/anchor";
 import {
   IndexedTransaction,
@@ -144,7 +148,7 @@ const findMatchingInstruction = (
  * @param {IndexedTransaction[]} transactions - An array to which the processed transaction data will be pushed.
  * @returns {Promise<void>}
  */
-function processIndexedTransaction(
+async function processIndexedTransaction(
   event: IndexedTransactionData,
   transactions: IndexedTransaction[],
 ) {
@@ -159,13 +163,22 @@ function processIndexedTransaction(
     encryptedUtxos,
     message,
   } = event;
-
   if (!tx || !tx.meta || tx.meta.err) return;
-  const instruction = findMatchingInstruction(
+
+  // check first whether we can find an instruction to a verifier program in the main instructions
+  let instruction = findMatchingInstruction(
     tx.transaction.message.instructions,
     VERIFIER_PUBLIK_KEYS,
   );
+  // if we didn't find a main instruction to a verifier program we check the inner instructions
+  // this is the case for private programs which call verifier two via cpi
+  if (!instruction)
+    instruction = findMatchingInstruction(
+      tx.meta.innerInstructions[0].instructions,
+      VERIFIER_PUBLIK_KEYS,
+    );
   if (!instruction) return;
+
   const signature = tx.transaction.signatures[0];
   let accountKeys = instruction.accounts;
   let verifier = instruction.programId;
