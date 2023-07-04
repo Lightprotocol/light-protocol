@@ -53,7 +53,6 @@ describe("Test Prover Functional", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
-      transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
@@ -69,7 +68,40 @@ describe("Test Prover Functional", () => {
     );
   });
 
+  after( async () => {
+    globalThis.curve_bn128.terminate();
+  });
+
   it("Test Generic Self-contained Prover for VerifierZero", async () => {
+    let tx = new Transaction({
+      provider: lightProvider,
+      params: paramsDeposit,
+    })
+
+    await tx.compile();
+
+    const genericProver = new Prover(tx.params.verifierIdl, tx.firstPath);
+    await genericProver.addProofInputs(tx.proofInput);
+    await genericProver.fullProve();
+    await tx.getProof();
+
+    const publicInputsBytes = genericProver.parseToBytesArray(genericProver.publicInputs);
+    const publicInputsJson = JSON.stringify(genericProver.publicInputs, null, 1);
+
+    const publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
+    const publicInputsBytesVerifier = new Array<Array<number>>();
+    for (let i in publicInputsBytesJson) {
+      let ref: Array<number> = Array.from([
+        ...utils.leInt2Buff(utils.unstringifyBigInts(publicInputsBytesJson[i]), 32),
+      ]).reverse();
+      publicInputsBytesVerifier.push(ref);
+    }
+
+    expect(publicInputsBytes).to.deep.equal(publicInputsBytesVerifier);
+  });
+
+
+  it("It should be fail", async () => {
     let tx = new Transaction({
       provider: lightProvider,
       params: paramsDeposit,

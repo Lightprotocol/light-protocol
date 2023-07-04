@@ -32,7 +32,7 @@ import {
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types/accounts";
-import { Prover } from "./prover";
+import { Prover } from "../../../light-prover-sdk/src/prover";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 
 var ffjavascript = require("ffjavascript");

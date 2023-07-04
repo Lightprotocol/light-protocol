@@ -1,5 +1,5 @@
 import { assert, expect } from "chai";
-import { Prover } from "../src/transaction/prover";
+import { Prover } from "../../light-prover-sdk/src/prover";
 import { Idl } from "@coral-xyz/anchor";
 
 let circomlibjs = require("circomlibjs");

@@ -63,10 +63,6 @@ export type CircuitNames = ExtractPrefix<ZKAccounts['name']>;
 type ZKProofInputsObjectFullName<Idl extends VerifierIdls, AccountName extends ZKAccounts['name']>  =
     CircuitInputsObject<MapObjectKeys<SelectZKAccount<Idl, AccountName>>>;
 
-
-// let sampleProofInputs: ProofInputs<IDL2, "transactionApp4">;
-// sampleProofInputs.
-
 export type ProofInputs<Idl extends VerifierIdls, CircuitName extends CircuitNames>  =
     CircuitInputsObject<MapObjectKeys<SelectZKAccount<Idl, `zK${CircuitName}ProofInputs`
     >>>;
@@ -74,9 +70,6 @@ export type ProofInputs<Idl extends VerifierIdls, CircuitName extends CircuitNam
 export type ParsedPublicInputs<Idl extends VerifierIdls, CircuitName extends CircuitNames>  =
     CircuitParsedPubInObject<MapObjectKeys<SelectZKAccount<Idl, `zK${CircuitName}PublicInputs`
     >>>;
-
-// let publicInputs: ParsedPublicInputs<IDL2, "transactionApp4">;
-// publicInputs.
 
 /// Generic Type Filters
 type Account = {
