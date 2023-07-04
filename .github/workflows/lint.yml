@@ -1,10 +1,10 @@
 on:
   push:
     branches:
-      - main
+      - foo
   pull_request:
     branches:
-      - main
+      - foo
 
 name: lint
 
