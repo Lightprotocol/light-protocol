@@ -172,11 +172,13 @@ async function processIndexedTransaction(
   );
   // if we didn't find a main instruction to a verifier program we check the inner instructions
   // this is the case for private programs which call verifier two via cpi
-  if (!instruction)
-    instruction = findMatchingInstruction(
-      tx.meta.innerInstructions[0].instructions,
-      VERIFIER_PUBLIK_KEYS,
-    );
+  for (let innerInstruction of tx.meta.innerInstructions) {
+    if (!instruction)
+      instruction = findMatchingInstruction(
+        innerInstruction.instructions,
+        VERIFIER_PUBLIK_KEYS,
+      );
+  }
   if (!instruction) return;
 
   const signature = tx.transaction.signatures[0];
@@ -212,6 +214,10 @@ async function processIndexedTransaction(
     publicAmountSpl,
     publicAmountSol,
   );
+  const convertToPublicKey = (key: PublicKey | string): PublicKey => {
+    return key instanceof PublicKey ? key : new PublicKey(key);
+  };
+  accountKeys = accountKeys.map((key) => convertToPublicKey(key));
   // 0: signingAddress
   // 1: systemProgram
   // 2: programMerkleTree

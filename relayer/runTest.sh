@@ -28,12 +28,12 @@ solana-test-validator \
     --account-dir ../test-env/accounts \
     &
 PID=$!
-trap "kill $PID" EXIT INT TERM HUP
+trap "kill $PID" EXIT
 sleep 7
 
 node lib/index.js &
 relayer_pid=$!
-trap "kill $relayer_pid" EXIT INT TERM HUP
+trap "kill $relayer_pid" EXIT
 
 sleep 20
 
