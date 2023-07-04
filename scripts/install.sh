@@ -79,7 +79,7 @@ function download_and_extract_github () {
 }
 
 NODE_VERSION="16.20.1"
-SOLANA_VERSION="1.16.1"
+SOLANA_VERSION="1.16.2"
 ANCHOR_VERSION=$(latest_release Lightprotocol anchor)
 CIRCOM_VERSION=$(latest_release Lightprotocol circom)
 MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)

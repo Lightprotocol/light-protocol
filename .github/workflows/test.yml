@@ -8,6 +8,10 @@ on:
       - "light-system-programs/**/*.ts"
       - "mock-app-verifier/**/*.rs"
       - "mock-app-verifier/**/*.ts"
+      - "scripts/build.sh"
+      - "scripts/devenv.sh"
+      - "scripts/install.sh"
+      - "scripts/test.sh"
   pull_request:
     branches:
       - main
@@ -17,6 +21,10 @@ on:
       - "light-system-programs/**/*.ts"
       - "mock-app-verifier/**/*.rs"
       - "mock-app-verifier/**/*.ts"
+      - "scripts/build.sh"
+      - "scripts/devenv.sh"
+      - "scripts/install.sh"
+      - "scripts/test.sh"
 
 name: test
 
