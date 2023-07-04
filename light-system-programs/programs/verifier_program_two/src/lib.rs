@@ -14,10 +14,9 @@ pub use processor::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 
-use merkle_tree_program::program::MerkleTreeProgram;
-use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
 use merkle_tree_program::{
-    transaction_merkle_tree::state::TransactionMerkleTree, RegisteredVerifier,
+    program::MerkleTreeProgram, transaction_merkle_tree::state::TransactionMerkleTree,
+    utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
 };
 declare_id!("2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86");
 

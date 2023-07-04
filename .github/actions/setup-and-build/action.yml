@@ -7,6 +7,13 @@ runs:
       shell: bash
       run: |
         ./scripts/install.sh
+        source ./scripts/devenv.sh
+        # NOTE(vadorovsky): For some reason, Github runners sometimes don't give
+        # a heck about rust-toolchain.toml files and keep using random versions
+        # of rustc.
+        rustup update
+        rustup install 1.69.0
+        rustup override set 1.69.0
 
     - name: Build and prepare for tests
       shell: bash
