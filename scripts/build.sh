@@ -5,6 +5,7 @@ set -eux
 cleanup_and_install() {
   dir=$1
   build=$2
+  anchor_build=$3
 
   pushd $dir
 
@@ -20,11 +21,15 @@ cleanup_and_install() {
     yarn run build
   fi
 
+  if [ "$anchor_build" = true ] ; then
+    light-anchor build
+  fi
+
   popd
 }
 
-cleanup_and_install "light-zk.js" true
-cleanup_and_install "light-system-programs" false
-cleanup_and_install "mock-app-verifier" false
-cleanup_and_install "light-circuits" false
-cleanup_and_install "relayer" true
+cleanup_and_install "light-zk.js" true false
+cleanup_and_install "light-system-programs" false true
+cleanup_and_install "mock-app-verifier" false true
+cleanup_and_install "light-circuits" false false
+cleanup_and_install "relayer" true false
