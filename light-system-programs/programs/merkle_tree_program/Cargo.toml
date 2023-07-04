@@ -23,6 +23,7 @@ opt-level = 2
 [dependencies]
 anchor-lang = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce" }
 anchor-spl = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce" }
+solana-program = "=1.16.1"
 
 byteorder = "1.3"
 bytemuck = "1.13"

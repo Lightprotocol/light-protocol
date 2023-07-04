@@ -19,6 +19,7 @@ default = []
 [dependencies]
 anchor-lang = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce", features = ["init-if-needed"] }
 anchor-spl = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce" }
+solana-program = "=1.16.1"
 
 # Light deps
 groth16-solana = "0.0.1"
