@@ -56,6 +56,7 @@ describe("Test Prover Functional", () => {
       transactionNonce: 0,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
+
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(poseidon),
     ]);
