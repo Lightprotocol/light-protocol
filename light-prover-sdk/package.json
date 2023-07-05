@@ -1,8 +1,9 @@
 {
-  "name": "generic-zk-prover-class",
+  "name": "@lightprotocol/prover.js",
   "version": "0.1.0",
   "description": "Circom generic prover sdk offering precompile errors for proofInputs as well as parsed publicInputs & proof for private solana programs",
-  "main": "index.js",
+
+  "main": "lib/index.js",
   "scripts": {
     "test": "ts-mocha --timeout 500000 tests/*.test.ts"
   },
@@ -22,6 +23,7 @@
     "mocha": "^10.2.0",
     "ts-mocha": "^10.0.0",
     "ts-node": "^10.9.1",
-    "typescript": "^5.0.4"
+    "typescript": "^5.0.4",
+    "@lightprotocol/zk.js": "file:../light-zk.js"
   }
 }
