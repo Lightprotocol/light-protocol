@@ -2,6 +2,12 @@
 
 set -eux
 
+
+pushd light-prover.js
+yarn install --force
+yarn run build
+popd
+
 pushd light-zk.js
 yarn install --force
 yarn run build

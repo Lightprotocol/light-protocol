@@ -32,7 +32,7 @@ import {
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types/accounts";
-import { Prover } from "../../../light-prover-sdk/src/prover";
+import { Prover } from "@lightprotocol/prover.js";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 
 var ffjavascript = require("ffjavascript");
@@ -326,6 +326,7 @@ export class Transaction {
   async getProof() {
     const res = await this.getProofInternal(this.params, this.firstPath);
     this.transactionInputs.proofBytes = res.parsedProof;
+    // @ts-ignore
     this.transactionInputs.publicInputs = res.parsedPublicInputsObject;
   }
 

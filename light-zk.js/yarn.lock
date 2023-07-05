@@ -9,7 +9,7 @@
   dependencies:
     regenerator-runtime "^0.13.11"
 
-"@coral-xyz/anchor@0.27.0":
+"@coral-xyz/anchor@0.27.0", "@coral-xyz/anchor@^0.27.0":
   version "0.27.0"
   resolved "https://registry.npmjs.org/@coral-xyz/anchor/-/anchor-0.27.0.tgz"
   integrity sha512-+P/vPdORawvg3A9Wj02iquxb4T0C5m4P6aZBVYysKl4Amk+r6aMPZkUhilBkD6E4Nuxnoajv3CFykUfkGE0n5g==
@@ -417,6 +417,14 @@
   dependencies:
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
+
+"@lightprotocol/prover.js@file:../light-prover.js":
+  version "0.1.0"
+  dependencies:
+    "@coral-xyz/anchor" "^0.27.0"
+    circomlibjs "^0.1.7"
+    ffjavascript "^0.2.59"
+    snarkjs "^0.6.11"
 
 "@metaplex-foundation/beet-solana@^0.4.0":
   version "0.4.0"
@@ -961,6 +969,13 @@ circom_runtime@0.1.21:
   dependencies:
     ffjavascript "0.2.56"
 
+circom_runtime@0.1.22:
+  version "0.1.22"
+  resolved "https://registry.yarnpkg.com/circom_runtime/-/circom_runtime-0.1.22.tgz#f957c47662cdd03cd3fb76979c434c719a366373"
+  integrity sha512-V/XYZWBhbZY8SotkaGH4FbiDYAZ8a1Md++MBiKPDOuWS/NIJB+Q+XIiTC8zKMgoDaa9cd2OiTvsC9J6te7twNg==
+  dependencies:
+    ffjavascript "0.2.57"
+
 circomlib@^2.0.5:
   version "2.0.5"
   resolved "https://registry.npmjs.org/circomlib/-/circomlib-2.0.5.tgz"
@@ -1220,13 +1235,22 @@ ffjavascript@0.2.56:
     wasmcurves "0.2.0"
     web-worker "^1.2.0"
 
-ffjavascript@^0.2.45, ffjavascript@^0.2.48, ffjavascript@^0.2.54:
+ffjavascript@0.2.57, ffjavascript@^0.2.45, ffjavascript@^0.2.48, ffjavascript@^0.2.54:
   version "0.2.57"
   resolved "https://registry.npmjs.org/ffjavascript/-/ffjavascript-0.2.57.tgz"
   integrity sha512-V+vxZ/zPNcthrWmqfe/1YGgqdkTamJeXiED0tsk7B84g40DKlrTdx47IqZuiygqAVG6zMw4qYuvXftIJWsmfKQ==
   dependencies:
     wasmbuilder "0.0.16"
     wasmcurves "0.2.0"
+    web-worker "^1.2.0"
+
+ffjavascript@^0.2.59:
+  version "0.2.59"
+  resolved "https://registry.yarnpkg.com/ffjavascript/-/ffjavascript-0.2.59.tgz#b2f836082587fab333dfb181b909a188f80036f3"
+  integrity sha512-QssOEUv+wilz9Sg7Zaj6KWAm7QceOAEsFuEBTltUsDo1cjn11rA/LGYvzFBPbzNfxRlZxwgJ7uxpCQcdDlrNfw==
+  dependencies:
+    wasmbuilder "0.0.16"
+    wasmcurves "0.2.1"
     web-worker "^1.2.0"
 
 file-uri-to-path@1.0.0:
@@ -1759,6 +1783,16 @@ r1csfile@0.0.41:
     fastfile "0.0.20"
     ffjavascript "0.2.56"
 
+r1csfile@0.0.45:
+  version "0.0.45"
+  resolved "https://registry.yarnpkg.com/r1csfile/-/r1csfile-0.0.45.tgz#59d59a33f8b5280017fc00ee691d003a3d705fe0"
+  integrity sha512-YKIp4D441aZ6OoI9y+bfAyb2j4Cl+OFq/iiX6pPWDrL4ZO968h0dq0w07i65edvrTt7/G43mTnl0qEuLXyp/Yw==
+  dependencies:
+    "@iden3/bigarray" "0.0.2"
+    "@iden3/binfileutils" "0.0.11"
+    fastfile "0.0.20"
+    ffjavascript "0.2.57"
+
 randombytes@^2.1.0:
   version "2.1.0"
   resolved "https://registry.npmjs.org/randombytes/-/randombytes-2.1.0.tgz"
@@ -1845,6 +1879,22 @@ snarkjs@^0.5.0:
     js-sha3 "^0.8.0"
     logplease "^1.2.15"
     r1csfile "0.0.41"
+
+snarkjs@^0.6.11:
+  version "0.6.11"
+  resolved "https://registry.yarnpkg.com/snarkjs/-/snarkjs-0.6.11.tgz#577b0250c0d9bb93c0ee1d4a3d3075956d11775c"
+  integrity sha512-pYDcrSKmUMMJtYxSQTMNG/MtuGvUWPSk9gZzADeIiHp8vJmFdCscMFa/YtemPAkne4v6Awm5HAhqbfNPyoqjug==
+  dependencies:
+    "@iden3/binfileutils" "0.0.11"
+    bfj "^7.0.2"
+    blake2b-wasm "^2.4.0"
+    circom_runtime "0.1.22"
+    ejs "^3.1.6"
+    fastfile "0.0.20"
+    ffjavascript "0.2.57"
+    js-sha3 "^0.8.0"
+    logplease "^1.2.15"
+    r1csfile "0.0.45"
 
 source-map-support@^0.5.6:
   version "0.5.21"
@@ -2056,6 +2106,13 @@ wasmcurves@0.2.0:
   version "0.2.0"
   resolved "https://registry.npmjs.org/wasmcurves/-/wasmcurves-0.2.0.tgz"
   integrity sha512-3e2rbxdujOwaod657gxgmdhZNn+i1qKdHO3Y/bK+8E7bV8ttV/fu5FO4/WLBACF375cK0QDLOP+65Na63qYuWA==
+  dependencies:
+    wasmbuilder "0.0.16"
+
+wasmcurves@0.2.1:
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/wasmcurves/-/wasmcurves-0.2.1.tgz#416d15432a9c6a7b79ef6000eab1e8e7302624ad"
+  integrity sha512-9ciO7bUE5bgpbOcdK7IO3enrSVIKHwrQmPibok4GLJWaCA7Wyqc9PRYnu5HbiFv9NDFNqVKPtU5R6Is5KujBLg==
   dependencies:
     wasmbuilder "0.0.16"
 
