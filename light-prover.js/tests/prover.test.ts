@@ -17,8 +17,6 @@ import {
   MerkleTree,
   IDL_VERIFIER_PROGRAM_ZERO,
 } from "../../light-zk.js/src";
-import { ProofInputs } from "../src/generics";
-import {IDL_VERIFIER_PROGRAM_ONE} from "../../light-zk.js";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -38,7 +36,10 @@ describe("Test Prover Functional", () => {
     deposit_utxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(DEPOSIT_FEE_AMOUNT), new anchor.BN(DEPOSIT_AMOUNT)],
+      amounts: [
+        new anchor.BN(DEPOSIT_FEE_AMOUNT),
+        new anchor.BN(DEPOSIT_AMOUNT),
+      ],
       blinding: new anchor.BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -71,7 +72,7 @@ describe("Test Prover Functional", () => {
     );
   });
 
-  after( async () => {
+  after(async () => {
     globalThis.curve_bn128.terminate();
   });
 
@@ -79,7 +80,7 @@ describe("Test Prover Functional", () => {
     let tx = new Transaction({
       provider: lightProvider,
       params: paramsDeposit,
-    })
+    });
 
     await tx.compile();
 
@@ -88,14 +89,23 @@ describe("Test Prover Functional", () => {
     await genericProver.fullProve();
     await tx.getProof();
 
-    const publicInputsBytes = genericProver.parseToBytesArray(genericProver.publicInputs);
-    const publicInputsJson = JSON.stringify(genericProver.publicInputs, null, 1);
+    const publicInputsBytes = genericProver.parseToBytesArray(
+      genericProver.publicInputs,
+    );
+    const publicInputsJson = JSON.stringify(
+      genericProver.publicInputs,
+      null,
+      1,
+    );
 
     const publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
     const publicInputsBytesVerifier = new Array<Array<number>>();
     for (let i in publicInputsBytesJson) {
       let ref: Array<number> = Array.from([
-        ...utils.leInt2Buff(utils.unstringifyBigInts(publicInputsBytesJson[i]), 32),
+        ...utils.leInt2Buff(
+          utils.unstringifyBigInts(publicInputsBytesJson[i]),
+          32,
+        ),
       ]).reverse();
       publicInputsBytesVerifier.push(ref);
     }
@@ -107,7 +117,7 @@ describe("Test Prover Functional", () => {
     let tx = new Transaction({
       provider: lightProvider,
       params: paramsDeposit,
-    })
+    });
 
     await tx.compile();
 
@@ -126,8 +136,9 @@ describe("Test Prover Functional", () => {
 
     const publicInputs2 = genericProver2.publicInputs;
 
-    expect(publicInputs1).to.deep.equal(publicInputs2, "Public inputs should be the same for different proofs with identical inputs");
+    expect(publicInputs1).to.deep.equal(
+      publicInputs2,
+      "Public inputs should be the same for different proofs with identical inputs",
+    );
   });
-
 });
-

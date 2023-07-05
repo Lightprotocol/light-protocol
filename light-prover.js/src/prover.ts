@@ -3,12 +3,14 @@ const { unstringifyBigInts, stringifyBigInts, leInt2Buff } =
   require("ffjavascript").utils;
 
 import { Idl } from "@coral-xyz/anchor";
-import { VerifierError, VerifierErrorCode } from "../../light-zk.js/src/errors";
-import { 
-  VerifierIdls, 
-  ProofInputs, 
+
+import { VerifierError, VerifierErrorCode } from "@lightprotocol/zk.js";
+
+import {
+  VerifierIdls,
+  ProofInputs,
   ParsedPublicInputs,
-  CircuitNames
+  CircuitNames,
 } from "./generics";
 
 export type proofData = {
@@ -31,7 +33,10 @@ export type vKeyData = {
   IC: string[][];
 };
 
-export class Prover<VerifierIdl extends VerifierIdls, CircuitName extends CircuitNames> {
+export class Prover<
+  VerifierIdl extends VerifierIdls,
+  CircuitName extends CircuitNames,
+> {
   public circuitName!: CircuitName;
   public idl: Idl;
   public firstPath: string;
@@ -211,7 +216,9 @@ export class Prover<VerifierIdl extends VerifierIdls, CircuitName extends Circui
     };
   }
 
-  parsePublicInputsFromArray(publicInputsBytes: number[][]): ParsedPublicInputs<VerifierIdl, CircuitName> {
+  parsePublicInputsFromArray(
+    publicInputsBytes: number[][],
+  ): ParsedPublicInputs<VerifierIdl, CircuitName> {
     type SizeObject = {
       [key: string]: number[];
     };

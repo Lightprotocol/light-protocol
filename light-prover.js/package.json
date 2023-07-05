@@ -3,18 +3,17 @@
   "version": "0.1.0",
   "description": "Circom generic prover sdk offering precompile errors for proofInputs as well as parsed publicInputs & proof for private solana programs",
   "license": "GPL-3.0",
-  "main": "lib/index.js",  
+  "main": "lib/index",
+  "typings": "lib/index",
   "scripts": {
     "test": "ts-mocha --timeout 500000 tests/*.test.ts",
     "build": "yarn tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
     "lint": "prettier \"src/**/*{ts,js}\" --check"
   },
-  "files": [
-    "lib/**/*"
-  ],
   "dependencies": {
     "@coral-xyz/anchor": "^0.27.0",
+    "@lightprotocol/zk.js": "^0.3.2-alpha.8",
     "circomlibjs": "^0.1.7",
     "ffjavascript": "^0.2.59",
     "snarkjs": "^0.6.11"

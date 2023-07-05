@@ -8,6 +8,11 @@ pushd light-system-programs
 yarn test
 popd
 
+pushd light-prover.js
+yarn test
+sleep 1
+popd
+
 pushd light-zk.js
 yarn test
 sleep 1

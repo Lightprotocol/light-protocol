@@ -1,15 +1,14 @@
 {
   "compilerOptions": {
-    "target": "es6",
-    "module": "commonjs",
+    "target": "ES6",
+    "module": "CommonJS",
     "declaration": true,
     "outDir": "./lib",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "rootDirs": ["src"],
-    "baseUrl": "src",
     "useUnknownInCatchVariables": false,
     "skipLibCheck": true,    
     "sourceMap": true,

@@ -326,8 +326,7 @@ export class Transaction {
   async getProof() {
     const res = await this.getProofInternal(this.params, this.firstPath);
     this.transactionInputs.proofBytes = res.parsedProof;
-    // @ts-ignore
-    this.transactionInputs.publicInputs = res.parsedPublicInputsObject;
+    this.transactionInputs.publicInputs = res.parsedPublicInputsObject as any;
   }
 
   async getAppProof() {

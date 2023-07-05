@@ -422,16 +422,17 @@
   version "0.1.0"
   dependencies:
     "@coral-xyz/anchor" "^0.27.0"
+    "@lightprotocol/zk.js" "^0.3.2-alpha.8"
     circomlibjs "^0.1.7"
     ffjavascript "^0.2.59"
     snarkjs "^0.6.11"
 
-"@lightprotocol/zk.js@file:../light-zk.js":
+"@lightprotocol/zk.js@^0.3.2-alpha.8", "@lightprotocol/zk.js@file:../light-zk.js":
   version "0.3.2-alpha.8"
   dependencies:
     "@coral-xyz/anchor" "0.27.0"
     "@coral-xyz/borsh" "^0.27.0"
-    "@lightprotocol/prover.js" "file:../../../Library/Caches/Yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.8-4333d3f2-85c5-4491-ad90-a64b97c2454d-1688567832479/node_modules/@lightprotocol/light-prover.js"
+    "@lightprotocol/prover.js" "file:../../../Library/Caches/Yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.8-7638e93e-5b32-40b3-ac5f-629511101a89-1688576256787/node_modules/@lightprotocol/light-prover.js"
     "@noble/hashes" "^1.1.5"
     "@solana/spl-account-compression" "^0.1.5"
     "@solana/spl-token" "0.3.7"
