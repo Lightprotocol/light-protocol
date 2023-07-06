@@ -17,7 +17,7 @@ import {
   verifierProgramOneProgramId,
   verifierProgramTwoProgramId,
   verifierProgramStorageProgramId,
-  VERIFIER_PUBLIK_KEYS,
+  VERIFIER_PUBLIC_KEYS,
   MAX_U64,
 } from "../constants";
 
@@ -168,7 +168,7 @@ async function processIndexedTransaction(
   // check first whether we can find an instruction to a verifier program in the main instructions
   let instruction = findMatchingInstruction(
     tx.transaction.message.instructions,
-    VERIFIER_PUBLIK_KEYS,
+    VERIFIER_PUBLIC_KEYS,
   );
   // if we didn't find a main instruction to a verifier program we check the inner instructions
   // this is the case for private programs which call verifier two via cpi
@@ -176,7 +176,7 @@ async function processIndexedTransaction(
     if (!instruction)
       instruction = findMatchingInstruction(
         innerInstruction.instructions,
-        VERIFIER_PUBLIK_KEYS,
+        VERIFIER_PUBLIC_KEYS,
       );
   }
   if (!instruction) return;
@@ -193,9 +193,9 @@ async function processIndexedTransaction(
     let amountSpl = new BN(publicAmountSpl, 32, "be");
     let amountSol = new BN(publicAmountSol, 32, "be");
 
-    let splIsu64 = amountSpl.lte(MAX_U64);
-    let solIsu64 = amountSol.lte(MAX_U64);
-    if (!splIsu64 || !solIsu64) {
+    let splIsU64 = amountSpl.lte(MAX_U64);
+    let solIsU64 = amountSol.lte(MAX_U64);
+    if (!splIsU64 || !solIsU64) {
       amountSpl = amountSpl.sub(FIELD_SIZE).mod(FIELD_SIZE).abs();
       amountSol = amountSol
         .sub(FIELD_SIZE)

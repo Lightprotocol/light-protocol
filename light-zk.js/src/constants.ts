@@ -62,7 +62,7 @@ export const LOOK_UP_TABLE = new PublicKey(
 );
 
 export const MAX_U64 = new anchor.BN("18446744073709551615");
-export const VERIFIER_PUBLIK_KEYS = [
+export const VERIFIER_PUBLIC_KEYS = [
   verifierProgramZeroProgramId,
   verifierProgramOneProgramId,
   verifierProgramTwoProgramId,
