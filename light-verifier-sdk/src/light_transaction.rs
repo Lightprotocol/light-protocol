@@ -46,7 +46,6 @@ pub trait Config {
     const ID: Pubkey;
 }
 
-#[derive(Clone)]
 pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
 {
     pub merkle_root: [u8; 32],
