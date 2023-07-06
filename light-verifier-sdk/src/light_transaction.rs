@@ -48,24 +48,12 @@ pub trait Config {
 
 pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
 {
+    // Client input.
+    pub input: TransactionInput<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS>,
+    // State of transaction.
     pub merkle_root: [u8; 32],
-    pub public_amount_spl: &'a [u8; 32],
     pub tx_integrity_hash: [u8; 32],
-    pub public_amount_sol: &'a [u8; 32],
     pub mint_pubkey: [u8; 32],
-    pub checked_public_inputs: &'a Vec<Vec<u8>>,
-    /// Hash of the optional message included in the transaction.
-    pub message_hash: Option<&'a [u8; 32]>,
-    pub message: Option<&'a Vec<u8>>,
-    pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
-    pub leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
-    pub relayer_fee: u64,
-    pub proof_a: [u8; 64],
-    pub proof_b: &'a [u8; 128],
-    pub proof_c: &'a [u8; 64],
-    pub encrypted_utxos: &'a Vec<u8>,
-    pub pool_type: &'a [u8; 32],
-    pub merkle_root_index: usize,
     pub transferred_funds: bool,
     pub computed_tx_integrity_hash: bool,
     pub verified_proof: bool,
@@ -73,12 +61,10 @@ pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIER
     pub inserted_nullifier: bool,
     pub fetched_root: bool,
     pub fetched_mint: bool,
-    pub accounts: Option<&'a Accounts<'info, 'a, 'c>>,
     pub e_phantom: PhantomData<T>,
-    pub verifyingkey: &'a Groth16Verifyingkey<'a>,
 }
 
-pub struct TransactionInput<'info, 'a> {
+pub struct TransactionInput<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize> {
     pub message_hash: Option<&'a [u8; 32]>,
     pub message: Option<&'a Vec<u8>>,
     pub proof_a: &'a [u8; 64],
@@ -102,49 +88,14 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new<'info, 'a, 'c>(
-        message_hash: Option<&'a [u8; 32]>,
-        message: Option<&'a Vec<u8>>,
-        proof_a: &'a [u8; 64],
-        proof_b: &'a [u8; 128],
-        proof_c: &'a [u8; 64],
-        public_amount_spl: &'a [u8; 32],
-        public_amount_sol: &'a [u8; 32],
-        checked_public_inputs: &'a Vec<Vec<u8>>,
-        nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
-        leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
-        encrypted_utxos: &'a Vec<u8>,
-        relayer_fee: u64,
-        merkle_root_index: usize,
-        pool_type: &'a [u8; 32],
-        accounts: Option<&'a Accounts<'info, 'a, 'c>>,
-        verifyingkey: &'a Groth16Verifyingkey<'a>,
+        input: TransactionInput<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS>
     ) -> Transaction<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS, T> {
-        assert_eq!(T::NR_NULLIFIERS, nullifiers.len());
-        assert_eq!(T::NR_LEAVES / 2, leaves.len());
-        let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
-            &*[&change_endianness(proof_a.as_slice())[..], &[0u8][..]].concat(),
-        )
-        .unwrap();
-        let mut proof_a_neg = [0u8; 65];
-        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg[..]).unwrap();
 
-        let proof_a_neg = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
         Transaction {
+            input,
             merkle_root: [0u8; 32],
-            public_amount_spl,
             tx_integrity_hash: [0u8; 32],
-            public_amount_sol,
             mint_pubkey: [0u8; 32],
-            checked_public_inputs,
-            message_hash,
-            nullifiers,
-            leaves,
-            relayer_fee,
-            proof_a: proof_a_neg,
-            proof_b,
-            proof_c,
-            encrypted_utxos,
-            merkle_root_index,
             transferred_funds: false,
             computed_tx_integrity_hash: false,
             verified_proof: false,
@@ -153,10 +104,6 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             fetched_root: false,
             fetched_mint: false,
             e_phantom: PhantomData,
-            verifyingkey,
-            accounts,
-            pool_type,
-            message,
         }
     }
 
@@ -180,11 +127,11 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         // Initialize the vector of leaves
         let mut leaves_vec: Vec<[u8; 32]> = Vec::new();
 
-        let merkle_tree = self.accounts.unwrap().transaction_merkle_tree.load_mut()?;
+        let merkle_tree = self.input.accounts.unwrap().transaction_merkle_tree.load_mut()?;
 
         let mut first_leaf_index = merkle_tree.next_queued_index;
 
-        for (_i, leaves) in self.leaves.iter().enumerate() {
+        for (_i, leaves) in self.input.leaves.iter().enumerate() {
             let leaf_left = change_endianness(&leaves[0]).try_into().unwrap();
             let leaf_right = change_endianness(&leaves[1]).try_into().unwrap();
             leaves_vec.push(leaf_left);
@@ -194,19 +141,20 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
         let transaction_data_event = TransactionIndexerEvent {
             leaves: leaves_vec.clone(),
-            public_amount_sol: self.public_amount_sol.clone(),
-            public_amount_spl: self.public_amount_spl.clone(),
-            relayer_fee: self.relayer_fee.clone(),
-            encrypted_utxos: self.encrypted_utxos.clone(),
-            nullifiers: self.nullifiers.to_vec(),
+            public_amount_sol: self.input.public_amount_sol.clone(),
+            public_amount_spl: self.input.public_amount_spl.clone(),
+            relayer_fee: self.input.relayer_fee.clone(),
+            encrypted_utxos: self.input.encrypted_utxos.clone(),
+            nullifiers: self.input.nullifiers.to_vec(),
             first_leaf_index: first_leaf_index.clone(),
-            message: self.message.as_ref().unwrap_or(&&Vec::<u8>::new()).to_vec(),
+            message: self.input.message.as_ref().unwrap_or(&&Vec::<u8>::new()).to_vec(),
         };
 
         invoke_indexer_transaction_event(
             &transaction_data_event,
-            &self.accounts.unwrap().log_wrapper.to_account_info(),
+            &self.input.accounts.unwrap().log_wrapper.to_account_info(),
             &self
+                .input
                 .accounts
                 .unwrap()
                 .transaction_merkle_tree
@@ -232,31 +180,40 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
         let mut public_inputs = vec![
             self.merkle_root.as_slice(),
-            self.public_amount_spl.as_slice(),
+            self.input.public_amount_spl.as_slice(),
             self.tx_integrity_hash.as_slice(),
-            self.public_amount_sol.as_slice(),
+            self.input.public_amount_sol.as_slice(),
             self.mint_pubkey.as_slice(),
         ];
 
-        for input in self.nullifiers.iter() {
+        for input in self.input.nullifiers.iter() {
             public_inputs.push(input.as_slice());
         }
 
-        for input in self.leaves.iter() {
+        for input in self.input.leaves.iter() {
             public_inputs.push(input[0].as_slice());
             public_inputs.push(input[1].as_slice());
         }
 
-        for input in self.checked_public_inputs.iter() {
+        for input in self.input.checked_public_inputs.iter() {
             public_inputs.push(input);
         }
 
+        let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
+            &*[&change_endianness(self.input.proof_a.as_slice())[..], &[0u8][..]].concat(),
+        )
+        .unwrap();
+        let mut proof_a_neg = [0u8; 65];
+        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg[..]).unwrap();
+
+        let proof_a_neg = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
+
         let mut verifier = Groth16Verifier::new(
-            &self.proof_a,
-            self.proof_b,
-            self.proof_c,
+            proof_a_neg,
+            self.input.proof_b,
+            self.input.proof_c,
             public_inputs.as_slice(),
-            self.verifyingkey,
+            self.input.verifyingkey,
         )
         .unwrap();
         // self.verified_proof = true;
@@ -269,13 +226,13 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             Err(e) => {
                 msg!("Public Inputs:");
                 msg!("merkle tree root {:?}", self.merkle_root);
-                msg!("public_amount_spl {:?}", self.public_amount_spl);
+                msg!("public_amount_spl {:?}", self.input.public_amount_spl);
                 msg!("tx_integrity_hash {:?}", self.tx_integrity_hash);
-                msg!("public_amount_sol {:?}", self.public_amount_sol);
+                msg!("public_amount_sol {:?}", self.input.public_amount_sol);
                 msg!("mint_pubkey {:?}", self.mint_pubkey);
-                msg!("nullifiers {:?}", self.nullifiers);
-                msg!("leaves {:?}", self.leaves);
-                msg!("checked_public_inputs {:?}", self.checked_public_inputs);
+                msg!("nullifiers {:?}", self.input.nullifiers);
+                msg!("leaves {:?}", self.input.leaves);
+                msg!("checked_public_inputs {:?}", self.input.checked_public_inputs);
                 msg!("error {:?}", e);
                 err!(VerifierSdkError::ProofVerificationFailed)
             }
@@ -284,8 +241,8 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Calls the Merkle tree program via CPI to insert message leaves.
     pub fn insert_message_leaves(&mut self) -> Result<()> {
-        let (message_hash, message_merkle_tree) = match self.message_hash {
-            Some(message_hash) => match self.accounts.unwrap().message_merkle_tree {
+        let (message_hash, message_merkle_tree) = match self.input.message_hash {
+            Some(message_hash) => match self.input.accounts.unwrap().message_merkle_tree {
                 Some(message_merkle_tree) => (message_hash, message_merkle_tree),
                 None => return err!(VerifierSdkError::MessageNoMerkleTreeAccount),
             },
@@ -295,10 +252,10 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             return err!(VerifierSdkError::MessageMerkleTreeInvalidHashFunction);
         }
         insert_two_leaves_messsage_cpi(
-            self.accounts.unwrap().program_id,
-            &self.accounts.unwrap().program_merkle_tree.to_account_info(),
+            self.input.accounts.unwrap().program_id,
+            &self.input.accounts.unwrap().program_merkle_tree.to_account_info(),
             &message_merkle_tree.to_account_info(),
-            &self.accounts.unwrap().system_program.to_account_info(),
+            &self.input.accounts.unwrap().system_program.to_account_info(),
             message_hash,
             &[0; 32],
         )?;
@@ -310,15 +267,16 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
     /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
     /// H(recipient_spl||recipient_sol||signer||relayer_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
-        let message_hash = self.message_hash.unwrap_or(&[0u8; 32]);
-        let recipient_spl = match self.accounts.unwrap().recipient_spl.as_ref() {
+        let message_hash = self.input.message_hash.unwrap_or(&[0u8; 32]);
+        let recipient_spl = match self.input.accounts.unwrap().recipient_spl.as_ref() {
             Some(recipient_spl) => recipient_spl.key().to_bytes(),
             None => [0u8; 32],
         };
         let input = [
             message_hash.to_vec(),
             recipient_spl.to_vec(),
-            self.accounts
+            self.input
+                .accounts
                 .unwrap()
                 .recipient_sol
                 .as_ref()
@@ -326,14 +284,15 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 .key()
                 .to_bytes()
                 .to_vec(),
-            self.accounts
+            self.input
+                .accounts
                 .unwrap()
                 .signing_address
                 .key()
                 .to_bytes()
                 .to_vec(),
-            self.relayer_fee.to_le_bytes().to_vec(),
-            self.encrypted_utxos.clone(),
+            self.input.relayer_fee.to_le_bytes().to_vec(),
+            self.input.encrypted_utxos.clone(),
         ]
         .concat();
         // msg!("message_hash: {:?}", message_hash.to_vec());
@@ -375,9 +334,9 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Fetches the root according to an index from the passed-in Merkle tree.
     pub fn fetch_root(&mut self) -> Result<()> {
-        let merkle_tree = self.accounts.unwrap().transaction_merkle_tree.load()?;
+        let merkle_tree = self.input.accounts.unwrap().transaction_merkle_tree.load()?;
         self.merkle_root =
-            change_endianness(merkle_tree.roots[self.merkle_root_index].to_vec().as_ref())
+            change_endianness(merkle_tree.roots[self.input.merkle_root_index].to_vec().as_ref())
                 .try_into()
                 .unwrap();
         self.fetched_root = true;
@@ -387,7 +346,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
     /// Fetches the token mint from passed in sender_spl account. If the sender_spl account is not a
     /// token account, native mint is assumed.
     pub fn fetch_mint(&mut self) -> Result<()> {
-        match &self.accounts.unwrap().sender_spl {
+        match &self.input.accounts.unwrap().sender_spl {
             Some(sender_spl) => {
                 match spl_token::state::Account::unpack(sender_spl.data.borrow().as_ref()) {
                     Ok(sender_mint) => {
@@ -396,7 +355,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         //     "{:?}",
                         //     [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat()
                         // );
-                        if self.public_amount_spl[24..32] == vec![0u8; 8] {
+                        if self.input.public_amount_spl[24..32] == vec![0u8; 8] {
                             self.mint_pubkey = [0u8; 32];
                         } else {
                             self.mint_pubkey = [
@@ -433,47 +392,49 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             return err!(VerifierSdkError::ProofNotVerified);
         }
 
-        if T::NR_NULLIFIERS != self.nullifiers.len() {
+        if T::NR_NULLIFIERS != self.input.nullifiers.len() {
             msg!(
                 "NR_NULLIFIERS  {} != self.nullifiers.len() {}",
                 T::NR_NULLIFIERS,
-                self.nullifiers.len()
+                self.input.nullifiers.len()
             );
             return err!(VerifierSdkError::InvalidNrNullifieraccounts);
         }
 
-        if T::NR_NULLIFIERS + (T::NR_LEAVES / 2) != self.accounts.unwrap().remaining_accounts.len()
+        if T::NR_NULLIFIERS + (T::NR_LEAVES / 2) != self.input.accounts.unwrap().remaining_accounts.len()
         {
             msg!(
                 "NR_LEAVES / 2
                 {} != self.leaves.len() {}",
                 T::NR_NULLIFIERS + (T::NR_LEAVES / 2),
-                self.leaves.len()
+                self.input.leaves.len()
             );
             return err!(VerifierSdkError::InvalidNrLeavesaccounts);
         }
 
         // check merkle tree
-        for (i, leaves) in self.leaves.iter().enumerate() {
+        for (i, leaves) in self.input.leaves.iter().enumerate() {
             let mut msg = Vec::new();
 
-            if self.encrypted_utxos.len() > i * 256 {
-                msg.append(&mut self.encrypted_utxos[i * 256..(i + 1) * 256].to_vec());
+            if self.input.encrypted_utxos.len() > i * 256 {
+                msg.append(&mut self.input.encrypted_utxos[i * 256..(i + 1) * 256].to_vec());
             }
 
             // check account integrities
             insert_two_leaves_cpi(
-                self.accounts.unwrap().program_id,
-                &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-                &self.accounts.unwrap().authority.to_account_info(),
-                &self.accounts.unwrap().remaining_accounts[T::NR_NULLIFIERS + i].to_account_info(),
+                self.input.accounts.unwrap().program_id,
+                &self.input.accounts.unwrap().program_merkle_tree.to_account_info(),
+                &self.input.accounts.unwrap().authority.to_account_info(),
+                &self.input.accounts.unwrap().remaining_accounts[T::NR_NULLIFIERS + i].to_account_info(),
                 &self
+                    .input
                     .accounts
                     .unwrap()
                     .transaction_merkle_tree
                     .to_account_info(),
-                &self.accounts.unwrap().system_program.to_account_info(),
+                &self.input.accounts.unwrap().system_program.to_account_info(),
                 &self
+                    .input
                     .accounts
                     .unwrap()
                     .registered_verifier_pda
@@ -495,42 +456,35 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             return err!(VerifierSdkError::ProofNotVerified);
         }
 
-        if T::NR_NULLIFIERS != self.nullifiers.len() {
-            msg!(
-                "NR_NULLIFIERS  {} != self.nullifiers.len() {}",
-                T::NR_NULLIFIERS,
-                self.nullifiers.len()
-            );
-            return err!(VerifierSdkError::InvalidNrNullifieraccounts);
-        }
-
-        if T::NR_NULLIFIERS + (T::NR_LEAVES / 2) != self.accounts.unwrap().remaining_accounts.len()
+        if T::NR_NULLIFIERS + (T::NR_LEAVES / 2) != self.input.accounts.unwrap().remaining_accounts.len()
         {
             msg!(
                 "NR_LEAVES / 2  {} != self.leaves.len() {}",
                 T::NR_LEAVES / 2,
-                self.leaves.len()
+                self.input.leaves.len()
             );
             return err!(VerifierSdkError::InvalidNrLeavesaccounts);
         }
 
         insert_nullifiers_cpi(
-            self.accounts.unwrap().program_id,
-            &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-            &self.accounts.unwrap().authority.to_account_info(),
+            self.input.accounts.unwrap().program_id,
+            &self.input.accounts.unwrap().program_merkle_tree.to_account_info(),
+            &self.input.accounts.unwrap().authority.to_account_info(),
             &self
+                .input
                 .accounts
                 .unwrap()
                 .system_program
                 .to_account_info()
                 .clone(),
             &self
+                .input
                 .accounts
                 .unwrap()
                 .registered_verifier_pda
                 .to_account_info(),
-            self.nullifiers.to_vec(),
-            self.accounts.unwrap().remaining_accounts.to_vec(),
+            self.input.nullifiers.to_vec(),
+            self.input.accounts.unwrap().remaining_accounts.to_vec(),
         )?;
 
         self.inserted_nullifier = true;
@@ -548,7 +502,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         // check mintPubkey
         let (pub_amount_checked, _) = self.check_amount(
             0,
-            change_endianness(self.public_amount_spl.as_slice())
+            change_endianness(self.input.public_amount_spl.as_slice())
                 .try_into()
                 .unwrap(),
         )?;
@@ -557,6 +511,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         if pub_amount_checked > 0 {
             let recipient_mint = spl_token::state::Account::unpack(
                 &self
+                    .input
                     .accounts
                     .unwrap()
                     .recipient_spl
@@ -567,6 +522,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             )?;
             let sender_mint = spl_token::state::Account::unpack(
                 &self
+                    .input
                     .accounts
                     .unwrap()
                     .sender_spl
@@ -597,20 +553,21 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             // is a token deposit or withdrawal
             if self.is_deposit() {
                 self.check_spl_pool_account_derivation(
-                    &self.accounts.unwrap().recipient_spl.as_ref().unwrap().key(),
+                    &self.input.accounts.unwrap().recipient_spl.as_ref().unwrap().key(),
                     &recipient_mint.mint,
                 )?;
 
                 let seed = merkle_tree_program::ID.to_bytes();
                 let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
                     &[seed.as_ref()],
-                    self.accounts.unwrap().program_id,
+                    self.input.accounts.unwrap().program_id,
                 );
                 let bump = &[bump];
                 let seeds = &[&[seed.as_slice(), bump][..]];
 
                 let accounts = Transfer {
                     from: self
+                        .input
                         .accounts
                         .unwrap()
                         .sender_spl
@@ -619,6 +576,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         .to_account_info()
                         .clone(),
                     to: self
+                        .input
                         .accounts
                         .unwrap()
                         .recipient_spl
@@ -626,11 +584,12 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         .unwrap()
                         .to_account_info()
                         .clone(),
-                    authority: self.accounts.unwrap().authority.to_account_info().clone(),
+                    authority: self.input.accounts.unwrap().authority.to_account_info().clone(),
                 };
 
                 let cpi_ctx = CpiContext::new_with_signer(
-                    self.accounts
+                    self.input
+                        .accounts
                         .unwrap()
                         .token_program
                         .unwrap()
@@ -642,16 +601,17 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
             } else {
                 self.check_spl_pool_account_derivation(
-                    &self.accounts.unwrap().sender_spl.as_ref().unwrap().key(),
+                    &self.input.accounts.unwrap().sender_spl.as_ref().unwrap().key(),
                     &sender_mint.mint,
                 )?;
 
                 // withdraw_spl_cpi
                 withdraw_spl_cpi(
-                    self.accounts.unwrap().program_id,
-                    &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-                    &self.accounts.unwrap().authority.to_account_info(),
+                    self.input.accounts.unwrap().program_id,
+                    &self.input.accounts.unwrap().program_merkle_tree.to_account_info(),
+                    &self.input.accounts.unwrap().authority.to_account_info(),
                     &self
+                        .input
                         .accounts
                         .unwrap()
                         .sender_spl
@@ -659,6 +619,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         .unwrap()
                         .to_account_info(),
                     &self
+                        .input
                         .accounts
                         .unwrap()
                         .recipient_spl
@@ -666,6 +627,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         .unwrap()
                         .to_account_info(),
                     &self
+                        .input
                         .accounts
                         .unwrap()
                         .token_authority
@@ -673,6 +635,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         .unwrap()
                         .to_account_info(),
                     &self
+                        .input
                         .accounts
                         .unwrap()
                         .token_program
@@ -680,6 +643,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         .unwrap()
                         .to_account_info(),
                     &self
+                        .input
                         .accounts
                         .unwrap()
                         .registered_verifier_pda
@@ -703,8 +667,9 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
         // check that it is the native token pool
         let (fee_amount_checked, relayer_fee) = self.check_amount(
-            self.relayer_fee,
-            change_endianness(self.public_amount_sol.as_slice())
+            self.input
+                .relayer_fee,
+            change_endianness(self.input.public_amount_sol.as_slice())
                 .try_into()
                 .unwrap(),
         )?;
@@ -715,6 +680,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 self.deposit_sol(
                     fee_amount_checked,
                     &self
+                        .input
                         .accounts
                         .unwrap()
                         .recipient_sol
@@ -726,8 +692,9 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 msg!("is withdrawal");
 
                 self.check_sol_pool_account_derivation(
-                    &self.accounts.unwrap().sender_sol.as_ref().unwrap().key(),
+                    &self.input.accounts.unwrap().sender_sol.as_ref().unwrap().key(),
                     &*self
+                        .input
                         .accounts
                         .unwrap()
                         .sender_sol
@@ -740,10 +707,11 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 )?;
                 // withdraws sol for the user
                 withdraw_sol_cpi(
-                    self.accounts.unwrap().program_id,
-                    &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-                    &self.accounts.unwrap().authority.to_account_info(),
+                    self.input.accounts.unwrap().program_id,
+                    &self.input.accounts.unwrap().program_merkle_tree.to_account_info(),
+                    &self.input.accounts.unwrap().authority.to_account_info(),
                     &self
+                        .input
                         .accounts
                         .unwrap()
                         .sender_sol
@@ -751,6 +719,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         .unwrap()
                         .to_account_info(),
                     &self
+                        .input
                         .accounts
                         .unwrap()
                         .recipient_sol
@@ -758,6 +727,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         .unwrap()
                         .to_account_info(),
                     &self
+                        .input
                         .accounts
                         .unwrap()
                         .registered_verifier_pda
@@ -770,10 +740,11 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         if !self.is_deposit_fee() && relayer_fee > 0 {
             // pays the relayer fee
             withdraw_sol_cpi(
-                self.accounts.unwrap().program_id,
-                &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-                &self.accounts.unwrap().authority.to_account_info(),
+                self.input.accounts.unwrap().program_id,
+                &self.input.accounts.unwrap().program_merkle_tree.to_account_info(),
+                &self.input.accounts.unwrap().authority.to_account_info(),
                 &self
+                    .input
                     .accounts
                     .unwrap()
                     .sender_sol
@@ -781,6 +752,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                     .unwrap()
                     .to_account_info(),
                 &self
+                    .input
                     .accounts
                     .unwrap()
                     .relayer_recipient
@@ -788,6 +760,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                     .unwrap()
                     .to_account_info(),
                 &self
+                    .input
                     .accounts
                     .unwrap()
                     .registered_verifier_pda
@@ -811,16 +784,17 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         let rent = <Rent as sysvar::Sysvar>::get()?;
 
         create_and_check_pda(
-            self.accounts.unwrap().program_id,
-            &self.accounts.unwrap().signing_address.to_account_info(),
+            self.input.accounts.unwrap().program_id,
+            &self.input.accounts.unwrap().signing_address.to_account_info(),
             &self
+                .input
                 .accounts
                 .unwrap()
                 .sender_sol
                 .as_ref()
                 .unwrap()
                 .to_account_info(),
-            &self.accounts.unwrap().system_program.to_account_info(),
+            &self.input.accounts.unwrap().system_program.to_account_info(),
             &rent,
             &b"escrow"[..],
             &Vec::new(),
@@ -830,6 +804,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         )?;
         close_account(
             &self
+                .input
                 .accounts
                 .unwrap()
                 .sender_sol
@@ -842,7 +817,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Checks whether a transaction is a deposit by inspecting the public amount.
     pub fn is_deposit(&self) -> bool {
-        if self.public_amount_spl[24..] != [0u8; 8] && self.public_amount_spl[..24] == [0u8; 24] {
+        if self.input.public_amount_spl[24..] != [0u8; 8] && self.input.public_amount_spl[..24] == [0u8; 24] {
             return true;
         }
         false
@@ -850,7 +825,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Checks whether a transaction is a deposit by inspecting the public amount.
     pub fn is_deposit_fee(&self) -> bool {
-        if self.public_amount_sol[24..] != [0u8; 8] && self.public_amount_sol[..24] == [0u8; 24] {
+        if self.input.public_amount_sol[24..] != [0u8; 8] && self.input.public_amount_sol[..24] == [0u8; 24] {
             return true;
         }
         false
@@ -858,7 +833,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey, data: &[u8]) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
-            &[&[0u8; 32], self.pool_type, POOL_CONFIG_SEED],
+            &[&[0u8; 32], self.input.pool_type, POOL_CONFIG_SEED],
             &MerkleTreeProgram::id(),
         );
         let mut cloned_data = data.clone();
@@ -872,7 +847,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     pub fn check_spl_pool_account_derivation(&self, pubkey: &Pubkey, mint: &Pubkey) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
-            &[&mint.to_bytes(), self.pool_type, POOL_SEED],
+            &[&mint.to_bytes(), self.input.pool_type, POOL_SEED],
             &MerkleTreeProgram::id(),
         );
 
