@@ -63,7 +63,7 @@ jobs:
       - name: Test
         run: |
           source ./scripts/devenv.sh
-          cd light-system-programs
+          cd light-zk.js
           yarn test
 
 
