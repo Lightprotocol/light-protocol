@@ -65,5 +65,6 @@ else
     trap "docker rm -f solana-validator" EXIT
 
     sleep 15
+    docker logs solana-validator
     $1
 fi

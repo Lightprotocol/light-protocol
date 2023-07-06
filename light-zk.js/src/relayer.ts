@@ -131,16 +131,22 @@ export class Relayer {
         (trx: IndexedTransaction) => {
           return {
             ...trx,
+            signer: new PublicKey(trx.signer),
             to: new PublicKey(trx.to),
             from: new PublicKey(trx.from),
+            toSpl: new PublicKey(trx.toSpl),
+            fromSpl: new PublicKey(trx.fromSpl),
+            verifier: new PublicKey(trx.verifier),
+            relayerRecipientSol: new PublicKey(trx.relayerRecipientSol),
             firstLeafIndex: new BN(trx.firstLeafIndex),
+            publicAmountSol: new BN(trx.publicAmountSol),
+            publicAmountSpl: new BN(trx.publicAmountSpl),
+            changeSolAmount: new BN(trx.changeSolAmount),
           };
         },
       );
 
-      return indexedTransactions.sort(
-        (a, b) => a.firstLeafIndex.toNumber() - b.firstLeafIndex.toNumber(),
-      );
+      return indexedTransactions;
     } catch (err) {
       console.log({ err });
       throw err;

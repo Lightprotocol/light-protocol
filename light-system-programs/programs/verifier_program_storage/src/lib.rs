@@ -154,13 +154,6 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    #[account(
-        mut,
-        seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED],
-        bump,
-        close=signing_address
-    )]
-    pub verifier_state: Account<'info, VerifierState>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Checking manually in the `wrap_event` function.
     pub log_wrapper: UncheckedAccount<'info>,
@@ -183,6 +176,13 @@ pub struct LightInstructionSecond<'info> {
     /// Verifier config pda which needs to exist.
     #[account(mut, seeds=[__program_id.key().to_bytes().as_ref()], bump, seeds::program=MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
+    #[account(
+        mut,
+        seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED],
+        bump,
+        close=signing_address
+    )]
+    pub verifier_state: Account<'info, VerifierState>,
 }
 
 #[derive(Debug)]

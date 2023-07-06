@@ -63,10 +63,10 @@ jobs:
       - name: Test
         run: |
           source ./scripts/devenv.sh
-          cd light-system-programs
+          cd light-zk.js
           yarn test
 
-  
+
   mock-app-verifier:
     name: mock-app-verifier
     runs-on: buildjet-16vcpu-ubuntu-2204

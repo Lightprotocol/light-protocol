@@ -143,7 +143,7 @@ export async function setUpMerkleTree(
     );
     await airdropSol({
       provider,
-      amount: 1_000_000_000,
+      lamports: 1_000_000_000,
       recipientPublicKey: authorityPda,
     });
     console.log(

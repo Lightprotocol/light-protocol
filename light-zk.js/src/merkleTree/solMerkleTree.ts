@@ -8,6 +8,7 @@ import {
   indexRecentTransactions,
   Relayer,
   sleep,
+  fetchQueuedLeavesAccountInfo,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "./merkleTree";
@@ -81,7 +82,6 @@ export class SolMerkleTree {
     );
 
     const merkleTreeIndex = mtFetched.nextIndex;
-
     const leaves: string[] = [];
     if (indexedTransactions.length > 0) {
       for (let i: number = 0; i < indexedTransactions.length; i++) {

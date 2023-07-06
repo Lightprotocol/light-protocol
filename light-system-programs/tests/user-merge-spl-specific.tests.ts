@@ -54,7 +54,7 @@ describe("Test User", () => {
 
     await airdropSol({
       provider: anchorProvider,
-      amount: 1_000_000,
+      lamports: 1_000_000,
       recipientPublicKey: relayerRecipientSol,
     });
 
@@ -76,7 +76,6 @@ describe("Test User", () => {
   it("(user class) shield SPL to recipient", async () => {
     let testInputs = {
       amountSpl: 20,
-      amountSol: 0,
       token: "USDC",
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,

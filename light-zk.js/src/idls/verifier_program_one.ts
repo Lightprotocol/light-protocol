@@ -58,11 +58,6 @@ export type VerifierProgramOne = {
           isSigner: true;
         },
         {
-          name: "verifierState";
-          isMut: true;
-          isSigner: false;
-        },
-        {
           name: "systemProgram";
           isMut: false;
           isSigner: false;
@@ -128,6 +123,11 @@ export type VerifierProgramOne = {
         {
           name: "logWrapper";
           isMut: false;
+          isSigner: false;
+        },
+        {
+          name: "verifierState";
+          isMut: true;
           isSigner: false;
         },
       ];
@@ -527,11 +527,6 @@ export const IDL: VerifierProgramOne = {
           isSigner: true,
         },
         {
-          name: "verifierState",
-          isMut: true,
-          isSigner: false,
-        },
-        {
           name: "systemProgram",
           isMut: false,
           isSigner: false,
@@ -597,6 +592,11 @@ export const IDL: VerifierProgramOne = {
         {
           name: "logWrapper",
           isMut: false,
+          isSigner: false,
+        },
+        {
+          name: "verifierState",
+          isMut: true,
           isSigner: false,
         },
       ],

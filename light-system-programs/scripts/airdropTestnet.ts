@@ -17,7 +17,7 @@ async function main() {
         for (var i = 0; i < 100; i++) {      
             const tmpSolanaWallet = anchor.web3.Keypair.generate();
             
-            await airdropSol({provider, amount: 1e9, recipientPublicKey: tmpSolanaWallet.publicKey})
+            await airdropSol({provider, lamports: 1e9, recipientPublicKey: tmpSolanaWallet.publicKey})
             await sleep(1000);
             const balance = await provider.connection.getBalance(tmpSolanaWallet.publicKey);
             
