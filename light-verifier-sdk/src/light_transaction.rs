@@ -78,6 +78,25 @@ pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIER
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
 }
 
+pub struct TransactionInput<'info, 'a> {
+    pub message_hash: Option<&'a [u8; 32]>,
+    pub message: Option<&'a Vec<u8>>,
+    pub proof_a: &'a [u8; 64],
+    pub proof_b: &'a [u8; 128],
+    pub proof_c: &'a [u8; 64],
+    pub public_amount_spl: &'a [u8; 32],
+    pub public_amount_sol: &'a [u8; 32],
+    pub checked_public_inputs: &'a Vec<Vec<u8>>,
+    pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
+    pub leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
+    pub encrypted_utxos: &'a Vec<u8>,
+    pub relayer_fee: u64,
+    pub merkle_root_index: usize,
+    pub pool_type: &'a [u8; 32],
+    pub accounts: Option<&'a Accounts<'info, 'a, 'c>>,
+    pub verifyingkey: &'a Groth16Verifyingkey<'a>,
+}
+
 impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
     Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>
 {
