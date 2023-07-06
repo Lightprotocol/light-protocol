@@ -45,6 +45,8 @@ export type IndexedTransaction = {
   accounts: ParsedMessageAccount[];
   to: PublicKey;
   from: PublicKey;
+  toSpl: PublicKey;
+  fromSpl: PublicKey;
   verifier: PublicKey;
   relayerRecipientSol: PublicKey;
   type: Action;

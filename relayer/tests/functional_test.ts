@@ -67,7 +67,7 @@ describe("API tests", () => {
     );
     poseidon = await circomlibjs.buildPoseidonOpt();
     await testSetup();
-    await airdropSol({provider, amount: 10_000_000_000, recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey})
+    await airdropSol({provider, lamports: 10_000_000_000, recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey})
   });
 
   it("Should return Merkle tree data", (done) => {

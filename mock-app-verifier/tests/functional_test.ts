@@ -76,10 +76,11 @@ const storeAndExecuteAppUtxo = async (
     }
   }
 
-  await user.storeAppUtxo({
+  let res = await user.storeAppUtxo({
     appUtxo: testInputs.utxo,
     action: testInputs.action,
   });
+  console.log("storeAppUtxo res", res);
 
   const { utxo, status } = await user.getUtxo(
     testInputs.utxo.getCommitment(testInputs.poseidon),

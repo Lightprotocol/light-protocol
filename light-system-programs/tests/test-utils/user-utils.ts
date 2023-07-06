@@ -3,7 +3,7 @@ import {
   Action,
   Provider,
   TestRelayer,
-  TestStateValidator,
+  UserTestAssertHelper,
   User,
   TestInputs,
 } from "@lightprotocol/zk.js";
@@ -40,7 +40,7 @@ export async function performShielding({
           seed: testInputs.recipientSeed,
         })
       : userSender;
-    const testStateValidator = new TestStateValidator({
+    const testStateValidator = new UserTestAssertHelper({
       userSender,
       userRecipient,
       provider,
@@ -69,7 +69,7 @@ export async function performShielding({
       testInputs.token !== "SOL" &&
       testInputs.type === Action.SHIELD
     ) {
-      await testStateValidator.checkTokenShielded();
+      await testStateValidator.checkSplShielded();
     } else {
       throw new Error(`No test option found for testInputs ${testInputs}`);
     }
@@ -97,7 +97,7 @@ export async function performMergeAll({
   });
   await userSender.getUtxoInbox();
 
-  const testStateValidator = new TestStateValidator({
+  const testStateValidator = new UserTestAssertHelper({
     userSender,
     userRecipient: userSender,
     provider,
@@ -139,7 +139,7 @@ export async function performMergeUtxos({
   });
   await userSender.getUtxoInbox();
 
-  const testStateValidator = new TestStateValidator({
+  const testStateValidator = new UserTestAssertHelper({
     userSender,
     userRecipient: userSender,
     provider,

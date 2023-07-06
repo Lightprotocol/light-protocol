@@ -13,7 +13,7 @@ import {
   Account,
   TestRelayer,
   Action,
-  TestStateValidator,
+  UserTestAssertHelper,
   airdropShieldedSol,
   airdropSol,
 } from "@lightprotocol/zk.js";
@@ -59,7 +59,7 @@ describe("Test User", () => {
 
     await airdropSol({
       provider: anchorProvider,
-      amount: 1_000_000_000,
+      lamports: 1_000_000_000,
       recipientPublicKey: relayerRecipientSol,
     });
 
@@ -80,7 +80,6 @@ describe("Test User", () => {
 
   it("(user class) shield SPL to recipient", async () => {
     let testInputs = {
-      amountSpl: 0,
       amountSol: 20,
       token: "SOL",
       type: Action.SHIELD,

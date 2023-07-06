@@ -53,7 +53,7 @@ describe("Test User", () => {
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     await airdropSol({
       provider: anchorProvider,
-      amount: 1_000_000_000,
+      lamports: 1_000_000_000,
       recipientPublicKey: relayerRecipientSol,
     });
 

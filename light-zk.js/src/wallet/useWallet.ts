@@ -42,25 +42,20 @@ class Wallet {
   signMessage = async (message: Uint8Array): Promise<Uint8Array> => {
     return sign.detached(message, this._keypair.secretKey);
   };
+
   sendAndConfirmTransaction = async (
     transaction: Transaction,
     signers = [],
   ): Promise<any> => {
-    try {
-      const response = await sendAndConfirmTransaction(
-        this._connection,
-        transaction,
-        [this._keypair, ...signers],
-        {
-          commitment: this._commitment,
-        },
-      );
-      console.log(response);
-      return response;
-    } catch (error) {
-      console.log("errrr", error);
-      throw error;
-    }
+    const response = await sendAndConfirmTransaction(
+      this._connection,
+      transaction,
+      [this._keypair, ...signers],
+      {
+        commitment: this._commitment,
+      },
+    );
+    return response;
   };
 }
 

@@ -48,6 +48,8 @@ export class TestRelayer extends Relayer {
   async updateMerkleTree(provider: Provider): Promise<any> {
     if (!provider.provider) throw new Error("Provider.provider is undefined.");
     if (!provider.url) throw new Error("Provider.provider is undefined.");
+    if (provider.url !== "http://127.0.0.1:8899")
+      throw new Error("Provider url is not http://127.0.0.1:8899");
 
     const balance = await provider.provider.connection?.getBalance(
       this.relayerKeypair.publicKey,
@@ -56,7 +58,7 @@ export class TestRelayer extends Relayer {
     if (!balance || balance < 1e9) {
       await airdropSol({
         provider: provider.provider,
-        amount: 1_000_000_000,
+        lamports: 1_000_000_000,
         recipientPublicKey: this.relayerKeypair.publicKey,
       });
     }
@@ -132,20 +134,15 @@ export class TestRelayer extends Relayer {
         a.blockTime > b.blockTime ? a : b,
       );
 
-      let newTransactions = await indexRecentTransactions({
+      await indexRecentTransactions({
         connection,
         batchOptions: {
           limit,
           until: mostRecentTransaction.signature,
         },
         dedupe: false,
+        transactions: this.indexedTransactions,
       });
-      this.indexedTransactions = [
-        ...newTransactions,
-        ...this.indexedTransactions,
-      ].sort(
-        (a, b) => a.firstLeafIndex.toNumber() - b.firstLeafIndex.toNumber(),
-      );
       return this.indexedTransactions;
     }
   }

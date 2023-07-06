@@ -301,7 +301,13 @@ export function selectInUtxos({
         throw new SelectInUtxosError(
           SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
           "selectInUtxos",
-          `Could not find a utxo combination for spl token ${mint} and amount ${sumOutSpl} and sol amount ${sumOutSol}`,
+          `Could not find a utxo combination for spl token ${mint} and amount ${sumOutSpl} available ${getUtxoArrayAmount(
+            mint,
+            selectedUtxosR,
+          )} and sol amount ${sumOutSol} available ${getUtxoArrayAmount(
+            SystemProgram.programId,
+            selectedUtxosR,
+          )}`,
         );
       } else {
         // sort ascending and take smallest index

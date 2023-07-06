@@ -526,7 +526,6 @@ export class User {
             AUTHORITY,
             this.provider.wallet!.publicKey,
             this.recentTransactionParameters?.publicAmountSpl.toNumber(),
-            [this.provider.wallet!.publicKey],
           ),
         );
 
@@ -712,7 +711,12 @@ export class User {
         "getTxParams",
         "no recipient provided for spl unshield",
       );
-
+    if (publicAmountSpl && token == "SOL")
+      throw new UserError(
+        UserErrorCode.INVALID_TOKEN,
+        "getTxParams",
+        "public amount spl provided for SOL token",
+      );
     let ataCreationFee = false;
     let recipientSpl = undefined;
     if (publicAmountSpl) {

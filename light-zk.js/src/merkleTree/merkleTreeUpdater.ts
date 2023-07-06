@@ -202,11 +202,6 @@ const sendAndConfirmTransactions = async (
           confirmConfig,
         );
       } catch (err) {
-        console.error(
-          "failed at executing the merkle tree transaction:",
-          index,
-          err,
-        );
         errors.push(err);
       }
     }),

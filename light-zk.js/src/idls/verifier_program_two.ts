@@ -16,11 +16,6 @@ export type VerifierProgramTwo = {
       ];
       accounts: [
         {
-          name: "verifierState";
-          isMut: false;
-          isSigner: true;
-        },
-        {
           name: "signingAddress";
           isMut: true;
           isSigner: true;
@@ -92,6 +87,11 @@ export type VerifierProgramTwo = {
           name: "logWrapper";
           isMut: false;
           isSigner: false;
+        },
+        {
+          name: "verifierState";
+          isMut: false;
+          isSigner: true;
         },
       ];
       args: [
@@ -392,11 +392,6 @@ export const IDL: VerifierProgramTwo = {
       ],
       accounts: [
         {
-          name: "verifierState",
-          isMut: false,
-          isSigner: true,
-        },
-        {
           name: "signingAddress",
           isMut: true,
           isSigner: true,
@@ -468,6 +463,11 @@ export const IDL: VerifierProgramTwo = {
           name: "logWrapper",
           isMut: false,
           isSigner: false,
+        },
+        {
+          name: "verifierState",
+          isMut: false,
+          isSigner: true,
         },
       ],
       args: [

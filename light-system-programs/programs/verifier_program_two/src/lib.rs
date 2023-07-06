@@ -48,9 +48,6 @@ pub mod verifier_program_two {
 
 #[derive(Accounts)]
 pub struct LightInstruction<'info> {
-    /// CHECK: Cannot be checked with Account because it assumes this program to be the owner
-    // CHECK: Signer check to acertain the invoking program ID to be used as a public input.
-    pub verifier_state: Signer<'info>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
     pub signing_address: Signer<'info>,
@@ -89,4 +86,7 @@ pub struct LightInstruction<'info> {
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     /// CHECK:` It get checked inside the event_call
     pub log_wrapper: UncheckedAccount<'info>,
+    /// CHECK: Cannot be checked with Account because it assumes this program to be the owner
+    // CHECK: Signer check to acertain the invoking program ID to be used as a public input.
+    pub verifier_state: Signer<'info>,
 }

@@ -53,7 +53,7 @@ export async function airdropShieldedSol({
   await airdropSol({
     provider: provider.provider!,
     recipientPublicKey: userKeypair.publicKey,
-    amount,
+    lamports: amount * 1e9,
   });
 
   const user: User = await User.init({ provider, seed });
@@ -66,16 +66,16 @@ export async function airdropShieldedSol({
 
 export async function airdropSol({
   provider,
-  amount,
+  lamports,
   recipientPublicKey,
 }: {
   provider: AnchorProvider;
-  amount: number;
+  lamports: number;
   recipientPublicKey: PublicKey;
 }) {
   const txHash = await provider.connection.requestAirdrop(
     recipientPublicKey,
-    amount,
+    lamports,
   );
   await provider.connection.confirmTransaction(txHash, "confirmed");
   return txHash;
@@ -141,14 +141,14 @@ export async function airdropShieldedMINTSpl({
 
 export async function airdropSplToAssociatedTokenAccount(
   connection: Connection,
-  amount: number,
-  payer: Keypair,
+  lamports: number,
+  recipient: Keypair,
 ) {
   let tokenAccount = await getOrCreateAssociatedTokenAccount(
     connection,
-    ADMIN_AUTH_KEYPAIR,
+    recipient,
     MINT,
-    payer.publicKey,
+    recipient.publicKey,
   );
   return await mintTo(
     connection,
@@ -156,7 +156,7 @@ export async function airdropSplToAssociatedTokenAccount(
     MINT,
     tokenAccount.address,
     ADMIN_AUTH_KEYPAIR.publicKey,
-    amount,
+    lamports,
     [],
   );
 }

@@ -119,8 +119,6 @@ pub struct InstructionDataShieldedTransferFirst {
 pub struct LightInstructionSecond<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
-    #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionConfig>>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
@@ -153,6 +151,8 @@ pub struct LightInstructionSecond<'info> {
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     /// CHECK:` It get checked inside the event_call
     pub log_wrapper: UncheckedAccount<'info>,
+    #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
+    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionConfig>>>,
 }
 
 #[derive(Debug)]
