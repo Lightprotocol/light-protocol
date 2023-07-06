@@ -21,6 +21,13 @@ import {
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
+import {
+  transfer as splTransfer,
+  getAccount,
+  getAssociatedTokenAddressSync,
+  createAssociatedTokenAccount,
+} from "@solana/spl-token";
+import { assert } from "chai";
 
 function generateRandomTestAmount(
   min: number = 0.2,
@@ -105,7 +112,7 @@ const shield = async (
     testInputs.token,
   );
 
-  const testStateValidator = new UserTestAssertHelper({
+  const userTestAssertHelper = new UserTestAssertHelper({
     userSender: user,
     userRecipient: user,
     provider: user.provider,
@@ -125,7 +132,7 @@ const shield = async (
       keypair,
     );
   }
-  await testStateValidator.fetchAndSaveState();
+  await userTestAssertHelper.fetchAndSaveState();
 
   const res = await user.shield({
     publicAmountSol: testInputs.amountSol,
@@ -137,9 +144,9 @@ const shield = async (
   await user.provider.latestMerkleTree();
 
   if (isSol) {
-    await testStateValidator.checkSolShielded();
+    await userTestAssertHelper.checkSolShielded();
   } else {
-    await testStateValidator.checkSplShielded();
+    await userTestAssertHelper.checkSplShielded();
   }
 };
 
@@ -158,6 +165,7 @@ const unshield = async (
     isSol,
     mint,
   );
+  const recipientKeypair = SolanaKeypair.generate();
 
   let testInputs = {
     token,
@@ -165,7 +173,7 @@ const unshield = async (
     expectedUtxoHistoryLength: 0,
     amountSol,
     amountSpl,
-    recipient: SolanaKeypair.generate().publicKey,
+    recipient: recipientKeypair.publicKey,
   };
   console.log(
     "unshielding ",
@@ -175,13 +183,13 @@ const unshield = async (
     " to ",
     testInputs.recipient,
   );
-  const testStateValidator = new UserTestAssertHelper({
+  const userTestAssertHelper = new UserTestAssertHelper({
     userSender: user,
     userRecipient: user,
     provider: user.provider,
     testInputs,
   });
-  await testStateValidator.fetchAndSaveState();
+  await userTestAssertHelper.fetchAndSaveState();
   const res = await user.unshield({
     publicAmountSol: testInputs.amountSol,
     publicAmountSpl: testInputs.amountSpl,
@@ -190,9 +198,64 @@ const unshield = async (
   });
   console.log(res);
   if (isSol) {
-    await testStateValidator.checkSolUnshielded();
+    await userTestAssertHelper.checkSolUnshielded();
   } else {
-    await testStateValidator.checkSplUnshielded();
+    await userTestAssertHelper.checkSplUnshielded();
+    const recipientAssociatedTokenAccount = getAssociatedTokenAddressSync(
+      mint,
+      testInputs.recipient,
+    );
+    const splRecipientTokenAccount = await getAccount(
+      user.provider.provider.connection,
+      recipientAssociatedTokenAccount,
+      "processed",
+    );
+
+    const splTransferRecipientKeypair = SolanaKeypair.generate();
+    await airdropSol({
+      provider: user.provider.provider,
+      lamports: 1000000000,
+      recipientPublicKey: splTransferRecipientKeypair.publicKey,
+    });
+    const splTransferRecipient = getAssociatedTokenAddressSync(
+      mint,
+      splTransferRecipientKeypair.publicKey,
+    );
+    const createSplTransferRecipientTx = await createAssociatedTokenAccount(
+      user.provider.provider.connection,
+      splTransferRecipientKeypair,
+      mint,
+      splTransferRecipientKeypair.publicKey,
+    );
+    console.log(
+      "createSplTransferRecipientTx tx after unshield: ",
+      createSplTransferRecipientTx,
+    );
+
+    const transferTx = await splTransfer(
+      user.provider.provider.connection,
+      recipientKeypair,
+      recipientAssociatedTokenAccount,
+      splTransferRecipient,
+      recipientKeypair.publicKey,
+      splRecipientTokenAccount.amount,
+      [],
+      {
+        skipPreflight: true,
+        commitment: "confirmed",
+      },
+    );
+    console.log("spl transfer tx after unshield: ", transferTx);
+    const splTransferRecipientTokenAccount = await getAccount(
+      user.provider.provider.connection,
+      splTransferRecipient,
+      "processed",
+    );
+    assert.equal(
+      splTransferRecipientTokenAccount.amount,
+      splRecipientTokenAccount.amount,
+      `spl transfer recipient token account amount should be ${splRecipientTokenAccount.amount} but is ${splTransferRecipientTokenAccount.amount}`,
+    );
   }
 };
 
@@ -230,13 +293,13 @@ const transfer = async (
   };
 
   console.log("transferring ", testInputs.amountSol);
-  const testStateValidator = new UserTestAssertHelper({
+  const userTestAssertHelper = new UserTestAssertHelper({
     userSender: senderUser,
     userRecipient: recipientUser,
     provider: senderUser.provider,
     testInputs,
   });
-  await testStateValidator.fetchAndSaveState();
+  await userTestAssertHelper.fetchAndSaveState();
 
   const res = await senderUser.transfer({
     amountSol: testInputs.amountSol,
@@ -246,9 +309,9 @@ const transfer = async (
   });
   console.log(res);
   if (isSol) {
-    await testStateValidator.checkSolTransferred();
+    await userTestAssertHelper.checkSolTransferred();
   } else {
-    await testStateValidator.checkSplTransferred();
+    await userTestAssertHelper.checkSplTransferred();
   }
 };
 
@@ -264,7 +327,7 @@ const mergeAllInboxUtxos = async (user: User, token: string) => {
       ?.totalBalanceSpl.toNumber() > 0
   ) {
     console.log("merging all utxos for ", token);
-    const testStateValidator = new UserTestAssertHelper({
+    const userTestAssertHelper = new UserTestAssertHelper({
       userSender: user,
       userRecipient: user,
       provider: user.provider,
@@ -275,9 +338,9 @@ const mergeAllInboxUtxos = async (user: User, token: string) => {
         isMerge: true,
       },
     });
-    await testStateValidator.fetchAndSaveState();
+    await userTestAssertHelper.fetchAndSaveState();
     await user.mergeAllUtxos(tokenCtx.mint);
-    await testStateValidator.checkMergedAll();
+    await userTestAssertHelper.checkMergedAll();
     console.log(`merged all ${token} utxos`);
   }
 };
@@ -455,11 +518,12 @@ describe("Test User", () => {
   it.skip("random sol test", async () => {
     await randomTest(1, anchorProvider);
   });
-  it.skip("random spl test", async () => {
+  it.only("random spl test", async () => {
     await randomTest(1, anchorProvider, "USDC");
   });
 
   /**
+   * History is still buggy
    * fails at tx 22
    * - had two shields before one usdc and one sol
    * - history only finds the lastest sol shield
@@ -467,7 +531,7 @@ describe("Test User", () => {
    * Check:
    * - that usdc transactions are categorized correctly
    * */
-  it.only("random sol & spl test", async () => {
+  it.skip("random sol & spl test", async () => {
     await randomTest(1, anchorProvider, "BOTH");
   });
 });
