@@ -724,14 +724,9 @@ export class User {
         tokenCtx!.mint,
         recipient,
       );
-
-      let tokenBalance =
-        await this.provider.provider!.connection?.getTokenAccountBalance(
-          recipientSpl,
-        );
-
-      if (!tokenBalance?.value.uiAmount) {
-        /** Signal relayer to create the ATA and charge an extra fee for it */
+      const tokenAccountInfo =
+        await this.provider.provider!.connection?.getAccountInfo(recipientSpl);
+      if (!tokenAccountInfo) {
         ataCreationFee = true;
       }
     }
