@@ -720,17 +720,20 @@ export class User {
     let ataCreationFee = false;
     let recipientSpl = undefined;
     if (publicAmountSpl) {
-      let tokenBalance = await this.provider.connection?.getTokenAccountBalance(
-        recipient,
-      );
-      if (!tokenBalance?.value.uiAmount) {
-        /** Signal relayer to create the ATA and charge an extra fee for it */
-        ataCreationFee = true;
-      }
       recipientSpl = splToken.getAssociatedTokenAddressSync(
         tokenCtx!.mint,
         recipient,
       );
+
+      let tokenBalance =
+        await this.provider.provider!.connection?.getTokenAccountBalance(
+          recipientSpl,
+        );
+
+      if (!tokenBalance?.value.uiAmount) {
+        /** Signal relayer to create the ATA and charge an extra fee for it */
+        ataCreationFee = true;
+      }
     }
 
     var _publicSplAmount: BN | undefined = undefined;
