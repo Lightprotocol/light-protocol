@@ -1,9 +1,10 @@
 const snarkjs = require("snarkjs");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff } =
   require("ffjavascript").utils;
-
-import { Idl } from "@coral-xyz/anchor";
+const { buildBn128 } = require("ffjavascript");
+import { BN, Idl } from "@coral-xyz/anchor";
 import { VerifierError, VerifierErrorCode } from "../errors";
+import { FIELD_SIZE } from "../constants";
 
 export type proofData = {
   pi_a: string[];
@@ -133,7 +134,10 @@ export class Prover {
     return res;
   }
 
-  parseProofToBytesArray(proof: proofData): {
+  parseProofToBytesArray(
+    proof: proofData,
+    compressed?: boolean,
+  ): {
     proofA: number[];
     proofB: number[][];
     proofC: number[];
@@ -158,7 +162,26 @@ export class Prover {
           }
         }
       }
-
+      if (compressed) {
+        let proofA = mydata.pi_a[0];
+        const proofAIsPositive = Prover.yElementIsPositiveG1(mydata.pi_a[1]);
+        proofA[0] = Prover.addBitmaskToByte(proofA[0], proofAIsPositive);
+        let proofB = mydata.pi_b[0].flat().reverse();
+        let proofBY = mydata.pi_b[1].flat().reverse();
+        const proofBIsPositive = Prover.yElementIsPositiveG2(
+          proofBY.slice(0, 32),
+          proofBY.slice(32, 64),
+        );
+        proofB[0] = Prover.addBitmaskToByte(proofB[0], proofBIsPositive);
+        let proofC = mydata.pi_c[0];
+        const proofCIsPositive = Prover.yElementIsPositiveG1(mydata.pi_c[1]);
+        proofC[0] = Prover.addBitmaskToByte(proofC[0], proofCIsPositive);
+        return {
+          proofA,
+          proofB,
+          proofC,
+        };
+      }
       return {
         proofA: [mydata.pi_a[0], mydata.pi_a[1]].flat(),
         proofB: [
@@ -170,6 +193,25 @@ export class Prover {
     } catch (error) {
       console.error("error while parsing the proof!");
       throw error;
+    }
+  }
+
+  static yElementIsPositiveG1(yElement: BN): boolean {
+    return yElement.lte(FIELD_SIZE.sub(yElement));
+  }
+
+  static yElementIsPositiveG2(yElement1: BN, yElement2: BN): boolean {
+    return (
+      yElement1.lte(FIELD_SIZE.sub(yElement1)) &&
+      yElement2.lte(FIELD_SIZE.sub(yElement2))
+    );
+  }
+
+  static addBitmaskToByte(byte: number, yIsPositive: boolean): number {
+    if (!yIsPositive) {
+      return (byte |= 1 << 7);
+    } else {
+      return byte;
     }
   }
 
@@ -193,11 +235,11 @@ export class Prover {
     }
   }
 
-  async fullProveAndParse() {
+  async fullProveAndParse(compressed?: boolean) {
     await this.fullProve();
 
     const parsedPublicInputsObj = this.parseToBytesArray(this.publicInputs);
-    const parsedProofObj = this.parseProofToBytesArray(this.proof);
+    const parsedProofObj = this.parseProofToBytesArray(this.proof, compressed);
 
     return {
       parsedProof: parsedProofObj,
