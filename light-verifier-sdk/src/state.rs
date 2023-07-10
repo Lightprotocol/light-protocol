@@ -18,9 +18,9 @@ pub struct VerifierState10Ins<T: Config> {
     pub encrypted_utxos: Vec<u8>,
     pub merkle_root_index: u64,
     pub checked_public_inputs: Vec<Vec<u8>>,
-    pub proof_a: [u8; 64],
-    pub proof_b: [u8; 128],
-    pub proof_c: [u8; 64],
+    pub proof_a: [u8; 32],
+    pub proof_b: [u8; 64],
+    pub proof_c: [u8; 32],
     pub e_phantom: PhantomData<T>,
 }
 
@@ -81,7 +81,7 @@ impl<const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
             mint_pubkey: light_tx.mint_pubkey,
             relayer_fee: light_tx.relayer_fee,
             encrypted_utxos: light_tx.encrypted_utxos.to_vec(),
-            proof_a: light_tx.proof_a,
+            proof_a: *light_tx.proof_a,
             proof_b: *light_tx.proof_b,
             proof_c: *light_tx.proof_c,
             merkle_root: light_tx.merkle_root,
