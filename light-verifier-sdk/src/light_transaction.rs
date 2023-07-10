@@ -25,8 +25,6 @@ use crate::{
     utils::{change_endianness, close_account::close_account},
 };
 
-use std::ops::Neg;
-
 use merkle_tree_program::{
     program::MerkleTreeProgram,
     utils::{
@@ -35,7 +33,6 @@ use merkle_tree_program::{
     },
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
-type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 
 pub trait Config {
     /// Number of nullifiers to be inserted with the transaction.
@@ -69,9 +66,9 @@ pub struct Transaction<
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
     pub leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
     pub relayer_fee: u64,
-    pub proof_a: [u8; 64],
-    pub proof_b: &'a [u8; 128],
-    pub proof_c: &'a [u8; 64],
+    pub proof_a: &'a [u8; 32],
+    pub proof_b: &'a [u8; 64],
+    pub proof_c: &'a [u8; 32],
     pub encrypted_utxos: &'a Vec<u8>,
     pub pool_type: &'a [u8; 32],
     pub merkle_root_index: usize,
@@ -99,9 +96,9 @@ impl<
     pub fn new<'info, 'a, 'c>(
         message_hash: Option<&'a [u8; 32]>,
         message: Option<&'a Vec<u8>>,
-        proof_a: &'a [u8; 64],
-        proof_b: &'a [u8; 128],
-        proof_c: &'a [u8; 64],
+        proof_a: &'a [u8; 32],
+        proof_b: &'a [u8; 64],
+        proof_c: &'a [u8; 32],
         public_amount_spl: &'a [u8; 32],
         public_amount_sol: &'a [u8; 32],
         checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
@@ -117,14 +114,7 @@ impl<
     {
         assert_eq!(T::NR_NULLIFIERS, nullifiers.len());
         assert_eq!(T::NR_LEAVES / 2, leaves.len());
-        let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
-            &*[&change_endianness(proof_a.as_slice())[..], &[0u8][..]].concat(),
-        )
-        .unwrap();
-        let mut proof_a_neg = [0u8; 65];
-        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg[..]).unwrap();
 
-        let proof_a_neg = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
         Transaction {
             merkle_root: [0u8; 32],
             public_amount_spl,
@@ -136,7 +126,7 @@ impl<
             nullifiers,
             leaves,
             relayer_fee,
-            proof_a: proof_a_neg,
+            proof_a,
             proof_b,
             proof_c,
             encrypted_utxos,
@@ -251,6 +241,9 @@ impl<
         for (i, input) in self.checked_public_inputs.iter().enumerate() {
             public_inputs[5 + NR_NULLIFIERS + NR_LEAVES * 2 + i] = *input;
         }
+        let proof_a = groth16_solana::decompression::decompress_g1(self.proof_a, true).unwrap();
+        let proof_b = groth16_solana::decompression::decompress_g2(self.proof_b).unwrap();
+        let proof_c = groth16_solana::decompression::decompress_g1(self.proof_c, false).unwrap();
 
         let mut verifier = Groth16Verifier::new(
             &self.proof_a,
@@ -260,8 +253,7 @@ impl<
             self.verifyingkey,
         )
         .unwrap();
-        // self.verified_proof = true;
-        // Ok(())
+
         match verifier.verify() {
             Ok(_) => {
                 self.verified_proof = true;
