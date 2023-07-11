@@ -144,7 +144,7 @@ export class Utxo {
         UtxoErrorCode.INVALID_ASSET_OR_AMOUNTS_LENGTH,
         "constructor",
 
-        `Length missmatch assets: ${assets.length} != amounts: ${amounts.length}`,
+        `Length mismatch assets: ${assets.length} != amounts: ${amounts.length}`,
       );
     }
     if (assets.length > N_ASSETS) {

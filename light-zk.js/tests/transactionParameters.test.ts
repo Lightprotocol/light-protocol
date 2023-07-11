@@ -1,9 +1,12 @@
 import { assert, expect } from "chai";
-let circomlibjs = require("circomlibjs");
+
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { buildPoseidonOpt } from "circomlibjs";
+
+const circomlibjs = require("circomlibjs");
+const { buildPoseidonOpt } = circomlibjs;
+
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
@@ -13,7 +16,7 @@ import {
   TransactionParameters,
   TransactionErrorCode,
   Action,
-  TransactioParametersError,
+  TransactionParametersError,
   TransactionParametersErrorCode,
   Relayer,
   FIELD_SIZE,
@@ -45,7 +48,11 @@ describe("Transaction Parameters Functional", () => {
   let mockPubkey1 = SolanaKeypair.generate().publicKey;
   let mockPubkey2 = SolanaKeypair.generate().publicKey;
   let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon, lightProvider, deposit_utxo1, outputUtxo, relayer, keypair;
+  let poseidon: any,
+    lightProvider: LightProvider,
+    deposit_utxo1: Utxo,
+    relayer: Relayer,
+    keypair: Account;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     lightProvider = await LightProvider.loadMock();
@@ -53,7 +60,7 @@ describe("Transaction Parameters Functional", () => {
     // TODO: make fee mandatory
     relayer = new Relayer(
       mockPubkey3,
-      lightProvider.lookUpTable,
+      lightProvider.lookUpTable ?? mockPubkey3,
       mockPubkey,
       new anchor.BN(5000),
     );
@@ -70,7 +77,7 @@ describe("Transaction Parameters Functional", () => {
   });
 
   it("Serialization Transfer Functional", async () => {
-    var outputUtxo = new Utxo({
+    let outputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
@@ -185,14 +192,14 @@ describe("Transaction Parameters Functional", () => {
       TransactionParameters.getVerifierConfig(params.verifierIdl).out,
     );
 
-    for (var i in inputUtxos) {
+    for (let i in inputUtxos) {
       assert.equal(
         params.inputUtxos[i].getCommitment(poseidon),
         inputUtxos[i].getCommitment(poseidon),
       );
     }
 
-    for (var i in outputUtxos) {
+    for (let i in outputUtxos) {
       assert.equal(
         params.outputUtxos[i].getCommitment(poseidon),
         outputUtxos[i].getCommitment(poseidon),
@@ -201,7 +208,7 @@ describe("Transaction Parameters Functional", () => {
   });
 
   it("Transfer Functional", async () => {
-    var outputUtxo = new Utxo({
+    let outputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
@@ -214,7 +221,7 @@ describe("Transaction Parameters Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (var j in VERIFIER_IDLS) {
+    for (let j in VERIFIER_IDLS) {
       const inputUtxos = [deposit_utxo1];
       const outputUtxos = [outputUtxo];
 
@@ -309,14 +316,14 @@ describe("Transaction Parameters Functional", () => {
         TransactionParameters.getVerifierConfig(params.verifierIdl).out,
       );
 
-      for (var i in inputUtxos) {
+      for (let i in inputUtxos) {
         assert.equal(
           params.inputUtxos[i].getCommitment(poseidon),
-          inputUtxos[i].getCommitment(),
+          inputUtxos[i].getCommitment(poseidon),
         );
       }
 
-      for (var i in outputUtxos) {
+      for (let i in outputUtxos) {
         assert.equal(
           params.outputUtxos[i].getCommitment(poseidon),
           outputUtxos[i].getCommitment(poseidon),
@@ -325,7 +332,7 @@ describe("Transaction Parameters Functional", () => {
     }
   });
   it("Deposit Functional", async () => {
-    for (var j in VERIFIER_IDLS) {
+    for (let j in VERIFIER_IDLS) {
       const outputUtxos = [deposit_utxo1];
 
       const params = new TransactionParameters({
@@ -415,17 +422,17 @@ describe("Transaction Parameters Functional", () => {
         TransactionParameters.getVerifierConfig(params.verifierIdl).out,
       );
 
-      for (var i in outputUtxos) {
+      for (let i in outputUtxos) {
         assert.equal(
           params.outputUtxos[i].getCommitment(poseidon),
-          outputUtxos[i].getCommitment(),
+          outputUtxos[i].getCommitment(poseidon),
         );
       }
     }
   });
 
   it("Withdrawal Functional", async () => {
-    for (var j in VERIFIER_IDLS) {
+    for (let j in VERIFIER_IDLS) {
       const inputUtxos = [deposit_utxo1];
 
       const params = new TransactionParameters({
@@ -524,10 +531,10 @@ describe("Transaction Parameters Functional", () => {
         TransactionParameters.getVerifierConfig(params.verifierIdl).out,
       );
 
-      for (var i in inputUtxos) {
+      for (let i in inputUtxos) {
         assert.equal(
           params.inputUtxos[i].getCommitment(poseidon),
-          inputUtxos[i].getCommitment(),
+          inputUtxos[i].getCommitment(poseidon),
         );
       }
     }
@@ -625,8 +632,10 @@ describe("Test TransactionParameters Methods", () => {
           lightProvider.lookUpTables.verifierProgramLookupTable,
       }),
     ];
-    let { assetPubkeysCircuit, assetPubkeys } =
-      TransactionParameters.getAssetPubkeys(inputUtxos, outputUtxos);
+    let { assetPubkeysCircuit } = TransactionParameters.getAssetPubkeys(
+      inputUtxos,
+      outputUtxos,
+    );
 
     let publicAmountSol = TransactionParameters.getExternalAmount(
       0,
@@ -676,10 +685,12 @@ describe("Test General TransactionParameters Errors", () => {
   let depositFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey1 = SolanaKeypair.generate().publicKey;
-  let mockPubkey2 = SolanaKeypair.generate().publicKey;
   let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon, lightProvider, deposit_utxo1, relayer, keypair;
+  let poseidon: any,
+    lightProvider: LightProvider,
+    deposit_utxo1: Utxo,
+    relayer: Relayer,
+    keypair: Account;
 
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
@@ -704,7 +715,7 @@ describe("Test General TransactionParameters Errors", () => {
   });
 
   it("NO_UTXOS_PROVIDED", async () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           transactionMerkleTreePubkey: mockPubkey,
@@ -717,7 +728,7 @@ describe("Test General TransactionParameters Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionErrorCode.NO_UTXOS_PROVIDED,
           functionName: "constructor",
@@ -726,7 +737,7 @@ describe("Test General TransactionParameters Errors", () => {
   });
 
   it("NO_POSEIDON_HASHER_PROVIDED", async () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         // @ts-ignore:
         new TransactionParameters({
@@ -739,7 +750,7 @@ describe("Test General TransactionParameters Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
           functionName: "constructor",
@@ -748,7 +759,7 @@ describe("Test General TransactionParameters Errors", () => {
   });
 
   it("NO_ACTION_PROVIDED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         // @ts-ignore:
         new TransactionParameters({
@@ -761,7 +772,7 @@ describe("Test General TransactionParameters Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.NO_ACTION_PROVIDED,
           functionName: "constructor",
@@ -782,7 +793,7 @@ describe("Test General TransactionParameters Errors", () => {
         action: Action.SHIELD,
       });
     })
-      .to.throw(TransactioParametersError)
+      .to.throw(TransactionParametersError)
       .to.include({
         code: TransactionParametersErrorCode.NO_VERIFIER_IDL_PROVIDED,
         functionName: "constructor",
@@ -795,9 +806,12 @@ describe("Test TransactionParameters Transfer Errors", () => {
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let keypair;
-
-  let poseidon, lightProvider, deposit_utxo1, outputUtxo, relayer;
+  let keypair: Account;
+  let poseidon: any,
+    lightProvider: LightProvider,
+    deposit_utxo1: Utxo,
+    outputUtxo: Utxo,
+    relayer: Relayer;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
@@ -831,20 +845,10 @@ describe("Test TransactionParameters Transfer Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-
-    const params = new TransactionParameters({
-      inputUtxos: [deposit_utxo1],
-      outputUtxos: [outputUtxo],
-      transactionMerkleTreePubkey: mockPubkey,
-      poseidon,
-      action: Action.TRANSFER,
-      relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
-    });
   });
 
   it("RELAYER_UNDEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -856,7 +860,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionErrorCode.RELAYER_UNDEFINED,
           functionName: "constructor",
@@ -877,7 +881,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -889,7 +893,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.PUBLIC_AMOUNT_SPL_NOT_ZERO,
           functionName: "constructor",
@@ -907,7 +911,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -919,7 +923,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.PUBLIC_AMOUNT_SOL_NOT_ZERO,
           functionName: "constructor",
@@ -928,7 +932,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SPL_RECIPIENT_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -941,7 +945,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
           functionName: "constructor",
@@ -950,7 +954,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SOL_RECIPIENT_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -963,7 +967,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
           functionName: "constructor",
@@ -972,7 +976,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SOL_SENDER_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -985,7 +989,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SOL_SENDER_DEFINED,
           functionName: "constructor",
@@ -994,7 +998,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SPL_SENDER_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -1007,7 +1011,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SPL_SENDER_DEFINED,
           functionName: "constructor",
@@ -1021,9 +1025,12 @@ describe("Test TransactionParameters Deposit Errors", () => {
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let keypair;
+  let keypair: Account;
 
-  let poseidon, lightProvider, deposit_utxo1, outputUtxo, relayer;
+  let poseidon: any,
+    lightProvider: LightProvider,
+    deposit_utxo1: Utxo,
+    relayer: Relayer;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
@@ -1044,21 +1051,10 @@ describe("Test TransactionParameters Deposit Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-
-    const params = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
-      transactionMerkleTreePubkey: mockPubkey,
-      senderSpl: mockPubkey,
-      senderSol: mockPubkey,
-      lookUpTable: mockPubkey,
-      poseidon,
-      action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
-    });
   });
 
   it("SOL_SENDER_UNDEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1070,7 +1066,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionErrorCode.SOL_SENDER_UNDEFINED,
           functionName: "constructor",
@@ -1079,7 +1075,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SPL_SENDER_UNDEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1091,7 +1087,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionErrorCode.SPL_SENDER_UNDEFINED,
           functionName: "constructor",
@@ -1100,7 +1096,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("LOOK_UP_TABLE_UNDEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1112,7 +1108,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.LOOK_UP_TABLE_UNDEFINED,
           functionName: "constructor",
@@ -1121,7 +1117,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("RELAYER_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1135,7 +1131,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.RELAYER_DEFINED,
           functionName: "constructor",
@@ -1165,7 +1161,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
@@ -1178,7 +1174,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           functionName: "constructor",
@@ -1207,7 +1203,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
@@ -1220,7 +1216,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           functionName: "constructor",
@@ -1229,7 +1225,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SOL_RECIPIENT_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1243,7 +1239,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
           functionName: "constructor",
@@ -1252,7 +1248,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SPL_RECIPIENT_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1266,51 +1262,9 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
-          functionName: "constructor",
-        });
-    }
-  });
-
-  it("SOL_SENDER_UNDEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
-      expect(() => {
-        new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
-          transactionMerkleTreePubkey: mockPubkey,
-          senderSpl: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
-          poseidon,
-          action: Action.SHIELD,
-          verifierIdl: VERIFIER_IDLS[verifier],
-        });
-      })
-        .to.throw(TransactioParametersError)
-        .to.include({
-          code: TransactionErrorCode.SOL_SENDER_UNDEFINED,
-          functionName: "constructor",
-        });
-    }
-  });
-
-  it("SPL_SENDER_UNDEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
-      expect(() => {
-        new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
-          transactionMerkleTreePubkey: mockPubkey,
-          senderSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
-          poseidon,
-          action: Action.SHIELD,
-          verifierIdl: VERIFIER_IDLS[verifier],
-        });
-      })
-        .to.throw(TransactioParametersError)
-        .to.include({
-          code: TransactionErrorCode.SPL_SENDER_UNDEFINED,
           functionName: "constructor",
         });
     }
@@ -1326,7 +1280,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       // senderSpl fee always needs to be defined because we use it as the signer
       // should work since no spl amount
       new TransactionParameters({
@@ -1342,7 +1296,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SPL_RECIPIENT_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1356,7 +1310,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
           functionName: "constructor",
@@ -1365,7 +1319,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SOL_RECIPIENT_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1379,7 +1333,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
           functionName: "constructor",
@@ -1393,9 +1347,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let keypair;
+  let keypair: Account;
 
-  let poseidon, lightProvider, deposit_utxo1, outputUtxo, relayer;
+  let poseidon: any,
+    lightProvider: LightProvider,
+    deposit_utxo1: Utxo,
+    outputUtxo: Utxo,
+    relayer: Relayer;
 
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
@@ -1433,7 +1391,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   });
 
   it("SOL_RECIPIENT_UNDEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -1447,7 +1405,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
           functionName: "constructor",
@@ -1456,7 +1414,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   });
 
   it("RELAYER_UNDEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -1468,7 +1426,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionErrorCode.RELAYER_UNDEFINED,
           functionName: "constructor",
@@ -1500,7 +1458,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
@@ -1513,7 +1471,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           functionName: "constructor",
@@ -1541,7 +1499,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
@@ -1555,7 +1513,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           functionName: "constructor",
@@ -1564,7 +1522,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   });
 
   it("SOL_SENDER_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -1579,7 +1537,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SOL_SENDER_DEFINED,
           functionName: "constructor",
@@ -1588,7 +1546,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   });
 
   it("SPL_SENDER_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -1603,7 +1561,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifierIdl: VERIFIER_IDLS[verifier],
         });
       })
-        .to.throw(TransactioParametersError)
+        .to.throw(TransactionParametersError)
         .to.include({
           code: TransactionParametersErrorCode.SPL_SENDER_DEFINED,
           functionName: "constructor",
@@ -1622,7 +1580,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       // should work since no spl amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
@@ -1648,7 +1606,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (var verifier in VERIFIER_IDLS) {
+    for (let verifier in VERIFIER_IDLS) {
       // should work since no sol amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
@@ -1660,54 +1618,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         relayer,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
-    }
-  });
-
-  it("SOL_SENDER_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
-      expect(() => {
-        new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
-          transactionMerkleTreePubkey: mockPubkey,
-          senderSol: mockPubkey,
-          recipientSpl: mockPubkey,
-          recipientSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
-          poseidon,
-          action: Action.UNSHIELD,
-          relayer,
-          verifierIdl: VERIFIER_IDLS[verifier],
-        });
-      })
-        .to.throw(TransactioParametersError)
-        .to.include({
-          code: TransactionParametersErrorCode.SOL_SENDER_DEFINED,
-          functionName: "constructor",
-        });
-    }
-  });
-
-  it("SPL_SENDER_DEFINED", () => {
-    for (var verifier in VERIFIER_IDLS) {
-      expect(() => {
-        new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
-          transactionMerkleTreePubkey: mockPubkey,
-          senderSpl: mockPubkey,
-          recipientSpl: mockPubkey,
-          recipientSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
-          poseidon,
-          action: Action.UNSHIELD,
-          relayer,
-          verifierIdl: VERIFIER_IDLS[verifier],
-        });
-      })
-        .to.throw(TransactioParametersError)
-        .to.include({
-          code: TransactionParametersErrorCode.SPL_SENDER_DEFINED,
-          functionName: "constructor",
-        });
     }
   });
 });

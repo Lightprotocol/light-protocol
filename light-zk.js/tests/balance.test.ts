@@ -1,12 +1,9 @@
-import { assert, expect } from "chai";
-import {
-  SystemProgram,
-  Keypair as SolanaKeypair,
-  PublicKey,
-} from "@solana/web3.js";
+import { assert } from "chai";
+import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { buildPoseidonOpt } from "circomlibjs";
+const circomlibjs = require("circomlibjs");
+const { buildPoseidonOpt } = circomlibjs;
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
@@ -35,12 +32,7 @@ describe("Utxo Functional", () => {
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon,
-    lightProvider,
-    deposit_utxo1: Utxo,
-    outputUtxo,
-    relayer,
-    keypair;
+  let poseidon: any, lightProvider, deposit_utxo1: Utxo, relayer, keypair;
   before(async () => {
     poseidon = await buildPoseidonOpt();
     // TODO: make fee mandatory

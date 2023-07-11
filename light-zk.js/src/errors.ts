@@ -219,7 +219,7 @@ export class MetaError extends Error {
  **/
 export class TransactionError extends MetaError {}
 
-export class TransactioParametersError extends MetaError {}
+export class TransactionParametersError extends MetaError {}
 
 /**
  * @description Thrown when something fails in the Utxo class.

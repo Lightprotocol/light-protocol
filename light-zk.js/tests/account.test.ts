@@ -4,15 +4,15 @@ const chaiAsPromised = require("chai-as-promised");
 
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-let circomlibjs = require("circomlibjs");
-import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
-import { Scalar } from "ffjavascript";
+const circomlibjs = require("circomlibjs");
+const { buildBabyjub, buildEddsa } = circomlibjs;
+const ffjavascript = require("ffjavascript");
+const { Scalar } = ffjavascript;
 
-import { Account } from "../src/account";
 import {
+  Account,
   AccountError,
   AccountErrorCode,
   newNonce,
@@ -26,7 +26,13 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test Account Functional", () => {
-  var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
+  let poseidon: any,
+    eddsa: any,
+    babyJub,
+    F: any,
+    k0: Account,
+    k00: Account,
+    kBurner: Account;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     eddsa = await buildEddsa();
@@ -77,7 +83,7 @@ describe("Test Account Functional", () => {
       .update(seed32 + "poseidonEddsaKeypair")
       .digest();
     const pubKey = eddsa.prv2pub(prvKey);
-    k0.getEddsaPublicKey();
+    await k0.getEddsaPublicKey();
     if (k0.poseidonEddsaKeypair && k0.poseidonEddsaKeypair.publicKey) {
       assert.equal(
         prvKey.toString(),
@@ -270,7 +276,13 @@ describe("Test Account Functional", () => {
 });
 
 describe("Test Account Errors", () => {
-  var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
+  let poseidon: any,
+    eddsa,
+    babyJub,
+    F,
+    k0: Account,
+    k00: Account,
+    kBurner: Account;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     eddsa = await buildEddsa();
@@ -327,7 +339,7 @@ describe("Test Account Errors", () => {
   });
 
   it("AES_SECRET_UNDEFINED", () => {
-    let { privateKey, aesSecret, encryptionPrivateKey } = k0.getPrivateKeys();
+    let { privateKey, encryptionPrivateKey } = k0.getPrivateKeys();
 
     expect(() => {
       // @ts-ignore
