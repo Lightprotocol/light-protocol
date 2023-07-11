@@ -4,7 +4,7 @@ const chaiAsPromised = require("chai-as-promised");
 import { BN } from "@coral-xyz/anchor";
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-let circomlibjs = require("circomlibjs");
+
 import {
   SystemProgram,
   Keypair as SolanaKeypair,
@@ -12,16 +12,15 @@ import {
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
-import { Scalar } from "ffjavascript";
+
+const circomlibjs = require("circomlibjs");
+const { buildBabyjub, buildEddsa } = circomlibjs;
+
 import {
   Action,
   TransactionParametersErrorCode,
   createOutUtxos,
-  strToArr,
-  ADMIN_AUTH_KEYPAIR,
   TOKEN_REGISTRY,
-  User,
   Utxo,
   CreateUtxoError,
   CreateUtxoErrorCode,
@@ -31,6 +30,7 @@ import {
   Recipient,
   createRecipientUtxos,
   Provider,
+  TokenData,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const numberMaxOutUtxos = 2;
@@ -40,18 +40,22 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test createOutUtxos Functional", () => {
-  var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
-  const userKeypair = ADMIN_AUTH_KEYPAIR;
-  const mockPublicKey = SolanaKeypair.generate().publicKey;
+  let poseidon: any,
+    eddsa,
+    babyJub,
+    F,
+    k0: Account,
+    k00: Account,
+    kBurner: Account;
 
-  var splAmount,
-    solAmount,
+  let splAmount: BN,
+    solAmount: BN,
     token,
-    tokenCtx,
-    utxo1,
-    relayerFee,
-    utxoSol,
-    recipientAccount,
+    tokenCtx: TokenData,
+    utxo1: Utxo,
+    relayerFee: BN,
+    utxoSol: Utxo,
+    recipientAccount: Account,
     lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
@@ -65,13 +69,14 @@ describe("Test createOutUtxos Functional", () => {
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
-    tokenCtx = TOKEN_REGISTRY.get(token);
-    if (!tokenCtx) throw new Error("Token not supported!");
+    const tmpTokenCtx = TOKEN_REGISTRY.get(token);
+    if (!tmpTokenCtx) throw new Error("Token not supported!");
+    tokenCtx = tmpTokenCtx as TokenData;
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
-      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
+      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -120,7 +125,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       "0",
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -148,7 +154,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       "10",
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -177,7 +184,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].toString(),
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -206,7 +214,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].add(new BN("10")).toString(),
       `${utxo1.amounts[1].add(new BN("10")).toString()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -234,7 +243,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       "10",
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -264,7 +274,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].sub(splAmount).toString(),
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -294,7 +305,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].sub(splAmount).toString(),
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -324,7 +336,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].toString(),
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -354,7 +367,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].toString(),
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -384,7 +398,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].sub(splAmount).toString(),
       `${outUtxos[0].amounts[1].sub(splAmount).toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -414,7 +429,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].sub(splAmount).toString(),
       `${outUtxos[0].amounts[1].sub(splAmount).toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -444,7 +460,8 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].sub(splAmount).toString(),
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+        utxo1.amounts[1].toNumber() -
+        splAmount.toNumber() * tokenCtx.decimals.toNumber()
       }`,
     );
   });
@@ -464,8 +481,8 @@ describe("Test createOutUtxos Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     assert.equal(
-      outUtxos[0].amounts[0].toString(),
-      utxo1.amounts[0].mul(new BN(2)),
+      outUtxos[0].amounts[0].toNumber(),
+      utxo1.amounts[0].mul(new BN(2)).toNumber(),
       `${outUtxos[0].amounts[0]} fee != ${
         utxo1.amounts[0].toNumber() + utxo1.amounts[0].toNumber()
       }`,
@@ -474,7 +491,7 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos[0].amounts[1].toString(),
       utxo1.amounts[1].mul(new BN(2)).sub(splAmount).toString(),
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - splAmount
+        utxo1.amounts[1].toNumber() - splAmount.toNumber()
       }`,
     );
   });
@@ -588,7 +605,10 @@ describe("createRecipientUtxos", () => {
 });
 
 describe("validateUtxoAmounts", () => {
-  let poseidon, assetPubkey, inUtxos, lightProvider: Provider;
+  let poseidon: any,
+    assetPubkey: PublicKey,
+    inUtxos: [Utxo, Utxo],
+    lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
     poseidon = await circomlibjs.buildPoseidonOpt();
@@ -638,17 +658,21 @@ describe("validateUtxoAmounts", () => {
 });
 
 describe("Test createOutUtxos Errors", () => {
-  var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
-  const userKeypair = ADMIN_AUTH_KEYPAIR;
-  const mockPublicKey = SolanaKeypair.generate().publicKey;
+  let poseidon: any,
+    eddsa,
+    babyJub,
+    F,
+    k0: Account,
+    k00: Account,
+    kBurner: Account;
 
-  var splAmount,
-    solAmount,
+  let splAmount: BN,
+    solAmount: BN,
     token,
-    tokenCtx,
-    utxo1,
+    tokenCtx: TokenData,
+    utxo1: Utxo,
     relayerFee,
-    utxoSol,
+    utxoSol: Utxo,
     recipientAccount,
     lightProvider: Provider;
   before(async () => {
@@ -663,13 +687,14 @@ describe("Test createOutUtxos Errors", () => {
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
-    tokenCtx = TOKEN_REGISTRY.get(token);
-    if (!tokenCtx) throw new Error("Token not supported!");
+    let tmpTokenCtx = TOKEN_REGISTRY.get(token);
+    if (!tmpTokenCtx) throw new Error("Token not supported!");
+    tokenCtx = tmpTokenCtx as TokenData;
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
-      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
+      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -728,7 +753,7 @@ describe("Test createOutUtxos Errors", () => {
       });
   });
 
-  it("INVALID_NUMER_OF_RECIPIENTS", async () => {
+  it("INVALID_NUMBER_OF_RECIPIENTS", async () => {
     expect(() => {
       createOutUtxos({
         publicMint: tokenCtx.mint,
@@ -799,7 +824,7 @@ describe("Test createOutUtxos Errors", () => {
       });
   });
 
-  it("RECIPIENTS_SUM_AMOUNT_MISSMATCH", async () => {
+  it("RECIPIENTS_SUM_AMOUNT_MISMATCH", async () => {
     expect(() => {
       // @ts-ignore
       createOutUtxos({

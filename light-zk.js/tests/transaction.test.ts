@@ -1,6 +1,6 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
-import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 
 import { it } from "mocha";
@@ -27,7 +27,6 @@ import {
   Account,
   MerkleTree,
   IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_TWO,
   IDL_VERIFIER_PROGRAM_STORAGE,
   MESSAGE_MERKLE_TREE_KEY,
@@ -43,15 +42,14 @@ describe("Transaction Error Tests", () => {
   let depositFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey1 = SolanaKeypair.generate().publicKey;
   let mockPubkey2 = SolanaKeypair.generate().publicKey;
   let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon,
+  let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1,
+    deposit_utxo1: Utxo,
     relayer,
     keypair,
-    params;
+    params: TransactionParameters;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
@@ -168,16 +166,6 @@ describe("Transaction Error Tests", () => {
   });
 
   it("Constructor TX_PARAMETERS_UNDEFINED", async () => {
-    const params1 = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
-      transactionMerkleTreePubkey: mockPubkey2,
-      lookUpTable: lightProvider.lookUpTable,
-      poseidon,
-      senderSpl: mockPubkey,
-      senderSol: mockPubkey,
-      action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
-    });
     expect(() => {
       // @ts-ignore:
       new Transaction({
@@ -285,17 +273,15 @@ describe("Transaction Functional Tests", () => {
   let depositFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey1 = SolanaKeypair.generate().publicKey;
   let mockPubkey2 = SolanaKeypair.generate().publicKey;
   let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon,
+  let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1,
-    outputUtxo,
-    relayer,
+    deposit_utxo1: Utxo,
+    relayer: Relayer,
     keypair,
-    paramsDeposit,
-    paramsWithdrawal;
+    paramsDeposit: TransactionParameters,
+    paramsWithdrawal: TransactionParameters;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
@@ -407,7 +393,7 @@ describe("Transaction Functional Tests", () => {
     let mockPubkey = SolanaKeypair.generate().publicKey;
     let lightProvider = await LightProvider.loadMock();
 
-    var deposit_utxo1 = new Utxo({
+    let deposit_utxo1 = new Utxo({
       poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(1), new anchor.BN(2)],
@@ -423,7 +409,7 @@ describe("Transaction Functional Tests", () => {
       new anchor.BN(5000),
     );
 
-    var params = new TransactionParameters({
+    let params = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey,
       recipientSpl: mockPubkey,
@@ -456,7 +442,7 @@ describe("Transaction Functional Tests", () => {
     assert.equal(indices2[0][1][1], "1");
     assert.equal(indices2[0][1][2], "0");
 
-    var deposit_utxo2 = new Utxo({
+    let deposit_utxo2 = new Utxo({
       poseidon,
       assets: [FEE_ASSET],
       amounts: [new anchor.BN(1)],
@@ -473,7 +459,7 @@ describe("Transaction Functional Tests", () => {
     assert.equal(indices3[0][1][1], "0");
     assert.equal(indices3[0][1][2], "0");
 
-    var deposit_utxo3 = new Utxo({
+    let deposit_utxo3 = new Utxo({
       poseidon,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -488,7 +474,7 @@ describe("Transaction Functional Tests", () => {
     assert.equal(indices4[0][1][1], "0");
     assert.equal(indices4[0][1][2], "0");
 
-    var deposit_utxo4 = new Utxo({
+    let deposit_utxo4 = new Utxo({
       poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN(2)],
@@ -520,7 +506,7 @@ describe("Transaction Functional Tests", () => {
     assert.equal(indices6[1][1][1], "1");
     assert.equal(indices6[1][1][2], "0");
 
-    var deposit_utxo5 = new Utxo({
+    let deposit_utxo5 = new Utxo({
       poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(2), new anchor.BN(0)],
@@ -673,7 +659,7 @@ describe("Transaction Functional Tests", () => {
     ];
 
     const refLeaves = ["6UuSTaJpEemGVuPkmtTiNe7VndXXenWCDU49aTkGSQqY"];
-    for (var i = 0; i < 2; i++) {
+    for (let i = 0; i < 2; i++) {
       assert.equal(
         tx.remainingAccounts?.nullifierPdaPubkeys![i].pubkey.toBase58(),
         refNullfiers[i],

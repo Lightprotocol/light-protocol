@@ -1,17 +1,14 @@
-import { assert, expect } from "chai";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
-const should = chai.should();
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
 import { it } from "mocha";
-import { buildPoseidonOpt } from "circomlibjs";
+
+const circomlibjs = require("circomlibjs");
+const { buildPoseidonOpt } = circomlibjs;
 
 import {
   functionalCircuitTest,
-  VerifierError,
-  VerifierErrorCode,
-  TransactionErrorCode,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_TWO,
@@ -32,7 +29,7 @@ describe("Verifier tests", () => {
   });
 
   it("Test functional circuit", async () => {
-    for (var verifier in verifiers) {
+    for (let verifier in verifiers) {
       await functionalCircuitTest(
         verifiers[verifier].isApp,
         verifiers[verifier].verifierIdl,

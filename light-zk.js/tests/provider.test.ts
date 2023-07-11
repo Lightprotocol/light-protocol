@@ -1,11 +1,6 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
-import {
-  SystemProgram,
-  Keypair as SolanaKeypair,
-  PublicKey,
-  Connection,
-} from "@solana/web3.js";
+import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import { it } from "mocha";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
