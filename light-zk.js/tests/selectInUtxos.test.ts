@@ -4,25 +4,19 @@ const chaiAsPromised = require("chai-as-promised");
 import { BN } from "@coral-xyz/anchor";
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-let circomlibjs = require("circomlibjs");
-import {
-  SystemProgram,
-  Keypair as SolanaKeypair,
-  PublicKey,
-} from "@solana/web3.js";
+
+import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { buildBabyjub, buildEddsa } from "circomlibjs";
+
+const circomlibjs = require("circomlibjs");
+const { buildBabyjub, buildEddsa } = circomlibjs;
 
 import {
   TransactionErrorCode,
   Action,
-  strToArr,
-  ADMIN_AUTH_KEYPAIR,
   TOKEN_REGISTRY,
-  User,
   Utxo,
-  CreateUtxoError,
   CreateUtxoErrorCode,
   selectInUtxos,
   SelectInUtxosError,
@@ -40,20 +34,18 @@ let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 const numberMaxInUtxos = 2;
 
 // TODO: add more tests with different numbers of utxos
-// TOOD: add a randomized test
+// TODO: add a randomized test
 describe("Test selectInUtxos Functional", () => {
-  var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
-  const mockPublicKey = SolanaKeypair.generate().publicKey;
+  let poseidon: any, eddsa, babyJub, F;
 
-  var splAmount,
+  let splAmount,
     solAmount,
     token,
     tokenCtx,
     utxo1: Utxo,
     utxo2: Utxo,
     relayerFee,
-    utxoSol,
+    utxoSol: Utxo,
     utxoSolBurner,
     utxo2Burner,
     utxo1Burner,
@@ -78,7 +70,7 @@ describe("Test selectInUtxos Functional", () => {
     utxo1 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
-      amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals)],
+      amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals.toNumber())],
       index: 0,
       account: utxo1Burner,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -88,7 +80,7 @@ describe("Test selectInUtxos Functional", () => {
     utxo2 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
-      amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
+      amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
       account: utxo2Burner,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -319,7 +311,7 @@ describe("Test selectInUtxos Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    var selectedUtxo = selectInUtxos({
+    let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
@@ -334,18 +326,25 @@ describe("Test selectInUtxos Functional", () => {
 });
 
 describe("Test selectInUtxos Errors", () => {
-  var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
+  let poseidon: any,
+    eddsa,
+    babyJub,
+    F,
+    k0: Account,
+    k00: Account,
+    kBurner: Account;
 
-  var splAmount,
+  let splAmount,
     solAmount,
     token,
     tokenCtx,
     utxo1: Utxo,
     utxo2: Utxo,
     relayerFee,
-    utxoSol,
-    recipientAccount;
-  let lightProvider: Provider;
+    utxoSol: Utxo,
+    recipientAccount,
+    lightProvider: Provider;
+
   before(async () => {
     lightProvider = await Provider.loadMock();
     poseidon = await circomlibjs.buildPoseidonOpt();
@@ -364,7 +363,7 @@ describe("Test selectInUtxos Errors", () => {
     utxo1 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
-      amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
+      amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -373,7 +372,7 @@ describe("Test selectInUtxos Errors", () => {
     utxo2 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
-      amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
+      amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -563,7 +562,7 @@ describe("Test selectInUtxos Errors", () => {
       });
   });
 
-  it("INVALID_NUMER_OF_RECIPIENTS", async () => {
+  it("INVALID_NUMBER_OF_RECIPIENTS", async () => {
     const mint = SolanaKeypair.generate().publicKey;
     const inUtxos = [utxoSol, utxo1];
     const outUtxos = createRecipientUtxos({

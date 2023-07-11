@@ -20,7 +20,7 @@ import {
   TransactionError,
   TransactionParametersErrorCode,
   Provider,
-  TransactioParametersError,
+  TransactionParametersError,
   UserErrorCode,
   RelayerErrorCode,
   CreateUtxoErrorCode,
@@ -103,7 +103,7 @@ export class TransactionParameters implements transactionParameters {
     verifierIdl: Idl;
   }) {
     if (!outputUtxos && !inputUtxos) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionErrorCode.NO_UTXOS_PROVIDED,
         "constructor",
         "",
@@ -111,7 +111,7 @@ export class TransactionParameters implements transactionParameters {
     }
 
     if (!verifierIdl) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.NO_VERIFIER_IDL_PROVIDED,
         "constructor",
         "",
@@ -119,7 +119,7 @@ export class TransactionParameters implements transactionParameters {
     }
 
     if (!poseidon) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
         "constructor",
         "",
@@ -127,7 +127,7 @@ export class TransactionParameters implements transactionParameters {
     }
 
     if (!action) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.NO_ACTION_PROVIDED,
         "constructor",
         "Define an action either Action.TRANSFER, Action.SHIELD,Action.UNSHIELD",
@@ -135,14 +135,14 @@ export class TransactionParameters implements transactionParameters {
     }
 
     if (message && !messageMerkleTreePubkey) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.MESSAGE_MERKLE_TREE_UNDEFINED,
         "constructor",
         "Message Merkle tree pubkey needs to be defined if you provide a message",
       );
     }
     if (messageMerkleTreePubkey && !message) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.MESSAGE_UNDEFINED,
         "constructor",
         "Message needs to be defined if you provide message Merkle tree",
@@ -162,13 +162,13 @@ export class TransactionParameters implements transactionParameters {
     if (action === Action.SHIELD && senderSol && lookUpTable) {
       this.relayer = new Relayer(senderSol, lookUpTable);
     } else if (action === Action.SHIELD && !senderSol) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionErrorCode.SOL_SENDER_UNDEFINED,
         "constructor",
         "Sender sol always needs to be defined because we use it as the signer to instantiate the relayer object.",
       );
     } else if (action === Action.SHIELD && !lookUpTable) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.LOOK_UP_TABLE_UNDEFINED,
         "constructor",
         "At deposit lookup table needs to be defined to instantiate a relayer object with yourself as the relayer.",
@@ -179,7 +179,7 @@ export class TransactionParameters implements transactionParameters {
       if (relayer) {
         this.relayer = relayer;
       } else {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionErrorCode.RELAYER_UNDEFINED,
           "constructor",
           "For a transfer or withdrawal a relayer needs to be provided.",
@@ -208,13 +208,13 @@ export class TransactionParameters implements transactionParameters {
     );
     // safeguard should not be possible
     if (!this.publicAmountSol.gte(new BN(0)))
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.PUBLIC_AMOUNT_NEGATIVE,
         "constructor",
         "Public sol amount cannot be negative.",
       );
     if (!this.publicAmountSpl.gte(new BN(0)))
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.PUBLIC_AMOUNT_NEGATIVE,
         "constructor",
         "Public spl amount cannot be negative.",
@@ -229,7 +229,7 @@ export class TransactionParameters implements transactionParameters {
        * recipientSpl is the merkle tree
        */
       if (relayer)
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.RELAYER_DEFINED,
           "constructor",
           "For a deposit no relayer should to be provided, the user send the transaction herself.",
@@ -237,7 +237,7 @@ export class TransactionParameters implements transactionParameters {
       try {
         this.publicAmountSol.toArray("be", 8);
       } catch (error) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
           `Public amount sol ${this.publicAmountSol} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
@@ -247,21 +247,21 @@ export class TransactionParameters implements transactionParameters {
       try {
         this.publicAmountSpl.toArray("be", 8);
       } catch (error) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
           `Public amount spl ${this.publicAmountSpl} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
         );
       }
       if (!this.publicAmountSol.eq(new BN(0)) && recipientSol) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
           "constructor",
           "",
         );
       }
       if (!this.publicAmountSpl.eq(new BN(0)) && recipientSpl) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
           "constructor",
           "",
@@ -269,14 +269,14 @@ export class TransactionParameters implements transactionParameters {
       }
 
       if (!this.publicAmountSol.eq(new BN(0)) && !senderSol) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionErrorCode.SOL_SENDER_UNDEFINED,
           "constructor",
           "",
         );
       }
       if (!this.publicAmountSpl.eq(new BN(0)) && !senderSpl) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionErrorCode.SPL_SENDER_UNDEFINED,
           "constructor",
           "",
@@ -292,7 +292,7 @@ export class TransactionParameters implements transactionParameters {
        */
       // TODO: should I throw an error when a lookup table is defined?
       if (!relayer)
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionErrorCode.RELAYER_UNDEFINED,
           "constructor",
           "For a withdrawal a relayer needs to be provided.",
@@ -301,14 +301,14 @@ export class TransactionParameters implements transactionParameters {
       // this.publicAmountSol.add(FIELD_SIZE).mod(FIELD_SIZE) this changes the value
       const tmpSol = this.publicAmountSol;
       if (!tmpSol.sub(FIELD_SIZE).lte(new BN(0)))
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.INVALID_PUBLIC_AMOUNT,
           "constructor",
           "",
         );
       const tmpSpl = this.publicAmountSpl;
       if (!tmpSpl.sub(FIELD_SIZE).lte(new BN(0)))
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.INVALID_PUBLIC_AMOUNT,
           "constructor",
           "",
@@ -318,7 +318,7 @@ export class TransactionParameters implements transactionParameters {
           tmpSol.sub(FIELD_SIZE).toArray("be", 8);
         }
       } catch (error) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
           "Public amount needs to be a u64 at deposit.",
@@ -330,7 +330,7 @@ export class TransactionParameters implements transactionParameters {
           tmpSpl.sub(FIELD_SIZE).toArray("be", 8);
         }
       } catch (error) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
           "Public amount needs to be a u64 at deposit.",
@@ -338,7 +338,7 @@ export class TransactionParameters implements transactionParameters {
       }
 
       if (!this.publicAmountSol.eq(new BN(0)) && !recipientSol) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
           "constructor",
           "",
@@ -346,7 +346,7 @@ export class TransactionParameters implements transactionParameters {
       }
 
       if (!this.publicAmountSpl.eq(new BN(0)) && !recipientSpl) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
           "constructor",
           "",
@@ -354,14 +354,14 @@ export class TransactionParameters implements transactionParameters {
       }
       // && senderSol.toBase58() != merkle tree token pda
       if (!this.publicAmountSol.eq(new BN(0)) && senderSol) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.SOL_SENDER_DEFINED,
           "constructor",
           "",
         );
       }
       if (!this.publicAmountSpl.eq(new BN(0)) && senderSpl) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.SPL_SENDER_DEFINED,
           "constructor",
           "",
@@ -376,13 +376,13 @@ export class TransactionParameters implements transactionParameters {
        * recipientSpl does not exists it is an internal transfer just the relayer is paid
        */
       if (!relayer)
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionErrorCode.RELAYER_UNDEFINED,
           "constructor",
           "For a transfer a relayer needs to be provided.",
         );
       if (!this.publicAmountSpl.eq(new BN(0)))
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_SPL_NOT_ZERO,
           "constructor",
           "For a transfer public spl amount needs to be zero",
@@ -396,7 +396,7 @@ export class TransactionParameters implements transactionParameters {
           .mul(new BN(-1))
           .eq(relayer.getRelayerFee(ataCreationFee))
       )
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_SOL_NOT_ZERO,
           "constructor",
           `public amount ${tmpSol
@@ -407,7 +407,7 @@ export class TransactionParameters implements transactionParameters {
         );
 
       if (recipientSpl) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
           "constructor",
           "This is a transfer, no spl amount should be withdrawn. To withdraw an spl amount mark the transaction as withdrawal.",
@@ -415,7 +415,7 @@ export class TransactionParameters implements transactionParameters {
       }
 
       if (recipientSol) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
           "constructor",
           "This is a transfer, no sol amount should be withdrawn. To withdraw an sol amount mark the transaction as withdrawal.",
@@ -423,21 +423,21 @@ export class TransactionParameters implements transactionParameters {
       }
 
       if (senderSol) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.SOL_SENDER_DEFINED,
           "constructor",
           "",
         );
       }
       if (senderSpl) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionParametersErrorCode.SPL_SENDER_DEFINED,
           "constructor",
           "",
         );
       }
     } else {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.NO_ACTION_PROVIDED,
         "constructor",
         "",
@@ -473,13 +473,14 @@ export class TransactionParameters implements transactionParameters {
   }
 
   async toBytes(): Promise<Buffer> {
+    let utxo;
     let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
     let inputUtxosBytes: any[] = [];
-    for (var utxo of this.inputUtxos) {
+    for (utxo of this.inputUtxos) {
       inputUtxosBytes.push(await utxo.toBytes());
     }
     let outputUtxosBytes: any[] = [];
-    for (var utxo of this.outputUtxos) {
+    for (utxo of this.outputUtxos) {
       outputUtxosBytes.push(await utxo.toBytes());
     }
     let preparedObject = {
@@ -601,7 +602,7 @@ export class TransactionParameters implements transactionParameters {
           Buffer.alloc(32).fill(0).toString()
         ) {
           if (!utxoIdls) {
-            throw new TransactioParametersError(
+            throw new TransactionParametersError(
               TransactionParametersErrorCode.UTXO_IDLS_UNDEFINED,
               "fromBytes",
             );
@@ -634,14 +635,14 @@ export class TransactionParameters implements transactionParameters {
       relayer.accounts.relayerPubkey.toBase58() != decoded.relayerPubkey
     ) {
       // TODO: add functionality to look up relayer or fetch info, looking up is better
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionParametersErrorCode.RELAYER_INVALID,
         "fromBytes",
         "The provided relayer has a different public key as the relayer publickey decoded from bytes",
       );
     }
     if (!relayer) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionErrorCode.RELAYER_UNDEFINED,
         "fromBytes",
       );
@@ -719,7 +720,7 @@ export class TransactionParameters implements transactionParameters {
     verifierProgramLookupTable: string[];
   }): Promise<TransactionParameters> {
     if (action === Action.TRANSFER && !outUtxos && !mergeUtxos)
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
         "getTxParams",
         "Recipient outUtxo not provided for transfer",
@@ -727,14 +728,14 @@ export class TransactionParameters implements transactionParameters {
 
     if (action !== Action.SHIELD && !relayer?.getRelayerFee(ataCreationFee)) {
       // TODO: could make easier to read by adding separate if/cases
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         RelayerErrorCode.RELAYER_FEE_UNDEFINED,
         "getTxParams",
         `No relayerFee provided for ${action.toLowerCase()}}`,
       );
     }
     if (!account) {
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
         "getTxParams",
         "account for change utxo is undefined",
@@ -827,7 +828,7 @@ export class TransactionParameters implements transactionParameters {
    */
   assignAccounts() {
     if (!this.assetPubkeys)
-      throw new TransactioParametersError(
+      throw new TransactionParametersError(
         TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
         "assignAccounts assetPubkeys undefined",
         "assignAccounts",
@@ -867,7 +868,7 @@ export class TransactionParameters implements transactionParameters {
             .sub(new BN(this.relayer.getRelayerFee(this.ataCreationFee)))
             .eq(new BN(0))
         ) {
-          throw new TransactioParametersError(
+          throw new TransactionParametersError(
             TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
             "assignAccounts",
             "Sol recipientSpl is undefined while public spl amount is != 0.",
@@ -876,7 +877,7 @@ export class TransactionParameters implements transactionParameters {
       }
     } else {
       if (this.action.toString() !== Action.SHIELD.toString()) {
-        throw new TransactioParametersError(
+        throw new TransactionParametersError(
           TransactionErrorCode.ACTION_IS_NO_DEPOSIT,
           "assignAccounts",
           "Action is withdrawal but should not be. Spl & sol senderSpl accounts are provided and a relayer which is used to identify transfers and withdrawals. For a deposit do not provide a relayer.",
@@ -894,7 +895,7 @@ export class TransactionParameters implements transactionParameters {
         /// assigning a placeholder account
         this.accounts.senderSpl = AUTHORITY;
         if (!this.publicAmountSpl?.eq(new BN(0))) {
-          throw new TransactioParametersError(
+          throw new TransactionParametersError(
             TransactionErrorCode.SPL_SENDER_UNDEFINED,
             "assignAccounts",
             "Spl senderSpl is undefined while public spl amount is != 0.",
