@@ -55,9 +55,7 @@ export async function initLookUpTableFromFile(
     if (lookUpTableInfoInit) {
       lookUpTable = lookUpTableRead;
     }
-  } catch (e) {
-    console.log(".txt not found", e);
-  }
+  } catch (e) {}
 
   let LOOK_UP_TABLE = await initLookUpTableTest(
     provider,

@@ -20,7 +20,7 @@ import {
   ADMIN_AUTH_KEY,
   TestRelayer,
   Action,
-  UserTestAssertHelper,
+  TestStateValidator,
   airdropShieldedSol,
   generateRandomTestAmount,
   airdropSol,
@@ -73,12 +73,64 @@ describe("Test User", () => {
       confirmConfig,
     });
     await airdropSol({
-      provider: anchorProvider,
-      lamports: 2_000_000_000,
+      connection: anchorProvider.connection,
+      amount: 2_000_000_000,
       recipientPublicKey: userKeypair.publicKey,
     });
 
     user = await User.init({ provider });
+  });
+
+  it.skip("(user class) shield SPL random infinite", async () => {
+    var expectedSpentUtxosLength = 0;
+    var expectedUtxoHistoryLength = 1;
+    var totalSplAmount = 0;
+    while (true) {
+      let testInputs = {
+        amountSpl: generateRandomTestAmount(0, 100000, 2),
+        amountSol: 0,
+        token: "USDC",
+        type: Action.SHIELD,
+        expectedUtxoHistoryLength,
+        expectedSpentUtxosLength,
+      };
+      totalSplAmount += testInputs.amountSpl;
+
+      const provider = await Provider.init({
+        wallet: userKeypair,
+        relayer: RELAYER,
+      });
+
+      let res = await provider.provider.connection.requestAirdrop(
+        userKeypair.publicKey,
+        2_000_000_000,
+      );
+
+      await provider.provider.connection.confirmTransaction(res, "confirmed");
+
+      const user: User = await User.init({ provider });
+
+      const testStateValidator = new TestStateValidator({
+        userSender: user,
+        userRecipient: user,
+        provider,
+        testInputs,
+      });
+
+      await testStateValidator.fetchAndSaveState();
+
+      await user.shield({
+        publicAmountSpl: testInputs.amountSpl,
+        token: testInputs.token,
+      });
+
+      // TODO: add random amount and amount checks
+      await user.provider.latestMerkleTree();
+
+      await testStateValidator.checkTokenShielded();
+      expectedSpentUtxosLength++;
+      expectedUtxoHistoryLength++;
+    }
   });
 
   it("(user class) shield SPL", async () => {
@@ -86,13 +138,14 @@ describe("Test User", () => {
     var expectedUtxoHistoryLength = 1;
     let testInputs = {
       amountSpl: generateRandomTestAmount(0, 100000, 2),
+      amountSol: 0,
       token: "USDC",
       type: Action.SHIELD,
       expectedUtxoHistoryLength,
       expectedSpentUtxosLength,
     };
 
-    const testStateValidator = new UserTestAssertHelper({
+    const testStateValidator = new TestStateValidator({
       userSender: user,
       userRecipient: user,
       provider,
@@ -109,7 +162,7 @@ describe("Test User", () => {
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
 
-    await testStateValidator.checkSplShielded();
+    await testStateValidator.checkTokenShielded();
   });
 
   it("(user class) shield SOL", async () => {
@@ -121,7 +174,7 @@ describe("Test User", () => {
       expectedUtxoHistoryLength: 1,
     };
 
-    const testStateValidator = new UserTestAssertHelper({
+    const testStateValidator = new TestStateValidator({
       userSender: user,
       userRecipient: user,
       provider,
@@ -150,7 +203,7 @@ describe("Test User", () => {
     };
     const user: User = await User.init({ provider, seed: userSeed });
 
-    const testStateValidator = new UserTestAssertHelper({
+    const testStateValidator = new TestStateValidator({
       userSender: user,
       userRecipient: user,
       provider,
@@ -181,7 +234,7 @@ describe("Test User", () => {
       recipientSeed,
     };
 
-    const testStateValidatorTransfer = new UserTestAssertHelper({
+    const testStateValidatorTransfer = new TestStateValidator({
       userSender: user,
       userRecipient: recipientUser,
       provider,
@@ -207,7 +260,7 @@ describe("Test User", () => {
       recipientSeed: userSeed,
     };
 
-    const testStateValidatorUnshield = new UserTestAssertHelper({
+    const testStateValidatorUnshield = new TestStateValidator({
       userSender: user,
       userRecipient: user,
       provider,
@@ -235,13 +288,14 @@ describe("Test User", () => {
 
     const testInputs = {
       amountSpl: 1,
+      amountSol: 0,
       token: "USDC",
       type: Action.UNSHIELD,
-      recipient: solRecipient.publicKey,
+      recipientSpl: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
 
-    const testStateValidator = new UserTestAssertHelper({
+    const testStateValidator = new TestStateValidator({
       userSender: user,
       userRecipient: user,
       provider,
@@ -253,17 +307,18 @@ describe("Test User", () => {
     await user.unshield({
       publicAmountSpl: testInputs.amountSpl,
       token: testInputs.token,
-      recipient: testInputs.recipient,
+      recipient: testInputs.recipientSpl,
     });
 
     await user.provider.latestMerkleTree();
 
-    await testStateValidator.checkSplUnshielded();
+    await testStateValidator.checkTokenUnshielded();
   });
 
   it("(user class) transfer SPL", async () => {
     const testInputs = {
       amountSpl: 1,
+      amountSol: 0,
       token: "USDC",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,
@@ -281,7 +336,7 @@ describe("Test User", () => {
       seed: testInputs.recipientSeed,
     });
 
-    const testStateValidator = new UserTestAssertHelper({
+    const testStateValidator = new TestStateValidator({
       userSender: user,
       userRecipient,
       provider,
@@ -298,7 +353,7 @@ describe("Test User", () => {
 
     await user.provider.latestMerkleTree();
     await user.getBalance();
-    await testStateValidator.checkSplTransferred();
+    await testStateValidator.checkTokenTransferred();
   });
 
   it("(user class) storage shield", async () => {
@@ -312,7 +367,7 @@ describe("Test User", () => {
       message: Buffer.alloc(512).fill(1),
     };
 
-    const testStateValidator = new UserTestAssertHelper({
+    const testStateValidator = new TestStateValidator({
       userSender: user,
       userRecipient: user,
       provider,
@@ -344,7 +399,7 @@ describe("Test User", () => {
     await provider.latestMerkleTree();
     const user: User = await User.init({ provider, seed });
 
-    const testStateValidator = new UserTestAssertHelper({
+    const testStateValidator = new TestStateValidator({
       userSender: user,
       userRecipient: user,
       provider,

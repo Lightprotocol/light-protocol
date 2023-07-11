@@ -527,14 +527,18 @@ export class User {
             this.recentTransactionParameters?.publicAmountSpl.toNumber(),
           ),
         );
-
+        transaction.recentBlockhash = (
+          await this.provider.provider?.connection.getLatestBlockhash(
+            "confirmed",
+          )
+        )?.blockhash;
         await this.provider.wallet!.sendAndConfirmTransaction(transaction);
         this.approved = true;
       } catch (e) {
         throw new UserError(
           UserErrorCode.APPROVE_ERROR,
           "shield",
-          `Error approving token transfer! ${e}`,
+          `Error approving token transfer! ${e.stack}`,
         );
       }
     } else {
@@ -680,7 +684,7 @@ export class User {
     if (!tokenCtx)
       throw new UserError(
         UserErrorCode.TOKEN_NOT_FOUND,
-        "shield",
+        "unshield",
         "Token not supported!",
       );
 
@@ -967,7 +971,9 @@ export class User {
     this.recentTransactionParameters = txParams;
 
     await this.compileAndProveTransaction(appParams);
+
     await this.approve();
+    this.approved = true;
 
     // we send an array of instructions to the relayer and the relayer sends 3 transaction
     const txHash = await this.sendTransaction();
@@ -1081,6 +1087,10 @@ export class User {
     let utxosEntries = this.balance.tokenBalances
       .get(asset.toBase58())
       ?.utxos.values();
+    let _solUtxos = this.balance.tokenBalances
+      .get(new PublicKey(0).toBase58())
+      ?.utxos.values();
+    const solUtxos = _solUtxos ? Array.from(_solUtxos) : [];
     let inboxUtxosEntries = Array.from(inboxTokenBalance.utxos.values());
 
     if (inboxUtxosEntries.length == 0)
@@ -1097,10 +1107,13 @@ export class User {
         b.amounts[assetIndex].toNumber() - a.amounts[assetIndex].toNumber(),
     );
 
-    let inUtxos: Utxo[] = utxosEntries
-      ? Array.from([...utxosEntries, ...inboxUtxosEntries])
-      : Array.from(inboxUtxosEntries);
-
+    let inUtxos: Utxo[] =
+      utxosEntries && asset.toBase58() !== new PublicKey(0).toBase58()
+        ? Array.from([...utxosEntries, ...solUtxos, ...inboxUtxosEntries])
+        : Array.from([...solUtxos, ...inboxUtxosEntries]);
+    // let inUtxos: Utxo[] = utxosEntries
+    // ? Array.from([...utxosEntries, ...inboxUtxosEntries])
+    // : Array.from(inboxUtxosEntries);
     if (inUtxos.length > 10) {
       inUtxos = inUtxos.slice(0, 10);
     }
@@ -1112,6 +1125,7 @@ export class User {
       inUtxos,
       addInUtxos: false,
       addOutUtxos: true,
+      separateSolUtxo: true,
       account: this.account,
       mergeUtxos: true,
       relayer: this.provider.relayer,

@@ -134,7 +134,7 @@ export async function setUpMerkleTree(
       verifier.programId,
     );
     await airdropSol({
-      provider,
+      connection: provider.connection,
       lamports: 1_000_000_000,
       recipientPublicKey: authorityPda,
     });

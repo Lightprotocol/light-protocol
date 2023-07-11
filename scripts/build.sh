@@ -9,15 +9,15 @@ cleanup_and_install() {
   fi
   while [ "${#}" -gt 0 ]; do
     case "${1}" in
-      -d|--dir) 
+      -d|--dir)
         dir="${2}"
         shift 2
         ;;
-      -y|--yarn) 
+      -y|--yarn)
         yarn="${2}"
         shift 2
         ;;
-      -a|--anchor) 
+      -a|--anchor)
         anchor="${2}"
         shift 2
         ;;
@@ -53,4 +53,3 @@ cleanup_and_install --dir "light-zk.js" --yarn true --anchor false
 cleanup_and_install -d "light-system-programs" -y false -a true
 cleanup_and_install -d "light-circuits" -y false -a false
 cleanup_and_install -d "relayer" -y true -a false
-

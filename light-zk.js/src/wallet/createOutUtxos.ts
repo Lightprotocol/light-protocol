@@ -10,6 +10,7 @@ import {
   Utxo,
   TransactionParameters,
   AppUtxoConfig,
+  MINIMUM_LAMPORTS,
 } from "../index";
 
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
@@ -92,6 +93,7 @@ export function createOutUtxos({
   numberMaxOutUtxos,
   assetLookupTable,
   verifierProgramLookupTable,
+  separateSolUtxo = false,
 }: {
   inUtxos?: Utxo[];
   publicMint?: PublicKey;
@@ -106,6 +108,7 @@ export function createOutUtxos({
   numberMaxOutUtxos: number;
   assetLookupTable: string[];
   verifierProgramLookupTable: string[];
+  separateSolUtxo?: boolean;
 }) {
   if (!poseidon)
     throw new CreateUtxoError(
@@ -283,7 +286,39 @@ export function createOutUtxos({
       x.asset.toBase58() !== SystemProgram.programId.toBase58(),
   );
 
-  const nrOutUtxos = publicSplAssets.length ? publicSplAssets.length : 1;
+  let nrOutUtxos = publicSplAssets.length ? publicSplAssets.length : 1;
+
+  if (separateSolUtxo && publicSplAssets.length > 0) {
+    // nrOutUtxos -= 1;
+    /**
+     * Problem:
+     * - we want to keep the majority of sol holdings in a single sol utxo, but we want to keep a small amount of sol in every spl utxo as well
+     * - for example when merging incoming spl utxos we might have no sol in any of these utxos to pay the relayer
+     *   -> we need an existing sol utxo but we don't want to merge it into the spl utxos
+     * - sol amount should leave a minimum amount in spl utxos if possible
+     */
+    const preliminarySolAmount = assets[publicSolAssetIndex].sumIn.sub(
+      MINIMUM_LAMPORTS.mul(new BN(2)),
+    );
+    const solAmount = preliminarySolAmount.isNeg()
+      ? assets[publicSolAssetIndex].sumIn
+      : preliminarySolAmount;
+    assets[publicSolAssetIndex].sumIn =
+      assets[publicSolAssetIndex].sumIn.sub(solAmount);
+    let solChangeUtxo = new Utxo({
+      poseidon,
+      assets: [SystemProgram.programId],
+      amounts: [solAmount],
+      account: changeUtxoAccount,
+      appData: appUtxo?.appData,
+      appDataHash: appUtxo?.appDataHash,
+      includeAppData: appUtxo?.includeAppData,
+      verifierAddress: appUtxo?.verifierAddress,
+      assetLookupTable,
+      verifierProgramLookupTable,
+    });
+    outputUtxos.push(solChangeUtxo);
+  }
 
   for (var x = 0; x < nrOutUtxos; x++) {
     let solAmount = new BN(0);
@@ -298,6 +333,8 @@ export function createOutUtxos({
       ? publicSplAssets[x].asset
       : SystemProgram.programId;
 
+    if (solAmount.isZero() && splAmount.isZero()) continue;
+
     let changeUtxo = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, splAsset],
@@ -310,6 +347,7 @@ export function createOutUtxos({
       assetLookupTable,
       verifierProgramLookupTable,
     });
+
     outputUtxos.push(changeUtxo);
   }
 

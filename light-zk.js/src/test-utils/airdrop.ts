@@ -1,4 +1,4 @@
-import { AnchorProvider, BN } from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { mintTo, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import {
@@ -44,7 +44,7 @@ export async function airdropShieldedSol({
   }
   const userKeypair = Keypair.generate();
   await airdropSol({
-    provider: provider.provider!,
+    connection: provider.provider!.connection,
     recipientPublicKey: userKeypair.publicKey,
     lamports: amount * 1e9,
   });
@@ -58,11 +58,11 @@ export async function airdropShieldedSol({
 }
 
 export async function airdropSol({
-  provider,
+  connection,
   lamports,
   recipientPublicKey,
 }: {
-  provider: AnchorProvider;
+  connection: Connection;
   lamports: number;
   recipientPublicKey: PublicKey;
 }) {
@@ -119,7 +119,7 @@ export async function airdropShieldedMINTSpl({
     await airdropSplToAssociatedTokenAccount(
       provider.provider!.connection,
       1_000_000_000_000 ? amount : 1_000_000_000_000,
-      ADMIN_AUTH_KEYPAIR,
+      ADMIN_AUTH_KEYPAIR.publicKey,
     );
   }
 
@@ -136,13 +136,13 @@ export async function airdropShieldedMINTSpl({
 export async function airdropSplToAssociatedTokenAccount(
   connection: Connection,
   lamports: number,
-  recipient: Keypair,
+  recipient: PublicKey,
 ) {
   let tokenAccount = await getOrCreateAssociatedTokenAccount(
     connection,
-    recipient,
+    ADMIN_AUTH_KEYPAIR,
     MINT,
-    recipient.publicKey,
+    recipient,
   );
   return await mintTo(
     connection,
