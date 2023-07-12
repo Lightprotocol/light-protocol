@@ -155,33 +155,32 @@ export class Utxo {
         `assets.length ${assets.length} > N_ASSETS ${N_ASSETS}`,
       );
     }
-    assets.map((asset, index) => {
-      if (!asset)
-        throw new UtxoError(
-          UtxoErrorCode.ASSET_UNDEFINED,
-          "constructor",
-          `asset in index ${index} is undefined all assets: ${assets}`,
-        );
-    });
 
-    while (assets.length < N_ASSETS) {
-      assets.push(SystemProgram.programId);
+    if (assets.findIndex((asset) => !asset) !== -1) {
+      throw new UtxoError(
+        UtxoErrorCode.ASSET_UNDEFINED,
+        "constructor",
+        `asset in index ${index} is undefined. All assets: ${assets}`,
+      );
     }
 
-    for (var i = 0; i < N_ASSETS; i++) {
-      if (amounts[i] && amounts[i].lt(new BN(0))) {
+    assets = new Array(N_ASSETS - 1).fill(SystemProgram.programId);
+
+    const zeroAmount = new BN(0);
+    let i = 0;
+    while (i < N_ASSETS) {
+      const amount = amounts[i];
+      if (amount?.lt?.(zeroAmount)) {
         throw new UtxoError(
           UtxoErrorCode.NEGATIVE_AMOUNT,
           "constructor",
-
-          `amount cannot be negative, amounts[${i}] = ${amounts[i]}`,
+          `amount cannot be negative, amounts[${i}] = ${amount ?? "undefined"}`,
         );
       }
+      i++;
     }
 
-    while (amounts.length < N_ASSETS) {
-      amounts.push(new BN(0));
-    }
+    amounts = new Array(N_ASSETS - 1).fill(zeroAmount);
 
     // TODO: check that this does not lead to hickups since publicAmountSpl cannot withdraw the fee asset sol
     if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
