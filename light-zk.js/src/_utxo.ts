@@ -42,9 +42,6 @@ export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 
-// @matteo: introduced constant BN_0 in order to avoid multiple "new BN(0);" instantiations
-const BN_0 = new BN(0);
-
 // TODO: Idl support for U256
 // TODO: add static createSolUtxo()
 // TODO: remove account as attribute and from constructor, replace with shieldedPublicKey
@@ -103,10 +100,10 @@ export class Utxo {
     poseidon,
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
     assets = [SystemProgram.programId],
-    amounts = [BN_0],
+    amounts = [new BN("0")],
     account,
     blinding = new BN(randomBN(), 31, "be"),
-    poolType = BN_0,
+    poolType = new BN("0"),
     verifierAddress = SystemProgram.programId,
     index,
     appDataHash,
@@ -158,41 +155,38 @@ export class Utxo {
         `assets.length ${assets.length} > N_ASSETS ${N_ASSETS}`,
       );
     }
-
-    if (assets.findIndex((asset) => !asset) !== -1) {
-      throw new UtxoError(
-        UtxoErrorCode.ASSET_UNDEFINED,
-        "constructor",
-        `asset in index ${index} is undefined. All assets: ${assets}`,
-      );
-    }
+    assets.map((asset, index) => {
+      if (!asset)
+        throw new UtxoError(
+          UtxoErrorCode.ASSET_UNDEFINED,
+          "constructor",
+          `asset in index ${index} is undefined all assets: ${assets}`,
+        );
+    });
 
     while (assets.length < N_ASSETS) {
       assets.push(SystemProgram.programId);
     }
 
-    // @matteo: replaced for-loop with while-loop, faster due to less checks
-    let i = 0;
-    while (i < N_ASSETS) {
-      const amount = amounts[i];
-      if (amount?.lt?.(BN_0)) {
+    for (var i = 0; i < N_ASSETS; i++) {
+      if (amounts[i] && amounts[i].lt(new BN(0))) {
         throw new UtxoError(
           UtxoErrorCode.NEGATIVE_AMOUNT,
           "constructor",
-          `amount cannot be negative, amounts[${i}] = ${amount ?? "undefined"}`,
+
+          `amount cannot be negative, amounts[${i}] = ${amounts[i]}`,
         );
       }
-      i++;
     }
 
     while (amounts.length < N_ASSETS) {
-      amounts.push(BN_0);
+      amounts.push(new BN(0));
     }
 
     // TODO: check that this does not lead to hickups since publicAmountSpl cannot withdraw the fee asset sol
     if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
       amounts[0] = amounts[0].add(amounts[1]);
-      amounts[1] = BN_0;
+      amounts[1] = new BN(0);
     }
 
     // checks that amounts are U64
@@ -208,9 +202,12 @@ export class Utxo {
       }
       return new BN(x.toString());
     });
+    if (!account) {
+      this.account = new Account({ poseidon });
+    } else {
+      this.account = account;
+    }
 
-    // @matteo: replaced verbose if-else with more elegant optional assignment
-    this.account = account || new Account({ poseidon });
     this.blinding = blinding;
     this.index = index;
     this.assets = assets;
@@ -226,18 +223,18 @@ export class Utxo {
         hashAndTruncateToCircuit(this.assets[1].toBytes()),
       ];
     } else if (this.amounts[0].toString() === "0") {
-      this.assetsCircuit = [BN_0, BN_0];
+      this.assetsCircuit = [new BN(0), new BN(0)];
     } else {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
-        BN_0,
+        new BN(0),
       ];
     }
 
     if (verifierAddress.toBase58() == SystemProgram.programId.toBase58()) {
       this.verifierAddress = verifierAddress;
-      this.verifierAddressCircuit = BN_0;
-      this.verifierProgramIndex = BN_0;
+      this.verifierAddressCircuit = new BN(0);
+      this.verifierProgramIndex = new BN(0);
     } else {
       this.verifierAddress = verifierAddress;
       this.verifierAddressCircuit = hashAndTruncateToCircuit(
@@ -309,7 +306,7 @@ export class Utxo {
     } else if (appDataHash) {
       this.appDataHash = appDataHash;
     } else {
-      this.appDataHash = BN_0;
+      this.appDataHash = new BN("0");
     }
   }
 
@@ -345,11 +342,11 @@ export class Utxo {
     }
     // Compressed serialization does not store the account since for an encrypted utxo
     // we assume that the user who is able to decrypt the utxo knows the corresponding account.
-
-    // @matteo: refactored the if-else with more concise ternary operator
-    return compressed
-      ? serializedData.subarray(0, COMPRESSED_UTXO_BYTES_LENGTH)
-      : serializedData;
+    if (compressed) {
+      return serializedData.subarray(0, COMPRESSED_UTXO_BYTES_LENGTH);
+    } else {
+      return serializedData;
+    }
   }
 
   /**
@@ -395,7 +392,6 @@ export class Utxo {
         ).fill(0),
       ]);
       includeAppData = false;
-      // @matteo: why not performing the check below before the array initialization above? we can save some time/space
       if (!account)
         throw new UtxoError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
@@ -502,7 +498,6 @@ export class Utxo {
         ]),
       );
       this._commitment = commitment;
-      // @matteo: this is going to return the same variable in either case
       return this._commitment;
     } else {
       return this._commitment;
@@ -517,23 +512,26 @@ export class Utxo {
    * @returns {string}
    */
   getNullifier(poseidon: any, index?: number | undefined) {
-    // @matteo: improved some conditional machinery
-    if (this.index === undefined) {
-      if (index) {
-        this.index = index;
-      } else if (this.amounts[0].isZero() && this.amounts[1].isZero()) {
-        this.index = 0;
-      } else {
-        throw new UtxoError(
-          UtxoErrorCode.INDEX_NOT_PROVIDED,
-          "getNullifier",
-          "The index of a UTXO in the Merkle tree is required to compute the nullifier hash.",
-        );
-      }
+    if (this.index === undefined && index) {
+      this.index = index;
     }
 
     if (
-      (!this.amounts[0].eq(BN_0) || !this.amounts[1].eq(BN_0)) &&
+      this.index === undefined &&
+      this.amounts[0].eq(new BN(0)) &&
+      this.amounts[1].eq(new BN(0))
+    ) {
+      this.index = 0;
+    } else if (this.index === undefined) {
+      throw new UtxoError(
+        UtxoErrorCode.INDEX_NOT_PROVIDED,
+        "getNullifier",
+        "The index of an utxo in the merkle tree is required to compute the nullifier hash.",
+      );
+    }
+
+    if (
+      (!this.amounts[0].eq(new BN(0)) || !this.amounts[1].eq(new BN(0))) &&
       this.account.privkey.toString() === "0"
     ) {
       throw new UtxoError(
