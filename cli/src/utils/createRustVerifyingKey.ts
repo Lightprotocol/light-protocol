@@ -19,7 +19,7 @@ type PropertiesObject = {
  * 3- Read .r1cs file and save the #total of Prv, Pbl inputs as well as outputs.
  * 4- Filter inputs with unique name and max size according to circom signals format.
  */
-async function getProofInputsFromSymFile(artifiactPath: string) {
+async function getProofInputsFromSymFile(artifactPath: string) {
   // filter inputData array based on the maximum size of nested arrays([0] otherwise)
   function uniqueMaxSize(arr: PropertiesObject[]) {
     const uniqueArr = arr.reduce((acc: PropertiesObject[], cur) => {
@@ -60,10 +60,10 @@ async function getProofInputsFromSymFile(artifiactPath: string) {
 
   let match;
   let keys = [];
-  const symText = fs.readFileSync(`${artifiactPath}.sym`, "utf-8");
+  const symText = fs.readFileSync(`${artifactPath}.sym`, "utf-8");
   while ((match = regex.exec(symText)) !== null) {
     keys.push(match[1]);
-    const name = match[1];
+    // const name = match[1];
   }
 
   let arr: PropertiesObject[] = [];
@@ -82,7 +82,7 @@ async function getProofInputsFromSymFile(artifiactPath: string) {
   });
 
   // Retrieve the number of outputs as well as the number of private and public inputs from the R1CS file
-  const r1cs = await snarkjs.r1cs.exportJson(`${artifiactPath}.r1cs`);
+  const r1cs = await snarkjs.r1cs.exportJson(`${artifactPath}.r1cs`);
   const nOut = r1cs.nOutputs;
   const nPub = r1cs.nPubInputs;
   const nPrv = r1cs.nPrvInputs;
@@ -141,7 +141,7 @@ async function createVerifyingKeyRsFile(
   paths: string[],
   appendingString: string
 ) {
-  let file = await fs.readFile(
+  await fs.readFile(
     vKeyJsonPath,
     async function (err: Error | null, fd: Buffer) {
       if (err) {
@@ -215,6 +215,38 @@ async function createVerifyingKeyRsFile(
         }
       }
 
+      /*const processSubData = (subData: any) =>
+        leInt2Buff(unstringifyBigInts(subData), 32).reverse();
+
+      const processDoubleSubData = (doubleSubData: any) => {
+        const tmp = [
+          ...leInt2Buff(unstringifyBigInts(doubleSubData[0]), 32),
+          ...leInt2Buff(unstringifyBigInts(doubleSubData[1]), 32),
+        ].reverse();
+        return [tmp.slice(0, 32), tmp.slice(32, 64)];
+      };
+
+      const processNestedData = (nestedData: any) =>
+        nestedData.map((data: any) => leInt2Buff(unstringifyBigInts(data)));
+
+      for (let i in mydata) {
+        switch (i) {
+          case "vk_alpha_1":
+            mydata[i] = Object.values(mydata[i]).map(processSubData);
+            break;
+          case "vk_beta_2":
+          case "vk_gamma_2":
+          case "vk_delta_2":
+            mydata[i] = Object.values(mydata[i]).map(processDoubleSubData);
+            break;
+          case "vk_alphabeta_12":
+          case "IC":
+            mydata[i] = Object.values(mydata[i]).map(processNestedData);
+            break;
+        }
+      }
+      */
+
       for (var path of paths) {
         let resFile = await fs.openSync(path, "w");
 
@@ -251,14 +283,12 @@ async function createVerifyingKeyRsFile(
         s += "\t],\n\n";
         fs.writeSync(resFile, s);
         s = "\tvk_ic: &[\n";
-        let x = 0;
 
         for (let ic in mydata.IC) {
           s += "\t\t[\n";
           for (let j = 0; j < mydata.IC[ic].length - 1; j++) {
             s += "\t\t\t" + mydata.IC[ic][j] + ",\n";
           }
-          x++;
           s += "\t\t],\n";
         }
         s += "\t]\n};";
@@ -269,6 +299,54 @@ async function createVerifyingKeyRsFile(
 
         execSync(`rustfmt ${path}`);
       }
+
+      /*
+      for (const path of paths) {
+        const resFile = await fs.open(path, "w");
+        let s = `use groth16_solana::groth16::Groth16Verifyingkey;
+      use anchor_lang::prelude::*;
+      
+      pub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {
+      \tnr_pubinputs: ${mydata.IC.length},
+      \tvk_alpha_g1: [
+      ${mydata.vk_alpha_1
+        .slice(0, -1)
+        .map((arr: any) => `\t\t${arr},`)
+        .join("\n")}
+      \t],
+      \tvk_beta_g2: [
+      ${mydata.vk_beta_2
+        .slice(0, -1)
+        .flatMap((arr: any) => arr.map((subArr: any) => `\t\t${subArr},`))
+        .join("\n")}
+      \t],
+      \tvk_gamme_g2: [
+      ${mydata.vk_gamma_2
+        .slice(0, -1)
+        .flatMap((arr: any) => arr.map((subArr: any) => `\t\t${subArr},`))
+        .join("\n")}
+      \t],
+      \tvk_delta_g2: [
+      ${mydata.vk_delta_2
+        .slice(0, -1)
+        .flatMap((arr: any) => arr.map((subArr: any) => `\t\t${subArr},`))
+        .join("\n")}
+      \t],
+      \tvk_ic: &[
+      ${mydata.IC.map(
+        (icArr: any) =>
+          `\t\t[${icArr
+            .slice(0, -1)
+            .map((item: any) => `\t\t\t${item},`)
+            .join("\n")}\n\t\t],`
+      ).join("\n")}
+      \t]
+      };
+      ${appendingString}`;
+
+        await fs.write(resFile, s);
+        await fs.close(resFile);
+      }*/
     }
   );
 }
@@ -284,13 +362,13 @@ export async function createVerfyingkeyRsFileArgv() {
   let vKeyJsonPath: string;
   let vKeyRsPath: string;
   let circuitName: string;
-  let artifiactPath: string;
+  let artifactPath: string;
   if (nrInputs == "app") {
     program = `${process.argv[3]}`;
     vKeyJsonPath = "./verifyingkey.json";
     vKeyRsPath = "./programs/" + program + "/src/verifying_key.rs";
     circuitName = process.argv[4] ? `${process.argv[4]}` : "appTransaction";
-    artifiactPath = "./sdk/build-circuit/" + toCamelCase(circuitName);
+    artifactPath = "./sdk/build-circuit/" + toCamelCase(circuitName);
   } else {
     if (nrInputs == "2") {
       program = "verifier_program_zero";
@@ -311,7 +389,7 @@ export async function createVerfyingkeyRsFileArgv() {
     vKeyRsPath =
       "../light-system-programs/programs/" + program + "/src/verifying_key.rs";
     circuitName = "transaction" + process.argv[3];
-    artifiactPath =
+    artifactPath =
       "../light-zk.js/build-circuits/transaction" + process.argv[3];
   }
   await createVerifyingkeyRsFile(
@@ -320,24 +398,24 @@ export async function createVerfyingkeyRsFileArgv() {
     vKeyJsonPath,
     vKeyRsPath,
     circuitName,
-    artifiactPath
+    artifactPath
   );
 }
 
 export async function createVerifyingkeyRsFile(
-  program: string,
+  _program: string,
   paths: string[],
   vKeyJsonPath: string,
   vKeyRsPath: string,
   circuitName: string,
-  artifiactPath: string
+  artifactPath: string
 ) {
   if (!vKeyRsPath)
     throw new Error("Undefined output path for the verifying_key.rs file!");
   paths.push(vKeyRsPath);
 
   const ProofInputs: PropertiesObject[] = await getProofInputsFromSymFile(
-    artifiactPath
+    artifactPath
   );
   const PublicInputs = ProofInputs.filter(
     (ProofInputs) => ProofInputs.public === 1

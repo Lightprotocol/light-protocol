@@ -18,13 +18,13 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   let { projectName, programAddress }: any = argv;
   if (!projectName) {
     console.log(
-      "Project name is undefined add a project name with --projectName <project-name>"
+      "Project name is undefined. Add a project name with --projectName <project-name>"
     );
     process.exit(0);
   }
   if (!programAddress) {
     console.log(
-      "Program address is undefined add a program address with --programAddress <program-address>"
+      "Program address is undefined. Add a program address with --programAddress <program-address>"
     );
     process.exit(0);
   }
@@ -32,7 +32,9 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   const commandPath = path.resolve(__dirname, "../../scripts/runTest.sh");
   const systemProgramPath = path.resolve(__dirname, "../../");
 
-  console.log(`${commandPath} ${systemProgramPath} ${process.cwd()} ${programAddress} ${programName}.so 'yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit'`);
+  console.log(
+    `${commandPath} ${systemProgramPath} ${process.cwd()} ${programAddress} ${programName}.so 'yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit'`
+  );
   await executeCommand({
     command: "/bin/bash",
     args: [
@@ -41,8 +43,8 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
       process.cwd(),
       programAddress,
       `${programName}.so`,
-      `yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit`
-    ]
+      `yarn ts-mocha -t 2000000 tests/${projectName}.ts --exit`,
+    ],
   });
   process.exit(0);
 };

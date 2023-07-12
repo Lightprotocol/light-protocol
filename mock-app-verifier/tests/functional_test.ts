@@ -5,8 +5,6 @@ import {
   Utxo,
   Transaction,
   ADMIN_AUTH_KEYPAIR,
-  initLookUpTableFromFile,
-  setUpMerkleTree,
   createTestAccounts,
   KEYPAIR_PRIVKEY,
   Account,
@@ -18,20 +16,17 @@ import {
   confirmConfig,
   Action,
   TestRelayer,
-  hashAndTruncateToCircuit,
   createAccountObject,
   TestTransaction,
   IDL_VERIFIER_PROGRAM_TWO,
   User,
   airdropShieldedSol,
-  ProgramUtxoBalance,
   MINT,
   airdropShieldedMINTSpl,
   IDL_VERIFIER_PROGRAM_ZERO,
   Provider,
   LOOK_UP_TABLE,
   ProgramParameters,
-  sleep,
 } from "@lightprotocol/zk.js";
 import {
   Keypair as SolanaKeypair,
@@ -146,13 +141,14 @@ describe("Mock verifier functional", () => {
       2_000_000_000,
     );
 
-    RELAYER = new TestRelayer({
+    RELAYER = new TestRelayer(
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
-      relayerFee: new BN(100_000),
-      payer: ADMIN_AUTH_KEYPAIR,
-    });
+      new BN(100000),
+      new BN(10_000_000),
+      ADMIN_AUTH_KEYPAIR,
+    );
     lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,

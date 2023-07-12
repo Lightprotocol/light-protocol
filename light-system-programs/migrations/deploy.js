@@ -1,6 +1,30 @@
+"use strict";
 // Migrations are an early feature. Currently, they're nothing more than this
 // single deploy script that's invoked from the CLI, injecting a provider
 // configured from the workspace's Anchor.toml.
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -10,11 +34,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-const anchor = require("@coral-xyz/anchor");
+Object.defineProperty(exports, "__esModule", { value: true });
+const zk_js_1 = require("@lightprotocol/zk.js");
+const anchor = __importStar(require("@coral-xyz/anchor"));
+const web3_js_1 = require("@solana/web3.js");
 module.exports = function (provider) {
     return __awaiter(this, void 0, void 0, function* () {
-        // Configure client to use the provider.
         anchor.setProvider(provider);
-        // Add your deploy script here.
+        const newAuthority = new web3_js_1.PublicKey("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+        yield (0, zk_js_1.createTestAccounts)(provider.connection);
+        yield (0, zk_js_1.setUpMerkleTree)(provider, newAuthority, true);
+        process.exit();
     });
 };

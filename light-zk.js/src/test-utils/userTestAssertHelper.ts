@@ -18,11 +18,8 @@ import { BN } from "@coral-xyz/anchor";
 
 import {
   AUTHORITY,
-  MESSAGE_MERKLE_TREE_KEY,
   MINIMUM_LAMPORTS,
-  TOKEN_ACCOUNT_FEE,
   TOKEN_REGISTRY,
-  TRANSACTION_MERKLE_TREE_KEY,
   merkleTreeProgramId,
   verifierProgramOneProgramId,
   verifierProgramZeroProgramId,
@@ -91,10 +88,7 @@ export class UserTestAssertHelper {
   }
 
   async fetchAndSaveState() {
-    const saveUserState = async (
-      userBalances: TestUserBalances,
-      testInputs: TestInputs,
-    ) => {
+    const saveUserState = async (userBalances: TestUserBalances) => {
       userBalances.preShieldedBalance = (
         await User.init({
           provider: this.provider,
@@ -146,8 +140,8 @@ export class UserTestAssertHelper {
           this.provider.wallet.publicKey,
         );
     };
-    await saveUserState(this.sender, this.testInputs);
-    await saveUserState(this.recipient, this.testInputs);
+    await saveUserState(this.sender);
+    await saveUserState(this.recipient);
     this.relayerPreSolBalance =
       await this.provider.provider?.connection.getBalance(
         this.provider.relayer.accounts.relayerRecipientSol,
@@ -253,7 +247,7 @@ export class UserTestAssertHelper {
           "Message mismatch",
         );
     };
-    const { amountSol, amountSpl, type, token } = this.testInputs;
+    const { amountSol, amountSpl, type } = this.testInputs;
 
     let transactions = await this.sender.user.getTransactionHistory();
 
@@ -408,7 +402,7 @@ export class UserTestAssertHelper {
     await user.provider.latestMerkleTree();
     for (var [asset, tokenBalance] of user.balance.tokenBalances.entries()) {
       // commitment is inserted in the merkle tree
-      for (var [commitment, utxo] of tokenBalance.utxos.entries()) {
+      for (var [, utxo] of tokenBalance.utxos.entries()) {
         assert.notDeepEqual(
           user.provider.solMerkleTree?.merkleTree.indexOf(
             utxo.getCommitment(this.provider.poseidon),

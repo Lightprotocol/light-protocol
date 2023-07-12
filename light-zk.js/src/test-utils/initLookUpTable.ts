@@ -2,7 +2,6 @@ import { Program, Provider } from "@coral-xyz/anchor";
 import {
   PublicKey,
   AddressLookupTableProgram,
-  Keypair,
   SystemProgram,
   sendAndConfirmTransaction,
   Transaction,

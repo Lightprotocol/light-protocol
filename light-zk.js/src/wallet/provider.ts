@@ -1,9 +1,4 @@
-import {
-  AnchorError,
-  AnchorProvider,
-  BN,
-  setProvider,
-} from "@coral-xyz/anchor";
+import { AnchorProvider, BN, setProvider } from "@coral-xyz/anchor";
 import {
   PublicKey,
   Keypair as SolanaKeypair,
@@ -23,7 +18,6 @@ import {
   MERKLE_TREE_HEIGHT,
   TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
-  initLookUpTableFromFile,
   SolMerkleTree,
   RELAYER_RECIPIENT_KEYPAIR,
   IndexedTransaction,
