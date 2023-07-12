@@ -11,11 +11,13 @@
     "rootDirs": ["src", "generated"],
     "baseUrl": "src",
     "skipLibCheck": true,
-    "useUnknownInCatchVariables": false
+    "useUnknownInCatchVariables": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": ["src", "__tests__", "tests"],
   "exclude": ["node_modules", "**/tests/*"],
-  
+
   "dry": false,
   "debug": false
 }

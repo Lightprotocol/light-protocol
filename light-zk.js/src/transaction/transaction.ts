@@ -3,9 +3,6 @@ import {
   TransactionSignature,
   TransactionInstruction,
   Transaction as SolanaTransaction,
-  TransactionConfirmationStrategy,
-  BlockheightBasedTransactionConfirmationStrategy,
-  GetVersionedBlockConfig,
 } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl, Program, utils } from "@coral-xyz/anchor";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
@@ -16,13 +13,11 @@ import {
   ProviderErrorCode,
   SolMerkleTreeErrorCode,
   Provider,
-  sendVersionedTransaction,
   TransactionParameters,
   firstLetterToUpper,
   createAccountObject,
   firstLetterToLower,
   hashAndTruncateToCircuit,
-  TOKEN_AUTHORITY,
   MINT,
   ConfirmOptions,
   sendVersionedTransactions,
@@ -643,7 +638,7 @@ export class Transaction {
 
   // TODO: evaluate whether confirm options should be here or in transaction parameters
   async sendTransaction(
-    confirmOptions: ConfirmOptions = ConfirmOptions.finalized,
+    _confirmOptions: ConfirmOptions = ConfirmOptions.finalized,
   ): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {

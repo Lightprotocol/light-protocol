@@ -1,19 +1,14 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 let circomlibjs = require("circomlibjs");
 
 import {
-  setUpMerkleTree,
   initLookUpTableFromFile,
   ADMIN_AUTH_KEYPAIR,
-  Provider,
   createTestAccounts,
   confirmConfig,
-  User,
-  Account,
   TestRelayer,
   Action,
-  UserTestAssertHelper,
   airdropShieldedSol,
   airdropSol,
 } from "@lightprotocol/zk.js";
@@ -26,9 +21,6 @@ import {
   performShielding,
 } from "./test-utils/user-utils";
 
-var LOOK_UP_TABLE;
-var POSEIDON;
-var RELAYER: TestRelayer, provider: Provider;
 const recipientSeed = bs58.encode(new Uint8Array(32).fill(7));
 
 // TODO: remove deprecated function calls
