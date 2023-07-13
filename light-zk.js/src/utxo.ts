@@ -66,7 +66,7 @@ export class Utxo {
    */
   amounts: BN[];
   assets: PublicKey[];
-  assetsCircuit: BN[];
+  assetsCircuit: BN[] = [];
   blinding: BN;
   account: Account;
   index?: number;
@@ -177,7 +177,7 @@ export class Utxo {
       const amount = amounts[i];
       if (amount?.lt?.(BN_0)) {
         throw new UtxoError(
-          UtxoErrorCode.NEGATIVE_AMOUNT,
+          UtxoErrorCode.NEGATIVE_AMOUNT, // @matteo: I added this error type
           "constructor",
           `amount cannot be negative, amounts[${i}] = ${amount ?? "undefined"}`,
         );
@@ -189,7 +189,7 @@ export class Utxo {
       amounts.push(BN_0);
     }
 
-    // TODO: check that this does not lead to hickups since publicAmountSpl cannot withdraw the fee asset sol
+    // TODO: check that this does not lead to hiccups since publicAmountSpl cannot withdraw the fee asset sol
     if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
       amounts[0] = amounts[0].add(amounts[1]);
       amounts[1] = BN_0;
@@ -219,14 +219,34 @@ export class Utxo {
     this.includeAppData = includeAppData;
     this.transactionVersion = "0";
 
+    if (
+      assets[1].toBase58() === SystemProgram.programId.toBase58() &&
+      !amounts[1].isZero()
+    ) {
+      throw new UtxoError(
+        UtxoErrorCode.POSITIVE_AMOUNT,
+        "constructor",
+        `spl amount cannot be positive, amounts[1] = ${
+          amounts[1] ?? "undefined"
+        }`,
+      );
+    }
     // TODO: make variable length
-    if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
+    else if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
         hashAndTruncateToCircuit(this.assets[1].toBytes()),
       ];
-    } else if (this.amounts[0].toString() === "0") {
+    } else if (this.amounts[0].isZero()) {
       this.assetsCircuit = [BN_0, BN_0];
+    }
+    // @matteo: adding condition for amounts =! 0
+    else if (!this.amounts[0].isZero()) {
+      throw new UtxoError(
+        UtxoErrorCode.NON_ZERO_AMOUNT, // @matteo: I added this error type, do not know yet if it makes sense
+        "constructor",
+        `amount not zero, amounts[0] = ${this.amounts[0] ?? "undefined"}`,
+      );
     } else {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
