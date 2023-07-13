@@ -184,7 +184,7 @@ export class Utxo {
       const amount = amounts[i];
       if (amount?.lt?.(BN_0)) {
         throw new UtxoError(
-          UtxoErrorCode.NEGATIVE_AMOUNT,
+          UtxoErrorCode.NEGATIVE_AMOUNT, // @matteo: I added this error type
           "constructor",
           `amount cannot be negative, amounts[${i}] = ${amount ?? "undefined"}`,
         );
@@ -245,6 +245,14 @@ export class Utxo {
       ];
     } else if (this.amounts[0].isZero()) {
       this.assetsCircuit = [BN_0, BN_0];
+    }
+    // @matteo: adding condition for amounts =! 0
+    else if (!this.amounts[0].isZero()) {
+      throw new UtxoError(
+        UtxoErrorCode.NON_ZERO_AMOUNT, // @matteo: I added this error type, do not know yet if it makes sense
+        "constructor",
+        `amount not zero, amounts[0] = ${this.amounts[0] ?? "undefined"}`,
+      );
     } else {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
