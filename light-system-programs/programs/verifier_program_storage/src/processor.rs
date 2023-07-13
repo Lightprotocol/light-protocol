@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Config, Transaction},
+    light_transaction::{Config, Transaction, TransactionInput},
 };
 
 use crate::{verifying_key::VERIFYINGKEY, LightInstructionSecond};
@@ -30,7 +30,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
     leaves: &'a [[[u8; 32]; 2]; 1],
     public_amount_sol: &'a [u8; 32],
     encrypted_utxos: &'a Vec<u8>,
-    merkle_tree_index: u64,
+    merkle_root_index: u64,
     relayer_fee: u64,
     checked_public_inputs: &'a Vec<Vec<u8>>,
     pool_type: &'a [u8; 32],
@@ -55,7 +55,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
         ctx.remaining_accounts,
     )?;
 
-    let mut transaction = Transaction::<1, 2, TransactionConfig>::new(
+    let input = TransactionInput {
         message_hash,
         message,
         proof_a,
@@ -63,16 +63,17 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
         proof_c,
         public_amount_spl,
         public_amount_sol,
-        checked_public_inputs,
         nullifiers,
         leaves,
         encrypted_utxos,
+        merkle_root_index: merkle_root_index as usize,
         relayer_fee,
-        merkle_tree_index as usize,
+        checked_public_inputs,
         pool_type,
-        Some(&accounts),
-        &VERIFYINGKEY,
-    );
+        accounts: Some(&accounts),
+        verifyingkey: &VERIFYINGKEY,
+    };
+    let mut transaction = Transaction::<1, 2, TransactionConfig>::new(input);
 
     transaction.transact()
 }

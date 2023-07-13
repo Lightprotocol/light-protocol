@@ -58,8 +58,8 @@ pub mod verifier_program_one {
             &[[inputs.output_commitment[0], inputs.output_commitment[1]]; 1],
             &inputs.public_amount_sol,
             &enc_utxos,
-            &inputs.root_index,
-            &inputs.relayer_fee,
+            inputs.root_index,
+            inputs.relayer_fee,
         )
     }
 

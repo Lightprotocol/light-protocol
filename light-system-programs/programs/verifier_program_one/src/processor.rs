@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Config, Transaction},
+    light_transaction::{Config, Transaction, TransactionInput},
 };
 
 use crate::{LightInstructionFirst, LightInstructionSecond};
@@ -29,29 +29,30 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
     leaves: &'a [[[u8; 32]; 2]; 1],
     public_amount_sol: &'a [u8; 32],
     encrypted_utxos: &'a Vec<u8>,
-    root_index: &'a u64,
-    relayer_fee: &'a u64,
+    merkle_root_index: u64,
+    relayer_fee: u64,
 ) -> Result<()> {
     let checked_public_inputs = Vec::<Vec<u8>>::new();
     let pool_type = [0u8; 32];
-    let tx = Transaction::<1, 10, TransactionConfig>::new(
-        None,
-        None,
+    let input = TransactionInput {
+        message_hash: None,
+        message: None,
         proof_a,
         proof_b,
         proof_c,
         public_amount_spl,
         public_amount_sol,
-        &checked_public_inputs, // checked_public_inputs
         nullifiers,
         leaves,
         encrypted_utxos,
-        *relayer_fee,
-        (*root_index).try_into().unwrap(),
-        &pool_type, //pool_type
-        None,
-        &VERIFYINGKEY,
-    );
+        relayer_fee,
+        merkle_root_index: merkle_root_index as usize,
+        pool_type: &pool_type,
+        checked_public_inputs: &checked_public_inputs,
+        accounts: None,
+        verifyingkey: &VERIFYINGKEY,
+    };
+    let tx = Transaction::<1, 10, TransactionConfig>::new(input);
     ctx.accounts.verifier_state.set_inner(tx.into());
     ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
     Ok(())
@@ -97,27 +98,29 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
         .try_into()
         .unwrap();
 
-    let mut tx = Transaction::<1, 10, TransactionConfig>::new(
-        None,
-        None,
+    let input = TransactionInput {
+        message_hash: None,
+        message: None,
         proof_a,
         proof_b,
         proof_c,
-        &ctx.accounts.verifier_state.public_amount_spl,
-        &ctx.accounts.verifier_state.public_amount_sol,
-        &checked_public_inputs, // checked_public_inputs
-        &nullifier,
-        &leaves,
-        &ctx.accounts.verifier_state.encrypted_utxos,
-        ctx.accounts.verifier_state.relayer_fee,
-        ctx.accounts
+        public_amount_spl: &ctx.accounts.verifier_state.public_amount_spl,
+        public_amount_sol: &ctx.accounts.verifier_state.public_amount_sol,
+        nullifiers: &nullifier,
+        leaves: &leaves,
+        encrypted_utxos: &ctx.accounts.verifier_state.encrypted_utxos,
+        relayer_fee: ctx.accounts.verifier_state.relayer_fee,
+        merkle_root_index: ctx
+            .accounts
             .verifier_state
             .merkle_root_index
             .try_into()
             .unwrap(),
-        &pool_type,
-        Some(&accounts),
-        &VERIFYINGKEY,
-    );
+        pool_type: &pool_type,
+        checked_public_inputs: &checked_public_inputs,
+        accounts: Some(&accounts),
+        verifyingkey: &VERIFYINGKEY,
+    };
+    let mut tx = Transaction::<1, 10, TransactionConfig>::new(input);
     tx.transact()
 }

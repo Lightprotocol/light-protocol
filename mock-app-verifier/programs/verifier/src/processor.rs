@@ -4,6 +4,7 @@ use crate::LightInstructionThird;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::sysvar;
 use light_macros::pubkey;
+use light_verifier_sdk::light_transaction::TransactionInput;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use light_verifier_sdk::{
     light_app_transaction::AppTransaction,
@@ -40,24 +41,25 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
         [output_commitment[0], output_commitment[1]],
         [output_commitment[2], output_commitment[3]],
     ];
-    let tx = Transaction::<2, 4, TransactionsConfig>::new(
-        None,
-        None,
+    let input = TransactionInput {
+        message_hash: None,
+        message: None,
         proof_a,
         proof_b,
         proof_c,
         public_amount_spl,
         public_amount_sol,
-        checked_public_inputs,
-        input_nullifier,
-        &output_commitment,
+        nullifiers: input_nullifier,
+        leaves: &output_commitment,
         encrypted_utxos,
-        *relayer_fee,
-        (*root_index).try_into().unwrap(),
-        pool_type, //pool_type
-        None,
-        &VERIFYINGKEY,
-    );
+        relayer_fee: *relayer_fee,
+        merkle_root_index: (*root_index).try_into().unwrap(),
+        pool_type,
+        checked_public_inputs,
+        accounts: None,
+        verifyingkey: &VERIFYINGKEY,
+    };
+    let tx = Transaction::<2, 4, TransactionsConfig>::new(input);
     ctx.accounts.verifier_state.set_inner(tx.into());
     ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
     Ok(())
