@@ -19,10 +19,9 @@ import {
   SystemProgram,
   SYSVAR_CLOCK_PUBKEY,
   SYSVAR_RENT_PUBKEY,
-  TokenBalance,
 } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { MINT, TokenData } from "./index";
+import { TokenData } from "./index";
 
 export const CONSTANT_SECRET_AUTHKEY: Uint8Array = Uint8Array.from([
   155, 249, 234, 55, 8, 49, 0, 14, 84, 72, 10, 224, 21, 139, 87, 102, 115, 88,

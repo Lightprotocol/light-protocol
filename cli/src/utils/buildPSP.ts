@@ -20,9 +20,9 @@ async function generateCircuit({
   ptau,
   programName,
 }: {
-  circuitName: string,
-  ptau: number,
-  programName: string
+  circuitName: string;
+  ptau: number;
+  programName: string;
 }): Promise<void> {
   const POWERS_OF_TAU = ptau;
   const ptauFileName = `ptau${POWERS_OF_TAU}`;
@@ -54,7 +54,7 @@ async function generateCircuit({
       `./circuit/${circuitName}.circom`,
       "-o",
       `${sdkBuildCircuitDir}/`,
-    ]
+    ],
   });
 
   await executeCommand({
@@ -66,7 +66,7 @@ async function generateCircuit({
       `${sdkBuildCircuitDir}/${circuitName}.r1cs`,
       ptauFilePath,
       `${sdkBuildCircuitDir}/${circuitName}_tmp.zkey`,
-    ]
+    ],
   });
 
   let randomContributionBytes = utils.bytes.hex.encode(
@@ -74,7 +74,7 @@ async function generateCircuit({
   );
   try {
     fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
-  } catch (_) { }
+  } catch (_) {}
   await executeCommand({
     command: "yarn",
     args: [
@@ -84,7 +84,7 @@ async function generateCircuit({
       `${sdkBuildCircuitDir}/${circuitName}_tmp.zkey`,
       `${sdkBuildCircuitDir}/${circuitName}.zkey`,
       `-e=${randomContributionBytes}`,
-    ]
+    ],
   });
 
   await executeCommand({
@@ -96,14 +96,14 @@ async function generateCircuit({
       "verificationkey",
       `${sdkBuildCircuitDir}/${circuitName}.zkey`,
       `${sdkBuildCircuitDir}/verifyingkey.json`,
-    ]
+    ],
   });
   const vKeyJsonPath = "./build-circuit/verifyingkey.json";
   const vKeyRsPath = "./programs/" + programName + "/src/verifying_key.rs";
   const artifiactPath = "./build-circuit/" + circuitName;
   try {
     fs.unlinkSync(vKeyJsonPath);
-  } catch (_) { }
+  } catch (_) {}
   while (!fs.existsSync(vKeyJsonPath)) {
     await executeCommand({
       command: "yarn",
@@ -114,12 +114,12 @@ async function generateCircuit({
         "verificationkey",
         `${sdkBuildCircuitDir}/${circuitName}.zkey`,
         `${sdkBuildCircuitDir}/verifyingkey.json`,
-      ]
+      ],
     });
   }
   try {
     fs.unlinkSync(vKeyRsPath);
-  } catch (_) { }
+  } catch (_) {}
   await createVerifyingkeyRsFile(
     programName,
     [],
@@ -188,10 +188,7 @@ export async function buildPSP(
 
   console.log("📜 Generating circom files");
   let stdout = await executeMacroCircom({
-    args: [
-      `./${circuitDir}/${circuitFileName}`,
-      programName,
-    ]
+    args: [`./${circuitDir}/${circuitFileName}`, programName],
   });
   console.log("✅ Circom files generated successfully");
 
@@ -206,7 +203,7 @@ export async function buildPSP(
   await generateCircuit({
     circuitName: circuitMainFileName.slice(0, -suffix.length),
     ptau,
-    programName
+    programName,
   });
   console.log("✅ Circuit generated successfully");
 

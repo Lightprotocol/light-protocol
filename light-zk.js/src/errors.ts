@@ -1,5 +1,3 @@
-import { ASSOCIATED_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/utils/token";
-
 export enum UtxoErrorCode {
   APP_DATA_IDL_UNDEFINED = "APP_DATA_IDL_UNDEFINED",
   INVALID_ASSET_OR_AMOUNTS_LENGTH = "INVALID_ASSET_OR_AMOUNTS_LENGTH",

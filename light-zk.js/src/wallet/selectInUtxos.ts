@@ -1,5 +1,4 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import {
   CreateUtxoErrorCode,
@@ -8,11 +7,8 @@ import {
   SelectInUtxosErrorCode,
   TransactionErrorCode,
   Action,
-  getRecipientsAmount,
   getUtxoArrayAmount,
-  Recipient,
   Utxo,
-  Account,
 } from "../index";
 
 // TODO: turn these into static user.class methods

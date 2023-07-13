@@ -1,26 +1,15 @@
-import {
-  BlockheightBasedTransactionConfirmationStrategy,
-  Connection,
-  Keypair,
-  PublicKey,
-  TransactionSignature,
-} from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
-import { ConfirmOptions, Provider, useWallet, Wallet } from "../wallet";
+import { Provider, useWallet } from "../wallet";
 import {
   indexRecentTransactions,
-  sendVersionedTransaction,
   sendVersionedTransactions,
 } from "../transaction";
 import { IndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
-import {
-  TRANSACTION_MERKLE_TREE_KEY,
-  IDL_MERKLE_TREE_PROGRAM,
-  confirmConfig,
-} from "../index";
+import { TRANSACTION_MERKLE_TREE_KEY, IDL_MERKLE_TREE_PROGRAM } from "../index";
 
 export class TestRelayer extends Relayer {
   indexedTransactions: IndexedTransaction[] = [];

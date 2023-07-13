@@ -2,13 +2,11 @@ import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
   IndexedTransaction,
   indexRecentTransactions,
-  sendVersionedTransaction,
   sendVersionedTransactions,
 } from "@lightprotocol/zk.js";
 import { getLightProvider, setAnchorProvider } from "../utils/provider";
 
 export async function sendTransaction(req: any, res: any) {
- 
   try {
     if (!req.body.instructions) throw new Error("No instructions provided");
     const provider = await getLightProvider();
@@ -16,7 +14,7 @@ export async function sendTransaction(req: any, res: any) {
     if (!provider.provider) throw new Error("no provider set");
 
     let instructions: TransactionInstruction[] = [];
-    for (let instruction of req.body.instructions){
+    for (let instruction of req.body.instructions) {
       const accounts = instruction.keys.map((key: any) => {
         return {
           pubkey: new PublicKey(key.pubkey),
@@ -32,8 +30,15 @@ export async function sendTransaction(req: any, res: any) {
       instructions.push(newInstruction);
     }
 
-    var response = await sendVersionedTransactions(instructions, provider.provider.connection, provider.relayer.accounts.lookUpTable, provider.wallet)
-    return res.status(200).json({ data: { transactionStatus: "confirmed", ...response }  });
+    var response = await sendVersionedTransactions(
+      instructions,
+      provider.provider.connection,
+      provider.relayer.accounts.lookUpTable,
+      provider.wallet,
+    );
+    return res
+      .status(200)
+      .json({ data: { transactionStatus: "confirmed", ...response } });
   } catch (error) {
     return res.status(500).json({ status: "error", message: error.message });
   }
@@ -41,7 +46,6 @@ export async function sendTransaction(req: any, res: any) {
 
 export async function indexedTransactions(req: any, res: any) {
   try {
-
     const provider = await setAnchorProvider();
 
     if (!provider) throw new Error("no provider set");

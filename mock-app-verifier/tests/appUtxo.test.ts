@@ -2,25 +2,14 @@ import * as anchor from "@coral-xyz/anchor";
 
 import {
   Utxo,
-  Transaction,
   ADMIN_AUTH_KEYPAIR,
-  initLookUpTableFromFile,
-  setUpMerkleTree,
-  createTestAccounts,
   KEYPAIR_PRIVKEY,
   Account,
-  TransactionParameters,
   Provider as LightProvider,
-  userTokenAccount,
-  ADMIN_AUTH_KEY,
   confirmConfig,
-  Action,
-  TestRelayer,
-  hashAndTruncateToCircuit,
   createAccountObject,
 } from "@lightprotocol/zk.js";
 import {
-  Keypair as SolanaKeypair,
   SystemProgram,
   PublicKey,
 } from "@solana/web3.js";

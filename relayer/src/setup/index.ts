@@ -1,7 +1,7 @@
 import {
   createTestAccounts,
-  initLookUpTableFromFile,
-  setUpMerkleTree,
+  // initLookUpTableFromFile,
+  // setUpMerkleTree,
 } from "@lightprotocol/zk.js";
 import { getLightProvider, setAnchorProvider } from "../utils/provider";
 
