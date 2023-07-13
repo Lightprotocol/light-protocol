@@ -31,6 +31,8 @@ pub enum ErrorCode {
 
 #[program]
 pub mod verifier_program_two {
+    use light_verifier_sdk::light_transaction::Proof;
+
     use super::*;
 
     /// This instruction is used to invoke this system verifier and can only be invoked via cpi.
@@ -41,7 +43,12 @@ pub mod verifier_program_two {
         proof_c: [u8; 64],
         connecting_hash: [u8; 32],
     ) -> Result<()> {
-        process_shielded_transfer(ctx, &proof_a, &proof_b, &proof_c, &connecting_hash)?;
+        let proof = Proof {
+            a: proof_a,
+            b: proof_b,
+            c: proof_c,
+        };
+        process_shielded_transfer(ctx, &proof, &connecting_hash)?;
         Ok(())
     }
 }

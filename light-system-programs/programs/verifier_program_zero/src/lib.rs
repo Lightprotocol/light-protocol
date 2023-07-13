@@ -26,6 +26,8 @@ pub const PROGRAM_ID: &str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";
 #[program]
 pub mod verifier_program_zero {
 
+    use light_verifier_sdk::light_transaction::{Amount, Proof};
+
     use super::*;
 
     /// This instruction is the first step of a shieled transaction.
@@ -44,15 +46,21 @@ pub mod verifier_program_zero {
         let len_missing_bytes = 256 - inputs.encrypted_utxos.len();
         let mut enc_utxos = inputs.encrypted_utxos;
         enc_utxos.append(&mut vec![0u8; len_missing_bytes]);
+        let proof = Proof {
+            a: inputs.proof_a,
+            b: inputs.proof_b,
+            c: inputs.proof_c,
+        };
+        let public_amount = Amount {
+            sol: inputs.public_amount_sol,
+            spl: inputs.public_amount_spl,
+        };
         process_shielded_transfer_2_in_2_out(
             ctx,
-            &inputs.proof_a,
-            &inputs.proof_b,
-            &inputs.proof_c,
-            &inputs.public_amount_spl,
+            &proof,
+            &public_amount,
             &inputs.input_nullifier,
             &[inputs.output_commitment; 1],
-            &inputs.public_amount_sol,
             &enc_utxos,
             inputs.root_index,
             inputs.relayer_fee,

@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Config, Transaction, TransactionInput},
+    light_transaction::{Amount, Config, Message, Proof, Transaction, TransactionInput},
 };
 
 use crate::{verifying_key::VERIFYINGKEY, LightInstructionSecond};
@@ -20,15 +20,11 @@ impl Config for TransactionConfig {
 #[allow(clippy::too_many_arguments)]
 pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
     ctx: &Context<'a, '_, '_, 'info, LightInstructionSecond<'info>>,
-    message_hash: Option<&'a [u8; 32]>,
-    message: Option<&'a Vec<u8>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
-    public_amount_spl: &'a [u8; 32],
+    message: Option<&'a Message>,
+    proof: &'a Proof,
+    public_amount: &'a Amount,
     nullifiers: &'a [[u8; 32]; 2],
     leaves: &'a [[[u8; 32]; 2]; 1],
-    public_amount_sol: &'a [u8; 32],
     encrypted_utxos: &'a Vec<u8>,
     merkle_root_index: u64,
     relayer_fee: u64,
@@ -56,13 +52,9 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
     )?;
 
     let input = TransactionInput {
-        message_hash,
         message,
-        proof_a,
-        proof_b,
-        proof_c,
-        public_amount_spl,
-        public_amount_sol,
+        proof,
+        public_amount,
         nullifiers,
         leaves,
         encrypted_utxos,

@@ -34,6 +34,7 @@ pub enum EscrowError {
 #[program]
 pub mod mock_verifier {
     use anchor_lang::solana_program::keccak::hash;
+    use light_verifier_sdk::light_transaction::{Amount, Proof};
 
     use super::*;
 
@@ -50,9 +51,15 @@ pub mod mock_verifier {
             InstructionDataLightInstructionFirst::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
-        let proof_a = [0u8; 64];
-        let proof_b = [0u8; 128];
-        let proof_c = [0u8; 64];
+        let proof = Proof {
+            a: [0u8; 64],
+            b: [0u8; 128],
+            c: [0u8; 64],
+        };
+        let public_amount = Amount {
+            sol: inputs_des.public_amount_sol,
+            spl: inputs_des.public_amount_spl,
+        };
         let pool_type = [0u8; 32];
         let checked_inputs = vec![
             [
@@ -65,10 +72,8 @@ pub mod mock_verifier {
         ];
         process_transfer_4_ins_4_outs_4_checked_first(
             ctx,
-            &proof_a,
-            &proof_b,
-            &proof_c,
-            &inputs_des.public_amount_spl,
+            &proof,
+            &public_amount,
             &inputs_des.input_nullifier,
             &inputs_des.output_commitment,
             &inputs_des.public_amount_sol,
@@ -107,15 +112,17 @@ pub mod mock_verifier {
             InstructionDataLightInstructionThird::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
-        process_transfer_4_ins_4_outs_4_checked_third(
-            ctx,
-            &inputs_des.proof_a_app,
-            &inputs_des.proof_b_app,
-            &inputs_des.proof_c_app,
-            &inputs_des.proof_a,
-            &inputs_des.proof_b,
-            &inputs_des.proof_c,
-        )
+        let proof_app = Proof {
+            a: inputs_des.proof_a_app,
+            b: inputs_des.proof_b_app,
+            c: inputs_des.proof_c_app,
+        };
+        let proof_verifier = Proof {
+            a: inputs_des.proof_a,
+            b: inputs_des.proof_b,
+            c: inputs_des.proof_c,
+        };
+        process_transfer_4_ins_4_outs_4_checked_third(ctx, &proof_app, &proof_verifier)
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.

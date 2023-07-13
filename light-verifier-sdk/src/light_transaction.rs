@@ -1,6 +1,6 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{keccak::hash, msg, program_pack::Pack, sysvar},
+    solana_program::{hash, keccak, msg, program_pack::Pack, sysvar},
 };
 use anchor_spl::token::Transfer;
 use ark_ff::{
@@ -64,14 +64,33 @@ pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIER
     pub e_phantom: PhantomData<T>,
 }
 
+pub struct Message<'a> {
+    pub content: &'a Vec<u8>,
+    pub hash: [u8; 32],
+}
+
+impl<'a> Message<'a> {
+    pub fn new(content: &'a Vec<u8>) -> Self {
+        let hash = hash::hash(content).to_bytes();
+        Message { hash, content }
+    }
+}
+
+pub struct Proof {
+    pub a: [u8; 64],
+    pub b: [u8; 128],
+    pub c: [u8; 64],
+}
+
+pub struct Amount {
+    pub spl: [u8; 32],
+    pub sol: [u8; 32],
+}
+
 pub struct TransactionInput<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize> {
-    pub message_hash: Option<&'a [u8; 32]>,
-    pub message: Option<&'a Vec<u8>>,
-    pub proof_a: &'a [u8; 64],
-    pub proof_b: &'a [u8; 128],
-    pub proof_c: &'a [u8; 64],
-    pub public_amount_spl: &'a [u8; 32],
-    pub public_amount_sol: &'a [u8; 32],
+    pub proof: &'a Proof,
+    pub public_amount: &'a Amount,
+    pub message: Option<&'a Message<'a>>,
     pub checked_public_inputs: &'a Vec<Vec<u8>>,
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
     pub leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
@@ -86,7 +105,6 @@ pub struct TransactionInput<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULL
 impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
     Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>
 {
-    #[allow(clippy::too_many_arguments)]
     pub fn new<'info, 'a, 'c>(
         input: TransactionInput<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS>,
     ) -> Transaction<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS, T> {
@@ -143,20 +161,19 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             first_leaf_index = first_leaf_index - 2
         }
 
+        let message = match &self.input.message {
+            Some(message) => message.content.clone(),
+            None => Vec::<u8>::new(),
+        };
         let transaction_data_event = TransactionIndexerEvent {
             leaves: leaves_vec.clone(),
-            public_amount_sol: self.input.public_amount_sol.clone(),
-            public_amount_spl: self.input.public_amount_spl.clone(),
+            public_amount_sol: self.input.public_amount.sol.clone(),
+            public_amount_spl: self.input.public_amount.spl.clone(),
             relayer_fee: self.input.relayer_fee.clone(),
             encrypted_utxos: self.input.encrypted_utxos.clone(),
             nullifiers: self.input.nullifiers.to_vec(),
             first_leaf_index: first_leaf_index.clone(),
-            message: self
-                .input
-                .message
-                .as_ref()
-                .unwrap_or(&&Vec::<u8>::new())
-                .to_vec(),
+            message,
         };
 
         invoke_indexer_transaction_event(
@@ -189,9 +206,9 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
         let mut public_inputs = vec![
             self.merkle_root.as_slice(),
-            self.input.public_amount_spl.as_slice(),
+            self.input.public_amount.spl.as_slice(),
             self.tx_integrity_hash.as_slice(),
-            self.input.public_amount_sol.as_slice(),
+            self.input.public_amount.sol.as_slice(),
             self.mint_pubkey.as_slice(),
         ];
 
@@ -209,7 +226,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         }
 
         let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
-            &*[&change_endianness(&self.input.proof_a)[..], &[0u8][..]].concat(),
+            &*[&change_endianness(&self.input.proof.a)[..], &[0u8][..]].concat(),
         )
         .unwrap();
         let mut proof_a_neg_buf = [0u8; 65];
@@ -221,8 +238,8 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
         let mut verifier = Groth16Verifier::new(
             &proof_a_neg,
-            self.input.proof_b,
-            self.input.proof_c,
+            &self.input.proof.b,
+            &self.input.proof.c,
             public_inputs.as_slice(),
             self.input.verifyingkey,
         )
@@ -237,9 +254,9 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             Err(e) => {
                 msg!("Public Inputs:");
                 msg!("merkle tree root {:?}", self.merkle_root);
-                msg!("public_amount_spl {:?}", self.input.public_amount_spl);
+                msg!("public_amount_spl {:?}", self.input.public_amount.spl);
                 msg!("tx_integrity_hash {:?}", self.tx_integrity_hash);
-                msg!("public_amount_sol {:?}", self.input.public_amount_sol);
+                msg!("public_amount_sol {:?}", self.input.public_amount.sol);
                 msg!("mint_pubkey {:?}", self.mint_pubkey);
                 msg!("nullifiers {:?}", self.input.nullifiers);
                 msg!("leaves {:?}", self.input.leaves);
@@ -255,9 +272,9 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Calls the Merkle tree program via CPI to insert message leaves.
     pub fn insert_message_leaves(&mut self) -> Result<()> {
-        let (message_hash, message_merkle_tree) = match self.input.message_hash {
-            Some(message_hash) => match self.input.accounts.unwrap().message_merkle_tree {
-                Some(message_merkle_tree) => (message_hash, message_merkle_tree),
+        let (message_hash, message_merkle_tree) = match self.input.message {
+            Some(message) => match self.input.accounts.unwrap().message_merkle_tree {
+                Some(message_merkle_tree) => (message.hash, message_merkle_tree),
                 None => return err!(VerifierSdkError::MessageNoMerkleTreeAccount),
             },
             None => return Ok(()),
@@ -280,7 +297,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 .unwrap()
                 .system_program
                 .to_account_info(),
-            message_hash,
+            &message_hash,
             &[0; 32],
         )?;
 
@@ -291,7 +308,10 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
     /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
     /// H(recipient_spl||recipient_sol||signer||relayer_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
-        let message_hash = self.input.message_hash.unwrap_or(&[0u8; 32]);
+        let message_hash = match self.input.message {
+            Some(message) => message.hash,
+            None => [0u8; 32],
+        };
         let recipient_spl = match self.input.accounts.unwrap().recipient_spl.as_ref() {
             Some(recipient_spl) => recipient_spl.key().to_bytes(),
             None => [0u8; 32],
@@ -346,7 +366,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         // msg!("integrity_hash inputs.len(): {}", input.len());
         // msg!("encrypted_utxos: {:?}", self.encrypted_utxos);
 
-        let hash = Fr::from_be_bytes_mod_order(&hash(&input[..]).try_to_vec()?[..]);
+        let hash = Fr::from_be_bytes_mod_order(&keccak::hash(&input[..]).try_to_vec()?[..]);
         let mut bytes = [0u8; 32];
         <Fp256<FrParameters> as ToBytes>::write(&hash, &mut bytes[..]).unwrap();
         self.tx_integrity_hash = change_endianness(&bytes).try_into().unwrap();
@@ -381,12 +401,13 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                         //     "{:?}",
                         //     [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat()
                         // );
-                        if self.input.public_amount_spl[24..32] == vec![0u8; 8] {
+                        if self.input.public_amount.spl[24..32] == vec![0u8; 8] {
                             self.mint_pubkey = [0u8; 32];
                         } else {
                             self.mint_pubkey = [
                                 vec![0u8],
-                                hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
+                                keccak::hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..]
+                                    .to_vec(),
                             ]
                             .concat()
                             .try_into()
@@ -546,7 +567,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         // check mintPubkey
         let (pub_amount_checked, _) = self.check_amount(
             0,
-            change_endianness(&self.input.public_amount_spl)
+            change_endianness(&self.input.public_amount.spl)
                 .try_into()
                 .unwrap(),
         )?;
@@ -577,19 +598,23 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             )?;
 
             // check mint
-            if self.mint_pubkey[1..] != hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..] {
+            if self.mint_pubkey[1..]
+                != keccak::hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..]
+            {
                 msg!(
                     "*self.mint_pubkey[..31] {:?}, {:?}, recipient_spl mint",
                     self.mint_pubkey[1..].to_vec(),
-                    hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
+                    keccak::hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
-            if self.mint_pubkey[1..] != hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..] {
+            if self.mint_pubkey[1..]
+                != keccak::hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..]
+            {
                 msg!(
                     "*self.mint_pubkey[..31] {:?}, {:?}, sender_spl mint",
                     self.mint_pubkey[1..].to_vec(),
-                    hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
+                    keccak::hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
@@ -737,7 +762,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         // check that it is the native token pool
         let (fee_amount_checked, relayer_fee) = self.check_amount(
             self.input.relayer_fee,
-            change_endianness(self.input.public_amount_sol),
+            change_endianness(&self.input.public_amount.sol),
         )?;
         msg!("fee amount {} ", fee_amount_checked);
         if fee_amount_checked > 0 {
@@ -910,8 +935,8 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Checks whether a transaction is a deposit by inspecting the public amount.
     pub fn is_deposit(&self) -> bool {
-        if self.input.public_amount_spl[24..] != [0u8; 8]
-            && self.input.public_amount_spl[..24] == [0u8; 24]
+        if self.input.public_amount.spl[24..] != [0u8; 8]
+            && self.input.public_amount.spl[..24] == [0u8; 24]
         {
             return true;
         }
@@ -920,8 +945,8 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Checks whether a transaction is a deposit by inspecting the public amount.
     pub fn is_deposit_fee(&self) -> bool {
-        if self.input.public_amount_sol[24..] != [0u8; 8]
-            && self.input.public_amount_sol[..24] == [0u8; 24]
+        if self.input.public_amount.sol[24..] != [0u8; 8]
+            && self.input.public_amount.sol[..24] == [0u8; 24]
         {
             return true;
         }

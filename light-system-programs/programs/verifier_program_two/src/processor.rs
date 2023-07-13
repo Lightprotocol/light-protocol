@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Config, Transaction, TransactionInput},
+    light_transaction::{Amount, Config, Proof, Transaction, TransactionInput},
 };
 
 use crate::LightInstruction;
@@ -23,14 +23,17 @@ impl Config for TransactionConfig {
 
 pub fn process_shielded_transfer<'a, 'info>(
     ctx: Context<'a, '_, '_, 'info, LightInstruction<'info>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
+    proof: &'a Proof,
     connecting_hash: &[u8; 32],
 ) -> Result<()> {
     let verifier_state = VerifierState10Ins::<TransactionConfig>::deserialize(
         &mut &*ctx.accounts.verifier_state.to_account_info().data.take(),
     )?;
+
+    let public_amount = Amount {
+        sol: verifier_state.public_amount_sol,
+        spl: verifier_state.public_amount_spl,
+    };
 
     let accounts = Accounts::new(
         ctx.program_id,
@@ -72,13 +75,9 @@ pub fn process_shielded_transfer<'a, 'info>(
     let nullifiers: [[u8; 32]; 4] = verifier_state.nullifiers.to_vec().try_into().unwrap();
     let pool_type = [0u8; 32];
     let input = TransactionInput {
-        message_hash: None,
         message: None,
-        proof_a: proof_a,
-        proof_b: proof_b,
-        proof_c: proof_c,
-        public_amount_spl: &verifier_state.public_amount_spl,
-        public_amount_sol: &verifier_state.public_amount_sol,
+        proof,
+        public_amount: &public_amount,
         checked_public_inputs: &checked_inputs,
         nullifiers: &nullifiers,
         leaves: &leaves,

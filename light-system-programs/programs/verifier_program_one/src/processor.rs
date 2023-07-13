@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Config, Transaction, TransactionInput},
+    light_transaction::{Amount, Config, Proof, Transaction, TransactionInput},
 };
 
 use crate::{LightInstructionFirst, LightInstructionSecond};
@@ -21,13 +21,10 @@ impl Config for TransactionConfig {
 #[allow(clippy::too_many_arguments)]
 pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
     ctx: Context<'a, '_, '_, 'info, LightInstructionFirst<'info>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
-    public_amount_spl: &'a [u8; 32],
+    proof: &'a Proof,
+    public_amount: &'a Amount,
     nullifiers: &'a [[u8; 32]; 10],
     leaves: &'a [[[u8; 32]; 2]; 1],
-    public_amount_sol: &'a [u8; 32],
     encrypted_utxos: &'a Vec<u8>,
     merkle_root_index: u64,
     relayer_fee: u64,
@@ -35,13 +32,9 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
     let checked_public_inputs = Vec::<Vec<u8>>::new();
     let pool_type = [0u8; 32];
     let input = TransactionInput {
-        message_hash: None,
         message: None,
-        proof_a,
-        proof_b,
-        proof_c,
-        public_amount_spl,
-        public_amount_sol,
+        proof,
+        public_amount,
         nullifiers,
         leaves,
         encrypted_utxos,
@@ -60,11 +53,13 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
 
 pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
     ctx: Context<'a, '_, '_, 'info, LightInstructionSecond<'info>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
+    proof: &'a Proof,
     pool_type: [u8; 32],
 ) -> Result<()> {
+    let public_amount = Amount {
+        sol: ctx.accounts.verifier_state.public_amount_sol,
+        spl: ctx.accounts.verifier_state.public_amount_spl,
+    };
     let accounts = Accounts::new(
         ctx.program_id,
         ctx.accounts.signing_address.to_account_info(),
@@ -99,13 +94,9 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
         .unwrap();
 
     let input = TransactionInput {
-        message_hash: None,
         message: None,
-        proof_a,
-        proof_b,
-        proof_c,
-        public_amount_spl: &ctx.accounts.verifier_state.public_amount_spl,
-        public_amount_sol: &ctx.accounts.verifier_state.public_amount_sol,
+        proof,
+        public_amount: &public_amount,
         nullifiers: &nullifier,
         leaves: &leaves,
         encrypted_utxos: &ctx.accounts.verifier_state.encrypted_utxos,
