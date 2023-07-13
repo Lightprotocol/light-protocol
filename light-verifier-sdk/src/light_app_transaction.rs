@@ -32,14 +32,15 @@ impl<'a, T: Config> AppTransaction<'a, T> {
         checked_public_inputs: Vec<Vec<u8>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>,
     ) -> AppTransaction<'a, T> {
-        let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
-            &*[&change_endianness(proof_a.as_slice())[..], &[0u8][..]].concat(),
-        )
-        .unwrap();
-        let mut proof_a_neg = [0u8; 65];
-        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg[..]).unwrap();
+        let proof_a_neg_g1: G1 =
+            <G1 as FromBytes>::read(&*[&change_endianness(&proof_a)[..], &[0u8][..]].concat())
+                .unwrap();
+        let mut proof_a_neg_buf = [0u8; 65];
+        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg_buf[..]).unwrap();
+        let mut proof_a_neg = [0u8; 64];
+        proof_a_neg.copy_from_slice(&proof_a_neg_buf[..64]);
 
-        let proof_a_neg: [u8; 64] = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
+        let proof_a_neg: [u8; 64] = change_endianness(&proof_a_neg).try_into().unwrap();
         AppTransaction {
             proof_a: proof_a_neg,
             proof_b,
