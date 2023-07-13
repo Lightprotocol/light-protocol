@@ -1,14 +1,10 @@
 import { BN, Program, Provider } from "@coral-xyz/anchor";
-import { GetVersionedTransactionConfig, PublicKey } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import {
-  merkleTreeProgram,
   merkleTreeProgramId,
   MERKLE_TREE_HEIGHT,
   IndexedTransaction,
-  indexRecentTransactions,
-  Relayer,
   sleep,
-  fetchQueuedLeavesAccountInfo,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "./merkleTree";

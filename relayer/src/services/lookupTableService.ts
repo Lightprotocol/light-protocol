@@ -1,8 +1,4 @@
-import {
-  ADMIN_AUTH_KEYPAIR,
-  initLookUpTableFromFile,
-  Provider,
-} from "@lightprotocol/zk.js";
+import { initLookUpTableFromFile } from "@lightprotocol/zk.js";
 import { getLightProvider } from "../utils/provider";
 
 export const initLookupTable = async (req: any, res: any) => {

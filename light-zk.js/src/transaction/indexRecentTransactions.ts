@@ -1,33 +1,20 @@
 import {
-  CompiledInnerInstruction,
   ConfirmedSignaturesForAddress2Options,
   Connection,
-  ParsedInstruction,
   ParsedMessageAccount,
   ParsedTransactionWithMeta,
   PublicKey,
-  TokenBalance,
-  TransactionInstruction,
 } from "@solana/web3.js";
 import {
   merkleTreeProgramId,
   FIELD_SIZE,
-  REGISTERED_POOL_PDA_SOL,
-  verifierProgramZeroProgramId,
-  verifierProgramOneProgramId,
-  verifierProgramTwoProgramId,
-  verifierProgramStorageProgramId,
   VERIFIER_PUBLIC_KEYS,
   MAX_U64,
 } from "../constants";
 
 import { Action } from "./transaction";
 
-import {
-  fetchQueuedLeavesAccountInfo,
-  getUpdatedSpentUtxos,
-  sleep,
-} from "../utils";
+import { getUpdatedSpentUtxos, sleep } from "../utils";
 import { BN } from "@coral-xyz/anchor";
 import {
   IndexedTransaction,

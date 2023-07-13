@@ -1,24 +1,14 @@
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
-import { token } from "@coral-xyz/anchor/dist/cjs/utils";
-import {
-  getAccount,
-  getAssociatedTokenAddressSync,
-  mintTo,
-  createAssociatedTokenAccount,
-  getOrCreateAssociatedTokenAccount,
-} from "@solana/spl-token";
+import { mintTo, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import {
   ADMIN_AUTH_KEYPAIR,
   ConfirmOptions,
   MINT,
   Provider,
-  RELAYER_FEES,
   TestRelayer,
   TOKEN_PUBKEY_SYMBOL,
   User,
-  userTokenAccount,
-  USER_TOKEN_ACCOUNT,
 } from "../index";
 
 export async function airdropShieldedSol({

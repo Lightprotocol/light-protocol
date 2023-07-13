@@ -21,12 +21,14 @@ export async function executeCommand({
     let commandBase = path.basename(command);
     let stdoutData = "";
 
-    const childPathEnv = additionalPath ? process.env.PATH + path.delimiter + additionalPath : process.env.PATH;
+    const childPathEnv = additionalPath
+      ? process.env.PATH + path.delimiter + additionalPath
+      : process.env.PATH;
     const options: SpawnOptionsWithoutStdio = {
       env: {
         ...process.env,
         PATH: childPathEnv,
-      }
+      },
     };
 
     let childProcess;

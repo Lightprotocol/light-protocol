@@ -1,14 +1,13 @@
+/*
+
 import * as anchor from "@coral-xyz/anchor";
 import {
   SystemProgram,
   Keypair as SolanaKeypair,
   PublicKey,
 } from "@solana/web3.js";
-const solana = require("@solana/web3.js");
 import _ from "lodash";
 import { assert } from "chai";
-const token = require("@solana/spl-token");
-let circomlibjs = require("circomlibjs");
 
 import {
   Transaction,
@@ -44,10 +43,8 @@ import {
 import { IDL } from "../target/types/mock_verifier";
 import { BN } from "@coral-xyz/anchor";
 
-var LOOK_UP_TABLE, POSEIDON, KEYPAIR, RELAYER, deposit_utxo1;
 
-var transactions: Transaction[] = [];
-/*
+
 describe("Verifier Two test", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";

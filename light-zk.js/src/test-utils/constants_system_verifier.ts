@@ -1,5 +1,5 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { AnchorError, BN } from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 export const ENCRYPTION_KEYPAIR = {
   PublicKey: new Uint8Array([
     45, 218, 154, 197, 141, 144, 160, 47, 100, 67, 150, 144, 22, 128, 18, 23,

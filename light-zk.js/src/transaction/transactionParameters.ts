@@ -1,4 +1,4 @@
-import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, BorshAccountsCoder, Program, Idl } from "@coral-xyz/anchor";

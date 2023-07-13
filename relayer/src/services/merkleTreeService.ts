@@ -1,18 +1,23 @@
 import {
-  ADMIN_AUTH_KEYPAIR,
   TRANSACTION_MERKLE_TREE_KEY,
   Provider,
   SolMerkleTree,
   updateMerkleTreeForTest,
 } from "@lightprotocol/zk.js";
-import { getLightProvider, getRelayer, getKeyPairFromEnv } from "../utils/provider";
+import {
+  getLightProvider,
+  getRelayer,
+  getKeyPairFromEnv,
+} from "../utils/provider";
 
 export const initMerkleTree = async (req: any, res: any) => {
   try {
     const provider: Provider = await getLightProvider();
 
     const merkletreeIsInited =
-      await provider.provider!.connection.getAccountInfo(TRANSACTION_MERKLE_TREE_KEY);
+      await provider.provider!.connection.getAccountInfo(
+        TRANSACTION_MERKLE_TREE_KEY,
+      );
     if (!merkletreeIsInited) {
       throw new Error("merkletree not inited yet.");
     }

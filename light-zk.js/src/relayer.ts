@@ -1,6 +1,5 @@
 import {
   Connection,
-  Keypair,
   PublicKey,
   RpcResponseAndContext,
   SignatureResult,
@@ -13,8 +12,6 @@ import {
   Provider,
   IndexedTransaction,
   TOKEN_ACCOUNT_FEE,
-  LOOK_UP_TABLE,
-  ConfirmOptions,
   SendVersionedTransactionsResult,
 } from "./index";
 

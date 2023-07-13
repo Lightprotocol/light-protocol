@@ -1,5 +1,5 @@
 const solana = require("@solana/web3.js");
-import { assert, expect } from "chai";
+import { assert } from "chai";
 const token = require("@solana/spl-token");
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -17,6 +17,7 @@ import { Program } from "@coral-xyz/anchor";
  * merkle tree is locked by updateState account
  * lock has been taken less than 5 slots ago
  */
+// @matteo: not used, can be removed?
 let CONFIRMATION = {
   preflightCommitment: "confirmed",
   commitment: "confirmed",
