@@ -42,7 +42,6 @@ export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 
-// @matteo: introduced constant BN_0 in order to avoid multiple "new BN(0);" instantiations
 const BN_0 = new BN(0);
 
 // TODO: Idl support for U256
@@ -171,13 +170,12 @@ export class Utxo {
       assets.push(SystemProgram.programId);
     }
 
-    // @matteo: replaced for-loop with while-loop, faster due to less checks
     let i = 0;
     while (i < N_ASSETS) {
       const amount = amounts[i];
       if (amount?.lt?.(BN_0)) {
         throw new UtxoError(
-          UtxoErrorCode.NEGATIVE_AMOUNT, // @matteo: I added this error type
+          UtxoErrorCode.NEGATIVE_AMOUNT,
           "constructor",
           `amount cannot be negative, amounts[${i}] = ${amount ?? "undefined"}`,
         );
@@ -209,7 +207,6 @@ export class Utxo {
       return new BN(x.toString());
     });
 
-    // @matteo: replaced verbose if-else with more elegant optional assignment
     this.account = account || new Account({ poseidon });
     this.blinding = blinding;
     this.index = index;
@@ -240,14 +237,14 @@ export class Utxo {
     } else if (this.amounts[0].isZero()) {
       this.assetsCircuit = [BN_0, BN_0];
     }
-    // @matteo: adding condition for amounts =! 0
-    else if (!this.amounts[0].isZero()) {
-      throw new UtxoError(
-        UtxoErrorCode.NON_ZERO_AMOUNT, // @matteo: I added this error type, do not know yet if it makes sense
-        "constructor",
-        `amount not zero, amounts[0] = ${this.amounts[0] ?? "undefined"}`,
-      );
-    } else {
+    // else if (!this.amounts[0].isZero()) {
+    //   throw new UtxoError(
+    //     UtxoErrorCode.NON_ZERO_AMOUNT,
+    //     "constructor",
+    //     `amount not zero, amounts[0] = ${this.amounts[0] ?? "undefined"}`,
+    //   );
+    // }
+    else {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
         BN_0,
@@ -366,7 +363,6 @@ export class Utxo {
     // Compressed serialization does not store the account since for an encrypted utxo
     // we assume that the user who is able to decrypt the utxo knows the corresponding account.
 
-    // @matteo: refactored the if-else with more concise ternary operator
     return compressed
       ? serializedData.subarray(0, COMPRESSED_UTXO_BYTES_LENGTH)
       : serializedData;
@@ -415,7 +411,6 @@ export class Utxo {
         ).fill(0),
       ]);
       includeAppData = false;
-      // @matteo: why not performing the check below before the array initialization above? we can save some time/space
       if (!account)
         throw new UtxoError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
@@ -522,7 +517,6 @@ export class Utxo {
         ]),
       );
       this._commitment = commitment;
-      // @matteo: this is going to return the same variable in either case
       return this._commitment;
     } else {
       return this._commitment;
@@ -537,7 +531,6 @@ export class Utxo {
    * @returns {string}
    */
   getNullifier(poseidon: any, index?: number | undefined) {
-    // @matteo: improved some conditional machinery
     if (this.index === undefined) {
       if (index) {
         this.index = index;

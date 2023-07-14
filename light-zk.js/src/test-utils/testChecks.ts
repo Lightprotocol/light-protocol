@@ -17,11 +17,11 @@ import { Program } from "@coral-xyz/anchor";
  * merkle tree is locked by updateState account
  * lock has been taken less than 5 slots ago
  */
-// @matteo: not used, can be removed?
-let CONFIRMATION = {
-  preflightCommitment: "confirmed",
-  commitment: "confirmed",
-};
+
+// let CONFIRMATION = {
+//   preflightCommitment: "confirmed",
+//   commitment: "confirmed",
+// };
 
 export async function checkMerkleTreeUpdateStateCreated({
   connection,
