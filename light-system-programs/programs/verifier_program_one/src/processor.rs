@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Amount, Config, Proof, Transaction, TransactionInput},
+    light_transaction::{Amounts, Config, Proof, Transaction, TransactionInput},
 };
 
 use crate::{LightInstructionFirst, LightInstructionSecond};
@@ -22,7 +22,7 @@ impl Config for TransactionConfig {
 pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
     ctx: Context<'a, '_, '_, 'info, LightInstructionFirst<'info>>,
     proof: &'a Proof,
-    public_amount: &'a Amount,
+    public_amount: &'a Amounts,
     nullifiers: &'a [[u8; 32]; 10],
     leaves: &'a [[[u8; 32]; 2]; 1],
     encrypted_utxos: &'a Vec<u8>,
@@ -56,7 +56,7 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
     proof: &'a Proof,
     pool_type: [u8; 32],
 ) -> Result<()> {
-    let public_amount = Amount {
+    let public_amount = Amounts {
         sol: ctx.accounts.verifier_state.public_amount_sol,
         spl: ctx.accounts.verifier_state.public_amount_spl,
     };

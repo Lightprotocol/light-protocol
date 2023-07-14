@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Amount, Config, Message, Proof, Transaction, TransactionInput},
+    light_transaction::{Amounts, Config, Message, Proof, Transaction, TransactionInput},
 };
 
 use crate::{verifying_key::VERIFYINGKEY, LightInstructionSecond};
@@ -22,7 +22,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
     ctx: &Context<'a, '_, '_, 'info, LightInstructionSecond<'info>>,
     message: Option<&'a Message>,
     proof: &'a Proof,
-    public_amount: &'a Amount,
+    public_amount: &'a Amounts,
     nullifiers: &'a [[u8; 32]; 2],
     leaves: &'a [[[u8; 32]; 2]; 1],
     encrypted_utxos: &'a Vec<u8>,

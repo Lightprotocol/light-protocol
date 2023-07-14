@@ -38,7 +38,7 @@ pub enum VerifierError {
 #[program]
 pub mod verifier_program_storage {
     use crate::processor::process_shielded_transfer_2_in_2_out;
-    use light_verifier_sdk::light_transaction::{Amount, Message, Proof};
+    use light_verifier_sdk::light_transaction::{Amounts, Message, Proof};
 
     use super::*;
 
@@ -96,9 +96,9 @@ pub mod verifier_program_storage {
             b: inputs.proof_b,
             c: inputs.proof_c,
         };
-        let public_amount = Amount {
+        let public_amount = Amounts {
             sol: inputs.public_amount_sol,
-            spl: [0u8; 32],
+            spl: [0u8; 32], // Verifier storage does not support SPL tokens.
         };
 
         process_shielded_transfer_2_in_2_out(

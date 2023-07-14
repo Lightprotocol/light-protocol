@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Amount, Config, Proof, Transaction, TransactionInput},
+    light_transaction::{Amounts, Config, Proof, Transaction, TransactionInput},
 };
 
 use crate::LightInstruction;
@@ -30,7 +30,7 @@ pub fn process_shielded_transfer<'a, 'info>(
         &mut &*ctx.accounts.verifier_state.to_account_info().data.take(),
     )?;
 
-    let public_amount = Amount {
+    let public_amount = Amounts {
         sol: verifier_state.public_amount_sol,
         spl: verifier_state.public_amount_spl,
     };

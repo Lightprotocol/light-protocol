@@ -4,7 +4,7 @@ use crate::LightInstructionThird;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::sysvar;
 use light_macros::pubkey;
-use light_verifier_sdk::light_transaction::Amount;
+use light_verifier_sdk::light_transaction::Amounts;
 use light_verifier_sdk::light_transaction::Proof;
 use light_verifier_sdk::light_transaction::TransactionInput;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
@@ -27,10 +27,9 @@ impl Config for TransactionsConfig {
 pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
     proof: &'a Proof,
-    public_amount: &'a Amount,
+    public_amount: &'a Amounts,
     input_nullifier: &'a [[u8; 32]; 4],
     output_commitment: &'a [[u8; 32]; 4],
-    public_amount_sol: &'a [u8; 32],
     checked_public_inputs: &'a Vec<Vec<u8>>,
     encrypted_utxos: &'a Vec<u8>,
     pool_type: &'a [u8; 32],

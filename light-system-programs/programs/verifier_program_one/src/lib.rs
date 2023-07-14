@@ -28,7 +28,7 @@ pub const PROGRAM_ID: &str = "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc";
 
 #[program]
 pub mod verifier_program_one {
-    use light_verifier_sdk::light_transaction::{Amount, Proof};
+    use light_verifier_sdk::light_transaction::{Amounts, Proof};
 
     use super::*;
 
@@ -49,7 +49,7 @@ pub mod verifier_program_one {
             b: [0u8; 128],
             c: [0u8; 64],
         };
-        let public_amount = Amount {
+        let public_amount = Amounts {
             sol: inputs.public_amount_sol,
             spl: inputs.public_amount_spl,
         };

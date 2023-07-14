@@ -82,14 +82,14 @@ pub struct Proof {
     pub c: [u8; 64],
 }
 
-pub struct Amount {
+pub struct Amounts {
     pub spl: [u8; 32],
     pub sol: [u8; 32],
 }
 
 pub struct TransactionInput<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize> {
     pub proof: &'a Proof,
-    pub public_amount: &'a Amount,
+    pub public_amount: &'a Amounts,
     pub message: Option<&'a Message<'a>>,
     pub checked_public_inputs: &'a Vec<Vec<u8>>,
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],

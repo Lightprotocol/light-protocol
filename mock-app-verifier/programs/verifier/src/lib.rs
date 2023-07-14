@@ -34,7 +34,7 @@ pub enum EscrowError {
 #[program]
 pub mod mock_verifier {
     use anchor_lang::solana_program::keccak::hash;
-    use light_verifier_sdk::light_transaction::{Amount, Proof};
+    use light_verifier_sdk::light_transaction::{Amounts, Proof};
 
     use super::*;
 
@@ -56,7 +56,7 @@ pub mod mock_verifier {
             b: [0u8; 128],
             c: [0u8; 64],
         };
-        let public_amount = Amount {
+        let public_amount = Amounts {
             sol: inputs_des.public_amount_sol,
             spl: inputs_des.public_amount_spl,
         };
@@ -76,7 +76,6 @@ pub mod mock_verifier {
             &public_amount,
             &inputs_des.input_nullifier,
             &inputs_des.output_commitment,
-            &inputs_des.public_amount_sol,
             &checked_inputs,
             &inputs_des.encrypted_utxos,
             &pool_type,
