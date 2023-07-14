@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Config, Transaction},
+    light_transaction::{Amounts, Config, Message, Proof, Transaction, TransactionInput},
 };
 
 use crate::{verifying_key::VERIFYINGKEY, LightInstructionSecond};
@@ -20,17 +20,13 @@ impl Config for TransactionConfig {
 #[allow(clippy::too_many_arguments)]
 pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
     ctx: &Context<'a, '_, '_, 'info, LightInstructionSecond<'info>>,
-    message_hash: Option<&'a [u8; 32]>,
-    message: Option<&'a Vec<u8>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
-    public_amount_spl: &'a [u8; 32],
+    message: Option<&'a Message>,
+    proof: &'a Proof,
+    public_amount: &'a Amounts,
     nullifiers: &'a [[u8; 32]; 2],
     leaves: &'a [[[u8; 32]; 2]; 1],
-    public_amount_sol: &'a [u8; 32],
     encrypted_utxos: &'a Vec<u8>,
-    merkle_tree_index: u64,
+    merkle_root_index: u64,
     relayer_fee: u64,
     checked_public_inputs: &'a Vec<Vec<u8>>,
     pool_type: &'a [u8; 32],
@@ -55,24 +51,21 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
         ctx.remaining_accounts,
     )?;
 
-    let mut transaction = Transaction::<1, 2, TransactionConfig>::new(
-        message_hash,
+    let input = TransactionInput {
         message,
-        proof_a,
-        proof_b,
-        proof_c,
-        public_amount_spl,
-        public_amount_sol,
-        checked_public_inputs,
+        proof,
+        public_amount,
         nullifiers,
         leaves,
         encrypted_utxos,
+        merkle_root_index: merkle_root_index as usize,
         relayer_fee,
-        merkle_tree_index as usize,
+        checked_public_inputs,
         pool_type,
-        Some(&accounts),
-        &VERIFYINGKEY,
-    );
+        accounts: Some(&accounts),
+        verifyingkey: &VERIFYINGKEY,
+    };
+    let mut transaction = Transaction::<1, 2, TransactionConfig>::new(input);
 
     transaction.transact()
 }

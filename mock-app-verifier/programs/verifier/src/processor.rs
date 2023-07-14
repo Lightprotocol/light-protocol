@@ -4,6 +4,9 @@ use crate::LightInstructionThird;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::sysvar;
 use light_macros::pubkey;
+use light_verifier_sdk::light_transaction::Amounts;
+use light_verifier_sdk::light_transaction::Proof;
+use light_verifier_sdk::light_transaction::TransactionInput;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use light_verifier_sdk::{
     light_app_transaction::AppTransaction,
@@ -23,13 +26,10 @@ impl Config for TransactionsConfig {
 
 pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
-    public_amount_spl: &'a [u8; 32],
+    proof: &'a Proof,
+    public_amount: &'a Amounts,
     input_nullifier: &'a [[u8; 32]; 4],
     output_commitment: &'a [[u8; 32]; 4],
-    public_amount_sol: &'a [u8; 32],
     checked_public_inputs: &'a Vec<Vec<u8>>,
     encrypted_utxos: &'a Vec<u8>,
     pool_type: &'a [u8; 32],
@@ -40,24 +40,21 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
         [output_commitment[0], output_commitment[1]],
         [output_commitment[2], output_commitment[3]],
     ];
-    let tx = Transaction::<2, 4, TransactionsConfig>::new(
-        None,
-        None,
-        proof_a,
-        proof_b,
-        proof_c,
-        public_amount_spl,
-        public_amount_sol,
-        checked_public_inputs,
-        input_nullifier,
-        &output_commitment,
+    let input = TransactionInput {
+        message: None,
+        proof,
+        public_amount,
+        nullifiers: input_nullifier,
+        leaves: &output_commitment,
         encrypted_utxos,
-        *relayer_fee,
-        (*root_index).try_into().unwrap(),
-        pool_type, //pool_type
-        None,
-        &VERIFYINGKEY,
-    );
+        relayer_fee: *relayer_fee,
+        merkle_root_index: (*root_index).try_into().unwrap(),
+        pool_type,
+        checked_public_inputs,
+        accounts: None,
+        verifyingkey: &VERIFYINGKEY,
+    };
+    let tx = Transaction::<2, 4, TransactionsConfig>::new(input);
     ctx.accounts.verifier_state.set_inner(tx.into());
     ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
     Ok(())
@@ -65,12 +62,8 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
 
 pub fn process_transfer_4_ins_4_outs_4_checked_third<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionThird<'info>>,
-    proof_a_app: &'a [u8; 64],
-    proof_b_app: &'a [u8; 128],
-    proof_c_app: &'a [u8; 64],
-    proof_a_verifier: &'a [u8; 64],
-    proof_b_verifier: &'a [u8; 128],
-    proof_c_verifier: &'a [u8; 64],
+    proof_app: &'a Proof,
+    proof_verifier: &'a Proof,
 ) -> Result<()> {
     let current_slot = <Clock as sysvar::Sysvar>::get()?.slot;
     msg!(
@@ -93,9 +86,7 @@ pub fn process_transfer_4_ins_4_outs_4_checked_third<'a, 'b, 'c, 'info>(
     }
     // verify app proof
     let mut app_verifier = AppTransaction::<TransactionsConfig>::new(
-        proof_a_app,
-        proof_b_app,
-        proof_c_app,
+        proof_app,
         ctx.accounts.verifier_state.checked_public_inputs.clone(),
         &VERIFYINGKEY,
     );
@@ -151,9 +142,9 @@ pub fn process_transfer_4_ins_4_outs_4_checked_third<'a, 'b, 'c, 'info>(
 
     verifier_program_two::cpi::shielded_transfer_inputs(
         cpi_ctx,
-        *proof_a_verifier,
-        *proof_b_verifier,
-        *proof_c_verifier,
+        proof_verifier.a,
+        proof_verifier.b,
+        proof_verifier.c,
         <Vec<u8> as TryInto<[u8; 32]>>::try_into(
             ctx.accounts.verifier_state.checked_public_inputs[1].to_vec(),
         )
