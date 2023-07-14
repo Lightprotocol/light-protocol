@@ -214,7 +214,6 @@ async function createVerifyingKeyRsFile(
       //   }
       // }
 
-      // made it more granular, concise, optimized and readable (to be tested)
       const processSubData = (subData: any) =>
         leInt2Buff(unstringifyBigInts(subData), 32).reverse();
 
