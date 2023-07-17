@@ -362,7 +362,6 @@ export class Utxo {
     }
     // Compressed serialization does not store the account since for an encrypted utxo
     // we assume that the user who is able to decrypt the utxo knows the corresponding account.
-
     return compressed
       ? serializedData.subarray(0, COMPRESSED_UTXO_BYTES_LENGTH)
       : serializedData;
