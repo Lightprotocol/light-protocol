@@ -22,7 +22,6 @@ anchor-spl = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793
 
 # Light deps
 groth16-solana = "0.0.1"
-light-account-compression = { path = "../../../light-account-compression" }
 light-macros = "0.1.0"
 light-verifier-sdk = { path = "../../../light-verifier-sdk" }
 merkle_tree_program = { path = "../merkle_tree_program", features = ["cpi"] }
