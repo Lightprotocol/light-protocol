@@ -15,6 +15,7 @@ import {
   airdropShieldedSol,
   ADMIN_AUTH_KEY,
   airdropSol,
+  LOOK_UP_TABLE,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -57,14 +58,13 @@ describe("Test User", () => {
       recipientPublicKey: relayerRecipientSol,
     });
 
-    environmentConfig.relayer = new TestRelayer(
-      userKeypair.publicKey,
-      environmentConfig.lookUpTable,
+    environmentConfig.relayer = new TestRelayer({
+      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
-      new BN(100000),
-      new BN(10_100_000),
-      userKeypair,
-    );
+      relayerFee: new anchor.BN(100_000),
+      payer: ADMIN_AUTH_KEYPAIR,
+    });
 
     await airdropShieldedSol({
       seed: recipientSeed,

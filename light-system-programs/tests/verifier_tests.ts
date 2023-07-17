@@ -75,14 +75,13 @@ describe("Verifier Zero and One Tests", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      LOOK_UP_TABLE,
+    RELAYER = await new TestRelayer({
+      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
-      new BN(100000),
-      new BN(10_100_000),
-      ADMIN_AUTH_KEYPAIR,
-    );
+      relayerFee: new BN(100_000),
+      payer: ADMIN_AUTH_KEYPAIR,
+    });
 
     depositAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
