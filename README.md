@@ -80,7 +80,7 @@ If you still want to setup dependencies manually, these are the requirements:
 To build the project, use the following commands:
 
 ```bash
-./build.sh
+./scripts/build.sh
 ```
 
 ## Git hook
@@ -106,7 +106,7 @@ solana-keygen new -o ~/.config/solana/id.json
 ### Global
 
 ```bash
-./test.sh
+./scripts/test.sh
 ```
 
 ### Rust tests
