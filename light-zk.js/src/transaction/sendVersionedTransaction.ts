@@ -115,6 +115,6 @@ export async function sendVersionedTransactions(
     }
     return { signatures };
   } catch (error) {
-    return { error: signature };
+    return { error };
   }
 }
