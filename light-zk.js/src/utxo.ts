@@ -244,7 +244,7 @@ export class Utxo {
     //     `amount not zero, amounts[0] = ${this.amounts[0] ?? "undefined"}`,
     //   );
     // }
-    else {
+    } else {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
         BN_0,
@@ -410,6 +410,7 @@ export class Utxo {
         ).fill(0),
       ]);
       includeAppData = false;
+
       if (!account)
         throw new UtxoError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
