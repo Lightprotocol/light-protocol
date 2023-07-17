@@ -15,7 +15,7 @@ pub struct LightInstructionFirst<'info> {
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 3000, payer = signing_address )]
-    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
+    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
 }
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump)]
-    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
+    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
 }
 #[allow(non_snake_case)]
 #[derive(Debug)]
@@ -52,7 +52,7 @@ pub struct LightInstructionThird<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
+    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
@@ -104,7 +104,7 @@ pub struct CloseVerifierState<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
+    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
 }
 
 #[allow(non_camel_case_types)]
