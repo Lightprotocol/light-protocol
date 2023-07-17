@@ -214,7 +214,7 @@ async function createVerifyingKeyRsFile(
       //   }
       // }
 
-      // @matteo: made it more granular, concise, optimized and readable (to be tested)
+      // made it more granular, concise, optimized and readable (to be tested)
       const processSubData = (subData: any) =>
         leInt2Buff(unstringifyBigInts(subData), 32).reverse();
 
@@ -298,7 +298,6 @@ async function createVerifyingKeyRsFile(
       //   fs.writeSync(resFile, s);
       // }
 
-      // @matteo: made it more concise and optimized (to be tested)
       for (const path of paths) {
         const resFile = await fs.open(path, "w");
         let s = `use groth16_solana::groth16::Groth16Verifyingkey;
