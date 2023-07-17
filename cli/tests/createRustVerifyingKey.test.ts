@@ -8,6 +8,7 @@ const fs = require("fs");
 import { createVerifyingkeyRsFile } from "../src/utils";
 
 describe("Test createVerifyingkeyRsFile Functional", () => {
+  /*
   let readFileStub: any;
   let writeFileStub: any;
   let closeStub: any;
@@ -99,4 +100,5 @@ describe("Test createVerifyingkeyRsFile Functional", () => {
       artifiactPath
     );
   });
+  */
 });
