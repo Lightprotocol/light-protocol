@@ -5,7 +5,9 @@
     "module": "commonjs",
     "target": "es5",
     "esModuleInterop": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "exclude": ["node_modules"],
   "include": ["./src/**/*", "tests"]
