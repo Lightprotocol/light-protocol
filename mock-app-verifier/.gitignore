@@ -1,4 +1,3 @@
-
 .anchor
 .DS_Store
 target
@@ -8,3 +7,6 @@ test-ledger
 */ptau17
 circuits/build/ptau17
 lookUpTable.txt
+tests/*.js
+scripts/*.js
+migrations/*.js

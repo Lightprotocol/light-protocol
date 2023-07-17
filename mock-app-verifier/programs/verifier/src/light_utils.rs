@@ -9,18 +9,18 @@ use verifier_program_two::{self, program::VerifierProgramTwo};
 
 // Send and stores data.
 #[derive(Accounts)]
-pub struct LightInstructionFirst<'info> {
+pub struct PspInstructionFirst<'info> {
     /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 3000, payer = signing_address )]
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
+    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
 }
 
 #[derive(Debug)]
 #[account]
-pub struct InstructionDataLightInstructionFirst {
+pub struct InstructionDataPspInstructionFirst {
     pub public_amount_spl: [u8; 32],
     pub input_nullifier: [[u8; 32]; 4],
     pub output_commitment: [[u8; 32]; 4],
@@ -32,27 +32,27 @@ pub struct InstructionDataLightInstructionFirst {
 }
 
 #[derive(Accounts)]
-pub struct LightInstructionSecond<'info> {
+pub struct PspInstructionSecond<'info> {
     /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump)]
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
+    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
 }
 #[allow(non_snake_case)]
 #[derive(Debug)]
 #[account]
-pub struct InstructionDataLightInstructionSecond {
+pub struct InstructionDataPspInstructionSecond {
     currentSlot: [u8; 32],
 }
 
 /// Executes light transaction with state created in the first instruction.
 #[derive(Accounts)]
-pub struct LightInstructionThird<'info> {
+pub struct PspInstructionThird<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
+    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
@@ -90,7 +90,7 @@ pub struct LightInstructionThird<'info> {
 
 #[derive(Debug)]
 #[account]
-pub struct InstructionDataLightInstructionThird {
+pub struct InstructionDataPspInstructionThird {
     pub proof_a_app: [u8; 64],
     pub proof_b_app: [u8; 128],
     pub proof_c_app: [u8; 64],
@@ -104,7 +104,7 @@ pub struct CloseVerifierState<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
+    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
 }
 
 #[allow(non_camel_case_types)]
