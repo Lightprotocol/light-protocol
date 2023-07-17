@@ -80,7 +80,6 @@ export class TransactionParameters implements transactionParameters {
     action,
     lookUpTable,
     ataCreationFee,
-    validateUtxos = true,
     verifierIdl,
   }: {
     message?: Buffer;
@@ -944,7 +943,7 @@ export class TransactionParameters implements transactionParameters {
     if (outputUtxos) {
       outputUtxos.map((utxo) => {
         let found = false;
-        for (var i in assetPubkeysCircuit) {
+        for (var _asset in assetPubkeysCircuit) {
           if (
             assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1].toString()) !== -1
           ) {

@@ -1,9 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 let circomlibjs = require("circomlibjs");
 
 import {
-  setUpMerkleTree,
   initLookUpTableFromFile,
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,

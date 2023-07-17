@@ -1,6 +1,5 @@
 const solana = require("@solana/web3.js");
 import { assert } from "chai";
-const token = require("@solana/spl-token");
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { MerkleTreeProgram } from "../idls";
@@ -115,7 +114,6 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   merkleTreeUpdateState,
   merkleTreeAccountPrior,
   numberOfLeaves,
-  leavesPdas,
   transactionMerkleTree,
   merkleTreeProgram,
 }: {

@@ -59,7 +59,6 @@ const selectBiggestSmallest = (
   assetIndex: number,
   sumOutSpl: BN,
   threshold: number,
-  mint?: PublicKey,
 ) => {
   var selectedUtxos: Utxo[] = [];
   var selectedUtxosAmount: BN = new BN(0);
@@ -212,8 +211,8 @@ export function selectInUtxos({
 
   // if mint is provided filter for only utxos that contain the mint
   let filteredUtxos: Utxo[] = [];
-  var sumInSpl = new BN(0);
-  var sumInSol = getUtxoArrayAmount(SystemProgram.programId, utxos);
+  // var sumInSpl = new BN(0);
+  // var sumInSol = getUtxoArrayAmount(SystemProgram.programId, utxos);
   var sumOutSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
   var sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
   if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
@@ -223,8 +222,8 @@ export function selectInUtxos({
     filteredUtxos = utxos.filter((utxo) =>
       utxo.assets.find((asset) => asset.toBase58() === mint?.toBase58()),
     );
-    sumInSpl = getUtxoArrayAmount(mint, filteredUtxos);
-    sumInSol = getUtxoArrayAmount(SystemProgram.programId, filteredUtxos);
+    // sumInSpl = getUtxoArrayAmount(mint, filteredUtxos);
+    // sumInSol = getUtxoArrayAmount(SystemProgram.programId, filteredUtxos);
     sumOutSpl = getUtxoArrayAmount(mint, outUtxos);
   } else {
     filteredUtxos = utxos;
@@ -244,7 +243,6 @@ export function selectInUtxos({
       1,
       sumOutSpl,
       numberMaxInUtxos - selectedUtxosR.length,
-      mint,
     );
     if (selectedUtxos.length === 0)
       throw new SelectInUtxosError(
@@ -324,7 +322,6 @@ export function selectInUtxos({
       0,
       sumOutSol,
       numberMaxInUtxos - selectedUtxosR.length,
-      mint,
     );
     selectedUtxosR = selectedUtxos;
   }

@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import _ from "lodash";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -26,11 +26,10 @@ import {
   generateRandomTestAmount,
   airdropSol,
   ConfirmOptions,
-  sleep,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
-import { assert, use } from "chai";
+import { assert } from "chai";
 
 var POSEIDON;
 var RELAYER: TestRelayer, provider: Provider, user: User;

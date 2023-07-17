@@ -119,15 +119,15 @@ export function createOutUtxos({
       ? publicAmountSol.add(relayerFee)
       : relayerFee;
   }
-
+  // @ts-ignore
   const { assetPubkeysCircuit, assetPubkeys } =
     !inUtxos && action === Action.SHIELD
       ? {
+          assetPubkeysCircuit: [],
           assetPubkeys: [
             SystemProgram.programId,
             publicMint ? publicMint : SystemProgram.programId,
           ],
-          assetPubkeysCircuit: [],
         }
       : TransactionParameters.getAssetPubkeys(inUtxos);
   if (!assetPubkeys)

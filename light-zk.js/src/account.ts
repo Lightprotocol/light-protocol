@@ -397,7 +397,7 @@ export class Account {
     return privateKey;
   }
 
-  static generateAesSecret(seed: String, domain?: string): Uint8Array {
+  static generateAesSecret(seed: String, _domain?: string): Uint8Array {
     const privkeySeed = seed + "aes";
     return Uint8Array.from(
       blake2b.create(b2params).update(privkeySeed).digest(),

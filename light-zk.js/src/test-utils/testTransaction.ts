@@ -470,7 +470,7 @@ export class TestTransaction {
       this.params.action == "UNSHIELD" &&
       this.testValues.is_token == true
     ) {
-      var senderAccount = await getAccount(
+      await getAccount(
         this.provider.provider.connection,
         this.params.accounts.senderSpl!,
       );

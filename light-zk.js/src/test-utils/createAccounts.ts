@@ -9,6 +9,7 @@ import {
 } from "@solana/web3.js";
 const { SystemProgram } = require("@solana/web3.js");
 // const token = require('@solana/spl-token')
+// @ts-ignore
 var _ = require("lodash");
 import {
   createAccount,
@@ -47,7 +48,7 @@ export const newAccountWithLamports = async (
   account = Keypair.generate(),
   lamports = 1e10,
 ) => {
-  let x = await connection.confirmTransaction(
+  await connection.confirmTransaction(
     await connection.requestAirdrop(account.publicKey, lamports),
     "confirmed",
   );
@@ -79,7 +80,6 @@ export const newAddressWithLamports = async (
 export const newProgramOwnedAccount = async ({
   connection,
   owner,
-  lamports = 0,
 }: {
   connection: Connection;
   owner: Program;
@@ -107,15 +107,10 @@ export const newProgramOwnedAccount = async ({
 
       tx.feePayer = payer.publicKey;
       tx.recentBlockhash = await connection.getLatestBlockhash();
-      let x = await solana.sendAndConfirmTransaction(
-        connection,
-        tx,
-        [payer, account],
-        {
-          commitment: "confirmed",
-          preflightCommitment: "confirmed",
-        },
-      );
+      await solana.sendAndConfirmTransaction(connection, tx, [payer, account], {
+        commitment: "confirmed",
+        preflightCommitment: "confirmed",
+      });
       return account;
     } catch {}
 

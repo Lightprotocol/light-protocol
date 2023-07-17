@@ -3,7 +3,6 @@ import { Keypair as SolanaKeypair } from "@solana/web3.js";
 let circomlibjs = require("circomlibjs");
 
 import {
-  setUpMerkleTree,
   initLookUpTableFromFile,
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,

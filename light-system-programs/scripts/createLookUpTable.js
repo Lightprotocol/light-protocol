@@ -1,7 +1,4 @@
 "use strict";
-// Migrations are an early feature. Currently, they're nothing more than this
-// single deploy script that's invoked from the CLI, injecting a provider
-// configured from the workspace's Anchor.toml.
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -38,12 +35,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const zk_js_1 = require("@lightprotocol/zk.js");
 const anchor = __importStar(require("@coral-xyz/anchor"));
 const web3_js_1 = require("@solana/web3.js");
-module.exports = function (provider) {
+const fs_1 = require("fs");
+process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+process.env.ANCHOR_PROVIDER_URL = "https://api.testnet.solana.com";
+function main() {
     return __awaiter(this, void 0, void 0, function* () {
-        anchor.setProvider(provider);
-        const newAuthority = new web3_js_1.PublicKey("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-        yield (0, zk_js_1.createTestAccounts)(provider.connection);
-        yield (0, zk_js_1.setUpMerkleTree)(provider, newAuthority, true);
-        process.exit();
+        const privkey = JSON.parse((0, fs_1.readFileSync)(process.env.ANCHOR_WALLET, "utf8"));
+        const payer = web3_js_1.Keypair.fromSecretKey(Uint8Array.from(privkey));
+        // Replace this with your user's Solana wallet
+        const connection = new web3_js_1.Connection(process.env.ANCHOR_PROVIDER_URL, zk_js_1.confirmConfig);
+        const provider = new anchor.AnchorProvider(connection, new anchor.Wallet(payer), zk_js_1.confirmConfig);
+        let lookupTable = yield (0, zk_js_1.initLookUpTable)((0, zk_js_1.useWallet)(payer, process.env.ANCHOR_PROVIDER_URL, true, "confirmed"), provider);
+        console.log("lookupTable ", lookupTable);
     });
-};
+}
+main();

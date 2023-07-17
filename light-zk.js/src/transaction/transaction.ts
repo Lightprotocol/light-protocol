@@ -638,7 +638,7 @@ export class Transaction {
 
   // TODO: evaluate whether confirm options should be here or in transaction parameters
   async sendTransaction(
-    confirmOptions: ConfirmOptions = ConfirmOptions.finalized,
+    _confirmOptions: ConfirmOptions = ConfirmOptions.finalized,
   ): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {

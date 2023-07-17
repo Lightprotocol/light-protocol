@@ -667,7 +667,7 @@ describe("Merkle Tree Tests", () => {
 
     const signer = ADMIN_AUTH_KEYPAIR;
 
-    let mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
+    await merkleTreeProgram.account.transactionMerkleTree.fetch(
       TRANSACTION_MERKLE_TREE_KEY,
     );
     let error;
@@ -677,7 +677,7 @@ describe("Merkle Tree Tests", () => {
       TRANSACTION_MERKLE_TREE_KEY,
     );
 
-    let poseidon = await circomlibjs.buildPoseidonOpt();
+    await circomlibjs.buildPoseidonOpt();
     // build tree from chain
     let merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
       [
@@ -692,7 +692,7 @@ describe("Merkle Tree Tests", () => {
       // test leaves with higher starting index than merkle tree next index
       leavesPdas.reverse();
       try {
-        const tx1 = await merkleTreeProgram.methods
+        await merkleTreeProgram.methods
           .initializeMerkleTreeUpdateState()
           .accounts({
             authority: signer.publicKey,
@@ -722,7 +722,7 @@ describe("Merkle Tree Tests", () => {
       // Test property: 1
       // try with one leavespda of higher index
       try {
-        const tx1 = await merkleTreeProgram.methods
+        await merkleTreeProgram.methods
           .initializeMerkleTreeUpdateState()
           .accounts({
             authority: signer.publicKey,
@@ -731,6 +731,7 @@ describe("Merkle Tree Tests", () => {
             rent: DEFAULT_PROGRAMS.rent,
             transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
           })
+          // @ts-ignore
           .remainingAccounts(leavesPdas[1])
           .preInstructions([
             solana.ComputeBudgetProgram.setComputeUnitLimit({
@@ -774,7 +775,7 @@ describe("Merkle Tree Tests", () => {
     }
 
     try {
-      const tx1 = await merkleTreeProgram.methods
+      await merkleTreeProgram.methods
         .initializeMerkleTreeUpdateState()
         .accounts({
           authority: signer.publicKey,
@@ -800,7 +801,7 @@ describe("Merkle Tree Tests", () => {
 
     // correct
     try {
-      const tx1 = await merkleTreeProgram.methods
+      await merkleTreeProgram.methods
         .initializeMerkleTreeUpdateState()
         .accounts({
           authority: signer.publicKey,
@@ -871,7 +872,7 @@ describe("Merkle Tree Tests", () => {
         ],
         merkleTreeProgram.programId,
       )[0];
-    let s = false;
+
     try {
       await executeMerkleTreeUpdateTransactions({
         signer: maliciousSigner,
@@ -894,7 +895,7 @@ describe("Merkle Tree Tests", () => {
     // Test property: 4
     // try to take lock
     try {
-      const tx1 = await merkleTreeProgram.methods
+      await merkleTreeProgram.methods
         .initializeMerkleTreeUpdateState()
         .accounts({
           authority: maliciousSigner.publicKey,
@@ -1037,7 +1038,7 @@ describe("Merkle Tree Tests", () => {
     // Test property: 2
     // try to reinsert leavesPdas[0]
     try {
-      const tx1 = await merkleTreeProgram.methods
+      await merkleTreeProgram.methods
         .initializeMerkleTreeUpdateState()
         .accounts({
           authority: signer.publicKey,

@@ -2,7 +2,6 @@ import * as anchor from "@coral-xyz/anchor";
 import {
   Connection,
   Keypair as SolanaKeypair,
-  PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
 import _ from "lodash";
@@ -12,7 +11,6 @@ import {
   Action,
   KEYPAIR_PRIVKEY,
   Provider as LightProvider,
-  Relayer,
   Transaction,
   TransactionParameters,
   userTokenAccount,
@@ -25,9 +23,6 @@ let circomlibjs = require("circomlibjs");
 // TODO: add and use  namespaces in SDK
 import {
   Utxo,
-  setUpMerkleTree,
-  initLookUpTableFromFile,
-  merkleTreeProgramId,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   Provider,
@@ -59,8 +54,6 @@ describe("verifier_program", () => {
   const userKeypair = ADMIN_AUTH_KEYPAIR;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
-    let initLog = console.log;
-    // console.log = () => {};
     await createTestAccounts(provider.connection);
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();

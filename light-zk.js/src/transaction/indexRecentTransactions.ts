@@ -398,7 +398,6 @@ export const indexRecentTransactions = async ({
     before: undefined,
     until: undefined,
   },
-  dedupe = false,
   transactions = [],
 }: {
   connection: Connection;

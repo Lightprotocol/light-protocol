@@ -72,7 +72,6 @@ export class User {
   provider: Provider;
   account: Account;
   transactionHistory?: UserIndexedTransaction[];
-  private seed?: string;
   recentTransactionParameters?: TransactionParameters;
   recentTransaction?: Transaction;
   approved?: boolean;
@@ -83,8 +82,6 @@ export class User {
 
   constructor({
     provider,
-    serializedUtxos, // balance
-    serialiezdSpentUtxos, // inboxBalance idk
     account,
     appUtxoConfig,
     verifierIdl = IDL_VERIFIER_PROGRAM_ZERO,
@@ -156,7 +153,7 @@ export class User {
       );
 
     // identify spent utxos
-    for (var [token, tokenBalance] of balance.tokenBalances) {
+    for (var [, tokenBalance] of balance.tokenBalances) {
       for (var [key, utxo] of tokenBalance.utxos) {
         let nullifierAccountInfo = await fetchNullifierAccountInfo(
           utxo.getNullifier(this.provider.poseidon)!,
@@ -572,12 +569,12 @@ export class User {
         `Error in tx.sendTransaction ${e}`,
       );
     }
-    let transactionContainsEncryptedUtxo = false;
-    this.recentTransactionParameters.outputUtxos.map((utxo) => {
-      if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
-        transactionContainsEncryptedUtxo = true;
-      }
-    });
+    // let transactionContainsEncryptedUtxo = false;
+    // this.recentTransactionParameters.outputUtxos.map((utxo) => {
+    //   if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
+    //     transactionContainsEncryptedUtxo = true;
+    //   }
+    // });
     return txResult;
   }
 
@@ -994,12 +991,7 @@ export class User {
     return { txHash, response: relayerMerkleTreeUpdateResponse };
   }
 
-  async transactWithUtxos({
-    inUtxos,
-    outUtxos,
-    action,
-    inUtxoCommitments,
-  }: {
+  async transactWithUtxos({}: {
     inUtxos: Utxo[];
     outUtxos: Utxo[];
     action: Action;
@@ -1017,7 +1009,6 @@ export class User {
   static async init({
     provider,
     seed,
-    utxos,
     appUtxoConfig,
     account,
   }: {
@@ -1452,11 +1443,7 @@ export class User {
    * - try to decrypt all and add to appUtxos or decrypted data map
    * - add custom descryption strategies for arbitrary data
    */
-  async syncStorage(
-    idl: anchor.Idl,
-    aes: boolean = true,
-    merkleTree?: PublicKey,
-  ) {
+  async syncStorage(idl: anchor.Idl, aes: boolean = true) {
     if (!aes) return undefined;
     // TODO: move to relayer
     // TODO: implement the following
@@ -1501,7 +1488,7 @@ export class User {
       for (const data of indexedTransactions) {
         let decryptedUtxo = null;
         var index = data.firstLeafIndex.toNumber();
-        for (var [leafIndex, leaf] of data.leaves.entries()) {
+        for (var [, leaf] of data.leaves.entries()) {
           try {
             decryptedUtxo = await Utxo.decrypt({
               poseidon: this.provider.poseidon,
@@ -1580,8 +1567,8 @@ export class User {
           "spentUtxos",
         );
     }
-    for (var [program, programBalance] of this.balance.programBalances) {
-      for (var [token, tokenBalance] of programBalance.tokenBalances) {
+    for (var [, programBalance] of this.balance.programBalances) {
+      for (var [, tokenBalance] of programBalance.tokenBalances) {
         for (var [key, utxo] of tokenBalance.utxos) {
           let nullifierAccountInfo = await fetchNullifierAccountInfo(
             utxo.getNullifier(this.provider.poseidon)!,
@@ -1777,7 +1764,7 @@ export class User {
     const iterateOverTokenBalance = (
       tokenBalances: Map<string, TokenUtxoBalance>,
     ) => {
-      for (var [token, tokenBalance] of tokenBalances) {
+      for (var [, tokenBalance] of tokenBalances) {
         const utxo = tokenBalance.utxos.get(commitment);
         if (utxo) {
           return { status: "ready", utxo };
@@ -1793,7 +1780,7 @@ export class User {
       }
     };
     let res = undefined;
-    for (var [program, programBalance] of this.balance.programBalances) {
+    for (var [, programBalance] of this.balance.programBalances) {
       res = iterateOverTokenBalance(programBalance.tokenBalances);
       if (res) return res;
     }

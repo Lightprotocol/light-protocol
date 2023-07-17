@@ -89,7 +89,7 @@ export class Relayer {
     this.url = url;
   }
 
-  async updateMerkleTree(provider: Provider) {
+  async updateMerkleTree(_provider: Provider) {
     try {
       const response = await axios.post(this.url + "/updatemerkletree");
       return response;
@@ -101,7 +101,7 @@ export class Relayer {
 
   async sendTransactions(
     instructions: any[],
-    provider: Provider,
+    _provider: Provider,
   ): Promise<RelayerSendTransactionsResponse> {
     try {
       const response = await axios.post(this.url + "/relayTransaction", {
@@ -119,7 +119,7 @@ export class Relayer {
   }
 
   async getIndexedTransactions(
-    connection: Connection,
+    _connection: Connection,
   ): Promise<IndexedTransaction[]> {
     try {
       const response = await axios.get(this.url + "/indexedTransactions");
