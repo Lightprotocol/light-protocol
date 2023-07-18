@@ -10,7 +10,7 @@ import {
   getKeyPairFromEnv,
 } from "../utils/provider";
 
-export const initMerkleTree = async (req: any, res: any) => {
+export const initMerkleTree = async (_req: any, res: any) => {
   try {
     const provider: Provider = await getLightProvider();
 
@@ -43,7 +43,7 @@ export const initMerkleTree = async (req: any, res: any) => {
   }
 };
 
-export const updateMerkleTree = async (req: any, res: any) => {
+export const updateMerkleTree = async (_req: any, res: any) => {
   try {
     const provider = await getLightProvider();
     await updateMerkleTreeForTest(getKeyPairFromEnv("KEY_PAIR"), provider.url!);

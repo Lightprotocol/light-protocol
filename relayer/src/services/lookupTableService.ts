@@ -1,7 +1,7 @@
 import { initLookUpTableFromFile } from "@lightprotocol/zk.js";
 import { getLightProvider } from "../utils/provider";
 
-export const initLookupTable = async (req: any, res: any) => {
+export const initLookupTable = async (_req: any, res: any) => {
   try {
     const provider = await getLightProvider();
     const LOOK_UP_TABLE = await initLookUpTableFromFile(provider.provider!);

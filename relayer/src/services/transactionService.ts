@@ -44,7 +44,7 @@ export async function sendTransaction(req: any, res: any) {
   }
 }
 
-export async function indexedTransactions(req: any, res: any) {
+export async function indexedTransactions(_req: any, res: any) {
   try {
     const provider = await setAnchorProvider();
 
