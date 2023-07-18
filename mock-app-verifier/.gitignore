@@ -7,6 +7,6 @@ test-ledger
 */ptau17
 circuits/build/ptau17
 lookUpTable.txt
-tests/*.js
 scripts/*.js
+tests/*.js
 migrations/*.js

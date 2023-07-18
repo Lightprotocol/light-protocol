@@ -147,7 +147,7 @@ describe("Mock verifier functional", () => {
       relayerRecipientSol,
       new BN(100000),
       new BN(10_000_000),
-      ADMIN_AUTH_KEYPAIR
+      ADMIN_AUTH_KEYPAIR,
     );
     lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,

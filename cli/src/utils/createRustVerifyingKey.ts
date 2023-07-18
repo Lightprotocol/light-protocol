@@ -62,7 +62,7 @@ async function getProofInputsFromSymFile(artifiactPath: string) {
   const symText = fs.readFileSync(`${artifiactPath}.sym`, "utf-8");
   while ((match = regex.exec(symText)) !== null) {
     keys.push(match[1]);
-    const name = match[1];
+    // const name = match[1];
   }
 
   let arr: PropertiesObject[] = [];
@@ -399,7 +399,7 @@ export async function createVerfyingkeyRsFileArgv() {
 }
 
 export async function createVerifyingkeyRsFile(
-  program: string,
+  _program: string,
   paths: string[],
   vKeyJsonPath: string,
   vKeyRsPath: string,

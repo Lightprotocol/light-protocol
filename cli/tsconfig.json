@@ -6,9 +6,9 @@
     "target": "es5",
     "esModuleInterop": true,
     "sourceMap": true,
+    "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "exclude": ["node_modules"],
   "include": ["./src/**/*", "tests"]
 }

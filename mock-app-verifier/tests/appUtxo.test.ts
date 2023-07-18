@@ -9,10 +9,7 @@ import {
   confirmConfig,
   createAccountObject,
 } from "@lightprotocol/zk.js";
-import {
-  SystemProgram,
-  PublicKey,
-} from "@solana/web3.js";
+import { SystemProgram, PublicKey } from "@solana/web3.js";
 
 import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@coral-xyz/anchor";
@@ -20,7 +17,7 @@ import { it } from "mocha";
 import { IDL } from "../target/types/mock_verifier";
 import { assert, expect } from "chai";
 
-var POSEIDON, LOOK_UP_TABLE, RELAYER, KEYPAIR, relayerRecipientSol: PublicKey;
+var RELAYER: any;
 
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.
@@ -32,20 +29,20 @@ describe("Mock verifier functional", () => {
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
   anchor.setProvider(provider);
-  var poseidon, lightProvider: LightProvider;
+  var poseidon: any, lightProvider: LightProvider;
   before(async () => {
     lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
     });
     poseidon = await buildPoseidonOpt();
-    KEYPAIR = new Account({
+    new Account({
       poseidon,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
   });
 
-  var outputUtxo;
+  var outputUtxo: Utxo;
   it("To from bytes ", async () => {
     const account = new Account({
       poseidon,

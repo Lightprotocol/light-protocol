@@ -14,6 +14,7 @@ MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
 solana config set --url http://localhost:8899
 
+pkill solana-test-validator || true
 solana-test-validator \
     --reset \
     --limit-ledger-size=$LIMIT_LEDGER_SIZE \
