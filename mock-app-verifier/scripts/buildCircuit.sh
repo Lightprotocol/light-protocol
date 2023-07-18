@@ -17,4 +17,3 @@ ts-node ./scripts/createRustVerifyingKey.ts app verifier CIRCUIT_NAME # TODO: ne
 rm ./sdk/build-circuit/verifyingkey.json
 rm ./sdk/build-circuit/CIRCUIT_NAME.r1cs
 rm ./sdk/build-circuit/CIRCUIT_NAME.sym
-
