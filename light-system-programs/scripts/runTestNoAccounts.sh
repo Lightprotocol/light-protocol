@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 
 set -eux
 
@@ -15,15 +15,15 @@ solana config set --url http://localhost:8899
 pkill solana-test-validator || true
 solana-test-validator \
     --reset \
-    --limit-ledger-size=$LIMIT_LEDGER_SIZE \
+    --limit-ledger-size="${LIMIT_LEDGER_SIZE}" \
     --quiet \
-    --bpf-program $NOOP_PROGRAM_ID ../test-env/programs/spl_noop.so \
-    --bpf-program $MERKLE_TREE_PROGRAM_ID ./target/deploy/merkle_tree_program.so \
-    --bpf-program $VERIFIER_PROGRAM_ZERO_ID ./target/deploy/verifier_program_zero.so \
-    --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ./target/deploy/verifier_program_storage.so \
-    --bpf-program $VERIFIER_PROGRAM_ONE_ID ./target/deploy/verifier_program_one.so \
+    --bpf-program "${NOOP_PROGRAM_ID}" ../test-env/programs/spl_noop.so \
+    --bpf-program "${MERKLE_TREE_PROGRAM_ID}" ./target/deploy/merkle_tree_program.so \
+    --bpf-program "${VERIFIER_PROGRAM_ZERO_ID}" ./target/deploy/verifier_program_zero.so \
+    --bpf-program "${VERIFIER_PROGRAM_STORAGE_ID}" ./target/deploy/verifier_program_storage.so \
+    --bpf-program "${VERIFIER_PROGRAM_ONE_ID}" ./target/deploy/verifier_program_one.so \
     &
-PID=$!
-trap "kill $PID" EXIT
+PID="${!}"
+trap "kill ${PID}" EXIT
 sleep 7
 $1
