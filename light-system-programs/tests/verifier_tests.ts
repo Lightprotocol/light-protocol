@@ -77,7 +77,6 @@ describe("Verifier Zero and One Tests", () => {
 
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
       relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,

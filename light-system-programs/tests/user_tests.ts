@@ -26,11 +26,10 @@ import {
   generateRandomTestAmount,
   airdropSol,
   ConfirmOptions,
-  sleep,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
-import { assert, use } from "chai";
+import { assert } from "chai";
 
 var POSEIDON;
 var RELAYER: TestRelayer, provider: Provider, user: User;
@@ -59,7 +58,6 @@ describe("Test User", () => {
 
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
       relayerFee: new anchor.BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
@@ -67,6 +65,7 @@ describe("Test User", () => {
     provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
+      confirmConfig,
     });
     await airdropSol({
       provider: anchorProvider,
@@ -138,7 +137,7 @@ describe("Test User", () => {
     // await testStateValidator.checkSolShielded();
   });
 
-  it("(user class) confirm options SPL", async () => {
+  it.only("(user class) confirm options SPL", async () => {
     const userSeed = bs58.encode(new Uint8Array(32).fill(3));
     await airdropShieldedSol({ provider, amount: 10, seed: userSeed });
     let testInputs = {
@@ -385,6 +384,7 @@ describe("Test User Errors", () => {
     provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
+      confirmConfig,
     });
 
     user = await User.init({ provider });

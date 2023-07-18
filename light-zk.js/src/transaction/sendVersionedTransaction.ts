@@ -91,7 +91,7 @@ export async function sendVersionedTransactions(
   payer: Wallet,
 ): Promise<SendVersionedTransactionsResult> {
   try {
-    var signatures: TransactionSignature[] = [];
+    let signatures: TransactionSignature[] = [];
     for (var instruction of instructions) {
       let signature = await sendVersionedTransaction(
         instruction,

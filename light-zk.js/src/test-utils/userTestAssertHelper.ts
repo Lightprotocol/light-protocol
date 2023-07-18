@@ -9,7 +9,7 @@ import {
 import {
   Action,
   TransactionParameters,
-  indexRecentTransactions,
+  fetchRecentTransactions,
 } from "../transaction";
 import { IndexedTransaction, TokenData } from "../types";
 import { Balance, Provider, User } from "../wallet";
@@ -1080,12 +1080,11 @@ export class UserTestAssertHelper {
   async checkMessageStored() {
     if (!this.testInputs.message)
       throw new Error("Test inputs message undefined to assert message stored");
-    const indexedTransactions = await indexRecentTransactions({
+    const indexedTransactions = await fetchRecentTransactions({
       connection: this.provider!.provider!.connection,
       batchOptions: {
         limit: 5000,
       },
-      dedupe: false,
     });
     indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
     assert.equal(

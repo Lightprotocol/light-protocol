@@ -1,12 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { relayerFee, rpcPort } from "../config";
-import {
-  ADMIN_AUTH_KEYPAIR,
-  confirmConfig,
-  Provider,
-  Relayer,
-} from "@lightprotocol/zk.js";
+import { confirmConfig, Provider, Relayer } from "@lightprotocol/zk.js";
+import { readFile, writeFile } from "fs";
 require("dotenv").config();
 
 let provider: Provider;
@@ -39,18 +35,25 @@ export const getLightProvider = async () => {
     provider = await Provider.init({
       wallet: getKeyPairFromEnv("KEY_PAIR"),
       relayer,
+      confirmConfig,
+      url: process.env.RPC_URL,
     });
-
+    console.log("lookUpTable", provider.lookUpTables.versionedTransactionLookupTable?.toBase58())
+    const replaceLookupTableValue = async (newValue: string) =>
+      readFile('.env', 'utf8', (err, data) =>
+        err || writeFile('.env', data.replace(/(LOOK_UP_TABLE=).*\n/, `$1${newValue}\n`), 'utf8', console.error)
+      );
+    await replaceLookupTableValue(provider.lookUpTables.versionedTransactionLookupTable!.toBase58());
     return provider;
   }
   return provider;
 };
 
-export const getRelayer = async () => {
+export async function getRelayer() {
   if (!relayer) {
     relayer = new Relayer(
       getKeyPairFromEnv("KEY_PAIR").publicKey,
-      new PublicKey(process.env.LOOK_UP_TABLE || ""),
+      new PublicKey(process.env.LOOK_UP_TABLE!),
       getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
       relayerFee,
     );
@@ -58,4 +61,4 @@ export const getRelayer = async () => {
     return relayer;
   }
   return relayer;
-};
+}

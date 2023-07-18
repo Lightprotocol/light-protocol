@@ -4,7 +4,7 @@ import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
 import { Provider, useWallet } from "../wallet";
 import {
-  indexRecentTransactions,
+  fetchRecentTransactions,
   sendVersionedTransactions,
 } from "../transaction";
 import { IndexedTransaction } from "../types";
@@ -17,14 +17,12 @@ export class TestRelayer extends Relayer {
 
   constructor({
     relayerPubkey,
-    lookUpTable,
     relayerRecipientSol,
     relayerFee = new BN(0),
     highRelayerFee,
     payer,
   }: {
     relayerPubkey: PublicKey;
-    lookUpTable: PublicKey;
     relayerRecipientSol?: PublicKey;
     relayerFee: BN;
     highRelayerFee?: BN;
@@ -32,7 +30,6 @@ export class TestRelayer extends Relayer {
   }) {
     super(
       relayerPubkey,
-      lookUpTable,
       relayerRecipientSol,
       relayerFee,
       highRelayerFee,
@@ -81,9 +78,10 @@ export class TestRelayer extends Relayer {
     var res = await sendVersionedTransactions(
       instructions,
       provider.provider!.connection!,
-      this.accounts.lookUpTable,
+      provider.lookUpTables.versionedTransactionLookupTable,
       useWallet(this.relayerKeypair),
     );
+    console.log("sendTransactions ", res);
     if (res.error) return { transactionStatus: "error", ...res };
     else return { transactionStatus: "confirmed", ...res };
   }
@@ -117,14 +115,12 @@ export class TestRelayer extends Relayer {
     // which is approximately the number of transactions sent to send one shielded transaction and update the merkle tree
     const limit = 1000 + 260 * merkleTreeAccount.nextIndex.toNumber();
     if (this.indexedTransactions.length === 0) {
-      this.indexedTransactions = await indexRecentTransactions({
+      this.indexedTransactions = await fetchRecentTransactions({
         connection,
         batchOptions: {
           limit,
         },
-        dedupe: false,
       });
-
       return this.indexedTransactions;
     } else {
       if (this.indexedTransactions.length === 0) return [];
@@ -133,13 +129,12 @@ export class TestRelayer extends Relayer {
         a.blockTime > b.blockTime ? a : b,
       );
 
-      await indexRecentTransactions({
+      await fetchRecentTransactions({
         connection,
         batchOptions: {
           limit,
           until: mostRecentTransaction.signature,
         },
-        dedupe: false,
         transactions: this.indexedTransactions,
       });
       return this.indexedTransactions;

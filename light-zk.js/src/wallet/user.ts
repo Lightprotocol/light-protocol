@@ -108,7 +108,11 @@ export class User {
         "No wallet provided",
       );
 
-    if (!provider.lookUpTable || !provider.solMerkleTree || !provider.poseidon)
+    if (
+      !provider.lookUpTables.verifierProgramLookupTable ||
+      !provider.solMerkleTree ||
+      !provider.poseidon
+    )
       throw new UserError(
         UserErrorCode.PROVIDER_NOT_INITIALIZED,
         "constructor",
@@ -188,7 +192,7 @@ export class User {
     await this.provider.latestMerkleTree(indexedTransactions);
 
     for (const trx of indexedTransactions) {
-      let leftLeafIndex = trx.firstLeafIndex.toNumber();
+      let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
 
       for (let index = 0; index < trx.leaves.length; index += 2) {
         const leafLeft = trx.leaves[index];
@@ -295,7 +299,7 @@ export class User {
         "getBalance",
         "Merkle Tree not initialized",
       );
-    if (!this.provider.lookUpTable)
+    if (!this.provider.lookUpTables.verifierProgramLookupTable)
       throw new UserError(
         RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
         "getBalance",
@@ -1025,12 +1029,14 @@ export class User {
     utxos,
     appUtxoConfig,
     account,
+    skipFetchBalance,
   }: {
     provider: Provider;
     seed?: string;
     utxos?: Utxo[];
     appUtxoConfig?: AppUtxoConfig;
     account?: Account;
+    skipFetchBalance?: boolean;
   }): Promise<any> {
     try {
       if (!seed) {
@@ -1057,8 +1063,7 @@ export class User {
         });
       }
       const user = new User({ provider, appUtxoConfig, account });
-
-      await user.getBalance();
+      if (!skipFetchBalance) await user.getBalance();
 
       return user;
     } catch (e) {
@@ -1505,7 +1510,7 @@ export class User {
       var spentUtxos: Utxo[] = [];
       for (const data of indexedTransactions) {
         let decryptedUtxo = null;
-        var index = data.firstLeafIndex.toNumber();
+        var index = new BN(data.firstLeafIndex).toNumber();
         for (var [leafIndex, leaf] of data.leaves.entries()) {
           try {
             decryptedUtxo = await Utxo.decrypt({

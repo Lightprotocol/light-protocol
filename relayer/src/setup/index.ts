@@ -10,7 +10,7 @@ export const testSetup = async () => {
   // TODO: use updated -- buildscript -> add relayer tests
   await createTestAccounts(providerAnchor.connection);
 
-  // await initLookUpTableFromFile(providerAnchor);
+  await initLookUpTableFromFile(providerAnchor);
 
   // await setUpMerkleTree(providerAnchor);
 };

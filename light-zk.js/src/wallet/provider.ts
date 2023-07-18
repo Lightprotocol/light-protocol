@@ -2,7 +2,7 @@ import {
   AnchorError,
   AnchorProvider,
   BN,
-  setProvider,
+  Wallet as AnchorWallet,
 } from "@coral-xyz/anchor";
 import {
   PublicKey,
@@ -23,7 +23,6 @@ import {
   MERKLE_TREE_HEIGHT,
   TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
-  initLookUpTableFromFile,
   SolMerkleTree,
   RELAYER_RECIPIENT_KEYPAIR,
   IndexedTransaction,
@@ -54,15 +53,15 @@ export class Provider {
   wallet: Wallet;
   confirmConfig: ConfirmOptions;
   poseidon: any;
-  lookUpTable?: PublicKey;
   solMerkleTree?: SolMerkleTree;
-  provider?: AnchorProvider;
+  provider: AnchorProvider;
   url?: string;
   minimumLamports: BN;
   relayer: Relayer;
   lookUpTables: {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
+    versionedTransactionLookupTable: PublicKey;
   };
 
   /**
@@ -73,20 +72,24 @@ export class Provider {
     wallet,
     confirmConfig,
     connection,
-    url = "http://127.0.0.1:8899",
+    url,
     minimumLamports = MINIMUM_LAMPORTS,
     relayer,
     verifierProgramLookupTable,
     assetLookupTable,
+    versionedTransactionLookupTable,
+    anchorProvider,
   }: {
-    wallet: Wallet | SolanaKeypair;
+    wallet: Wallet;
     confirmConfig?: ConfirmOptions;
     connection?: Connection;
-    url?: string;
+    url: string;
     minimumLamports?: BN;
     relayer?: Relayer;
     verifierProgramLookupTable?: PublicKey[];
     assetLookupTable?: PublicKey[];
+    versionedTransactionLookupTable: PublicKey;
+    anchorProvider: AnchorProvider;
   }) {
     if (!wallet)
       throw new ProviderError(
@@ -94,43 +97,17 @@ export class Provider {
         "constructor",
         "No wallet provided.",
       );
-
-    if (!("secretKey" in wallet) && !connection)
-      throw new ProviderError(
-        ProviderErrorCode.CONNECTION_UNDEFINED,
-        "constructor",
-        "No connection provided with browser wallet.",
-      );
-    if ("secretKey" in wallet && connection)
-      throw new ProviderError(
-        ProviderErrorCode.CONNECTION_DEFINED,
-        "constructor",
-        "Connection provided in node environment. Provide a url instead",
-      );
-
+    this.provider = anchorProvider;
+    this.wallet = wallet;
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
     this.minimumLamports = minimumLamports;
-
-    if ("secretKey" in wallet) {
-      this.wallet = useWallet(wallet as SolanaKeypair, url);
-      // TODO: check if we can remove this.url!
-      this.url = url;
-      // TODO: check if we can remove this.provider!
-      if (url !== "mock") {
-        setProvider(AnchorProvider.env());
-        this.provider = AnchorProvider.local(url, confirmConfig);
-      }
-    } else {
-      this.connection = connection;
-      this.wallet = wallet as Wallet;
-    }
-
+    this.url = url;
+    this.connection = connection;
     if (relayer) {
       this.relayer = relayer;
     } else {
       this.relayer = new Relayer(
-        this.wallet!.publicKey,
-        this.lookUpTable!,
+        this.wallet.publicKey,
         RELAYER_RECIPIENT_KEYPAIR.publicKey,
         new BN(100000),
       );
@@ -153,17 +130,19 @@ export class Provider {
         "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
         ...tmpVerifierProgramLookupTable,
       ],
+      versionedTransactionLookupTable,
     };
   }
 
   static async loadMock() {
+    // @ts-ignore: @ananas-block ignoring errors to not pass anchorProvider
     let mockProvider = new Provider({
-      wallet: ADMIN_AUTH_KEYPAIR,
+      wallet: useWallet(ADMIN_AUTH_KEYPAIR),
       url: "mock",
+      versionedTransactionLookupTable: PublicKey.default,
     });
 
     await mockProvider.loadPoseidon();
-    mockProvider.lookUpTable = SolanaKeypair.generate().publicKey;
     mockProvider.solMerkleTree = new SolMerkleTree({
       poseidon: mockProvider.poseidon,
       pubkey: TRANSACTION_MERKLE_TREE_KEY,
@@ -172,68 +151,17 @@ export class Provider {
     return mockProvider;
   }
 
-  private async fetchLookupTable() {
-    try {
-      if (this.wallet.isNodeWallet) {
-        await this.fetchLookupTableNodeWallet();
-      } else {
-        await this.fetchLookupTableExternal();
-      }
-    } catch (err) {
-      console.error(err);
-      throw err;
+  static async fetchLookupTable(
+    wallet: Wallet,
+    provider: AnchorProvider,
+    relayerUrl?: string,
+  ): Promise<PublicKey | undefined> {
+    if (wallet.isNodeWallet) {
+      return await initLookUpTable(wallet, provider);
+    } else if (relayerUrl) {
+      const response = await axios.get(relayerUrl + "/lookuptable");
+      return new PublicKey(response.data.data);
     }
-  }
-
-  private async fetchLookupTableExternal() {
-    const response = await axios.get(this.relayer.url + "/lookuptable");
-    const lookUpTable = new PublicKey(response.data.data);
-    this.setLookUpTable(lookUpTable);
-  }
-
-  private async fetchLookupTableNodeWallet() {
-    if (!this.provider)
-      throw new ProviderError(
-        ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
-        "fetchLookupTableNodeWallet",
-      );
-    var lookupTableAccount;
-    try {
-      lookupTableAccount = await this.provider.connection.getAccountInfo(
-        this.relayer.accounts.lookUpTable,
-        "confirmed",
-      );
-    } catch (error) {}
-
-    if (
-      !lookupTableAccount ||
-      !this.checkUnpackedLookupTableAccount(lookupTableAccount.data)
-    ) {
-      await this.initLookUpTable();
-    } else {
-      this.setLookUpTable(this.relayer.accounts.lookUpTable);
-    }
-  }
-
-  private setLookUpTable(lookUpTable: PublicKey) {
-    this.lookUpTable = lookUpTable;
-    this.relayer.accounts.lookUpTable = lookUpTable;
-  }
-
-  private async initLookUpTable() {
-    if (!this.provider)
-      throw new ProviderError(
-        ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
-        "initLookUpTable",
-      );
-    const lookUpTable = await initLookUpTable(this.wallet, this.provider);
-    this.setLookUpTable(lookUpTable);
-  }
-
-  private checkUnpackedLookupTableAccount(data: any) {
-    const unpackedLookupTableAccount =
-      AddressLookupTableAccount.deserialize(data);
-    return unpackedLookupTableAccount !== null;
   }
 
   private async fetchMerkleTree(
@@ -292,13 +220,13 @@ export class Provider {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     this.poseidon = poseidon;
   }
+
   async latestMerkleTree(indexedTransactions?: IndexedTransaction[]) {
     await this.fetchMerkleTree(
       TRANSACTION_MERKLE_TREE_KEY,
       indexedTransactions,
     );
   }
-  // TODO: add loadEddsa
 
   /**
    * Only use this if you use the WalletAdapter, e.g. in the browser. If you use a local keypair, use getNodeProvider().
@@ -311,22 +239,86 @@ export class Provider {
     wallet,
     connection,
     confirmConfig,
-    url,
+    url = "http://127.0.0.1:8899",
     relayer,
     assetLookupTable,
     verifierProgramLookupTable,
+    versionedTransactionLookupTable,
   }: {
     wallet: Wallet | SolanaKeypair | Keypair;
     connection?: Connection;
-    confirmConfig?: ConfirmOptions;
+    confirmConfig: ConfirmOptions;
     url?: string;
     relayer?: Relayer;
     assetLookupTable?: PublicKey[];
     verifierProgramLookupTable?: PublicKey[];
+    versionedTransactionLookupTable?: PublicKey;
   }): Promise<Provider> {
     if (!wallet) {
       throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
     }
+    if (!connection) {
+      connection = new Connection(url, "confirmed");
+    }
+    if (!("secretKey" in wallet) && !connection)
+      throw new ProviderError(
+        ProviderErrorCode.CONNECTION_UNDEFINED,
+        "constructor",
+        "No connection provided with browser wallet.",
+      );
+    if ("secretKey" in wallet) {
+      wallet = useWallet(wallet as SolanaKeypair, url);
+    } else {
+      wallet = wallet as Wallet;
+    }
+    // initializing anchor provider with dummy wallet we are never going to use it to send transactions
+    const anchorProvider = new AnchorProvider(
+      connection,
+      new AnchorWallet(SolanaKeypair.generate()),
+      confirmConfig,
+    );
+
+    if (!versionedTransactionLookupTable) {
+      // initializing lookup table or fetching one from relayer in case of browser wallet
+      versionedTransactionLookupTable = await Provider.fetchLookupTable(
+        wallet,
+        anchorProvider,
+        relayer?.url,
+      );
+    } else {
+      // checking that lookup table is initialized
+      try {
+        const lookupTableAccount = await connection.getAccountInfo(
+          versionedTransactionLookupTable,
+          "confirmed",
+        );
+        if (!lookupTableAccount) {
+          throw new ProviderError(
+            ProviderErrorCode.LOOK_UP_TABLE_NOT_INITIALIZED,
+            "init",
+          );
+        }
+        const unpackedLookupTableAccount =
+          AddressLookupTableAccount.deserialize(lookupTableAccount.data);
+        console.log(
+          "unpackedLookupTableAccount ------------------------------",
+          unpackedLookupTableAccount,
+        );
+      } catch (error) {
+        throw new ProviderError(
+          ProviderErrorCode.LOOK_UP_TABLE_NOT_INITIALIZED,
+          "init",
+          `${error}`,
+        );
+      }
+    }
+    if (!versionedTransactionLookupTable)
+      throw new ProviderError(
+        ProviderErrorCode.LOOK_UP_TABLE_NOT_INITIALIZED,
+        "init",
+        "Initializing lookup table in node.js or fetching it from relayer in browser failed",
+      );
+
     const provider = new Provider({
       wallet,
       confirmConfig,
@@ -335,9 +327,11 @@ export class Provider {
       relayer,
       assetLookupTable,
       verifierProgramLookupTable,
+      versionedTransactionLookupTable,
+      anchorProvider,
     });
+
     await provider.loadPoseidon();
-    await provider.fetchLookupTable();
     await provider.fetchMerkleTree(TRANSACTION_MERKLE_TREE_KEY);
     return provider;
   }

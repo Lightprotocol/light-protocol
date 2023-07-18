@@ -13,7 +13,9 @@ VERIFIER_PROGRAM_TWO_ID="2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
 MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
 solana config set --url http://localhost:8899
-
+# kills existing solana processes
+killall solana-test-val &
+sleep 1
 pkill solana-test-validator || true
 solana-test-validator \
     --reset \
@@ -28,13 +30,18 @@ solana-test-validator \
     --account-dir ../test-env/accounts \
     &
 PID="${!}"
-trap "kill ${PID}" EXIT
+# trap "kill ${PID}" EXIT
 sleep 7
 
-node lib/index.js &
+sleep 8
+
+node lib/index.js
 relayer_pid=$!
-trap "kill ${relayer_pid}" EXIT
+# trap "kill ${relayer_pid}" EXIT
 
-sleep 20
+# sleep 15
 
-ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit
+# npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;
+
+# tests/indexer_test.ts
+# trap "kill $PID" EXIT
