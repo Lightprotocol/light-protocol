@@ -10,3 +10,4 @@ lookUpTable.txt
 scripts/*.js
 tests/*.js
 migrations/*.js
+circuit/mockVerifierTransactionMain.circom

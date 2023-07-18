@@ -83,8 +83,7 @@ describe("Test createVerifyingkeyRsFile Functional", () => {
   });
 
   it("should write the verifying_key.rs file with the correct content", async function () {
-    console.log(process.argv);
-    process.argv = ["", "", "2"];
+    process.argv = ["", "", "2", "4"];
     await createVerfyingkeyRsFileArgv();
   });
 });
