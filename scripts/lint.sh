@@ -1,15 +1,15 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 set -e
 
-pushd light-system-programs
+cd light-system-programs
 yarn install
 yarn run lint
 cargo fmt --all -- --check
 cargo clippy --all -- -A clippy::result_large_err -D warnings
-popd
+cd ..
 
-pushd light-zk.js
+cd light-zk.js
 yarn install
 yarn run lint
-popd
+cd ..
