@@ -1,4 +1,7 @@
-#!/bin/bash -e
+#!/usr/bin/env sh
+
+set -e
+
 POWERS_OF_TAU=17 # circuit will support max 2^POWERS_OF_TAU constraints
 if [ ! -f ./ptau$POWERS_OF_TAU ]; then
   echo "Downloading powers of tau file"
