@@ -282,14 +282,12 @@ async function createVerifyingKeyRsFile(
         s += "\t],\n\n";
         fs.writeSync(resFile, s);
         s = "\tvk_ic: &[\n";
-        let x = 0;
 
         for (let ic in mydata.IC) {
           s += "\t\t[\n";
           for (let j = 0; j < mydata.IC[ic].length - 1; j++) {
             s += "\t\t\t" + mydata.IC[ic][j] + ",\n";
           }
-          x++;
           s += "\t\t],\n";
         }
         s += "\t]\n};";
