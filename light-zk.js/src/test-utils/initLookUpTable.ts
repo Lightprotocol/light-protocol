@@ -79,7 +79,7 @@ export async function initLookUpTableTest(
   provider: Provider,
   lookupTableAddress: PublicKey,
   recentSlot: number,
-  extraAccounts?: Array<PublicKey>,
+  extraAccounts: Array<PublicKey> = [],
 ): Promise<PublicKey> {
   var lookUpTableInfoInit: AccountInfo<Buffer> | null = null;
   if (lookupTableAddress != undefined) {
@@ -127,6 +127,8 @@ export async function initLookUpTableTest(
       AUTHORITY,
       TOKEN_PROGRAM_ID,
       escrows,
+    ];
+    const additonalAccounts = [
       TOKEN_AUTHORITY,
       REGISTERED_POOL_PDA_SOL,
       REGISTERED_POOL_PDA_SPL_TOKEN,
@@ -136,21 +138,21 @@ export async function initLookUpTableTest(
       REGISTERED_VERIFIER_TWO_PDA,
       MINT,
     ];
-
+    extraAccounts = extraAccounts.concat(additonalAccounts);
     if (extraAccounts) {
       for (var i in extraAccounts) {
         addressesToAdd.push(extraAccounts[i]);
       }
     }
 
-    const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-      lookupTable: lookupTableAddress,
-      authority: payerPubkey,
-      payer: payerPubkey,
-      addresses: addressesToAdd,
-    });
+    // const extendInstruction = AddressLookupTableProgram.extendLookupTable({
+    //   lookupTable: lookupTableAddress,
+    //   authority: payerPubkey,
+    //   payer: payerPubkey,
+    //   addresses: addressesToAdd,
+    // });
 
-    transaction.add(extendInstruction);
+    // transaction.add(extendInstruction);
     transaction.add(ix0);
     // transaction.add(ix1);
     let recentBlockhash = await provider.connection.getLatestBlockhash(
@@ -170,7 +172,6 @@ export async function initLookUpTableTest(
       console.log("e : ", e);
     }
 
-    console.log("lookupTableAddress: ", lookupTableAddress.toBase58());
     let lookupTableAccount = await provider.connection.getAccountInfo(
       lookupTableAddress,
       "confirmed",

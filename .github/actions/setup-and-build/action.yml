@@ -1,12 +1,23 @@
 name: Setup and build
 description: Checkout sources, install dependencies, build and prepare for tests
+
+inputs:
+  enable_redis:
+    description: 'Enable Redis'
+    required: false
+    default: 'false'
+
 runs:
   using: "composite"
   steps:
     - name: Install dependencies
       shell: bash
       run: |
-        ./scripts/install.sh
+        if [[ "${{ inputs.enable_redis }}" == "true" ]]; then
+          ./scripts/install.sh --enable-redis
+        else
+          ./scripts/install.sh
+        fi
         source ./scripts/devenv.sh
         # NOTE(vadorovsky): For some reason, Github runners sometimes don't give
         # a heck about rust-toolchain.toml files and keep using random versions

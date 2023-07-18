@@ -59,6 +59,7 @@ const storeAndExecuteAppUtxo = async (
   const lightProvider = await LightProvider.init({
     wallet: ADMIN_AUTH_KEYPAIR,
     relayer: RELAYER,
+    confirmConfig,
   });
   const user: User = await User.init({ provider: lightProvider, seed });
 
@@ -143,7 +144,6 @@ describe("Mock verifier functional", () => {
 
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
       relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
@@ -151,6 +151,7 @@ describe("Mock verifier functional", () => {
     lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
     account = new Account({
       poseidon,
@@ -272,6 +273,7 @@ describe("Mock verifier functional", () => {
     let lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
 
     const txParams = new TransactionParameters({
@@ -279,7 +281,6 @@ describe("Mock verifier functional", () => {
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl: userTokenAccount, // just any token account
       senderSol: ADMIN_AUTH_KEY, //
-      lookUpTable: LOOK_UP_TABLE,
       poseidon,
       action: Action.SHIELD,
       encryptedUtxos: Uint8Array.from([
@@ -327,6 +328,7 @@ describe("Mock verifier functional", () => {
     let lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
 
     await provider.connection.confirmTransaction(

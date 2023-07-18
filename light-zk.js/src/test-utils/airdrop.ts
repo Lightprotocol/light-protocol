@@ -9,6 +9,7 @@ import {
   TestRelayer,
   TOKEN_PUBKEY_SYMBOL,
   User,
+  confirmConfig,
 } from "../index";
 
 export async function airdropShieldedSol({
@@ -30,14 +31,14 @@ export async function airdropShieldedSol({
   const relayer = new TestRelayer({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
-    lookUpTable: Keypair.generate().publicKey,
-    relayerFee: new BN(100_000),
+    relayerFee: new BN(100000),
     payer: ADMIN_AUTH_KEYPAIR,
   });
   if (!provider) {
     provider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: relayer,
+      confirmConfig,
     });
   }
   const userKeypair = Keypair.generate();
@@ -96,14 +97,14 @@ export async function airdropShieldedMINTSpl({
   const relayer = new TestRelayer({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
-    lookUpTable: Keypair.generate().publicKey,
-    relayerFee: new BN(100_000),
+    relayerFee: new BN(100000),
     payer: ADMIN_AUTH_KEYPAIR,
   });
   if (!provider) {
     provider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: relayer,
+      confirmConfig,
     });
   }
 

@@ -14,7 +14,7 @@ import {
   FIELD_SIZE,
   Action,
   merkleTreeProgramId,
-  indexRecentTransactions,
+  fetchRecentTransactions,
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
@@ -528,12 +528,11 @@ export class TestTransaction {
     }
 
     if (this.params.message) {
-      const indexedTransactions = await indexRecentTransactions({
+      const indexedTransactions = await fetchRecentTransactions({
         connection: this.provider!.provider!.connection,
         batchOptions: {
           limit: 5000,
         },
-        dedupe: false,
       });
       indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
       assert.equal(
