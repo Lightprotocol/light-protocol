@@ -3,6 +3,7 @@
 set -eu
 
 PREFIX="${PWD}/.local"
+OS=`uname`
 ARCH=`uname -m`
 
 # Checks the latest release of the given GitHub repository.
@@ -91,24 +92,45 @@ if ! rustup toolchain list 2>/dev/null | grep -q "nightly"; then
     echo "    rustup toolchain install nightly" 
 fi
 
-case "${ARCH}" in
-    "x86_64")
-        ARCH_SUFFIX_SOLANA="x86_64-unknown-linux-gnu"
-        ARCH_SUFFIX_LP="linux-amd64"
-        ARCH_SUFFIX_NODE="linux-x64"
+case "${OS}" in
+    "Darwin")
+        case "${ARCH}" in
+            "x86_64")
+                ARCH_SUFFIX_SOLANA="x86_64-apple-darwin"
+                ARCH_SUFFIX_LP="macos-amd64"
+                ARCH_SUFFIX_NODE="darwin-x64"
+                ;;
+            "aarch64"|"arm64")
+                ARCH_SUFFIX_SOLANA="aarch64-apple-darwin"
+                ARCH_SUFFIX_LP="macos-arm64"
+                ARCH_SUFFIX_NODE="darwin-arm64"
+                ;;
+            "*")
+                echo "Architecture ${ARCH} on operating system ${OS} is not supported."
+                exit 1
+                ;;
+        esac
         ;;
-    "aarch64")
-        ARCH_SUFFIX_SOLANA="aarch64-unknown-linux-gnu"
-        ARCH_SUFFIX_LP="linux-arm64"
-        ARCH_SUFFIX_NODE="linux-arm64"
+    "Linux")
+        case "${ARCH}" in
+            "x86_64")
+                ARCH_SUFFIX_SOLANA="x86_64-unknown-linux-gnu"
+                ARCH_SUFFIX_LP="linux-amd64"
+                ARCH_SUFFIX_NODE="linux-x64"
+                ;;
+            "arch64"|"arm64")
+                ARCH_SUFFIX_SOLANA="aarch64-unknown-linux-gnu"
+                ARCH_SUFFIX_LP="linux-arm64"
+                ARCH_SUFFIX_NODE="linux-arm64"
+                ;;
+            "*")
+                echo "Architecture ${ARCH} on operating system ${OS} is not supported."
+                exit 1
+                ;;
+        esac
         ;;
-    "arm64")
-        ARCH_SUFFIX_SOLANA="aarch64-apple-darwin"
-        ARCH_SUFFIX_LP="macos-arm64"
-        ARCH_SUFFIX_NODE="darwin-arm64"
-        ;;
-    *)
-        echo "Architecture ${ARCH} is not supported."
+    "*")
+        echo "Operating system ${OS} is not supported."
         exit 1
         ;;
 esac
