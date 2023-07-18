@@ -4,7 +4,7 @@
 
 // const vKeyJsonPath = "./build-circuit/verifyingkey.json";
 // const vKeyRsPath = "./programs/" + programName + "/src/verifying_key.rs";
-// const artifiactPath = "./build-circuit/" + circuitName;
+// const artifactPath = "./build-circuit/" + circuitName;
 
 // async function run() {
 //   await createVerifyingkeyRsFile(
@@ -13,7 +13,7 @@
 //     vKeyJsonPath,
 //     vKeyRsPath,
 //     circuitName,
-//     artifiactPath,
+//     artifactPath,
 //   );
 // }
 

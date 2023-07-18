@@ -1,15 +1,13 @@
-/*
-import { assert, expect } from "chai";
+import { assert } from "chai";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 import { it } from "mocha";
 const fs = require("fs");
 
-import { createVerifyingkeyRsFile } from "../src/utils";
+import { createVerfyingkeyRsFileArgv } from "../src/utils";
 
 describe("Test createVerifyingkeyRsFile Functional", () => {
-  
   let readFileStub: any;
   let writeFileStub: any;
   let closeStub: any;
@@ -18,8 +16,8 @@ describe("Test createVerifyingkeyRsFile Functional", () => {
     // Stub the fs.readFile method
     readFileStub = fs.readFile;
     fs.readFile = function (
-      path: any,
-      options: any,
+      _path: any,
+      _options: any,
       callback: (arg0: null, arg1: string) => void
     ) {
       const verifyingKeyData = {
@@ -36,9 +34,9 @@ describe("Test createVerifyingkeyRsFile Functional", () => {
     // Stub the fs.writeFile method
     writeFileStub = fs.writeFile;
     fs.writeFile = function (
-      path: any,
+      _path: any,
       data: string,
-      options: any,
+      _options: any,
       callback: (arg0: null) => void
     ) {
       // Verify the content of the verifying_key.rs file
@@ -72,7 +70,7 @@ describe("Test createVerifyingkeyRsFile Functional", () => {
 
     // Stub the fs.close method
     closeStub = fs.close;
-    fs.close = function (fd: any, callback: (arg0: null) => void) {
+    fs.close = function (_fd: any, callback: (arg0: null) => void) {
       callback(null);
     };
   });
@@ -85,23 +83,8 @@ describe("Test createVerifyingkeyRsFile Functional", () => {
   });
 
   it("should write the verifying_key.rs file with the correct content", async function () {
-    const program = "???";
-    const paths = ["???"];
-    const vKeyJsonPath = "???";
-    const vKeyRsPath = "???";
-    const circuitName = "???";
-    const artifiactPath = "???";
-
-    await createVerifyingkeyRsFile(
-      program,
-      paths,
-      vKeyJsonPath,
-      vKeyRsPath,
-      circuitName,
-      artifiactPath
-    );
+    console.log(process.argv);
+    process.argv = ["", "", "2"];
+    await createVerfyingkeyRsFileArgv();
   });
-  
 });
-
-*/
