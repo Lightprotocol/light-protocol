@@ -4,8 +4,6 @@
   "description": "",
   "main": "build/cli.js",
   "scripts": {
-    "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts --exit",
-    "test-utils-create-rust-verifying-key": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/createRustVerifyingKey.test.ts --exit",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
     "lint": "prettier \"src/**/*{ts,js}\" --check",
     "build": "yarn tsc && chmod +x build/cli.js"
