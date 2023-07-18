@@ -2363,13 +2363,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-account-compression"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
-]
-
-[[package]]
 name = "light-macros"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2522,7 +2515,6 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "getrandom 0.2.9",
- "light-account-compression",
  "light-macros",
  "light-merkle-tree",
  "serde_json",
@@ -5576,7 +5568,6 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "groth16-solana",
- "light-account-compression",
  "light-macros",
  "light-verifier-sdk",
  "merkle_tree_program",
