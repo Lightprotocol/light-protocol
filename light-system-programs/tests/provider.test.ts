@@ -16,6 +16,7 @@ import {
   userTokenAccount,
   IDL_VERIFIER_PROGRAM_ZERO,
   airdropSol,
+  MerkleTreeConfig,
 } from "@lightprotocol/zk.js";
 
 let circomlibjs = require("circomlibjs");
@@ -29,7 +30,6 @@ import {
   createTestAccounts,
   confirmConfig,
   DEFAULT_ZERO,
-  TRANSACTION_MERKLE_TREE_KEY,
   TestRelayer,
   LOOK_UP_TABLE,
 } from "@lightprotocol/zk.js";
@@ -106,7 +106,7 @@ describe("verifier_program", () => {
     assert(lightProviderMock.poseidon);
     assert.equal(
       lightProviderMock.solMerkleTree?.pubkey.toBase58(),
-      TRANSACTION_MERKLE_TREE_KEY.toBase58(),
+      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
     );
     assert.equal(lightProviderMock.solMerkleTree?.merkleTree.levels, 18);
     assert.equal(
@@ -147,7 +147,9 @@ describe("verifier_program", () => {
 
     let txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1, deposit_utxo2],
-      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      transactionMerkleTreePubkey:
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       senderSpl: userTokenAccount,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       poseidon: POSEIDON,

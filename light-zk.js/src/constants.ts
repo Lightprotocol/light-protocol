@@ -107,13 +107,6 @@ export const MINIMUM_LAMPORTS = new anchor.BN(890_880 + 150_000);
 
 export const TOKEN_ACCOUNT_FEE = new anchor.BN(1_461_600 + 5000);
 
-// TODO: make account object with important accounts
-export const MESSAGE_MERKLE_TREE_KEY = new PublicKey(
-  "65ugKwDCTmQvEAsEep842CjZArCmUQ2r37RW9VDLbNKy",
-);
-export const TRANSACTION_MERKLE_TREE_KEY = new PublicKey(
-  "DCxUdYgqjE6AR9m13VvqpkxJqGJYnk8jn8NEeD3QY3BU",
-);
 export const REGISTERED_VERIFIER_PDA = new PublicKey(
   "Eo3jtUstuMCvapqXdWiYvoUJS1PJDtKVf6LdsMPdyoNn",
 );

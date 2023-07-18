@@ -13,12 +13,18 @@ on:
       - "light-zk.js/**/*.ts"
       - "light-system-programs/**/*.rs"
       - "light-system-programs/**/*.ts"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 name: test
 
 jobs:
   light-system-programs:
     name: light-system-programs
+    if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
     strategy:
       matrix:
@@ -46,6 +52,7 @@ jobs:
 
   light-sdk-tests:
     name: light-sdk-tests
+    if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
     strategy:
       matrix:

@@ -39,18 +39,17 @@ import {
   UserIndexedTransaction,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
-  TRANSACTION_MERKLE_TREE_KEY,
   MAX_MESSAGE_SIZE,
   IDL_VERIFIER_PROGRAM_STORAGE,
   AccountErrorCode,
   ProgramUtxoBalance,
   TOKEN_PUBKEY_SYMBOL,
-  MESSAGE_MERKLE_TREE_KEY,
   UtxoError,
   IDL_VERIFIER_PROGRAM_TWO,
   isProgramVerifier,
   decimalConversion,
   ParsedIndexedTransaction,
+  MerkleTreeConfig,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -262,7 +261,7 @@ export class User {
       await this.syncState(
         false,
         this.inboxBalance,
-        TRANSACTION_MERKLE_TREE_KEY,
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       );
     }
     return this.inboxBalance;
@@ -299,7 +298,11 @@ export class User {
       );
 
     if (latest) {
-      await this.syncState(true, this.balance, TRANSACTION_MERKLE_TREE_KEY);
+      await this.syncState(
+        true,
+        this.balance,
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      );
     }
     return this.balance;
   }
@@ -1332,7 +1335,7 @@ export class User {
     const message = Buffer.from(
       await appUtxo.encrypt(
         this.provider.poseidon,
-        MESSAGE_MERKLE_TREE_KEY,
+        MerkleTreeConfig.getEventMerkleTreePda(),
         false,
       ),
     );
@@ -1495,7 +1498,7 @@ export class User {
               aes: true,
               index: index,
               commitment: Uint8Array.from(leaf),
-              merkleTreePdaPublicKey: MESSAGE_MERKLE_TREE_KEY,
+              merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
               compressed: false,
               verifierProgramLookupTable,
               assetLookupTable,

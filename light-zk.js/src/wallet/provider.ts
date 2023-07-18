@@ -16,13 +16,13 @@ import {
   useWallet,
   Relayer,
   MERKLE_TREE_HEIGHT,
-  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   SolMerkleTree,
   RELAYER_RECIPIENT_KEYPAIR,
   MINT,
   MINIMUM_LAMPORTS,
   ParsedIndexedTransaction,
+  MerkleTreeConfig,
 } from "../index";
 
 const axios = require("axios");
@@ -140,7 +140,7 @@ export class Provider {
     await mockProvider.loadPoseidon();
     mockProvider.solMerkleTree = new SolMerkleTree({
       poseidon: mockProvider.poseidon,
-      pubkey: TRANSACTION_MERKLE_TREE_KEY,
+      pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
 
     return mockProvider;
@@ -218,7 +218,7 @@ export class Provider {
 
   async latestMerkleTree(indexedTransactions?: ParsedIndexedTransaction[]) {
     await this.fetchMerkleTree(
-      TRANSACTION_MERKLE_TREE_KEY,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
       indexedTransactions,
     );
   }
@@ -323,7 +323,9 @@ export class Provider {
     });
 
     await provider.loadPoseidon();
-    await provider.fetchMerkleTree(TRANSACTION_MERKLE_TREE_KEY);
+    await provider.fetchMerkleTree(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+    );
     return provider;
   }
 

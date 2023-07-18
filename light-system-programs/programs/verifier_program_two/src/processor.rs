@@ -7,7 +7,7 @@ use light_verifier_sdk::{
 };
 
 use crate::LightInstruction;
-use anchor_lang::solana_program::keccak::hash;
+use anchor_lang::solana_program::hash::hash;
 use light_verifier_sdk::state::VerifierState10Ins;
 
 #[derive(Clone)]
@@ -40,7 +40,7 @@ pub fn process_shielded_transfer<'a, 'info>(
         ctx.accounts.signing_address.to_account_info(),
         &ctx.accounts.system_program,
         &ctx.accounts.program_merkle_tree,
-        None,
+        &ctx.accounts.event_merkle_tree,
         &ctx.accounts.transaction_merkle_tree,
         ctx.accounts.authority.to_account_info(),
         Some(&ctx.accounts.token_program),

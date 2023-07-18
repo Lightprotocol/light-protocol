@@ -14,7 +14,6 @@ import {
   Transaction,
   Utxo,
   LOOK_UP_TABLE,
-  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
   MINT,
@@ -31,12 +30,12 @@ import {
   Action,
   TestRelayer,
   TestTransaction,
-  MESSAGE_MERKLE_TREE_KEY,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_STORAGE,
   Account,
   airdropSol,
+  MerkleTreeConfig,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -87,7 +86,6 @@ describe("verifier_program", () => {
     delegate,
     spl = false,
     message,
-    messageMerkleTreePubkey,
     senderSpl,
     shuffleEnabled = true,
     verifierIdl,
@@ -95,7 +93,6 @@ describe("verifier_program", () => {
     delegate: anchor.web3.PublicKey;
     spl: boolean;
     message?: Buffer;
-    messageMerkleTreePubkey?: anchor.web3.PublicKey;
     senderSpl: anchor.web3.PublicKey;
     shuffleEnabled: boolean;
     verifierIdl: Idl;
@@ -147,8 +144,9 @@ describe("verifier_program", () => {
     let txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       message,
-      messageMerkleTreePubkey,
-      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      transactionMerkleTreePubkey:
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
@@ -196,7 +194,6 @@ describe("verifier_program", () => {
       delegate: AUTHORITY,
       spl: false,
       message: Buffer.alloc(900).fill(1),
-      messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
       senderSpl: null,
       shuffleEnabled: false,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
@@ -223,7 +220,6 @@ describe("verifier_program", () => {
     outputUtxos,
     tokenProgram,
     message,
-    messageMerkleTreePubkey,
     recipientSpl,
     shuffleEnabled = true,
     verifierIdl,
@@ -231,7 +227,6 @@ describe("verifier_program", () => {
     outputUtxos: Array<Utxo>;
     tokenProgram: anchor.web3.PublicKey;
     message?: Buffer;
-    messageMerkleTreePubkey?: anchor.web3.PublicKey;
     recipientSpl?: anchor.web3.PublicKey;
     shuffleEnabled: boolean;
     verifierIdl: Idl;
@@ -262,8 +257,9 @@ describe("verifier_program", () => {
       ],
       outputUtxos,
       message,
-      messageMerkleTreePubkey,
-      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      transactionMerkleTreePubkey:
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       recipientSpl,
       recipientSol: origin.publicKey,
       relayer: RELAYER,
@@ -310,7 +306,6 @@ describe("verifier_program", () => {
       outputUtxos: [],
       tokenProgram: SystemProgram.programId,
       message: Buffer.alloc(900).fill(1),
-      messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
       shuffleEnabled: false,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
     });

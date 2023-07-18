@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use merkle_tree_program::{
-    program::MerkleTreeProgram, state::TransactionMerkleTree, MessageMerkleTree, RegisteredVerifier,
+    program::MerkleTreeProgram, state::TransactionMerkleTree, EventMerkleTree, RegisteredVerifier,
 };
 
 pub mod processor;
@@ -159,10 +159,6 @@ pub struct LightInstructionSecond<'info> {
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    /// CHECK: Checking manually in the `wrap_event` function.
-    pub log_wrapper: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub message_merkle_tree: AccountLoader<'info, MessageMerkleTree>,
     #[account(mut)]
     pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
@@ -187,6 +183,10 @@ pub struct LightInstructionSecond<'info> {
         close=signing_address
     )]
     pub verifier_state: Account<'info, VerifierState>,
+    /// CHECK: Checking manually in the `wrap_event` function.
+    pub log_wrapper: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
 }
 
 #[derive(Debug)]

@@ -13,8 +13,8 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
 }
 
-pub mod message_merkle_tree;
-pub use message_merkle_tree::*;
+pub mod event_merkle_tree;
+pub use event_merkle_tree::*;
 pub mod transaction_merkle_tree;
 pub use transaction_merkle_tree::*;
 pub mod verifier_invoked_instructions;
@@ -30,7 +30,7 @@ use crate::errors::ErrorCode;
 
 use crate::utils::{
     config::{self, ZERO_BYTES_MERKLE_TREE_18},
-    constants::MESSAGE_MERKLE_TREE_HEIGHT,
+    constants::EVENT_MERKLE_TREE_HEIGHT,
 };
 
 #[program]
@@ -53,7 +53,10 @@ pub mod merkle_tree_program {
         }
         let merkle_tree = &mut ctx.accounts.transaction_merkle_tree.load_init()?;
 
-        let merkle_tree_index = ctx.accounts.merkle_tree_authority_pda.merkle_tree_index;
+        let merkle_tree_index = ctx
+            .accounts
+            .merkle_tree_authority_pda
+            .transaction_merkle_tree_index;
         process_initialize_new_merkle_tree_18(
             merkle_tree,
             18,
@@ -61,19 +64,41 @@ pub mod merkle_tree_program {
             merkle_tree_index,
         );
 
-        ctx.accounts.merkle_tree_authority_pda.merkle_tree_index += 1;
+        ctx.accounts
+            .merkle_tree_authority_pda
+            .transaction_merkle_tree_index += 1;
         merkle_tree.lock_duration = lock_duration;
 
         Ok(())
     }
 
-    pub fn initialize_new_message_merkle_tree(
-        ctx: Context<InitializeNewMessageMerkleTree>,
+    pub fn initialize_new_event_merkle_tree(
+        ctx: Context<InitializeNewEventMerkleTree>,
     ) -> Result<()> {
-        let merkle_tree = &mut ctx.accounts.message_merkle_tree.load_init()?;
+        if !ctx
+            .accounts
+            .merkle_tree_authority_pda
+            .enable_permissionless_merkle_tree_registration
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+        {
+            return err!(ErrorCode::InvalidAuthority);
+        }
+        let merkle_tree = &mut ctx.accounts.event_merkle_tree.load_init()?;
+
+        let merkle_tree_index = ctx
+            .accounts
+            .merkle_tree_authority_pda
+            .event_merkle_tree_index;
+
         merkle_tree
             .merkle_tree
-            .init(MESSAGE_MERKLE_TREE_HEIGHT, HashFunction::Sha256);
+            .init(EVENT_MERKLE_TREE_HEIGHT, HashFunction::Sha256);
+        merkle_tree.merkle_tree_nr = merkle_tree_index;
+
+        ctx.accounts
+            .merkle_tree_authority_pda
+            .event_merkle_tree_index += 1;
+
         Ok(())
     }
 
@@ -279,12 +304,12 @@ pub mod merkle_tree_program {
         process_insert_two_leaves(ctx, leaf_left, leaf_right, encrypted_utxo)
     }
 
-    pub fn insert_two_leaves_message<'info>(
-        ctx: Context<'_, '_, '_, 'info, InsertTwoLeavesMessage<'info>>,
+    pub fn insert_two_leaves_event<'info>(
+        ctx: Context<'_, '_, '_, 'info, InsertTwoLeavesEvent<'info>>,
         leaf_left: [u8; 32],
         leaf_right: [u8; 32],
     ) -> Result<()> {
-        process_insert_two_leaves_message(ctx, leaf_left, leaf_right)
+        process_insert_two_leaves_event(ctx, leaf_left, leaf_right)
     }
 
     /// Withdraws sol from a liquidity pool.

@@ -16,7 +16,7 @@ use anchor_spl::token::Token;
 
 use merkle_tree_program::{
     program::MerkleTreeProgram, transaction_merkle_tree::state::TransactionMerkleTree,
-    utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
+    utils::constants::TOKEN_AUTHORITY_SEED, EventMerkleTree, RegisteredVerifier,
 };
 declare_id!("2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86");
 
@@ -96,4 +96,6 @@ pub struct LightInstruction<'info> {
     /// CHECK: Cannot be checked with Account because it assumes this program to be the owner
     // CHECK: Signer check to acertain the invoking program ID to be used as a public input.
     pub verifier_state: Signer<'info>,
+    #[account(mut)]
+    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
 }

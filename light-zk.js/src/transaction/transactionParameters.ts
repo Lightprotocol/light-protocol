@@ -2,12 +2,7 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, BorshAccountsCoder, Program, Idl } from "@coral-xyz/anchor";
-import {
-  AUTHORITY,
-  MESSAGE_MERKLE_TREE_KEY,
-  TRANSACTION_MERKLE_TREE_KEY,
-  verifierProgramStorageProgramId,
-} from "../constants";
+import { AUTHORITY, verifierProgramStorageProgramId } from "../constants";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 import {
@@ -37,7 +32,6 @@ import {
 import nacl from "tweetnacl";
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
-const { keccak_256 } = require("@noble/hashes/sha3");
 
 type VerifierConfig = {
   in: number;
@@ -66,7 +60,7 @@ export class TransactionParameters implements transactionParameters {
 
   constructor({
     message,
-    messageMerkleTreePubkey,
+    eventMerkleTreePubkey,
     transactionMerkleTreePubkey,
     senderSpl,
     recipientSpl,
@@ -82,7 +76,7 @@ export class TransactionParameters implements transactionParameters {
     verifierIdl,
   }: {
     message?: Buffer;
-    messageMerkleTreePubkey?: PublicKey;
+    eventMerkleTreePubkey: PublicKey;
     transactionMerkleTreePubkey: PublicKey;
     senderSpl?: PublicKey;
     recipientSpl?: PublicKey;
@@ -130,20 +124,6 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
-    if (message && !messageMerkleTreePubkey) {
-      throw new TransactionParametersError(
-        TransactionParametersErrorCode.MESSAGE_MERKLE_TREE_UNDEFINED,
-        "constructor",
-        "Message Merkle tree pubkey needs to be defined if you provide a message",
-      );
-    }
-    if (messageMerkleTreePubkey && !message) {
-      throw new TransactionParametersError(
-        TransactionParametersErrorCode.MESSAGE_UNDEFINED,
-        "constructor",
-        "Message needs to be defined if you provide message Merkle tree",
-      );
-    }
     this.verifierProgramId =
       TransactionParameters.getVerifierProgramId(verifierIdl);
     this.verifierConfig = TransactionParameters.getVerifierConfig(verifierIdl);
@@ -438,7 +418,7 @@ export class TransactionParameters implements transactionParameters {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
       logWrapper: SPL_NOOP_PROGRAM_ID,
-      messageMerkleTree: messageMerkleTreePubkey,
+      eventMerkleTree: eventMerkleTreePubkey,
       transactionMerkleTree: transactionMerkleTreePubkey,
       registeredVerifierPda: Transaction.getRegisteredVerifierPda(
         merkleTreeProgramId,
@@ -655,7 +635,8 @@ export class TransactionParameters implements transactionParameters {
       relayer,
       ...decoded,
       action,
-      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey:
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       verifierIdl: verifierIdl,
     });
   }
@@ -773,7 +754,8 @@ export class TransactionParameters implements transactionParameters {
     let txParams = new TransactionParameters({
       outputUtxos,
       inputUtxos,
-      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey:
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       senderSpl: action === Action.SHIELD ? userSplAccount : undefined,
       senderSol:
         action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
@@ -785,7 +767,7 @@ export class TransactionParameters implements transactionParameters {
       ataCreationFee,
       verifierIdl,
       message,
-      messageMerkleTreePubkey: message ? MESSAGE_MERKLE_TREE_KEY : undefined,
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
     });
 
     return txParams;
@@ -1083,9 +1065,54 @@ export class TransactionParameters implements transactionParameters {
       this.encryptedUtxos = this.encryptedUtxos.slice(0, 512);
     }
     if (this.encryptedUtxos) {
+      const relayerFee = new Uint8Array(
+        this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
+      );
+
+      let nullifiersHasher = sha256.create();
+      this.inputUtxos.forEach((x) => {
+        const nullifier = x.getNullifier(poseidon);
+        if (nullifier) {
+          let nullifierBytes = new anchor.BN(nullifier).toArray("be", 32);
+          nullifiersHasher.update(new Uint8Array(nullifierBytes));
+        }
+      });
+      const nullifiersHash = nullifiersHasher.digest();
+
+      let leavesHasher = sha256.create();
+      this.outputUtxos.forEach((x) => {
+        const commitment = new anchor.BN(x.getCommitment(poseidon)).toArray(
+          "be",
+          32,
+        );
+        leavesHasher.update(new Uint8Array(commitment));
+      });
+      const leavesHash = leavesHasher.digest();
+
       const messageHash = this.message
         ? sha256(this.message)
         : new Uint8Array(32);
+      const encryptedUtxosHash = sha256
+        .create()
+        .update(this.encryptedUtxos)
+        .digest();
+
+      const amountHash = sha256
+        .create()
+        .update(new Uint8Array(this.publicAmountSol.toArray("be", 32)))
+        .update(new Uint8Array(this.publicAmountSpl.toArray("be", 32)))
+        .update(relayerFee)
+        .digest();
+
+      const eventHash = sha256
+        .create()
+        .update(nullifiersHash)
+        .update(leavesHash)
+        .update(messageHash)
+        .update(encryptedUtxosHash)
+        .update(amountHash)
+        .digest();
+
       // TODO(vadorovsky): Try to get rid of this hack during Verifier class
       // refactoring / removal
       // For example, we could derive which accounts exist in the IDL of the
@@ -1095,18 +1122,15 @@ export class TransactionParameters implements transactionParameters {
         verifierProgramStorageProgramId.toBase58()
           ? new Uint8Array(32)
           : this.accounts.recipientSpl.toBytes();
-      let hashInputBytes = new Uint8Array([
-        ...messageHash,
-        ...recipientSpl,
-        ...this.accounts.recipientSol.toBytes(),
-        ...this.relayer.accounts.relayerPubkey.toBytes(),
-        ...this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
-        ...this.encryptedUtxos,
-      ]);
 
-      const hash = keccak_256
-        .create({ dkLen: 32 })
-        .update(Buffer.from(hashInputBytes))
+      const hash = sha256
+        .create()
+        .update(eventHash)
+        .update(recipientSpl)
+        .update(this.accounts.recipientSol.toBytes())
+        .update(this.relayer.accounts.relayerPubkey.toBytes())
+        .update(relayerFee)
+        .update(this.encryptedUtxos)
         .digest();
       this.txIntegrityHash = new anchor.BN(hash).mod(FIELD_SIZE);
 

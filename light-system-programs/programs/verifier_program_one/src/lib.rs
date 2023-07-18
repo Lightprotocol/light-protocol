@@ -18,7 +18,7 @@ use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use light_verifier_sdk::state::VerifierState10Ins;
 use merkle_tree_program::{
     program::MerkleTreeProgram, transaction_merkle_tree::state::TransactionMerkleTree,
-    utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
+    utils::constants::TOKEN_AUTHORITY_SEED, EventMerkleTree, RegisteredVerifier,
 };
 
 declare_id!("J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc");
@@ -179,6 +179,8 @@ pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
         close=signing_address
     )]
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionConfig>>,
+    #[account(mut)]
+    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
 }
 
 #[derive(Debug)]

@@ -31,7 +31,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
-let keypair: Account,
+let account: Account,
   deposit_utxo1: Utxo,
   mockPubkey,
   poseidon,
@@ -52,24 +52,26 @@ describe("Masp circuit tests", () => {
   before(async () => {
     lightProvider = await LightProvider.loadMock();
     poseidon = await buildPoseidonOpt();
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    await keypair.getEddsaPublicKey();
+    account = new Account({ poseidon: poseidon, seed: seed32 });
+    await account.getEddsaPublicKey();
     let depositAmount = 20_000;
     let depositFeeAmount = 10_000;
     deposit_utxo1 = new Utxo({
+      index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: keypair,
+      account: account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     let deposit_utxoSol = new Utxo({
+      index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(0)],
-      account: keypair,
+      account: account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -80,6 +82,7 @@ describe("Masp circuit tests", () => {
 
     txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
@@ -90,6 +93,7 @@ describe("Masp circuit tests", () => {
 
     txParamsSol = new TransactionParameters({
       outputUtxos: [deposit_utxoSol],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
@@ -112,6 +116,7 @@ describe("Masp circuit tests", () => {
     relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
     paramsWithdrawal = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
       recipientSpl: mockPubkey,
@@ -124,6 +129,7 @@ describe("Masp circuit tests", () => {
     txParamsApp = new TransactionParameters({
       inputUtxos: [
         new Utxo({
+          index: 0,
           poseidon,
           appData,
           appDataIdl: IDL,
@@ -132,6 +138,7 @@ describe("Masp circuit tests", () => {
             lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
@@ -143,6 +150,7 @@ describe("Masp circuit tests", () => {
     txParamsPoolType = new TransactionParameters({
       inputUtxos: [
         new Utxo({
+          index: 0,
           poseidon,
           poolType: new anchor.BN("12312"),
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -150,6 +158,7 @@ describe("Masp circuit tests", () => {
             lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
@@ -168,6 +177,7 @@ describe("Masp circuit tests", () => {
             lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
@@ -187,6 +197,7 @@ describe("Masp circuit tests", () => {
             lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
@@ -650,15 +661,15 @@ describe("App system circuit tests", () => {
   before(async () => {
     lightProvider = await LightProvider.loadMock();
     poseidon = await buildPoseidonOpt();
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    await keypair.getEddsaPublicKey();
+    account = new Account({ poseidon: poseidon, seed: seed32 });
+    await account.getEddsaPublicKey();
     let depositAmount = 20_000;
     let depositFeeAmount = 10_000;
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: keypair,
+      account: account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -669,6 +680,7 @@ describe("App system circuit tests", () => {
     lightProvider = await LightProvider.loadMock();
     txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
@@ -689,6 +701,7 @@ describe("App system circuit tests", () => {
             lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,

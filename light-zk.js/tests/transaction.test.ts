@@ -29,7 +29,6 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_TWO,
   IDL_VERIFIER_PROGRAM_STORAGE,
-  MESSAGE_MERKLE_TREE_KEY,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -67,6 +66,7 @@ describe("Transaction Error Tests", () => {
     });
     params = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
       senderSpl: mockPubkey,
@@ -138,6 +138,7 @@ describe("Transaction Error Tests", () => {
   it("Constructor WALLET_RELAYER_INCONSISTENT", async () => {
     const params1 = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
       senderSpl: mockPubkey,
@@ -282,6 +283,7 @@ describe("Transaction Functional Tests", () => {
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
+      index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
@@ -293,6 +295,7 @@ describe("Transaction Functional Tests", () => {
     });
     paramsDeposit = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
       senderSpl: mockPubkey,
@@ -312,6 +315,7 @@ describe("Transaction Functional Tests", () => {
     );
     paramsWithdrawal = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
       recipientSpl: mockPubkey,
@@ -334,13 +338,13 @@ describe("Transaction Functional Tests", () => {
     const paramsDepositStorage = new TransactionParameters({
       message: Buffer.alloc(928).fill(1),
       inputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-      messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
       relayer,
     });
     let tx = new Transaction({
@@ -392,6 +396,7 @@ describe("Transaction Functional Tests", () => {
 
     let params = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       recipientSpl: mockPubkey,
       recipientSol: mockPubkey,
@@ -509,6 +514,7 @@ describe("Transaction Functional Tests", () => {
     const paramsStaticEncryptedUtxos = new TransactionParameters({
       inputUtxos: [deposit_utxo1, deposit_utxo1],
       outputUtxos: [deposit_utxo1, deposit_utxo1],
+      eventMerkleTreePubkey: AUTHORITY,
       transactionMerkleTreePubkey: AUTHORITY,
       poseidon,
       recipientSpl: AUTHORITY,
@@ -525,14 +531,14 @@ describe("Transaction Functional Tests", () => {
 
     assert.equal(
       txIntegrityHash.toString(),
-      "8474219873742569926077283601668996541206408042377172085414034533116551539216",
+      "6150353308703750134875659224593639995108994571023605893130935914916250029450",
     );
     assert.equal(
       Transaction.getTransactionHash(
         paramsStaticEncryptedUtxos,
         poseidon,
       ).toString(),
-      "18885149309354713641176366184956071391463483813877037254205685046110691645566",
+      "5933194464001103981860458884656917415381806542379509455129642519383560866951",
     );
   });
 
@@ -604,6 +610,7 @@ describe("Transaction Functional Tests", () => {
     const paramsStaticEncryptedUtxos = new TransactionParameters({
       inputUtxos: [deposit_utxo1, deposit_utxo1],
       outputUtxos: [deposit_utxo1, deposit_utxo1],
+      eventMerkleTreePubkey: AUTHORITY,
       transactionMerkleTreePubkey: AUTHORITY,
       poseidon,
       recipientSpl: AUTHORITY,
@@ -653,6 +660,7 @@ describe("Transaction Functional Tests", () => {
   it("APP_PARAMETERS_UNDEFINED", async () => {
     const params = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
@@ -676,6 +684,7 @@ describe("Transaction Functional Tests", () => {
   it("INVALID_VERIFIER_SELECTED", async () => {
     const params = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: mockPubkey,

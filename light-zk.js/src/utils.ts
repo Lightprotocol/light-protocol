@@ -3,7 +3,6 @@ import {
   AUTHORITY,
   DEFAULT_PROGRAMS,
   merkleTreeProgramId,
-  MESSAGE_MERKLE_TREE_KEY,
   PRE_INSERTED_LEAVES_INDEX,
   REGISTERED_POOL_PDA_SOL,
   REGISTERED_POOL_PDA_SPL_TOKEN,
@@ -11,7 +10,6 @@ import {
   REGISTERED_VERIFIER_PDA,
   REGISTERED_VERIFIER_TWO_PDA,
   TOKEN_AUTHORITY,
-  TRANSACTION_MERKLE_TREE_KEY,
   verifierProgramTwoProgramId,
   verifierProgramZeroProgramId,
 } from "./constants";
@@ -29,7 +27,7 @@ import { Utxo } from "./utxo";
 import { UtilsError, UtilsErrorCode } from "./errors";
 import { TokenUtxoBalance, Wallet } from "./wallet";
 import { TokenData } from "./types";
-const { keccak_256 } = require("@noble/hashes/sha3");
+import { sha256 } from "@noble/hashes/sha256";
 import { Decimal } from "decimal.js";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -37,11 +35,7 @@ const crypto = require("@noble/hashes/crypto");
 
 export function hashAndTruncateToCircuit(data: Uint8Array) {
   return new BN(
-    keccak_256
-      .create({ dkLen: 32 })
-      .update(Buffer.from(data))
-      .digest()
-      .slice(1, 32),
+    sha256.create().update(Buffer.from(data)).digest().slice(1, 32),
     undefined,
     "be",
   );
@@ -59,8 +53,6 @@ export async function getAssetLookUpId({
   let poolType = new Array(32).fill(0);
   let mtConf = new MerkleTreeConfig({
     connection,
-    messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
-    transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
   });
   let pubkey = await mtConf.getSplPoolPda(asset, poolType);
 
@@ -332,8 +324,8 @@ export async function initLookUpTable(
     merkleTreeProgramId,
     DEFAULT_PROGRAMS.rent,
     SPL_NOOP_PROGRAM_ID,
-    MESSAGE_MERKLE_TREE_KEY,
-    TRANSACTION_MERKLE_TREE_KEY,
+    MerkleTreeConfig.getEventMerkleTreePda(),
+    MerkleTreeConfig.getTransactionMerkleTreePda(),
     PRE_INSERTED_LEAVES_INDEX,
     AUTHORITY,
     TOKEN_PROGRAM_ID,

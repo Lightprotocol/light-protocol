@@ -9,7 +9,7 @@ import {
 } from "../transaction";
 import { ParsedIndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
-import { TRANSACTION_MERKLE_TREE_KEY, IDL_MERKLE_TREE_PROGRAM } from "../index";
+import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeConfig } from "../index";
 
 export class TestRelayer extends Relayer {
   indexedTransactions: ParsedIndexedTransaction[] = [];
@@ -92,7 +92,7 @@ export class TestRelayer extends Relayer {
     connection: Connection,
   ): Promise<ParsedIndexedTransaction[]> {
     const merkleTreeAccountInfo = await connection.getAccountInfo(
-      TRANSACTION_MERKLE_TREE_KEY,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
       "confirmed",
     );
     if (!merkleTreeAccountInfo)
