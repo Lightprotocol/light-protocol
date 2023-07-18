@@ -1,39 +1,35 @@
-import {
-  BlockheightBasedTransactionConfirmationStrategy,
-  Connection,
-  Keypair,
-  PublicKey,
-  TransactionSignature,
-} from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
-import { ConfirmOptions, Provider, useWallet, Wallet } from "../wallet";
+import { Provider, useWallet } from "../wallet";
 import {
   indexRecentTransactions,
-  sendVersionedTransaction,
   sendVersionedTransactions,
 } from "../transaction";
 import { IndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
-import {
-  TRANSACTION_MERKLE_TREE_KEY,
-  IDL_MERKLE_TREE_PROGRAM,
-  confirmConfig,
-} from "../index";
+import { TRANSACTION_MERKLE_TREE_KEY, IDL_MERKLE_TREE_PROGRAM } from "../index";
 
 export class TestRelayer extends Relayer {
   indexedTransactions: IndexedTransaction[] = [];
   relayerKeypair: Keypair;
 
-  constructor(
-    relayerPubkey: PublicKey,
-    lookUpTable: PublicKey,
-    relayerRecipientSol?: PublicKey,
-    relayerFee: BN = new BN(0),
-    highRelayerFee?: BN,
-    payer?: Keypair,
-  ) {
+  constructor({
+    relayerPubkey,
+    lookUpTable,
+    relayerRecipientSol,
+    relayerFee = new BN(0),
+    highRelayerFee,
+    payer,
+  }: {
+    relayerPubkey: PublicKey;
+    lookUpTable: PublicKey;
+    relayerRecipientSol?: PublicKey;
+    relayerFee: BN;
+    highRelayerFee?: BN;
+    payer: Keypair;
+  }) {
     super(
       relayerPubkey,
       lookUpTable,
@@ -41,8 +37,11 @@ export class TestRelayer extends Relayer {
       relayerFee,
       highRelayerFee,
     );
-
-    this.relayerKeypair = payer ? payer : Keypair.generate();
+    if (payer.publicKey.toBase58() != relayerPubkey.toBase58())
+      throw new Error(
+        `Payer public key ${payer.publicKey.toBase58()} does not match relayer public key ${relayerPubkey.toBase58()}`,
+      );
+    this.relayerKeypair = payer;
   }
 
   async updateMerkleTree(provider: Provider): Promise<any> {
