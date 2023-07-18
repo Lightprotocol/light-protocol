@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 
 set -eux
 
@@ -14,26 +14,26 @@ MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
 solana config set --url http://localhost:8899
 
-
+pkill solana-test-validator || true
 solana-test-validator \
     --reset \
-    --limit-ledger-size=$LIMIT_LEDGER_SIZE \
+    --limit-ledger-size="${LIMIT_LEDGER_SIZE}" \
     --quiet \
-    --bpf-program $NOOP_PROGRAM_ID ../test-env/programs/spl_noop.so \
-    --bpf-program $MERKLE_TREE_PROGRAM_ID ../light-system-programs/target/deploy/merkle_tree_program.so \
-    --bpf-program $VERIFIER_PROGRAM_ZERO_ID ../light-system-programs/target/deploy/verifier_program_zero.so \
-    --bpf-program $VERIFIER_PROGRAM_STORAGE_ID ../light-system-programs/target/deploy/verifier_program_storage.so \
-    --bpf-program $VERIFIER_PROGRAM_ONE_ID ../light-system-programs/target/deploy/verifier_program_one.so \
-    --bpf-program $VERIFIER_PROGRAM_TWO_ID ../light-system-programs/target/deploy/verifier_program_two.so \
+    --bpf-program "${NOOP_PROGRAM_ID}" ../test-env/programs/spl_noop.so \
+    --bpf-program "${MERKLE_TREE_PROGRAM_ID}" ../light-system-programs/target/deploy/merkle_tree_program.so \
+    --bpf-program "${VERIFIER_PROGRAM_ZERO_ID}" ../light-system-programs/target/deploy/verifier_program_zero.so \
+    --bpf-program "${VERIFIER_PROGRAM_STORAGE_ID}" ../light-system-programs/target/deploy/verifier_program_storage.so \
+    --bpf-program "${VERIFIER_PROGRAM_ONE_ID}" ../light-system-programs/target/deploy/verifier_program_one.so \
+    --bpf-program "${VERIFIER_PROGRAM_TWO_ID}" ../light-system-programs/target/deploy/verifier_program_two.so \
     --account-dir ../test-env/accounts \
     &
-PID=$!
-trap "kill $PID" EXIT
+PID="${!}"
+trap "kill ${PID}" EXIT
 sleep 7
 
 node lib/index.js &
 relayer_pid=$!
-trap "kill $relayer_pid" EXIT
+trap "kill ${relayer_pid}" EXIT
 
 sleep 20
 

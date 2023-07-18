@@ -1,28 +1,28 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 set -e
 
-$(dirname "${BASH_SOURCE[0]}")/build.sh
+`dirname "${0}"`/build.sh
 
-pushd light-system-programs
+cd light-system-programs
 yarn test
-popd
+cd ..
 
-pushd light-zk.js
+cd light-zk.js
 yarn test
 sleep 1
-popd
+cd ..
 
-pushd mock-app-verifier
+cd mock-app-verifier
 yarn test
-popd
+cd ..
 
-pushd relayer
+cd relayer
 yarn test
-popd
+cd ..
 
-pushd light-circuits
+cd light-circuits
 yarn run test
-popd
+cd ..
 
 # && cd programs/merkle_tree_program && cargo test

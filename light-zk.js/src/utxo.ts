@@ -410,7 +410,6 @@ export class Utxo {
         ).fill(0),
       ]);
       includeAppData = false;
-
       if (!account)
         throw new UtxoError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
@@ -517,6 +516,7 @@ export class Utxo {
         ]),
       );
       this._commitment = commitment;
+      // @matteo: this is going to return the same variable in either case
       return this._commitment;
     } else {
       return this._commitment;

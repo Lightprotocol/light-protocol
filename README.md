@@ -34,14 +34,14 @@ and development environment.
 First, install the dependencies (they are going to be installed in `.local`
 directory inside your repository clone):
 
-```bash
+```shell
 ./scripts/install.sh
 ```
 
 Then, optionally, you can activate the development environment:
 
-```bash
-source ./scripts/devenv.sh
+```shell
+. ./scripts/devenv.sh
 ```
 
 (The scripts mentioned later, like `./scripts/build.sh` or `./scripts/test.sh`
