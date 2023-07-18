@@ -18,6 +18,7 @@ import {
   airdropSplToAssociatedTokenAccount,
   convertAndComputeDecimals,
   TOKEN_REGISTRY,
+  ADMIN_AUTH_KEYPAIR,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -444,14 +445,13 @@ describe("Test User", () => {
       recipientPublicKey: relayerRecipientSol.publicKey,
     });
 
-    let relayer = new TestRelayer(
-      relayerKeypair.publicKey,
-      LOOK_UP_TABLE,
-      relayerRecipientSol.publicKey,
-      new BN(100000),
-      new BN(10_100_000),
-      relayerKeypair,
-    );
+    let relayer = new TestRelayer({
+      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      lookUpTable: LOOK_UP_TABLE,
+      relayerRecipientSol: relayerRecipientSol.publicKey,
+      relayerFee: new anchor.BN(100_000),
+      payer: ADMIN_AUTH_KEYPAIR,
+    });
 
     let testUsers: { user: User; wallet: Keypair }[] = [];
     for (let user = 0; user < noUsers; user++) {

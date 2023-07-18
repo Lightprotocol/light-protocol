@@ -57,14 +57,13 @@ describe("Test User", () => {
       2_000_000_000,
     );
 
-    RELAYER = new TestRelayer(
-      userKeypair.publicKey,
-      LOOK_UP_TABLE,
+    RELAYER = new TestRelayer({
+      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
-      new BN(100000),
-      new BN(10_100_000),
-      userKeypair,
-    );
+      relayerFee: new anchor.BN(100_000),
+      payer: ADMIN_AUTH_KEYPAIR,
+    });
     provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
