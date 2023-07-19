@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::msg};
 use ark_ff::bytes::{FromBytes, ToBytes};
-use ark_std::{marker::PhantomData, vec::Vec};
+use ark_std::marker::PhantomData;
 
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 
@@ -12,8 +12,8 @@ type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Paramet
 use crate::light_transaction::Config;
 
 #[derive(Clone)]
-pub struct AppTransaction<'a, T: Config> {
-    pub checked_public_inputs: Vec<Vec<u8>>,
+pub struct AppTransaction<'a, const NR_CHECKED_INPUTS: usize, T: Config> {
+    pub checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
     pub proof_a: [u8; 64],
     pub proof_b: &'a [u8; 128],
     pub proof_c: &'a [u8; 64],
@@ -23,15 +23,15 @@ pub struct AppTransaction<'a, T: Config> {
     pub invoked_system_verifier: bool,
 }
 
-impl<'a, T: Config> AppTransaction<'a, T> {
+impl<'a, const NR_CHECKED_INPUTS: usize, T: Config> AppTransaction<'a, NR_CHECKED_INPUTS, T> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         proof_a: &'a [u8; 64],
         proof_b: &'a [u8; 128],
         proof_c: &'a [u8; 64],
-        checked_public_inputs: Vec<Vec<u8>>,
+        checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
         verifyingkey: &'a Groth16Verifyingkey<'a>,
-    ) -> AppTransaction<'a, T> {
+    ) -> AppTransaction<'a, NR_CHECKED_INPUTS, T> {
         let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
             &*[&change_endianness(proof_a.as_slice())[..], &[0u8][..]].concat(),
         )
@@ -61,18 +61,11 @@ impl<'a, T: Config> AppTransaction<'a, T> {
 
     /// Verifies a Goth16 zero knowledge proof over the bn254 curve.
     pub fn verify(&mut self) -> Result<()> {
-        // do I need to add the merkle tree? don't think so but think this through
-        let mut public_inputs = Vec::new();
-
-        for input in self.checked_public_inputs.iter() {
-            public_inputs.push(input.as_slice());
-        }
-
         let mut verifier = Groth16Verifier::new(
             &self.proof_a,
             self.proof_b,
             self.proof_c,
-            public_inputs.as_slice(),
+            &self.checked_public_inputs, // do I need to add the merkle tree? don't think so but think this through
             self.verifyingkey,
         )
         .unwrap();

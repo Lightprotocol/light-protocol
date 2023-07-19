@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 /// Verifier state is a boiler plate struct which should be versatile enough to serve many use cases.
 /// For specialized use cases with less
 #[derive(AnchorDeserialize, AnchorSerialize, Clone, Debug)]
-pub struct VerifierState10Ins<T: Config> {
+pub struct VerifierState10Ins<const NR_CHECKED_INPUTS: usize, T: Config> {
     pub signer: Pubkey,
     pub nullifiers: Vec<[u8; 32]>,
     pub leaves: Vec<[u8; 32]>,
@@ -17,18 +17,20 @@ pub struct VerifierState10Ins<T: Config> {
     pub relayer_fee: u64,
     pub encrypted_utxos: Vec<u8>,
     pub merkle_root_index: u64,
-    pub checked_public_inputs: Vec<Vec<u8>>,
+    pub checked_public_inputs: [[u8; 32]; NR_CHECKED_INPUTS],
     pub proof_a: [u8; 64],
     pub proof_b: [u8; 128],
     pub proof_c: [u8; 64],
     pub e_phantom: PhantomData<T>,
 }
 
-impl<T: Config> VerifierState10Ins<T> {
+impl<const NR_CHECKED_INPUTS: usize, T: Config> VerifierState10Ins<NR_CHECKED_INPUTS, T> {
     pub const LEN: usize = 2048;
 }
 
-impl<T: Config> anchor_lang::AccountDeserialize for VerifierState10Ins<T> {
+impl<const NR_CHECKED_INPUTS: usize, T: Config> anchor_lang::AccountDeserialize
+    for VerifierState10Ins<NR_CHECKED_INPUTS, T>
+{
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         match VerifierState10Ins::deserialize(buf) {
             Ok(v) => Ok(v),
@@ -37,7 +39,9 @@ impl<T: Config> anchor_lang::AccountDeserialize for VerifierState10Ins<T> {
     }
 }
 
-impl<T: Config> anchor_lang::AccountSerialize for VerifierState10Ins<T> {
+impl<const NR_CHECKED_INPUTS: usize, T: Config> anchor_lang::AccountSerialize
+    for VerifierState10Ins<NR_CHECKED_INPUTS, T>
+{
     fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<()> {
         self.serialize(writer).unwrap();
         match self.serialize(writer) {
@@ -47,18 +51,36 @@ impl<T: Config> anchor_lang::AccountSerialize for VerifierState10Ins<T> {
     }
 }
 
-impl<T: Config> anchor_lang::Owner for VerifierState10Ins<T> {
+impl<const NR_CHECKED_INPUTS: usize, T: Config> anchor_lang::Owner
+    for VerifierState10Ins<NR_CHECKED_INPUTS, T>
+{
     fn owner() -> Pubkey {
         T::ID
     }
 }
 
-impl<const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
-    From<Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>> for VerifierState10Ins<T>
+impl<
+        const NR_CHECKED_INPUTS: usize,
+        const NR_LEAVES: usize,
+        const NR_NULLIFIERS: usize,
+        const NR_PUBLIC_INPUTS: usize,
+        T: Config,
+    >
+    From<Transaction<'_, '_, '_, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, T>>
+    for VerifierState10Ins<NR_CHECKED_INPUTS, T>
 {
     fn from(
-        light_tx: Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>,
-    ) -> VerifierState10Ins<T> {
+        light_tx: Transaction<
+            '_,
+            '_,
+            '_,
+            NR_CHECKED_INPUTS,
+            NR_LEAVES,
+            NR_NULLIFIERS,
+            NR_PUBLIC_INPUTS,
+            T,
+        >,
+    ) -> VerifierState10Ins<NR_CHECKED_INPUTS, T> {
         assert_eq!(T::NR_LEAVES / 2, light_tx.leaves.len());
         assert_eq!(T::NR_NULLIFIERS, light_tx.nullifiers.len());
 
@@ -86,7 +108,7 @@ impl<const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
             proof_c: *light_tx.proof_c,
             merkle_root: light_tx.merkle_root,
             tx_integrity_hash: light_tx.tx_integrity_hash,
-            checked_public_inputs: light_tx.checked_public_inputs.to_vec(),
+            checked_public_inputs: *light_tx.checked_public_inputs,
             e_phantom: PhantomData,
         }
     }

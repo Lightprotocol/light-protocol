@@ -43,7 +43,7 @@ pub mod mock_verifier {
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn light_instruction_first<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
+        ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info, 3>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs_des: InstructionDataLightInstructionFirst =
@@ -54,16 +54,15 @@ pub mod mock_verifier {
         let proof_b = [0u8; 128];
         let proof_c = [0u8; 64];
         let pool_type = [0u8; 32];
-        let checked_inputs = vec![
-            [
-                vec![0u8],
-                hash(&ctx.program_id.to_bytes()).try_to_vec()?[1..].to_vec(),
-            ]
-            .concat(),
-            inputs_des.transaction_hash.to_vec(),
+        let mut program_id_hash = hash(&ctx.program_id.to_bytes()).to_bytes();
+        program_id_hash[0] = 0;
+        let checked_inputs = [
+            program_id_hash,
+            inputs_des.transaction_hash,
             // inputs_des.current_slot.to_vec(),
+            [0u8; 32],
         ];
-        process_transfer_4_ins_4_outs_4_checked_first(
+        process_transfer_4_ins_4_outs_4_checked_first::<3, 17>(
             ctx,
             &proof_a,
             &proof_b,
@@ -81,18 +80,14 @@ pub mod mock_verifier {
     }
 
     pub fn light_instruction_second<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
+        ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info, 3>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let _ = inputs
-            .chunks(32)
-            .map(|input| {
-                ctx.accounts
-                    .verifier_state
-                    .checked_public_inputs
-                    .push(input.to_vec())
-            })
-            .collect::<Vec<_>>();
+        inputs.chunks(32).enumerate().for_each(|(i, input)| {
+            let mut arr = [0u8; 32];
+            arr.copy_from_slice(input);
+            ctx.accounts.verifier_state.checked_public_inputs[2 + i] = arr
+        });
         Ok(())
     }
 
@@ -100,7 +95,7 @@ pub mod mock_verifier {
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
     pub fn light_instruction_third<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionThird<'info>>,
+        ctx: Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, 3>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs_des: InstructionDataLightInstructionThird =
@@ -120,7 +115,7 @@ pub mod mock_verifier {
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
     pub fn close_verifier_state<'a, 'b, 'c, 'info>(
-        _ctx: Context<'a, 'b, 'c, 'info, CloseVerifierState<'info>>,
+        _ctx: Context<'a, 'b, 'c, 'info, CloseVerifierState<'info, 3>>,
     ) -> Result<()> {
         Ok(())
     }

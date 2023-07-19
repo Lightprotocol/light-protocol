@@ -9,4 +9,4 @@ crate-type = ["lib"]
 name = "light_account_compression"
 
 [dependencies]
-anchor-lang = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce" }
+anchor-lang = "0.28.0"

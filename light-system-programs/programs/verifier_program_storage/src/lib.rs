@@ -93,7 +93,7 @@ pub mod verifier_program_storage {
         let message = &ctx.accounts.verifier_state.msg;
         let message_hash = hash(message).to_bytes();
 
-        process_shielded_transfer_2_in_2_out(
+        process_shielded_transfer_2_in_2_out::<0, 9>(
             &ctx,
             Some(&message_hash),
             Some(message),
@@ -107,7 +107,7 @@ pub mod verifier_program_storage {
             &inputs.encrypted_utxos.to_vec(),
             inputs.root_index,
             inputs.relayer_fee,
-            &Vec::<Vec<u8>>::new(), // TODO: provide checked_public_inputs
+            &[], // TODO: provide checked_public_inputs
             &[0u8; 32],
         )?;
 
