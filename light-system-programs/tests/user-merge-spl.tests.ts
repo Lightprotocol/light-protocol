@@ -36,7 +36,6 @@ describe("Test User", () => {
   );
   anchor.setProvider(anchorProvider);
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR;
   var environmentConfig: EnvironmentConfig = {};
 
   before("init test setup Merkle tree lookup table etc ", async () => {
@@ -56,11 +55,11 @@ describe("Test User", () => {
       recipientPublicKey: relayerRecipientSol,
     });
 
-    environmentConfig.relayer = new TestRelayer({
+    environmentConfig.relayer = await new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol,
-      relayerFee: new anchor.BN(100_000),
+      relayerRecipientSol: relayerRecipientSol,
+      relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
 

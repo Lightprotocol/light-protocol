@@ -173,6 +173,7 @@ export class Utxo {
         "constructor",
         `asset in index ${index} is undefined. All assets: ${assets}`,
       );
+    }
 
     while (assets.length < N_ASSETS) {
       assets.push(SystemProgram.programId);

@@ -107,12 +107,13 @@ describe("Verifier Two test", () => {
         2_000_000_000,
       );
 
-      RELAYER = await new TestRelayer(
-        ADMIN_AUTH_KEYPAIR.publicKey,
-        LOOK_UP_TABLE,
-        relayerRecipientSol,
-        new BN(100000),
-      );
+      RELAYER = await new TestRelayer({
+        relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+        lookUpTable: LOOK_UP_TABLE,
+        relayerRecipientSol: relayerRecipientSol,
+        relayerFee: new BN(100_000),
+        payer: ADMIN_AUTH_KEYPAIR,
+      });
 
       let lightProvider = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
