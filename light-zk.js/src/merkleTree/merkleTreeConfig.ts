@@ -530,7 +530,7 @@ export class MerkleTreeConfig {
     if (!this.merkleTreeAuthorityPda)
       throw new Error("merkleTreeAuthorityPda undefined");
 
-    let registeredPoolTypePda = this.poolTypes.filter((item, _index) => {
+    let registeredPoolTypePda = this.poolTypes.filter((item) => {
       return item.poolType.toString() === poolType.toString();
     })[0];
 

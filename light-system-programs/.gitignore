@@ -8,3 +8,4 @@ lookUpTable.txt
 tests/*.js
 tests/test-utils/*.js
 scripts/*.js
+migrations/*.js
