@@ -46,10 +46,19 @@ pub trait Config {
     const ID: Pubkey;
 }
 
-pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
-{
+#[derive(Clone)]
+pub struct Transaction<
+    'info,
+    'a,
+    'c,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_LEAVES: usize,
+    const NR_NULLIFIERS: usize,
+    const NR_PUBLIC_INPUTS: usize,
+    T: Config,
+> {
     // Client input.
-    pub input: TransactionInput<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS>,
+    pub input: TransactionInput<'info, 'a, 'c, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
     // State of transaction.
     pub merkle_root: [u8; 32],
     pub tx_integrity_hash: [u8; 32],
@@ -87,11 +96,19 @@ pub struct Amounts {
     pub sol: [u8; 32],
 }
 
-pub struct TransactionInput<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize> {
+#[derive(Clone)]
+pub struct TransactionInput<
+    'info,
+    'a,
+    'c,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_LEAVES: usize,
+    const NR_NULLIFIERS: usize,
+> {
     pub proof: &'a Proof,
     pub public_amount: &'a Amounts,
     pub message: Option<&'a Message<'a>>,
-    pub checked_public_inputs: &'a Vec<Vec<u8>>,
+    pub checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
     pub leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
     pub encrypted_utxos: &'a Vec<u8>,
@@ -102,12 +119,18 @@ pub struct TransactionInput<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULL
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
 }
 
-impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
-    Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>
+impl<
+        T: Config,
+        const NR_CHECKED_INPUTS: usize,
+        const NR_LEAVES: usize,
+        const NR_NULLIFIERS: usize,
+        const NR_PUBLIC_INPUTS: usize,
+    > Transaction<'_, '_, '_, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, T>
 {
     pub fn new<'info, 'a, 'c>(
-        input: TransactionInput<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS>,
-    ) -> Transaction<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS, T> {
+        input: TransactionInput<'info, 'a, 'c, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
+    ) -> Transaction<'info, 'a, 'c, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, T>
+    {
         Transaction {
             input,
             merkle_root: [0u8; 32],
@@ -204,25 +227,30 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             msg!("Tried to verify proof without fetching root.");
         }
 
-        let mut public_inputs = vec![
-            self.merkle_root.as_slice(),
-            self.input.public_amount.spl.as_slice(),
-            self.tx_integrity_hash.as_slice(),
-            self.input.public_amount.sol.as_slice(),
-            self.mint_pubkey.as_slice(),
-        ];
+        assert_eq!(
+            NR_PUBLIC_INPUTS,
+            5 + NR_NULLIFIERS + NR_LEAVES * 2 + NR_CHECKED_INPUTS,
+        );
 
-        for input in self.input.nullifiers.iter() {
-            public_inputs.push(input.as_slice());
+        let mut public_inputs: [[u8; 32]; NR_PUBLIC_INPUTS] = [[0u8; 32]; NR_PUBLIC_INPUTS];
+
+        public_inputs[0] = self.merkle_root;
+        public_inputs[1] = self.input.public_amount.spl;
+        public_inputs[2] = self.tx_integrity_hash;
+        public_inputs[3] = self.input.public_amount.sol;
+        public_inputs[4] = self.mint_pubkey;
+
+        for (i, input) in self.input.nullifiers.iter().enumerate() {
+            public_inputs[5 + i] = *input;
         }
 
-        for input in self.input.leaves.iter() {
-            public_inputs.push(input[0].as_slice());
-            public_inputs.push(input[1].as_slice());
+        for (i, input) in self.input.leaves.iter().enumerate() {
+            public_inputs[5 + NR_NULLIFIERS + i * 2] = input[0];
+            public_inputs[5 + NR_NULLIFIERS + i * 2 + 1] = input[1];
         }
 
-        for input in self.input.checked_public_inputs.iter() {
-            public_inputs.push(input);
+        for (i, input) in self.input.checked_public_inputs.iter().enumerate() {
+            public_inputs[5 + NR_NULLIFIERS + NR_LEAVES * 2 + i] = *input;
         }
 
         let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
@@ -240,7 +268,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             &proof_a_neg,
             &self.input.proof.b,
             &self.input.proof.c,
-            public_inputs.as_slice(),
+            &public_inputs,
             self.input.verifyingkey,
         )
         .unwrap();
