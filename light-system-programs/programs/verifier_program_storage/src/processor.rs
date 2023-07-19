@@ -18,7 +18,12 @@ impl Config for TransactionConfig {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
+pub fn process_shielded_transfer_2_in_2_out<
+    'a,
+    'info,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_PUBLIC_INPUTS: usize,
+>(
     ctx: &Context<'a, '_, '_, 'info, LightInstructionSecond<'info>>,
     message_hash: Option<&'a [u8; 32]>,
     message: Option<&'a Vec<u8>>,
@@ -32,7 +37,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
     encrypted_utxos: &'a Vec<u8>,
     merkle_tree_index: u64,
     relayer_fee: u64,
-    checked_public_inputs: &'a Vec<Vec<u8>>,
+    checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
     pool_type: &'a [u8; 32],
 ) -> Result<()> {
     let accounts = Accounts::new(
@@ -55,24 +60,25 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'info>(
         ctx.remaining_accounts,
     )?;
 
-    let mut transaction = Transaction::<1, 2, TransactionConfig>::new(
-        message_hash,
-        message,
-        proof_a,
-        proof_b,
-        proof_c,
-        public_amount_spl,
-        public_amount_sol,
-        checked_public_inputs,
-        nullifiers,
-        leaves,
-        encrypted_utxos,
-        relayer_fee,
-        merkle_tree_index as usize,
-        pool_type,
-        Some(&accounts),
-        &VERIFYINGKEY,
-    );
+    let mut transaction =
+        Transaction::<NR_CHECKED_INPUTS, 1, 2, NR_PUBLIC_INPUTS, TransactionConfig>::new(
+            message_hash,
+            message,
+            proof_a,
+            proof_b,
+            proof_c,
+            public_amount_spl,
+            public_amount_sol,
+            checked_public_inputs,
+            nullifiers,
+            leaves,
+            encrypted_utxos,
+            relayer_fee,
+            merkle_tree_index as usize,
+            pool_type,
+            Some(&accounts),
+            &VERIFYINGKEY,
+        );
 
     transaction.transact()
 }

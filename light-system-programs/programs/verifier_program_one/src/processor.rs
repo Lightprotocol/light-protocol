@@ -20,7 +20,7 @@ impl Config for TransactionConfig {
 
 #[allow(clippy::too_many_arguments)]
 pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
-    ctx: Context<'a, '_, '_, 'info, LightInstructionFirst<'info>>,
+    ctx: Context<'a, '_, '_, 'info, LightInstructionFirst<'info, 0>>,
     proof_a: &'a [u8; 64],
     proof_b: &'a [u8; 128],
     proof_c: &'a [u8; 64],
@@ -32,9 +32,8 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
     root_index: &'a u64,
     relayer_fee: &'a u64,
 ) -> Result<()> {
-    let checked_public_inputs = Vec::<Vec<u8>>::new();
     let pool_type = [0u8; 32];
-    let tx = Transaction::<1, 10, TransactionConfig>::new(
+    let tx = Transaction::<0, 1, 10, 17, TransactionConfig>::new(
         None,
         None,
         proof_a,
@@ -42,7 +41,7 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
         proof_c,
         public_amount_spl,
         public_amount_sol,
-        &checked_public_inputs, // checked_public_inputs
+        &[], // checked_public_inputs
         nullifiers,
         leaves,
         encrypted_utxos,
@@ -58,7 +57,7 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
 }
 
 pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
-    ctx: Context<'a, '_, '_, 'info, LightInstructionSecond<'info>>,
+    ctx: Context<'a, '_, '_, 'info, LightInstructionSecond<'info, 0>>,
     proof_a: &'a [u8; 64],
     proof_b: &'a [u8; 128],
     proof_c: &'a [u8; 64],
@@ -83,7 +82,6 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
         ctx.accounts.log_wrapper.to_account_info(),
         ctx.remaining_accounts,
     )?;
-    let checked_public_inputs = Vec::<Vec<u8>>::new();
 
     let leaves = [[
         ctx.accounts.verifier_state.leaves[0],
@@ -97,7 +95,7 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
         .try_into()
         .unwrap();
 
-    let mut tx = Transaction::<1, 10, TransactionConfig>::new(
+    let mut tx = Transaction::<0, 1, 10, 17, TransactionConfig>::new(
         None,
         None,
         proof_a,
@@ -105,7 +103,7 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
         proof_c,
         &ctx.accounts.verifier_state.public_amount_spl,
         &ctx.accounts.verifier_state.public_amount_sol,
-        &checked_public_inputs, // checked_public_inputs
+        &[], // checked_public_inputs
         &nullifier,
         &leaves,
         &ctx.accounts.verifier_state.encrypted_utxos,

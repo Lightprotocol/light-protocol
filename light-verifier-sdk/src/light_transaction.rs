@@ -47,14 +47,22 @@ pub trait Config {
 }
 
 #[derive(Clone)]
-pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
-{
+pub struct Transaction<
+    'info,
+    'a,
+    'c,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_LEAVES: usize,
+    const NR_NULLIFIERS: usize,
+    const NR_PUBLIC_INPUTS: usize,
+    T: Config,
+> {
     pub merkle_root: [u8; 32],
     pub public_amount_spl: &'a [u8; 32],
     pub tx_integrity_hash: [u8; 32],
     pub public_amount_sol: &'a [u8; 32],
     pub mint_pubkey: [u8; 32],
-    pub checked_public_inputs: &'a Vec<Vec<u8>>,
+    pub checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
     /// Hash of the optional message included in the transaction.
     pub message_hash: Option<&'a [u8; 32]>,
     pub message: Option<&'a Vec<u8>>,
@@ -79,8 +87,13 @@ pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIER
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
 }
 
-impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
-    Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>
+impl<
+        T: Config,
+        const NR_CHECKED_INPUTS: usize,
+        const NR_LEAVES: usize,
+        const NR_NULLIFIERS: usize,
+        const NR_PUBLIC_INPUTS: usize,
+    > Transaction<'_, '_, '_, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, T>
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new<'info, 'a, 'c>(
@@ -91,7 +104,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         proof_c: &'a [u8; 64],
         public_amount_spl: &'a [u8; 32],
         public_amount_sol: &'a [u8; 32],
-        checked_public_inputs: &'a Vec<Vec<u8>>,
+        checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
         nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
         leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
         encrypted_utxos: &'a Vec<u8>,
@@ -100,7 +113,8 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         pool_type: &'a [u8; 32],
         accounts: Option<&'a Accounts<'info, 'a, 'c>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>,
-    ) -> Transaction<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS, T> {
+    ) -> Transaction<'info, 'a, 'c, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, T>
+    {
         assert_eq!(T::NR_NULLIFIERS, nullifiers.len());
         assert_eq!(T::NR_LEAVES / 2, leaves.len());
         let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
@@ -212,32 +226,37 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             msg!("Tried to verify proof without fetching root.");
         }
 
-        let mut public_inputs = vec![
-            self.merkle_root.as_slice(),
-            self.public_amount_spl.as_slice(),
-            self.tx_integrity_hash.as_slice(),
-            self.public_amount_sol.as_slice(),
-            self.mint_pubkey.as_slice(),
-        ];
+        assert_eq!(
+            NR_PUBLIC_INPUTS,
+            5 + NR_NULLIFIERS + NR_LEAVES * 2 + NR_CHECKED_INPUTS,
+        );
 
-        for input in self.nullifiers.iter() {
-            public_inputs.push(input.as_slice());
+        let mut public_inputs: [[u8; 32]; NR_PUBLIC_INPUTS] = [[0u8; 32]; NR_PUBLIC_INPUTS];
+
+        public_inputs[0] = self.merkle_root;
+        public_inputs[1] = *self.public_amount_spl;
+        public_inputs[2] = self.tx_integrity_hash;
+        public_inputs[3] = *self.public_amount_sol;
+        public_inputs[4] = self.mint_pubkey;
+
+        for (i, input) in self.nullifiers.iter().enumerate() {
+            public_inputs[5 + i] = *input;
         }
 
-        for input in self.leaves.iter() {
-            public_inputs.push(input[0].as_slice());
-            public_inputs.push(input[1].as_slice());
+        for (i, input) in self.leaves.iter().enumerate() {
+            public_inputs[5 + NR_NULLIFIERS + i * 2] = input[0];
+            public_inputs[5 + NR_NULLIFIERS + i * 2 + 1] = input[1];
         }
 
-        for input in self.checked_public_inputs.iter() {
-            public_inputs.push(input);
+        for (i, input) in self.checked_public_inputs.iter().enumerate() {
+            public_inputs[5 + NR_NULLIFIERS + NR_LEAVES * 2 + i] = *input;
         }
 
         let mut verifier = Groth16Verifier::new(
             &self.proof_a,
             self.proof_b,
             self.proof_c,
-            public_inputs.as_slice(),
+            &public_inputs,
             self.verifyingkey,
         )
         .unwrap();

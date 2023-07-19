@@ -20,8 +20,8 @@ default = []
 overflow-checks = true
 
 [dependencies]
-anchor-lang = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce" }
-anchor-spl = { git = "https://github.com/coral-xyz/anchor", rev = "1c6f86e5f7793ce6adefe9cbfa11939647c509ce" }
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
 solana-security-txt = "0.1.0"
 merkle_tree_program = { path = "../../../light-system-programs/programs/merkle_tree_program", features = ["cpi"] }
 verifier_program_two = { path = "../../../light-system-programs/programs/verifier_program_two", features = ["cpi"] }
@@ -31,5 +31,5 @@ light-macros = "0.1.0"
 solana-program = "1.15.2"
 
 # Light Deps
-groth16-solana = "0.0.1"
+groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana", branch = "vadorovsky/fix-add-decompression" }
 light-verifier-sdk = {path = "../../../light-verifier-sdk"}
