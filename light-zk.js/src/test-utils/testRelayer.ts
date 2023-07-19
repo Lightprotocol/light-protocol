@@ -28,12 +28,7 @@ export class TestRelayer extends Relayer {
     highRelayerFee?: BN;
     payer: Keypair;
   }) {
-    super(
-      relayerPubkey,
-      relayerRecipientSol,
-      relayerFee,
-      highRelayerFee,
-    );
+    super(relayerPubkey, relayerRecipientSol, relayerFee, highRelayerFee);
     if (payer.publicKey.toBase58() != relayerPubkey.toBase58())
       throw new Error(
         `Payer public key ${payer.publicKey.toBase58()} does not match relayer public key ${relayerPubkey.toBase58()}`,
@@ -81,7 +76,6 @@ export class TestRelayer extends Relayer {
       provider.lookUpTables.versionedTransactionLookupTable,
       useWallet(this.relayerKeypair),
     );
-    console.log("sendTransactions ", res);
     if (res.error) return { transactionStatus: "error", ...res };
     else return { transactionStatus: "confirmed", ...res };
   }
@@ -136,6 +130,23 @@ export class TestRelayer extends Relayer {
           until: mostRecentTransaction.signature,
         },
         transactions: this.indexedTransactions,
+      });
+      this.indexedTransactions.map((trx) => {
+        return {
+          ...trx,
+          // signer: new PublicKey(trx.signer),
+          // to: new PublicKey(trx.to),
+          // from: new PublicKey(trx.from),
+          // toSpl: new PublicKey(trx.toSpl),
+          // fromSpl: new PublicKey(trx.fromSpl),
+          // verifier: new PublicKey(trx.verifier),
+          // relayerRecipientSol: new PublicKey(trx.relayerRecipientSol),
+          firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
+          publicAmountSol: new BN(trx.publicAmountSol, "hex"),
+          publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
+          changeSolAmount: new BN(trx.changeSolAmount, "hex"),
+          relayerFee: new BN(trx.relayerFee, "hex"),
+        };
       });
       return this.indexedTransactions;
     }

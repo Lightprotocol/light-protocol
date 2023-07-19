@@ -298,12 +298,8 @@ export class Provider {
             "init",
           );
         }
-        const unpackedLookupTableAccount =
-          AddressLookupTableAccount.deserialize(lookupTableAccount.data);
-        console.log(
-          "unpackedLookupTableAccount ------------------------------",
-          unpackedLookupTableAccount,
-        );
+        // this will throw if the account is not a valid lookup table
+        AddressLookupTableAccount.deserialize(lookupTableAccount.data);
       } catch (error) {
         throw new ProviderError(
           ProviderErrorCode.LOOK_UP_TABLE_NOT_INITIALIZED,

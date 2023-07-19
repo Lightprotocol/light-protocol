@@ -71,6 +71,7 @@ export const sendVersionedTransaction = async (
     try {
       return await connection.sendTransaction(tx, confirmConfig);
     } catch (e: any) {
+      console.log(e);
       retries--;
       if (retries == 0 || e.logs !== undefined) {
         throw e;

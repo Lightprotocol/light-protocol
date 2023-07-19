@@ -57,10 +57,6 @@ export const relayWorker = new Worker(
     const parsedInstructions = parseReqParams(instructions);
     try {
       const provider = await getLightProvider();
-      console.log("RELAY JOB WORKER INITIED PROVIDER...");
-      console.log("parsedInstructions: ", parsedInstructions[0].keys);
-      console.log("lookUpTable: ", provider.lookUpTables.versionedTransactionLookupTable);
-      console.log("wallet: ", provider.wallet);
       var response = await sendVersionedTransactions(
         parsedInstructions,
         provider.provider!.connection,

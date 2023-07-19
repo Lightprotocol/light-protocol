@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import { Keypair as SolanaKeypair, PublicKey, Keypair } from "@solana/web3.js";
 import _ from "lodash";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -55,13 +55,19 @@ describe("Test User", () => {
       relayerRecipientSol,
       2_000_000_000,
     );
-
+    let relayer = Keypair.generate();
+    await airdropSol({
+      provider: anchorProvider,
+      lamports: 2_000_000_000,
+      recipientPublicKey: relayer.publicKey,
+    });
     RELAYER = new TestRelayer({
-      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      relayerPubkey: relayer.publicKey,
       relayerRecipientSol,
       relayerFee: new anchor.BN(100_000),
-      payer: ADMIN_AUTH_KEYPAIR,
+      payer: relayer,
     });
+
     provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
@@ -130,14 +136,10 @@ describe("Test User", () => {
       token: testInputs.token,
     });
 
-    // TODO: add random amount and amount checks
-    await user.provider.latestMerkleTree();
-    // is failing because we are paying for the merkle tree update from the same keypair
-    // TODO: factor these costs into the equation or pay for the update from a different keypair for example one defined in the testrelayer
-    // await testStateValidator.checkSolShielded();
+    await testStateValidator.checkSolShielded();
   });
 
-  it.only("(user class) confirm options SPL", async () => {
+  it("(user class) confirm options SPL", async () => {
     const userSeed = bs58.encode(new Uint8Array(32).fill(3));
     await airdropShieldedSol({ provider, amount: 10, seed: userSeed });
     let testInputs = {

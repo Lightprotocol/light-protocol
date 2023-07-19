@@ -261,14 +261,14 @@ async function enrichParsedTransactionEvents(
     verifier,
     relayerRecipientSol,
     type,
-    changeSolAmount: changeSolAmount.toString(),
-    publicAmountSol: amountSol.toString(),
-    publicAmountSpl: amountSpl.toString(),
+    changeSolAmount: changeSolAmount.toString("hex"),
+    publicAmountSol: amountSol.toString("hex"),
+    publicAmountSpl: amountSpl.toString("hex"),
     encryptedUtxos,
     leaves,
     nullifiers,
-    relayerFee: relayerFee.toString(),
-    firstLeafIndex: firstLeafIndex.toString(),
+    relayerFee: relayerFee.toString("hex"),
+    firstLeafIndex: firstLeafIndex.toString("hex"),
     message: Buffer.from(message),
   });
 }
@@ -443,6 +443,7 @@ export async function fetchRecentTransactions({
   }
   return transactions.sort(
     (a, b) =>
-      new BN(a.firstLeafIndex).toNumber() - new BN(b.firstLeafIndex).toNumber(),
+      new BN(a.firstLeafIndex, "hex").toNumber() -
+      new BN(b.firstLeafIndex, "hex").toNumber(),
   );
 }

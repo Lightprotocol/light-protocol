@@ -91,14 +91,8 @@ export class SolMerkleTree {
           new BN(indexedTransactions[i].firstLeafIndex).toNumber() <
           merkleTreeIndex.toNumber()
         ) {
-          const queuedLeavesPdaExists = await fetchQueuedLeavesAccountInfo(
-            new Uint8Array([...indexedTransactions[i].leaves[0]]),
-            provider!.connection,
-          );
-          if (!queuedLeavesPdaExists) {
-            for (const iterator of indexedTransactions[i].leaves) {
-              leaves.push(new anchor.BN(iterator, undefined, "le").toString());
-            }
+          for (const iterator of indexedTransactions[i].leaves) {
+            leaves.push(new anchor.BN(iterator, undefined, "le").toString());
           }
         }
       }

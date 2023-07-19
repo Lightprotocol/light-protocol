@@ -1,4 +1,4 @@
-import { AnchorProvider, BN } from "@coral-xyz/anchor";
+import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import chai, { assert, use } from "chai";
 import chaiHttp from "chai-http";
@@ -22,6 +22,12 @@ import {
   LOOK_UP_TABLE,
   sleep,
   airdropShieldedSol,
+  Action,
+  UserTestAssertHelper,
+  Relayer,
+  IDL_MERKLE_TREE_PROGRAM,
+  merkleTreeProgramId,
+  MerkleTreeProgram,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
@@ -33,9 +39,10 @@ import {
   handleRelayRequest,
 } from "../src/services";
 import { testSetup } from "../src/setup";
-import { getKeyPairFromEnv, getLightProvider } from "../src/utils/provider";
+import { getKeyPairFromEnv, getLightProvider, getRelayer } from "../src/utils/provider";
 const bs58 = require("bs58");
 import IORedis from "ioredis";
+import { read } from "fs";
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -55,6 +62,19 @@ app.get("/lookuptable", initLookupTable);
 app.post("/relayTransaction", handleRelayRequest);
 app.get("/indexedTransactions", getIndexedTransactions);
 
+
+const waitForBalanceUpdate = async (userTestAssertHelper: UserTestAssertHelper, user: User, retries: number = 10) => {
+  let balance = await user.getBalance();
+  while (retries > 0) {
+    retries--;
+    console.log("retries", retries);
+    if (!balance.totalSolBalance.eq(userTestAssertHelper.recipient.preShieldedBalance!.totalSolBalance))
+      retries = 0;
+    balance = await user.getBalance();
+    await sleep(2000);
+  }
+};
+
 describe("API tests", () => {
   let poseidon;
   let depositAmount = 20_000;
@@ -62,32 +82,61 @@ describe("API tests", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let previousMerkleRoot =
     "15800883723037093133305280672853871715176051618981698111580373208012928757479";
-  let userKeypair = getKeyPairFromEnv("KEY_PAIR");
-  console.log("setting-up test relayer...");
-  const testRelayer = new TestRelayer(
-    userKeypair.publicKey,
-    userKeypair.publicKey,
-    new BN(100_000),
-    new BN(100_000),
-    userKeypair
-  );
+  let userKeypair = Keypair.generate();
+  let provider: Provider, user: User, anchorProvider: AnchorProvider;
+
   before(async () => {
     process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
     process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-    const provider = AnchorProvider.local(
+    anchorProvider = AnchorProvider.local(
       "http://127.0.0.1:8899",
       confirmConfig,
     );
     poseidon = await circomlibjs.buildPoseidonOpt();
     await testSetup();
     await airdropSol({
-      provider,
+      provider: anchorProvider,
       lamports: 10_000_000_000,
       recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
     });
+    
+    await airdropSol({
+      provider: anchorProvider,
+      lamports: 1000 * 1e9,
+      recipientPublicKey: userKeypair.publicKey,
+    });
+    const relayer = await getRelayer();
+    relayer.relayerFee = new BN(100_000);
+    provider = await Provider.init({
+      wallet: userKeypair,
+      confirmConfig,
+      relayer
+    });
+    await airdropSol({
+      provider: anchorProvider,
+      lamports: 1000 * 1e9,
+      recipientPublicKey: provider.relayer.accounts.relayerRecipientSol,
+    });
+    
+    user = await User.init({ provider });
   });
+//  it.skip("merkleTreeProgram ", async () => {
+//   const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(
+//     IDL_MERKLE_TREE_PROGRAM,
+//     merkleTreeProgramId,
+//     anchorProvider,
+//   );
 
-  // it.only("Should return look up table data", (done) => {
+//   let mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
+//     TRANSACTION_MERKLE_TREE_KEY,
+//     "processed",
+//   );
+//   console.log("mtFetched nextIndex ", mtFetched.nextIndex.toString());
+//   console.log("mtFetched nextQueuedIndex ", mtFetched.nextQueuedIndex.toString());
+
+//   });
+  
+  // it("Should return look up table data", (done) => {
   //   const redisConnection = new IORedis({ maxRetriesPerRequest: null });
   //   console.log("redisConnection", redisConnection);
   // });
@@ -162,103 +211,61 @@ describe("API tests", () => {
         done();
       });
   });
-  it.skip("should shield and update merkle tree", async () => {
-    const provider = await Provider.init({
-      wallet: userKeypair,
+
+  it("should shield and update merkle tree", async () => {
+    let testInputs = {
+      amountSol: 15,
+      token: "SOL",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength: 1,
+    };
+    const userTestAssertHelper = new UserTestAssertHelper({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs,
     });
-   
-    const user: User = await User.init({ provider, skipFetchBalance: true});
-    const indexedTransactionsPre = await testRelayer.getIndexedTransactions(provider.provider!.connection);
-    console.log("testRelayer.indexedTransactions.length ", testRelayer.indexedTransactions.length);
-    
-    let res = await user.shield({ publicAmountSol: 1, token: "SOL" });
-    console.log("res ", res);
-    const indexedTransactionsPost = await testRelayer.getIndexedTransactions(provider.provider!.connection);
+    await userTestAssertHelper.fetchAndSaveState();
+
+    await user.shield({
+      publicAmountSol: testInputs.amountSol,
+      token: testInputs.token,
+    });
+
+    await waitForBalanceUpdate(userTestAssertHelper, user);
+    await userTestAssertHelper.checkSolShielded();
+  });
+  // TODO: add a shield... before, add a transfer too tho, => assert job queeing functioning etc
+  it("should unshield SOL and update merkle tree", async () => {
+ 
+  const solRecipient = Keypair.generate();
+
+  const testInputs = {
+    amountSol:1,
+    token: "SOL",
+    type: Action.UNSHIELD,
+    recipient: solRecipient.publicKey,
+    expectedUtxoHistoryLength: 1,
+  };
+
+  const userTestAssertHelper = new UserTestAssertHelper({
+    userSender: user,
+    userRecipient: user,
+    provider,
+    testInputs,
+  });
+  const balance = await user.getBalance();
+  await userTestAssertHelper.fetchAndSaveState();
+  await user.unshield({
+    publicAmountSol: testInputs.amountSol,
+    token: testInputs.token,
+    recipient: testInputs.recipient,
   });
 
-  it.only("should shield and update merkle tree", async () => {
-    let amount = 15;
-    let token = "SOL";
+  await waitForBalanceUpdate(userTestAssertHelper, user);
+  await userTestAssertHelper.checkSolUnshielded();
 
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      confirmConfig,
-    });
-    await airdropSol({
-      provider: provider.provider!,
-      lamports: 1000 * 1e9,
-      recipientPublicKey: userKeypair.publicKey,
-    });
-    await airdropSol({
-      provider: provider.provider!,
-      lamports: 1000 * 1e9,
-      recipientPublicKey: provider.relayer.accounts.relayerRecipientSol,
-    });
-
-    const user: User = await User.init({ provider });
-
-    const tokenCtx = TOKEN_REGISTRY.get(token);
-
-    const preShieldedBalance = await user.getBalance();
-    let solShieldedBalancePre = preShieldedBalance.tokenBalances.get(
-      SystemProgram.programId.toBase58(),
-    )?.totalBalanceSol;
-
-    console.log("solShieldedBalancePre", solShieldedBalancePre);
-    await user.shield({ publicAmountSol: amount, token });
-
-    await user.provider.latestMerkleTree();
-
-    let balance = await user.getBalance();
-    let retries = 5;
-    while (retries > 0) {
-      retries--;
-      console.log("retries", retries); 
-      if (balance.totalSolBalance.gt(new BN(0)))
-        retries = 0;
-      balance = await user.getBalance();
-      await sleep(2000);
-    }
-
-    let solShieldedBalanceAfter = balance.tokenBalances.get(
-      SystemProgram.programId.toBase58(),
-    )?.totalBalanceSol;
-
-    assert.equal(
-      solShieldedBalanceAfter!.toNumber(),
-      solShieldedBalancePre!.toNumber() +
-        amount * tokenCtx!.decimals.toNumber(),
-      `shielded balance after ${solShieldedBalanceAfter!.toString()} != shield amount ${
-        amount * tokenCtx!.decimals.toNumber()
-      }`,
-    );
-
-    assert.notEqual(
-      provider.solMerkleTree!.merkleTree.root().toString(),
-      previousMerkleRoot,
-    );
-
-    previousMerkleRoot = provider.solMerkleTree!.merkleTree.root().toString();
-
-    assert.equal(provider.solMerkleTree!.merkleTree._layers[0].length, 2);
-
-    assert.equal(
-      user.balance.tokenBalances.get(tokenCtx!.mint.toBase58())?.utxos.size,
-      1,
-    );
-
-    assert.equal(
-      provider.solMerkleTree!.merkleTree.indexOf(
-        user.balance.tokenBalances
-          .get(tokenCtx!.mint.toBase58())
-          ?.utxos.values()
-          .next()
-          .value.getCommitment(poseidon),
-      ),
-      0,
-    );
   });
-
   it("Should fail to update Merkle tree", (done) => {
     chai
       .request(app)
@@ -279,6 +286,7 @@ describe("API tests", () => {
       .end(async (err, res) => {
         const provider = await Provider.init({
           wallet: userKeypair,
+          confirmConfig,
         });
 
         let lookUpTableInfo =
@@ -307,103 +315,46 @@ describe("API tests", () => {
       });
   });
 
-  it("transfer SPL token", async () => {
-    console.log("initializing light provider recipient...");
-    let amount = 1;
-    let token = "SOL";
-
-    // REINIT SAME USER AS SHIELD
-    const provider = await Provider.init({
-      wallet: userKeypair,
-    });
-    const user: User = await User.init({ provider });
-
-    // INIT RECIPIENT
-    let recipientKeypair = Keypair.generate();
-    let recipient = recipientKeypair.publicKey;
-    await airdropSol({
-      provider: provider.provider!,
-      lamports: 1000 * 1e9,
-      recipientPublicKey: recipientKeypair.publicKey,
-    });
-    const lightProviderRecipient = await Provider.init({
-      wallet: recipientKeypair,
-    });
-    const testRecipient: User = await User.init({
-      provider: lightProviderRecipient,
-    });
-
-    const response = await user.transfer({
-      amountSol: "1",
+  it("should transfer sol and update merkle tree ", async () => {
+  
+    const testInputs = {
+      amountSol: 1,
       token: "SOL",
-      recipient: testRecipient.account.getPublicKey(),
+      type: Action.TRANSFER,
+      expectedUtxoHistoryLength: 1,
+      recipientSeed: bs58.encode(new Uint8Array(32).fill(9)),
+      expectedRecipientUtxoLength: 1,
+    };
+
+    const recipientAccount = new Account({
+      poseidon,
+      seed: testInputs.recipientSeed,
     });
-    console.log("TRANSFER response", response);
-    // check balance of response
-  });
-  // TODO: add a shield... before, add a transfer too tho, => assert job queeing functioning etc
-  it.only("(user class) unshield SOL", async () => {
+
+    const userRecipient: User = await User.init({
+      provider,
+      seed: testInputs.recipientSeed,
+    });
+
+    const testStateValidator = new UserTestAssertHelper({
+      userSender: user,
+      userRecipient,
+      provider,
+      testInputs,
+    });
+    await testStateValidator.fetchAndSaveState();
+    await user.transfer({
+      amountSol: testInputs.amountSol,
+      token: testInputs.token,
+      recipient: recipientAccount.getPublicKey(),
+    });
+
+    // await waitForBalanceUpdate(testStateValidator, user);
+    await sleep(6000)
+    await testStateValidator.checkSolTransferred();
     
-    let amount = 1;
-    let token = "SOL";
-    let recipient = Keypair.generate().publicKey;
-    const provider = await Provider.init({
-      wallet: userKeypair,
-    });
-    console.log("provider.relayer ", provider.relayer);
-
-    // get token from registry
-    const tokenCtx = TOKEN_REGISTRY.get(token);
-
-    const user: User = await User.init({ provider });
-
-    const preShieldedBalance = await user.getBalance();
-    let solBalancePre = preShieldedBalance.tokenBalances.get(
-      SystemProgram.programId.toString(),
-    )?.totalBalanceSol;
-    console.log("@unshield solBalancePre", solBalancePre);
-    console.time("unshield");
-    await user.unshield({
-      publicAmountSol: amount,
-      token,
-      recipient,
-    });
-    console.timeEnd("unshield");
-
-    let balance = await user.getBalance();
-    let retries = 5;
-    while (retries > 0) {
-      retries--;
-      console.log("retries", retries); 
-      if (balance.totalSolBalance.gt(new BN(0)))
-        retries = 0;
-      balance = await user.getBalance();
-      await sleep(2000);
-    }
-    // assert that the user's sol shielded balance has decreased by fee
-    let solBalanceAfter = balance.tokenBalances.get(
-      SystemProgram.programId.toString(),
-    )?.totalBalanceSol;
-
-    assert.equal(
-      solBalanceAfter!.toNumber(),
-      solBalancePre!.toNumber() -
-        100000 -
-        amount * tokenCtx!.decimals.toNumber(),
-      `shielded sol balance after ${solBalanceAfter!.toString()} != ${solBalancePre!.toString()} ...unshield amount -fee`,
-    );
-
-    assert.notEqual(
-      provider.solMerkleTree!.merkleTree.root().toString(),
-      previousMerkleRoot,
-    );
-
-    assert.equal(
-      user.balance.tokenBalances.get(SystemProgram.programId.toString())?.utxos
-        .size,
-      1,
-    );
   });
+
 
   // TODO: add test for just proper indexing (-> e.g. shields)
   // TODO: add test for stress test load (multiple requests, wrong requests etc)

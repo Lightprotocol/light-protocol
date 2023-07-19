@@ -359,6 +359,7 @@ const createTestUser = async (
   const provider = await Provider.init({
     wallet,
     relayer,
+    confirmConfig
   });
   return { user: await User.init({ provider }), wallet };
 };
@@ -447,7 +448,6 @@ describe("Test User", () => {
 
     let relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol: relayerRecipientSol.publicKey,
       relayerFee: new anchor.BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,

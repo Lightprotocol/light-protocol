@@ -30,18 +30,14 @@ solana-test-validator \
     --account-dir ../test-env/accounts \
     &
 PID="${!}"
-# trap "kill ${PID}" EXIT
-sleep 7
+trap "kill ${PID}" EXIT
 
 sleep 8
 
-node lib/index.js
+node lib/index.js > /dev/null &
 relayer_pid=$!
-# trap "kill ${relayer_pid}" EXIT
+trap "kill ${relayer_pid}" EXIT
 
-# sleep 15
+sleep 15
 
-# npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;
-
-# tests/indexer_test.ts
-# trap "kill $PID" EXIT
+npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;

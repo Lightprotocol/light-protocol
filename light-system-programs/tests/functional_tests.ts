@@ -74,9 +74,8 @@ describe("verifier_program", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer({
+    RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
       relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
@@ -119,6 +118,7 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
 
     let deposit_utxo1 = spl
@@ -150,7 +150,6 @@ describe("verifier_program", () => {
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
       action: Action.SHIELD,
       poseidon: POSEIDON,
       verifierIdl: verifierIdl,
@@ -215,6 +214,7 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
     await lightProvider.relayer.updateMerkleTree(lightProvider);
   });
@@ -239,6 +239,7 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
     let user = await User.init({
       provider: lightProvider,
@@ -315,6 +316,7 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig 
     });
     let user: User = await User.init({
       provider: lightProvider,
