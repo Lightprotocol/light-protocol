@@ -91,12 +91,13 @@ describe("Merkle Tree Tests", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      LOOK_UP_TABLE,
+    RELAYER = new TestRelayer({
+      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
-      new anchor.BN(100000),
-    );
+      relayerFee: new anchor.BN(100_000),
+      payer: ADMIN_AUTH_KEYPAIR,
+    });
   });
 
   it("Initialize Merkle Tree Test", async () => {

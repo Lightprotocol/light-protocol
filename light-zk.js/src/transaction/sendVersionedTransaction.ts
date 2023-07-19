@@ -63,21 +63,17 @@ export const sendVersionedTransaction = async (
 
   var tx = new VersionedTransaction(compiledTx);
   let retries = 3;
-  let res;
   while (retries > 0) {
     tx = await payer.signTransaction(tx);
     try {
-      res = await connection.sendTransaction(tx, confirmConfig);
-      retries = 0;
+      return await connection.sendTransaction(tx, confirmConfig);
     } catch (e: any) {
       retries--;
       if (retries == 0 || e.logs !== undefined) {
-        console.log(e);
-        return e;
+        throw e;
       }
     }
   }
-  return res;
 };
 
 export type SendVersionedTransactionsResult = {
@@ -91,16 +87,17 @@ export async function sendVersionedTransactions(
   lookUpTable: PublicKey,
   payer: Wallet,
 ): Promise<SendVersionedTransactionsResult> {
-  let signature;
   try {
     var signatures: TransactionSignature[] = [];
     for (var instruction of instructions) {
-      signature = await sendVersionedTransaction(
+      let signature = await sendVersionedTransaction(
         instruction,
         connection,
         lookUpTable,
         payer,
       );
+      if (!signature)
+        throw new Error("sendVersionedTransactions: signature is undefined");
       signatures.push(signature);
       const latestBlockHash = await connection.getLatestBlockhash("confirmed");
       let strategy: TransactionConfirmationStrategy = {
@@ -112,6 +109,6 @@ export async function sendVersionedTransactions(
     }
     return { signatures };
   } catch (error) {
-    return { error: signature };
+    return { error };
   }
 }

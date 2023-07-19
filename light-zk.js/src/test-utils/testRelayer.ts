@@ -15,14 +15,21 @@ export class TestRelayer extends Relayer {
   indexedTransactions: IndexedTransaction[] = [];
   relayerKeypair: Keypair;
 
-  constructor(
-    relayerPubkey: PublicKey,
-    lookUpTable: PublicKey,
-    relayerRecipientSol?: PublicKey,
-    relayerFee: BN = new BN(0),
-    highRelayerFee?: BN,
-    payer?: Keypair,
-  ) {
+  constructor({
+    relayerPubkey,
+    lookUpTable,
+    relayerRecipientSol,
+    relayerFee = new BN(0),
+    highRelayerFee,
+    payer,
+  }: {
+    relayerPubkey: PublicKey;
+    lookUpTable: PublicKey;
+    relayerRecipientSol?: PublicKey;
+    relayerFee: BN;
+    highRelayerFee?: BN;
+    payer: Keypair;
+  }) {
     super(
       relayerPubkey,
       lookUpTable,
@@ -30,8 +37,11 @@ export class TestRelayer extends Relayer {
       relayerFee,
       highRelayerFee,
     );
-
-    this.relayerKeypair = payer ? payer : Keypair.generate();
+    if (payer.publicKey.toBase58() != relayerPubkey.toBase58())
+      throw new Error(
+        `Payer public key ${payer.publicKey.toBase58()} does not match relayer public key ${relayerPubkey.toBase58()}`,
+      );
+    this.relayerKeypair = payer;
   }
 
   async updateMerkleTree(provider: Provider): Promise<any> {

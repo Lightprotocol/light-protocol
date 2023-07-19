@@ -70,14 +70,13 @@ describe("verifier_program", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      LOOK_UP_TABLE,
+    RELAYER = await new TestRelayer({
+      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
-      new BN(100_000),
-      new BN(10_100_000),
-      ADMIN_AUTH_KEYPAIR,
-    );
+      relayerFee: new BN(100_000),
+      payer: ADMIN_AUTH_KEYPAIR,
+    });
   });
 
   const performDeposit = async ({

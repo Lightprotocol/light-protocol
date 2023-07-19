@@ -9,6 +9,7 @@ import {
   confirmConfig,
   TestRelayer,
   Action,
+  LOOK_UP_TABLE,
 } from "@lightprotocol/zk.js";
 
 import {
@@ -52,14 +53,13 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       2_000_000_000,
     );
 
-    environmentConfig.relayer = new TestRelayer(
-      userKeypair.publicKey,
-      environmentConfig.lookUpTable,
+    environmentConfig.relayer = new TestRelayer({
+      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol,
-      new BN(100000),
-      new BN(10_100_000),
-      userKeypair,
-    );
+      relayerFee: new anchor.BN(100_000),
+      payer: ADMIN_AUTH_KEYPAIR,
+    });
   });
 
   it("(user class) shield SOL to recipient", async () => {
