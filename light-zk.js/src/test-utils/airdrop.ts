@@ -31,7 +31,7 @@ export async function airdropShieldedSol({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
     lookUpTable: Keypair.generate().publicKey,
-    relayerFee: new BN(100000),
+    relayerFee: new BN(100_000),
     payer: ADMIN_AUTH_KEYPAIR,
   });
   if (!provider) {
@@ -97,7 +97,7 @@ export async function airdropShieldedMINTSpl({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
     lookUpTable: Keypair.generate().publicKey,
-    relayerFee: new BN(100000),
+    relayerFee: new BN(100_000),
     payer: ADMIN_AUTH_KEYPAIR,
   });
   if (!provider) {
