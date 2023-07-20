@@ -42,9 +42,9 @@ pub mod verifier_program_one {
             InstructionDataShieldedTransferFirst::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
-        let proof_a = [0u8; 64];
-        let proof_b = [0u8; 128];
-        let proof_c = [0u8; 64];
+        let proof_a = [0u8; 32];
+        let proof_b = [0u8; 64];
+        let proof_c = [0u8; 32];
         let len_missing_bytes = 256 - inputs.encrypted_utxos.len();
         let mut enc_utxos = inputs.encrypted_utxos;
         enc_utxos.append(&mut vec![0u8; len_missing_bytes]);
@@ -160,9 +160,9 @@ pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataShieldedTransferSecond {
-    proof_a: [u8; 64],
-    proof_b: [u8; 128],
-    proof_c: [u8; 64],
+    proof_a: [u8; 32],
+    proof_b: [u8; 64],
+    proof_c: [u8; 32],
 }
 
 #[derive(Accounts)]

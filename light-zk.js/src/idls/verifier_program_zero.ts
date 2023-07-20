@@ -110,19 +110,19 @@ export type VerifierProgramZero = {
           {
             name: "proofA";
             type: {
-              array: ["u8", 64];
+              array: ["u8", 32];
             };
           },
           {
             name: "proofB";
             type: {
-              array: ["u8", 128];
+              array: ["u8", 64];
             };
           },
           {
             name: "proofC";
             type: {
-              array: ["u8", 64];
+              array: ["u8", 32];
             };
           },
           {
@@ -608,19 +608,19 @@ export const IDL: VerifierProgramZero = {
           {
             name: "proofA",
             type: {
-              array: ["u8", 64],
+              array: ["u8", 32],
             },
           },
           {
             name: "proofB",
             type: {
-              array: ["u8", 128],
+              array: ["u8", 64],
             },
           },
           {
             name: "proofC",
             type: {
-              array: ["u8", 64],
+              array: ["u8", 32],
             },
           },
           {

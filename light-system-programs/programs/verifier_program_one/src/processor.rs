@@ -21,9 +21,9 @@ impl Config for TransactionConfig {
 #[allow(clippy::too_many_arguments)]
 pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
     ctx: Context<'a, '_, '_, 'info, LightInstructionFirst<'info, 0>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
+    proof_a: &'a [u8; 32],
+    proof_b: &'a [u8; 64],
+    proof_c: &'a [u8; 32],
     public_amount_spl: &'a [u8; 32],
     nullifiers: &'a [[u8; 32]; 10],
     leaves: &'a [[[u8; 32]; 2]; 1],
@@ -58,9 +58,9 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
 
 pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
     ctx: Context<'a, '_, '_, 'info, LightInstructionSecond<'info, 0>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
+    proof_a: &'a [u8; 32],
+    proof_b: &'a [u8; 64],
+    proof_c: &'a [u8; 32],
     pool_type: [u8; 32],
 ) -> Result<()> {
     let accounts = Accounts::new(

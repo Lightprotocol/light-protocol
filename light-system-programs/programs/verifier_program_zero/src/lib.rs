@@ -103,9 +103,9 @@ pub struct LightInstruction<'info> {
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataShieldedTransferFirst {
-    proof_a: [u8; 64],
-    proof_b: [u8; 128],
-    proof_c: [u8; 64],
+    proof_a: [u8; 32],
+    proof_b: [u8; 64],
+    proof_c: [u8; 32],
     public_amount_spl: [u8; 32],
     input_nullifier: [[u8; 32]; 2],
     output_commitment: [[u8; 32]; 2],

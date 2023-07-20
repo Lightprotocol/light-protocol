@@ -50,9 +50,9 @@ pub mod mock_verifier {
             InstructionDataLightInstructionFirst::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
-        let proof_a = [0u8; 64];
-        let proof_b = [0u8; 128];
-        let proof_c = [0u8; 64];
+        let proof_a = [0u8; 32];
+        let proof_b = [0u8; 64];
+        let proof_c = [0u8; 32];
         let pool_type = [0u8; 32];
         let mut program_id_hash = hash(&ctx.program_id.to_bytes()).to_bytes();
         program_id_hash[0] = 0;

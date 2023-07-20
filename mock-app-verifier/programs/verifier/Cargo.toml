@@ -31,5 +31,5 @@ light-macros = "0.1.0"
 solana-program = "1.15.2"
 
 # Light Deps
-groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana", branch = "vadorovsky/fix-add-decompression" }
+groth16-solana = {path = "../../../../groth16-solana"}
 light-verifier-sdk = {path = "../../../light-verifier-sdk"}

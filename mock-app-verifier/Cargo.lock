@@ -1274,7 +1274,6 @@ dependencies = [
 [[package]]
 name = "groth16-solana"
 version = "0.0.1"
-source = "git+https://github.com/Lightprotocol/groth16-solana?branch=vadorovsky/fix-add-decompression#d4fdb920cd32a39c8e11beed9bd55a7c37aeee88"
 dependencies = [
  "ark-bn254 0.4.0",
  "ark-serialize 0.4.2",
@@ -1621,7 +1620,6 @@ dependencies = [
  "light-macros",
  "light-merkle-tree",
  "solana-security-txt 1.1.1",
- "spl-token",
 ]
 
 [[package]]

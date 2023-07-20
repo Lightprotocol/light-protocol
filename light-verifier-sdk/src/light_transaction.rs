@@ -241,14 +241,38 @@ impl<
         for (i, input) in self.checked_public_inputs.iter().enumerate() {
             public_inputs[5 + NR_NULLIFIERS + NR_LEAVES * 2 + i] = *input;
         }
-        let proof_a = groth16_solana::decompression::decompress_g1(self.proof_a, true).unwrap();
-        let proof_b = groth16_solana::decompression::decompress_g2(self.proof_b).unwrap();
-        let proof_c = groth16_solana::decompression::decompress_g1(self.proof_c, false).unwrap();
+        msg!("decompressing");
 
+        let proof_a: [u8; 64] = change_endianness(
+            &groth16_solana::decompression::decompress_g1(&change_endianness(self.proof_a), true)
+                .unwrap(),
+        )
+        .try_into()
+        .unwrap();
+        msg!("proof_a decompressed");
+        let proof_b: [u8; 128] = change_endianness(
+            &groth16_solana::decompression::decompress_g2(&change_endianness(self.proof_b))
+                .unwrap(),
+        )
+        .try_into()
+        .unwrap();
+        msg!("proof_b decompressed");
+
+        let proof_c: [u8; 64] = change_endianness(
+            &groth16_solana::decompression::decompress_g1(&change_endianness(self.proof_c), false)
+                .unwrap(),
+        )
+        .try_into()
+        .unwrap();
+        msg!("proof_c decompressed");
+
+        // println!("proof_a {:?}", proof_a);
+        // println!("proof_b {:?}", proof_b);
+        // println!("proof_c {:?}", proof_c);
         let mut verifier = Groth16Verifier::new(
-            &self.proof_a,
-            self.proof_b,
-            self.proof_c,
+            &proof_a,
+            &proof_b,
+            &proof_c,
             &public_inputs,
             self.verifyingkey,
         )

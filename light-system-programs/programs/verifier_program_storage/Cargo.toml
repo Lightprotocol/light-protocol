@@ -21,7 +21,7 @@ anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
 anchor-spl = "0.28.0"
 
 # Light deps
-groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana", branch = "vadorovsky/fix-add-decompression" }
+groth16-solana = {path = "../../../../groth16-solana/"}
 light-account-compression = { path = "../../../light-account-compression" }
 light-macros = "0.1.0"
 light-verifier-sdk = { path = "../../../light-verifier-sdk" }

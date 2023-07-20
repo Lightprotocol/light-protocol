@@ -23,9 +23,9 @@ impl Config for TransactionConfig {
 
 pub fn process_shielded_transfer<'a, 'info>(
     ctx: Context<'a, '_, '_, 'info, LightInstruction<'info>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
+    proof_a: &'a [u8; 32],
+    proof_b: &'a [u8; 64],
+    proof_c: &'a [u8; 32],
     connecting_hash: &[u8; 32],
 ) -> Result<()> {
     let verifier_state = VerifierState10Ins::<2, TransactionConfig>::deserialize(
