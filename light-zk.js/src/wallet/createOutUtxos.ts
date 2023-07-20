@@ -119,17 +119,15 @@ export function createOutUtxos({
       ? publicAmountSol.add(relayerFee)
       : relayerFee;
   }
-  // @ts-ignore
-  const { assetPubkeysCircuit, assetPubkeys } =
+
+  const assetPubkeys =
     !inUtxos && action === Action.SHIELD
-      ? {
-          assetPubkeysCircuit: [],
-          assetPubkeys: [
-            SystemProgram.programId,
-            publicMint ? publicMint : SystemProgram.programId,
-          ],
-        }
-      : TransactionParameters.getAssetPubkeys(inUtxos);
+      ? [
+          SystemProgram.programId,
+          publicMint ? publicMint : SystemProgram.programId,
+        ]
+      : TransactionParameters.getAssetPubkeys(inUtxos).assetPubkeys;
+
   if (!assetPubkeys)
     throw new CreateUtxoError(
       TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
