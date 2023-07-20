@@ -40,7 +40,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 var POSEIDON;
 var RELAYER;
 var KEYPAIR;
-// var TRANSACTION_NONCE = 0;
+
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.

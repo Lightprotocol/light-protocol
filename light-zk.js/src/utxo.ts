@@ -245,15 +245,7 @@ export class Utxo {
       ];
     } else if (this.amounts[0].isZero()) {
       this.assetsCircuit = [BN_0, BN_0];
-    }
-    // else if (!this.amounts[0].isZero()) {
-    //   throw new UtxoError(
-    //     UtxoErrorCode.NON_ZERO_AMOUNT,
-    //     "constructor",
-    //     `amount not zero, amounts[0] = ${this.amounts[0] ?? "undefined"}`,
-    //   );
-    // }
-    else {
+    } else {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
         BN_0,
