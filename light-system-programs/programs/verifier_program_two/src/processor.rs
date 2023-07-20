@@ -26,7 +26,7 @@ pub fn process_shielded_transfer<'a, 'info>(
     proof: &'a Proof,
     connecting_hash: &[u8; 32],
 ) -> Result<()> {
-    let verifier_state = VerifierState10Ins::<TransactionConfig>::deserialize(
+    let verifier_state = VerifierState10Ins::<2, TransactionConfig>::deserialize(
         &mut &*ctx.accounts.verifier_state.to_account_info().data.take(),
     )?;
 
@@ -59,14 +59,9 @@ pub fn process_shielded_transfer<'a, 'info>(
         return err!(crate::ErrorCode::InvalidVerifier);
     };
 
-    let checked_inputs = vec![
-        [
-            vec![0u8],
-            hash(&ctx.accounts.verifier_state.owner.to_bytes()).try_to_vec()?[1..].to_vec(),
-        ]
-        .concat(),
-        connecting_hash.to_vec(),
-    ];
+    let mut owner_hash = hash(&ctx.accounts.verifier_state.owner.to_bytes()).to_bytes();
+    owner_hash[0] = 0;
+    let checked_inputs = [owner_hash, *connecting_hash];
     let leaves = [
         [verifier_state.leaves[0], verifier_state.leaves[1]],
         [verifier_state.leaves[2], verifier_state.leaves[3]],
@@ -88,7 +83,7 @@ pub fn process_shielded_transfer<'a, 'info>(
         accounts: Some(&accounts),
         verifyingkey: &VERIFYINGKEY,
     };
-    let mut tx = Transaction::<2, 4, TransactionConfig>::new(input);
+    let mut tx = Transaction::<2, 2, 4, 15, TransactionConfig>::new(input);
 
     tx.transact()
 }

@@ -64,8 +64,8 @@ pub mod verifier_program_zero {
             &enc_utxos,
             inputs.root_index,
             inputs.relayer_fee,
-            &Vec::<Vec<u8>>::new(), // checked_public_inputs
-            &[0u8; 32],             //pool_type
+            &[],        // checked_public_inputs
+            &[0u8; 32], //pool_type
         )
     }
 }
