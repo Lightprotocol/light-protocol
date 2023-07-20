@@ -359,7 +359,7 @@ const createTestUser = async (
   const provider = await Provider.init({
     wallet,
     relayer,
-    confirmConfig
+    confirmConfig,
   });
   return { user: await User.init({ provider }), wallet };
 };
