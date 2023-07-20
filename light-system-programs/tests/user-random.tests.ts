@@ -445,7 +445,7 @@ describe("Test User", () => {
       recipientPublicKey: relayerRecipientSol.publicKey,
     });
 
-    let relayer = await new TestRelayer({
+    let relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol: relayerRecipientSol.publicKey,

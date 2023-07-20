@@ -27,7 +27,7 @@ export async function airdropShieldedSol({
     throw new Error(
       "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
     );
-  const relayer = await new TestRelayer({
+  const relayer = new TestRelayer({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
     lookUpTable: Keypair.generate().publicKey,
@@ -93,7 +93,7 @@ export async function airdropShieldedMINTSpl({
     throw new Error(
       "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
     );
-  const relayer = await new TestRelayer({
+  const relayer = new TestRelayer({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
     lookUpTable: Keypair.generate().publicKey,
