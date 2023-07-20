@@ -1,22 +1,18 @@
 use anchor_lang::{prelude::*, solana_program::msg};
-use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_std::marker::PhantomData;
 
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 
-use crate::{errors::VerifierSdkError, utils::change_endianness};
+use crate::errors::VerifierSdkError;
 
-use std::ops::Neg;
-
-type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 use crate::light_transaction::Config;
 
 #[derive(Clone)]
 pub struct AppTransaction<'a, const NR_CHECKED_INPUTS: usize, T: Config> {
     pub checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
-    pub proof_a: [u8; 64],
-    pub proof_b: &'a [u8; 128],
-    pub proof_c: &'a [u8; 64],
+    pub proof_a: &'a [u8; 32],
+    pub proof_b: &'a [u8; 64],
+    pub proof_c: &'a [u8; 32],
     pub e_phantom: PhantomData<T>,
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
     pub verified_proof: bool,
@@ -26,22 +22,14 @@ pub struct AppTransaction<'a, const NR_CHECKED_INPUTS: usize, T: Config> {
 impl<'a, const NR_CHECKED_INPUTS: usize, T: Config> AppTransaction<'a, NR_CHECKED_INPUTS, T> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        proof_a: &'a [u8; 64],
-        proof_b: &'a [u8; 128],
-        proof_c: &'a [u8; 64],
+        proof_a: &'a [u8; 32],
+        proof_b: &'a [u8; 64],
+        proof_c: &'a [u8; 32],
         checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
         verifyingkey: &'a Groth16Verifyingkey<'a>,
     ) -> AppTransaction<'a, NR_CHECKED_INPUTS, T> {
-        let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
-            &*[&change_endianness(proof_a.as_slice())[..], &[0u8][..]].concat(),
-        )
-        .unwrap();
-        let mut proof_a_neg = [0u8; 65];
-        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg[..]).unwrap();
-
-        let proof_a_neg: [u8; 64] = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
         AppTransaction {
-            proof_a: proof_a_neg,
+            proof_a,
             proof_b,
             proof_c,
             verified_proof: false,
@@ -61,10 +49,13 @@ impl<'a, const NR_CHECKED_INPUTS: usize, T: Config> AppTransaction<'a, NR_CHECKE
 
     /// Verifies a Goth16 zero knowledge proof over the bn254 curve.
     pub fn verify(&mut self) -> Result<()> {
+        let proof_a = groth16_solana::decompression::decompress_g1(self.proof_a, true).unwrap();
+        let proof_b = groth16_solana::decompression::decompress_g2(self.proof_b).unwrap();
+        let proof_c = groth16_solana::decompression::decompress_g1(self.proof_c, false).unwrap();
         let mut verifier = Groth16Verifier::new(
-            &self.proof_a,
-            self.proof_b,
-            self.proof_c,
+            &proof_a,
+            &proof_b,
+            &proof_c,
             &self.checked_public_inputs, // do I need to add the merkle tree? don't think so but think this through
             self.verifyingkey,
         )

@@ -30,9 +30,9 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<
     const NR_PUBLIC_INPUTS: usize,
 >(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info, NR_CHECKED_INPUTS>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
+    proof_a: &'a [u8; 32],
+    proof_b: &'a [u8; 64],
+    proof_c: &'a [u8; 32],
     public_amount_spl: &'a [u8; 32],
     input_nullifier: &'a [[u8; 32]; 4],
     output_commitment: &'a [[u8; 32]; 4],
@@ -78,12 +78,12 @@ pub fn process_transfer_4_ins_4_outs_4_checked_third<
     const NR_CHECKED_INPUTS: usize,
 >(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
-    proof_a_app: &'a [u8; 64],
-    proof_b_app: &'a [u8; 128],
-    proof_c_app: &'a [u8; 64],
-    proof_a_verifier: &'a [u8; 64],
-    proof_b_verifier: &'a [u8; 128],
-    proof_c_verifier: &'a [u8; 64],
+    proof_a_app: &'a [u8; 32],
+    proof_b_app: &'a [u8; 64],
+    proof_c_app: &'a [u8; 32],
+    proof_a_verifier: &'a [u8; 32],
+    proof_b_verifier: &'a [u8; 64],
+    proof_c_verifier: &'a [u8; 32],
 ) -> Result<()> {
     let current_slot = <Clock as sysvar::Sysvar>::get()?.slot;
     msg!(

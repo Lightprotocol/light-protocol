@@ -20,9 +20,9 @@ impl Config for TransactionConfig {
 #[allow(clippy::too_many_arguments)]
 pub fn process_shielded_transfer_2_in_2_out<'a, 'info, const NR_CHECKED_INPUTS: usize>(
     ctx: Context<'a, '_, '_, 'info, LightInstruction<'info>>,
-    proof_a: &'a [u8; 64],
-    proof_b: &'a [u8; 128],
-    proof_c: &'a [u8; 64],
+    proof_a: &'a [u8; 32],
+    proof_b: &'a [u8; 64],
+    proof_c: &'a [u8; 32],
     public_amount_spl: &'a [u8; 32],
     nullifiers: &'a [[u8; 32]; 2],
     leaves: &'a [[[u8; 32]; 2]; 1],
@@ -71,6 +71,5 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'info, const NR_CHECKED_INPUTS: 
         Some(&accounts),
         &VERIFYINGKEY,
     );
-
     transaction.transact()
 }

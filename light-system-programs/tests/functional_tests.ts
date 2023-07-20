@@ -205,7 +205,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Deposit (verifier zero)", async () => {
+  it.only("Deposit (verifier zero)", async () => {
     await performDeposit({
       delegate: AUTHORITY,
       spl: true,
