@@ -17,11 +17,6 @@ import { Program } from "@coral-xyz/anchor";
  * lock has been taken less than 5 slots ago
  */
 
-// let CONFIRMATION = {
-//   preflightCommitment: "confirmed",
-//   commitment: "confirmed",
-// };
-
 export async function checkMerkleTreeUpdateStateCreated({
   connection,
   merkleTreeUpdateState,

@@ -71,7 +71,7 @@ describe("Verifier Zero and One Tests", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer({
+    RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol: relayerRecipientSol,

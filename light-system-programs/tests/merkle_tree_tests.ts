@@ -733,8 +733,7 @@ describe("Merkle Tree Tests", () => {
             rent: DEFAULT_PROGRAMS.rent,
             transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
           })
-          // @ts-ignore
-          .remainingAccounts(leavesPdas[1])
+          .remainingAccounts([leavesPdas[1]])
           .preInstructions([
             solana.ComputeBudgetProgram.setComputeUnitLimit({
               units: 1_400_000,

@@ -58,7 +58,7 @@ describe("Test User", () => {
       recipientPublicKey: relayerRecipientSol,
     });
 
-    environmentConfig.relayer = await new TestRelayer({
+    environmentConfig.relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol: relayerRecipientSol,

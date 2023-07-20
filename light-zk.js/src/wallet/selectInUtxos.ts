@@ -11,16 +11,16 @@ import {
   Utxo,
 } from "../index";
 
+// Constant in order to avoid multiple "new BN(0);" instantiations.
+const BN_0 = new BN(0);
+
 // TODO: turn these into static user.class methods
 export const getAmount = (u: Utxo, asset: PublicKey) => {
   return u.amounts[u.assets.indexOf(asset)];
 };
 
 export const getUtxoSum = (utxos: Utxo[], asset: PublicKey) => {
-  return utxos.reduce(
-    (sum, utxo) => sum.add(getAmount(utxo, asset)),
-    new BN(0),
-  );
+  return utxos.reduce((sum, utxo) => sum.add(getAmount(utxo, asset)), BN_0);
 };
 
 /**
@@ -61,8 +61,8 @@ const selectBiggestSmallest = (
   threshold: number,
 ) => {
   var selectedUtxos: Utxo[] = [];
-  var selectedUtxosAmount: BN = new BN(0);
-  var selectedUtxosSolAmount: BN = new BN(0);
+  var selectedUtxosAmount: BN = BN_0;
+  var selectedUtxosSolAmount: BN = BN_0;
   // TODO: write sort that works with BN
   filteredUtxos.sort(
     (a, b) =>
@@ -184,8 +184,8 @@ export function selectInUtxos({
     );
   // TODO: evaluate whether this is too much of a footgun
   if (action === Action.SHIELD) {
-    publicAmountSol = new BN(0);
-    publicAmountSpl = new BN(0);
+    publicAmountSol = BN_0;
+    publicAmountSpl = BN_0;
   }
 
   // TODO: add check that utxo holds sufficient balance
@@ -200,7 +200,7 @@ export function selectInUtxos({
   // check publicMint and recipients mints are all the same
   let mint = publicMint;
   for (var utxo of outUtxos) {
-    if (!mint && utxo.amounts[1]?.gt(new BN(0))) mint = utxo.assets[1];
+    if (!mint && utxo.amounts[1]?.gt(BN_0)) mint = utxo.assets[1];
     if (mint && mint.toBase58() !== utxo.assets[1].toBase58())
       throw new SelectInUtxosError(
         SelectInUtxosErrorCode.INVALID_NUMER_OF_MINTS,
@@ -211,26 +211,20 @@ export function selectInUtxos({
 
   // if mint is provided filter for only utxos that contain the mint
   let filteredUtxos: Utxo[] = [];
-  // var sumInSpl = new BN(0);
-  // var sumInSol = getUtxoArrayAmount(SystemProgram.programId, utxos);
-  var sumOutSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
+  var sumOutSpl = publicAmountSpl ? publicAmountSpl : BN_0;
   var sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
   if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
   if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
-
   if (mint) {
     filteredUtxos = utxos.filter((utxo) =>
       utxo.assets.find((asset) => asset.toBase58() === mint?.toBase58()),
     );
-    // sumInSpl = getUtxoArrayAmount(mint, filteredUtxos);
-    // sumInSol = getUtxoArrayAmount(SystemProgram.programId, filteredUtxos);
     sumOutSpl = getUtxoArrayAmount(mint, outUtxos);
   } else {
     filteredUtxos = utxos;
   }
 
   // TODO: make work with input utxo
-  // if (utxos.length == 1) return [...utxos];
   var selectedUtxosR: Utxo[] = inUtxos ? [...inUtxos] : [];
   if (numberMaxInUtxos - selectedUtxosR.length < 0)
     throw new SelectInUtxosError(
