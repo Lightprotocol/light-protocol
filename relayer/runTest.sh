@@ -12,11 +12,15 @@ VERIFIER_PROGRAM_ONE_ID="J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
 VERIFIER_PROGRAM_TWO_ID="2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
 MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
+echo "staring redis server"
+./../.local/bin/redis-server > /dev/null &
+PID_redis="${!}"
+trap "kill ${PID_redis}" EXIT
+
+echo "starting solana-test-validator"
 solana config set --url http://localhost:8899
-# kills existing solana processes
-killall solana-test-val &
-sleep 1
 pkill solana-test-validator || true
+sleep 1
 solana-test-validator \
     --reset \
     --limit-ledger-size="${LIMIT_LEDGER_SIZE}" \
@@ -34,10 +38,13 @@ trap "kill ${PID}" EXIT
 
 sleep 8
 
+echo "starting relayer server"
+kill $(lsof -ti :3331) > /dev/null  || true
+sleep 1
 node lib/index.js > /dev/null &
-relayer_pid=$!
-trap "kill ${relayer_pid}" EXIT
 
 sleep 15
+
+echo "executing functional tests"
 
 npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;

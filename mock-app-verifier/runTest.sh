@@ -13,9 +13,6 @@ VERIFIER_PROGRAM_TWO_ID="2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
 MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
 solana config set --url http://localhost:8899
-# kills existing solana processes
-killall solana-test-val &
-sleep 1
 pkill solana-test-validator || true
 solana-test-validator \
     --reset \
