@@ -22,7 +22,6 @@ verifier_program_zero = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
 verifier_program_storage = "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj"
 merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
 
-
 [test]
 startup_wait = 100_000
 
@@ -36,3 +35,6 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -t 100000000 tests/functional_tests.ts --exit"
+
+[workspace]
+types = "../light-zk.js/src/idls"

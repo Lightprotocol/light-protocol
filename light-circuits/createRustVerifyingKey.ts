@@ -1,2 +1,3 @@
-import { createVerifyingkeyRsFile } from "../light-zk.js/src/cli-utils/createRustVerifyingKey";
-createVerifyingkeyRsFile();
+import { createVerfyingkeyRsFileArgv } from "../cli/src/utils/createRustVerifyingKey";
+
+createVerfyingkeyRsFileArgv();

@@ -1,3 +1,4 @@
+import { execSync } from "child_process";
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 var fs = require("fs");
@@ -264,6 +265,9 @@ async function createVerifyingKeyRsFile(
         s += appendingString;
 
         fs.writeSync(resFile, s);
+        fs.closeSync(resFile);
+
+        execSync(`rustfmt ${path}`);
       }
     }
   );
