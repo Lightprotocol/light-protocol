@@ -12,9 +12,15 @@ VERIFIER_PROGRAM_ONE_ID="J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
 VERIFIER_PROGRAM_TWO_ID="2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
 MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
+if [ ! -f "$.env" ]
+then
+    cp .env.example .env
+fi
+
 echo "staring redis server"
 ./../.local/bin/redis-server > /dev/null &
 PID_redis="${!}"
+sleep 5
 trap "kill ${PID_redis}" EXIT
 # redis specific export
 export ENVIRONMENT=LOCAL
