@@ -8,23 +8,23 @@ ARCH=`uname -m`
 
 # Checks the latest release of the given GitHub repository.
 latest_release() {
-    local OWNER="${1}"
-    local REPO="${2}"
-    local GITHUB="https://api.github.com"
+    OWNER="${1}"
+    REPO="${2}"
+    GITHUB="https://api.github.com"
 
-    local LATEST_RELEASE=`curl -s "${GITHUB}/repos/${OWNER}/${REPO}/releases/latest"`
+    LATEST_RELEASE=`curl -s "${GITHUB}/repos/${OWNER}/${REPO}/releases/latest"`
 
     # Extract the tag name
-    local TAG_NAME=`echo "${LATEST_RELEASE}" | perl -ne 'print "${1}\n" if /"tag_name":\s*"([^"]*)"/' | head -1`
+    TAG_NAME=`echo "${LATEST_RELEASE}" | perl -ne 'print "${1}\n" if /"tag_name":\s*"([^"]*)"/' | head -1`
 
     echo "$TAG_NAME"
 }
 
 # Downloads a file from the given URL and places it in the given destination.
 download_file() {
-    local url="${1}"
-    local dest_name="${2}"
-    local dest="${3}"
+    url="${1}"
+    dest_name="${2}"
+    dest="${3}"
 
     echo "📥 Downloading ${dest_name}"
     curl -L -o "${dest}/${dest_name}" "${url}"
@@ -34,11 +34,11 @@ download_file() {
 # Downloads a tarball from the given URL and extracts it to the given
 # destination.
 download_and_extract() {
-    local archive_name="${1}"
-    local url="${2}"
-    local archive_type="${3}"
-    local dest="${4}"
-    local strip_components="${5:-0}"
+    archive_name="${1}"
+    url="${2}"
+    archive_type="${3}"
+    dest="${4}"
+    strip_components="${5:-0}"
 
     echo "📥 Downloading ${archive_name}"
     curl -L "${url}" | tar "-x${archive_type}f" - --strip-components "${strip_components}" -C "${dest}"
@@ -47,12 +47,12 @@ download_and_extract() {
 # Downloads a file from the given GitHub repository and places it in the given
 # destination.
 download_file_github () {
-    local git_org="${1}"
-    local git_repo="${2}"
-    local git_release="${3}"
-    local src_name="${4}"
-    local dest_name="${5}"
-    local dest="${6}"
+    git_org="${1}"
+    git_repo="${2}"
+    git_release="${3}"
+    src_name="${4}"
+    dest_name="${5}"
+    dest="${6}"
 
     download_file \
         "https://github.com/${git_org}/${git_repo}/releases/download/${git_release}/${src_name}" \
@@ -63,13 +63,13 @@ download_file_github () {
 # Downloads a tarball from the given GitHub repository and extracts it to the
 # given destination.
 download_and_extract_github () {
-    local git_org="${1}"
-    local git_repo="${2}"
-    local git_release="${3}"
-    local archive_name="${4}"
-    local archive_type="${5}"
-    local dest="${6}"
-    local strip_components="${7:-0}"
+    git_org="${1}"
+    git_repo="${2}"
+    git_release="${3}"
+    archive_name="${4}"
+    archive_type="${5}"
+    dest="${6}"
+    strip_components="${7:-0}"
 
     download_and_extract \
         "${archive_name}" \
