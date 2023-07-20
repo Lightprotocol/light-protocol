@@ -642,12 +642,9 @@ export class Transaction {
   ): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {
-    var instructions;
-    if (!this.appParams) {
-      instructions = await this.getInstructions(this.params);
-    } else {
-      instructions = await this.getInstructions(this.appParams);
-    }
+    var instructions = await this.getInstructions(
+      this.appParams ? this.appParams : this.params,
+    );
     let response = undefined;
     if (this.params.action !== Action.SHIELD) {
       // TODO: replace this with (this.provider.wallet.pubkey != new relayer... this.relayer
