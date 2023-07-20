@@ -16,6 +16,8 @@ echo "staring redis server"
 ./../.local/bin/redis-server > /dev/null &
 PID_redis="${!}"
 trap "kill ${PID_redis}" EXIT
+# redis specific export
+export ENVIRONMENT=LOCAL
 
 echo "starting solana-test-validator"
 solana config set --url http://localhost:8899
