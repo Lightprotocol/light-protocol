@@ -215,38 +215,6 @@ async function createVerifyingKeyRsFile(
         }
       }
 
-      /*const processSubData = (subData: any) =>
-        leInt2Buff(unstringifyBigInts(subData), 32).reverse();
-
-      const processDoubleSubData = (doubleSubData: any) => {
-        const tmp = [
-          ...leInt2Buff(unstringifyBigInts(doubleSubData[0]), 32),
-          ...leInt2Buff(unstringifyBigInts(doubleSubData[1]), 32),
-        ].reverse();
-        return [tmp.slice(0, 32), tmp.slice(32, 64)];
-      };
-
-      const processNestedData = (nestedData: any) =>
-        nestedData.map((data: any) => leInt2Buff(unstringifyBigInts(data)));
-
-      for (let i in mydata) {
-        switch (i) {
-          case "vk_alpha_1":
-            mydata[i] = Object.values(mydata[i]).map(processSubData);
-            break;
-          case "vk_beta_2":
-          case "vk_gamma_2":
-          case "vk_delta_2":
-            mydata[i] = Object.values(mydata[i]).map(processDoubleSubData);
-            break;
-          case "vk_alphabeta_12":
-          case "IC":
-            mydata[i] = Object.values(mydata[i]).map(processNestedData);
-            break;
-        }
-      }
-      */
-
       for (var path of paths) {
         let resFile = await fs.openSync(path, "w");
 
@@ -299,54 +267,6 @@ async function createVerifyingKeyRsFile(
 
         execSync(`rustfmt ${path}`);
       }
-
-      /*
-      for (const path of paths) {
-        const resFile = await fs.open(path, "w");
-        let s = `use groth16_solana::groth16::Groth16Verifyingkey;
-      use anchor_lang::prelude::*;
-      
-      pub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {
-      \tnr_pubinputs: ${mydata.IC.length},
-      \tvk_alpha_g1: [
-      ${mydata.vk_alpha_1
-        .slice(0, -1)
-        .map((arr: any) => `\t\t${arr},`)
-        .join("\n")}
-      \t],
-      \tvk_beta_g2: [
-      ${mydata.vk_beta_2
-        .slice(0, -1)
-        .flatMap((arr: any) => arr.map((subArr: any) => `\t\t${subArr},`))
-        .join("\n")}
-      \t],
-      \tvk_gamme_g2: [
-      ${mydata.vk_gamma_2
-        .slice(0, -1)
-        .flatMap((arr: any) => arr.map((subArr: any) => `\t\t${subArr},`))
-        .join("\n")}
-      \t],
-      \tvk_delta_g2: [
-      ${mydata.vk_delta_2
-        .slice(0, -1)
-        .flatMap((arr: any) => arr.map((subArr: any) => `\t\t${subArr},`))
-        .join("\n")}
-      \t],
-      \tvk_ic: &[
-      ${mydata.IC.map(
-        (icArr: any) =>
-          `\t\t[${icArr
-            .slice(0, -1)
-            .map((item: any) => `\t\t\t${item},`)
-            .join("\n")}\n\t\t],`
-      ).join("\n")}
-      \t]
-      };
-      ${appendingString}`;
-
-        await fs.write(resFile, s);
-        await fs.close(resFile);
-      }*/
     }
   );
 }
