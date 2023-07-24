@@ -21,83 +21,83 @@ on:
 name: test
 
 jobs:
-  # light-system-programs:
-  #   name: light-system-programs
-  #   runs-on: buildjet-16vcpu-ubuntu-2204
-  #   strategy:
-  #     matrix:
-  #       test:
-  #         - functional
-  #         - user
-  #         - user-merge
-  #         - user-merge-sol
-  #         - user-merge-sol-specific
-  #         - user-merge-spl
-  #         - user-merge-spl-specific
-  #         - verifiers
-  #         - merkle-tree
-  #         - provider
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v2
+  light-system-programs:
+    name: light-system-programs
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    strategy:
+      matrix:
+        test:
+          - functional
+          - user
+          - user-merge
+          - user-merge-sol
+          - user-merge-sol-specific
+          - user-merge-spl
+          - user-merge-spl-specific
+          - verifiers
+          - merkle-tree
+          - provider
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
 
-  #     - name: Setup and build
-  #       uses: ./.github/actions/setup-and-build
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
 
-  #     - name: ${{ matrix.test }}
-  #       run: |
-  #         source ./scripts/devenv.sh
-  #         cd light-system-programs
-  #         yarn test-${{ matrix.test }}
+      - name: ${{ matrix.test }}
+        run: |
+          source ./scripts/devenv.sh
+          cd light-system-programs
+          yarn test-${{ matrix.test }}
 
-  # light-zk-js:
-  #   name: light-zk.js
-  #   runs-on: buildjet-16vcpu-ubuntu-2204
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v2
+  light-zk-js:
+    name: light-zk.js
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
 
-  #     - name: Setup and build
-  #       uses: ./.github/actions/setup-and-build
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
 
-  #     - name: Test
-  #       run: |
-  #         source ./scripts/devenv.sh
-  #         cd light-zk.js
-  #         yarn test
+      - name: Test
+        run: |
+          source ./scripts/devenv.sh
+          cd light-zk.js
+          yarn test
 
 
-  # mock-app-verifier:
-  #   name: mock-app-verifier
-  #   runs-on: buildjet-16vcpu-ubuntu-2204
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v2
+  mock-app-verifier:
+    name: mock-app-verifier
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
 
-  #     - name: Setup and build
-  #       uses: ./.github/actions/setup-and-build
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
 
-  #     - name: Test
-  #       run: |
-  #         source ./scripts/devenv.sh
-  #         cd mock-app-verifier
-  #         yarn test
+      - name: Test
+        run: |
+          source ./scripts/devenv.sh
+          cd mock-app-verifier
+          yarn test
 
-  # light-circuits:
-  #   name: light-circuits
-  #   runs-on: buildjet-16vcpu-ubuntu-2204
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v2
+  light-circuits:
+    name: light-circuits
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
 
-  #     - name: Setup and build
-  #       uses: ./.github/actions/setup-and-build
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
 
-  #     - name: Test
-  #       run: |
-  #         source ./scripts/devenv.sh
-  #         cd light-circuits
-  #         yarn run test
+      - name: Test
+        run: |
+          source ./scripts/devenv.sh
+          cd light-circuits
+          yarn run test
 
   relayer:
     name: relayer
