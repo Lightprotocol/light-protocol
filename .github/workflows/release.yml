@@ -29,7 +29,6 @@ jobs:
           cp test-env/programs/spl_noop.so ./spl_noop.so
 
 
-
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
