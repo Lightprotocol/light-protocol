@@ -38,6 +38,8 @@ export class Relayer {
    * @param relayerPubkey Signs the transaction
    * @param relayerRecipientSol Recipient account for SOL fees
    * @param relayerFee Fee amount
+   * @param highRelayerFee
+   * @param url
    */
   constructor(
     relayerPubkey: PublicKey,

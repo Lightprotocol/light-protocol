@@ -1,5 +1,4 @@
 import { assert, expect } from "chai";
-let circomlibjs = require("circomlibjs");
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import { it } from "mocha";
 const chai = require("chai");
@@ -21,12 +20,6 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Test Provider Functional", () => {
-  let poseidon;
-
-  before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
-  });
-
   it("Mock Provider", async () => {
     const lightProviderMock = await LightProvider.loadMock();
     assert.equal(lightProviderMock.wallet.isNodeWallet, true);

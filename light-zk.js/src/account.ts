@@ -13,8 +13,7 @@ import {
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 const ffjavascript = require("ffjavascript");
-// @ts-ignore:
-import { buildEddsa } from "circomlibjs";
+const buildEddsa = require("circomlibjs").buildEddsa;
 import { PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 // TODO: add fromPubkeyString()
@@ -36,7 +35,7 @@ export class Account {
   };
   eddsa: any;
   aesSecret?: Uint8Array;
-
+  hashingSecret?: Uint8Array;
   /**
    *
    * @param poseidon required
@@ -86,6 +85,7 @@ export class Account {
         secretKey: new Uint8Array(32),
       };
     }
+
     // creates a burner utxo by using the index for domain separation
     else if (burner) {
       if (!seed) {
@@ -271,16 +271,15 @@ export class Account {
     merkleTreePdaPublicKey: PublicKey,
     salt: string,
   ): Uint8Array {
-    return this.getDomainSeparatedAesSecretKey(
-      merkleTreePdaPublicKey.toBase58() + salt.toString(),
+    return this.getDomainSeparatedAesSecretKey(merkleTreePdaPublicKey.toBase58() + salt.toString()
     );
   }
 
   getDomainSeparatedAesSecretKey(domain: string): Uint8Array {
     return blake2b
-      .create(b2params)
-      .update(this.aesSecret + domain)
-      .digest();
+        .create(b2params)
+        .update(this.aesSecret + domain)
+        .digest();
   }
 
   static createBurner(poseidon: any, seed: String, index: BN): Account {
@@ -405,7 +404,7 @@ export class Account {
   static generateAesSecret(seed: String, _domain?: string): Uint8Array {
     const privkeySeed = seed + "aes";
     return Uint8Array.from(
-      blake2b.create(b2params).update(privkeySeed).digest(),
+        blake2b.create(b2params).update(privkeySeed).digest(),
     );
   }
 
@@ -420,11 +419,11 @@ export class Account {
   ) {
     if (iv.length != 16)
       throw new AccountError(
-        UtxoErrorCode.INVALID_NONCE_LENGHT,
+        UtxoErrorCode.INVALID_NONCE_LENGTH,
         "encryptAes",
         `Required iv length 16, provided ${iv.length}`,
       );
-    var secretKey = aesSecret;
+    const secretKey = aesSecret;
     const ciphertext = await encrypt(
       message,
       secretKey,
@@ -438,7 +437,7 @@ export class Account {
   static async decryptAes(aesSecret: Uint8Array, encryptedBytes: Uint8Array) {
     const iv = encryptedBytes.slice(0, 16);
     const encryptedMessageBytes = encryptedBytes.slice(16);
-    var secretKey = aesSecret;
+    const secretKey = aesSecret;
     const cleartext = await decrypt(
       encryptedMessageBytes,
       secretKey,

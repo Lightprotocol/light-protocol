@@ -119,7 +119,7 @@ export class UserTestAssertHelper {
       }
 
       if (userBalances.recipientSplAccount) {
-        var balance = undefined;
+        let balance = undefined;
         try {
           balance = (
             await this.provider.provider?.connection.getTokenAccountBalance(
@@ -129,7 +129,7 @@ export class UserTestAssertHelper {
         } catch (error) {}
         userBalances.preTokenBalance = balance ? balance : 0;
       } else {
-        var balance = undefined;
+        let balance = undefined;
         try {
           balance = (
             await this.provider.provider?.connection.getTokenAccountBalance(
@@ -157,7 +157,6 @@ export class UserTestAssertHelper {
           this.testInputs.recipient,
         );
     }
-    this.provider = this.provider;
   }
 
   public async assertRecentTransactionIsIndexedCorrectly() {
@@ -371,8 +370,8 @@ export class UserTestAssertHelper {
    * Checks:
    * - every utxo in utxos is inserted and is not spent
    * - every utxo in spent utxos is spent
-   * - if an utxo has an spl asset it is categorized in that spl asset
-   * - every utxo in an spl TokenBalance has a balance in this token
+   * - if an utxo has a spl asset it is categorized in that spl asset
+   * - every utxo in a spl TokenBalance has a balance in this token
    * - for every TokenUtxoBalance total amounts are correct
    */
   async assertBalance(user: User) {
@@ -402,9 +401,9 @@ export class UserTestAssertHelper {
 
     await user.getBalance();
     await user.provider.latestMerkleTree();
-    for (var [asset, tokenBalance] of user.balance.tokenBalances.entries()) {
+    for (const [asset, tokenBalance] of user.balance.tokenBalances.entries()) {
       // commitment is inserted in the merkle tree
-      for (var [, utxo] of tokenBalance.utxos.entries()) {
+      for (const [, utxo] of tokenBalance.utxos.entries()) {
         assert.notDeepEqual(
           user.provider.solMerkleTree?.merkleTree.indexOf(
             utxo.getCommitment(this.provider.poseidon),
@@ -413,13 +412,13 @@ export class UserTestAssertHelper {
         );
         if (!utxo.getNullifier(this.provider.poseidon))
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
-        this.assertNullifierAccountDoesNotExist(
+        await this.assertNullifierAccountDoesNotExist(
           utxo.getNullifier(this.sender.user.provider.poseidon)!,
         );
         checkCategorizationByAsset(asset, utxo);
       }
       // commitment is not inserted in the merkle tree
-      for (var utxo of tokenBalance.committedUtxos.values()) {
+      for (const utxo of tokenBalance.committedUtxos.values()) {
         assert.deepEqual(
           user.provider.solMerkleTree?.merkleTree.indexOf(
             utxo.getCommitment(this.provider.poseidon),
@@ -434,7 +433,7 @@ export class UserTestAssertHelper {
         checkCategorizationByAsset(asset, utxo);
       }
       // nullifier of utxo is inserted
-      for (var utxo of tokenBalance.spentUtxos.values()) {
+      for (const utxo of tokenBalance.spentUtxos.values()) {
         if (!utxo.getNullifier(this.provider.poseidon))
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountExists(
@@ -448,9 +447,9 @@ export class UserTestAssertHelper {
   async assertInboxBalance(user: User) {
     await user.getUtxoInbox();
     await user.provider.latestMerkleTree();
-    for (var tokenBalance of user.inboxBalance.tokenBalances.values()) {
+    for (const tokenBalance of user.inboxBalance.tokenBalances.values()) {
       // commitment is inserted in the merkle tree
-      for (var utxo of tokenBalance.utxos.values()) {
+      for (const utxo of tokenBalance.utxos.values()) {
         assert.notDeepEqual(
           user.provider.solMerkleTree?.merkleTree.indexOf(
             utxo.getCommitment(this.provider.poseidon),
@@ -459,7 +458,7 @@ export class UserTestAssertHelper {
         );
       }
       // commitment is not inserted in the merkle tree
-      for (var utxo of tokenBalance.committedUtxos.values()) {
+      for (const utxo of tokenBalance.committedUtxos.values()) {
         assert.deepEqual(
           user.provider.solMerkleTree?.merkleTree.indexOf(
             utxo.getCommitment(this.provider.poseidon),
@@ -468,7 +467,7 @@ export class UserTestAssertHelper {
         );
       }
       // nullifier of utxo is inserted
-      for (var utxo of tokenBalance.spentUtxos.values()) {
+      for (const utxo of tokenBalance.spentUtxos.values()) {
         if (!utxo.getNullifier(this.provider.poseidon))
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountExists(
@@ -484,11 +483,11 @@ export class UserTestAssertHelper {
   async assertUserUtxoSpent() {
     let amountSol = BN_0;
     let amountSpl = BN_0;
-    for (var [
+    for (const [
       asset,
       tokenBalance,
     ] of this.sender.preShieldedBalance!.tokenBalances.entries()) {
-      for (var [commitment, utxo] of tokenBalance.utxos.entries()) {
+      for (const [commitment, utxo] of tokenBalance.utxos.entries()) {
         if (
           await fetchNullifierAccountInfo(
             utxo.getNullifier(this.provider.poseidon)!,
@@ -694,8 +693,8 @@ export class UserTestAssertHelper {
   async assertRelayerFee() {
     // relayer recipient's sol balance should be increased by the relayer fee
     await this.assertSolBalance(
-      this.tokenCtx!.symbol != "SOL" &&
-        this.testInputs.type.toString() == Action.UNSHIELD.toString()
+      this.tokenCtx!.symbol !== "SOL" &&
+        this.testInputs.type.toString() === Action.UNSHIELD.toString()
         ? this.sender.user.provider.relayer.getRelayerFee(true).toNumber()
         : this.sender.user.provider.relayer.getRelayerFee().toNumber(),
       0,
@@ -1031,7 +1030,7 @@ export class UserTestAssertHelper {
      * - has increased by sum
      */
     let sum = BN_0;
-    for (var commitment of this.testInputs.utxoCommitments!) {
+    for (const commitment of this.testInputs.utxoCommitments!) {
       const existedInPreInbox = this.sender
         .preShieldedInboxBalance!.tokenBalances.get(
           this.tokenCtx.mint.toBase58(),
@@ -1063,7 +1062,7 @@ export class UserTestAssertHelper {
       : this.recipient.user.balance.tokenBalances.get(
           this.tokenCtx.mint.toBase58(),
         )?.totalBalanceSpl;
-    var preBalance = this.tokenCtx.isNative
+    let preBalance = this.tokenCtx.isNative
       ? this.recipient.preShieldedBalance?.tokenBalances.get(
           SystemProgram.programId.toBase58(),
         )?.totalBalanceSol
@@ -1106,7 +1105,7 @@ export class UserTestAssertHelper {
 
   async assertStoredWithShield() {
     // shielded sol balance did not change
-    const postSolBalance = await (
+    const postSolBalance = (
       await this.recipient.user.getBalance()
     ).totalSolBalance.toString();
     assert.strictEqual(
@@ -1121,11 +1120,9 @@ export class UserTestAssertHelper {
       throw new Error("checkCommittedBalanceSpl is not implemented for sol");
     if (this.testInputs.type !== Action.TRANSFER) {
       let balance = await this.sender.user.getBalance();
-      let numberOfUtxos = balance.tokenBalances.get(
-        this.tokenCtx.mint.toBase58(),
-      )?.utxos.size
-        ? balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size
-        : 0;
+      let numberOfUtxos =
+        balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size ??
+        0;
       assert.equal(numberOfUtxos, 0);
 
       assert.equal(
@@ -1135,19 +1132,14 @@ export class UserTestAssertHelper {
       );
     } else {
       let balance = await this.recipient.user.getBalance();
-      let numberOfUtxos = balance.tokenBalances.get(
-        this.tokenCtx.mint.toBase58(),
-      )?.utxos.size
-        ? balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size
-        : 0;
-      let numberOfComittedUtxos = balance.tokenBalances.get(
-        this.tokenCtx.mint.toBase58(),
-      )?.committedUtxos.size
-        ? balance.tokenBalances.get(this.tokenCtx.mint.toBase58())
-            ?.committedUtxos.size
-        : 0;
+      let numberOfUtxos =
+        balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size ??
+        0;
+      let numberOfCommittedUtxos =
+        balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.committedUtxos
+          .size ?? 0;
 
-      assert.equal(numberOfComittedUtxos, 0);
+      assert.equal(numberOfCommittedUtxos, 0);
       assert.equal(numberOfUtxos, 0);
     }
 
@@ -1160,12 +1152,9 @@ export class UserTestAssertHelper {
         ? await userSpendable.getBalance()
         : await userSpendable.getUtxoInbox();
     let retries = 20;
-    let numberOfUtxos = balanceSpendable.tokenBalances.get(
-      this.tokenCtx.mint.toBase58(),
-    )?.utxos.size
-      ? balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos
-          .size
-      : 0;
+    let numberOfUtxos =
+      balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos
+        .size ?? 0;
 
     while (numberOfUtxos == 0) {
       await sleep(1000);
@@ -1178,12 +1167,9 @@ export class UserTestAssertHelper {
         this.testInputs.type !== Action.TRANSFER
           ? await userSpendable.getBalance()
           : await userSpendable.getUtxoInbox();
-      numberOfUtxos = balanceSpendable.tokenBalances.get(
-        this.tokenCtx.mint.toBase58(),
-      )?.utxos.size
-        ? balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())
-            ?.utxos.size
-        : 0;
+      numberOfUtxos =
+        balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos
+          .size ?? 0;
     }
 
     assert.equal(
@@ -1197,11 +1183,11 @@ export class UserTestAssertHelper {
       1,
     );
     if (this.testInputs.type === Action.SHIELD) {
-      this.checkSplShielded();
+      await this.checkSplShielded();
     } else if (this.testInputs.type === Action.TRANSFER) {
-      this.checkSplTransferred();
+      await this.checkSplTransferred();
     } else if (this.testInputs.type === Action.UNSHIELD) {
-      this.checkSplUnshielded();
+      await this.checkSplUnshielded();
     }
   }
 }

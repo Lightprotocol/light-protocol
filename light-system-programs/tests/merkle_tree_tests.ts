@@ -858,7 +858,7 @@ describe("Merkle Tree Tests", () => {
       transactionMerkleTree: transactionMerkleTreePda,
       relayer: signer.publicKey,
       leavesPdas: [leavesPdas[0]],
-      current_instruction_index: 22, // 22 becaue one tx executes two instructions, it started out in ix index 1 and increments at the end of a tx
+      current_instruction_index: 22, // 22 because one tx executes two instructions, it started out in ix index 1 and increments at the end of a tx
       merkleTreeProgram,
     });
 

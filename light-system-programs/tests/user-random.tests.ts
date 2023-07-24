@@ -350,7 +350,7 @@ const mergeAllInboxUtxos = async (user: User, token: string) => {
 const createTestUser = async (
   anchorProvider: anchor.AnchorProvider,
   relayer: TestRelayer,
-) => {
+): Promise<{ user: User; wallet: Keypair }> => {
   const wallet = SolanaKeypair.generate();
   await airdropSol({
     connection: anchorProvider.connection,
@@ -488,7 +488,7 @@ describe("Test User", () => {
         } else if (randomAction === Action.TRANSFER) {
           await mergeAllInboxUtxos(rndUser, _token);
           const createNewUser = rng();
-          let recipientUser;
+          let recipientUser: { user: User; wallet: Keypair };
           if (remainingTestUsers.length == 0 || createNewUser < 0.5 / noUsers) {
             recipientUser = await createTestUser(anchorProvider, relayer);
             testUsers.push(recipientUser);
@@ -527,7 +527,7 @@ describe("Test User", () => {
    * History is still buggy
    * fails at tx 22
    * - had two shields before one usdc and one sol
-   * - history only finds the lastest sol shield
+   * - history only finds the latest sol shield
    *
    * Check:
    * - that usdc transactions are categorized correctly

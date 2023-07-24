@@ -28,11 +28,11 @@ import {
   BN_0,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
-import { remainingAccount } from "../types/accounts";
+import { remainingAccount } from "../types";
 import { Prover } from "@lightprotocol/prover.js";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 
-var ffjavascript = require("ffjavascript");
+const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
 const path = require("path");
@@ -40,7 +40,7 @@ const path = require("path");
 // TODO: make dev provide the classification and check here -> it is easier to check whether transaction parameters are plausible
 
 // add verifier class which is passed in with the constructor
-// this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
+// this class replaces the send transaction, also configures path the proving key and witness, the inputs for the integrity hash
 // input custom verifier with three functions by default prepare, proof, send
 // include functions from sdk in shieldedTransaction
 
@@ -389,7 +389,7 @@ export class Transaction {
     }
     console.timeEnd(`${prefix} Proving ${params.verifierIdl.name} circuit`);
     const res = await prover.verify();
-    if (res !== true) {
+    if (!res) {
       throw new TransactionError(
         TransactionErrorCode.INVALID_PROOF,
         "getProofInternal",
@@ -482,11 +482,11 @@ export class Transaction {
         let merkleTreeConfig = new MerkleTreeConfig({
           connection: this.provider.provider.connection,
         });
-        let nextTrancactionMerkleTreeIndex =
+        let nextTransactionMerkleTreeIndex =
           await merkleTreeConfig.getTransactionMerkleTreeIndex();
         const nextTransactionMerkleTreePubkey =
           MerkleTreeConfig.getTransactionMerkleTreePda(
-            nextTrancactionMerkleTreeIndex,
+            nextTransactionMerkleTreeIndex,
           );
         this.remainingAccounts!.nextTransactionMerkleTree = {
           isSigner: false,
@@ -504,13 +504,13 @@ export class Transaction {
 
   /**
    * @description Computes the indices in which the asset for the utxo is in the asset pubkeys array.
-   * @note Using the indices the zero knowledege proof circuit enforces that only utxos containing the
+   * @note Using the indices the zero knowledge proof circuit enforces that only utxos containing the
    * @note assets in the asset pubkeys array are contained in the transaction.
    * @param utxos
    * @returns
    */
   // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
-  // TODO: fix edge case of an assetpubkey being 0
+  // TODO: fix edge case of an asset pubkey being 0
   // TODO: !== !! and check non-null
   getIndices(utxos: Utxo[]): string[][][] {
     if (!this.params.assetPubkeysCircuit)
@@ -523,10 +523,10 @@ export class Transaction {
     let inIndices: string[][][] = [];
     utxos.map((utxo) => {
       let tmpInIndices: string[][] = [];
-      for (var a = 0; a < utxo.assets.length; a++) {
+      for (let a = 0; a < utxo.assets.length; a++) {
         let tmpInIndices1: string[] = [];
 
-        for (var i = 0; i < N_ASSET_PUBKEYS; i++) {
+        for (let i = 0; i < N_ASSET_PUBKEYS; i++) {
           try {
             if (
               utxo.assetsCircuit[a].toString() ===
@@ -575,8 +575,8 @@ export class Transaction {
         "",
       );
 
-    var inputMerklePathIndices = new Array<string>();
-    var inputMerklePathElements = new Array<Array<string>>();
+    let inputMerklePathIndices = new Array<string>();
+    let inputMerklePathElements = new Array<Array<string>>();
     // getting merkle proofs
     for (const inputUtxo of inputUtxos) {
       if (inputUtxo.amounts[0].gt(BN_0) || inputUtxo.amounts[1].gt(BN_0)) {
@@ -653,7 +653,7 @@ export class Transaction {
   async sendAndConfirmTransaction(): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {
-    var instructions = await this.getInstructions(
+    const instructions = await this.getInstructions(
       this.appParams ? this.appParams : this.params,
     );
     let response = undefined;
@@ -802,7 +802,7 @@ export class Transaction {
       };
     }
 
-    var instructions = [];
+    let instructions = [];
     // TODO: make mint dynamic
     /**
      * Problem:
@@ -962,7 +962,7 @@ export class Transaction {
     let signer = this.params.relayer.accounts.relayerPubkey;
 
     this.remainingAccounts.nullifierPdaPubkeys = [];
-    for (var i in nullifiers) {
+    for (const i in nullifiers) {
       this.remainingAccounts.nullifierPdaPubkeys.push({
         isSigner: false,
         isWritable: true,
@@ -976,7 +976,7 @@ export class Transaction {
     this.remainingAccounts.leavesPdaPubkeys = [];
 
     for (
-      var j = 0;
+      let j = 0;
       j < this.transactionInputs.publicInputs.outputCommitment.length;
       j += 2
     ) {

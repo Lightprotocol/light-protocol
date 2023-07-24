@@ -39,14 +39,12 @@ export async function executeUpdateMerkleTreeTransactions({
     await merkleTreeProgram.account.transactionMerkleTree.fetch(
       transactionMerkleTree,
     );
-  let merkleTreeUpdateState = (
-    await PublicKey.findProgramAddressSync(
-      [
-        Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
-        anchor.utils.bytes.utf8.encode("storage"),
-      ],
-      merkleTreeProgram.programId,
-    )
+  let merkleTreeUpdateState = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
+      anchor.utils.bytes.utf8.encode("storage"),
+    ],
+    merkleTreeProgram.programId,
   )[0];
   try {
     const tx1 = await merkleTreeProgram.methods
@@ -65,7 +63,10 @@ export async function executeUpdateMerkleTreeTransactions({
       .transaction();
     await sendAndConfirmTransaction(connection, tx1, [signer], confirmConfig);
   } catch (err) {
-    console.error("failed while initing the merkle tree update state", err);
+    console.error(
+      "failed while initializing the merkle tree update state",
+      err,
+    );
     throw err;
   }
 

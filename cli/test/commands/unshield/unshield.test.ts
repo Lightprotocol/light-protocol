@@ -1,5 +1,5 @@
 import { expect, test } from "@oclif/test";
-import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
+import { initTestEnvIfNeeded } from "../../../src";
 
 describe("unshield SOL & SPL separately with the main command", () => {
   before(async () => {
@@ -41,7 +41,7 @@ describe("unshield SOL & SPL separately with the main command", () => {
       "--localTestRelayer",
     ])
     .exit(2)
-    .it("Should fail unshield of unsufficient SOL amount");
+    .it("Should fail unshield of insufficient SOL amount");
 
   test
     .stdout()
@@ -54,7 +54,7 @@ describe("unshield SOL & SPL separately with the main command", () => {
       "--localTestRelayer",
     ])
     .exit(2)
-    .it("Should fail unshield of unsufficient SPL token amount");
+    .it("Should fail unshield of insufficient SPL token amount");
 
   test
     .stdout()
@@ -101,7 +101,7 @@ describe("unshield SOL & SPL at the same time with the main command", () => {
       "--localTestRelayer",
     ])
     .exit(2)
-    .it("Should fail unshield of unsufficient SOL amount");
+    .it("Should fail unshield of insufficient SOL amount");
 
   test
     .stdout()
@@ -115,7 +115,7 @@ describe("unshield SOL & SPL at the same time with the main command", () => {
       "--localTestRelayer",
     ])
     .exit(2)
-    .it("Should fail unshield of unsufficient SPL token amount");
+    .it("Should fail unshield of insufficient SPL token amount");
 
   test
     .stdout()
