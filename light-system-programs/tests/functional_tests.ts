@@ -5,9 +5,8 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
-
 const token = require("@solana/spl-token");
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 
 // TODO: add and use namespaces in SDK
 import {
@@ -40,12 +39,11 @@ import {
   BN_0,
 } from "@lightprotocol/zk.js";
 
-import { BN } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
-var POSEIDON;
-var RELAYER;
-var KEYPAIR;
+let POSEIDON: any;
+let RELAYER: TestRelayer;
+let KEYPAIR: Account;
 
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
@@ -59,7 +57,7 @@ describe("verifier_program", () => {
   );
   anchor.setProvider(provider);
 
-  before("init test setup Merkle tree lookup table etc ", async () => {
+  before("init test setup Merkle tree lookup table etc", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();
@@ -71,16 +69,102 @@ describe("verifier_program", () => {
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(
-      relayerRecipientSol,
-      2_000_000_000,
-    );
+    await provider.connection.requestAirdrop(relayerRecipientSol, 2e9);
 
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol,
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
+    });
+  });
+
+  it("Deposit (verifier one)", async () => {
+    await performDeposit({
+      delegate: AUTHORITY_ONE,
+      spl: true,
+      senderSpl: userTokenAccount,
+      shuffleEnabled: true,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
+    });
+  });
+
+  it("Deposit (verifier storage)", async () => {
+    await performDeposit({
+      delegate: AUTHORITY,
+      spl: false,
+      message: Buffer.alloc(900).fill(1),
+      senderSpl: null,
+      shuffleEnabled: false,
+      verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+    });
+  });
+
+  it("Deposit (verifier zero)", async () => {
+    await performDeposit({
+      delegate: AUTHORITY,
+      spl: true,
+      senderSpl: userTokenAccount,
+      shuffleEnabled: true,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+    });
+    const lightProvider = await Provider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+      confirmConfig,
+    });
+    await lightProvider.relayer.updateMerkleTree(lightProvider);
+  });
+
+  it("Withdraw (verifier zero)", async () => {
+    await performWithdrawal({
+      outputUtxos: [],
+      tokenProgram: MINT,
+      recipientSpl: recipientTokenAccount,
+      shuffleEnabled: false,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+    });
+  });
+
+  it("Withdraw (verifier storage)", async () => {
+    await performWithdrawal({
+      outputUtxos: [],
+      tokenProgram: SystemProgram.programId,
+      message: Buffer.alloc(900).fill(1),
+      shuffleEnabled: false,
+      verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+    });
+  });
+
+  it("Withdraw (verifier one)", async () => {
+    const lightProvider = await Provider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+      confirmConfig,
+    });
+    let user: User = await User.init({
+      provider: lightProvider,
+      account: KEYPAIR,
+    });
+    let inputUtxos: Utxo[] = [
+      user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
+        .value,
+    ];
+    await performWithdrawal({
+      outputUtxos: [
+        new Utxo({
+          poseidon: POSEIDON,
+          assets: inputUtxos[0].assets,
+          amounts: [BN_0, inputUtxos[0].amounts[1]],
+          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            lightProvider.lookUpTables.verifierProgramLookupTable,
+        }),
+      ],
+      tokenProgram: MINT,
+      recipientSpl: recipientTokenAccount,
+      shuffleEnabled: true,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
     });
   });
 
@@ -181,43 +265,6 @@ describe("verifier_program", () => {
     );
   };
 
-  it("Deposit (verifier one)", async () => {
-    await performDeposit({
-      delegate: AUTHORITY_ONE,
-      spl: true,
-      senderSpl: userTokenAccount,
-      shuffleEnabled: true,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
-    });
-  });
-
-  it("Deposit (verifier storage)", async () => {
-    await performDeposit({
-      delegate: AUTHORITY,
-      spl: false,
-      message: Buffer.alloc(900).fill(1),
-      senderSpl: null,
-      shuffleEnabled: false,
-      verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-    });
-  });
-
-  it("Deposit (verifier zero)", async () => {
-    await performDeposit({
-      delegate: AUTHORITY,
-      spl: true,
-      senderSpl: userTokenAccount,
-      shuffleEnabled: true,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
-    });
-    const lightProvider = await Provider.init({
-      wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
-      confirmConfig,
-    });
-    await lightProvider.relayer.updateMerkleTree(lightProvider);
-  });
-
   const performWithdrawal = async ({
     outputUtxos,
     tokenProgram,
@@ -292,56 +339,4 @@ describe("verifier_program", () => {
       tx.proofInput,
     );
   };
-
-  it("Withdraw (verifier zero)", async () => {
-    await performWithdrawal({
-      outputUtxos: [],
-      tokenProgram: MINT,
-      recipientSpl: recipientTokenAccount,
-      shuffleEnabled: false,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
-    });
-  });
-
-  it("Withdraw (verifier storage)", async () => {
-    await performWithdrawal({
-      outputUtxos: [],
-      tokenProgram: SystemProgram.programId,
-      message: Buffer.alloc(900).fill(1),
-      shuffleEnabled: false,
-      verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-    });
-  });
-
-  it("Withdraw (verifier one)", async () => {
-    const lightProvider = await Provider.init({
-      wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
-      confirmConfig,
-    });
-    let user: User = await User.init({
-      provider: lightProvider,
-      account: KEYPAIR,
-    });
-    let inputUtxos: Utxo[] = [
-      user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
-        .value,
-    ];
-    await performWithdrawal({
-      outputUtxos: [
-        new Utxo({
-          poseidon: POSEIDON,
-          assets: inputUtxos[0].assets,
-          amounts: [BN_0, inputUtxos[0].amounts[1]],
-          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
-        }),
-      ],
-      tokenProgram: MINT,
-      recipientSpl: recipientTokenAccount,
-      shuffleEnabled: true,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
-    });
-  });
 });

@@ -248,11 +248,8 @@ export class TestTransaction {
       );
     }
 
-    if (new BN(proofInput.publicAmountSpl).toString() === "0") {
-      this.testValues.is_token = false;
-    } else {
-      this.testValues.is_token = true;
-    }
+    this.testValues.is_token =
+      new BN(proofInput.publicAmountSpl).toString() !== "0";
     if (this.testValues.is_token && !this.params.accounts.senderSpl) {
       throw new Error("params.accounts.senderSpl undefined");
     }
@@ -264,8 +261,8 @@ export class TestTransaction {
     }
 
     // Checking that nullifiers were inserted
-    for (var i = 0; i < remainingAccounts.nullifierPdaPubkeys?.length; i++) {
-      var nullifierAccount =
+    for (let i = 0; i < remainingAccounts.nullifierPdaPubkeys?.length; i++) {
+      let nullifierAccount =
         await this.provider.provider!.connection.getAccountInfo(
           remainingAccounts.nullifierPdaPubkeys[i].pubkey,
           {
@@ -278,9 +275,9 @@ export class TestTransaction {
         connection: this.provider.provider!.connection,
       });
     }
-    var leavesAccountData;
+    let leavesAccountData;
     // Checking that leaves were inserted
-    for (var i = 0; i < remainingAccounts.leavesPdaPubkeys.length; i += 2) {
+    for (let i = 0; i < remainingAccounts.leavesPdaPubkeys.length; i += 2) {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           remainingAccounts.leavesPdaPubkeys[i / 2].pubkey,
@@ -306,11 +303,12 @@ export class TestTransaction {
       );
       let lightProvider = await Provider.loadMock();
 
-      for (var j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
+      for (let j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
         let decryptedUtxo1 = await Utxo.decrypt({
           poseidon: this.provider.poseidon,
           encBytes: this.params!.encryptedUtxos,
           account: account ? account : this.params!.outputUtxos![0].account,
+          aes: true,
           index: 0, // this is just a placeholder
           merkleTreePdaPublicKey: this.params!.accounts.transactionMerkleTree,
           commitment:
@@ -354,7 +352,7 @@ export class TestTransaction {
       console.log("preInsertedLeavesIndex: ", e);
       throw e;
     }
-    var nrInstructions;
+    let nrInstructions;
     if (this.appParams) {
       nrInstructions = 2;
     } else if (this.params) {
@@ -366,14 +364,14 @@ export class TestTransaction {
       throw new Error("No params provided.");
     }
 
-    if (this.params.action == "SHIELD" && this.testValues.is_token == false) {
-      var recipientSolAccountBalance =
+    if (this.params.action == "SHIELD" && !this.testValues.is_token) {
+      const recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientSol,
           "confirmed",
         );
 
-      var senderFeeAccountBalance =
+      const senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.relayer.accounts.relayerPubkey,
           "confirmed",
@@ -391,15 +389,12 @@ export class TestTransaction {
           .toString(),
         senderFeeAccountBalance.toString(),
       );
-    } else if (
-      this.params.action == "SHIELD" &&
-      this.testValues.is_token == true
-    ) {
-      var recipientAccount = await getAccount(
+    } else if (this.params.action == "SHIELD" && this.testValues.is_token) {
+      const recipientAccount = await getAccount(
         this.provider.provider.connection,
         this.params.accounts.recipientSpl!,
       );
-      var recipientSolAccountBalance =
+      const recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientSol,
         );
@@ -413,7 +408,7 @@ export class TestTransaction {
       );
       if (!this.params.accounts.signingAddress)
         throw new Error("Signing address undefined");
-      var senderFeeAccountBalance =
+      const senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.signingAddress,
           "confirmed",
@@ -431,16 +426,13 @@ export class TestTransaction {
           .toString(),
         senderFeeAccountBalance.toString(),
       );
-    } else if (
-      this.params.action == "UNSHIELD" &&
-      this.testValues.is_token == false
-    ) {
-      var relayerAccount = await this.provider.provider.connection.getBalance(
+    } else if (this.params.action == "UNSHIELD" && !this.testValues.is_token) {
+      const relayerAccount = await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipientSol,
         "confirmed",
       );
 
-      var recipientFeeAccount =
+      const recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientSol,
           "confirmed",
@@ -466,16 +458,13 @@ export class TestTransaction {
           .toString(),
         this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
-    } else if (
-      this.params.action == "UNSHIELD" &&
-      this.testValues.is_token == true
-    ) {
+    } else if (this.params.action == "UNSHIELD" && this.testValues.is_token) {
       await getAccount(
         this.provider.provider.connection,
         this.params.accounts.senderSpl!,
       );
 
-      var recipientAccount = await getAccount(
+      const recipientAccount = await getAccount(
         this.provider.provider.connection,
         this.params.accounts.recipientSpl!,
       );
@@ -488,12 +477,12 @@ export class TestTransaction {
         "amount not transferred correctly",
       );
 
-      var relayerAccount = await this.provider.provider.connection.getBalance(
+      const relayerAccount = await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipientSol,
         "confirmed",
       );
 
-      var recipientFeeAccount =
+      const recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientSol,
           "confirmed",

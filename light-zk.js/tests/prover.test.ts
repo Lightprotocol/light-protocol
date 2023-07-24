@@ -4,7 +4,9 @@ import { Prover } from "@lightprotocol/prover.js";
 import * as anchor from "@coral-xyz/anchor";
 let circomlibjs = require("circomlibjs");
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
-import { utils } from "ffjavascript";
+const ffjavascript = require("ffjavascript");
+const utils = ffjavascript.utils;
+
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
@@ -76,6 +78,7 @@ describe("Prover Functionality Tests", () => {
   });
 
   after(async () => {
+    //@ts-ignore
     globalThis.curve_bn128.terminate();
   });
 

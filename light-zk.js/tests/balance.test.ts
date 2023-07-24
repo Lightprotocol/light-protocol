@@ -1,10 +1,5 @@
 import { assert } from "chai";
-import {
-  SystemProgram,
-  Keypair as SolanaKeypair,
-  PublicKey,
-  Keypair,
-} from "@solana/web3.js";
+import { SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const circomlibjs = require("circomlibjs");
@@ -18,14 +13,11 @@ import {
   FEE_ASSET,
   Provider as LightProvider,
   MINT,
-  Relayer,
   Utxo,
   Account,
   TokenUtxoBalance,
   Balance,
   TOKEN_REGISTRY,
-  ParsedIndexedTransaction,
-  User,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   MerkleTreeConfig,
   BN_0,
@@ -40,13 +32,12 @@ describe("Utxo Functional", () => {
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
-  let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon: any, lightProvider, deposit_utxo1: Utxo, relayer, keypair;
+  let poseidon: any,
+    lightProvider: LightProvider,
+    deposit_utxo1: Utxo,
+    keypair: Account;
   before(async () => {
     poseidon = await buildPoseidonOpt();
-    // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -82,10 +73,10 @@ describe("Utxo Functional", () => {
 
     Utxo.equal(
       poseidon,
-      await balance.tokenBalances
+      balance.tokenBalances
         .get(MINT.toBase58())
         ?.utxos.get(deposit_utxo1.getCommitment(poseidon))!,
-      await deposit_utxo1,
+      deposit_utxo1,
     );
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
@@ -121,15 +112,14 @@ describe("Utxo Functional", () => {
 
     Utxo.equal(
       poseidon,
-      await balance.tokenBalances
+      balance.tokenBalances
         .get(MINT.toBase58())
         ?.spentUtxos.get(deposit_utxo1.getCommitment(poseidon))!,
-      await deposit_utxo1,
+      deposit_utxo1,
     );
   });
 
-  // this test is a mock of the syncState function
-  // TODO: add a direct test
+  // this test is mock of the syncState function
   it("Test Decrypt Balance 2 and 4 utxos", async () => {
     const provider = await LightProvider.loadMock();
     let verifierProgramLookupTable =
@@ -157,9 +147,9 @@ describe("Utxo Functional", () => {
         encryptedUtxos = [
           ...encryptedUtxos,
           ...(await utxo.encrypt(
-            poseidon,
-            MerkleTreeConfig.getTransactionMerkleTreePda(),
-            true,
+              poseidon,
+              MerkleTreeConfig.getTransactionMerkleTreePda(),
+              true,
           )),
         ];
       }
@@ -175,18 +165,19 @@ describe("Utxo Functional", () => {
       let decryptedUtxos: Array<Utxo | null> = new Array<Utxo | null>();
       for (const trx of indexedTransactions) {
         let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
-
         for (let index = 0; index < trx.leaves.length; index += 2) {
           const leafLeft = trx.leaves[index];
           const leafRight = trx.leaves[index + 1];
+          let encBytes = Buffer.from(
+            trx.encryptedUtxos.slice(
+              (index / 2) * 240,
+              (index / 2) * 240 +
+                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH
+            ),
+          );
           let decryptedUtxo = await Utxo.decrypt({
             poseidon,
-            encBytes: Buffer.from(
-              trx.encryptedUtxos.slice(
-                (index / 2) * 240,
-                (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-              ),
-            ),
+            encBytes,
             account,
             index: leftLeafIndex + index,
             commitment: leafLeft,
@@ -196,17 +187,20 @@ describe("Utxo Functional", () => {
             verifierProgramLookupTable,
             assetLookupTable,
           });
+          assert(typeof decryptedUtxo !== "boolean", "Can't decrypt utxo");
           decryptedUtxos.push(decryptedUtxo);
+
+          encBytes = Buffer.from(
+            trx.encryptedUtxos.slice(
+              (index / 2) * 240 + 120,
+              (index / 2) * 240 +
+                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+                120,
+            ),
+          );
           decryptedUtxo = await Utxo.decrypt({
             poseidon,
-            encBytes: Buffer.from(
-              trx.encryptedUtxos.slice(
-                (index / 2) * 240 + 120,
-                (index / 2) * 240 +
-                  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
-                  120,
-              ),
-            ),
+            encBytes,
             account,
             index: leftLeafIndex + index + 1,
             commitment: leafRight,

@@ -663,17 +663,14 @@ describe("Test General TransactionParameters Errors", () => {
   let depositFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey3 = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
-    relayer: Relayer,
     keypair: Account;
 
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -1292,7 +1289,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   let poseidon: any,
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
-    outputUtxo: Utxo,
     relayer: Relayer;
 
   before(async () => {
@@ -1305,19 +1301,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
-    });
-
-    outputUtxo = new Utxo({
-      poseidon: poseidon,
-      assets: [FEE_ASSET, MINT],
-      amounts: [
-        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new BN(depositAmount),
-      ],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:

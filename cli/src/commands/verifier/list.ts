@@ -4,7 +4,7 @@ import {
   IDL_MERKLE_TREE_PROGRAM,
   merkleTreeProgramId,
 } from "@lightprotocol/zk.js";
-import { setAnchorProvider } from "../../utils/utils";
+import { setAnchorProvider } from "../../utils";
 
 class VerifierListCommand extends Command {
   static description = "List registered verifiers.";

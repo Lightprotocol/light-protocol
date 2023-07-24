@@ -10,7 +10,6 @@ import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 
 const circomlibjs = require("circomlibjs");
-const { buildBabyjub, buildEddsa } = circomlibjs;
 
 import {
   TransactionErrorCode,
@@ -39,33 +38,26 @@ const numberMaxOutUtxos = 2;
 // TODO: add more tests with different numbers of utxos
 // TODO: add a randomized test
 describe("Test selectInUtxos Functional", () => {
-  let poseidon: any, eddsa, babyJub, F;
+  let poseidon: any;
 
   let splAmount,
-    solAmount,
     token,
     tokenCtx,
     utxo1: Utxo,
     utxo2: Utxo,
-    relayerFee,
     utxoSol: Utxo,
     utxoSolBurner,
     utxo2Burner,
-    utxo1Burner,
-    recipientAccount;
+    utxo1Burner;
   let lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
     poseidon = await circomlibjs.buildPoseidonOpt();
-    eddsa = await buildEddsa();
-    babyJub = await buildBabyjub();
-    F = babyJub.F;
     utxo1Burner = new Account({ poseidon, seed: seed32 });
     utxo2Burner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
     utxoSolBurner = Account.createBurner(poseidon, seed32, new anchor.BN("1"));
 
     splAmount = new BN(3);
-    solAmount = new BN(1e6);
     token = "USDC";
     tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx) throw new Error("Token not supported!");
@@ -100,17 +92,6 @@ describe("Test selectInUtxos Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    relayerFee = RELAYER_FEE;
-
-    let recipientAccountRoot = new Account({
-      poseidon,
-      seed: bs58.encode(new Uint8Array(32).fill(3)),
-    });
-
-    recipientAccount = Account.fromPubkey(
-      recipientAccountRoot.getPublicKey(),
-      poseidon,
-    );
   });
 
   it("Unshield select spl", async () => {
@@ -339,36 +320,19 @@ describe("Test selectInUtxos Functional", () => {
 });
 
 describe("Test selectInUtxos Errors", () => {
-  let poseidon: any,
-    eddsa,
-    babyJub,
-    F,
-    k0: Account,
-    k00: Account,
-    kBurner: Account;
-
+  let poseidon: any;
   let splAmount,
-    solAmount,
     token,
     tokenCtx,
     utxo1: Utxo,
     utxo2: Utxo,
-    relayerFee,
     utxoSol: Utxo,
-    recipientAccount,
     lightProvider: Provider;
 
   before(async () => {
     lightProvider = await Provider.loadMock();
     poseidon = await circomlibjs.buildPoseidonOpt();
-    eddsa = await buildEddsa();
-    babyJub = await buildBabyjub();
-    F = babyJub.F;
-    k0 = new Account({ poseidon, seed: seed32 });
-    k00 = new Account({ poseidon, seed: seed32 });
-    kBurner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
     splAmount = new BN(3);
-    solAmount = new BN(1e6);
     token = "USDC";
     tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx) throw new Error("Token not supported!");
@@ -400,16 +364,6 @@ describe("Test selectInUtxos Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    relayerFee = RELAYER_FEE;
-
-    let recipientAccountRoot = new Account({
-      poseidon,
-      seed: bs58.encode(new Uint8Array(32).fill(3)),
-    });
-    recipientAccount = Account.fromPubkey(
-      recipientAccountRoot.getPublicKey(),
-      poseidon,
-    );
   });
 
   it("NO_PUBLIC_AMOUNTS_PROVIDED", async () => {
@@ -560,11 +514,9 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("NO_UTXOS_PROVIDED", async () => {
-    const inUtxos = [utxoSol, utxo1];
-
     expect(() => {
       selectInUtxos({
-        // utxos: inUtxos,
+        // utxos: [utxoSol, utxo1],
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
         poseidon,
@@ -621,7 +573,7 @@ describe("Test selectInUtxos Errors", () => {
     })
       .to.throw(SelectInUtxosError)
       .includes({
-        code: CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
+        code: CreateUtxoErrorCode.INVALID_NUMBER_OF_RECIPIENTS,
         functionName: "selectInUtxos",
       });
   });

@@ -20,7 +20,7 @@ import {
   BN_0,
 } from "../index";
 
-// mint | programAdress for programUtxos
+// mint | programAddress for programUtxos
 export type Balance = {
   tokenBalances: Map<string, TokenUtxoBalance>;
   programBalances: Map<string, ProgramUtxoBalance>;
@@ -39,7 +39,7 @@ export class TokenUtxoBalance {
   tokenData: TokenData;
   totalBalanceSpl: BN;
   totalBalanceSol: BN;
-  utxos: Map<string, Utxo>; // commitmenthash as key
+  utxos: Map<string, Utxo>; // commitment hash as key
   committedUtxos: Map<string, Utxo>; // utxos which are
   spentUtxos: Map<string, Utxo>; // ordered for slot spent - maybe this should just be an UserIndexedTransaction
   constructor(tokenData: TokenData) {
@@ -56,8 +56,7 @@ export class TokenUtxoBalance {
   }
 
   addUtxo(commitment: string, utxo: Utxo, attribute: VariableType): boolean {
-    let utxoExists =
-      this[attribute].get(commitment) !== undefined ? true : false;
+    let utxoExists = this[attribute].get(commitment) !== undefined;
     this[attribute].set(commitment, utxo);
 
     if (attribute === ("utxos" as VariableType) && !utxoExists) {
@@ -75,7 +74,7 @@ export class TokenUtxoBalance {
       throw new TokenUtxoBalanceError(
         TokenUtxoBalanceErrorCode.UTXO_UNDEFINED,
         "moveToSpentUtxos",
-        `utxo with committment ${commitment} does not exist in utxos`,
+        `utxo with commitment ${commitment} does not exist in utxos`,
       );
     this.totalBalanceSol = this.totalBalanceSol.sub(utxo.amounts[0]);
     if (utxo.amounts[1])
@@ -123,14 +122,14 @@ export class ProgramUtxoBalance {
         throw new ProgramUtxoBalanceError(
           UserErrorCode.TOKEN_NOT_FOUND,
           "addUtxo",
-          `Token ${utxoAsset} not found when trying to add tokenBalance to PrograUtxoBalance for verifier ${this.programAddress.toBase58()}`,
+          `Token ${utxoAsset} not found when trying to add tokenBalance to ProgramUtxoBalance for verifier ${this.programAddress.toBase58()}`,
         );
       const tokenData = TOKEN_REGISTRY.get(tokenSymbol);
       if (!tokenData)
         throw new ProgramUtxoBalanceError(
           ProgramUtxoBalanceErrorCode.TOKEN_DATA_NOT_FOUND,
           "addUtxo",
-          `Token ${utxoAsset} not found when trying to add tokenBalance to PrograUtxoBalance for verifier ${this.programAddress.toBase58()}`,
+          `Token ${utxoAsset} not found when trying to add tokenBalance to ProgramUtxoBalance for verifier ${this.programAddress.toBase58()}`,
         );
       this.tokenBalances.set(utxoAsset, new TokenUtxoBalance(tokenData));
     }
@@ -159,8 +158,7 @@ export class ProgramBalance extends TokenUtxoBalance {
     utxo: Utxo,
     attribute: VariableType,
   ): boolean {
-    const utxoExists =
-      this[attribute].get(commitment) !== undefined ? true : false;
+    const utxoExists = this[attribute].get(commitment) !== undefined;
     this[attribute].set(commitment, utxo);
 
     if (attribute === ("utxos" as VariableType) && !utxoExists) {
@@ -201,16 +199,16 @@ export async function decryptAddUtxoToBalance({
   assetLookupTable: string[];
 }): Promise<void> {
   let decryptedUtxo = await Utxo.decrypt({
-    poseidon,
-    encBytes: encBytes,
-    account: account,
-    index: index,
-    commitment,
-    aes,
-    merkleTreePdaPublicKey,
-    verifierProgramLookupTable,
-    assetLookupTable,
-  });
+        poseidon,
+        encBytes: encBytes,
+        account: account,
+        index: index,
+        commitment,
+        aes,
+        merkleTreePdaPublicKey,
+        verifierProgramLookupTable,
+        assetLookupTable,
+      });
 
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo) return;

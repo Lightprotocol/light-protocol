@@ -4,56 +4,56 @@ import {
   Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
+import { BN, Idl } from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
-import { BN } from "@coral-xyz/anchor";
-const circomlibjs = require("circomlibjs");
 import {
-  CreateUtxoErrorCode,
-  UtxoErrorCode,
-  ProviderErrorCode,
-  RelayerErrorCode,
-  TransactionErrorCode,
-  TransactionParametersErrorCode,
-  UserError,
-  UserErrorCode,
-  Provider,
-  SIGN_MESSAGE,
-  AUTHORITY,
-  SelectInUtxosErrorCode,
-  TOKEN_REGISTRY,
   Account,
-  Utxo,
-  convertAndComputeDecimals,
-  Transaction,
-  TransactionParameters,
+  AccountErrorCode,
   Action,
   AppUtxoConfig,
-  createRecipientUtxos,
+  AUTHORITY,
   Balance,
-  InboxBalance,
-  TokenUtxoBalance,
-  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  BN_0,
+  convertAndComputeDecimals,
+  createRecipientUtxos,
+  CreateUtxoErrorCode,
+  decimalConversion,
   decryptAddUtxoToBalance,
   fetchNullifierAccountInfo,
   getUserIndexTransactions,
-  UserIndexedTransaction,
-  IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
-  MAX_MESSAGE_SIZE,
   IDL_VERIFIER_PROGRAM_STORAGE,
-  AccountErrorCode,
-  ProgramUtxoBalance,
-  TOKEN_PUBKEY_SYMBOL,
-  UtxoError,
   IDL_VERIFIER_PROGRAM_TWO,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  InboxBalance,
   isProgramVerifier,
-  decimalConversion,
-  ParsedIndexedTransaction,
+  MAX_MESSAGE_SIZE,
   MerkleTreeConfig,
-  BN_0,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  ParsedIndexedTransaction,
+  ProgramUtxoBalance,
+  Provider,
+  ProviderErrorCode,
+  RelayerErrorCode,
+  SelectInUtxosErrorCode,
+  SIGN_MESSAGE,
+  TOKEN_PUBKEY_SYMBOL,
+  TOKEN_REGISTRY,
+  TokenUtxoBalance,
+  Transaction,
+  TransactionErrorCode,
+  TransactionParameters,
+  TransactionParametersErrorCode,
+  UserError,
+  UserErrorCode,
+  UserIndexedTransaction,
+  Utxo,
+  UtxoError,
+  UtxoErrorCode,
 } from "../index";
-import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+
+const circomlibjs = require("circomlibjs");
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -88,7 +88,7 @@ export class User {
   }: {
     provider: Provider;
     serializedUtxos?: Buffer;
-    serialiezdSpentUtxos?: Buffer;
+    serializedSpentUtxos?: Buffer;
     account: Account;
     appUtxoConfig?: AppUtxoConfig;
     verifierIdl?: Idl;
@@ -153,8 +153,8 @@ export class User {
       );
 
     // identify spent utxos
-    for (var [, tokenBalance] of balance.tokenBalances) {
-      for (var [key, utxo] of tokenBalance.utxos) {
+    for (const [, tokenBalance] of balance.tokenBalances) {
+      for (const [key, utxo] of tokenBalance.utxos) {
         let nullifierAccountInfo = await fetchNullifierAccountInfo(
           utxo.getNullifier(this.provider.poseidon)!,
           this.provider.provider.connection,
@@ -189,10 +189,10 @@ export class User {
         // transaction nonce is the same for all utxos in one transaction
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              (index / 2) * 240,
-              (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-            ),
+              trx.encryptedUtxos.slice(
+                  (index / 2) * 240,
+                  (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              ),
           ),
           index: leftLeafIndex,
           commitment: Buffer.from([...leafLeft]),
@@ -209,12 +209,12 @@ export class User {
         });
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              (index / 2) * 240 + 120,
-              (index / 2) * 240 +
-                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
-                120,
-            ),
+              trx.encryptedUtxos.slice(
+                  (index / 2) * 240 + 120,
+                  (index / 2) * 240 +
+                  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+                  120,
+              ),
           ),
           index: leftLeafIndex + 1,
           commitment: Buffer.from([...leafRight]),
@@ -232,10 +232,10 @@ export class User {
       }
     }
 
-    // caclulate total sol balance
-    const calaculateTotalSolBalance = (balance: Balance) => {
+    // calculate total sol balance
+    const calculateTotalSolBalance = (balance: Balance) => {
       let totalSolBalance = BN_0;
-      for (var tokenBalance of balance.tokenBalances.values()) {
+      for (const tokenBalance of balance.tokenBalances.values()) {
         totalSolBalance = totalSolBalance.add(tokenBalance.totalBalanceSol);
       }
       return totalSolBalance;
@@ -247,7 +247,7 @@ export class User {
       this.balance.tokenBalances,
     );
 
-    balance.totalSolBalance = calaculateTotalSolBalance(balance);
+    balance.totalSolBalance = calculateTotalSolBalance(balance);
     return balance;
   }
 
@@ -311,7 +311,6 @@ export class User {
    * @param amount e.g. 1 SOL = 1, 2 USDC = 2
    * @param token "SOL", "USDC", "USDT",
    * @param recipient optional, if not set, will shield to self
-   * @param extraSolAmount optional, if set, will add extra SOL to the shielded amount
    * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
    */
   async createShieldTransactionParameters({
@@ -436,8 +435,6 @@ export class User {
             this.provider.lookUpTables.verifierProgramLookupTable,
         }),
       );
-      // no merging of utxos when shielding to another recipient
-      mergeExistingUtxos = false;
       utxos = [];
     }
     if (utxo) outUtxos.push(utxo);
@@ -453,8 +450,8 @@ export class User {
       appUtxo,
       verifierIdl: verifierIdl ? verifierIdl : this.verifierIdl,
       outUtxos,
-      addInUtxos: recipient ? false : true,
-      addOutUtxos: recipient ? false : true,
+      addInUtxos: !recipient,
+      addOutUtxos: !recipient,
       message,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -506,7 +503,7 @@ export class User {
         throw new UserError(
           UserErrorCode.ASSOCIATED_TOKEN_ACCOUNT_DOESNT_EXIST,
           "shield",
-          "AssociatdTokenAccount doesn't exist!",
+          "AssociatedTokenAccount doesn't exist!",
         );
       let tokenBalance = await splToken.getAccount(
         this.provider.provider?.connection!,
@@ -599,7 +596,6 @@ export class User {
    * @param amount e.g. 1 SOL = 1, 2 USDC = 2
    * @param token "SOL", "USDC", "USDT",
    * @param recipient optional, if not set, will shield to self
-   * @param extraSolAmount optional, if set, will add extra SOL to the shielded amount
    * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
    */
   async shield({
@@ -666,7 +662,7 @@ export class User {
   }
 
   // TODO: add unshieldSol and unshieldSpl
-  // TODO: add optional passs-in token mint
+  // TODO: add optional pass-in token mint
   // TODO: add pass-in mint
   /**
    * @params token: string
@@ -733,7 +729,7 @@ export class User {
       }
     }
 
-    var _publicSplAmount: BN | undefined = undefined;
+    let _publicSplAmount: BN | undefined = undefined;
     if (publicAmountSpl) {
       _publicSplAmount = convertAndComputeDecimals(
         publicAmountSpl,
@@ -753,6 +749,7 @@ export class User {
     let solUtxos = this.balance.tokenBalances
       .get(SystemProgram.programId.toBase58())
       ?.utxos.values();
+
     let utxosEntriesSol: Utxo[] =
       solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
 
@@ -782,7 +779,7 @@ export class User {
     return txParams;
   }
 
-  // TODO: replace recipient with recipient light publickey
+  // TODO: replace recipient with recipient light public key
   async transfer({
     token,
     recipient,
@@ -826,7 +823,6 @@ export class User {
    * @param token mint
    * @param amount
    * @param recipient shieldedAddress (BN)
-   * @param recipientEncryptionPublicKey (use strToArr)
    * @returns
    */
   async createTransferTransactionParameters({
@@ -888,10 +884,10 @@ export class User {
       publicAmountSpl: amountSpl,
       minimumLamportsAmount: this.provider.minimumLamports,
     });
-    var parsedSolAmount = convertedPublicAmounts.publicAmountSol
+    const parsedSolAmount = convertedPublicAmounts.publicAmountSol
       ? convertedPublicAmounts.publicAmountSol
       : BN_0;
-    var parsedSplAmount = convertedPublicAmounts.publicAmountSpl
+    const parsedSplAmount = convertedPublicAmounts.publicAmountSpl
       ? convertedPublicAmounts.publicAmountSpl
       : BN_0;
 
@@ -922,7 +918,7 @@ export class User {
 
     if (outUtxos) _outUtxos = [..._outUtxos, ...outUtxos];
 
-    let utxos: Utxo[] = [];
+    let utxos: Utxo[];
 
     let solUtxos = this.balance.tokenBalances
       .get(SystemProgram.programId.toBase58())
@@ -940,7 +936,7 @@ export class User {
     if (!tokenCtx.isNative && !utxosEntries)
       throw new UserError(
         UserErrorCode.INSUFFICIENT_BAlANCE,
-        "createTransferTransactionParamters",
+        "createTransferTransactionParameters",
         `Balance does not have any utxos of ${token}`,
       );
 
@@ -987,9 +983,10 @@ export class User {
     // we send an array of instructions to the relayer and the relayer sends 3 transaction
     const txHash = await this.sendTransaction();
 
-    var relayerMerkleTreeUpdateResponse = "notPinged";
+    let relayerMerkleTreeUpdateResponse = "notPinged";
 
     if (confirmOptions === ConfirmOptions.finalized) {
+      // Don't add await here
       this.provider.relayer.updateMerkleTree(this.provider);
       relayerMerkleTreeUpdateResponse = "pinged relayer";
     }
@@ -1006,10 +1003,10 @@ export class User {
   }
 
   async transactWithUtxos({}: {
-    inUtxos: Utxo[];
-    outUtxos: Utxo[];
     action: Action;
     inUtxoCommitments: string[];
+    inUtxos: Utxo[];
+    outUtxos: Utxo[];
   }) {
     throw new Error("Unimplemented");
   }
@@ -1161,7 +1158,7 @@ export class User {
       throw new UserError(
         UserErrorCode.NO_COMMITMENTS_PROVIDED,
         "mergeAllUtxos",
-        `No commitmtents for merging specified ${asset}`,
+        `No commitments for merging specified ${asset}`,
       );
 
     await this.getUtxoInbox(latest);
@@ -1180,7 +1177,7 @@ export class User {
       ?.utxos.values();
 
     let commitmentUtxos: Utxo[] = [];
-    for (var commitment of commitments) {
+    for (const commitment of commitments) {
       let utxo = inboxTokenBalance.utxos.get(commitment);
       if (!utxo)
         throw new UserError(
@@ -1248,8 +1245,8 @@ export class User {
   getUtxoStatus() {
     throw new Error("not implemented yet");
   }
-  // getPrivacyScore() -> for unshields only, can separate into its own helper method
-  // Fetch utxos should probably be a function such the user object is not occupied while fetching
+  // getPrivacyScore() -> for unshield only, can separate into its own helper method
+  // Fetch utxos should probably be a function such the user object is not occupied while fetching,
   // but it would probably be more logical to fetch utxos here as well
   addUtxos() {
     throw new Error("not implemented yet");
@@ -1463,7 +1460,7 @@ export class User {
   /**
    * - get indexed transactions for a storage compressed account
    * - try to decrypt all and add to appUtxos or decrypted data map
-   * - add custom descryption strategies for arbitrary data
+   * - add custom description strategies for arbitrary data
    */
   async syncStorage(idl: anchor.Idl, aes: boolean = true) {
     if (!aes) return undefined;
@@ -1471,7 +1468,7 @@ export class User {
     // TODO: implement the following
     /**
      * get all transactions of the storage verifier and filter for the ones including noop program
-     * build merkle tree and check versus root onchain
+     * build merkle tree and check versus root on-chain
      * mark as cleartext and as decrypted with the first byte
      * [
      *  1 bytes: encrypted or cleartext 1 byte,
@@ -1500,17 +1497,18 @@ export class User {
      * - aes: boolean = true
      * - decrypt storage verifier
      */
+
     const decryptIndexStorage = async (
       indexedTransactions: ParsedIndexedTransaction[],
       assetLookupTable: string[],
       verifierProgramLookupTable: string[],
     ) => {
-      var decryptedStorageUtxos: Utxo[] = [];
-      var spentUtxos: Utxo[] = [];
+      const decryptedStorageUtxos: Utxo[] = [];
+      const spentUtxos: Utxo[] = [];
       for (const data of indexedTransactions) {
         let decryptedUtxo = null;
-        var index = data.firstLeafIndex.toNumber();
-        for (var [, leaf] of data.leaves.entries()) {
+        let index = data.firstLeafIndex.toNumber();
+        for (const [, leaf] of data.leaves.entries()) {
           try {
             decryptedUtxo = await Utxo.decrypt({
               poseidon: this.provider.poseidon,
@@ -1526,15 +1524,15 @@ export class User {
               assetLookupTable,
             });
             if (decryptedUtxo !== null) {
-              // const nfExists = await checkNfInserted([{isSigner: false, isWritatble: false, pubkey: Transaction.getNullifierPdaPublicKey(data.nullifiers[leafIndex], TRANSACTION_MERKLE_TREE_KEY)}], this.provider.provider?.connection!)
+              const utxo = decryptedUtxo as Utxo;
               const nfExists = await fetchNullifierAccountInfo(
-                decryptedUtxo.getNullifier(this.provider.poseidon)!,
+                utxo.getNullifier(this.provider.poseidon)!,
                 this.provider.provider?.connection!,
               );
               if (!nfExists) {
-                decryptedStorageUtxos.push(decryptedUtxo);
+                decryptedStorageUtxos.push(utxo);
               } else {
-                spentUtxos.push(decryptedUtxo);
+                spentUtxos.push(utxo);
               }
             }
             index++;
@@ -1560,7 +1558,7 @@ export class User {
       this.provider.lookUpTables.verifierProgramLookupTable,
     );
 
-    for (var utxo of decryptedStorageUtxos) {
+    for (const utxo of decryptedStorageUtxos) {
       const verifierAddress = utxo.verifierAddress.toBase58();
       if (!this.balance.programBalances.get(verifierAddress)) {
         this.balance.programBalances.set(
@@ -1573,7 +1571,7 @@ export class User {
         .addUtxo(utxo.getCommitment(this.provider.poseidon), utxo, "utxos");
     }
 
-    for (var utxo of spentUtxos) {
+    for (const utxo of spentUtxos) {
       const verifierAddress = utxo.verifierAddress.toBase58();
       if (!this.balance.programBalances.get(verifierAddress)) {
         this.balance.programBalances.set(
@@ -1589,9 +1587,9 @@ export class User {
           "spentUtxos",
         );
     }
-    for (var [, programBalance] of this.balance.programBalances) {
-      for (var [, tokenBalance] of programBalance.tokenBalances) {
-        for (var [key, utxo] of tokenBalance.utxos) {
+    for (const [, programBalance] of this.balance.programBalances) {
+      for (const [, tokenBalance] of programBalance.tokenBalances) {
+        for (const [key, utxo] of tokenBalance.utxos) {
           let nullifierAccountInfo = await fetchNullifierAccountInfo(
             utxo.getNullifier(this.provider.poseidon)!,
             this.provider.provider!.connection,
@@ -1606,7 +1604,7 @@ export class User {
   }
 
   getAllUtxos(): Utxo[] {
-    var allUtxos: Utxo[] = [];
+    const allUtxos: Utxo[] = [];
 
     for (const tokenBalance of this.balance.tokenBalances.values()) {
       allUtxos.push(...tokenBalance.utxos.values());
@@ -1630,16 +1628,16 @@ export class User {
         `${message.length}/${MAX_MESSAGE_SIZE}`,
       );
     if (shield) {
-      const txParams = await this.createShieldTransactionParameters({
-        token: "SOL",
-        publicAmountSol: BN_0,
-        minimumLamports: false,
-        message,
-        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-      });
-      this.recentTransactionParameters = txParams;
+      this.recentTransactionParameters =
+        await this.createShieldTransactionParameters({
+          token: "SOL",
+          publicAmountSol: BN_0,
+          minimumLamports: false,
+          message,
+          verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+        });
     } else {
-      var inUtxos: Utxo[] = [];
+      const inUtxos: Utxo[] = [];
       // any utxo just select any utxo with a non-zero sol balance preferably sol balance
       const firstSolUtxo = this.balance.tokenBalances
         .get(SystemProgram.programId.toBase58())
@@ -1652,7 +1650,7 @@ export class User {
         // 1. get all utxos
         // 2. sort descending
         // 3. select biggest which is in index 0
-        var allUtxos = this.getAllUtxos();
+        const allUtxos = this.getAllUtxos();
         allUtxos.sort((a, b) => a.amounts[0].sub(b.amounts[0]).toNumber());
         inUtxos.push(allUtxos[0]);
       }
@@ -1664,23 +1662,23 @@ export class User {
 
       const tokenCtx = TOKEN_REGISTRY.get("SOL")!;
 
-      const txParams = await TransactionParameters.getTxParams({
-        tokenCtx,
-        action: Action.TRANSFER,
-        account: this.account,
-        inUtxos,
-        provider: this.provider,
-        relayer: this.provider.relayer,
-        appUtxo: this.appUtxoConfig,
-        message,
-        mergeUtxos: true,
-        addInUtxos: false,
-        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-        assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          this.provider.lookUpTables.verifierProgramLookupTable,
-      });
-      this.recentTransactionParameters = txParams;
+      this.recentTransactionParameters =
+        await TransactionParameters.getTxParams({
+          tokenCtx,
+          action: Action.TRANSFER,
+          account: this.account,
+          inUtxos,
+          provider: this.provider,
+          relayer: this.provider.relayer,
+          appUtxo: this.appUtxoConfig,
+          message,
+          mergeUtxos: true,
+          addInUtxos: false,
+          verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            this.provider.lookUpTables.verifierProgramLookupTable,
+        });
     }
 
     return this.transactWithParameters({
@@ -1719,7 +1717,7 @@ export class User {
 
     let isAppInUtxo = Utxo.getAppInUtxoIndices(appUtxos);
     programParameters.inputs.isAppInUtxo = isAppInUtxo;
-    if (!addOutUtxos) addOutUtxos = outUtxos ? false : true;
+    if (!addOutUtxos) addOutUtxos = !outUtxos;
     if (action === Action.TRANSFER) {
       let txParams = await this.createTransferTransactionParameters({
         verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
@@ -1767,15 +1765,15 @@ export class User {
         tokenBalances: programBalance?.tokenBalances,
         inboxTokenBalances: inboxProgramBalance?.tokenBalances,
       };
-    var programUtxoArray: Utxo[] = [];
+    const programUtxoArray: Utxo[] = [];
     if (programBalance) {
-      for (var tokenBalance of programBalance.tokenBalances.values()) {
+      for (const tokenBalance of programBalance.tokenBalances.values()) {
         programUtxoArray.push(...tokenBalance.utxos.values());
       }
     }
-    var inboxProgramUtxoArray: Utxo[] = [];
+    const inboxProgramUtxoArray: Utxo[] = [];
     if (inboxProgramBalance) {
-      for (var tokenBalance of inboxProgramBalance.tokenBalances.values()) {
+      for (const tokenBalance of inboxProgramBalance.tokenBalances.values()) {
         inboxProgramUtxoArray.push(...tokenBalance.utxos.values());
       }
     }
@@ -1798,7 +1796,7 @@ export class User {
     const iterateOverTokenBalance = (
       tokenBalances: Map<string, TokenUtxoBalance>,
     ) => {
-      for (var [, tokenBalance] of tokenBalances) {
+      for (const [, tokenBalance] of tokenBalances) {
         const utxo = tokenBalance.utxos.get(commitment);
         if (utxo) {
           return { status: "ready", utxo };
@@ -1813,12 +1811,10 @@ export class User {
         }
       }
     };
-    let res = undefined;
-    for (var [, programBalance] of this.balance.programBalances) {
-      res = iterateOverTokenBalance(programBalance.tokenBalances);
+    for (const [, programBalance] of this.balance.programBalances) {
+      let res = iterateOverTokenBalance(programBalance.tokenBalances);
       if (res) return res;
     }
-    res = iterateOverTokenBalance(this.balance.tokenBalances);
-    return res;
+    return iterateOverTokenBalance(this.balance.tokenBalances);
   }
 }

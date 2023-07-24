@@ -13,7 +13,6 @@ import {
 import { it } from "mocha";
 
 const circomlibjs = require("circomlibjs");
-const { buildBabyjub, buildEddsa } = circomlibjs;
 
 import {
   Action,
@@ -43,13 +42,7 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test createOutUtxos Functional", () => {
-  let poseidon: any,
-    eddsa,
-    babyJub,
-    F,
-    k0: Account,
-    k00: Account,
-    kBurner: Account;
+  let poseidon: any, k0: Account;
 
   let splAmount: BN,
     solAmount: BN,
@@ -63,12 +56,7 @@ describe("Test createOutUtxos Functional", () => {
   before(async () => {
     lightProvider = await Provider.loadMock();
     poseidon = await circomlibjs.buildPoseidonOpt();
-    eddsa = await buildEddsa();
-    babyJub = await buildBabyjub();
-    F = babyJub.F;
     k0 = new Account({ poseidon, seed: seed32 });
-    k00 = new Account({ poseidon, seed: seed32 });
-    kBurner = Account.createBurner(poseidon, seed32, new BN("0"));
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
@@ -661,34 +649,19 @@ describe("validateUtxoAmounts", () => {
 });
 
 describe("Test createOutUtxos Errors", () => {
-  let poseidon: any,
-    eddsa,
-    babyJub,
-    F,
-    k0: Account,
-    k00: Account,
-    kBurner: Account;
+  let poseidon: any, k0: Account;
 
   let splAmount: BN,
-    solAmount: BN,
     token,
     tokenCtx: TokenData,
     utxo1: Utxo,
-    relayerFee,
     utxoSol: Utxo,
-    recipientAccount,
     lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
     poseidon = await circomlibjs.buildPoseidonOpt();
-    eddsa = await buildEddsa();
-    babyJub = await buildBabyjub();
-    F = babyJub.F;
     k0 = new Account({ poseidon, seed: seed32 });
-    k00 = new Account({ poseidon, seed: seed32 });
-    kBurner = Account.createBurner(poseidon, seed32, new BN("0"));
     splAmount = new BN(3);
-    solAmount = new BN(1e6);
     token = "USDC";
     let tmpTokenCtx = TOKEN_REGISTRY.get(token);
     if (!tmpTokenCtx) throw new Error("Token not supported!");
@@ -710,17 +683,7 @@ describe("Test createOutUtxos Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    relayerFee = RELAYER_FEE;
 
-    let recipientAccountRoot = new Account({
-      poseidon,
-      seed: bs58.encode(new Uint8Array(32).fill(3)),
-    });
-
-    recipientAccount = Account.fromPubkey(
-      recipientAccountRoot.getPublicKey(),
-      poseidon,
-    );
     createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
@@ -788,7 +751,7 @@ describe("Test createOutUtxos Errors", () => {
     })
       .to.throw(CreateUtxoError)
       .includes({
-        code: CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
+        code: CreateUtxoErrorCode.INVALID_NUMBER_OF_RECIPIENTS,
         functionName: "createOutUtxos",
       });
   });

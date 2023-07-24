@@ -15,11 +15,9 @@ chai.use(chaiAsPromised);
 import { IDL as TEST_PSP_IDL } from "./testData/tmp_test_psp";
 
 import {
-  FEE_ASSET,
   hashAndTruncateToCircuit,
   Provider as LightProvider,
   MINT,
-  Relayer,
   UtxoError,
   UtxoErrorCode,
   Utxo,
@@ -36,33 +34,11 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Utxo Functional", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
-
-  let mockPubkey = SolanaKeypair.generate().publicKey;
-  let relayerMockPubKey = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
-    lightProvider: LightProvider,
-    deposit_utxo1,
-    relayer,
-    keypair;
+  let poseidon: any, lightProvider: LightProvider;
   before(async () => {
     poseidon = await buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(relayerMockPubKey, mockPubkey, new BN(5000));
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
-    deposit_utxo1 = new Utxo({
-      poseidon: poseidon,
-      assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
-      index: 1,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
-    });
   });
 
   it("rnd utxo functional loop 100", async () => {
@@ -122,10 +98,13 @@ describe("Utxo Functional", () => {
         MerkleTreeConfig.getTransactionMerkleTreePda(),
       );
       assert.equal(encBytes4.toString(), encBytes41.toString());
+
+      // decrypt checked
       const utxo41 = await Utxo.decrypt({
         poseidon,
         encBytes: encBytes4,
         account: utxo4Account,
+        aes: true,
         index: 0,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         commitment: new BN(utxo4.getCommitment(poseidon)).toArrayLike(
@@ -144,44 +123,6 @@ describe("Utxo Functional", () => {
         throw new Error("decrypt failed");
       }
     }
-  });
-
-  it("toString", async () => {
-    const amountFee = "1";
-    const amountToken = "2";
-    const assetPubkey = MINT;
-    const seed32 = new Uint8Array(32).fill(1).toString();
-    let inputs = {
-      keypair: new Account({ poseidon, seed: seed32 }),
-      amountFee,
-      amountToken,
-      assetPubkey,
-      assets: [SystemProgram.programId, assetPubkey],
-      amounts: [new BN(amountFee), new BN(amountToken)],
-      blinding: new BN(new Uint8Array(31).fill(2)),
-      index: 1,
-    };
-
-    let utxo0 = new Utxo({
-      poseidon,
-      assets: inputs.assets,
-      amounts: inputs.amounts,
-      account: inputs.keypair,
-      blinding: inputs.blinding,
-      index: inputs.index,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
-    });
-    let string = await utxo0.toString();
-    let utxo1 = Utxo.fromString(
-      string,
-      poseidon,
-      lightProvider.lookUpTables.assetLookupTable,
-      lightProvider.lookUpTables.verifierProgramLookupTable,
-    );
-    // cannot compute nullifier in utxo1 because no privkey is serialized with toString()
-    Utxo.equal(poseidon, utxo0, utxo1, true);
   });
 
   it("toString", async () => {
@@ -308,6 +249,7 @@ describe("Utxo Functional", () => {
       poseidon,
       encBytes,
       account: inputs.keypair,
+      aes: true,
       index: inputs.index,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       commitment: new BN(utxo1.getCommitment(poseidon)).toArrayLike(
@@ -319,11 +261,12 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    if (utxo3) {
+    if (typeof utxo3 !== "boolean") {
       Utxo.equal(poseidon, utxo0, utxo3);
     } else {
       throw new Error("decrypt failed");
     }
+
     let pubKey = inputs.keypair.getPublicKey();
     // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
     const receivingUtxo = new Utxo({
@@ -337,6 +280,7 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
+
     // encrypt
     const encBytesNacl = await receivingUtxo.encrypt(
       poseidon,
@@ -367,7 +311,7 @@ describe("Utxo Functional", () => {
     }
   });
 
-  it("Program utxo to/from bytes ", async () => {
+  it("Program utxo to/from bytes", async () => {
     const verifierProgramId = new PublicKey(
       "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
     );

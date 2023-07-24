@@ -1,5 +1,4 @@
 import { Keypair, Keypair as SolanaKeypair } from "@solana/web3.js";
-import _ from "lodash";
 import { sign } from "tweetnacl";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -32,11 +31,10 @@ import {
   BN_1,
 } from "@lightprotocol/zk.js";
 
-import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
-import { assert, expect } from "chai";
+import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
+import { expect } from "chai";
 
-var POSEIDON;
-var RELAYER: TestRelayer, provider: Provider, user: User;
+let POSEIDON: any, RELAYER: TestRelayer, provider: Provider, user: User;
 
 describe("Test User", () => {
   // Configure the client to use the local cluster.
@@ -145,8 +143,8 @@ describe("Test User", () => {
   });
 
   it("(user class) shield SPL", async () => {
-    var expectedSpentUtxosLength = 0;
-    var expectedUtxoHistoryLength = 1;
+    const expectedSpentUtxosLength = 0;
+    const expectedUtxoHistoryLength = 1;
     let testInputs = {
       amountSpl: generateRandomTestAmount(0, 100000, 2),
       token: "USDC",
@@ -237,6 +235,7 @@ describe("Test User", () => {
       token: "USDC",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,
+      expectedRecipientUtxoLength: 1,
       recipientSeed,
     };
 
@@ -258,12 +257,15 @@ describe("Test User", () => {
 
     await testStateValidatorTransfer.checkCommittedBalanceSpl();
 
+    const recipient = SolanaKeypair.generate();
+
     let testInputsUnshield = {
       amountSpl: 0.5,
       token: "USDC",
       type: Action.UNSHIELD,
       expectedUtxoHistoryLength: 2,
       recipientSeed: userSeed,
+      recipient: recipient.publicKey,
     };
 
     const testStateValidatorUnshield = new UserTestAssertHelper({
@@ -274,18 +276,13 @@ describe("Test User", () => {
     });
     await testStateValidatorUnshield.fetchAndSaveState();
 
-    const recipient = SolanaKeypair.generate();
     await user.getBalance();
     await user.unshield({
-      publicAmountSol: testInputsUnshield.amountSpl,
+      publicAmountSpl: testInputsUnshield.amountSpl,
       token: testInputsUnshield.token,
       confirmOptions: ConfirmOptions.finalized,
       recipient: recipient.publicKey,
     });
-    let recipientBalance = await provider.provider.connection.getBalance(
-      recipient.publicKey,
-    );
-    assert.equal(recipientBalance, 0.5e9);
     await testStateValidatorUnshield.checkCommittedBalanceSpl();
   });
 
@@ -431,8 +428,8 @@ describe("Test User Errors", () => {
   setProvider(providerAnchor);
 
   const userKeypair = ADMIN_AUTH_KEYPAIR;
+  let amount: number, token: string, provider: Provider, user: User;
 
-  let amount, token, provider, user;
   before("init test setup Merkle tree lookup table etc ", async () => {
     if ((await providerAnchor.connection.getBalance(ADMIN_AUTH_KEY)) === 0) {
       await createTestAccounts(providerAnchor.connection);
@@ -537,7 +534,6 @@ describe("Test User Errors", () => {
         token,
         publicAmountSol: BN_1,
         publicAmountSpl: BN_1,
-        recipientSpl: SolanaKeypair.generate().publicKey,
       }),
       TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
     );

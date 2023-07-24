@@ -193,7 +193,7 @@ export function selectInUtxos({
   // TODO make dependent on verifier
   if (outUtxos.length > numberMaxOutUtxos - 1)
     throw new SelectInUtxosError(
-      CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
+      CreateUtxoErrorCode.INVALID_NUMBER_OF_RECIPIENTS,
       "selectInUtxos",
       `outUtxos.length ${outUtxos.length}`,
     );
@@ -204,7 +204,7 @@ export function selectInUtxos({
     if (!mint && utxo.amounts[1]?.gt(BN_0)) mint = utxo.assets[1];
     if (mint && mint.toBase58() !== utxo.assets[1].toBase58())
       throw new SelectInUtxosError(
-        SelectInUtxosErrorCode.INVALID_NUMER_OF_MINTS,
+        SelectInUtxosErrorCode.INVALID_NUMBER_OF_MINTS,
         "selectInUtxos",
         `Too many different mints in recipients outUtxos ${utxo}`,
       );

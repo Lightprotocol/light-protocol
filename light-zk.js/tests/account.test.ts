@@ -33,6 +33,7 @@ describe("Test Account Functional", () => {
     k0: Account,
     k00: Account,
     kBurner: Account;
+
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     eddsa = await buildEddsa();
@@ -276,21 +277,10 @@ describe("Test Account Functional", () => {
 });
 
 describe("Test Account Errors", () => {
-  let poseidon: any,
-    eddsa,
-    babyJub,
-    F,
-    k0: Account,
-    k00: Account,
-    kBurner: Account;
+  let poseidon: any, k0: Account;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
-    eddsa = await buildEddsa();
-    babyJub = await buildBabyjub();
-    F = babyJub.F;
     k0 = new Account({ poseidon, seed: seed32 });
-    k00 = new Account({ poseidon, seed: seed32 });
-    kBurner = Account.createBurner(poseidon, seed32, new BN("0"));
   });
 
   it("INVALID_SEED_SIZE", async () => {
