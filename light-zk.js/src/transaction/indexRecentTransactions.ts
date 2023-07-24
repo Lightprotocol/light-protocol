@@ -409,11 +409,12 @@ export const indexRecentTransactions = async ({
   const rounds = Math.ceil(batchOptions.limit! / batchSize);
 
   let batchBefore = batchOptions.before;
+  const promises = [];
 
   for (let i = 0; i < rounds; i++) {
     const batchLimit =
       i === rounds - 1 ? batchOptions.limit! - i * batchSize : batchSize;
-    const lastSignature = await getTransactionsBatch({
+    const promise = getTransactionsBatch({
       connection,
       merkleTreeProgramId,
       batchOptions: {
@@ -424,12 +425,17 @@ export const indexRecentTransactions = async ({
       transactions,
     });
 
-    if (!lastSignature) {
+    promises.push(promise);
+
+    batchBefore = (await promise).signature;
+  }
+
+  const batches = await Promise.all(promises);
+
+  for (const batch of batches) {
+    if (!batch) {
       break;
     }
-
-    batchBefore = lastSignature.signature;
-    await sleep(500);
   }
 
   return transactions.sort(
