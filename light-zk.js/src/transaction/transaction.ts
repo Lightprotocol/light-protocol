@@ -19,7 +19,6 @@ import {
   firstLetterToLower,
   hashAndTruncateToCircuit,
   MINT,
-  ConfirmOptions,
   sendVersionedTransactions,
   RelayerSendTransactionsResponse,
   SendVersionedTransactionsResult,
@@ -628,18 +627,13 @@ export class Transaction {
   //   }
   // }
 
-  async sendAndConfirmTransaction(
-    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
-  ): Promise<
+  async sendAndConfirmTransaction(): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {
-    return await this.sendTransaction(confirmOptions);
+    return await this.sendTransaction();
   }
 
-  // TODO: evaluate whether confirm options should be here or in transaction parameters
-  async sendTransaction(
-    _confirmOptions: ConfirmOptions = ConfirmOptions.finalized,
-  ): Promise<
+  async sendTransaction(): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {
     var instructions = await this.getInstructions(

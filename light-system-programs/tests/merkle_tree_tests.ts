@@ -576,10 +576,6 @@ describe("Merkle Tree Tests", () => {
   });
 
   it("deposit ", async () => {
-    // await createTestAccounts(provider.connection);
-    // LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-    // await setUpMerkleTree(provider);
-
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new Account({

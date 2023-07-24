@@ -26,7 +26,6 @@ import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 export async function setUpMerkleTree(
   provider: anchor.AnchorProvider,
   merkleTreeAuthority: PublicKey,
-  _force?: boolean,
 ) {
   let merkleTreeConfig = new MerkleTreeConfig({
     messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,

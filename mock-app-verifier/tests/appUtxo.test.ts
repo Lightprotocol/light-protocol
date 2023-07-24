@@ -8,6 +8,7 @@ import {
   Provider as LightProvider,
   confirmConfig,
   createAccountObject,
+  TestRelayer,
 } from "@lightprotocol/zk.js";
 import { SystemProgram, PublicKey } from "@solana/web3.js";
 
@@ -17,7 +18,7 @@ import { it } from "mocha";
 import { IDL } from "../target/types/mock_verifier";
 import { assert, expect } from "chai";
 
-var RELAYER: any;
+var RELAYER: TestRelayer;
 
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.

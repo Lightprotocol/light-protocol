@@ -535,9 +535,7 @@ export class User {
     }
   }
 
-  async sendTransaction(
-    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
-  ) {
+  async sendTransaction() {
     if (!this.recentTransactionParameters)
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
@@ -561,7 +559,7 @@ export class User {
       );
     let txResult;
     try {
-      txResult = await this.recentTransaction.sendTransaction(confirmOptions);
+      txResult = await this.recentTransaction.sendTransaction();
     } catch (e) {
       throw new UserError(
         TransactionErrorCode.SEND_TRANSACTION_FAILED,
@@ -569,12 +567,6 @@ export class User {
         `Error in tx.sendTransaction ${e}`,
       );
     }
-    // let transactionContainsEncryptedUtxo = false;
-    // this.recentTransactionParameters.outputUtxos.map((utxo) => {
-    //   if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
-    //     transactionContainsEncryptedUtxo = true;
-    //   }
-    // });
     return txResult;
   }
 
@@ -971,7 +963,7 @@ export class User {
     await this.approve();
 
     // we send an array of instructions to the relayer and the relayer sends 3 transaction
-    const txHash = await this.sendTransaction(confirmOptions);
+    const txHash = await this.sendTransaction();
 
     var relayerMerkleTreeUpdateResponse = "notPinged";
 

@@ -175,7 +175,6 @@ describe("verifier_program", () => {
       tx.proofInput,
       KEYPAIR,
     );
-    // TRANSACTION_NONCE++;
   };
 
   it("Deposit (verifier one)", async () => {
@@ -283,7 +282,6 @@ describe("verifier_program", () => {
       tx.remainingAccounts,
       tx.proofInput,
     );
-    // TRANSACTION_NONCE++;
   };
 
   it("Withdraw (verifier zero)", async () => {

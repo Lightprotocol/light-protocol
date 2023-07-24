@@ -12,6 +12,6 @@ module.exports = async function (provider) {
     "CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG",
   );
   await createTestAccounts(provider.connection);
-  await setUpMerkleTree(provider, newAuthority, true);
+  await setUpMerkleTree(provider, newAuthority);
   process.exit();
 };
