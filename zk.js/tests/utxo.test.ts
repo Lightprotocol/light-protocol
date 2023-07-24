@@ -117,7 +117,7 @@ describe("Utxo Functional", () => {
           lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
-      if (utxo41) {
+      if (typeof utxo41 !== "boolean") {
         Utxo.equal(poseidon, utxo4, utxo41);
       } else {
         throw new Error("decrypt failed");
@@ -261,7 +261,7 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    if (utxo3) {
+    if (typeof utxo3 !== "boolean") {
       Utxo.equal(poseidon, utxo0, utxo3);
     } else {
       throw new Error("decrypt failed");
@@ -288,7 +288,7 @@ describe("Utxo Functional", () => {
     );
 
     // decrypt
-    const receivingUtxo1 = await Utxo.decrypt({
+    const receivingUtxo1 = await Utxo.decryptUnchecked({
       poseidon,
       encBytes: encBytesNacl,
       account: inputs.keypair,
@@ -561,5 +561,142 @@ describe("Utxo Errors", () => {
         code: UtxoErrorCode.BLINDING_EXCEEDS_FIELD_SIZE,
         functionName: "constructor",
       });
+  });
+
+  it("decryption fails with checkPrefixHash on prefix generated from random bytes", async () => {
+    let publicKey = keypair.getPublicKey();
+    const receivingUtxo = new Utxo({
+      poseidon,
+      assets: inputs.assets,
+      amounts: inputs.amounts,
+      account: Account.fromPubkey(publicKey, poseidon),
+      blinding: inputs.blinding,
+      index: inputs.index,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+      lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+
+    // encrypt
+    const encBytesNacl = await receivingUtxo.encrypt(
+        poseidon,
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
+    );
+
+    // decrypt
+    const receivingUtxo1 = await Utxo.decrypt({
+      poseidon,
+      encBytes: encBytesNacl,
+      account: inputs.keypair,
+      index: inputs.index,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      aes: false,
+      commitment: new BN(receivingUtxo.getCommitment(poseidon)).toBuffer(
+          "le",
+          32,
+      ),
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+      lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+
+    if (receivingUtxo1) {
+      throw new Error("decrypt succeded");
+    }
+  });
+});
+
+describe("Utxo Benchmark", () => {
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let depositAmount = 20_000;
+  let depositFeeAmount = 10_000;
+
+  let mockPubkey = SolanaKeypair.generate().publicKey;
+  let relayerMockPubKey = SolanaKeypair.generate().publicKey;
+  let poseidon: any,
+      lightProvider: LightProvider,
+      deposit_utxo1: Utxo,
+      relayer: Relayer,
+      keypair: Account;
+  before(async () => {
+    poseidon = await buildPoseidonOpt();
+    // TODO: make fee mandatory
+    relayer = new Relayer(
+        relayerMockPubKey,
+        mockPubkey,
+        //@ts-ignore
+        mockPubkey,
+        new BN(5000),
+    );
+    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    lightProvider = await LightProvider.loadMock();
+    deposit_utxo1 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      account: keypair,
+      index: 1,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+      lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+  });
+
+  it("Decrypting 256k UTXOs w/checkPrefixHash", async () => {
+    const utxoTestAccount = new Account({ poseidon });
+    const testUtxo = new Utxo({
+      poseidon,
+      amounts: [new BN(123)],
+      account: utxoTestAccount,
+      appDataHash: new BN(verifierProgramTwoProgramId.toBuffer()),
+      includeAppData: false,
+      verifierAddress: new PublicKey(
+          lightProvider.lookUpTables.verifierProgramLookupTable[1],
+      ),
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+      lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+
+    // encrypt
+    const encBytes = await testUtxo.encrypt(
+        poseidon,
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
+    );
+
+    var encBytesVecs: Uint8Array[] = [];
+
+    for (let i = 0; i < 256 * 1000; i++) {
+      encBytesVecs.push(randomBytes(120 + PREFIX_LENGTH));
+    }
+
+    let collisionCounter = 0;
+
+    console.time("getTransactionMerkleTreePdaTime");
+    const transactionMerkleTreePda =
+        MerkleTreeConfig.getTransactionMerkleTreePda();
+    console.timeEnd("getTransactionMerkleTreePdaTime");
+
+    console.time("256kPrefixHashCollisionTestTime");
+    for (let i = 0; i < 256 * 1000; i++) {
+      const resultUtxo = await Utxo.decrypt({
+        poseidon,
+        encBytes: encBytesVecs[i],
+        account: utxoTestAccount,
+        aes: true,
+        index: 0,
+        merkleTreePdaPublicKey: transactionMerkleTreePda,
+        commitment: new BN(testUtxo.getCommitment(poseidon)).toBuffer("le", 32),
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+      });
+      if (resultUtxo === true) collisionCounter++;
+    }
+    console.timeEnd("256kPrefixHashCollisionTestTime");
+    console.log(
+        "collisions detected (over 256k decryption attempts): ",
+        collisionCounter,
+    );
   });
 });

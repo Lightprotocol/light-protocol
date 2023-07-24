@@ -6,6 +6,7 @@ import { BN } from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
+  PREFIX_LENGTH,
   TransactionParametersErrorCode,
   UtxoErrorCode,
   BN_0,
@@ -112,7 +113,16 @@ export class Account {
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(
         this.burnerSeed.toString(),
       );
-      this.aesSecret = Account.generateAesSecret(this.burnerSeed.toString());
+      this.aesSecret = Account.generateSecret(
+        b2params.dkLen,
+        this.burnerSeed.toString(),
+        "aes",
+      );
+      this.hashingSecret = Account.generateSecret(
+        b2params.dkLen,
+        this.burnerSeed.toString(),
+        "hashing",
+      );
     } else if (privateKey) {
       if (!encryptionPrivateKey) {
         throw new AccountError(
@@ -163,7 +173,12 @@ export class Account {
       this.privkey = Account.generateShieldedPrivateKey(seed, poseidon);
       this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(seed);
-      this.aesSecret = Account.generateAesSecret(seed);
+      this.aesSecret = Account.generateSecret(b2params.dkLen, seed, "aes");
+      this.hashingSecret = Account.generateSecret(
+        b2params.dkLen,
+        seed,
+        "hashing",
+      );
     }
     this.eddsa = eddsa;
   }
@@ -271,16 +286,28 @@ export class Account {
     merkleTreePdaPublicKey: PublicKey,
     salt: string,
   ): Uint8Array {
-    return this.getDomainSeparatedAesSecretKey(
-      merkleTreePdaPublicKey.toBase58() + salt.toString(),
+    return Account.generateSecret(
+      b2params.dkLen,
+      this.aesSecret?.toString(),
+      merkleTreePdaPublicKey.toBase58() + salt,
     );
   }
 
-  getDomainSeparatedAesSecretKey(domain: string): Uint8Array {
-    return blake2b
-      .create(b2params)
-      .update(this.aesSecret + domain)
-      .digest();
+  getUtxoPrefixViewingKey(salt: string): Uint8Array {
+    return Account.generateSecret(
+      b2params.dkLen,
+      this.hashingSecret?.toString(),
+      salt,
+    );
+  }
+
+  generateUtxoPrefixHash(commitmentHash: Uint8Array, dkLen?: number) {
+    const input = Uint8Array.from([
+      ...this.getUtxoPrefixViewingKey("hashing"),
+      ...commitmentHash,
+    ]);
+
+    return blake2b.create({ dkLen }).update(input).digest();
   }
 
   static createBurner(poseidon: any, seed: String, index: BN): Account {
@@ -402,10 +429,13 @@ export class Account {
     return privateKey;
   }
 
-  static generateAesSecret(seed: String, _domain?: string): Uint8Array {
-    const privkeySeed = seed + "aes";
+  static generateSecret(
+    dkLen: number,
+    seed?: String,
+    domain?: String,
+  ): Uint8Array {
     return Uint8Array.from(
-      blake2b.create(b2params).update(privkeySeed).digest(),
+      blake2b.create({ dkLen }).update(`${seed}${domain}`).digest(),
     );
   }
 

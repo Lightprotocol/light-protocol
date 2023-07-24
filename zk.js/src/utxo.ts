@@ -37,9 +37,12 @@ import {
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
+export const randomPrefixBytes = () => nacl.randomBytes(PREFIX_LENGTH);
+
 // TODO: move to constants
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
+export const PREFIX_LENGTH = 4;
 
 // TODO: Idl support for U256
 // TODO: add static createSolUtxo()
@@ -627,12 +630,9 @@ export class Utxo {
     compressed: boolean = true,
   ): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(compressed);
-    const commitment = new BN(this.getCommitment(poseidon)).toArrayLike(
-      Buffer,
-      "le",
-      32,
-    );
+    const commitment = new BN(this.getCommitment(poseidon)).toBuffer("le", 32);
     const nonce = commitment.subarray(0, 24);
+    var prefix;
 
     if (!this.account.aesSecret) {
       // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
@@ -645,7 +645,9 @@ export class Utxo {
         CONSTANT_SECRET_AUTHKEY,
       );
 
-      return Uint8Array.from([...ciphertext]);
+      prefix = randomPrefixBytes();
+
+      return Uint8Array.from([...prefix, ...ciphertext]);
     } else {
       if (!merkleTreePdaPublicKey)
         throw new UtxoError(
@@ -667,27 +669,53 @@ export class Utxo {
         true,
       );
 
+      prefix = this.account.generateUtxoPrefixHash(commitment, PREFIX_LENGTH);
+
       if (!compressed) return ciphertext;
       const padding = sha3_256
         .create()
         .update(Uint8Array.from([...nonce, ...bytes_message]))
         .digest();
 
-      // adding the 8 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of 120 bytes
-      return Uint8Array.from([...ciphertext, ...padding.subarray(0, 8)]);
+      // adding the 8 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of (120 + PREFIX_LENGTH) bytes
+      return Uint8Array.from([
+        ...prefix,
+        ...ciphertext,
+        ...padding.subarray(0, 8),
+      ]);
     }
+  }
+
+  /**
+   * @description Checks the UTXO prefix hash of PREFIX_LENGTH-bytes
+   *
+   * @returns {boolean} true || false
+   */
+  static checkPrefixHash({
+    account,
+    commitment,
+    prefix,
+  }: {
+    account: Account;
+    commitment: Uint8Array;
+    prefix: Uint8Array;
+  }): boolean {
+    return (
+      account.generateUtxoPrefixHash(commitment, PREFIX_LENGTH).join(",") ===
+      prefix.join(",")
+    );
   }
 
   // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
   /**
-   * @description Decrypts a utxo from an array of bytes, the last 24 bytes are the nonce.
+   * @description Decrypts a utxo from an array of bytes without checking the UTXO prefix hash, the last 24 bytes are the nonce.
    * @param {any} poseidon
    * @param {Uint8Array} encBytes
    * @param {Account} account
    * @param {number} index
    * @returns {Utxo | null}
    */
-  static async decrypt({
+  static async decryptUnchecked({
     poseidon,
     encBytes,
     account,
@@ -699,7 +727,8 @@ export class Utxo {
     compressed = true,
     assetLookupTable,
     verifierProgramLookupTable,
-  }: {
+  }: // noPrefix:boolean -> think about
+  {
     poseidon: any;
     encBytes: Uint8Array;
     account: Account;
@@ -712,6 +741,8 @@ export class Utxo {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<Utxo | null> {
+    // if(!noPrefix)
+    encBytes = encBytes.slice(PREFIX_LENGTH);
     if (aes) {
       if (!account.aesSecret) {
         throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
@@ -791,6 +822,61 @@ export class Utxo {
     }
   }
 
+  // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
+  /**
+   * @description Decrypts a utxo from an array of bytes by checking the UTXO prefix hash, the last 24 bytes are the nonce.
+   * @param {any} poseidon
+   * @param {Uint8Array} encBytes
+   * @param {Account} account
+   * @param {number} index
+   * @returns {Utxo | null}
+   */
+  static async decrypt({
+    poseidon,
+    encBytes,
+    account,
+    index,
+    merkleTreePdaPublicKey,
+    aes = true,
+    commitment,
+    appDataIdl,
+    compressed = true,
+    assetLookupTable,
+    verifierProgramLookupTable,
+  }: {
+    poseidon: any;
+    encBytes: Uint8Array;
+    account: Account;
+    index: number;
+    merkleTreePdaPublicKey?: PublicKey;
+    aes?: boolean;
+    commitment: Uint8Array;
+    appDataIdl?: Idl;
+    compressed?: boolean;
+    assetLookupTable: string[];
+    verifierProgramLookupTable: string[];
+  }): Promise<Utxo | boolean> {
+    const prefix = encBytes.slice(0, PREFIX_LENGTH);
+    if (this.checkPrefixHash({ account, commitment, prefix })) {
+      const utxo = await Utxo.decryptUnchecked({
+        poseidon,
+        encBytes,
+        account,
+        index,
+        merkleTreePdaPublicKey,
+        aes,
+        commitment,
+        appDataIdl,
+        compressed,
+        assetLookupTable,
+        verifierProgramLookupTable,
+      });
+      if (!utxo)
+        return true; // prefixHash matches but decryption fails so utxo is null -> Returns TRUE (COLLISION)
+      else return utxo; // prefixHash matches and decryption succedes so utxo is good -> Returns UTXO (VALID)
+    } else return false; // prefixHash doesn't match -> Returns FALSE (NO COLLISION)
+  }
+
   /**
    * Creates a new Utxo from a given base58 encoded string.
    * @static
@@ -841,19 +927,19 @@ export class Utxo {
     if (utxo0.amounts[1].toString() !== utxo1.amounts[1].toString()) {
       throw new Error(
         `splAmount not equal: ${utxo0.amounts[1].toString()} vs ${utxo1.amounts[1].toString()}`,
-      );
+    );
     }
 
     if (utxo0.assets[0].toBase58() !== utxo1.assets[0].toBase58()) {
       throw new Error(
         `solAsset not equal: ${utxo0.assets[0].toBase58()} vs ${utxo1.assets[0].toBase58()}`,
-      );
+    );
     }
 
     if (utxo0.assets[1].toBase58() !== utxo1.assets[1].toBase58()) {
       throw new Error(
         `splAsset not equal: ${utxo0.assets[1].toBase58()} vs ${utxo1.assets[1].toBase58()}`,
-      );
+    );
     }
 
     if (
@@ -861,7 +947,7 @@ export class Utxo {
     ) {
       throw new Error(
         `solAsset circuit not equal: ${utxo0.assetsCircuit[0].toString()} vs ${utxo1.assetsCircuit[0].toString()}`,
-      );
+    );
     }
 
     if (
@@ -869,25 +955,25 @@ export class Utxo {
     ) {
       throw new Error(
         `splAsset circuit not equal: ${utxo0.assetsCircuit[1].toString()} vs ${utxo1.assetsCircuit[1].toString()}`,
-      );
+    );
     }
 
     if (utxo0.appDataHash.toString() !== utxo1.appDataHash.toString()) {
       throw new Error(
         `appDataHash not equal: ${utxo0.appDataHash.toString()} vs ${utxo1.appDataHash.toString()}`,
-      );
+    );
     }
 
     if (utxo0.poolType.toString() !== utxo1.poolType.toString()) {
       throw new Error(
         `poolType not equal: ${utxo0.poolType.toString()} vs ${utxo1.poolType.toString()}`,
-      );
+    );
     }
 
     if (utxo0.verifierAddress.toString() !== utxo1.verifierAddress.toString()) {
       throw new Error(
         `verifierAddress not equal: ${utxo0.verifierAddress.toString()} vs ${utxo1.verifierAddress.toString()}`,
-      );
+    );
     }
 
     if (
@@ -896,7 +982,7 @@ export class Utxo {
     ) {
       throw new Error(
         `verifierAddressCircuit not equal: ${utxo0.verifierAddressCircuit.toString()} vs ${utxo1.verifierAddressCircuit.toString()}`,
-      );
+    );
     }
 
     if (
@@ -907,7 +993,7 @@ export class Utxo {
         `commitment not equal: ${utxo0
           .getCommitment(poseidon)
           ?.toString()} vs ${utxo1.getCommitment(poseidon)?.toString()}`,
-      );
+    );
     }
 
     if (!skipNullifier) {
@@ -921,11 +1007,11 @@ export class Utxo {
               `nullifier not equal: ${utxo0
                 .getNullifier(poseidon)
                 ?.toString()} vs ${utxo1.getNullifier(poseidon)?.toString()}`,
-            );
-          }
+          );
         }
       }
     }
+  }
   }
 
   static getAppInUtxoIndices(appUtxos: Utxo[]) {
@@ -940,5 +1026,3 @@ export class Utxo {
     return isAppInUtxo;
   }
 }
-
-exports.Utxo = Utxo;

@@ -274,6 +274,28 @@ describe("Test Account Functional", () => {
       assert.notEqual(msg.toString(), message.toString());
     }
   });
+
+  it("Should correctly generate UTXO prefix viewing key", () => {
+    const salt = "PREFIX_VIEWING_SALT";
+    const expectedOutput: Uint8Array = new Uint8Array([
+      234, 101, 252, 191, 221, 162, 81, 61, 96, 127, 241, 157, 190, 48, 250,
+      147, 52, 212, 35, 226, 126, 246, 241, 98, 248, 163, 63, 9, 66, 56, 170,
+      178,
+    ]);
+    const currentOutput = k0.getUtxoPrefixViewingKey(salt);
+    return expect(currentOutput).to.eql(expectedOutput);
+  });
+
+  it("Should correctly generate UTXO prefix hash", () => {
+    const commitmentHash = new Uint8Array(32).fill(1);
+    const prefix_length = 4;
+    const expectedOutput: Uint8Array = new Uint8Array([55, 154, 4, 63]);
+    const currentOutput = k0.generateUtxoPrefixHash(
+      commitmentHash,
+      prefix_length,
+    );
+    return expect(currentOutput).to.eql(expectedOutput);
+  });
 });
 
 describe("Test Account Errors", () => {
