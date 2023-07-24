@@ -1,5 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
+import {
+  Keypair,
+  Keypair as SolanaKeypair,
+  SystemProgram,
+} from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 
 const token = require("@solana/spl-token");
@@ -35,6 +39,7 @@ import {
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_STORAGE,
   Account,
+  airdropSol,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -246,7 +251,12 @@ describe("verifier_program", () => {
       account: KEYPAIR,
     });
 
-    const origin = new anchor.web3.Account();
+    const origin = Keypair.generate();
+    await airdropSol({
+      provider: lightProvider.provider,
+      lamports: 1000 * 1e9,
+      recipientPublicKey: origin.publicKey,
+    });
 
     let txParams = new TransactionParameters({
       inputUtxos: [

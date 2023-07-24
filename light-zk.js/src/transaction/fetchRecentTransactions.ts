@@ -21,6 +21,7 @@ import {
   IndexedTransaction,
   UserIndexedTransaction,
   IndexedTransactionData,
+  ParsedIndexedTransaction,
 } from "../types";
 import { getUpdatedSpentUtxos, sleep } from "../utils";
 import { Utxo } from "../utxo";
@@ -69,7 +70,7 @@ export class TransactionIndexerEvent {
  * @returns {Promise<void>}
  */
 export const getUserIndexTransactions = async (
-  indexedTransactions: IndexedTransaction[],
+  indexedTransactions: ParsedIndexedTransaction[],
   provider: Provider,
   tokenBalances: Map<string, TokenUtxoBalance>,
 ) => {

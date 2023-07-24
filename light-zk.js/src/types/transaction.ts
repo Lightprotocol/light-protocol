@@ -59,8 +59,29 @@ export type IndexedTransaction = {
   relayerFee: string;
   message: Buffer;
 };
+export type ParsedIndexedTransaction = {
+  blockTime: number;
+  signer: PublicKey;
+  signature: string;
+  to: PublicKey;
+  from: PublicKey;
+  toSpl: PublicKey;
+  fromSpl: PublicKey;
+  verifier: PublicKey;
+  relayerRecipientSol: PublicKey;
+  type: Action;
+  changeSolAmount: BN;
+  publicAmountSol: BN;
+  publicAmountSpl: BN;
+  encryptedUtxos: Buffer | any[];
+  leaves: number[][];
+  firstLeafIndex: BN;
+  nullifiers: BN[];
+  relayerFee: BN;
+  message: Buffer;
+};
 
-export type UserIndexedTransaction = IndexedTransaction & {
+export type UserIndexedTransaction = ParsedIndexedTransaction & {
   inSpentUtxos: Utxo[];
   outSpentUtxos: Utxo[];
 };

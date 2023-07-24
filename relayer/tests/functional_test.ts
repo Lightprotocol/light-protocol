@@ -1,6 +1,6 @@
-import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
-import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
-import chai, { assert, use } from "chai";
+import { AnchorProvider, BN } from "@coral-xyz/anchor";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import chai, { assert } from "chai";
 import chaiHttp from "chai-http";
 import express from "express";
 
@@ -13,36 +13,26 @@ import {
   TRANSACTION_MERKLE_TREE_KEY,
   MINT,
   Provider,
-  TOKEN_REGISTRY,
   Utxo,
   airdropSol,
   confirmConfig,
   User,
-  TestRelayer,
-  LOOK_UP_TABLE,
   sleep,
-  airdropShieldedSol,
   Action,
   UserTestAssertHelper,
-  Relayer,
-  IDL_MERKLE_TREE_PROGRAM,
-  merkleTreeProgramId,
-  MerkleTreeProgram,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
 import {
-  initMerkleTree,
   initLookupTable,
   updateMerkleTree,
   getIndexedTransactions,
   handleRelayRequest,
+  buildMerkleTree,
 } from "../src/services";
 import { testSetup } from "../src/setup";
-import { getKeyPairFromEnv, getLightProvider, getRelayer } from "../src/utils/provider";
+import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
 const bs58 = require("bs58");
-import IORedis from "ioredis";
-import { read } from "fs";
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -57,18 +47,25 @@ const addCorsHeadersStub = sinon
 app.use(addCorsHeadersStub);
 
 app.post("/updatemerkletree", updateMerkleTree);
-app.get("/merkletree", initMerkleTree);
 app.get("/lookuptable", initLookupTable);
 app.post("/relayTransaction", handleRelayRequest);
 app.get("/indexedTransactions", getIndexedTransactions);
+app.get("/getBuiltMerkletree", buildMerkleTree);
 
-
-const waitForBalanceUpdate = async (userTestAssertHelper: UserTestAssertHelper, user: User, retries: number = 10) => {
+const waitForBalanceUpdate = async (
+  userTestAssertHelper: UserTestAssertHelper,
+  user: User,
+  retries: number = 10,
+) => {
   let balance = await user.getBalance();
   while (retries > 0) {
     retries--;
     console.log("retries", retries);
-    if (!balance.totalSolBalance.eq(userTestAssertHelper.recipient.preShieldedBalance!.totalSolBalance))
+    if (
+      !balance.totalSolBalance.eq(
+        userTestAssertHelper.recipient.preShieldedBalance!.totalSolBalance,
+      )
+    )
       retries = 0;
     balance = await user.getBalance();
     await sleep(2000);
@@ -99,7 +96,7 @@ describe("API tests", () => {
       lamports: 10_000_000_000,
       recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
     });
-    
+
     await airdropSol({
       provider: anchorProvider,
       lamports: 1000 * 1e9,
@@ -110,41 +107,21 @@ describe("API tests", () => {
     provider = await Provider.init({
       wallet: userKeypair,
       confirmConfig,
-      relayer
+      relayer,
     });
     await airdropSol({
       provider: anchorProvider,
       lamports: 1000 * 1e9,
       recipientPublicKey: provider.relayer.accounts.relayerRecipientSol,
     });
-    
+
     user = await User.init({ provider });
   });
-//  it.skip("merkleTreeProgram ", async () => {
-//   const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(
-//     IDL_MERKLE_TREE_PROGRAM,
-//     merkleTreeProgramId,
-//     anchorProvider,
-//   );
-
-//   let mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
-//     TRANSACTION_MERKLE_TREE_KEY,
-//     "processed",
-//   );
-//   console.log("mtFetched nextIndex ", mtFetched.nextIndex.toString());
-//   console.log("mtFetched nextQueuedIndex ", mtFetched.nextQueuedIndex.toString());
-
-//   });
-  
-  // it("Should return look up table data", (done) => {
-  //   const redisConnection = new IORedis({ maxRetriesPerRequest: null });
-  //   console.log("redisConnection", redisConnection);
-  // });
 
   it("Should return Merkle tree data", (done) => {
     chai
       .request(app)
-      .get("/merkletree")
+      .get("/getBuiltMerkletree")
       .end((err, res) => {
         expect(res).to.have.status(200);
 
@@ -237,34 +214,32 @@ describe("API tests", () => {
   });
   // TODO: add a shield... before, add a transfer too tho, => assert job queeing functioning etc
   it("should unshield SOL and update merkle tree", async () => {
- 
-  const solRecipient = Keypair.generate();
+    const solRecipient = Keypair.generate();
 
-  const testInputs = {
-    amountSol:1,
-    token: "SOL",
-    type: Action.UNSHIELD,
-    recipient: solRecipient.publicKey,
-    expectedUtxoHistoryLength: 1,
-  };
+    const testInputs = {
+      amountSol: 1,
+      token: "SOL",
+      type: Action.UNSHIELD,
+      recipient: solRecipient.publicKey,
+      expectedUtxoHistoryLength: 1,
+    };
 
-  const userTestAssertHelper = new UserTestAssertHelper({
-    userSender: user,
-    userRecipient: user,
-    provider,
-    testInputs,
-  });
-  const balance = await user.getBalance();
-  await userTestAssertHelper.fetchAndSaveState();
-  await user.unshield({
-    publicAmountSol: testInputs.amountSol,
-    token: testInputs.token,
-    recipient: testInputs.recipient,
-  });
+    const userTestAssertHelper = new UserTestAssertHelper({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs,
+    });
+    const balance = await user.getBalance();
+    await userTestAssertHelper.fetchAndSaveState();
+    await user.unshield({
+      publicAmountSol: testInputs.amountSol,
+      token: testInputs.token,
+      recipient: testInputs.recipient,
+    });
 
-  await waitForBalanceUpdate(userTestAssertHelper, user);
-  await userTestAssertHelper.checkSolUnshielded();
-
+    await waitForBalanceUpdate(userTestAssertHelper, user);
+    await userTestAssertHelper.checkSolUnshielded();
   });
   it("Should fail to update Merkle tree", (done) => {
     chai
@@ -316,7 +291,6 @@ describe("API tests", () => {
   });
 
   it("should transfer sol and update merkle tree ", async () => {
-  
     const testInputs = {
       amountSol: 1,
       token: "SOL",
@@ -350,11 +324,9 @@ describe("API tests", () => {
     });
 
     // await waitForBalanceUpdate(testStateValidator, user);
-    await sleep(6000)
+    await sleep(6000);
     await testStateValidator.checkSolTransferred();
-    
   });
-
 
   // TODO: add test for just proper indexing (-> e.g. shields)
   // TODO: add test for stress test load (multiple requests, wrong requests etc)

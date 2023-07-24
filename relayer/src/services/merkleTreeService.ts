@@ -14,7 +14,7 @@ import {
 export const buildMerkleTree = async (req: any, res: any) => {
   try {
     const provider: Provider = await getLightProvider();
-    
+
     const relayer = await getRelayer();
 
     const indexedTransactions = await relayer.getIndexedTransactions(
@@ -37,7 +37,7 @@ export const buildMerkleTree = async (req: any, res: any) => {
 };
 
 export const updateMerkleTree = async (req: any, res: any) => {
-  console.log("Relayer updating merkle tree")
+  console.log("Relayer updating merkle tree");
   try {
     const provider = await getLightProvider();
     await updateMerkleTreeForTest(getKeyPairFromEnv("KEY_PAIR"), provider.url!);

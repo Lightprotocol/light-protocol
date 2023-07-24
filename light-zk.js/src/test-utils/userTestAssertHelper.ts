@@ -11,7 +11,12 @@ import {
   TransactionParameters,
   fetchRecentTransactions,
 } from "../transaction";
-import { IndexedTransaction, TokenData } from "../types";
+import {
+  IndexedTransaction,
+  ParsedIndexedTransaction,
+  TokenData,
+  UserIndexedTransaction,
+} from "../types";
 import { Balance, Provider, User } from "../wallet";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
@@ -60,7 +65,7 @@ export type TestUserBalances = {
 };
 
 export class UserTestAssertHelper {
-  private recentTransaction?: IndexedTransaction;
+  private recentTransaction?: UserIndexedTransaction;
   public provider: Provider;
   public sender: TestUserBalances;
   public recipient: TestUserBalances;
@@ -180,7 +185,7 @@ export class UserTestAssertHelper {
 
     const assertTransactionProperties = (
       reference: ReferenceTransaction,
-      transaction: IndexedTransaction,
+      transaction: ParsedIndexedTransaction,
     ) => {
       assert.equal(
         transaction.type,

@@ -1,9 +1,4 @@
-import {
-  AnchorError,
-  AnchorProvider,
-  BN,
-  Wallet as AnchorWallet,
-} from "@coral-xyz/anchor";
+import { AnchorProvider, BN, Wallet as AnchorWallet } from "@coral-xyz/anchor";
 import {
   PublicKey,
   Keypair as SolanaKeypair,
@@ -28,6 +23,7 @@ import {
   IndexedTransaction,
   MINT,
   MINIMUM_LAMPORTS,
+  ParsedIndexedTransaction,
 } from "../index";
 
 const axios = require("axios");
@@ -166,7 +162,7 @@ export class Provider {
 
   private async fetchMerkleTree(
     merkleTreePubkey: PublicKey,
-    indexedTransactions?: IndexedTransaction[],
+    indexedTransactions?: ParsedIndexedTransaction[],
   ) {
     try {
       if (!this.wallet.isNodeWallet) {
@@ -221,7 +217,7 @@ export class Provider {
     this.poseidon = poseidon;
   }
 
-  async latestMerkleTree(indexedTransactions?: IndexedTransaction[]) {
+  async latestMerkleTree(indexedTransactions?: ParsedIndexedTransaction[]) {
     await this.fetchMerkleTree(
       TRANSACTION_MERKLE_TREE_KEY,
       indexedTransactions,

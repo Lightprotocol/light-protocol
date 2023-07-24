@@ -2,7 +2,6 @@ import {
   PublicKey,
   SystemProgram,
   Transaction as SolanaTransaction,
-  TransactionConfirmationStrategy,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
@@ -18,19 +17,16 @@ import {
   UserError,
   UserErrorCode,
   Provider,
-  SolMerkleTree,
   SIGN_MESSAGE,
   AUTHORITY,
   SelectInUtxosErrorCode,
   TOKEN_REGISTRY,
-  merkleTreeProgramId,
   Account,
   Utxo,
   convertAndComputeDecimals,
   Transaction,
   TransactionParameters,
   Action,
-  getUpdatedSpentUtxos,
   AppUtxoConfig,
   createRecipientUtxos,
   Balance,
@@ -39,7 +35,6 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   decryptAddUtxoToBalance,
   fetchNullifierAccountInfo,
-  IndexedTransaction,
   getUserIndexTransactions,
   UserIndexedTransaction,
   IDL_VERIFIER_PROGRAM_ZERO,
@@ -54,8 +49,8 @@ import {
   UtxoError,
   IDL_VERIFIER_PROGRAM_TWO,
   isProgramVerifier,
-  TokenData,
   decimalConversion,
+  ParsedIndexedTransaction,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -1224,7 +1219,7 @@ export class User {
 
   async getTransactionHistory(
     latest: boolean = true,
-  ): Promise<IndexedTransaction[]> {
+  ): Promise<UserIndexedTransaction[]> {
     try {
       if (latest) {
         await this.getBalance(true);
@@ -1502,7 +1497,7 @@ export class User {
      * - decrypt storage verifier
      */
     const decryptIndexStorage = async (
-      indexedTransactions: IndexedTransaction[],
+      indexedTransactions: ParsedIndexedTransaction[],
       assetLookupTable: string[],
       verifierProgramLookupTable: string[],
     ) => {

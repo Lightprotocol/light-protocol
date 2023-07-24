@@ -8,8 +8,7 @@
     "start": "yarn ts-node lib/index.js",
     "start-local": "sh runScript.sh",
     "build": "npx tsc",
-    "format": "prettier --write \"src/**/*.{ts,js}\"",
-    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
+    "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "keywords": [],

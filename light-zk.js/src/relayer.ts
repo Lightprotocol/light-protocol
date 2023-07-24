@@ -1,6 +1,5 @@
 import {
   Connection,
-  Keypair,
   PublicKey,
   RpcResponseAndContext,
   SignatureResult,
@@ -13,9 +12,8 @@ import {
   Provider,
   IndexedTransaction,
   TOKEN_ACCOUNT_FEE,
-  LOOK_UP_TABLE,
-  ConfirmOptions,
   SendVersionedTransactionsResult,
+  ParsedIndexedTransaction,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -31,7 +29,7 @@ export class Relayer {
   };
   relayerFee: BN;
   highRelayerFee: BN;
-  indexedTransactions: IndexedTransaction[] = [];
+  indexedTransactions: ParsedIndexedTransaction[] = [];
   url: string;
 
   /**
@@ -113,12 +111,12 @@ export class Relayer {
   async getIndexedTransactions(
     /* We must keep the param for type equality with TestRelayer */
     connection: Connection,
-  ): Promise<IndexedTransaction[]> {
+  ): Promise<ParsedIndexedTransaction[]> {
     try {
       const response = await axios.get(this.url + "/indexedTransactions");
 
-      const indexedTransactions: IndexedTransaction[] = response.data.data.map(
-        (trx: IndexedTransaction) => {
+      const indexedTransactions: ParsedIndexedTransaction[] =
+        response.data.data.map((trx: IndexedTransaction) => {
           return {
             ...trx,
             signer: new PublicKey(trx.signer),
@@ -134,8 +132,7 @@ export class Relayer {
             changeSolAmount: new BN(trx.changeSolAmount, "hex"),
             relayerFee: new BN(trx.relayerFee, "hex"),
           };
-        },
-      );
+        });
 
       return indexedTransactions;
     } catch (err) {

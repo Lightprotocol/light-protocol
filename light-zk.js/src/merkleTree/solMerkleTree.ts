@@ -6,6 +6,7 @@ import {
   IndexedTransaction,
   sleep,
   fetchQueuedLeavesAccountInfo,
+  ParsedIndexedTransaction,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "./merkleTree";
@@ -64,7 +65,7 @@ export class SolMerkleTree {
   }: {
     pubkey: PublicKey; // pubkey to bytes
     poseidon: any;
-    indexedTransactions: IndexedTransaction[];
+    indexedTransactions: ParsedIndexedTransaction[];
     provider?: Provider;
   }) {
     const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(

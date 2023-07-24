@@ -73,23 +73,26 @@ export async function addRelayJob({
 }) {
   // id is the last pubkey .toBase58() of the last instruction
   // this should be a leaves pda pubkey
-  let id = instructions[-1].keys[-1].pubkey.toBase58();
-  let job = await relayQueue.add(
-    id,{
+  console.log("instructions", instructions);
+  const lastInstruction = instructions[instructions.length - 1];
+  let id =
+    lastInstruction.keys[lastInstruction.keys.length - 1].pubkey.toBase58();
+  let job = await relayQueue.add(id, {
     instructions,
     response: null,
   });
   return job;
 }
 
-
 export async function handleRelayRequest(req: any, res: any) {
   try {
     validateReqParams(req);
     const instructions = parseReqParams(req.body.instructions);
-    console.log(`/handleRelayRequest - req.body.instructions: ${req.body.instructions}`)
+    console.log(
+      `/handleRelayRequest - req.body.instructions: ${req.body.instructions}`,
+    );
 
-    const job = await addRelayJob({ instructions});
+    const job = await addRelayJob({ instructions });
     console.log(`/handleRelayRequest - added relay job to queue`);
 
     await awaitJobCompletion({ job, res });
