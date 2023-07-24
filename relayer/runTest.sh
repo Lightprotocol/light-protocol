@@ -17,10 +17,12 @@ then
     cp .env.example .env
 fi
 
+mkdir -p .logs
+
 echo "staring redis server"
 ./../.local/bin/redis-server > .logs/redis-logs.txt &
 PID_redis="${!}"
-sleep 5
+sleep 15
 trap "kill ${PID_redis}" EXIT
 # redis specific export
 export ENVIRONMENT=LOCAL
