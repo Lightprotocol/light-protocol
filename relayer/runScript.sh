@@ -29,8 +29,22 @@ solana-test-validator \
     --bpf-program "${VERIFIER_PROGRAM_TWO_ID}" ../light-system-programs/target/deploy/verifier_program_two.so \
     --account-dir ../test-env/accounts \
     &
-PID="${!}"
-# trap "kill ${PID}" EXIT
+
 sleep 7
 
-node lib/index.js
+if [ ! -f "$.env" ]
+then
+    cp .env.example .env
+fi
+
+mkdir -p .logs
+
+echo "starting redis server"
+./../.local/bin/redis-server > .logs/redis-logs.txt &
+PID_redis="${!}"
+sleep 15
+trap "kill ${PID_redis}" EXIT
+# redis specific export
+export ENVIRONMENT=LOCAL
+
+yarn ts-node lib/index.js

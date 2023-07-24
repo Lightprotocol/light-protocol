@@ -61,24 +61,20 @@ function mergeAndSortTransactions(
 
 export async function indexTransactions({
   job,
-  RPC_connection,
-  initialSync,
+  connection,
 }: {
   job: Job;
-  RPC_connection: Connection;
-  initialSync: boolean;
+  connection: Connection;
 }) {
   try {
     const olderTransactions: IndexedTransaction[] = await searchBackward(
       job,
-      RPC_connection,
+      connection,
     );
-    if (olderTransactions.length === 0) initialSync = false;
-    else initialSync = true;
 
     const newerTransactions: IndexedTransaction[] = await searchForward(
       job,
-      RPC_connection,
+      connection,
     );
 
     let dedupedTransactions: IndexedTransaction[] = mergeAndSortTransactions(

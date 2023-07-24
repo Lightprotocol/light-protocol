@@ -1,0 +1,26 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+name: lint
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          ./scripts/install.sh
+
+      - name: Run linters
+        run: |
+          source ./scripts/devenv.sh
+          ./scripts/lint.sh

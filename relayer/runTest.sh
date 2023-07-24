@@ -19,7 +19,7 @@ fi
 
 mkdir -p .logs
 
-echo "staring redis server"
+echo "starting redis server"
 ./../.local/bin/redis-server > .logs/redis-logs.txt &
 PID_redis="${!}"
 sleep 15

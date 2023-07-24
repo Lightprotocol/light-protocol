@@ -42,7 +42,6 @@ export type IndexedTransaction = {
   blockTime: number;
   signer: PublicKey;
   signature: string;
-  accounts: ParsedMessageAccount[];
   to: PublicKey;
   from: PublicKey;
   toSpl: PublicKey;

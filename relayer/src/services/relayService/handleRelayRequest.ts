@@ -1,8 +1,7 @@
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { sleep } from "@lightprotocol/zk.js";
-import { getLightProvider } from "../../utils/provider";
-import { addRelayJob } from "./addRelayJob";
-import { generateNonce } from "../../utils/generateNonce";
+import { relayQueue } from "../../db/redis";
+
 import { Job } from "bullmq";
 import { MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION, SECONDS } from "../../config";
 
@@ -67,18 +66,30 @@ async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
   }
 }
 
+export async function addRelayJob({
+  instructions,
+}: {
+  instructions: TransactionInstruction[];
+}) {
+  // id is the last pubkey .toBase58() of the last instruction
+  // this should be a leaves pda pubkey
+  let id = instructions[-1].keys[-1].pubkey.toBase58();
+  let job = await relayQueue.add(
+    id,{
+    instructions,
+    response: null,
+  });
+  return job;
+}
+
+
 export async function handleRelayRequest(req: any, res: any) {
   try {
     validateReqParams(req);
     const instructions = parseReqParams(req.body.instructions);
     console.log(`/handleRelayRequest - req.body.instructions: ${req.body.instructions}`)
 
-    // TODO: move this to a middleware, shouldn't be called on every request
-    const provider = await getLightProvider();
-    if (!provider.provider) throw new Error("no provider set");
-
-    const nonce = generateNonce();
-    const job = await addRelayJob({ instructions, provider, nonce });
+    const job = await addRelayJob({ instructions});
     console.log(`/handleRelayRequest - added relay job to queue`);
 
     await awaitJobCompletion({ job, res });

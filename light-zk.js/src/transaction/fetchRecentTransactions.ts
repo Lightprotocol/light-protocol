@@ -251,7 +251,6 @@ async function enrichParsedTransactionEvents(
     blockTime: tx.blockTime! * 1000,
     signer: accountKeys[0],
     signature,
-    accounts: accountKeys,
     to,
     from,
     //TODO: check if this is the correct type after latest main?

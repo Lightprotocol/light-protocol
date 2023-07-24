@@ -1,4 +1,3 @@
-import { IndexedTransaction } from "@lightprotocol/zk.js";
 import { DB_VERSION } from "../../config";
 import { indexQueue } from "../../db/redis";
 

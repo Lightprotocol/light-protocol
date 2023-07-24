@@ -5,7 +5,7 @@ import { addCorsHeaders } from "./middleware";
 import bodyParser from "body-parser";
 import {
   getIndexedTransactions,
-  initMerkleTree,
+  buildMerkleTree,
   initLookupTable,
   updateMerkleTree,
   handleRelayRequest,
@@ -21,7 +21,7 @@ app.use(bodyParser.json());
 
 app.post("/updatemerkletree", updateMerkleTree);
 
-app.get("/merkletree", initMerkleTree);
+app.get("/getBuiltMerkletree", buildMerkleTree);
 
 app.get("/lookuptable", initLookupTable);
 

@@ -11,18 +11,10 @@ import {
   getKeyPairFromEnv,
 } from "../utils/provider";
 
-export const initMerkleTree = async (req: any, res: any) => {
+export const buildMerkleTree = async (req: any, res: any) => {
   try {
     const provider: Provider = await getLightProvider();
     
-    const merkletreeIsInited =
-      await provider.provider!.connection.getAccountInfo(
-        TRANSACTION_MERKLE_TREE_KEY,
-      );
-    if (!merkletreeIsInited) {
-      throw new Error("merkletree not inited yet.");
-    }
-
     const relayer = await getRelayer();
 
     const indexedTransactions = await relayer.getIndexedTransactions(
