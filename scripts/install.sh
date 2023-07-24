@@ -204,15 +204,17 @@ download_file_github \
     macro-circom \
     "${PREFIX}/bin"
 
-echo "📥 Downloading Redis"
-mkdir -p "${PREFIX}/redis"
-download_and_extract \
-    "redis-stable.tar.gz" \
-    "https://download.redis.io/redis-stable.tar.gz" \
-    z \
-    "${PREFIX}/redis" \
-    1
-make -C ${PREFIX}/redis
-cp ${PREFIX}/redis/src/redis-server ${PREFIX}/bin
+if $1 == "true" ; then
+    echo "📥 Downloading Redis"
+    mkdir -p "${PREFIX}/redis"
+    download_and_extract \
+        "redis-stable.tar.gz" \
+        "https://download.redis.io/redis-stable.tar.gz" \
+        z \
+        "${PREFIX}/redis" \
+        1
+    make -C ${PREFIX}/redis
+    cp ${PREFIX}/redis/src/redis-server ${PREFIX}/bin
+fi
 
 echo "✨ Light Protocol development dependencies installed"

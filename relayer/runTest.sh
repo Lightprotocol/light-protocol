@@ -18,7 +18,7 @@ then
 fi
 
 echo "staring redis server"
-./../.local/bin/redis-server > /dev/null &
+./../.local/bin/redis-server > .logs/redis-logs.txt &
 PID_redis="${!}"
 sleep 5
 trap "kill ${PID_redis}" EXIT
@@ -49,10 +49,12 @@ sleep 8
 echo "starting relayer server"
 kill $(lsof -ti :3331) > /dev/null  || true
 sleep 1
-node lib/index.js > /dev/null &
+node lib/index.js > .logs/relayer-logs.txt &
 
 sleep 15
 
 echo "executing functional tests"
 
 npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;
+
+kill $(lsof -ti :3331) > /dev/null  || true

@@ -7,6 +7,10 @@ export async function getIndexedTransactions(_req: any, res: any) {
   try {
     const version = DB_VERSION;
     const job = (await indexQueue.getWaiting())[version];
+    if (!job) {
+      console.log("No indexed transctions found");
+      return res.status(200).json({ data: [], lastFetched: 0 });
+    }
     return res
       .status(200)
       .json({ data: job.data.transactions, lastFetched: job.data.lastFetched });

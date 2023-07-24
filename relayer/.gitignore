@@ -6,3 +6,4 @@ lib
 /.env
 .DS_Store
 dump.rdb
+.logs

@@ -1,4 +1,4 @@
-name: Setup and build
+name: Setup and build with relayer
 description: Checkout sources, install dependencies, build and prepare for tests
 runs:
   using: "composite"
@@ -6,7 +6,7 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        ./scripts/install.sh false
+        ./scripts/install.sh true
         source ./scripts/devenv.sh
         # NOTE(vadorovsky): For some reason, Github runners sometimes don't give
         # a heck about rust-toolchain.toml files and keep using random versions
