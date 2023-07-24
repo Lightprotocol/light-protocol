@@ -21,13 +21,10 @@
 /relayer/lib/
 /relayer/lookUpTable.txt
 /relayer/test-ledger/
-/test-ledger/
 */yarn-error.log
 **/yarn-error.log
 
 /**/lookUpTable.txt
-*/yarn-error.log
-**/yarn-error.log
 # light-zk.js
 /light-zk.js/node_modules/
 /light-zk.js/lib/
@@ -49,7 +46,6 @@
 /light-system-programs/lookUpTable.txt
 /light-system-programs/bin
 /groth16-solana/target/
-*/target/*
 
 # light-circuits
 /light-circuits/node_modules/
@@ -62,12 +58,13 @@
 
 # Third-party dependencies
 /.local
-/.idea
 /.vscode
 
-/light-zk.js/.idea
+/**/.idea
+
 /**/dump.rdb
 /tmp-test-psp
 /tmp-test-circom
 
 /**/package-lock.json
+qodana.yaml

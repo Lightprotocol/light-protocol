@@ -39,7 +39,7 @@ const bs58 = require("bs58");
 
 chai.use(chaiHttp);
 const expect = chai.expect;
-var server = RELAYER_URL;
+const server = RELAYER_URL;
 
 describe("API tests", () => {
   let poseidon: any;

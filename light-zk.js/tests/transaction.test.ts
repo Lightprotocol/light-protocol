@@ -44,17 +44,14 @@ describe("Transaction Error Tests", () => {
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let mockPubkey2 = SolanaKeypair.generate().publicKey;
-  let mockPubkey3 = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
-    relayer,
     keypair,
     params: TransactionParameters;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -666,7 +663,7 @@ describe("Transaction Functional Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
     expect(() => {
-      let tx = new Transaction({
+      new Transaction({
         provider: lightProvider,
         params,
       });
@@ -690,7 +687,7 @@ describe("Transaction Functional Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     expect(() => {
-      let tx = new Transaction({
+      new Transaction({
         provider: lightProvider,
         params,
         appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },

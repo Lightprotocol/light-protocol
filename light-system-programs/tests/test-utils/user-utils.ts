@@ -27,7 +27,7 @@ export async function performShielding({
 }) {
   if (!testInputs.recipientSeed && testInputs.shieldToRecipient)
     throw new Error("testinputs recipientSeed is undefined");
-  for (var i = 0; i < numberOfShields; i++) {
+  for (let i = 0; i < numberOfShields; i++) {
     const provider = await Provider.init({
       wallet: environmentConfig.providerSolanaKeypair,
       relayer: environmentConfig.relayer,

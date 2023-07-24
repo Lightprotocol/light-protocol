@@ -1,5 +1,5 @@
 import { expect, test } from "@oclif/test";
-import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
+import { initTestEnvIfNeeded } from "../../../src";
 
 describe("unshield:sol", () => {
   before(async () => {

@@ -11,7 +11,7 @@ import {
   VerifierProgramOne,
   VerifierProgramZero,
   MerkleTreeProgram,
-} from "./idls/index";
+} from "./idls";
 
 import {
   ConfirmOptions,

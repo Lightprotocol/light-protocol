@@ -6,12 +6,11 @@ const randomBN = (nbytes = 30) => {
 import { encrypt, decrypt } from "ethereum-cryptography/aes";
 const { sha3_256 } = require("@noble/hashes/sha3");
 
-exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
 
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 
-var ffjavascript = require("ffjavascript");
+const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
 import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
@@ -38,7 +37,6 @@ import {
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
-
 // TODO: move to constants
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
@@ -46,6 +44,8 @@ export const N_ASSET_PUBKEYS = 3;
 // TODO: Idl support for U256
 // TODO: add static createSolUtxo()
 // TODO: remove account as attribute and from constructor, replace with shieldedPublicKey
+exports
+
 export class Utxo {
   /**
    * @param {BN[]} amounts array of utxo amounts, amounts[0] is the sol amount amounts[1] is the spl amount
@@ -314,7 +314,7 @@ export class Utxo {
         );
 
         if (!circuitIdlObject) {
-          throw new Error(`${`${circuitName}`} does not exist in anchor idl`);
+          throw new Error(`${circuitName} does not exist in anchor idl`);
         }
 
         const fieldNames = circuitIdlObject.type.fields.map(
@@ -338,7 +338,7 @@ export class Utxo {
       };
       checkAppData(appData, appDataIdl);
       let hashArray: any[] = [];
-      for (var attribute in appData) {
+      for (const attribute in appData) {
         hashArray.push(appData[attribute]);
       }
       hashArray = hashArray.flat();
@@ -410,7 +410,7 @@ export class Utxo {
   }
 
   /**
-   * @description Parses a utxo from bytes.
+   * @description Parses an utxo from bytes.
    * @param poseidon poseidon hasher instance
    * @param bytes byte array of a serialized utxo
    * @param account account of the utxo
@@ -567,6 +567,7 @@ export class Utxo {
   /**
    * @description Computes the nullifier for this utxo.
    * @description PoseidonHash(commitment, index, signature)
+   * @param poseidon
    * @param {number} index Merkle tree index of the utxo commitment (Optional)
    *
    * @returns {string}
@@ -628,12 +629,8 @@ export class Utxo {
     compressed: boolean = true,
   ): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(compressed);
-    const commitment = new BN(this.getCommitment(poseidon)).toArrayLike(
-      Buffer,
-      "le",
-      32,
-    );
-    var nonce = commitment.subarray(0, 24);
+    const commitment = new BN(this.getCommitment(poseidon)).toArrayLike(Buffer, "le", 32);
+    const nonce = commitment.subarray(0, 24);
 
     if (!this.account.aesSecret) {
       // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
@@ -656,7 +653,7 @@ export class Utxo {
         );
 
       setEnvironment();
-      const iv16 = nonce.slice(0, 16);
+      const iv16 = nonce.subarray(0, 16);
       const ciphertext = await encrypt(
         bytes_message,
         this.account.getAesUtxoViewingKey(
@@ -667,6 +664,7 @@ export class Utxo {
         "aes-256-cbc",
         true,
       );
+
       if (!compressed) return ciphertext;
       const padding = sha3_256
         .create()
@@ -705,7 +703,7 @@ export class Utxo {
     account: Account;
     index: number;
     merkleTreePdaPublicKey?: PublicKey;
-    aes?: boolean;
+    aes: boolean;
     commitment: Uint8Array;
     appDataIdl?: Idl;
     compressed?: boolean;
@@ -758,10 +756,7 @@ export class Utxo {
     } else {
       const nonce = commitment.slice(0, 24);
       if (compressed) {
-        encBytes = encBytes.slice(
-          0,
-          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-        );
+        encBytes = encBytes.slice(0, NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
       }
 
       if (account.encryptionKeypair.secretKey) {
@@ -835,25 +830,25 @@ export class Utxo {
     if (utxo0.amounts[0].toString() !== utxo1.amounts[0].toString()) {
       throw new Error(
         `solAmount not equal: ${utxo0.amounts[0].toString()} vs ${utxo1.amounts[0].toString()}`,
-      );
+    );
     }
 
     if (utxo0.amounts[1].toString() !== utxo1.amounts[1].toString()) {
       throw new Error(
         `splAmount not equal: ${utxo0.amounts[1].toString()} vs ${utxo1.amounts[1].toString()}`,
-      );
+    );
     }
 
     if (utxo0.assets[0].toBase58() !== utxo1.assets[0].toBase58()) {
       throw new Error(
         `solAsset not equal: ${utxo0.assets[0].toBase58()} vs ${utxo1.assets[0].toBase58()}`,
-      );
+    );
     }
 
     if (utxo0.assets[1].toBase58() !== utxo1.assets[1].toBase58()) {
       throw new Error(
         `splAsset not equal: ${utxo0.assets[1].toBase58()} vs ${utxo1.assets[1].toBase58()}`,
-      );
+    );
     }
 
     if (
@@ -861,7 +856,7 @@ export class Utxo {
     ) {
       throw new Error(
         `solAsset circuit not equal: ${utxo0.assetsCircuit[0].toString()} vs ${utxo1.assetsCircuit[0].toString()}`,
-      );
+    );
     }
 
     if (
@@ -875,19 +870,19 @@ export class Utxo {
     if (utxo0.appDataHash.toString() !== utxo1.appDataHash.toString()) {
       throw new Error(
         `appDataHash not equal: ${utxo0.appDataHash.toString()} vs ${utxo1.appDataHash.toString()}`,
-      );
+    );
     }
 
     if (utxo0.poolType.toString() !== utxo1.poolType.toString()) {
       throw new Error(
         `poolType not equal: ${utxo0.poolType.toString()} vs ${utxo1.poolType.toString()}`,
-      );
+    );
     }
 
     if (utxo0.verifierAddress.toString() !== utxo1.verifierAddress.toString()) {
       throw new Error(
         `verifierAddress not equal: ${utxo0.verifierAddress.toString()} vs ${utxo1.verifierAddress.toString()}`,
-      );
+    );
     }
 
     if (
@@ -896,7 +891,7 @@ export class Utxo {
     ) {
       throw new Error(
         `verifierAddressCircuit not equal: ${utxo0.verifierAddressCircuit.toString()} vs ${utxo1.verifierAddressCircuit.toString()}`,
-      );
+    );
     }
 
     if (
@@ -907,7 +902,7 @@ export class Utxo {
         `commitment not equal: ${utxo0
           .getCommitment(poseidon)
           ?.toString()} vs ${utxo1.getCommitment(poseidon)?.toString()}`,
-      );
+    );
     }
 
     if (!skipNullifier) {
@@ -921,11 +916,11 @@ export class Utxo {
               `nullifier not equal: ${utxo0
                 .getNullifier(poseidon)
                 ?.toString()} vs ${utxo1.getNullifier(poseidon)?.toString()}`,
-            );
-          }
+          );
         }
       }
     }
+  }
   }
 
   static getAppInUtxoIndices(appUtxos: Utxo[]) {

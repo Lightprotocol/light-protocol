@@ -4,9 +4,6 @@ const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 import { it } from "mocha";
 
-const circomlibjs = require("circomlibjs");
-const { buildPoseidonOpt } = circomlibjs;
-
 import {
   functionalCircuitTest,
   IDL_VERIFIER_PROGRAM_ZERO,
@@ -23,11 +20,6 @@ const verifiers = [
 ];
 
 describe("Verifier tests", () => {
-  let poseidon;
-  before(async () => {
-    poseidon = await buildPoseidonOpt();
-  });
-
   it("Test functional circuit", async () => {
     for (let verifier in verifiers) {
       await functionalCircuitTest(

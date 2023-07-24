@@ -40,7 +40,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   setProvider(anchorProvider);
 
   const userKeypair = ADMIN_AUTH_KEYPAIR;
-  var environmentConfig: EnvironmentConfig = {};
+  let environmentConfig: EnvironmentConfig = {};
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
@@ -190,7 +190,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       seed: recipientSeed,
     });
 
-    const utxoCommitmment: string = (
+    const utxoCommitment: string = (
       await userSender.getUtxoInbox()
     ).tokenBalances
       .get(MINT.toBase58())
@@ -202,7 +202,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       token: "USDC",
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
-      utxoCommitments: [utxoCommitmment],
+      utxoCommitments: [utxoCommitment],
       recipientSeed,
     };
 
@@ -280,7 +280,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       seed: recipientSeed,
     });
 
-    const utxoCommitmment: string = (
+    const utxoCommitment: string = (
       await userSender.getUtxoInbox()
     ).tokenBalances
       .get(PublicKey.default.toBase58())
@@ -292,7 +292,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       token: "SOL",
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
-      utxoCommitments: [utxoCommitmment],
+      utxoCommitments: [utxoCommitment],
       recipientSeed,
     };
 

@@ -44,8 +44,7 @@ export class TransactionParameters implements transactionParameters {
   inputUtxos: Array<Utxo>;
   outputUtxos: Array<Utxo>;
   accounts: lightAccounts;
-  // @ts-ignore:
-  relayer: Relayer;
+  relayer!: Relayer;
   encryptedUtxos?: Uint8Array;
   poseidon: any;
   publicAmountSpl: BN;
@@ -726,8 +725,8 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
-    var inputUtxos: Utxo[] = inUtxos ? [...inUtxos] : [];
-    var outputUtxos: Utxo[] = outUtxos ? [...outUtxos] : [];
+    let inputUtxos: Utxo[] = inUtxos ? [...inUtxos] : [];
+    let outputUtxos: Utxo[] = outUtxos ? [...outUtxos] : [];
 
     if (addInUtxos) {
       inputUtxos = selectInUtxos({
@@ -1172,7 +1171,7 @@ export class TransactionParameters implements transactionParameters {
     if (encryptedUtxos) {
       encryptedOutputs = Array.from(encryptedUtxos);
     } else if (this && this.outputUtxos) {
-      for (var utxo in this.outputUtxos) {
+      for (const utxo in this.outputUtxos) {
         if (
           this.outputUtxos[utxo].appDataHash.toString() !== "0" &&
           this.outputUtxos[utxo].includeAppData
@@ -1194,7 +1193,7 @@ export class TransactionParameters implements transactionParameters {
         .flat();
       if (
         encryptedOutputs.length < 128 * this.verifierConfig.out &&
-        this.verifierConfig.out == 2
+        this.verifierConfig.out === 2
       ) {
         return new Uint8Array([
           ...encryptedOutputs,

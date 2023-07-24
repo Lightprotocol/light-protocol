@@ -144,7 +144,7 @@ export function createOutUtxos({
   // check nr outUtxos is leq to nrOuts of verifier
   if (outUtxos.length > numberMaxOutUtxos - 1) {
     throw new CreateUtxoError(
-      CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
+      CreateUtxoErrorCode.INVALID_NUMBER_OF_RECIPIENTS,
       "createOutUtxos",
       `Number of recipients greater than allowed: ${
         outUtxos.length
