@@ -83,14 +83,6 @@ To build the project, use the following commands:
 ./scripts/build.sh
 ```
 
-## Git hook
-
-In order to properly execute the prettier format pre-commit hook, you may first
-need to configure light-zk.js/husky/pre-commit as executable:
-
-```bash
-chmod ug+x ./light-zk.js/husky/*
-```
 
 ## Solana keypair
 
