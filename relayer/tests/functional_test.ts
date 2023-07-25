@@ -55,7 +55,7 @@ app.get("/getBuiltMerkletree", buildMerkleTree);
 const waitForBalanceUpdate = async (
   userTestAssertHelper: UserTestAssertHelper,
   user: User,
-  retries: number = 10,
+  retries: number = 15,
 ) => {
   let balance = await user.getBalance();
   while (retries > 0) {

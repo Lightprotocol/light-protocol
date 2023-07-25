@@ -79,12 +79,28 @@ download_and_extract_github () {
         "${strip_components}"
 }
 
+# Check command line arguments for a specific flag
+check_flag() {
+    flag=$1
+    shift  # This will shift the parameters, so $@ will hold the actual arguments
+    for arg in "$@"
+    do
+        if [ "$arg" = "$flag" ]; then
+            echo true
+            return
+        fi
+    done
+    echo false
+}
+
 NODE_VERSION="16.20.1"
 SOLANA_VERSION="1.16.1"
 ANCHOR_VERSION=`latest_release Lightprotocol anchor`
 CIRCOM_VERSION=`latest_release Lightprotocol circom`
 MACRO_CIRCOM_VERSION=`latest_release Lightprotocol macro-circom`
 LIGHT_PROTOCOL_VERSION=`latest_release Lightprotocol light-protocol`
+ENABLE_REDIS=$(check_flag --enable-redis "$@")
+
 
 if ! rustup toolchain list 2>/dev/null | grep -q "nightly"; then
     echo "Rust nightly is not installed!"
@@ -204,7 +220,7 @@ download_file_github \
     macro-circom \
     "${PREFIX}/bin"
 
-if $1 == "true" ; then
+if $ENABLE_REDIS == true ; then
     echo "📥 Downloading Redis"
     mkdir -p "${PREFIX}/redis"
     download_and_extract \
@@ -213,7 +229,7 @@ if $1 == "true" ; then
         z \
         "${PREFIX}/redis" \
         1
-    make -C ${PREFIX}/redis
+    make -C ${PREFIX}/redis;
     cp ${PREFIX}/redis/src/redis-server ${PREFIX}/bin
 fi
 

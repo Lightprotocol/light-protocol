@@ -107,7 +107,9 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Setup and build
-        uses: ./.github/actions/setup-and-build-with-relayer
+        uses: ./.github/actions/setup-and-build
+        with:
+          enable_redis: 'true'
 
       - name: Test
         run: |

@@ -18,7 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          ./scripts/install.sh false
+          ./scripts/install.sh
 
       - name: Run linters
         run: |
