@@ -559,7 +559,7 @@ export class User {
       );
     let txResult;
     try {
-      txResult = await this.recentTransaction.sendTransaction();
+      txResult = await this.recentTransaction.sendAndConfirmTransaction();
     } catch (e) {
       throw new UserError(
         TransactionErrorCode.SEND_TRANSACTION_FAILED,

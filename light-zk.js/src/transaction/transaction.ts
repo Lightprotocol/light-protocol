@@ -630,12 +630,6 @@ export class Transaction {
   async sendAndConfirmTransaction(): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {
-    return await this.sendTransaction();
-  }
-
-  async sendTransaction(): Promise<
-    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
-  > {
     var instructions = await this.getInstructions(
       this.appParams ? this.appParams : this.params,
     );
