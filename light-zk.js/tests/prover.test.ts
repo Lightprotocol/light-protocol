@@ -47,12 +47,7 @@ describe("Test Prover Functional", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(
-      mockPubkey3,
-      mockPubkey,
-      mockPubkey,
-      new anchor.BN(5000),
-    );
+    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -68,7 +63,6 @@ describe("Test Prover Functional", () => {
     paramsDeposit = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey2,
-      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
@@ -179,7 +173,6 @@ describe("Test Prover Functional", () => {
       outputUtxos: [deposit_utxo1, zeroUtxo1],
       inputUtxos: [zeroUtxo1, zeroUtxo2],
       transactionMerkleTreePubkey: mockPubkey2,
-      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,

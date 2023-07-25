@@ -55,6 +55,7 @@ export class Relayer {
       throw new RelayerError(
         RelayerErrorCode.RELAYER_FEE_UNDEFINED,
         "constructor",
+        "If relayerRecipientSol is defined, relayerFee must be defined and non zero.",
       );
     }
     if (relayerFee.toString() !== "0" && !relayerRecipientSol) {
