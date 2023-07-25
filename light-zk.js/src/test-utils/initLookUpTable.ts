@@ -173,7 +173,6 @@ export async function initLookUpTableTest(
       console.log("e : ", e);
     }
 
-    console.log("inited lookupTableAddress: ", lookupTableAddress.toBase58());
     let lookupTableAccount = await provider.connection.getAccountInfo(
       lookupTableAddress,
       "confirmed",

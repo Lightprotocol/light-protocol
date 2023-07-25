@@ -73,7 +73,6 @@ export async function addRelayJob({
 }) {
   // id is the last pubkey .toBase58() of the last instruction
   // this should be a leaves pda pubkey
-  console.log("instructions", instructions);
   const lastInstruction = instructions[instructions.length - 1];
   let id =
     lastInstruction.keys[lastInstruction.keys.length - 1].pubkey.toBase58();
