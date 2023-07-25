@@ -1,41 +1,7 @@
 import { Job } from "bullmq";
-import { Connection, TransactionResponse } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import { IndexedTransaction } from "@lightprotocol/zk.js";
 import { searchBackward, searchForward } from "./search";
-
-// Unused until we move to devnet for webhooks
-async function indexStreamedTransactions({
-  connection,
-  newRawTransactions,
-  job,
-  token,
-}: {
-  connection: Connection;
-  newRawTransactions: TransactionResponse[];
-  job: Job;
-  token: any;
-}) {
-  const newParsedTransactions: IndexedTransaction[] = [];
-  //   await Promise.all(
-  //     newRawTransactions.map((tx: TransactionResponse) =>
-  //       parse({
-  //         tx,
-  //         transactions: newParsedTransactions,
-  //         connection,
-  //         token,
-  //       }),
-  //     ),
-  //   );
-
-  let mergedTransactions = mergeAndSortTransactions(job.data.transactions, [
-    newParsedTransactions,
-  ]);
-
-  await job.updateData({
-    transactions: mergedTransactions,
-    lastFetched: Date.now(),
-  });
-}
 
 function mergeAndSortTransactions(
   dbTransactions: IndexedTransaction[],
