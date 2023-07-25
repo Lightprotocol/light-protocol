@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/cli",
-  "version": "0.1.1-alpha.12",
+  "version": "0.1.1-alpha.13",
   "description": "",
   "main": "build/cli.js",
   "scripts": {
@@ -20,9 +20,10 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "0.27.0",
-    "@lightprotocol/zk.js": "0.3.2-alpha.8",
+    "@coral-xyz/anchor": "0.28.0",
+    "@lightprotocol/zk.js": "0.3.2-alpha.11",
     "@solana/web3.js": "1.76.0",
+    "chai": "^4.3.7",
     "circomlibjs": "^0.1.7",
     "cli-progress": "^3.12.0",
     "node-fetch": "^3.3.1",
@@ -37,6 +38,6 @@
   },
   "files": [
     "build/**/*",
-    "scripts/*"
+    "accounts/*"
   ]
 }
