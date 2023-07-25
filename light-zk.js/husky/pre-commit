@@ -1,9 +1,0 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-cd light-zk.js
-yarn run format
-
-git add .
-
-# exit 1
-

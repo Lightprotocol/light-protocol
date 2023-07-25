@@ -1,6 +1,10 @@
 import * as path from "path";
 
-import { downloadCargoGenerateIfNotExists, downloadLightBinIfNotExists, downloadSolanaIfNotExists } from "./download";
+import {
+  downloadCargoGenerateIfNotExists,
+  downloadLightBinIfNotExists,
+  downloadSolanaIfNotExists,
+} from "./download";
 import { executeCommand } from "./process";
 
 const defaultCargoGeneratePath = "../../bin/cargo-generate";
@@ -47,10 +51,10 @@ function createPathFunction({
     await downloadFunction({
       localFilePath,
       dirPath,
-      ...downloadParams
+      ...downloadParams,
     });
     return localFilePath;
-  }
+  };
 }
 
 /**
@@ -58,7 +62,7 @@ function createPathFunction({
  * @returns {Promise<string>}
  */
 const cargoGeneratePath = createPathFunction({
-  envVarName: 'LIGHT_PROTOCOL_CARGO_GENERATE_PATH',
+  envVarName: "LIGHT_PROTOCOL_CARGO_GENERATE_PATH",
   defaultPath: defaultCargoGeneratePath,
   downloadFunction: downloadCargoGenerateIfNotExists,
 });
@@ -68,10 +72,10 @@ const cargoGeneratePath = createPathFunction({
  * @returns {Promise<string>}
  */
 const circomPath = createPathFunction({
-  envVarName: 'LIGHT_PROTOCOL_CIRCOM_PATH',
+  envVarName: "LIGHT_PROTOCOL_CIRCOM_PATH",
   defaultPath: defaultCircomPath,
   downloadFunction: downloadLightBinIfNotExists,
-  downloadParams: { repoName: "circom", remoteFileName: "circom" }
+  downloadParams: { repoName: "circom", remoteFileName: "circom" },
 });
 
 /**
@@ -79,10 +83,10 @@ const circomPath = createPathFunction({
  * @returns {Promise<string>}
  */
 const macroCircomPath = createPathFunction({
-  envVarName: 'LIGHT_PROTOCOL_MACRO_CIRCOM_PATH',
+  envVarName: "LIGHT_PROTOCOL_MACRO_CIRCOM_PATH",
   defaultPath: defaultMacroCircomPath,
   downloadFunction: downloadLightBinIfNotExists,
-  downloadParams: { repoName: "macro-circom", remoteFileName: "macro-circom" }
+  downloadParams: { repoName: "macro-circom", remoteFileName: "macro-circom" },
 });
 
 /**
@@ -90,10 +94,10 @@ const macroCircomPath = createPathFunction({
  * @returns {Promise<string>}
  */
 const anchorPath = createPathFunction({
-  envVarName: 'LIGHT_PROTOCOL_ANCHOR_PATH',
+  envVarName: "LIGHT_PROTOCOL_ANCHOR_PATH",
   defaultPath: defaultAnchorPath,
   downloadFunction: downloadLightBinIfNotExists,
-  downloadParams: { repoName: "anchor", remoteFileName: "light-anchor" }
+  downloadParams: { repoName: "anchor", remoteFileName: "light-anchor" },
 });
 
 /**
@@ -101,7 +105,7 @@ const anchorPath = createPathFunction({
  * @returns {Promise<string>}
  */
 async function solanaPath(): Promise<string> {
-  const envPath = process.env['LIGHT_PROTOCOL_SOLANA_PATH'];
+  const envPath = process.env["LIGHT_PROTOCOL_SOLANA_PATH"];
   if (envPath) {
     return Promise.resolve(envPath);
   }
@@ -155,9 +159,9 @@ export const executeMacroCircom = createExecuteFunction(macroCircomPath);
  * @returns {Promise<string>}
  */
 export async function executeAnchor({
-  args
+  args,
 }: {
-  args: string[]
+  args: string[];
 }): Promise<string> {
   const command = await anchorPath();
   const additionalPath = await solanaPath();

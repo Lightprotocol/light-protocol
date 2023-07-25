@@ -108,7 +108,7 @@ export async function sendVersionedTransactions(
         lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
         blockhash: latestBlockHash.blockhash,
       };
-      await connection.confirmTransaction(strategy);
+      await connection.confirmTransaction(strategy, "confirmed");
     }
     return { signatures };
   } catch (error) {
