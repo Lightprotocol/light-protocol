@@ -20,8 +20,7 @@
     "test-convertDecimals": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/convertDecimals.test.ts --exit",
     "build": "yarn tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier \"src/**/*{ts,js}\" --check",
-    "prepare": "cd .. && husky install ./light-zk.js/husky"
+    "lint": "prettier \"src/**/*{ts,js}\" --check"
   },
   "format-staged": {
     "**/*.{js,jsx}": [

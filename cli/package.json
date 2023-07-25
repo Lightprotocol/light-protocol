@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/cli",
-  "version": "0.1.1-alpha.13",
+  "version": "0.1.1-alpha.14",
   "description": "",
   "main": "build/cli.js",
   "scripts": {
@@ -22,6 +22,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/zk.js": "0.3.2-alpha.11",
+    "@project-serum/anchor": "^0.26.0",
     "@solana/web3.js": "1.76.0",
     "chai": "^4.3.7",
     "circomlibjs": "^0.1.7",

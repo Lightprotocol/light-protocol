@@ -43,7 +43,7 @@ export async function start_test_validator(
 ) {
   const command = "solana-test-validator";
   const LIMIT_LEDGER_SIZE = "500000000";
-  const BASE_PATH = "/bin/programs/";
+  const BASE_PATH = "/bin/";
   const programs = [
     { id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV", name: "spl_noop.so" },
     {
@@ -78,7 +78,7 @@ export async function start_test_validator(
   ];
 
   for (let program of programs) {
-    let dirPathString = "../../bin/programs/" + program.name;
+    let dirPathString = "../../bin/" + program.name;
     const localFilePath = path.resolve(__dirname, dirPathString);
     if (!program.path) {
       await downloadBinIfNotExists({

@@ -6,7 +6,7 @@ mkdir -p bin/programs
 
 for key in $keys
 do
-    cp ../light-system-programs/target/deploy/$key.so ./bin/programs/$key.so
+    cp ../light-system-programs/target/deploy/$key.so ./bin/$key.so
 done
 
-# cp ../test-env/programs/spl_noop.so ./bin/programs/spl_noop.so
+cp ../test-env/programs/spl_noop.so ./bin/spl_noop.so
