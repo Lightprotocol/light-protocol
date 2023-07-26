@@ -128,7 +128,7 @@ export class Prover {
     const res = await snarkjs.groth16.verify(
       this.vKey,
       this.publicInputs,
-      this.proof,
+      proof || this.proof,
     );
     return res;
   }

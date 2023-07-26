@@ -3,12 +3,10 @@ import {
   functionalCircuitTest,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
-  IDL_VERIFIER_PROGRAM_TWO
+  IDL_VERIFIER_PROGRAM_TWO,
 } from "@lightprotocol/zk.js";
 import * as anchor from "@coral-xyz/anchor";
-import { assert, expect } from "chai";
 import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
-const circomlibjs = require("circomlibjs");
 
 describe("verifier_program", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -19,7 +17,7 @@ describe("verifier_program", () => {
       const provider = new anchor.AnchorProvider(
         await new Connection("http://127.0.0.1:8899"),
         new anchor.Wallet(SolanaKeypair.generate()),
-        confirmConfig
+        confirmConfig,
       );
       await anchor.setProvider(provider);
     } catch (error) {

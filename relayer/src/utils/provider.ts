@@ -1,12 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { relayerFee, rpcPort } from "../config";
-import {
-  ADMIN_AUTH_KEYPAIR,
-  confirmConfig,
-  Provider,
-  Relayer,
-} from "@lightprotocol/zk.js";
+import { confirmConfig, Provider, Relayer } from "@lightprotocol/zk.js";
 require("dotenv").config();
 
 let provider: Provider;

@@ -1,3 +1,4 @@
+/*
 import * as anchor from "@coral-xyz/anchor";
 import {
   SystemProgram,
@@ -47,7 +48,7 @@ import { BN } from "@coral-xyz/anchor";
 var LOOK_UP_TABLE, POSEIDON, KEYPAIR, RELAYER, deposit_utxo1;
 
 var transactions: Transaction[] = [];
-/*
+
 describe("Verifier Two test", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -106,12 +107,13 @@ describe("Verifier Two test", () => {
         2_000_000_000,
       );
 
-      RELAYER = await new TestRelayer(
-        ADMIN_AUTH_KEYPAIR.publicKey,
-        LOOK_UP_TABLE,
-        relayerRecipientSol,
-        new BN(100000),
-      );
+      RELAYER = new TestRelayer({
+        relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+        lookUpTable: LOOK_UP_TABLE,
+        relayerRecipientSol: relayerRecipientSol,
+        relayerFee: new BN(100_000),
+        payer: ADMIN_AUTH_KEYPAIR,
+      });
 
       let lightProvider = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,

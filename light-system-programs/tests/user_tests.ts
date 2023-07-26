@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import _ from "lodash";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -26,11 +26,10 @@ import {
   generateRandomTestAmount,
   airdropSol,
   ConfirmOptions,
-  sleep,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
-import { assert, use } from "chai";
+import { assert } from "chai";
 
 var POSEIDON;
 var RELAYER: TestRelayer, provider: Provider, user: User;
@@ -60,10 +59,11 @@ describe("Test User", () => {
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol,
-      relayerFee: new anchor.BN(100_000),
+      relayerRecipientSol: relayerRecipientSol,
+      relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
+
     provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,

@@ -20,13 +20,13 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   let { projectName, programAddress }: any = argv;
   if (!projectName) {
     console.log(
-      "Project name is undefined add a project name with --projectName <project-name>"
+      "Project name is undefined. Add a project name with --projectName <project-name>"
     );
     process.exit(0);
   }
   if (!programAddress) {
     console.log(
-      "Program address is undefined add a program address with --programAddress <program-address>"
+      "Program address is undefined. Add a program address with --programAddress <program-address>"
     );
     process.exit(0);
   }

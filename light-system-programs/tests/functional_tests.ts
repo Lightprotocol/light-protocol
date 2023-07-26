@@ -10,9 +10,6 @@ import {
   Transaction,
   Utxo,
   LOOK_UP_TABLE,
-  initLookUpTableFromFile,
-  MerkleTreeProgram,
-  merkleTreeProgramId,
   TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
@@ -43,8 +40,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 var POSEIDON;
 var RELAYER;
 var KEYPAIR;
-var deposit_utxo1: Utxo;
-var TRANSACTION_NONCE = 0;
+
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
@@ -74,10 +70,10 @@ describe("verifier_program", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer({
+    RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol,
+      relayerRecipientSol: relayerRecipientSol,
       relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
@@ -179,7 +175,6 @@ describe("verifier_program", () => {
       tx.proofInput,
       KEYPAIR,
     );
-    TRANSACTION_NONCE++;
   };
 
   it("Deposit (verifier one)", async () => {
@@ -287,7 +282,6 @@ describe("verifier_program", () => {
       tx.remainingAccounts,
       tx.proofInput,
     );
-    TRANSACTION_NONCE++;
   };
 
   it("Withdraw (verifier zero)", async () => {
