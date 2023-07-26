@@ -78,7 +78,9 @@ export class TransactionParameters implements transactionParameters {
     encryptedUtxos,
     poseidon,
     action,
+    lookUpTable,
     ataCreationFee,
+    validateUtxos = true,
     verifierIdl,
   }: {
     message?: Buffer;
@@ -94,8 +96,10 @@ export class TransactionParameters implements transactionParameters {
     encryptedUtxos?: Uint8Array;
     poseidon: any;
     action: Action;
+    lookUpTable?: PublicKey;
     provider?: Provider;
     ataCreationFee?: boolean;
+    validateUtxos?: boolean;
     verifierIdl: Idl;
   }) {
     if (!outputUtxos && !inputUtxos) {
@@ -155,13 +159,19 @@ export class TransactionParameters implements transactionParameters {
     this.action = action;
     this.inputUtxos = this.addEmptyUtxos(inputUtxos, this.verifierConfig.in);
     this.outputUtxos = this.addEmptyUtxos(outputUtxos, this.verifierConfig.out);
-    if (action === Action.SHIELD && senderSol) {
-      this.relayer = new Relayer(senderSol);
+    if (action === Action.SHIELD && senderSol && lookUpTable) {
+      this.relayer = new Relayer(senderSol, lookUpTable);
     } else if (action === Action.SHIELD && !senderSol) {
       throw new TransactionParametersError(
         TransactionErrorCode.SOL_SENDER_UNDEFINED,
         "constructor",
         "Sender sol always needs to be defined because we use it as the signer to instantiate the relayer object.",
+      );
+    } else if (action === Action.SHIELD && !lookUpTable) {
+      throw new TransactionParametersError(
+        TransactionParametersErrorCode.LOOK_UP_TABLE_UNDEFINED,
+        "constructor",
+        "At deposit lookup table needs to be defined to instantiate a relayer object with yourself as the relayer.",
       );
     }
 
@@ -781,6 +791,7 @@ export class TransactionParameters implements transactionParameters {
       recipientSol,
       poseidon: provider.poseidon,
       action,
+      lookUpTable: provider.lookUpTable!,
       relayer: relayer,
       ataCreationFee,
       verifierIdl,

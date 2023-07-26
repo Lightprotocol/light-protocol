@@ -1,17 +1,15 @@
 import express from "express";
 import { testSetup } from "./setup";
-import { DB_VERSION, port } from "./config";
+import { port } from "./config";
 import { addCorsHeaders } from "./middleware";
 import bodyParser from "body-parser";
 import {
-  getIndexedTransactions,
-  buildMerkleTree,
+  indexedTransactions,
+  initMerkleTree,
   initLookupTable,
+  sendTransaction,
   updateMerkleTree,
-  handleRelayRequest,
-  runIndexer,
 } from "./services";
-import { getTransactions } from "./db/redis";
 require("dotenv").config();
 
 const app = express();
@@ -21,23 +19,18 @@ app.use(bodyParser.json());
 
 app.post("/updatemerkletree", updateMerkleTree);
 
-app.get("/getBuiltMerkletree", buildMerkleTree);
+app.get("/merkletree", initMerkleTree);
 
 app.get("/lookuptable", initLookupTable);
 
-app.post("/relayTransaction", handleRelayRequest);
+app.post("/relayTransaction", sendTransaction);
 
-app.get("/indexedTransactions", getIndexedTransactions);
+app.get("/indexedTransactions", indexedTransactions);
 
 app.listen(port, async () => {
-  if (process.env.TEST_ENVIRONMENT) {
+  if (process.env.TEST_ENVIROMENT) {
     await testSetup();
-    // TODO: temporary!
-    let { job } = await getTransactions(DB_VERSION);
-    await job.updateData({ transactions: [] });
   }
-
-  runIndexer();
 
   console.log(`Webserver started on port ${port}`);
   console.log("rpc:", process.env.RPC_URL);

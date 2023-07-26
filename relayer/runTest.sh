@@ -12,25 +12,9 @@ VERIFIER_PROGRAM_ONE_ID="J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
 VERIFIER_PROGRAM_TWO_ID="2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
 MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
-if [ ! -f "$.env" ]
-then
-    cp .env.example .env
-fi
-
-mkdir -p .logs
-
-echo "starting redis server"
-./../.local/bin/redis-server > .logs/redis-logs.txt &
-PID_redis="${!}"
-sleep 15
-trap "kill ${PID_redis}" EXIT
-# redis specific export
-export ENVIRONMENT=LOCAL
-
-echo "starting solana-test-validator"
 solana config set --url http://localhost:8899
+
 pkill solana-test-validator || true
-sleep 1
 solana-test-validator \
     --reset \
     --limit-ledger-size="${LIMIT_LEDGER_SIZE}" \
@@ -45,18 +29,12 @@ solana-test-validator \
     &
 PID="${!}"
 trap "kill ${PID}" EXIT
+sleep 7
 
-sleep 8
+node lib/index.js &
+relayer_pid=$!
+trap "kill ${relayer_pid}" EXIT
 
-echo "starting relayer server"
-kill $(lsof -ti :3331) > /dev/null  || true
-sleep 1
-node lib/index.js > .logs/relayer-logs.txt &
+sleep 20
 
-sleep 15
-
-echo "executing functional tests"
-
-npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;
-
-kill $(lsof -ti :3331) > /dev/null  || true
+ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit

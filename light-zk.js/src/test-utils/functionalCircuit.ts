@@ -43,6 +43,7 @@ export async function functionalCircuitTest(
     transactionMerkleTreePubkey: mockPubkey,
     senderSpl: mockPubkey,
     senderSol: lightProvider.wallet!.publicKey,
+    lookUpTable: mockPubkey,
     action: Action.SHIELD,
     poseidon,
     verifierIdl: verifierIdl,

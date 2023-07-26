@@ -53,7 +53,12 @@ describe("Transaction Error Tests", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(
+      mockPubkey3,
+      mockPubkey,
+      mockPubkey,
+      new anchor.BN(5000),
+    );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -68,6 +73,7 @@ describe("Transaction Error Tests", () => {
     params = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey2,
+      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
@@ -139,6 +145,7 @@ describe("Transaction Error Tests", () => {
     const params1 = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey2,
+      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
@@ -278,7 +285,12 @@ describe("Transaction Functional Tests", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(
+      mockPubkey3,
+      mockPubkey,
+      mockPubkey,
+      new anchor.BN(5000),
+    );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -294,6 +306,7 @@ describe("Transaction Functional Tests", () => {
     paramsDeposit = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey2,
+      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
@@ -335,6 +348,7 @@ describe("Transaction Functional Tests", () => {
       message: Buffer.alloc(928).fill(1),
       inputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey2,
+      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet?.publicKey,
@@ -388,13 +402,19 @@ describe("Transaction Functional Tests", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    const relayer = new Relayer(mockPubkey, mockPubkey, new anchor.BN(5000));
+    const relayer = new Relayer(
+      mockPubkey,
+      mockPubkey,
+      mockPubkey,
+      new anchor.BN(5000),
+    );
 
     let params = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey,
       recipientSpl: mockPubkey,
       recipientSol: mockPubkey,
+      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       action: Action.UNSHIELD,
       relayer,
@@ -505,7 +525,12 @@ describe("Transaction Functional Tests", () => {
   });
 
   it("getConnectingHash", async () => {
-    const relayerConst = new Relayer(AUTHORITY, AUTHORITY, new anchor.BN(5000));
+    const relayerConst = new Relayer(
+      AUTHORITY,
+      AUTHORITY,
+      AUTHORITY,
+      new anchor.BN(5000),
+    );
     const paramsStaticEncryptedUtxos = new TransactionParameters({
       inputUtxos: [deposit_utxo1, deposit_utxo1],
       outputUtxos: [deposit_utxo1, deposit_utxo1],
@@ -656,6 +681,7 @@ describe("Transaction Functional Tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
+      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
@@ -679,6 +705,7 @@ describe("Transaction Functional Tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
+      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,

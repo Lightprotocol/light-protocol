@@ -1,15 +1,24 @@
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
-import { mintTo, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { token } from "@coral-xyz/anchor/dist/cjs/utils";
+import {
+  getAccount,
+  getAssociatedTokenAddressSync,
+  mintTo,
+  createAssociatedTokenAccount,
+  getOrCreateAssociatedTokenAccount,
+} from "@solana/spl-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import {
   ADMIN_AUTH_KEYPAIR,
   ConfirmOptions,
   MINT,
   Provider,
+  RELAYER_FEES,
   TestRelayer,
   TOKEN_PUBKEY_SYMBOL,
   User,
-  confirmConfig,
+  userTokenAccount,
+  USER_TOKEN_ACCOUNT,
 } from "../index";
 
 export async function airdropShieldedSol({
@@ -31,6 +40,7 @@ export async function airdropShieldedSol({
   const relayer = await new TestRelayer({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
+    lookUpTable: Keypair.generate().publicKey,
     relayerFee: new BN(100000),
     payer: ADMIN_AUTH_KEYPAIR,
   });
@@ -38,7 +48,6 @@ export async function airdropShieldedSol({
     provider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: relayer,
-      confirmConfig,
     });
   }
   const userKeypair = Keypair.generate();
@@ -97,6 +106,7 @@ export async function airdropShieldedMINTSpl({
   const relayer = await new TestRelayer({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
+    lookUpTable: Keypair.generate().publicKey,
     relayerFee: new BN(100000),
     payer: ADMIN_AUTH_KEYPAIR,
   });
@@ -104,7 +114,6 @@ export async function airdropShieldedMINTSpl({
     provider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: relayer,
-      confirmConfig,
     });
   }
 
