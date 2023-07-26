@@ -4,9 +4,9 @@
   "description": "",
   "main": "build/cli.js",
   "scripts": {
-    "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier \"src/**/*{ts,js}\" --check",
-    "build": "yarn tsc && chmod +x build/cli.js"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "prettier --write \"src/**/*.{ts,js}\"",
+    "build": "yarn tsc && chmod +x build/cli.js && ./scripts/copyLocalProgramBinaries.sh"
   },
   "keywords": [],
   "author": "",
@@ -23,7 +23,7 @@
     "@coral-xyz/anchor": "0.27.0",
     "@lightprotocol/zk.js": "0.3.2-alpha.8",
     "@solana/web3.js": "1.76.0",
-    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.7",
     "circomlibjs": "^0.1.7",
     "cli-progress": "^3.12.0",
     "node-fetch": "^3.3.1",
