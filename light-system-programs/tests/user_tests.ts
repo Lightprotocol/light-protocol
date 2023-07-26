@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import { Keypair as SolanaKeypair, PublicKey, Keypair } from "@solana/web3.js";
 import _ from "lodash";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -26,11 +26,10 @@ import {
   generateRandomTestAmount,
   airdropSol,
   ConfirmOptions,
-  sleep,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
-import { assert, use } from "chai";
+import { assert } from "chai";
 
 var POSEIDON;
 var RELAYER: TestRelayer, provider: Provider, user: User;
@@ -56,17 +55,23 @@ describe("Test User", () => {
       relayerRecipientSol,
       2_000_000_000,
     );
-
+    let relayer = Keypair.generate();
+    await airdropSol({
+      provider: anchorProvider,
+      lamports: 2_000_000_000,
+      recipientPublicKey: relayer.publicKey,
+    });
     RELAYER = new TestRelayer({
-      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
+      relayerPubkey: relayer.publicKey,
       relayerRecipientSol,
       relayerFee: new anchor.BN(100_000),
-      payer: ADMIN_AUTH_KEYPAIR,
+      payer: relayer,
     });
+
     provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
+      confirmConfig,
     });
     await airdropSol({
       provider: anchorProvider,
@@ -131,11 +136,7 @@ describe("Test User", () => {
       token: testInputs.token,
     });
 
-    // TODO: add random amount and amount checks
-    await user.provider.latestMerkleTree();
-    // is failing because we are paying for the merkle tree update from the same keypair
-    // TODO: factor these costs into the equation or pay for the update from a different keypair for example one defined in the testrelayer
-    // await testStateValidator.checkSolShielded();
+    await testStateValidator.checkSolShielded();
   });
 
   it("(user class) confirm options SPL", async () => {
@@ -385,6 +386,7 @@ describe("Test User Errors", () => {
     provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
+      confirmConfig,
     });
 
     user = await User.init({ provider });

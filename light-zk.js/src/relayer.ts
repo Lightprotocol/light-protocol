@@ -1,6 +1,5 @@
 import {
   Connection,
-  Keypair,
   PublicKey,
   RpcResponseAndContext,
   SignatureResult,
@@ -13,9 +12,8 @@ import {
   Provider,
   IndexedTransaction,
   TOKEN_ACCOUNT_FEE,
-  LOOK_UP_TABLE,
-  ConfirmOptions,
   SendVersionedTransactionsResult,
+  ParsedIndexedTransaction,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -28,23 +26,20 @@ export class Relayer {
   accounts: {
     relayerPubkey: PublicKey; // signs the transaction
     relayerRecipientSol: PublicKey; // receives the fees
-    lookUpTable: PublicKey;
   };
   relayerFee: BN;
   highRelayerFee: BN;
-  indexedTransactions: IndexedTransaction[] = [];
+  indexedTransactions: ParsedIndexedTransaction[] = [];
   url: string;
 
   /**
    *
    * @param relayerPubkey Signs the transaction
-   * @param lookUpTable  The relayer's lookuptable - uniformly used currently
    * @param relayerRecipientSol Recipient account for SOL fees
    * @param relayerFee Fee amount
    */
   constructor(
     relayerPubkey: PublicKey,
-    lookUpTable: PublicKey,
     relayerRecipientSol?: PublicKey,
     relayerFee: BN = new BN(0),
     highRelayerFee: BN = new BN(TOKEN_ACCOUNT_FEE),
@@ -56,16 +51,11 @@ export class Relayer {
         "constructor",
       );
     }
-    // if (!lookUpTable) {
-    //   throw new RelayerError(
-    //     RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
-    //     "constructor",
-    //   );
-    // }
     if (relayerRecipientSol && relayerFee.toString() === "0") {
       throw new RelayerError(
         RelayerErrorCode.RELAYER_FEE_UNDEFINED,
         "constructor",
+        "If relayerRecipientSol is defined, relayerFee must be defined and non zero.",
       );
     }
     if (relayerFee.toString() !== "0" && !relayerRecipientSol) {
@@ -77,13 +67,11 @@ export class Relayer {
     if (relayerRecipientSol) {
       this.accounts = {
         relayerPubkey,
-        lookUpTable,
         relayerRecipientSol,
       };
     } else {
       this.accounts = {
         relayerPubkey,
-        lookUpTable,
         relayerRecipientSol: relayerPubkey,
       };
     }
@@ -122,13 +110,14 @@ export class Relayer {
   }
 
   async getIndexedTransactions(
+    /* We must keep the param for type equality with TestRelayer */
     connection: Connection,
-  ): Promise<IndexedTransaction[]> {
+  ): Promise<ParsedIndexedTransaction[]> {
     try {
       const response = await axios.get(this.url + "/indexedTransactions");
 
-      const indexedTransactions: IndexedTransaction[] = response.data.data.map(
-        (trx: IndexedTransaction) => {
+      const indexedTransactions: ParsedIndexedTransaction[] =
+        response.data.data.map((trx: IndexedTransaction) => {
           return {
             ...trx,
             signer: new PublicKey(trx.signer),
@@ -138,13 +127,13 @@ export class Relayer {
             fromSpl: new PublicKey(trx.fromSpl),
             verifier: new PublicKey(trx.verifier),
             relayerRecipientSol: new PublicKey(trx.relayerRecipientSol),
-            firstLeafIndex: new BN(trx.firstLeafIndex),
-            publicAmountSol: new BN(trx.publicAmountSol),
-            publicAmountSpl: new BN(trx.publicAmountSpl),
-            changeSolAmount: new BN(trx.changeSolAmount),
+            firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
+            publicAmountSol: new BN(trx.publicAmountSol, "hex"),
+            publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
+            changeSolAmount: new BN(trx.changeSolAmount, "hex"),
+            relayerFee: new BN(trx.relayerFee, "hex"),
           };
-        },
-      );
+        });
 
       return indexedTransactions;
     } catch (err) {

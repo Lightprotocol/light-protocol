@@ -42,7 +42,27 @@ export type IndexedTransaction = {
   blockTime: number;
   signer: PublicKey;
   signature: string;
-  accounts: ParsedMessageAccount[];
+  to: PublicKey;
+  from: PublicKey;
+  toSpl: PublicKey;
+  fromSpl: PublicKey;
+  verifier: PublicKey;
+  relayerRecipientSol: PublicKey;
+  type: Action;
+  changeSolAmount: string;
+  publicAmountSol: string;
+  publicAmountSpl: string;
+  encryptedUtxos: Buffer | any[];
+  leaves: number[][];
+  firstLeafIndex: string;
+  nullifiers: BN[];
+  relayerFee: string;
+  message: Buffer;
+};
+export type ParsedIndexedTransaction = {
+  blockTime: number;
+  signer: PublicKey;
+  signature: string;
   to: PublicKey;
   from: PublicKey;
   toSpl: PublicKey;
@@ -61,7 +81,7 @@ export type IndexedTransaction = {
   message: Buffer;
 };
 
-export type UserIndexedTransaction = IndexedTransaction & {
+export type UserIndexedTransaction = ParsedIndexedTransaction & {
   inSpentUtxos: Utxo[];
   outSpentUtxos: Utxo[];
 };
