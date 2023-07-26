@@ -227,7 +227,7 @@ describe("Verifier Zero and One Tests", () => {
     tx.provider.provider = provider;
     var e;
     try {
-      e = await tx.sendTransaction();
+      e = await tx.sendAndConfirmTransaction();
     } catch (error) {
       e = error;
     }
