@@ -2,6 +2,7 @@ import {
   PublicKey,
   SystemProgram,
   Transaction as SolanaTransaction,
+  TransactionConfirmationStrategy,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
@@ -17,16 +18,19 @@ import {
   UserError,
   UserErrorCode,
   Provider,
+  SolMerkleTree,
   SIGN_MESSAGE,
   AUTHORITY,
   SelectInUtxosErrorCode,
   TOKEN_REGISTRY,
+  merkleTreeProgramId,
   Account,
   Utxo,
   convertAndComputeDecimals,
   Transaction,
   TransactionParameters,
   Action,
+  getUpdatedSpentUtxos,
   AppUtxoConfig,
   createRecipientUtxos,
   Balance,
@@ -35,6 +39,7 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   decryptAddUtxoToBalance,
   fetchNullifierAccountInfo,
+  IndexedTransaction,
   getUserIndexTransactions,
   UserIndexedTransaction,
   IDL_VERIFIER_PROGRAM_ZERO,
@@ -49,8 +54,8 @@ import {
   UtxoError,
   IDL_VERIFIER_PROGRAM_TWO,
   isProgramVerifier,
+  TokenData,
   decimalConversion,
-  ParsedIndexedTransaction,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -103,11 +108,7 @@ export class User {
         "No wallet provided",
       );
 
-    if (
-      !provider.lookUpTables.verifierProgramLookupTable ||
-      !provider.solMerkleTree ||
-      !provider.poseidon
-    )
+    if (!provider.lookUpTable || !provider.solMerkleTree || !provider.poseidon)
       throw new UserError(
         UserErrorCode.PROVIDER_NOT_INITIALIZED,
         "constructor",
@@ -187,7 +188,7 @@ export class User {
     await this.provider.latestMerkleTree(indexedTransactions);
 
     for (const trx of indexedTransactions) {
-      let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
+      let leftLeafIndex = trx.firstLeafIndex.toNumber();
 
       for (let index = 0; index < trx.leaves.length; index += 2) {
         const leafLeft = trx.leaves[index];
@@ -294,7 +295,7 @@ export class User {
         "getBalance",
         "Merkle Tree not initialized",
       );
-    if (!this.provider.lookUpTables.verifierProgramLookupTable)
+    if (!this.provider.lookUpTable)
       throw new UserError(
         RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
         "getBalance",
@@ -1024,14 +1025,12 @@ export class User {
     utxos,
     appUtxoConfig,
     account,
-    skipFetchBalance,
   }: {
     provider: Provider;
     seed?: string;
     utxos?: Utxo[];
     appUtxoConfig?: AppUtxoConfig;
     account?: Account;
-    skipFetchBalance?: boolean;
   }): Promise<any> {
     try {
       if (!seed) {
@@ -1058,7 +1057,8 @@ export class User {
         });
       }
       const user = new User({ provider, appUtxoConfig, account });
-      if (!skipFetchBalance) await user.getBalance();
+
+      await user.getBalance();
 
       return user;
     } catch (e) {
@@ -1219,7 +1219,7 @@ export class User {
 
   async getTransactionHistory(
     latest: boolean = true,
-  ): Promise<UserIndexedTransaction[]> {
+  ): Promise<IndexedTransaction[]> {
     try {
       if (latest) {
         await this.getBalance(true);
@@ -1497,7 +1497,7 @@ export class User {
      * - decrypt storage verifier
      */
     const decryptIndexStorage = async (
-      indexedTransactions: ParsedIndexedTransaction[],
+      indexedTransactions: IndexedTransaction[],
       assetLookupTable: string[],
       verifierProgramLookupTable: string[],
     ) => {
@@ -1505,7 +1505,7 @@ export class User {
       var spentUtxos: Utxo[] = [];
       for (const data of indexedTransactions) {
         let decryptedUtxo = null;
-        var index = new BN(data.firstLeafIndex).toNumber();
+        var index = data.firstLeafIndex.toNumber();
         for (var [leafIndex, leaf] of data.leaves.entries()) {
           try {
             decryptedUtxo = await Utxo.decrypt({

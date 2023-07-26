@@ -20,27 +20,28 @@ let relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
 describe("Test Relayer Functional", () => {
   it("Relayer Deposit", () => {
-    let relayer = new Relayer(
-      mockKeypair.publicKey,
-      mockKeypair1.publicKey,
-      new anchor.BN(1),
-    );
+    let relayer = new Relayer(mockKeypair.publicKey, mockKeypair1.publicKey);
     assert.equal(
-      relayer.accounts.relayerRecipientSol.toBase58(),
+      relayer.accounts.lookUpTable.toBase58(),
       mockKeypair1.publicKey.toBase58(),
     );
     assert.equal(
       relayer.accounts.relayerPubkey.toBase58(),
       mockKeypair.publicKey.toBase58(),
     );
-    assert.equal(relayer.relayerFee.toString(), "1");
+    assert.equal(relayer.relayerFee.toString(), "0");
   });
 
   it("Relayer Transfer/Withdrawal", () => {
     let relayer = new Relayer(
       mockKeypair.publicKey,
+      mockKeypair1.publicKey,
       relayerRecipientSol,
       relayerFee,
+    );
+    assert.equal(
+      relayer.accounts.lookUpTable.toBase58(),
+      mockKeypair1.publicKey.toBase58(),
     );
     assert.equal(
       relayer.accounts.relayerPubkey.toBase58(),
@@ -54,7 +55,7 @@ describe("Test Relayer Functional", () => {
   });
 
   it("Relayer ataCreationFee", () => {
-    let relayer = new Relayer(mockKeypair.publicKey);
+    let relayer = new Relayer(mockKeypair.publicKey, mockKeypair1.publicKey);
     assert.equal(relayer.relayerFee.toString(), "0");
     assert.equal(
       TOKEN_ACCOUNT_FEE.toNumber(),
@@ -83,7 +84,11 @@ describe("Test Relayer Errors", () => {
   it("RELAYER_FEE_UNDEFINED", () => {
     expect(() => {
       // @ts-ignore
-      new Relayer(mockKeypair.publicKey, relayerRecipientSol);
+      new Relayer(
+        mockKeypair.publicKey,
+        mockKeypair1.publicKey,
+        relayerRecipientSol,
+      );
     })
       .to.throw(RelayerError)
       .includes({
@@ -95,7 +100,12 @@ describe("Test Relayer Errors", () => {
   it("RELAYER_RECIPIENT_UNDEFINED", () => {
     expect(() => {
       // @ts-ignore
-      new Relayer(mockKeypair.publicKey, undefined, relayerFee);
+      new Relayer(
+        mockKeypair.publicKey,
+        mockKeypair1.publicKey,
+        undefined,
+        relayerFee,
+      );
     })
       .to.throw(RelayerError)
       .includes({

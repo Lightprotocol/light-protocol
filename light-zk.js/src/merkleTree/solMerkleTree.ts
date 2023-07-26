@@ -1,12 +1,14 @@
 import { BN, Program, Provider } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import { GetVersionedTransactionConfig, PublicKey } from "@solana/web3.js";
 import {
+  merkleTreeProgram,
   merkleTreeProgramId,
   MERKLE_TREE_HEIGHT,
   IndexedTransaction,
+  indexRecentTransactions,
+  Relayer,
   sleep,
   fetchQueuedLeavesAccountInfo,
-  ParsedIndexedTransaction,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "./merkleTree";
@@ -65,7 +67,7 @@ export class SolMerkleTree {
   }: {
     pubkey: PublicKey; // pubkey to bytes
     poseidon: any;
-    indexedTransactions: ParsedIndexedTransaction[];
+    indexedTransactions: IndexedTransaction[];
     provider?: Provider;
   }) {
     const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(
@@ -79,17 +81,12 @@ export class SolMerkleTree {
       "processed",
     );
 
-    indexedTransactions.sort(
-      (a, b) =>
-        new BN(a.firstLeafIndex).toNumber() -
-        new BN(b.firstLeafIndex).toNumber(),
-    );
     const merkleTreeIndex = mtFetched.nextIndex;
     const leaves: string[] = [];
     if (indexedTransactions.length > 0) {
       for (let i: number = 0; i < indexedTransactions.length; i++) {
         if (
-          new BN(indexedTransactions[i].firstLeafIndex).toNumber() <
+          indexedTransactions[i].firstLeafIndex.toNumber() <
           merkleTreeIndex.toNumber()
         ) {
           for (const iterator of indexedTransactions[i].leaves) {
