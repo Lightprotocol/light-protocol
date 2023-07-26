@@ -449,7 +449,7 @@ describe("Test User", () => {
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
       relayerRecipientSol: relayerRecipientSol.publicKey,
-      relayerFee: new anchor.BN(100_000),
+      relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
 

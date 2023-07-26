@@ -10,11 +10,7 @@ import {
   Account,
   Utxo,
   createMintWrapper,
-  setUpMerkleTree,
-  initLookUpTableFromFile,
-  MerkleTreeProgram,
   merkleTreeProgramId,
-  IDL_MERKLE_TREE_PROGRAM,
   TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   MINT,
@@ -78,7 +74,7 @@ describe("Verifier Zero and One Tests", () => {
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol,
+      relayerRecipientSol: relayerRecipientSol,
       relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
@@ -231,7 +227,7 @@ describe("Verifier Zero and One Tests", () => {
     tx.provider.provider = provider;
     var e;
     try {
-      e = await tx.sendTransaction();
+      e = await tx.sendAndConfirmTransaction();
     } catch (error) {
       e = error;
     }

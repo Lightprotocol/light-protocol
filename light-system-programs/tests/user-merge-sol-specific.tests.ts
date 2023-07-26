@@ -3,7 +3,6 @@ import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
 let circomlibjs = require("circomlibjs");
 
 import {
-  setUpMerkleTree,
   initLookUpTableFromFile,
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,
@@ -13,7 +12,6 @@ import {
   Provider,
   User,
   airdropShieldedSol,
-  ADMIN_AUTH_KEY,
   airdropSol,
   LOOK_UP_TABLE,
 } from "@lightprotocol/zk.js";
@@ -61,8 +59,8 @@ describe("Test User", () => {
     environmentConfig.relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol,
-      relayerFee: new anchor.BN(100_000),
+      relayerRecipientSol: relayerRecipientSol,
+      relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
 

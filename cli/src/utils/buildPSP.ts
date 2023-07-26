@@ -100,7 +100,7 @@ async function generateCircuit({
   });
   const vKeyJsonPath = "./build-circuit/verifyingkey.json";
   const vKeyRsPath = "./programs/" + programName + "/src/verifying_key.rs";
-  const artifiactPath = "./build-circuit/" + circuitName;
+  const artifactPath = "./build-circuit/" + circuitName;
   try {
     fs.unlinkSync(vKeyJsonPath);
   } catch (_) {}
@@ -126,7 +126,7 @@ async function generateCircuit({
     vKeyJsonPath,
     vKeyRsPath,
     circuitName,
-    artifiactPath
+    artifactPath
   );
   console.log("created rust verifying key");
   const sleep = (ms: number) => {

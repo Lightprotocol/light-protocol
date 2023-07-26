@@ -1,10 +1,7 @@
 import {
   AddressLookupTableAccount,
-  BlockheightBasedTransactionConfirmationStrategy,
   ComputeBudgetProgram,
-  ConfirmOptions,
   Connection,
-  Keypair,
   PublicKey,
   TransactionConfirmationStrategy,
   TransactionInstruction,

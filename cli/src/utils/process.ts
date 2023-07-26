@@ -76,7 +76,7 @@ export async function executeCommandInDir(
   command: string,
   args: string[],
   dir: string,
-  options: SpawnOptionsWithoutStdio = {}
+  _options: SpawnOptionsWithoutStdio = {}
 ): Promise<string> {
   const oldDir = process.cwd();
   process.chdir(dir);

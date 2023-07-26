@@ -1,9 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 let circomlibjs = require("circomlibjs");
 
 import {
-  setUpMerkleTree,
   initLookUpTableFromFile,
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,
@@ -57,75 +56,75 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     environmentConfig.relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol,
-      relayerFee: new anchor.BN(100_000),
+      relayerRecipientSol: relayerRecipientSol,
+      relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
-  });
 
-  it("(user class) shield SOL to recipient", async () => {
-    let testInputs = {
-      amountSpl: 0,
-      amountSol: 15,
-      token: "SOL",
-      type: Action.SHIELD,
-      expectedUtxoHistoryLength: 1,
-      recipientAccount: userKeypair,
-      mergedUtxo: false,
-      shieldToRecipient: true,
-      recipientSeed,
-    };
+    it("(user class) shield SOL to recipient", async () => {
+      let testInputs = {
+        amountSpl: 0,
+        amountSol: 15,
+        token: "SOL",
+        type: Action.SHIELD,
+        expectedUtxoHistoryLength: 1,
+        recipientAccount: userKeypair,
+        mergedUtxo: false,
+        shieldToRecipient: true,
+        recipientSeed,
+      };
 
-    await performShielding({
-      numberOfShields: 1,
-      testInputs,
-      environmentConfig,
+      await performShielding({
+        numberOfShields: 1,
+        testInputs,
+        environmentConfig,
+      });
     });
-  });
 
-  it("(user class) shield SPL to recipient", async () => {
-    let testInputs = {
-      amountSpl: 20,
-      token: "USDC",
-      type: Action.SHIELD,
-      expectedUtxoHistoryLength: 1,
-      expectedSpentUtxosLength: 0,
-      shieldToRecipient: true,
-      recipientSeed,
-    };
-    await performShielding({
-      numberOfShields: 1,
-      testInputs,
-      environmentConfig,
+    it("(user class) shield SPL to recipient", async () => {
+      let testInputs = {
+        amountSpl: 20,
+        token: "USDC",
+        type: Action.SHIELD,
+        expectedUtxoHistoryLength: 1,
+        expectedSpentUtxosLength: 0,
+        shieldToRecipient: true,
+        recipientSeed,
+      };
+      await performShielding({
+        numberOfShields: 1,
+        testInputs,
+        environmentConfig,
+      });
     });
-  });
 
-  it("(user class) merge all sol (no existing utxo)", async () => {
-    let testInputs = {
-      token: "SOL",
-      type: Action.TRANSFER,
-      expectedUtxoHistoryLength: 1,
-      expectedSpentUtxosLength: 0,
-      recipientSeed,
-    };
+    it("(user class) merge all sol (no existing utxo)", async () => {
+      let testInputs = {
+        token: "SOL",
+        type: Action.TRANSFER,
+        expectedUtxoHistoryLength: 1,
+        expectedSpentUtxosLength: 0,
+        recipientSeed,
+      };
 
-    await performMergeAll({
-      environmentConfig,
-      testInputs,
+      await performMergeAll({
+        environmentConfig,
+        testInputs,
+      });
     });
-  });
 
-  it("(user class) merge all spl (no existing utxo)", async () => {
-    let testInputs = {
-      type: Action.TRANSFER,
-      token: "USDC",
-      expectedUtxoHistoryLength: 1,
-      expectedSpentUtxosLength: 0,
-      recipientSeed,
-    };
-    await performMergeAll({
-      environmentConfig,
-      testInputs,
+    it("(user class) merge all spl (no existing utxo)", async () => {
+      let testInputs = {
+        type: Action.TRANSFER,
+        token: "USDC",
+        expectedUtxoHistoryLength: 1,
+        expectedSpentUtxosLength: 0,
+        recipientSeed,
+      };
+      await performMergeAll({
+        environmentConfig,
+        testInputs,
+      });
     });
   });
 });

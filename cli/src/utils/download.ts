@@ -155,7 +155,7 @@ function handleTarFile({
     }
   });
 
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<void>((resolve, _reject) => {
     parser.on("end", () => {
       // Make the file executable after it has been written.
       if (localFilePath) {

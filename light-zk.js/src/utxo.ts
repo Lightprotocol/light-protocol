@@ -42,6 +42,7 @@ export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 
+// Constant in order to avoid multiple "new BN(0);" instantiations.
 const BN_0 = new BN(0);
 
 // TODO: Idl support for U256
@@ -65,7 +66,7 @@ export class Utxo {
    */
   amounts: BN[];
   assets: PublicKey[];
-  assetsCircuit: BN[];
+  assetsCircuit: BN[] = [];
   blinding: BN;
   account: Account;
   index?: number;
@@ -166,6 +167,14 @@ export class Utxo {
       );
     }
 
+    if (assets.findIndex((asset) => !asset) !== -1) {
+      throw new UtxoError(
+        UtxoErrorCode.ASSET_UNDEFINED,
+        "constructor",
+        `asset in index ${index} is undefined. All assets: ${assets}`,
+      );
+    }
+
     while (assets.length < N_ASSETS) {
       assets.push(SystemProgram.programId);
     }
@@ -187,7 +196,7 @@ export class Utxo {
       amounts.push(BN_0);
     }
 
-    // TODO: check that this does not lead to hickups since publicAmountSpl cannot withdraw the fee asset sol
+    // TODO: check that this does not lead to hiccups since publicAmountSpl cannot withdraw the fee asset sol
     if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
       amounts[0] = amounts[0].add(amounts[1]);
       amounts[1] = BN_0;
@@ -216,15 +225,35 @@ export class Utxo {
     this.includeAppData = includeAppData;
     this.transactionVersion = "0";
 
+    if (
+      assets[1].toBase58() === SystemProgram.programId.toBase58() &&
+      !amounts[1].isZero()
+    ) {
+      throw new UtxoError(
+        UtxoErrorCode.POSITIVE_AMOUNT,
+        "constructor",
+        `spl amount cannot be positive, amounts[1] = ${
+          amounts[1] ?? "undefined"
+        }`,
+      );
+    }
     // TODO: make variable length
-    if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
+    else if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
         hashAndTruncateToCircuit(this.assets[1].toBytes()),
       ];
-    } else if (this.amounts[0].toString() === "0") {
+    } else if (this.amounts[0].isZero()) {
       this.assetsCircuit = [BN_0, BN_0];
-    } else {
+    }
+    // else if (!this.amounts[0].isZero()) {
+    //   throw new UtxoError(
+    //     UtxoErrorCode.NON_ZERO_AMOUNT,
+    //     "constructor",
+    //     `amount not zero, amounts[0] = ${this.amounts[0] ?? "undefined"}`,
+    //   );
+    // }
+    else {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
         BN_0,
@@ -390,7 +419,6 @@ export class Utxo {
         ).fill(0),
       ]);
       includeAppData = false;
-
       if (!account)
         throw new UtxoError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
