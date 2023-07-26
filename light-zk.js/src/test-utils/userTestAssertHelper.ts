@@ -9,14 +9,9 @@ import {
 import {
   Action,
   TransactionParameters,
-  fetchRecentTransactions,
+  indexRecentTransactions,
 } from "../transaction";
-import {
-  IndexedTransaction,
-  ParsedIndexedTransaction,
-  TokenData,
-  UserIndexedTransaction,
-} from "../types";
+import { IndexedTransaction, TokenData } from "../types";
 import { Balance, Provider, User } from "../wallet";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
@@ -65,7 +60,7 @@ export type TestUserBalances = {
 };
 
 export class UserTestAssertHelper {
-  private recentTransaction?: UserIndexedTransaction;
+  private recentTransaction?: IndexedTransaction;
   public provider: Provider;
   public sender: TestUserBalances;
   public recipient: TestUserBalances;
@@ -185,7 +180,7 @@ export class UserTestAssertHelper {
 
     const assertTransactionProperties = (
       reference: ReferenceTransaction,
-      transaction: ParsedIndexedTransaction,
+      transaction: IndexedTransaction,
     ) => {
       assert.equal(
         transaction.type,
@@ -1085,11 +1080,12 @@ export class UserTestAssertHelper {
   async checkMessageStored() {
     if (!this.testInputs.message)
       throw new Error("Test inputs message undefined to assert message stored");
-    const indexedTransactions = await fetchRecentTransactions({
+    const indexedTransactions = await indexRecentTransactions({
       connection: this.provider!.provider!.connection,
       batchOptions: {
         limit: 5000,
       },
+      dedupe: false,
     });
     indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
     assert.equal(

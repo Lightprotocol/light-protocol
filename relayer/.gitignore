@@ -5,5 +5,3 @@ lib
 .env
 /.env
 .DS_Store
-dump.rdb
-.logs

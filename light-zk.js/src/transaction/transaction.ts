@@ -703,7 +703,7 @@ export class Transaction {
       response = await sendVersionedTransactions(
         instructions,
         this.provider.provider.connection,
-        this.provider.lookUpTables.versionedTransactionLookupTable,
+        this.provider.relayer.accounts.lookUpTable,
         this.provider.wallet,
       );
     }

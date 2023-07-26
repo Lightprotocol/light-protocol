@@ -83,6 +83,7 @@ describe("Masp circuit tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
+      lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
@@ -93,6 +94,7 @@ describe("Masp circuit tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
+      lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
@@ -109,7 +111,12 @@ describe("Masp circuit tests", () => {
       ),
       0,
     );
-    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(
+      mockPubkey3,
+      mockPubkey,
+      mockPubkey,
+      new anchor.BN(5000),
+    );
     paramsWithdrawal = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
       transactionMerkleTreePubkey: mockPubkey2,
@@ -135,6 +142,7 @@ describe("Masp circuit tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
+      lookUpTable: mockPubkey,
       action: Action.UNSHIELD,
       poseidon,
       relayer,
@@ -153,6 +161,7 @@ describe("Masp circuit tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
+      lookUpTable: mockPubkey,
       action: Action.UNSHIELD,
       poseidon,
       relayer,
@@ -171,6 +180,7 @@ describe("Masp circuit tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
+      lookUpTable: mockPubkey,
       action: Action.UNSHIELD,
       poseidon,
       relayer,
@@ -190,6 +200,7 @@ describe("Masp circuit tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
+      lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
       // automatic encryption for app utxos is not implemented
@@ -672,12 +683,18 @@ describe("App system circuit tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
+      lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
 
-    relayer = new Relayer(relayerPubkey, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(
+      relayerPubkey,
+      mockPubkey,
+      mockPubkey,
+      new anchor.BN(5000),
+    );
     txParamsApp = new TransactionParameters({
       inputUtxos: [
         new Utxo({
@@ -692,6 +709,7 @@ describe("App system circuit tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
+      lookUpTable: mockPubkey,
       action: Action.UNSHIELD,
       poseidon,
       relayer,
