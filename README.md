@@ -31,8 +31,9 @@ There are three ways of setting up the development environment:
 The easiest way to setup the development environment is to use our scripts
 and development environment.
 
-First, install the dependencies, pick true to install redis, pick false to skip installing redis
-(they are going to be installed in `.local` directory inside your repository clone):
+First, install the dependencies (they are going to be installed in `.local`
+directory inside your repository clone). If you want to install Redis (needed
+only for relayer), use `--enable-redis` option.
 
 ```shell
 ./scripts/install.sh true
