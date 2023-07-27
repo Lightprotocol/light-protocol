@@ -1,2 +1,15 @@
+*-debug.log
+*-error.log
+/.nyc_output
 /bin
-/src/**/*.js
+/dist
+/lib
+/package-lock.json
+/tmp
+node_modules
+oclif.manifest.json
+.yarn
+test-ledger
+.DS_store
+/**/.DS_store
+/bin

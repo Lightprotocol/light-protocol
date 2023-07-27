@@ -4,7 +4,7 @@ import {
   Keypair as SolanaKeypair,
   PublicKey,
 } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const circomlibjs = require("circomlibjs");
 const { buildPoseidonOpt } = circomlibjs;
@@ -12,6 +12,7 @@ const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
+import { IDL as TEST_PSP_IDL } from "./testData/mock_verifier";
 
 import {
   FEE_ASSET,
@@ -25,6 +26,7 @@ import {
   Account,
   verifierProgramTwoProgramId,
   MerkleTreeConfig,
+  createAccountObject,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -51,7 +53,7 @@ describe("Utxo Functional", () => {
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -66,9 +68,9 @@ describe("Utxo Functional", () => {
       const utxo4Account = new Account({ poseidon });
       const utxo4 = new Utxo({
         poseidon,
-        amounts: [new anchor.BN(123)],
+        amounts: [new BN(123)],
         account: utxo4Account,
-        appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()),
+        appDataHash: new BN(verifierProgramTwoProgramId.toBuffer()),
         includeAppData: false,
         verifierAddress: new PublicKey(
           lightProvider.lookUpTables.verifierProgramLookupTable[1],
@@ -151,8 +153,8 @@ describe("Utxo Functional", () => {
       amountToken,
       assetPubkey,
       assets: [SystemProgram.programId, assetPubkey],
-      amounts: [new anchor.BN(amountFee), new anchor.BN(amountToken)],
-      blinding: new anchor.BN(new Uint8Array(31).fill(2)),
+      amounts: [new BN(amountFee), new BN(amountToken)],
+      blinding: new BN(new Uint8Array(31).fill(2)),
       index: 1,
     };
 
@@ -189,8 +191,8 @@ describe("Utxo Functional", () => {
       amountToken,
       assetPubkey,
       assets: [SystemProgram.programId, assetPubkey],
-      amounts: [new anchor.BN(amountFee), new anchor.BN(amountToken)],
-      blinding: new anchor.BN(new Uint8Array(31).fill(2)),
+      amounts: [new BN(amountFee), new BN(amountToken)],
+      blinding: new BN(new Uint8Array(31).fill(2)),
       index: 1,
     };
 
@@ -227,8 +229,8 @@ describe("Utxo Functional", () => {
       amountToken,
       assetPubkey,
       assets: [SystemProgram.programId, assetPubkey],
-      amounts: [new anchor.BN(amountFee), new anchor.BN(amountToken)],
-      blinding: new anchor.BN(new Uint8Array(31).fill(2)),
+      amounts: [new BN(amountFee), new BN(amountToken)],
+      blinding: new BN(new Uint8Array(31).fill(2)),
       index: 1,
     };
 
@@ -344,7 +346,7 @@ describe("Utxo Functional", () => {
       index: inputs.index,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       aes: false,
-      commitment: new anchor.BN(receivingUtxo.getCommitment(poseidon)).toBuffer(
+      commitment: new BN(receivingUtxo.getCommitment(poseidon)).toBuffer(
         "le",
         32,
       ),
@@ -357,6 +359,66 @@ describe("Utxo Functional", () => {
     } else {
       throw new Error("decrypt failed");
     }
+  });
+
+  it("Program utxo to/from bytes ", async () => {
+    const verifierProgramId = new PublicKey(
+      "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+    );
+    const account = new Account({
+      poseidon,
+      seed: bs58.encode(new Uint8Array(32).fill(1)),
+    });
+    const outputUtxo = new Utxo({
+      poseidon,
+      assets: [SystemProgram.programId],
+      account,
+      amounts: [new BN(1_000_000)],
+      appData: { releaseSlot: new BN(1) },
+      appDataIdl: TEST_PSP_IDL,
+      verifierAddress: verifierProgramId,
+      index: 0,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+    let bytes = await outputUtxo.toBytes();
+
+    let utxo1 = Utxo.fromBytes({
+      poseidon,
+      bytes,
+      index: 0,
+      account,
+      appDataIdl: TEST_PSP_IDL,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+    Utxo.equal(poseidon, outputUtxo, utxo1);
+  });
+  it("Pick app data from utxo data", () => {
+    let data = createAccountObject(
+      {
+        releaseSlot: 1,
+        currentSlot: 2,
+        rndOtherStuff: { s: 2342 },
+        o: [2, 2, new BN(2)],
+      },
+      TEST_PSP_IDL.accounts,
+      "utxoAppData",
+    );
+    assert.equal(data.releaseSlot, 1);
+    assert.equal(data.currentSlot, undefined);
+    assert.equal(data.rndOtherStuff, undefined);
+    assert.equal(data.o, undefined);
+
+    expect(() => {
+      createAccountObject(
+        { rndOtherStuff: { s: 2342 }, o: [2, 2, new BN(2)] },
+        TEST_PSP_IDL.accounts,
+        "utxoAppData",
+      );
+    }).to.throw(Error);
   });
 });
 
@@ -379,8 +441,8 @@ describe("Utxo Errors", () => {
       amountToken,
       assetPubkey,
       assets: [SystemProgram.programId, assetPubkey],
-      amounts: [new anchor.BN(amountFee), new anchor.BN(amountToken)],
-      blinding: new anchor.BN(new Uint8Array(31).fill(2)),
+      amounts: [new BN(amountFee), new BN(amountToken)],
+      blinding: new BN(new Uint8Array(31).fill(2)),
     };
   });
 
@@ -389,7 +451,7 @@ describe("Utxo Errors", () => {
     let account = Account.fromPubkey(publicKey, poseidon);
     let pubkeyUtxo = new Utxo({
       poseidon,
-      amounts: [new anchor.BN(1)],
+      amounts: [new BN(1)],
       account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -412,7 +474,7 @@ describe("Utxo Errors", () => {
     let account = Account.fromPubkey(publicKey, poseidon);
     let pubkeyUtxo = new Utxo({
       poseidon,
-      amounts: [new anchor.BN(1)],
+      amounts: [new BN(1)],
       account,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -455,7 +517,7 @@ describe("Utxo Errors", () => {
       new Utxo({
         poseidon,
         assets: [MINT, MINT, MINT],
-        amounts: [new anchor.BN(1), new anchor.BN(1), new anchor.BN(1)],
+        amounts: [new BN(1), new BN(1), new BN(1)],
         account: inputs.keypair,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -475,7 +537,7 @@ describe("Utxo Errors", () => {
       new Utxo({
         poseidon,
         assets: inputs.assets,
-        amounts: [inputs.amounts[0], new anchor.BN(-1)],
+        amounts: [inputs.amounts[0], new BN(-1)],
         account: inputs.keypair,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,

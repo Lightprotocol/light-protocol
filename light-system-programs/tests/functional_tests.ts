@@ -243,7 +243,7 @@ describe("verifier_program", () => {
 
     const origin = Keypair.generate();
     await airdropSol({
-      provider: lightProvider.provider,
+      connection: lightProvider.provider.connection,
       lamports: 1000 * 1e9,
       recipientPublicKey: origin.publicKey,
     });

@@ -9,7 +9,7 @@
     "start-local": "sh runScript.sh",
     "build": "npx tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "lint": "prettier \"src/**/*{ts,js}\"  \"tests/**/*.{ts,js}\" --check"
   },
   "keywords": [],
   "dependencies": {

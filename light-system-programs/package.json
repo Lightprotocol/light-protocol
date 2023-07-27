@@ -2,6 +2,7 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
+    "build": "light-anchor build && sh /../cli/scripts/copyLocalProgramBinaries.sh",
     "lint": "prettier \"tests/**/*.{ts,js}\" --check",
     "test-functional": "sh ./scripts/runTest.sh 'ts-mocha -t 2000000 tests/functional_tests.ts --exit'",
     "test-user": "sh ./scripts/runTest.sh 'ts-mocha -t 2000000 tests/user.tests.ts --exit'",
@@ -17,7 +18,7 @@
     "format": "prettier --write \"tests/**/*.{ts,js}\""
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.27.0",
+    "@coral-xyz/anchor": "^0.28.0",
     "@lightprotocol/zk.js": "file:../light-zk.js",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",

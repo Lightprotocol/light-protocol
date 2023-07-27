@@ -13,3 +13,13 @@ cd light-zk.js
 yarn install
 yarn run lint
 cd ..
+
+cd cli
+yarn install
+yarn run lint
+cd ..
+
+cd relayer
+yarn install
+yarn run lint
+cd ..

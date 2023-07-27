@@ -288,8 +288,7 @@ export function selectInUtxos({
       }
       // take utxo with smallest spl amount of utxos which satisfy
       else if (filteredUtxos.length === 0) {
-        if(!mint)
-          mint = PublicKey.default;
+        if (!mint) mint = PublicKey.default;
         throw new SelectInUtxosError(
           SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
           "selectInUtxos",
