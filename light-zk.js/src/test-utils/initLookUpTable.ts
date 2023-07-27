@@ -145,16 +145,15 @@ export async function initLookUpTableTest(
       }
     }
 
-    // const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-    //   lookupTable: lookupTableAddress,
-    //   authority: payerPubkey,
-    //   payer: payerPubkey,
-    //   addresses: addressesToAdd,
-    // });
+    const extendInstruction = AddressLookupTableProgram.extendLookupTable({
+      lookupTable: lookupTableAddress,
+      authority: payerPubkey,
+      payer: payerPubkey,
+      addresses: addressesToAdd,
+    });
 
-    // transaction.add(extendInstruction);
+    transaction.add(extendInstruction);
     transaction.add(ix0);
-    // transaction.add(ix1);
     let recentBlockhash = await provider.connection.getLatestBlockhash(
       "confirmed",
     );
