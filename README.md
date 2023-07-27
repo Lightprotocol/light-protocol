@@ -36,7 +36,7 @@ directory inside your repository clone). If you want to install Redis (needed
 only for relayer), use `--enable-redis` option.
 
 ```shell
-./scripts/install.sh true
+./scripts/install.sh
 ```
 
 Then, optionally, you can activate the development environment:
