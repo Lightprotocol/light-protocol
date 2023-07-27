@@ -26,7 +26,7 @@ import {
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types/accounts";
-import { Prover } from "./prover";
+import { Prover } from "@lightprotocol/prover.js";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 
 var ffjavascript = require("ffjavascript");
@@ -372,8 +372,7 @@ export class Transaction {
     await prover.addProofInputs(this.proofInput);
     console.time("Proof generation + Parsing");
     try {
-      var { parsedProof, parsedPublicInputs } =
-        await prover.fullProveAndParse();
+      var { parsedProof, parsedPublicInputs } = await prover.fullProveAndParse();
     } catch (error) {
       throw new TransactionError(
         TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -390,8 +389,7 @@ export class Transaction {
         "getProofInternal",
       );
     }
-    const parsedPublicInputsObject =
-      prover.parsePublicInputsFromArray(parsedPublicInputs);
+    const parsedPublicInputsObject = prover.parsePublicInputsFromArray(parsedPublicInputs) as any;
     return { parsedProof, parsedPublicInputsObject };
   }
 

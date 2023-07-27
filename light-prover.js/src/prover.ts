@@ -1,9 +1,15 @@
+import { Idl } from "@coral-xyz/anchor";
+import {
+  ProofInputs,
+  ParsedPublicInputs,
+  CircuitNames, zkIdl,
+} from "./generics";
+import {VerifierError, VerifierErrorCode} from "./errors";
+
 const snarkjs = require("snarkjs");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff } =
   require("ffjavascript").utils;
 
-import { Idl } from "@coral-xyz/anchor";
-import { VerifierError, VerifierErrorCode } from "../errors";
 
 export type proofData = {
   pi_a: string[];
@@ -25,13 +31,16 @@ export type vKeyData = {
   IC: string[][];
 };
 
-export class Prover {
-  public circuitName!: string;
+export class Prover<
+  VerifierIdl extends zkIdl,
+  CircuitName extends CircuitNames,
+> {
+  public circuitName!: CircuitName;
   public idl: Idl;
   public firstPath: string;
   public wasmPath!: string;
   public zkeyPath!: string;
-  public proofInputs: any;
+  public proofInputs!: ProofInputs<VerifierIdl, CircuitName>;
   public publicInputs: string[] = [];
   public vKey!: vKeyData;
   public proof!: proofData;
@@ -64,7 +73,7 @@ export class Prover {
       }
     });
 
-    this.circuitName = Array.from(uniqueCircuitNames)[0];
+    this.circuitName = Array.from(uniqueCircuitNames)[0] as CircuitName;
 
     // After Retrieving circuitName ==> build wasm and zkey paths for the circuit
     this.wasmPath =
@@ -103,7 +112,7 @@ export class Prover {
           }`,
         );
     });
-    this.proofInputs = inputsObject;
+    this.proofInputs = inputsObject as ProofInputs<VerifierIdl, CircuitName>;
   }
 
   async fullProve() {
@@ -205,7 +214,7 @@ export class Prover {
     };
   }
 
-  parsePublicInputsFromArray(publicInputsBytes: number[][]): any {
+  parsePublicInputsFromArray(publicInputsBytes: number[][]): ParsedPublicInputs<VerifierIdl, CircuitName> {
     type SizeObject = {
       [key: string]: number[];
     };
@@ -340,6 +349,6 @@ export class Prover {
 
     const result = spreadArrayToObject(publicInputsBytes, key_sizes);
 
-    return result;
+    return result as ParsedPublicInputs<VerifierIdl, CircuitName>;
   }
 }

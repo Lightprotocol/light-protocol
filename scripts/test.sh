@@ -8,6 +8,10 @@ cd light-system-programs
 yarn test
 cd ..
 
+cd light-prover.js
+yarn test
+cd ..
+
 cd light-zk.js
 yarn test
 sleep 1
