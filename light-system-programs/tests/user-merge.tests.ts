@@ -232,7 +232,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       testInputs: testInputsShield,
       environmentConfig,
     });
-  
+
     let testInputs = {
       type: Action.TRANSFER,
       token: "SOL",
@@ -268,7 +268,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       testInputs: testInputsShield,
       environmentConfig,
     });
-  
+
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: environmentConfig.relayer,
