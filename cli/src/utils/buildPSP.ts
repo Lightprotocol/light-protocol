@@ -193,7 +193,7 @@ export async function buildPSP(
   console.log("✅ Circom files generated successfully");
 
   const circuitMainFileName = extractFilename(stdout.toString().trim());
-  console.log("🛠️️ Building circuit ", circuitMainFileName);
+  console.log("🛠️️  Building circuit", circuitMainFileName);
   if (!circuitMainFileName)
     throw new Error("Could not extract circuit main file name");
 
@@ -207,7 +207,7 @@ export async function buildPSP(
   });
   console.log("✅ Circuit generated successfully");
 
-  console.log("🛠️ Building on-chain program");
+  console.log("🛠  Building on-chain program");
   await executeAnchor({ args: ["build"] });
   console.log("✅ Build finished successfully");
 }
