@@ -10,17 +10,9 @@ import {
   getKeyPairFromEnv,
 } from "../utils/provider";
 
-export const initMerkleTree = async (_req: any, res: any) => {
+export const buildMerkleTree = async (_req: any, res: any) => {
   try {
     const provider: Provider = await getLightProvider();
-
-    const merkletreeIsInited =
-      await provider.provider!.connection.getAccountInfo(
-        TRANSACTION_MERKLE_TREE_KEY,
-      );
-    if (!merkletreeIsInited) {
-      throw new Error("merkletree not inited yet.");
-    }
 
     const relayer = await getRelayer();
 
@@ -49,6 +41,7 @@ export const updateMerkleTree = async (_req: any, res: any) => {
     await updateMerkleTreeForTest(getKeyPairFromEnv("KEY_PAIR"), provider.url!);
     return res.status(200).json({ status: "ok" });
   } catch (e) {
+    console.log(e);
     return res.status(500).json({ status: "error", message: e.message });
   }
 };

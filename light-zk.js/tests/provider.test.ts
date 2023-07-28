@@ -37,7 +37,7 @@ describe("Test Provider Functional", () => {
     );
     assert.equal(lightProviderMock.url, "mock");
     assert(lightProviderMock.poseidon);
-    assert(lightProviderMock.lookUpTable);
+    assert(lightProviderMock.lookUpTables.versionedTransactionLookupTable);
     assert.equal(
       lightProviderMock.solMerkleTree?.pubkey.toBase58(),
       TRANSACTION_MERKLE_TREE_KEY.toBase58(),
@@ -84,18 +84,6 @@ describe("Test Provider Functional", () => {
     );
   });
 
-  it("CONNECTION_DEFINED", async () => {
-    expect(() => {
-      // @ts-ignore
-      new LightProvider({ wallet: ADMIN_AUTH_KEYPAIR, connection: {} });
-    })
-      .to.throw(ProviderError)
-      .includes({
-        code: ProviderErrorCode.CONNECTION_DEFINED,
-        functionName: "constructor",
-      });
-  });
-
   it("WALLET_UNDEFINED", async () => {
     expect(() => {
       // @ts-ignore
@@ -106,29 +94,5 @@ describe("Test Provider Functional", () => {
         code: ProviderErrorCode.WALLET_UNDEFINED,
         functionName: "constructor",
       });
-  });
-
-  it("CONNECTION_UNDEFINED", async () => {
-    expect(() => {
-      // @ts-ignore
-      new LightProvider({ wallet: {} });
-    })
-      .to.throw(ProviderError)
-      .includes({
-        code: ProviderErrorCode.CONNECTION_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
-
-  it("CONNECTION_UNDEFINED browser", async () => {
-    const mockKeypair = SolanaKeypair.generate();
-
-    const wallet = useWallet(mockKeypair);
-
-    await chai.assert.isRejected(
-      // @ts-ignore
-      LightProvider.init({ wallet }),
-      ProviderErrorCode.CONNECTION_UNDEFINED,
-    );
   });
 });

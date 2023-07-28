@@ -32,7 +32,8 @@ The easiest way to setup the development environment is to use our scripts
 and development environment.
 
 First, install the dependencies (they are going to be installed in `.local`
-directory inside your repository clone):
+directory inside your repository clone). If you want to install Redis (needed
+only for relayer), use `--enable-redis` option.
 
 ```shell
 ./scripts/install.sh
