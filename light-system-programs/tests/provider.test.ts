@@ -71,9 +71,8 @@ describe("verifier_program", () => {
 
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol: relayerRecipientSol,
-      relayerFee: new BN(100_000),
+      relayerRecipientSol,
+      relayerFee: new anchor.BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
   });
@@ -96,6 +95,7 @@ describe("verifier_program", () => {
     const lightProviderMock = await LightProvider.init({
       wallet: mockKeypair,
       relayer: RELAYER,
+      confirmConfig,
     });
     assert.equal(lightProviderMock.wallet.isNodeWallet, true);
     assert.equal(
@@ -104,7 +104,6 @@ describe("verifier_program", () => {
     );
     assert.equal(lightProviderMock.url, "http://127.0.0.1:8899");
     assert(lightProviderMock.poseidon);
-    assert(lightProviderMock.lookUpTable);
     assert.equal(
       lightProviderMock.solMerkleTree?.pubkey.toBase58(),
       TRANSACTION_MERKLE_TREE_KEY.toBase58(),
@@ -124,6 +123,7 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
+      confirmConfig,
     }); // userKeypair
 
     let depositFeeAmount = 10000;
@@ -151,7 +151,6 @@ describe("verifier_program", () => {
       senderSpl: userTokenAccount,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       poseidon: POSEIDON,
-      lookUpTable: LOOK_UP_TABLE,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });

@@ -94,9 +94,8 @@ describe("Merkle Tree Tests", () => {
 
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol: relayerRecipientSol,
-      relayerFee: new BN(100_000),
+      relayerRecipientSol,
+      relayerFee: new anchor.BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
   });
@@ -609,6 +608,7 @@ describe("Merkle Tree Tests", () => {
     let lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
 
     deposit_utxo1 = new Utxo({
@@ -627,7 +627,6 @@ describe("Merkle Tree Tests", () => {
       senderSpl: userTokenAccount,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
-      lookUpTable: LOOK_UP_TABLE,
       poseidon: POSEIDON,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });

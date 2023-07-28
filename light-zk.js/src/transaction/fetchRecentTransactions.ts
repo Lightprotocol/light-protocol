@@ -5,27 +5,30 @@ import {
   ParsedTransactionWithMeta,
   PublicKey,
 } from "@solana/web3.js";
+
+import { BN } from "@coral-xyz/anchor";
+import * as borsh from "@coral-xyz/borsh";
+
+import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import {
-  merkleTreeProgramId,
-  FIELD_SIZE,
   VERIFIER_PUBLIC_KEYS,
   MAX_U64,
+  FIELD_SIZE,
+  merkleTreeProgramId,
 } from "../constants";
 
 import { Action } from "./transaction";
 
 import { getUpdatedSpentUtxos, sleep } from "../utils";
-import { BN } from "@coral-xyz/anchor";
 import {
   IndexedTransaction,
   UserIndexedTransaction,
   IndexedTransactionData,
+  ParsedIndexedTransaction,
 } from "../types";
-import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Provider, TokenUtxoBalance } from "../wallet";
 import { Utxo } from "../utxo";
-import * as borsh from "@coral-xyz/borsh";
+import { TokenUtxoBalance, Provider } from "../wallet";
 
 export class TransactionIndexerEvent {
   borshSchema = borsh.struct([
@@ -49,6 +52,17 @@ export class TransactionIndexerEvent {
 }
 
 /**
+ *  Call Flow:
+ *  fetchRecentTransactions() <-- called in indexer
+ *    getTransactionsBatch()
+ *      getSigsForAdd()
+ *		    getTxForSig()
+ *		      make Events:
+ *			    parseTransactionEvents()
+ *			    enrichParsedTransactionEvents()
+ */
+
+/**
  * @async
  * @description This functions takes the IndexedTransaction and spentUtxos of user any return the filtered user indexed transactions
  * @function getUserIndexTransactions
@@ -58,7 +72,7 @@ export class TransactionIndexerEvent {
  * @returns {Promise<void>}
  */
 export const getUserIndexTransactions = async (
-  indexedTransactions: IndexedTransaction[],
+  indexedTransactions: ParsedIndexedTransaction[],
   provider: Provider,
   tokenBalances: Map<string, TokenUtxoBalance>,
 ) => {
@@ -130,12 +144,12 @@ const findMatchingInstruction = (
  * @async
  * @description This functions takes the indexer transaction event data and transaction,
  * including the signature, instruction parsed data, account keys, and transaction type.
- * @function processIndexedTransaction
+ * @function enrichParsedTransactionEvents
  * @param {ParsedTransactionWithMeta} tx - The transaction object to process.
  * @param {IndexedTransaction[]} transactions - An array to which the processed transaction data will be pushed.
  * @returns {Promise<void>}
  */
-async function processIndexedTransaction(
+async function enrichParsedTransactionEvents(
   event: IndexedTransactionData,
   transactions: IndexedTransaction[],
 ) {
@@ -240,22 +254,23 @@ async function processIndexedTransaction(
     blockTime: tx.blockTime! * 1000,
     signer: accountKeys[0],
     signature,
-    accounts: accountKeys,
     to,
     from,
+    //TODO: check if this is the correct type after latest main?
+    //@ts-ignore
     toSpl,
     fromSpl,
     verifier,
     relayerRecipientSol,
     type,
-    changeSolAmount,
-    publicAmountSol: amountSol,
-    publicAmountSpl: amountSpl,
+    changeSolAmount: changeSolAmount.toString("hex"),
+    publicAmountSol: amountSol.toString("hex"),
+    publicAmountSpl: amountSpl.toString("hex"),
     encryptedUtxos,
     leaves,
     nullifiers,
-    relayerFee,
-    firstLeafIndex,
+    relayerFee: relayerFee.toString("hex"),
+    firstLeafIndex: firstLeafIndex.toString("hex"),
     message: Buffer.from(message),
   });
 }
@@ -263,14 +278,14 @@ async function processIndexedTransaction(
 /**
  * @async
  * @description This functions takes the transactionMeta of  indexer events transactions and extracts relevant data from it
- * @function processIndexerEventsTransactions
+ * @function parseTransactionEvents
  * @param {(ParsedTransactionWithMeta | null)[]} indexerEventsTransactions - An array of indexer event transactions to process
  * @returns {Promise<void>}
  */
-const processIndexerEventsTransactions = (
+const parseTransactionEvents = (
   indexerEventsTransactions: (ParsedTransactionWithMeta | null)[],
 ) => {
-  const indexerTransactionEvents: IndexedTransactionData[] = [];
+  const parsedTransactionEvents: IndexedTransactionData[] = [];
 
   indexerEventsTransactions.forEach((tx) => {
     if (
@@ -292,7 +307,7 @@ const processIndexerEventsTransactions = (
         const decodeData = new TransactionIndexerEvent().deserialize(data);
 
         if (decodeData) {
-          indexerTransactionEvents.push({
+          parsedTransactionEvents.push({
             ...decodeData,
             tx,
           });
@@ -301,12 +316,12 @@ const processIndexerEventsTransactions = (
     });
   });
 
-  return indexerTransactionEvents;
+  return parsedTransactionEvents;
 };
 
 /**
  * @description Fetches transactions for the specified merkleTreeProgramId in batches
- * and process the incoming transaction using the processIndexedTransaction.
+ * and process the incoming transaction using the enrichParsedTransactionEvents.
  * This function will handle retries and sleep to prevent rate-limiting issues.
  * @param {Connection} connection - The Connection object to interact with the Solana network.
  * @param {PublicKey} merkleTreeProgramId - The PublicKey of the Merkle tree program.
@@ -315,7 +330,8 @@ const processIndexerEventsTransactions = (
  * @param {any[]} transactions - The array where the fetched transactions will be stored.
  * @returns {Promise<string>} - The signature of the last fetched transaction.
  */
-const getTransactionsBatch = async ({
+// TODO: consider explicitly returning a new txs array instead of mutating the passed in one
+async function getTransactionsBatch({
   connection,
   merkleTreeProgramId,
   batchOptions,
@@ -325,7 +341,7 @@ const getTransactionsBatch = async ({
   merkleTreeProgramId: PublicKey;
   batchOptions: ConfirmedSignaturesForAddress2Options;
   transactions: any;
-}) => {
+}) {
   const signatures = await connection.getConfirmedSignaturesForAddress2(
     new PublicKey(merkleTreeProgramId),
     batchOptions,
@@ -357,7 +373,7 @@ const getTransactionsBatch = async ({
     }
   }
 
-  const indexerEventTransactions = txs.filter((tx: any) => {
+  const transactionEvents = txs.filter((tx: any) => {
     const accountKeys = tx.transaction.message.accountKeys;
     const splNoopIndex = accountKeys.findIndex((item: ParsedMessageAccount) => {
       const itemStr =
@@ -372,14 +388,12 @@ const getTransactionsBatch = async ({
     }
   });
 
-  const indexerTransactionEvents = processIndexerEventsTransactions(
-    indexerEventTransactions,
-  );
-  indexerTransactionEvents.forEach((event) => {
-    processIndexedTransaction(event!, transactions);
+  const parsedTransactionEvents = parseTransactionEvents(transactionEvents);
+  parsedTransactionEvents.forEach((event) => {
+    enrichParsedTransactionEvents(event!, transactions);
   });
   return lastSignature;
-};
+}
 
 /**
  * @description Fetches recent transactions for the specified merkleTreeProgramId.
@@ -391,7 +405,7 @@ const getTransactionsBatch = async ({
  * @returns {Promise<indexedTransaction[]>} Array of indexedTransactions
  */
 
-export const indexRecentTransactions = async ({
+export async function fetchRecentTransactions({
   connection,
   batchOptions = {
     limit: 1,
@@ -402,9 +416,8 @@ export const indexRecentTransactions = async ({
 }: {
   connection: Connection;
   batchOptions: ConfirmedSignaturesForAddress2Options;
-  dedupe?: boolean;
   transactions?: IndexedTransaction[];
-}): Promise<IndexedTransaction[]> => {
+}): Promise<IndexedTransaction[]> {
   const batchSize = 1000;
   const rounds = Math.ceil(batchOptions.limit! / batchSize);
 
@@ -423,7 +436,6 @@ export const indexRecentTransactions = async ({
       },
       transactions,
     });
-
     if (!lastSignature) {
       break;
     }
@@ -431,8 +443,9 @@ export const indexRecentTransactions = async ({
     batchBefore = lastSignature.signature;
     await sleep(500);
   }
-
   return transactions.sort(
-    (a, b) => a.firstLeafIndex.toNumber() - b.firstLeafIndex.toNumber(),
+    (a, b) =>
+      new BN(a.firstLeafIndex, "hex").toNumber() -
+      new BN(b.firstLeafIndex, "hex").toNumber(),
   );
-};
+}

@@ -58,9 +58,8 @@ describe("Test User", () => {
 
     environmentConfig.relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol: relayerRecipientSol,
-      relayerFee: new BN(100_000),
+      relayerRecipientSol,
+      relayerFee: new anchor.BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
 
@@ -93,6 +92,7 @@ describe("Test User", () => {
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: environmentConfig.relayer,
+      confirmConfig,
     });
 
     const userSender: User = await User.init({

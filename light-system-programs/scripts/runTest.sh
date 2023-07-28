@@ -11,7 +11,6 @@ VERIFIER_PROGRAM_STORAGE_ID="DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj"
 VERIFIER_PROGRAM_ONE_ID="J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
 
 solana config set --url http://localhost:8899
-
 pkill solana-test-validator || true
 solana-test-validator \
     --reset \

@@ -45,12 +45,7 @@ describe("Utxo Functional", () => {
   before(async () => {
     poseidon = await buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(
-      relayerMockPubKey,
-      mockPubkey,
-      mockPubkey,
-      new anchor.BN(5000),
-    );
+    relayer = new Relayer(relayerMockPubKey, mockPubkey, new anchor.BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({

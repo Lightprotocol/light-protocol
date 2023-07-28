@@ -1,5 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
+import {
+  Keypair,
+  Keypair as SolanaKeypair,
+  SystemProgram,
+} from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 
 const token = require("@solana/spl-token");
@@ -32,6 +36,7 @@ import {
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_STORAGE,
   Account,
+  airdropSol,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -72,8 +77,7 @@ describe("verifier_program", () => {
 
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
-      relayerRecipientSol: relayerRecipientSol,
+      relayerRecipientSol,
       relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
@@ -115,6 +119,7 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
 
     let deposit_utxo1 = spl
@@ -146,7 +151,6 @@ describe("verifier_program", () => {
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-      lookUpTable: LOOK_UP_TABLE,
       action: Action.SHIELD,
       poseidon: POSEIDON,
       verifierIdl: verifierIdl,
@@ -210,6 +214,7 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
     await lightProvider.relayer.updateMerkleTree(lightProvider);
   });
@@ -234,13 +239,19 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
     let user = await User.init({
       provider: lightProvider,
       account: KEYPAIR,
     });
 
-    const origin = new anchor.web3.Account();
+    const origin = Keypair.generate();
+    await airdropSol({
+      provider: lightProvider.provider,
+      lamports: 1000 * 1e9,
+      recipientPublicKey: origin.publicKey,
+    });
 
     let txParams = new TransactionParameters({
       inputUtxos: [
@@ -309,6 +320,7 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
     let user: User = await User.init({
       provider: lightProvider,

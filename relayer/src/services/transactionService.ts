@@ -1,10 +1,10 @@
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
   IndexedTransaction,
-  indexRecentTransactions,
+  fetchRecentTransactions,
   sendVersionedTransactions,
 } from "@lightprotocol/zk.js";
-import { getLightProvider, setAnchorProvider } from "../utils/provider";
+import { getAnchorProvider, getLightProvider } from "../utils/provider";
 
 export async function sendTransaction(req: any, res: any) {
   try {
@@ -33,7 +33,7 @@ export async function sendTransaction(req: any, res: any) {
     var response = await sendVersionedTransactions(
       instructions,
       provider.provider.connection,
-      provider.relayer.accounts.lookUpTable,
+      provider.lookUpTables.versionedTransactionLookupTable,
       provider.wallet,
     );
     return res
@@ -46,16 +46,15 @@ export async function sendTransaction(req: any, res: any) {
 
 export async function indexedTransactions(_req: any, res: any) {
   try {
-    const provider = await setAnchorProvider();
+    const provider = await getAnchorProvider();
 
     if (!provider) throw new Error("no provider set");
 
-    const indexedTransactions = await indexRecentTransactions({
+    const indexedTransactions = await fetchRecentTransactions({
       connection: provider.connection,
       batchOptions: {
         limit: 5000,
       },
-      dedupe: false,
     });
 
     const stringifiedIndexedTransactions = indexedTransactions.map(

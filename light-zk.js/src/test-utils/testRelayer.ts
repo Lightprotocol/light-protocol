@@ -4,39 +4,31 @@ import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
 import { Provider, useWallet } from "../wallet";
 import {
-  indexRecentTransactions,
+  fetchRecentTransactions,
   sendVersionedTransactions,
 } from "../transaction";
-import { IndexedTransaction } from "../types";
+import { ParsedIndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
 import { TRANSACTION_MERKLE_TREE_KEY, IDL_MERKLE_TREE_PROGRAM } from "../index";
 
 export class TestRelayer extends Relayer {
-  indexedTransactions: IndexedTransaction[] = [];
+  indexedTransactions: ParsedIndexedTransaction[] = [];
   relayerKeypair: Keypair;
 
   constructor({
     relayerPubkey,
-    lookUpTable,
     relayerRecipientSol,
     relayerFee = new BN(0),
     highRelayerFee,
     payer,
   }: {
     relayerPubkey: PublicKey;
-    lookUpTable: PublicKey;
     relayerRecipientSol?: PublicKey;
     relayerFee: BN;
     highRelayerFee?: BN;
     payer: Keypair;
   }) {
-    super(
-      relayerPubkey,
-      lookUpTable,
-      relayerRecipientSol,
-      relayerFee,
-      highRelayerFee,
-    );
+    super(relayerPubkey, relayerRecipientSol, relayerFee, highRelayerFee);
     if (payer.publicKey.toBase58() != relayerPubkey.toBase58())
       throw new Error(
         `Payer public key ${payer.publicKey.toBase58()} does not match relayer public key ${relayerPubkey.toBase58()}`,
@@ -81,7 +73,7 @@ export class TestRelayer extends Relayer {
     var res = await sendVersionedTransactions(
       instructions,
       provider.provider!.connection!,
-      this.accounts.lookUpTable,
+      provider.lookUpTables.versionedTransactionLookupTable,
       useWallet(this.relayerKeypair),
     );
     if (res.error) return { transactionStatus: "error", ...res };
@@ -98,7 +90,7 @@ export class TestRelayer extends Relayer {
    */
   async getIndexedTransactions(
     connection: Connection,
-  ): Promise<IndexedTransaction[]> {
+  ): Promise<ParsedIndexedTransaction[]> {
     const merkleTreeAccountInfo = await connection.getAccountInfo(
       TRANSACTION_MERKLE_TREE_KEY,
       "confirmed",
@@ -117,14 +109,22 @@ export class TestRelayer extends Relayer {
     // which is approximately the number of transactions sent to send one shielded transaction and update the merkle tree
     const limit = 1000 + 260 * merkleTreeAccount.nextIndex.toNumber();
     if (this.indexedTransactions.length === 0) {
-      this.indexedTransactions = await indexRecentTransactions({
+      let newTransactions = await fetchRecentTransactions({
         connection,
         batchOptions: {
           limit,
         },
-        dedupe: false,
       });
-
+      this.indexedTransactions = newTransactions.map((trx) => {
+        return {
+          ...trx,
+          firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
+          publicAmountSol: new BN(trx.publicAmountSol, "hex"),
+          publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
+          changeSolAmount: new BN(trx.changeSolAmount, "hex"),
+          relayerFee: new BN(trx.relayerFee, "hex"),
+        };
+      });
       return this.indexedTransactions;
     } else {
       if (this.indexedTransactions.length === 0) return [];
@@ -133,15 +133,27 @@ export class TestRelayer extends Relayer {
         a.blockTime > b.blockTime ? a : b,
       );
 
-      await indexRecentTransactions({
+      let newTransactions = await fetchRecentTransactions({
         connection,
         batchOptions: {
           limit,
           until: mostRecentTransaction.signature,
         },
-        dedupe: false,
-        transactions: this.indexedTransactions,
       });
+      let parsedNewTransactions = newTransactions.map((trx) => {
+        return {
+          ...trx,
+          firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
+          publicAmountSol: new BN(trx.publicAmountSol, "hex"),
+          publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
+          changeSolAmount: new BN(trx.changeSolAmount, "hex"),
+          relayerFee: new BN(trx.relayerFee, "hex"),
+        };
+      });
+      this.indexedTransactions = [
+        ...this.indexedTransactions,
+        ...parsedNewTransactions,
+      ];
       return this.indexedTransactions;
     }
   }

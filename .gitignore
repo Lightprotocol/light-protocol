@@ -62,3 +62,4 @@
 /.local
 /.idea
 /light-zk.js/.idea
+/**/dump.rdb
