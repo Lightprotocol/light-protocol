@@ -87,7 +87,7 @@ To build the project, use the following commands:
 
 ## Solana keypair
 
-Before doing any development or running any tets, you need to generate a new
+Before doing any development or running any tests, you need to generate a new
 local keypair:
 
 ```bash
@@ -138,3 +138,11 @@ yarn test
 yarn test-verifiers
 yarn test-merkle-tree
 ```
+
+## Common errors
+If you're seeing this error:
+- ``` error: package `solana-program v1.16.4` cannot be built because it requires rustc 1.68.0 or newer, while the currently active rustc version is 1.65.0-dev ```
+
+update your solana-cli version to >=1.16.4.
+
+For more support from the community and core developers, open a GitHub issue or join the Light Protocol Discord: https://discord.gg/J3KvDfZpyp
