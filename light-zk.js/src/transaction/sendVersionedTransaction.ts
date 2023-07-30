@@ -1,5 +1,6 @@
 import {
   AddressLookupTableAccount,
+  Commitment,
   ComputeBudgetProgram,
   Connection,
   PublicKey,
@@ -101,16 +102,24 @@ export async function sendVersionedTransactions(
       if (!signature)
         throw new Error("sendVersionedTransactions: signature is undefined");
       signatures.push(signature);
-      const latestBlockHash = await connection.getLatestBlockhash("confirmed");
-      let strategy: TransactionConfirmationStrategy = {
-        signature: signature.toString(),
-        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-        blockhash: latestBlockHash.blockhash,
-      };
-      await connection.confirmTransaction(strategy, "confirmed");
+      await confirmTransaction(connection, signature);
     }
     return { signatures };
   } catch (error) {
     return { error };
   }
+}
+
+export async function confirmTransaction(
+  connection: Connection,
+  signature: string,
+  confirmation: Commitment = "confirmed",
+) {
+  const latestBlockHash = await connection.getLatestBlockhash(confirmation);
+  let strategy: TransactionConfirmationStrategy = {
+    signature: signature.toString(),
+    lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+    blockhash: latestBlockHash.blockhash,
+  };
+  return await connection.confirmTransaction(strategy, confirmation);
 }
