@@ -26,6 +26,7 @@ There are three ways of setting up the development environment:
 * [Manual setup](#manual-setup) - not recommended, but may be useful if the
   methods above don't work for you.
 
+
 ### devenv.sh
 
 The easiest way to setup the development environment is to use our scripts
@@ -45,14 +46,18 @@ Then, optionally, you can activate the development environment:
 . ./scripts/devenv.sh
 ```
 
-(The scripts mentioned later, like `./scripts/build.sh` or `./scripts/test.sh`
+> **Note:** If you're using an M1 or M2 Mac (ARM), you must always activate the development environment.
+On x86 architecture (e.g. Linux), the scripts mentioned later, like `./scripts/build.sh` or `./scripts/test.sh`
 are going to work even without activating the development environment with
-`source devenv.sh`, they take care of setting the correct `PATH` variable.)
+`source devenv.sh` as they take care of setting the correct `PATH` variable.
+
 
 If you activated the development environment, you can manually run commands
 like `yarn`, `cargo`, `solana`, `solana-test-validator`. They are going to
 use the dependencies installed in `.local` directory, so even if you have
 different global installations, they are not going to interfere.
+
+
 
 ### Development Containers
 
