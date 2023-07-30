@@ -10,6 +10,7 @@ import {
   TOKEN_PUBKEY_SYMBOL,
   User,
   confirmConfig,
+  confirmTransaction,
 } from "../index";
 
 export async function airdropShieldedSol({
@@ -69,7 +70,7 @@ export async function airdropSol({
     recipientPublicKey,
     lamports,
   );
-  await provider.connection.confirmTransaction(txHash, "confirmed");
+  await confirmTransaction(provider.connection, txHash);
   return txHash;
 }
 
