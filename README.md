@@ -32,32 +32,27 @@ There are three ways of setting up the development environment:
 The easiest way to setup the development environment is to use our scripts
 and development environment.
 
-First, install the dependencies (they are going to be installed in `.local`
+First, install the dependencies (they will be installed in the `.local`
 directory inside your repository clone). If you want to install Redis (needed
-only for relayer), use `--enable-redis` option.
+only for the relayer), use the  `--enable-redis` option.
 
-```shell
+```
 ./scripts/install.sh
 ```
 
-Then, optionally, you can activate the development environment:
+Then, activate the development environment:
 
-```shell
-. ./scripts/devenv.sh
+```
+./scripts/devenv.sh
 ```
 
-> **Note:** If you're using an M1 or M2 Mac (ARM), you must always activate the development environment.
-On x86 architecture (e.g. Linux), the scripts mentioned later, like `./scripts/build.sh` or `./scripts/test.sh`
-are going to work even without activating the development environment with
-`source devenv.sh` as they take care of setting the correct `PATH` variable.
+Then follow the sections below, which describe the usage of `build.sh` and
+`test.sh` scripts.
 
-
-If you activated the development environment, you can manually run commands
+When the development environment is active, you can manually run commands
 like `yarn`, `cargo`, `solana`, `solana-test-validator`. They are going to
 use the dependencies installed in `.local` directory, so even if you have
 different global installations, they are not going to interfere.
-
-
 
 ### Development Containers
 
