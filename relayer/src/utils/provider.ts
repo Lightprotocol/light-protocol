@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { relayerFee, rpcPort } from "../config";
+import { relayerFee } from "../config";
 import { confirmConfig, Provider, Relayer } from "@lightprotocol/zk.js";
 
 import { readLookUpTableFromFile } from "./readLookUpTableFromFile";

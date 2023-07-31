@@ -8,7 +8,6 @@ import {
 import "dotenv/config.js";
 
 export const relayerFee = new anchor.BN(100000);
-export const rpcPort = 8899;
 export const port = 3331;
 export const SECONDS = 1000;
 export const MINUTE = 60 * SECONDS;
