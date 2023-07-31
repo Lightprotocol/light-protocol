@@ -29,16 +29,11 @@ import {
   updateMerkleTree,
   getIndexedTransactions,
   handleRelayRequest,
+  buildMerkleTree,
 } from "../src/services";
 import { testSetup } from "../src/setup";
-import {
-  getKeyPairFromEnv,
-  getLightProvider,
-  getRelayer,
-} from "../src/utils/provider";
+import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
 const bs58 = require("bs58");
-import IORedis from "ioredis";
-import { read } from "fs";
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -122,26 +117,6 @@ describe("API tests", () => {
     });
     user = await User.init({ provider });
   });
-  //  it.skip("merkleTreeProgram ", async () => {
-  //   const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(
-  //     IDL_MERKLE_TREE_PROGRAM,
-  //     merkleTreeProgramId,
-  //     anchorProvider,
-  //   );
-
-  //   let mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
-  //     TRANSACTION_MERKLE_TREE_KEY,
-  //     "processed",
-  //   );
-  //   console.log("mtFetched nextIndex ", mtFetched.nextIndex.toString());
-  //   console.log("mtFetched nextQueuedIndex ", mtFetched.nextQueuedIndex.toString());
-
-  //   });
-
-  // it("Should return look up table data", (done) => {
-  //   const redisConnection = new IORedis({ maxRetriesPerRequest: null });
-  //   console.log("redisConnection", redisConnection);
-  // });
 
   it("Should return Merkle tree data", (done) => {
     chai
