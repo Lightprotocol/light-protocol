@@ -31,7 +31,7 @@ import {
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { mock } from "node:test";
+
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const VERIFIER_IDLS = [
