@@ -1602,11 +1602,7 @@ dependencies = [
  "borsh 0.9.3",
  "bytemuck",
  "byteorder",
-<<<<<<< HEAD
- "getrandom 0.2.9",
-=======
  "getrandom 0.2.10",
->>>>>>> main
  "light-macros",
  "light-merkle-tree",
  "solana-security-txt 1.1.1",

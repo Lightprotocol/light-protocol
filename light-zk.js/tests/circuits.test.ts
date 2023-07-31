@@ -677,16 +677,7 @@ describe("App system circuit tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
 
-<<<<<<< HEAD
-    relayer = new Relayer(
-      relayerPubkey,
-      mockPubkey,
-      mockPubkey,
-      new anchor.BN(5000),
-    );
-=======
     relayer = new Relayer(relayerPubkey, mockPubkey, new anchor.BN(5000));
->>>>>>> main
     txParamsApp = new TransactionParameters({
       inputUtxos: [
         new Utxo({

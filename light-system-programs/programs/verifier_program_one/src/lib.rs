@@ -102,10 +102,6 @@ pub struct LightInstructionFirst<'info, const NR_CHECKED_INPUTS: usize> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-<<<<<<< HEAD
-    #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 3000/*8 + 32 * 6 + 10 * 32 + 2 * 32 + 512 + 16 + 128*/, payer = signing_address )]
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
-=======
     #[account(
         init,
         seeds = [
@@ -117,7 +113,6 @@ pub struct LightInstructionFirst<'info, const NR_CHECKED_INPUTS: usize> {
         payer = signing_address
     )]
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionConfig>>,
->>>>>>> main
 }
 
 #[derive(Debug)]
@@ -174,10 +169,6 @@ pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     /// CHECK:` It get checked inside the event_call
     pub log_wrapper: UncheckedAccount<'info>,
-<<<<<<< HEAD
-    #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
-=======
     #[account(
         mut,
         seeds = [
@@ -188,7 +179,6 @@ pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
         close=signing_address
     )]
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionConfig>>,
->>>>>>> main
 }
 
 #[derive(Debug)]
@@ -204,9 +194,5 @@ pub struct CloseVerifierState<'info, const NR_CHECKED_INPUTS: usize> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-<<<<<<< HEAD
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
-=======
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionConfig>>,
->>>>>>> main
 }

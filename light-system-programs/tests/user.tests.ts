@@ -1,9 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-<<<<<<< HEAD:light-system-programs/tests/user_tests.ts
-import { Keypair as SolanaKeypair, PublicKey, Keypair } from "@solana/web3.js";
-=======
 import { Keypair, Keypair as SolanaKeypair } from "@solana/web3.js";
->>>>>>> main:light-system-programs/tests/user.tests.ts
 import _ from "lodash";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");

@@ -72,10 +72,7 @@ export const sendVersionedTransaction = async (
       console.log(e);
       retries--;
       if (retries == 0 || e.logs !== undefined) {
-<<<<<<< HEAD
-=======
         console.log(e);
->>>>>>> main
         throw e;
       }
     }

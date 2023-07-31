@@ -83,11 +83,7 @@ pub fn process_shielded_transfer<'a, 'info>(
         accounts: Some(&accounts),
         verifyingkey: &VERIFYINGKEY,
     };
-<<<<<<< HEAD
-    let mut tx = Transaction::<2, 4, TransactionConfig>::new(input);
-=======
     let mut tx = Transaction::<2, 2, 4, 15, TransactionConfig>::new(input);
->>>>>>> main
 
     tx.transact()
 }

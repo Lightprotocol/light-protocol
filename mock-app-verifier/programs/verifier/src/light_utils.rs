@@ -15,11 +15,7 @@ pub struct LightInstructionFirst<'info, const NR_CHECKED_INPUTS: usize> {
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 3000, payer = signing_address )]
-<<<<<<< HEAD
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
-=======
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionsConfig>>,
->>>>>>> main
 }
 
 #[derive(Debug)]
@@ -41,11 +37,7 @@ pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump)]
-<<<<<<< HEAD
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
-=======
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionsConfig>>,
->>>>>>> main
 }
 #[allow(non_snake_case)]
 #[derive(Debug)]
@@ -60,11 +52,7 @@ pub struct LightInstructionThird<'info, const NR_CHECKED_INPUTS: usize> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-<<<<<<< HEAD
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
-=======
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionsConfig>>,
->>>>>>> main
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
@@ -116,11 +104,7 @@ pub struct CloseVerifierState<'info, const NR_CHECKED_INPUTS: usize> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-<<<<<<< HEAD
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
-=======
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionsConfig>>,
->>>>>>> main
 }
 
 #[allow(non_camel_case_types)]

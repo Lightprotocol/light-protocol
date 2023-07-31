@@ -1015,11 +1015,7 @@ export class User {
     appUtxoConfig?: AppUtxoConfig;
     account?: Account;
     skipFetchBalance?: boolean;
-<<<<<<< HEAD
   }): Promise<User> {
-=======
-  }): Promise<any> {
->>>>>>> main
     try {
       if (!seed) {
         if (provider.wallet) {
@@ -1488,13 +1484,8 @@ export class User {
       var spentUtxos: Utxo[] = [];
       for (const data of indexedTransactions) {
         let decryptedUtxo = null;
-<<<<<<< HEAD
-        var index = new BN(data.firstLeafIndex).toNumber();
-        for (var [leafIndex, leaf] of data.leaves.entries()) {
-=======
         var index = data.firstLeafIndex.toNumber();
         for (var [, leaf] of data.leaves.entries()) {
->>>>>>> main
           try {
             decryptedUtxo = await Utxo.decrypt({
               poseidon: this.provider.poseidon,

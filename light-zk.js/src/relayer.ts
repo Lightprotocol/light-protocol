@@ -111,13 +111,8 @@ export class Relayer {
 
   async getIndexedTransactions(
     /* We must keep the param for type equality with TestRelayer */
-<<<<<<< HEAD
-    connection: Connection,
-  ): Promise<IndexedTransaction[]> {
-=======
     _connection: Connection,
   ): Promise<ParsedIndexedTransaction[]> {
->>>>>>> main
     try {
       const response = await axios.get(this.url + "/indexedTransactions");
 

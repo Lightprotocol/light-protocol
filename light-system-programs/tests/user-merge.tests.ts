@@ -10,14 +10,11 @@ import {
   TestRelayer,
   Action,
   LOOK_UP_TABLE,
-<<<<<<< HEAD
-=======
   Provider,
   User,
   MINT,
   airdropShieldedSol,
   airdropShieldedMINTSpl,
->>>>>>> main
 } from "@lightprotocol/zk.js";
 
 import {

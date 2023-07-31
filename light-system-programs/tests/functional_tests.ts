@@ -320,11 +320,7 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
-<<<<<<< HEAD
-      confirmConfig 
-=======
       confirmConfig,
->>>>>>> main
     });
     let user: User = await User.init({
       provider: lightProvider,

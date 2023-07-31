@@ -70,12 +70,8 @@ pub fn process_shielded_transfer_2_in_2_out<
         accounts: Some(&accounts),
         verifyingkey: &VERIFYINGKEY,
     };
-<<<<<<< HEAD
-    let mut transaction = Transaction::<1, 2, TransactionConfig>::new(input);
-=======
     let mut transaction =
         Transaction::<NR_CHECKED_INPUTS, 1, 2, NR_PUBLIC_INPUTS, TransactionConfig>::new(input);
->>>>>>> main
 
     transaction.transact()
 }

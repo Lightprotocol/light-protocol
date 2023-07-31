@@ -17,28 +17,18 @@ import {
   FIELD_SIZE,
   merkleTreeProgramId,
 } from "../constants";
-<<<<<<< HEAD
-=======
 
 import { Action } from "./transaction";
 
 import { getUpdatedSpentUtxos, sleep } from "../utils";
->>>>>>> main
 import {
   IndexedTransaction,
   UserIndexedTransaction,
   IndexedTransactionData,
   ParsedIndexedTransaction,
 } from "../types";
-<<<<<<< HEAD
-import { getUpdatedSpentUtxos, sleep } from "../utils";
 import { Utxo } from "../utxo";
 import { TokenUtxoBalance, Provider } from "../wallet";
-import { Action } from "./transaction";
-=======
-import { Utxo } from "../utxo";
-import { TokenUtxoBalance, Provider } from "../wallet";
->>>>>>> main
 
 export class TransactionIndexerEvent {
   borshSchema = borsh.struct([

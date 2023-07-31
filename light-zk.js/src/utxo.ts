@@ -42,10 +42,7 @@ export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 
-<<<<<<< HEAD
-=======
 // Constant in order to avoid multiple "new BN(0);" instantiations.
->>>>>>> main
 const BN_0 = new BN(0);
 
 // TODO: Idl support for U256
@@ -169,8 +166,6 @@ export class Utxo {
         `asset in index ${index} is undefined. All assets: ${assets}`,
       );
     }
-<<<<<<< HEAD
-=======
 
     if (assets.findIndex((asset) => !asset) !== -1) {
       throw new UtxoError(
@@ -179,7 +174,6 @@ export class Utxo {
         `asset in index ${index} is undefined. All assets: ${assets}`,
       );
     }
->>>>>>> main
 
     while (assets.length < N_ASSETS) {
       assets.push(SystemProgram.programId);
@@ -249,11 +243,6 @@ export class Utxo {
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
         hashAndTruncateToCircuit(this.assets[1].toBytes()),
       ];
-<<<<<<< HEAD
-    } else if (this.amounts[0].toString() === "0") {
-      this.assetsCircuit = [BN_0, BN_0];
-    } else {
-=======
     } else if (this.amounts[0].isZero()) {
       this.assetsCircuit = [BN_0, BN_0];
     }
@@ -265,7 +254,6 @@ export class Utxo {
     //   );
     // }
     else {
->>>>>>> main
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
         BN_0,

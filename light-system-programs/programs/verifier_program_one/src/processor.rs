@@ -20,11 +20,7 @@ impl Config for TransactionConfig {
 
 #[allow(clippy::too_many_arguments)]
 pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
-<<<<<<< HEAD
-    ctx: Context<'a, '_, '_, 'info, LightInstructionFirst<'info>>,
-=======
     ctx: Context<'a, '_, '_, 'info, LightInstructionFirst<'info, 0>>,
->>>>>>> main
     proof: &'a Proof,
     public_amount: &'a Amounts,
     nullifiers: &'a [[u8; 32]; 10],
@@ -34,10 +30,6 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
     relayer_fee: u64,
 ) -> Result<()> {
     let pool_type = [0u8; 32];
-<<<<<<< HEAD
-=======
-
->>>>>>> main
     let input = TransactionInput {
         message: None,
         proof,
@@ -48,30 +40,18 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'info>(
         relayer_fee,
         merkle_root_index: merkle_root_index as usize,
         pool_type: &pool_type,
-<<<<<<< HEAD
-        checked_public_inputs: &checked_public_inputs,
-        accounts: None,
-        verifyingkey: &VERIFYINGKEY,
-    };
-    let tx = Transaction::<1, 10, TransactionConfig>::new(input);
-=======
         checked_public_inputs: &[],
         accounts: None,
         verifyingkey: &VERIFYINGKEY,
     };
     let tx = Transaction::<0, 1, 10, 17, TransactionConfig>::new(input);
->>>>>>> main
     ctx.accounts.verifier_state.set_inner(tx.into());
     ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
     Ok(())
 }
 
 pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
-<<<<<<< HEAD
-    ctx: Context<'a, '_, '_, 'info, LightInstructionSecond<'info>>,
-=======
     ctx: Context<'a, '_, '_, 'info, LightInstructionSecond<'info, 0>>,
->>>>>>> main
     proof: &'a Proof,
     pool_type: [u8; 32],
 ) -> Result<()> {
@@ -126,18 +106,10 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'info>(
             .try_into()
             .unwrap(),
         pool_type: &pool_type,
-<<<<<<< HEAD
-        checked_public_inputs: &checked_public_inputs,
-        accounts: Some(&accounts),
-        verifyingkey: &VERIFYINGKEY,
-    };
-    let mut tx = Transaction::<1, 10, TransactionConfig>::new(input);
-=======
         checked_public_inputs: &[],
         accounts: Some(&accounts),
         verifyingkey: &VERIFYINGKEY,
     };
     let mut tx = Transaction::<0, 1, 10, 17, TransactionConfig>::new(input);
->>>>>>> main
     tx.transact()
 }

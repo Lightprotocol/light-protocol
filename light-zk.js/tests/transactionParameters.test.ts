@@ -58,16 +58,7 @@ describe("Transaction Parameters Functional", () => {
     lightProvider = await LightProvider.loadMock();
 
     // TODO: make fee mandatory
-<<<<<<< HEAD
-    relayer = new Relayer(
-      mockPubkey3,
-      lightProvider.lookUpTable ?? mockPubkey3,
-      mockPubkey,
-      new anchor.BN(5000),
-    );
-=======
     relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
->>>>>>> main
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
@@ -80,14 +71,10 @@ describe("Transaction Parameters Functional", () => {
     });
   });
 
-<<<<<<< HEAD
-  it("Serialization Transfer Functional", async () => {
-=======
   // TODO(vadorovsky): This test fails because of insufficient size of the
   // borsh buffer. Once we are closer to implementing multisig, we need to fix
   // that problem properly.
   it.skip("Serialization Transfer Functional", async () => {
->>>>>>> main
     let outputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -1066,30 +1053,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
     }
   });
 
-<<<<<<< HEAD
-  it("LOOK_UP_TABLE_UNDEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
-      expect(() => {
-        new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
-          transactionMerkleTreePubkey: mockPubkey,
-          senderSpl: mockPubkey,
-          senderSol: mockPubkey,
-          poseidon,
-          action: Action.SHIELD,
-          verifierIdl: VERIFIER_IDLS[verifier],
-        });
-      })
-        .to.throw(TransactionParametersError)
-        .to.include({
-          code: TransactionParametersErrorCode.LOOK_UP_TABLE_UNDEFINED,
-          functionName: "constructor",
-        });
-    }
-  });
-
-=======
->>>>>>> main
   it("RELAYER_DEFINED", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
