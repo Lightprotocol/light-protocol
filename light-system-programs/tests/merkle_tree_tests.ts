@@ -91,12 +91,12 @@ describe("Merkle Tree Tests", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      LOOK_UP_TABLE,
+    RELAYER = new TestRelayer({
+      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol,
-      new anchor.BN(100000),
-    );
+      relayerFee: new anchor.BN(100_000),
+      payer: ADMIN_AUTH_KEYPAIR,
+    });
   });
 
   it("Initialize Merkle Tree Test", async () => {
@@ -611,6 +611,7 @@ describe("Merkle Tree Tests", () => {
     let lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+      confirmConfig,
     });
 
     deposit_utxo1 = new Utxo({
@@ -629,7 +630,6 @@ describe("Merkle Tree Tests", () => {
       senderSpl: userTokenAccount,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
-      lookUpTable: LOOK_UP_TABLE,
       poseidon: POSEIDON,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
@@ -731,7 +731,7 @@ describe("Merkle Tree Tests", () => {
             rent: DEFAULT_PROGRAMS.rent,
             transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
           })
-          .remainingAccounts(leavesPdas[1])
+          .remainingAccounts([leavesPdas[1]])
           .preInstructions([
             solana.ComputeBudgetProgram.setComputeUnitLimit({
               units: 1_400_000,

@@ -1,4 +1,6 @@
-#!/bin/bash -e
+#!/usr/bin/env sh
+
+set -e
 
 POWERS_OF_TAU=17 # circuit will support max 2^POWERS_OF_TAU constraints
 mkdir -p build
@@ -17,4 +19,3 @@ ts-node ./scripts/createRustVerifyingKey.ts app verifier CIRCUIT_NAME # TODO: ne
 rm ./sdk/build-circuit/verifyingkey.json
 rm ./sdk/build-circuit/CIRCUIT_NAME.r1cs
 rm ./sdk/build-circuit/CIRCUIT_NAME.sym
-

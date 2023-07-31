@@ -34,14 +34,14 @@ and development environment.
 First, install the dependencies (they are going to be installed in `.local`
 directory inside your repository clone):
 
-```bash
+```shell
 ./scripts/install.sh
 ```
 
 Then, optionally, you can activate the development environment:
 
-```bash
-source ./scripts/devenv.sh
+```shell
+. ./scripts/devenv.sh
 ```
 
 (The scripts mentioned later, like `./scripts/build.sh` or `./scripts/test.sh`
@@ -80,7 +80,7 @@ If you still want to setup dependencies manually, these are the requirements:
 To build the project, use the following commands:
 
 ```bash
-./build.sh
+./scripts/build.sh
 ```
 
 ## Git hook
@@ -106,7 +106,7 @@ solana-keygen new -o ~/.config/solana/id.json
 ### Global
 
 ```bash
-./test.sh
+./scripts/test.sh
 ```
 
 ### Rust tests

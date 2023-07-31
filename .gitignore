@@ -60,3 +60,5 @@
 
 # Third-party dependencies
 /.local
+/.idea
+/light-zk.js/.idea

@@ -6,14 +6,13 @@ import {
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { buildPoseidonOpt } from "circomlibjs";
+const circomlibjs = require("circomlibjs");
+const { buildPoseidonOpt } = circomlibjs;
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
 
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
@@ -24,7 +23,6 @@ import {
   UtxoErrorCode,
   Utxo,
   Account,
-  newNonce,
   TRANSACTION_MERKLE_TREE_KEY,
   verifierProgramTwoProgramId,
 } from "../src";
@@ -38,20 +36,17 @@ describe("Utxo Functional", () => {
   let depositFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey1 = SolanaKeypair.generate().publicKey;
-  let mockPubkey2 = SolanaKeypair.generate().publicKey;
-  let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon,
+  let relayerMockPubKey = SolanaKeypair.generate().publicKey;
+  let poseidon: any,
     lightProvider: LightProvider,
     deposit_utxo1,
-    outputUtxo,
     relayer,
     keypair;
   before(async () => {
     poseidon = await buildPoseidonOpt();
     // TODO: make fee mandatory
     relayer = new Relayer(
-      mockPubkey3,
+      relayerMockPubKey,
       mockPubkey,
       mockPubkey,
       new anchor.BN(5000),
@@ -71,7 +66,7 @@ describe("Utxo Functional", () => {
   });
 
   it("rnd utxo functional loop 100", async () => {
-    for (var i = 0; i < 100; i++) {
+    for (let i = 0; i < 100; i++) {
       // try basic tests for rnd empty utxo
       const utxo4Account = new Account({ poseidon });
       const utxo4 = new Utxo({
@@ -133,7 +128,8 @@ describe("Utxo Functional", () => {
         account: utxo4Account,
         index: 0,
         merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
-        commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer(
+        commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toArrayLike(
+          Buffer,
           "le",
           32,
         ),
@@ -184,7 +180,7 @@ describe("Utxo Functional", () => {
       lightProvider.lookUpTables.assetLookupTable,
       lightProvider.lookUpTables.verifierProgramLookupTable,
     );
-    // cannot comput nullifier in utxo1 because no privkey is serialized with toString()
+    // cannot compute nullifier in utxo1 because no privkey is serialized with toString()
     Utxo.equal(poseidon, utxo0, utxo1, true);
   });
 
@@ -222,7 +218,7 @@ describe("Utxo Functional", () => {
       lightProvider.lookUpTables.assetLookupTable,
       lightProvider.lookUpTables.verifierProgramLookupTable,
     );
-    // cannot comput nullifier in utxo1 because no privkey is serialized with toString()
+    // cannot compute nullifier in utxo1 because no privkey is serialized with toString()
     Utxo.equal(poseidon, utxo0, utxo1, true);
   });
 
@@ -311,7 +307,8 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       index: inputs.index,
       merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
-      commitment: new anchor.BN(utxo1.getCommitment(poseidon)).toBuffer(
+      commitment: new anchor.BN(utxo1.getCommitment(poseidon)).toArrayLike(
+        Buffer,
         "le",
         32,
       ),
@@ -351,10 +348,9 @@ describe("Utxo Functional", () => {
       index: inputs.index,
       merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
       aes: false,
-      commitment: new anchor.BN(receivingUtxo.getCommitment(poseidon)).toBuffer(
-        "le",
-        32,
-      ),
+      commitment: new anchor.BN(
+        receivingUtxo.getCommitment(poseidon),
+      ).toArrayLike(Buffer, "le", 32),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -370,7 +366,7 @@ describe("Utxo Functional", () => {
 describe("Utxo Errors", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
-  let poseidon, inputs, keypair;
+  let poseidon: any, inputs: any, keypair: Account;
 
   const amountFee = "1";
   const amountToken = "2";
@@ -453,7 +449,7 @@ describe("Utxo Errors", () => {
       .to.throw(UtxoError)
       .to.include({
         code: UtxoErrorCode.INVALID_ASSET_OR_AMOUNTS_LENGTH,
-        codeMessage: "Length missmatch assets: 1 != amounts: 2",
+        codeMessage: "Length mismatch assets: 1 != amounts: 2",
       });
   });
 

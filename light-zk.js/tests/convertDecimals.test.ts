@@ -1,12 +1,13 @@
 import { expect } from "chai";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
+import { convertAndComputeDecimals, generateRandomTestAmount } from "../src";
+
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-import { convertAndComputeDecimals, generateRandomTestAmount } from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -14,13 +15,12 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 describe("convertAndComputeDecimals", () => {
   it.skip("random test", () => {
     const getRandomElement = () => {
-      const randomIndex = parseInt(Math.floor(Math.random() * 7).toString());
-      return randomIndex;
+      return parseInt(Math.floor(Math.random() * 7).toString());
     };
-    for (var i = 0; i < 100000; i++) {
-      var decimalsNumber = new BN(getRandomElement());
+    for (let i = 0; i < 100000; i++) {
+      let decimalsNumber = new BN(getRandomElement());
       console.log("decimals ", decimalsNumber);
-      var decimals = new BN(10).pow(new BN(decimalsNumber));
+      let decimals = new BN(10).pow(new BN(decimalsNumber));
       const amount = generateRandomTestAmount(
         0,
         1000_000_000,

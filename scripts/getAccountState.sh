@@ -1,6 +1,4 @@
-#!/bin/bash
-
-#!/bin/bash
+#!/usr/bin/env sh
 
 declare -A keys=(
     ["LOOK_UP_TABLE"]="DyZnme4h32E66deCvsAV6pVceVw8s6ucRhNcwoofVCem"

@@ -1,24 +1,15 @@
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
-import { token } from "@coral-xyz/anchor/dist/cjs/utils";
-import {
-  getAccount,
-  getAssociatedTokenAddressSync,
-  mintTo,
-  createAssociatedTokenAccount,
-  getOrCreateAssociatedTokenAccount,
-} from "@solana/spl-token";
+import { mintTo, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import {
   ADMIN_AUTH_KEYPAIR,
   ConfirmOptions,
   MINT,
   Provider,
-  RELAYER_FEES,
   TestRelayer,
   TOKEN_PUBKEY_SYMBOL,
   User,
-  userTokenAccount,
-  USER_TOKEN_ACCOUNT,
+  confirmConfig,
 } from "../index";
 
 export async function airdropShieldedSol({
@@ -37,16 +28,17 @@ export async function airdropShieldedSol({
     throw new Error(
       "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
     );
-  const RELAYER = await new TestRelayer(
-    ADMIN_AUTH_KEYPAIR.publicKey,
-    Keypair.generate().publicKey,
-    Keypair.generate().publicKey,
-    new BN(100000),
-  );
+  const relayer = await new TestRelayer({
+    relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+    relayerRecipientSol: Keypair.generate().publicKey,
+    relayerFee: new BN(100000),
+    payer: ADMIN_AUTH_KEYPAIR,
+  });
   if (!provider) {
     provider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
+      relayer: relayer,
+      confirmConfig,
     });
   }
   const userKeypair = Keypair.generate();
@@ -102,16 +94,17 @@ export async function airdropShieldedMINTSpl({
     throw new Error(
       "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
     );
-  const RELAYER = await new TestRelayer(
-    ADMIN_AUTH_KEYPAIR.publicKey,
-    Keypair.generate().publicKey,
-    Keypair.generate().publicKey,
-    new BN(100000),
-  );
+  const relayer = await new TestRelayer({
+    relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+    relayerRecipientSol: Keypair.generate().publicKey,
+    relayerFee: new BN(100000),
+    payer: ADMIN_AUTH_KEYPAIR,
+  });
   if (!provider) {
     provider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
+      relayer: relayer,
+      confirmConfig,
     });
   }
 

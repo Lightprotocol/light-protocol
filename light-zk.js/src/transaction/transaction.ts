@@ -655,10 +655,6 @@ export class Transaction {
     }
     let response = undefined;
     if (this.params.action !== Action.SHIELD) {
-      // TODO: replace this with (this.provider.wallet.pubkey != new relayer... this.relayer
-      // then we know that an actual relayer was passed in and that it's supposed to be sent to one.
-      // we cant do that tho as we'd want to add the default relayer to the provider itself.
-      // so just pass in a flag here "shield, unshield, transfer" -> so devs don't have to know that it goes to a relayer.
       // send tx to relayer
       response = await this.params.relayer.sendTransactions(
         instructions,
@@ -703,7 +699,7 @@ export class Transaction {
       response = await sendVersionedTransactions(
         instructions,
         this.provider.provider.connection,
-        this.provider.relayer.accounts.lookUpTable,
+        this.provider.lookUpTables.versionedTransactionLookupTable,
         this.provider.wallet,
       );
     }
@@ -730,6 +726,7 @@ export class Transaction {
   ): Promise<TransactionInstruction[]> {
     const verifierProgram = TransactionParameters.getVerifierProgram(
       params.verifierIdl,
+      this.provider.provider,
     );
     if (!this.transactionInputs.publicInputs)
       throw new TransactionError(
@@ -901,7 +898,10 @@ export class Transaction {
       return await this.provider.wallet!.sendAndConfirmTransaction(transaction);
     } else {
       const transaction = new SolanaTransaction().add(
-        await TransactionParameters.getVerifierProgram(this.params?.verifierIdl)
+        await TransactionParameters.getVerifierProgram(
+          this.params?.verifierIdl,
+          this.provider.provider,
+        )
           .methods.closeVerifierState()
           .accounts({
             ...this.params.accounts,

@@ -110,6 +110,7 @@ export enum ProviderErrorCode {
   KEYPAIR_UNDEFINED = "KEYPAIR_UNDEFINED",
   WALLET_DEFINED = "WALLET_DEFINED",
   MERKLE_TREE_NOT_INITIALIZED = "MERKLE_TREE_NOT_INITIALIZED",
+  LOOK_UP_TABLE_NOT_INITIALIZED = "LOOK_UP_TABLE_NOT_INITIALIZED",
 }
 
 export enum VerifierErrorCode {
@@ -219,7 +220,7 @@ export class MetaError extends Error {
  **/
 export class TransactionError extends MetaError {}
 
-export class TransactioParametersError extends MetaError {}
+export class TransactionParametersError extends MetaError {}
 
 /**
  * @description Thrown when something fails in the Utxo class.

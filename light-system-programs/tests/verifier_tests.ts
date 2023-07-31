@@ -75,14 +75,12 @@ describe("Verifier Zero and One Tests", () => {
       2_000_000_000,
     );
 
-    RELAYER = await new TestRelayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      LOOK_UP_TABLE,
+    RELAYER = new TestRelayer({
+      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol,
-      new BN(100000),
-      new BN(10_100_000),
-      ADMIN_AUTH_KEYPAIR,
-    );
+      relayerFee: new BN(100_000),
+      payer: ADMIN_AUTH_KEYPAIR,
+    });
 
     depositAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
@@ -110,6 +108,7 @@ describe("Verifier Zero and One Tests", () => {
       let lightProvider = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
         relayer: RELAYER,
+        confirmConfig,
       }); // userKeypair
 
       deposit_utxo1 = new Utxo({
@@ -132,7 +131,6 @@ describe("Verifier Zero and One Tests", () => {
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         poseidon: POSEIDON,
         action: Action.SHIELD,
-        lookUpTable: LOOK_UP_TABLE,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
 
@@ -174,7 +172,6 @@ describe("Verifier Zero and One Tests", () => {
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         poseidon: POSEIDON,
         action: Action.SHIELD,
-        lookUpTable: LOOK_UP_TABLE,
         verifierIdl: VERIFIER_IDLS[verifier],
       });
 
@@ -191,6 +188,7 @@ describe("Verifier Zero and One Tests", () => {
       let lightProviderWithdrawal = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
         relayer: RELAYER,
+        confirmConfig,
       });
 
       const relayerRecipientSol = SolanaKeypair.generate().publicKey;

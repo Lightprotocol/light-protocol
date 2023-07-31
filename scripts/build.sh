@@ -1,35 +1,57 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 set -eux
 
 cleanup_and_install() {
-  dir=$1
-  build=$2
-  anchor_build=$3
+  if [ "${#}" -ne 6 ]; then
+    echo "Usage: cleanup_and_install --dir <dir> --yarn <yarn_build> --anchor <anchor_build>"
+    exit 1
+  fi
+  while [ "${#}" -gt 0 ]; do
+    case "${1}" in
+      -d|--dir) 
+        dir="${2}"
+        shift 2
+        ;;
+      -y|--yarn) 
+        yarn="${2}"
+        shift 2
+        ;;
+      -a|--anchor) 
+        anchor="${2}"
+        shift 2
+        ;;
+      *)
+        echo "Unknown option: ${1}"
+        return 1
+        ;;
+    esac
+  done
 
-  pushd $dir
+  cd "${dir}"
 
   for sub_dir in node_modules lib bin; do
-    if [ -d ./$sub_dir ]; then
-      rm -rf $sub_dir
+    if [ -d "./${sub_dir}" ]; then
+      rm -rf "${sub_dir}"
     fi
   done
 
   yarn install
 
-  if [ "$build" = true ] ; then
+  if [ "${yarn}" = true ] ; then
     yarn run build
   fi
 
-  if [ "$anchor_build" = true ] ; then
+  if [ "${anchor}" = true ] ; then
     light-anchor build
   fi
 
-  popd
+  cd ..
 }
 
-cleanup_and_install "light-zk.js" true false
-cleanup_and_install "light-system-programs" false true
-cleanup_and_install "mock-app-verifier" false true
-cleanup_and_install "light-circuits" false false
-cleanup_and_install "relayer" true false
+cleanup_and_install --dir "light-zk.js" --yarn true --anchor false
+cleanup_and_install -d "light-system-programs" -y false -a true
+cleanup_and_install -d "mock-app-verifier" -y false -a true
+cleanup_and_install -d "light-circuits" -y false -a false
+cleanup_and_install -d "relayer" -y true -a false
+

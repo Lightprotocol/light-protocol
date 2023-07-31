@@ -184,7 +184,7 @@ export const fetchNullifierAccountInfo = async (
 ) => {
   const nullifierPubkey = PublicKey.findProgramAddressSync(
     [
-      new anchor.BN(nullifier.toString()).toBuffer("be", 32),
+      new anchor.BN(nullifier.toString()).toArrayLike(Buffer, "be", 32),
       anchor.utils.bytes.utf8.encode("nf"),
     ],
     merkleTreeProgramId,
@@ -306,14 +306,16 @@ export function isProgramVerifier(idl: anchor.Idl): boolean {
 
 export async function initLookUpTable(
   payer: Wallet,
-  provider: anchor.Provider,
   extraAccounts?: Array<PublicKey>,
 ): Promise<PublicKey> {
   const payerPubkey = payer.publicKey;
-  const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
+  const recentSlot = (await payer.connection.getSlot("confirmed")) - 10;
 
-  var [lookUpTable] = await PublicKey.findProgramAddressSync(
-    [payerPubkey.toBuffer(), new anchor.BN(recentSlot).toBuffer("le", 8)],
+  var [lookUpTable] = PublicKey.findProgramAddressSync(
+    [
+      payerPubkey.toBuffer(),
+      new anchor.BN(recentSlot).toArrayLike(Buffer, "le", 8),
+    ],
     AddressLookupTableProgram.programId,
   );
 
@@ -323,11 +325,9 @@ export async function initLookUpTable(
     recentSlot,
   })[0];
 
-  let escrows = (
-    await PublicKey.findProgramAddressSync(
-      [anchor.utils.bytes.utf8.encode("escrow")],
-      verifierProgramZeroProgramId,
-    )
+  let escrows = PublicKey.findProgramAddressSync(
+    [anchor.utils.bytes.utf8.encode("escrow")],
+    verifierProgramZeroProgramId,
   )[0];
 
   var transaction = new Transaction().add(createInstruction);
@@ -368,9 +368,7 @@ export async function initLookUpTable(
 
   transaction.add(extendInstruction);
 
-  let recentBlockhash = await provider.connection.getLatestBlockhash(
-    "confirmed",
-  );
+  let recentBlockhash = await payer.connection.getLatestBlockhash("confirmed");
   transaction.feePayer = payerPubkey;
   transaction.recentBlockhash = recentBlockhash.blockhash;
 
@@ -380,7 +378,7 @@ export async function initLookUpTable(
     console.log("e : ", e);
   }
 
-  let lookupTableAccount = await provider.connection.getAccountInfo(
+  let lookupTableAccount = await payer.connection.getAccountInfo(
     lookUpTable,
     "confirmed",
   );

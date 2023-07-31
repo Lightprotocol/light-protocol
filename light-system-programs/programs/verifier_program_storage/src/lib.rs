@@ -38,7 +38,7 @@ pub enum VerifierError {
 #[program]
 pub mod verifier_program_storage {
     use crate::processor::process_shielded_transfer_2_in_2_out;
-    use anchor_lang::solana_program::hash::hash;
+    use light_verifier_sdk::light_transaction::{Amounts, Message, Proof};
 
     use super::*;
 
@@ -90,20 +90,24 @@ pub mod verifier_program_storage {
             InstructionDataShieldedTransferSecond::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs, vec![0u8; 16]].concat().as_slice(),
             )?;
-        let message = &ctx.accounts.verifier_state.msg;
-        let message_hash = hash(message).to_bytes();
+        let message = Message::new(&ctx.accounts.verifier_state.msg);
+        let proof = Proof {
+            a: inputs.proof_a,
+            b: inputs.proof_b,
+            c: inputs.proof_c,
+        };
+        let public_amount = Amounts {
+            sol: inputs.public_amount_sol,
+            spl: [0u8; 32], // Verifier storage does not support SPL tokens.
+        };
 
         process_shielded_transfer_2_in_2_out(
             &ctx,
-            Some(&message_hash),
-            Some(message),
-            &inputs.proof_a,
-            &inputs.proof_b,
-            &inputs.proof_c,
-            &[0u8; 32], // Verifier storage does not support SPL tokens.
+            Some(&message),
+            &proof,
+            &public_amount,
             &inputs.input_nullifier,
             &[inputs.output_commitment; 1],
-            &inputs.public_amount_sol,
             &inputs.encrypted_utxos.to_vec(),
             inputs.root_index,
             inputs.relayer_fee,

@@ -59,6 +59,7 @@ import {
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
+const encoder = new TextEncoder();
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -108,7 +109,11 @@ export class User {
         "No wallet provided",
       );
 
-    if (!provider.lookUpTable || !provider.solMerkleTree || !provider.poseidon)
+    if (
+      !provider.lookUpTables.verifierProgramLookupTable ||
+      !provider.solMerkleTree ||
+      !provider.poseidon
+    )
       throw new UserError(
         UserErrorCode.PROVIDER_NOT_INITIALIZED,
         "constructor",
@@ -188,7 +193,7 @@ export class User {
     await this.provider.latestMerkleTree(indexedTransactions);
 
     for (const trx of indexedTransactions) {
-      let leftLeafIndex = trx.firstLeafIndex.toNumber();
+      let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
 
       for (let index = 0; index < trx.leaves.length; index += 2) {
         const leafLeft = trx.leaves[index];
@@ -295,7 +300,7 @@ export class User {
         "getBalance",
         "Merkle Tree not initialized",
       );
-    if (!this.provider.lookUpTable)
+    if (!this.provider.lookUpTables.verifierProgramLookupTable)
       throw new UserError(
         RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
         "getBalance",
@@ -720,17 +725,15 @@ export class User {
     let ataCreationFee = false;
     let recipientSpl = undefined;
     if (publicAmountSpl) {
-      let tokenBalance = await this.provider.connection?.getTokenAccountBalance(
-        recipient,
-      );
-      if (!tokenBalance?.value.uiAmount) {
-        /** Signal relayer to create the ATA and charge an extra fee for it */
-        ataCreationFee = true;
-      }
       recipientSpl = splToken.getAssociatedTokenAddressSync(
         tokenCtx!.mint,
         recipient,
       );
+      const tokenAccountInfo =
+        await this.provider.provider!.connection?.getAccountInfo(recipientSpl);
+      if (!tokenAccountInfo) {
+        ataCreationFee = true;
+      }
     }
 
     var _publicSplAmount: BN | undefined = undefined;
@@ -1024,21 +1027,21 @@ export class User {
   static async init({
     provider,
     seed,
-    utxos,
     appUtxoConfig,
     account,
+    skipFetchBalance,
   }: {
     provider: Provider;
     seed?: string;
-    utxos?: Utxo[];
     appUtxoConfig?: AppUtxoConfig;
     account?: Account;
-  }): Promise<any> {
+    skipFetchBalance?: boolean;
+  }): Promise<User> {
     try {
       if (!seed) {
         if (provider.wallet) {
           const signature: Uint8Array = await provider.wallet.signMessage(
-            message,
+            encoder.encode(SIGN_MESSAGE),
           );
           seed = new anchor.BN(signature).toString();
         } else {
@@ -1059,8 +1062,7 @@ export class User {
         });
       }
       const user = new User({ provider, appUtxoConfig, account });
-
-      await user.getBalance();
+      if (!skipFetchBalance) await user.getBalance();
 
       return user;
     } catch (e) {
@@ -1507,7 +1509,7 @@ export class User {
       var spentUtxos: Utxo[] = [];
       for (const data of indexedTransactions) {
         let decryptedUtxo = null;
-        var index = data.firstLeafIndex.toNumber();
+        var index = new BN(data.firstLeafIndex).toNumber();
         for (var [leafIndex, leaf] of data.leaves.entries()) {
           try {
             decryptedUtxo = await Utxo.decrypt({

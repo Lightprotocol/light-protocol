@@ -50,14 +50,14 @@ export type IndexedTransaction = {
   verifier: PublicKey;
   relayerRecipientSol: PublicKey;
   type: Action;
-  changeSolAmount: BN;
-  publicAmountSol: BN;
-  publicAmountSpl: BN;
+  changeSolAmount: string;
+  publicAmountSol: string;
+  publicAmountSpl: string;
   encryptedUtxos: Buffer | any[];
   leaves: number[][];
-  firstLeafIndex: BN;
+  firstLeafIndex: string;
   nullifiers: BN[];
-  relayerFee: BN;
+  relayerFee: string;
   message: Buffer;
 };
 

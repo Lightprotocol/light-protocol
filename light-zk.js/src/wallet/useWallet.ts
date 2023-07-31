@@ -69,6 +69,7 @@ export const useWallet = (
   url = url !== "mock" ? url : "http://127.0.0.1:8899";
   const wallet = new Wallet(keypair, url, commitment);
   return {
+    connection: wallet._connection,
     publicKey: wallet._publicKey,
     sendAndConfirmTransaction: wallet.sendAndConfirmTransaction,
     signMessage: wallet.signMessage,

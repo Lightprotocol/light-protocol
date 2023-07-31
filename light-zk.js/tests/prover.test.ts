@@ -14,26 +14,17 @@ const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 import {
   FEE_ASSET,
-  hashAndTruncateToCircuit,
   Provider as LightProvider,
   MINT,
   Transaction,
   TransactionParameters,
-  TransactionErrorCode,
   Action,
   Relayer,
-  AUTHORITY,
-  TransactionError,
-  ProviderErrorCode,
-  SolMerkleTreeErrorCode,
   Utxo,
   Account,
   MerkleTree,
   IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_ONE,
-  IDL_VERIFIER_PROGRAM_TWO,
 } from "../src";
-import { log } from "console";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -44,16 +35,14 @@ describe("Test Prover Functional", () => {
   let depositFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey1 = SolanaKeypair.generate().publicKey;
   let mockPubkey2 = SolanaKeypair.generate().publicKey;
   let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon,
+  let poseidon: any,
     lightProvider: LightProvider,
     deposit_utxo1,
-    outputUtxo,
     relayer,
-    keypair,
-    paramsDeposit,
+    keypair: Account,
+    paramsDeposit: TransactionParameters,
     paramsWithdrawal;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
@@ -147,9 +136,9 @@ describe("Test Prover Functional", () => {
     const { unstringifyBigInts, leInt2Buff } = require("ffjavascript").utils;
     const publicInputsJson = JSON.stringify(prover.publicInputs, null, 1);
 
-    var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
-    var publicInputsBytesVerifier = new Array<Array<number>>();
-    for (var i in publicInputsBytesJson) {
+    let publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
+    let publicInputsBytesVerifier = new Array<Array<number>>();
+    for (let i in publicInputsBytesJson) {
       let ref: Array<number> = Array.from([
         ...leInt2Buff(unstringifyBigInts(publicInputsBytesJson[i]), 32),
       ]).reverse();
