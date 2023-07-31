@@ -41,12 +41,6 @@ export type Wallet = {
   isNodeWallet?: boolean;
 };
 
-/**
- * Provides: wallets, connection, latest SolMerkleTree, LookupTable, confirmConfig, poseidon
- */
-// export type TempAnchorProviderMock = {
-//   connection: Connection;
-// };
 // TODO: add relayer here; default deriv, if passed in can choose custom relayer.
 export class Provider {
   connection?: Connection;
