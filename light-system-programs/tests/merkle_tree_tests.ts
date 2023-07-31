@@ -98,7 +98,7 @@ describe("Merkle Tree Tests", () => {
     });
   });
 
-  it.only("Initialize Merkle Tree Test", async () => {
+  it("Initialize Merkle Tree Test", async () => {
     const verifierProgramZero = new anchor.Program(
       IDL_VERIFIER_PROGRAM_ZERO,
       verifierProgramZeroProgramId,
@@ -641,7 +641,6 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       console.error(e);
     }
-    // await transaction.sendAndConfirmTransaction();
   });
 
   it("Update Merkle Tree Test", async () => {
