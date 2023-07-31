@@ -32,6 +32,7 @@ app.get("/indexedTransactions", getIndexedTransactions);
 app.listen(port, async () => {
   if (process.env.TEST_ENVIRONMENT) {
     await testSetup();
+    console.log("testsetup done")
     // TODO: temporary!
     let { job } = await getTransactions(DB_VERSION);
     await job.updateData({ transactions: [] });

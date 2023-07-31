@@ -2,6 +2,7 @@ import {
   createTestAccounts,
   initLookUpTable,
   useWallet,
+  airdropSol,
 } from "@lightprotocol/zk.js";
 import { getAnchorProvider, getKeyPairFromEnv } from "../utils/provider";
 import { PublicKey } from "@solana/web3.js";
@@ -26,9 +27,18 @@ export const testSetup = async () => {
     console.log(".txt not found", e);
   }
   if (!lookUpTable) {
-    lookUpTable = await initLookUpTable(
-      useWallet(getKeyPairFromEnv("KEY_PAIR")),
-    );
+    console.log("initing lookuptable...");
+    let wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"));
+    let balance = await wallet.connection.getBalance(wallet.publicKey);
+    console.log("BALANCE PAYER", balance);
+    await airdropSol({
+      provider: providerAnchor,
+      lamports: 1000 * 1e9,
+      recipientPublicKey: wallet.publicKey,
+    });
+    balance = await wallet.connection.getBalance(wallet.publicKey);
+    console.log("BALANCE PAYER", balance);
+    lookUpTable = await initLookUpTable(wallet);
 
     writeFileSync(path, lookUpTable.toString(), "utf8");
   }
