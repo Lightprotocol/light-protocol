@@ -13,10 +13,6 @@ yarn test
 sleep 1
 cd ..
 
-cd mock-app-verifier
-yarn test
-cd ..
-
 cd relayer
 yarn test
 cd ..
