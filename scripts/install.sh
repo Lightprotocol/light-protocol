@@ -19,7 +19,7 @@ latest_release() {
 
     echo "$TAG_NAME"
 }
-latest_release()
+
 # Downloads a file from the given URL and places it in the given destination.
 download_file() {
     url="${1}"
@@ -234,14 +234,3 @@ if $ENABLE_REDIS == true ; then
 fi
 
 echo "✨ Light Protocol development dependencies installed"
-
-# download_file \
-#         "https://download.redis.io/redis-stable.tar.gz" \
-#         "redis-stable.tar.gz" \
-#         "${PREFIX}"
-# tar -xzvf redis-stable.tar.gz
-# cd redis-stable
-# make
-# make install
-
-# echo "✨ Light Protocol development dependencies installed"
