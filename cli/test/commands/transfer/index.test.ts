@@ -11,6 +11,7 @@ describe("transfer", () => {
       "transfer",
       "1.5",
       "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2e",
+      "--localTestRelayer",
     ])
     .it("transfer 1.5 SOL to a shielded account address", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully transferred 1.5 SOL ✔");
@@ -23,6 +24,7 @@ describe("transfer", () => {
       "5",
       "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2e",
       "--token=usdc",
+      "--localTestRelayer",
     ])
     .it("transfer 5 USDC to a shielded account address", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully transferred 5 USDC ✔");
@@ -35,6 +37,7 @@ describe("transfer", () => {
       "transfer",
       "5",
       "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
+      "--localTestRelayer",
     ])
     .exit(2)
     .it("Should fail transfer to an invalid shielded recipient address");
@@ -46,6 +49,7 @@ describe("transfer", () => {
       "transfer",
       "550000000",
       "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
+      "--localTestRelayer",
     ])
     .exit(2)
     .it("Should fail transfer of unsufficient SOL amount");
@@ -58,6 +62,7 @@ describe("transfer", () => {
       "550000",
       "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
       "--token=usdc",
+      "--localTestRelayer",
     ])
     .exit(2)
     .it("Should fail transfer of unsufficient SPL amount");
@@ -70,6 +75,7 @@ describe("transfer", () => {
       "5",
       "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2e",
       "--token=LFG",
+      "--localTestRelayer",
     ])
     .exit(2)
     .it("Should fail transfer of an unregistered SPL token");

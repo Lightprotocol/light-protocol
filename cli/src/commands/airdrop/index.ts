@@ -1,14 +1,11 @@
 import { Args, Command, Flags } from "@oclif/core";
-import {
-  PublicKey,
-  RpcResponseAndContext,
-  SignatureResult,
-} from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import {
   MINT,
   convertAndComputeDecimals,
   airdropSplToAssociatedTokenAccount,
+  airdropSol,
 } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
@@ -62,30 +59,21 @@ class AirdropCommand extends Command {
     loader.start();
 
     let transactionSignature: string;
-    let transactionInfo: RpcResponseAndContext<SignatureResult>;
 
     try {
       const provider = await setAnchorProvider();
 
       if (token.toLowerCase() === "sol") {
-        transactionSignature = await provider.connection.requestAirdrop(
-          recipient_address,
-          convertAndComputeDecimals(amount, new BN(1e9)).toNumber()
-        );
-        transactionInfo = await provider.connection.confirmTransaction(
-          transactionSignature,
-          "confirmed"
-        );
+        transactionSignature = await airdropSol({
+          connection: provider.connection,
+          recipientPublicKey: recipient_address,
+          lamports: convertAndComputeDecimals(amount, new BN(1e9)).toNumber(),
+        });
       } else {
         transactionSignature = await airdropSplToAssociatedTokenAccount(
           provider.connection,
           parseInt(amount) * 100,
           recipient_address
-        );
-
-        transactionInfo = await provider.connection.confirmTransaction(
-          transactionSignature,
-          "confirmed"
         );
       }
 
@@ -109,14 +97,6 @@ class AirdropCommand extends Command {
         `);
         this.log(
           `\x1b[34mTransaction signature\x1b[0m: ${transactionSignature}`
-        );
-        this.log(
-          `\x1b[34mBlock number\x1b[0m:          ${transactionInfo.context.slot}`
-        );
-        this.log(
-          `\x1b[34mTransaction status\x1b[0m:    ${
-            transactionInfo.value.err ? "failed" : "success"
-          }`
         );
 
         this.log(`\nYou can view more transaction details at:`);

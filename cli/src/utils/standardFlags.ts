@@ -8,6 +8,13 @@ export const standardFlags = {
     default: false,
     parse: async () => true,
   }),
+  localTestRelayer: Flags.boolean({
+    description: "Using a local test relayer",
+    aliases: ["lr"],
+    required: false,
+    default: false,
+    parse: async () => true,
+  }),
 };
 
 export const confirmOptionsFlags = {

@@ -44,7 +44,10 @@ class TransactionHistoryCommand extends Command {
     try {
       this.log("\n");
 
-      const user = await getUser(flags["skipFetchBalance"]);
+      const user = await getUser({
+        skipFetchBalance: flags["skipFetchBalance"],
+        localTestRelayer: flags["localTestRelayer"],
+      });
       const transactions: ParsedIndexedTransaction[] =
         await user.getTransactionHistory(false);
 

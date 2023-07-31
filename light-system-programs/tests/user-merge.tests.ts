@@ -1,4 +1,3 @@
-import * as anchor from "@coral-xyz/anchor";
 import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
 let circomlibjs = require("circomlibjs");
 
@@ -9,7 +8,6 @@ import {
   confirmConfig,
   TestRelayer,
   Action,
-  LOOK_UP_TABLE,
   Provider,
   User,
   MINT,
@@ -24,7 +22,7 @@ import {
   performMergeUtxos,
 } from "./test-utils/user-utils";
 
-import { BN } from "@coral-xyz/anchor";
+import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const recipientSeed = bs58.encode(new Uint8Array(32).fill(7));
@@ -34,11 +32,11 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  const anchorProvider = anchor.AnchorProvider.local(
+  const anchorProvider = AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig,
   );
-  anchor.setProvider(anchorProvider);
+  setProvider(anchorProvider);
 
   const userKeypair = ADMIN_AUTH_KEYPAIR;
   var environmentConfig: EnvironmentConfig = {};
@@ -62,7 +60,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     environmentConfig.relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol,
-      relayerFee: new anchor.BN(100_000),
+      relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
   });
@@ -183,6 +181,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: environmentConfig.relayer,
+      confirmConfig,
     });
 
     const userSender: User = await User.init({
@@ -272,6 +271,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: environmentConfig.relayer,
+      confirmConfig,
     });
 
     const userSender: User = await User.init({

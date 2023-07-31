@@ -16,7 +16,7 @@ describe("shield:sol sub-cli", () => {
     );
   test
     .stdout()
-    .command(["shield:sol", "2.3"])
+    .command(["shield:sol", "2.3", "--localTestRelayer"])
     .it("Shielding 2.3 SOL", async (ctx) => {
       console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("Successfully shielded 2.3 SOL ✔");
@@ -24,7 +24,7 @@ describe("shield:sol sub-cli", () => {
 
   test
     .stdout()
-    .command(["shield:sol", "123456789", "-d"])
+    .command(["shield:sol", "123456789", "-d", "--localTestRelayer"])
     .it("Shielding 123456789 LAMPORTS", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully shielded 0.123456789 SOL ✔");
     });
@@ -32,7 +32,11 @@ describe("shield:sol sub-cli", () => {
   test
     .stdout()
     .stderr()
-    .command(["shield:sol", "2222222222222222222222222222222222222222"])
+    .command([
+      "shield:sol",
+      "2222222222222222222222222222222222222222",
+      "--localTestRelayer",
+    ])
     .exit(2)
     .it("Should fail shield of unsufficient SOL amount");
 
@@ -42,6 +46,7 @@ describe("shield:sol sub-cli", () => {
     .command([
       "shield:sol",
       "0.5",
+      "--localTestRelayer",
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbcFAIL",
     ])
     .exit(2)

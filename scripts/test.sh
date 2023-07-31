@@ -27,7 +27,4 @@ cd light-circuits
 yarn run test
 cd ..
 
-pushd light-cli
-yarn test-cli
-popd
 # && cd programs/merkle_tree_program && cargo test

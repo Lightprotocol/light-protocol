@@ -66,9 +66,10 @@ export const readWalletFromFile = () => {
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = getRpcUrl();
-
-  const anchorProvider = anchor.AnchorProvider.local(
-    getRpcUrl(),
+  const connection = new solana.Connection(getRpcUrl(), "confirmed");
+  const anchorProvider = new anchor.AnchorProvider(
+    connection,
+    new anchor.Wallet(getPayer()),
     confirmConfig
   );
 
@@ -76,43 +77,58 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   return anchorProvider;
 };
 
-export const getLightProvider = async (payer?: anchor.web3.Keypair) => {
+export const getLightProvider = async (localTestRelayer?: boolean) => {
   if (!provider) {
-    const relayer = await getRelayer();
+    const relayer = await getRelayer(localTestRelayer);
 
     await setAnchorProvider();
 
     provider = await Provider.init({
-      wallet: payer ? payer : readWalletFromFile(),
+      wallet: readWalletFromFile(),
       relayer,
       url: getRpcUrl(),
       confirmConfig,
+      // TODO(@ananas-block): activate once we have a default lookup table
+      // versionedTransactionLookupTable: getLookUpTable(),
     });
     return provider;
   }
   return provider;
 };
 
-export const getUser = async (
-  skipFetchBalance?: boolean,
-  payer?: anchor.web3.Keypair
-): Promise<User> => {
-  const provider = await getLightProvider(payer);
-
-  return await User.init({ provider, skipFetchBalance });
+export const getUser = async ({
+  skipFetchBalance,
+  localTestRelayer,
+}: {
+  skipFetchBalance?: boolean;
+  localTestRelayer?: boolean;
+} = {}): Promise<User> => {
+  const provider = await getLightProvider(localTestRelayer);
+  const user = await User.init({ provider, skipFetchBalance });
+  return user;
 };
 
-export const getRelayer = async () => {
+export const getRelayer = async (localTestRelayer?: boolean) => {
   if (!relayer) {
-    const wallet = readWalletFromFile();
-    relayer = new TestRelayer({
-      relayerPubkey: wallet.publicKey,
-      relayerRecipientSol: getRelayerRecipient(),
-      relayerFee: new BN(100_000),
-      highRelayerFee: new BN(10_100_000),
-      payer: wallet,
-    });
-    return relayer;
+    if (localTestRelayer) {
+      const wallet = readWalletFromFile();
+      relayer = new TestRelayer({
+        relayerPubkey: wallet.publicKey,
+        relayerRecipientSol: wallet.publicKey,
+        relayerFee: new BN(100_000),
+        highRelayerFee: new BN(10_100_000),
+        payer: wallet,
+      });
+      return relayer;
+    } else {
+      relayer = new Relayer(
+        getRelayerPublicKey(),
+        getRelayerRecipient(),
+        new BN(100_000),
+        new BN(10_100_000),
+        getRelayerUrl()
+      );
+    }
   }
   return relayer;
 };
@@ -122,8 +138,9 @@ type Config = {
   relayerUrl: string;
   secretKey: string;
   relayerRecipient: string;
-  lookUpTable: string;
+  relayerPublicKey: string;
   payer: string;
+  lookupTable: string;
 };
 
 export const getRpcUrl = (): string => {
@@ -162,21 +179,28 @@ export const setRelayerRecipient = (address: string) => {
   setConfig({ relayerRecipient: address });
 };
 
+export const getRelayerPublicKey = () => {
+  const config = getConfig();
+  return new solana.PublicKey(config.relayerPublicKey);
+};
+
+export const setRelayerPublicKey = (address: string): void => {
+  setConfig({ relayerPublicKey: address });
+};
+
 export const getLookUpTable = () => {
   const config = getConfig();
-  return new solana.PublicKey(config.lookUpTable);
+  return new solana.PublicKey(config.lookupTable);
 };
 
 export const setLookUpTable = (address: string): void => {
-  setConfig({ lookUpTable: address });
+  setConfig({ lookupTable: address });
 };
 
 export const getPayer = () => {
-  const config = getConfig();
+  const secretKey = bs58.decode(getSecretKey());
 
-  const payer = bs58.decode(config.payer);
-
-  let asUint8Array: Uint8Array = new Uint8Array(payer);
+  let asUint8Array: Uint8Array = new Uint8Array(secretKey);
   let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
 
   return keypair;

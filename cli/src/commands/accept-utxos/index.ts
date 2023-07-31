@@ -51,7 +51,10 @@ class MergeUtxosCommand extends Command {
     const loader = new CustomLoader("Performing UTXO merge...\n");
     loader.start();
     try {
-      const user: User = await getUser(flags["skipFetchBalance"]);
+      const user: User = await getUser({
+        skipFetchBalance: flags["skipFetchBalance"],
+        localTestRelayer: flags["localTestRelayer"],
+      });
       const tokenCtx = TOKEN_REGISTRY.get(token);
 
       let response;

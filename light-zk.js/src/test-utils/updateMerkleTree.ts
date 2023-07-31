@@ -29,14 +29,15 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
       MerkleTreeConfig.getTransactionMerkleTreePda();
 
     let leavesPdas: any[] = [];
-    let retries = 3;
+    let retries = 5;
     while (leavesPdas.length === 0 && retries > 0) {
-      if (retries !== 3) await sleep(1000);
+      if (retries !== 5) await sleep(1000);
       leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
         transactionMerkleTreePda,
         anchorProvider && anchorProvider,
       );
       retries--;
+      console.log("retries", retries);
     }
 
     await executeUpdateMerkleTreeTransactions({

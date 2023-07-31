@@ -55,7 +55,10 @@ class ShieldSplCommand extends Command {
     try {
       const decimals = TOKEN_REGISTRY.get(token)?.decimals.toNumber();
 
-      const user = await getUser(flags["skipFetchBalance"]);
+      const user = await getUser({
+        skipFetchBalance: flags["skipFetchBalance"],
+        localTestRelayer: flags["localTestRelayer"],
+      });
       const response = await user.shield({
         token,
         recipient,

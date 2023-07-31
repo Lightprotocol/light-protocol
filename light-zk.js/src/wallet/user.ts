@@ -52,6 +52,7 @@ import {
   MerkleTreeConfig,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
+
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 // TODO: Utxos should be assigned to a merkle tree
@@ -494,17 +495,21 @@ export class User {
       this.recentTransactionParameters?.publicAmountSpl.gt(new BN(0)) &&
       this.recentTransactionParameters?.action === Action.SHIELD
     ) {
-      let tokenBalance = await splToken.getAccount(
-        this.provider.provider?.connection!,
-        this.recentTransactionParameters.accounts.senderSpl!,
-      );
+      let tokenAccountInfo =
+        await this.provider.provider?.connection!.getAccountInfo(
+          this.recentTransactionParameters.accounts.senderSpl!,
+        );
 
-      if (!tokenBalance)
+      if (!tokenAccountInfo)
         throw new UserError(
           UserErrorCode.ASSOCIATED_TOKEN_ACCOUNT_DOESNT_EXIST,
           "shield",
           "AssociatdTokenAccount doesn't exist!",
         );
+      let tokenBalance = await splToken.getAccount(
+        this.provider.provider?.connection!,
+        this.recentTransactionParameters.accounts.senderSpl!,
+      );
 
       if (
         this.recentTransactionParameters?.publicAmountSpl.gt(

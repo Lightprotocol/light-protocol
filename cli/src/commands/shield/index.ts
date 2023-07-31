@@ -65,7 +65,6 @@ class ShieldCommand extends Command {
 
   static flags = {
     ...standardFlags,
-    ...standardFlags,
     ...shieldFlags,
     ...shieldSolFlags,
     ...confirmOptionsFlags,
@@ -85,7 +84,10 @@ class ShieldCommand extends Command {
     loader.start();
 
     try {
-      const user: User = await getUser(skipFetchBalance);
+      const user: User = await getUser({
+        skipFetchBalance,
+        localTestRelayer: flags["localTestRelayer"],
+      });
       const response = await user.shield({
         token,
         recipient,

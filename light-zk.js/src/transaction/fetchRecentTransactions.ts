@@ -131,7 +131,7 @@ type Instruction = {
   programId: PublicKey;
   stackHeight: null | number;
 };
-const findMatchingInstruction = (
+export const findMatchingInstruction = (
   instructions: Instruction[],
   publicKeys: PublicKey[],
 ): Instruction | undefined => {

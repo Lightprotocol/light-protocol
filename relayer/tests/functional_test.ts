@@ -1,6 +1,9 @@
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import chai, { assert } from "chai";
+const chaiRequire = require("chai");
+const chaiAsPromised = require("chai-as-promised");
+chaiRequire.use(chaiAsPromised);
 import chaiHttp from "chai-http";
 import express from "express";
 
@@ -21,6 +24,7 @@ import {
   UserTestAssertHelper,
   ConfirmOptions,
   MerkleTreeConfig,
+  Relayer
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
@@ -33,6 +37,7 @@ import {
 } from "../src/services";
 import { testSetup } from "../src/setup";
 import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
+import { tryCatch } from "bullmq";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
@@ -69,7 +74,7 @@ const waitForBalanceUpdate = async (
     )
       retries = 0;
     balance = await user.getBalance();
-    await sleep(2000);
+    await sleep(4000);
   }
 };
 
@@ -93,17 +98,18 @@ describe("API tests", () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     await testSetup();
     await airdropSol({
-      provider: anchorProvider,
+      connection: anchorProvider.connection,
       lamports: 10_000_000_000,
       recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
     });
 
     await airdropSol({
-      provider: anchorProvider,
+      connection: anchorProvider.connection,
       lamports: 1000 * 1e9,
       recipientPublicKey: userKeypair.publicKey,
     });
     const relayer = await getRelayer();
+
     relayer.relayerFee = new BN(100_000);
     provider = await Provider.init({
       wallet: userKeypair,
@@ -111,7 +117,7 @@ describe("API tests", () => {
       relayer,
     });
     await airdropSol({
-      provider: anchorProvider,
+      connection: anchorProvider.connection,
       lamports: 1000 * 1e9,
       recipientPublicKey: provider.relayer.accounts.relayerRecipientSol,
     });
@@ -208,10 +214,81 @@ describe("API tests", () => {
     await user.shield({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
+      confirmOptions: ConfirmOptions.spendable,
     });
 
     await waitForBalanceUpdate(userTestAssertHelper, user);
     await userTestAssertHelper.checkSolShielded();
+  });
+
+  it("should fail to unshield SOL with invalid relayer pubkey", async () => {
+    const solRecipient = Keypair.generate();
+    const relayer = new Relayer(
+      Keypair.generate().publicKey,
+      Keypair.generate().publicKey,
+      new BN(100_000),
+    );
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      confirmConfig,
+      relayer,
+    });
+    const user = await User.init({ provider });
+
+    const testInputs = {
+      amountSol: 1,
+      token: "SOL",
+      type: Action.UNSHIELD,
+      recipient: solRecipient.publicKey,
+      expectedUtxoHistoryLength: 1,
+    };
+    let error = null;
+    try {
+      await user.unshield({
+        publicAmountSol: testInputs.amountSol,
+        token: testInputs.token,
+        recipient: testInputs.recipient,
+        confirmOptions: ConfirmOptions.spendable,
+      });
+    } catch (e) {
+      error = e;
+    }
+    expect(error).to.exist;
+  });
+
+  it("should fail to unshield SOL with invalid relayer sol recipient", async () => {
+    const solRecipient = Keypair.generate();
+    const relayer = new Relayer(
+      (await getRelayer()).accounts.relayerPubkey,
+      Keypair.generate().publicKey,
+      new BN(100_000),
+    );
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      confirmConfig,
+      relayer,
+    });
+    const user = await User.init({ provider });
+
+    const testInputs = {
+      amountSol: 1,
+      token: "SOL",
+      type: Action.UNSHIELD,
+      recipient: solRecipient.publicKey,
+      expectedUtxoHistoryLength: 1,
+    };
+    let error = null;
+    try {
+      await user.unshield({
+        publicAmountSol: testInputs.amountSol,
+        token: testInputs.token,
+        recipient: testInputs.recipient,
+        confirmOptions: ConfirmOptions.spendable,
+      });
+    } catch (e) {
+      error = e;
+    }
+    expect(error).to.exist;
   });
   // TODO: add a shield... before, add a transfer too tho, => assert job queeing functioning etc
   it("should unshield SOL and update merkle tree", async () => {

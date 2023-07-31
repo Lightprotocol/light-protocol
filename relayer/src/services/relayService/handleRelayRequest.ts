@@ -1,9 +1,13 @@
-import { PublicKey, TransactionInstruction } from "@solana/web3.js";
+import {
+  AccountMeta,
+  PublicKey,
+  TransactionInstruction,
+} from "@solana/web3.js";
 import { sleep } from "@lightprotocol/zk.js";
 import { relayQueue } from "../../db/redis";
-
 import { Job } from "bullmq";
 import { MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION, SECONDS } from "../../config";
+import { getRelayer } from "../../utils/provider";
 
 function validateReqParams(req: any) {
   if (!req.body.instructions) throw new Error("No instructions provided");
@@ -19,16 +23,35 @@ function validateReqParams(req: any) {
   // TODO: add other validation checks and extraction of data as necessary
 }
 
-export function parseReqParams(reqInstructions: any) {
+export async function parseReqParams(reqInstructions: any) {
   let instructions: TransactionInstruction[] = [];
+  let accounts: AccountMeta[] = [];
+  let relayer = await getRelayer();
   for (let instruction of reqInstructions) {
-    let accounts = instruction.keys.map((key: any) => {
+    accounts = instruction.keys.map((key: AccountMeta) => {
       return {
         pubkey: new PublicKey(key.pubkey),
         isWritable: key.isWritable,
         isSigner: key.isSigner,
       };
     });
+    // checking that relayer is signer and writable
+    if (
+      accounts[0].pubkey.toBase58() !==
+        relayer.accounts.relayerPubkey.toBase58() ||
+      accounts[0].isSigner != true ||
+      accounts[0].isWritable != true
+    )
+      throw new Error(
+        `Relayer pubkey in instruction != relayer pubkey ${accounts[0].pubkey.toBase58()} ${relayer.accounts.relayerPubkey.toBase58()} not signer ${
+          accounts[0].isSigner
+        } not writable ${accounts[0].isWritable}}`,
+      );
+    console.log(
+      "account 0",
+      accounts[0].pubkey.toBase58() ===
+        relayer.accounts.relayerPubkey.toBase58(),
+    );
     let newInstruction = new TransactionInstruction({
       keys: accounts,
       programId: new PublicKey(instruction.programId),
@@ -36,6 +59,23 @@ export function parseReqParams(reqInstructions: any) {
     });
     instructions.push(newInstruction);
   }
+  console.log(
+    "account 10",
+    accounts[10].pubkey.toBase58() ===
+      relayer.accounts.relayerRecipientSol.toBase58(),
+  );
+
+  // checking that recipient sol is correct
+  if (
+    accounts[10].pubkey.toBase58() !==
+    relayer.accounts.relayerRecipientSol.toBase58()
+  )
+    // || accounts[10].isSigner != false || accounts[10].isWritable != true
+    throw new Error(
+      `Relayer recipient sol pubkey in instruction != relayer recipient sol pubkey ${accounts[10].pubkey.toBase58()} ${relayer.accounts.relayerRecipientSol.toBase58()} not signer ${
+        accounts[10].isSigner
+      } not writable ${accounts[10].isWritable}}`,
+    );
   return instructions;
 }
 
@@ -86,7 +126,7 @@ export async function addRelayJob({
 export async function handleRelayRequest(req: any, res: any) {
   try {
     validateReqParams(req);
-    const instructions = parseReqParams(req.body.instructions);
+    const instructions = await parseReqParams(req.body.instructions);
     console.log(
       `/handleRelayRequest - req.body.instructions: ${req.body.instructions}`,
     );

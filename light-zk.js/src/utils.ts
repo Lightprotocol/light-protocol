@@ -372,7 +372,7 @@ export async function initLookUpTable(
     "confirmed",
   );
   if (lookupTableAccount == null)
-    throw new Error("Creating lookup table failed");
+    throw new Error(`Creating lookup table failed payer: ${payerPubkey}`);
   return lookUpTable;
 }
 

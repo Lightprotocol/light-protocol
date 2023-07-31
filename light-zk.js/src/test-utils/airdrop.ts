@@ -66,11 +66,8 @@ export async function airdropSol({
   lamports: number;
   recipientPublicKey: PublicKey;
 }) {
-  const txHash = await provider.connection.requestAirdrop(
-    recipientPublicKey,
-    lamports,
-  );
-  await confirmTransaction(provider.connection, txHash);
+  const txHash = await connection.requestAirdrop(recipientPublicKey, lamports);
+  await confirmTransaction(connection, txHash);
   return txHash;
 }
 

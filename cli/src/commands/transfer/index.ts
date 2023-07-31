@@ -54,7 +54,10 @@ class TransferCommand extends Command {
       if (token === "SOL") amountSol = amount;
       else amountSpl = amount;
 
-      const user = await getUser(flags["skipFetchBalance"]);
+      const user = await getUser({
+        skipFetchBalance: flags["skipFetchBalance"],
+        localTestRelayer: flags["localTestRelayer"],
+      });
       const response = await user.transfer({
         token,
         amountSpl,

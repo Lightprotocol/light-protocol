@@ -39,7 +39,7 @@ describe("accept-utxos", () => {
 
   test
     .stdout({ print: true })
-    .command(["accept-utxos", "--token=SOL", "--all"])
+    .command(["accept-utxos", "--token=SOL", "--all", "--localTestRelayer"])
     .it("accept all SOL inbox UTXOs", (ctx: any) => {
       expect(ctx.stdout).to.contain("Accepted SOL inbox UTXOs successfully ✔");
     });
@@ -47,7 +47,7 @@ describe("accept-utxos", () => {
   test
 
     .stdout({ print: true })
-    .command(["accept-utxos", "--token=USDC", "--all"])
+    .command(["accept-utxos", "--token=USDC", "--all", "--localTestRelayer"])
     .it("accept all USDC inbox UTXOs", (ctx: any) => {
       expect(ctx.stdout).to.contain("Accepted USDC inbox UTXOs successfully ✔");
     });

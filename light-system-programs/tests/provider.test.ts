@@ -1,4 +1,3 @@
-import * as anchor from "@coral-xyz/anchor";
 import {
   Connection,
   Keypair as SolanaKeypair,
@@ -31,10 +30,9 @@ import {
   confirmConfig,
   DEFAULT_ZERO,
   TestRelayer,
-  LOOK_UP_TABLE,
 } from "@lightprotocol/zk.js";
 
-import { BN } from "@coral-xyz/anchor";
+import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
 
 var POSEIDON, KEYPAIR;
 var RELAYER;
@@ -45,11 +43,8 @@ describe("verifier_program", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  const provider = anchor.AnchorProvider.local(
-    "http://127.0.0.1:8899",
-    confirmConfig,
-  );
-  anchor.setProvider(provider);
+  const provider = AnchorProvider.local("http://127.0.0.1:8899", confirmConfig);
+  setProvider(provider);
 
   const userKeypair = ADMIN_AUTH_KEYPAIR;
 
@@ -72,7 +67,7 @@ describe("verifier_program", () => {
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol,
-      relayerFee: new anchor.BN(100_000),
+      relayerFee: new BN(100_000),
       payer: ADMIN_AUTH_KEYPAIR,
     });
   });
@@ -132,7 +127,7 @@ describe("verifier_program", () => {
     let deposit_utxo1 = new Utxo({
       poseidon: POSEIDON,
       assets: [SystemProgram.programId, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: KEYPAIR,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:

@@ -6,8 +6,9 @@ describe("account", () => {
     await initTestEnvIfNeeded();
   });
   test
-    .stdout()
+    .stdout({ print: true })
     .command(["account"])
+    .exit(0)
     .it("runs account cmd", ({ stdout }) => {
       expect(stdout).to.contain(
         "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2e"

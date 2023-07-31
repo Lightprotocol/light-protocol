@@ -52,10 +52,12 @@ class UnshieldCommand extends Command {
 
     const loader = new CustomLoader("Performing token unshield...");
     loader.start();
-    this.log("flags[skipFetchBalance] ", flags);
 
     try {
-      const user = await getUser(flags["skipFetchBalance"]);
+      const user = await getUser({
+        skipFetchBalance: flags["skipFetchBalance"],
+        localTestRelayer: flags["localTestRelayer"],
+      });
       const response = await user.unshield({
         token,
         recipient: recipient ? new PublicKey(recipient) : undefined,

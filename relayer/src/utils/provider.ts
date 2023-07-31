@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { relayerFee } from "../config";
 import {
+  airdropSol,
   confirmConfig,
   initLookUpTable,
   Provider,
@@ -37,6 +38,10 @@ export const getAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
 export const getLightProvider = async () => {
   if (!provider) {
     const relayer = await getRelayer();
+    console.log("getRelayer ", relayer.accounts);
+    const configWallet = getKeyPairFromEnv("KEY_PAIR");
+    console.log("getKeyPairFromEnv ", configWallet.publicKey);
+
     try {
       provider = await Provider.init({
         wallet: getKeyPairFromEnv("KEY_PAIR"),
@@ -50,6 +55,16 @@ export const getLightProvider = async () => {
     } catch (e) {
       if (e.message.includes("LOOK_UP_TABLE_NOT_INITIALIZED")) {
         const anchorProvider = await getAnchorProvider();
+        await airdropSol({
+          connection: anchorProvider.connection,
+          recipientPublicKey: configWallet.publicKey,
+          lamports: 1e9,
+        });
+        await airdropSol({
+          connection: anchorProvider.connection,
+          recipientPublicKey: relayer.accounts.relayerRecipientSol,
+          lamports: 1e9,
+        });
         let looupTable = await initLookUpTable(
           useWallet(getKeyPairFromEnv("KEY_PAIR")),
           anchorProvider,

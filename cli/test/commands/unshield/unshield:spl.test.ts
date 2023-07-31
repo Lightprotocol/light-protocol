@@ -12,6 +12,7 @@ describe("unshield:spl", () => {
       "0.5",
       "USDC",
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
+      "--localTestRelayer",
     ])
     .it("Unshielding 0.5 SPL:USDC", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully unshielded 0.5 USDC ✔");
@@ -25,6 +26,7 @@ describe("unshield:spl", () => {
       "550000",
       "USDC",
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
+      "--localTestRelayer",
     ])
     .exit(2)
     .it("Should fail unshield of unsufficient SPL token amount");
@@ -36,6 +38,7 @@ describe("unshield:spl", () => {
       "0.5",
       "LFG",
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
+      "--localTestRelayer",
     ])
     .exit(2)
     .it("Should fail unshield of unregistered SPL token");

@@ -43,7 +43,10 @@ class ShieldSolCommand extends Command {
     loader.start();
 
     try {
-      const user: User = await getUser(flags["skipFetchBalance"]);
+      const user: User = await getUser({
+        skipFetchBalance: flags["skipFetchBalance"],
+        localTestRelayer: flags["localTestRelayer"],
+      });
 
       const response = await user.shield({
         token: "SOL",

@@ -4,7 +4,9 @@
   "description": "",
   "main": "/lib/index.js",
   "scripts": {
-    "test": "sh runTest.sh",
+    "test-user": "sh tests/runTest.sh",
+    "test-cli": "sh tests/runTestCli.sh",
+    "test": "yarn test-user && yarn test-cli",
     "start": "yarn ts-node lib/index.js",
     "start-local": "sh runScript.sh",
     "build": "npx tsc",

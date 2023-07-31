@@ -93,7 +93,7 @@ class PoolCommand extends Command {
           this.error("\nFailed to register the Sol pool");
         }
       } else if (method === "list") {
-        const provider = await getLightProvider(ADMIN_AUTH_KEYPAIR);
+        const provider = await getLightProvider();
         const merkleProgram = new anchor.Program(
           IDL_MERKLE_TREE_PROGRAM,
           merkleTreeProgramId,
