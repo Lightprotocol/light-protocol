@@ -5,7 +5,7 @@ import {
   Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl, Program, utils } from "@coral-xyz/anchor";
-import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
+import { N_ASSET_PUBKEYS, PREFIX_LENGTH, Utxo } from "../utxo";
 import {
   merkleTreeProgramId,
   TransactionErrorCode,
@@ -795,7 +795,10 @@ export class Transaction {
       return orderedInstructionNames;
     };
     if (this.params.verifierConfig.out == 2) {
-      this.params.encryptedUtxos! = this.params.encryptedUtxos!.slice(0, 240);
+      this.params.encryptedUtxos! = this.params.encryptedUtxos!.slice(
+        0,
+        240 + PREFIX_LENGTH * 2,
+      );
     }
     let inputObject = {
       message: this.params.message,

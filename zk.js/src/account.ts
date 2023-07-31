@@ -6,7 +6,6 @@ import { BN } from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
-  PREFIX_LENGTH,
   TransactionParametersErrorCode,
   UtxoErrorCode,
   BN_0,

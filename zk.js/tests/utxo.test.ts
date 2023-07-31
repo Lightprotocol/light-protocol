@@ -33,6 +33,9 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
+import { PREFIX_LENGTH } from "../src";
+import { randomBytes } from "tweetnacl";
+
 describe("Utxo Functional", () => {
   let poseidon: any, lightProvider: LightProvider;
   before(async () => {
@@ -121,6 +124,26 @@ describe("Utxo Functional", () => {
         Utxo.equal(poseidon, utxo4, utxo41);
       } else {
         throw new Error("decrypt failed");
+      }
+
+      // decrypt unchecked
+      const utxo41u = await Utxo.decryptUnchecked({
+      poseidon,
+        encBytes: encBytes4,
+        account: utxo4Account,
+        aes: true,
+        index: 0,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        commitment: new BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+
+      if (utxo41u !== null) {
+        Utxo.equal(poseidon, utxo4, utxo41u);
+      } else {
+        throw new Error("decrypt unchecked failed");
       }
     }
   });
@@ -288,7 +311,7 @@ describe("Utxo Functional", () => {
     );
 
     // decrypt
-    const receivingUtxo1 = await Utxo.decryptUnchecked({
+    const receivingUtxo1Unchecked = await Utxo.decryptUnchecked({
       poseidon,
       encBytes: encBytesNacl,
       account: inputs.keypair,
@@ -304,10 +327,50 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    if (receivingUtxo1) {
-      Utxo.equal(poseidon, receivingUtxo, receivingUtxo1, true);
+    if (receivingUtxo1Unchecked) {
+      Utxo.equal(poseidon, receivingUtxo, receivingUtxo1Unchecked, true);
     } else {
-      throw new Error("decrypt failed");
+      throw new Error("decrypt unchecked failed");
+    }
+
+    const receivingUtxoNoAes = new Utxo({
+      poseidon,
+      assets: inputs.assets,
+      amounts: inputs.amounts,
+      account: new Account({ poseidon }),
+      blinding: inputs.blinding,
+      index: inputs.index,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+
+    // encrypt
+    const encBytesNaclNoAes = await receivingUtxoNoAes.encrypt(
+      poseidon,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+    );
+
+    // decrypt
+    const receivingUtxo1NoAes = await Utxo.decrypt({
+      poseidon,
+      encBytes: encBytesNaclNoAes,
+      account: inputs.keypair,
+      index: inputs.index,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      aes: false,
+      commitment: new BN(receivingUtxoNoAes.getCommitment(poseidon)).toBuffer(
+        "le",
+        32,
+      ),
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+    if (typeof receivingUtxo1NoAes == "boolean") {
+      assert.equal(receivingUtxo1NoAes, false);
+    } else {
+      throw new Error("decrypt checked failed");
     }
   });
 
@@ -601,45 +664,16 @@ describe("Utxo Errors", () => {
     });
 
     if (receivingUtxo1) {
-      throw new Error("decrypt succeded");
+      throw new Error("decrypt succeeded");
     }
   });
 });
 
 describe("Utxo Benchmark", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
-
-  let mockPubkey = SolanaKeypair.generate().publicKey;
-  let relayerMockPubKey = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
-      lightProvider: LightProvider,
-      deposit_utxo1: Utxo,
-      relayer: Relayer,
-      keypair: Account;
+  let poseidon: any, lightProvider: LightProvider;
   before(async () => {
     poseidon = await buildPoseidonOpt();
-    // TODO: make fee mandatory
-    relayer = new Relayer(
-        relayerMockPubKey,
-        mockPubkey,
-        //@ts-ignore
-        mockPubkey,
-        new BN(5000),
-    );
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
-    deposit_utxo1 = new Utxo({
-      poseidon: poseidon,
-      assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
-      index: 1,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-      lightProvider.lookUpTables.verifierProgramLookupTable,
-    });
   });
 
   it("Decrypting 256k UTXOs w/checkPrefixHash", async () => {
@@ -659,12 +693,12 @@ describe("Utxo Benchmark", () => {
     });
 
     // encrypt
-    const encBytes = await testUtxo.encrypt(
-        poseidon,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
-    );
+    // const encBytes = await testUtxo.encrypt(
+    //   poseidon,
+    //   MerkleTreeConfig.getTransactionMerkleTreePda(),
+    // );
 
-    var encBytesVecs: Uint8Array[] = [];
+    let encBytesVecs: Uint8Array[] = [];
 
     for (let i = 0; i < 256 * 1000; i++) {
       encBytesVecs.push(randomBytes(120 + PREFIX_LENGTH));

@@ -32,6 +32,7 @@ import {
   MerkleTreeConfig,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   ParsedIndexedTransaction,
+  PREFIX_LENGTH,
   ProgramUtxoBalance,
   Provider,
   ProviderErrorCode,
@@ -187,13 +188,11 @@ export class User {
         const leafLeft = trx.leaves[index];
         const leafRight = trx.leaves[index + 1];
 
+        const w = NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + PREFIX_LENGTH;
         // transaction nonce is the same for all utxos in one transaction
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              (index / 2) * 240,
-              (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-            ),
+            trx.encryptedUtxos.slice(index * w, index * w + w),
           ),
           index: leftLeafIndex,
           commitment: Buffer.from([...leafLeft]),
@@ -210,12 +209,7 @@ export class User {
         });
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              (index / 2) * 240 + 120,
-              (index / 2) * 240 +
-                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
-                120,
-            ),
+            trx.encryptedUtxos.slice(index * w + w, index * w + w + w),
           ),
           index: leftLeafIndex + 1,
           commitment: Buffer.from([...leafRight]),
@@ -1650,12 +1644,12 @@ export class User {
     if (shield) {
       this.recentTransactionParameters =
         await this.createShieldTransactionParameters({
-          token: "SOL",
-          publicAmountSol: BN_0,
-          minimumLamports: false,
-          message,
-          verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-        });
+        token: "SOL",
+        publicAmountSol: BN_0,
+        minimumLamports: false,
+        message,
+        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+      });
     } else {
       const inUtxos: Utxo[] = [];
       // any utxo just select any utxo with a non-zero sol balance preferably sol balance
@@ -1684,21 +1678,21 @@ export class User {
 
       this.recentTransactionParameters =
         await TransactionParameters.getTxParams({
-          tokenCtx,
-          action: Action.TRANSFER,
-          account: this.account,
-          inUtxos,
-          provider: this.provider,
-          relayer: this.provider.relayer,
-          appUtxo: this.appUtxoConfig,
-          message,
-          mergeUtxos: true,
-          addInUtxos: false,
-          verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
-        });
+        tokenCtx,
+        action: Action.TRANSFER,
+        account: this.account,
+        inUtxos,
+        provider: this.provider,
+        relayer: this.provider.relayer,
+        appUtxo: this.appUtxoConfig,
+        message,
+        mergeUtxos: true,
+        addInUtxos: false,
+        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+        assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          this.provider.lookUpTables.verifierProgramLookupTable,
+      });
     }
 
     return this.transactWithParameters({

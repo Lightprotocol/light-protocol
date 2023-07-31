@@ -198,19 +198,32 @@ export async function decryptAddUtxoToBalance({
   verifierProgramLookupTable: string[];
   assetLookupTable: string[];
 }): Promise<void> {
-  let decryptedUtxo = await Utxo.decrypt({
-    poseidon,
-    encBytes: encBytes,
-    account: account,
-    index: index,
-    commitment,
-    aes,
-    merkleTreePdaPublicKey,
-    verifierProgramLookupTable,
-    assetLookupTable,
-  });
+  let decryptedUtxo = aes
+    ? await Utxo.decrypt({
+        poseidon,
+        encBytes: encBytes,
+        account: account,
+        index: index,
+        commitment,
+        aes,
+        merkleTreePdaPublicKey,
+        verifierProgramLookupTable,
+        assetLookupTable,
+      })
+    : await Utxo.decryptUnchecked({
+        poseidon,
+        encBytes: encBytes,
+        account: account,
+        index: index,
+        commitment,
+        aes,
+        merkleTreePdaPublicKey,
+        verifierProgramLookupTable,
+        assetLookupTable,
+      });
 
   // null if utxo did not decrypt -> return nothing and continue
+  if (typeof decryptedUtxo === "boolean") return;
   if (!decryptedUtxo) return;
 
   const nullifier = decryptedUtxo.getNullifier(poseidon);

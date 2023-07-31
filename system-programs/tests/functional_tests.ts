@@ -262,7 +262,7 @@ describe("verifier_program", () => {
     );
 
     if (updateMerkleTree) {
-      await lightProvider.relayer.updateMerkleTree(lightProvider);
+    await lightProvider.relayer.updateMerkleTree(lightProvider);
     }
   };
 

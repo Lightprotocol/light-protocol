@@ -632,7 +632,6 @@ export class Utxo {
     const bytes_message = await this.toBytes(compressed);
     const commitment = new BN(this.getCommitment(poseidon)).toBuffer("le", 32);
     const nonce = commitment.subarray(0, 24);
-    var prefix;
 
     if (!this.account.aesSecret) {
       // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
@@ -645,8 +644,7 @@ export class Utxo {
         CONSTANT_SECRET_AUTHKEY,
       );
 
-      prefix = randomPrefixBytes();
-
+      let prefix = randomPrefixBytes();
       return Uint8Array.from([...prefix, ...ciphertext]);
     } else {
       if (!merkleTreePdaPublicKey)
@@ -669,8 +667,10 @@ export class Utxo {
         true,
       );
 
-      prefix = this.account.generateUtxoPrefixHash(commitment, PREFIX_LENGTH);
-
+      let prefix = this.account.generateUtxoPrefixHash(
+        commitment,
+        PREFIX_LENGTH,
+      );
       if (!compressed) return ciphertext;
       const padding = sha3_256
         .create()
@@ -694,21 +694,22 @@ export class Utxo {
   static checkPrefixHash({
     account,
     commitment,
-    prefix,
+    prefixBytes,
   }: {
     account: Account;
     commitment: Uint8Array;
-    prefix: Uint8Array;
+    prefixBytes: Uint8Array;
   }): boolean {
-    return (
-      account.generateUtxoPrefixHash(commitment, PREFIX_LENGTH).join(",") ===
-      prefix.join(",")
-    );
+    let p1 = account
+      .generateUtxoPrefixHash(commitment, PREFIX_LENGTH)
+      .join(",");
+    let p2 = prefixBytes.join(",");
+    return p1 === p2;
   }
 
   // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
   /**
-   * @description Decrypts a utxo from an array of bytes without checking the UTXO prefix hash, the last 24 bytes are the nonce.
+   * @description Decrypts an utxo from an array of bytes without checking the UTXO prefix hash, the last 24 bytes are the nonce.
    * @param {any} poseidon
    * @param {Uint8Array} encBytes
    * @param {Account} account
@@ -721,14 +722,13 @@ export class Utxo {
     account,
     index,
     merkleTreePdaPublicKey,
-    aes = true,
+    aes,
     commitment,
     appDataIdl,
     compressed = true,
     assetLookupTable,
     verifierProgramLookupTable,
-  }: // noPrefix:boolean -> think about
-  {
+  }: {
     poseidon: any;
     encBytes: Uint8Array;
     account: Account;
@@ -742,7 +742,7 @@ export class Utxo {
     verifierProgramLookupTable: string[];
   }): Promise<Utxo | null> {
     // if(!noPrefix)
-    encBytes = encBytes.slice(PREFIX_LENGTH);
+    //encBytes = encBytes.slice(PREFIX_LENGTH);
     if (aes) {
       if (!account.aesSecret) {
         throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
@@ -754,7 +754,10 @@ export class Utxo {
           "For aes decryption the merkle tree pda publickey is necessary to derive the viewingkey",
         );
       if (compressed) {
-        encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
+        encBytes = encBytes.slice(
+          PREFIX_LENGTH,
+          ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + PREFIX_LENGTH,
+        );
       }
       setEnvironment();
       const iv16 = commitment.slice(0, 16);
@@ -783,6 +786,7 @@ export class Utxo {
           verifierProgramLookupTable,
         });
       } catch (e) {
+        console.log("decryptUnchecked error: ", e);
         // TODO: return errors - omitted for now because of different error messages on different systems
         return null;
       }
@@ -790,8 +794,8 @@ export class Utxo {
       const nonce = commitment.slice(0, 24);
       if (compressed) {
         encBytes = encBytes.slice(
-          0,
-          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+          PREFIX_LENGTH,
+          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + PREFIX_LENGTH,
         );
       }
 
@@ -824,12 +828,12 @@ export class Utxo {
 
   // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
   /**
-   * @description Decrypts a utxo from an array of bytes by checking the UTXO prefix hash, the last 24 bytes are the nonce.
+   * @description Decrypts an utxo from an array of bytes by checking the UTXO prefix hash, the last 24 bytes are the nonce.
    * @param {any} poseidon
    * @param {Uint8Array} encBytes
    * @param {Account} account
    * @param {number} index
-   * @returns {Utxo | null}
+   * @returns {Utxo | boolean }
    */
   static async decrypt({
     poseidon,
@@ -837,7 +841,7 @@ export class Utxo {
     account,
     index,
     merkleTreePdaPublicKey,
-    aes = true,
+    aes,
     commitment,
     appDataIdl,
     compressed = true,
@@ -849,15 +853,15 @@ export class Utxo {
     account: Account;
     index: number;
     merkleTreePdaPublicKey?: PublicKey;
-    aes?: boolean;
+    aes: boolean;
     commitment: Uint8Array;
     appDataIdl?: Idl;
     compressed?: boolean;
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<Utxo | boolean> {
-    const prefix = encBytes.slice(0, PREFIX_LENGTH);
-    if (this.checkPrefixHash({ account, commitment, prefix })) {
+    const prefixBytes = encBytes.slice(0, PREFIX_LENGTH);
+    if (aes && this.checkPrefixHash({ account, commitment, prefixBytes })) {
       const utxo = await Utxo.decryptUnchecked({
         poseidon,
         encBytes,
@@ -873,7 +877,7 @@ export class Utxo {
       });
       if (!utxo)
         return true; // prefixHash matches but decryption fails so utxo is null -> Returns TRUE (COLLISION)
-      else return utxo; // prefixHash matches and decryption succedes so utxo is good -> Returns UTXO (VALID)
+      else return utxo; // prefixHash matches and decryption succeeds so utxo is good -> Returns UTXO (VALID)
     } else return false; // prefixHash doesn't match -> Returns FALSE (NO COLLISION)
   }
 
@@ -921,7 +925,7 @@ export class Utxo {
     if (utxo0.amounts[0].toString() !== utxo1.amounts[0].toString()) {
       throw new Error(
         `solAmount not equal: ${utxo0.amounts[0].toString()} vs ${utxo1.amounts[0].toString()}`,
-      );
+    );
     }
 
     if (utxo0.amounts[1].toString() !== utxo1.amounts[1].toString()) {

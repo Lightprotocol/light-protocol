@@ -319,7 +319,7 @@ export class TestTransaction {
           verifierProgramLookupTable:
             lightProvider.lookUpTables.verifierProgramLookupTable,
         });
-        if (decryptedUtxo1 !== null) {
+        if (typeof decryptedUtxo1 !== "boolean") {
           Utxo.equal(
             this.provider.poseidon,
             decryptedUtxo1,
