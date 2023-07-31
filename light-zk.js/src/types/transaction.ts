@@ -70,14 +70,14 @@ export type ParsedIndexedTransaction = {
   verifier: PublicKey;
   relayerRecipientSol: PublicKey;
   type: Action;
-  changeSolAmount: string;
-  publicAmountSol: string;
-  publicAmountSpl: string;
+  changeSolAmount: BN;
+  publicAmountSol: BN;
+  publicAmountSpl: BN;
   encryptedUtxos: Buffer | any[];
   leaves: number[][];
-  firstLeafIndex: string;
+  firstLeafIndex: BN;
   nullifiers: BN[];
-  relayerFee: string;
+  relayerFee: BN;
   message: Buffer;
 };
 

@@ -1,4 +1,4 @@
-import { AnchorProvider, BN, Wallet as AnchorWallet } from "@coral-xyz/anchor";
+import { AnchorProvider, BN } from "@coral-xyz/anchor";
 import {
   PublicKey,
   Keypair as SolanaKeypair,
@@ -12,10 +12,8 @@ import { initLookUpTable } from "../utils";
 import {
   ProviderError,
   ProviderErrorCode,
-  MerkleTree,
   useWallet,
   Relayer,
-  MERKLE_TREE_HEIGHT,
   TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   SolMerkleTree,

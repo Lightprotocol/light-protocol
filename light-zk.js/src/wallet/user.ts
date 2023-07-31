@@ -53,7 +53,6 @@ import {
   ParsedIndexedTransaction,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
-const message = new TextEncoder().encode(SIGN_MESSAGE);
 const encoder = new TextEncoder();
 
 // TODO: Utxos should be assigned to a merkle tree

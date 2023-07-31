@@ -5,7 +5,7 @@ import {
 } from "@lightprotocol/zk.js";
 import { getAnchorProvider, getKeyPairFromEnv } from "../utils/provider";
 import { PublicKey } from "@solana/web3.js";
-import { readFileSync, writeFile, writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 
 export const testSetup = async () => {
   const providerAnchor = await getAnchorProvider();
@@ -28,7 +28,6 @@ export const testSetup = async () => {
   if (!lookUpTable) {
     lookUpTable = await initLookUpTable(
       useWallet(getKeyPairFromEnv("KEY_PAIR")),
-      providerAnchor,
     );
 
     writeFileSync(path, lookUpTable.toString(), "utf8");
