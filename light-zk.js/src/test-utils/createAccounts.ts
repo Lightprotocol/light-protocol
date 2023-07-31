@@ -2,7 +2,6 @@ const solana = require("@solana/web3.js");
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import {
-  AccountInfo,
   Connection,
   Keypair,
   PublicKey,
@@ -10,6 +9,7 @@ import {
 } from "@solana/web3.js";
 const { SystemProgram } = require("@solana/web3.js");
 // const token = require('@solana/spl-token')
+// @ts-ignore
 var _ = require("lodash");
 import {
   createAccount,
@@ -36,6 +36,7 @@ import {
   AUTHORITY_ONE,
   TOKEN_REGISTRY,
   sleep,
+  confirmTransaction,
 } from "../index";
 import { assert } from "chai";
 import { Program } from "@coral-xyz/anchor";
@@ -48,10 +49,11 @@ export const newAccountWithLamports = async (
   account = Keypair.generate(),
   lamports = 1e10,
 ) => {
-  let x = await connection.confirmTransaction(
-    await connection.requestAirdrop(account.publicKey, lamports),
-    "confirmed",
+  const signature = await connection.requestAirdrop(
+    account.publicKey,
+    lamports,
   );
+  await confirmTransaction(connection, signature);
   console.log("newAccountWithLamports ", account.publicKey.toBase58());
   return account;
 };
@@ -80,7 +82,6 @@ export const newAddressWithLamports = async (
 export const newProgramOwnedAccount = async ({
   connection,
   owner,
-  lamports = 0,
 }: {
   connection: Connection;
   owner: Program;
@@ -91,10 +92,8 @@ export const newProgramOwnedAccount = async ({
   let retry = 0;
   while (retry < 30) {
     try {
-      await connection.confirmTransaction(
-        await connection.requestAirdrop(payer.publicKey, 1e7),
-        "confirmed",
-      );
+      let signature = await connection.requestAirdrop(payer.publicKey, 1e7);
+      await confirmTransaction(connection, signature);
 
       const tx = new solana.Transaction().add(
         solana.SystemProgram.createAccount({
@@ -108,15 +107,10 @@ export const newProgramOwnedAccount = async ({
 
       tx.feePayer = payer.publicKey;
       tx.recentBlockhash = await connection.getLatestBlockhash();
-      let x = await solana.sendAndConfirmTransaction(
-        connection,
-        tx,
-        [payer, account],
-        {
-          commitment: "confirmed",
-          preflightCommitment: "confirmed",
-        },
-      );
+      await solana.sendAndConfirmTransaction(connection, tx, [payer, account], {
+        commitment: "confirmed",
+        preflightCommitment: "confirmed",
+      });
       return account;
     } catch {}
 
@@ -243,17 +237,15 @@ export async function createTestAccounts(
   if (balance === 0) {
     let amount = 1_000_000_000_000;
 
-    let res = await connection.requestAirdrop(ADMIN_AUTH_KEY, amount);
-    await connection.confirmTransaction(res, "confirmed");
+    let signature = await connection.requestAirdrop(ADMIN_AUTH_KEY, amount);
+    await confirmTransaction(connection, signature);
 
     let Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
 
     assert(Newbalance == balance + amount, "airdrop failed");
 
-    res = await connection.requestAirdrop(AUTHORITY_ONE, amount);
-
-    await connection.confirmTransaction(res, "confirmed");
-    // await provider.connection.confirmTransaction(, confirmConfig)
+    let signature2 = await connection.requestAirdrop(AUTHORITY_ONE, amount);
+    await confirmTransaction(connection, signature2);
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(
       solana.SystemProgram.transfer({

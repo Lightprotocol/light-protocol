@@ -26,17 +26,11 @@ jobs:
     runs-on: buildjet-16vcpu-ubuntu-2204
     strategy:
       matrix:
-        test:
-          - functional
-          - user
-          - user-merge
-          - user-merge-sol
-          - user-merge-sol-specific
-          - user-merge-spl
-          - user-merge-spl-specific
-          - verifiers
-          - merkle-tree
-          - provider
+        include:
+          - test: system-programs-tests-transaction-user-verifiers-merkle-tree-provider
+            sub-tests: '["functional", "user", "verifiers", "merkle-tree", "provider"]'
+          - test: system-programs-tests-user-merge
+            sub-tests: '["user-merge"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -48,53 +42,37 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           cd light-system-programs
-          yarn test-${{ matrix.test }}
+          IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+          for subtest in "${sub_tests[@]}"
+          do
+            yarn test-$subtest
+          done
 
-  light-zk-js:
-    name: light-zk.js
+  light-sdk-tests:
+    name: light-sdk-tests
     runs-on: buildjet-16vcpu-ubuntu-2204
+    strategy:
+      matrix:
+        include:
+          - name: sdk-tests-light-zk-light-circuits-mock-app-verifier-relayer
+            sub-tests: '["light-zk.js", "light-circuits", "mock-app-verifier", "relayer"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+        with:
+          enable_redis: 'true'
 
-      - name: Test
+      - name: ${{ matrix.test.name }}
         run: |
           source ./scripts/devenv.sh
-          cd light-zk.js
-          yarn test
 
-
-  mock-app-verifier:
-    name: mock-app-verifier
-    runs-on: buildjet-16vcpu-ubuntu-2204
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
-
-      - name: Test
-        run: |
-          source ./scripts/devenv.sh
-          cd mock-app-verifier
-          yarn test
-
-  light-circuits:
-    name: light-circuits
-    runs-on: buildjet-16vcpu-ubuntu-2204
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
-
-      - name: Test
-        run: |
-          source ./scripts/devenv.sh
-          cd light-circuits
-          yarn run test
+          IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+          for subtest in "${sub_tests[@]}"
+          do
+            cd $subtest
+            yarn test
+            cd ..
+          done

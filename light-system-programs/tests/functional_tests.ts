@@ -1,5 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
+import {
+  Keypair,
+  Keypair as SolanaKeypair,
+  SystemProgram,
+} from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 
 const token = require("@solana/spl-token");
@@ -10,9 +14,6 @@ import {
   Transaction,
   Utxo,
   LOOK_UP_TABLE,
-  initLookUpTableFromFile,
-  MerkleTreeProgram,
-  merkleTreeProgramId,
   TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
@@ -35,6 +36,7 @@ import {
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_STORAGE,
   Account,
+  airdropSol,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -43,8 +45,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 var POSEIDON;
 var RELAYER;
 var KEYPAIR;
-var deposit_utxo1: Utxo;
-var TRANSACTION_NONCE = 0;
+
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
@@ -178,7 +179,6 @@ describe("verifier_program", () => {
       tx.proofInput,
       KEYPAIR,
     );
-    TRANSACTION_NONCE++;
   };
 
   it("Deposit (verifier one)", async () => {
@@ -246,7 +246,12 @@ describe("verifier_program", () => {
       account: KEYPAIR,
     });
 
-    const origin = new anchor.web3.Account();
+    const origin = Keypair.generate();
+    await airdropSol({
+      provider: lightProvider.provider,
+      lamports: 1000 * 1e9,
+      recipientPublicKey: origin.publicKey,
+    });
 
     let txParams = new TransactionParameters({
       inputUtxos: [
@@ -288,7 +293,6 @@ describe("verifier_program", () => {
       tx.remainingAccounts,
       tx.proofInput,
     );
-    TRANSACTION_NONCE++;
   };
 
   it("Withdraw (verifier zero)", async () => {
@@ -316,7 +320,11 @@ describe("verifier_program", () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+<<<<<<< HEAD
       confirmConfig 
+=======
+      confirmConfig,
+>>>>>>> main
     });
     let user: User = await User.init({
       provider: lightProvider,

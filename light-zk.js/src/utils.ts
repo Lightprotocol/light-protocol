@@ -1,9 +1,7 @@
 import { BN } from "@coral-xyz/anchor";
 import {
   AUTHORITY,
-  confirmConfig,
   DEFAULT_PROGRAMS,
-  merkleTreeProgram,
   merkleTreeProgramId,
   MESSAGE_MERKLE_TREE_KEY,
   PRE_INSERTED_LEAVES_INDEX,
@@ -18,20 +16,17 @@ import {
   verifierProgramZeroProgramId,
 } from "./constants";
 import {
-  AccountInfo,
   AddressLookupTableProgram,
   Connection,
-  Keypair,
   PublicKey,
-  sendAndConfirmTransaction,
   Transaction,
   SystemProgram,
 } from "@solana/web3.js";
-import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
+import { MerkleTreeConfig } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
 import { Utxo } from "./utxo";
-import { MetaError, UtilsError, UtilsErrorCode } from "./errors";
+import { UtilsError, UtilsErrorCode } from "./errors";
 import { TokenUtxoBalance, Wallet } from "./wallet";
 import { TokenData } from "./types";
 const { keccak_256 } = require("@noble/hashes/sha3");

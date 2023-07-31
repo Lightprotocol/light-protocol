@@ -1,9 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
+import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
 let circomlibjs = require("circomlibjs");
 
 import {
-  setUpMerkleTree,
   initLookUpTableFromFile,
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,
@@ -11,12 +10,21 @@ import {
   TestRelayer,
   Action,
   LOOK_UP_TABLE,
+<<<<<<< HEAD
+=======
+  Provider,
+  User,
+  MINT,
+  airdropShieldedSol,
+  airdropShieldedMINTSpl,
+>>>>>>> main
 } from "@lightprotocol/zk.js";
 
 import {
   performShielding,
   EnvironmentConfig,
   performMergeAll,
+  performMergeUtxos,
 } from "./test-utils/user-utils";
 
 import { BN } from "@coral-xyz/anchor";
@@ -62,8 +70,8 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     });
   });
 
-  it("(user class) shield SOL to recipient", async () => {
-    let testInputs = {
+  it("Merge all sol & spl (no existing utxo)", async () => {
+    let testInputsShieldSol = {
       amountSpl: 0,
       amountSol: 15,
       token: "SOL",
@@ -77,13 +85,11 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
 
     await performShielding({
       numberOfShields: 1,
-      testInputs,
+      testInputs: testInputsShieldSol,
       environmentConfig,
     });
-  });
 
-  it("(user class) shield SPL to recipient", async () => {
-    let testInputs = {
+    let testInputsShieldSpl = {
       amountSpl: 20,
       token: "USDC",
       type: Action.SHIELD,
@@ -92,15 +98,14 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       shieldToRecipient: true,
       recipientSeed,
     };
+
     await performShielding({
       numberOfShields: 1,
-      testInputs,
+      testInputs: testInputsShieldSpl,
       environmentConfig,
     });
-  });
 
-  it("(user class) merge all sol (no existing utxo)", async () => {
-    let testInputs = {
+    let testInputsMergeAllSol = {
       token: "SOL",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,
@@ -110,11 +115,40 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
 
     await performMergeAll({
       environmentConfig,
-      testInputs,
+      testInputs: testInputsMergeAllSol,
+    });
+
+    let testInputsMergeAllSpl = {
+      type: Action.TRANSFER,
+      token: "USDC",
+      expectedUtxoHistoryLength: 1,
+      expectedSpentUtxosLength: 0,
+      recipientSeed,
+    };
+
+    await performMergeAll({
+      environmentConfig,
+      testInputs: testInputsMergeAllSpl,
     });
   });
 
-  it("(user class) merge all spl (no existing utxo)", async () => {
+  it("Merge all spl (existing utxos)", async () => {
+    let testInputsShield = {
+      amountSpl: 20,
+      token: "USDC",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength: 1,
+      expectedSpentUtxosLength: 0,
+      shieldToRecipient: true,
+      recipientSeed,
+    };
+
+    await performShielding({
+      numberOfShields: 2,
+      testInputs: testInputsShield,
+      environmentConfig,
+    });
+
     let testInputs = {
       type: Action.TRANSFER,
       token: "USDC",
@@ -125,6 +159,148 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     await performMergeAll({
       environmentConfig,
       testInputs,
+    });
+  });
+
+  it("Merge one spl (existing utxos)", async () => {
+    await airdropShieldedMINTSpl({
+      seed: recipientSeed,
+      amount: 11,
+    });
+    // shield SPL to recipient
+    let testInputsShield = {
+      amountSpl: 20,
+      token: "USDC",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength: 1,
+      expectedSpentUtxosLength: 0,
+      shieldToRecipient: true,
+      recipientSeed,
+    };
+
+    await performShielding({
+      numberOfShields: 2,
+      testInputs: testInputsShield,
+      environmentConfig,
+    });
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: environmentConfig.relayer,
+    });
+
+    const userSender: User = await User.init({
+      provider,
+      seed: recipientSeed,
+    });
+
+    const utxoCommitmment: string = (
+      await userSender.getUtxoInbox()
+    ).tokenBalances
+      .get(MINT.toBase58())
+      .utxos.keys()
+      .next().value;
+
+    let testInputs = {
+      type: Action.TRANSFER,
+      token: "USDC",
+      expectedUtxoHistoryLength: 1,
+      expectedSpentUtxosLength: 0,
+      utxoCommitments: [utxoCommitmment],
+      recipientSeed,
+    };
+
+    await performMergeUtxos({
+      testInputs,
+      environmentConfig,
+    });
+  });
+
+  it("Merge all sol (existing utxos)", async () => {
+    await airdropShieldedSol({
+      seed: recipientSeed,
+      amount: 15,
+    });
+    let testInputsShield = {
+      amountSol: 20,
+      token: "SOL",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength: 1,
+      expectedSpentUtxosLength: 0,
+      shieldToRecipient: true,
+      recipientSeed,
+    };
+
+    await performShielding({
+      numberOfShields: 2,
+      testInputs: testInputsShield,
+      environmentConfig,
+    });
+
+    let testInputs = {
+      type: Action.TRANSFER,
+      token: "SOL",
+      expectedUtxoHistoryLength: 1,
+      expectedSpentUtxosLength: 0,
+      recipientSeed,
+    };
+
+    await performMergeAll({
+      environmentConfig,
+      testInputs,
+    });
+  });
+
+  it("Merge one sol (existing utxos)", async () => {
+    await airdropShieldedSol({
+      seed: recipientSeed,
+      amount: 1,
+    });
+    let testInputsShield = {
+      amountSpl: 0,
+      amountSol: 20,
+      token: "SOL",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength: 1,
+      expectedSpentUtxosLength: 0,
+      shieldToRecipient: true,
+      recipientSeed,
+    };
+
+    await performShielding({
+      numberOfShields: 2,
+      testInputs: testInputsShield,
+      environmentConfig,
+    });
+
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: environmentConfig.relayer,
+    });
+
+    const userSender: User = await User.init({
+      provider,
+      seed: recipientSeed,
+    });
+
+    const utxoCommitmment: string = (
+      await userSender.getUtxoInbox()
+    ).tokenBalances
+      .get(PublicKey.default.toBase58())
+      .utxos.keys()
+      .next().value;
+
+    let testInputs = {
+      type: Action.TRANSFER,
+      token: "SOL",
+      expectedUtxoHistoryLength: 1,
+      expectedSpentUtxosLength: 0,
+      utxoCommitments: [utxoCommitmment],
+      recipientSeed,
+    };
+
+    await performMergeUtxos({
+      testInputs,
+      environmentConfig,
     });
   });
 });

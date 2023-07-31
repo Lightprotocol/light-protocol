@@ -193,7 +193,7 @@ const sendAndConfirmTransactions = async (
 ) => {
   const errors: Error[] = [];
   await Promise.all(
-    transactions.map(async (tx, index) => {
+    transactions.map(async (tx) => {
       try {
         await sendAndConfirmTransaction(
           connection,

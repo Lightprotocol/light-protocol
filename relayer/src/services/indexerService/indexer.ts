@@ -1,41 +1,7 @@
 import { Job } from "bullmq";
-import { Connection, TransactionResponse } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import { IndexedTransaction } from "@lightprotocol/zk.js";
 import { searchBackward, searchForward } from "./search";
-
-// Unused until we move to devnet for webhooks
-async function indexStreamedTransactions({
-  connection,
-  newRawTransactions,
-  job,
-  token,
-}: {
-  connection: Connection;
-  newRawTransactions: TransactionResponse[];
-  job: Job;
-  token: any;
-}) {
-  const newParsedTransactions: IndexedTransaction[] = [];
-  //   await Promise.all(
-  //     newRawTransactions.map((tx: TransactionResponse) =>
-  //       parse({
-  //         tx,
-  //         transactions: newParsedTransactions,
-  //         connection,
-  //         token,
-  //       }),
-  //     ),
-  //   );
-
-  let mergedTransactions = mergeAndSortTransactions(job.data.transactions, [
-    newParsedTransactions,
-  ]);
-
-  await job.updateData({
-    transactions: mergedTransactions,
-    lastFetched: Date.now(),
-  });
-}
 
 function mergeAndSortTransactions(
   dbTransactions: IndexedTransaction[],
@@ -61,24 +27,20 @@ function mergeAndSortTransactions(
 
 export async function indexTransactions({
   job,
-  RPC_connection,
-  initialSync,
+  connection,
 }: {
   job: Job;
-  RPC_connection: Connection;
-  initialSync: boolean;
+  connection: Connection;
 }) {
   try {
     const olderTransactions: IndexedTransaction[] = await searchBackward(
       job,
-      RPC_connection,
+      connection,
     );
-    if (olderTransactions.length === 0) initialSync = false;
-    else initialSync = true;
 
     const newerTransactions: IndexedTransaction[] = await searchForward(
       job,
-      RPC_connection,
+      connection,
     );
 
     let dedupedTransactions: IndexedTransaction[] = mergeAndSortTransactions(

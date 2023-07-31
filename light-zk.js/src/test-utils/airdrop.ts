@@ -10,6 +10,10 @@ import {
   TOKEN_PUBKEY_SYMBOL,
   User,
   confirmConfig,
+<<<<<<< HEAD
+=======
+  confirmTransaction,
+>>>>>>> main
 } from "../index";
 
 export async function airdropShieldedSol({
@@ -28,7 +32,11 @@ export async function airdropShieldedSol({
     throw new Error(
       "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
     );
+<<<<<<< HEAD
   const relayer = await new TestRelayer({
+=======
+  const relayer = new TestRelayer({
+>>>>>>> main
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
     relayerFee: new BN(100000),
@@ -69,7 +77,7 @@ export async function airdropSol({
     recipientPublicKey,
     lamports,
   );
-  await provider.connection.confirmTransaction(txHash, "confirmed");
+  await confirmTransaction(provider.connection, txHash);
   return txHash;
 }
 
@@ -94,7 +102,11 @@ export async function airdropShieldedMINTSpl({
     throw new Error(
       "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
     );
+<<<<<<< HEAD
   const relayer = await new TestRelayer({
+=======
+  const relayer = new TestRelayer({
+>>>>>>> main
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
     relayerFee: new BN(100000),

@@ -3,8 +3,13 @@ import { PublicKey } from "@solana/web3.js";
 import {
   merkleTreeProgramId,
   MERKLE_TREE_HEIGHT,
+<<<<<<< HEAD
   IndexedTransaction,
   sleep,
+=======
+  sleep,
+  ParsedIndexedTransaction,
+>>>>>>> main
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "./merkleTree";
@@ -61,9 +66,9 @@ export class SolMerkleTree {
     indexedTransactions,
     provider,
   }: {
-    pubkey: PublicKey; // pubkey to bytes
+    pubkey: PublicKey;
     poseidon: any;
-    indexedTransactions: IndexedTransaction[];
+    indexedTransactions: ParsedIndexedTransaction[];
     provider?: Provider;
   }) {
     const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(

@@ -2,7 +2,6 @@ import {
   PublicKey,
   SystemProgram,
   Transaction as SolanaTransaction,
-  TransactionConfirmationStrategy,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
@@ -18,19 +17,16 @@ import {
   UserError,
   UserErrorCode,
   Provider,
-  SolMerkleTree,
   SIGN_MESSAGE,
   AUTHORITY,
   SelectInUtxosErrorCode,
   TOKEN_REGISTRY,
-  merkleTreeProgramId,
   Account,
   Utxo,
   convertAndComputeDecimals,
   Transaction,
   TransactionParameters,
   Action,
-  getUpdatedSpentUtxos,
   AppUtxoConfig,
   createRecipientUtxos,
   Balance,
@@ -39,7 +35,6 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   decryptAddUtxoToBalance,
   fetchNullifierAccountInfo,
-  IndexedTransaction,
   getUserIndexTransactions,
   UserIndexedTransaction,
   IDL_VERIFIER_PROGRAM_ZERO,
@@ -54,8 +49,8 @@ import {
   UtxoError,
   IDL_VERIFIER_PROGRAM_TWO,
   isProgramVerifier,
-  TokenData,
   decimalConversion,
+  ParsedIndexedTransaction,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -78,7 +73,6 @@ export class User {
   provider: Provider;
   account: Account;
   transactionHistory?: UserIndexedTransaction[];
-  private seed?: string;
   recentTransactionParameters?: TransactionParameters;
   recentTransaction?: Transaction;
   approved?: boolean;
@@ -89,8 +83,6 @@ export class User {
 
   constructor({
     provider,
-    serializedUtxos, // balance
-    serialiezdSpentUtxos, // inboxBalance idk
     account,
     appUtxoConfig,
     verifierIdl = IDL_VERIFIER_PROGRAM_ZERO,
@@ -166,7 +158,7 @@ export class User {
       );
 
     // identify spent utxos
-    for (var [token, tokenBalance] of balance.tokenBalances) {
+    for (var [, tokenBalance] of balance.tokenBalances) {
       for (var [key, utxo] of tokenBalance.utxos) {
         let nullifierAccountInfo = await fetchNullifierAccountInfo(
           utxo.getNullifier(this.provider.poseidon)!,
@@ -548,9 +540,7 @@ export class User {
     }
   }
 
-  async sendTransaction(
-    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
-  ) {
+  async sendTransaction() {
     if (!this.recentTransactionParameters)
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
@@ -574,7 +564,7 @@ export class User {
       );
     let txResult;
     try {
-      txResult = await this.recentTransaction.sendTransaction(confirmOptions);
+      txResult = await this.recentTransaction.sendAndConfirmTransaction();
     } catch (e) {
       throw new UserError(
         TransactionErrorCode.SEND_TRANSACTION_FAILED,
@@ -582,12 +572,6 @@ export class User {
         `Error in tx.sendTransaction ${e}`,
       );
     }
-    let transactionContainsEncryptedUtxo = false;
-    this.recentTransactionParameters.outputUtxos.map((utxo) => {
-      if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
-        transactionContainsEncryptedUtxo = true;
-      }
-    });
     return txResult;
   }
 
@@ -984,7 +968,7 @@ export class User {
     await this.approve();
 
     // we send an array of instructions to the relayer and the relayer sends 3 transaction
-    const txHash = await this.sendTransaction(confirmOptions);
+    const txHash = await this.sendTransaction();
 
     var relayerMerkleTreeUpdateResponse = "notPinged";
 
@@ -1004,12 +988,7 @@ export class User {
     return { txHash, response: relayerMerkleTreeUpdateResponse };
   }
 
-  async transactWithUtxos({
-    inUtxos,
-    outUtxos,
-    action,
-    inUtxoCommitments,
-  }: {
+  async transactWithUtxos({}: {
     inUtxos: Utxo[];
     outUtxos: Utxo[];
     action: Action;
@@ -1036,7 +1015,11 @@ export class User {
     appUtxoConfig?: AppUtxoConfig;
     account?: Account;
     skipFetchBalance?: boolean;
+<<<<<<< HEAD
   }): Promise<User> {
+=======
+  }): Promise<any> {
+>>>>>>> main
     try {
       if (!seed) {
         if (provider.wallet) {
@@ -1223,7 +1206,7 @@ export class User {
 
   async getTransactionHistory(
     latest: boolean = true,
-  ): Promise<IndexedTransaction[]> {
+  ): Promise<UserIndexedTransaction[]> {
     try {
       if (latest) {
         await this.getBalance(true);
@@ -1461,11 +1444,7 @@ export class User {
    * - try to decrypt all and add to appUtxos or decrypted data map
    * - add custom descryption strategies for arbitrary data
    */
-  async syncStorage(
-    idl: anchor.Idl,
-    aes: boolean = true,
-    merkleTree?: PublicKey,
-  ) {
+  async syncStorage(idl: anchor.Idl, aes: boolean = true) {
     if (!aes) return undefined;
     // TODO: move to relayer
     // TODO: implement the following
@@ -1501,7 +1480,7 @@ export class User {
      * - decrypt storage verifier
      */
     const decryptIndexStorage = async (
-      indexedTransactions: IndexedTransaction[],
+      indexedTransactions: ParsedIndexedTransaction[],
       assetLookupTable: string[],
       verifierProgramLookupTable: string[],
     ) => {
@@ -1509,8 +1488,13 @@ export class User {
       var spentUtxos: Utxo[] = [];
       for (const data of indexedTransactions) {
         let decryptedUtxo = null;
+<<<<<<< HEAD
         var index = new BN(data.firstLeafIndex).toNumber();
         for (var [leafIndex, leaf] of data.leaves.entries()) {
+=======
+        var index = data.firstLeafIndex.toNumber();
+        for (var [, leaf] of data.leaves.entries()) {
+>>>>>>> main
           try {
             decryptedUtxo = await Utxo.decrypt({
               poseidon: this.provider.poseidon,
@@ -1589,8 +1573,8 @@ export class User {
           "spentUtxos",
         );
     }
-    for (var [program, programBalance] of this.balance.programBalances) {
-      for (var [token, tokenBalance] of programBalance.tokenBalances) {
+    for (var [, programBalance] of this.balance.programBalances) {
+      for (var [, tokenBalance] of programBalance.tokenBalances) {
         for (var [key, utxo] of tokenBalance.utxos) {
           let nullifierAccountInfo = await fetchNullifierAccountInfo(
             utxo.getNullifier(this.provider.poseidon)!,
@@ -1786,7 +1770,7 @@ export class User {
     const iterateOverTokenBalance = (
       tokenBalances: Map<string, TokenUtxoBalance>,
     ) => {
-      for (var [token, tokenBalance] of tokenBalances) {
+      for (var [, tokenBalance] of tokenBalances) {
         const utxo = tokenBalance.utxos.get(commitment);
         if (utxo) {
           return { status: "ready", utxo };
@@ -1802,7 +1786,7 @@ export class User {
       }
     };
     let res = undefined;
-    for (var [program, programBalance] of this.balance.programBalances) {
+    for (var [, programBalance] of this.balance.programBalances) {
       res = iterateOverTokenBalance(programBalance.tokenBalances);
       if (res) return res;
     }

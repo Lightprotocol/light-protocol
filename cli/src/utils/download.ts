@@ -87,7 +87,10 @@ async function makeExecutableInDir(dirPath: string): Promise<void> {
 
     if (stat.isDirectory()) {
       await makeExecutableInDir(filePath);
-    } else if (!filePath.startsWith(".") && (extname === "" || extname === ".sh")) {
+    } else if (
+      !filePath.startsWith(".") &&
+      (extname === "" || extname === ".sh")
+    ) {
       fs.chmodSync(filePath, "755");
     }
   }
@@ -127,7 +130,10 @@ function handleTarFile({
     if (baseName.startsWith("._")) {
       // Ignore AppleDouble files.
       entry.resume();
-    } else if (!localFilePath || entry.path === path.parse(localFilePath).base) {
+    } else if (
+      !localFilePath ||
+      entry.path === path.parse(localFilePath).base
+    ) {
       // Unpack the file if it's the one we want, or if we want all files.
 
       // Create directory if it does not exist.
@@ -137,9 +143,9 @@ function handleTarFile({
       }
 
       // Check if entry is a file before attempting to create a write stream for it
-      if (entry.type === 'file') {
+      if (entry.type === "file") {
         entry.pipe(fs.createWriteStream(outputFilePath));
-      } else if (entry.type === 'File') {
+      } else if (entry.type === "File") {
         entry.pipe(fs.createWriteStream(outputFilePath));
       } else {
         entry.resume();
@@ -149,7 +155,7 @@ function handleTarFile({
     }
   });
 
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<void>((resolve, _reject) => {
     parser.on("end", () => {
       // Make the file executable after it has been written.
       if (localFilePath) {
@@ -254,6 +260,7 @@ export async function downloadBinIfNotExists({
 }) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
+    console.log("created dir in ", dirPath);
   }
 
   // Check if file exists
@@ -369,8 +376,7 @@ export async function downloadCargoGenerateIfNotExists({
       remoteFileName = `cargo-generate-${tag}-x86_64-unknown-linux-musl.tar.gz`;
       break;
     case System.LinuxArm64:
-      remoteFileName =
-        `cargo-generate-${tag}-aarch64-unknown-linux-musl.tar.gz`;
+      remoteFileName = `cargo-generate-${tag}-aarch64-unknown-linux-musl.tar.gz`;
       break;
     case System.MacOsAmd64:
       remoteFileName = `cargo-generate-${tag}-x86_64-apple-darwin.tar.gz`;

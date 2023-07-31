@@ -1,14 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import { assert } from "chai";
 import {
-  VerifierProgramOne,
   IDL_VERIFIER_PROGRAM_ONE,
-  VerifierProgramTwo,
   IDL_VERIFIER_PROGRAM_TWO,
-  VerifierProgramZero,
   IDL_VERIFIER_PROGRAM_ZERO,
-  VerifierProgramStorage,
   IDL_VERIFIER_PROGRAM_STORAGE,
 } from "../idls/index";
 
@@ -17,7 +12,6 @@ import {
   ADMIN_AUTH_KEYPAIR,
   POOL_TYPE,
   MINT,
-  REGISTERED_POOL_PDA_SOL,
   verifierProgramZeroProgramId,
   verifierProgramOneProgramId,
   verifierProgramTwoProgramId,
@@ -32,7 +26,6 @@ import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 export async function setUpMerkleTree(
   provider: anchor.AnchorProvider,
   merkleTreeAuthority: PublicKey,
-  force?: boolean,
 ) {
   let merkleTreeConfig = new MerkleTreeConfig({
     messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,

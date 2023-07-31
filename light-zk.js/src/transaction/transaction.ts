@@ -3,9 +3,6 @@ import {
   TransactionSignature,
   TransactionInstruction,
   Transaction as SolanaTransaction,
-  TransactionConfirmationStrategy,
-  BlockheightBasedTransactionConfirmationStrategy,
-  GetVersionedBlockConfig,
 } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl, Program, utils } from "@coral-xyz/anchor";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
@@ -16,15 +13,12 @@ import {
   ProviderErrorCode,
   SolMerkleTreeErrorCode,
   Provider,
-  sendVersionedTransaction,
   TransactionParameters,
   firstLetterToUpper,
   createAccountObject,
   firstLetterToLower,
   hashAndTruncateToCircuit,
-  TOKEN_AUTHORITY,
   MINT,
-  ConfirmOptions,
   sendVersionedTransactions,
   RelayerSendTransactionsResponse,
   SendVersionedTransactionsResult,
@@ -633,26 +627,12 @@ export class Transaction {
   //   }
   // }
 
-  async sendAndConfirmTransaction(
-    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
-  ): Promise<
+  async sendAndConfirmTransaction(): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {
-    return await this.sendTransaction(confirmOptions);
-  }
-
-  // TODO: evaluate whether confirm options should be here or in transaction parameters
-  async sendTransaction(
-    confirmOptions: ConfirmOptions = ConfirmOptions.finalized,
-  ): Promise<
-    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
-  > {
-    var instructions;
-    if (!this.appParams) {
-      instructions = await this.getInstructions(this.params);
-    } else {
-      instructions = await this.getInstructions(this.appParams);
-    }
+    var instructions = await this.getInstructions(
+      this.appParams ? this.appParams : this.params,
+    );
     let response = undefined;
     if (this.params.action !== Action.SHIELD) {
       // send tx to relayer

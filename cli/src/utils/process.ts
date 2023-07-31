@@ -21,12 +21,14 @@ export async function executeCommand({
     let commandBase = path.basename(command);
     let stdoutData = "";
 
-    const childPathEnv = additionalPath ? process.env.PATH + path.delimiter + additionalPath : process.env.PATH;
+    const childPathEnv = additionalPath
+      ? process.env.PATH + path.delimiter + additionalPath
+      : process.env.PATH;
     const options: SpawnOptionsWithoutStdio = {
       env: {
         ...process.env,
         PATH: childPathEnv,
-      }
+      },
     };
 
     let childProcess;
@@ -46,6 +48,7 @@ export async function executeCommand({
     });
 
     childProcess.on("error", (error: Error) => {
+      console.log(`${commandBase} failed with error: ${error}`);
       reject(error);
     });
 
@@ -73,7 +76,7 @@ export async function executeCommandInDir(
   command: string,
   args: string[],
   dir: string,
-  options: SpawnOptionsWithoutStdio = {}
+  _options: SpawnOptionsWithoutStdio = {}
 ): Promise<string> {
   const oldDir = process.cwd();
   process.chdir(dir);

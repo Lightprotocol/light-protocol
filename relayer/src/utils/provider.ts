@@ -15,17 +15,17 @@ export const getKeyPairFromEnv = (KEY: string) => {
   );
 };
 
-export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
+export const getAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  process.env.ANCHOR_PROVIDER_URL = `http://127.0.0.1:${rpcPort}`; // runscript starts dedicated validator on this port.
-
-  const providerAnchor = anchor.AnchorProvider.local(
-    `http://127.0.0.1:${rpcPort}`,
+  process.env.ANCHOR_PROVIDER_URL = process.env.RPC_URL;
+  const url = process.env.RPC_URL;
+  if (!url) throw new Error("Environment variable RPC_URL not set");
+  const connection = new anchor.web3.Connection(url, "confirmed");
+  const providerAnchor = new anchor.AnchorProvider(
+    connection,
+    new anchor.Wallet(getKeyPairFromEnv("KEY_PAIR")),
     confirmConfig,
   );
-
-  anchor.setProvider(providerAnchor);
-
   return providerAnchor;
 };
 

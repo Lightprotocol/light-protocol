@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
-import { assert, expect } from "chai";
+import { assert } from "chai";
 const token = require("@solana/spl-token");
 import {
   Connection,
@@ -530,7 +530,7 @@ export class MerkleTreeConfig {
     if (!this.merkleTreeAuthorityPda)
       throw new Error("merkleTreeAuthorityPda undefined");
 
-    let registeredPoolTypePda = this.poolTypes.filter((item, index) => {
+    let registeredPoolTypePda = this.poolTypes.filter((item) => {
       return item.poolType.toString() === poolType.toString();
     })[0];
 

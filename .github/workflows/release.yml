@@ -15,39 +15,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        with:
-          submodules: true
 
-      - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
 
-      - name: Install nightly Rust nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-
-      - uses: Swatinem/rust-cache@v1
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 16
-
-      - name: Install Light Protocol toolchain
+      - name: Prepare artifacts
         run: |
-          curl -s https://raw.githubusercontent.com/Lightprotocol/install/main/light-protocol-install.sh | bash -s -- --no-prompt
-          echo "$HOME/.local/light-protocol/bin" >> $GITHUB_PATH
-
-      - name: Build
-        working-directory: ./light-system-programs
-        run: |
-          light-anchor build
-          cp target/deploy/merkle_tree_program.so ../merkle_tree_program.so
-          cp target/deploy/verifier_program_zero.so ../verifier_program_zero.so
-          cp target/deploy/verifier_program_storage.so ../verifier_program_storage.so
-          cp target/deploy/verifier_program_one.so ../verifier_program_one.so
-          cp target/deploy/verifier_program_two.so ../verifier_program_two.so
+          cp light-system-programs/target/deploy/merkle_tree_program.so ./merkle_tree_program.so
+          cp light-system-programs/target/deploy/verifier_program_zero.so ./verifier_program_zero.so
+          cp light-system-programs/target/deploy/verifier_program_storage.so ./verifier_program_storage.so
+          cp light-system-programs/target/deploy/verifier_program_one.so ./verifier_program_one.so
+          cp light-system-programs/target/deploy/verifier_program_two.so ./verifier_program_two.so
+          cp test-env/programs/spl_noop.so ./spl_noop.so
 
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -60,3 +39,4 @@ jobs:
             verifier_program_storage.so
             verifier_program_one.so
             verifier_program_two.so
+            spl_noop.so

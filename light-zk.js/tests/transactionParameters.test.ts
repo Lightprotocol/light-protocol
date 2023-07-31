@@ -58,12 +58,16 @@ describe("Transaction Parameters Functional", () => {
     lightProvider = await LightProvider.loadMock();
 
     // TODO: make fee mandatory
+<<<<<<< HEAD
     relayer = new Relayer(
       mockPubkey3,
       lightProvider.lookUpTable ?? mockPubkey3,
       mockPubkey,
       new anchor.BN(5000),
     );
+=======
+    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+>>>>>>> main
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
@@ -76,7 +80,14 @@ describe("Transaction Parameters Functional", () => {
     });
   });
 
+<<<<<<< HEAD
   it("Serialization Transfer Functional", async () => {
+=======
+  // TODO(vadorovsky): This test fails because of insufficient size of the
+  // borsh buffer. Once we are closer to implementing multisig, we need to fix
+  // that problem properly.
+  it.skip("Serialization Transfer Functional", async () => {
+>>>>>>> main
     let outputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -98,7 +109,6 @@ describe("Transaction Parameters Functional", () => {
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
-      lookUpTable: lightProvider.lookUpTable,
       poseidon,
       action: Action.TRANSFER,
       relayer,
@@ -180,10 +190,6 @@ describe("Transaction Parameters Functional", () => {
       TransactionParameters.getVerifierConfig(VERIFIER_IDLS[j]).in.toString(),
     );
     assert.equal(
-      params.relayer.accounts.lookUpTable.toBase58(),
-      relayer.accounts.lookUpTable?.toBase58(),
-    );
-    assert.equal(
       params.inputUtxos.length,
       TransactionParameters.getVerifierConfig(params.verifierIdl).in,
     );
@@ -229,7 +235,6 @@ describe("Transaction Parameters Functional", () => {
         inputUtxos,
         outputUtxos,
         transactionMerkleTreePubkey: mockPubkey2,
-        lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.TRANSFER,
         relayer,
@@ -304,10 +309,6 @@ describe("Transaction Parameters Functional", () => {
         TransactionParameters.getVerifierConfig(VERIFIER_IDLS[j]).in.toString(),
       );
       assert.equal(
-        params.relayer.accounts.lookUpTable.toBase58(),
-        relayer.accounts.lookUpTable?.toBase58(),
-      );
-      assert.equal(
         params.inputUtxos.length,
         TransactionParameters.getVerifierConfig(params.verifierIdl).in,
       );
@@ -340,7 +341,6 @@ describe("Transaction Parameters Functional", () => {
         transactionMerkleTreePubkey: mockPubkey2,
         senderSpl: mockPubkey,
         senderSol: mockPubkey1,
-        lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
 
@@ -409,10 +409,6 @@ describe("Transaction Parameters Functional", () => {
         TransactionParameters.getVerifierConfig(VERIFIER_IDLS[j]).in.toString(),
       );
       assert.equal(params.action.toString(), Action.SHIELD.toString());
-      assert.equal(
-        params.relayer.accounts.lookUpTable.toBase58(),
-        lightProvider.lookUpTable?.toBase58(),
-      );
       assert.equal(
         params.inputUtxos.length,
         TransactionParameters.getVerifierConfig(params.verifierIdl).in,
@@ -517,10 +513,6 @@ describe("Transaction Parameters Functional", () => {
           params.verifierIdl,
         ).in.toString(),
         TransactionParameters.getVerifierConfig(VERIFIER_IDLS[j]).in.toString(),
-      );
-      assert.equal(
-        params.relayer.accounts.lookUpTable.toBase58(),
-        relayer.accounts.lookUpTable?.toBase58(),
       );
       assert.equal(
         params.inputUtxos.length,
@@ -695,12 +687,7 @@ describe("Test General TransactionParameters Errors", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(
-      mockPubkey3,
-      mockPubkey,
-      mockPubkey,
-      new anchor.BN(5000),
-    );
+    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -721,7 +708,6 @@ describe("Test General TransactionParameters Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
 
@@ -745,7 +731,6 @@ describe("Test General TransactionParameters Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
@@ -767,7 +752,6 @@ describe("Test General TransactionParameters Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           verifierIdl: VERIFIER_IDLS[verifier],
         });
@@ -788,7 +772,6 @@ describe("Test General TransactionParameters Errors", () => {
         transactionMerkleTreePubkey: mockPubkey,
         senderSpl: mockPubkey,
         senderSol: mockPubkey,
-        lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
       });
@@ -815,12 +798,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(
-      mockPubkey,
-      mockPubkey,
-      mockPubkey,
-      new anchor.BN(5000),
-    );
+    relayer = new Relayer(mockPubkey, mockPubkey, new anchor.BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -1034,12 +1012,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(
-      mockPubkey,
-      mockPubkey,
-      mockPubkey,
-      new anchor.BN(5000),
-    );
+    relayer = new Relayer(mockPubkey, mockPubkey, new anchor.BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -1060,7 +1033,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           outputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1081,7 +1053,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           outputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1095,6 +1066,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     }
   });
 
+<<<<<<< HEAD
   it("LOOK_UP_TABLE_UNDEFINED", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -1116,6 +1088,8 @@ describe("Test TransactionParameters Deposit Errors", () => {
     }
   });
 
+=======
+>>>>>>> main
   it("RELAYER_DEFINED", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -1124,7 +1098,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           relayer,
@@ -1168,7 +1141,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1210,7 +1182,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1233,7 +1204,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1256,7 +1226,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1287,7 +1256,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
         outputUtxos: [utxo_sol_amount_no_u642],
         transactionMerkleTreePubkey: mockPubkey,
         senderSol: mockPubkey,
-        lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
         verifierIdl: VERIFIER_IDLS[verifier],
@@ -1304,7 +1272,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1327,7 +1294,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1358,12 +1324,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(
-      mockPubkey,
-      mockPubkey,
-      mockPubkey,
-      new anchor.BN(5000),
-    );
+    relayer = new Relayer(mockPubkey, mockPubkey, new anchor.BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -1398,7 +1359,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           // senderSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
@@ -1506,7 +1466,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
@@ -1530,7 +1489,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
@@ -1554,7 +1512,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           senderSpl: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
@@ -1586,7 +1543,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         inputUtxos: [utxo_sol_amount_no_u642],
         transactionMerkleTreePubkey: mockPubkey,
         recipientSol: mockPubkey,
-        lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.UNSHIELD,
         relayer,
@@ -1612,7 +1568,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         inputUtxos: [utxo_sol_amount_no_u642],
         transactionMerkleTreePubkey: mockPubkey,
         recipientSpl: mockPubkey,
-        lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.UNSHIELD,
         relayer,

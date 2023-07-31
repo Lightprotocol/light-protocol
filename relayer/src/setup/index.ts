@@ -1,17 +1,14 @@
 import {
-  LOOK_UP_TABLE,
   createTestAccounts,
   initLookUpTable,
-  initLookUpTableFromFile,
-  setUpMerkleTree,
   useWallet,
 } from "@lightprotocol/zk.js";
-import { getKeyPairFromEnv, setAnchorProvider } from "../utils/provider";
+import { getAnchorProvider, getKeyPairFromEnv } from "../utils/provider";
 import { PublicKey } from "@solana/web3.js";
 import { readFileSync, writeFile, writeFileSync } from "fs";
 
 export const testSetup = async () => {
-  const providerAnchor = await setAnchorProvider();
+  const providerAnchor = await getAnchorProvider();
   // TODO: use updated -- buildscript -> add relayer tests
   await createTestAccounts(providerAnchor.connection);
 
@@ -31,6 +28,7 @@ export const testSetup = async () => {
   if (!lookUpTable) {
     lookUpTable = await initLookUpTable(
       useWallet(getKeyPairFromEnv("KEY_PAIR")),
+      providerAnchor,
     );
 
     writeFileSync(path, lookUpTable.toString(), "utf8");

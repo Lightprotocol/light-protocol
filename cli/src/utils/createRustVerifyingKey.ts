@@ -1,3 +1,4 @@
+import { execSync } from "child_process";
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 var fs = require("fs");
@@ -18,7 +19,7 @@ type PropertiesObject = {
  * 3- Read .r1cs file and save the #total of Prv, Pbl inputs as well as outputs.
  * 4- Filter inputs with unique name and max size according to circom signals format.
  */
-async function getProofInputsFromSymFile(artifiactPath: string) {
+async function getProofInputsFromSymFile(artifactPath: string) {
   // filter inputData array based on the maximum size of nested arrays([0] otherwise)
   function uniqueMaxSize(arr: PropertiesObject[]) {
     const uniqueArr = arr.reduce((acc: PropertiesObject[], cur) => {
@@ -59,10 +60,10 @@ async function getProofInputsFromSymFile(artifiactPath: string) {
 
   let match;
   let keys = [];
-  const symText = fs.readFileSync(`${artifiactPath}.sym`, "utf-8");
+  const symText = fs.readFileSync(`${artifactPath}.sym`, "utf-8");
   while ((match = regex.exec(symText)) !== null) {
     keys.push(match[1]);
-    const name = match[1];
+    // const name = match[1];
   }
 
   let arr: PropertiesObject[] = [];
@@ -81,7 +82,7 @@ async function getProofInputsFromSymFile(artifiactPath: string) {
   });
 
   // Retrieve the number of outputs as well as the number of private and public inputs from the R1CS file
-  const r1cs = await snarkjs.r1cs.exportJson(`${artifiactPath}.r1cs`);
+  const r1cs = await snarkjs.r1cs.exportJson(`${artifactPath}.r1cs`);
   const nOut = r1cs.nOutputs;
   const nPub = r1cs.nPubInputs;
   const nPrv = r1cs.nPrvInputs;
@@ -140,7 +141,7 @@ async function createVerifyingKeyRsFile(
   paths: string[],
   appendingString: string
 ) {
-  let file = await fs.readFile(
+  await fs.readFile(
     vKeyJsonPath,
     async function (err: Error | null, fd: Buffer) {
       if (err) {
@@ -250,20 +251,21 @@ async function createVerifyingKeyRsFile(
         s += "\t],\n\n";
         fs.writeSync(resFile, s);
         s = "\tvk_ic: &[\n";
-        let x = 0;
 
         for (let ic in mydata.IC) {
           s += "\t\t[\n";
           for (let j = 0; j < mydata.IC[ic].length - 1; j++) {
             s += "\t\t\t" + mydata.IC[ic][j] + ",\n";
           }
-          x++;
           s += "\t\t],\n";
         }
         s += "\t]\n};";
         s += appendingString;
 
         fs.writeSync(resFile, s);
+        fs.closeSync(resFile);
+
+        execSync(`rustfmt ${path}`);
       }
     }
   );
@@ -280,13 +282,13 @@ export async function createVerfyingkeyRsFileArgv() {
   let vKeyJsonPath: string;
   let vKeyRsPath: string;
   let circuitName: string;
-  let artifiactPath: string;
+  let artifactPath: string;
   if (nrInputs == "app") {
     program = `${process.argv[3]}`;
     vKeyJsonPath = "./verifyingkey.json";
     vKeyRsPath = "./programs/" + program + "/src/verifying_key.rs";
     circuitName = process.argv[4] ? `${process.argv[4]}` : "appTransaction";
-    artifiactPath = "./sdk/build-circuit/" + toCamelCase(circuitName);
+    artifactPath = "./sdk/build-circuit/" + toCamelCase(circuitName);
   } else {
     if (nrInputs == "2") {
       program = "verifier_program_zero";
@@ -307,7 +309,7 @@ export async function createVerfyingkeyRsFileArgv() {
     vKeyRsPath =
       "../light-system-programs/programs/" + program + "/src/verifying_key.rs";
     circuitName = "transaction" + process.argv[3];
-    artifiactPath =
+    artifactPath =
       "../light-zk.js/build-circuits/transaction" + process.argv[3];
   }
   await createVerifyingkeyRsFile(
@@ -316,24 +318,24 @@ export async function createVerfyingkeyRsFileArgv() {
     vKeyJsonPath,
     vKeyRsPath,
     circuitName,
-    artifiactPath
+    artifactPath
   );
 }
 
 export async function createVerifyingkeyRsFile(
-  program: string,
+  _program: string,
   paths: string[],
   vKeyJsonPath: string,
   vKeyRsPath: string,
   circuitName: string,
-  artifiactPath: string
+  artifactPath: string
 ) {
   if (!vKeyRsPath)
     throw new Error("Undefined output path for the verifying_key.rs file!");
   paths.push(vKeyRsPath);
 
   const ProofInputs: PropertiesObject[] = await getProofInputsFromSymFile(
-    artifiactPath
+    artifactPath
   );
   const PublicInputs = ProofInputs.filter(
     (ProofInputs) => ProofInputs.public === 1

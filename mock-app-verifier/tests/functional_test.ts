@@ -5,8 +5,6 @@ import {
   Utxo,
   Transaction,
   ADMIN_AUTH_KEYPAIR,
-  initLookUpTableFromFile,
-  setUpMerkleTree,
   createTestAccounts,
   KEYPAIR_PRIVKEY,
   Account,
@@ -18,20 +16,17 @@ import {
   confirmConfig,
   Action,
   TestRelayer,
-  hashAndTruncateToCircuit,
   createAccountObject,
   TestTransaction,
   IDL_VERIFIER_PROGRAM_TWO,
   User,
   airdropShieldedSol,
-  ProgramUtxoBalance,
   MINT,
   airdropShieldedMINTSpl,
   IDL_VERIFIER_PROGRAM_ZERO,
   Provider,
   LOOK_UP_TABLE,
   ProgramParameters,
-  sleep,
 } from "@lightprotocol/zk.js";
 import {
   Keypair as SolanaKeypair,
@@ -64,7 +59,11 @@ const storeAndExecuteAppUtxo = async (
   const lightProvider = await LightProvider.init({
     wallet: ADMIN_AUTH_KEYPAIR,
     relayer: RELAYER,
+<<<<<<< HEAD
     confirmConfig
+=======
+    confirmConfig,
+>>>>>>> main
   });
   const user: User = await User.init({ provider: lightProvider, seed });
 
@@ -278,7 +277,11 @@ describe("Mock verifier functional", () => {
     let lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+<<<<<<< HEAD
       confirmConfig
+=======
+      confirmConfig,
+>>>>>>> main
     });
 
     const txParams = new TransactionParameters({
@@ -333,7 +336,11 @@ describe("Mock verifier functional", () => {
     let lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
+<<<<<<< HEAD
       confirmConfig
+=======
+      confirmConfig,
+>>>>>>> main
     });
 
     await provider.connection.confirmTransaction(

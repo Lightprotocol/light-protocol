@@ -5,11 +5,11 @@ import { addCorsHeaders } from "./middleware";
 import bodyParser from "body-parser";
 import {
   getIndexedTransactions,
-  initMerkleTree,
+  buildMerkleTree,
+  getLookUpTable,
   updateMerkleTree,
   handleRelayRequest,
   runIndexer,
-  getLookUpTable,
 } from "./services";
 import { getTransactions } from "./db/redis";
 require("dotenv").config();
@@ -21,7 +21,7 @@ app.use(bodyParser.json());
 
 app.post("/updatemerkletree", updateMerkleTree);
 
-app.get("/merkletree", initMerkleTree);
+app.get("/getBuiltMerkletree", buildMerkleTree);
 
 app.get("/lookuptable", getLookUpTable);
 

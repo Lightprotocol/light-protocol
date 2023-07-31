@@ -1,5 +1,4 @@
 import {
-  ADMIN_AUTH_KEYPAIR,
   TRANSACTION_MERKLE_TREE_KEY,
   Provider,
   SolMerkleTree,
@@ -11,18 +10,10 @@ import {
   getKeyPairFromEnv,
 } from "../utils/provider";
 
-export const initMerkleTree = async (req: any, res: any) => {
+export const buildMerkleTree = async (_req: any, res: any) => {
   try {
     console.log("Relayer initing merkle tree");
     const provider: Provider = await getLightProvider();
-
-    const merkletreeIsInited =
-      await provider.provider!.connection.getAccountInfo(
-        TRANSACTION_MERKLE_TREE_KEY,
-      );
-    if (!merkletreeIsInited) {
-      throw new Error("merkletree not inited yet.");
-    }
 
     const relayer = await getRelayer();
 
@@ -45,8 +36,7 @@ export const initMerkleTree = async (req: any, res: any) => {
   }
 };
 
-export const updateMerkleTree = async (req: any, res: any) => {
-  console.log("Relayer updating merkle tree");
+export const updateMerkleTree = async (_req: any, res: any) => {
   try {
     const provider = await getLightProvider();
     await updateMerkleTreeForTest(getKeyPairFromEnv("KEY_PAIR"), provider.url!);

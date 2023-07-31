@@ -1,6 +1,5 @@
 const solana = require("@solana/web3.js");
-import { assert, expect } from "chai";
-const token = require("@solana/spl-token");
+import { assert } from "chai";
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { MerkleTreeProgram } from "../idls";
@@ -17,10 +16,6 @@ import { Program } from "@coral-xyz/anchor";
  * merkle tree is locked by updateState account
  * lock has been taken less than 5 slots ago
  */
-let CONFIRMATION = {
-  preflightCommitment: "confirmed",
-  commitment: "confirmed",
-};
 
 export async function checkMerkleTreeUpdateStateCreated({
   connection,
@@ -114,7 +109,6 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   merkleTreeUpdateState,
   merkleTreeAccountPrior,
   numberOfLeaves,
-  leavesPdas,
   transactionMerkleTree,
   merkleTreeProgram,
 }: {

@@ -24,13 +24,29 @@ impl Config for TransactionsConfig {
     const ID: Pubkey = pubkey!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 }
 
+<<<<<<< HEAD
 pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
+=======
+pub fn process_transfer_4_ins_4_outs_4_checked_first<
+    'a,
+    'b,
+    'c,
+    'info,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_PUBLIC_INPUTS: usize,
+>(
+    ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info, NR_CHECKED_INPUTS>>,
+>>>>>>> main
     proof: &'a Proof,
     public_amount: &'a Amounts,
     input_nullifier: &'a [[u8; 32]; 4],
     output_commitment: &'a [[u8; 32]; 4],
+<<<<<<< HEAD
     checked_public_inputs: &'a Vec<Vec<u8>>,
+=======
+    checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
+>>>>>>> main
     encrypted_utxos: &'a Vec<u8>,
     pool_type: &'a [u8; 32],
     root_index: &'a u64,
@@ -54,14 +70,30 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
         accounts: None,
         verifyingkey: &VERIFYINGKEY,
     };
+<<<<<<< HEAD
     let tx = Transaction::<2, 4, TransactionsConfig>::new(input);
+=======
+    let tx =
+        Transaction::<NR_CHECKED_INPUTS, 2, 4, NR_PUBLIC_INPUTS, TransactionsConfig>::new(input);
+>>>>>>> main
     ctx.accounts.verifier_state.set_inner(tx.into());
     ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
     Ok(())
 }
 
+<<<<<<< HEAD
 pub fn process_transfer_4_ins_4_outs_4_checked_third<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionThird<'info>>,
+=======
+pub fn process_transfer_4_ins_4_outs_4_checked_third<
+    'a,
+    'b,
+    'c,
+    'info,
+    const NR_CHECKED_INPUTS: usize,
+>(
+    ctx: Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
+>>>>>>> main
     proof_app: &'a Proof,
     proof_verifier: &'a Proof,
 ) -> Result<()> {
@@ -85,9 +117,15 @@ pub fn process_transfer_4_ins_4_outs_4_checked_third<'a, 'b, 'c, 'info>(
         panic!("Escrow still locked");
     }
     // verify app proof
+<<<<<<< HEAD
     let mut app_verifier = AppTransaction::<TransactionsConfig>::new(
         proof_app,
         ctx.accounts.verifier_state.checked_public_inputs.clone(),
+=======
+    let mut app_verifier = AppTransaction::<NR_CHECKED_INPUTS, TransactionsConfig>::new(
+        proof_app,
+        &ctx.accounts.verifier_state.checked_public_inputs,
+>>>>>>> main
         &VERIFYINGKEY,
     );
 

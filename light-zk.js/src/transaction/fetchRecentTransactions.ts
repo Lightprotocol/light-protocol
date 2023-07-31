@@ -17,15 +17,28 @@ import {
   FIELD_SIZE,
   merkleTreeProgramId,
 } from "../constants";
+<<<<<<< HEAD
+=======
+
+import { Action } from "./transaction";
+
+import { getUpdatedSpentUtxos, sleep } from "../utils";
+>>>>>>> main
 import {
   IndexedTransaction,
   UserIndexedTransaction,
   IndexedTransactionData,
+  ParsedIndexedTransaction,
 } from "../types";
+<<<<<<< HEAD
 import { getUpdatedSpentUtxos, sleep } from "../utils";
 import { Utxo } from "../utxo";
 import { TokenUtxoBalance, Provider } from "../wallet";
 import { Action } from "./transaction";
+=======
+import { Utxo } from "../utxo";
+import { TokenUtxoBalance, Provider } from "../wallet";
+>>>>>>> main
 
 export class TransactionIndexerEvent {
   borshSchema = borsh.struct([
@@ -69,7 +82,7 @@ export class TransactionIndexerEvent {
  * @returns {Promise<void>}
  */
 export const getUserIndexTransactions = async (
-  indexedTransactions: IndexedTransaction[],
+  indexedTransactions: ParsedIndexedTransaction[],
   provider: Provider,
   tokenBalances: Map<string, TokenUtxoBalance>,
 ) => {
@@ -251,7 +264,6 @@ async function enrichParsedTransactionEvents(
     blockTime: tx.blockTime! * 1000,
     signer: accountKeys[0],
     signature,
-    accounts: accountKeys,
     to,
     from,
     //TODO: check if this is the correct type after latest main?

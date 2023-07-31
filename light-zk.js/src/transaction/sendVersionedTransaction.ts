@@ -1,10 +1,8 @@
 import {
   AddressLookupTableAccount,
-  BlockheightBasedTransactionConfirmationStrategy,
+  Commitment,
   ComputeBudgetProgram,
-  ConfirmOptions,
   Connection,
-  Keypair,
   PublicKey,
   TransactionConfirmationStrategy,
   TransactionInstruction,
@@ -74,6 +72,10 @@ export const sendVersionedTransaction = async (
       console.log(e);
       retries--;
       if (retries == 0 || e.logs !== undefined) {
+<<<<<<< HEAD
+=======
+        console.log(e);
+>>>>>>> main
         throw e;
       }
     }
@@ -103,16 +105,24 @@ export async function sendVersionedTransactions(
       if (!signature)
         throw new Error("sendVersionedTransactions: signature is undefined");
       signatures.push(signature);
-      const latestBlockHash = await connection.getLatestBlockhash("confirmed");
-      let strategy: TransactionConfirmationStrategy = {
-        signature: signature.toString(),
-        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-        blockhash: latestBlockHash.blockhash,
-      };
-      await connection.confirmTransaction(strategy);
+      await confirmTransaction(connection, signature);
     }
     return { signatures };
   } catch (error) {
     return { error };
   }
+}
+
+export async function confirmTransaction(
+  connection: Connection,
+  signature: string,
+  confirmation: Commitment = "confirmed",
+) {
+  const latestBlockHash = await connection.getLatestBlockhash(confirmation);
+  let strategy: TransactionConfirmationStrategy = {
+    signature: signature.toString(),
+    lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+    blockhash: latestBlockHash.blockhash,
+  };
+  return await connection.confirmTransaction(strategy, confirmation);
 }

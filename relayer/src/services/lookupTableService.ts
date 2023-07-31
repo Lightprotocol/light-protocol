@@ -1,11 +1,11 @@
-import { setAnchorProvider } from "../utils/provider";
+import { getAnchorProvider } from "../utils/provider";
 import { PublicKey } from "@solana/web3.js";
 import { readLookUpTableFromFile } from "../utils/readLookUpTableFromFile";
 
-export async function getLookUpTable(req: any, res: any): Promise<string> {
+export async function getLookUpTable(_req: any, res: any): Promise<string> {
   try {
     let contents = readLookUpTableFromFile();
-    let provider = await setAnchorProvider();
+    let provider = await getAnchorProvider();
     let info = await provider.connection.getAccountInfo(
       new PublicKey(contents),
     );

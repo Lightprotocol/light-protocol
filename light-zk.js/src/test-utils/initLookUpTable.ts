@@ -2,7 +2,6 @@ import { Program, Provider } from "@coral-xyz/anchor";
 import {
   PublicKey,
   AddressLookupTableProgram,
-  Keypair,
   SystemProgram,
   sendAndConfirmTransaction,
   Transaction,
@@ -158,7 +157,6 @@ export async function initLookUpTableTest(
 
     // transaction.add(extendInstruction);
     transaction.add(ix0);
-    // transaction.add(ix1);
     let recentBlockhash = await provider.connection.getLatestBlockhash(
       "confirmed",
     );
@@ -176,7 +174,10 @@ export async function initLookUpTableTest(
       console.log("e : ", e);
     }
 
+<<<<<<< HEAD
     console.log("inited lookupTableAddress: ", lookupTableAddress.toBase58());
+=======
+>>>>>>> main
     let lookupTableAccount = await provider.connection.getAccountInfo(
       lookupTableAddress,
       "confirmed",

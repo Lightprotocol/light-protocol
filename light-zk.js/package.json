@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/zk.js",
-  "version": "0.3.2-alpha.8",
+  "version": "0.3.2-alpha.11",
   "description": "",
   "main": "lib/index.js",
   "scripts": {
@@ -20,8 +20,7 @@
     "test-convertDecimals": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/convertDecimals.test.ts --exit",
     "build": "yarn tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier \"src/**/*{ts,js}\" --check",
-    "prepare": "cd .. && husky install ./light-zk.js/husky"
+    "lint": "prettier \"src/**/*{ts,js}\" --check"
   },
   "format-staged": {
     "**/*.{js,jsx}": [
@@ -42,8 +41,8 @@
   "author": "ananas-block",
   "license": "GPL-3.0",
   "dependencies": {
-    "@coral-xyz/anchor": "0.27.0",
-    "@coral-xyz/borsh": "^0.27.0",
+    "@coral-xyz/anchor": "0.28.0",
+    "@coral-xyz/borsh": "^0.28.0",
     "@noble/hashes": "^1.1.5",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",
@@ -68,7 +67,6 @@
     "@types/node-fetch": "^2.6.2",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
-    "husky": "^8.0.3",
     "mocha": "^10.2.0",
     "prettier": "^2.6.2",
     "ts-mocha": "^10.0.0",

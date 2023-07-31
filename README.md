@@ -26,29 +26,30 @@ There are three ways of setting up the development environment:
 * [Manual setup](#manual-setup) - not recommended, but may be useful if the
   methods above don't work for you.
 
+
 ### devenv.sh
 
 The easiest way to setup the development environment is to use our scripts
 and development environment.
 
-First, install the dependencies (they are going to be installed in `.local`
-directory inside your repository clone):
+First, install the dependencies (they will be installed in the `.local`
+directory inside your repository clone). If you want to install Redis (needed
+only for the relayer), use the  `--enable-redis` option.
 
-```shell
+```
 ./scripts/install.sh
 ```
 
-Then, optionally, you can activate the development environment:
+Then, activate the development environment:
 
-```shell
-. ./scripts/devenv.sh
+```
+./scripts/devenv.sh
 ```
 
-(The scripts mentioned later, like `./scripts/build.sh` or `./scripts/test.sh`
-are going to work even without activating the development environment with
-`source devenv.sh`, they take care of setting the correct `PATH` variable.)
+Then follow the sections below, which describe the usage of `build.sh` and
+`test.sh` scripts.
 
-If you activated the development environment, you can manually run commands
+When the development environment is active, you can manually run commands
 like `yarn`, `cargo`, `solana`, `solana-test-validator`. They are going to
 use the dependencies installed in `.local` directory, so even if you have
 different global installations, they are not going to interfere.
@@ -83,18 +84,10 @@ To build the project, use the following commands:
 ./scripts/build.sh
 ```
 
-## Git hook
-
-In order to properly execute the prettier format pre-commit hook, you may first
-need to configure light-zk.js/husky/pre-commit as executable:
-
-```bash
-chmod ug+x ./light-zk.js/husky/*
-```
 
 ## Solana keypair
 
-Before doing any development or running any tets, you need to generate a new
+Before doing any development or running any tests, you need to generate a new
 local keypair:
 
 ```bash
@@ -145,3 +138,11 @@ yarn test
 yarn test-verifiers
 yarn test-merkle-tree
 ```
+
+## Common errors
+If you're seeing this error:
+- ``` error: package `solana-program v1.16.4` cannot be built because it requires rustc 1.68.0 or newer, while the currently active rustc version is 1.65.0-dev ```
+
+update your solana-cli version to >=1.16.4.
+
+For more support from the community and core developers, open a GitHub issue or join the Light Protocol Discord: https://discord.gg/J3KvDfZpyp

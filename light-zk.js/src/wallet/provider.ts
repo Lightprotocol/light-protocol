@@ -1,9 +1,13 @@
+<<<<<<< HEAD
 import {
   AnchorError,
   AnchorProvider,
   BN,
   Wallet as AnchorWallet,
 } from "@coral-xyz/anchor";
+=======
+import { AnchorProvider, BN, Wallet as AnchorWallet } from "@coral-xyz/anchor";
+>>>>>>> main
 import {
   PublicKey,
   Keypair as SolanaKeypair,
@@ -25,9 +29,9 @@ import {
   ADMIN_AUTH_KEYPAIR,
   SolMerkleTree,
   RELAYER_RECIPIENT_KEYPAIR,
-  IndexedTransaction,
   MINT,
   MINIMUM_LAMPORTS,
+  ParsedIndexedTransaction,
 } from "../index";
 
 const axios = require("axios");
@@ -76,21 +80,37 @@ export class Provider {
   constructor({
     wallet,
     confirmConfig,
+<<<<<<< HEAD
+=======
+    connection,
+>>>>>>> main
     url,
     minimumLamports = MINIMUM_LAMPORTS,
     relayer,
     verifierProgramLookupTable,
     assetLookupTable,
     versionedTransactionLookupTable,
+<<<<<<< HEAD
   }: {
     wallet: Wallet;
     confirmConfig?: ConfirmOptions;
+=======
+    anchorProvider,
+  }: {
+    wallet: Wallet;
+    confirmConfig?: ConfirmOptions;
+    connection?: Connection;
+>>>>>>> main
     url: string;
     minimumLamports?: BN;
     relayer?: Relayer;
     verifierProgramLookupTable?: PublicKey[];
     assetLookupTable?: PublicKey[];
     versionedTransactionLookupTable: PublicKey;
+<<<<<<< HEAD
+=======
+    anchorProvider: AnchorProvider;
+>>>>>>> main
   }) {
     if (!wallet)
       throw new ProviderError(
@@ -98,18 +118,25 @@ export class Provider {
         "constructor",
         "No wallet provided.",
       );
+<<<<<<< HEAD
 
     const anchorProvider = new AnchorProvider(
       wallet.connection,
       wallet,
       AnchorProvider.defaultOptions(),
     );
+=======
+>>>>>>> main
     this.provider = anchorProvider;
     this.wallet = wallet;
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
     this.minimumLamports = minimumLamports;
     this.url = url;
+<<<<<<< HEAD
     this.connection = wallet.connection;
+=======
+    this.connection = connection;
+>>>>>>> main
     if (relayer) {
       this.relayer = relayer;
     } else {
@@ -160,6 +187,7 @@ export class Provider {
 
   static async fetchLookupTable(
     wallet: Wallet,
+<<<<<<< HEAD
     relayerUrl?: string,
   ): Promise<PublicKey | undefined> {
     if (wallet.isNodeWallet) {
@@ -170,15 +198,26 @@ export class Provider {
           ProviderErrorCode.URL_UNDEFINED,
           "fetchLookupTable",
         );
+=======
+    provider: AnchorProvider,
+    relayerUrl?: string,
+  ): Promise<PublicKey | undefined> {
+    if (wallet.isNodeWallet) {
+      return await initLookUpTable(wallet, provider);
+    } else if (relayerUrl) {
+>>>>>>> main
       const response = await axios.get(relayerUrl + "/lookuptable");
       return new PublicKey(response.data.data);
     }
   }
 
+<<<<<<< HEAD
   // TODO: extend with: remote-fetching the merkletree from indexer.
+=======
+>>>>>>> main
   private async fetchMerkleTree(
     merkleTreePubkey: PublicKey,
-    indexedTransactions?: IndexedTransaction[],
+    indexedTransactions?: ParsedIndexedTransaction[],
   ) {
     try {
       const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
@@ -217,7 +256,11 @@ export class Provider {
     this.poseidon = poseidon;
   }
 
+<<<<<<< HEAD
   async latestMerkleTree(indexedTransactions?: IndexedTransaction[]) {
+=======
+  async latestMerkleTree(indexedTransactions?: ParsedIndexedTransaction[]) {
+>>>>>>> main
     await this.fetchMerkleTree(
       TRANSACTION_MERKLE_TREE_KEY,
       indexedTransactions,
@@ -238,6 +281,10 @@ export class Provider {
     versionedTransactionLookupTable,
   }: {
     wallet: Wallet | SolanaKeypair | Keypair;
+<<<<<<< HEAD
+=======
+    connection?: Connection;
+>>>>>>> main
     confirmConfig: ConfirmOptions;
     url?: string;
     relayer?: Relayer;
@@ -248,23 +295,52 @@ export class Provider {
     if (!wallet) {
       throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
     }
+<<<<<<< HEAD
 
+=======
+    if (!connection) {
+      connection = new Connection(url, "confirmed");
+    }
+    if (!("secretKey" in wallet) && !connection)
+      throw new ProviderError(
+        ProviderErrorCode.CONNECTION_UNDEFINED,
+        "constructor",
+        "No connection provided with browser wallet.",
+      );
+>>>>>>> main
     if ("secretKey" in wallet) {
       wallet = useWallet(wallet as SolanaKeypair, url);
     } else {
       wallet = wallet as Wallet;
     }
+<<<<<<< HEAD
+=======
+    // initializing anchor provider with dummy wallet we are never going to use it to send transactions
+    const anchorProvider = new AnchorProvider(
+      connection,
+      new AnchorWallet(SolanaKeypair.generate()),
+      confirmConfig,
+    );
+>>>>>>> main
 
     if (!versionedTransactionLookupTable) {
       // initializing lookup table or fetching one from relayer in case of browser wallet
       versionedTransactionLookupTable = await Provider.fetchLookupTable(
         wallet,
+<<<<<<< HEAD
+=======
+        anchorProvider,
+>>>>>>> main
         relayer?.url,
       );
     } else {
       // checking that lookup table is initialized
       try {
+<<<<<<< HEAD
         const lookupTableAccount = await wallet.connection.getAccountInfo(
+=======
+        const lookupTableAccount = await connection.getAccountInfo(
+>>>>>>> main
           versionedTransactionLookupTable,
           "confirmed",
         );
@@ -299,6 +375,10 @@ export class Provider {
       assetLookupTable,
       verifierProgramLookupTable,
       versionedTransactionLookupTable,
+<<<<<<< HEAD
+=======
+      anchorProvider,
+>>>>>>> main
     });
 
     await provider.loadPoseidon();

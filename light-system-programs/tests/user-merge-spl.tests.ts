@@ -3,7 +3,6 @@ import { Keypair as SolanaKeypair } from "@solana/web3.js";
 let circomlibjs = require("circomlibjs");
 
 import {
-  setUpMerkleTree,
   initLookUpTableFromFile,
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,
@@ -37,7 +36,6 @@ describe("Test User", () => {
   );
   anchor.setProvider(anchorProvider);
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR;
   var environmentConfig: EnvironmentConfig = {};
 
   before("init test setup Merkle tree lookup table etc ", async () => {

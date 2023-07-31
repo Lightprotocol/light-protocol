@@ -7,12 +7,12 @@ import {
   fetchRecentTransactions,
   sendVersionedTransactions,
 } from "../transaction";
-import { IndexedTransaction } from "../types";
+import { ParsedIndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
 import { TRANSACTION_MERKLE_TREE_KEY, IDL_MERKLE_TREE_PROGRAM } from "../index";
 
 export class TestRelayer extends Relayer {
-  indexedTransactions: IndexedTransaction[] = [];
+  indexedTransactions: ParsedIndexedTransaction[] = [];
   relayerKeypair: Keypair;
 
   constructor({
@@ -90,7 +90,7 @@ export class TestRelayer extends Relayer {
    */
   async getIndexedTransactions(
     connection: Connection,
-  ): Promise<IndexedTransaction[]> {
+  ): Promise<ParsedIndexedTransaction[]> {
     const merkleTreeAccountInfo = await connection.getAccountInfo(
       TRANSACTION_MERKLE_TREE_KEY,
       "confirmed",
@@ -109,12 +109,29 @@ export class TestRelayer extends Relayer {
     // which is approximately the number of transactions sent to send one shielded transaction and update the merkle tree
     const limit = 1000 + 260 * merkleTreeAccount.nextIndex.toNumber();
     if (this.indexedTransactions.length === 0) {
+<<<<<<< HEAD
       this.indexedTransactions = await fetchRecentTransactions({
+=======
+      let newTransactions = await fetchRecentTransactions({
+>>>>>>> main
         connection,
         batchOptions: {
           limit,
         },
       });
+<<<<<<< HEAD
+=======
+      this.indexedTransactions = newTransactions.map((trx) => {
+        return {
+          ...trx,
+          firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
+          publicAmountSol: new BN(trx.publicAmountSol, "hex"),
+          publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
+          changeSolAmount: new BN(trx.changeSolAmount, "hex"),
+          relayerFee: new BN(trx.relayerFee, "hex"),
+        };
+      });
+>>>>>>> main
       return this.indexedTransactions;
     } else {
       if (this.indexedTransactions.length === 0) return [];
@@ -123,12 +140,17 @@ export class TestRelayer extends Relayer {
         a.blockTime > b.blockTime ? a : b,
       );
 
+<<<<<<< HEAD
       await fetchRecentTransactions({
+=======
+      let newTransactions = await fetchRecentTransactions({
+>>>>>>> main
         connection,
         batchOptions: {
           limit,
           until: mostRecentTransaction.signature,
         },
+<<<<<<< HEAD
         transactions: this.indexedTransactions,
       });
       this.indexedTransactions.map((trx) => {
@@ -141,6 +163,12 @@ export class TestRelayer extends Relayer {
           // fromSpl: new PublicKey(trx.fromSpl),
           // verifier: new PublicKey(trx.verifier),
           // relayerRecipientSol: new PublicKey(trx.relayerRecipientSol),
+=======
+      });
+      let parsedNewTransactions = newTransactions.map((trx) => {
+        return {
+          ...trx,
+>>>>>>> main
           firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
           publicAmountSol: new BN(trx.publicAmountSol, "hex"),
           publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
@@ -148,6 +176,13 @@ export class TestRelayer extends Relayer {
           relayerFee: new BN(trx.relayerFee, "hex"),
         };
       });
+<<<<<<< HEAD
+=======
+      this.indexedTransactions = [
+        ...this.indexedTransactions,
+        ...parsedNewTransactions,
+      ];
+>>>>>>> main
       return this.indexedTransactions;
     }
   }
