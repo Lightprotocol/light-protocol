@@ -57,7 +57,8 @@
     "shx": "^0.3.3",
     "ts-node": "^10.9.1",
     "tslib": "^2.5.0",
-    "typescript": "^4.9.5"
+    "typescript": "^4.9.5",
+    "prettier": "^2.6.2"
   },
   "oclif": {
     "bin": "light",
@@ -73,7 +74,7 @@
   },
   "scripts": {
     "clean": "shx rm -rf dist",
-    "build": "tsc -b && sh scripts/copyLocalProgramBinaries.sh",
+    "build": "yarn tsc -b && sh scripts/copyLocalProgramBinaries.sh",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
     "lint": "prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
     "postpack": "shx rm -f oclif.manifest.json",

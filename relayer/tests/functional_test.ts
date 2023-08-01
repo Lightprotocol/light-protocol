@@ -1,9 +1,6 @@
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import chai, { assert } from "chai";
-const chaiRequire = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-chaiRequire.use(chaiAsPromised);
 import chaiHttp from "chai-http";
 import express from "express";
 
