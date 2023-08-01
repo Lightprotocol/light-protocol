@@ -30,7 +30,6 @@ import {
   TestRelayer,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
-  LOOK_UP_TABLE,
   MerkleTreeConfig,
   User,
 } from "@lightprotocol/zk.js";
@@ -234,7 +233,8 @@ describe("Verifier Zero and One Tests", () => {
     account?: string,
   ) => {
     var instructions = await tx.getInstructions(tx.params);
-    console.log("aftere instructions");
+    console.log("after instructions");
+
     const provider = anchor.AnchorProvider.local(
       "http://127.0.0.1:8899",
       confirmConfig,
@@ -244,6 +244,7 @@ describe("Verifier Zero and One Tests", () => {
     try {
       e = await tx.sendAndConfirmTransaction();
     } catch (error) {
+      console.log("e:", error);
       e = error;
     }
 
