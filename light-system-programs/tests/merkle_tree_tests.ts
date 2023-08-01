@@ -760,7 +760,7 @@ describe("Merkle Tree Tests", () => {
     });
     let different_merkle_tree = solana.PublicKey.findProgramAddressSync(
       [
-        merkleTreeProgram.programId.toBuffer(),
+        anchor.utils.bytes.utf8.encode("transaction_merkle_tree"),
         new anchor.BN(1).toArray("le", 8),
       ],
       merkleTreeProgram.programId,

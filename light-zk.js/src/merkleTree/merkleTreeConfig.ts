@@ -51,15 +51,15 @@ export class MerkleTreeConfig {
     transactionMerkleTreePda?: PublicKey,
   ) {
     if (!this.payer) throw new Error("Payer undefined");
-    if (transactionMerkleTreePda) {
-      this.transactionMerkleTreePda = transactionMerkleTreePda;
+    if (transactionMerkleTreePda === undefined) {
+      transactionMerkleTreePda = MerkleTreeConfig.getTransactionMerkleTreePda();
     }
     await this.getMerkleTreeAuthorityPda();
     const tx = await this.merkleTreeProgram.methods
       .initializeNewTransactionMerkleTree(new anchor.BN("50"))
       .accounts({
         authority: this.payer.publicKey,
-        transactionMerkleTree: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        transactionMerkleTree: transactionMerkleTreePda,
         systemProgram: DEFAULT_PROGRAMS.systemProgram,
         rent: DEFAULT_PROGRAMS.rent,
         merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
@@ -74,14 +74,18 @@ export class MerkleTreeConfig {
       confirmConfig,
     );
 
-    await this.checkTransactionMerkleTreeIsInitialized();
+    await this.checkTransactionMerkleTreeIsInitialized(
+      transactionMerkleTreePda,
+    );
     return txHash;
   }
 
-  async checkTransactionMerkleTreeIsInitialized() {
+  async checkTransactionMerkleTreeIsInitialized(
+    transactionMerkleTreePda: PublicKey,
+  ) {
     var transactionMerkleTreeAccountInfo =
       await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        transactionMerkleTreePda,
       );
     assert(
       transactionMerkleTreeAccountInfo != null,
