@@ -8,7 +8,6 @@ import {
 } from "../idls/index";
 
 import {
-  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   POOL_TYPE,
   MINT,
@@ -16,7 +15,6 @@ import {
   verifierProgramOneProgramId,
   verifierProgramTwoProgramId,
   verifierProgramStorageProgramId,
-  MESSAGE_MERKLE_TREE_KEY,
   Transaction,
   merkleTreeProgramId,
   airdropSol,
@@ -28,8 +26,6 @@ export async function setUpMerkleTree(
   merkleTreeAuthority: PublicKey,
 ) {
   let merkleTreeConfig = new MerkleTreeConfig({
-    messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
-    transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
     payer: ADMIN_AUTH_KEYPAIR,
     connection: provider.connection,
   });
@@ -51,16 +47,19 @@ export async function setUpMerkleTree(
   }
 
   if (
-    (await provider.connection.getAccountInfo(MESSAGE_MERKLE_TREE_KEY)) == null
+    (await provider.connection.getAccountInfo(
+      MerkleTreeConfig.getEventMerkleTreePda(),
+    )) == null
   ) {
-    await merkleTreeConfig.initializeNewMessageMerkleTree();
+    await merkleTreeConfig.initializeNewEventMerkleTree();
   } else {
-    console.log("was already executed: initializeNewMessageMerkleTree");
+    console.log("was already executed: initializeNewEventMerkleTree");
   }
 
   if (
-    (await provider.connection.getAccountInfo(TRANSACTION_MERKLE_TREE_KEY)) ==
-    null
+    (await provider.connection.getAccountInfo(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+    )) == null
   ) {
     await merkleTreeConfig.initializeNewTransactionMerkleTree();
   } else {

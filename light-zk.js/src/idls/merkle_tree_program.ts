@@ -142,12 +142,17 @@ export type MerkleTreeProgram = {
       "value": "[115, 112, 108]"
     },
     {
-      "name": "MESSSAGE_MERKLE_TREE_SEED",
+      "name": "EVENT_MERKLE_TREE_SEED",
       "type": "bytes",
-      "value": "[109, 101, 115, 115, 97, 103, 101, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
+      "value": "[101, 118, 101, 110, 116, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
     },
     {
-      "name": "MESSAGE_MERKLE_TREE_HEIGHT",
+      "name": "TRANSACTION_MERKLE_TREE_SEED",
+      "type": "bytes",
+      "value": "[116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
+    },
+    {
+      "name": "EVENT_MERKLE_TREE_HEIGHT",
       "type": {
         "defined": "usize"
       },
@@ -196,7 +201,7 @@ export type MerkleTreeProgram = {
       ]
     },
     {
-      "name": "initializeNewMessageMerkleTree",
+      "name": "initializeNewEventMerkleTree",
       "accounts": [
         {
           "name": "authority",
@@ -204,13 +209,18 @@ export type MerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "messageMerkleTree",
+          "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "systemProgram",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "merkleTreeAuthorityPda",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -732,10 +742,10 @@ export type MerkleTreeProgram = {
       ]
     },
     {
-      "name": "insertTwoLeavesMessage",
+      "name": "insertTwoLeavesEvent",
       "accounts": [
         {
-          "name": "messageMerkleTree",
+          "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -933,7 +943,7 @@ export type MerkleTreeProgram = {
       }
     },
     {
-      "name": "messageMerkleTree",
+      "name": "eventMerkleTree",
       "type": {
         "kind": "struct",
         "fields": [
@@ -942,6 +952,10 @@ export type MerkleTreeProgram = {
             "type": {
               "defined": "MerkleTree"
             }
+          },
+          {
+            "name": "merkleTreeNr",
+            "type": "u64"
           }
         ]
       }
@@ -983,7 +997,11 @@ export type MerkleTreeProgram = {
             "type": "publicKey"
           },
           {
-            "name": "merkleTreeIndex",
+            "name": "transactionMerkleTreeIndex",
+            "type": "u64"
+          },
+          {
+            "name": "eventMerkleTreeIndex",
             "type": "u64"
           },
           {
@@ -1617,12 +1635,17 @@ export const IDL: MerkleTreeProgram = {
       "value": "[115, 112, 108]"
     },
     {
-      "name": "MESSSAGE_MERKLE_TREE_SEED",
+      "name": "EVENT_MERKLE_TREE_SEED",
       "type": "bytes",
-      "value": "[109, 101, 115, 115, 97, 103, 101, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
+      "value": "[101, 118, 101, 110, 116, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
     },
     {
-      "name": "MESSAGE_MERKLE_TREE_HEIGHT",
+      "name": "TRANSACTION_MERKLE_TREE_SEED",
+      "type": "bytes",
+      "value": "[116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
+    },
+    {
+      "name": "EVENT_MERKLE_TREE_HEIGHT",
       "type": {
         "defined": "usize"
       },
@@ -1671,7 +1694,7 @@ export const IDL: MerkleTreeProgram = {
       ]
     },
     {
-      "name": "initializeNewMessageMerkleTree",
+      "name": "initializeNewEventMerkleTree",
       "accounts": [
         {
           "name": "authority",
@@ -1679,13 +1702,18 @@ export const IDL: MerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "messageMerkleTree",
+          "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "systemProgram",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "merkleTreeAuthorityPda",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -2207,10 +2235,10 @@ export const IDL: MerkleTreeProgram = {
       ]
     },
     {
-      "name": "insertTwoLeavesMessage",
+      "name": "insertTwoLeavesEvent",
       "accounts": [
         {
-          "name": "messageMerkleTree",
+          "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -2408,7 +2436,7 @@ export const IDL: MerkleTreeProgram = {
       }
     },
     {
-      "name": "messageMerkleTree",
+      "name": "eventMerkleTree",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2417,6 +2445,10 @@ export const IDL: MerkleTreeProgram = {
             "type": {
               "defined": "MerkleTree"
             }
+          },
+          {
+            "name": "merkleTreeNr",
+            "type": "u64"
           }
         ]
       }
@@ -2458,7 +2490,11 @@ export const IDL: MerkleTreeProgram = {
             "type": "publicKey"
           },
           {
-            "name": "merkleTreeIndex",
+            "name": "transactionMerkleTreeIndex",
+            "type": "u64"
+          },
+          {
+            "name": "eventMerkleTreeIndex",
             "type": "u64"
           },
           {

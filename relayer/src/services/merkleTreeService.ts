@@ -1,5 +1,5 @@
 import {
-  TRANSACTION_MERKLE_TREE_KEY,
+  MerkleTreeConfig,
   Provider,
   SolMerkleTree,
   updateMerkleTreeForTest,
@@ -14,6 +14,8 @@ export const buildMerkleTree = async (_req: any, res: any) => {
   try {
     const provider: Provider = await getLightProvider();
 
+    const transactionMerkleTreePda = MerkleTreeConfig.getTransactionMerkleTreePda();
+
     const relayer = await getRelayer();
 
     const indexedTransactions = await relayer.getIndexedTransactions(
@@ -21,7 +23,7 @@ export const buildMerkleTree = async (_req: any, res: any) => {
     );
 
     const mt = await SolMerkleTree.build({
-      pubkey: TRANSACTION_MERKLE_TREE_KEY,
+      pubkey: transactionMerkleTreePda,
       poseidon: provider.poseidon,
       indexedTransactions,
       provider: provider.provider,
