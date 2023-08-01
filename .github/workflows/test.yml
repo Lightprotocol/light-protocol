@@ -24,7 +24,7 @@ name: test
 jobs:
   light-system-programs:
     name: light-system-programs
-    if: github.event.pull_request.draft == false
+    # if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
     strategy:
       matrix:
@@ -52,7 +52,7 @@ jobs:
 
   light-sdk-tests:
     name: light-sdk-tests
-    if: github.event.pull_request.draft == false
+    # if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
     strategy:
       matrix:
@@ -66,7 +66,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          enable_redis: 'true'
+          enable_redis: "true"
 
       - name: ${{ matrix.test.name }}
         run: |

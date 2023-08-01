@@ -14,7 +14,6 @@ import {
   ProviderErrorCode,
   useWallet,
   Relayer,
-  MERKLE_TREE_HEIGHT,
   ADMIN_AUTH_KEYPAIR,
   SolMerkleTree,
   RELAYER_RECIPIENT_KEYPAIR,
