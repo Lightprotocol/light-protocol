@@ -1,5 +1,5 @@
 use crate::transaction_merkle_tree::state::{TransactionMerkleTree, TwoLeavesBytesPda};
-use crate::utils::constants::LEAVES_SEED;
+use crate::utils::constants::{LEAVES_SEED, TRANSACTION_MERKLE_TREE_SEED};
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
 
@@ -16,7 +16,10 @@ pub struct InsertTwoLeaves<'info> {
     // /// CHECK:` Leaves account should be checked by invoking verifier.
     #[account(init, seeds= [&leaf_left, LEAVES_SEED], bump, payer=authority, space= 8 + 3 * 32 + 256 + 8 + 8)]
     pub two_leaves_pda: Account<'info, TwoLeavesBytesPda>,
-    #[account(mut, seeds = [&__program_id.to_bytes()[..], transaction_merkle_tree.load().unwrap().merkle_tree_nr.to_le_bytes().as_ref()], bump)]
+    #[account(mut, seeds = [
+        TRANSACTION_MERKLE_TREE_SEED,
+        transaction_merkle_tree.load().unwrap().merkle_tree_nr.to_le_bytes().as_ref()
+    ], bump)]
     pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     pub system_program: Program<'info, System>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]

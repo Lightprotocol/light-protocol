@@ -1,13 +1,10 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
   executeUpdateMerkleTreeTransactions,
+  MerkleTreeConfig,
   SolMerkleTree,
 } from "../merkleTree/index";
-import {
-  confirmConfig,
-  merkleTreeProgramId,
-  TRANSACTION_MERKLE_TREE_KEY,
-} from "../constants";
+import { confirmConfig, merkleTreeProgramId } from "../constants";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { Connection, Keypair } from "@solana/web3.js";
 import { sleep } from "../index";
@@ -28,12 +25,15 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
       anchorProvider && anchorProvider,
     );
 
+    const transactionMerkleTreePda =
+      MerkleTreeConfig.getTransactionMerkleTreePda();
+
     let leavesPdas: any[] = [];
     let retries = 3;
     while (leavesPdas.length === 0 && retries > 0) {
       if (retries !== 3) await sleep(1000);
       leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
-        TRANSACTION_MERKLE_TREE_KEY,
+        transactionMerkleTreePda,
         anchorProvider && anchorProvider,
       );
       retries--;
@@ -44,7 +44,7 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
       signer: payer,
       merkleTreeProgram,
       leavesPdas,
-      transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
+      transactionMerkleTree: transactionMerkleTreePda,
     });
   } catch (err) {
     console.error("failed at updateMerkleTreeForTest", err);

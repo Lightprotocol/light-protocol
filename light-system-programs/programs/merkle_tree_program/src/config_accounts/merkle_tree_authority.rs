@@ -13,7 +13,8 @@ use anchor_lang::prelude::*;
 #[account]
 pub struct MerkleTreeAuthority {
     pub pubkey: Pubkey,
-    pub merkle_tree_index: u64,
+    pub transaction_merkle_tree_index: u64,
+    pub event_merkle_tree_index: u64,
     pub registered_asset_index: u64,
     pub enable_nfts: bool,
     pub enable_permissionless_spl_tokens: bool,
@@ -27,7 +28,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
         payer = authority,
         seeds = [MERKLE_TREE_AUTHORITY_SEED],
         bump,
-        space = 8 + 32 + 8 + 8 + 8
+        space = 8 + 32 + 8 + 8 + 8 + 8
     )]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is merkle tree init authority.

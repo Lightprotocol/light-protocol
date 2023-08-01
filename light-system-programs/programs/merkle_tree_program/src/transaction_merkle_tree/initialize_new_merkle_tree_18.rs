@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 use crate::transaction_merkle_tree::state::TransactionMerkleTree;
-use crate::utils::constants::MERKLE_TREE_AUTHORITY_SEED;
+use crate::utils::constants::{MERKLE_TREE_AUTHORITY_SEED, TRANSACTION_MERKLE_TREE_SEED};
 use crate::MerkleTreeAuthority;
 use anchor_lang::solana_program::{msg, pubkey::Pubkey};
 use std::cell::RefMut;
@@ -13,7 +13,9 @@ pub struct InitializeNewTransactionMerkleTree<'info> {
     /// CHECK: it should be unpacked internally
     #[account(
         init,
-        seeds = [&__program_id.to_bytes()[..], merkle_tree_authority_pda.merkle_tree_index.to_le_bytes().as_ref()
+        seeds = [
+            TRANSACTION_MERKLE_TREE_SEED,
+            merkle_tree_authority_pda.transaction_merkle_tree_index.to_le_bytes().as_ref(),
         ],
         bump,
         payer = authority,

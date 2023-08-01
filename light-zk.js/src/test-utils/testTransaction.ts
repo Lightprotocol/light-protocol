@@ -10,11 +10,11 @@ import {
   IDL_MERKLE_TREE_PROGRAM,
   checkRentExemption,
   Utxo,
-  TRANSACTION_MERKLE_TREE_KEY,
   FIELD_SIZE,
   Action,
   merkleTreeProgramId,
   fetchRecentTransactions,
+  MerkleTreeConfig,
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
@@ -335,7 +335,7 @@ export class TestTransaction {
     try {
       const merkleTreeAfterUpdate =
         await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-          TRANSACTION_MERKLE_TREE_KEY,
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
           "confirmed",
         );
 
