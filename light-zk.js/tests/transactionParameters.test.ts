@@ -236,10 +236,7 @@ describe("Transaction Parameters Functional", () => {
       assert.equal(params.action.toString(), Action.TRANSFER.toString());
       assert.equal(params.publicAmountSpl.toString(), "0");
       assert.equal(
-        params.publicAmountSol
-          .sub(FIELD_SIZE)
-          .mul(new BN(-1))
-          .toString(),
+        params.publicAmountSol.sub(FIELD_SIZE).mul(new BN(-1)).toString(),
         relayer.getRelayerFee().toString(),
       );
       assert.equal(
@@ -437,17 +434,11 @@ describe("Transaction Parameters Functional", () => {
       });
       assert.equal(params.action.toString(), Action.UNSHIELD.toString());
       assert.equal(
-        params.publicAmountSpl
-          .sub(FIELD_SIZE)
-          .mul(new BN(-1))
-          .toString(),
+        params.publicAmountSpl.sub(FIELD_SIZE).mul(new BN(-1)).toString(),
         depositAmount.toString(),
       );
       assert.equal(
-        params.publicAmountSol
-          .sub(FIELD_SIZE)
-          .mul(new BN(-1))
-          .toString(),
+        params.publicAmountSol.sub(FIELD_SIZE).mul(new BN(-1)).toString(),
         depositFeeAmount.toString(),
       );
       assert.equal(
@@ -1096,10 +1087,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_sol_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [
-        new BN("18446744073709551615"),
-        new BN(depositAmount),
-      ],
+      amounts: [new BN("18446744073709551615"), new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1387,10 +1375,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_sol_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [
-        new BN("18446744073709551615"),
-        new BN(depositAmount),
-      ],
+      amounts: [new BN("18446744073709551615"), new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:

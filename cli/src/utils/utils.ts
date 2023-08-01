@@ -7,11 +7,9 @@ import {
   confirmConfig,
   ConfirmOptions,
   MerkleTreeConfig,
-  MESSAGE_MERKLE_TREE_KEY,
   Provider,
   Relayer,
   TestRelayer,
-  TRANSACTION_MERKLE_TREE_KEY,
   User,
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -37,8 +35,6 @@ export const getWalletConfig = async (
 ): Promise<MerkleTreeConfig> => {
   try {
     let merkleTreeConfig = new MerkleTreeConfig({
-      messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
-      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       payer: getPayer(),
       connection,
     });

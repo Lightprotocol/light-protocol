@@ -1,5 +1,5 @@
-import { Command, Flags, Args } from "@oclif/core";
-import { ConfirmOptions, User } from "@lightprotocol/zk.js";
+import { Command, Args } from "@oclif/core";
+import { User } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
@@ -10,11 +10,11 @@ import { shieldSolFlags } from ".";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
 class ShieldSolCommand extends Command {
-  static summary = "Shield SOL for a user";
-  static usage = "shield:sol <AMOUNT> [FLAGS]";
+  static summary = "Shield SOL for a user.";
+  static usage = "shield:SOL <AMOUNT> [FLAGS]";
   static examples = [
-    "$ light shield:sol 1.3 --recipient <SHIELDED_RECIPIENT_ADDRESS> ",
-    "$ light shield:sol 12345678 -d",
+    "$ light shield:SOL 1.3 --recipient <SHIELDED_RECIPIENT_ADDRESS> ",
+    "$ light shield:SOL 12345678 -d",
   ];
 
   static flags = {
@@ -27,7 +27,7 @@ class ShieldSolCommand extends Command {
   static args = {
     amount: Args.string({
       name: "AMOUNT",
-      description: "The SOL amount to shield",
+      description: "The SOL amount to shield.",
       required: true,
     }),
   };

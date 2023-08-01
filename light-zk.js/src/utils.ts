@@ -365,6 +365,9 @@ export async function initLookUpTable(
     await payer.sendAndConfirmTransaction(transaction);
   } catch (e) {
     console.log("e : ", e);
+    console.log("payerPubkey : ", payerPubkey.toBase58());
+    console.log("transaction : ", JSON.stringify(transaction));
+    throw new Error(`Creating lookup table failed payer: ${payerPubkey}`);
   }
 
   let lookupTableAccount = await provider.connection.getAccountInfo(

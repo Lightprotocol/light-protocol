@@ -4,7 +4,7 @@ const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
-import {BN} from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const circomlibjs = require("circomlibjs");
 const { buildPoseidonOpt } = circomlibjs;

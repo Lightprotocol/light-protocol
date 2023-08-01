@@ -4,14 +4,14 @@ import {
   getWalletConfig,
   setAnchorProvider,
 } from "../../utils/utils";
-import { MerkleTree, TRANSACTION_MERKLE_TREE_KEY } from "@lightprotocol/zk.js";
+import { MerkleTreeConfig } from "@lightprotocol/zk.js";
 
 class ConfigureCommand extends Command {
   static description =
-    "Update the configuration of the Merkle Tree NFTs, permissionless SPL tokens, and lock duration";
+    "Update the configuration of the Merkle Tree NFTs, permissionless SPL tokens, and lock duration.";
 
   static examples = [
-    "light configure spl",
+    "light configure SPL",
     "light configure lock -l <lockDuration>",
     "light configure show",
   ];
@@ -19,7 +19,7 @@ class ConfigureCommand extends Command {
   static args = {
     method: Args.string({
       name: "method",
-      description: "Method to perform: spl or lock",
+      description: "Method to perform: SPL or lock",
       required: true,
     }),
   };
@@ -49,7 +49,7 @@ class ConfigureCommand extends Command {
 
       let merkleTreeConfig = await getWalletConfig(connection);
 
-      if (method === "spl") {
+      if (method === "SPL") {
         try {
           let merkleTreeAuthority =
             await merkleTreeConfig.merkleTreeProgram.account.merkleTreeAuthority.fetch(
@@ -97,14 +97,14 @@ class ConfigureCommand extends Command {
 
           let currentTransactionMerkleTreePda =
             await merkleTreeConfig.merkleTreeProgram.account.transactionMerkleTree.fetch(
-              TRANSACTION_MERKLE_TREE_KEY
+              MerkleTreeConfig.getTransactionMerkleTreePda()
             );
           this.log(
             `Lock Duration: ${currentTransactionMerkleTreePda.lockDuration.toString()}`
           );
         } catch (err) {}
       } else {
-        this.error('\nInvalid command. Please use "show" , "spl" or "lock"');
+        this.error('\nInvalid command. Please use "show" , "SPL" or "lock"');
       }
       loader.stop();
     } catch (error) {

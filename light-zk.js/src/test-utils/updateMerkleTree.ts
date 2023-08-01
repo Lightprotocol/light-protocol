@@ -37,7 +37,6 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
         anchorProvider && anchorProvider,
       );
       retries--;
-      console.log("retries", retries);
     }
 
     await executeUpdateMerkleTreeTransactions({

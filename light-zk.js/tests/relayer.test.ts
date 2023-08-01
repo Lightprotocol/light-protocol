@@ -60,10 +60,7 @@ describe("Test Relayer Functional", () => {
       TOKEN_ACCOUNT_FEE.toNumber(),
       relayer.getRelayerFee(true).toNumber(),
     );
-    assert.equal(
-      new BN(0).toNumber(),
-      relayer.getRelayerFee(false).toNumber(),
-    );
+    assert.equal(new BN(0).toNumber(), relayer.getRelayerFee(false).toNumber());
   });
 });
 

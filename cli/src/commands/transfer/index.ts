@@ -8,7 +8,7 @@ import {
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
 class TransferCommand extends Command {
-  static summary = "Transfer shielded funds between light users";
+  static summary = "Transfer shielded funds between light users.";
 
   static examples = [
     "$ light transfer 1.8 <SHIELDED_RECIPIENT_ADDRESS>",
@@ -20,8 +20,8 @@ class TransferCommand extends Command {
     ...confirmOptionsFlags,
     token: Flags.string({
       char: "t",
-      description: "The SPL token symbol",
-      parse: async (token) => token.toUpperCase(),
+      description: "The SPL token symbol.",
+      parse: async (token: string) => token.toUpperCase(),
       default: "SOL",
     }),
   };
@@ -29,12 +29,12 @@ class TransferCommand extends Command {
   static args = {
     amount: Args.string({
       name: "AMOUNT",
-      description: "The token amount to tranfer",
+      description: "The token amount to tranfer.",
       required: true,
     }),
     recipient: Args.string({
       name: "SHIELDED_RECIPIENT_ADDRESS",
-      description: "The recipient shielded/encryption publickey",
+      description: "The recipient shielded/encryption public key.",
       required: true,
     }),
   };
@@ -75,7 +75,7 @@ class TransferCommand extends Command {
       );
       this.log(
         `\nSuccessfully transferred ${
-          token.toLowerCase() === "sol" ? amountSol : amountSpl
+          token === "SOL" ? amountSol : amountSpl
         } ${token}`,
         "\x1b[32m✔\x1b[0m"
       );

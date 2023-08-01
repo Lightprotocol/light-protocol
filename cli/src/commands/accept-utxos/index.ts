@@ -3,41 +3,40 @@ import { TOKEN_REGISTRY, User, ConfirmOptions } from "@lightprotocol/zk.js";
 import {
   CustomLoader,
   generateSolanaTransactionURL,
-  getConfig,
   getUser,
 } from "../../utils/utils";
 import { standardFlags } from "../../utils";
 
 class MergeUtxosCommand extends Command {
-  static description = "Merge multiple inbox UTXOs into a single UTXO";
+  static description = "Merge multiple inbox utxos into a single UTXO.";
   static examples = [
     "$ light accept-utxos --token USDC --commitment-hashes <COMMITMENT1> <COMMITMENT2> <COMMITMENT3>",
     "$ light accept-utxos --latest --token USDC --all",
   ];
-
+  static args = {};
   static flags = {
     ...standardFlags,
     latest: Flags.boolean({
       char: "l",
-      description: "Use the latest UTXOs",
+      description: "Use the latest utxos.",
       hidden: true,
       default: true,
     }),
     token: Flags.string({
       name: "token",
       char: "t",
-      description: "Token of the UTXOs to merge",
+      description: "Token of the utxos to merge.",
       parse: async (token) => token.toUpperCase(),
       required: true,
     }),
     all: Flags.boolean({
       char: "a",
-      description: "Merge all inbox UTXOs of an asset",
+      description: "Merge all inbox utxos of an asset.",
       default: false,
     }),
     "commitment-hashes": Flags.string({
       char: "c",
-      description: "Commitment hashes of the UTXOs to merge",
+      description: "Commitment hashes of the utxos to merge.",
       multiple: true,
       required: false,
     }),
@@ -88,10 +87,10 @@ class MergeUtxosCommand extends Command {
           "custom"
         )
       );
-      this.log(`\nAccepted ${token} inbox UTXOs successfully \x1b[32m✔\x1b[0m`);
+      this.log(`\nAccepted ${token} inbox utxos successfully \x1b[32m✔\x1b[0m`);
       loader.stop();
     } catch (error) {
-      this.error(`\nFailed to accept ${token} inbox UTXOs!\n${error}`);
+      this.error(`\nFailed to accept ${token} inbox utxos!\n${error}`);
     }
   }
 }

@@ -10,44 +10,40 @@ class SetupCommand extends Command {
   protected finally(_: Error | undefined): Promise<any> {
     process.exit();
   }
-  // {bpf_program_id: string, path: string}
+
   static flags = {
-    bpf_program: Flags.string({
-      aliases: ["bp"],
-      description:
-        "Solana bpf program whill be deployed on local test validator <ADDRESS_OR_KEYPAIR> <SBF_PROGRAM.SO>",
-    }),
+    // TODO(ananas-block): enable pass in of arbitrary bpf programs
+    // bpf_program: Flags.string({
+    //   aliases: ["bp"],
+    //   description:
+    //     "Solana bpf program whill be deployed on local test validator <ADDRESS_OR_KEYPAIR> <SBF_PROGRAM.SO>",
+    // }),
     kill: Flags.boolean({
       aliases: ["k"],
-      description: "Kills a running test validator",
+      description: "Kills a running test validator.",
       hidden: true,
       default: true,
     }),
     background: Flags.boolean({
       char: "b",
-      description: "Runs a test validator as a process in the background",
+      description: "Runs a test validator as a process in the background.",
       default: false,
     }),
     skip_system_accounts: Flags.boolean({
       char: "s",
       description:
-        "Runs a test validator without initialized light system accounts",
+        "Runs a test validator without initialized light system accounts.",
       default: false,
     }),
-    // kill flag kills a running validator and doesn't start a new one
-    // dev starts with programs fetched without light protocol repo
   };
 
   async run() {
     const { flags } = await this.parse(SetupCommand);
-    const { bpfProgram = [], kill } = flags;
-    const limitLedgerSize = 500000000,
-      faucetPort = 9002,
-      rpcPort = 8899,
-      accountDir = "../test-env/accounts";
+
+    const { kill } = flags;
+
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
-    this.log("flags.kill is: ", kill);
     if (flags.kill) {
       try {
         await executeCommand({
@@ -55,44 +51,8 @@ class SetupCommand extends Command {
           args: ["rm", "-f", "solana-validator"],
         });
         this.log("Killed test validator");
-      } catch (error) {
-        this.log("No test validator running");
-      }
+      } catch (error) {}
     }
-    // const standardPrograms: string[] = [
-    //   "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV:../test-env/programs/spl_noop.so",
-    //   "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6:../light-system-programs/target/deploy/merkle_tree_program.so",
-    //   "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i:../light-system-programs/target/deploy/verifier_program_zero.so",
-    //   "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj:../light-system-programs/target/deploy/verifier_program_storage.so",
-    //   "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc:../light-system-programs/target/deploy/verifier_program_one.so"
-    // ];
-
-    // const allPrograms = [...standardPrograms, ...bpfProgram];
-
-    // const programIdSoFilePathPairs = allPrograms.map((program: string) => {
-    //   const [programId, soFilePath] = program.split(':');
-    //   return ["--bpf-program", programId, soFilePath];
-    // });
-
-    // const args = [
-    //   "--reset",
-    //   "--limit-ledger-size", limitLedgerSize.toString(),
-    //   "--faucet-port", faucetPort.toString(),
-    //   "--rpc-port", rpcPort.toString(),
-    //   "--quiet",
-    //   "--account-dir", accountDir,
-    //   ...programIdSoFilePathPairs.flat()
-    // ];
-
-    // try {
-    //   executeCommand({
-    //     command: "solana-test-validator",
-    //     args,
-    //   });
-    //   await sleep(9000);
-    //   this.log("\nSetup script executed successfully solana test validator with light programs is running in the background");
-    // } catch (error) {
-
     try {
       if (!flags.background) {
         await initTestEnv({ skip_system_accounts: flags.skip_system_accounts });
@@ -101,11 +61,9 @@ class SetupCommand extends Command {
         await sleep(10000);
       }
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
-      // loader.stop(false);
     } catch (error) {
       this.error(`\nSetup tasks failed: ${error}`);
     }
-    // loader.stop(false);
   }
 }
 

@@ -1,6 +1,6 @@
 import { assert } from "chai";
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
-import {BN } from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const circomlibjs = require("circomlibjs");
 const { buildPoseidonOpt } = circomlibjs;

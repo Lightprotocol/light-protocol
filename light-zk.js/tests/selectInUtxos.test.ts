@@ -49,7 +49,7 @@ describe("Test selectInUtxos Functional", () => {
     utxoSolBurner,
     utxo2Burner,
     utxo1Burner,
-    recipientAccount
+    recipientAccount;
   let lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();

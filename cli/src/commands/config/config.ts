@@ -22,15 +22,15 @@ class ConfigCommand extends Command {
   static flags = {
     rpcUrl: Flags.string({
       char: "r",
-      description: "Solana RPC URL",
+      description: "Solana rpc url.",
     }),
     relayerUrl: Flags.string({
       char: "l",
-      description: "Relayer URL",
+      description: "Relayer url.",
     }),
     secretKey: Flags.string({
       char: "s",
-      description: "solana keypair secretkey in base58 string format",
+      description: "Solana keypair secretkey in base58 string format.",
     }),
     relayerRecipient: Flags.string({
       char: "u",
@@ -38,15 +38,15 @@ class ConfigCommand extends Command {
     }),
     lookupTable: Flags.string({
       char: "t",
-      description: "Look-up table",
+      description: "Look-up table.",
     }),
     relayerPublicKey: Flags.string({
       alias: "rp",
-      description: "Relayer Public Key",
+      description: "Relayer public key.",
     }),
     get: Flags.boolean({
       char: "g",
-      description: "Gets the current config values",
+      description: "Gets the current config values.",
       required: false,
     }),
   };

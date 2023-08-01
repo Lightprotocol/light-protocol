@@ -2,6 +2,7 @@ import { Args, Command } from "@oclif/core";
 import { toSnakeCase } from "../../psp-utils/buildPSP";
 import { start_test_validator } from "../../utils";
 import { executeCommand } from "../../psp-utils";
+import { PSP_DEFAULT_PROGRAM_ID } from "./init";
 
 export default class TestCommand extends Command {
   static description = "Deploys your PSP on a local testnet and runs test";
@@ -9,13 +10,14 @@ export default class TestCommand extends Command {
   static args = {
     name: Args.string({
       name: "NAME",
-      description: "The name of the project",
+      description: "The name of the PSP project.",
       required: true,
     }),
     address: Args.string({
-      name: "NAME",
-      description: "The name of the project",
-      required: true,
+      name: "ADDRESS",
+      description: "The address of the PSP.",
+      required: false,
+      default: PSP_DEFAULT_PROGRAM_ID,
     }),
   };
 

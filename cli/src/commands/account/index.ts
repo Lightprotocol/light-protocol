@@ -1,14 +1,13 @@
 import { Command } from "@oclif/core";
 import { CustomLoader, getUser } from "../../utils/utils";
-import { t } from "tar";
 
 class AccountCommand extends Command {
-  static description = "Get the current account details";
+  static description = "Get the current account details.";
 
   async run() {
     const loader = new CustomLoader(`Fetching account details...`);
     loader.start();
-    // TODO: replace with Account.deriveFromKeypair()
+    // TODO: replace with Account.deriveFromKeypair() so that no rpc connection is required
     const user = await getUser({
       skipFetchBalance: true,
       localTestRelayer: true,

@@ -17,7 +17,7 @@ export const shieldSolFlags = {
   }),
   "skip-decimal-conversions": Flags.boolean({
     char: "d",
-    description: "Skip decimal conversions during shield",
+    description: "Skip decimal conversions during shield.",
     default: false,
   }),
 };
@@ -25,13 +25,13 @@ export const shieldSolFlags = {
 export const shieldFlags = {
   token: Flags.string({
     char: "t",
-    description: "The SPL token symbol",
-    parse: async (token) => token.toUpperCase(),
+    description: "The SPL token symbol.",
+    parse: async (token: string) => token.toUpperCase(),
     default: "SOL",
   }),
   "amount-spl": Flags.string({
     char: "p",
-    description: "The SPL token amount to shield",
+    description: "The SPL token amount to shield.",
     relationships: [
       {
         type: "some",
@@ -46,11 +46,11 @@ export const shieldFlags = {
   }),
   "amount-sol": Flags.string({
     char: "l",
-    description: "The SOL amount to shield",
+    description: "The SOL amount to shield.",
   }),
   "skip-minimum-lamports": Flags.boolean({
     description:
-      "Whether to use the minimum required lamports for the shield transaction",
+      "Whether to use the minimum required lamports for the shield transaction.",
     default: false,
   }),
 };
@@ -105,11 +105,12 @@ class ShieldCommand extends Command {
           "custom"
         )
       );
-
+      console.log("flags", JSON.stringify(flags));
+      console.log("amount sol ", amountSol);
       if (!amountSol || !amountSpl) {
         this.log(
           `\nSuccessfully shielded ${
-            token.toLowerCase() === "sol" ? amountSol : amountSpl
+            token === "SOL" ? amountSol : amountSpl
           } ${token}`,
           "\x1b[32m✔\x1b[0m"
         );

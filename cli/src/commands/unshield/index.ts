@@ -8,11 +8,11 @@ import {
 } from "../../utils/utils";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 class UnshieldCommand extends Command {
-  static summary = "Unshield tokens for a user";
+  static summary = "Unshield tokens for a user.";
   static examples = [
-    "$ light unshield --amount-sol 2.4 --recipient <RECIPIENT_ADDRESS>",
-    "$ light unshield --token USDC --amount-spl 22 --recipient <RECIPIENT_ADDRESS>",
-    "$ light unshield --amount-sol 1.2 --amount-spl 12 --token USDC --recipient <RECIPIENT_ADDRESS>",
+    "$ light unshield --amount-SOL 2.4 --recipient <RECIPIENT_ADDRESS>",
+    "$ light unshield --token USDC --amount-SPL 22 --recipient <RECIPIENT_ADDRESS>",
+    "$ light unshield --amount-SOL 1.2 --amount-SPL 12 --token USDC --recipient <RECIPIENT_ADDRESS>",
   ];
 
   static flags = {
@@ -20,24 +20,24 @@ class UnshieldCommand extends Command {
     ...confirmOptionsFlags,
     token: Flags.string({
       char: "t",
-      description: "The token to unshield",
+      description: "The token to unshield.",
       default: "SOL",
-      parse: async (token) => token.toUpperCase(),
+      parse: async (token: string) => token.toUpperCase(),
     }),
     recipient: Flags.string({
       char: "r",
-      description: "The recipient SOL account address",
+      description: "The recipient SOL account address.",
     }),
     "amount-spl": Flags.string({
-      description: "The SPL token amount to unshield",
+      description: "The SPL token amount to unshield.",
       dependsOn: ["token"],
     }),
     "amount-sol": Flags.string({
-      description: "The SOL amount to unshield",
+      description: "The SOL amount to unshield.",
     }),
     "skip-minimum-lamports": Flags.boolean({
       description:
-        "Whether to use the minimum required lamports for the unshield transaction",
+        "Whether to use the minimum required lamports for the unshield transaction.",
       default: false,
     }),
   };
@@ -70,7 +70,7 @@ class UnshieldCommand extends Command {
       if (!amountSol || !amountSpl) {
         this.log(
           `\nSuccessfully unshielded ${
-            token.toLowerCase() === "sol" ? amountSol : amountSpl
+            token === "SOL" ? amountSol : amountSpl
           } ${token}`,
           "\x1b[32m✔\x1b[0m"
         );

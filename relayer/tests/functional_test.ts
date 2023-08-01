@@ -24,7 +24,7 @@ import {
   UserTestAssertHelper,
   ConfirmOptions,
   MerkleTreeConfig,
-  Relayer
+  Relayer,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
@@ -66,7 +66,6 @@ const waitForBalanceUpdate = async (
   let balance = await user.getBalance();
   while (retries > 0) {
     retries--;
-    console.log("retries", retries);
     if (
       !balance.totalSolBalance.eq(
         userTestAssertHelper.recipient.preShieldedBalance!.totalSolBalance,
@@ -155,7 +154,10 @@ describe("API tests", () => {
         expect(res.body.data.merkleTree).to.exist;
         expect(res.body.data).to.exist;
         assert.equal(merkleTree.levels, MERKLE_TREE_HEIGHT);
-        assert.equal(pubkey.toBase58(), MerkleTreeConfig.getTransactionMerkleTreePda().toBase58());
+        assert.equal(
+          pubkey.toBase58(),
+          MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+        );
         assert.equal(merkleTree.root().toString(), previousMerkleRoot);
         assert.equal(merkleTree._layers[0].length, 0);
         assert.equal(merkleTree.zeroElement, DEFAULT_ZERO);

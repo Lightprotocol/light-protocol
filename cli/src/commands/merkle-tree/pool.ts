@@ -1,13 +1,11 @@
 import { Args, Command, Flags } from "@oclif/core";
 
 import {
-  ADMIN_AUTH_KEYPAIR,
   POOL_TYPE,
   merkleTreeProgramId,
   IDL_MERKLE_TREE_PROGRAM,
 } from "@lightprotocol/zk.js";
 
-import * as anchor from "@coral-xyz/anchor";
 import {
   CustomLoader,
   getLightProvider,
@@ -15,21 +13,22 @@ import {
   setAnchorProvider,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
+import { Program } from "@coral-xyz/anchor";
 
 class PoolCommand extends Command {
-  static description = "Register a new pool type [default, spl, sol";
+  static description = "Register a new pool type [default, SPL, SOL.";
 
   static examples = [
     "light pool default",
-    "light pool spl -p <pubKey>",
-    "light pool sol",
+    "light pool SPL -p <pubKey>",
+    "light pool SOL",
     "light pool list",
   ];
 
   static args = {
     method: Args.string({
       name: "method",
-      description: "Method to perform: default, spl, sol, or list",
+      description: "Method to perform: default, SPL, SOL, or list.",
       required: true,
     }),
   };
@@ -37,7 +36,7 @@ class PoolCommand extends Command {
   static flags = {
     publicKey: Flags.string({
       char: "p",
-      description: "Solana public key for the MINT",
+      description: "Solana public key for the MINT.",
     }),
   };
 
@@ -70,7 +69,7 @@ class PoolCommand extends Command {
         } catch (error) {
           this.error("\nFailed to register the default pool type");
         }
-      } else if (method === "spl") {
+      } else if (method === "SPL") {
         if (!publicKey) {
           this.error(
             "\nPlease provide the mint public key to register an SPL pool"
@@ -85,7 +84,7 @@ class PoolCommand extends Command {
         } catch (error) {
           this.error("\nFailed to register the SPL pool");
         }
-      } else if (method === "sol") {
+      } else if (method === "SOL") {
         try {
           await merkleTreeConfig.registerSolPool(POOL_TYPE);
           this.log("\nSuccessfully registered the Sol pool");
@@ -94,7 +93,7 @@ class PoolCommand extends Command {
         }
       } else if (method === "list") {
         const provider = await getLightProvider();
-        const merkleProgram = new anchor.Program(
+        const merkleProgram = new Program(
           IDL_MERKLE_TREE_PROGRAM,
           merkleTreeProgramId,
           provider.provider!
@@ -136,7 +135,7 @@ class PoolCommand extends Command {
         }
       } else {
         this.error(
-          '\nInvalid method. Please use "default", "spl", "sol", or "list"'
+          '\nInvalid method. Please use "default", "SPL", "SOL", or "list"'
         );
       }
 

@@ -232,7 +232,7 @@ export function selectInUtxos({
       SelectInUtxosErrorCode.INVALID_NUMBER_OF_IN_UTXOS,
       "selectInUtxos",
     );
-  if (mint != TOKEN_REGISTRY.get("SOL")?.mint) {
+  if (mint && mint != TOKEN_REGISTRY.get("SOL")?.mint) {
     var { selectedUtxosSolAmount, selectedUtxos } = selectBiggestSmallest(
       filteredUtxos,
       1,

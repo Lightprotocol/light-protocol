@@ -600,11 +600,7 @@ describe("Transaction Functional Tests", () => {
   });
 
   it("getPdaAddresses", async () => {
-    const relayerConst = new Relayer(
-      AUTHORITY,
-      AUTHORITY,
-      new BN(5000),
-    );
+    const relayerConst = new Relayer(AUTHORITY, AUTHORITY, new BN(5000));
     const paramsStaticEncryptedUtxos = new TransactionParameters({
       inputUtxos: [deposit_utxo1, deposit_utxo1],
       outputUtxos: [deposit_utxo1, deposit_utxo1],

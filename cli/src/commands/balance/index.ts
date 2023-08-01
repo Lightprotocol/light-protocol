@@ -15,37 +15,37 @@ import { PublicKey } from "@solana/web3.js";
 
 class BalanceCommand extends Command {
   static description =
-    "Show user main and inbox balances as well as respective UTXOs";
+    "Show user main and inbox balances as well as respective utxos";
 
   static flags = {
     ...standardFlags,
     token: Flags.string({
       char: "t",
-      description: "The SPL token symbol",
+      description: "The SPL token symbol.",
       default: undefined,
       exclusive: ["inbox"],
       parse: async (token) => token.toUpperCase(),
     }),
     inbox: Flags.boolean({
       char: "i",
-      description: "Show user inbox balances",
+      description: "Show user inbox balances.",
       default: false,
     }),
     utxos: Flags.boolean({
       char: "u",
-      description: "Show balance UTXOs",
+      description: "Show balance utxos.",
       default: false,
     }),
     latest: Flags.boolean({
       char: "l",
-      description: "Retrieve the latest balance, inbox balance, or UTXOs",
+      description: "Retrieve the latest balance, inbox balance, or utxos.",
       hidden: true,
       default: true,
     }),
     "all-utxos": Flags.boolean({
       char: "a",
       description:
-        "Show main & inbox balances as well as all UTXOs including main balance UTXOs",
+        "Show main & inbox balances as well as all utxos including main balance utxos.",
       exclusive: ["utxos", "inbox", "token"],
       default: false,
     }),
@@ -105,13 +105,13 @@ class BalanceCommand extends Command {
 
         if (utxos) {
           if (token === "SOL") {
-            this.logUtxos(balances, false, "sol");
-            this.logUtxos(inboxBalances, true, "sol");
+            this.logUtxos(balances, false, "SOL");
+            this.logUtxos(inboxBalances, true, "SOL");
           } else {
             const BLUE = "\x1b[34m%s\x1b[0m";
-            this.log(BLUE, `\n--- Main ${token} UTXOs ---\n`);
+            this.log(BLUE, `\n--- Main ${token} utxos ---\n`);
             this.logTokenUtxos(balances, tokenCtx!.mint);
-            this.log(BLUE, `\n--- Inbox ${token} UTXOs ---\n`);
+            this.log(BLUE, `\n--- Inbox ${token} utxos ---\n`);
             this.logTokenUtxos(inboxBalances, tokenCtx!.mint);
           }
         }
@@ -154,18 +154,18 @@ class BalanceCommand extends Command {
   private logUtxos(
     balances: Balance | InboxBalance,
     _inbox = false,
-    filter?: "sol" | "all"
+    filter?: "SOL" | "all"
   ) {
     const BLUE = "\x1b[34m%s\x1b[0m";
     let logHeader = "";
     switch (filter) {
       case "all":
-        if (_inbox) logHeader = `\n--- All Inbox Balance UTXOs ---\n`;
-        else logHeader = `\n--- All Main Balance UTXOs ---\n`;
+        if (_inbox) logHeader = `\n--- All Inbox Balance utxos ---\n`;
+        else logHeader = `\n--- All Main Balance utxos ---\n`;
         break;
-      case "sol":
-        if (_inbox) this.log(BLUE, `\n--- Inbox SOL UTXOs ---\n`);
-        else this.log(BLUE, `\n--- Main SOL UTXOs ---\n`);
+      case "SOL":
+        if (_inbox) this.log(BLUE, `\n--- Inbox SOL utxos ---\n`);
+        else this.log(BLUE, `\n--- Main SOL utxos ---\n`);
         break;
     }
 
@@ -191,8 +191,8 @@ class BalanceCommand extends Command {
           );
         }
         if (tableData.length === 0) {
-          if (!_inbox) this.log("\nThere are no Main Balance UTXOs to show!");
-          else this.log("\nThere are no Inbox Balance UTXOs to show!");
+          if (!_inbox) this.log("\nThere are no Main Balance utxos to show!");
+          else this.log("\nThere are no Inbox Balance utxos to show!");
         } else {
           this.log(BLUE, logHeader);
           ux.table(tableData, {
@@ -200,7 +200,7 @@ class BalanceCommand extends Command {
             value: { header: "" },
           });
         }
-        if (filter === "sol") break;
+        if (filter === "SOL") break;
       } else {
         let i = 0;
         let decimals = tokenBalance[1].tokenData.decimals;

@@ -14,7 +14,7 @@ import { PublicKey } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";
 
 class VerifierCommand extends Command {
-  static description = "Register a new verifier for a Merkle Tree";
+  static description = "Register a new verifier for a Merkle Tree.";
 
   static examples = [
     "light verifier set -p <pubKey>",
@@ -25,7 +25,7 @@ class VerifierCommand extends Command {
   static args = {
     method: Args.string({
       name: "method",
-      description: "Method to perform: set, get, or list",
+      description: "Method to perform: set, get, or list.",
       required: true,
     }),
   };
@@ -33,7 +33,7 @@ class VerifierCommand extends Command {
   static flags = {
     publicKey: Flags.string({
       char: "p",
-      description: "Solana public key of the Verifier",
+      description: "Solana public key of the Verifier.",
     }),
   };
 

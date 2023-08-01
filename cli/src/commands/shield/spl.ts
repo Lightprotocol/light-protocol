@@ -10,11 +10,11 @@ import { shieldFlags, shieldSolFlags } from ".";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
 class ShieldSplCommand extends Command {
-  static summary = "Shield SPL tokens for a user";
+  static summary = "Shield SPL tokens for a user.";
 
   static examples = [
-    "$ light shield:spl 10 USDC",
-    "$ light shield:spl 13 USDT --recipient <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light shield:SPL 10 USDC",
+    "$ light shield:SPL 13 USDT --recipient <SHIELDED_RECIPIENT_ADDRESS>",
   ];
 
   static flags = {
@@ -28,12 +28,12 @@ class ShieldSplCommand extends Command {
   static args = {
     amount: Args.string({
       name: "AMOUNT",
-      description: "The SPL token amount to shield",
+      description: "The SPL token amount to shield.",
       required: true,
     }),
     token: Args.string({
       name: "TOKEN",
-      description: "The SPL token symbol",
+      description: "The SPL token symbol.",
       parse: async (token) => token.toUpperCase(),
       required: true,
     }),

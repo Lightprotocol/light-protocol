@@ -1,8 +1,8 @@
 {
   "name": "@lightprotocol/cli",
-  "version": "0.1.1-alpha.14",
-  "description": "Light Protocol core cli",
-  "author": "sleepyqadir @sleepyqadir shigoto-dev19",
+  "version": "0.1.1-alpha.15",
+  "description": "Light Protocol CLI",
+  "author": "@ananas-block, @shigoto-dev19, @sleepyqadir ",
   "bin": {
     "light": "./test_bin/run"
   },
@@ -38,6 +38,7 @@
     "zlib": "^1.0.5"
   },
   "devDependencies": {
+    "@oclif/dev-cli": "^1.26.10",
     "@oclif/errors": "^1.3.6",
     "@oclif/plugin-autocomplete": "^2.3.0",
     "@oclif/plugin-not-found": "^2.3.26",
@@ -52,7 +53,7 @@
     "eslint-config-oclif": "^4",
     "eslint-config-oclif-typescript": "^1.0.3",
     "mocha": "^9",
-    "oclif": "^3",
+    "oclif": "^3.10.0",
     "shx": "^0.3.3",
     "ts-node": "^10.9.1",
     "tslib": "^2.5.0",

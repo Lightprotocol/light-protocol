@@ -5,10 +5,11 @@ import { executeCommandInDir } from "../../psp-utils/process";
 import { executeCargoGenerate } from "../../psp-utils/toolchain";
 import * as path from "path";
 
-const defaultProgramId = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
+export const PSP_DEFAULT_PROGRAM_ID =
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 
 export default class InitCommand extends Command {
-  static description = "Initialize a PSP project";
+  static description = "Initialize a PSP project.";
 
   static args = {
     name: Args.string({
@@ -48,7 +49,7 @@ export default class InitCommand extends Command {
         "--define",
         `rust-name=${rustName}`,
         "--define",
-        `program-id=${defaultProgramId}`,
+        `program-id=${PSP_DEFAULT_PROGRAM_ID}`,
       ],
     });
     await executeCommandInDir("yarn", ["install"], name);

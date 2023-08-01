@@ -9,7 +9,7 @@ import {
 import { PublicKey } from "@solana/web3.js";
 
 class AuthorityCommand extends Command {
-  static description = "Initialize, set, or get the Merkle Tree Authority";
+  static description = "Initialize, set, or get the Merkle Tree Authority.";
 
   static examples = [
     "light authority init",
@@ -24,14 +24,14 @@ class AuthorityCommand extends Command {
   static flags = {
     publicKey: Flags.string({
       char: "p",
-      description: "Solana Public key of the authority",
+      description: "Solana Public key of the authority.",
     }),
   };
 
   static args = {
     method: Args.string({
       name: "method",
-      description: "Method to perform: init, set, or get",
+      description: "Method to perform: init, set, or get.",
       required: true,
     }),
   };

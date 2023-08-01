@@ -7,25 +7,25 @@ import {
 } from "../../utils/utils";
 
 class InitializeCommand extends Command {
-  static description = "Initialize the Merkle Tree";
+  static description = "Initialize the Merkle Tree.";
 
   static examples = ["light initialize -p <pubKey>"];
 
   static flags = {
     pubKey: Flags.string({
       char: "p",
-      description: "Solana public key of the Merkle Tree Authority",
+      description: "Solana public key of the Merkle Tree Authority.",
       required: true,
     }),
     message: Flags.boolean({
       char: "m",
-      description: "Initialize a new message Merkle Tree",
+      description: "Initialize a new message Merkle Tree.",
       default: false,
       exclusive: ["transaction"],
     }),
     transaction: Flags.boolean({
       char: "t",
-      description: "Initialize a new transaction Merkle Tree",
+      description: "Initialize a new transaction Merkle Tree.",
       default: false,
       exclusive: ["message"],
     }),
@@ -57,7 +57,7 @@ class InitializeCommand extends Command {
             merkleTreeConfig.initializeNewTransactionMerkleTree();
             this.log("\nInitialized a new transaction Merkle Tree");
           } else if (message) {
-            await merkleTreeConfig.initializeNewMessageMerkleTree();
+            await merkleTreeConfig.initializeNewEventMerkleTree();
             this.log("\nInitialized a new message Merkle Tree");
           }
           this.log("\nMerkle Tree Account initialized successfully");

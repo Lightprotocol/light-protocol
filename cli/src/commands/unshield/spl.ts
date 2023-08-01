@@ -9,9 +9,9 @@ import {
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
 class UnshieldCommand extends Command {
-  static description = "Unshield SPL tokens for a user";
-  static usage = "unshield:spl <AMOUNT> <TOKEN> <RECIPIENT_ADDRESS> [FLAGS]";
-  static examples = ["$ light unshield:spl 15 USDC <RECIPIENT_ADDRESS>"];
+  static description = "Unshield SPL tokens for a user.";
+  static usage = "unshield:SPL <AMOUNT> <TOKEN> <RECIPIENT_ADDRESS> [FLAGS]";
+  static examples = ["$ light unshield:SPL 15 USDC <RECIPIENT_ADDRESS>"];
 
   static flags = {
     ...standardFlags,
@@ -19,7 +19,7 @@ class UnshieldCommand extends Command {
     "minimum-lamports": Flags.boolean({
       char: "m",
       description:
-        "Whether to use the minimum required lamports for the unshield transaction",
+        "Whether to use the minimum required lamports for the unshield transaction.",
       default: false,
     }),
   };
@@ -27,13 +27,13 @@ class UnshieldCommand extends Command {
   static args = {
     amount: Args.string({
       name: "AMOUNT",
-      description: "The SPL amount to unshield",
+      description: "The SPL amount to unshield.",
       required: true,
     }),
     token: Args.string({
       name: "TOKEN",
-      description: "The SPL token to unshield",
-      parse: async (token) => token.toUpperCase(),
+      description: "The SPL token to unshield.",
+      parse: async (token: string) => token.toUpperCase(),
       required: true,
     }),
     recipient_address: Args.string({
