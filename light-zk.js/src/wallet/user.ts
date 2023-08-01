@@ -570,7 +570,7 @@ export class User {
     try {
       txResult = await this.recentTransaction.sendAndConfirmTransaction();
     } catch (error) {
-      console.error(error.stack);
+      console.log(error);
       throw new UserError(
         TransactionErrorCode.SEND_TRANSACTION_FAILED,
         "shield",

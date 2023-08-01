@@ -74,7 +74,6 @@ export const sendVersionedTransaction = async (
       retries--;
       if (retries == 0 || error.logs !== undefined) {
         console.log(error);
-        console.error(error.stack);
 
         throw error;
       }
@@ -109,8 +108,6 @@ export async function sendVersionedTransactions(
     }
     return { signatures };
   } catch (error) {
-    console.error(error.stack);
-
     return { error };
   }
 }

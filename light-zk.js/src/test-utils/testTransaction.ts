@@ -131,7 +131,6 @@ export class TestTransaction {
         ),
       );
     } catch (error) {
-      console.error(error.stack);
       throw error;
     }
     if (this.params.action === "SHIELD") {
@@ -353,7 +352,6 @@ export class TestTransaction {
       );
     } catch (error) {
       console.log("preInsertedLeavesIndex: ", error);
-      console.error(error.stack);
       throw error;
     }
     var nrInstructions;
