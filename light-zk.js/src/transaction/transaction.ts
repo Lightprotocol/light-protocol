@@ -375,6 +375,7 @@ export class Transaction {
       var { parsedProof, parsedPublicInputs } =
         await prover.fullProveAndParse();
     } catch (error) {
+      console.error(error.stack);
       throw new TransactionError(
         TransactionErrorCode.PROOF_GENERATION_FAILED,
         "getProofInternal",

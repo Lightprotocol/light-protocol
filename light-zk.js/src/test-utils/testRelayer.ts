@@ -60,9 +60,9 @@ export class TestRelayer extends Relayer {
         provider.url,
       );
       return response;
-    } catch (e) {
-      console.log(e);
-      throw e;
+    } catch (error) {
+      console.error(error.stack);
+      throw error;
     }
   }
 

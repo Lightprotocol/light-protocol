@@ -208,6 +208,7 @@ export class MetaError extends Error {
 
   constructor(code: string, functionName: string, codeMessage?: string) {
     super(`${code}: ${codeMessage}`);
+    Error.captureStackTrace(this, this.constructor);
 
     this.codeMessage = codeMessage;
     this.code = code;

@@ -46,8 +46,8 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
       leavesPdas,
       transactionMerkleTree: transactionMerkleTreePda,
     });
-  } catch (err) {
-    console.error("failed at updateMerkleTreeForTest", err);
-    throw err;
+  } catch (error) {
+    console.error("failed at updateMerkleTreeForTest", error.stack);
+    throw error;
   }
 }

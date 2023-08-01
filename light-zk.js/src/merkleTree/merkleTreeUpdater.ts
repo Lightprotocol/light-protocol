@@ -64,9 +64,12 @@ export async function executeUpdateMerkleTreeTransactions({
       ])
       .transaction();
     await sendAndConfirmTransaction(connection, tx1, [signer], confirmConfig);
-  } catch (err) {
-    console.error("failed while initing the merkle tree update state", err);
-    throw err;
+  } catch (error) {
+    console.error(
+      "failed while initing the merkle tree update state",
+      error.stack,
+    );
+    throw error;
   }
 
   await checkMerkleTreeUpdateStateCreated({
@@ -112,9 +115,9 @@ export async function executeUpdateMerkleTreeTransactions({
       ])
       .transaction();
     await sendAndConfirmTransaction(connection, tx1, [signer], confirmConfig);
-  } catch (e) {
-    console.log(e);
-    throw e;
+  } catch (error) {
+    console.error(error.stack);
+    throw error;
   }
 
   await checkMerkleTreeBatchUpdateSuccess({
@@ -201,12 +204,15 @@ const sendAndConfirmTransactions = async (
           [signer],
           confirmConfig,
         );
-      } catch (err) {
-        errors.push(err);
+      } catch (error) {
+        errors.push(error);
       }
     }),
   );
-  if (errors.length > 0) throw errors[0];
+  if (errors.length > 0) {
+    console.error(errors[0].stack);
+    throw errors[0];
+  }
 };
 
 /**
@@ -274,8 +280,10 @@ export async function executeMerkleTreeUpdateTransactions({
     }
     if (interrupt || counter.value >= 240) {
       console.log("Reached retry limit of 240 compute instructions");
-      if (error) throw error;
-      else return;
+      if (error) {
+        console.error(error.stack);
+        throw error;
+      } else return;
     }
   }
 }

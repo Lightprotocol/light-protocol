@@ -530,11 +530,13 @@ export class User {
 
         await this.provider.wallet!.sendAndConfirmTransaction(transaction);
         this.approved = true;
-      } catch (e) {
+      } catch (error) {
+        console.error(error.stack);
+
         throw new UserError(
           UserErrorCode.APPROVE_ERROR,
           "shield",
-          `Error approving token transfer! ${e}`,
+          `Error approving token transfer! ${error}`,
         );
       }
     } else {
@@ -567,11 +569,12 @@ export class User {
     let txResult;
     try {
       txResult = await this.recentTransaction.sendAndConfirmTransaction();
-    } catch (e) {
+    } catch (error) {
+      console.error(error.stack);
       throw new UserError(
         TransactionErrorCode.SEND_TRANSACTION_FAILED,
         "shield",
-        `Error in tx.sendTransaction ${e}`,
+        `Error in tx.sendTransaction ${error}`,
       );
     }
     return txResult;
@@ -1047,11 +1050,12 @@ export class User {
       if (!skipFetchBalance) await user.getBalance();
 
       return user;
-    } catch (e) {
+    } catch (error) {
+      console.error(error.stack);
       throw new UserError(
         UserErrorCode.LOAD_ERROR,
         "load",
-        `Error while loading user! ${e}`,
+        `Error while loading user! ${error}`,
       );
     }
   }
@@ -1212,6 +1216,7 @@ export class User {
       }
       return this.transactionHistory!;
     } catch (error) {
+      console.error(error.stack);
       throw new UserError(
         TransactionErrorCode.GET_USER_TRANSACTION_HISTORY_FAILED,
         "getLatestTransactionHistory",
@@ -1516,12 +1521,13 @@ export class User {
               }
             }
             index++;
-          } catch (e) {
+          } catch (error) {
+            console.error(error.stack);
             if (
-              !(e instanceof UtxoError) ||
-              e.code !== "INVALID_APP_DATA_IDL"
+              !(error instanceof UtxoError) ||
+              error.code !== "INVALID_APP_DATA_IDL"
             ) {
-              throw e;
+              throw error;
             }
           }
         }

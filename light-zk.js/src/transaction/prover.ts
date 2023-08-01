@@ -169,6 +169,8 @@ export class Prover {
       };
     } catch (error) {
       console.error("error while parsing the proof!");
+      console.error(error.stack);
+
       throw error;
     }
   }
@@ -189,6 +191,7 @@ export class Prover {
       return publicInputsBytes;
     } catch (error) {
       console.error("error while parsing public inputs!");
+      console.error(error.stack);
       throw error;
     }
   }

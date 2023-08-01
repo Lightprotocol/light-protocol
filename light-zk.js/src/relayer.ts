@@ -84,9 +84,9 @@ export class Relayer {
     try {
       const response = await axios.post(this.url + "/updatemerkletree");
       return response;
-    } catch (err) {
-      console.error({ err });
-      throw err;
+    } catch (error) {
+      console.error(error.stack);
+      throw error;
     }
   }
 
@@ -99,9 +99,9 @@ export class Relayer {
         instructions,
       });
       return response.data.data;
-    } catch (err) {
-      console.error({ err });
-      throw err;
+    } catch (error) {
+      console.error(error.stack);
+      throw error;
     }
   }
 
@@ -136,9 +136,9 @@ export class Relayer {
         });
 
       return indexedTransactions;
-    } catch (err) {
-      console.log({ err });
-      throw err;
+    } catch (error) {
+      console.error(error.stack);
+      throw error;
     }
   }
 }

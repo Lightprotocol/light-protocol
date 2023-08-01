@@ -207,6 +207,7 @@ export class TransactionParameters implements transactionParameters {
       try {
         this.publicAmountSol.toArray("be", 8);
       } catch (error) {
+        console.error(error.stack);
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
@@ -217,6 +218,7 @@ export class TransactionParameters implements transactionParameters {
       try {
         this.publicAmountSpl.toArray("be", 8);
       } catch (error) {
+        console.error(error.stack);
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
@@ -288,6 +290,7 @@ export class TransactionParameters implements transactionParameters {
           tmpSol.sub(FIELD_SIZE).toArray("be", 8);
         }
       } catch (error) {
+        console.error(error.stack);
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
@@ -300,6 +303,7 @@ export class TransactionParameters implements transactionParameters {
           tmpSpl.sub(FIELD_SIZE).toArray("be", 8);
         }
       } catch (error) {
+        console.error(error.stack);
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",

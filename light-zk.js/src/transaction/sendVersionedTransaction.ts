@@ -68,12 +68,15 @@ export const sendVersionedTransaction = async (
     tx = await payer.signTransaction(tx);
     try {
       return await connection.sendTransaction(tx, confirmConfig);
-    } catch (e: any) {
-      console.log(e);
+    } catch (error: any) {
+      console.log(error);
+
       retries--;
-      if (retries == 0 || e.logs !== undefined) {
-        console.log(e);
-        throw e;
+      if (retries == 0 || error.logs !== undefined) {
+        console.log(error);
+        console.error(error.stack);
+
+        throw error;
       }
     }
   }
@@ -106,6 +109,8 @@ export async function sendVersionedTransactions(
     }
     return { signatures };
   } catch (error) {
+    console.error(error.stack);
+
     return { error };
   }
 }

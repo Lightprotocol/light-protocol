@@ -152,7 +152,7 @@ export async function newAccountWithTokens({
     );
     //FIXME: remove this
   } catch (e) {
-    console.log("mintTo error", e);
+    console.error("mintTo error", e);
     await mintTo(
       connection,
       ADMIN_AUTH_KEYPAIR,
@@ -223,7 +223,7 @@ export async function createMintWrapper({
     );
     return mintKeypair.publicKey;
   } catch (e) {
-    console.log(e);
+    console.error(e);
   }
 }
 

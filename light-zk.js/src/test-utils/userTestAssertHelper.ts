@@ -365,6 +365,8 @@ export class UserTestAssertHelper {
       console.log("transactions", transactions);
       console.log("recent transaction", this.recentTransaction);
       console.log("testInputs ", this.testInputs);
+      console.error(error.stack);
+
       throw error;
     }
   }

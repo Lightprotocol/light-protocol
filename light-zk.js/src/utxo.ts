@@ -134,7 +134,9 @@ export class Utxo {
     // check that blinding is 31 bytes
     try {
       blinding.toArray("be", 31);
-    } catch (_) {
+    } catch (error) {
+      console.error(error.stack);
+
       throw new UtxoError(
         UtxoErrorCode.BLINDING_EXCEEDS_SIZE,
         "constructor",
@@ -206,7 +208,8 @@ export class Utxo {
     this.amounts = amounts.map((x) => {
       try {
         x.toArray("be", 8);
-      } catch (_) {
+      } catch (error) {
+        console.error(error.stack);
         throw new UtxoError(
           UtxoErrorCode.NOT_U64,
           "constructor",
@@ -714,7 +717,7 @@ export class Utxo {
           assetLookupTable,
           verifierProgramLookupTable,
         });
-      } catch (e) {
+      } catch (_) {
         // TODO: return errors - omitted for now because of different error messages on different systems
         return null;
       }

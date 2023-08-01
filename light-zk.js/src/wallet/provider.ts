@@ -205,9 +205,9 @@ export class Provider {
       });
 
       this.solMerkleTree = mt;
-    } catch (err) {
-      console.error(err);
-      throw err;
+    } catch (error) {
+      console.error(error.stack);
+      throw error;
     }
   }
 
@@ -296,6 +296,7 @@ export class Provider {
         // this will throw if the account is not a valid lookup table
         AddressLookupTableAccount.deserialize(lookupTableAccount.data);
       } catch (error) {
+        console.error(error.stack);
         throw new ProviderError(
           ProviderErrorCode.LOOK_UP_TABLE_NOT_INITIALIZED,
           "init",

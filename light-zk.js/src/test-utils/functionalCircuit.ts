@@ -82,6 +82,7 @@ export async function functionalCircuitTest(
     expect(await tx.getProof()).to.Throw();
     x = false;
   } catch (error) {
+    console.error(error.stack);
     // assert.isTrue(error.toString().includes("CheckIndices_3 line:"));
   }
   assert.isTrue(x);

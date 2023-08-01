@@ -131,6 +131,7 @@ export class TestTransaction {
         ),
       );
     } catch (error) {
+      console.error(error.stack);
       throw error;
     }
     if (this.params.action === "SHIELD") {
@@ -350,9 +351,10 @@ export class TestTransaction {
         Number(leavesAccountData.leftLeafIndex) +
           remainingAccounts.leavesPdaPubkeys.length * 2,
       );
-    } catch (e) {
-      console.log("preInsertedLeavesIndex: ", e);
-      throw e;
+    } catch (error) {
+      console.log("preInsertedLeavesIndex: ", error);
+      console.error(error.stack);
+      throw error;
     }
     var nrInstructions;
     if (this.appParams) {
