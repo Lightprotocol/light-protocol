@@ -4,7 +4,7 @@ const chaiAsPromised = require("chai-as-promised");
 
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-import * as anchor from "@coral-xyz/anchor";
+import  {BN}  from "@coral-xyz/anchor";
 import { it } from "mocha";
 const circomlibjs = require("circomlibjs");
 const { buildBabyjub, buildEddsa } = circomlibjs;
@@ -40,7 +40,7 @@ describe("Test Account Functional", () => {
     F = babyJub.F;
     k0 = new Account({ poseidon, seed: seed32 });
     k00 = new Account({ poseidon, seed: seed32 });
-    kBurner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
+    kBurner = Account.createBurner(poseidon, seed32, new BN("0"));
   });
 
   it("Test blake2 Domain separation", () => {
@@ -61,7 +61,7 @@ describe("Test Account Functional", () => {
     let y = new Array(30).fill(2);
 
     let hash = poseidon.F.toString(
-      poseidon([new anchor.BN(x).toString(), new anchor.BN(y).toString()]),
+      poseidon([new BN(x).toString(), new BN(y).toString()]),
     );
 
     x = new Array(29).fill(1);
@@ -69,7 +69,7 @@ describe("Test Account Functional", () => {
     y[30] = 1;
 
     const hash1 = poseidon.F.toString(
-      poseidon([new anchor.BN(x).toString(), new anchor.BN(y).toString()]),
+      poseidon([new BN(x).toString(), new BN(y).toString()]),
     );
     assert.notEqual(hash, hash1);
   });
@@ -212,16 +212,16 @@ describe("Test Account Functional", () => {
   });
 
   it("Burner same index & keypair eq", () => {
-    let kBurner0 = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
+    let kBurner0 = Account.createBurner(poseidon, seed32, new BN("0"));
     // burners with the same index from the same seed are the equal
     compareKeypairsEqual(kBurner0, kBurner);
   });
 
   it("Burner diff index & keypair neq", () => {
-    let kBurner0 = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
+    let kBurner0 = Account.createBurner(poseidon, seed32, new BN("0"));
     // burners with the same index from the same seed are the equal
     compareKeypairsEqual(kBurner0, kBurner);
-    let kBurner1 = Account.createBurner(poseidon, seed32, new anchor.BN("1"));
+    let kBurner1 = Account.createBurner(poseidon, seed32, new BN("1"));
     // burners with incrementing index are not equal
     compareKeypairsNotEqual(kBurner1, kBurner0, true);
   });
@@ -290,7 +290,7 @@ describe("Test Account Errors", () => {
     F = babyJub.F;
     k0 = new Account({ poseidon, seed: seed32 });
     k00 = new Account({ poseidon, seed: seed32 });
-    kBurner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
+    kBurner = Account.createBurner(poseidon, seed32, new BN("0"));
   });
 
   it("INVALID_SEED_SIZE", async () => {

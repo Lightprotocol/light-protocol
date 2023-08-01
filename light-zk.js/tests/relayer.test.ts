@@ -1,7 +1,7 @@
 import { assert, expect } from "chai";
 
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 
 import {
@@ -15,7 +15,7 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let mockKeypair = SolanaKeypair.generate();
 let mockKeypair1 = SolanaKeypair.generate();
-let relayerFee = new anchor.BN("123214");
+let relayerFee = new BN("123214");
 let relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
 describe("Test Relayer Functional", () => {
@@ -23,7 +23,7 @@ describe("Test Relayer Functional", () => {
     let relayer = new Relayer(
       mockKeypair.publicKey,
       mockKeypair1.publicKey,
-      new anchor.BN(1),
+      new BN(1),
     );
     assert.equal(
       relayer.accounts.relayerRecipientSol.toBase58(),
@@ -61,7 +61,7 @@ describe("Test Relayer Functional", () => {
       relayer.getRelayerFee(true).toNumber(),
     );
     assert.equal(
-      new anchor.BN(0).toNumber(),
+      new BN(0).toNumber(),
       relayer.getRelayerFee(false).toNumber(),
     );
   });

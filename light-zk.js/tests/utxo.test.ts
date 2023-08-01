@@ -12,7 +12,7 @@ const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-import { IDL as TEST_PSP_IDL } from "./testData/mock_verifier";
+import { IDL as TEST_PSP_IDL } from "./testData/tmp_test_psp";
 
 import {
   FEE_ASSET,
@@ -47,7 +47,7 @@ describe("Utxo Functional", () => {
   before(async () => {
     poseidon = await buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(relayerMockPubKey, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(relayerMockPubKey, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
@@ -365,6 +365,7 @@ describe("Utxo Functional", () => {
     const verifierProgramId = new PublicKey(
       "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
     );
+
     const account = new Account({
       poseidon,
       seed: bs58.encode(new Uint8Array(32).fill(1)),
@@ -400,7 +401,6 @@ describe("Utxo Functional", () => {
     let data = createAccountObject(
       {
         releaseSlot: 1,
-        currentSlot: 2,
         rndOtherStuff: { s: 2342 },
         o: [2, 2, new BN(2)],
       },

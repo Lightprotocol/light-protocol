@@ -1,7 +1,7 @@
 import { assert, expect } from "chai";
 
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 
 const circomlibjs = require("circomlibjs");
@@ -59,12 +59,12 @@ describe("Transaction Parameters Functional", () => {
     lightProvider = await LightProvider.loadMock();
 
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -80,8 +80,8 @@ describe("Transaction Parameters Functional", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new anchor.BN(depositAmount),
+        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
+        new BN(depositAmount),
       ],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -120,7 +120,7 @@ describe("Transaction Parameters Functional", () => {
     assert.equal(params.action.toString(), Action.TRANSFER.toString());
     assert.equal(params.publicAmountSpl.toString(), "0");
     assert.equal(
-      params.publicAmountSol.sub(FIELD_SIZE).mul(new anchor.BN(-1)).toString(),
+      params.publicAmountSol.sub(FIELD_SIZE).mul(new BN(-1)).toString(),
       relayer.getRelayerFee().toString(),
     );
     assert.equal(
@@ -208,8 +208,8 @@ describe("Transaction Parameters Functional", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new anchor.BN(depositAmount),
+        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
+        new BN(depositAmount),
       ],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -238,7 +238,7 @@ describe("Transaction Parameters Functional", () => {
       assert.equal(
         params.publicAmountSol
           .sub(FIELD_SIZE)
-          .mul(new anchor.BN(-1))
+          .mul(new BN(-1))
           .toString(),
         relayer.getRelayerFee().toString(),
       );
@@ -439,14 +439,14 @@ describe("Transaction Parameters Functional", () => {
       assert.equal(
         params.publicAmountSpl
           .sub(FIELD_SIZE)
-          .mul(new anchor.BN(-1))
+          .mul(new BN(-1))
           .toString(),
         depositAmount.toString(),
       );
       assert.equal(
         params.publicAmountSol
           .sub(FIELD_SIZE)
-          .mul(new anchor.BN(-1))
+          .mul(new BN(-1))
           .toString(),
         depositFeeAmount.toString(),
       );
@@ -548,7 +548,7 @@ describe("Test TransactionParameters Methods", () => {
     let outputUtxos = [
       new Utxo({
         poseidon,
-        amounts: [new anchor.BN(2), new anchor.BN(4)],
+        amounts: [new BN(2), new BN(4)],
         assets: [SystemProgram.programId, MINT],
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -604,7 +604,7 @@ describe("Test TransactionParameters Methods", () => {
     let outputUtxos = [
       new Utxo({
         poseidon,
-        amounts: [new anchor.BN(2), new anchor.BN(4)],
+        amounts: [new BN(2), new BN(4)],
         assets: [SystemProgram.programId, MINT],
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -640,7 +640,7 @@ describe("Test TransactionParameters Methods", () => {
 
     outputUtxos[1] = new Utxo({
       poseidon,
-      amounts: [new anchor.BN(3), new anchor.BN(5)],
+      amounts: [new BN(3), new BN(5)],
       assets: [SystemProgram.programId, MINT],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -680,13 +680,13 @@ describe("Test General TransactionParameters Errors", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -792,13 +792,13 @@ describe("Test TransactionParameters Transfer Errors", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -809,8 +809,8 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new anchor.BN(depositAmount),
+        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
+        new BN(depositAmount),
       ],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -846,8 +846,8 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new anchor.BN(0),
+        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
+        new BN(0),
       ],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -879,7 +879,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     const localOutputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(0), new anchor.BN(depositAmount)],
+      amounts: [new BN(0), new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1013,13 +1013,13 @@ describe("Test TransactionParameters Deposit Errors", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1097,8 +1097,8 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN("18446744073709551615"),
-        new anchor.BN(depositAmount),
+        new BN("18446744073709551615"),
+        new BN(depositAmount),
       ],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -1108,7 +1108,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
+      amounts: [new BN("18446744073709551615"), new BN(0)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1139,7 +1139,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_spl_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
+      amounts: [new BN(0), new BN("18446744073709551615")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1149,7 +1149,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(0), new anchor.BN("1")],
+      amounts: [new BN(0), new BN("1")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1227,7 +1227,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
+      amounts: [new BN("18446744073709551615"), new BN(0)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1311,13 +1311,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1328,8 +1328,8 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new anchor.BN(depositAmount),
+        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
+        new BN(depositAmount),
       ],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -1388,8 +1388,8 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN("18446744073709551615"),
-        new anchor.BN(depositAmount),
+        new BN("18446744073709551615"),
+        new BN(depositAmount),
       ],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -1400,7 +1400,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
+      amounts: [new BN("18446744073709551615"), new BN(0)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1433,7 +1433,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_spl_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
+      amounts: [new BN(0), new BN("18446744073709551615")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1443,7 +1443,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(0), new anchor.BN("1")],
+      amounts: [new BN(0), new BN("1")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1523,7 +1523,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
+      amounts: [new BN("18446744073709551615"), new BN(0)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1549,7 +1549,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
+      amounts: [new BN(0), new BN("18446744073709551615")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:

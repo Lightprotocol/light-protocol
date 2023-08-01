@@ -1,8 +1,7 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
-
+import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -52,13 +51,13 @@ describe("Transaction Error Tests", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -279,16 +278,16 @@ describe("Transaction Functional Tests", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
-      blinding: new anchor.BN(new Array(31).fill(1)),
+      blinding: new BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -386,13 +385,13 @@ describe("Transaction Functional Tests", () => {
     let deposit_utxo1 = new Utxo({
       poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(1), new anchor.BN(2)],
+      amounts: [new BN(1), new BN(2)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    const relayer = new Relayer(mockPubkey, mockPubkey, new anchor.BN(5000));
+    const relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
 
     let params = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
@@ -430,7 +429,7 @@ describe("Transaction Functional Tests", () => {
     let deposit_utxo2 = new Utxo({
       poseidon,
       assets: [FEE_ASSET],
-      amounts: [new anchor.BN(1)],
+      amounts: [new BN(1)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -462,7 +461,7 @@ describe("Transaction Functional Tests", () => {
     let deposit_utxo4 = new Utxo({
       poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(0), new anchor.BN(2)],
+      amounts: [new BN(0), new BN(2)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -494,7 +493,7 @@ describe("Transaction Functional Tests", () => {
     let deposit_utxo5 = new Utxo({
       poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(2), new anchor.BN(0)],
+      amounts: [new BN(2), new BN(0)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -510,7 +509,7 @@ describe("Transaction Functional Tests", () => {
   });
 
   it("getConnectingHash", async () => {
-    const relayerConst = new Relayer(AUTHORITY, AUTHORITY, new anchor.BN(5000));
+    const relayerConst = new Relayer(AUTHORITY, AUTHORITY, new BN(5000));
     const paramsStaticEncryptedUtxos = new TransactionParameters({
       inputUtxos: [deposit_utxo1, deposit_utxo1],
       outputUtxos: [deposit_utxo1, deposit_utxo1],
@@ -604,8 +603,7 @@ describe("Transaction Functional Tests", () => {
     const relayerConst = new Relayer(
       AUTHORITY,
       AUTHORITY,
-      AUTHORITY,
-      new anchor.BN(5000),
+      new BN(5000),
     );
     const paramsStaticEncryptedUtxos = new TransactionParameters({
       inputUtxos: [deposit_utxo1, deposit_utxo1],

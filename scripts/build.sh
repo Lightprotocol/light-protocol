@@ -50,7 +50,7 @@ cleanup_and_install() {
 }
 
 cleanup_and_install --dir "light-zk.js" --yarn true --anchor false
-cleanup_and_install -d "cli" -y true -a false
 cleanup_and_install -d "light-system-programs" -y false -a true
+cleanup_and_install -d "cli" -y true -a false
 cleanup_and_install -d "light-circuits" -y false -a false
 cleanup_and_install -d "relayer" -y true -a false
