@@ -15,7 +15,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use merkle_tree_program::{
     program::MerkleTreeProgram, transaction_merkle_tree::state::TransactionMerkleTree,
-    utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
+    utils::constants::TOKEN_AUTHORITY_SEED, EventMerkleTree, RegisteredVerifier,
 };
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
@@ -106,6 +106,8 @@ pub struct LightInstruction<'info> {
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     /// CHECK:` It get checked inside the event_call
     pub log_wrapper: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
 }
 
 #[derive(Debug)]

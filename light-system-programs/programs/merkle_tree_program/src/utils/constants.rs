@@ -36,8 +36,10 @@ pub const POOL_SEED: &[u8] = b"pool";
 #[constant]
 pub const TOKEN_AUTHORITY_SEED: &[u8] = b"spl";
 #[constant]
-pub const MESSSAGE_MERKLE_TREE_SEED: &[u8] = b"message_merkle_tree";
+pub const EVENT_MERKLE_TREE_SEED: &[u8] = b"event_merkle_tree";
+#[constant]
+pub const TRANSACTION_MERKLE_TREE_SEED: &[u8] = b"transaction_merkle_tree";
 
 // Merkle tree parameters
 #[constant]
-pub const MESSAGE_MERKLE_TREE_HEIGHT: usize = 8;
+pub const EVENT_MERKLE_TREE_HEIGHT: usize = 8;

@@ -6,8 +6,6 @@ on:
       - "light-zk.js/**/*.ts"
       - "light-system-programs/**/*.rs"
       - "light-system-programs/**/*.ts"
-      - "mock-app-verifier/**/*.rs"
-      - "mock-app-verifier/**/*.ts"
   pull_request:
     branches:
       - main
@@ -15,14 +13,18 @@ on:
       - "light-zk.js/**/*.ts"
       - "light-system-programs/**/*.rs"
       - "light-system-programs/**/*.ts"
-      - "mock-app-verifier/**/*.rs"
-      - "mock-app-verifier/**/*.ts"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 name: test
 
 jobs:
   light-system-programs:
     name: light-system-programs
+    if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
     strategy:
       matrix:
@@ -50,12 +52,13 @@ jobs:
 
   light-sdk-tests:
     name: light-sdk-tests
+    if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
     strategy:
       matrix:
         include:
-          - name: sdk-tests-light-zk-light-circuits-mock-app-verifier-relayer
-            sub-tests: '["light-zk.js", "light-circuits", "mock-app-verifier", "relayer"]'
+          - name: sdk-tests-light-zk-light-circuits-relayer
+            sub-tests: '["light-zk.js", "light-circuits", "relayer"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2

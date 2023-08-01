@@ -62,6 +62,7 @@ describe("Test Prover Functional", () => {
     });
     paramsDeposit = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
       senderSpl: mockPubkey,
@@ -81,6 +82,7 @@ describe("Test Prover Functional", () => {
     );
     paramsWithdrawal = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
+      eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
       recipientSpl: mockPubkey,
@@ -172,6 +174,7 @@ describe("Test Prover Functional", () => {
     const paramsDeposit = new TransactionParameters({
       outputUtxos: [deposit_utxo1, zeroUtxo1],
       inputUtxos: [zeroUtxo1, zeroUtxo2],
+      eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
       senderSpl: mockPubkey,
@@ -194,26 +197,26 @@ describe("Test Prover Functional", () => {
     // assert compliance of constant publicInputsBytes
     const hardcodedPublicInputs = {
       root: [
-        43, 35, 221, 86, 17, 193, 91, 53, 106, 255, 229, 169, 98, 120, 112, 191,
-        21, 119, 239, 220, 70, 158, 179, 212, 55, 150, 49, 4, 98, 250, 53, 56,
+        1, 71, 64, 152, 213, 69, 238, 111, 106, 174, 120, 195, 68, 9, 81, 21,
+        57, 227, 243, 231, 251, 182, 3, 222, 79, 89, 20, 111, 194, 140, 137, 35,
       ],
       publicAmountSpl: [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 78, 32,
       ],
       txIntegrityHash: [
-        37, 145, 249, 210, 236, 201, 214, 253, 242, 96, 176, 127, 104, 97, 43,
-        44, 212, 213, 183, 59, 85, 64, 133, 122, 155, 9, 121, 182, 125, 59, 51,
-        29,
+        26, 107, 16, 0, 121, 210, 135, 105, 133, 216, 225, 195, 29, 17, 137,
+        235, 197, 31, 198, 221, 54, 120, 128, 37, 138, 104, 186, 202, 238, 12,
+        113, 209,
       ],
       publicAmountSol: [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 39, 16,
       ],
       publicMintPubkey: [
-        0, 94, 147, 101, 66, 233, 91, 49, 123, 34, 225, 142, 123, 151, 248, 216,
-        212, 210, 99, 220, 110, 109, 179, 172, 12, 188, 136, 215, 113, 108, 23,
-        186,
+        0, 24, 59, 207, 17, 191, 51, 84, 25, 96, 177, 164, 233, 142, 128, 208,
+        115, 82, 0, 223, 237, 121, 0, 231, 241, 213, 140, 224, 58, 185, 152,
+        253,
       ],
       inputNullifier: [
         [
@@ -229,9 +232,9 @@ describe("Test Prover Functional", () => {
       ],
       outputCommitment: [
         [
-          15, 233, 157, 13, 2, 236, 21, 248, 131, 119, 206, 65, 9, 156, 186, 8,
-          162, 129, 228, 56, 48, 147, 150, 149, 50, 165, 182, 43, 43, 157, 232,
-          13,
+          5, 59, 246, 158, 197, 149, 171, 83, 1, 169, 89, 112, 145, 137, 194,
+          212, 10, 206, 172, 194, 240, 70, 141, 203, 248, 111, 9, 239, 114, 31,
+          172, 53,
         ],
         [
           45, 33, 14, 89, 191, 213, 234, 199, 195, 91, 43, 8, 143, 46, 130, 238,

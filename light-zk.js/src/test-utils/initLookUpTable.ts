@@ -13,7 +13,6 @@ import { assert } from "chai";
 import { PathOrFileDescriptor, readFileSync, writeFile } from "fs";
 
 import {
-  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
   REGISTERED_POOL_PDA_SOL,
@@ -29,7 +28,7 @@ import {
   REGISTERED_VERIFIER_PDA,
   REGISTERED_VERIFIER_TWO_PDA,
   MINT,
-  MESSAGE_MERKLE_TREE_KEY,
+  MerkleTreeConfig,
 } from "../index";
 import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
@@ -124,8 +123,8 @@ export async function initLookUpTableTest(
       merkleTreeProgramId,
       DEFAULT_PROGRAMS.rent,
       SPL_NOOP_PROGRAM_ID,
-      MESSAGE_MERKLE_TREE_KEY,
-      TRANSACTION_MERKLE_TREE_KEY,
+      MerkleTreeConfig.getEventMerkleTreePda(),
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
       PRE_INSERTED_LEAVES_INDEX,
       AUTHORITY,
       TOKEN_PROGRAM_ID,

@@ -12,7 +12,7 @@ latest_release() {
     REPO="${2}"
     GITHUB="https://api.github.com"
 
-    LATEST_RELEASE=`curl -s "${GITHUB}/repos/${OWNER}/${REPO}/releases/latest"`
+    LATEST_RELEASE=`curl --retry 5 --retry-delay 10 -s "${GITHUB}/repos/${OWNER}/${REPO}/releases/latest"`
 
     # Extract the tag name
     TAG_NAME=`echo "${LATEST_RELEASE}" | perl -ne 'print "${1}\n" if /"tag_name":\s*"([^"]*)"/' | head -1`
@@ -27,7 +27,7 @@ download_file() {
     dest="${3}"
 
     echo "📥 Downloading ${dest_name}"
-    curl -L -o "${dest}/${dest_name}" "${url}"
+    curl --retry 5 --retry-delay 10 -L -o "${dest}/${dest_name}" "${url}"
     chmod +x "${dest}/${dest_name}"
 }
 
@@ -41,7 +41,7 @@ download_and_extract() {
     strip_components="${5:-0}"
 
     echo "📥 Downloading ${archive_name}"
-    curl -L "${url}" | tar "-x${archive_type}f" - --strip-components "${strip_components}" -C "${dest}"
+    curl --retry 5 --retry-delay 10 -L "${url}" | tar "-x${archive_type}f" - --strip-components "${strip_components}" -C "${dest}"
 }
 
 # Downloads a file from the given GitHub repository and places it in the given
@@ -159,7 +159,7 @@ mkdir -p $PREFIX/bin/deps
 echo "🦀 Installing Rust"
 export RUSTUP_HOME="${PREFIX}/rustup"
 export CARGO_HOME="${PREFIX}/cargo"
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
     --no-modify-path # We want to control the PATH ourselves.
 . "${CARGO_HOME}/env"
 cargo install cargo-expand

@@ -1,4 +1,24 @@
 pragma circom 2.0.0;
 include "./transaction_masp.circom";
 
-component main {public [root,inputNullifier, outputCommitment,publicAmountSpl,txIntegrityHash,publicAmountSol,publicMintPubkey]} = TransactionAccount(18, 10, 2, 24603683191960664281975569809895794547840992286820815015841170051925534051, 0, 1, 3, 2, 2);
+component main {
+	public [
+		root,
+		inputNullifier,
+		outputCommitment,
+		publicAmountSpl,
+		txIntegrityHash,
+		publicAmountSol,
+		publicMintPubkey
+	]
+} = TransactionAccount(
+	18,
+	10,
+	2,
+	184598798020101492503359154328231866914977581098629757339001774613643340069,
+	0,
+	1,
+	3,
+	2,
+	2
+);

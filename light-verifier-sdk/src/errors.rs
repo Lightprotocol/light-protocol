@@ -30,10 +30,10 @@ pub enum VerifierSdkError {
     InvalidSenderorRecipient,
     #[msg("Proof not verified")]
     ProofNotVerified,
-    #[msg("Message was provided without message Merkle tree account")]
+    #[msg("Message was provided without event Merkle tree account")]
     MessageNoMerkleTreeAccount,
     #[msg("Provided message Merkle tree account has invalid hash function (not SHA256")]
-    MessageMerkleTreeInvalidHashFunction,
+    EventMerkleTreeInvalidHashFunction,
     #[msg("Invalid noop progam key")]
     InvalidNoopPubkey,
 }

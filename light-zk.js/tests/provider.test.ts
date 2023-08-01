@@ -11,11 +11,11 @@ import {
   Provider as LightProvider,
   ProviderErrorCode,
   ADMIN_AUTH_KEYPAIR,
-  TRANSACTION_MERKLE_TREE_KEY,
   DEFAULT_ZERO,
   ProviderError,
   useWallet,
   MINT,
+  MerkleTreeConfig,
 } from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -40,7 +40,7 @@ describe("Test Provider Functional", () => {
     assert(lightProviderMock.lookUpTables.versionedTransactionLookupTable);
     assert.equal(
       lightProviderMock.solMerkleTree?.pubkey.toBase58(),
-      TRANSACTION_MERKLE_TREE_KEY.toBase58(),
+      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
     );
     assert.equal(lightProviderMock.solMerkleTree?.merkleTree.levels, 18);
     assert.equal(

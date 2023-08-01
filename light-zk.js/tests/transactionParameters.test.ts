@@ -24,13 +24,14 @@ import {
   AUTHORITY,
   Utxo,
   Account,
-  TRANSACTION_MERKLE_TREE_KEY,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_TWO,
+  MerkleTreeConfig,
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const VERIFIER_IDLS = [
@@ -95,7 +96,9 @@ describe("Transaction Parameters Functional", () => {
     const paramsOriginal = new TransactionParameters({
       inputUtxos,
       outputUtxos,
-      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      transactionMerkleTreePubkey:
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       poseidon,
       action: Action.TRANSFER,
       relayer,
@@ -139,7 +142,7 @@ describe("Transaction Parameters Functional", () => {
     );
     assert.equal(
       params.accounts.transactionMerkleTree.toBase58(),
-      TRANSACTION_MERKLE_TREE_KEY.toBase58(),
+      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
     );
     assert.equal(params.accounts.verifierState, undefined);
     assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
@@ -221,6 +224,7 @@ describe("Transaction Parameters Functional", () => {
       const params = new TransactionParameters({
         inputUtxos,
         outputUtxos,
+        eventMerkleTreePubkey: mockPubkey2,
         transactionMerkleTreePubkey: mockPubkey2,
         poseidon,
         action: Action.TRANSFER,
@@ -325,6 +329,7 @@ describe("Transaction Parameters Functional", () => {
 
       const params = new TransactionParameters({
         outputUtxos,
+        eventMerkleTreePubkey: mockPubkey2,
         transactionMerkleTreePubkey: mockPubkey2,
         senderSpl: mockPubkey,
         senderSol: mockPubkey1,
@@ -420,6 +425,7 @@ describe("Transaction Parameters Functional", () => {
 
       const params = new TransactionParameters({
         inputUtxos,
+        eventMerkleTreePubkey: mockPubkey2,
         transactionMerkleTreePubkey: mockPubkey2,
         recipientSpl: mockPubkey,
         recipientSol: mockPubkey1,
@@ -692,6 +698,7 @@ describe("Test General TransactionParameters Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -818,6 +825,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           poseidon,
           action: Action.TRANSFER,
@@ -851,6 +859,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [localOutputUtxo],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           poseidon,
           action: Action.TRANSFER,
@@ -881,6 +890,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [localOutputUtxo],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           poseidon,
           action: Action.TRANSFER,
@@ -902,6 +912,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           poseidon,
           action: Action.TRANSFER,
@@ -924,6 +935,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           poseidon,
           action: Action.TRANSFER,
@@ -946,6 +958,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           poseidon,
           action: Action.TRANSFER,
@@ -968,6 +981,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           poseidon,
           action: Action.TRANSFER,
@@ -1018,6 +1032,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           poseidon,
@@ -1038,6 +1053,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
           poseidon,
@@ -1058,6 +1074,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -1101,6 +1118,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -1142,6 +1160,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -1163,6 +1182,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -1185,6 +1205,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -1217,6 +1238,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       // should work since no spl amount
       new TransactionParameters({
         outputUtxos: [utxo_sol_amount_no_u642],
+        eventMerkleTreePubkey: mockPubkey,
         transactionMerkleTreePubkey: mockPubkey,
         senderSol: mockPubkey,
         poseidon,
@@ -1231,6 +1253,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -1253,6 +1276,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -1319,6 +1343,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           // senderSol: mockPubkey,
@@ -1341,6 +1366,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
@@ -1385,6 +1411,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
@@ -1426,6 +1453,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
@@ -1448,6 +1476,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
@@ -1471,6 +1500,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
+          eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           recipientSpl: mockPubkey,
@@ -1504,6 +1534,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       // should work since no spl amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
+        eventMerkleTreePubkey: mockPubkey,
         transactionMerkleTreePubkey: mockPubkey,
         recipientSol: mockPubkey,
         poseidon,
@@ -1529,6 +1560,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       // should work since no sol amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
+        eventMerkleTreePubkey: mockPubkey,
         transactionMerkleTreePubkey: mockPubkey,
         recipientSpl: mockPubkey,
         poseidon,

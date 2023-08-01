@@ -1,6 +1,11 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{hash, keccak, msg, program_pack::Pack, sysvar},
+    solana_program::{
+        hash::{hash, hashv},
+        msg,
+        program_pack::Pack,
+        sysvar,
+    },
 };
 use anchor_spl::token::Transfer;
 use ark_ff::{
@@ -17,7 +22,7 @@ use light_merkle_tree::HashFunction;
 use crate::{
     accounts::Accounts,
     cpi_instructions::{
-        insert_nullifiers_cpi, insert_two_leaves_cpi, insert_two_leaves_messsage_cpi,
+        insert_nullifiers_cpi, insert_two_leaves_cpi, insert_two_leaves_event_cpi,
         invoke_indexer_transaction_event, withdraw_sol_cpi, withdraw_spl_cpi,
     },
     errors::VerifierSdkError,
@@ -61,6 +66,7 @@ pub struct Transaction<
     pub input: TransactionInput<'info, 'a, 'c, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
     // State of transaction.
     pub merkle_root: [u8; 32],
+    pub event_hash: [u8; 32],
     pub tx_integrity_hash: [u8; 32],
     pub mint_pubkey: [u8; 32],
     pub transferred_funds: bool,
@@ -80,7 +86,7 @@ pub struct Message<'a> {
 
 impl<'a> Message<'a> {
     pub fn new(content: &'a Vec<u8>) -> Self {
-        let hash = hash::hash(content).to_bytes();
+        let hash = hash(content).to_bytes();
         Message { hash, content }
     }
 }
@@ -134,6 +140,7 @@ impl<
         Transaction {
             input,
             merkle_root: [0u8; 32],
+            event_hash: [0u8; 32],
             tx_integrity_hash: [0u8; 32],
             mint_pubkey: [0u8; 32],
             transferred_funds: false,
@@ -150,7 +157,8 @@ impl<
     /// Transact is a wrapper function which computes the integrity hash, checks the root,
     /// verifies the zero knowledge proof, inserts leaves, inserts nullifiers, transfers funds and fees.
     pub fn transact(&mut self) -> Result<()> {
-        self.insert_message_leaves()?;
+        self.compute_event_hash();
+        self.insert_event_leaves()?;
         self.compute_tx_integrity_hash()?;
         self.fetch_root()?;
         self.fetch_mint()?;
@@ -298,19 +306,59 @@ impl<
         }
     }
 
-    /// Calls the Merkle tree program via CPI to insert message leaves.
-    pub fn insert_message_leaves(&mut self) -> Result<()> {
-        let (message_hash, message_merkle_tree) = match self.input.message {
-            Some(message) => match self.input.accounts.unwrap().message_merkle_tree {
-                Some(message_merkle_tree) => (message.hash, message_merkle_tree),
-                None => return err!(VerifierSdkError::MessageNoMerkleTreeAccount),
-            },
-            None => return Ok(()),
+    pub fn compute_event_hash(&mut self) {
+        let nullifiers_hash = hashv(
+            &self
+                .input
+                .nullifiers
+                .iter()
+                .map(|arr| arr.as_slice())
+                .collect::<Vec<_>>()
+                .as_slice(),
+        );
+
+        let leaves_hash = hashv(
+            &self
+                .input
+                .leaves
+                .iter()
+                .flat_map(|two_d| two_d.iter())
+                .map(|one_d| &one_d[..])
+                .collect::<Vec<_>>()
+                .as_slice(),
+        );
+
+        let message_hash = match self.input.message {
+            Some(message) => message.hash,
+            None => [0u8; 32],
         };
-        if message_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 {
-            return err!(VerifierSdkError::MessageMerkleTreeInvalidHashFunction);
+        let encrypted_utxos_hash = hash(self.input.encrypted_utxos.as_slice());
+
+        let amount_hash = hashv(&[
+            &self.input.public_amount.sol,
+            &self.input.public_amount.spl,
+            &self.input.relayer_fee.to_le_bytes(),
+        ]);
+
+        let event_hash = hashv(&[
+            nullifiers_hash.to_bytes().as_slice(),
+            leaves_hash.to_bytes().as_slice(),
+            message_hash.as_slice(),
+            encrypted_utxos_hash.to_bytes().as_slice(),
+            amount_hash.to_bytes().as_slice(),
+        ]);
+
+        self.event_hash = event_hash.to_bytes();
+        msg!("event_hash: {:?}", event_hash.to_bytes());
+    }
+
+    /// Calls the Merkle tree program via CPI to insert event leaves.
+    pub fn insert_event_leaves(&mut self) -> Result<()> {
+        let event_merkle_tree = self.input.accounts.unwrap().event_merkle_tree;
+        if event_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 {
+            return err!(VerifierSdkError::EventMerkleTreeInvalidHashFunction);
         }
-        insert_two_leaves_messsage_cpi(
+        insert_two_leaves_event_cpi(
             self.input.accounts.unwrap().program_id,
             &self
                 .input
@@ -318,14 +366,14 @@ impl<
                 .unwrap()
                 .program_merkle_tree
                 .to_account_info(),
-            &message_merkle_tree.to_account_info(),
+            &event_merkle_tree.to_account_info(),
             &self
                 .input
                 .accounts
                 .unwrap()
                 .system_program
                 .to_account_info(),
-            &message_hash,
+            &self.event_hash,
             &[0; 32],
         )?;
 
@@ -336,37 +384,32 @@ impl<
     /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
     /// H(recipient_spl||recipient_sol||signer||relayer_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
-        let message_hash = match self.input.message {
-            Some(message) => message.hash,
-            None => [0u8; 32],
-        };
         let recipient_spl = match self.input.accounts.unwrap().recipient_spl.as_ref() {
             Some(recipient_spl) => recipient_spl.key().to_bytes(),
             None => [0u8; 32],
         };
-        let input = [
-            message_hash.to_vec(),
-            recipient_spl.to_vec(),
-            self.input
+        let tx_integrity_hash = hashv(&[
+            &self.event_hash,
+            &recipient_spl,
+            &self
+                .input
                 .accounts
                 .unwrap()
                 .recipient_sol
                 .as_ref()
                 .unwrap()
                 .key()
-                .to_bytes()
-                .to_vec(),
-            self.input
+                .to_bytes(),
+            &self
+                .input
                 .accounts
                 .unwrap()
                 .signing_address
                 .key()
-                .to_bytes()
-                .to_vec(),
-            self.input.relayer_fee.to_le_bytes().to_vec(),
-            self.input.encrypted_utxos.clone(),
-        ]
-        .concat();
+                .to_bytes(),
+            &self.input.relayer_fee.to_le_bytes(),
+            self.input.encrypted_utxos,
+        ]);
         // msg!("message_hash: {:?}", message_hash.to_vec());
         // msg!("recipient_spl: {:?}", recipient_spl.to_vec());
         // msg!(
@@ -394,7 +437,7 @@ impl<
         // msg!("integrity_hash inputs.len(): {}", input.len());
         // msg!("encrypted_utxos: {:?}", self.encrypted_utxos);
 
-        let hash = Fr::from_be_bytes_mod_order(&keccak::hash(&input[..]).try_to_vec()?[..]);
+        let hash = Fr::from_be_bytes_mod_order(&tx_integrity_hash.to_bytes());
         let mut bytes = [0u8; 32];
         <Fp256<FrParameters> as ToBytes>::write(&hash, &mut bytes[..]).unwrap();
         self.tx_integrity_hash = change_endianness(&bytes).try_into().unwrap();
@@ -434,8 +477,7 @@ impl<
                         } else {
                             self.mint_pubkey = [
                                 vec![0u8],
-                                keccak::hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..]
-                                    .to_vec(),
+                                hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
                             ]
                             .concat()
                             .try_into()
@@ -626,23 +668,19 @@ impl<
             )?;
 
             // check mint
-            if self.mint_pubkey[1..]
-                != keccak::hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..]
-            {
+            if self.mint_pubkey[1..] != hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..] {
                 msg!(
                     "*self.mint_pubkey[..31] {:?}, {:?}, recipient_spl mint",
                     self.mint_pubkey[1..].to_vec(),
-                    keccak::hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
+                    hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
-            if self.mint_pubkey[1..]
-                != keccak::hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..]
-            {
+            if self.mint_pubkey[1..] != hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..] {
                 msg!(
                     "*self.mint_pubkey[..31] {:?}, {:?}, sender_spl mint",
                     self.mint_pubkey[1..].to_vec(),
-                    keccak::hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
+                    hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }

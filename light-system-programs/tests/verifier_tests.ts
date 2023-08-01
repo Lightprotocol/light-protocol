@@ -11,7 +11,6 @@ import {
   Utxo,
   createMintWrapper,
   merkleTreeProgramId,
-  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   KEYPAIR_PRIVKEY,
@@ -32,11 +31,13 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
   LOOK_UP_TABLE,
+  MerkleTreeConfig,
+  User,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
 
-var POSEIDON, KEYPAIR, RELAYER, deposit_utxo1;
+var POSEIDON, ACCOUNT, RELAYER, deposit_utxo1;
 
 var transactions: Transaction[] = [];
 console.log = () => {};
@@ -59,7 +60,7 @@ describe("Verifier Zero and One Tests", () => {
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    KEYPAIR = new Account({
+    ACCOUNT = new Account({
       poseidon: POSEIDON,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
@@ -114,7 +115,7 @@ describe("Verifier Zero and One Tests", () => {
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
         ],
-        account: KEYPAIR,
+        account: ACCOUNT,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -122,7 +123,9 @@ describe("Verifier Zero and One Tests", () => {
 
       let txParams = new TransactionParameters({
         outputUtxos: [deposit_utxo1],
-        transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+        eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+        transactionMerkleTreePubkey:
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         poseidon: POSEIDON,
@@ -155,7 +158,7 @@ describe("Verifier Zero and One Tests", () => {
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
         ],
-        account: KEYPAIR,
+        account: ACCOUNT,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -163,7 +166,9 @@ describe("Verifier Zero and One Tests", () => {
 
       let txParams1 = new TransactionParameters({
         outputUtxos: [deposit_utxo2],
-        transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+        eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+        transactionMerkleTreePubkey:
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         poseidon: POSEIDON,
@@ -192,9 +197,20 @@ describe("Verifier Zero and One Tests", () => {
         await provider.connection.requestAirdrop(relayerRecipientSol, 10000000),
       );
 
+      let user: User = await User.init({
+        provider: lightProviderWithdrawal,
+        account: ACCOUNT,
+      });
+      let inputUtxos: Utxo[] = [
+        user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
+          .value,
+      ];
+
       let txParams2 = new TransactionParameters({
-        inputUtxos: [deposit_utxo1],
-        transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+        inputUtxos,
+        eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+        transactionMerkleTreePubkey:
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
         recipientSpl: tokenRecipient,
         recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
         relayer: RELAYER,

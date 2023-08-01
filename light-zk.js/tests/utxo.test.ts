@@ -23,8 +23,8 @@ import {
   UtxoErrorCode,
   Utxo,
   Account,
-  TRANSACTION_MERKLE_TREE_KEY,
   verifierProgramTwoProgramId,
+  MerkleTreeConfig,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -110,11 +110,11 @@ describe("Utxo Functional", () => {
       // encrypt
       const encBytes4 = await utxo4.encrypt(
         poseidon,
-        TRANSACTION_MERKLE_TREE_KEY,
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       );
       const encBytes41 = await utxo4.encrypt(
         poseidon,
-        TRANSACTION_MERKLE_TREE_KEY,
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       );
       assert.equal(encBytes4.toString(), encBytes41.toString());
       const utxo41 = await Utxo.decrypt({
@@ -122,9 +122,8 @@ describe("Utxo Functional", () => {
         encBytes: encBytes4,
         account: utxo4Account,
         index: 0,
-        merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
-        commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toArrayLike(
-          Buffer,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer(
           "le",
           32,
         ),
@@ -270,12 +269,12 @@ describe("Utxo Functional", () => {
     assert.equal(utxo0.verifierAddressCircuit.toString(), "0");
     assert.equal(
       utxo0.getCommitment(poseidon)?.toString(),
-      "803917460484540410745703048209593732163385783324018257001389086371334377728",
+      "8291567517196483063353958025601041123319055074768288393371971758484371715486",
     );
 
     assert.equal(
       utxo0.getNullifier(poseidon)?.toString(),
-      "906965701829730640132146210927350887320318798790103653992963879170144340009",
+      "6203060337570741528902613554275892537213176828384528961609701446906034353029",
     );
 
     // toBytes
@@ -293,7 +292,10 @@ describe("Utxo Functional", () => {
     Utxo.equal(poseidon, utxo0, utxo1);
 
     // encrypt
-    const encBytes = await utxo1.encrypt(poseidon, TRANSACTION_MERKLE_TREE_KEY);
+    const encBytes = await utxo1.encrypt(
+      poseidon,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+    );
 
     // decrypt
     const utxo3 = await Utxo.decrypt({
@@ -301,9 +303,8 @@ describe("Utxo Functional", () => {
       encBytes,
       account: inputs.keypair,
       index: inputs.index,
-      merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
-      commitment: new anchor.BN(utxo1.getCommitment(poseidon)).toArrayLike(
-        Buffer,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      commitment: new anchor.BN(utxo1.getCommitment(poseidon)).toBuffer(
         "le",
         32,
       ),
@@ -332,7 +333,7 @@ describe("Utxo Functional", () => {
     // encrypt
     const encBytesNacl = await receivingUtxo.encrypt(
       poseidon,
-      TRANSACTION_MERKLE_TREE_KEY,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
     );
 
     // decrypt
@@ -341,7 +342,7 @@ describe("Utxo Functional", () => {
       encBytes: encBytesNacl,
       account: inputs.keypair,
       index: inputs.index,
-      merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       aes: false,
       commitment: new anchor.BN(
         receivingUtxo.getCommitment(poseidon),
