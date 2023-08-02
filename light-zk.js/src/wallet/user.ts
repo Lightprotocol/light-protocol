@@ -1116,9 +1116,6 @@ export class User {
       utxosEntries && asset.toBase58() !== new PublicKey(0).toBase58()
         ? Array.from([...utxosEntries, ...solUtxos, ...inboxUtxosEntries])
         : Array.from([...solUtxos, ...inboxUtxosEntries]);
-    // let inUtxos: Utxo[] = utxosEntries
-    // ? Array.from([...utxosEntries, ...inboxUtxosEntries])
-    // : Array.from(inboxUtxosEntries);
     if (inUtxos.length > 10) {
       inUtxos = inUtxos.slice(0, 10);
     }

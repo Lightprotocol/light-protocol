@@ -697,7 +697,6 @@ export class UserTestAssertHelper {
     // relayer recipient's sol balance should be increased by the relayer fee
     await this.assertSolBalance(
       this.tokenCtx!.symbol != "SOL" &&
-        // !this.recipient.preTokenBalance &&
         this.testInputs.type.toString() == Action.UNSHIELD.toString()
         ? this.sender.user.provider.relayer.getRelayerFee(true).toNumber()
         : this.sender.user.provider.relayer.getRelayerFee().toNumber(),
