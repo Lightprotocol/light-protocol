@@ -1,15 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { relayerFee } from "../config";
-import {
-  airdropSol,
-  confirmConfig,
-  initLookUpTable,
-  Provider,
-  Relayer,
-  useWallet,
-} from "@lightprotocol/zk.js";
-import { readFile, writeFile } from "fs";
+import { confirmConfig, Provider, Relayer } from "@lightprotocol/zk.js";
+import { readLookupTable } from "./readLookupTable";
+
 require("dotenv").config();
 
 let provider: Provider;
@@ -47,50 +41,12 @@ export const getLightProvider = async () => {
         wallet: getKeyPairFromEnv("KEY_PAIR"),
         relayer,
         confirmConfig,
-        url: process.env.RPC_URL,
-        versionedTransactionLookupTable: new PublicKey(
-          process.env.LOOK_UP_TABLE!,
-        ),
+        url: process.env.RPC_URL!,
+        versionedTransactionLookupTable: new PublicKey(readLookupTable()),
       });
     } catch (e) {
       if (e.message.includes("LOOK_UP_TABLE_NOT_INITIALIZED")) {
-        const anchorProvider = await getAnchorProvider();
-        await airdropSol({
-          connection: anchorProvider.connection,
-          recipientPublicKey: configWallet.publicKey,
-          lamports: 1e9,
-        });
-        await airdropSol({
-          connection: anchorProvider.connection,
-          recipientPublicKey: relayer.accounts.relayerRecipientSol,
-          lamports: 1e9,
-        });
-        let looupTable = await initLookUpTable(
-          useWallet(getKeyPairFromEnv("KEY_PAIR")),
-          anchorProvider,
-        );
-        const replaceLookupTableValue = async (newValue: string) =>
-          readFile(
-            ".env",
-            "utf8",
-            (err, data) =>
-              err ||
-              writeFile(
-                ".env",
-                data.replace(/(LOOK_UP_TABLE=).*\n/, `$1${newValue}\n`),
-                "utf8",
-                console.error,
-              ),
-          );
-        process.env.LOOK_UP_TABLE = looupTable.toBase58();
-        await replaceLookupTableValue(looupTable.toBase58());
-        provider = await Provider.init({
-          wallet: getKeyPairFromEnv("KEY_PAIR"),
-          relayer,
-          confirmConfig,
-          url: process.env.RPC_URL,
-          versionedTransactionLookupTable: looupTable,
-        });
+        console.log("LOOK_UP_TABLE_NOT_INITIALIZED");
       } else {
         throw e;
       }

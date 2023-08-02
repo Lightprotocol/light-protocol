@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
-    "types": ["mocha", "chai"],
+    "types": ["mocha", "chai", "node"],
     "typeRoots": ["./node_modules/@types"],
     "lib": ["es2015"],
     "module": "commonjs",
-    "target": "es6",
+    "target": "ES2021",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
+  // "include": ["src/**/*.ts"],
   "dry": false,
   "debug": false
 }

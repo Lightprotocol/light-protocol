@@ -1,5 +1,10 @@
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import {
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  TransactionInstruction,
+} from "@solana/web3.js";
 import chai, { assert } from "chai";
 import chaiHttp from "chai-http";
 import express from "express";
@@ -26,13 +31,14 @@ import {
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
 import {
-  initLookupTable,
   updateMerkleTree,
   getIndexedTransactions,
   handleRelayRequest,
   buildMerkleTree,
+  getLookUpTable,
+  getUidFromIxs,
 } from "../src/services";
-import { testSetup } from "../src/setup";
+import { relayerSetup } from "../src/setup";
 import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
 import { tryCatch } from "bullmq";
 const bs58 = require("bs58");
@@ -50,7 +56,7 @@ const addCorsHeadersStub = sinon
 app.use(addCorsHeadersStub);
 
 app.post("/updatemerkletree", updateMerkleTree);
-app.get("/lookuptable", initLookupTable);
+app.get("/lookuptable", getLookUpTable);
 app.post("/relayTransaction", handleRelayRequest);
 app.get("/indexedTransactions", getIndexedTransactions);
 app.get("/getBuiltMerkletree", buildMerkleTree);
@@ -92,7 +98,7 @@ describe("API tests", () => {
       confirmConfig,
     );
     poseidon = await circomlibjs.buildPoseidonOpt();
-    await testSetup();
+    await relayerSetup();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 10_000_000_000,
@@ -422,5 +428,45 @@ describe("API tests", () => {
         assert.isTrue(res.body.message.includes("No instructions provided"));
         done();
       });
+  });
+});
+
+describe("Util Unit tests", () => {
+  describe("getUidFromIxs function", () => {
+    const getMockIx = (ixData: number[]) => {
+      return new TransactionInstruction({
+        programId: SystemProgram.programId, // mock
+        data: Buffer.from(ixData),
+        keys: [],
+      });
+    };
+
+    it("should return consistent hash for the same input", () => {
+      const mockIxs = [getMockIx([1, 2, 3]), getMockIx([4, 5, 6])];
+
+      const result1 = getUidFromIxs(mockIxs);
+      const result2 = getUidFromIxs(mockIxs);
+
+      expect(result1).to.eq(result2);
+    });
+
+    it("should return different hashes for different inputs", () => {
+      const mockIxs1 = [getMockIx([1, 2, 3]), getMockIx([4, 5, 6])];
+
+      const mockIxs2 = [getMockIx([1, 2, 3]), getMockIx([4, 5, 2])];
+
+      const result1 = getUidFromIxs(mockIxs1);
+      const result2 = getUidFromIxs(mockIxs2);
+
+      expect(result1).not.to.eq(result2);
+    });
+
+    it("should return a hash of fixed length (64 characters for SHA3-256)", () => {
+      const mockIxs = [getMockIx([1, 2, 3]), getMockIx([4, 5, 6])];
+
+      const result = getUidFromIxs(mockIxs);
+
+      expect(result.length).to.eq(64);
+    });
   });
 });

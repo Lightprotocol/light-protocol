@@ -4,10 +4,41 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { sleep } from "@lightprotocol/zk.js";
-import { relayQueue } from "../../db/redis";
 import { Job } from "bullmq";
 import { MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION, SECONDS } from "../../config";
 import { getRelayer } from "../../utils/provider";
+import { relayQueue } from "../../db/redis";
+import { sha3_256 } from "@noble/hashes/sha3";
+
+export function getUidFromIxs(ixs: TransactionInstruction[]): string {
+  let concatenatedData = new Uint8Array([]);
+  ixs.forEach((ix) => {
+    concatenatedData = new Uint8Array([...concatenatedData, ...ix.data]);
+  });
+  const hashArray = sha3_256.create().update(concatenatedData).digest();
+  const hashString = Array.from(hashArray)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+  return hashString;
+}
+
+async function addRelayJob({
+  instructions,
+}: {
+  instructions: TransactionInstruction[];
+}) {
+  let uid = getUidFromIxs(instructions); // TODO: add a test that checks that this is unique
+  let job = await relayQueue.add(
+    "relay",
+    {
+      instructions,
+      response: null,
+    },
+    { jobId: uid },
+  );
+  return job;
+}
 
 function validateReqParams(req: any) {
   if (!req.body.instructions) throw new Error("No instructions provided");
@@ -104,23 +135,6 @@ async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
       }
     } else i++;
   }
-}
-
-export async function addRelayJob({
-  instructions,
-}: {
-  instructions: TransactionInstruction[];
-}) {
-  // id is the last pubkey .toBase58() of the last instruction
-  // this should be a leaves pda pubkey
-  const lastInstruction = instructions[instructions.length - 1];
-  let id =
-    lastInstruction.keys[lastInstruction.keys.length - 1].pubkey.toBase58();
-  let job = await relayQueue.add(id, {
-    instructions,
-    response: null,
-  });
-  return job;
 }
 
 export async function handleRelayRequest(req: any, res: any) {

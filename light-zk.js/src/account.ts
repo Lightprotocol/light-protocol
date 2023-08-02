@@ -104,7 +104,7 @@ export class Account {
       // burnerSeed can be shared since hash cannot be inverted - only share this for app utxos
       // sharing the burnerSeed saves 32 bytes in onchain data if it is require to share both
       // the encryption and private key of a utxo
-      this.burnerSeed = new BN(bs58.decode(seed)).toBuffer("be", 32);
+      this.burnerSeed = new BN(bs58.decode(seed)).toArrayLike(Buffer, "be", 32);
       this.privkey = Account.generateShieldedPrivateKey(seed, poseidon);
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
       this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
@@ -206,7 +206,11 @@ export class Account {
   }
 
   encryptionPublicKeyToBytes() {
-    return new BN(this.encryptionKeypair.publicKey).toBuffer("be", 32);
+    return new BN(this.encryptionKeypair.publicKey).toArrayLike(
+      Buffer,
+      "be",
+      32,
+    );
   }
 
   // TODO: Add check for uint8array to be well formed

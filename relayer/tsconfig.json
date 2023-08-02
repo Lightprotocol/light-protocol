@@ -15,9 +15,6 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src", "__tests__", "tests"],
-  "exclude": ["node_modules", "**/tests/*"],
-
-  "dry": false,
-  "debug": false
+  "include": ["src", "__tests__", "tests", "tests/obrowser_test.ts"],
+  "exclude": ["node_modules"]
 }
