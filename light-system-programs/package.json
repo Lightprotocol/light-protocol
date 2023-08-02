@@ -3,7 +3,7 @@
   "license": "GPL-3.0",
   "scripts": {
     "build": "light-anchor build && sh /../cli/scripts/copyLocalProgramBinaries.sh",
-    "lint": "prettier \"tests/**/*.{ts,js}\" --check",
+    "lint": "yarn prettier \"tests/**/*.{ts,js}\" --check",
     "start-test-validator": "./../cli/test_bin/run test-validator -b",
     "test-functional": "yarn start-test-validator && ts-mocha -t 2000000 tests/functional_tests.ts --exit",
     "test-user": "yarn start-test-validator && ts-mocha -t 2000000 tests/user.tests.ts --exit",
@@ -15,7 +15,7 @@
     "test": "yarn test-functional && yarn run test-merkle-tree && yarn run test-user && yarn run test-provider && yarn test-user-merge && yarn run test-verifiers",
     "airdrop-testnet": "yarn ts-node ./scripts/airdropTestnet.ts",
     "createLookupTable-testnet": "yarn ts-node ./scripts/createLookUpTable.ts",
-    "format": "prettier --write \"tests/**/*.{ts,js}\""
+    "format": "yarn prettier --write \"tests/**/*.{ts,js}\""
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0",
