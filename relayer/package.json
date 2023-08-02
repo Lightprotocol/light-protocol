@@ -4,12 +4,14 @@
   "description": "",
   "main": "/lib/index.js",
   "scripts": {
-    "test": "sh runTest.sh",
+    "test-user": "sh tests/runTest.sh",
+    "test-cli": "sh tests/runTestCli.sh",
+    "test": "yarn test-user && yarn test-cli",
     "start": "yarn ts-node lib/index.js",
     "start-local": "sh runScript.sh",
-    "build": "npx tsc",
-    "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "build": "yarn tsc",
+    "format": "yarn prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
+    "lint": "yarn prettier \"src/**/*{ts,js}\"  \"tests/**/*.{ts,js}\" --check"
   },
   "keywords": [],
   "dependencies": {
@@ -41,6 +43,7 @@
     "chai-http": "^4.3.0",
     "sinon": "^15.0.3",
     "ts-node": "^10.9.1",
+    "prettier": "^2.4.1",
     "typescript": "^4.9.5"
   }
 }

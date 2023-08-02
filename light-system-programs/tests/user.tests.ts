@@ -1,4 +1,3 @@
-import * as anchor from "@coral-xyz/anchor";
 import { Keypair, Keypair as SolanaKeypair } from "@solana/web3.js";
 import _ from "lodash";
 const chai = require("chai");
@@ -21,13 +20,14 @@ import {
   TestRelayer,
   Action,
   UserTestAssertHelper,
-  airdropShieldedSol,
   generateRandomTestAmount,
   airdropSol,
   ConfirmOptions,
+  airdropShieldedSol,
+  TOKEN_ACCOUNT_FEE,
 } from "@lightprotocol/zk.js";
 
-import { BN } from "@coral-xyz/anchor";
+import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { assert } from "chai";
 
 var POSEIDON;
@@ -38,11 +38,11 @@ describe("Test User", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  const anchorProvider = anchor.AnchorProvider.local(
+  const anchorProvider = AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig,
   );
-  anchor.setProvider(anchorProvider);
+  setProvider(anchorProvider);
   const userKeypair = ADMIN_AUTH_KEYPAIR;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
@@ -56,14 +56,15 @@ describe("Test User", () => {
     );
     let relayer = Keypair.generate();
     await airdropSol({
-      provider: anchorProvider,
+      connection: anchorProvider.connection,
       lamports: 2_000_000_000,
       recipientPublicKey: relayer.publicKey,
     });
     RELAYER = new TestRelayer({
       relayerPubkey: relayer.publicKey,
       relayerRecipientSol,
-      relayerFee: new anchor.BN(100_000),
+      relayerFee: new BN(100_000),
+      highRelayerFee: TOKEN_ACCOUNT_FEE,
       payer: relayer,
     });
 
@@ -73,7 +74,7 @@ describe("Test User", () => {
       confirmConfig,
     });
     await airdropSol({
-      provider: anchorProvider,
+      connection: anchorProvider.connection,
       lamports: 2_000_000_000,
       recipientPublicKey: userKeypair.publicKey,
     });
@@ -106,15 +107,11 @@ describe("Test User", () => {
       token: testInputs.token,
     });
 
-    // TODO: add random amount and amount checks
-    await user.provider.latestMerkleTree();
-
     await testStateValidator.checkSplShielded();
   });
 
   it("(user class) shield SOL", async () => {
     let testInputs = {
-      amountSpl: 0,
       amountSol: 15,
       token: "SOL",
       type: Action.SHIELD,
@@ -264,6 +261,7 @@ describe("Test User", () => {
   it("(user class) transfer SPL", async () => {
     const testInputs = {
       amountSpl: 1,
+      amountSol: 0,
       token: "USDC",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,
@@ -364,11 +362,11 @@ describe("Test User Errors", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  const providerAnchor = anchor.AnchorProvider.local(
+  const providerAnchor = AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig,
   );
-  anchor.setProvider(providerAnchor);
+  setProvider(providerAnchor);
 
   const userKeypair = ADMIN_AUTH_KEYPAIR;
 

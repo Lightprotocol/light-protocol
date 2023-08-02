@@ -10,7 +10,7 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { assert } from "chai";
-import { PathOrFileDescriptor, readFileSync, writeFile } from "fs";
+import { PathLike, readFileSync, writeFile } from "fs";
 
 import {
   ADMIN_AUTH_KEYPAIR,
@@ -37,7 +37,7 @@ import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 // Probably only works for testing
 export async function initLookUpTableFromFile(
   provider: anchor.AnchorProvider,
-  path: PathOrFileDescriptor = `lookUpTable.txt`,
+  path: PathLike = `lookUpTable.txt`,
   extraAccounts?: Array<PublicKey>,
 ) /*: Promise<PublicKey>*/ {
   const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
@@ -55,9 +55,7 @@ export async function initLookUpTableFromFile(
     if (lookUpTableInfoInit) {
       lookUpTable = lookUpTableRead;
     }
-  } catch (e) {
-    console.log(".txt not found", e);
-  }
+  } catch (e) {}
 
   let LOOK_UP_TABLE = await initLookUpTableTest(
     provider,

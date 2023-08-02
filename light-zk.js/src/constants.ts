@@ -160,12 +160,14 @@ export const RELAYER_FEES = 1e6;
 // TODO: change once we have adapted getInstructions for repeating instructions
 export const MAX_MESSAGE_SIZE = 800;
 
+export const SOL_DECIMALS = new anchor.BN(1e9);
+
 export const TOKEN_REGISTRY: Map<string, TokenData> = new Map([
   [
     "SOL",
     {
       symbol: "SOL",
-      decimals: new anchor.BN(1e9),
+      decimals: SOL_DECIMALS,
       isNft: false, // TODO: parse from onchain state at configuration(decimlas, supply)
       isNative: true,
       mint: SystemProgram.programId,

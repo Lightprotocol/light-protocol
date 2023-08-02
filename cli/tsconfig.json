@@ -1,14 +1,15 @@
 {
   "compilerOptions": {
-    "outDir": "./build",
-    "noImplicitAny": true,
-    "module": "commonjs",
-    "target": "es5",
+    "declaration": true,
     "esModuleInterop": true,
-    "sourceMap": true,
+    "importHelpers": true,
+    "module": "commonjs",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "target": "es2019",
     "skipLibCheck": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "resolveJsonModule": true
   },
-  "include": ["./src/**/*", "tests"]
+  "include": ["src/**/*"]
 }

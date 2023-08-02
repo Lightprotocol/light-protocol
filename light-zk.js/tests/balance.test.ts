@@ -1,6 +1,6 @@
 import { assert } from "chai";
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const circomlibjs = require("circomlibjs");
 const { buildPoseidonOpt } = circomlibjs;
@@ -36,13 +36,13 @@ describe("Utxo Functional", () => {
   before(async () => {
     poseidon = await buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -56,7 +56,7 @@ describe("Utxo Functional", () => {
       tokenBalances: new Map([
         [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
       ]),
-      totalSolBalance: new anchor.BN(0),
+      totalSolBalance: new BN(0),
       programBalances: new Map(),
       nftBalances: new Map(),
     };

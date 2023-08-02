@@ -13,7 +13,6 @@ import {
   TestRelayer,
   Action,
   UserTestAssertHelper,
-  LOOK_UP_TABLE,
   airdropSol,
   airdropSplToAssociatedTokenAccount,
   convertAndComputeDecimals,
@@ -120,7 +119,7 @@ const shield = async (
     testInputs,
   });
   await airdropSol({
-    provider: user.provider.provider,
+    connection: user.provider.provider.connection,
     lamports:
       convertAndComputeDecimals(testInputs.amountSol, new BN(1e9)).toNumber() +
       5000,
@@ -130,7 +129,7 @@ const shield = async (
     await airdropSplToAssociatedTokenAccount(
       user.provider.provider.connection,
       convertAndComputeDecimals(testInputs.amountSpl, new BN(1e2)).toNumber(),
-      keypair,
+      keypair.publicKey,
     );
   }
   await userTestAssertHelper.fetchAndSaveState();
@@ -214,7 +213,7 @@ const unshield = async (
 
     const splTransferRecipientKeypair = SolanaKeypair.generate();
     await airdropSol({
-      provider: user.provider.provider,
+      connection: user.provider.provider.connection,
       lamports: 1000000000,
       recipientPublicKey: splTransferRecipientKeypair.publicKey,
     });
@@ -352,7 +351,7 @@ const createTestUser = async (
 ) => {
   const wallet = SolanaKeypair.generate();
   await airdropSol({
-    provider: anchorProvider,
+    connection: anchorProvider.connection,
     lamports: 1e9,
     recipientPublicKey: wallet.publicKey,
   });
@@ -435,13 +434,13 @@ describe("Test User", () => {
 
     // funding relayer
     await airdropSol({
-      provider: anchorProvider,
+      connection: anchorProvider.connection,
       lamports: 1e9,
       recipientPublicKey: relayerKeypair.publicKey,
     });
     // funding relayer relayerRecipientSol
     await airdropSol({
-      provider: anchorProvider,
+      connection: anchorProvider.connection,
       lamports: 1e9,
       recipientPublicKey: relayerRecipientSol.publicKey,
     });

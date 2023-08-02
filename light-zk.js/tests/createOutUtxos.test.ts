@@ -10,7 +10,6 @@ import {
   Keypair as SolanaKeypair,
   PublicKey,
 } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 
 const circomlibjs = require("circomlibjs");
@@ -65,7 +64,7 @@ describe("Test createOutUtxos Functional", () => {
     F = babyJub.F;
     k0 = new Account({ poseidon, seed: seed32 });
     k00 = new Account({ poseidon, seed: seed32 });
-    kBurner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
+    kBurner = Account.createBurner(poseidon, seed32, new BN("0"));
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
@@ -683,7 +682,7 @@ describe("Test createOutUtxos Errors", () => {
     F = babyJub.F;
     k0 = new Account({ poseidon, seed: seed32 });
     k00 = new Account({ poseidon, seed: seed32 });
-    kBurner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
+    kBurner = Account.createBurner(poseidon, seed32, new BN("0"));
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
