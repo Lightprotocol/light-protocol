@@ -7,8 +7,9 @@
     "build-masp": "sh buildCircuit.sh Masp",
     "build-app": "sh buildCircuit.sh App",
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts --exit",
-    "format": "prettier --write \"src/**/*.{ts,js}\"",
-    "build-all": "yarn build-app 4 && yarn build-masp 2 && yarn build-masp 10"
+    "format": "prettier --write \"tests/**/*.{ts,js}\"",
+    "build-all": "yarn build-app 4 && yarn build-masp 2 && yarn build-masp 10",
+    "lint": "yarn prettier \"tests/**/*.{ts,js}\" --check"
   },
   "author": "",
   "dependencies": {
