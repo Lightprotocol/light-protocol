@@ -23,3 +23,9 @@ cd relayer
 yarn install
 yarn format
 cd ..
+
+
+cd light-circuits
+yarn install
+yarn format
+cd ..

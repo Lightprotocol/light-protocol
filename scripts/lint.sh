@@ -23,3 +23,8 @@ cd relayer
 yarn install
 yarn run lint
 cd ..
+
+cd light-circuits
+yarn install
+yarn run lint
+cd ..
