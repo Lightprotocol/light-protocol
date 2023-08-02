@@ -90,15 +90,14 @@
     "test-unshield:spl": "mocha ./test/commands/unshield/unshield:spl.test.ts --exit",
     "test-accept-utxos": "mocha ./test/commands/accept-utxos/index.test.ts --exit",
     "test-transfer": "mocha ./test/commands/transfer/index.test.ts --exit",
-    "test-cli": "ts-node ./test/cli.test.ts",
-    "test-cli-sdk": "./bin/run test-validator && mocha ./test/cli-sdk.test.ts --exit",
-    "kill": "docker rm -f solana-validator",
-    "test": "yarn test-account && yarn test-config && yarn test-airdrop && yarn test-shield && yarn test-shield:sol && yarn test-shield:spl && yarn test-unshield && yarn test-unshield:sol && yarn test-unshield:spl && yarn test-transfer && yarn test-accept-utxos && yarn kill",
+    "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
+    "test-cli": "yarn test-account && yarn test-config && yarn test-airdrop && yarn test-shield && yarn test-shield:sol && yarn test-shield:spl && yarn test-unshield && yarn test-unshield:sol && yarn test-unshield:spl && yarn test-transfer && yarn test-accept-utxos && yarn kill",
     "test-psp-init": "cd .. && rm -r tmp-test-psp || true && ./cli/test_bin/run psp:init tmp-test-psp && cd cli",
     "test-psp-build": "cd ../tmp-test-psp && ./../cli/test_bin/run psp:build tmp-test-psp && cd ../cli",
     "test-psp-test": "cd ../tmp-test-psp && ./../cli/test_bin/run psp:test tmp-test-psp Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS && cd ../cli",
     "clean-test-psp": "rm -r ../tmp-test-psp || true",
     "test-psp": "yarn test-psp-init && yarn test-psp-build && yarn test-psp-test",
+    "test": "yarn test-cli && yarn test-psp",
     "version": "oclif readme && git add README.md"
   },
   "engines": {
