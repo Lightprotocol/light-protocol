@@ -355,7 +355,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_SPL_NOT_ZERO,
           "constructor",
-          "For a transfer public spl amount needs to be zero",
+          `For a transfer public spl amount needs to be zero ${this.publicAmountSpl}`,
         );
 
       const tmpSol = this.publicAmountSol;
@@ -666,6 +666,7 @@ export class TransactionParameters implements transactionParameters {
     message,
     assetLookupTable,
     verifierProgramLookupTable,
+    separateSolUtxo = false,
   }: {
     tokenCtx: TokenData;
     publicAmountSpl?: BN;
@@ -689,6 +690,7 @@ export class TransactionParameters implements transactionParameters {
     message?: Buffer;
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
+    separateSolUtxo?: boolean;
   }): Promise<TransactionParameters> {
     if (action === Action.TRANSFER && !outUtxos && !mergeUtxos)
       throw new TransactionParametersError(
@@ -731,7 +733,6 @@ export class TransactionParameters implements transactionParameters {
           TransactionParameters.getVerifierConfig(verifierIdl).in,
       });
     }
-
     if (addOutUtxos) {
       outputUtxos = createOutUtxos({
         publicMint: tokenCtx.mint,
@@ -748,6 +749,7 @@ export class TransactionParameters implements transactionParameters {
           TransactionParameters.getVerifierConfig(verifierIdl).out,
         assetLookupTable,
         verifierProgramLookupTable,
+        separateSolUtxo,
       });
     }
 

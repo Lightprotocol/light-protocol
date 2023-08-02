@@ -54,7 +54,7 @@ export const relayWorker = new Worker(
   async (job) => {
     console.log(`/relayWorker relay start - id: ${job.id}`);
     const { instructions } = job.data;
-    const parsedInstructions = parseReqParams(instructions);
+    const parsedInstructions = await parseReqParams(instructions);
     try {
       const provider = await getLightProvider();
       var response = await sendVersionedTransactions(

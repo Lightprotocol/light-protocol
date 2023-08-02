@@ -48,7 +48,7 @@ export class TestRelayer extends Relayer {
 
     if (!balance || balance < 1e9) {
       await airdropSol({
-        provider: provider.provider,
+        connection: provider.provider.connection!,
         lamports: 1_000_000_000,
         recipientPublicKey: this.relayerKeypair.publicKey,
       });

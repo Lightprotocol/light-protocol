@@ -9,6 +9,7 @@ import {
   Action,
   getUtxoArrayAmount,
   Utxo,
+  TOKEN_REGISTRY,
 } from "../index";
 
 // Constant in order to avoid multiple "new BN(0);" instantiations.
@@ -231,13 +232,14 @@ export function selectInUtxos({
       SelectInUtxosErrorCode.INVALID_NUMBER_OF_IN_UTXOS,
       "selectInUtxos",
     );
-  if (mint) {
+  if (mint && mint != TOKEN_REGISTRY.get("SOL")?.mint) {
     var { selectedUtxosSolAmount, selectedUtxos } = selectBiggestSmallest(
       filteredUtxos,
       1,
       sumOutSpl,
       numberMaxInUtxos - selectedUtxosR.length,
     );
+
     if (selectedUtxos.length === 0)
       throw new SelectInUtxosError(
         SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
@@ -286,6 +288,7 @@ export function selectInUtxos({
       }
       // take utxo with smallest spl amount of utxos which satisfy
       else if (filteredUtxos.length === 0) {
+        if (!mint) mint = PublicKey.default;
         throw new SelectInUtxosError(
           SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
           "selectInUtxos",

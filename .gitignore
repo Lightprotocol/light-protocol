@@ -13,6 +13,7 @@
 /**/.DS_store
 /cli/bin
 
+**/.yarn
 
 # relayer
 /relayer/node_modules/
@@ -63,3 +64,4 @@
 /.idea
 /light-zk.js/.idea
 /**/dump.rdb
+/tmp-test-psp

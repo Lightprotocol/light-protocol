@@ -13,7 +13,6 @@ import {
   ADMIN_AUTH_KEYPAIR,
   DEFAULT_ZERO,
   ProviderError,
-  useWallet,
   MINT,
   MerkleTreeConfig,
 } from "../src";

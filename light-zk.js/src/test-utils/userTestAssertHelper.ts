@@ -697,8 +697,7 @@ export class UserTestAssertHelper {
     // relayer recipient's sol balance should be increased by the relayer fee
     await this.assertSolBalance(
       this.tokenCtx!.symbol != "SOL" &&
-        !this.recipient.preTokenBalance &&
-        this.testInputs.type == Action.UNSHIELD
+        this.testInputs.type.toString() == Action.UNSHIELD.toString()
         ? this.sender.user.provider.relayer.getRelayerFee(true).toNumber()
         : this.sender.user.provider.relayer.getRelayerFee().toNumber(),
       0,
@@ -867,8 +866,10 @@ export class UserTestAssertHelper {
   async checkSplUnshielded() {
     // assert that the user's shielded token balance has decreased by the amount unshielded
     await this.standardAsserts();
-    const tokenDecreasedAmount = this.testInputs.amountSpl!;
-    await this.assertShieldedSplBalance(tokenDecreasedAmount, this.sender);
+    await this.assertShieldedSplBalance(
+      this.testInputs.amountSpl!,
+      this.sender,
+    );
 
     // assert that the recipient token balance has increased by the amount shielded
     await this.assertSplBalance(this.testInputs.amountSpl!, this.recipient);

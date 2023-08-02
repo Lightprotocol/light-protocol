@@ -4,7 +4,7 @@ import { Idl } from "@coral-xyz/anchor";
 
 let circomlibjs = require("circomlibjs");
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 
 import { it } from "mocha";
 const chai = require("chai");
@@ -47,15 +47,15 @@ describe("Test Prover Functional", () => {
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(mockPubkey3, mockPubkey, new anchor.BN(5000));
+    relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
-      blinding: new anchor.BN(new Array(31).fill(1)),
+      blinding: new BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -148,9 +148,9 @@ describe("Test Prover Functional", () => {
     const deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
       account: keypair,
-      blinding: new anchor.BN(new Array(31).fill(1)),
+      blinding: new BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -158,7 +158,7 @@ describe("Test Prover Functional", () => {
     const zeroUtxo1 = new Utxo({
       poseidon: poseidon,
       account: keypair,
-      blinding: new anchor.BN(new Array(31).fill(1)),
+      blinding: new BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -166,7 +166,7 @@ describe("Test Prover Functional", () => {
     const zeroUtxo2 = new Utxo({
       poseidon: poseidon,
       account: keypair,
-      blinding: new anchor.BN(new Array(31).fill(2)),
+      blinding: new BN(new Array(31).fill(2)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
