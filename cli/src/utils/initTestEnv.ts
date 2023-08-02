@@ -14,6 +14,7 @@ import {
 import { Keypair } from "@solana/web3.js";
 import { downloadBinIfNotExists, executeCommand } from "../psp-utils";
 import path from "path";
+import { PROGRAM_TAG } from "../psp-utils/contants";
 
 export async function initTestEnv({
   additonalPrograms,
@@ -116,12 +117,14 @@ export async function start_test_validator({
     let dirPathString = "../../bin/" + program.name;
     const localFilePath = path.resolve(__dirname, dirPathString);
     if (!program.path) {
+      // TODO: add tag
       await downloadBinIfNotExists({
         localFilePath,
         dirPath,
         owner: "Lightprotocol",
         repoName: "light-protocol",
         remoteFileName: program.name!,
+        tag: PROGRAM_TAG
       });
     }
 

@@ -750,8 +750,10 @@
     "@jridgewell/resolve-uri" "3.1.0"
     "@jridgewell/sourcemap-codec" "1.4.14"
 
-"@lightprotocol/zk.js@file:../light-zk.js":
-  version "0.3.2-alpha.11"
+"@lightprotocol/zk.js@0.3.2-alpha.12":
+  version "0.3.2-alpha.12"
+  resolved "https://registry.yarnpkg.com/@lightprotocol/zk.js/-/zk.js-0.3.2-alpha.12.tgz#7ea578858955ba82ff1d3df40d90d88a8725087c"
+  integrity sha512-5bz4zeHckkwgJD+gifWqqn5Rcj/Swr41fUCk+38DlGYiLq11af5AJ/6X33tAQa/f/eGWg97OKXw9WVemYqeN7w==
   dependencies:
     "@coral-xyz/anchor" "0.28.0"
     "@coral-xyz/borsh" "^0.28.0"
@@ -1139,17 +1141,6 @@
     supports-color "^8.1.1"
     tslib "^2"
 
-"@oclif/color@^1.0.6":
-  version "1.0.6"
-  resolved "https://registry.yarnpkg.com/@oclif/color/-/color-1.0.6.tgz#1d9a54774de76dec9bd3b40f5fda305567acb2be"
-  integrity sha512-U6hABUkwoUoEZ1K5mJ2E7AeJ7udjYP3ZYWq18LLoMyjV+Us9hh3UwAghOY75F9PAzF8q5kvhoGu70LnPASbZ8g==
-  dependencies:
-    ansi-styles "^4.2.1"
-    chalk "^4.1.0"
-    strip-ansi "^6.0.1"
-    supports-color "^8.1.1"
-    tslib "^2"
-
 "@oclif/color@^1.0.9":
   version "1.0.10"
   resolved "https://registry.yarnpkg.com/@oclif/color/-/color-1.0.10.tgz#e83e3a30fffc93076281398cbeaa4f761c4df09e"
@@ -1280,41 +1271,6 @@
     wordwrap "^1.0.0"
     wrap-ansi "^7.0.0"
 
-"@oclif/core@^2.8.7":
-  version "2.8.7"
-  resolved "https://registry.yarnpkg.com/@oclif/core/-/core-2.8.7.tgz#e3fb73477cfb9e72c89bc68701d04953c084c0e8"
-  integrity sha512-WTZUFgANYGyHQOmGc2YsczEdqdlG2/ZEfqksHnuYbz3egozpka/R9LrFwNfWPZETi9ydzcjDWwJKUGQmJG3ixA==
-  dependencies:
-    "@types/cli-progress" "^3.11.0"
-    ansi-escapes "^4.3.2"
-    ansi-styles "^4.3.0"
-    cardinal "^2.1.1"
-    chalk "^4.1.2"
-    clean-stack "^3.0.1"
-    cli-progress "^3.12.0"
-    debug "^4.3.4"
-    ejs "^3.1.8"
-    fs-extra "^9.1.0"
-    get-package-type "^0.1.0"
-    globby "^11.1.0"
-    hyperlinker "^1.0.0"
-    indent-string "^4.0.0"
-    is-wsl "^2.2.0"
-    js-yaml "^3.14.1"
-    natural-orderby "^2.0.3"
-    object-treeify "^1.1.33"
-    password-prompt "^1.1.2"
-    semver "^7.3.7"
-    string-width "^4.2.3"
-    strip-ansi "^6.0.1"
-    supports-color "^8.1.1"
-    supports-hyperlinks "^2.2.0"
-    ts-node "^10.9.1"
-    tslib "^2.5.0"
-    widest-line "^3.1.0"
-    wordwrap "^1.0.0"
-    wrap-ansi "^7.0.0"
-
 "@oclif/dev-cli@^1.26.10":
   version "1.26.10"
   resolved "https://registry.yarnpkg.com/@oclif/dev-cli/-/dev-cli-1.26.10.tgz#d8df3a79009b68552f5e7f249d1d19ca52278382"
@@ -1386,10 +1342,10 @@
     chalk "^4.1.0"
     tslib "^2.6.1"
 
-"@oclif/plugin-autocomplete@^2.3.0":
-  version "2.3.0"
-  resolved "https://registry.yarnpkg.com/@oclif/plugin-autocomplete/-/plugin-autocomplete-2.3.0.tgz#5123ef5b455630c065d765785b3a3dd6142afce3"
-  integrity sha512-32gdneCAQbtjAvpX7lYFYrxsMPAfOh2hyvP4QEMspTiZkygT8m/NwayBVA+Ua5EM3/rk7jxTKYFQ7Gm/ZgSFuA==
+"@oclif/plugin-autocomplete@^2.3.4":
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/@oclif/plugin-autocomplete/-/plugin-autocomplete-2.3.4.tgz#6861fddfcdcec8fad10da93cd6b5c69449a7a35a"
+  integrity sha512-fk5V6T/r8A/lEanX9c+0D8aNzsaC1wUTWbVy/NuyOSgYN4OSUitQSGu/U61LcVQ5uGOy7KvTSnIzf+2PKRYC6w==
   dependencies:
     "@oclif/core" "^2.8.2"
     chalk "^4.1.0"
@@ -1413,23 +1369,14 @@
     widest-line "^3.1.0"
     wrap-ansi "^6.2.0"
 
-"@oclif/plugin-help@^5.2.14":
+"@oclif/plugin-help@^5.2.14", "@oclif/plugin-help@^5.2.15":
   version "5.2.15"
   resolved "https://registry.yarnpkg.com/@oclif/plugin-help/-/plugin-help-5.2.15.tgz#3880e02689db948a868d2a6ce413fa667f189a2e"
   integrity sha512-q3gC4kIRlTilA8sG/9Eq2BEW2wo2KWV0ZbQ+8i3uQCvrgY4qoCIp5JTfsbbKR5XWaqPDdZPWhWuS1Rveu5V4FA==
   dependencies:
     "@oclif/core" "^2.11.1"
 
-"@oclif/plugin-not-found@^2.3.26":
-  version "2.3.26"
-  resolved "https://registry.yarnpkg.com/@oclif/plugin-not-found/-/plugin-not-found-2.3.26.tgz#be71e6b9c7313c1ee0f4d6dede4db724a5679cd1"
-  integrity sha512-a8WfN8km1A9Q0lXWo1LZgFEjVFYIbOOp/QG++zyHt2Hnsp2b5Zr0p8EQLBK7v6na6C0Mrr+GlMI8zE40hYWMbw==
-  dependencies:
-    "@oclif/color" "^1.0.6"
-    "@oclif/core" "^2.8.7"
-    fast-levenshtein "^3.0.0"
-
-"@oclif/plugin-not-found@^2.3.32":
+"@oclif/plugin-not-found@^2.3.32", "@oclif/plugin-not-found@^2.3.34":
   version "2.3.34"
   resolved "https://registry.yarnpkg.com/@oclif/plugin-not-found/-/plugin-not-found-2.3.34.tgz#08ab78cdd980bdf70d9bd3b9ba294ff7d3f04eca"
   integrity sha512-uXUpw6o2e0aqnNn+XkGL7LbL+Th2rBD1JGtFbb6anmvUvz2skiGz0o23BYmrQW8tvU92ajPOykfClKD75ptZcw==

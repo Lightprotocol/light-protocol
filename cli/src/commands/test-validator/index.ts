@@ -18,12 +18,13 @@ class SetupCommand extends Command {
     //   description:
     //     "Solana bpf program whill be deployed on local test validator <ADDRESS_OR_KEYPAIR> <SBF_PROGRAM.SO>",
     // }),
-    kill: Flags.boolean({
-      aliases: ["k"],
-      description: "Kills a running test validator.",
-      hidden: true,
-      default: true,
-    }),
+    // TODO: add this flag
+    // kill: Flags.boolean({
+    //   aliases: ["k"],
+    //   description: "Kills a running test validator.",
+    //   hidden: true,
+    //   default: true,
+    // }),
     background: Flags.boolean({
       char: "b",
       description: "Runs a test validator as a process in the background.",
@@ -40,19 +41,9 @@ class SetupCommand extends Command {
   async run() {
     const { flags } = await this.parse(SetupCommand);
 
-    const { kill } = flags;
 
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
-    if (flags.kill) {
-      try {
-        await executeCommand({
-          command: "docker",
-          args: ["rm", "-f", "solana-validator"],
-        });
-        this.log("Killed test validator");
-      } catch (error) {}
-    }
     try {
       if (!flags.background) {
         await initTestEnv({ skip_system_accounts: flags.skip_system_accounts });

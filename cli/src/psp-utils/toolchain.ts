@@ -6,6 +6,7 @@ import {
   downloadSolanaIfNotExists,
 } from "./download";
 import { executeCommand } from "./process";
+import { MACRO_CIRCOM_TAG } from "./contants";
 
 const defaultCargoGeneratePath = "../../bin/cargo-generate";
 const defaultCircomPath = "../../bin/circom";
@@ -86,7 +87,7 @@ const macroCircomPath = createPathFunction({
   envVarName: "LIGHT_PROTOCOL_MACRO_CIRCOM_PATH",
   defaultPath: defaultMacroCircomPath,
   downloadFunction: downloadLightBinIfNotExists,
-  downloadParams: { repoName: "macro-circom", remoteFileName: "macro-circom" },
+  downloadParams: { repoName: "macro-circom", remoteFileName: "macro-circom", tag: MACRO_CIRCOM_TAG},
 });
 
 /**
@@ -164,10 +165,8 @@ export async function executeAnchor({
   args: string[];
 }): Promise<string> {
   const command = await anchorPath();
-  const additionalPath = await solanaPath();
   return await executeCommand({
     command,
     args,
-    additionalPath,
   });
 }

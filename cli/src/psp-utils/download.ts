@@ -253,12 +253,14 @@ export async function downloadBinIfNotExists({
   owner,
   repoName,
   remoteFileName,
+  tag
 }: {
   localFilePath: string;
   dirPath: string;
   owner: string;
   repoName: string;
   remoteFileName: string;
+  tag?: string;
 }) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -269,8 +271,8 @@ export async function downloadBinIfNotExists({
   if (await fileExists(localFilePath)) {
     return;
   }
-
-  const tag = await latestRelease(owner, repoName);
+  if(!tag)
+    tag = await latestRelease(owner, repoName);
   const url = `https://github.com/${owner}/${repoName}/releases/download/${tag}/${remoteFileName}`;
 
   await downloadFile({
@@ -316,20 +318,24 @@ export async function downloadLightBinIfNotExists({
   dirPath,
   repoName,
   remoteFileName,
+  tag
 }: {
   localFilePath: string;
   dirPath: string;
   repoName: string;
   remoteFileName: string;
+  tag?: string;
 }) {
   const systemSuffix = lightSystemSuffix();
   const fullRemoteFileName = `${remoteFileName}-${systemSuffix}`;
+  console.log("fullRemoteFileName", fullRemoteFileName)
   await downloadBinIfNotExists({
     localFilePath,
     dirPath,
     owner: "Lightprotocol",
     repoName,
     remoteFileName: fullRemoteFileName,
+    tag
   });
 }
 
