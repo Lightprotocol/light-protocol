@@ -750,10 +750,8 @@
     "@jridgewell/resolve-uri" "3.1.0"
     "@jridgewell/sourcemap-codec" "1.4.14"
 
-"@lightprotocol/zk.js@0.3.2-alpha.12":
+"@lightprotocol/zk.js@file:../light-zk.js":
   version "0.3.2-alpha.12"
-  resolved "https://registry.yarnpkg.com/@lightprotocol/zk.js/-/zk.js-0.3.2-alpha.12.tgz#7ea578858955ba82ff1d3df40d90d88a8725087c"
-  integrity sha512-5bz4zeHckkwgJD+gifWqqn5Rcj/Swr41fUCk+38DlGYiLq11af5AJ/6X33tAQa/f/eGWg97OKXw9WVemYqeN7w==
   dependencies:
     "@coral-xyz/anchor" "0.28.0"
     "@coral-xyz/borsh" "^0.28.0"

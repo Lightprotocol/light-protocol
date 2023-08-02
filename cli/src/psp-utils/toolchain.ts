@@ -87,7 +87,11 @@ const macroCircomPath = createPathFunction({
   envVarName: "LIGHT_PROTOCOL_MACRO_CIRCOM_PATH",
   defaultPath: defaultMacroCircomPath,
   downloadFunction: downloadLightBinIfNotExists,
-  downloadParams: { repoName: "macro-circom", remoteFileName: "macro-circom", tag: MACRO_CIRCOM_TAG},
+  downloadParams: {
+    repoName: "macro-circom",
+    remoteFileName: "macro-circom",
+    tag: MACRO_CIRCOM_TAG,
+  },
 });
 
 /**

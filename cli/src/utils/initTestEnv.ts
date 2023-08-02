@@ -124,7 +124,7 @@ export async function start_test_validator({
         owner: "Lightprotocol",
         repoName: "light-protocol",
         remoteFileName: program.name!,
-        tag: PROGRAM_TAG
+        tag: PROGRAM_TAG,
       });
     }
 

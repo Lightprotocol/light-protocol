@@ -41,7 +41,6 @@ class SetupCommand extends Command {
   async run() {
     const { flags } = await this.parse(SetupCommand);
 
-
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
     try {

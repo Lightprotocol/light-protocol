@@ -25,14 +25,6 @@ class TransactionHistoryCommand extends Command {
   static description = "Show user transaction history";
   static flags = {
     ...standardFlags,
-    // 'skip-fetch': Flags.boolean({
-    //   char: "s",
-    //   description: "Retrieve the latest transaction history: skip fetching from the indexer",
-    //   parse: async () => false,
-    //   allowNo: true,
-    //   hidden: true,
-    //   default: true,
-    // }),
   };
 
   async run() {
