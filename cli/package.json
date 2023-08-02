@@ -73,10 +73,9 @@
     "topicSeparator": ""
   },
   "scripts": {
-    "clean": "shx rm -rf dist",
-    "build": "yarn tsc -b && sh scripts/copyLocalProgramBinaries.sh",
-    "format": "prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
-    "lint": "prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
+    "build": "shx rm -rf dist && yarn tsc -b && sh scripts/copyLocalProgramBinaries.sh",
+    "format": "yarn prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
+    "lint": "yarn prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
     "postpack": "shx rm -f oclif.manifest.json",
     "prepack": "yarn build && oclif manifest && oclif readme",
     "test-account": "mocha ./test/commands/account/index.test.ts --exit",
