@@ -1684,18 +1684,24 @@ export class User {
   }
 
   async executeAppUtxo({
-    appUtxo,
+    appUtxos,
+    inUtxos = [],
     outUtxos,
     action,
     programParameters,
     confirmOptions,
+    addInUtxos = false,
+    addOutUtxos
   }: {
-    appUtxo: Utxo;
+    appUtxos: Utxo[];
     outUtxos?: Utxo[];
     action: Action;
     programParameters: any;
     recipient?: Account;
     confirmOptions?: ConfirmOptions;
+    addInUtxos?: boolean;
+    addOutUtxos?: boolean;
+    inUtxos?: Utxo[];
   }) {
     if (!programParameters.verifierIdl)
       throw new UserError(
@@ -1703,13 +1709,22 @@ export class User {
         "executeAppUtxo",
         `provided program parameters: ${programParameters}`,
       );
+      let isAppInUtxo = []
+      for (var i in appUtxos) {
+        let array =new Array(4).fill(new BN(0));
+        array[i] = new BN(1);
+        isAppInUtxo.push(array);
+      }
+      programParameters.inputs.isAppInUtxo = isAppInUtxo;
+      if(!addOutUtxos)
+        addOutUtxos = outUtxos ? false : true
     if (action === Action.TRANSFER) {
       let txParams = await this.createTransferTransactionParameters({
         verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
-        inUtxos: [appUtxo],
+        inUtxos: [...appUtxos,...inUtxos],
         outUtxos,
-        addInUtxos: false,
-        addOutUtxos: outUtxos ? false : true,
+        addInUtxos,
+        addOutUtxos,
       });
       return this.transactWithParameters({
         txParams,

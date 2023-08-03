@@ -190,8 +190,8 @@ export function selectInUtxos({
   }
 
   // TODO: add check that utxo holds sufficient balance
-
-  if (outUtxos.length > 1)
+  // TODO make dependent on verifier
+  if (outUtxos.length > 4)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
       "selectInUtxos",

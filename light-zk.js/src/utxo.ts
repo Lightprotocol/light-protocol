@@ -132,16 +132,16 @@ export class Utxo {
     verifierProgramLookupTable: string[];
   }) {
     // check that blinding is 31 bytes
-    try {
-      blinding.toArray("be", 31);
-    } catch (_) {
-      throw new UtxoError(
-        UtxoErrorCode.BLINDING_EXCEEDS_SIZE,
-        "constructor",
+    // try {
+    //   blinding.toArray("be", 31);
+    // } catch (_) {
+    //   throw new UtxoError(
+    //     UtxoErrorCode.BLINDING_EXCEEDS_SIZE,
+    //     "constructor",
 
-        `Bliding ${blinding}, exceeds size of 31 bytes/248 bit.`,
-      );
-    }
+    //     `Bliding ${blinding}, exceeds size of 31 bytes/248 bit.`,
+    //   );
+    // }
     if (assets.length != amounts.length) {
       throw new UtxoError(
         UtxoErrorCode.INVALID_ASSET_OR_AMOUNTS_LENGTH,

@@ -139,7 +139,8 @@ export function createOutUtxos({
 
   // TODO: enable perfect manual amounts of amounts to recipients
   // check nr outUtxos is leq to nrOuts of verifier
-  if (outUtxos.length > 1) {
+  // TODO: make dependend on verifier
+  if (outUtxos.length > 4) {
     throw new CreateUtxoError(
       CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
       "createOutUtxos",
