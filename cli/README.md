@@ -1,5 +1,8 @@
 # Light CLI
 
+Official CLI to interact with Light Protocol v3 and build Private Solana Programs (https://github.com/Lightprotocol/light-protocol)
+
+
 ## Installation
 
 To use Light CLI, you need to have Node.js (version 12 or later) and npm (Node Package Manager) installed on your machine. Follow the steps below to install [Your CLI Name] globally:
@@ -59,6 +62,9 @@ For the full list of available commands, see below:
   - `psp:build`: Update the configuration of the Merkle Tree NFTs, permissionless SPL tokens, and lock duration.
   - `psp:test`: Perform the PSP tests.
 
+## PSP Guide
+
+You can find a comprehensive tutorial for building a custom Private Solana Program here: https://docs.lightprotocol.com/getting-started/creating-a-custom-psp
 
 ## License
 
@@ -66,4 +72,6 @@ For the full list of available commands, see below:
 
 ## Contact
 
-If you have questions, suggestions, or feedback, join the developer community on Discord: https://discord.gg/J3KvDfZpyp or reach out at [hello@lightprotocol.com].
+If you have questions, suggestions, or feedback, join the developer community on Discord: https://discord.gg/J3KvDfZpyp, or reach out at hello[at]lightprotocol[dot]com.
+
+
