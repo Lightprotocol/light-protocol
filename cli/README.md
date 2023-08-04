@@ -72,6 +72,6 @@ You can find a comprehensive tutorial for building a custom Private Solana Progr
 
 ## Contact
 
-If you have questions, suggestions, or feedback, join the developer community on Discord: https://discord.gg/J3KvDfZpyp, or reach out at hello[at]lightprotocol[dot]com.
+If you have questions, suggestions, or feedback, join the developer community on [Discord](https://discord.gg/J3KvDfZpyp), or reach out at hello[at]lightprotocol[dot]com.
 
 
