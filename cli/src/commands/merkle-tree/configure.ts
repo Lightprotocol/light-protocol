@@ -53,7 +53,7 @@ class ConfigureCommand extends Command {
         try {
           let merkleTreeAuthority =
             await merkleTreeConfig.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-              merkleTreeConfig.merkleTreeAuthorityPda!
+              merkleTreeConfig.getMerkleTreeAuthorityPubkey()
             );
 
           const enablePermissionlessSplTokens =
@@ -84,7 +84,7 @@ class ConfigureCommand extends Command {
         try {
           let merkleTreeAuthority =
             await merkleTreeConfig.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-              merkleTreeConfig.merkleTreeAuthorityPda!
+              merkleTreeConfig.getMerkleTreeAuthorityPubkey()
             );
 
           this.log(
@@ -97,7 +97,7 @@ class ConfigureCommand extends Command {
 
           let currentTransactionMerkleTreePda =
             await merkleTreeConfig.merkleTreeProgram.account.transactionMerkleTree.fetch(
-              MerkleTreeConfig.getTransactionMerkleTreePda()
+              MerkleTreeConfig.getTransactionMerkleTreePubkey()
             );
           this.log(
             `Lock Duration: ${currentTransactionMerkleTreePda.lockDuration.toString()}`

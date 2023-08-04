@@ -636,7 +636,7 @@ export class TransactionParameters implements transactionParameters {
       ...decoded,
       action,
       transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       verifierIdl: verifierIdl,
     });
   }
@@ -757,7 +757,7 @@ export class TransactionParameters implements transactionParameters {
       outputUtxos,
       inputUtxos,
       transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       senderSpl: action === Action.SHIELD ? userSplAccount : undefined,
       senderSol:
         action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
@@ -769,7 +769,7 @@ export class TransactionParameters implements transactionParameters {
       ataCreationFee,
       verifierIdl,
       message,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePubkey(),
     });
 
     return txParams;

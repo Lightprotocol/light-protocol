@@ -14,8 +14,8 @@ export const buildMerkleTree = async (_req: any, res: any) => {
   try {
     const provider: Provider = await getLightProvider();
 
-    const transactionMerkleTreePda =
-      MerkleTreeConfig.getTransactionMerkleTreePda();
+    const transactionMerkleTreePubkey =
+      MerkleTreeConfig.getTransactionMerkleTreePubkey();
 
     const relayer = await getRelayer();
 
@@ -24,7 +24,7 @@ export const buildMerkleTree = async (_req: any, res: any) => {
     );
 
     const mt = await SolMerkleTree.build({
-      pubkey: transactionMerkleTreePda,
+      pubkey: transactionMerkleTreePubkey,
       poseidon: provider.poseidon,
       indexedTransactions,
       provider: provider.provider,

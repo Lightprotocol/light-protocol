@@ -92,7 +92,7 @@ export class TestRelayer extends Relayer {
     connection: Connection,
   ): Promise<ParsedIndexedTransaction[]> {
     const merkleTreeAccountInfo = await connection.getAccountInfo(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       "confirmed",
     );
     if (!merkleTreeAccountInfo)

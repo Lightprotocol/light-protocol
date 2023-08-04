@@ -26,7 +26,7 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
     );
 
     const transactionMerkleTreePda =
-      MerkleTreeConfig.getTransactionMerkleTreePda();
+      MerkleTreeConfig.getTransactionMerkleTreePubkey();
 
     let leavesPdas: any[] = [];
     let retries = 5;

@@ -144,9 +144,9 @@ describe("verifier_program", () => {
     let txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       message,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePubkey(),
       transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
@@ -257,9 +257,9 @@ describe("verifier_program", () => {
       ],
       outputUtxos,
       message,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePubkey(),
       transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       recipientSpl,
       recipientSol: origin.publicKey,
       relayer: RELAYER,

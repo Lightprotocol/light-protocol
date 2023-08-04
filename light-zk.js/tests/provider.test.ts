@@ -39,7 +39,7 @@ describe("Test Provider Functional", () => {
     assert(lightProviderMock.lookUpTables.versionedTransactionLookupTable);
     assert.equal(
       lightProviderMock.solMerkleTree?.pubkey.toBase58(),
-      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+      MerkleTreeConfig.getTransactionMerkleTreePubkey().toBase58(),
     );
     assert.equal(lightProviderMock.solMerkleTree?.merkleTree.levels, 18);
     assert.equal(

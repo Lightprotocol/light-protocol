@@ -259,10 +259,20 @@ export class User {
    */
   async getUtxoInbox(latest: boolean = true): Promise<InboxBalance> {
     if (latest) {
+      let transactionMerkleTreeIndex = new anchor.BN(0);
+      if (this.provider.connection !== undefined) {
+        let merkleTreeConfig = new MerkleTreeConfig({
+          connection: this.provider.connection,
+        });
+        transactionMerkleTreeIndex =
+          await merkleTreeConfig.getTransactionMerkleTreeIndex();
+      }
       await this.syncState(
         false,
         this.inboxBalance,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        MerkleTreeConfig.getTransactionMerkleTreePubkey(
+          transactionMerkleTreeIndex,
+        ),
       );
     }
     return this.inboxBalance;
@@ -302,7 +312,7 @@ export class User {
       await this.syncState(
         true,
         this.balance,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       );
     }
     return this.balance;
@@ -1351,7 +1361,7 @@ export class User {
     const message = Buffer.from(
       await appUtxo.encrypt(
         this.provider.poseidon,
-        MerkleTreeConfig.getEventMerkleTreePda(),
+        MerkleTreeConfig.getEventMerkleTreePubkey(),
         false,
       ),
     );
@@ -1514,7 +1524,8 @@ export class User {
               aes: true,
               index: index,
               commitment: Uint8Array.from(leaf),
-              merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
+              merkleTreePdaPublicKey:
+                MerkleTreeConfig.getEventMerkleTreePubkey(),
               compressed: false,
               verifierProgramLookupTable,
               assetLookupTable,

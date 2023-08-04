@@ -335,7 +335,7 @@ export class TestTransaction {
     try {
       const merkleTreeAfterUpdate =
         await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
+          MerkleTreeConfig.getTransactionMerkleTreePubkey(),
           "confirmed",
         );
 

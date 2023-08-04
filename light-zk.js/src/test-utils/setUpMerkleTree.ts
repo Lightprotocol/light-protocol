@@ -29,16 +29,16 @@ export async function setUpMerkleTree(
     payer: ADMIN_AUTH_KEYPAIR,
     connection: provider.connection,
   });
-  console.log(await merkleTreeConfig.getMerkleTreeAuthorityPda());
+  console.log(merkleTreeConfig.getMerkleTreeAuthorityPubkey());
   console.log(
     await provider.connection.getAccountInfo(
-      await merkleTreeConfig.getMerkleTreeAuthorityPda(),
+      merkleTreeConfig.getMerkleTreeAuthorityPubkey(),
     ),
   );
 
   if (
     (await provider.connection.getAccountInfo(
-      await merkleTreeConfig.getMerkleTreeAuthorityPda(),
+      merkleTreeConfig.getMerkleTreeAuthorityPubkey(),
     )) == null
   ) {
     await merkleTreeConfig.initMerkleTreeAuthority();
@@ -48,7 +48,7 @@ export async function setUpMerkleTree(
 
   if (
     (await provider.connection.getAccountInfo(
-      MerkleTreeConfig.getEventMerkleTreePda(),
+      MerkleTreeConfig.getEventMerkleTreePubkey(),
     )) == null
   ) {
     await merkleTreeConfig.initializeNewEventMerkleTree();
@@ -58,7 +58,7 @@ export async function setUpMerkleTree(
 
   if (
     (await provider.connection.getAccountInfo(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MerkleTreeConfig.getTransactionMerkleTreePubkey(),
     )) == null
   ) {
     await merkleTreeConfig.initializeNewTransactionMerkleTree();

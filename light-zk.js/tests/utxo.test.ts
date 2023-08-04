@@ -112,11 +112,11 @@ describe("Utxo Functional", () => {
       // encrypt
       const encBytes4 = await utxo4.encrypt(
         poseidon,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       );
       const encBytes41 = await utxo4.encrypt(
         poseidon,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       );
       assert.equal(encBytes4.toString(), encBytes41.toString());
       const utxo41 = await Utxo.decrypt({
@@ -124,7 +124,8 @@ describe("Utxo Functional", () => {
         encBytes: encBytes4,
         account: utxo4Account,
         index: 0,
-        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        merkleTreePdaPublicKey:
+          MerkleTreeConfig.getTransactionMerkleTreePubkey(),
         commitment: new BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -293,7 +294,7 @@ describe("Utxo Functional", () => {
     // encrypt
     const encBytes = await utxo1.encrypt(
       poseidon,
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MerkleTreeConfig.getTransactionMerkleTreePubkey(),
     );
 
     // decrypt
@@ -302,7 +303,7 @@ describe("Utxo Functional", () => {
       encBytes,
       account: inputs.keypair,
       index: inputs.index,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       commitment: new BN(utxo1.getCommitment(poseidon)).toBuffer("le", 32),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -329,7 +330,7 @@ describe("Utxo Functional", () => {
     // encrypt
     const encBytesNacl = await receivingUtxo.encrypt(
       poseidon,
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MerkleTreeConfig.getTransactionMerkleTreePubkey(),
     );
 
     // decrypt
@@ -338,7 +339,7 @@ describe("Utxo Functional", () => {
       encBytes: encBytesNacl,
       account: inputs.keypair,
       index: inputs.index,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       aes: false,
       commitment: new BN(receivingUtxo.getCommitment(poseidon)).toBuffer(
         "le",

@@ -140,7 +140,7 @@ export class Provider {
     await mockProvider.loadPoseidon();
     mockProvider.solMerkleTree = new SolMerkleTree({
       poseidon: mockProvider.poseidon,
-      pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      pubkey: MerkleTreeConfig.getTransactionMerkleTreePubkey(),
     });
 
     return mockProvider;
@@ -217,8 +217,15 @@ export class Provider {
   }
 
   async latestMerkleTree(indexedTransactions?: ParsedIndexedTransaction[]) {
+    let merkleTreeConfig = new MerkleTreeConfig({
+      connection: this.connection!,
+    });
+    const transactionMerkleTreeIndex =
+      await merkleTreeConfig.getTransactionMerkleTreeIndex();
     await this.fetchMerkleTree(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MerkleTreeConfig.getTransactionMerkleTreePubkey(
+        transactionMerkleTreeIndex,
+      ),
       indexedTransactions,
     );
   }
@@ -323,8 +330,14 @@ export class Provider {
     });
 
     await provider.loadPoseidon();
+
+    let merkleTreeConfig = new MerkleTreeConfig({ connection });
+    const transactionMerkleTreeIndex =
+      await merkleTreeConfig.getTransactionMerkleTreeIndex();
     await provider.fetchMerkleTree(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MerkleTreeConfig.getTransactionMerkleTreePubkey(
+        transactionMerkleTreeIndex,
+      ),
     );
     return provider;
   }

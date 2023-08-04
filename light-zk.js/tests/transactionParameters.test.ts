@@ -96,9 +96,9 @@ describe("Transaction Parameters Functional", () => {
     const paramsOriginal = new TransactionParameters({
       inputUtxos,
       outputUtxos,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePubkey(),
       transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        MerkleTreeConfig.getTransactionMerkleTreePubkey(),
       poseidon,
       action: Action.TRANSFER,
       relayer,
@@ -142,7 +142,7 @@ describe("Transaction Parameters Functional", () => {
     );
     assert.equal(
       params.accounts.transactionMerkleTree.toBase58(),
-      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+      MerkleTreeConfig.getTransactionMerkleTreePubkey().toBase58(),
     );
     assert.equal(params.accounts.verifierState, undefined);
     assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
