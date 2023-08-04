@@ -64,7 +64,7 @@ For the full list of available commands, see below:
 
 ## PSP Guide
 
-You can find a comprehensive tutorial for building a custom Private Solana Program here: https://docs.lightprotocol.com/getting-started/creating-a-custom-psp
+You can find a comprehensive tutorial for building a custom Private Solana Program [here](https://docs.lightprotocol.com/getting-started/creating-a-custom-psp).
 
 ## License
 
