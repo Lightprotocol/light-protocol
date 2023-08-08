@@ -23,6 +23,8 @@ import {
   RelayerSendTransactionsResponse,
   SendVersionedTransactionsResult,
   AUTHORITY,
+  MerkleTreeConfig,
+  TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types/accounts";
@@ -83,6 +85,7 @@ export class Transaction {
   remainingAccounts?: {
     nullifierPdaPubkeys?: remainingAccount[];
     leavesPdaPubkeys?: remainingAccount[];
+    nextTransactionMerkleTree?: remainingAccount;
   };
 
   proofInput: any;
@@ -467,6 +470,27 @@ export class Transaction {
           `Root index not found for root${root}`,
         );
       }
+
+      if (
+        merkle_tree_account_data.nextIndex.gte(
+          TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
+        )
+      ) {
+        let merkleTreeConfig = new MerkleTreeConfig({
+          connection: this.provider.provider.connection,
+        });
+        let nextTrancactionMerkleTreeIndex =
+          await merkleTreeConfig.getTransactionMerkleTreeIndex();
+        const nextTransactionMerkleTreePubkey =
+          MerkleTreeConfig.getTransactionMerkleTreePda(
+            nextTrancactionMerkleTreeIndex,
+          );
+        this.remainingAccounts!.nextTransactionMerkleTree = {
+          isSigner: false,
+          isWritable: true,
+          pubkey: nextTransactionMerkleTreePubkey,
+        };
+      }
     } else {
       console.log(
         "provider not defined did not fetch rootIndex set root index to 0",
@@ -840,10 +864,16 @@ export class Transaction {
 
       // Check if it's the last iteration
       if (i === instructionNames.length - 1) {
-        method.remainingAccounts([
+        let remainingAccounts = [
           ...this.remainingAccounts!.nullifierPdaPubkeys!,
           ...this.remainingAccounts!.leavesPdaPubkeys!,
-        ]);
+        ];
+        if (this.remainingAccounts!.nextTransactionMerkleTree !== undefined) {
+          remainingAccounts.push(
+            this.remainingAccounts!.nextTransactionMerkleTree,
+          );
+        }
+        method.remainingAccounts(remainingAccounts);
       }
 
       const ix = await method.instruction();

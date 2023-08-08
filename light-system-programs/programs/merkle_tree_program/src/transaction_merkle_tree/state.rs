@@ -18,6 +18,8 @@ pub struct TransactionMerkleTree {
     pub merkle_tree_nr: u64,
     pub lock_duration: u64,
     pub next_queued_index: u64,
+    pub newest: u8,
+    _padding: [u8; 7],
 }
 
 #[account]
