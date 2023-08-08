@@ -466,7 +466,7 @@ export class User {
     return txParams;
   }
 
-  async compileAndProveTransaction(appParams?: any): Promise<Transaction> {
+  async compileAndProveTransaction(appParams?: any, shuffleEnabled: boolean = true): Promise<Transaction> {
     if (!this.recentTransactionParameters)
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
@@ -477,6 +477,7 @@ export class User {
       provider: this.provider,
       params: this.recentTransactionParameters,
       appParams,
+      shuffleEnabled
     });
 
     await tx.compileAndProve();
@@ -968,14 +969,17 @@ export class User {
     txParams,
     appParams,
     confirmOptions,
+    shuffleEnabled = true
   }: {
     txParams: TransactionParameters;
     appParams?: any;
     confirmOptions?: ConfirmOptions;
-  }) {
+    shuffleEnabled?: boolean;
+  },
+  ) {
     this.recentTransactionParameters = txParams;
 
-    await this.compileAndProveTransaction(appParams);
+    await this.compileAndProveTransaction(appParams, shuffleEnabled);
 
     await this.approve();
     this.approved = true;
@@ -1691,7 +1695,8 @@ export class User {
     programParameters,
     confirmOptions,
     addInUtxos = false,
-    addOutUtxos
+    addOutUtxos,
+    shuffleEnabled = false
   }: {
     appUtxos: Utxo[];
     outUtxos?: Utxo[];
@@ -1702,6 +1707,7 @@ export class User {
     addInUtxos?: boolean;
     addOutUtxos?: boolean;
     inUtxos?: Utxo[];
+    shuffleEnabled?: boolean;
   }) {
     if (!programParameters.verifierIdl)
       throw new UserError(
@@ -1730,6 +1736,7 @@ export class User {
         txParams,
         appParams: programParameters,
         confirmOptions,
+        shuffleEnabled
       });
     } else {
       throw new Error("Not implemented");

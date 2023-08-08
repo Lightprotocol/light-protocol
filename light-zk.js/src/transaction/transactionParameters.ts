@@ -486,6 +486,7 @@ export class TransactionParameters implements transactionParameters {
 
   static getVerifierProgramId(verifierIdl: Idl): PublicKey {
     const programId = new PublicKey(
+        // TODO(sergey) filter by name // PROGRAM_ID
       verifierIdl.constants![0].value.slice(1, -1),
     );
     return programId;

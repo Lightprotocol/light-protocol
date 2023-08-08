@@ -43,7 +43,7 @@ export default class InitCommand extends Command {
         "generate",
         "--git",
         "https://github.com/Lightprotocol/psp-template",
-        "--tag",
+        "--branch",
         PSP_TEMPLATE_TAG,
         "--name",
         name,
