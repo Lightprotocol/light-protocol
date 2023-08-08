@@ -48,7 +48,7 @@ For the full list of available commands, see below:
   - `unshield:sol`: Unshield sol for a user.
   - `unshield:spl`: Unshield spl tokens for a user.
 
-- `test-validator`: Starts a solana-test-validator and performs all setup tasks. Use in a separate terminal instead of solana-test-validator.
+- `test-validator`: Starts a solana-test-validator and with an initialized light environment. Use in a separate terminal instead of solana-test-validator.
 
 - merkleTree:
   - `mt:authority`: Initialize, set, or get the Merkle Tree Authority.
