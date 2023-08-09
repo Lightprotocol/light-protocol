@@ -1,5 +1,8 @@
 # Light CLI
 
+Official CLI to interact with Light Protocol v3 and build Private Solana Programs (https://github.com/Lightprotocol/light-protocol)
+
+
 ## Installation
 
 To use Light CLI, you need to have Node.js (version 12 or later) and npm (Node Package Manager) installed on your machine. Follow the steps below to install [Your CLI Name] globally:
@@ -16,20 +19,27 @@ To use Light CLI, you need to have Node.js (version 12 or later) and npm (Node P
    ```shell
    light --version
    ```
+   
+## Usage
 
-## Commands
+The CLI lets you initialize a PSP scaffold project and customize, build, and test it. (```light psp:...``` subcommand)
+
+It also provides utilities for local development, such as running a local Solana-test-validator with all necessary Light accounts and pre-loaded programs. (```light test-validator```).
+
+You can also execute common user actions such as shielding and sending private transfers. (```light shield```, ```light transfer```, ```light unshield```).
+
+For the full list of available commands, see below:
+
+
+### Commands
 
 - `help`: Display help information.
-- `init`: Initialize a new PSP project.
-- `build`: Build the PSP project.
-- `test`: Run the PSP Project tests.
 - `account`: Get the current account details
 - `airdrop`: Perform a native Solana or SPL airdrop to a user.
 - `balance`: Retrieve the balance, inbox balance, or utxos for the user.
 - `config`: Update the configuration values.
 - `history`: Retrieve transaction history for the user.
 - `accept-utxos`: Merge multiple utxos into a single UTXO.
-- `test-validator`: Perform setup tasks.
 - `shield`: Shield tokens for a user.
   - `shield:sol`: Shield sol for a user.
   - `shield:spl`: Shield spl tokens for a user.
@@ -37,17 +47,24 @@ To use Light CLI, you need to have Node.js (version 12 or later) and npm (Node P
 - `unshield`: Unshield tokens for a user.
   - `unshield:sol`: Unshield sol for a user.
   - `unshield:spl`: Unshield spl tokens for a user.
+
+- `test-validator`: Starts a solana-test-validator and with an initialized light environment. Use in a separate terminal instead of solana-test-validator.
+
 - merkleTree:
   - `mt:authority`: Initialize, set, or get the Merkle Tree Authority.
   - `mt:configuration`: Update the configuration of the Merkle Tree NFTs, permissionless SPL tokens, and lock duration.
   - `mt:initialize`: Initialize the Merkle Tree.
   - `mt:pool`: Register a new pool type [default, spl, sol].
   - `mt:verifier`: Register a new verifier for a Merkle Tree.
+
 - psp:
   - `psp:init`: Initialize, set, or get the Merkle Tree Authority
   - `psp:build`: Update the configuration of the Merkle Tree NFTs, permissionless SPL tokens, and lock duration.
-  - `psp:test`: Initialize the Merkle Tree.
-- `test-validator`:
+  - `psp:test`: Perform the PSP tests.
+
+## PSP Guide
+
+You can find a comprehensive tutorial for building a custom Private Solana Program [here](https://docs.lightprotocol.com/getting-started/creating-a-custom-psp).
 
 ## License
 
@@ -55,4 +72,6 @@ To use Light CLI, you need to have Node.js (version 12 or later) and npm (Node P
 
 ## Contact
 
-If you have any questions, suggestions, or feedback, please feel free to reach out to us at [hello@lightprotocol.com].
+If you have questions, suggestions, or feedback, join the developer community on [Discord](https://discord.gg/J3KvDfZpyp), or reach out at hello[at]lightprotocol[dot]com.
+
+
