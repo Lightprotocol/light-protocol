@@ -310,8 +310,39 @@ export class Utxo {
           UtxoErrorCode.UTXO_APP_DATA_NOT_FOUND_IN_IDL,
           "constructor",
         );
+      // TODO: add inputs type check
+      // TODO: unify with Prover.ts
+      // perform type check that appData has all the attributes
+      const checkAppData = (appData: any, idl: any) => {
+        const circuitName = "utxoAppData";
+        const circuitIdlObject = idl.accounts!.find(
+          (account: any) => account.name === circuitName,
+        );
 
-      // TODO: perform type check that appData has all the attributes and these have the correct types and not more
+        if (!circuitIdlObject) {
+          throw new Error(`${`${circuitName}`} does not exist in anchor idl`);
+        }
+
+        const fieldNames = circuitIdlObject.type.fields.map(
+          (field: { name: string }) => field.name,
+        );
+        const inputKeys: string[] = [];
+
+        fieldNames.forEach((fieldName: string) => {
+          inputKeys.push(fieldName);
+        });
+
+        let inputsObject: { [key: string]: any } = {};
+
+        inputKeys.forEach((key) => {
+          inputsObject[key] = appData[key];
+          if (!inputsObject[key])
+            throw new Error(
+              `Missing input --> ${key.toString()} in circuit ==> ${circuitName}`,
+            );
+        });
+      };
+      checkAppData(appData, appDataIdl);
       let hashArray: any[] = [];
       for (var attribute in appData) {
         hashArray.push(appData[attribute]);

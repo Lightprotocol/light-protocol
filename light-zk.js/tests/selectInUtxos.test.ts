@@ -32,7 +32,7 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 const numberMaxInUtxos = 2;
-
+const numberMaxOutUtxos = 2;
 // TODO: add more tests with different numbers of utxos
 // TODO: add a randomized test
 describe("Test selectInUtxos Functional", () => {
@@ -121,6 +121,7 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.UNSHIELD,
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
     Utxo.equal(poseidon, selectedUtxo[0], utxo1);
   });
@@ -135,6 +136,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       action: Action.UNSHIELD,
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
 
     Utxo.equal(poseidon, selectedUtxo[0], utxoSol);
@@ -153,6 +155,7 @@ describe("Test selectInUtxos Functional", () => {
       publicAmountSol: new BN(1e7),
       publicAmountSpl: new BN(1),
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
 
     Utxo.equal(poseidon, selectedUtxo[1], utxoSol);
@@ -183,6 +186,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       outUtxos,
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
 
     Utxo.equal(poseidon, selectedUtxo[1], utxoSol);
@@ -212,6 +216,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       outUtxos,
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
 
     Utxo.equal(poseidon, selectedUtxo[0], utxoSol);
@@ -242,6 +247,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       outUtxos,
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
 
     Utxo.equal(poseidon, selectedUtxo[0], utxo1);
@@ -258,6 +264,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       publicAmountSpl: new BN(1),
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
 
     Utxo.equal(poseidon, selectedUtxo[0], utxo1);
@@ -272,6 +279,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       publicAmountSol: new BN(1e7),
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
 
     Utxo.equal(poseidon, selectedUtxo[0], utxoSol);
@@ -288,6 +296,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       publicAmountSpl: new BN(1),
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
 
     Utxo.equal(poseidon, selectedUtxo[0], utxo1);
@@ -318,6 +327,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       outUtxos,
       numberMaxInUtxos,
+      numberMaxOutUtxos,
     });
 
     Utxo.equal(poseidon, selectedUtxo[0], utxo1);
@@ -422,6 +432,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         outUtxos,
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -444,6 +455,7 @@ describe("Test selectInUtxos Errors", () => {
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -465,6 +477,7 @@ describe("Test selectInUtxos Errors", () => {
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -487,6 +500,7 @@ describe("Test selectInUtxos Errors", () => {
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -509,6 +523,7 @@ describe("Test selectInUtxos Errors", () => {
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -531,6 +546,7 @@ describe("Test selectInUtxos Errors", () => {
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -553,6 +569,7 @@ describe("Test selectInUtxos Errors", () => {
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -596,6 +613,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         outUtxos,
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -629,6 +647,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         outUtxos,
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -662,6 +681,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         outUtxos,
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)
@@ -695,6 +715,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         outUtxos,
         numberMaxInUtxos,
+        numberMaxOutUtxos,
       });
     })
       .to.throw(SelectInUtxosError)

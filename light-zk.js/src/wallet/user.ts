@@ -466,7 +466,10 @@ export class User {
     return txParams;
   }
 
-  async compileAndProveTransaction(appParams?: any, shuffleEnabled: boolean = true): Promise<Transaction> {
+  async compileAndProveTransaction(
+    appParams?: any,
+    shuffleEnabled: boolean = true,
+  ): Promise<Transaction> {
     if (!this.recentTransactionParameters)
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
@@ -477,7 +480,7 @@ export class User {
       provider: this.provider,
       params: this.recentTransactionParameters,
       appParams,
-      shuffleEnabled
+      shuffleEnabled,
     });
 
     await tx.compileAndProve();
@@ -969,14 +972,13 @@ export class User {
     txParams,
     appParams,
     confirmOptions,
-    shuffleEnabled = true
+    shuffleEnabled = true,
   }: {
     txParams: TransactionParameters;
     appParams?: any;
     confirmOptions?: ConfirmOptions;
     shuffleEnabled?: boolean;
-  },
-  ) {
+  }) {
     this.recentTransactionParameters = txParams;
 
     await this.compileAndProveTransaction(appParams, shuffleEnabled);
@@ -1696,7 +1698,7 @@ export class User {
     confirmOptions,
     addInUtxos = false,
     addOutUtxos,
-    shuffleEnabled = false
+    shuffleEnabled = false,
   }: {
     appUtxos: Utxo[];
     outUtxos?: Utxo[];
@@ -1715,19 +1717,18 @@ export class User {
         "executeAppUtxo",
         `provided program parameters: ${programParameters}`,
       );
-      let isAppInUtxo = []
-      for (var i in appUtxos) {
-        let array =new Array(4).fill(new BN(0));
-        array[i] = new BN(1);
-        isAppInUtxo.push(array);
-      }
-      programParameters.inputs.isAppInUtxo = isAppInUtxo;
-      if(!addOutUtxos)
-        addOutUtxos = outUtxos ? false : true
+    let isAppInUtxo = [];
+    for (var i in appUtxos) {
+      let array = new Array(4).fill(new BN(0));
+      array[i] = new BN(1);
+      isAppInUtxo.push(array);
+    }
+    programParameters.inputs.isAppInUtxo = isAppInUtxo;
+    if (!addOutUtxos) addOutUtxos = outUtxos ? false : true;
     if (action === Action.TRANSFER) {
       let txParams = await this.createTransferTransactionParameters({
         verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
-        inUtxos: [...appUtxos,...inUtxos],
+        inUtxos: [...appUtxos, ...inUtxos],
         outUtxos,
         addInUtxos,
         addOutUtxos,
@@ -1736,7 +1737,7 @@ export class User {
         txParams,
         appParams: programParameters,
         confirmOptions,
-        shuffleEnabled
+        shuffleEnabled,
       });
     } else {
       throw new Error("Not implemented");
