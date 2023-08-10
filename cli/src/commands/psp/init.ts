@@ -4,7 +4,7 @@ import { downloadCargoGenerateIfNotExists } from "../../psp-utils/download";
 import { executeCommandInDir } from "../../psp-utils/process";
 import { executeCargoGenerate } from "../../psp-utils/toolchain";
 import * as path from "path";
-import { PSP_TEMPLATE_TAG } from "../../psp-utils/contants";
+import { PSP_TEMPLATE_TAG } from "../../psp-utils/constants";
 
 export const PSP_DEFAULT_PROGRAM_ID =
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
@@ -43,7 +43,7 @@ export default class InitCommand extends Command {
         "generate",
         "--git",
         "https://github.com/Lightprotocol/psp-template",
-        "--branch",
+        "--tag",
         PSP_TEMPLATE_TAG,
         "--name",
         name,

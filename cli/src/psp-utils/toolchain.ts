@@ -6,7 +6,7 @@ import {
   downloadSolanaIfNotExists,
 } from "./download";
 import { executeCommand } from "./process";
-import { MACRO_CIRCOM_TAG } from "./contants";
+import { MACRO_CIRCOM_TAG } from "./constants";
 
 const defaultCargoGeneratePath = "../../bin/cargo-generate";
 const defaultCircomPath = "../../bin/circom";

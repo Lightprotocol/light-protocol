@@ -14,7 +14,7 @@ import {
 import { Keypair } from "@solana/web3.js";
 import { downloadBinIfNotExists, executeCommand } from "../psp-utils";
 import path from "path";
-import { PROGRAM_TAG } from "../psp-utils/contants";
+import { PROGRAM_TAG } from "../psp-utils/constants";
 
 export async function initTestEnv({
   additonalPrograms,
