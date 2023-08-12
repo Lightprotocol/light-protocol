@@ -466,7 +466,10 @@ export class User {
     return txParams;
   }
 
-  async compileAndProveTransaction(appParams?: any): Promise<Transaction> {
+  async compileAndProveTransaction(
+    appParams?: any,
+    shuffleEnabled: boolean = true,
+  ): Promise<Transaction> {
     if (!this.recentTransactionParameters)
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
@@ -477,6 +480,7 @@ export class User {
       provider: this.provider,
       params: this.recentTransactionParameters,
       appParams,
+      shuffleEnabled,
     });
 
     await tx.compileAndProve();
@@ -968,14 +972,16 @@ export class User {
     txParams,
     appParams,
     confirmOptions,
+    shuffleEnabled = true,
   }: {
     txParams: TransactionParameters;
     appParams?: any;
     confirmOptions?: ConfirmOptions;
+    shuffleEnabled?: boolean;
   }) {
     this.recentTransactionParameters = txParams;
 
-    await this.compileAndProveTransaction(appParams);
+    await this.compileAndProveTransaction(appParams, shuffleEnabled);
 
     await this.approve();
     this.approved = true;
@@ -1684,18 +1690,26 @@ export class User {
   }
 
   async executeAppUtxo({
-    appUtxo,
+    appUtxos,
+    inUtxos = [],
     outUtxos,
     action,
     programParameters,
     confirmOptions,
+    addInUtxos = false,
+    addOutUtxos,
+    shuffleEnabled = false,
   }: {
-    appUtxo: Utxo;
+    appUtxos: Utxo[];
     outUtxos?: Utxo[];
     action: Action;
     programParameters: any;
     recipient?: Account;
     confirmOptions?: ConfirmOptions;
+    addInUtxos?: boolean;
+    addOutUtxos?: boolean;
+    inUtxos?: Utxo[];
+    shuffleEnabled?: boolean;
   }) {
     if (!programParameters.verifierIdl)
       throw new UserError(
@@ -1703,18 +1717,27 @@ export class User {
         "executeAppUtxo",
         `provided program parameters: ${programParameters}`,
       );
+    let isAppInUtxo = [];
+    for (var i in appUtxos) {
+      let array = new Array(4).fill(new BN(0));
+      array[i] = new BN(1);
+      isAppInUtxo.push(array);
+    }
+    programParameters.inputs.isAppInUtxo = isAppInUtxo;
+    if (!addOutUtxos) addOutUtxos = outUtxos ? false : true;
     if (action === Action.TRANSFER) {
       let txParams = await this.createTransferTransactionParameters({
         verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
-        inUtxos: [appUtxo],
+        inUtxos: [...appUtxos, ...inUtxos],
         outUtxos,
-        addInUtxos: false,
-        addOutUtxos: outUtxos ? false : true,
+        addInUtxos,
+        addOutUtxos,
       });
       return this.transactWithParameters({
         txParams,
         appParams: programParameters,
         confirmOptions,
+        shuffleEnabled,
       });
     } else {
       throw new Error("Not implemented");

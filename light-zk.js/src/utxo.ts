@@ -33,6 +33,7 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   fetchVerifierByIdLookUp,
   setEnvironment,
+  FIELD_SIZE,
 } from "./index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -131,15 +132,11 @@ export class Utxo {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }) {
-    // check that blinding is 31 bytes
-    try {
-      blinding.toArray("be", 31);
-    } catch (_) {
+    if (!blinding.eq(blinding.mod(FIELD_SIZE))) {
       throw new UtxoError(
-        UtxoErrorCode.BLINDING_EXCEEDS_SIZE,
+        UtxoErrorCode.BLINDING_EXCEEDS_FIELD_SIZE,
         "constructor",
-
-        `Bliding ${blinding}, exceeds size of 31 bytes/248 bit.`,
+        `Blinding ${blinding}, exceeds field size.`,
       );
     }
     if (assets.length != amounts.length) {
@@ -310,8 +307,39 @@ export class Utxo {
           UtxoErrorCode.UTXO_APP_DATA_NOT_FOUND_IN_IDL,
           "constructor",
         );
+      // TODO: add inputs type check
+      // TODO: unify with Prover.ts
+      // perform type check that appData has all the attributes
+      const checkAppData = (appData: any, idl: any) => {
+        const circuitName = "utxoAppData";
+        const circuitIdlObject = idl.accounts!.find(
+          (account: any) => account.name === circuitName,
+        );
 
-      // TODO: perform type check that appData has all the attributes and these have the correct types and not more
+        if (!circuitIdlObject) {
+          throw new Error(`${`${circuitName}`} does not exist in anchor idl`);
+        }
+
+        const fieldNames = circuitIdlObject.type.fields.map(
+          (field: { name: string }) => field.name,
+        );
+        const inputKeys: string[] = [];
+
+        fieldNames.forEach((fieldName: string) => {
+          inputKeys.push(fieldName);
+        });
+
+        let inputsObject: { [key: string]: any } = {};
+
+        inputKeys.forEach((key) => {
+          inputsObject[key] = appData[key];
+          if (!inputsObject[key])
+            throw new Error(
+              `Missing input --> ${key.toString()} in circuit ==> ${circuitName}`,
+            );
+        });
+      };
+      checkAppData(appData, appDataIdl);
       let hashArray: any[] = [];
       for (var attribute in appData) {
         hashArray.push(appData[attribute]);

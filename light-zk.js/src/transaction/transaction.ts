@@ -820,12 +820,18 @@ export class Transaction {
       );
 
       let inputsVec = (await coder.encode(accountName, inputs)).subarray(8);
+      // TODO: check whether app account names overlap with system account names and throw an error if so
+      let appAccounts = {};
+      if (this.appParams?.accounts) {
+        appAccounts = this.appParams.accounts;
+      }
       const methodName = firstLetterToLower(instruction);
       const method = verifierProgram.methods[
         methodName as keyof typeof verifierProgram.methods
       ](inputsVec).accounts({
         ...this.params.accounts,
         ...this.params.relayer.accounts,
+        ...appAccounts,
         relayerRecipientSol:
           this.params.action === Action.SHIELD
             ? AUTHORITY
