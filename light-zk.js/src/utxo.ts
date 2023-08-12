@@ -33,6 +33,7 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   fetchVerifierByIdLookUp,
   setEnvironment,
+  FIELD_SIZE,
 } from "./index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -131,17 +132,13 @@ export class Utxo {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }) {
-    // check that blinding is 31 bytes
-    // try {
-    //   blinding.toArray("be", 31);
-    // } catch (_) {
-    //   throw new UtxoError(
-    //     UtxoErrorCode.BLINDING_EXCEEDS_SIZE,
-    //     "constructor",
-
-    //     `Bliding ${blinding}, exceeds size of 31 bytes/248 bit.`,
-    //   );
-    // }
+    if (!blinding.eq(blinding.mod(FIELD_SIZE))) {
+      throw new UtxoError(
+        UtxoErrorCode.BLINDING_EXCEEDS_FIELD_SIZE,
+        "constructor",
+        `Bliding ${blinding}, exceeds field size.`,
+      );
+    }
     if (assets.length != amounts.length) {
       throw new UtxoError(
         UtxoErrorCode.INVALID_ASSET_OR_AMOUNTS_LENGTH,
