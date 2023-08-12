@@ -136,7 +136,7 @@ export class Utxo {
       throw new UtxoError(
         UtxoErrorCode.BLINDING_EXCEEDS_FIELD_SIZE,
         "constructor",
-        `Bliding ${blinding}, exceeds field size.`,
+        `Blinding ${blinding}, exceeds field size.`,
       );
     }
     if (assets.length != amounts.length) {
