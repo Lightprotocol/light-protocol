@@ -126,6 +126,7 @@ export function selectInUtxos({
   outUtxos = [],
   action,
   numberMaxInUtxos,
+  numberMaxOutUtxos,
 }: {
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
@@ -137,6 +138,7 @@ export function selectInUtxos({
   outUtxos?: Utxo[];
   action: Action;
   numberMaxInUtxos: number;
+  numberMaxOutUtxos: number;
 }) {
   if (!publicMint && publicAmountSpl)
     throw new SelectInUtxosError(
@@ -190,8 +192,8 @@ export function selectInUtxos({
   }
 
   // TODO: add check that utxo holds sufficient balance
-
-  if (outUtxos.length > 1)
+  // TODO make dependent on verifier
+  if (outUtxos.length > numberMaxOutUtxos - 1)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
       "selectInUtxos",

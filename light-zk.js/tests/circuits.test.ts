@@ -125,7 +125,7 @@ describe("Masp circuit tests", () => {
       relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
-    appData = { testInput1: new BN(1), testInput2: new BN(1) };
+    appData = { releaseSlot: new BN(1) };
     txParamsApp = new TransactionParameters({
       inputUtxos: [
         new Utxo({

@@ -485,16 +485,23 @@ export class TransactionParameters implements transactionParameters {
   }
 
   static getVerifierProgramId(verifierIdl: Idl): PublicKey {
-    const programId = new PublicKey(
-      verifierIdl.constants![0].value.slice(1, -1),
+    const programIdObj = verifierIdl.constants!.find(
+      (constant) => constant.name === "PROGRAM_ID",
     );
-    return programId;
+    if (!programIdObj || typeof programIdObj.value !== "string") {
+      throw new TransactionParametersError(
+        TransactionParametersErrorCode.PROGRAM_ID_CONSTANT_UNDEFINED,
+        'PROGRAM_ID constant not found in idl. Example: pub const PROGRAM_ID: &str = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";',
+      );
+    }
+
+    // Extracting the public key string value from the object and removing quotes.
+    const programIdStr = programIdObj.value.slice(1, -1);
+    return new PublicKey(programIdStr);
   }
 
   static getVerifierProgram(verifierIdl: Idl): Program<Idl> {
-    const programId = new PublicKey(
-      verifierIdl.constants![0].value.slice(1, -1),
-    );
+    const programId = TransactionParameters.getVerifierProgramId(verifierIdl);
     const verifierProgram = new Program(verifierIdl, programId);
     return verifierProgram;
   }
@@ -731,6 +738,8 @@ export class TransactionParameters implements transactionParameters {
         action,
         numberMaxInUtxos:
           TransactionParameters.getVerifierConfig(verifierIdl).in,
+        numberMaxOutUtxos:
+          TransactionParameters.getVerifierConfig(verifierIdl).out,
       });
     }
     if (addOutUtxos) {

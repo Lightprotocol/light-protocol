@@ -27,6 +27,7 @@ import {
   verifierProgramTwoProgramId,
   MerkleTreeConfig,
   createAccountObject,
+  FIELD_SIZE,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -583,6 +584,26 @@ describe("Utxo Errors", () => {
       .to.throw(UtxoError)
       .to.include({
         code: UtxoErrorCode.ASSET_NOT_FOUND,
+        functionName: "constructor",
+      });
+  });
+
+  it("BLINDING_EXCEEDS_FIELD_SIZE", async () => {
+    expect(() => {
+      new Utxo({
+        poseidon,
+        assets: [SystemProgram.programId, SolanaKeypair.generate().publicKey],
+        amounts: inputs.amounts,
+        account: inputs.keypair,
+        blinding: new BN(FIELD_SIZE),
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
+      });
+    })
+      .to.throw(UtxoError)
+      .to.include({
+        code: UtxoErrorCode.BLINDING_EXCEEDS_FIELD_SIZE,
         functionName: "constructor",
       });
   });
