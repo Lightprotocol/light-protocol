@@ -9,18 +9,14 @@ import { MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION, SECONDS } from "../../config";
 import { getRelayer } from "../../utils/provider";
 import { relayQueue } from "../../db/redis";
 import { sha3_256 } from "@noble/hashes/sha3";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export function getUidFromIxs(ixs: TransactionInstruction[]): string {
-  let concatenatedData = new Uint8Array([]);
+  let hasher = sha3_256.create();
   ixs.forEach((ix) => {
-    concatenatedData = new Uint8Array([...concatenatedData, ...ix.data]);
+    hasher.update(new Uint8Array([...ix.data]));
   });
-  const hashArray = sha3_256.create().update(concatenatedData).digest();
-  const hashString = Array.from(hashArray)
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-
-  return hashString;
+  return bs58.encode(hasher.digest());
 }
 
 async function addRelayJob({

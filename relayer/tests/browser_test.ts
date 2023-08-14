@@ -28,6 +28,7 @@ import {
   buildMerkleTree,
   getLookUpTable,
 } from "../src/services";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 chai.use(chaiHttp);
 const app = express();
@@ -108,7 +109,7 @@ describe("Browser tests", () => {
 
     const user = await User.init({
       provider,
-      seed: new BN(signature).toString(),
+      seed: bs58.encode(signature),
     });
 
     await airdropSol({
