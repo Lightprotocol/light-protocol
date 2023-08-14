@@ -3,7 +3,7 @@ import {
   ADMIN_AUTH_KEYPAIR,
   airdropSol,
   createTestAccounts,
-  initLookUpTableFromFile,
+  initLookUpTable,
   sleep,
 } from "@lightprotocol/zk.js";
 import {
@@ -35,7 +35,7 @@ export async function initTestEnv({
 
   await createTestAccounts(anchorProvider.connection);
 
-  const lookupTable = await initLookUpTableFromFile(anchorProvider);
+  const lookupTable = await initLookUpTable(ADMIN_AUTH_KEYPAIR.publicKey, anchorProvider);
 
   setLookUpTable(lookupTable.toString());
 

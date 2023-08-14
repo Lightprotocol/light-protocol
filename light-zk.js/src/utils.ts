@@ -25,7 +25,7 @@ import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
 import { Utxo } from "./utxo";
 import { UtilsError, UtilsErrorCode } from "./errors";
-import { TokenUtxoBalance, Wallet } from "./wallet";
+import { TokenUtxoBalance } from "./wallet";
 import { TokenData } from "./types";
 import { sha256 } from "@noble/hashes/sha256";
 import { Decimal } from "decimal.js";
@@ -292,21 +292,20 @@ export function isProgramVerifier(idl: anchor.Idl): boolean {
 }
 
 export async function initLookUpTable(
-  payer: Wallet,
+  payer: PublicKey,
   provider: anchor.Provider,
   extraAccounts?: Array<PublicKey>,
 ): Promise<PublicKey> {
-  const payerPubkey = payer.publicKey;
   const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
 
   var [lookUpTable] = await PublicKey.findProgramAddressSync(
-    [payerPubkey.toBuffer(), new anchor.BN(recentSlot).toBuffer("le", 8)],
+    [payer.toBuffer(), new anchor.BN(recentSlot).toBuffer("le", 8)],
     AddressLookupTableProgram.programId,
   );
 
   const createInstruction = AddressLookupTableProgram.createLookupTable({
-    authority: payerPubkey,
-    payer: payerPubkey,
+    authority: payer,
+    payer: payer,
     recentSlot,
   })[0];
 
@@ -348,8 +347,8 @@ export async function initLookUpTable(
 
   const extendInstruction = AddressLookupTableProgram.extendLookupTable({
     lookupTable: lookUpTable,
-    authority: payerPubkey,
-    payer: payerPubkey,
+    authority: payer,
+    payer: payer,
     addresses: addressesToAdd,
   });
 
@@ -358,7 +357,7 @@ export async function initLookUpTable(
   let recentBlockhash = await provider.connection.getLatestBlockhash(
     "confirmed",
   );
-  transaction.feePayer = payerPubkey;
+  transaction.feePayer = payer;
   transaction.recentBlockhash = recentBlockhash.blockhash;
 
   try {
