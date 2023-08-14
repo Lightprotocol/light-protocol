@@ -18,6 +18,7 @@ import {
   useWallet,
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,
+  confirmConfig,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 
@@ -79,9 +80,7 @@ describe("Browser tests", () => {
   it("should fail to init node feature (anchorprovider)", async () => {
     // should expect to throw
     expect(() => {
-      AnchorProvider.local("http://127.0.0.1:8899", {
-        commitment: "confirmed",
-      });
+      AnchorProvider.local("http://127.0.0.1:8899", confirmConfig);
     }).to.throw("Provider local is not available on browser.");
   });
 
@@ -104,7 +103,7 @@ describe("Browser tests", () => {
     const provider = await Provider.init({
       relayer: RELAYER,
       wallet: walletMock,
-      confirmConfig: { commitment: "confirmed" },
+      confirmConfig,
     });
 
     const user = await User.init({
@@ -131,7 +130,7 @@ describe("Browser tests", () => {
     const lightProviderRecipient = await Provider.init({
       wallet: testRecipientKeypair,
       relayer: RELAYER,
-      confirmConfig: { commitment: "confirmed" },
+      confirmConfig,
     });
 
     const testRecipient = await User.init({
