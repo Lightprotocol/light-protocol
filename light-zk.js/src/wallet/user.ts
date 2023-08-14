@@ -54,8 +54,6 @@ import {
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
-const encoder = new TextEncoder();
-
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
   finalized = "finalized",
@@ -1040,16 +1038,11 @@ export class User {
     try {
       if (!seed) {
         if (provider.wallet) {
-          let encodedMessage = encoder.encode(SIGN_MESSAGE);
+          const encodedMessage = anchor.utils.bytes.utf8.encode(SIGN_MESSAGE);
           const signature: Uint8Array = await provider.wallet.signMessage(
             encodedMessage,
           );
-          console.log(
-            "internal: signature: ",
-            encodedMessage,
-            signature,
-            provider.wallet.publicKey.toBase58(),
-          );
+
           seed = bs58.encode(signature);
         } else {
           throw new UserError(
