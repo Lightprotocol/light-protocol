@@ -1,5 +1,5 @@
 //@ts-check
-import { AnchorProvider, BN } from "@coral-xyz/anchor";
+import { AnchorProvider, BN, utils } from "@coral-xyz/anchor";
 import {
   Connection,
   Keypair as SolanaKeypair,
@@ -88,7 +88,7 @@ describe("Browser tests", () => {
     const message =
       "IMPORTANT:\nThe application will be able to spend \nyour shielded assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
 
-    const encodedMessage = new TextEncoder().encode(message);
+    const encodedMessage = utils.bytes.utf8.encode(message);
     const signature = await walletMock.signMessage(encodedMessage);
     if (
       !sign.detached.verify(
