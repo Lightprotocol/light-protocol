@@ -22,7 +22,7 @@ sleep 1
 PID="${!}"
 trap "kill ${PID}" EXIT
 
-sleep 8
+sleep 15
 
 
 echo "starting relayer server"

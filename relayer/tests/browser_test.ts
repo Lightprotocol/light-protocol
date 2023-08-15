@@ -19,6 +19,8 @@ import {
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,
   confirmConfig,
+  UserTestAssertHelper,
+  Action,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 
@@ -106,7 +108,7 @@ describe("Browser tests", () => {
       confirmConfig,
     });
 
-    const user = await User.init({
+    const user: User = await User.init({
       provider,
       seed: bs58.encode(signature),
     });
@@ -116,10 +118,34 @@ describe("Browser tests", () => {
       recipientPublicKey: walletMock.publicKey!,
       lamports: 4e9,
     });
-    await user.shield({
-      publicAmountSol: "3",
+
+    // because we're running functional_tests before on the same validator
+    let utxoHistory = await user.getTransactionHistory();
+
+    let expectedUtxoHistory = utxoHistory.length || 0;
+
+    let testInputs = {
+      amountSol: 3,
       token: "SOL",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength: expectedUtxoHistory++,
+    };
+
+    const testStateValidator = new UserTestAssertHelper({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs,
     });
+
+    await testStateValidator.fetchAndSaveState();
+
+    await user.shield({
+      publicAmountSol: testInputs.amountSol,
+      token: testInputs.token,
+    });
+
+    await testStateValidator.checkSolShielded();
 
     const testRecipientKeypair = SolanaKeypair.generate();
     await airdropSol({
@@ -136,17 +162,50 @@ describe("Browser tests", () => {
     const testRecipient = await User.init({
       provider: lightProviderRecipient,
     });
-
-    await user.transfer({
-      amountSol: "0.25",
+    let testInputsTransfer = {
+      amountSol: 0.25,
       token: "SOL",
-      recipient: testRecipient.account.getPublicKey(),
+      type: Action.TRANSFER,
+      expectedUtxoHistoryLength: expectedUtxoHistory++,
+    };
+
+    const testStateValidatorTransfer = new UserTestAssertHelper({
+      userSender: user,
+      userRecipient: testRecipient.account.getPublicKey(),
+      provider,
+      testInputs: testInputsTransfer,
     });
 
-    await user.unshield({
-      publicAmountSol: "1.5",
+    await testStateValidatorTransfer.fetchAndSaveState();
+
+    await user.transfer({
+      recipient: testRecipient.account.getPublicKey(),
+      amountSol: testInputsTransfer.amountSol,
+      token: testInputsTransfer.token,
+    });
+
+    await testStateValidatorTransfer.checkSolTransferred();
+
+    let testInputsUnshield = {
+      amountSol: 1.5,
       token: "SOL",
-      recipient: new PublicKey("ErAe2LmEKgBNCSP7iA8Z6B396yB6LGCUjzuPrczJYDbz"),
+      type: Action.UNSHIELD,
+      expectedUtxoHistoryLength: expectedUtxoHistory++,
+    };
+
+    const testStateValidatorUnshield = new UserTestAssertHelper({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs: testInputsUnshield,
+    });
+
+    await testStateValidatorUnshield.fetchAndSaveState();
+
+    await user.unshield({
+      publicAmountSol: testInputsUnshield.amountSol,
+      token: testInputsUnshield.token,
+      recipient: provider.wallet.publicKey,
     });
   });
 });

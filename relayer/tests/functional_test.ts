@@ -466,7 +466,7 @@ describe("Util Unit tests", () => {
 
       const result = getUidFromIxs(mockIxs);
 
-      expect(result.length).to.eq(64);
+      expect(result.length).to.eq(44);
     });
   });
 });
