@@ -156,7 +156,7 @@ export class MerkleTreeConfig {
     let transactionMerkleTreePda = PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("transaction_merkle_tree"),
-        transactionMerkleTreeIndex.toBuffer("le", 8),
+        transactionMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
       ],
       merkleTreeProgramId,
     )[0];
@@ -169,7 +169,7 @@ export class MerkleTreeConfig {
     let eventMerkleTreePda = PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("event_merkle_tree"),
-        eventMerkleTreeIndex.toBuffer("le", 8),
+        eventMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
       ],
       merkleTreeProgramId,
     )[0];

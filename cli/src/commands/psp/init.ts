@@ -25,16 +25,6 @@ export default class InitCommand extends Command {
     let { name } = args;
 
     this.log("🚀 Initializing PSP project...");
-    const cargoGeneratePath = path.resolve(
-      __dirname,
-      "../../bin/cargo-generate"
-    );
-    const dirPath = path.resolve(__dirname, "../../bin/");
-
-    await downloadCargoGenerateIfNotExists({
-      localFilePath: cargoGeneratePath,
-      dirPath,
-    });
 
     const circomName = snakeCase(name);
     const rustName = snakeCase(name);

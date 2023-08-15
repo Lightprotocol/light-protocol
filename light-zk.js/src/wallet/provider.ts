@@ -1,4 +1,4 @@
-import { AnchorProvider, BN, Wallet as AnchorWallet } from "@coral-xyz/anchor";
+import { AnchorProvider, BN } from "@coral-xyz/anchor";
 import {
   PublicKey,
   Keypair as SolanaKeypair,
@@ -12,10 +12,8 @@ import { initLookUpTable } from "../utils";
 import {
   ProviderError,
   ProviderErrorCode,
-  MerkleTree,
   useWallet,
   Relayer,
-  MERKLE_TREE_HEIGHT,
   ADMIN_AUTH_KEYPAIR,
   SolMerkleTree,
   RELAYER_RECIPIENT_KEYPAIR,
@@ -34,6 +32,7 @@ const circomlibjs = require("circomlibjs");
 export type Wallet = {
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   signTransaction: (transaction: any) => Promise<any>;
+  signAllTransactions: (transaction: any[]) => Promise<any[]>;
   sendAndConfirmTransaction: (transaction: any) => Promise<any>;
   publicKey: PublicKey;
   isNodeWallet?: boolean;
@@ -164,22 +163,6 @@ export class Provider {
     indexedTransactions?: ParsedIndexedTransaction[],
   ) {
     try {
-      if (!this.wallet.isNodeWallet) {
-        const response = await axios.get(this.relayer.url + "/merkletree");
-
-        const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
-
-        const pubkey = new PublicKey(response.data.data.pubkey);
-
-        const merkleTree = new MerkleTree(
-          MERKLE_TREE_HEIGHT,
-          this.poseidon,
-          fetchedMerkleTree._layers[0],
-        );
-
-        this.solMerkleTree = { ...response.data.data, merkleTree, pubkey };
-      }
-
       const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
         merkleTreePubkey,
         "confirmed",
@@ -266,10 +249,10 @@ export class Provider {
     } else {
       wallet = wallet as Wallet;
     }
-    // initializing anchor provider with dummy wallet we are never going to use it to send transactions
+
     const anchorProvider = new AnchorProvider(
       connection,
-      new AnchorWallet(SolanaKeypair.generate()),
+      wallet,
       confirmConfig,
     );
 

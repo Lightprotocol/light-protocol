@@ -6,6 +6,7 @@ import {
   UserTestAssertHelper,
   User,
   TestInputs,
+  confirmConfig,
 } from "@lightprotocol/zk.js";
 
 export type EnvironmentConfig = {
@@ -30,6 +31,7 @@ export async function performShielding({
     const provider = await Provider.init({
       wallet: environmentConfig.providerSolanaKeypair,
       relayer: environmentConfig.relayer,
+      confirmConfig,
     });
     const userSender = await User.init({
       provider,
@@ -89,6 +91,7 @@ export async function performMergeAll({
   const provider = await Provider.init({
     wallet: environmentConfig.providerSolanaKeypair,
     relayer: environmentConfig.relayer,
+    confirmConfig,
   });
 
   const userSender: User = await User.init({
@@ -131,6 +134,7 @@ export async function performMergeUtxos({
   const provider = await Provider.init({
     wallet: environmentConfig.providerSolanaKeypair,
     relayer: environmentConfig.relayer,
+    confirmConfig,
   });
 
   const userSender: User = await User.init({

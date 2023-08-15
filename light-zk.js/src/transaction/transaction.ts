@@ -26,7 +26,7 @@ import {
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types/accounts";
-import { Prover } from "./prover";
+import { Prover } from "@lightprotocol/prover.js";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 
 var ffjavascript = require("ffjavascript");
@@ -212,10 +212,9 @@ export class Transaction {
         TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
         "compileAndProve",
       );
-    await this.getProof();
-    if (this.appParams) {
-      await this.getAppProof();
-    }
+    const proofs = [this.getProof()];
+    if (this.appParams) proofs.push(this.getAppProof());
+    await Promise.all(proofs);
     await this.getRootIndex();
     this.getPdaAddresses();
   }
@@ -320,7 +319,7 @@ export class Transaction {
   async getProof() {
     const res = await this.getProofInternal(this.params, this.firstPath);
     this.transactionInputs.proofBytes = res.parsedProof;
-    this.transactionInputs.publicInputs = res.parsedPublicInputsObject;
+    this.transactionInputs.publicInputs = res.parsedPublicInputsObject as any;
   }
 
   async getAppProof() {
@@ -710,6 +709,7 @@ export class Transaction {
   ): Promise<TransactionInstruction[]> {
     const verifierProgram = TransactionParameters.getVerifierProgram(
       params.verifierIdl,
+      this.provider.provider,
     );
     if (!this.transactionInputs.publicInputs)
       throw new TransactionError(
@@ -887,7 +887,10 @@ export class Transaction {
       return await this.provider.wallet!.sendAndConfirmTransaction(transaction);
     } else {
       const transaction = new SolanaTransaction().add(
-        await TransactionParameters.getVerifierProgram(this.params?.verifierIdl)
+        await TransactionParameters.getVerifierProgram(
+          this.params?.verifierIdl,
+          this.provider.provider,
+        )
           .methods.closeVerifierState()
           .accounts({
             ...this.params.accounts,

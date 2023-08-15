@@ -1,5 +1,5 @@
 import { Args, Command } from "@oclif/core";
-import { toSnakeCase } from "../../psp-utils/buildPSP";
+import { toSnakeCase } from "../../psp-utils/utils";
 import { start_test_validator } from "../../utils";
 import { executeCommand } from "../../psp-utils";
 import { PSP_DEFAULT_PROGRAM_ID } from "./init";

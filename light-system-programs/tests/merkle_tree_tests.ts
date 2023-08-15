@@ -41,10 +41,8 @@ import {
   Provider,
   Action,
   TestRelayer,
-  LOOK_UP_TABLE,
 } from "@lightprotocol/zk.js";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
-import { BN } from "@coral-xyz/anchor";
 
 var POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 

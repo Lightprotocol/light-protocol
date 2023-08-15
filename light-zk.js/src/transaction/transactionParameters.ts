@@ -430,8 +430,8 @@ export class TransactionParameters implements transactionParameters {
       ),
       senderSpl: senderSpl,
       recipientSpl: recipientSpl,
-      senderSol: senderSol, // TODO: change to senderSol
-      recipientSol: recipientSol, // TODO: change name to recipientSol
+      senderSol: senderSol,
+      recipientSol: recipientSol,
       programMerkleTree: merkleTreeProgramId,
       tokenAuthority: Transaction.getTokenAuthority(),
       verifierProgram: this.verifierProgramId,
@@ -500,9 +500,12 @@ export class TransactionParameters implements transactionParameters {
     return new PublicKey(programIdStr);
   }
 
-  static getVerifierProgram(verifierIdl: Idl): Program<Idl> {
+  static getVerifierProgram(
+    verifierIdl: Idl,
+    anchorProvider: anchor.AnchorProvider,
+  ): Program<Idl> {
     const programId = TransactionParameters.getVerifierProgramId(verifierIdl);
-    const verifierProgram = new Program(verifierIdl, programId);
+    const verifierProgram = new Program(verifierIdl, programId, anchorProvider);
     return verifierProgram;
   }
 
