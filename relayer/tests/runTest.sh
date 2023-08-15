@@ -34,7 +34,7 @@ echo "executing functional tests"
 
 
 ##
-# npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;
+npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;
 
 echo "executing browser env tests"
 sleep 2

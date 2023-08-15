@@ -32,9 +32,6 @@ export const getAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
 export const getLightProvider = async () => {
   if (!provider) {
     const relayer = await getRelayer();
-    console.log("getRelayer ", relayer.accounts);
-    const configWallet = getKeyPairFromEnv("KEY_PAIR");
-    console.log("getKeyPairFromEnv ", configWallet.publicKey);
 
     try {
       provider = await Provider.init({

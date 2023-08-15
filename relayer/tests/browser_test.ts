@@ -4,6 +4,7 @@ import {
   Connection,
   Keypair as SolanaKeypair,
   PublicKey,
+  Keypair,
 } from "@solana/web3.js";
 import chai, { expect } from "chai";
 import chaiHttp from "chai-http";
@@ -23,6 +24,7 @@ import {
   Action,
   sleep,
   Account,
+  ConfirmOptions,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 
@@ -34,6 +36,8 @@ import {
   getLookUpTable,
 } from "../src/services";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
+
 let circomlibjs = require("circomlibjs");
 
 chai.use(chaiHttp);
@@ -55,10 +59,15 @@ app.get("/getBuiltMerkletree", buildMerkleTree);
 
 describe("Browser tests", () => {
   var RELAYER: Relayer;
+  var poseidon: any;
+  var provider: Provider;
+  var user: User;
   const walletMock = useWallet(ADMIN_AUTH_KEYPAIR);
   const connection = new Connection("http://127.0.0.1:8899", "confirmed");
 
   before(async () => {
+    poseidon = await circomlibjs.buildPoseidonOpt();
+
     await createTestAccounts(connection);
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
@@ -81,15 +90,7 @@ describe("Browser tests", () => {
       lamports: 2_000_000_000,
       recipientPublicKey: walletMock.publicKey,
     });
-  });
-  it("should fail to init node feature (anchorprovider)", async () => {
-    // should expect to throw
-    expect(() => {
-      AnchorProvider.local("http://127.0.0.1:8899", confirmConfig);
-    }).to.throw("Provider local is not available on browser.");
-  });
 
-  it("should init user, shield, transfer, unshield", async () => {
     const message =
       "IMPORTANT:\nThe application will be able to spend \nyour shielded assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
 
@@ -105,13 +106,13 @@ describe("Browser tests", () => {
       throw new Error("Invalid signature!");
 
     if (!walletMock.signMessage) throw new Error("Wallet not connected!");
-    const provider = await Provider.init({
+    provider = await Provider.init({
       relayer: RELAYER,
       wallet: walletMock,
       confirmConfig,
     });
 
-    const user: User = await User.init({
+    user = await User.init({
       provider,
       seed: bs58.encode(signature),
     });
@@ -121,134 +122,108 @@ describe("Browser tests", () => {
       recipientPublicKey: walletMock.publicKey!,
       lamports: 4e9,
     });
+  });
 
-    // because we're running functional_tests before on the same validator
-    let utxoHistory = await user.getTransactionHistory();
+  it("should fail to init node feature (anchorprovider)", async () => {
+    // should expect to throw
+    expect(() => {
+      AnchorProvider.local("http://127.0.0.1:8899", confirmConfig);
+    }).to.throw("Provider local is not available on browser.");
+  });
 
-    let expectedUtxoHistory = utxoHistory.length || 0;
-
+  it("(browser) should shield and update merkle tree", async () => {
     let testInputs = {
-      amountSol: 3,
+      amountSol: 15,
       token: "SOL",
       type: Action.SHIELD,
-      expectedUtxoHistoryLength: expectedUtxoHistory++,
+      expectedUtxoHistoryLength: 1,
     };
-
-    const testStateValidator = new UserTestAssertHelper({
+    const userTestAssertHelper = new UserTestAssertHelper({
       userSender: user,
       userRecipient: user,
       provider,
       testInputs,
     });
-
-    await testStateValidator.fetchAndSaveState();
+    await userTestAssertHelper.fetchAndSaveState();
 
     await user.shield({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
+      confirmOptions: ConfirmOptions.spendable,
     });
 
-    await testStateValidator.checkSolShielded();
+    await waitForBalanceUpdate(userTestAssertHelper, user);
+    await userTestAssertHelper.checkSolShielded();
+  });
 
-    // TRANSFER
-    const testInputsTransfer = {
+  it("(browser) should unshield SOL and update merkle tree", async () => {
+    const solRecipient = Keypair.generate();
+
+    const testInputs = {
+      amountSol: 1,
+      token: "SOL",
+      type: Action.UNSHIELD,
+      recipient: solRecipient.publicKey,
+      expectedUtxoHistoryLength: 1,
+    };
+
+    const userTestAssertHelper = new UserTestAssertHelper({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs,
+    });
+    // need to wait for balance update to fetch current utxos
+    await user.getBalance();
+    await userTestAssertHelper.fetchAndSaveState();
+    await user.unshield({
+      publicAmountSol: testInputs.amountSol,
+      token: testInputs.token,
+      recipient: testInputs.recipient,
+      confirmOptions: ConfirmOptions.spendable,
+    });
+
+    await waitForBalanceUpdate(userTestAssertHelper, user);
+    await userTestAssertHelper.checkSolUnshielded();
+  });
+
+  it("should transfer sol and update merkle tree ", async () => {
+    const testInputs = {
       amountSol: 1,
       token: "SOL",
       type: Action.TRANSFER,
-      expectedUtxoHistoryLength: expectedUtxoHistory++,
+      expectedUtxoHistoryLength: 1,
       recipientSeed: bs58.encode(new Uint8Array(32).fill(9)),
       expectedRecipientUtxoLength: 1,
     };
-    let poseidon = await circomlibjs.buildPoseidonOpt();
 
     const recipientAccount = new Account({
       poseidon,
-      seed: testInputsTransfer.recipientSeed,
+      seed: testInputs.recipientSeed,
     });
 
     const userRecipient: User = await User.init({
       provider,
-      seed: testInputsTransfer.recipientSeed,
+      seed: testInputs.recipientSeed,
     });
 
-    const testStateValidatorTransfer = new UserTestAssertHelper({
+    const testStateValidator = new UserTestAssertHelper({
       userSender: user,
       userRecipient,
       provider,
-      testInputs: testInputsTransfer,
+      testInputs,
     });
-    await testStateValidatorTransfer.fetchAndSaveState();
+    await testStateValidator.fetchAndSaveState();
     // need to wait for balance update to fetch current utxos
     await user.getBalance();
     await user.transfer({
-      amountSol: testInputsTransfer.amountSol,
-      token: testInputsTransfer.token,
+      amountSol: testInputs.amountSol,
+      token: testInputs.token,
       recipient: recipientAccount.getPublicKey(),
     });
 
     // await waitForBalanceUpdate(testStateValidator, user);
     await sleep(6000);
-    await testStateValidatorTransfer.checkSolTransferred();
-    // const testRecipientKeypair = SolanaKeypair.generate();
-    // await airdropSol({
-    //   connection: provider.connection!,
-    //   lamports: 2e9,
-    //   recipientPublicKey: testRecipientKeypair.publicKey,
-    // });
-    // const lightProviderRecipient = await Provider.init({
-    //   wallet: testRecipientKeypair,
-    //   relayer: RELAYER,
-    //   confirmConfig,
-    // });
-
-    // const testRecipient = await User.init({
-    //   provider: lightProviderRecipient,
-    // });
-
-    // let testInputsTransfer = {
-    //   amountSol: 0.25,
-    //   token: "SOL",
-    //   type: Action.TRANSFER,
-    //   expectedUtxoHistoryLength: expectedUtxoHistory++,
-    // };
-
-    // const testStateValidatorTransfer = new UserTestAssertHelper({
-    //   userSender: user,
-    //   userRecipient: testRecipient.account.getPublicKey(),
-    //   provider,
-    //   testInputs: testInputsTransfer,
-    // });
-
-    // await testStateValidatorTransfer.fetchAndSaveState();
-
-    // await user.transfer({
-    //   recipient: testRecipient.account.getPublicKey(),
-    //   amountSol: testInputsTransfer.amountSol,
-    //   token: testInputsTransfer.token,
-    // });
-
-    // await testStateValidatorTransfer.checkSolTransferred();
-
-    let testInputsUnshield = {
-      amountSol: 1.5,
-      token: "SOL",
-      type: Action.UNSHIELD,
-      expectedUtxoHistoryLength: expectedUtxoHistory++,
-    };
-
-    const testStateValidatorUnshield = new UserTestAssertHelper({
-      userSender: user,
-      userRecipient: user,
-      provider,
-      testInputs: testInputsUnshield,
-    });
-
-    await testStateValidatorUnshield.fetchAndSaveState();
-
-    await user.unshield({
-      publicAmountSol: testInputsUnshield.amountSol,
-      token: testInputsUnshield.token,
-      recipient: provider.wallet.publicKey,
-    });
+    await testStateValidator.checkSolTransferred();
   });
 });

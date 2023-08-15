@@ -41,6 +41,7 @@ import {
 } from "../src/services";
 import { relayerSetup } from "../src/setup";
 import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
+import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
@@ -60,25 +61,6 @@ app.get("/lookuptable", getLookUpTable);
 app.post("/relayTransaction", handleRelayRequest);
 app.get("/indexedTransactions", getIndexedTransactions);
 app.get("/getBuiltMerkletree", buildMerkleTree);
-
-const waitForBalanceUpdate = async (
-  userTestAssertHelper: UserTestAssertHelper,
-  user: User,
-  retries: number = 15,
-) => {
-  let balance = await user.getBalance();
-  while (retries > 0) {
-    retries--;
-    if (
-      !balance.totalSolBalance.eq(
-        userTestAssertHelper.recipient.preShieldedBalance!.totalSolBalance,
-      )
-    )
-      retries = 0;
-    balance = await user.getBalance();
-    await sleep(4000);
-  }
-};
 
 describe("API tests", () => {
   let poseidon: any;
