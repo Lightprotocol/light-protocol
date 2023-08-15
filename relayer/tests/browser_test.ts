@@ -21,6 +21,8 @@ import {
   confirmConfig,
   UserTestAssertHelper,
   Action,
+  sleep,
+  Account,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 
@@ -32,6 +34,7 @@ import {
   getLookUpTable,
 } from "../src/services";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+let circomlibjs = require("circomlibjs");
 
 chai.use(chaiHttp);
 const app = express();
@@ -147,44 +150,84 @@ describe("Browser tests", () => {
 
     await testStateValidator.checkSolShielded();
 
-    const testRecipientKeypair = SolanaKeypair.generate();
-    await airdropSol({
-      connection: provider.connection!,
-      lamports: 2e9,
-      recipientPublicKey: testRecipientKeypair.publicKey,
-    });
-    const lightProviderRecipient = await Provider.init({
-      wallet: testRecipientKeypair,
-      relayer: RELAYER,
-      confirmConfig,
-    });
-
-    const testRecipient = await User.init({
-      provider: lightProviderRecipient,
-    });
-    let testInputsTransfer = {
-      amountSol: 0.25,
+    // TRANSFER
+    const testInputsTransfer = {
+      amountSol: 1,
       token: "SOL",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: expectedUtxoHistory++,
+      recipientSeed: bs58.encode(new Uint8Array(32).fill(9)),
+      expectedRecipientUtxoLength: 1,
     };
+    let poseidon = await circomlibjs.buildPoseidonOpt();
+
+    const recipientAccount = new Account({
+      poseidon,
+      seed: testInputsTransfer.recipientSeed,
+    });
+
+    const userRecipient: User = await User.init({
+      provider,
+      seed: testInputsTransfer.recipientSeed,
+    });
 
     const testStateValidatorTransfer = new UserTestAssertHelper({
       userSender: user,
-      userRecipient: testRecipient.account.getPublicKey(),
+      userRecipient,
       provider,
       testInputs: testInputsTransfer,
     });
-
     await testStateValidatorTransfer.fetchAndSaveState();
-
+    // need to wait for balance update to fetch current utxos
+    await user.getBalance();
     await user.transfer({
-      recipient: testRecipient.account.getPublicKey(),
       amountSol: testInputsTransfer.amountSol,
       token: testInputsTransfer.token,
+      recipient: recipientAccount.getPublicKey(),
     });
 
+    // await waitForBalanceUpdate(testStateValidator, user);
+    await sleep(6000);
     await testStateValidatorTransfer.checkSolTransferred();
+    // const testRecipientKeypair = SolanaKeypair.generate();
+    // await airdropSol({
+    //   connection: provider.connection!,
+    //   lamports: 2e9,
+    //   recipientPublicKey: testRecipientKeypair.publicKey,
+    // });
+    // const lightProviderRecipient = await Provider.init({
+    //   wallet: testRecipientKeypair,
+    //   relayer: RELAYER,
+    //   confirmConfig,
+    // });
+
+    // const testRecipient = await User.init({
+    //   provider: lightProviderRecipient,
+    // });
+
+    // let testInputsTransfer = {
+    //   amountSol: 0.25,
+    //   token: "SOL",
+    //   type: Action.TRANSFER,
+    //   expectedUtxoHistoryLength: expectedUtxoHistory++,
+    // };
+
+    // const testStateValidatorTransfer = new UserTestAssertHelper({
+    //   userSender: user,
+    //   userRecipient: testRecipient.account.getPublicKey(),
+    //   provider,
+    //   testInputs: testInputsTransfer,
+    // });
+
+    // await testStateValidatorTransfer.fetchAndSaveState();
+
+    // await user.transfer({
+    //   recipient: testRecipient.account.getPublicKey(),
+    //   amountSol: testInputsTransfer.amountSol,
+    //   token: testInputsTransfer.token,
+    // });
+
+    // await testStateValidatorTransfer.checkSolTransferred();
 
     let testInputsUnshield = {
       amountSol: 1.5,
