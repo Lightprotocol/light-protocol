@@ -22,7 +22,6 @@ import {
   confirmConfig,
   UserTestAssertHelper,
   Action,
-  sleep,
   Account,
   ConfirmOptions,
 } from "@lightprotocol/zk.js";
@@ -222,8 +221,7 @@ describe("Browser tests", () => {
       recipient: recipientAccount.getPublicKey(),
     });
 
-    // await waitForBalanceUpdate(testStateValidator, user);
-    await sleep(6000);
+    await waitForBalanceUpdate(testStateValidator, user);
     await testStateValidator.checkSolTransferred();
   });
 });
