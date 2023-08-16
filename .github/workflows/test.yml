@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref }}
+      - run: git fetch origin main:${{ github.base_ref }}
       - name: Determine changed files
         id: determine-changed-files
         run: |
