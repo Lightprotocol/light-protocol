@@ -1,32 +1,43 @@
+name: test
+
 on:
   push:
     branches:
       - main
-    paths:
-      - "light-zk.js/**/*.ts"
-      - "light-system-programs/**/*.rs"
-      - "light-system-programs/**/*.ts"
   pull_request:
     branches:
       - main
-    paths:
-      - "light-zk.js/**/*.ts"
-      - "light-system-programs/**/*.rs"
-      - "light-system-programs/**/*.ts"
-      - ".github/workflows/test.yml"
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
 
-name: test
 
 jobs:
+  check-paths:
+    name: check-paths
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    outputs:
+      run_cli_relayer: ${{ steps.check-paths.outputs.run_cli_relayer }}
+      run_system_programs: ${{ steps.check-paths.outputs.run_system_programs }}
+      run_all: ${{ steps.check-paths.outputs.run_all }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - name: Check paths modified
+        id: check-paths
+        run: |
+          echo "::set-output name=run_cli_relayer::$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '^cli/|^relayer/' && echo 'true' || echo 'false')"
+          echo "::set-output name=run_system_programs::$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^light-system-programs/' && echo 'true' || echo 'false')"
+          echo "::set-output name=run_all::$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '^light-zk.js/|^circuits/|^.github/workflows/test.yml$' && echo 'true' || echo 'false')"
+
   light-system-programs:
     name: light-system-programs
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false &&  (needs.check-paths.outputs.run_all == 'true' || 
+      needs.check-paths.outputs.run_system_programs == 'true')
     runs-on: buildjet-16vcpu-ubuntu-2204
+    needs: check-paths
     strategy:
       matrix:
         include:
@@ -37,10 +48,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
-
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-
       - name: ${{ matrix.test }}
         run: |
           source ./scripts/devenv.sh
@@ -53,26 +62,27 @@ jobs:
 
   light-sdk-tests:
     name: light-sdk-tests
-    if: github.event.pull_request.draft == false
+    if: >-
+      github.event.pull_request.draft == false && 
+      (needs.check-paths.outputs.run_all == 'true' || 
+      needs.check-paths.outputs.run_cli_relayer == 'true')
     runs-on: buildjet-16vcpu-ubuntu-2204
+    needs: check-paths
     strategy:
       matrix:
         include:
-          - name: sdk-tests-light-zk-light-circuits-relayer
+          - name: sdk-tests-light-zk-light-circuits-relayer-cli
             sub-tests: '["light-zk.js", "light-circuits", "relayer", "cli"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
-
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
           enable_redis: 'true'
-
       - name: ${{ matrix.test.name }}
         run: |
           source ./scripts/devenv.sh
-
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
