@@ -13,7 +13,6 @@ on:
       - reopened
       - ready_for_review
 
-
 jobs:
   check-paths:
     name: check-paths
@@ -34,7 +33,8 @@ jobs:
 
   light-system-programs:
     name: light-system-programs
-    if: github.event.pull_request.draft == false &&  (needs.check-paths.outputs.run_all == 'true' || 
+    if:
+      github.event.pull_request.draft == false &&  (needs.check-paths.outputs.run_all == 'true' ||
       needs.check-paths.outputs.run_system_programs == 'true')
     runs-on: buildjet-16vcpu-ubuntu-2204
     needs: check-paths
@@ -79,7 +79,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          enable_redis: 'true'
+          enable_redis: "true"
       - name: ${{ matrix.test.name }}
         run: |
           source ./scripts/devenv.sh
