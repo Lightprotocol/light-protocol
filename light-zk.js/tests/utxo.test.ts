@@ -126,7 +126,11 @@ describe("Utxo Functional", () => {
         account: utxo4Account,
         index: 0,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-        commitment: new BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
+        commitment: new BN(utxo4.getCommitment(poseidon)).toArrayLike(
+          Buffer,
+          "le",
+          32,
+        ),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -304,7 +308,11 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       index: inputs.index,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      commitment: new BN(utxo1.getCommitment(poseidon)).toBuffer("le", 32),
+      commitment: new BN(utxo1.getCommitment(poseidon)).toArrayLike(
+        Buffer,
+        "le",
+        32,
+      ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -341,7 +349,8 @@ describe("Utxo Functional", () => {
       index: inputs.index,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       aes: false,
-      commitment: new BN(receivingUtxo.getCommitment(poseidon)).toBuffer(
+      commitment: new BN(receivingUtxo.getCommitment(poseidon)).toArrayLike(
+        Buffer,
         "le",
         32,
       ),

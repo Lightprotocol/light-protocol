@@ -30,14 +30,19 @@ import {
   TestRelayer,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
-  LOOK_UP_TABLE,
   MerkleTreeConfig,
   User,
+  sleep,
+  getSystem,
+  System,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
 
 var POSEIDON, ACCOUNT, RELAYER, deposit_utxo1;
+var SLEEP_BUFFER = 0;
+const system = getSystem();
+if (system === System.MacOsArm64) SLEEP_BUFFER = 400;
 
 var transactions: Transaction[] = [];
 console.log = () => {};
@@ -228,11 +233,7 @@ describe("Verifier Zero and One Tests", () => {
     }
   });
 
-  const sendTestTx = async (
-    tx: Transaction,
-    type: string,
-    account?: string,
-  ) => {
+  async function sendTestTx(tx: Transaction, type: string, account?: string) {
     var instructions = await tx.getInstructions(tx.params);
     console.log("aftere instructions");
     const provider = anchor.AnchorProvider.local(
@@ -269,7 +270,7 @@ describe("Verifier Zero and One Tests", () => {
     if (instructions.length > 1) {
       await tx.closeVerifierState();
     }
-  };
+  }
 
   it("Wrong amount", async () => {
     for (var tx in transactions) {
@@ -342,6 +343,7 @@ describe("Verifier Zero and One Tests", () => {
         tmp_tx.transactionInputs.publicInputs.inputNullifier[i] = new Array(
           32,
         ).fill(2);
+        await sleep(SLEEP_BUFFER);
         await sendTestTx(tmp_tx, "ProofVerificationFails");
       }
     }
@@ -354,6 +356,7 @@ describe("Verifier Zero and One Tests", () => {
         tmp_tx.transactionInputs.publicInputs.outputCommitment[i] = new Array(
           32,
         ).fill(2);
+        await sleep(SLEEP_BUFFER);
         await sendTestTx(tmp_tx, "ProofVerificationFails");
       }
     }
@@ -433,6 +436,8 @@ describe("Verifier Zero and One Tests", () => {
           tmp_tx.remainingAccounts.nullifierPdaPubkeys[
             (i + 1) % tmp_tx.remainingAccounts.nullifierPdaPubkeys.length
           ];
+        await sleep(SLEEP_BUFFER);
+
         await sendTestTx(
           tmp_tx,
           "Includes",
@@ -456,6 +461,8 @@ describe("Verifier Zero and One Tests", () => {
           isWritable: true,
           pubkey: SolanaKeypair.generate().publicKey,
         };
+        await sleep(SLEEP_BUFFER);
+
         await sendTestTx(
           tmp_tx,
           "Includes",

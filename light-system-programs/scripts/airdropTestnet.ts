@@ -40,7 +40,7 @@ async function main() {
     const tmpSolanaWallet = anchor.web3.Keypair.generate();
 
     await airdropSol({
-      provider,
+      connection,
       lamports: 1e9,
       recipientPublicKey: tmpSolanaWallet.publicKey,
     });

@@ -52,8 +52,7 @@ import {
   MerkleTreeConfig,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
-
-const message = new TextEncoder().encode(SIGN_MESSAGE);
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -1039,10 +1038,12 @@ export class User {
     try {
       if (!seed) {
         if (provider.wallet) {
+          const encodedMessage = anchor.utils.bytes.utf8.encode(SIGN_MESSAGE);
           const signature: Uint8Array = await provider.wallet.signMessage(
-            message,
+            encodedMessage,
           );
-          seed = new anchor.BN(signature).toString();
+
+          seed = bs58.encode(signature);
         } else {
           throw new UserError(
             UserErrorCode.NO_WALLET_PROVIDED,

@@ -31,6 +31,8 @@ import { sha256 } from "@noble/hashes/sha256";
 import { Decimal } from "decimal.js";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import * as os from "os";
+
 const crypto = require("@noble/hashes/crypto");
 
 export function hashAndTruncateToCircuit(data: Uint8Array) {
@@ -171,7 +173,7 @@ export const fetchNullifierAccountInfo = async (
 ) => {
   const nullifierPubkey = PublicKey.findProgramAddressSync(
     [
-      new anchor.BN(nullifier.toString()).toBuffer("be", 32),
+      new anchor.BN(nullifier.toString()).toArrayLike(Buffer, "be", 32),
       anchor.utils.bytes.utf8.encode("nf"),
     ],
     merkleTreeProgramId,
@@ -299,8 +301,11 @@ export async function initLookUpTable(
   const payerPubkey = payer.publicKey;
   const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
 
-  var [lookUpTable] = await PublicKey.findProgramAddressSync(
-    [payerPubkey.toBuffer(), new anchor.BN(recentSlot).toBuffer("le", 8)],
+  var [lookUpTable] = PublicKey.findProgramAddressSync(
+    [
+      payerPubkey.toBuffer(),
+      new anchor.BN(recentSlot).toArrayLike(Buffer, "le", 8),
+    ],
     AddressLookupTableProgram.programId,
   );
 
@@ -310,11 +315,9 @@ export async function initLookUpTable(
     recentSlot,
   })[0];
 
-  let escrows = (
-    await PublicKey.findProgramAddressSync(
-      [anchor.utils.bytes.utf8.encode("escrow")],
-      verifierProgramZeroProgramId,
-    )
+  let escrows = PublicKey.findProgramAddressSync(
+    [anchor.utils.bytes.utf8.encode("escrow")],
+    verifierProgramZeroProgramId,
   )[0];
 
   var transaction = new Transaction().add(createInstruction);
@@ -394,4 +397,43 @@ export function setEnvironment() {
   } else {
     crypto.web = window.crypto;
   }
+}
+
+export enum System {
+  MacOsAmd64,
+  MacOsArm64,
+  LinuxAmd64,
+  LinuxArm64,
+}
+
+export function getSystem(): System {
+  const arch = os.arch();
+  const platform = os.platform();
+
+  switch (platform) {
+    case "darwin":
+      switch (arch) {
+        case "x64":
+          return System.MacOsAmd64;
+        case "arm":
+        // fallthrough
+        case "arm64":
+          return System.MacOsArm64;
+        default:
+          throw new Error(`Architecture ${arch} is not supported.`);
+      }
+    case "linux":
+      switch (arch) {
+        case "x64":
+          return System.LinuxAmd64;
+        case "arm":
+        // fallthrough
+        case "arm64":
+          return System.LinuxArm64;
+        default:
+          throw new Error(`Architecture ${arch} is not supported.`);
+      }
+  }
+
+  throw new Error(`Platform ${platform} is not supported.`);
 }

@@ -623,7 +623,11 @@ export class Utxo {
     compressed: boolean = true,
   ): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(compressed);
-    const commitment = new BN(this.getCommitment(poseidon)).toBuffer("le", 32);
+    const commitment = new BN(this.getCommitment(poseidon)).toArrayLike(
+      Buffer,
+      "le",
+      32,
+    );
     var nonce = commitment.subarray(0, 24);
 
     if (!this.account.aesSecret) {

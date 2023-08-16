@@ -1,5 +1,11 @@
+//@ts-check
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import {
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  TransactionInstruction,
+} from "@solana/web3.js";
 import chai, { assert } from "chai";
 import chaiHttp from "chai-http";
 import express from "express";
@@ -26,15 +32,16 @@ import {
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
 import {
-  initLookupTable,
   updateMerkleTree,
   getIndexedTransactions,
   handleRelayRequest,
   buildMerkleTree,
+  getLookUpTable,
+  getUidFromIxs,
 } from "../src/services";
-import { testSetup } from "../src/setup";
+import { relayerSetup } from "../src/setup";
 import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
-import { tryCatch } from "bullmq";
+import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
@@ -46,36 +53,17 @@ app.use(express.urlencoded({ extended: false }));
 // Use sinon to create a stub for the middleware
 const addCorsHeadersStub = sinon
   .stub()
-  .callsFake((req: any, res: any, next: any) => next());
+  .callsFake((_req: any, _res: any, next: any) => next());
 app.use(addCorsHeadersStub);
 
 app.post("/updatemerkletree", updateMerkleTree);
-app.get("/lookuptable", initLookupTable);
+app.get("/lookuptable", getLookUpTable);
 app.post("/relayTransaction", handleRelayRequest);
 app.get("/indexedTransactions", getIndexedTransactions);
 app.get("/getBuiltMerkletree", buildMerkleTree);
 
-const waitForBalanceUpdate = async (
-  userTestAssertHelper: UserTestAssertHelper,
-  user: User,
-  retries: number = 15,
-) => {
-  let balance = await user.getBalance();
-  while (retries > 0) {
-    retries--;
-    if (
-      !balance.totalSolBalance.eq(
-        userTestAssertHelper.recipient.preShieldedBalance!.totalSolBalance,
-      )
-    )
-      retries = 0;
-    balance = await user.getBalance();
-    await sleep(4000);
-  }
-};
-
 describe("API tests", () => {
-  let poseidon;
+  let poseidon: any;
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
@@ -92,7 +80,7 @@ describe("API tests", () => {
       confirmConfig,
     );
     poseidon = await circomlibjs.buildPoseidonOpt();
-    await testSetup();
+    await relayerSetup();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 10_000_000_000,
@@ -125,7 +113,7 @@ describe("API tests", () => {
     chai
       .request(app)
       .get("/getBuiltMerkletree")
-      .end((err, res) => {
+      .end((_err, res) => {
         expect(res).to.have.status(200);
 
         const fetchedMerkleTree: MerkleTree = res.body.data.merkleTree;
@@ -167,11 +155,11 @@ describe("API tests", () => {
       });
   });
 
-  it("Should fail Merkle tree data with post request", (done) => {
+  it("Should fail Merkle tree data with post request", (done: any) => {
     chai
       .request(app)
       .post("/merkletree")
-      .end((err, res) => {
+      .end((_err, res) => {
         assert.isTrue(
           res.error.message.includes("cannot POST /merkletree (404)"),
         );
@@ -180,11 +168,11 @@ describe("API tests", () => {
       });
   });
 
-  it("Should fail to update Merkle tree with InvalidNumberOfLeaves", (done) => {
+  it("Should fail to update Merkle tree with InvalidNumberOfLeaves", (done: any) => {
     chai
       .request(app)
       .post("/updatemerkletree")
-      .end((err, res) => {
+      .end((_err, res) => {
         expect(res).to.have.status(500);
         // TODO: fix error propagation
         // assert.isTrue(
@@ -320,11 +308,11 @@ describe("API tests", () => {
     await waitForBalanceUpdate(userTestAssertHelper, user);
     await userTestAssertHelper.checkSolUnshielded();
   });
-  it("Should fail to update Merkle tree", (done) => {
+  it("Should fail to update Merkle tree", (done: any) => {
     chai
       .request(app)
       .get("/updatemerkletree")
-      .end((err, res) => {
+      .end((_err, res) => {
         assert.isTrue(
           res.error.message.includes("cannot GET /updatemerkletree (404)"),
         );
@@ -333,11 +321,11 @@ describe("API tests", () => {
       });
   });
 
-  it("Should return lookup table data", (done) => {
+  it("Should return lookup table data", (done: any) => {
     chai
       .request(app)
       .get("/lookuptable")
-      .end(async (err, res) => {
+      .end(async (_err, res) => {
         const provider = await Provider.init({
           wallet: userKeypair,
           confirmConfig,
@@ -356,11 +344,11 @@ describe("API tests", () => {
       });
   });
 
-  it("Should fail to return lookup table data", (done) => {
+  it("Should fail to return lookup table data", (done: any) => {
     chai
       .request(app)
       .post("/lookuptable")
-      .end((err, res) => {
+      .end((_err, res) => {
         assert.isTrue(
           res.error.message.includes("cannot POST /lookuptable (404)"),
         );
@@ -411,16 +399,56 @@ describe("API tests", () => {
 
   // TODO: add test for just proper indexing (-> e.g. shields)
   // TODO: add test for stress test load (multiple requests, wrong requests etc)
-  it("Should fail transaction with empty instructions", (done) => {
-    const instructions = []; // Replace with a valid instruction object
+  it("Should fail transaction with empty instructions", (done: any) => {
+    const instructions: any[] = []; // Replace with a valid instruction object
     chai
       .request(app)
       .post("/relayTransaction")
       .send({ instructions })
-      .end((err, res) => {
+      .end((_err, res) => {
         expect(res).to.have.status(500);
         assert.isTrue(res.body.message.includes("No instructions provided"));
         done();
       });
+  });
+});
+
+describe("Util Unit tests", () => {
+  describe("getUidFromIxs function", () => {
+    const getMockIx = (ixData: number[]) => {
+      return new TransactionInstruction({
+        programId: SystemProgram.programId, // mock
+        data: Buffer.from(ixData),
+        keys: [],
+      });
+    };
+
+    it("should return consistent hash for the same input", () => {
+      const mockIxs = [getMockIx([1, 2, 3]), getMockIx([4, 5, 6])];
+
+      const result1 = getUidFromIxs(mockIxs);
+      const result2 = getUidFromIxs(mockIxs);
+
+      expect(result1).to.eq(result2);
+    });
+
+    it("should return different hashes for different inputs", () => {
+      const mockIxs1 = [getMockIx([1, 2, 3]), getMockIx([4, 5, 6])];
+
+      const mockIxs2 = [getMockIx([1, 2, 3]), getMockIx([4, 5, 2])];
+
+      const result1 = getUidFromIxs(mockIxs1);
+      const result2 = getUidFromIxs(mockIxs2);
+
+      expect(result1).not.to.eq(result2);
+    });
+
+    it("should return a hash of fixed length (64 characters for SHA3-256)", () => {
+      const mockIxs = [getMockIx([1, 2, 3]), getMockIx([4, 5, 6])];
+
+      const result = getUidFromIxs(mockIxs);
+
+      expect(result.length).to.eq(44);
+    });
   });
 });

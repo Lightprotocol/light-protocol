@@ -65,3 +65,5 @@
 /light-zk.js/.idea
 /**/dump.rdb
 /tmp-test-psp
+
+/**/package-lock.json
