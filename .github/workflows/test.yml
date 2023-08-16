@@ -58,7 +58,7 @@ jobs:
       matrix:
         include:
           - name: sdk-tests-light-zk-light-circuits-relayer
-            sub-tests: '["light-zk.js", "light-circuits", "relayer"]'
+            sub-tests: '["light-zk.js", "light-circuits", "relayer", "cli"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
