@@ -17,7 +17,6 @@
   },
   "include": ["src", "__tests__", "tests"],
   "exclude": ["node_modules", "**/tests/*"],
-
   "dry": false,
   "debug": false
 }

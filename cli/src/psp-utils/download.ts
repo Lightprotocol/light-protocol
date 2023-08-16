@@ -2,11 +2,10 @@ import axios from "axios";
 import * as fs from "fs";
 import { promisify } from "util";
 import cliProgress from "cli-progress";
-import * as os from "os";
 import * as path from "path";
 import * as tar from "tar";
 import * as zlib from "zlib";
-import { sleep } from "@lightprotocol/zk.js";
+import { sleep, getSystem, System } from "@lightprotocol/zk.js";
 
 const fileExists = promisify(fs.exists);
 
@@ -24,45 +23,6 @@ async function latestRelease(owner: string, repo: string) {
   console.log(`📦 The newest release of ${repo} is ${tag_name}`);
 
   return response.data.tag_name;
-}
-
-enum System {
-  MacOsAmd64,
-  MacOsArm64,
-  LinuxAmd64,
-  LinuxArm64,
-}
-
-function getSystem(): System {
-  const arch = os.arch();
-  const platform = os.platform();
-
-  switch (platform) {
-    case "darwin":
-      switch (arch) {
-        case "x64":
-          return System.MacOsAmd64;
-        case "arm":
-        // fallthrough
-        case "arm64":
-          return System.MacOsArm64;
-        default:
-          throw new Error(`Architecture ${arch} is not supported.`);
-      }
-    case "linux":
-      switch (arch) {
-        case "x64":
-          return System.LinuxAmd64;
-        case "arm":
-        // fallthrough
-        case "arm64":
-          return System.LinuxArm64;
-        default:
-          throw new Error(`Architecture ${arch} is not supported.`);
-      }
-  }
-
-  throw new Error(`Platform ${platform} is not supported.`);
 }
 
 /**

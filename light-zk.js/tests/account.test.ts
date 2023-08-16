@@ -329,7 +329,10 @@ describe("Test Account Errors", () => {
   it("ENCRYPTION_PRIVATE_KEY_UNDEFINED", async () => {
     expect(() => {
       // @ts-ignore
-      Account.fromPrivkey(poseidon, bs58.encode(k0.privkey.toBuffer("be", 32)));
+      Account.fromPrivkey(
+        poseidon,
+        bs58.encode(k0.privkey.toArrayLike(Buffer, "be", 32)),
+      );
     })
       .to.throw(AccountError)
       .includes({

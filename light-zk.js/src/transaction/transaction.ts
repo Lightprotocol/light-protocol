@@ -710,6 +710,7 @@ export class Transaction {
   ): Promise<TransactionInstruction[]> {
     const verifierProgram = TransactionParameters.getVerifierProgram(
       params.verifierIdl,
+      this.provider.provider,
     );
     if (!this.transactionInputs.publicInputs)
       throw new TransactionError(
@@ -887,7 +888,10 @@ export class Transaction {
       return await this.provider.wallet!.sendAndConfirmTransaction(transaction);
     } else {
       const transaction = new SolanaTransaction().add(
-        await TransactionParameters.getVerifierProgram(this.params?.verifierIdl)
+        await TransactionParameters.getVerifierProgram(
+          this.params?.verifierIdl,
+          this.provider.provider,
+        )
           .methods.closeVerifierState()
           .accounts({
             ...this.params.accounts,
