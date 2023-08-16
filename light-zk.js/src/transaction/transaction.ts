@@ -212,10 +212,9 @@ export class Transaction {
         TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
         "compileAndProve",
       );
-    await this.getProof();
-    if (this.appParams) {
-      await this.getAppProof();
-    }
+    const proofs = [this.getProof()];
+    if (this.appParams) proofs.push(this.getAppProof());
+    await Promise.all(proofs);
     await this.getRootIndex();
     this.getPdaAddresses();
   }
