@@ -1,3 +1,3 @@
-import { createVerfyingkeyRsFileArgv } from "../cli/src/utils/createRustVerifyingKey";
+import { createVerifyingkeyRsFileArgv } from "../cli/src/psp-utils/createRustVerifyingKey";
 
-createVerfyingkeyRsFileArgv();
+createVerifyingkeyRsFileArgv();

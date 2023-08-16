@@ -271,7 +271,7 @@ async function createVerifyingKeyRsFile(
   );
 }
 
-export async function createVerfyingkeyRsFileArgv() {
+export async function createVerifyingkeyRsFileArgv() {
   let nrInputs = process.argv[2];
   if (!nrInputs) {
     throw new Error("Circuit nrInputs is not specified!");
