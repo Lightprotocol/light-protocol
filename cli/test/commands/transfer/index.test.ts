@@ -73,7 +73,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "5",
-      "DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDwFAIL",
+      "DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDw",
       "--token=LFG",
       "--localTestRelayer",
     ])
