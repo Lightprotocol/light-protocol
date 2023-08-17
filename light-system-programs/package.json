@@ -2,7 +2,7 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
-    "build": "light-anchor build && sh /../cli/scripts/copyLocalProgramBinaries.sh",
+    "build": "light-anchor build && sh ./../cli/scripts/copyLocalProgramBinaries.sh",
     "lint": "yarn prettier \"tests/**/*.{ts,js}\" --check",
     "start-test-validator": "./../cli/test_bin/run test-validator -b",
     "test-functional": "yarn start-test-validator && ts-mocha -t 2000000 tests/functional_tests.ts --exit",
