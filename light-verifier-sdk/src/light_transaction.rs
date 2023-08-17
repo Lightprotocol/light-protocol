@@ -366,12 +366,19 @@ impl<
                 .unwrap()
                 .program_merkle_tree
                 .to_account_info(),
+            &self.input.accounts.unwrap().authority.to_account_info(),
             &event_merkle_tree.to_account_info(),
             &self
                 .input
                 .accounts
                 .unwrap()
                 .system_program
+                .to_account_info(),
+            &self
+                .input
+                .accounts
+                .unwrap()
+                .registered_verifier_pda
                 .to_account_info(),
             &self.event_hash,
             &[0; 32],
