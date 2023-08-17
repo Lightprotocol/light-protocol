@@ -3,9 +3,9 @@ description: Checkout sources, install dependencies, build and prepare for tests
 
 inputs:
   enable_redis:
-    description: 'Enable Redis'
+    description: "Enable Redis"
     required: false
-    default: 'false'
+    default: "false"
 
 runs:
   using: "composite"
@@ -25,6 +25,7 @@ runs:
         rustup update
         rustup install 1.69.0
         rustup override set 1.69.0
+        rustup component add rustfmt --toolchain 1.69.0-x86_64-unknown-linux-gnu
 
     - name: Build and prepare for tests
       shell: bash
