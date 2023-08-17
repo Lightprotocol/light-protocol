@@ -10,7 +10,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "1.5",
-      "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2e",
+      "DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDw",
       "--localTestRelayer",
     ])
     .it("transfer 1.5 SOL to a shielded account address", async (ctx) => {
@@ -22,7 +22,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "5",
-      "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2e",
+      "DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDw",
       "--token=usdc",
       "--localTestRelayer",
     ])
@@ -36,7 +36,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "5",
-      "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
+      "DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDwFAIL",
       "--localTestRelayer",
     ])
     .exit(2)
@@ -48,7 +48,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "550000000",
-      "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
+      "DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDwFAIL",
       "--localTestRelayer",
     ])
     .exit(2)
@@ -60,7 +60,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "550000",
-      "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
+      "DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDwFAIL",
       "--token=usdc",
       "--localTestRelayer",
     ])
@@ -73,7 +73,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "5",
-      "TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2e",
+      "DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDw",
       "--token=LFG",
       "--localTestRelayer",
     ])

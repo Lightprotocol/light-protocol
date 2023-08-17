@@ -53,7 +53,7 @@ describe("shield:spl sub-cli", () => {
       "shield:spl",
       "10",
       "USDC",
-      "--recipient=TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
+      "--recipient=DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDw",
       "--localTestRelayer",
     ])
     .exit(2)
