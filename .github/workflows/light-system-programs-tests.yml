@@ -3,23 +3,25 @@ on:
     branches:
       - main
     paths:
-      - "light-zk.js/**/*.ts"
-      - "light-system-programs/**/*.rs"
-      - "light-system-programs/**/*.ts"
+      - "light-zk.js/**"
+      - "light-system-programs/**"
+      - "light-circuits/**"
+      - ".github/workflows/light-system-programs-tests.yml"
   pull_request:
     branches:
       - main
     paths:
-      - "light-zk.js/**/*.ts"
-      - "light-system-programs/**/*.rs"
-      - "light-system-programs/**/*.ts"
+      - "light-zk.js/**"
+      - "light-system-programs/**"
+      - "light-circuits/**"
+      - ".github/workflows/light-system-programs-tests.yml"
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
 
-name: test
+name: light-system-programs-tests
 
 jobs:
   light-system-programs:
@@ -48,34 +50,4 @@ jobs:
           for subtest in "${sub_tests[@]}"
           do
             yarn test-$subtest
-          done
-
-  light-sdk-tests:
-    name: light-sdk-tests
-    if: github.event.pull_request.draft == false
-    runs-on: buildjet-16vcpu-ubuntu-2204
-    strategy:
-      matrix:
-        include:
-          - name: sdk-tests-light-zk-light-circuits-relayer
-            sub-tests: '["light-zk.js", "light-circuits", "relayer"]'
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
-        with:
-          enable_redis: 'true'
-
-      - name: ${{ matrix.test.name }}
-        run: |
-          source ./scripts/devenv.sh
-
-          IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
-          for subtest in "${sub_tests[@]}"
-          do
-            cd $subtest
-            yarn test
-            cd ..
           done

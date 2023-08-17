@@ -164,6 +164,8 @@ curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustu
 . "${CARGO_HOME}/env"
 cargo install cargo-expand
 
+rustup component add rustfmt
+
 echo "📥 Downloading Node.js"
 download_and_extract \
     "node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz" \
