@@ -745,12 +745,22 @@ export type MerkleTreeProgram = {
       "name": "insertTwoLeavesEvent",
       "accounts": [
         {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "registeredVerifier",
           "isMut": false,
           "isSigner": false
         }
@@ -2238,12 +2248,22 @@ export const IDL: MerkleTreeProgram = {
       "name": "insertTwoLeavesEvent",
       "accounts": [
         {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "registeredVerifier",
           "isMut": false,
           "isSigner": false
         }
