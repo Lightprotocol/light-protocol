@@ -29,6 +29,7 @@ import {
   TOKEN_ACCOUNT_FEE,
   useWallet,
   RELAYER_FEE,
+  BN_1,
 } from "@lightprotocol/zk.js";
 
 import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
@@ -526,7 +527,7 @@ describe("Test User Errors", () => {
   it("SOL_RECIPIENT_UNDEFINED unshield", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ token: "SOL", publicAmountSol: new BN(1) }),
+      user.unshield({ token: "SOL", publicAmountSol: BN_1 }),
       TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
     );
 
@@ -534,8 +535,8 @@ describe("Test User Errors", () => {
       // @ts-ignore
       user.unshield({
         token,
-        publicAmountSol: new BN(1),
-        publicAmountSpl: new BN(1),
+        publicAmountSol: BN_1,
+        publicAmountSpl: BN_1,
         recipientSpl: SolanaKeypair.generate().publicKey,
       }),
       TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
@@ -545,7 +546,7 @@ describe("Test User Errors", () => {
   it("SPL_RECIPIENT_UNDEFINED unshield", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ token, publicAmountSpl: new BN(1) }),
+      user.unshield({ token, publicAmountSpl: BN_1 }),
       TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
     );
   });
@@ -563,7 +564,7 @@ describe("Test User Errors", () => {
       // @ts-ignore
       user.transfer({
         recipient: new Account({ poseidon: POSEIDON }).getPublicKey(),
-        amountSol: new BN(1),
+        amountSol: BN_1,
         token: "SPL",
       }),
       UserErrorCode.TOKEN_NOT_FOUND,

@@ -27,6 +27,7 @@ import {
   merkleTreeProgramId,
   verifierProgramOneProgramId,
   verifierProgramZeroProgramId,
+  BN_0,
 } from "../constants";
 import { Utxo } from "../utxo";
 import { MerkleTreeConfig } from "../index";
@@ -190,14 +191,12 @@ export class UserTestAssertHelper {
         reference.signer.toBase58(),
         "Signer mismatch",
       );
-      assert.equal(
-        transaction.publicAmountSol.toString(),
-        reference.publicAmountSol.toString(),
+      assert(
+        transaction.publicAmountSol.eq(reference.publicAmountSol),
         "Public SOL amount mismatch",
       );
-      assert.equal(
-        transaction.publicAmountSpl.toString(),
-        reference.publicAmountSpl.toString(),
+      assert(
+        transaction.publicAmountSpl.eq(reference.publicAmountSpl),
         "Public SPL amount mismatch",
       );
       assert.equal(
@@ -220,9 +219,8 @@ export class UserTestAssertHelper {
         reference.relayerRecipientSol.toBase58(),
         "Relayer recipient SOL mismatch",
       );
-      assert.equal(
-        transaction.relayerFee.toString(),
-        reference.relayerFee.toString(),
+      assert(
+        transaction.relayerFee.eq(reference.relayerFee),
         "Relayer fee mismatch",
       );
 
@@ -285,8 +283,8 @@ export class UserTestAssertHelper {
           assertTransactionProperties(
             {
               signer: this.provider.relayer.accounts.relayerPubkey,
-              publicAmountSpl: new BN(0),
-              publicAmountSol: new BN(0),
+              publicAmountSpl: BN_0,
+              publicAmountSol: BN_0,
               relayerFee: this.sender.user.provider.relayer.getRelayerFee(),
               to: AUTHORITY,
               from: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
@@ -312,11 +310,11 @@ export class UserTestAssertHelper {
               ),
               publicAmountSpl: amountSpl
                 ? convertAndComputeDecimals(amountSpl, this.tokenCtx!.decimals)
-                : new BN(0),
+                : BN_0,
               publicAmountSol: amountSol
                 ? convertAndComputeDecimals(amountSol, new BN(1e9))
-                : new BN(0),
-              relayerFee: new BN(0),
+                : BN_0,
+              relayerFee: BN_0,
               relayerRecipientSol: AUTHORITY,
               type: Action.SHIELD,
               verifier: verifierProgramZeroProgramId,
@@ -336,10 +334,10 @@ export class UserTestAssertHelper {
               signer: this.provider.relayer.accounts.relayerPubkey,
               publicAmountSpl: amountSpl
                 ? convertAndComputeDecimals(amountSpl, this.tokenCtx!.decimals)
-                : new BN(0),
+                : BN_0,
               publicAmountSol: amountSol
                 ? convertAndComputeDecimals(amountSol, new BN(1e9))
-                : new BN(0),
+                : BN_0,
               relayerFee:
                 this.tokenCtx!.symbol != "SOL" &&
                 !this.recipient.preTokenBalance
@@ -484,8 +482,8 @@ export class UserTestAssertHelper {
    * - check that utxos with an aggregate amount greater or equal than the spl and sol transfer amounts were spent
    */
   async assertUserUtxoSpent() {
-    let amountSol = new BN(0);
-    let amountSpl = new BN(0);
+    let amountSol = BN_0;
+    let amountSpl = BN_0;
     for (var [
       asset,
       tokenBalance,
@@ -537,7 +535,7 @@ export class UserTestAssertHelper {
       : userBalances.preShieldedInboxBalance!.tokenBalances.get(
           this.tokenCtx?.mint.toBase58(),
         )?.totalBalanceSpl;
-    let tokenBalancePre = _tokenBalancePre ? _tokenBalancePre : new BN(0);
+    let tokenBalancePre = _tokenBalancePre ? _tokenBalancePre : BN_0;
 
     assert.equal(
       tokenBalanceAfter!
@@ -1032,7 +1030,7 @@ export class UserTestAssertHelper {
      * post Balance:
      * - has increased by sum
      */
-    let sum = new BN(0);
+    let sum = BN_0;
     for (var commitment of this.testInputs.utxoCommitments!) {
       const existedInPreInbox = this.sender
         .preShieldedInboxBalance!.tokenBalances.get(
@@ -1072,7 +1070,7 @@ export class UserTestAssertHelper {
       : this.recipient.preShieldedBalance?.tokenBalances.get(
           this.tokenCtx.mint.toBase58(),
         )?.totalBalanceSpl;
-    preBalance = preBalance ? preBalance : new BN(0);
+    preBalance = preBalance ? preBalance : BN_0;
 
     assert.equal(postBalance?.toString(), preBalance!.add(sum).toString());
   }

@@ -28,6 +28,8 @@ import {
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_TWO,
   MerkleTreeConfig,
+  BN_0,
+  BN_2,
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -539,7 +541,7 @@ describe("Test TransactionParameters Methods", () => {
     let outputUtxos = [
       new Utxo({
         poseidon,
-        amounts: [new BN(2), new BN(4)],
+        amounts: [BN_2, new BN(4)],
         assets: [SystemProgram.programId, MINT],
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -595,7 +597,7 @@ describe("Test TransactionParameters Methods", () => {
     let outputUtxos = [
       new Utxo({
         poseidon,
-        amounts: [new BN(2), new BN(4)],
+        amounts: [BN_2, new BN(4)],
         assets: [SystemProgram.programId, MINT],
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -836,10 +838,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     const localOutputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [
-        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new BN(0),
-      ],
+      amounts: [new BN(depositFeeAmount).sub(relayer.getRelayerFee()), BN_0],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -870,7 +869,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     const localOutputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(0), new BN(depositAmount)],
+      amounts: [BN_0, new BN(depositAmount)],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1096,7 +1095,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN("18446744073709551615"), new BN(0)],
+      amounts: [new BN("18446744073709551615"), BN_0],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1127,7 +1126,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_spl_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(0), new BN("18446744073709551615")],
+      amounts: [BN_0, new BN("18446744073709551615")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1137,7 +1136,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(0), new BN("1")],
+      amounts: [BN_0, new BN("1")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1215,7 +1214,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN("18446744073709551615"), new BN(0)],
+      amounts: [new BN("18446744073709551615"), BN_0],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1385,7 +1384,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN("18446744073709551615"), new BN(0)],
+      amounts: [new BN("18446744073709551615"), BN_0],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1418,7 +1417,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_spl_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(0), new BN("18446744073709551615")],
+      amounts: [BN_0, new BN("18446744073709551615")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1428,7 +1427,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(0), new BN("1")],
+      amounts: [BN_0, new BN("1")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1508,7 +1507,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN("18446744073709551615"), new BN(0)],
+      amounts: [new BN("18446744073709551615"), BN_0],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1534,7 +1533,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(0), new BN("18446744073709551615")],
+      amounts: [BN_0, new BN("18446744073709551615")],
       account: keypair,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:

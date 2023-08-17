@@ -17,6 +17,7 @@ import {
   ProgramUtxoBalanceErrorCode,
   TOKEN_PUBKEY_SYMBOL,
   UserErrorCode,
+  BN_0,
 } from "../index";
 
 // mint | programAdress for programUtxos
@@ -43,8 +44,8 @@ export class TokenUtxoBalance {
   spentUtxos: Map<string, Utxo>; // ordered for slot spent - maybe this should just be an UserIndexedTransaction
   constructor(tokenData: TokenData) {
     this.tokenData = tokenData;
-    this.totalBalanceSol = new BN(0);
-    this.totalBalanceSpl = new BN(0);
+    this.totalBalanceSol = BN_0;
+    this.totalBalanceSpl = BN_0;
     this.utxos = new Map();
     this.committedUtxos = new Map();
     this.spentUtxos = new Map();

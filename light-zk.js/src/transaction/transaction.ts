@@ -25,6 +25,7 @@ import {
   AUTHORITY,
   MerkleTreeConfig,
   TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
+  BN_0,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types/accounts";
@@ -306,8 +307,8 @@ export class Transaction {
   }
 
   getMint() {
-    if (this.params.publicAmountSpl.toString() == "0") {
-      return new BN(0);
+    if (this.params.publicAmountSpl.eq(BN_0)) {
+      return BN_0;
     } else if (this.params.assetPubkeysCircuit) {
       return this.params.assetPubkeysCircuit[1];
     } else {
@@ -497,7 +498,7 @@ export class Transaction {
       console.log(
         "provider not defined did not fetch rootIndex set root index to 0",
       );
-      this.transactionInputs.rootIndex = new BN(0);
+      this.transactionInputs.rootIndex = BN_0;
     }
   }
 
@@ -578,10 +579,7 @@ export class Transaction {
     var inputMerklePathElements = new Array<Array<string>>();
     // getting merkle proofs
     for (const inputUtxo of inputUtxos) {
-      if (
-        inputUtxo.amounts[0] > new BN(0) ||
-        inputUtxo.amounts[1] > new BN(0)
-      ) {
+      if (inputUtxo.amounts[0].gt(BN_0) || inputUtxo.amounts[1].gt(BN_0)) {
         inputUtxo.index = provider.solMerkleTree.merkleTree.indexOf(
           inputUtxo.getCommitment(provider.poseidon),
         );

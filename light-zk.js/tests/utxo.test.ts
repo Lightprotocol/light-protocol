@@ -28,6 +28,8 @@ import {
   MerkleTreeConfig,
   createAccountObject,
   FIELD_SIZE,
+  BN_1,
+  BN_2,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -379,7 +381,7 @@ describe("Utxo Functional", () => {
       assets: [SystemProgram.programId],
       account,
       amounts: [new BN(1_000_000)],
-      appData: { releaseSlot: new BN(1) },
+      appData: { releaseSlot: BN_1 },
       appDataIdl: TEST_PSP_IDL,
       verifierAddress: verifierProgramId,
       index: 0,
@@ -406,7 +408,7 @@ describe("Utxo Functional", () => {
       {
         releaseSlot: 1,
         rndOtherStuff: { s: 2342 },
-        o: [2, 2, new BN(2)],
+        o: [2, 2, BN_2],
       },
       TEST_PSP_IDL.accounts,
       "utxoAppData",
@@ -418,7 +420,7 @@ describe("Utxo Functional", () => {
 
     expect(() => {
       createAccountObject(
-        { rndOtherStuff: { s: 2342 }, o: [2, 2, new BN(2)] },
+        { rndOtherStuff: { s: 2342 }, o: [2, 2, BN_2] },
         TEST_PSP_IDL.accounts,
         "utxoAppData",
       );
@@ -455,7 +457,7 @@ describe("Utxo Errors", () => {
     let account = Account.fromPubkey(publicKey, poseidon);
     let pubkeyUtxo = new Utxo({
       poseidon,
-      amounts: [new BN(1)],
+      amounts: [BN_1],
       account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -478,7 +480,7 @@ describe("Utxo Errors", () => {
     let account = Account.fromPubkey(publicKey, poseidon);
     let pubkeyUtxo = new Utxo({
       poseidon,
-      amounts: [new BN(1)],
+      amounts: [BN_1],
       account,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -521,7 +523,7 @@ describe("Utxo Errors", () => {
       new Utxo({
         poseidon,
         assets: [MINT, MINT, MINT],
-        amounts: [new BN(1), new BN(1), new BN(1)],
+        amounts: [BN_1, BN_1, BN_1],
         account: inputs.keypair,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,

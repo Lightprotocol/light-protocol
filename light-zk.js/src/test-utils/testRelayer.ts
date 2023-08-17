@@ -9,7 +9,7 @@ import {
 } from "../transaction";
 import { ParsedIndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
-import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeConfig } from "../index";
+import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeConfig, BN_0 } from "../index";
 
 export class TestRelayer extends Relayer {
   indexedTransactions: ParsedIndexedTransaction[] = [];
@@ -18,7 +18,7 @@ export class TestRelayer extends Relayer {
   constructor({
     relayerPubkey,
     relayerRecipientSol,
-    relayerFee = new BN(0),
+    relayerFee = BN_0,
     highRelayerFee,
     payer,
   }: {

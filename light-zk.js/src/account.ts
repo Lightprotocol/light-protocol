@@ -8,6 +8,7 @@ import {
   AccountErrorCode,
   TransactionParametersErrorCode,
   UtxoErrorCode,
+  BN_0,
 } from "./index";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
@@ -78,8 +79,8 @@ export class Account {
     this.burnerSeed = new Uint8Array();
     if (aesSecret && !privateKey) {
       this.aesSecret = aesSecret;
-      this.privkey = new BN(0);
-      this.pubkey = new BN(0);
+      this.privkey = BN_0;
+      this.pubkey = BN_0;
       this.encryptionKeypair = {
         publicKey: new Uint8Array(32),
         secretKey: new Uint8Array(32),
@@ -138,7 +139,7 @@ export class Account {
         nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
     } else if (publicKey) {
       this.pubkey = publicKey;
-      this.privkey = new BN("0");
+      this.privkey = BN_0;
       this.encryptionKeypair = {
         publicKey: encryptionPublicKey ? encryptionPublicKey : new Uint8Array(),
         secretKey: new Uint8Array(),

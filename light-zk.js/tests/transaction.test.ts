@@ -28,6 +28,9 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_TWO,
   IDL_VERIFIER_PROGRAM_STORAGE,
+  BN_0,
+  BN_1,
+  BN_2,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -385,7 +388,7 @@ describe("Transaction Functional Tests", () => {
     let deposit_utxo1 = new Utxo({
       poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(1), new BN(2)],
+      amounts: [BN_1, BN_2],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -429,7 +432,7 @@ describe("Transaction Functional Tests", () => {
     let deposit_utxo2 = new Utxo({
       poseidon,
       assets: [FEE_ASSET],
-      amounts: [new BN(1)],
+      amounts: [BN_1],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -461,7 +464,7 @@ describe("Transaction Functional Tests", () => {
     let deposit_utxo4 = new Utxo({
       poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(0), new BN(2)],
+      amounts: [BN_0, BN_2],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -493,7 +496,7 @@ describe("Transaction Functional Tests", () => {
     let deposit_utxo5 = new Utxo({
       poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(2), new BN(0)],
+      amounts: [BN_2, BN_0],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,

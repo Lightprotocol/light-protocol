@@ -26,6 +26,8 @@ import {
   createRecipientUtxos,
   Provider,
   RELAYER_FEE,
+  BN_0,
+  BN_1,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -117,7 +119,7 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       publicMint: utxo1.assets[1],
       relayerFee: RELAYER_FEE,
-      publicAmountSpl: new BN(1),
+      publicAmountSpl: BN_1,
       poseidon,
       utxos: inUtxos,
       action: Action.UNSHIELD,
@@ -154,7 +156,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
-      publicAmountSpl: new BN(1),
+      publicAmountSpl: BN_1,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
@@ -170,7 +172,7 @@ describe("Test selectInUtxos Functional", () => {
         {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
-          splAmount: new BN(1),
+          splAmount: BN_1,
           account: new Account({ poseidon }),
         },
       ],
@@ -201,7 +203,7 @@ describe("Test selectInUtxos Functional", () => {
         {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
-          splAmount: new BN(0),
+          splAmount: BN_0,
           account: new Account({ poseidon }),
         },
       ],
@@ -230,8 +232,8 @@ describe("Test selectInUtxos Functional", () => {
       recipients: [
         {
           mint: utxo1.assets[1],
-          solAmount: new BN(0),
-          splAmount: new BN(1),
+          solAmount: BN_0,
+          splAmount: BN_1,
           account: new Account({ poseidon }),
         },
       ],
@@ -263,7 +265,7 @@ describe("Test selectInUtxos Functional", () => {
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
       poseidon,
-      publicAmountSpl: new BN(1),
+      publicAmountSpl: BN_1,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
@@ -295,7 +297,7 @@ describe("Test selectInUtxos Functional", () => {
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
       poseidon,
-      publicAmountSpl: new BN(1),
+      publicAmountSpl: BN_1,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
@@ -417,7 +419,7 @@ describe("Test selectInUtxos Errors", () => {
         {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
-          splAmount: new BN(1),
+          splAmount: BN_1,
           account: new Account({ poseidon }),
         },
       ],
@@ -454,7 +456,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         // publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
-        publicAmountSpl: new BN(1),
+        publicAmountSpl: BN_1,
         numberMaxInUtxos,
         numberMaxOutUtxos,
       });
@@ -499,7 +501,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
-        publicAmountSpl: new BN(1),
+        publicAmountSpl: BN_1,
         numberMaxInUtxos,
         numberMaxOutUtxos,
       });
@@ -522,7 +524,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
-        publicAmountSpl: new BN(1),
+        publicAmountSpl: BN_1,
         numberMaxInUtxos,
         numberMaxOutUtxos,
       });
@@ -545,7 +547,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
-        publicAmountSpl: new BN(1),
+        publicAmountSpl: BN_1,
         numberMaxInUtxos,
         numberMaxOutUtxos,
       });
@@ -568,7 +570,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
-        publicAmountSpl: new BN(1),
+        publicAmountSpl: BN_1,
         numberMaxInUtxos,
         numberMaxOutUtxos,
       });
@@ -588,13 +590,13 @@ describe("Test selectInUtxos Errors", () => {
         {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
-          splAmount: new BN(1),
+          splAmount: BN_1,
           account: new Account({ poseidon }),
         },
         {
           mint,
           solAmount: new BN(1e7),
-          splAmount: new BN(1),
+          splAmount: BN_1,
           account: new Account({ poseidon }),
         },
       ],
@@ -631,7 +633,7 @@ describe("Test selectInUtxos Errors", () => {
         {
           mint: utxo1.assets[1],
           solAmount: new BN(2e10),
-          splAmount: new BN(1),
+          splAmount: BN_1,
           account: new Account({ poseidon }),
         },
       ],
@@ -664,7 +666,7 @@ describe("Test selectInUtxos Errors", () => {
       recipients: [
         {
           mint: utxo1.assets[1],
-          solAmount: new BN(0),
+          solAmount: BN_0,
           splAmount: new BN(1e10),
           account: new Account({ poseidon }),
         },

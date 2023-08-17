@@ -16,6 +16,7 @@ import {
   MAX_U64,
   FIELD_SIZE,
   merkleTreeProgramId,
+  BN_0,
 } from "../constants";
 
 import { Action } from "./transaction";
@@ -204,7 +205,7 @@ async function enrichParsedTransactionEvents(
         .abs()
         .sub(relayerFee);
       type =
-        amountSpl.eq(new BN(0)) && amountSol.eq(new BN(0))
+        amountSpl.eq(BN_0) && amountSol.eq(BN_0)
           ? Action.TRANSFER
           : Action.UNSHIELD;
     }
@@ -246,7 +247,7 @@ async function enrichParsedTransactionEvents(
     tx.meta.postBalances[solTokenPoolIndex] -
       tx.meta.preBalances[solTokenPoolIndex],
   );
-  changeSolAmount = changeSolAmount.lt(new BN(0))
+  changeSolAmount = changeSolAmount.lt(BN_0)
     ? changeSolAmount.abs().sub(relayerFee)
     : changeSolAmount;
 
