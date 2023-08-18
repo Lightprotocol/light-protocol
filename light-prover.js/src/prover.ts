@@ -1,9 +1,15 @@
+import { Idl } from "@coral-xyz/anchor";
+import {
+  ProofInputs,
+  ParsedPublicInputs,
+  CircuitNames,
+  zkIdl,
+} from "./generics";
+import { VerifierError, VerifierErrorCode } from "./errors";
+
 const snarkjs = require("snarkjs");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff } =
   require("ffjavascript").utils;
-
-import { Idl } from "@coral-xyz/anchor";
-import { VerifierError, VerifierErrorCode } from "../errors";
 
 export type proofData = {
   pi_a: string[];
@@ -25,13 +31,16 @@ export type vKeyData = {
   IC: string[][];
 };
 
-export class Prover {
-  public circuitName!: string;
+export class Prover<
+  VerifierIdl extends zkIdl,
+  CircuitName extends CircuitNames,
+> {
+  public circuitName!: CircuitName;
   public idl: Idl;
   public firstPath: string;
   public wasmPath!: string;
   public zkeyPath!: string;
-  public proofInputs: any;
+  public proofInputs!: ProofInputs<VerifierIdl, CircuitName>;
   public publicInputs: string[] = [];
   public vKey!: vKeyData;
   public proof!: proofData;
@@ -64,8 +73,7 @@ export class Prover {
       }
     });
 
-    this.circuitName = Array.from(uniqueCircuitNames)[0];
-
+    this.circuitName = Array.from(uniqueCircuitNames)[0] as CircuitName;
     // After Retrieving circuitName ==> build wasm and zkey paths for the circuit
     this.wasmPath =
       this.firstPath + `/${this.circuitName}_js/${this.circuitName}.wasm`;
@@ -103,18 +111,26 @@ export class Prover {
           }`,
         );
     });
-    this.proofInputs = inputsObject;
+    this.proofInputs = inputsObject as ProofInputs<VerifierIdl, CircuitName>;
   }
 
   async fullProve() {
-    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-      stringifyBigInts(this.proofInputs),
-      this.wasmPath,
-      this.zkeyPath,
-    );
+    try {
+      const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+        stringifyBigInts(this.proofInputs),
+        this.wasmPath,
+        this.zkeyPath,
+      );
 
-    this.publicInputs = publicSignals;
-    this.proof = proof;
+      this.publicInputs = publicSignals;
+      this.proof = proof;
+    } finally {
+      // @ts-ignore
+      if (globalThis.curve_bn128 !== null) {
+        // @ts-ignore
+        globalThis.curve_bn128.terminate();
+      }
+    }
   }
 
   async getVkey() {
@@ -168,7 +184,7 @@ export class Prover {
         proofC: [mydata.pi_c[0], mydata.pi_c[1]].flat(),
       };
     } catch (error) {
-      console.error("error while parsing the proof!");
+      console.error("Error while parsing the proof.", error.message);
       throw error;
     }
   }
@@ -188,7 +204,7 @@ export class Prover {
 
       return publicInputsBytes;
     } catch (error) {
-      console.error("error while parsing public inputs!");
+      console.error("Error while parsing public inputs.", error.message);
       throw error;
     }
   }
@@ -205,7 +221,9 @@ export class Prover {
     };
   }
 
-  parsePublicInputsFromArray(publicInputsBytes: number[][]): any {
+  parsePublicInputsFromArray(
+    publicInputsBytes: number[][],
+  ): ParsedPublicInputs<VerifierIdl, CircuitName> {
     type SizeObject = {
       [key: string]: number[];
     };
@@ -340,6 +358,6 @@ export class Prover {
 
     const result = spreadArrayToObject(publicInputsBytes, key_sizes);
 
-    return result;
+    return result as ParsedPublicInputs<VerifierIdl, CircuitName>;
   }
 }

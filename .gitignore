@@ -62,6 +62,8 @@
 # Third-party dependencies
 /.local
 /.idea
+/.vscode
+
 /light-zk.js/.idea
 /**/dump.rdb
 /tmp-test-psp

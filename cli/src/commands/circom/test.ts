@@ -5,17 +5,18 @@ import { executeCommand } from "../../psp-utils";
 import { PSP_DEFAULT_PROGRAM_ID } from "./init";
 
 export default class TestCommand extends Command {
-  static description = "Deploys your PSP on a local testnet and runs test";
+  static description =
+    "Deploys your circom-anchor on a local testnet and runs test";
 
   static args = {
     name: Args.string({
       name: "NAME",
-      description: "The name of the PSP project.",
+      description: "The name of the circom-anchor project.",
       required: true,
     }),
     address: Args.string({
       name: "ADDRESS",
-      description: "The address of the PSP.",
+      description: "The address of the Anchor program.",
       required: false,
       default: PSP_DEFAULT_PROGRAM_ID,
     }),
@@ -28,7 +29,7 @@ export default class TestCommand extends Command {
     const programName = toSnakeCase(name!);
     const path = `./target/deploy/${programName}.so`;
     await start_test_validator({
-      additonalPrograms: [{ address: address!, path }],
+      additonalPrograms: [{ address: address, path }],
     });
 
     await executeCommand({
