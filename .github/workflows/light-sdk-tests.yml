@@ -8,8 +8,8 @@ on:
     types:
       - opened
       - synchronize
-      - reopened
       - ready_for_review
+      - reopened
 
 name: light-sdk-tests
 
@@ -30,7 +30,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          enable_redis: 'true'
+          enable_redis: "true"
 
       - name: ${{ matrix.test.name }}
         run: |
