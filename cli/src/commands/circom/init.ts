@@ -1,16 +1,14 @@
-import { Args, Command } from "@oclif/core";
+import { Command, Args } from "@oclif/core";
+import { snakeCaseToCamelCase } from "../../psp-utils/utils";
 import { snakeCase } from "snake-case";
-import { downloadCargoGenerateIfNotExists } from "../../psp-utils/download";
 import { executeCommandInDir } from "../../psp-utils/process";
 import { executeCargoGenerate } from "../../psp-utils/toolchain";
-import * as path from "path";
-import { PSP_TEMPLATE_TAG } from "../../psp-utils/constants";
 
 export const PSP_DEFAULT_PROGRAM_ID =
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 
 export default class InitCommand extends Command {
-  static description = "Initialize a PSP project.";
+  static description = "Initialize circom-anchor project";
 
   static args = {
     name: Args.string({
@@ -24,17 +22,17 @@ export default class InitCommand extends Command {
     const { args } = await this.parse(InitCommand);
     let { name } = args;
 
-    this.log("🚀 Initializing PSP project...");
+    this.log("Initializing circom-anchor project...");
 
-    const circomName = snakeCase(name);
     const rustName = snakeCase(name);
+    const circomName = snakeCaseToCamelCase(rustName);
+    const programName = snakeCaseToCamelCase(rustName, true);
+
     await executeCargoGenerate({
       args: [
         "generate",
         "--git",
-        "https://github.com/Lightprotocol/psp-template",
-        "--tag",
-        PSP_TEMPLATE_TAG,
+        "https://github.com/Lightprotocol/circom-anchor-template.git",
         "--name",
         name,
         "--define",
@@ -43,8 +41,12 @@ export default class InitCommand extends Command {
         `rust-name=${rustName}`,
         "--define",
         `program-id=${PSP_DEFAULT_PROGRAM_ID}`,
+        "--define",
+        `anchor-program-name=${programName}`,
       ],
     });
+
+    this.log("Executing yarn install in dir ", name);
     await executeCommandInDir("yarn", ["install"], name);
 
     this.log("✅ Project initialized successfully");

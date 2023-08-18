@@ -1,0 +1,4 @@
+node_modules
+lib
+tests/circuits/build-circuits
+.vscode

@@ -113,12 +113,6 @@ export enum ProviderErrorCode {
   LOOK_UP_TABLE_NOT_INITIALIZED = "LOOK_UP_TABLE_NOT_INITIALIZED",
 }
 
-export enum VerifierErrorCode {
-  PUBLIC_INPUTS_UNDEFINED = "PUBLIC_INPUTS_UNDEFINED",
-  INVALID_INPUTS_NUMBER = "INVALID_INPUTS_NUMBER",
-  ENCRYPTING_UTXOS_UNDEFINED = "ENCRYPTING_UTXOS_UNDEFINED",
-}
-
 export enum SolMerkleTreeErrorCode {
   MERKLE_TREE_UNDEFINED = "MERKLE_TREE_UNDEFINED",
 }
@@ -227,8 +221,6 @@ export class TransactionParametersError extends MetaError {}
  * @description Thrown when something fails in the Utxo class.
  **/
 export class UtxoError extends MetaError {}
-
-export class VerifierError extends MetaError {}
 
 export class AccountError extends MetaError {}
 

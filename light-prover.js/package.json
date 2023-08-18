@@ -1,0 +1,35 @@
+{
+  "name": "@lightprotocol/prover.js",
+  "version": "0.1.0",
+  "description": "Circom generic prover sdk offering precompile errors for proofInputs as well as parsed publicInputs & proof for private solana programs",
+  "license": "GPL-3.0",
+  "main": "lib/index",
+  "typings": "lib/index",
+  "scripts": {
+    "test-prepare-circom": "./scripts/build_test_circuit.sh",
+    "test": "yarn test-prepare-circom && ts-mocha --timeout 500000 tests/*.test.ts",
+    "build": "yarn tsc",    
+    "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
+    "lint": "prettier \"src/**/*{ts,js}\" --check"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.28.0",
+    "circomlibjs": "^0.1.7",
+    "ffjavascript": "^0.2.60",
+    "snarkjs": "^0.7.0"
+  },
+  "devDependencies": {
+    "@solana/web3.js": "^1.78.4",
+    "@types/chai": "^4.3.5",
+    "@types/chai-as-promised": "^7.1.5",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.4.10",
+    "chai": "^4.3.7",
+    "chai-as-promised": "^7.1.1",
+    "mocha": "^10.2.0",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6",
+    "circomlib": "2.0.5"
+  }
+}

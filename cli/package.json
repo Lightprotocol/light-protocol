@@ -99,7 +99,12 @@
     "test-psp-test": "cd ../tmp-test-psp && ./../cli/test_bin/run psp:test tmp-test-psp Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS && cd ../cli",
     "clean-test-psp": "rm -r ../tmp-test-psp || true",
     "test-psp": "yarn test-psp-init && yarn test-psp-build && yarn test-psp-test",
-    "test": "yarn test-cli && yarn test-psp",
+    "test-circom-init": "cd .. && rm -r tmp-test-circom || true && ./cli/test_bin/run circom:init tmp-test-circom && cd cli",
+    "test-circom-build": "cd ../tmp-test-circom && ./../cli/test_bin/run circom:build tmp-test-circom && cd ../cli",
+    "test-circom-test": "cd ../tmp-test-circom && ./../cli/test_bin/run circom:test tmp-test-circom Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS && cd ../cli",    
+    "clean-test-circom": "rm -r ../tmp-test-circom || true",
+    "test-circom": "yarn test-circom-init && yarn test-circom-build && yarn test-circom-test",
+    "test": "yarn test-cli && yarn test-psp && yarn test-circom",
     "version": "oclif readme && git add README.md"
   },
   "engines": {
