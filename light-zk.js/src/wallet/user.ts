@@ -1508,7 +1508,7 @@ export class User {
     ) => {
       var decryptedStorageUtxos: Utxo[] = [];
       var spentUtxos: Utxo[] = [];
-      for (const data of indexedTransactions) {
+      const decryptPromises = indexedTransactions.map(async (data) => {
         let decryptedUtxo = null;
         var index = data.firstLeafIndex.toNumber();
         for (var [, leaf] of data.leaves.entries()) {
@@ -1527,7 +1527,6 @@ export class User {
               assetLookupTable,
             });
             if (decryptedUtxo !== null) {
-              // const nfExists = await checkNfInserted([{isSigner: false, isWritatble: false, pubkey: Transaction.getNullifierPdaPublicKey(data.nullifiers[leafIndex], TRANSACTION_MERKLE_TREE_KEY)}], this.provider.provider?.connection!)
               const nfExists = await fetchNullifierAccountInfo(
                 decryptedUtxo.getNullifier(this.provider.poseidon)!,
                 this.provider.provider?.connection!,
@@ -1548,7 +1547,9 @@ export class User {
             }
           }
         }
-      }
+      });
+
+      await Promise.all(decryptPromises);
       return { decryptedStorageUtxos, spentUtxos };
     };
 
