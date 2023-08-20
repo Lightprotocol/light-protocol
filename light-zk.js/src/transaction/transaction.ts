@@ -177,7 +177,7 @@ export class Transaction {
         throw new TransactionError(
           TransactionErrorCode.WALLET_RELAYER_INCONSISTENT,
           "constructor",
-          `Node or Browser wallet and senderFee used to instantiate yourself as relayer at deposit are inconsistent.`,
+          "The wallet used in your Node.js or Browser environment does not match the wallet used for the senderFee when setting up the relayer during the deposit process. They need to be the same.",
         );
       }
     }
