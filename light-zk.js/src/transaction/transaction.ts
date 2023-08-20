@@ -156,7 +156,7 @@ export class Transaction {
       throw new TransactionError(
         TransactionErrorCode.INVALID_VERIFIER_SELECTED,
         "constructor",
-        "For application transactions the verifier needs to be application enabled such as verifier two.",
+        "For application transactions, an application-enabled verifier (like verifier two) is required.",
       );
     this.provider = provider;
 
@@ -315,7 +315,7 @@ export class Transaction {
       throw new TransactionError(
         TransactionErrorCode.GET_MINT_FAILED,
         "getMint",
-        "Get mint failed, transaction parameters dont contain assetPubkeysCircuit but should after normal instantiation",
+        "Failed to retrieve mint. The transaction parameters should contain 'assetPubkeysCircuit' after initialization, but it's missing.",
       );
     }
   }
@@ -336,7 +336,7 @@ export class Transaction {
       throw new TransactionError(
         TransactionErrorCode.FIRST_PATH_APP_UNDEFINED,
         "getAppProof",
-        "app path is undefined it needs to be defined in appParams",
+        "The app path is not defined. Please ensure it is specified in 'appParams'.",
       );
 
     const res = await this.getProofInternal(
@@ -439,7 +439,7 @@ export class Transaction {
       throw new TransactionError(
         SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
         "getRootIndex",
-        "Merkle tree not defined in provider.solMerkleTree",
+        "The Merkle tree is not defined in the 'provider.solMerkleTree' object.",
       );
 
     if (this.provider.provider && this.provider.solMerkleTree.merkleTree) {
@@ -496,7 +496,7 @@ export class Transaction {
       }
     } else {
       console.log(
-        "provider not defined did not fetch rootIndex set root index to 0",
+        "Provider is not defined. Unable to fetch rootIndex. Setting root index to 0 as a default value.",
       );
       this.transactionInputs.rootIndex = BN_0;
     }
