@@ -48,16 +48,6 @@ export async function setUpMerkleTree(
 
   if (
     (await provider.connection.getAccountInfo(
-      MerkleTreeConfig.getEventMerkleTreePda(),
-    )) == null
-  ) {
-    await merkleTreeConfig.initializeNewEventMerkleTree();
-  } else {
-    console.log("was already executed: initializeNewEventMerkleTree");
-  }
-
-  if (
-    (await provider.connection.getAccountInfo(
       (
         await merkleTreeConfig.getPoolTypePda(POOL_TYPE)
       ).poolPda,

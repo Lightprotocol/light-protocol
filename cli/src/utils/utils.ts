@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as path from "path";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
 const spinner = require("cli-spinners");
@@ -213,12 +214,29 @@ export const setPayer = (key: string) => {
 };
 
 export const getConfig = (): Config => {
-  try {
-    const data = fs.readFileSync("config.json", "utf-8");
-    return JSON.parse(data);
-  } catch (error) {
-    throw new Error("Failed to read configuration file");
+  let pathsToCheck = [];
+  if (process.env.LIGHT_PROTOCOL_CONFIG_FILE) {
+    pathsToCheck.push(process.env.LIGHT_PROTOCOL_CONFIG_FILE);
   }
+  pathsToCheck.push(path.join(process.cwd(), "config.json"));
+  if (process.env.HOME) {
+    pathsToCheck.push(
+      path.join(process.env.HOME, ".config/lightprotocol/config.json")
+    );
+  }
+
+  for (const configPath of pathsToCheck) {
+    if (configPath && fs.existsSync(configPath)) {
+      try {
+        const data = fs.readFileSync(configPath, "utf-8");
+        return JSON.parse(data);
+      } catch (error) {
+        throw new Error(`Failed to read configuration file at ${configPath}`);
+      }
+    }
+  }
+
+  throw new Error("Configuration file not found in the specified paths");
 };
 
 export const setConfig = (config: Partial<Config>): void => {

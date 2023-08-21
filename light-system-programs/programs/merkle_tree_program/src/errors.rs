@@ -40,8 +40,8 @@ pub enum ErrorCode {
     InvalidVerifier,
     #[msg("PubkeyTryFromFailed")]
     PubkeyTryFromFailed,
-    #[msg("Expected old Merkle tree as a remaining account.")]
-    ExpectedOldMerkleTree,
+    #[msg("Expected old Merkle trees as a remaining accounts.")]
+    ExpectedOldMerkleTrees,
     #[msg("Invalid old Merkle tree account.")]
     InvalidOldMerkleTree,
     #[msg("Provided old Merkle tree is not the newest one.")]

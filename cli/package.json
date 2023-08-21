@@ -97,7 +97,7 @@
     "test-merkle-tree-authority": "mocha ./test/commands/merkle-tree-authority/index.test.ts --exit",
     "test-asset-pool": "mocha ./test/commands/asset-pool/index.test.ts --exit",
     "test-pool-type": "mocha ./test/commands/pool-type/index.test.ts --exit",
-    "test-transaction-merkle-tree": "mocha ./test/commands/transaction-merkle-tree/index.test.ts --exit",
+    "test-merkle-tree": "mocha ./test/commands/merkle-tree/index.test.ts --exit",
     "test-verifier": "mocha ./test/commands/verifier/index.test.ts --exit",
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-cli": "yarn test-account && yarn test-config && yarn test-airdrop && yarn test-shield && yarn test-shield:sol && yarn test-shield:spl && yarn test-unshield && yarn test-unshield:sol && yarn test-unshield:spl && yarn test-transfer && yarn test-merkle-tree-authority && yarn test-asset-pool && yarn test-pool-type && yarn test-transaction-merkle-tree && yarn test-verifier && yarn test-accept-utxos && yarn kill",
