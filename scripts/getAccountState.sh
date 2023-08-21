@@ -38,8 +38,19 @@ values=(
     "2mNCqdntwtm9cTLjgfdS85JTF92mgNerqA9TgGnxFzLt"
 )
 
+top_dir=`git rev-parse --show-toplevel`
+
+export LIGHT_PROTOCOL_CONFIG_FILE="${top_dir}/cli/config.json"
+
+./cli/test_bin/run test-validator -s
+
+./cli/test_bin/run merkle-tree-authority:initialize
+./cli/test_bin/run asset-pool:register-sol
+./cli/test_bin/run asset-pool:register-spl
+
 for i in "${!keys[@]}"; do
     key=${keys[$i]}
     value=${values[$i]}
     solana account $value --output-file "test-env/accounts/${key}.json" --output "json"
+    solana account $value --output-file "cli/accounts/${key}.json" --output "json"
 done

@@ -1,32 +1,9 @@
 use anchor_lang::prelude::*;
 
 use crate::transaction_merkle_tree::state::TransactionMerkleTree;
-use crate::utils::constants::{MERKLE_TREE_AUTHORITY_SEED, TRANSACTION_MERKLE_TREE_SEED};
 use crate::MerkleTreeAuthority;
 use anchor_lang::solana_program::{msg, pubkey::Pubkey};
 use std::cell::RefMut;
-
-#[derive(Accounts)]
-pub struct InitializeNewTransactionMerkleTree<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    /// CHECK: it should be unpacked internally
-    #[account(
-        init,
-        seeds = [
-            TRANSACTION_MERKLE_TREE_SEED,
-            merkle_tree_authority_pda.transaction_merkle_tree_index.to_le_bytes().as_ref(),
-        ],
-        bump,
-        payer = authority,
-        space = 8880 //10240 //1698
-    )]
-    pub new_transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
-    #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
-    pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
-}
 
 // keeps track of leaves which have been queued but not inserted into the merkle tree yet
 #[account]

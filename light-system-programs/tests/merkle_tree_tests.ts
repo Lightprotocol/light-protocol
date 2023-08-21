@@ -169,7 +169,6 @@ describe("Merkle Tree Tests", () => {
 
     // initing real mt authority
     await merkleTreeConfig.initMerkleTreeAuthority();
-    await merkleTreeConfig.initializeNewEventMerkleTree();
 
     let newAuthority = Keypair.generate();
     await provider.connection.confirmTransaction(
@@ -771,10 +770,7 @@ describe("Merkle Tree Tests", () => {
       merkleTreeProgram.programId,
     )[0];
     if ((await connection.getAccountInfo(different_merkle_tree)) == null) {
-      await merkleTreeConfig.initializeNewTransactionMerkleTree(
-        transactionMerkleTreePda,
-        different_merkle_tree,
-      );
+      await merkleTreeConfig.initializeNewMerkleTrees();
       console.log("created new merkle tree");
     }
 
@@ -1083,9 +1079,8 @@ describe("Merkle Tree Tests", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    const newMerkleTreePubkey = MerkleTreeConfig.getTransactionMerkleTreePda(
-      new anchor.BN(1),
-    );
+    const newTransactionMerkleTreePubkey =
+      MerkleTreeConfig.getTransactionMerkleTreePda(new anchor.BN(1));
 
     let txParams = new TransactionParameters({
       outputUtxos: [shieldUtxo],
@@ -1105,14 +1100,14 @@ describe("Merkle Tree Tests", () => {
     transaction.remainingAccounts!.nextTransactionMerkleTree = {
       isSigner: false,
       isWritable: true,
-      pubkey: newMerkleTreePubkey,
+      pubkey: newTransactionMerkleTreePubkey,
     };
 
     await transaction.compileAndProve();
     await transaction.sendAndConfirmTransaction();
 
     let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
-      newMerkleTreePubkey,
+      newTransactionMerkleTreePubkey,
     );
 
     executeUpdateMerkleTreeTransactions({
@@ -1120,7 +1115,7 @@ describe("Merkle Tree Tests", () => {
       signer: ADMIN_AUTH_KEYPAIR,
       merkleTreeProgram,
       leavesPdas,
-      transactionMerkleTree: newMerkleTreePubkey,
+      transactionMerkleTree: newTransactionMerkleTreePubkey,
     });
   });
 });
