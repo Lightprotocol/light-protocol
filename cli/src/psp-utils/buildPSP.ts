@@ -23,10 +23,7 @@ export async function buildPSP(
   });
   console.log("✅ Circom files generated successfully");
 
-  const circuitMainFileName = extractFilename({
-    file: stdout.toString().trim(),
-    suffix: "circom",
-  });
+  const circuitMainFileName = extractFilename(stdout.toString().trim());
 
   console.log("🛠️️  Building circuit", circuitMainFileName);
   if (!circuitMainFileName)

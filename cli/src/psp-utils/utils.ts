@@ -2,19 +2,12 @@ import * as fs from "fs";
 
 /**
  * Extracts the circuit filename from the input string using a regex pattern.
- * @param input - The string to extract the circuit filename from.
- * @returns {string | null} - The extracted circuit filename or null if not found.
+ * @param input - The string to extract the circuit filename from. Should be the stdout of the circom macro.
+ * Sample input: "sucessfully created main tmpTestPspMain.circom and tmp_test_psp.circom"
  */
-export function extractFilename({
-  file,
-  suffix,
-}: {
-  file: string;
-  suffix: string;
-}): string | null {
-  const regex = `/main\s+(\S+\.${suffix})/`;
-  const match = file.match(regex);
-
+export function extractFilename(input: string): string | null {
+  const regex = /main\s+(\S+\.circom)/;
+  const match = input.match(regex);
   return match ? match[1] : null;
 }
 
