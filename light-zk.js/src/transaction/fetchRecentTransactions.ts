@@ -64,7 +64,7 @@ export class TransactionIndexerEvent {
 
 /**
  * @async
- * @description This functions takes the IndexedTransaction and spentUtxos of user any return the filtered user indexed transactions
+ * @description This functions takes the IndexedTransaction and spentUtxos of user and returns the filtered user indexed transactions
  * @function getUserIndexTransactions
  * @param {IndexedTransaction[]} indexedTransactions - An array to which the processed transaction data will be pushed.
  * @param {Provider} provider - provider class

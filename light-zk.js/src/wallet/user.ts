@@ -6,7 +6,8 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
-const circomlibjs = require("circomlibjs");
+import { wrap } from "comlink";
+
 import {
   CreateUtxoErrorCode,
   UtxoErrorCode,
@@ -53,6 +54,41 @@ import {
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+const circomlibjs = require("circomlibjs");
+
+interface DecryptWorker {
+  decryptStorageIndices: (
+    accountState: string,
+    indexedTransactions: ParsedIndexedTransaction[],
+    assetLookupTable: string[],
+    verifierProgramLookupTable: string[],
+    url?: string,
+  ) => Promise<{ decryptedStorageUtxos: any; spentUtxos: any }>;
+  decryptUtxosInTransactions: (
+    indexedTransactions: ParsedIndexedTransaction[],
+    accountState: string,
+    balance: any,
+    merkleTreePdaPublicKey: string,
+    aes: boolean,
+    verifierProgramLookupTable: string[],
+    assetLookupTable: string[],
+    url?: string,
+  ) => Promise<any>;
+}
+
+var worker;
+var workerProxy: DecryptWorker;
+
+if (typeof window === "undefined") {
+  // Node.js environment
+  const { Worker } = require("worker_threads");
+  worker = new Worker("./decrypt-worker.ts");
+} else {
+  // Browser environment
+  const WorkerBrowser = require("worker-loader!./decrypt-worker");
+  worker = new WorkerBrowser();
+}
+workerProxy = wrap<DecryptWorker>(worker);
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -182,56 +218,15 @@ export class User {
 
     await this.provider.latestMerkleTree(indexedTransactions);
 
-    for (const trx of indexedTransactions) {
-      let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
-
-      for (let index = 0; index < trx.leaves.length; index += 2) {
-        const leafLeft = trx.leaves[index];
-        const leafRight = trx.leaves[index + 1];
-
-        // transaction nonce is the same for all utxos in one transaction
-        await decryptAddUtxoToBalance({
-          encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              0,
-              NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-            ),
-          ),
-          index: leftLeafIndex,
-          commitment: Buffer.from([...leafLeft]),
-          account: this.account,
-          poseidon: this.provider.poseidon,
-          connection: this.provider.provider.connection,
-          balance,
-          merkleTreePdaPublicKey,
-          leftLeaf: Uint8Array.from([...leafLeft]),
-          aes,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
-          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-        });
-        await decryptAddUtxoToBalance({
-          encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              120,
-              120 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-            ),
-          ),
-          index: leftLeafIndex + 1,
-          commitment: Buffer.from([...leafRight]),
-          account: this.account,
-          poseidon: this.provider.poseidon,
-          connection: this.provider.provider.connection,
-          balance,
-          merkleTreePdaPublicKey,
-          leftLeaf: Uint8Array.from([...leafLeft]),
-          aes,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
-          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-        });
-      }
-    }
+    const result = await workerProxy.decryptUtxosInTransactions(
+      indexedTransactions,
+      this.account.toJSON(),
+      this.balance,
+      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+      true,
+      this.provider.lookUpTables.verifierProgramLookupTable,
+      this.provider.lookUpTables.assetLookupTable,
+    );
 
     // caclulate total sol balance
     const calaculateTotalSolBalance = (balance: Balance) => {
@@ -1501,55 +1496,19 @@ export class User {
      * - aes: boolean = true
      * - decrypt storage verifier
      */
+
     const decryptIndexStorage = async (
       indexedTransactions: ParsedIndexedTransaction[],
       assetLookupTable: string[],
       verifierProgramLookupTable: string[],
     ) => {
-      var decryptedStorageUtxos: Utxo[] = [];
-      var spentUtxos: Utxo[] = [];
-      const decryptPromises = indexedTransactions.map(async (data) => {
-        let decryptedUtxo = null;
-        var index = data.firstLeafIndex.toNumber();
-        for (var [, leaf] of data.leaves.entries()) {
-          try {
-            decryptedUtxo = await Utxo.decrypt({
-              poseidon: this.provider.poseidon,
-              account: this.account,
-              encBytes: Uint8Array.from(data.message),
-              appDataIdl: idl,
-              aes: true,
-              index: index,
-              commitment: Uint8Array.from(leaf),
-              merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
-              compressed: false,
-              verifierProgramLookupTable,
-              assetLookupTable,
-            });
-            if (decryptedUtxo !== null) {
-              const nfExists = await fetchNullifierAccountInfo(
-                decryptedUtxo.getNullifier(this.provider.poseidon)!,
-                this.provider.provider?.connection!,
-              );
-              if (!nfExists) {
-                decryptedStorageUtxos.push(decryptedUtxo);
-              } else {
-                spentUtxos.push(decryptedUtxo);
-              }
-            }
-            index++;
-          } catch (e) {
-            if (
-              !(e instanceof UtxoError) ||
-              e.code !== "INVALID_APP_DATA_IDL"
-            ) {
-              throw e;
-            }
-          }
-        }
-      });
-
-      await Promise.all(decryptPromises);
+      const { decryptedStorageUtxos, spentUtxos } =
+        await workerProxy.decryptStorageIndices(
+          this.account.toJSON(),
+          indexedTransactions,
+          assetLookupTable,
+          verifierProgramLookupTable,
+        );
       return { decryptedStorageUtxos, spentUtxos };
     };
 
