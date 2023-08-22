@@ -33,8 +33,6 @@ import {
   Balance,
   InboxBalance,
   TokenUtxoBalance,
-  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  decryptAddUtxoToBalance,
   fetchNullifierAccountInfo,
   getUserIndexTransactions,
   UserIndexedTransaction,
@@ -45,12 +43,12 @@ import {
   AccountErrorCode,
   ProgramUtxoBalance,
   TOKEN_PUBKEY_SYMBOL,
-  UtxoError,
   IDL_VERIFIER_PROGRAM_TWO,
   isProgramVerifier,
   decimalConversion,
   ParsedIndexedTransaction,
   MerkleTreeConfig,
+  addDecryptedUtxosToBalance,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -67,12 +65,10 @@ interface DecryptWorker {
   decryptUtxosInTransactions: (
     indexedTransactions: ParsedIndexedTransaction[],
     accountState: string,
-    balance: any,
     merkleTreePdaPublicKey: string,
     aes: boolean,
     verifierProgramLookupTable: string[],
     assetLookupTable: string[],
-    url?: string,
   ) => Promise<any>;
 }
 
@@ -221,11 +217,17 @@ export class User {
     const result = await workerProxy.decryptUtxosInTransactions(
       indexedTransactions,
       this.account.toJSON(),
-      this.balance,
-      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
-      true,
+      merkleTreePdaPublicKey.toBase58(),
+      aes,
       this.provider.lookUpTables.verifierProgramLookupTable,
       this.provider.lookUpTables.assetLookupTable,
+    );
+
+    await addDecryptedUtxosToBalance(
+      result,
+      this.balance,
+      this.provider.connection!,
+      this.provider.poseidon,
     );
 
     // caclulate total sol balance
@@ -1552,9 +1554,9 @@ export class User {
     }
     for (var [, programBalance] of this.balance.programBalances) {
       for (var [, tokenBalance] of programBalance.tokenBalances) {
-        for (var [key, utxo] of tokenBalance.utxos) {
+        for (var [key, currentUtxo] of tokenBalance.utxos) {
           let nullifierAccountInfo = await fetchNullifierAccountInfo(
-            utxo.getNullifier(this.provider.poseidon)!,
+            currentUtxo.getNullifier(this.provider.poseidon)!,
             this.provider.provider!.connection,
           );
           if (nullifierAccountInfo !== null) {

@@ -172,93 +172,72 @@ export class ProgramBalance extends TokenUtxoBalance {
   }
 }
 
-export async function decryptAddUtxoToBalance({
-  account,
-  encBytes,
-  index,
-  commitment,
-  poseidon,
-  connection,
-  balance,
-  merkleTreePdaPublicKey,
-  leftLeaf,
-  aes,
-  verifierProgramLookupTable,
-  assetLookupTable,
-}: {
-  encBytes: Uint8Array;
-  index: number;
-  commitment: Uint8Array;
-  account: Account;
-  merkleTreePdaPublicKey: PublicKey;
-  poseidon: any;
-  connection: Connection;
-  balance: Balance;
+export type DecryptionResult = {
+  utxo: Utxo;
   leftLeaf: Uint8Array;
-  aes: boolean;
-  verifierProgramLookupTable: string[];
-  assetLookupTable: string[];
-}): Promise<void> {
-  let decryptedUtxo = await Utxo.decrypt({
-    poseidon,
-    encBytes: encBytes,
-    account: account,
-    index: index,
-    commitment,
-    aes,
-    merkleTreePdaPublicKey,
-    verifierProgramLookupTable,
-    assetLookupTable,
-  });
+};
 
-  // null if utxo did not decrypt -> return nothing and continue
-  if (!decryptedUtxo) return;
+export async function addDecryptedUtxosToBalance(
+  decryptionResults: DecryptionResult[],
+  balance: Balance,
+  connection: Connection,
+  poseidon: any,
+): Promise<void> {
+  for (const result of decryptionResults) {
+    let decryptedUtxo = result.utxo;
+    const nullifier = decryptedUtxo.getNullifier(poseidon);
+    if (!nullifier) continue;
 
-  const nullifier = decryptedUtxo.getNullifier(poseidon);
-  if (!nullifier) return;
+    const nullifierExists = await fetchNullifierAccountInfo(
+      nullifier,
+      connection,
+    );
+    const queuedLeavesPdaExists = await fetchQueuedLeavesAccountInfo(
+      result.leftLeaf,
+      connection,
+    );
 
-  const nullifierExists = await fetchNullifierAccountInfo(
-    nullifier,
-    connection,
-  );
-  const queuedLeavesPdaExists = await fetchQueuedLeavesAccountInfo(
-    leftLeaf,
-    connection,
-  );
+    const amountsValid =
+      decryptedUtxo.amounts[1].toString() !== "0" ||
+      decryptedUtxo.amounts[0].toString() !== "0";
+    const assetIndex = decryptedUtxo.amounts[1].toString() !== "0" ? 1 : 0;
 
-  const amountsValid =
-    decryptedUtxo.amounts[1].toString() !== "0" ||
-    decryptedUtxo.amounts[0].toString() !== "0";
-  const assetIndex = decryptedUtxo.amounts[1].toString() !== "0" ? 1 : 0;
-
-  // valid amounts and is not app utxo
-  if (
-    amountsValid &&
-    decryptedUtxo.verifierAddress.toBase58() === new PublicKey(0).toBase58() &&
-    decryptedUtxo.appDataHash.toString() === "0"
-  ) {
-    // TODO: add is native to utxo
-    // if !asset try to add asset and then push
+    // valid amounts and is not app utxo
     if (
-      assetIndex &&
-      !balance.tokenBalances.get(decryptedUtxo.assets[assetIndex].toBase58())
+      amountsValid &&
+      decryptedUtxo.verifierAddress.toBase58() ===
+        new PublicKey(0).toBase58() &&
+      decryptedUtxo.appDataHash.toString() === "0"
     ) {
-      // TODO: several maps or unify somehow
-      let tokenBalanceUsdc = new TokenUtxoBalance(TOKEN_REGISTRY.get("USDC")!);
-      balance.tokenBalances.set(
-        tokenBalanceUsdc.tokenData.mint.toBase58(),
-        tokenBalanceUsdc,
-      );
-    }
-    const assetKey = decryptedUtxo.assets[assetIndex].toBase58();
-    const utxoType = queuedLeavesPdaExists
-      ? "committedUtxos"
-      : nullifierExists
-      ? "spentUtxos"
-      : "utxos";
+      // TODO: add is native to utxo
+      // if !asset try to add asset and then push
+      if (
+        assetIndex &&
+        !balance.tokenBalances.get(decryptedUtxo.assets[assetIndex].toBase58())
+      ) {
+        // TODO: several maps or unify somehow
+        let tokenBalanceUsdc = new TokenUtxoBalance(
+          TOKEN_REGISTRY.get("USDC")!,
+        );
+        balance.tokenBalances.set(
+          tokenBalanceUsdc.tokenData.mint.toBase58(),
+          tokenBalanceUsdc,
+        );
+      }
+      const assetKey = decryptedUtxo.assets[assetIndex].toBase58();
+      const utxoType = queuedLeavesPdaExists
+        ? "committedUtxos"
+        : nullifierExists
+        ? "spentUtxos"
+        : "utxos";
 
-    balance.tokenBalances
-      .get(assetKey)
-      ?.addUtxo(decryptedUtxo.getCommitment(poseidon), decryptedUtxo, utxoType);
+      balance.tokenBalances
+        .get(assetKey)
+        ?.addUtxo(
+          decryptedUtxo.getCommitment(poseidon),
+          decryptedUtxo,
+          utxoType,
+        );
+    }
   }
 }

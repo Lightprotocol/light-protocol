@@ -7,4 +7,5 @@ export type TokenData = {
   isNft: boolean;
   isNative: boolean;
   mint: PublicKey;
+  
 };

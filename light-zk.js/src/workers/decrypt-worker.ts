@@ -1,12 +1,13 @@
+//@ts-check
 import { Utxo } from "../utxo";
 import { fetchNullifierAccountInfo } from "../utils";
 import { UtxoError } from "errors";
 import { MerkleTreeConfig } from "merkleTree";
 import {
   Account,
+  DecryptionResult,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   ParsedIndexedTransaction,
-  decryptAddUtxoToBalance,
 } from "index";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
@@ -27,6 +28,61 @@ function initCircomLib() {
       reject(error);
     }
   });
+}
+
+async function decryptUtxo({
+  account,
+  encBytes,
+  index,
+  commitment,
+  poseidon,
+  merkleTreePdaPublicKey,
+  aes,
+  verifierProgramLookupTable,
+  assetLookupTable,
+}: {
+  encBytes: Uint8Array;
+  index: number;
+  commitment: Uint8Array;
+  account: Account;
+  merkleTreePdaPublicKey: PublicKey;
+  poseidon: any;
+  aes: boolean;
+  verifierProgramLookupTable: string[];
+  assetLookupTable: string[];
+}): Promise<Utxo | null> {
+  let decryptedUtxo = await Utxo.decrypt({
+    poseidon,
+    encBytes: encBytes,
+    account: account,
+    index: index,
+    commitment,
+    aes,
+    merkleTreePdaPublicKey,
+    verifierProgramLookupTable,
+    assetLookupTable,
+  });
+
+  // null if utxo did not decrypt -> return nothing and continue
+  if (!decryptedUtxo) return null;
+
+  const nullifier = decryptedUtxo.getNullifier(poseidon);
+  if (!nullifier) return null;
+
+  const amountsValid =
+    decryptedUtxo.amounts[1].toString() !== "0" ||
+    decryptedUtxo.amounts[0].toString() !== "0";
+
+  // valid amounts and is not app utxo
+  if (
+    amountsValid &&
+    decryptedUtxo.verifierAddress.toBase58() === new PublicKey(0).toBase58() &&
+    decryptedUtxo.appDataHash.toString() === "0"
+  ) {
+    return decryptedUtxo;
+  }
+
+  return null;
 }
 
 // Init on file mount
@@ -93,19 +149,16 @@ const workerMethods = {
   async decryptUtxosInTransactions(
     indexedTransactions: ParsedIndexedTransaction[],
     accountState: string,
-    balance: any,
     merkleTreePdaPublicKey: string,
     aes: boolean,
     verifierProgramLookupTable: string[],
     assetLookupTable: string[],
-    url: string = "http://127.0.0.1:8899",
   ) {
-    let connection = new Connection(url, "confirmed");
-
     // Prevent race condition
     await initPromise;
-
     let account = Account.fromJSON(accountState, poseidon, eddsa);
+
+    let promises: Promise<any>[] = [];
 
     for (const trx of indexedTransactions) {
       let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
@@ -114,47 +167,55 @@ const workerMethods = {
         const leafLeft = trx.leaves[index];
         const leafRight = trx.leaves[index + 1];
 
-        await decryptAddUtxoToBalance({
-          encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              0,
-              NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+        promises.push(
+          decryptUtxo({
+            encBytes: Buffer.from(
+              trx.encryptedUtxos.slice(
+                0,
+                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              ),
             ),
-          ),
-          index: leftLeafIndex,
-          commitment: Buffer.from([...leafLeft]),
-          account,
-          poseidon,
-          connection,
-          balance,
-          merkleTreePdaPublicKey: new PublicKey(merkleTreePdaPublicKey),
-          leftLeaf: Uint8Array.from([...leafLeft]),
-          aes,
-          verifierProgramLookupTable: verifierProgramLookupTable,
-          assetLookupTable: assetLookupTable,
-        });
-        await decryptAddUtxoToBalance({
-          encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              120,
-              120 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+            index: leftLeafIndex,
+            commitment: Buffer.from([...leafLeft]),
+            account,
+            poseidon,
+
+            merkleTreePdaPublicKey: new PublicKey(merkleTreePdaPublicKey),
+            aes,
+            verifierProgramLookupTable: verifierProgramLookupTable,
+            assetLookupTable: assetLookupTable,
+          }).then((utxo) => ({
+            // We need to access leftLeaf when modifying the balance in the mainThread
+            // TODO: Instead, we could pass leafLeft as param and resolve directly to it.
+            utxo,
+            leftLeaf: Uint8Array.from([...leafLeft]),
+          })),
+          decryptUtxo({
+            encBytes: Buffer.from(
+              trx.encryptedUtxos.slice(
+                120,
+                120 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              ),
             ),
-          ),
-          index: leftLeafIndex + 1,
-          commitment: Buffer.from([...leafRight]),
-          account,
-          poseidon,
-          connection,
-          balance,
-          merkleTreePdaPublicKey: new PublicKey(merkleTreePdaPublicKey),
-          leftLeaf: Uint8Array.from([...leafLeft]),
-          aes,
-          verifierProgramLookupTable: verifierProgramLookupTable,
-          assetLookupTable: assetLookupTable,
-        });
+            index: leftLeafIndex + 1,
+            commitment: Buffer.from([...leafRight]),
+            account,
+            poseidon,
+            merkleTreePdaPublicKey: new PublicKey(merkleTreePdaPublicKey),
+            aes,
+            verifierProgramLookupTable: verifierProgramLookupTable,
+            assetLookupTable: assetLookupTable,
+          }).then((utxo) => ({
+            utxo,
+            leftLeaf: Uint8Array.from([...leafLeft]),
+          })),
+        );
       }
     }
-    return balance;
+    const decryptionResults: DecryptionResult[] = (
+      await Promise.all(promises)
+    ).filter((obj) => obj.utxo !== null);
+    return decryptionResults;
   },
 };
 
