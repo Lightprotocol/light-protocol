@@ -21,7 +21,7 @@ pub struct InitializeNewTransactionMerkleTree<'info> {
         payer = authority,
         space = 8880 //10240 //1698
     )]
-    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
+    pub new_transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
     #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
@@ -39,25 +39,25 @@ pub struct PreInsertedLeavesIndex {
 }
 
 pub fn process_initialize_new_merkle_tree_18(
-    merkle_tree_state_data: &mut RefMut<'_, TransactionMerkleTree>,
+    merkle_tree: &mut RefMut<'_, TransactionMerkleTree>,
+    merkle_tree_authority: &mut Account<'_, MerkleTreeAuthority>,
     height: u64,
     zero_bytes: Vec<[u8; 32]>,
-    mt_index: u64,
 ) {
-    merkle_tree_state_data.filled_subtrees[..usize::try_from(height).unwrap()]
+    merkle_tree.newest = 1;
+
+    merkle_tree.filled_subtrees[..usize::try_from(height).unwrap()]
         .copy_from_slice(&zero_bytes[..usize::try_from(height).unwrap()]);
 
-    merkle_tree_state_data.height = merkle_tree_state_data
-        .filled_subtrees
-        .len()
-        .try_into()
-        .unwrap();
-    merkle_tree_state_data.merkle_tree_nr = mt_index;
-    merkle_tree_state_data.roots[0] = zero_bytes[height as usize];
+    merkle_tree.height = merkle_tree.filled_subtrees.len().try_into().unwrap();
+    merkle_tree.merkle_tree_nr = merkle_tree_authority.transaction_merkle_tree_index;
+    merkle_tree.roots[0] = zero_bytes[height as usize];
     msg!(
         "merkle_tree_state_data.roots[0]: {:?}",
-        merkle_tree_state_data.roots[0]
+        merkle_tree.roots[0]
     );
+
+    merkle_tree_authority.transaction_merkle_tree_index += 1;
 }
 
 #[cfg(test)]

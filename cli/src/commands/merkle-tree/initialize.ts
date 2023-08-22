@@ -12,9 +12,14 @@ class InitializeCommand extends Command {
   static examples = ["light initialize -p <pubKey>"];
 
   static flags = {
-    pubKey: Flags.string({
-      char: "p",
-      description: "Solana public key of the Merkle Tree Authority.",
+    oldMerkleTreePubkey: Flags.string({
+      char: "o",
+      description: "Solana public key of the old Merkle Tree.",
+      required: true,
+    }),
+    newMerkleTreePubkey: Flags.string({
+      char: "n",
+      description: "Solana public key of the new Merkle Tree.",
       required: true,
     }),
     message: Flags.boolean({
@@ -36,9 +41,15 @@ class InitializeCommand extends Command {
 
   async run() {
     const { flags } = await this.parse(InitializeCommand);
-    const { pubKey, message, transaction } = flags;
+    const {
+      oldMerkleTreePubkeyString,
+      newMerkleTreePubkeyString,
+      message,
+      transaction,
+    } = flags;
 
-    const merkleTreeKey = new PublicKey(pubKey);
+    const oldMerkleTreePubkey = new PublicKey(oldMerkleTreePubkeyString);
+    const newMerkleTreePubkey = new PublicKey(newMerkleTreePubkeyString);
 
     const loader = new CustomLoader(`Initializing new Merkle Tree Account...`);
     loader.start();
@@ -46,22 +57,25 @@ class InitializeCommand extends Command {
     try {
       const { connection } = await setAnchorProvider();
 
-      const merkleTreeAccountInfo = await connection.getAccountInfo(
-        merkleTreeKey
+      const newMerkleTreeAccountInfo = await connection.getAccountInfo(
+        newMerkleTreePubkey
       );
 
-      if (!merkleTreeAccountInfo) {
+      if (!newMerkleTreeAccountInfo) {
         let merkleTreeConfig = await getWalletConfig(connection);
         try {
           if (transaction) {
-            merkleTreeConfig.initializeNewTransactionMerkleTree();
+            merkleTreeConfig.initializeNewTransactionMerkleTree(
+              oldMerkleTreePubkey,
+              newMerkleTreePubkey
+            );
             this.log("\nInitialized a new transaction Merkle Tree");
           } else if (message) {
             await merkleTreeConfig.initializeNewEventMerkleTree();
             this.log("\nInitialized a new message Merkle Tree");
           }
           this.log("\nMerkle Tree Account initialized successfully");
-          this.log(`\nMerkle Tree PubKey: ${merkleTreeKey}\n`);
+          this.log(`\nMerkle Tree PubKey: ${newMerkleTreePubkeyString}\n`);
         } catch (error) {
           this.error(`\nFailed to initialize Merkle Tree Account: ${error}`);
         }

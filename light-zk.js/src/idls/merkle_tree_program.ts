@@ -173,7 +173,7 @@ export type MerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "transactionMerkleTree",
+          "name": "newTransactionMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -235,6 +235,11 @@ export type MerkleTreeProgram = {
       "accounts": [
         {
           "name": "merkleTreeAuthorityPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "transactionMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -1265,6 +1270,19 @@ export type MerkleTreeProgram = {
           {
             "name": "nextQueuedIndex",
             "type": "u64"
+          },
+          {
+            "name": "newest",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
           }
         ]
       }
@@ -1497,6 +1515,21 @@ export type MerkleTreeProgram = {
       "code": 6018,
       "name": "PubkeyTryFromFailed",
       "msg": "PubkeyTryFromFailed"
+    },
+    {
+      "code": 6019,
+      "name": "ExpectedOldMerkleTree",
+      "msg": "Expected old Merkle tree as a remaining account."
+    },
+    {
+      "code": 6020,
+      "name": "InvalidOldMerkleTree",
+      "msg": "Invalid old Merkle tree account."
+    },
+    {
+      "code": 6021,
+      "name": "NotNewestOldMerkleTree",
+      "msg": "Provided old Merkle tree is not the newest one."
     }
   ]
 };
@@ -1676,7 +1709,7 @@ export const IDL: MerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "transactionMerkleTree",
+          "name": "newTransactionMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -1738,6 +1771,11 @@ export const IDL: MerkleTreeProgram = {
       "accounts": [
         {
           "name": "merkleTreeAuthorityPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "transactionMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -2768,6 +2806,19 @@ export const IDL: MerkleTreeProgram = {
           {
             "name": "nextQueuedIndex",
             "type": "u64"
+          },
+          {
+            "name": "newest",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
           }
         ]
       }
@@ -3000,6 +3051,21 @@ export const IDL: MerkleTreeProgram = {
       "code": 6018,
       "name": "PubkeyTryFromFailed",
       "msg": "PubkeyTryFromFailed"
+    },
+    {
+      "code": 6019,
+      "name": "ExpectedOldMerkleTree",
+      "msg": "Expected old Merkle tree as a remaining account."
+    },
+    {
+      "code": 6020,
+      "name": "InvalidOldMerkleTree",
+      "msg": "Invalid old Merkle tree account."
+    },
+    {
+      "code": 6021,
+      "name": "NotNewestOldMerkleTree",
+      "msg": "Provided old Merkle tree is not the newest one."
     }
   ]
 };

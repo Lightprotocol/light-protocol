@@ -34,8 +34,9 @@ use std::ops::Neg;
 
 use merkle_tree_program::{
     program::MerkleTreeProgram,
+    state::TransactionMerkleTree,
     utils::{
-        constants::{POOL_CONFIG_SEED, POOL_SEED},
+        constants::{POOL_CONFIG_SEED, POOL_SEED, TRANSACTION_MERKLE_TREE_SEED},
         create_pda::create_and_check_pda,
     },
 };
@@ -163,6 +164,7 @@ impl<
         self.fetch_root()?;
         self.fetch_mint()?;
         self.verify()?;
+        self.check_inputs()?;
         self.insert_leaves()?;
         self.insert_nullifiers()?;
         self.emit_indexer_transaction_event()?;
@@ -509,6 +511,44 @@ impl<
         }
     }
 
+    fn check_inputs(&self) -> Result<()> {
+        if T::NR_NULLIFIERS != self.input.nullifiers.len() {
+            msg!(
+                "NR_NULLIFIERS  {} != self.nullifiers.len() {}",
+                T::NR_NULLIFIERS,
+                self.input.nullifiers.len()
+            );
+            return err!(VerifierSdkError::InvalidNrNullifiers);
+        }
+
+        if T::NR_LEAVES / 2 != self.input.leaves.len() {
+            msg!(
+                "NR_LEAVES / 2:
+                {} != self.leaves.len(): {}",
+                T::NR_LEAVES / 2,
+                self.input.leaves.len()
+            );
+            return err!(VerifierSdkError::InvalidNrLeaves);
+        }
+
+        let nr_nullifiers_leaves = T::NR_NULLIFIERS + (T::NR_LEAVES / 2);
+        let remaining_accounts_len = self.input.accounts.unwrap().remaining_accounts.len();
+        if remaining_accounts_len != nr_nullifiers_leaves // Only nullifiers and leaves.
+            // Nullifiers, leaves and next transaction Merkle tree.
+            && remaining_accounts_len != nr_nullifiers_leaves + 1
+        {
+            msg!(
+                "remaining_accounts.len() {} (expected {} or {})",
+                remaining_accounts_len,
+                nr_nullifiers_leaves,
+                nr_nullifiers_leaves + 1
+            );
+            return err!(VerifierSdkError::InvalidNrRemainingAccounts);
+        }
+
+        Ok(())
+    }
+
     /// Calls the Merkle tree program via cpi to insert transaction leaves.
     pub fn insert_leaves(&mut self) -> Result<()> {
         if !self.verified_proof {
@@ -516,26 +556,22 @@ impl<
             return err!(VerifierSdkError::ProofNotVerified);
         }
 
-        if T::NR_NULLIFIERS != self.input.nullifiers.len() {
-            msg!(
-                "NR_NULLIFIERS  {} != self.nullifiers.len() {}",
-                T::NR_NULLIFIERS,
-                self.input.nullifiers.len()
-            );
-            return err!(VerifierSdkError::InvalidNrNullifieraccounts);
-        }
-
-        if T::NR_NULLIFIERS + (T::NR_LEAVES / 2)
-            != self.input.accounts.unwrap().remaining_accounts.len()
+        let transaction_merkle_tree_ix = T::NR_NULLIFIERS + self.input.leaves.len();
+        let transaction_merkle_tree = if self.input.accounts.unwrap().remaining_accounts.len()
+            == transaction_merkle_tree_ix + 1
         {
-            msg!(
-                "NR_LEAVES / 2
-                {} != self.leaves.len() {}",
-                T::NR_NULLIFIERS + (T::NR_LEAVES / 2),
-                self.input.leaves.len()
-            );
-            return err!(VerifierSdkError::InvalidNrLeavesaccounts);
-        }
+            let transaction_merkle_tree = self.input.accounts.unwrap().remaining_accounts
+                [transaction_merkle_tree_ix]
+                .to_account_info();
+            self.validate_transaction_merkle_tree(&transaction_merkle_tree)?;
+            transaction_merkle_tree
+        } else {
+            self.input
+                .accounts
+                .unwrap()
+                .transaction_merkle_tree
+                .to_account_info()
+        };
 
         // check merkle tree
         for (i, leaves) in self.input.leaves.iter().enumerate() {
@@ -557,12 +593,7 @@ impl<
                 &self.input.accounts.unwrap().authority.to_account_info(),
                 &self.input.accounts.unwrap().remaining_accounts[T::NR_NULLIFIERS + i]
                     .to_account_info(),
-                &self
-                    .input
-                    .accounts
-                    .unwrap()
-                    .transaction_merkle_tree
-                    .to_account_info(),
+                &transaction_merkle_tree,
                 &self
                     .input
                     .accounts
@@ -585,22 +616,33 @@ impl<
         Ok(())
     }
 
+    fn validate_transaction_merkle_tree(
+        &self,
+        transaction_merkle_tree: &AccountInfo,
+    ) -> Result<()> {
+        let transaction_merkle_tree: AccountLoader<TransactionMerkleTree> =
+            AccountLoader::try_from(transaction_merkle_tree)?;
+        let index = transaction_merkle_tree.load()?.merkle_tree_nr;
+        let (pubkey, _) = Pubkey::find_program_address(
+            &[TRANSACTION_MERKLE_TREE_SEED, index.to_le_bytes().as_ref()],
+            &MerkleTreeProgram::id(),
+        );
+        if transaction_merkle_tree.key() != pubkey {
+            msg!(
+                "Transaction Merkle tree address is invalid, expected: {}, got: {}",
+                pubkey,
+                transaction_merkle_tree.key()
+            );
+            return err!(VerifierSdkError::InvalidTransactionMerkleTreeAddress);
+        }
+        Ok(())
+    }
+
     /// Calls merkle tree via cpi to insert nullifiers.
     pub fn insert_nullifiers(&mut self) -> Result<()> {
         if !self.verified_proof {
             msg!("Tried to insert nullifiers without verifying the proof.");
             return err!(VerifierSdkError::ProofNotVerified);
-        }
-
-        if T::NR_NULLIFIERS + (T::NR_LEAVES / 2)
-            != self.input.accounts.unwrap().remaining_accounts.len()
-        {
-            msg!(
-                "NR_LEAVES / 2  {} != self.leaves.len() {}",
-                T::NR_LEAVES / 2,
-                self.input.leaves.len()
-            );
-            return err!(VerifierSdkError::InvalidNrLeavesaccounts);
         }
 
         insert_nullifiers_cpi(
