@@ -1,4 +1,5 @@
 import { execSync } from "child_process";
+import { camelToScreamingSnake } from "../utils";
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 var fs = require("fs");
@@ -60,7 +61,7 @@ async function getProofInputsFromSymFile(artifactPath: string) {
 
   let match;
   let keys = [];
-  const symText = fs.readFileSync(`${artifactPath}.sym`, "utf-8");
+  const symText = fs.readFileSync(`${artifactPath}Main.sym`, "utf-8");
   while ((match = regex.exec(symText)) !== null) {
     keys.push(match[1]);
     // const name = match[1];
@@ -82,7 +83,7 @@ async function getProofInputsFromSymFile(artifactPath: string) {
   });
 
   // Retrieve the number of outputs as well as the number of private and public inputs from the R1CS file
-  const r1cs = await snarkjs.r1cs.exportJson(`${artifactPath}.r1cs`);
+  const r1cs = await snarkjs.r1cs.exportJson(`${artifactPath}Main.r1cs`);
   const nOut = r1cs.nOutputs;
   const nPub = r1cs.nPubInputs;
   const nPrv = r1cs.nPrvInputs;
@@ -105,28 +106,42 @@ async function getProofInputsFromSymFile(artifactPath: string) {
 
 function createStringRsIdlAccountStruct(
   preparedInputs: PropertiesObject[],
-  circuitName: string
+  circuitName: string,
+  prefix: string = "ZK",
+  isInstructionData: boolean = false
 ) {
   function camelToSnakeCase(str: string) {
     return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
   }
 
-  function buildRustType(dimension: number, size: number[]): string {
+  function buildRustType(
+    dimension: number,
+    size: number[],
+    isInstructionData: boolean = false
+  ): string {
+    // the base type is a 254 bit bigint thus a 32 byte array
+    if (dimension === 0 && isInstructionData) {
+      return "[u8; 32]";
+    }
     if (dimension === 0) {
       return "u8";
     }
 
-    let rustType = buildRustType(dimension - 1, size.slice(1));
+    let rustType = buildRustType(
+      dimension - 1,
+      size.slice(1),
+      isInstructionData
+    );
     return `[${rustType};${size[0]}]`;
   }
 
   ///  MAIN FUNCTION START
   // parse the inputs output into a rust struct as a program account
-  let structDefinition = `\n#[account]\npub struct ZK${circuitName}Inputs {\n`;
+  let structDefinition = `\n#[account]\npub struct ${prefix}${circuitName} {\n`;
 
   preparedInputs.forEach((input) => {
     const { inputName, dimension, size } = input;
-    const rustType = buildRustType(dimension, size);
+    const rustType = buildRustType(dimension, size, isInstructionData);
     const inputName_snake = camelToSnakeCase(inputName);
     structDefinition += `    ${inputName_snake}: ${rustType},\n`;
   });
@@ -139,7 +154,8 @@ function createStringRsIdlAccountStruct(
 async function createVerifyingKeyRsFile(
   vKeyJsonPath: string,
   paths: string[],
-  appendingString: string
+  appendingString: string,
+  circuitName: string
 ) {
   await fs.readFile(
     vKeyJsonPath,
@@ -218,7 +234,11 @@ async function createVerifyingKeyRsFile(
       for (var path of paths) {
         let resFile = await fs.openSync(path, "w");
 
-        let s = `use groth16_solana::groth16::Groth16Verifyingkey;\nuse anchor_lang::prelude::*;\n\npub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {\n\tnr_pubinputs: ${mydata.IC.length},\n`;
+        let s = `use groth16_solana::groth16::Groth16Verifyingkey;\nuse anchor_lang::prelude::*;\n\npub const VERIFYINGKEY_${camelToScreamingSnake(
+          circuitName
+        )}: Groth16Verifyingkey = Groth16Verifyingkey {\n\tnr_pubinputs: ${
+          mydata.IC.length - 1
+        },\n`;
         s += "\tvk_alpha_g1: [\n";
         for (let j = 0; j < mydata.vk_alpha_1.length - 1; j++) {
           s += "\t\t" + Array.from(mydata.vk_alpha_1[j]) + ",\n";
@@ -342,15 +362,32 @@ export async function createVerifyingkeyRsFile(
   );
   let appendingStrings = createStringRsIdlAccountStruct(
     ProofInputs,
-    circuitName + "Proof"
+    circuitName + "ProofInputs",
+    "ZK",
+    false
   );
   appendingStrings += createStringRsIdlAccountStruct(
     PublicInputs,
-    circuitName + "Public"
+    circuitName + "PublicInputs",
+    "ZK",
+    false
+  );
+  let circuitNameUpperCamelCase =
+    circuitName.charAt(0).toUpperCase() + circuitName.slice(1);
+  appendingStrings += createStringRsIdlAccountStruct(
+    PublicInputs,
+    `InstructionDataLightInstruction${circuitNameUpperCamelCase}Second`,
+    "",
+    true
   );
 
   // Write verifying_key.rs file for the circuit
-  await createVerifyingKeyRsFile(vKeyJsonPath, paths, appendingStrings);
+  await createVerifyingKeyRsFile(
+    vKeyJsonPath,
+    paths,
+    appendingStrings,
+    circuitName
+  );
 }
 
 export function toCamelCase(input: string): string {

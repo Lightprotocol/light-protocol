@@ -16,7 +16,7 @@
     "@coral-xyz/anchor": "^0.28.0",
     "circomlibjs": "^0.1.7",
     "ffjavascript": "^0.2.60",
-    "snarkjs": "^0.7.0"
+    "snarkjs": "^0.5.0"
   },
   "devDependencies": {
     "@solana/web3.js": "^1.78.4",
