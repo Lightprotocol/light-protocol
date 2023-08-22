@@ -41,6 +41,7 @@ import {
   Provider,
   Action,
   TestRelayer,
+  executeUpdateMerkleTreeTransactions,
 } from "@lightprotocol/zk.js";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
@@ -168,7 +169,6 @@ describe("Merkle Tree Tests", () => {
     // initing real mt authority
     await merkleTreeConfig.initMerkleTreeAuthority();
     await merkleTreeConfig.initializeNewEventMerkleTree();
-    await merkleTreeConfig.initializeNewTransactionMerkleTree();
 
     let newAuthority = Keypair.generate();
     await provider.connection.confirmTransaction(
@@ -396,8 +396,10 @@ describe("Merkle Tree Tests", () => {
     console.log("register pool type ", error);
 
     assert.isTrue(
-      error.logs.includes(
-        "Program log: AnchorError thrown in programs/merkle_tree_program/src/lib.rs:185. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      error.logs.some((log) =>
+        log.includes(
+          "Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+        ),
       ),
     );
     error = undefined;
@@ -441,8 +443,10 @@ describe("Merkle Tree Tests", () => {
     console.log(error);
 
     assert.isTrue(
-      error.logs.includes(
-        "Program log: AnchorError thrown in programs/merkle_tree_program/src/lib.rs:239. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      error.logs.some((log) =>
+        log.includes(
+          "Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+        ),
       ),
     );
     error = undefined;
@@ -498,8 +502,10 @@ describe("Merkle Tree Tests", () => {
     console.log(" registerSplPool ", error);
 
     assert.isTrue(
-      error.logs.includes(
-        "Program log: AnchorError thrown in programs/merkle_tree_program/src/lib.rs:214. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      error.logs.some((log) =>
+        log.includes(
+          "Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+        ),
       ),
     );
     error = undefined;
@@ -765,6 +771,7 @@ describe("Merkle Tree Tests", () => {
     )[0];
     if ((await connection.getAccountInfo(different_merkle_tree)) == null) {
       await merkleTreeConfig.initializeNewTransactionMerkleTree(
+        transactionMerkleTreePda,
         different_merkle_tree,
       );
       console.log("created new merkle tree");
@@ -1053,5 +1060,70 @@ describe("Merkle Tree Tests", () => {
       error = e;
     }
     assert(error.error.errorCode.code == "LeafAlreadyInserted");
+  });
+
+  it("Switch to a new Merkle tree", async () => {
+    var shieldAmount = new anchor.BN(
+      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000),
+    );
+    var shieldFeeAmount = new anchor.BN(
+      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000),
+    );
+
+    let lightProvider = await Provider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+      confirmConfig,
+    });
+
+    let shieldUtxo = new Utxo({
+      poseidon: POSEIDON,
+      assets: [FEE_ASSET, MINT],
+      amounts: [shieldFeeAmount, shieldAmount],
+      account: KEYPAIR,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+
+    const newMerkleTreePubkey = MerkleTreeConfig.getTransactionMerkleTreePda(
+      new anchor.BN(1),
+    );
+
+    let txParams = new TransactionParameters({
+      outputUtxos: [shieldUtxo],
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      transactionMerkleTreePubkey:
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      senderSpl: userTokenAccount,
+      senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
+      action: Action.SHIELD,
+      poseidon: POSEIDON,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+    });
+    let transaction = new Transaction({
+      provider: lightProvider,
+      params: txParams,
+    });
+    transaction.remainingAccounts!.nextTransactionMerkleTree = {
+      isSigner: false,
+      isWritable: true,
+      pubkey: newMerkleTreePubkey,
+    };
+
+    await transaction.compileAndProve();
+    await transaction.sendAndConfirmTransaction();
+
+    let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
+      newMerkleTreePubkey,
+    );
+
+    executeUpdateMerkleTreeTransactions({
+      connection: provider.connection,
+      signer: ADMIN_AUTH_KEYPAIR,
+      merkleTreeProgram,
+      leavesPdas,
+      transactionMerkleTree: newMerkleTreePubkey,
+    });
   });
 });

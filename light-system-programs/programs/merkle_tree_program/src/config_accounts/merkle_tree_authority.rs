@@ -1,7 +1,7 @@
 use crate::config;
 use crate::errors::ErrorCode;
 use crate::transaction_merkle_tree::state::TransactionMerkleTree;
-use crate::utils::constants::MERKLE_TREE_AUTHORITY_SEED;
+use crate::utils::constants::{MERKLE_TREE_AUTHORITY_SEED, TRANSACTION_MERKLE_TREE_SEED};
 use anchor_lang::prelude::*;
 
 /// Configures the authority of the merkle tree which can:
@@ -31,6 +31,17 @@ pub struct InitializeMerkleTreeAuthority<'info> {
         space = 8 + 32 + 8 + 8 + 8 + 8
     )]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
+    #[account(
+        init,
+        seeds = [
+            TRANSACTION_MERKLE_TREE_SEED,
+            0u64.to_le_bytes().as_ref(),
+        ],
+        bump,
+        payer = authority,
+        space = 8880
+    )]
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK:` Signer is merkle tree init authority.
     #[account(mut, address=anchor_lang::prelude::Pubkey::try_from(config::INITIAL_MERKLE_TREE_AUTHORITY).map_err(|_| ErrorCode::PubkeyTryFromFailed)? @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,

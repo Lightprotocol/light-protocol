@@ -14,10 +14,14 @@ pub enum VerifierSdkError {
     TransactionIncomplete,
     #[msg("AppTransaction was not executed completely")]
     AppTransactionIncomplete,
-    #[msg("Invalid number of Nullifieraccounts")]
-    InvalidNrNullifieraccounts,
-    #[msg("Invalid number of Leavesaccounts")]
-    InvalidNrLeavesaccounts,
+    #[msg("Invalid number of nullifiers")]
+    InvalidNrNullifiers,
+    #[msg("Invalid number of leaves")]
+    InvalidNrLeaves,
+    #[msg("Invalid number of remaining accounts")]
+    InvalidNrRemainingAccounts,
+    #[msg("Invalid address of the new transaction Merkle tree")]
+    InvalidTransactionMerkleTreeAddress,
     #[msg("Invalid merkle tree root")]
     InvalidMerkleTreeRoot,
     #[msg("InconsistentMintProofSenderOrRecipient")]

@@ -193,3 +193,10 @@ export const TOKEN_PUBKEY_SYMBOL: Map<string, string> = new Map([
     "USDC",
   ],
 ]);
+
+/**
+ * Treshold after which the currently used transaction Merkle tree is switched
+ * to the next one. The limit of each merkle tree is 256k, but we want to have
+ * a margin.
+ */
+export const TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD = new anchor.BN(255_000);
