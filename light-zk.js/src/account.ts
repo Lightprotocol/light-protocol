@@ -337,46 +337,6 @@ export class Account {
     });
   }
 
-  static fromJSON(jsonString: string, poseidon: any, eddsa: any) {
-    let json: any = JSON.parse(jsonString);
-
-    let account = new Account({
-      poseidon: poseidon,
-      seed: json.seed,
-      burner: json.burner,
-      privateKey: new BN(json.privateKey),
-      publicKey: new BN(json.publicKey),
-      poseidonEddsaPrivateKey: new Uint8Array(json.poseidonEddsaPrivateKey),
-      eddsa: json.eddsa ? eddsa : undefined, // TODO: somewhat inefficiant since we always have to instantiate this with each call
-      encryptionPublicKey: new Uint8Array(json.encryptionPublicKey),
-      encryptionPrivateKey: new Uint8Array(json.encryptionPrivateKey),
-      aesSecret: json.aesSecret ? new Uint8Array(json.aesSecret) : undefined,
-    });
-
-    return account;
-  }
-
-  toJSON() {
-    let seed = bs58.encode(Buffer.from(Array.from(this.burnerSeed)));
-    let burner = this.burnerSeed.length > 0;
-    // TODO: create Error
-    if (!burner) throw new Error("Burner must be true, seed must be provided");
-    let obj = {
-      seed,
-      burner,
-      privateKey: this.privkey.toString(),
-      publicKey: this.pubkey.toString(),
-      poseidonEddsaPrivateKey: this.poseidonEddsaKeypair
-        ? Array.from(this.poseidonEddsaKeypair.privateKey)
-        : undefined,
-      encryptionPublicKey: Array.from(this.encryptionKeypair.publicKey),
-      encryptionPrivateKey: Array.from(this.encryptionKeypair.secretKey),
-      aesSecret: this.aesSecret ? Array.from(this.aesSecret) : undefined,
-      eddsa: this.eddsa ? true : false, // must create elseway
-    };
-    return JSON.stringify(obj);
-  }
-
   getPrivateKeys(): {
     privateKey: string;
     encryptionPrivateKey: string;
