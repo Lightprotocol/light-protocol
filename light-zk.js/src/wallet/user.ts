@@ -49,19 +49,13 @@ import {
   ParsedIndexedTransaction,
   MerkleTreeConfig,
   addDecryptedUtxosToBalance,
+  UtxoError,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const circomlibjs = require("circomlibjs");
 
 interface DecryptWorker {
-  decryptStorageIndices: (
-    accountState: string,
-    indexedTransactions: ParsedIndexedTransaction[],
-    assetLookupTable: string[],
-    verifierProgramLookupTable: string[],
-    url?: string,
-  ) => Promise<{ decryptedStorageUtxos: any; spentUtxos: any }>;
   decryptUtxosInTransactions: (
     indexedTransactions: ParsedIndexedTransaction[],
     accountState: string,
@@ -1498,19 +1492,53 @@ export class User {
      * - aes: boolean = true
      * - decrypt storage verifier
      */
-
     const decryptIndexStorage = async (
       indexedTransactions: ParsedIndexedTransaction[],
       assetLookupTable: string[],
       verifierProgramLookupTable: string[],
     ) => {
-      const { decryptedStorageUtxos, spentUtxos } =
-        await workerProxy.decryptStorageIndices(
-          this.account.toJSON(),
-          indexedTransactions,
-          assetLookupTable,
-          verifierProgramLookupTable,
-        );
+      var decryptedStorageUtxos: Utxo[] = [];
+      var spentUtxos: Utxo[] = [];
+      for (const data of indexedTransactions) {
+        let decryptedUtxo = null;
+        var index = data.firstLeafIndex.toNumber();
+        for (var [, leaf] of data.leaves.entries()) {
+          try {
+            decryptedUtxo = await Utxo.decrypt({
+              poseidon: this.provider.poseidon,
+              account: this.account,
+              encBytes: Uint8Array.from(data.message),
+              appDataIdl: idl,
+              aes: true,
+              index: index,
+              commitment: Uint8Array.from(leaf),
+              merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
+              compressed: false,
+              verifierProgramLookupTable,
+              assetLookupTable,
+            });
+            if (decryptedUtxo !== null) {
+              const nfExists = await fetchNullifierAccountInfo(
+                decryptedUtxo.getNullifier(this.provider.poseidon)!,
+                this.provider.provider?.connection!,
+              );
+              if (!nfExists) {
+                decryptedStorageUtxos.push(decryptedUtxo);
+              } else {
+                spentUtxos.push(decryptedUtxo);
+              }
+            }
+            index++;
+          } catch (e) {
+            if (
+              !(e instanceof UtxoError) ||
+              e.code !== "INVALID_APP_DATA_IDL"
+            ) {
+              throw e;
+            }
+          }
+        }
+      }
       return { decryptedStorageUtxos, spentUtxos };
     };
 

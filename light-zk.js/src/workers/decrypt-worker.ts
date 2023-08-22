@@ -1,15 +1,12 @@
 //@ts-check
 import { Utxo } from "../utxo";
-import { fetchNullifierAccountInfo } from "../utils";
-import { UtxoError } from "errors";
-import { MerkleTreeConfig } from "merkleTree";
 import {
   Account,
   DecryptionResult,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   ParsedIndexedTransaction,
 } from "index";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { expose, windowEndpoint } from "comlink/dist/esm/comlink";
 import nodeEndpoint from "comlink/dist/esm/node-adapter";
@@ -89,63 +86,6 @@ async function decryptUtxo({
 initPromise = initCircomLib();
 
 const workerMethods = {
-  async decryptStorageIndices(
-    accountState: string,
-    indexedTransactions: ParsedIndexedTransaction[],
-    assetLookupTable: string[],
-    verifierProgramLookupTable: string[],
-    url: string = "http://127.0.0.1:8899",
-  ): Promise<{ decryptedStorageUtxos: any; spentUtxos: any }> {
-    let connection = new Connection(url, "confirmed");
-
-    // Prevent race condition
-    await initPromise;
-
-    var decryptedStorageUtxos: Utxo[] = [];
-    var spentUtxos: Utxo[] = [];
-
-    const account = Account.fromJSON(accountState, poseidon, eddsa);
-
-    for (const data of indexedTransactions) {
-      let decryptedUtxo = null;
-      var index = data.firstLeafIndex.toNumber();
-      for (var [, leaf] of data.leaves.entries()) {
-        try {
-          decryptedUtxo = await Utxo.decrypt({
-            poseidon,
-            account,
-            encBytes: Uint8Array.from(data.message),
-            // appDataIdl: idl,
-            aes: true,
-            index: index,
-            commitment: Uint8Array.from(leaf),
-            merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
-            compressed: false,
-            verifierProgramLookupTable,
-            assetLookupTable,
-          });
-          if (decryptedUtxo !== null) {
-            const nfExists = await fetchNullifierAccountInfo(
-              decryptedUtxo.getNullifier(poseidon)!,
-              connection,
-            );
-            if (!nfExists) {
-              decryptedStorageUtxos.push(decryptedUtxo);
-            } else {
-              spentUtxos.push(decryptedUtxo);
-            }
-          }
-          index++;
-        } catch (e) {
-          if (!(e instanceof UtxoError) || e.code !== "INVALID_APP_DATA_IDL") {
-            throw e;
-          }
-        }
-      }
-    }
-    return { decryptedStorageUtxos, spentUtxos };
-  },
-
   async decryptUtxosInTransactions(
     indexedTransactions: ParsedIndexedTransaction[],
     accountState: string,
