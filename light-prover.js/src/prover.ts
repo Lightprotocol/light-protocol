@@ -115,22 +115,14 @@ export class Prover<
   }
 
   async fullProve() {
-    try {
-      const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-        stringifyBigInts(this.proofInputs),
-        this.wasmPath,
-        this.zkeyPath,
-      );
+    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+      stringifyBigInts(this.proofInputs),
+      this.wasmPath,
+      this.zkeyPath,
+    );
 
-      this.publicInputs = publicSignals;
-      this.proof = proof;
-    } finally {
-      // @ts-ignore
-      if (globalThis.curve_bn128 !== null) {
-        // @ts-ignore
-        globalThis.curve_bn128.terminate();
-      }
-    }
+    this.publicInputs = publicSignals;
+    this.proof = proof;
   }
 
   async getVkey() {

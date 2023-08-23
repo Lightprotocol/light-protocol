@@ -372,10 +372,13 @@ export class Transaction {
       );
     let prover = new Prover(params.verifierIdl, firstPath);
     await prover.addProofInputs(this.proofInput);
-    console.time("Proof generation + Parsing");
+    const prefix = `\x1b[37m[${new Date(Date.now()).toISOString()}]\x1b[0m`;
+    console.time(`${prefix} Proving ${params.verifierIdl.name} circuit`);
+    let parsedProof, parsedPublicInputs;
     try {
-      var { parsedProof, parsedPublicInputs } =
-        await prover.fullProveAndParse();
+      const result = await prover.fullProveAndParse();
+      parsedProof = result.parsedProof;
+      parsedPublicInputs = result.parsedPublicInputs;
     } catch (error) {
       throw new TransactionError(
         TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -383,8 +386,7 @@ export class Transaction {
         error,
       );
     }
-    console.timeEnd("Proof generation + Parsing");
-
+    console.timeEnd(`${prefix} Proving ${params.verifierIdl.name} circuit`);
     const res = await prover.verify();
     if (res !== true) {
       throw new TransactionError(
