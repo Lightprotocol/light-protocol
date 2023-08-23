@@ -45,4 +45,12 @@ describe("Prover Functionality Tests", () => {
     expect(await prover.fullProveAndParse()).to.Throw();
     console.timeEnd("Proof generation + Parsing");
   });
+
+  after(async () => {
+    // @ts-ignore
+    if (globalThis.curve_bn128 !== null) {
+      // @ts-ignore
+      globalThis.curve_bn128.terminate();
+    }
+  });
 });
