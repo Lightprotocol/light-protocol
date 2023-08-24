@@ -224,20 +224,21 @@ async function enrichParsedTransactionEvents(
   // 2: programMerkleTree
   // 3: transactionMerkleTree
   // 4: authority
-  // 5: tokenProgram
-  // 6: senderSpl
-  // 7: recipientSpl
-  // 8: senderSol
-  // 9: recipientSol
-  // 10: relayerRecipientSol
-  // 11: tokenAuthority
+  // 5: relayerRecipientSol
+  // 6: senderSol
+  // 7: recipientSol
+  // 8: tokenProgram
+  // 9: tokenAuthority
+  // 10: senderSpl
+  // 11: recipientSpl
   // 12: registeredVerifierPda
   // 13: logWrapper
-  let fromSpl = accountKeys[6];
-  let toSpl = accountKeys[7];
-  let from = accountKeys[8];
-  let to = accountKeys[9];
-  let relayerRecipientSol = accountKeys[10];
+  // 14: eventMerkleTree
+  let relayerRecipientSol = accountKeys[5];
+  let from = accountKeys[6];
+  let to = accountKeys[7];
+  let fromSpl = accountKeys[10];
+  let toSpl = accountKeys[11];
 
   const nullifiers = event.nullifiers;
 

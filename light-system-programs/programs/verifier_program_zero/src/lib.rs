@@ -9,14 +9,11 @@ solana_security_txt::security_txt! {
 
 pub mod processor;
 pub mod verifying_key;
+use light_macros::light_verifier_accounts;
 pub use processor::*;
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::Token;
-use merkle_tree_program::{
-    program::MerkleTreeProgram, transaction_merkle_tree::state::TransactionMerkleTree,
-    utils::constants::TOKEN_AUTHORITY_SEED, EventMerkleTree, RegisteredVerifier,
-};
+use merkle_tree_program::program::MerkleTreeProgram;
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
@@ -70,45 +67,9 @@ pub mod verifier_program_zero {
     }
 }
 
+#[light_verifier_accounts(sol, spl)]
 #[derive(Accounts)]
-pub struct LightInstruction<'info> {
-    #[account(mut)]
-    pub signing_address: Signer<'info>,
-    pub system_program: Program<'info, System>,
-    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    /// CHECK: Is the same as in integrity hash.
-    #[account(mut)]
-    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
-    /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
-    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
-    pub authority: UncheckedAccount<'info>,
-    pub token_program: Program<'info, Token>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub sender_spl: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub recipient_spl: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub sender_sol: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub recipient_sol: UncheckedAccount<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
-    #[account(mut)]
-    pub relayer_recipient_sol: UncheckedAccount<'info>,
-    /// CHECK:` Is checked when it is used during spl withdrawals.
-    #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
-    pub token_authority: AccountInfo<'info>,
-    /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
-    #[account(mut, seeds= [__program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
-    /// CHECK:` It get checked inside the event_call
-    pub log_wrapper: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
-}
+pub struct LightInstruction<'info> {}
 
 #[derive(Debug)]
 #[account]
