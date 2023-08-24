@@ -68,5 +68,6 @@
 /light-zk.js/.idea
 /**/dump.rdb
 /tmp-test-psp
+/tmp-test-circom
 
 /**/package-lock.json

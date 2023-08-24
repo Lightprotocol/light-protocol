@@ -20,7 +20,6 @@ export default class BuildCommand extends Command {
     let { name } = args;
 
     this.log("Building circom-anchor project...");
-    console.log("name ", name);
     await buildPSP({...flags, programName: name!, circom: true });
   }
 }

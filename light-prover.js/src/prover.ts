@@ -78,6 +78,7 @@ export class Prover<
   static removeSuffix(str: string, suffix: string): string {
     return str.replace(new RegExp(suffix + "$"), "");
   }
+
   async addProofInputs(proofInputs: any) {
     // Filter accounts that contain zK and either PublicInputs or ProofInputs
 

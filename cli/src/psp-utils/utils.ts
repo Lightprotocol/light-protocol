@@ -11,31 +11,6 @@ export function extractFilename(input: string): string | null {
   return match ? match[1] : null;
 }
 
-/**
- * Searches for a file with the @param extension in a specified directory.
- * Throws an error if more than one such file or no such file is found.
- * @param directory - The directory to search for the .light file.
- * @returns {string} - The name of the .light file found in the directory.
- */
-// export function findFile({
-//   directory,
-//   extension,
-// }: {
-//   directory: string;
-//   extension: string;
-// }): string {
-//   const files = fs.readdirSync(directory);
-//   const lightFiles = files.filter((file) => file.endsWith(`.${extension}`));
-
-//   if (lightFiles.length > 1) {
-//     throw new Error(`More than one .${extension} file found in the directory.`);
-//   } else if (lightFiles.length === 1) {
-//     return lightFiles[0];
-//   } else {
-//     throw new Error(`No .${extension} files found in the directory.`);
-//   }
-// }
-
 import path from "path";
 
 /**
@@ -50,17 +25,17 @@ export function findFile({
 }: {
   directory: string;
   extension: string;
-}): { filename: string; fullPath: string } {
+}): { filename: string; fullPath: string; light?: boolean; }[] {
   return recursiveSearch(directory, extension);
 }
 
 function recursiveSearch(
   directory: string,
   extension: string
-): { filename: string; fullPath: string } {
+): { filename: string; fullPath: string; light?: boolean;  }[] {
   const entries = fs.readdirSync(directory);
-  const matchingFiles: { filename: string; fullPath: string }[] = [];
-
+  const matchingFiles: { filename: string; fullPath: string; light?: boolean; }[] = [];
+  let lightFilesCount = 0;
   for (const entry of entries) {
     const fullPath = path.join(directory, entry);
     const stats = fs.statSync(fullPath);
@@ -68,22 +43,19 @@ function recursiveSearch(
     if (stats.isDirectory()) {
       try {
         const fileFound = recursiveSearch(fullPath, extension);
-        if (fileFound) matchingFiles.push(fileFound);
+        if (fileFound) fileFound.map(value => matchingFiles.push(value));
       } catch (e) {
         // You can either handle the error here or propagate it, depending on your use case
       }
+    } else if (stats.isFile() && entry.endsWith('.light')) {
+      lightFilesCount++;
     } else if (stats.isFile() && entry.endsWith(`${extension}`)) {
       matchingFiles.push({ filename: entry, fullPath });
     }
   }
-
-  if (matchingFiles.length > 1) {
-    throw new Error(`More than one .${extension} file found.`);
-  } else if (matchingFiles.length === 1) {
-    return matchingFiles[0];
-  } else {
-    throw new Error(`No .${extension} files found.`);
-  }
+  if(lightFilesCount > 1)
+    matchingFiles.map((value) => {return {...value,light: true} })
+  return matchingFiles;
 }
 
 export function toSnakeCase(str: string): string {

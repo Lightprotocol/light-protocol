@@ -1,8 +1,5 @@
 import { Args, Command } from "@oclif/core";
-import { addCircuit } from "../psp/add-circuit";
-
-export const PSP_DEFAULT_PROGRAM_ID =
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
+import { addCircuit } from "../../psp-utils/addCircuit";
 
 export default class InitCommand extends Command {
   static description =

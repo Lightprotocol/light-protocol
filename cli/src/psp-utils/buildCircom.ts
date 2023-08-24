@@ -57,7 +57,7 @@ export async function generateCircuit({
       "--r1cs",
       "--wasm",
       "--sym",
-      `${circuitPath}/${programName}/${circuitName}Main.circom`,
+      `${circuitPath}/${camelToKebab(circuitName)}/${circuitName}Main.circom`,
       "-o",
       `${sdkBuildCircuitDir}/`,
     ],
@@ -152,4 +152,9 @@ export async function generateCircuit({
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}_tmp.zkey`));
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}Main.r1cs`));
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}Main.sym`));
+}
+function camelToKebab(str: string): string {
+  return str
+    .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2')  // Match camelCasing and insert "-"
+    .toLowerCase();  // Convert the entire string to lowercase
 }
