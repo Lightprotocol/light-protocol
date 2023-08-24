@@ -1,16 +1,11 @@
-import { Args, Command, Flags } from "@oclif/core";
-import { buildCircom } from "../../psp-utils/buildCircom";
+import { Args, Command } from "@oclif/core";
+import { buildFlags, buildPSP } from "../../psp-utils";
 
 export default class BuildCommand extends Command {
   static description = "Build circom-anchor project";
 
   static flags = {
-    name: Flags.string({ description: "Name of the circom-anchor project." }),
-    ptau: Flags.integer({ description: "Ptau value.", default: 15 }),
-    circuitDir: Flags.string({
-      description: "Directory of the circuit.",
-      default: "circuit",
-    }),
+    ...buildFlags,
     // TODO: pass along anchor build options // execsync thingy alt.
   };
   static args = {
@@ -22,10 +17,10 @@ export default class BuildCommand extends Command {
   };
   async run() {
     const { flags, args } = await this.parse(BuildCommand);
-    let { ptau, circuitDir } = flags;
     let { name } = args;
 
     this.log("Building circom-anchor project...");
-    await buildCircom(circuitDir, ptau, name!);
+    console.log("name ", name);
+    await buildPSP({...flags, programName: name!, circom: true });
   }
 }

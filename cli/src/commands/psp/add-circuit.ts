@@ -1,18 +1,10 @@
-import { Args, Command } from "@oclif/core";
+import { Args, Command, Flags } from "@oclif/core";
 import { snakeCase } from "snake-case";
-import { downloadCargoGenerateIfNotExists } from "../../psp-utils/download";
-import { executeCommandInDir } from "../../psp-utils/process";
 import { executeCargoGenerate } from "../../psp-utils/toolchain";
 import * as path from "path";
 import { PSP_TEMPLATE_TAG } from "../../psp-utils/constants";
 import { camelToScreamingSnake } from "../../utils";
-import { renameFolder } from "../../psp-utils/utils";
 import { toCamelCase } from "../../psp-utils";
-
-export enum ProjectType {
-  PSP = "psp",
-  CIRCOM = "circom",
-}
 
 export const PSP_DEFAULT_PROGRAM_ID =
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
@@ -27,21 +19,38 @@ export default class InitCommand extends Command {
       required: true,
     }),
   };
+  static flags = {
+    circom: Flags.boolean({
+      description:
+        "Whether the main circuit is a circom circuit not a .light file.",
+      default: false,
+      required: false,
+    }),
+  };
 
   async run() {
-    const { args } = await this.parse(InitCommand);
+    const { flags, args } = await this.parse(InitCommand);
     let { name } = args;
 
     this.log("🚀 Initializing PSP project...");
-    await initRepo(name, ProjectType.PSP);
 
+    addCircuit({ name, ...flags });
     this.log("✅ Project initialized successfully");
   }
 }
 
-export const initRepo = async (name: string, type: ProjectType) => {
+export const addCircuit = async ({
+  name,
+  circom,
+}: {
+  name: string;
+  circom?: boolean;
+}) => {
   var circomName = snakeCase(name);
   var rustName = snakeCase(name);
+  let circuit_template = circom
+    ? "psp-template/circuits/circuit_circom"
+    : "psp-template/circuits/circuit_psp";
 
   await executeCargoGenerate({
     args: [
@@ -52,7 +61,7 @@ export const initRepo = async (name: string, type: ProjectType) => {
       // PSP_TEMPLATE_TAG,
       "--path",
       "/home/ananas/test_light/psp-template",
-      "psp-template",
+      circuit_template,
       "--name",
       name,
       "--define",
@@ -64,24 +73,12 @@ export const initRepo = async (name: string, type: ProjectType) => {
       "--define",
       `VERIFYING_KEY_NAME=${camelToScreamingSnake(circomName)}`,
       "--define",
-      `type=${type}`,
-      "--define",
       `circom-name-camel-case=${toCamelCase(circomName)}`,
+      "--vcs",
+      "none",
+      "--destination",
+      `${process.cwd()}/circuits`,
+      "--force",
     ],
   });
-
-  await renameFolder(
-    `${process.cwd()}/${name}/circuits/circuit_${type}`,
-    `${process.cwd()}/${name}/circuits/${name}`
-  );
-  await renameFolder(
-    `${process.cwd()}/${name}/tests_${type}`,
-    `${process.cwd()}/${name}/tests`
-  );
-  await renameFolder(
-    `${process.cwd()}/${name}/programs_${type}`,
-    `${process.cwd()}/${name}/programs`
-  );
-
-  await executeCommandInDir("yarn", ["install"], name);
 };

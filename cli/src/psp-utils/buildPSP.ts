@@ -1,6 +1,7 @@
 import { executeAnchor, executeMacroCircom } from "./toolchain";
 import { extractFilename, findFile } from "./utils";
 import { generateCircuit } from "./buildCircom";
+import { Flags } from "@oclif/core";
 
 /**
  * Generates a zk-SNARK circuit given a circuit name.
@@ -153,7 +154,8 @@ export async function buildPSP({
   onlyCircuit,
   skipCircuit,
   skipMacroCircom,
-  addCircuitName,
+  addCircuitName = [],
+  circom,
 }: {
   circuitDir: string;
   ptau: number;
@@ -162,17 +164,22 @@ export async function buildPSP({
   skipCircuit?: boolean;
   skipMacroCircom?: boolean;
   addCircuitName?: string[];
+  circom: boolean;
 }) {
   if (!skipCircuit) {
+    let extension = circom ? "Main.circom" : ".light";
+    skipMacroCircom = circom ? true : skipMacroCircom;
+    const suffix = "Main.circom";
+    let { filename, fullPath } = findFile({
+      directory: circuitDir,
+      extension,
+    });
+    let circuitFileName = filename;
+    const circuitPath = fullPath;
     if (!skipMacroCircom) {
-      let circuitFileName = findFile({
-        directory: circuitDir,
-        extension: "light",
-      });
-
       console.log("📜 Generating circom files");
       let stdout = await executeMacroCircom({
-        args: [`./${circuitDir}/${circuitFileName}`, programName],
+        args: [circuitPath, programName],
       });
       console.log("✅ Circom files generated successfully");
       const circuitMainFileName = extractFilename(stdout.toString().trim());
@@ -180,36 +187,79 @@ export async function buildPSP({
       if (!circuitMainFileName)
         throw new Error("Could not extract circuit main file name");
 
-      const suffix = ".circom";
+      addCircuitName.push(circuitMainFileName.slice(0, -suffix.length));
 
-      console.log("🔑 Generating circuit");
+      // console.log("🔑 Generating circuit");
+      // await generateCircuit({
+      //   circuitName: circuitMainFileName.slice(0, -suffix.length),
+      //   ptau,
+      //   programName,
+      //   // circuitPath: "./circuit"
+      // });
+    } else {
+      console.log("circuitFileName ", circuitFileName);
+      addCircuitName.push(circuitFileName.slice(0, -suffix.length));
+    }
+  }
+
+  // TODO: enable multiple programs
+  // TODO: add add-psp command which adds a second psp
+  // TODO: add add-circom-circuit command which inits a new circom circuit of name circuitName
+  // TODO: add add-circuit command which inits a new .light file of name circuitName
+  if (addCircuitName.length > 0) {
+    for (let circuitName of addCircuitName) {
+      console.log("🔑 Generating circuit ", addCircuitName);
       await generateCircuit({
-        circuitName: circuitMainFileName.slice(0, -suffix.length),
+        circuitName,
         ptau,
         programName,
       });
-      console.log("✅ Circuit generated successfully");
+      console.log(`✅ Circuit ${circuitName} generated successfully`);
     }
-
-    // TODO: enable multiple programs
-    // TODO: add add-psp command which adds a second psp
-    // TODO: add add-circom-circuit command which inits a new circom circuit of name circuitName
-    // TODO: add add-circuit command which inits a new .light file of name circuitName
-    if (addCircuitName) {
-      for (let circuitName of addCircuitName) {
-        console.log("🔑 Generating circuit ", addCircuitName);
-        // TODO: add circuit name to verifying key.rs file
-        await generateCircuit({
-          circuitName,
-          ptau,
-          programName,
-        });
-      }
-    }
-
-    if (onlyCircuit) return;
   }
+  if (onlyCircuit) return;
   console.log("🛠  Building on-chain program");
   await executeAnchor({ args: ["build"] });
   console.log("✅ Build finished successfully");
 }
+
+export function isCamelCase(str: string): boolean {
+  return /^[a-z]+([A-Z][a-z0-9]*)*$/.test(str);
+}
+
+export const buildFlags = {
+  name: Flags.string({ description: "Name of the project." }),
+  ptau: Flags.integer({ description: "Ptau value.", default: 15 }),
+  circuitDir: Flags.string({
+    description: "Directory of the circuit.",
+    default: "circuits",
+  }),
+  onlyCircuit: Flags.boolean({
+    description: "Directory of the circuit.",
+    default: false,
+    required: false,
+  }),
+  skipCircuit: Flags.boolean({
+    description: "Directory of the circuit.",
+    default: false,
+    required: false,
+  }),
+  skipMacroCircom: Flags.boolean({
+    description: "Directory of the circuit.",
+    default: false,
+    required: false,
+  }),
+  addCircuitName: Flags.string({
+    description:
+      "Name of circuit main file, the name has to be camel case and include the suffix Main.",
+    required: false,
+    parse: async (circuitName: string) => {
+      if (!isCamelCase(circuitName))
+        throw new Error(
+          `Circuit name must be camel case. ${circuitName} is not valid.`
+        );
+      return circuitName;
+    },
+    multiple: true,
+  }),
+};

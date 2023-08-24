@@ -57,7 +57,7 @@ export async function generateCircuit({
       "--r1cs",
       "--wasm",
       "--sym",
-      `${circuitPath}/${circuitName}/${circuitName}Main.circom`,
+      `${circuitPath}/${programName}/${circuitName}Main.circom`,
       "-o",
       `${sdkBuildCircuitDir}/`,
     ],
@@ -152,35 +152,4 @@ export async function generateCircuit({
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}_tmp.zkey`));
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}Main.r1cs`));
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}Main.sym`));
-}
-
-/**
- * Builds a barebone Circom + Anchor project given a circuit directory.
- * Initializes client-side typescript prover, on-chain groth16-solana verifier, builds the circom circuit, and compiles the anchor program.
- * @param circuitDir - The directory containing the circuit files.
- * @returns {Promise<void>}
- */
-export async function buildCircom(
-  circuitDir: string,
-  ptau: number,
-  programName: string
-) {
-  let circuitFileName = findFile({
-    directory: circuitDir,
-    extension: "circom",
-  });
-
-  console.log("🛠️️  Building circuit", circuitFileName);
-  const suffix = ".circom";
-
-  await generateCircuit({
-    circuitName: circuitFileName.slice(0, -suffix.length),
-    ptau,
-    programName,
-  });
-  console.log("✅ Circuit generated successfully");
-
-  console.log("🛠  Building on-chain program");
-  await executeAnchor({ args: ["build"] });
-  console.log("✅ Build finished successfully");
 }
