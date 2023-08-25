@@ -12,20 +12,22 @@ import { expose, windowEndpoint } from "comlink/dist/esm/comlink";
 import nodeEndpoint from "comlink/dist/esm/node-adapter";
 const circomlibjs = require("circomlibjs");
 let poseidon: any;
-let eddsa: any;
+// let eddsa: any;
 let initPromise: Promise<void>;
 
 function initCircomLib() {
   return new Promise<void>(async (resolve, reject) => {
     try {
       poseidon = await circomlibjs.buildPoseidonOpt();
-      eddsa = await circomlibjs.buildEddsa();
+      // eddsa = await circomlibjs.buildEddsa();
       resolve();
     } catch (error) {
       reject(error);
     }
   });
 }
+
+console.log("worker says hi");
 
 async function decryptUtxo({
   account,
@@ -88,7 +90,9 @@ initPromise = initCircomLib();
 const workerMethods = {
   async decryptUtxosInTransactions(
     indexedTransactions: ParsedIndexedTransaction[],
-    accountState: string,
+    privateKey: string,
+    encryptionPrivateKey: string,
+    aesSecret: string,
     merkleTreePdaPublicKey: string,
     aes: boolean,
     verifierProgramLookupTable: string[],
@@ -96,7 +100,13 @@ const workerMethods = {
   ) {
     // Prevent race condition
     await initPromise;
-    let account = Account.fromJSON(accountState, poseidon, eddsa);
+    let account = Account.fromPrivkey(
+      poseidon,
+      privateKey,
+      encryptionPrivateKey,
+      aesSecret,
+    );
+    // let account = Account.fromJSON(accountState, poseidon, eddsa);
 
     let promises: Promise<any>[] = [];
 
@@ -165,6 +175,7 @@ if (typeof window === "undefined") {
   // Node.js environment
   const { parentPort } = require("worker_threads");
   nodeEndpointContext = nodeEndpoint(parentPort);
+  console.log("nodeEndpointContext", nodeEndpointContext);
 } else {
   // Browser environment
   nodeEndpointContext = windowEndpoint(self);

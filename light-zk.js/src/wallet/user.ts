@@ -6,7 +6,6 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
-import { wrap } from "comlink";
 
 import {
   CreateUtxoErrorCode,
@@ -53,12 +52,16 @@ import {
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { windowEndpoint, wrap } from "comlink";
+import nodeEndpoint from "comlink/dist/umd/node-adapter";
 const circomlibjs = require("circomlibjs");
 
 interface DecryptWorker {
   decryptUtxosInTransactions: (
     indexedTransactions: ParsedIndexedTransaction[],
-    accountState: string,
+    privateKey: string,
+    encryptionPrivateKey: string,
+    aesSecret: string,
     merkleTreePdaPublicKey: string,
     aes: boolean,
     verifierProgramLookupTable: string[],
@@ -72,13 +75,15 @@ var workerProxy: DecryptWorker;
 if (typeof window === "undefined") {
   // Node.js environment
   const { Worker } = require("worker_threads");
-  worker = new Worker("./decrypt-worker.ts");
+  worker = new Worker("./lib/workers/decrypt-worker.js");
+  console.log("worker", worker);
+  workerProxy = wrap<DecryptWorker>(nodeEndpoint(worker));
 } else {
   // Browser environment
   const WorkerBrowser = require("worker-loader!./decrypt-worker");
   worker = new WorkerBrowser();
+  workerProxy = wrap<DecryptWorker>(windowEndpoint(worker));
 }
-workerProxy = wrap<DecryptWorker>(worker);
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -208,9 +213,13 @@ export class User {
 
     await this.provider.latestMerkleTree(indexedTransactions);
 
+    const keys = this.account.getPrivateKeys();
+
     const result = await workerProxy.decryptUtxosInTransactions(
       indexedTransactions,
-      this.account.toJSON(),
+      keys.privateKey,
+      keys.encryptionPrivateKey,
+      keys.aesSecret,
       merkleTreePdaPublicKey.toBase58(),
       aes,
       this.provider.lookUpTables.verifierProgramLookupTable,

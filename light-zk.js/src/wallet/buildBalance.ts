@@ -3,7 +3,6 @@ import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 
 import { Connection, PublicKey } from "@solana/web3.js";
-import { Account } from "../account";
 import {
   fetchNullifierAccountInfo,
   fetchQueuedLeavesAccountInfo,
