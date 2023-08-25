@@ -193,8 +193,8 @@ export class User {
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
             trx.encryptedUtxos.slice(
-              0,
-              NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              (index / 2) * 240,
+              (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
             ),
           ),
           index: leftLeafIndex,
@@ -213,8 +213,10 @@ export class User {
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
             trx.encryptedUtxos.slice(
-              120,
-              120 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              (index / 2) * 240 + 120,
+              (index / 2) * 240 +
+                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+                120,
             ),
           ),
           index: leftLeafIndex + 1,
