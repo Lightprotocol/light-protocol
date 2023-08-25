@@ -36,6 +36,7 @@ import {
 } from "../src/services";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
+import { AIRDROP_DECIMALS } from "../src/config";
 
 let circomlibjs = require("circomlibjs");
 
@@ -70,11 +71,11 @@ describe("Browser tests", () => {
     await createTestAccounts(connection);
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
-    await connection.requestAirdrop(relayerRecipientSol, 2_000_000_000);
+    await connection.requestAirdrop(relayerRecipientSol, 2 * AIRDROP_DECIMALS);
     let relayer = SolanaKeypair.generate();
     await airdropSol({
       connection: connection,
-      lamports: 2_000_000_000,
+      lamports: 2 * AIRDROP_DECIMALS,
       recipientPublicKey: relayer.publicKey,
     });
 
@@ -86,7 +87,7 @@ describe("Browser tests", () => {
     );
     await airdropSol({
       connection: connection,
-      lamports: 2_000_000_000,
+      lamports: 2 * AIRDROP_DECIMALS,
       recipientPublicKey: walletMock.publicKey,
     });
 
@@ -119,7 +120,7 @@ describe("Browser tests", () => {
     await airdropSol({
       connection: provider.provider.connection,
       recipientPublicKey: walletMock.publicKey!,
-      lamports: 4e9,
+      lamports: 4 * AIRDROP_DECIMALS,
     });
   });
 

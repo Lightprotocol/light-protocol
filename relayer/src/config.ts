@@ -21,6 +21,7 @@ export enum Network {
   MAINNET = "MAINNET",
   DEVNET = "DEVNET",
   LOCALNET = "LOCALNET",
+  TESTNET = "TESTNET",
 }
 export enum Environment {
   PROD = "PROD",
@@ -36,7 +37,8 @@ export enum TransactionType {
 
 export const NETWORK = process.env.NETWORK;
 export const ENVIRONMENT = process.env.ENVIRONMENT;
-console.log("NETWORK", NETWORK);
+export const AIRDROP_DECIMALS =
+  NETWORK === Network.TESTNET ? 1e6 : NETWORK === Network.LOCALNET ? 1e9 : 0;
 console.log("ENVIRONMENT", ENVIRONMENT);
 export const RPC_URL = process.env.RPC_URL;
 console.log("RPC_URL", RPC_URL);

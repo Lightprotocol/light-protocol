@@ -12,6 +12,7 @@ import {
 import { PublicKey } from "@solana/web3.js";
 import { readFileSync, writeFileSync } from "fs";
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
+import { AIRDROP_DECIMALS } from "config";
 
 export async function relayerSetup() {
   const anchorProvider = await getAnchorProvider();
@@ -34,9 +35,10 @@ export async function relayerSetup() {
   if (!lookUpTable) {
     console.log("initing lookuptable...");
     let wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"));
+    // for (let sol = 0; sol < 2; sol++)
     await airdropSol({
       connection: anchorProvider.connection,
-      lamports: 1000 * 1e9,
+      lamports: 1 * AIRDROP_DECIMALS,
       recipientPublicKey: wallet.publicKey,
     });
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
@@ -52,14 +54,14 @@ export async function relayerSetup() {
 async function fundRelayer(anchorProvider: AnchorProvider) {
   await airdropSol({
     connection: anchorProvider.connection,
-    lamports: 10_000_000_000,
+    lamports: 10 * AIRDROP_DECIMALS,
     recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
   });
   const relayer = await getRelayer();
   relayer.relayerFee = new BN(100_000);
   await airdropSol({
     connection: anchorProvider.connection,
-    lamports: 1000 * 1e9,
+    lamports: 10 * AIRDROP_DECIMALS,
     recipientPublicKey: relayer.accounts.relayerRecipientSol,
   });
 }

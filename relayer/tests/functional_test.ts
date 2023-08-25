@@ -42,6 +42,7 @@ import {
 import { relayerSetup } from "../src/setup";
 import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
+import { AIRDROP_DECIMALS } from "../src/config";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
@@ -83,13 +84,13 @@ describe("API tests", () => {
     await relayerSetup();
     await airdropSol({
       connection: anchorProvider.connection,
-      lamports: 10_000_000_000,
+      lamports: 10 * AIRDROP_DECIMALS,
       recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
     });
 
     await airdropSol({
       connection: anchorProvider.connection,
-      lamports: 1000 * 1e9,
+      lamports: 10 * AIRDROP_DECIMALS,
       recipientPublicKey: userKeypair.publicKey,
     });
     const relayer = await getRelayer();
@@ -102,7 +103,7 @@ describe("API tests", () => {
     });
     await airdropSol({
       connection: anchorProvider.connection,
-      lamports: 1000 * 1e9,
+      lamports: 10 * AIRDROP_DECIMALS,
       recipientPublicKey: provider.relayer.accounts.relayerRecipientSol,
     });
 
