@@ -36,7 +36,7 @@ import {
 } from "../src/services";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
-import { AIRDROP_DECIMALS } from "../src/config";
+import { AIRDROP_DECIMALS, RPC_URL } from "../src/config";
 
 let circomlibjs = require("circomlibjs");
 
@@ -62,8 +62,8 @@ describe("Browser tests", () => {
   var poseidon: any;
   var provider: Provider;
   var user: User;
-  const walletMock = useWallet(ADMIN_AUTH_KEYPAIR);
-  const connection = new Connection("http://127.0.0.1:8899", "confirmed");
+  const walletMock = useWallet(ADMIN_AUTH_KEYPAIR, RPC_URL);
+  const connection = new Connection(RPC_URL, "confirmed");
 
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();

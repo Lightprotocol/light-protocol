@@ -12,7 +12,7 @@ import {
 import { PublicKey } from "@solana/web3.js";
 import { readFileSync, writeFileSync } from "fs";
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
-import { AIRDROP_DECIMALS } from "../config";
+import { AIRDROP_DECIMALS, RPC_URL } from "../config";
 
 export async function relayerSetup() {
   const anchorProvider = await getAnchorProvider();
@@ -34,7 +34,7 @@ export async function relayerSetup() {
   }
   if (!lookUpTable) {
     console.log("initing lookuptable...");
-    let wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"));
+    let wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"), RPC_URL);
     // for (let sol = 0; sol < 2; sol++)
     await airdropSol({
       connection: anchorProvider.connection,

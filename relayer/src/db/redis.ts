@@ -1,7 +1,13 @@
 import "dotenv/config.js";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
-import { CONCURRENT_RELAY_WORKERS, Environment } from "../config";
+import {
+  CONCURRENT_RELAY_WORKERS,
+  Environment,
+  HOST,
+  PASSWORD,
+  PORT,
+} from "../config";
 
 import { sendVersionedTransactions } from "@lightprotocol/zk.js";
 import { getLightProvider } from "../utils/provider";
@@ -10,22 +16,20 @@ import { parseReqParams } from "../services/index";
 var redisConnection: any;
 
 if (process.env.ENVIRONMENT === Environment.PROD) {
-  redisConnection = new IORedis(
-    Number(process.env.DB_PORT),
-    process.env.HOSTNAME!,
-    {
-      username: "default",
-      password: process.env.PASSWORD,
-      tls: {},
-      maxRetriesPerRequest: null,
-    },
-  );
+  redisConnection = new IORedis(Number(PORT), HOST, {
+    username: "default",
+    password: PASSWORD,
+    tls: {},
+    maxRetriesPerRequest: 20,
+    connectTimeout: 20_000,
+  });
 } else if (process.env.ENVIRONMENT === Environment.LOCAL) {
   console.log(process.env.ENVIRONMENT);
   redisConnection = new IORedis({ maxRetriesPerRequest: null });
 } else {
   throw new Error("Please provide ENVIRONMENT env varibale (LOCAL/PROD)!");
 }
+console.log("redisConn: ", redisConnection);
 
 export const getDbConnection = async () => {
   if (!redisConnection) throw new Error("REDIS env not configured correctly!");
@@ -48,6 +52,7 @@ export const indexQueue = new Queue("index", {
 });
 
 console.log("Queues activated");
+console.log(indexQueue ? true : false);
 
 export const relayWorker = new Worker(
   "relay",

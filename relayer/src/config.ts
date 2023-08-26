@@ -40,8 +40,16 @@ export const ENVIRONMENT = process.env.ENVIRONMENT;
 export const AIRDROP_DECIMALS =
   NETWORK === Network.TESTNET ? 1e6 : NETWORK === Network.LOCALNET ? 1e9 : 0;
 console.log("ENVIRONMENT", ENVIRONMENT);
-export const RPC_URL = process.env.RPC_URL;
+export const RPC_URL = process.env.RPC_URL!;
 console.log("RPC_URL", RPC_URL);
+
+export const PORT = process.env.DB_PORT!;
+export const PASSWORD = process.env.PASSWORD!;
+export const HOST = process.env.HOSTNAME!;
+
+console.log("PORT", PORT);
+console.log("PASS: ", PASSWORD);
+console.log("HOST:", HOST);
 
 // TODO: EXPORT FROM ZK.JS RELEASE
 export const VERIFIER_PUBLIC_KEYS = [
