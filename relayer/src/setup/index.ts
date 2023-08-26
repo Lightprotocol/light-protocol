@@ -12,7 +12,7 @@ import {
 import { PublicKey } from "@solana/web3.js";
 import { readFileSync, writeFileSync } from "fs";
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
-import { AIRDROP_DECIMALS } from "config";
+import { AIRDROP_DECIMALS } from "../config";
 
 export async function relayerSetup() {
   const anchorProvider = await getAnchorProvider();
