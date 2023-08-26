@@ -52,6 +52,7 @@ export async function relayerSetup() {
 }
 
 async function fundRelayer(anchorProvider: AnchorProvider) {
+  console.log("con n", anchorProvider.connection);
   await airdropSol({
     connection: anchorProvider.connection,
     lamports: 10 * AIRDROP_DECIMALS,

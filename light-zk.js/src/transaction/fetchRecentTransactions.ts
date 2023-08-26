@@ -350,7 +350,7 @@ async function getTransactionsBatch({
   const lastSignature = signatures[signatures.length - 1];
   let txs: (ParsedTransactionWithMeta | null)[] = [];
   let index = 0;
-  const signaturesPerRequest = 25;
+  const signaturesPerRequest = 5;
 
   while (index < signatures.length) {
     try {
