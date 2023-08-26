@@ -19,6 +19,15 @@ const app = express();
 app.use(addCorsHeaders);
 app.use(bodyParser.json());
 
+app.get("/", async (_req: any, res: any) => {
+  try {
+    return res.status(200).json({ status: "gm." });
+  } catch (e) {
+    console.log(e);
+    return res.status(500).json({ status: "error", message: e.message });
+  }
+});
+
 app.post("/updatemerkletree", updateMerkleTree);
 
 app.get("/getBuiltMerkletree", buildMerkleTree);
