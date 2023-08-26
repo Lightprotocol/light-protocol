@@ -1070,17 +1070,22 @@ export class TransactionParameters implements transactionParameters {
         "getTxIntegrityHash",
         "",
       );
-    if(this.encryptedUtxos && this.encryptedUtxos.length > 128 * this.verifierConfig.out)
+    if (
+      this.encryptedUtxos &&
+      this.encryptedUtxos.length > 128 * this.verifierConfig.out
+    )
       throw new TransactionParametersError(
         TransactionParametersErrorCode.ENCRYPTED_UTXOS_TOO_LONG,
         "getTxIntegrityHash",
-        `Encrypted utxos are too long: ${this.encryptedUtxos.length} > ${128 * this.verifierConfig.out}`,
+        `Encrypted utxos are too long: ${this.encryptedUtxos.length} > ${
+          128 * this.verifierConfig.out
+        }`,
       );
 
     if (!this.encryptedUtxos) {
       this.encryptedUtxos = await this.encryptOutUtxos(poseidon);
     }
-  
+
     if (this.encryptedUtxos) {
       const relayerFee = new Uint8Array(
         this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
@@ -1183,9 +1188,12 @@ export class TransactionParameters implements transactionParameters {
           ),
         );
       }
-      encryptedOutputs = encryptedOutputs.map((elem) => Array.from(elem)).flat();
+      encryptedOutputs = encryptedOutputs
+        .map((elem) => Array.from(elem))
+        .flat();
       if (
-        encryptedOutputs.length < 128 * this.verifierConfig.out && this.verifierConfig.out == 2
+        encryptedOutputs.length < 128 * this.verifierConfig.out &&
+        this.verifierConfig.out == 2
       ) {
         return new Uint8Array([
           ...encryptedOutputs,
@@ -1196,10 +1204,12 @@ export class TransactionParameters implements transactionParameters {
           // to be consistent, if the bytes were sent to the chain use rnd bytes for padding
         ]);
       }
-      if(encryptedOutputs.length < 128 * this.verifierConfig.out) {
+      if (encryptedOutputs.length < 128 * this.verifierConfig.out) {
         return new Uint8Array([
           ...encryptedOutputs,
-          ...nacl.randomBytes(128 * this.verifierConfig.out - encryptedOutputs.length)
+          ...nacl.randomBytes(
+            128 * this.verifierConfig.out - encryptedOutputs.length,
+          ),
         ]);
       }
     }
