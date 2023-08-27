@@ -29,9 +29,9 @@ import {
   AppUtxoConfig,
   createOutUtxos,
 } from "../index";
-import nacl from "tweetnacl";
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
+import nacl from "tweetnacl";
 
 type VerifierConfig = {
   in: number;
@@ -1070,14 +1070,22 @@ export class TransactionParameters implements transactionParameters {
         "getTxIntegrityHash",
         "",
       );
+    if (
+      this.encryptedUtxos &&
+      this.encryptedUtxos.length > 128 * this.verifierConfig.out
+    )
+      throw new TransactionParametersError(
+        TransactionParametersErrorCode.ENCRYPTED_UTXOS_TOO_LONG,
+        "getTxIntegrityHash",
+        `Encrypted utxos are too long: ${this.encryptedUtxos.length} > ${
+          128 * this.verifierConfig.out
+        }`,
+      );
 
     if (!this.encryptedUtxos) {
       this.encryptedUtxos = await this.encryptOutUtxos(poseidon);
     }
 
-    if (this.encryptedUtxos && this.encryptedUtxos.length > 512) {
-      this.encryptedUtxos = this.encryptedUtxos.slice(0, 512);
-    }
     if (this.encryptedUtxos) {
       const relayerFee = new Uint8Array(
         this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
@@ -1180,39 +1188,29 @@ export class TransactionParameters implements transactionParameters {
           ),
         );
       }
+      encryptedOutputs = encryptedOutputs
+        .map((elem) => Array.from(elem))
+        .flat();
       if (
-        this.verifierConfig.out == 2 &&
-        encryptedOutputs[0].length + encryptedOutputs[1].length < 256
+        encryptedOutputs.length < 128 * this.verifierConfig.out &&
+        this.verifierConfig.out == 2
       ) {
         return new Uint8Array([
-          ...encryptedOutputs[0],
-          ...encryptedOutputs[1],
+          ...encryptedOutputs,
           ...new Array(
-            256 - encryptedOutputs[0].length - encryptedOutputs[1].length,
+            128 * this.verifierConfig.out - encryptedOutputs.length,
           ).fill(0),
-          // this is ok because these bytes are not sent and just added for the integrity hash
+          // for verifier zero and one these bytes are not sent and just added for the integrity hash
           // to be consistent, if the bytes were sent to the chain use rnd bytes for padding
         ]);
-      } else {
-        let tmpArray = new Array<any>();
-        for (var i = 0; i < this.verifierConfig.out; i++) {
-          tmpArray.push(...encryptedOutputs[i]);
-          if (encryptedOutputs[i].length < 128) {
-            // add random bytes for padding
-            tmpArray.push(
-              ...nacl.randomBytes(128 - encryptedOutputs[i].length),
-            );
-          }
-        }
-
-        if (tmpArray.length < 512) {
-          tmpArray.push(
-            ...nacl.randomBytes(
-              this.verifierConfig.out * 128 - tmpArray.length,
-            ),
-          );
-        }
-        return new Uint8Array([...tmpArray]);
+      }
+      if (encryptedOutputs.length < 128 * this.verifierConfig.out) {
+        return new Uint8Array([
+          ...encryptedOutputs,
+          ...nacl.randomBytes(
+            128 * this.verifierConfig.out - encryptedOutputs.length,
+          ),
+        ]);
       }
     }
   }
