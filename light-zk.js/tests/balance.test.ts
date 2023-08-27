@@ -1,5 +1,10 @@
 import { assert } from "chai";
-import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
+import {
+  SystemProgram,
+  Keypair as SolanaKeypair,
+  PublicKey,
+  Keypair,
+} from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const circomlibjs = require("circomlibjs");
@@ -19,6 +24,10 @@ import {
   TokenUtxoBalance,
   Balance,
   TOKEN_REGISTRY,
+  ParsedIndexedTransaction,
+  User,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  MerkleTreeConfig,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -116,5 +125,102 @@ describe("Utxo Functional", () => {
         ?.spentUtxos.get(deposit_utxo1.getCommitment(poseidon))!,
       await deposit_utxo1,
     );
+  });
+
+  // this test is a mock of the syncState function
+  // TODO: add a direct test
+  it("Test Decrypt Balance 2 and 4 utxos", async () => {
+    const provider = await LightProvider.loadMock();
+    let verifierProgramLookupTable =
+      provider.lookUpTables.verifierProgramLookupTable;
+    let assetLookupTable = provider.lookUpTables.assetLookupTable;
+    const account = new Account({ poseidon: poseidon, seed: seed32 });
+    for (let j = 2; j < 4; j += 2) {
+      let utxos: Utxo[] = [];
+      let encryptedUtxos: any[] = [];
+      for (let index = 0; index < j; index++) {
+        const depositAmount = index;
+        const depositFeeAmount = index;
+        const utxo = new Utxo({
+          poseidon: poseidon,
+          assets: [FEE_ASSET, MINT],
+          amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+          account: account,
+          index: index,
+          assetLookupTable: provider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            provider.lookUpTables.verifierProgramLookupTable,
+          blinding: new BN(1),
+        });
+        utxos.push(utxo);
+        encryptedUtxos = [
+          ...encryptedUtxos,
+          ...(await utxo.encrypt(
+            poseidon,
+            MerkleTreeConfig.getTransactionMerkleTreePda(),
+            true,
+          )),
+        ];
+      }
+      let indexedTransactions = [
+        {
+          leaves: utxos.map((utxo) =>
+            new BN(utxo.getCommitment(poseidon)).toBuffer("le", 32),
+          ),
+          firstLeafIndex: "0",
+          encryptedUtxos,
+        },
+      ];
+      let decryptedUtxos: Array<Utxo | null> = new Array<Utxo | null>();
+      for (const trx of indexedTransactions) {
+        let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
+
+        for (let index = 0; index < trx.leaves.length; index += 2) {
+          const leafLeft = trx.leaves[index];
+          const leafRight = trx.leaves[index + 1];
+          let decryptedUtxo = await Utxo.decrypt({
+            poseidon,
+            encBytes: Buffer.from(
+              trx.encryptedUtxos.slice(
+                (index / 2) * 240,
+                (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              ),
+            ),
+            account,
+            index: leftLeafIndex + index,
+            commitment: leafLeft,
+            aes: true,
+            merkleTreePdaPublicKey:
+              MerkleTreeConfig.getTransactionMerkleTreePda(),
+            verifierProgramLookupTable,
+            assetLookupTable,
+          });
+          decryptedUtxos.push(decryptedUtxo);
+          decryptedUtxo = await Utxo.decrypt({
+            poseidon,
+            encBytes: Buffer.from(
+              trx.encryptedUtxos.slice(
+                (index / 2) * 240 + 120,
+                (index / 2) * 240 +
+                  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+                  120,
+              ),
+            ),
+            account,
+            index: leftLeafIndex + index + 1,
+            commitment: leafRight,
+            aes: true,
+            merkleTreePdaPublicKey:
+              MerkleTreeConfig.getTransactionMerkleTreePda(),
+            verifierProgramLookupTable,
+            assetLookupTable,
+          });
+          decryptedUtxos.push(decryptedUtxo);
+        }
+      }
+      utxos.map((utxo, index) => {
+        Utxo.equal(poseidon, utxo, decryptedUtxos[index]!);
+      });
+    }
   });
 });
