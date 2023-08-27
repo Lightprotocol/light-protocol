@@ -25,16 +25,20 @@ export function findFile({
 }: {
   directory: string;
   extension: string;
-}): { filename: string; fullPath: string; light?: boolean; }[] {
+}): { filename: string; fullPath: string; light?: boolean }[] {
   return recursiveSearch(directory, extension);
 }
 
 function recursiveSearch(
   directory: string,
   extension: string
-): { filename: string; fullPath: string; light?: boolean;  }[] {
+): { filename: string; fullPath: string; light?: boolean }[] {
   const entries = fs.readdirSync(directory);
-  const matchingFiles: { filename: string; fullPath: string; light?: boolean; }[] = [];
+  const matchingFiles: {
+    filename: string;
+    fullPath: string;
+    light?: boolean;
+  }[] = [];
   let lightFilesCount = 0;
   for (const entry of entries) {
     const fullPath = path.join(directory, entry);
@@ -43,40 +47,24 @@ function recursiveSearch(
     if (stats.isDirectory()) {
       try {
         const fileFound = recursiveSearch(fullPath, extension);
-        if (fileFound) fileFound.map(value => matchingFiles.push(value));
+        if (fileFound) fileFound.map((value) => matchingFiles.push(value));
       } catch (e) {
         // You can either handle the error here or propagate it, depending on your use case
       }
-    } else if (stats.isFile() && entry.endsWith('.light')) {
+    } else if (stats.isFile() && entry.endsWith(".light")) {
       lightFilesCount++;
-    } else if (stats.isFile() && entry.endsWith(`${extension}`)) {
+    }
+    if (stats.isFile() && entry.endsWith(`${extension}`)) {
       matchingFiles.push({ filename: entry, fullPath });
     }
   }
-  if(lightFilesCount > 1)
-    matchingFiles.map((value) => {return {...value,light: true} })
+  if (lightFilesCount > 1)
+    matchingFiles.map((value) => {
+      return { ...value, light: true };
+    });
   return matchingFiles;
 }
 
-export function toSnakeCase(str: string): string {
-  return str.replace(/-/g, "_");
-}
-
-export const snakeCaseToCamelCase = (
-  str: string,
-  uppercaseFirstLetter: boolean = false
-) =>
-  str
-    .split("_")
-    .reduce(
-      (res, word, i) =>
-        i === 0 && !uppercaseFirstLetter
-          ? word.toLowerCase()
-          : `${res}${word.charAt(0).toUpperCase()}${word
-              .substr(1)
-              .toLowerCase()}`,
-      ""
-    );
 import { resolve as resolvePath } from "path";
 
 export async function renameFolder(

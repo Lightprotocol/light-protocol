@@ -2,6 +2,7 @@ import { executeAnchor, executeMacroCircom } from "./toolchain";
 import { extractFilename, findFile } from "./utils";
 import { generateCircuit } from "./buildCircom";
 import { Flags } from "@oclif/core";
+import { isCamelCase } from "@lightprotocol/zk.js";
 
 const suffix = "Main.circom";
 
@@ -18,7 +19,7 @@ export async function buildPSP({
   skipAnchor,
   skipCircuit,
   skipMacroCircom,
-  circuitName = [],
+  circuitName,
 }: {
   circuitDir: string;
   ptau: number;
@@ -27,18 +28,17 @@ export async function buildPSP({
   skipCircuit?: boolean;
   skipMacroCircom?: boolean;
   circuitName?: string[];
-  circom: boolean;
 }) {
   // TODO: add support to compile only selected circuits
   let foundCircuitNames: string[] = [];
   if (!skipCircuit) {
-  
     if (!skipMacroCircom) {
       let circuits = findFile({
         directory: circuitDir,
         extension: ".light",
       });
-      for (let {filename, fullPath} of circuits) {
+      console.log("circuits ", circuits);
+      for (let { filename, fullPath } of circuits) {
         console.log("📜 Generating circom files");
         let stdout = await executeMacroCircom({
           args: [fullPath, programName],
@@ -56,14 +56,13 @@ export async function buildPSP({
       directory: circuitDir,
       extension: "Main.circom",
     });
-    for (let {filename, fullPath, light} of circuits) {
+    for (let { filename, fullPath, light } of circuits) {
       // skip main files from macro circom generated main circom files
-      if(light) continue;
-      console.log("circuitFileName ", filename);
+      if (light) continue;
       foundCircuitNames.push(filename.slice(0, -suffix.length));
     }
   }
-
+  console.log("foundCircuitNames ", foundCircuitNames);
   // TODO: enable multiple programs
   // TODO: add add-psp command which adds a second psp
   // TODO: add add-circom-circuit command which inits a new circom circuit of name circuitName
@@ -71,7 +70,7 @@ export async function buildPSP({
   if (foundCircuitNames.length > 0) {
     for (let foundCircuitName of foundCircuitNames) {
       // if circuitName is provided skip circuits which have not been provided in the circuitName flag
-      if(circuitName && circuitName.indexOf(foundCircuitName) == -1) continue;
+      if (circuitName && circuitName.indexOf(foundCircuitName) === -1) continue;
 
       console.log("🔑 Generating circuit ", foundCircuitName);
       await generateCircuit({
@@ -88,10 +87,6 @@ export async function buildPSP({
   console.log("🛠  Building on-chain program");
   await executeAnchor({ args: ["build"] });
   console.log("✅ Build finished successfully");
-}
-
-export function isCamelCase(str: string): boolean {
-  return /^[a-z]+([A-Z][a-z0-9]*)*$/.test(str);
 }
 
 export const buildFlags = {

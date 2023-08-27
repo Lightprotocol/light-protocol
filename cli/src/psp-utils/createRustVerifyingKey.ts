@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { camelToScreamingSnake } from "../utils";
+import { toCamelCase, camelToScreamingSnake } from "@lightprotocol/zk.js";
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 var fs = require("fs");
@@ -388,16 +388,4 @@ export async function createVerifyingkeyRsFile(
     appendingStrings,
     circuitName
   );
-}
-
-export function toCamelCase(input: string): string {
-  return input
-    .split(/[_-]/)
-    .map((word, index) => {
-      if (index === 0) {
-        return word.toLowerCase();
-      }
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    })
-    .join("");
 }

@@ -1,8 +1,7 @@
 import { Args, Command } from "@oclif/core";
-import { toSnakeCase } from "../../psp-utils/utils";
+import { toSnakeCase } from "@lightprotocol/zk.js";
 import { start_test_validator } from "../../utils";
-import { executeCommand } from "../../psp-utils";
-import { PSP_DEFAULT_PROGRAM_ID } from "./init";
+import { executeCommand, PSP_DEFAULT_PROGRAM_ID } from "../../psp-utils";
 
 export default class TestCommand extends Command {
   static description = "Deploys your PSP on a local testnet and runs test";

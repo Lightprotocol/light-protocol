@@ -10,3 +10,4 @@ export * from "./merkleTree";
 export * from "./errors";
 export * from "./types";
 export * from "./transaction";
+export * from "./convertCase";

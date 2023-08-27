@@ -155,6 +155,6 @@ export async function generateCircuit({
 }
 function camelToKebab(str: string): string {
   return str
-    .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2')  // Match camelCasing and insert "-"
-    .toLowerCase();  // Convert the entire string to lowercase
+    .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, "$1-$2") // Match camelCasing and insert "-"
+    .toLowerCase(); // Convert the entire string to lowercase
 }

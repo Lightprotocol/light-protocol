@@ -386,16 +386,6 @@ export async function initLookUpTable(
   return lookUpTable;
 }
 
-export function toSnakeCase(str: string): string {
-  // Convert kebab-case to snake_case
-  str = str.replace(/-/g, "_");
-
-  // Convert camelCase to snake_case
-  return str
-      .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1_$2') // Match cases like: aB or 0B or (boundary of a capital letter)B
-      .toLowerCase();
-}
-
 // setting environment correctly for ethereum-crypto
 export function setEnvironment() {
   if (

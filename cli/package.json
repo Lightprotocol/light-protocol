@@ -107,7 +107,7 @@
     "test-circom-test": "cd ../tmp-test-circom && ./../cli/test_bin/run circom:test tmp-test-circom Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS && cd ../cli",
     "clean-test-circom": "rm -r ../tmp-test-circom || true",
     "test-circom": "yarn test-circom-init && yarn test-circom-build && yarn test-circom-test && yarn test-circom-add-circuit",
-    "test": "yarn test-cli && yarn test-psp && yarn test-circom",
+    "test": "yarn kill && yarn test-cli && yarn test-psp && yarn test-circom",
     "install-local": "yarn build && yarn global remove @lightprotocol/cli || true && yarn global add $PWD",
     "version": "oclif readme && git add README.md"
   },

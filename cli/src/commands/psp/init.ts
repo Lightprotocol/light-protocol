@@ -32,4 +32,3 @@ export default class InitCommand extends Command {
     this.log("✅ Project initialized successfully");
   }
 }
-

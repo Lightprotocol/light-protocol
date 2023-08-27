@@ -27,7 +27,7 @@ export async function initTestEnv({
 
   await start_test_validator({ additonalPrograms, skip_system_accounts });
   const anchorProvider = await setAnchorProvider();
-  await airdropSol({
+  let res = await airdropSol({
     connection: anchorProvider.connection,
     lamports: 100e9,
     recipientPublicKey: ADMIN_AUTH_KEYPAIR.publicKey,

@@ -295,9 +295,3 @@ export const getConfirmOptions = (flags: any) => {
     return undefined;
   }
 };
-
-export function camelToScreamingSnake(str: string) {
-  return str
-    .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // Insert underscore between a lowercase followed by an uppercase
-    .toUpperCase();
-}
