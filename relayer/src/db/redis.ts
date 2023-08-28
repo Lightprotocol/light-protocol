@@ -51,7 +51,6 @@ export const indexQueue = new Queue("index", {
 });
 
 console.log("Queues activated");
-console.log(indexQueue ? true : false);
 
 export const relayWorker = new Worker(
   "relay",
