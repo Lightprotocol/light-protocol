@@ -45,6 +45,17 @@ export async function relayerSetup() {
       "PAYER RELAYER (initLookupTable): ",
       wallet.publicKey.toBase58(),
     );
+    console.log(
+      "wallet balance:",
+
+      await anchorProvider.connection.getBalance(wallet.publicKey),
+      "providerpayer:",
+      anchorProvider.wallet.publicKey.toBase58(),
+      await anchorProvider.connection.getBalance(
+        anchorProvider.wallet.publicKey,
+      ),
+    );
+
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
     writeFileSync(path, lookUpTable.toString(), "utf8");
   }
