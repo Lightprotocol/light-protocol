@@ -2,17 +2,11 @@ import {
   createTestAccounts,
   initLookUpTable,
   useWallet,
-  airdropSol,
 } from "@lightprotocol/zk.js";
-import {
-  getAnchorProvider,
-  getKeyPairFromEnv,
-  getRelayer,
-} from "../utils/provider";
+import { getAnchorProvider, getKeyPairFromEnv } from "../utils/provider";
 import { PublicKey } from "@solana/web3.js";
 import { readFileSync, writeFileSync } from "fs";
-import { AnchorProvider, BN } from "@coral-xyz/anchor";
-import { AIRDROP_DECIMALS, RPC_URL } from "../config";
+import { RPC_URL } from "../config";
 
 export async function relayerSetup() {
   const anchorProvider = await getAnchorProvider();
@@ -33,50 +27,10 @@ export async function relayerSetup() {
     console.log(".txt not found", e);
   }
   if (!lookUpTable) {
-    console.log("initing lookuptable... rpc url relayer", RPC_URL);
+    console.log("initing lookuptable...");
     let wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"), RPC_URL);
-    // for (let sol = 0; sol < 2; sol++)
-    await airdropSol({
-      connection: anchorProvider.connection,
-      lamports: 1000 * AIRDROP_DECIMALS,
-      recipientPublicKey: wallet.publicKey,
-    });
-    console.log(
-      "PAYER RELAYER (initLookupTable): ",
-      wallet.publicKey.toBase58(),
-    );
-    console.log(
-      "wallet balance:",
-
-      await anchorProvider.connection.getBalance(wallet.publicKey),
-      "providerpayer:",
-      anchorProvider.wallet.publicKey.toBase58(),
-      await anchorProvider.connection.getBalance(
-        anchorProvider.wallet.publicKey,
-      ),
-    );
 
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
     writeFileSync(path, lookUpTable.toString(), "utf8");
   }
-  try {
-    await fundRelayer(anchorProvider);
-  } catch (e) {
-    console.log("fundRelayer e:", e);
-  }
-}
-
-async function fundRelayer(anchorProvider: AnchorProvider) {
-  await airdropSol({
-    connection: anchorProvider.connection,
-    lamports: 20 * AIRDROP_DECIMALS,
-    recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
-  });
-  const relayer = await getRelayer();
-  relayer.relayerFee = new BN(10_000);
-  await airdropSol({
-    connection: anchorProvider.connection,
-    lamports: 1000 * AIRDROP_DECIMALS,
-    recipientPublicKey: relayer.accounts.relayerRecipientSol,
-  });
 }

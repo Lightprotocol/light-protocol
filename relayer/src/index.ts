@@ -12,6 +12,7 @@ import {
   getLookUpTable,
 } from "./services";
 import { getTransactions } from "./db/redis";
+import { fundRelayer } from "./setup/fundRelayer";
 require("dotenv").config();
 
 const app = express();
@@ -40,6 +41,7 @@ app.get("/indexedTransactions", getIndexedTransactions);
 
 app.listen(port, async () => {
   if (process.env.TEST_ENVIRONMENT) {
+    await fundRelayer();
     await relayerSetup();
     console.log("Test environment setup completed!");
     // TODO: temporary!

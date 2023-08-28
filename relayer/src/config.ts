@@ -37,8 +37,7 @@ export enum TransactionType {
 
 export const NETWORK = process.env.NETWORK;
 export const ENVIRONMENT = process.env.ENVIRONMENT;
-export const AIRDROP_DECIMALS =
-  NETWORK === Network.TESTNET ? 1e6 : NETWORK === Network.LOCALNET ? 1e9 : 1e9;
+
 export const RPC_URL = process.env.RPC_URL!;
 
 export const PORT = process.env.DB_PORT!;
