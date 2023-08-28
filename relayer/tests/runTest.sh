@@ -40,6 +40,7 @@ echo "executing browser env tests"
 sleep 2
 
 npx mocha -r ts-node/register -r jsdom-global/register -r ./setup.jsdom.ts tests/browser_test.ts --timeout 1000000 --exit;
+# npx ts-mocha -p ./tsconfig.json -r jsdom-global/register -r ./setup.jsdom.ts tests/browser_test.ts --timeout 1000000 --exit;
 
 
 kill $(lsof -ti :3331) > /dev/null  || true

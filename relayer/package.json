@@ -17,7 +17,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0",
     "@coral-xyz/borsh": "^0.28.0",
-    "@lightprotocol/zk.js": "0.3.2-alpha.13",
+    "@lightprotocol/zk.js": "file:../light-zk.js",
     "@solana/spl-account-compression": "^0.1.8",
     "@solana/web3.js": "1.73.3",
     "body-parser": "^1.20.2",
