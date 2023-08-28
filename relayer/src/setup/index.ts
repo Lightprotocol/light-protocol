@@ -33,14 +33,18 @@ export async function relayerSetup() {
     console.log(".txt not found", e);
   }
   if (!lookUpTable) {
-    console.log("initing lookuptable...");
+    console.log("initing lookuptable... rpc url relayer", RPC_URL);
     let wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"), RPC_URL);
     // for (let sol = 0; sol < 2; sol++)
     await airdropSol({
       connection: anchorProvider.connection,
-      lamports: 1 * AIRDROP_DECIMALS,
+      lamports: 10 * AIRDROP_DECIMALS,
       recipientPublicKey: wallet.publicKey,
     });
+    console.log(
+      "PAYER RELAYER (initLookupTable): ",
+      wallet.publicKey.toBase58(),
+    );
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
     writeFileSync(path, lookUpTable.toString(), "utf8");
   }
