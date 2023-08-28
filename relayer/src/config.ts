@@ -8,7 +8,7 @@ import {
 import "dotenv/config.js";
 
 export const relayerFee = new anchor.BN(100000);
-export const port = Number(process.env.PORT) || 8080;
+export const port = Number(process.env.PORT) || 3331;
 export const SECONDS = 1000;
 export const MINUTE = 60 * SECONDS;
 export const HOUR = 60 * MINUTE;
@@ -47,9 +47,10 @@ export const PORT = process.env.DB_PORT!;
 export const PASSWORD = process.env.PASSWORD!;
 export const HOST = process.env.HOSTNAME!;
 
-console.log("PORT", PORT);
+console.log("DB PORT", PORT);
 console.log("PASS: ", PASSWORD);
 console.log("HOST:", HOST);
+console.log("port", port);
 
 // TODO: EXPORT FROM ZK.JS RELEASE
 export const VERIFIER_PUBLIC_KEYS = [
