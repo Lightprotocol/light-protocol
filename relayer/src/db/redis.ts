@@ -29,7 +29,6 @@ if (process.env.ENVIRONMENT === Environment.PROD) {
 } else {
   throw new Error("Please provide ENVIRONMENT env varibale (LOCAL/PROD)!");
 }
-console.log("redisConn: ", redisConnection);
 
 export const getDbConnection = async () => {
   if (!redisConnection) throw new Error("REDIS env not configured correctly!");

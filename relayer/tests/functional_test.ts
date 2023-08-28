@@ -186,7 +186,7 @@ describe("API tests", () => {
 
   it("should shield and update merkle tree", async () => {
     let testInputs = {
-      amountSol: 15,
+      amountSol: 0.3,
       token: "SOL",
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,
@@ -224,7 +224,7 @@ describe("API tests", () => {
     const user = await User.init({ provider });
 
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.UNSHIELD,
       recipient: solRecipient.publicKey,
@@ -259,7 +259,7 @@ describe("API tests", () => {
     const user = await User.init({ provider });
 
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.UNSHIELD,
       recipient: solRecipient.publicKey,
@@ -283,7 +283,7 @@ describe("API tests", () => {
     const solRecipient = Keypair.generate();
 
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.UNSHIELD,
       recipient: solRecipient.publicKey,
@@ -360,7 +360,7 @@ describe("API tests", () => {
 
   it("should transfer sol and update merkle tree ", async () => {
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,

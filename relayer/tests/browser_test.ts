@@ -83,7 +83,7 @@ describe("Browser tests", () => {
     RELAYER = new Relayer(
       new PublicKey("EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D"),
       new PublicKey("AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44"),
-      new BN(100000),
+      new BN(10000),
     );
     await airdropSol({
       connection: connection,
@@ -133,7 +133,7 @@ describe("Browser tests", () => {
 
   it("(browser) should shield and update merkle tree", async () => {
     let testInputs = {
-      amountSol: 15,
+      amountSol: 0.2,
       token: "SOL",
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,
@@ -160,7 +160,7 @@ describe("Browser tests", () => {
     const solRecipient = Keypair.generate();
 
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.UNSHIELD,
       recipient: solRecipient.publicKey,
@@ -189,7 +189,7 @@ describe("Browser tests", () => {
 
   it("should transfer sol and update merkle tree ", async () => {
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,

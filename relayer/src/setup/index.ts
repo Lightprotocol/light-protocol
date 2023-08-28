@@ -38,7 +38,7 @@ export async function relayerSetup() {
     // for (let sol = 0; sol < 2; sol++)
     await airdropSol({
       connection: anchorProvider.connection,
-      lamports: 10 * AIRDROP_DECIMALS,
+      lamports: 1000 * AIRDROP_DECIMALS,
       recipientPublicKey: wallet.publicKey,
     });
     console.log(
@@ -67,17 +67,16 @@ export async function relayerSetup() {
 }
 
 async function fundRelayer(anchorProvider: AnchorProvider) {
-  console.log("con n", anchorProvider.connection);
   await airdropSol({
     connection: anchorProvider.connection,
-    lamports: 10 * AIRDROP_DECIMALS,
+    lamports: 20 * AIRDROP_DECIMALS,
     recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
   });
   const relayer = await getRelayer();
-  relayer.relayerFee = new BN(100_000);
+  relayer.relayerFee = new BN(10_000);
   await airdropSol({
     connection: anchorProvider.connection,
-    lamports: 10 * AIRDROP_DECIMALS,
+    lamports: 1000 * AIRDROP_DECIMALS,
     recipientPublicKey: relayer.accounts.relayerRecipientSol,
   });
 }

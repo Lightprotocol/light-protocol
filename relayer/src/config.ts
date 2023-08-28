@@ -38,7 +38,8 @@ export enum TransactionType {
 export const NETWORK = process.env.NETWORK;
 export const ENVIRONMENT = process.env.ENVIRONMENT;
 export const AIRDROP_DECIMALS =
-  NETWORK === Network.TESTNET ? 1e6 : NETWORK === Network.LOCALNET ? 1e9 : 0;
+  NETWORK === Network.TESTNET ? 1e6 : NETWORK === Network.LOCALNET ? 1e9 : 1e9;
+console.log("network", NETWORK);
 console.log("ENVIRONMENT", ENVIRONMENT);
 export const RPC_URL = process.env.RPC_URL!;
 console.log("RPC_URL", RPC_URL);
