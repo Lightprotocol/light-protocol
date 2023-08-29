@@ -64,7 +64,6 @@ async function getProofInputsFromSymFile(artifactPath: string) {
   const symText = fs.readFileSync(`${artifactPath}Main.sym`, "utf-8");
   while ((match = regex.exec(symText)) !== null) {
     keys.push(match[1]);
-    // const name = match[1];
   }
 
   let arr: PropertiesObject[] = [];
