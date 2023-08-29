@@ -15,7 +15,7 @@ export default class InitCommand extends Command {
   static flags = {
     circom: Flags.boolean({
       description:
-        "Whether the main circuit is a circom circuit not a .light file.",
+        "Whether the main circuit is a circom circuit, not a .light file.",
       default: false,
       required: false,
     }),
