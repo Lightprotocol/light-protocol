@@ -1,4 +1,3 @@
-import { BN } from "@coral-xyz/anchor";
 import { RELAYER_FEE, airdropSol } from "@lightprotocol/zk.js";
 import { NETWORK, Network } from "../config";
 import {
