@@ -419,7 +419,7 @@
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
 "@lightprotocol/prover.js@file:../light-prover.js":
-  version "0.1.0"
+  version "0.1.0-alpha.1"
   dependencies:
     "@coral-xyz/anchor" "^0.28.0"
     circomlibjs "^0.1.7"

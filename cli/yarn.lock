@@ -759,11 +759,11 @@
     snarkjs "^0.7.0"
 
 "@lightprotocol/zk.js@file:../light-zk.js":
-  version "0.3.2-alpha.13"
+  version "0.3.2-alpha.14"
   dependencies:
     "@coral-xyz/anchor" "0.28.0"
     "@coral-xyz/borsh" "^0.28.0"
-    "@lightprotocol/prover.js" "file:../../../.cache/yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.13-2819a906-5173-4a61-b7cf-7ac8c7b25036-1693341816412/node_modules/@lightprotocol/light-prover.js"
+    "@lightprotocol/prover.js" "file:../../../.cache/yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.14-54a2f7af-494b-461a-a523-d358cae5862f-1693350255676/node_modules/@lightprotocol/light-prover.js"
     "@noble/hashes" "^1.1.5"
     "@solana/spl-account-compression" "^0.1.5"
     "@solana/spl-token" "0.3.7"

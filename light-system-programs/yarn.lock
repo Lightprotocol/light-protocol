@@ -628,7 +628,7 @@
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
 "@lightprotocol/prover.js@file:../light-prover.js":
-  version "0.1.0"
+  version "0.1.0-alpha.1"
   dependencies:
     "@coral-xyz/anchor" "^0.28.0"
     circomlibjs "^0.1.7"
@@ -636,11 +636,11 @@
     snarkjs "^0.7.0"
 
 "@lightprotocol/zk.js@file:../light-zk.js":
-  version "0.3.2-alpha.13"
+  version "0.3.2-alpha.14"
   dependencies:
     "@coral-xyz/anchor" "0.28.0"
     "@coral-xyz/borsh" "^0.28.0"
-    "@lightprotocol/prover.js" "file:../../../.cache/yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.13-096348eb-3a10-4a6a-a532-e663b25f9a4a-1693048046281/node_modules/@lightprotocol/light-prover.js"
+    "@lightprotocol/prover.js" "file:../../../.cache/yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.14-1ad634be-464d-48af-bacd-161518048252-1693350181103/node_modules/@lightprotocol/light-prover.js"
     "@noble/hashes" "^1.1.5"
     "@solana/spl-account-compression" "^0.1.5"
     "@solana/spl-token" "0.3.7"
