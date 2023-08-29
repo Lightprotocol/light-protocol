@@ -42,10 +42,7 @@ describe("Prover Functionality Tests", () => {
     await prover.addProofInputs(proofInputs);
 
     console.time("Proof generation + Parsing");
-    await chai.assert.isRejected(
-      prover.fullProveAndParse(),
-      Error,
-    );
+    await chai.assert.isRejected(prover.fullProveAndParse(), Error);
     console.timeEnd("Proof generation + Parsing");
   });
 
