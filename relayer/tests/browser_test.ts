@@ -24,6 +24,7 @@ import {
   Action,
   Account,
   ConfirmOptions,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 
@@ -83,7 +84,7 @@ describe("Browser tests", () => {
     RELAYER = new Relayer(
       new PublicKey("EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D"),
       new PublicKey("AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44"),
-      new BN(100000),
+      RELAYER_FEE,
     );
     await airdropSol({
       connection: connection,

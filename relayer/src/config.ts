@@ -4,10 +4,11 @@ import {
   verifierProgramOneProgramId,
   verifierProgramTwoProgramId,
   verifierProgramStorageProgramId,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 import "dotenv/config.js";
 
-export const relayerFee = new anchor.BN(100000);
+export const relayerFee = RELAYER_FEE;
 export const port = Number(process.env.PORT) || 3331;
 export const SECONDS = 1000;
 export const MINUTE = 60 * SECONDS;

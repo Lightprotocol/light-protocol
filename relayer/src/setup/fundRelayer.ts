@@ -1,5 +1,5 @@
 import { BN } from "@coral-xyz/anchor";
-import { airdropSol } from "@lightprotocol/zk.js";
+import { RELAYER_FEE, airdropSol } from "@lightprotocol/zk.js";
 import { NETWORK, Network } from "../config";
 import {
   getAnchorProvider,
@@ -23,7 +23,7 @@ export async function fundRelayer() {
     recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
   });
   const relayer = await getRelayer();
-  relayer.relayerFee = new BN(10_000);
+  relayer.relayerFee = RELAYER_FEE;
   console.log(
     "Relayer Feepayer funded:",
     relayer.accounts.relayerPubkey.toBase58(),

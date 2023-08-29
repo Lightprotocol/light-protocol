@@ -21,6 +21,7 @@ import {
   MINIMUM_LAMPORTS,
   ParsedIndexedTransaction,
   MerkleTreeConfig,
+  RELAYER_FEE,
 } from "../index";
 
 const axios = require("axios");
@@ -103,7 +104,7 @@ export class Provider {
       this.relayer = new Relayer(
         this.wallet.publicKey,
         RELAYER_RECIPIENT_KEYPAIR.publicKey,
-        new BN(100000),
+        RELAYER_FEE,
       );
     }
     let tmpAssetLookupTable = assetLookupTable

@@ -28,6 +28,7 @@ import {
   ConfirmOptions,
   MerkleTreeConfig,
   Relayer,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
@@ -94,7 +95,7 @@ describe("API tests", () => {
     });
     const relayer = await getRelayer();
 
-    relayer.relayerFee = new BN(100_000);
+    relayer.relayerFee = RELAYER_FEE;
     provider = await Provider.init({
       wallet: userKeypair,
       confirmConfig,
@@ -213,7 +214,7 @@ describe("API tests", () => {
     const relayer = new Relayer(
       Keypair.generate().publicKey,
       Keypair.generate().publicKey,
-      new BN(100_000),
+      RELAYER_FEE,
     );
     const provider = await Provider.init({
       wallet: userKeypair,
@@ -248,7 +249,7 @@ describe("API tests", () => {
     const relayer = new Relayer(
       (await getRelayer()).accounts.relayerPubkey,
       Keypair.generate().publicKey,
-      new BN(100_000),
+      RELAYER_FEE,
     );
     const provider = await Provider.init({
       wallet: userKeypair,

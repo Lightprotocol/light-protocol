@@ -42,6 +42,7 @@ import {
   Action,
   TestRelayer,
   executeUpdateMerkleTreeTransactions,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
@@ -92,7 +93,7 @@ describe("Merkle Tree Tests", () => {
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol,
-      relayerFee: new anchor.BN(100_000),
+      relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
     });
   });
