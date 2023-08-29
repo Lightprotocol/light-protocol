@@ -22,12 +22,10 @@ export const addCircuit = async ({
   await executeCargoGenerate({
     args: [
       "generate",
-      // "--git",
-      // "https://github.com/Lightprotocol/psp-template",
-      // --tag,
-      // PSP_TEMPLATE_TAG,
-      "--path",
-      "/home/ananas/test_light/psp-template",
+      "--git",
+      "https://github.com/Lightprotocol/psp-template",
+      "--tag",
+      PSP_TEMPLATE_TAG,
       circuit_template,
       "--name",
       name,

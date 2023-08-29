@@ -1,6 +1,5 @@
 const fs = require('fs');
-import { toSnakeCase } from "@lightprotocol/zk.js";
-import { toCamelCase } from "../src/psp-utils";
+import { toSnakeCase, toCamelCase } from "@lightprotocol/zk.js";
 
 function main() {
     const dir = process.argv[2];

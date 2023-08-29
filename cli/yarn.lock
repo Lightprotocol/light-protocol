@@ -751,7 +751,7 @@
     "@jridgewell/sourcemap-codec" "1.4.14"
 
 "@lightprotocol/prover.js@file:../light-prover.js":
-  version "0.1.0"
+  version "0.1.0-alpha.1"
   dependencies:
     "@coral-xyz/anchor" "^0.28.0"
     circomlibjs "^0.1.7"
@@ -763,7 +763,7 @@
   dependencies:
     "@coral-xyz/anchor" "0.28.0"
     "@coral-xyz/borsh" "^0.28.0"
-    "@lightprotocol/prover.js" "file:../../../../Library/Caches/Yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.13-8775b70e-bf41-4bd9-a557-c1eef3c52ed3-1692750234306/node_modules/@lightprotocol/light-prover.js"
+    "@lightprotocol/prover.js" "file:../../../.cache/yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.13-2819a906-5173-4a61-b7cf-7ac8c7b25036-1693341816412/node_modules/@lightprotocol/light-prover.js"
     "@noble/hashes" "^1.1.5"
     "@solana/spl-account-compression" "^0.1.5"
     "@solana/spl-token" "0.3.7"
@@ -776,7 +776,7 @@
     ffjavascript "^0.2.54"
     fs "^0.0.1-security"
     global "^4.4.0"
-    snarkjs "^0.5.0"
+    snarkjs "^0.7.0"
     tweetnacl "^1.0.3"
 
 "@metaplex-foundation/beet-solana@^0.4.0":
@@ -2801,13 +2801,6 @@ cidr-regex@^3.1.1:
   dependencies:
     ip-regex "^4.1.0"
 
-circom_runtime@0.1.21:
-  version "0.1.21"
-  resolved "https://registry.npmjs.org/circom_runtime/-/circom_runtime-0.1.21.tgz"
-  integrity sha512-qTkud630B/GK8y76hnOaaS1aNuF6prfV0dTrkeRsiJKnlP1ryQbP2FWLgDOPqn6aKyaPlam+Z+DTbBhkEzh8dA==
-  dependencies:
-    ffjavascript "0.2.56"
-
 circom_runtime@0.1.22:
   version "0.1.22"
   resolved "https://registry.yarnpkg.com/circom_runtime/-/circom_runtime-0.1.22.tgz#f957c47662cdd03cd3fb76979c434c719a366373"
@@ -3874,15 +3867,6 @@ fetch-blob@^3.1.2, fetch-blob@^3.1.4:
   dependencies:
     node-domexception "^1.0.0"
     web-streams-polyfill "^3.0.3"
-
-ffjavascript@0.2.56:
-  version "0.2.56"
-  resolved "https://registry.npmjs.org/ffjavascript/-/ffjavascript-0.2.56.tgz"
-  integrity sha512-em6G5Lrj7ucIqj4TYEgyoHs/j99Urwwqa4+YxEVY2hggnpRimVj+noX5pZQTxI1pvtiekZI4rG65JBf0xraXrg==
-  dependencies:
-    wasmbuilder "0.0.16"
-    wasmcurves "0.2.0"
-    web-worker "^1.2.0"
 
 ffjavascript@0.2.57, ffjavascript@^0.2.45, ffjavascript@^0.2.48, ffjavascript@^0.2.54:
   version "0.2.57"
@@ -6623,16 +6607,6 @@ quick-lru@^5.1.1:
   resolved "https://registry.npmjs.org/quick-lru/-/quick-lru-5.1.1.tgz"
   integrity sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==
 
-r1csfile@0.0.41:
-  version "0.0.41"
-  resolved "https://registry.npmjs.org/r1csfile/-/r1csfile-0.0.41.tgz"
-  integrity sha512-Q1WDF3u1vYeAwjHo4YuddkA8Aq0TulbKjmGm99+Atn13Lf5fTsMZBnBV9T741w8iSyPFG6Uh6sapQby77sREqA==
-  dependencies:
-    "@iden3/bigarray" "0.0.2"
-    "@iden3/binfileutils" "0.0.11"
-    fastfile "0.0.20"
-    ffjavascript "0.2.56"
-
 r1csfile@0.0.45:
   version "0.0.45"
   resolved "https://registry.yarnpkg.com/r1csfile/-/r1csfile-0.0.45.tgz#59d59a33f8b5280017fc00ee691d003a3d705fe0"
@@ -7079,22 +7053,6 @@ snake-case@^3.0.4:
   dependencies:
     dot-case "^3.0.4"
     tslib "^2.0.3"
-
-snarkjs@^0.5.0:
-  version "0.5.0"
-  resolved "https://registry.npmjs.org/snarkjs/-/snarkjs-0.5.0.tgz"
-  integrity sha512-KWz8mZ2Y+6wvn6GGkQo6/ZlKwETdAGohd40Lzpwp5TUZCn6N6O4Az1SuX1rw/qREGL6Im+ycb19suCFE8/xaKA==
-  dependencies:
-    "@iden3/binfileutils" "0.0.11"
-    bfj "^7.0.2"
-    blake2b-wasm "^2.4.0"
-    circom_runtime "0.1.21"
-    ejs "^3.1.6"
-    fastfile "0.0.20"
-    ffjavascript "0.2.56"
-    js-sha3 "^0.8.0"
-    logplease "^1.2.15"
-    r1csfile "0.0.41"
 
 snarkjs@^0.7.0:
   version "0.7.0"

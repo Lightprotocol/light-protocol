@@ -27,12 +27,10 @@ export const initRepo = async (name: string, type: ProjectType) => {
   await executeCargoGenerate({
     args: [
       "generate",
-      // "--git",
-      // "https://github.com/Lightprotocol/psp-template",
-      // --tag,
-      // PSP_TEMPLATE_TAG,
-      "--path",
-      "/home/ananas/test_light/psp-template",
+      "--git",
+      "https://github.com/Lightprotocol/psp-template",
+      "--tag",
+      PSP_TEMPLATE_TAG,
       "psp-template",
       "--name",
       name,
