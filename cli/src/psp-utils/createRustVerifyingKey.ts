@@ -142,7 +142,7 @@ function createStringRsIdlAccountStruct(
     const { inputName, dimension, size } = input;
     const rustType = buildRustType(dimension, size, isInstructionData);
     const inputName_snake = camelToSnakeCase(inputName);
-    structDefinition += `    ${inputName_snake}: ${rustType},\n`;
+    structDefinition += `${inputName_snake}: ${rustType},\n`;
   });
 
   structDefinition += "}";
