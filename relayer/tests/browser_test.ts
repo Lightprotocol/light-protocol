@@ -83,7 +83,7 @@ describe("Browser tests", () => {
     RELAYER = new Relayer(
       new PublicKey("EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D"),
       new PublicKey("AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44"),
-      new BN(5000),
+      new BN(100000),
     );
     await airdropSol({
       connection: connection,
