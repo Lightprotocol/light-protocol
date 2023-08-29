@@ -10,5 +10,3 @@ template ProverTest() {
     poseidon.inputs[0] <== x;
     hash === poseidon.out;
 }
-
-component main {public [hash]} = ProverTest();

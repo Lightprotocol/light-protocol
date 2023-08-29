@@ -5,7 +5,7 @@ set -e
 CIRCUITS_DIR="tests/circuits/build-circuits"
 mkdir -p $CIRCUITS_DIR
 
-CIRCUIT="poseidon"
+CIRCUIT="poseidonMain"
 
 POWERS_OF_TAU=10 # circuit will support max 2^POWERS_OF_TAU constraints
 if [ ! -f $CIRCUITS_DIR/ptau$POWERS_OF_TAU ]; then
