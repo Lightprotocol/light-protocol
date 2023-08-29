@@ -1,11 +1,6 @@
 //@ts-check
-import { AnchorProvider, BN, utils } from "@coral-xyz/anchor";
-import {
-  Connection,
-  Keypair as SolanaKeypair,
-  PublicKey,
-  Keypair,
-} from "@solana/web3.js";
+import { AnchorProvider, utils } from "@coral-xyz/anchor";
+import { Connection, Keypair as SolanaKeypair, Keypair } from "@solana/web3.js";
 import chai, { expect } from "chai";
 import chaiHttp from "chai-http";
 import express from "express";
