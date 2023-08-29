@@ -217,7 +217,7 @@ export class Transaction {
       );
     await this.getProof();
     if (this.appParams) await this.getAppProof();
- 
+
     await this.getRootIndex();
     this.getPdaAddresses();
   }

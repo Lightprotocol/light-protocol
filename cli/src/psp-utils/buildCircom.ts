@@ -28,7 +28,6 @@ export async function generateCircuit({
   programName: string;
   circuitPath?: string;
 }): Promise<void> {
- 
   const POWERS_OF_TAU = ptau;
   const ptauFileName = `ptau${POWERS_OF_TAU}`;
   const buildDir = "./target";
