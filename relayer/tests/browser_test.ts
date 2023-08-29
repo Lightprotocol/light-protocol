@@ -38,6 +38,7 @@ import {
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RPC_URL } from "../src/config";
+import { getKeyPairFromEnv } from "../src/utils/provider";
 
 let circomlibjs = require("circomlibjs");
 
@@ -80,10 +81,9 @@ describe("Browser tests", () => {
       recipientPublicKey: relayer.publicKey,
     });
 
-    // TODO: This will only work as long as .env keys don't change
     RELAYER = new Relayer(
-      new PublicKey("EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D"),
-      new PublicKey("AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44"),
+      getKeyPairFromEnv("KEY_PAIR").publicKey,
+      getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
       RELAYER_FEE,
     );
     await airdropSol({
