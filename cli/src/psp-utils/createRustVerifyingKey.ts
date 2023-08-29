@@ -118,7 +118,7 @@ function createStringRsIdlAccountStruct(
     size: number[],
     isInstructionData: boolean = false
   ): string {
-    // the base type is a 254 bit bigint thus a 32 byte array
+    // the base type is a 254-bit bigint; thus, a 32-byte array
     if (dimension === 0 && isInstructionData) {
       return "[u8; 32]";
     }
