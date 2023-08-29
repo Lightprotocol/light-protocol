@@ -1,11 +1,6 @@
 //@ts-check
-import { AnchorProvider, BN, utils } from "@coral-xyz/anchor";
-import {
-  Connection,
-  Keypair as SolanaKeypair,
-  PublicKey,
-  Keypair,
-} from "@solana/web3.js";
+import { AnchorProvider, utils } from "@coral-xyz/anchor";
+import { Connection, Keypair as SolanaKeypair, Keypair } from "@solana/web3.js";
 import chai, { expect } from "chai";
 import chaiHttp from "chai-http";
 import express from "express";
@@ -24,6 +19,7 @@ import {
   Action,
   Account,
   ConfirmOptions,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 
@@ -36,6 +32,8 @@ import {
 } from "../src/services";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
+import { RPC_URL } from "../src/config";
+import { getKeyPairFromEnv } from "../src/utils/provider";
 
 let circomlibjs = require("circomlibjs");
 
@@ -61,8 +59,8 @@ describe("Browser tests", () => {
   var poseidon: any;
   var provider: Provider;
   var user: User;
-  const walletMock = useWallet(ADMIN_AUTH_KEYPAIR);
-  const connection = new Connection("http://127.0.0.1:8899", "confirmed");
+  const walletMock = useWallet(ADMIN_AUTH_KEYPAIR, RPC_URL);
+  const connection = new Connection(RPC_URL, "confirmed");
 
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
@@ -70,23 +68,22 @@ describe("Browser tests", () => {
     await createTestAccounts(connection);
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
-    await connection.requestAirdrop(relayerRecipientSol, 2_000_000_000);
+    await connection.requestAirdrop(relayerRecipientSol, 9e8);
     let relayer = SolanaKeypair.generate();
     await airdropSol({
       connection: connection,
-      lamports: 2_000_000_000,
+      lamports: 9e8,
       recipientPublicKey: relayer.publicKey,
     });
 
-    // TODO: This will only work as long as .env keys don't change
     RELAYER = new Relayer(
-      new PublicKey("EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D"),
-      new PublicKey("AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44"),
-      new BN(100000),
+      getKeyPairFromEnv("KEY_PAIR").publicKey,
+      getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
+      RELAYER_FEE,
     );
     await airdropSol({
       connection: connection,
-      lamports: 2_000_000_000,
+      lamports: 9e8,
       recipientPublicKey: walletMock.publicKey,
     });
 
@@ -119,7 +116,7 @@ describe("Browser tests", () => {
     await airdropSol({
       connection: provider.provider.connection,
       recipientPublicKey: walletMock.publicKey!,
-      lamports: 4e9,
+      lamports: 9e8,
     });
   });
 
@@ -132,7 +129,7 @@ describe("Browser tests", () => {
 
   it("(browser) should shield and update merkle tree", async () => {
     let testInputs = {
-      amountSol: 15,
+      amountSol: 0.2,
       token: "SOL",
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,
@@ -159,7 +156,7 @@ describe("Browser tests", () => {
     const solRecipient = Keypair.generate();
 
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.UNSHIELD,
       recipient: solRecipient.publicKey,
@@ -188,7 +185,7 @@ describe("Browser tests", () => {
 
   it("should transfer sol and update merkle tree ", async () => {
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,

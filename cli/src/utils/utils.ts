@@ -9,6 +9,7 @@ import {
   MerkleTreeConfig,
   Provider,
   Relayer,
+  RELAYER_FEE,
   TestRelayer,
   User,
 } from "@lightprotocol/zk.js";
@@ -111,7 +112,7 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
       relayer = new TestRelayer({
         relayerPubkey: wallet.publicKey,
         relayerRecipientSol: wallet.publicKey,
-        relayerFee: new BN(100_000),
+        relayerFee: RELAYER_FEE,
         highRelayerFee: new BN(10_100_000),
         payer: wallet,
       });
@@ -120,7 +121,7 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
       relayer = new Relayer(
         getRelayerPublicKey(),
         getRelayerRecipient(),
-        new BN(100_000),
+        RELAYER_FEE,
         new BN(10_100_000),
         getRelayerUrl()
       );

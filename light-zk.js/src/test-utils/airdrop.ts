@@ -11,6 +11,7 @@ import {
   User,
   confirmConfig,
   confirmTransaction,
+  RELAYER_FEE,
 } from "../index";
 
 export async function airdropShieldedSol({
@@ -32,7 +33,7 @@ export async function airdropShieldedSol({
   const relayer = new TestRelayer({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
-    relayerFee: new BN(100000),
+    relayerFee: RELAYER_FEE,
     payer: ADMIN_AUTH_KEYPAIR,
   });
   if (!provider) {
@@ -95,7 +96,7 @@ export async function airdropShieldedMINTSpl({
   const relayer = new TestRelayer({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
-    relayerFee: new BN(100000),
+    relayerFee: RELAYER_FEE,
     payer: ADMIN_AUTH_KEYPAIR,
   });
   if (!provider) {

@@ -47,6 +47,7 @@
 /anchor_programs/build/*
 /anchor_programs/Light_Circuits/build/circuits/ptau17
 /light-system-programs/lookUpTable.txt
+/light-system-programs/bin
 /groth16-solana/target/
 */target/*
 

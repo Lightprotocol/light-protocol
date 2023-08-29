@@ -36,6 +36,7 @@ import {
   Account,
   airdropSol,
   MerkleTreeConfig,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -77,7 +78,7 @@ describe("verifier_program", () => {
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol,
-      relayerFee: new BN(100_000),
+      relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
     });
   });

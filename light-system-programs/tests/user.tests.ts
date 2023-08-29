@@ -28,6 +28,7 @@ import {
   airdropShieldedSol,
   TOKEN_ACCOUNT_FEE,
   useWallet,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 
 import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
@@ -66,7 +67,7 @@ describe("Test User", () => {
     RELAYER = new TestRelayer({
       relayerPubkey: relayer.publicKey,
       relayerRecipientSol,
-      relayerFee: new BN(100_000),
+      relayerFee: RELAYER_FEE,
       highRelayerFee: TOKEN_ACCOUNT_FEE,
       payer: relayer,
     });
@@ -108,7 +109,7 @@ describe("Test User", () => {
     let testRelayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol: Keypair.generate().publicKey,
-      relayerFee: new BN(100_000),
+      relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
     });
     const providerExternalSeed = await Provider.init({

@@ -30,6 +30,7 @@ import {
   createRecipientUtxos,
   Provider,
   TokenData,
+  RELAYER_FEE,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const numberMaxOutUtxos = 2;
@@ -88,7 +89,7 @@ describe("Test createOutUtxos Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    relayerFee = new BN(1000);
+    relayerFee = RELAYER_FEE;
 
     let recipientAccountRoot = new Account({
       poseidon,
@@ -706,7 +707,7 @@ describe("Test createOutUtxos Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    relayerFee = new BN(1000);
+    relayerFee = RELAYER_FEE;
 
     let recipientAccountRoot = new Account({
       poseidon,

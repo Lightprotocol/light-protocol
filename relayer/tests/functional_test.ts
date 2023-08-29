@@ -28,6 +28,7 @@ import {
   ConfirmOptions,
   MerkleTreeConfig,
   Relayer,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
@@ -83,18 +84,18 @@ describe("API tests", () => {
     await relayerSetup();
     await airdropSol({
       connection: anchorProvider.connection,
-      lamports: 10_000_000_000,
+      lamports: 9e8,
       recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
     });
 
     await airdropSol({
       connection: anchorProvider.connection,
-      lamports: 1000 * 1e9,
+      lamports: 9e8,
       recipientPublicKey: userKeypair.publicKey,
     });
     const relayer = await getRelayer();
 
-    relayer.relayerFee = new BN(100_000);
+    relayer.relayerFee = RELAYER_FEE;
     provider = await Provider.init({
       wallet: userKeypair,
       confirmConfig,
@@ -102,7 +103,7 @@ describe("API tests", () => {
     });
     await airdropSol({
       connection: anchorProvider.connection,
-      lamports: 1000 * 1e9,
+      lamports: 9e8,
       recipientPublicKey: provider.relayer.accounts.relayerRecipientSol,
     });
 
@@ -185,7 +186,7 @@ describe("API tests", () => {
 
   it("should shield and update merkle tree", async () => {
     let testInputs = {
-      amountSol: 15,
+      amountSol: 0.3,
       token: "SOL",
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,
@@ -213,7 +214,7 @@ describe("API tests", () => {
     const relayer = new Relayer(
       Keypair.generate().publicKey,
       Keypair.generate().publicKey,
-      new BN(100_000),
+      RELAYER_FEE,
     );
     const provider = await Provider.init({
       wallet: userKeypair,
@@ -223,7 +224,7 @@ describe("API tests", () => {
     const user = await User.init({ provider });
 
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.UNSHIELD,
       recipient: solRecipient.publicKey,
@@ -248,7 +249,7 @@ describe("API tests", () => {
     const relayer = new Relayer(
       (await getRelayer()).accounts.relayerPubkey,
       Keypair.generate().publicKey,
-      new BN(100_000),
+      RELAYER_FEE,
     );
     const provider = await Provider.init({
       wallet: userKeypair,
@@ -258,7 +259,7 @@ describe("API tests", () => {
     const user = await User.init({ provider });
 
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.UNSHIELD,
       recipient: solRecipient.publicKey,
@@ -282,7 +283,7 @@ describe("API tests", () => {
     const solRecipient = Keypair.generate();
 
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.UNSHIELD,
       recipient: solRecipient.publicKey,
@@ -359,7 +360,7 @@ describe("API tests", () => {
 
   it("should transfer sol and update merkle tree ", async () => {
     const testInputs = {
-      amountSol: 1,
+      amountSol: 0.05,
       token: "SOL",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,

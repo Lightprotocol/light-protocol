@@ -35,6 +35,7 @@ import {
   sleep,
   getSystem,
   System,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -80,7 +81,7 @@ describe("Verifier Zero and One Tests", () => {
     RELAYER = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol,
-      relayerFee: new BN(100_000),
+      relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
     });
 
