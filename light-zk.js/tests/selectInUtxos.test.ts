@@ -25,6 +25,7 @@ import {
   Account,
   createRecipientUtxos,
   Provider,
+  RELAYER_FEE,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -97,7 +98,7 @@ describe("Test selectInUtxos Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    relayerFee = new BN(1000);
+    relayerFee = RELAYER_FEE;
 
     let recipientAccountRoot = new Account({
       poseidon,
@@ -115,7 +116,7 @@ describe("Test selectInUtxos Functional", () => {
 
     let selectedUtxo = selectInUtxos({
       publicMint: utxo1.assets[1],
-      relayerFee: new BN(1000),
+      relayerFee: RELAYER_FEE,
       publicAmountSpl: new BN(1),
       poseidon,
       utxos: inUtxos,
@@ -131,7 +132,7 @@ describe("Test selectInUtxos Functional", () => {
 
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
-      relayerFee: new BN(1000),
+      relayerFee: RELAYER_FEE,
       publicAmountSol: new BN(1e7),
       poseidon,
       action: Action.UNSHIELD,
@@ -149,7 +150,7 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.UNSHIELD,
-      relayerFee: new BN(1000),
+      relayerFee: RELAYER_FEE,
       poseidon,
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
@@ -182,7 +183,7 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
-      relayerFee: new BN(1000),
+      relayerFee: RELAYER_FEE,
       poseidon,
       outUtxos,
       numberMaxInUtxos,
@@ -212,7 +213,7 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
-      relayerFee: new BN(1000),
+      relayerFee: RELAYER_FEE,
       poseidon,
       outUtxos,
       numberMaxInUtxos,
@@ -243,7 +244,7 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
-      relayerFee: new BN(1000),
+      relayerFee: RELAYER_FEE,
       poseidon,
       outUtxos,
       numberMaxInUtxos,
@@ -323,7 +324,7 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
-      relayerFee: new BN(1000),
+      relayerFee: RELAYER_FEE,
       poseidon,
       outUtxos,
       numberMaxInUtxos,
@@ -397,7 +398,7 @@ describe("Test selectInUtxos Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    relayerFee = new BN(1000);
+    relayerFee = RELAYER_FEE;
 
     let recipientAccountRoot = new Account({
       poseidon,
@@ -449,7 +450,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
-        relayerFee: new BN(1000),
+        relayerFee: RELAYER_FEE,
         poseidon,
         // publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -472,7 +473,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
-        relayerFee: new BN(1000),
+        relayerFee: RELAYER_FEE,
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -494,7 +495,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
-        // relayerFee: new BN(1000),
+        // relayerFee: RELAYER_FEE,
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -517,7 +518,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        // relayerFee: new BN(1000),
+        // relayerFee: RELAYER_FEE,
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -540,7 +541,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.SHIELD,
-        relayerFee: new BN(1000),
+        relayerFee: RELAYER_FEE,
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -563,7 +564,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         // utxos: inUtxos,
         action: Action.TRANSFER,
-        relayerFee: new BN(1000),
+        relayerFee: RELAYER_FEE,
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -609,7 +610,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        relayerFee: new BN(1000),
+        relayerFee: RELAYER_FEE,
         poseidon,
         outUtxos,
         numberMaxInUtxos,
@@ -643,7 +644,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        relayerFee: new BN(1000),
+        relayerFee: RELAYER_FEE,
         poseidon,
         outUtxos,
         numberMaxInUtxos,
@@ -677,7 +678,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        relayerFee: new BN(1000),
+        relayerFee: RELAYER_FEE,
         poseidon,
         outUtxos,
         numberMaxInUtxos,
@@ -711,7 +712,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        relayerFee: new BN(1000),
+        relayerFee: RELAYER_FEE,
         poseidon,
         outUtxos,
         numberMaxInUtxos,

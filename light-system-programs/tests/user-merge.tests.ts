@@ -13,6 +13,7 @@ import {
   MINT,
   airdropShieldedSol,
   airdropShieldedMINTSpl,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 
 import {
@@ -22,7 +23,7 @@ import {
   performMergeUtxos,
 } from "./test-utils/user-utils";
 
-import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
+import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const recipientSeed = bs58.encode(new Uint8Array(32).fill(7));
@@ -60,7 +61,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     environmentConfig.relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol,
-      relayerFee: new BN(100_000),
+      relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
     });
   });

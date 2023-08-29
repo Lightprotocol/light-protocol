@@ -9,3 +9,4 @@ tests/*.js
 tests/test-utils/*.js
 scripts/*.js
 migrations/*.js
+bin

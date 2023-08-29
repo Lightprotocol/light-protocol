@@ -4,11 +4,12 @@ import {
   verifierProgramOneProgramId,
   verifierProgramTwoProgramId,
   verifierProgramStorageProgramId,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 import "dotenv/config.js";
 
-export const relayerFee = new anchor.BN(100000);
-export const port = 3331;
+export const relayerFee = RELAYER_FEE;
+export const port = Number(process.env.PORT) || 3331;
 export const SECONDS = 1000;
 export const MINUTE = 60 * SECONDS;
 export const HOUR = 60 * MINUTE;
@@ -21,6 +22,7 @@ export enum Network {
   MAINNET = "MAINNET",
   DEVNET = "DEVNET",
   LOCALNET = "LOCALNET",
+  TESTNET = "TESTNET",
 }
 export enum Environment {
   PROD = "PROD",
@@ -36,10 +38,12 @@ export enum TransactionType {
 
 export const NETWORK = process.env.NETWORK;
 export const ENVIRONMENT = process.env.ENVIRONMENT;
-console.log("NETWORK", NETWORK);
-console.log("ENVIRONMENT", ENVIRONMENT);
-export const RPC_URL = process.env.RPC_URL;
-console.log("RPC_URL", RPC_URL);
+
+export const RPC_URL = process.env.RPC_URL!;
+
+export const PORT = process.env.DB_PORT!;
+export const PASSWORD = process.env.PASSWORD!;
+export const HOST = process.env.HOSTNAME!;
 
 // TODO: EXPORT FROM ZK.JS RELEASE
 export const VERIFIER_PUBLIC_KEYS = [

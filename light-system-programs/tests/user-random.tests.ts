@@ -18,6 +18,7 @@ import {
   convertAndComputeDecimals,
   TOKEN_REGISTRY,
   ADMIN_AUTH_KEYPAIR,
+  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -448,7 +449,7 @@ describe("Test User", () => {
     let relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol: relayerRecipientSol.publicKey,
-      relayerFee: new BN(100_000),
+      relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
     });
 

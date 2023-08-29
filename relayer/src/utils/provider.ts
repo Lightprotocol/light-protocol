@@ -20,6 +20,7 @@ export const getAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   process.env.ANCHOR_PROVIDER_URL = process.env.RPC_URL;
   const url = process.env.RPC_URL;
   if (!url) throw new Error("Environment variable RPC_URL not set");
+  console.log("url", url);
   const connection = new anchor.web3.Connection(url, "confirmed");
   const providerAnchor = new anchor.AnchorProvider(
     connection,
