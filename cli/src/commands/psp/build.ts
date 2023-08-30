@@ -1,18 +1,14 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { buildPSP } from "../../psp-utils/buildPSP";
+import { buildFlags, buildPSP } from "../../psp-utils/buildPSP";
 
 export default class BuildCommand extends Command {
   static description = "build your PSP";
 
   static flags = {
-    name: Flags.string({ description: "Name of the PSP project." }),
-    ptau: Flags.integer({ description: "Ptau value.", default: 15 }),
-    circuitDir: Flags.string({
-      description: "Directory of the circuit.",
-      default: "circuit",
-    }),
+    ...buildFlags,
     // TODO: pass along anchor build options // execsync thingy alt.
   };
+
   static args = {
     name: Args.string({
       name: "NAME",
@@ -22,10 +18,9 @@ export default class BuildCommand extends Command {
   };
   async run() {
     const { flags, args } = await this.parse(BuildCommand);
-    let { ptau, circuitDir } = flags;
     let { name } = args;
-
     this.log("building PSP...");
-    await buildPSP(circuitDir, ptau, name!);
+
+    await buildPSP({ ...flags, programName: name! });
   }
 }

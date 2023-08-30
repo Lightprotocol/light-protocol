@@ -7,6 +7,7 @@ import { downloadFile } from "./download";
 import { executeCommand } from "./process";
 import { executeAnchor, executeCircom } from "./toolchain";
 import { findFile } from "./utils";
+import { toSnakeCase } from "@lightprotocol/zk.js";
 
 /**
  * Generates a zk-SNARK circuit given a circuit name.
@@ -17,15 +18,16 @@ import { findFile } from "./utils";
  * @returns {Promise<void>}
  */
 export async function generateCircuit({
-  circuitFileName,
+  circuitName,
   ptau,
   programName,
+  circuitPath = "./circuits",
 }: {
-  circuitFileName: string;
+  circuitName: string;
   ptau: number;
   programName: string;
+  circuitPath?: string;
 }): Promise<void> {
-  const circuitName = circuitFileName.slice(0, -".circom".length);
   const POWERS_OF_TAU = ptau;
   const ptauFileName = `ptau${POWERS_OF_TAU}`;
   const buildDir = "./target";
@@ -54,7 +56,7 @@ export async function generateCircuit({
       "--r1cs",
       "--wasm",
       "--sym",
-      `./circuit/${circuitName}.circom`,
+      `${circuitPath}/${camelToKebab(circuitName)}/${circuitName}Main.circom`,
       "-o",
       `${sdkBuildCircuitDir}/`,
     ],
@@ -66,7 +68,7 @@ export async function generateCircuit({
       "snarkjs",
       "groth16",
       "setup",
-      `${sdkBuildCircuitDir}/${circuitName}.r1cs`,
+      `${sdkBuildCircuitDir}/${circuitName}Main.r1cs`,
       ptauFilePath,
       `${sdkBuildCircuitDir}/${circuitName}_tmp.zkey`,
     ],
@@ -98,12 +100,15 @@ export async function generateCircuit({
       "export",
       "verificationkey",
       `${sdkBuildCircuitDir}/${circuitName}.zkey`,
-      `${sdkBuildCircuitDir}/verifyingkey.json`,
+      `${sdkBuildCircuitDir}/verifyingkey${circuitName}.json`,
     ],
   });
 
-  const vKeyJsonPath = sdkBuildCircuitDir + "/verifyingkey.json";
-  const vKeyRsPath = "./programs/" + programName + "/src/verifying_key.rs";
+  const vKeyJsonPath = sdkBuildCircuitDir + `/verifyingkey${circuitName}.json`;
+  const vKeyRsPath =
+    "./programs/" +
+    programName +
+    `/src/verifying_key_${toSnakeCase(circuitName)}.rs`;
   const artifactPath = sdkBuildCircuitDir + "/" + circuitName;
   try {
     fs.unlinkSync(vKeyJsonPath);
@@ -117,7 +122,7 @@ export async function generateCircuit({
         "export",
         "verificationkey",
         `${sdkBuildCircuitDir}/${circuitName}.zkey`,
-        `${sdkBuildCircuitDir}/verifyingkey.json`,
+        `${sdkBuildCircuitDir}/verifyingkey${circuitName}.json`,
       ],
     });
   }
@@ -140,38 +145,15 @@ export async function generateCircuit({
     await sleep(10);
   }
 
-  fs.unlinkSync(path.join(sdkBuildCircuitDir, "verifyingkey.json"));
+  fs.unlinkSync(
+    path.join(sdkBuildCircuitDir, `verifyingkey${circuitName}.json`)
+  );
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}_tmp.zkey`));
-  fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}.r1cs`));
-  fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}.sym`));
+  fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}Main.r1cs`));
+  fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}Main.sym`));
 }
-
-/**
- * Builds a barebone Circom + Anchor project given a circuit directory.
- * Initializes client-side typescript prover, on-chain groth16-solana verifier, builds the circom circuit, and compiles the anchor program.
- * @param circuitDir - The directory containing the circuit files.
- * @returns {Promise<void>}
- */
-export async function buildCircom(
-  circuitDir: string,
-  ptau: number,
-  programName: string
-) {
-  let circuitFileName = findFile({
-    directory: circuitDir,
-    extension: "circom",
-  });
-
-  console.log("🛠️️  Building circuit", circuitFileName);
-
-  await generateCircuit({
-    circuitFileName,
-    ptau,
-    programName,
-  });
-  console.log("✅ Circuit generated successfully");
-
-  console.log("🛠  Building on-chain program");
-  await executeAnchor({ args: ["build"] });
-  console.log("✅ Build finished successfully");
+function camelToKebab(str: string): string {
+  return str
+    .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, "$1-$2") // Match camelCasing and insert "-"
+    .toLowerCase(); // Convert the entire string to lowercase
 }

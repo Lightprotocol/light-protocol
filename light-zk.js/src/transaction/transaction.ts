@@ -215,9 +215,9 @@ export class Transaction {
         TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
         "compileAndProve",
       );
-    const proofs = [this.getProof()];
-    if (this.appParams) proofs.push(this.getAppProof());
-    await Promise.all(proofs);
+    await this.getProof();
+    if (this.appParams) await this.getAppProof();
+
     await this.getRootIndex();
     this.getPdaAddresses();
   }
@@ -370,7 +370,7 @@ export class Transaction {
         "getProofInternal",
         "verifierIdl is missing in TransactionParameters",
       );
-    let prover = new Prover(params.verifierIdl, firstPath);
+    let prover = new Prover(params.verifierIdl, firstPath, params.circuitName);
     await prover.addProofInputs(this.proofInput);
     const prefix = `\x1b[37m[${new Date(Date.now()).toISOString()}]\x1b[0m`;
     console.time(`${prefix} Proving ${params.verifierIdl.name} circuit`);

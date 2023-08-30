@@ -1693,7 +1693,7 @@ export class User {
   }
 
   async executeAppUtxo({
-    appUtxos,
+    appUtxos = [],
     inUtxos = [],
     outUtxos,
     action,
@@ -1703,7 +1703,7 @@ export class User {
     addOutUtxos,
     shuffleEnabled = false,
   }: {
-    appUtxos: Utxo[];
+    appUtxos?: Utxo[];
     outUtxos?: Utxo[];
     action: Action;
     programParameters: any;

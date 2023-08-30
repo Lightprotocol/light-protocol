@@ -105,8 +105,7 @@ class ShieldCommand extends Command {
           "custom"
         )
       );
-      console.log("flags", JSON.stringify(flags));
-      console.log("amount sol ", amountSol);
+
       if (!amountSol || !amountSpl) {
         this.log(
           `\nSuccessfully shielded ${

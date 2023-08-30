@@ -5,4 +5,5 @@ export type ProgramParameters = {
   inputs: any; // object of proof and other inputs
   path: string;
   accounts?: any; // object of accounts
+  circuitName: string;
 };

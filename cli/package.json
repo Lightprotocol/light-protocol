@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/cli",
-  "version": "0.1.1-alpha.18",
+  "version": "0.1.1-alpha.19",
   "description": "Light Protocol CLI",
   "author": "@ananas-block, @shigoto-dev19, @sleepyqadir ",
   "bin": {
@@ -96,16 +96,19 @@
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-cli": "yarn test-account && yarn test-config && yarn test-airdrop && yarn test-shield && yarn test-shield:sol && yarn test-shield:spl && yarn test-unshield && yarn test-unshield:sol && yarn test-unshield:spl && yarn test-transfer && yarn test-accept-utxos && yarn kill",
     "test-psp-init": "cd .. && rm -r tmp-test-psp || true && ./cli/test_bin/run psp:init tmp-test-psp && cd cli",
+    "test-psp-add-circuit": "cd ../tmp-test-psp && ./../cli/test_bin/run psp:add-circuit second-circuit --circom && ./../cli/test_bin/run psp:add-circuit second-circuit1 && cd ../cli && ts-node scripts/checkAddCircuit.ts ../tmp-test-psp second-circuit true && ts-node scripts/checkAddCircuit.ts ../tmp-test-psp second-circuit1",
     "test-psp-build": "cd ../tmp-test-psp && ./../cli/test_bin/run psp:build tmp-test-psp && cd ../cli",
     "test-psp-test": "cd ../tmp-test-psp && ./../cli/test_bin/run psp:test tmp-test-psp Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS && cd ../cli",
     "clean-test-psp": "rm -r ../tmp-test-psp || true",
-    "test-psp": "yarn test-psp-init && yarn test-psp-build && yarn test-psp-test",
+    "test-psp": "yarn test-psp-init && yarn test-psp-build && yarn test-psp-test && yarn test-psp-add-circuit",
     "test-circom-init": "cd .. && rm -r tmp-test-circom || true && ./cli/test_bin/run circom:init tmp-test-circom && cd cli",
+    "test-circom-add-circuit": "cd ../tmp-test-circom && ./../cli/test_bin/run circom:add-circuit second-circuit && cd ../cli && ts-node scripts/checkAddCircuit.ts ../tmp-test-circom second-circuit true",
     "test-circom-build": "cd ../tmp-test-circom && ./../cli/test_bin/run circom:build tmp-test-circom && cd ../cli",
     "test-circom-test": "cd ../tmp-test-circom && ./../cli/test_bin/run circom:test tmp-test-circom Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS && cd ../cli",
     "clean-test-circom": "rm -r ../tmp-test-circom || true",
-    "test-circom": "yarn test-circom-init && yarn test-circom-build && yarn test-circom-test",
-    "test": "yarn test-cli && yarn test-psp && yarn test-circom",
+    "test-circom": "yarn test-circom-init && yarn test-circom-build && yarn test-circom-test && yarn test-circom-add-circuit",
+    "test": "yarn kill && yarn test-cli && yarn test-psp && yarn test-circom",
+    "install-local": "yarn build && yarn global remove @lightprotocol/cli || true && yarn global add $PWD",
     "version": "oclif readme && git add README.md"
   },
   "engines": {

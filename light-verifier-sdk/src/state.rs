@@ -21,6 +21,7 @@ pub struct VerifierState10Ins<const NR_CHECKED_INPUTS: usize, T: Config> {
     pub proof_a: [u8; 64],
     pub proof_b: [u8; 128],
     pub proof_c: [u8; 64],
+    pub transaction_hash: [u8; 32],
     pub e_phantom: PhantomData<T>,
 }
 
@@ -109,6 +110,7 @@ impl<
             merkle_root: light_tx.merkle_root,
             tx_integrity_hash: light_tx.tx_integrity_hash,
             checked_public_inputs: *light_tx.input.checked_public_inputs,
+            transaction_hash: [0u8; 32],
             e_phantom: PhantomData,
         }
     }
