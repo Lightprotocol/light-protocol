@@ -75,7 +75,7 @@ export async function start_test_validator({
 }) {
   const command = "solana-test-validator";
   const LIMIT_LEDGER_SIZE = "500000000";
-  const BASE_PATH = "/bin/";
+  const BASE_PATH = "../../bin/";
   type Program = { id: string; name?: string; path?: string };
   const programs: Program[] = [
     { id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV", name: "spl_noop.so" },
@@ -114,8 +114,8 @@ export async function start_test_validator({
   ];
 
   for (let program of programs) {
-    let dirPathString = "../../bin/" + program.name;
-    const localFilePath = path.resolve(__dirname, dirPathString);
+    let filePathString = BASE_PATH + program.name;
+    const localFilePath = path.resolve(__dirname, filePathString);
     if (!program.path) {
       // TODO: add tag
       await downloadBinIfNotExists({
@@ -133,7 +133,6 @@ export async function start_test_validator({
   }
   let dirPathString = "../../accounts/";
   const localFilePath = path.resolve(__dirname, dirPathString);
-  console.log("accounts path ", localFilePath);
   if (!skip_system_accounts) {
     solanaArgs.push("--account-dir", localFilePath);
   }
