@@ -35,7 +35,7 @@ export class Prover<
   VerifierIdl extends zkIdl,
   CircuitName extends CircuitNames,
 > {
-  public circuitName!: CircuitName;
+  public circuitName!: string;
   public idl: Idl;
   public firstPath: string;
   public wasmPath!: string;
@@ -45,38 +45,50 @@ export class Prover<
   public vKey!: vKeyData;
   public proof!: proofData;
 
-  constructor(idl: Idl, firstPath: string) {
+  constructor(idl: Idl, firstPath: string, circuitName?: string) {
     this.idl = idl;
     this.firstPath = firstPath;
+    if (!circuitName) {
+      const ZKAccountNames = this.idl.accounts
+        ?.filter((account) =>
+          /zK.*(?:PublicInputs|ProofInputs)|zk.*(?:PublicInputs|ProofInputs)/.test(
+            account.name,
+          ),
+        )
+        .map((account) => account.name);
+
+      // Extract the circuit names and store them in a Set to get unique names
+      const circuitNameRegex =
+        /zK(.*?)ProofInputs|zK(.*?)PublicInputs|zk(.*?)ProofInputs|zk(.*?)PublicInputs/;
+      const uniqueCircuitNames = new Set<string>();
+
+      ZKAccountNames?.forEach((name) => {
+        const match = name.match(circuitNameRegex);
+        if (match) {
+          uniqueCircuitNames.add(match[1] || match[2] || match[3] || match[4]);
+        }
+      });
+
+      this.circuitName = Array.from(uniqueCircuitNames)[0] as string;
+    } else {
+      this.circuitName = circuitName;
+    }
+    if (!this.circuitName) throw new Error("Circuit name is undefined");
+  }
+  static removeSuffix(str: string, suffix: string): string {
+    return str.replace(new RegExp(suffix + "$"), "");
   }
 
   async addProofInputs(proofInputs: any) {
     // Filter accounts that contain zK and either PublicInputs or ProofInputs
 
-    const ZKAccountNames = this.idl.accounts
-      ?.filter((account) =>
-        /zK.*(?:PublicInputs|ProofInputs)|zk.*(?:PublicInputs|ProofInputs)/.test(
-          account.name,
-        ),
-      )
-      .map((account) => account.name);
-
-    // Extract the circuit names and store them in a Set to get unique names
-    const circuitNameRegex =
-      /zK(.*?)ProofInputs|zK(.*?)PublicInputs|zk(.*?)ProofInputs|zk(.*?)PublicInputs/;
-    const uniqueCircuitNames = new Set<string>();
-
-    ZKAccountNames?.forEach((name) => {
-      const match = name.match(circuitNameRegex);
-      if (match) {
-        uniqueCircuitNames.add(match[1] || match[2] || match[3] || match[4]);
-      }
-    });
-
-    this.circuitName = Array.from(uniqueCircuitNames)[0] as CircuitName;
     // After Retrieving circuitName ==> build wasm and zkey paths for the circuit
     this.wasmPath =
-      this.firstPath + `/${this.circuitName}_js/${this.circuitName}.wasm`;
+      this.firstPath +
+      `/${Prover.removeSuffix(
+        this.circuitName,
+        "Main",
+      )}Main_js/${Prover.removeSuffix(this.circuitName, "Main")}Main.wasm`;
     this.zkeyPath = this.firstPath + `/${this.circuitName}.zkey`;
 
     const circuitIdlObject = this.idl.accounts!.find(
@@ -235,6 +247,9 @@ export class Prover<
 
     function getSize(type: any): number[] {
       const sizeArray = [];
+      if (Array.isArray(type) && type[0] === "u8" && type[1] === 32) {
+        return [32];
+      }
       if (typeof type === "string") {
         sizeArray.push(0);
       } else if (Array.isArray(type)) {

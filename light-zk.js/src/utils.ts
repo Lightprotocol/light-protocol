@@ -386,10 +386,6 @@ export async function initLookUpTable(
   return lookUpTable;
 }
 
-export function toSnakeCase(str: string): string {
-  return str.replace(/-/g, "_");
-}
-
 // setting environment correctly for ethereum-crypto
 export function setEnvironment() {
   if (

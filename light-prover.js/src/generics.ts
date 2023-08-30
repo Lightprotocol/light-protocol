@@ -1,5 +1,5 @@
 import { Idl } from "@coral-xyz/anchor";
-import {IdlAccountDef, IdlAccountItem} from "@coral-xyz/anchor/dist/cjs/idl";
+import { IdlAccountDef, IdlAccountItem } from "@coral-xyz/anchor/dist/cjs/idl";
 
 export type zkIdl = Idl;
 
@@ -95,7 +95,7 @@ type SelectZKAccount<
   : never;
 
 type Accounts<Idl extends zkIdl> = {
-  [N in Idl["name"]]: Account
+  [N in Idl["name"]]: Account;
 };
 type ZKAccounts = FetchZKAccounts<Accounts<zkIdl>>;
 
