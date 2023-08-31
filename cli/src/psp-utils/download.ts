@@ -224,7 +224,6 @@ export async function downloadBinIfNotExists({
 }) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
-    console.log("created dir in ", dirPath);
   }
 
   // Check if file exists
