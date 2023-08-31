@@ -20,34 +20,45 @@ const find = require("find-process");
 export async function initTestEnv({
   additonalPrograms,
   skip_system_accounts,
+  background,
 }: {
   additonalPrograms?: { address: string; path: string }[];
   skip_system_accounts?: boolean;
+  background?: boolean;
 }) {
   console.log("Performing setup tasks...\n");
 
-  await start_test_validator({ additonalPrograms, skip_system_accounts });
-  const anchorProvider = await setAnchorProvider();
-  await airdropSol({
-    connection: anchorProvider.connection,
-    lamports: 100e9,
-    recipientPublicKey: ADMIN_AUTH_KEYPAIR.publicKey,
-  });
+  const initAccounts = async () => {
+    await sleep(10000);
+    const anchorProvider = await setAnchorProvider();
+    await airdropSol({
+      connection: anchorProvider.connection,
+      lamports: 100e9,
+      recipientPublicKey: ADMIN_AUTH_KEYPAIR.publicKey,
+    });
 
-  await createTestAccounts(anchorProvider.connection);
+    await createTestAccounts(anchorProvider.connection);
 
-  const lookupTable = await initLookUpTableFromFile(anchorProvider);
+    const lookupTable = await initLookUpTableFromFile(anchorProvider);
 
-  setLookUpTable(lookupTable.toString());
+    setLookUpTable(lookupTable.toString());
 
-  const relayerRecipientSol = Keypair.generate().publicKey;
+    const relayerRecipientSol = Keypair.generate().publicKey;
 
-  setRelayerRecipient(relayerRecipientSol.toString());
+    setRelayerRecipient(relayerRecipientSol.toString());
 
-  await anchorProvider.connection.requestAirdrop(
-    relayerRecipientSol,
-    2_000_000_000
-  );
+    await anchorProvider.connection.requestAirdrop(
+      relayerRecipientSol,
+      2_000_000_000
+    );
+  };
+  initAccounts();
+  if (!background) {
+    await start_test_validator({ additonalPrograms, skip_system_accounts });
+  } else {
+    start_test_validator({ additonalPrograms, skip_system_accounts });
+    await sleep(15000);
+  }
 }
 
 export async function initTestEnvIfNeeded({
@@ -69,7 +80,7 @@ export async function initTestEnvIfNeeded({
 
 export async function start_test_validator({
   additonalPrograms,
-  skip_system_accounts,
+  skip_system_accounts
 }: {
   additonalPrograms?: { address: string; path: string }[];
   skip_system_accounts?: boolean;
@@ -142,11 +153,10 @@ export async function start_test_validator({
 
   await new Promise((r) => setTimeout(r, 1000));
 
-  executeCommand({
+  await executeCommand({
     command,
     args: [...solanaArgs],
   });
-  await sleep(10000);
 }
 
 export async function killTestValidator() {
