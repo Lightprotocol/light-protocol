@@ -725,14 +725,6 @@ impl<
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
-            if self.mint_pubkey[1..] != hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..] {
-                msg!(
-                    "*self.mint_pubkey[..31] {:?}, {:?}, sender_spl mint",
-                    self.mint_pubkey[1..].to_vec(),
-                    hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
-                );
-                return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
-            }
 
             // is a token deposit or withdrawal
             if self.is_deposit() {
