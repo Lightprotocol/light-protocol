@@ -248,6 +248,14 @@ export class MerkleTreeConfig {
     return txHash;
   }
 
+  async isMerkleTreeAuthorityInitialized(): Promise<boolean> {
+    const accountInfo = await this.connection.getAccountInfo(
+      this.getMerkleTreeAuthorityPda(),
+    );
+
+    return accountInfo !== null && accountInfo.data.length >= 0;
+  }
+
   async updateMerkleTreeAuthority(newAuthority: PublicKey, test = false) {
     if (!this.merkleTreeAuthorityPda) {
       await this.getMerkleTreeAuthorityPda();

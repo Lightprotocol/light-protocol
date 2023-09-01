@@ -15,6 +15,7 @@ import { Keypair } from "@solana/web3.js";
 import { downloadBinIfNotExists, executeCommand } from "../psp-utils";
 import path from "path";
 import { PROGRAM_TAG } from "../psp-utils/constants";
+const find = require("find-process");
 
 export async function initTestEnv({
   additonalPrograms,
@@ -136,20 +137,8 @@ export async function start_test_validator({
   if (!skip_system_accounts) {
     solanaArgs.push("--account-dir", localFilePath);
   }
-  try {
-    // killall process
-    await executeCommand({
-      command: "killall",
-      args: ["solana-test-validator"],
-    });
-  } catch (error) {}
-  try {
-    // killall process
-    await executeCommand({
-      command: "killall",
-      args: ["solana-test-val"],
-    });
-  } catch (error) {}
+
+  await killTestValidator();
 
   await new Promise((r) => setTimeout(r, 1000));
 
@@ -158,4 +147,12 @@ export async function start_test_validator({
     args: [...solanaArgs],
   });
   await sleep(10000);
+}
+
+export async function killTestValidator() {
+  const processList = await find("name", "solana-test-validator");
+
+  for (const proc of processList) {
+    process.kill(proc.pid);
+  }
 }
