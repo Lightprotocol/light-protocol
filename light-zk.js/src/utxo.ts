@@ -344,6 +344,14 @@ export class Utxo {
       for (var attribute in appData) {
         hashArray.push(appData[attribute]);
       }
+      hashArray = hashArray.flat();
+      if (hashArray.length > 16) {
+        throw new UtxoError(
+          UtxoErrorCode.INVALID_APP_DATA,
+          "constructor",
+          "appData length exceeds 16",
+        );
+      }
       this.appDataHash = new BN(
         leInt2Buff(
           unstringifyBigInts(poseidon.F.toString(poseidon(hashArray))),
