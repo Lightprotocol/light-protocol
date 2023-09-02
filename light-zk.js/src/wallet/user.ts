@@ -1693,7 +1693,6 @@ export class User {
       confirmOptions,
     });
   }
-
   async executeAppUtxo({
     appUtxos = [],
     inUtxos = [],
@@ -1722,12 +1721,8 @@ export class User {
         "executeAppUtxo",
         `provided program parameters: ${programParameters}`,
       );
-    let isAppInUtxo = [];
-    for (var i in appUtxos) {
-      let array = new Array(4).fill(BN_0);
-      array[i] = BN_1;
-      isAppInUtxo.push(array);
-    }
+
+    let isAppInUtxo = Utxo.getAppInUtxoIndices(appUtxos);
     programParameters.inputs.isAppInUtxo = isAppInUtxo;
     if (!addOutUtxos) addOutUtxos = outUtxos ? false : true;
     if (action === Action.TRANSFER) {
@@ -1748,6 +1743,7 @@ export class User {
       throw new Error("Not implemented");
     }
   }
+
 
   async getProgramUtxos({
     latestBalance = true,

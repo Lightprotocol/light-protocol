@@ -898,6 +898,18 @@ export class Utxo {
       }
     }
   }
+  static getAppInUtxoIndices(appUtxos: Utxo[]) {
+    let isAppInUtxo = [];
+    for (const i in appUtxos) {
+      let array = new Array(4).fill(new BN(0));
+      if (appUtxos[i].appData) {
+        array[i] = new BN(1);
+        isAppInUtxo.push(array);
+      }
+    }
+    return isAppInUtxo;
+  }
 }
+
 
 exports.Utxo = Utxo;
