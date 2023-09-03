@@ -1,8 +1,7 @@
 use anchor_lang::prelude::*;
+use light_macros::light_verifier_accounts;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
-use merkle_tree_program::{
-    program::MerkleTreeProgram, state::TransactionMerkleTree, EventMerkleTree, RegisteredVerifier,
-};
+use merkle_tree_program::program::MerkleTreeProgram;
 
 pub mod processor;
 pub mod verifying_key;
@@ -153,29 +152,9 @@ pub struct LightInstructionClose<'info> {
     pub verifier_state: Account<'info, VerifierState>,
 }
 
+#[light_verifier_accounts(sol)]
 #[derive(Accounts)]
 pub struct LightInstructionSecond<'info> {
-    #[account(mut)]
-    pub signing_address: Signer<'info>,
-    pub system_program: Program<'info, System>,
-    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    #[account(mut)]
-    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
-    /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
-    #[account(mut, seeds=[MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
-    pub authority: UncheckedAccount<'info>,
-    /// CHECK: Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub sender_sol: UncheckedAccount<'info>,
-    /// CHECK: Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub recipient_sol: UncheckedAccount<'info>,
-    /// CHECK: Is not checked, the relayer has complete freedom.
-    #[account(mut)]
-    pub relayer_recipient_sol: UncheckedAccount<'info>,
-    /// Verifier config pda which needs to exist.
-    #[account(mut, seeds=[__program_id.key().to_bytes().as_ref()], bump, seeds::program=MerkleTreeProgram::id())]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     #[account(
         mut,
         seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED],
@@ -183,10 +162,6 @@ pub struct LightInstructionSecond<'info> {
         close=signing_address
     )]
     pub verifier_state: Account<'info, VerifierState>,
-    /// CHECK: Checking manually in the `wrap_event` function.
-    pub log_wrapper: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
 }
 
 #[derive(Debug)]

@@ -1,6 +1,9 @@
 import { executeCommandInDir } from "./process";
 import { executeCargoGenerate } from "./toolchain";
 import {
+  LIGHT_MACROS_VERSION,
+  LIGHT_SYSTEM_PROGRAMS_VERSION,
+  LIGHT_VERIFIER_SDK_VERSION,
   PROVER_JS_VERSION,
   PSP_DEFAULT_PROGRAM_ID,
   PSP_TEMPLATE_TAG,
@@ -29,8 +32,13 @@ export const initRepo = async (name: string, type: ProjectType) => {
       "generate",
       "--git",
       "https://github.com/Lightprotocol/psp-template",
-      "--tag",
-      PSP_TEMPLATE_TAG,
+      // TODO(vadorovsky): Switch back to a new release when accounts macro is
+      // supported.
+      //
+      // "--tag",
+      // PSP_TEMPLATE_TAG,
+      "--branch",
+      "main",
       "psp-template",
       "--name",
       name,
@@ -52,6 +60,12 @@ export const initRepo = async (name: string, type: ProjectType) => {
       `zk-js-version=${ZK_JS_VERSION}`,
       "--define",
       `prover-js-version=${PROVER_JS_VERSION}`,
+      "--define",
+      `light-system-programs-version=${LIGHT_SYSTEM_PROGRAMS_VERSION}`,
+      "--define",
+      `light-macros-version=${LIGHT_MACROS_VERSION}`,
+      "--define",
+      `light-verifier-sdk-version=${LIGHT_VERIFIER_SDK_VERSION}`,
     ],
   });
   type = type === ProjectType.PSP_CIRCOM ? ProjectType.CIRCOM : type;

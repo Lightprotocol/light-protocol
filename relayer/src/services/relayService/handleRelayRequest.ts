@@ -86,22 +86,23 @@ export async function parseReqParams(reqInstructions: any) {
     });
     instructions.push(newInstruction);
   }
+  const relayerRecipientSol = accounts[5];
   console.log(
-    "account 10",
-    accounts[10].pubkey.toBase58() ===
+    "relayerRecipientSol",
+    relayerRecipientSol.pubkey.toBase58() ===
       relayer.accounts.relayerRecipientSol.toBase58(),
   );
 
   // checking that recipient sol is correct
   if (
-    accounts[10].pubkey.toBase58() !==
+    relayerRecipientSol.pubkey.toBase58() !==
     relayer.accounts.relayerRecipientSol.toBase58()
   )
     // || accounts[10].isSigner != false || accounts[10].isWritable != true
     throw new Error(
-      `Relayer recipient sol pubkey in instruction != relayer recipient sol pubkey ${accounts[10].pubkey.toBase58()} ${relayer.accounts.relayerRecipientSol.toBase58()} not signer ${
-        accounts[10].isSigner
-      } not writable ${accounts[10].isWritable}}`,
+      `Relayer recipient sol pubkey in instruction != relayer recipient sol pubkey ${relayerRecipientSol.pubkey.toBase58()} ${relayer.accounts.relayerRecipientSol.toBase58()} not signer ${
+        relayerRecipientSol.isSigner
+      } not writable ${relayerRecipientSol.isWritable}}`,
     );
   return instructions;
 }

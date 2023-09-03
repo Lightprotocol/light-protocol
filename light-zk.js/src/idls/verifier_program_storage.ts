@@ -133,17 +133,17 @@ export type VerifierProgramStorage = {
           "isSigner": false
         },
         {
+          "name": "relayerRecipientSol",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "senderSol",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "recipientSol",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "relayerRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -156,17 +156,17 @@ export type VerifierProgramStorage = {
           ]
         },
         {
-          "name": "verifierState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "logWrapper",
           "isMut": false,
           "isSigner": false
         },
         {
           "name": "eventMerkleTree",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "verifierState",
           "isMut": true,
           "isSigner": false
         }
@@ -736,17 +736,17 @@ export const IDL: VerifierProgramStorage = {
           "isSigner": false
         },
         {
+          "name": "relayerRecipientSol",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "senderSol",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "recipientSol",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "relayerRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -759,17 +759,17 @@ export const IDL: VerifierProgramStorage = {
           ]
         },
         {
-          "name": "verifierState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "logWrapper",
           "isMut": false,
           "isSigner": false
         },
         {
           "name": "eventMerkleTree",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "verifierState",
           "isMut": true,
           "isSigner": false
         }

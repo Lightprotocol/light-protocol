@@ -85,17 +85,7 @@ export type VerifierProgramOne = {
           "isSigner": false
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "senderSpl",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "recipientSpl",
+          "name": "relayerRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -110,8 +100,8 @@ export type VerifierProgramOne = {
           "isSigner": false
         },
         {
-          "name": "relayerRecipientSol",
-          "isMut": true,
+          "name": "tokenProgram",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -120,11 +110,21 @@ export type VerifierProgramOne = {
           "isSigner": false
         },
         {
+          "name": "senderSpl",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipientSpl",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "registeredVerifierPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom."
+            "Verifier config pda which needs to exist."
           ]
         },
         {
@@ -133,12 +133,12 @@ export type VerifierProgramOne = {
           "isSigner": false
         },
         {
-          "name": "verifierState",
+          "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "eventMerkleTree",
+          "name": "verifierState",
           "isMut": true,
           "isSigner": false
         }
@@ -650,17 +650,7 @@ export const IDL: VerifierProgramOne = {
           "isSigner": false
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "senderSpl",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "recipientSpl",
+          "name": "relayerRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -675,8 +665,8 @@ export const IDL: VerifierProgramOne = {
           "isSigner": false
         },
         {
-          "name": "relayerRecipientSol",
-          "isMut": true,
+          "name": "tokenProgram",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -685,11 +675,21 @@ export const IDL: VerifierProgramOne = {
           "isSigner": false
         },
         {
+          "name": "senderSpl",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipientSpl",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "registeredVerifierPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom."
+            "Verifier config pda which needs to exist."
           ]
         },
         {
@@ -698,12 +698,12 @@ export const IDL: VerifierProgramOne = {
           "isSigner": false
         },
         {
-          "name": "verifierState",
+          "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "eventMerkleTree",
+          "name": "verifierState",
           "isMut": true,
           "isSigner": false
         }
