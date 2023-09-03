@@ -13,6 +13,8 @@ import {
   TOKEN_AUTHORITY,
   verifierProgramTwoProgramId,
   verifierProgramZeroProgramId,
+  BN_0,
+  BN_1,
 } from "./constants";
 import {
   AddressLookupTableProgram,
@@ -117,14 +119,10 @@ export function decimalConversion({
       ? convertAndComputeDecimals(publicAmountSol, new BN(1e9))
       : minimumLamports
       ? minimumLamportsAmount
-      : new BN(0);
+      : BN_0;
   } else {
-    publicAmountSpl = publicAmountSpl
-      ? new BN(publicAmountSpl.toString())
-      : undefined;
-    publicAmountSol = publicAmountSol
-      ? new BN(publicAmountSol?.toString())
-      : new BN(0);
+    publicAmountSpl = publicAmountSpl ? new BN(publicAmountSpl) : undefined;
+    publicAmountSol = publicAmountSol ? new BN(publicAmountSol) : BN_0;
   }
   return { publicAmountSpl, publicAmountSol };
 }
@@ -139,7 +137,7 @@ export const convertAndComputeDecimals = (
   if (typeof amount === "string" && amount.startsWith("-")) {
     throw new Error("Negative amounts are not allowed.");
   }
-  if (decimals.lt(new BN(1))) {
+  if (decimals.lt(BN_1)) {
     throw new Error(
       "Decimal numbers have to be at least 1 since we precompute 10**decimalValue.",
     );

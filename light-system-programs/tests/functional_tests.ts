@@ -37,6 +37,7 @@ import {
   airdropSol,
   MerkleTreeConfig,
   RELAYER_FEE,
+  BN_0,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -331,7 +332,7 @@ describe("verifier_program", () => {
         new Utxo({
           poseidon: POSEIDON,
           assets: inputUtxos[0].assets,
-          amounts: [new BN(0), inputUtxos[0].amounts[1]],
+          amounts: [BN_0, inputUtxos[0].amounts[1]],
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
             lightProvider.lookUpTables.verifierProgramLookupTable,

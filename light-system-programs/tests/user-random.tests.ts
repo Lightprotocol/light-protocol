@@ -19,6 +19,7 @@ import {
   TOKEN_REGISTRY,
   ADMIN_AUTH_KEYPAIR,
   RELAYER_FEE,
+  BN_0,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -377,7 +378,7 @@ const checkSolBalanceGtRelayerFee = async (
   )?.totalBalanceSpl;
   if (
     tokenMint.toBase58() !== PublicKey.default.toBase58() &&
-    (!splBalance || splBalance.eq(new BN(0)))
+    (!splBalance || splBalance.eq(BN_0))
   )
     return false;
   return (

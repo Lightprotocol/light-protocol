@@ -1,7 +1,12 @@
 import { expect } from "chai";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { convertAndComputeDecimals, generateRandomTestAmount } from "../src";
+import {
+  BN_0,
+  BN_1,
+  convertAndComputeDecimals,
+  generateRandomTestAmount,
+} from "../src";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -72,7 +77,7 @@ describe("convertAndComputeDecimals", () => {
   });
 
   it("should correctly handle zero amount", () => {
-    const amount = new BN(0);
+    const amount = BN_0;
     const decimals = new BN(100);
     const result = convertAndComputeDecimals(amount, decimals);
     expect(result.toString()).to.equal("0");
@@ -80,7 +85,7 @@ describe("convertAndComputeDecimals", () => {
 
   it("should handle zero decimals correctly", () => {
     const amount = "5";
-    const decimals = new BN(1);
+    const decimals = BN_1;
     const result = convertAndComputeDecimals(amount, decimals);
     expect(result.toString()).to.equal("5");
   });
@@ -100,7 +105,7 @@ describe("convertAndComputeDecimals", () => {
 
   it("should correctly handle max u64 amount", () => {
     const amount = new BN("18446744073709551615"); // max u64
-    const decimals = new BN(1);
+    const decimals = BN_1;
     const result = convertAndComputeDecimals(amount, decimals);
     expect(result.toString()).to.equal("18446744073709551615");
   });

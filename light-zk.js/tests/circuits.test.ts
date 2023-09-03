@@ -24,6 +24,8 @@ import {
   Action,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_TWO,
+  BN_0,
+  BN_1,
 } from "../src";
 import { IDL } from "./testData/tmp_test_psp";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -70,7 +72,7 @@ describe("Masp circuit tests", () => {
       index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(0)],
+      amounts: [new BN(depositFeeAmount), BN_0],
       account: account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -125,7 +127,7 @@ describe("Masp circuit tests", () => {
       relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
-    appData = { releaseSlot: new BN(1) };
+    appData = { releaseSlot: BN_1 };
     txParamsApp = new TransactionParameters({
       inputUtxos: [
         new Utxo({

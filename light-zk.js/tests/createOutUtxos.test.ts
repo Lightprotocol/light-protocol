@@ -31,6 +31,9 @@ import {
   Provider,
   TokenData,
   RELAYER_FEE,
+  BN_0,
+  BN_1,
+  BN_2,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const numberMaxOutUtxos = 2;
@@ -105,7 +108,7 @@ describe("Test createOutUtxos Functional", () => {
   it("shield sol", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
-      publicAmountSpl: new BN(0),
+      publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
       poseidon,
       changeUtxoAccount: k0,
@@ -135,7 +138,7 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: new BN(10),
-      publicAmountSol: new BN(0),
+      publicAmountSol: BN_0,
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
@@ -164,7 +167,7 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
-      publicAmountSpl: new BN(0),
+      publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
       poseidon,
       changeUtxoAccount: k0,
@@ -254,9 +257,9 @@ describe("Test createOutUtxos Functional", () => {
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
-      publicAmountSol: new BN(0),
+      publicAmountSol: BN_0,
       poseidon,
-      relayerFee: new BN(0),
+      relayerFee: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -285,7 +288,7 @@ describe("Test createOutUtxos Functional", () => {
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
-      publicAmountSol: new BN(0),
+      publicAmountSol: BN_0,
       poseidon,
       relayerFee,
       changeUtxoAccount: k0,
@@ -315,10 +318,10 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
-      publicAmountSpl: new BN(0),
+      publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
       poseidon,
-      relayerFee: new BN(0),
+      relayerFee: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -346,7 +349,7 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
-      publicAmountSpl: new BN(0),
+      publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
       poseidon,
       relayerFee,
@@ -380,7 +383,7 @@ describe("Test createOutUtxos Functional", () => {
       publicAmountSpl: splAmount,
       publicAmountSol: solAmount,
       poseidon,
-      relayerFee: new BN(0),
+      relayerFee: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -440,7 +443,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxoSol],
-      publicAmountSol: new BN(0),
+      publicAmountSol: BN_0,
       poseidon,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -471,7 +474,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxo1],
-      publicAmountSol: new BN(0),
+      publicAmountSol: BN_0,
       poseidon,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -482,14 +485,14 @@ describe("Test createOutUtxos Functional", () => {
     });
     assert.equal(
       outUtxos[0].amounts[0].toNumber(),
-      utxo1.amounts[0].mul(new BN(2)).toNumber(),
+      utxo1.amounts[0].mul(BN_2).toNumber(),
       `${outUtxos[0].amounts[0]} fee != ${
         utxo1.amounts[0].toNumber() + utxo1.amounts[0].toNumber()
       }`,
     );
     assert.equal(
       outUtxos[0].amounts[1].toString(),
-      utxo1.amounts[1].mul(new BN(2)).sub(splAmount).toString(),
+      utxo1.amounts[1].mul(BN_2).sub(splAmount).toString(),
       `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
         utxo1.amounts[1].toNumber() - splAmount.toNumber()
       }`,
@@ -501,8 +504,8 @@ describe("Test createOutUtxos Functional", () => {
       {
         account: recipientAccount,
         mint: utxo1.assets[1],
-        solAmount: new BN(0),
-        splAmount: new BN(1),
+        solAmount: BN_0,
+        splAmount: BN_1,
       },
     ];
     let outUtxos = createRecipientUtxos({
@@ -515,11 +518,11 @@ describe("Test createOutUtxos Functional", () => {
 
     outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
-      publicAmountSpl: new BN(0),
+      publicAmountSpl: BN_0,
       inUtxos: [utxo1],
       outUtxos,
       relayerFee,
-      publicAmountSol: new BN(0),
+      publicAmountSol: BN_0,
       poseidon,
       changeUtxoAccount: k0,
       action: Action.TRANSFER,
@@ -624,7 +627,7 @@ describe("validateUtxoAmounts", () => {
       poseidon,
       amounts,
       assets,
-      blinding: new BN(0),
+      blinding: BN_0,
       account: new Account({ poseidon }),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -722,7 +725,7 @@ describe("Test createOutUtxos Errors", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxoSol],
-      publicAmountSol: new BN(0),
+      publicAmountSol: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       poseidon,
@@ -740,7 +743,7 @@ describe("Test createOutUtxos Errors", () => {
         publicMint: tokenCtx.mint,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        publicAmountSol: new BN(0),
+        publicAmountSol: BN_0,
         // poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -759,7 +762,7 @@ describe("Test createOutUtxos Errors", () => {
         publicMint: tokenCtx.mint,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        publicAmountSol: new BN(0),
+        publicAmountSol: BN_0,
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -798,7 +801,7 @@ describe("Test createOutUtxos Errors", () => {
         publicMint: tokenCtx.mint,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        publicAmountSol: new BN(0),
+        publicAmountSol: BN_0,
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -806,7 +809,7 @@ describe("Test createOutUtxos Errors", () => {
           new Utxo({
             poseidon,
             assets: [SystemProgram.programId, invalidMint],
-            amounts: [new BN(0), new BN(1)],
+            amounts: [BN_0, BN_1],
             assetLookupTable: [
               ...lightProvider.lookUpTables.assetLookupTable,
               ...[invalidMint.toBase58()],
@@ -831,7 +834,7 @@ describe("Test createOutUtxos Errors", () => {
         publicMint: tokenCtx.mint,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        publicAmountSol: new BN(0),
+        publicAmountSol: BN_0,
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -839,7 +842,7 @@ describe("Test createOutUtxos Errors", () => {
           new Utxo({
             poseidon,
             assets: [SystemProgram.programId, utxo1.assets[1]],
-            amounts: [new BN(0), new BN(1e12)],
+            amounts: [BN_0, new BN(1e12)],
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
             verifierProgramLookupTable:
               lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -861,7 +864,7 @@ describe("Test createOutUtxos Errors", () => {
         publicMint: tokenCtx.mint,
         // publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        // publicAmountSol: new BN(0),
+        // publicAmountSol: BN_0,
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -881,11 +884,11 @@ describe("Test createOutUtxos Errors", () => {
         // publicMint: tokenCtx.mint,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        // publicAmountSol: new BN(0),
+        // publicAmountSol: BN_0,
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
-        relayerFee: new BN(1),
+        relayerFee: BN_1,
       });
     })
       .to.throw(CreateUtxoError)
@@ -902,12 +905,12 @@ describe("Test createOutUtxos Errors", () => {
   //             publicMint: tokenCtx.mint,
   //             publicAmountSpl: splAmount,
   //             inUtxos: [utxo1, utxoSol],
-  //             publicAmountSol: new BN(0),
+  //             publicAmountSol: BN_0,
   //             poseidon,
   //             changeUtxoAccount: k0,
   //             action: Action.UNSHIELD,
   //             // @ts-ignore
-  //             recipients: [{account: recipientAccount, mint: utxo1.assets[1], solAmount: new BN(0)}],
+  //             recipients: [{account: recipientAccount, mint: utxo1.assets[1], solAmount: BN_0}],
   //         });
   //     }).to.throw(CreateUtxoError).includes({
   //         code: CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
@@ -935,7 +938,7 @@ describe("Test createOutUtxos Errors", () => {
         publicMint: tokenCtx.mint,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol0],
-        publicAmountSol: new BN(0),
+        publicAmountSol: BN_0,
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -943,7 +946,7 @@ describe("Test createOutUtxos Errors", () => {
           new Utxo({
             poseidon,
             assets: [SystemProgram.programId, utxo1.assets[1]],
-            amounts: [new BN(0), new BN(1)],
+            amounts: [BN_0, BN_1],
             assetLookupTable: [
               ...lightProvider.lookUpTables.assetLookupTable,
               ...[invalidMint.toBase58()],

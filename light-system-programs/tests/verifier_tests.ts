@@ -36,6 +36,7 @@ import {
   getSystem,
   System,
   RELAYER_FEE,
+  BN_0,
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
@@ -315,7 +316,7 @@ describe("Verifier Zero and One Tests", () => {
         MINT: newMintKeypair.publicKey,
         ADMIN_AUTH_KEYPAIR,
         userAccount: relayer,
-        amount: new BN(0),
+        amount: BN_0,
       });
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }

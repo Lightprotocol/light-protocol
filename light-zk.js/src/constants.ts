@@ -23,6 +23,10 @@ import {
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { TokenData } from "./index";
 
+export const BN_0 = new anchor.BN(0);
+export const BN_1 = new anchor.BN(1);
+export const BN_2 = new anchor.BN(2);
+
 export const CONSTANT_SECRET_AUTHKEY: Uint8Array = Uint8Array.from([
   155, 249, 234, 55, 8, 49, 0, 14, 84, 72, 10, 224, 21, 139, 87, 102, 115, 88,
   217, 72, 137, 38, 0, 179, 93, 202, 220, 31, 143, 79, 247, 200,

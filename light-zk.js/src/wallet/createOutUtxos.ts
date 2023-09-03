@@ -11,6 +11,9 @@ import {
   TransactionParameters,
   AppUtxoConfig,
   MINIMUM_LAMPORTS,
+  BN_0,
+  BN_1,
+  BN_2,
 } from "../index";
 
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
@@ -24,7 +27,7 @@ export type Recipient = {
 };
 // mint: PublicKey, expectedAmount: BN,
 export const getUtxoArrayAmount = (mint: PublicKey, inUtxos: Utxo[]) => {
-  let inAmount = new BN(0);
+  let inAmount = BN_0;
   inUtxos.forEach((inUtxo) => {
     inUtxo.assets.forEach((asset, i) => {
       if (asset.toBase58() === mint.toBase58()) {
@@ -42,15 +45,15 @@ export const getRecipientsAmount = (
   if (mint.toBase58() === SystemProgram.programId.toBase58()) {
     return recipients.reduce(
       (sum, recipient) => sum.add(recipient.solAmount),
-      new BN(0),
+      BN_0,
     );
   } else {
     return recipients.reduce(
       (sum, recipient) =>
         recipient.mint.toBase58() === mint.toBase58()
           ? sum.add(recipient.splAmount)
-          : sum.add(new BN(0)),
-      new BN(0),
+          : sum.add(BN_0),
+      BN_0,
     );
   }
 };
@@ -192,7 +195,7 @@ export function createOutUtxos({
         "createOutUtxos",
         "publicAmountSol not initialized for unshield",
       );
-    if (!publicAmountSpl) publicAmountSpl = new BN(0);
+    if (!publicAmountSpl) publicAmountSpl = BN_0;
     if (!publicAmountSol)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.PUBLIC_SOL_AMOUNT_UNDEFINED,
@@ -222,8 +225,8 @@ export function createOutUtxos({
         "createOutUtxos",
         "Shield and relayer fee defined",
       );
-    if (!publicAmountSpl) publicAmountSpl = new BN(0);
-    if (!publicAmountSol) publicAmountSol = new BN(0);
+    if (!publicAmountSpl) publicAmountSpl = BN_0;
+    if (!publicAmountSol) publicAmountSol = BN_0;
     let publicSplAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === publicMint?.toBase58(),
     );
@@ -260,8 +263,8 @@ export function createOutUtxos({
       );
     }
 
-    let solAmount = outUtxos[j].amounts[0] ? outUtxos[j].amounts[0] : new BN(0);
-    let splAmount = outUtxos[j].amounts[1] ? outUtxos[j].amounts[1] : new BN(0);
+    let solAmount = outUtxos[j].amounts[0] ? outUtxos[j].amounts[0] : BN_0;
+    let splAmount = outUtxos[j].amounts[1] ? outUtxos[j].amounts[1] : BN_0;
     let splMint = outUtxos[j].assets[1]
       ? outUtxos[j].assets[1]
       : SystemProgram.programId;
@@ -298,7 +301,7 @@ export function createOutUtxos({
      * - sol amount should leave a minimum amount in spl utxos if possible
      */
     const preliminarySolAmount = assets[publicSolAssetIndex].sumIn.sub(
-      MINIMUM_LAMPORTS.mul(new BN(2)),
+      MINIMUM_LAMPORTS.mul(BN_2),
     );
     const solAmount = preliminarySolAmount.isNeg()
       ? assets[publicSolAssetIndex].sumIn
@@ -321,14 +324,12 @@ export function createOutUtxos({
   }
 
   for (var x = 0; x < nrOutUtxos; x++) {
-    let solAmount = new BN(0);
+    let solAmount = BN_0;
     if (x == 0) {
       solAmount = assets[publicSolAssetIndex].sumIn;
     }
     // catch case of sol deposit with undefined spl assets
-    let splAmount = publicSplAssets[x]?.sumIn
-      ? publicSplAssets[x].sumIn
-      : new BN(0);
+    let splAmount = publicSplAssets[x]?.sumIn ? publicSplAssets[x].sumIn : BN_0;
     let splAsset = publicSplAssets[x]?.asset
       ? publicSplAssets[x].asset
       : SystemProgram.programId;
@@ -393,12 +394,8 @@ export function createRecipientUtxos({
       );
     }
 
-    let solAmount = recipients[j].solAmount
-      ? recipients[j].solAmount
-      : new BN(0);
-    let splAmount = recipients[j].splAmount
-      ? recipients[j].splAmount
-      : new BN(0);
+    let solAmount = recipients[j].solAmount ? recipients[j].solAmount : BN_0;
+    let splAmount = recipients[j].splAmount ? recipients[j].splAmount : BN_0;
     let splMint = recipients[j].mint
       ? recipients[j].mint
       : SystemProgram.programId;
@@ -445,18 +442,17 @@ export function validateUtxoAmounts({
   publicAmountSpl?: BN;
   action?: Action;
 }): Asset[] {
-  const publicAmountMultiplier =
-    action === Action.SHIELD ? new BN(1) : new BN(-1);
+  const publicAmountMultiplier = action === Action.SHIELD ? BN_1 : new BN(-1);
   const _publicAmountSol = publicAmountSol
     ? publicAmountSol.mul(publicAmountMultiplier)
-    : new BN(0);
+    : BN_0;
   const _publicAmountSpl = publicAmountSpl
     ? publicAmountSpl.mul(publicAmountMultiplier)
-    : new BN(0);
+    : BN_0;
 
   let assets: Asset[] = [];
   for (const [index, assetPubkey] of assetPubkeys.entries()) {
-    var sumIn = inUtxos ? getUtxoArrayAmount(assetPubkey, inUtxos) : new BN(0);
+    var sumIn = inUtxos ? getUtxoArrayAmount(assetPubkey, inUtxos) : BN_0;
     var sumOut =
       action === Action.TRANSFER && outUtxos.length === 0
         ? sumIn
@@ -481,7 +477,7 @@ export function validateUtxoAmounts({
       sumIn,
       sumOut,
     });
-    if (sumInAdd.lt(new BN(0)))
+    if (sumInAdd.lt(BN_0))
       throw new CreateUtxoError(
         CreateUtxoErrorCode.RECIPIENTS_SUM_AMOUNT_MISSMATCH,
         "validateUtxoAmounts",
