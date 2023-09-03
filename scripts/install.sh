@@ -6,6 +6,8 @@ PREFIX="${PWD}/.local"
 OS=`uname`
 ARCH=`uname -m`
 
+MAX_RETRIES=10
+
 # Checks the latest release of the given GitHub repository.
 latest_release() {
     OWNER="${1}"
@@ -27,8 +29,18 @@ download_file() {
     dest="${3}"
 
     echo "📥 Downloading ${dest_name}"
-    curl --retry 5 --retry-delay 10 -L -o "${dest}/${dest_name}" "${url}"
-    chmod +x "${dest}/${dest_name}"
+
+    for i in {0..$MAX_RETRIES}; do
+        curl --retry "${MAX_RETRIES}" --retry-delay 10 -L -o "${dest}/${dest_name}" "${url}"
+        
+        # Check if the file exists
+        if [ -f "${dest}/${dest_name}" ]; then
+            chmod +x "${dest}/${dest_name}"
+            break
+        else
+            echo "Failed to download ${dest_name}. Retrying ($i of $MAX_RETRIES)..."
+        fi
+    done
 }
 
 # Downloads a tarball from the given URL and extracts it to the given

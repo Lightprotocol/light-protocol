@@ -26,6 +26,8 @@ echo "starting relayer server"
 kill $(lsof -ti :3331) > /dev/null  || true
 sleep 1
 node lib/index.js > .logs/relayer-logs.txt &
+PID_RELAYER="${!}"
+trap "kill ${PID_RELAYER} > /dev/null || true" EXIT
 sleep 15
 echo "executing cli tests"
 cd ../cli
@@ -35,5 +37,3 @@ cd ../cli
 sleep 10
 ./test_bin/run unshield:sol 10 ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k
 cd ../relayer
-
-kill $(lsof -ti :3331) > /dev/null  || true

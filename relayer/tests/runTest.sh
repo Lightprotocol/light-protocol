@@ -19,8 +19,8 @@ echo "starting solana-test-validator"
 solana config set --url http://localhost:8899
 sleep 1
 ./../cli/test_bin/run test-validator -b > .logs/validator-logs.txt 
-PID="${!}"
-trap "kill ${PID}" EXIT
+PID_VALIDATOR="${!}"
+trap "kill ${PID_VALIDATOR}" EXIT
 
 sleep 15
 
@@ -29,6 +29,8 @@ echo "starting relayer server"
 kill $(lsof -ti :3331) > /dev/null  || true
 sleep 1
 node lib/index.js > .logs/relayer-logs.txt &
+PID_RELAYER="${!}"
+trap "kill ${PID_RELAYER} > /dev/null || true" EXIT
 sleep 15
 echo "executing functional tests"
 
@@ -40,6 +42,3 @@ echo "executing browser env tests"
 sleep 2
 
 npx mocha -r ts-node/register -r jsdom-global/register -r ./setup.jsdom.ts tests/browser_test.ts --timeout 1000000 --exit;
-
-
-kill $(lsof -ti :3331) > /dev/null  || true

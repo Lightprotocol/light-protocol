@@ -42,13 +42,6 @@ runs:
           ./scripts/install.sh
         fi
         source ./scripts/devenv.sh
-        # NOTE(vadorovsky): For some reason, Github runners sometimes don't give
-        # a heck about rust-toolchain.toml files and keep using random versions
-        # of rustc.
-        rustup update
-        rustup install 1.69.0
-        rustup override set 1.69.0
-        rustup component add rustfmt --toolchain 1.69.0-x86_64-unknown-linux-gnu
 
     - name: Build and prepare for tests
       shell: bash
