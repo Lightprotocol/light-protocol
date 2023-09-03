@@ -14,6 +14,7 @@ import {
   TOKEN_ACCOUNT_FEE,
   SendVersionedTransactionsResult,
   ParsedIndexedTransaction,
+  BN_0,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -41,7 +42,7 @@ export class Relayer {
   constructor(
     relayerPubkey: PublicKey,
     relayerRecipientSol?: PublicKey,
-    relayerFee: BN = new BN(0),
+    relayerFee: BN = BN_0,
     highRelayerFee: BN = new BN(TOKEN_ACCOUNT_FEE),
     url: string = "http://localhost:3331",
   ) {
@@ -51,7 +52,7 @@ export class Relayer {
         "constructor",
       );
     }
-    if (relayerRecipientSol && relayerFee.toString() === "0") {
+    if (relayerRecipientSol && relayerFee.eq(BN_0)) {
       throw new RelayerError(
         RelayerErrorCode.RELAYER_FEE_UNDEFINED,
         "constructor",

@@ -5,6 +5,8 @@ import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 
 import {
+  BN_0,
+  BN_1,
   Relayer,
   RelayerError,
   RelayerErrorCode,
@@ -23,7 +25,7 @@ describe("Test Relayer Functional", () => {
     let relayer = new Relayer(
       mockKeypair.publicKey,
       mockKeypair1.publicKey,
-      new BN(1),
+      BN_1,
     );
     assert.equal(
       relayer.accounts.relayerRecipientSol.toBase58(),
@@ -60,7 +62,7 @@ describe("Test Relayer Functional", () => {
       TOKEN_ACCOUNT_FEE.toNumber(),
       relayer.getRelayerFee(true).toNumber(),
     );
-    assert.equal(new BN(0).toNumber(), relayer.getRelayerFee(false).toNumber());
+    assert.equal(BN_0.toNumber(), relayer.getRelayerFee(false).toNumber());
   });
 });
 

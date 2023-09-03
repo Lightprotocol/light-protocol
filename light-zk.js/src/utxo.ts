@@ -34,6 +34,7 @@ import {
   fetchVerifierByIdLookUp,
   setEnvironment,
   FIELD_SIZE,
+  BN_0,
 } from "./index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -42,9 +43,6 @@ export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 // TODO: move to constants
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
-
-// Constant in order to avoid multiple "new BN(0);" instantiations.
-const BN_0 = new BN(0);
 
 // TODO: Idl support for U256
 // TODO: add static createSolUtxo()

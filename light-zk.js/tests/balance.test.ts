@@ -28,6 +28,7 @@ import {
   User,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   MerkleTreeConfig,
+  BN_0,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -65,7 +66,7 @@ describe("Utxo Functional", () => {
       tokenBalances: new Map([
         [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
       ]),
-      totalSolBalance: new BN(0),
+      totalSolBalance: BN_0,
       programBalances: new Map(),
       nftBalances: new Map(),
     };

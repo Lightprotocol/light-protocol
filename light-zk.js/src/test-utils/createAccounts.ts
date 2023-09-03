@@ -37,6 +37,7 @@ import {
   TOKEN_REGISTRY,
   sleep,
   confirmTransaction,
+  BN_0,
 } from "../index";
 import { assert } from "chai";
 import { Program } from "@coral-xyz/anchor";
@@ -330,7 +331,7 @@ export async function createTestAccounts(
         MINT,
         ADMIN_AUTH_KEYPAIR,
         userAccount: RECIPIENT_TOKEN_ACCOUNT,
-        amount: new BN(0),
+        amount: BN_0,
       });
     }
   } catch (error) {}

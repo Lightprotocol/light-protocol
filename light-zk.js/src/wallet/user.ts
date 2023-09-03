@@ -50,6 +50,8 @@ import {
   decimalConversion,
   ParsedIndexedTransaction,
   MerkleTreeConfig,
+  BN_0,
+  BN_1,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -126,7 +128,7 @@ export class User {
       ]),
       programBalances: new Map(),
       nftBalances: new Map(),
-      totalSolBalance: new BN(0),
+      totalSolBalance: BN_0,
     };
     this.inboxBalance = {
       tokenBalances: new Map([
@@ -135,7 +137,7 @@ export class User {
       programBalances: new Map(),
       nftBalances: new Map(),
       numberInboxUtxos: 0,
-      totalSolBalance: new BN(0),
+      totalSolBalance: BN_0,
     };
   }
 
@@ -237,7 +239,7 @@ export class User {
 
     // caclulate total sol balance
     const calaculateTotalSolBalance = (balance: Balance) => {
-      let totalSolBalance = new BN(0);
+      let totalSolBalance = BN_0;
       for (var tokenBalance of balance.tokenBalances.values()) {
         totalSolBalance = totalSolBalance.add(tokenBalance.totalBalanceSol);
       }
@@ -397,7 +399,7 @@ export class User {
     });
     publicAmountSol = convertedPublicAmounts.publicAmountSol
       ? convertedPublicAmounts.publicAmountSol
-      : new BN(0);
+      : BN_0;
     publicAmountSpl = convertedPublicAmounts.publicAmountSpl;
 
     if (!tokenCtx.isNative && publicAmountSpl) {
@@ -497,7 +499,7 @@ export class User {
         "createShieldTransactionParameters need to be executed to approve spl funds prior a shield transaction",
       );
     if (
-      this.recentTransactionParameters?.publicAmountSpl.gt(new BN(0)) &&
+      this.recentTransactionParameters?.publicAmountSpl.gt(BN_0) &&
       this.recentTransactionParameters?.action === Action.SHIELD
     ) {
       let tokenAccountInfo =
@@ -749,7 +751,7 @@ export class User {
       ? convertAndComputeDecimals(publicAmountSol, new BN(1e9))
       : minimumLamports
       ? this.provider.minimumLamports
-      : new BN(0);
+      : BN_0;
     let utxosEntries = this.balance.tokenBalances
       .get(tokenCtx.mint.toBase58())
       ?.utxos.values();
@@ -893,10 +895,10 @@ export class User {
     });
     var parsedSolAmount = convertedPublicAmounts.publicAmountSol
       ? convertedPublicAmounts.publicAmountSol
-      : new BN(0);
+      : BN_0;
     var parsedSplAmount = convertedPublicAmounts.publicAmountSpl
       ? convertedPublicAmounts.publicAmountSpl
-      : new BN(0);
+      : BN_0;
 
     if (recipient && !tokenCtx)
       throw new UserError(
@@ -1635,7 +1637,7 @@ export class User {
     if (shield) {
       const txParams = await this.createShieldTransactionParameters({
         token: "SOL",
-        publicAmountSol: new BN(0),
+        publicAmountSol: BN_0,
         minimumLamports: false,
         message,
         verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
@@ -1722,8 +1724,8 @@ export class User {
       );
     let isAppInUtxo = [];
     for (var i in appUtxos) {
-      let array = new Array(4).fill(new BN(0));
-      array[i] = new BN(1);
+      let array = new Array(4).fill(BN_0);
+      array[i] = BN_1;
       isAppInUtxo.push(array);
     }
     programParameters.inputs.isAppInUtxo = isAppInUtxo;

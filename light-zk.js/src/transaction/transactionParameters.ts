@@ -28,6 +28,7 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   AppUtxoConfig,
   createOutUtxos,
+  BN_0,
 } from "../index";
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
@@ -177,13 +178,13 @@ export class TransactionParameters implements transactionParameters {
       this.assetPubkeysCircuit,
     );
     // safeguard should not be possible
-    if (!this.publicAmountSol.gte(new BN(0)))
+    if (!this.publicAmountSol.gte(BN_0))
       throw new TransactionParametersError(
         TransactionParametersErrorCode.PUBLIC_AMOUNT_NEGATIVE,
         "constructor",
         "Public sol amount cannot be negative.",
       );
-    if (!this.publicAmountSpl.gte(new BN(0)))
+    if (!this.publicAmountSpl.gte(BN_0))
       throw new TransactionParametersError(
         TransactionParametersErrorCode.PUBLIC_AMOUNT_NEGATIVE,
         "constructor",
@@ -223,14 +224,14 @@ export class TransactionParameters implements transactionParameters {
           `Public amount spl ${this.publicAmountSpl} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
         );
       }
-      if (!this.publicAmountSol.eq(new BN(0)) && recipientSol) {
+      if (!this.publicAmountSol.eq(BN_0) && recipientSol) {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
           "constructor",
           "",
         );
       }
-      if (!this.publicAmountSpl.eq(new BN(0)) && recipientSpl) {
+      if (!this.publicAmountSpl.eq(BN_0) && recipientSpl) {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
           "constructor",
@@ -238,14 +239,14 @@ export class TransactionParameters implements transactionParameters {
         );
       }
 
-      if (!this.publicAmountSol.eq(new BN(0)) && !senderSol) {
+      if (!this.publicAmountSol.eq(BN_0) && !senderSol) {
         throw new TransactionParametersError(
           TransactionErrorCode.SOL_SENDER_UNDEFINED,
           "constructor",
           "",
         );
       }
-      if (!this.publicAmountSpl.eq(new BN(0)) && !senderSpl) {
+      if (!this.publicAmountSpl.eq(BN_0) && !senderSpl) {
         throw new TransactionParametersError(
           TransactionErrorCode.SPL_SENDER_UNDEFINED,
           "constructor",
@@ -270,21 +271,21 @@ export class TransactionParameters implements transactionParameters {
       // public amount is either 0 or negative
       // this.publicAmountSol.add(FIELD_SIZE).mod(FIELD_SIZE) this changes the value
       const tmpSol = this.publicAmountSol;
-      if (!tmpSol.sub(FIELD_SIZE).lte(new BN(0)))
+      if (!tmpSol.sub(FIELD_SIZE).lte(BN_0))
         throw new TransactionParametersError(
           TransactionParametersErrorCode.INVALID_PUBLIC_AMOUNT,
           "constructor",
           "",
         );
       const tmpSpl = this.publicAmountSpl;
-      if (!tmpSpl.sub(FIELD_SIZE).lte(new BN(0)))
+      if (!tmpSpl.sub(FIELD_SIZE).lte(BN_0))
         throw new TransactionParametersError(
           TransactionParametersErrorCode.INVALID_PUBLIC_AMOUNT,
           "constructor",
           "",
         );
       try {
-        if (!tmpSol.eq(new BN(0))) {
+        if (!tmpSol.eq(BN_0)) {
           tmpSol.sub(FIELD_SIZE).toArray("be", 8);
         }
       } catch (error) {
@@ -296,7 +297,7 @@ export class TransactionParameters implements transactionParameters {
       }
 
       try {
-        if (!tmpSpl.eq(new BN(0))) {
+        if (!tmpSpl.eq(BN_0)) {
           tmpSpl.sub(FIELD_SIZE).toArray("be", 8);
         }
       } catch (error) {
@@ -307,7 +308,7 @@ export class TransactionParameters implements transactionParameters {
         );
       }
 
-      if (!this.publicAmountSol.eq(new BN(0)) && !recipientSol) {
+      if (!this.publicAmountSol.eq(BN_0) && !recipientSol) {
         throw new TransactionParametersError(
           TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
           "constructor",
@@ -315,7 +316,7 @@ export class TransactionParameters implements transactionParameters {
         );
       }
 
-      if (!this.publicAmountSpl.eq(new BN(0)) && !recipientSpl) {
+      if (!this.publicAmountSpl.eq(BN_0) && !recipientSpl) {
         throw new TransactionParametersError(
           TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
           "constructor",
@@ -323,14 +324,14 @@ export class TransactionParameters implements transactionParameters {
         );
       }
       // && senderSol.toBase58() != merkle tree token pda
-      if (!this.publicAmountSol.eq(new BN(0)) && senderSol) {
+      if (!this.publicAmountSol.eq(BN_0) && senderSol) {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.SOL_SENDER_DEFINED,
           "constructor",
           "",
         );
       }
-      if (!this.publicAmountSpl.eq(new BN(0)) && senderSpl) {
+      if (!this.publicAmountSpl.eq(BN_0) && senderSpl) {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.SPL_SENDER_DEFINED,
           "constructor",
@@ -351,7 +352,7 @@ export class TransactionParameters implements transactionParameters {
           "constructor",
           "For a transfer a relayer needs to be provided.",
         );
-      if (!this.publicAmountSpl.eq(new BN(0)))
+      if (!this.publicAmountSpl.eq(BN_0))
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_SPL_NOT_ZERO,
           "constructor",
@@ -653,8 +654,8 @@ export class TransactionParameters implements transactionParameters {
 
   static async getTxParams({
     tokenCtx,
-    publicAmountSpl = new BN(0),
-    publicAmountSol = new BN(0),
+    publicAmountSpl = BN_0,
+    publicAmountSol = BN_0,
     action,
     userSplAccount = AUTHORITY,
     account,
@@ -833,7 +834,7 @@ export class TransactionParameters implements transactionParameters {
       if (!this.accounts.recipientSpl) {
         // AUTHORITY is used as place holder
         this.accounts.recipientSpl = AUTHORITY;
-        if (!this.publicAmountSpl?.eq(new BN(0))) {
+        if (!this.publicAmountSpl?.eq(BN_0)) {
           throw new TransactionError(
             TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
             "assignAccounts",
@@ -846,12 +847,12 @@ export class TransactionParameters implements transactionParameters {
         // AUTHORITY is used as place holder
         this.accounts.recipientSol = AUTHORITY;
         if (
-          !this.publicAmountSol.eq(new BN(0)) &&
+          !this.publicAmountSol.eq(BN_0) &&
           !this.publicAmountSol
             ?.sub(FIELD_SIZE)
             .mul(new BN(-1))
             .sub(new BN(this.relayer.getRelayerFee(this.ataCreationFee)))
-            .eq(new BN(0))
+            .eq(BN_0)
         ) {
           throw new TransactionParametersError(
             TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
@@ -879,7 +880,7 @@ export class TransactionParameters implements transactionParameters {
       if (!this.accounts.senderSpl) {
         /// assigning a placeholder account
         this.accounts.senderSpl = AUTHORITY;
-        if (!this.publicAmountSpl?.eq(new BN(0))) {
+        if (!this.publicAmountSpl?.eq(BN_0)) {
           throw new TransactionParametersError(
             TransactionErrorCode.SPL_SENDER_UNDEFINED,
             "assignAccounts",
@@ -972,7 +973,7 @@ export class TransactionParameters implements transactionParameters {
     }
 
     while (assetPubkeysCircuit.length < N_ASSET_PUBKEYS) {
-      assetPubkeysCircuit.push(new BN(0).toString());
+      assetPubkeysCircuit.push(BN_0.toString());
       assetPubkeys.push(SystemProgram.programId);
     }
 

@@ -91,9 +91,10 @@ export async function checkMerkleTreeUpdateStateCreated({
     leavesPdas.length,
     "The incorrect number of leaves was saved",
   );
-  assert.equal(
-    merkleTreeUpdateStateData.currentInstructionIndex.toString(),
-    current_instruction_index.toString(),
+  assert(
+    merkleTreeUpdateStateData.currentInstructionIndex.eq(
+      new anchor.BN(current_instruction_index),
+    ),
     "The instruction index is wrong",
   );
   assert.equal(
@@ -153,18 +154,17 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     merkleTreeAccountPrior.currentRootIndex;
   let current_root_index = merkleTreeAccount.currentRootIndex;
 
-  assert.equal(
+  assert(
     merkle_tree_prior_current_root_index
       .add(new anchor.BN("1"))
       .mod(new anchor.BN(256))
-      .toString(),
-    current_root_index.toString(),
+      .eq(current_root_index),
   );
 
   assert(
     merkle_tree_prior_leaves_index
-      .add(new anchor.BN(numberOfLeaves.toString()))
-      .toString() == merkleTreeAccount.nextIndex.toString(),
+      .add(new anchor.BN(numberOfLeaves))
+      .eq(merkleTreeAccount.nextIndex),
   );
 }
 
