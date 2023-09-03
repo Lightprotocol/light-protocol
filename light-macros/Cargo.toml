@@ -1,0 +1,17 @@
+[package]
+name = "light-macros"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bs58 = "0.4"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
+
+[dev-dependencies]
+anchor-lang = "0.28"
+anchor-spl = "0.28"
+
+[lib]
+proc-macro = true
