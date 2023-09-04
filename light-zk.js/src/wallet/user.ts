@@ -51,7 +51,6 @@ import {
   ParsedIndexedTransaction,
   MerkleTreeConfig,
   BN_0,
-  BN_1,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
