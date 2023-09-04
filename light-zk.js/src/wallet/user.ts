@@ -1744,7 +1744,6 @@ export class User {
     }
   }
 
-
   async getProgramUtxos({
     latestBalance = true,
     latestInboxBalance = true,

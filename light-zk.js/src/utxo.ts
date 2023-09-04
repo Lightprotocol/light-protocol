@@ -911,5 +911,4 @@ export class Utxo {
   }
 }
 
-
 exports.Utxo = Utxo;
