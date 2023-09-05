@@ -476,7 +476,7 @@ export class User {
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
         "compileAndProveTransaction",
-        "createShieldTransactionParameters need to be executed to create parameters that be compiled and proven",
+        "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
     let tx = new Transaction({
       provider: this.provider,
@@ -495,7 +495,7 @@ export class User {
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
         "compileAndProveTransaction",
-        "createShieldTransactionParameters need to be executed to approve spl funds prior a shield transaction",
+        "The method 'createShieldTransactionParameters' must be executed first to approve SPL funds before initiating a shield transaction.",
       );
     if (
       this.recentTransactionParameters?.publicAmountSpl.gt(BN_0) &&
@@ -562,7 +562,7 @@ export class User {
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
         "sendTransaction",
-        "transaction needs to be compiled and a proof generated before send.",
+        "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
       );
     if (
       this.recentTransactionParameters?.action === Action.SHIELD &&
@@ -571,13 +571,13 @@ export class User {
       throw new UserError(
         UserErrorCode.SPL_FUNDS_NOT_APPROVED,
         "sendTransaction",
-        "spl funds need to be approved before a shield with spl tokens can be executed",
+        "Please approve SPL funds before executing a shield with SPL tokens.",
       );
     if (!this.recentTransaction)
       throw new UserError(
         UserErrorCode.TRANSACTION_UNDEFINED,
         "sendTransaction",
-        "transaction needs to be compiled and a proof generated before send.",
+        "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
       );
     let txResult;
     try {
@@ -709,13 +709,13 @@ export class User {
       throw new UserError(
         TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
         "getTxParams",
-        "no recipient provided for sol unshield",
+        "Please provide a recipient for unshielding SOL",
       );
     if (publicAmountSpl && recipient.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getTxParams",
-        "no recipient provided for spl unshield",
+        "Please provide a recipient for unshielding SPL",
       );
     if (publicAmountSpl && token == "SOL")
       throw new UserError(
@@ -806,7 +806,7 @@ export class User {
       throw new UserError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
         "transfer",
-        "No shielded recipient provided for transfer.",
+        "Please provide a shielded recipient for the transfer.",
       );
     let recipientAccount = Account.fromPubkey(
       recipient,
