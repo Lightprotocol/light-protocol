@@ -1,7 +1,15 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnv, killTestValidator } from "../../../src/utils/initTestEnv";
+import {
+  REGISTERED_VERIFIER_ONE_PDA,
+  REGISTERED_VERIFIER_TWO_PDA,
+  verifierProgramOneProgramId,
+  verifierProgramStorageProgramId,
+  verifierProgramTwoProgramId,
+  verifierProgramZeroProgramId,
+} from "@lightprotocol/zk.js";
 
-describe("merkle-tree-authority", () => {
+describe("Merkle Tree Authority", () => {
   before(async () => {
     await initTestEnv({ skip_system_accounts: true });
   });
@@ -38,5 +46,27 @@ describe("merkle-tree-authority", () => {
     .command(["merkle-tree-authority:get"])
     .it("Get Merkle Tree Authority", ({ stdout }) => {
       expect(stdout).to.contain("1");
+    });
+  test
+    .stdout()
+    .command(["merkle-tree-authority:lock", "100"])
+    .it("Update lock", ({ stdout }) => {
+      expect(stdout).to.contain("Lock updated successfully");
+    });
+  test
+    .stdout()
+    .command(["merkle-tree-authority:spl-enable", "true"])
+    .it("Enable SPL", ({ stdout }) => {
+      expect(stdout).to.contain(
+        "Permissionless SPL tokens enabled successfully"
+      );
+    });
+  test
+    .stdout()
+    .command(["merkle-tree-authority:spl-disable", "false"])
+    .it("Disable SPL", ({ stdout }) => {
+      expect(stdout).to.contain(
+        "Permissionless SPL tokens disabled successfully"
+      );
     });
 });
