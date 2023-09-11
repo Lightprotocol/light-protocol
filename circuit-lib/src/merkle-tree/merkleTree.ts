@@ -1,4 +1,4 @@
-import { DEFAULT_ZERO } from "../index";
+import { DEFAULT_ZERO } from "../../../light-zk.js/src/index";
 
 /**
  * @callback hashFunction
