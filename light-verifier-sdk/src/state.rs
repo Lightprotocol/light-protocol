@@ -1,4 +1,4 @@
-use crate::light_transaction::{Config, Transaction};
+use crate::light_transaction::Config;
 use anchor_lang::prelude::*;
 use std::marker::PhantomData;
 
@@ -57,62 +57,6 @@ impl<const NR_CHECKED_INPUTS: usize, T: Config> anchor_lang::Owner
 {
     fn owner() -> Pubkey {
         T::ID
-    }
-}
-
-impl<
-        const NR_CHECKED_INPUTS: usize,
-        const NR_LEAVES: usize,
-        const NR_NULLIFIERS: usize,
-        const NR_PUBLIC_INPUTS: usize,
-        T: Config,
-    >
-    From<Transaction<'_, '_, '_, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, T>>
-    for VerifierState10Ins<NR_CHECKED_INPUTS, T>
-{
-    fn from(
-        light_tx: Transaction<
-            '_,
-            '_,
-            '_,
-            NR_CHECKED_INPUTS,
-            NR_LEAVES,
-            NR_NULLIFIERS,
-            NR_PUBLIC_INPUTS,
-            T,
-        >,
-    ) -> VerifierState10Ins<NR_CHECKED_INPUTS, T> {
-        assert_eq!(T::NR_LEAVES / 2, light_tx.input.leaves.len());
-        assert_eq!(T::NR_NULLIFIERS, light_tx.input.nullifiers.len());
-
-        // need to remove one nested layer because serde cannot handle three layered nesting
-        let mut leaves = Vec::new();
-        for pair in light_tx.input.leaves.iter() {
-            leaves.push(pair[0].clone());
-            leaves.push(pair[1].clone());
-        }
-
-        #[allow(deprecated)]
-        VerifierState10Ins {
-            merkle_root_index: <usize as TryInto<u64>>::try_into(light_tx.input.merkle_root_index)
-                .unwrap(),
-            signer: Pubkey::new(&[0u8; 32]),
-            nullifiers: light_tx.input.nullifiers.to_vec(),
-            leaves,
-            public_amount_spl: light_tx.input.public_amount.spl,
-            public_amount_sol: light_tx.input.public_amount.sol,
-            mint_pubkey: light_tx.mint_pubkey,
-            relayer_fee: light_tx.input.relayer_fee,
-            encrypted_utxos: light_tx.input.encrypted_utxos.to_vec(),
-            proof_a: light_tx.input.proof.a,
-            proof_b: light_tx.input.proof.b,
-            proof_c: light_tx.input.proof.c,
-            merkle_root: light_tx.merkle_root,
-            tx_integrity_hash: light_tx.tx_integrity_hash,
-            checked_public_inputs: *light_tx.input.checked_public_inputs,
-            transaction_hash: [0u8; 32],
-            e_phantom: PhantomData,
-        }
     }
 }
 

@@ -12,7 +12,7 @@ use ark_ff::{
     bytes::{FromBytes, ToBytes},
     BigInteger, BigInteger256, Fp256, FpParameters, PrimeField,
 };
-use ark_std::{marker::PhantomData, vec::Vec};
+use ark_std::vec::Vec;
 
 use ark_bn254::{Fr, FrParameters};
 
@@ -20,7 +20,7 @@ use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 use light_merkle_tree::HashFunction;
 
 use crate::{
-    accounts::Accounts,
+    accounts::LightAccounts,
     cpi_instructions::{
         insert_nullifiers_cpi, insert_two_leaves_cpi, insert_two_leaves_event_cpi,
         invoke_indexer_transaction_event, withdraw_sol_cpi, withdraw_spl_cpi,
@@ -44,27 +44,24 @@ pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 
 pub trait Config {
-    /// Number of nullifiers to be inserted with the transaction.
-    const NR_NULLIFIERS: usize;
-    /// Number of output utxos.
-    const NR_LEAVES: usize;
     /// Program ID of the verifier program.
     const ID: Pubkey;
 }
 
 #[derive(Clone)]
 pub struct Transaction<
-    'info,
     'a,
+    'b,
     'c,
+    'info,
     const NR_CHECKED_INPUTS: usize,
     const NR_LEAVES: usize,
     const NR_NULLIFIERS: usize,
     const NR_PUBLIC_INPUTS: usize,
-    T: Config,
+    A: LightAccounts<'info>,
 > {
     // Client input.
-    pub input: TransactionInput<'info, 'a, 'c, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
+    pub input: TransactionInput<'a, 'b, 'c, 'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, A>,
     // State of transaction.
     pub merkle_root: [u8; 32],
     pub event_hash: [u8; 32],
@@ -77,7 +74,6 @@ pub struct Transaction<
     pub inserted_nullifier: bool,
     pub fetched_root: bool,
     pub fetched_mint: bool,
-    pub e_phantom: PhantomData<T>,
 }
 
 pub struct Message<'a> {
@@ -105,13 +101,16 @@ pub struct Amounts {
 
 #[derive(Clone)]
 pub struct TransactionInput<
-    'info,
     'a,
+    'b,
     'c,
+    'info,
     const NR_CHECKED_INPUTS: usize,
     const NR_LEAVES: usize,
     const NR_NULLIFIERS: usize,
+    A: LightAccounts<'info>,
 > {
+    pub ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     pub proof: &'a Proof,
     pub public_amount: &'a Amounts,
     pub message: Option<&'a Message<'a>>,
@@ -122,22 +121,35 @@ pub struct TransactionInput<
     pub relayer_fee: u64,
     pub merkle_root_index: usize,
     pub pool_type: &'a [u8; 32],
-    pub accounts: Option<&'a Accounts<'info, 'a, 'c>>,
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
 }
 
 impl<
-        T: Config,
+        'a,
+        'b,
+        'c,
+        'info,
         const NR_CHECKED_INPUTS: usize,
         const NR_LEAVES: usize,
         const NR_NULLIFIERS: usize,
         const NR_PUBLIC_INPUTS: usize,
-    > Transaction<'_, '_, '_, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, T>
+        A: LightAccounts<'info>,
+    >
+    Transaction<'a, 'b, 'c, 'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, A>
 {
-    pub fn new<'info, 'a, 'c>(
-        input: TransactionInput<'info, 'a, 'c, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
-    ) -> Transaction<'info, 'a, 'c, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, T>
-    {
+    pub fn new(
+        input: TransactionInput<'a, 'b, 'c, 'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, A>,
+    ) -> Transaction<
+        'a,
+        'b,
+        'c,
+        'info,
+        NR_CHECKED_INPUTS,
+        NR_LEAVES,
+        NR_NULLIFIERS,
+        NR_PUBLIC_INPUTS,
+        A,
+    > {
         Transaction {
             input,
             merkle_root: [0u8; 32],
@@ -151,7 +163,6 @@ impl<
             inserted_nullifier: false,
             fetched_root: false,
             fetched_mint: false,
-            e_phantom: PhantomData,
         }
     }
 
@@ -177,12 +188,8 @@ impl<
         // Initialize the vector of leaves
         let mut leaves_vec: Vec<[u8; 32]> = Vec::new();
 
-        let merkle_tree = self
-            .input
-            .accounts
-            .unwrap()
-            .transaction_merkle_tree
-            .load_mut()?;
+        let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
+        let merkle_tree = merkle_tree.load_mut()?;
 
         let mut first_leaf_index = merkle_tree.next_queued_index;
 
@@ -211,12 +218,12 @@ impl<
 
         invoke_indexer_transaction_event(
             &transaction_data_event,
-            &self.input.accounts.unwrap().log_wrapper.to_account_info(),
+            &self.input.ctx.accounts.get_log_wrapper().to_account_info(),
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .transaction_merkle_tree
+                .get_transaction_merkle_tree()
                 .to_account_info(),
         )?;
 
@@ -356,31 +363,31 @@ impl<
 
     /// Calls the Merkle tree program via CPI to insert event leaves.
     pub fn insert_event_leaves(&mut self) -> Result<()> {
-        let event_merkle_tree = self.input.accounts.unwrap().event_merkle_tree;
+        let event_merkle_tree = self.input.ctx.accounts.get_event_merkle_tree();
         if event_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 {
             return err!(VerifierSdkError::EventMerkleTreeInvalidHashFunction);
         }
         insert_two_leaves_event_cpi(
-            self.input.accounts.unwrap().program_id,
+            &self.input.ctx.program_id,
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .program_merkle_tree
+                .get_program_merkle_tree()
                 .to_account_info(),
-            &self.input.accounts.unwrap().authority.to_account_info(),
+            &self.input.ctx.accounts.get_authority().to_account_info(),
             &event_merkle_tree.to_account_info(),
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .system_program
+                .get_system_program()
                 .to_account_info(),
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .registered_verifier_pda
+                .get_registered_verifier_pda()
                 .to_account_info(),
             &self.event_hash,
             &[0; 32],
@@ -393,7 +400,7 @@ impl<
     /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
     /// H(recipient_spl||recipient_sol||signer||relayer_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
-        let recipient_spl = match self.input.accounts.unwrap().recipient_spl.as_ref() {
+        let recipient_spl = match self.input.ctx.accounts.get_recipient_spl().as_ref() {
             Some(recipient_spl) => recipient_spl.key().to_bytes(),
             None => [0u8; 32],
         };
@@ -402,18 +409,18 @@ impl<
             &recipient_spl,
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .recipient_sol
+                .get_recipient_sol()
                 .as_ref()
                 .unwrap()
                 .key()
                 .to_bytes(),
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .signing_address
+                .get_signing_address()
                 .key()
                 .to_bytes(),
             &self.input.relayer_fee.to_le_bytes(),
@@ -458,12 +465,8 @@ impl<
 
     /// Fetches the root according to an index from the passed-in Merkle tree.
     pub fn fetch_root(&mut self) -> Result<()> {
-        let merkle_tree = self
-            .input
-            .accounts
-            .unwrap()
-            .transaction_merkle_tree
-            .load()?;
+        let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
+        let merkle_tree = merkle_tree.load()?;
         self.merkle_root = change_endianness(&merkle_tree.roots[self.input.merkle_root_index]);
         self.fetched_root = true;
         Ok(())
@@ -472,7 +475,7 @@ impl<
     /// Fetches the token mint from passed in sender_spl account. If the sender_spl account is not a
     /// token account, native mint is assumed.
     pub fn fetch_mint(&mut self) -> Result<()> {
-        match &self.input.accounts.unwrap().sender_spl {
+        match &self.input.ctx.accounts.get_sender_spl() {
             Some(sender_spl) => {
                 match spl_token::state::Account::unpack(sender_spl.data.borrow().as_ref()) {
                     Ok(sender_mint) => {
@@ -512,27 +515,8 @@ impl<
     }
 
     fn check_inputs(&self) -> Result<()> {
-        if T::NR_NULLIFIERS != self.input.nullifiers.len() {
-            msg!(
-                "NR_NULLIFIERS  {} != self.nullifiers.len() {}",
-                T::NR_NULLIFIERS,
-                self.input.nullifiers.len()
-            );
-            return err!(VerifierSdkError::InvalidNrNullifiers);
-        }
-
-        if T::NR_LEAVES / 2 != self.input.leaves.len() {
-            msg!(
-                "NR_LEAVES / 2:
-                {} != self.leaves.len(): {}",
-                T::NR_LEAVES / 2,
-                self.input.leaves.len()
-            );
-            return err!(VerifierSdkError::InvalidNrLeaves);
-        }
-
-        let nr_nullifiers_leaves = T::NR_NULLIFIERS + (T::NR_LEAVES / 2);
-        let remaining_accounts_len = self.input.accounts.unwrap().remaining_accounts.len();
+        let nr_nullifiers_leaves = NR_NULLIFIERS + NR_LEAVES;
+        let remaining_accounts_len = self.input.ctx.remaining_accounts.len();
         if remaining_accounts_len != nr_nullifiers_leaves // Only nullifiers and leaves.
             // Nullifiers, leaves and next transaction Merkle tree.
             && remaining_accounts_len != nr_nullifiers_leaves + 1
@@ -556,22 +540,20 @@ impl<
             return err!(VerifierSdkError::ProofNotVerified);
         }
 
-        let transaction_merkle_tree_ix = T::NR_NULLIFIERS + self.input.leaves.len();
-        let transaction_merkle_tree = if self.input.accounts.unwrap().remaining_accounts.len()
-            == transaction_merkle_tree_ix + 1
-        {
-            let transaction_merkle_tree = self.input.accounts.unwrap().remaining_accounts
-                [transaction_merkle_tree_ix]
-                .to_account_info();
-            self.validate_transaction_merkle_tree(&transaction_merkle_tree)?;
-            transaction_merkle_tree
-        } else {
-            self.input
-                .accounts
-                .unwrap()
-                .transaction_merkle_tree
-                .to_account_info()
-        };
+        let transaction_merkle_tree_ix = NR_NULLIFIERS + self.input.leaves.len();
+        let transaction_merkle_tree =
+            if self.input.ctx.remaining_accounts.len() == transaction_merkle_tree_ix + 1 {
+                let transaction_merkle_tree =
+                    self.input.ctx.remaining_accounts[transaction_merkle_tree_ix].to_account_info();
+                self.validate_transaction_merkle_tree(&transaction_merkle_tree)?;
+                transaction_merkle_tree
+            } else {
+                self.input
+                    .ctx
+                    .accounts
+                    .get_transaction_merkle_tree()
+                    .to_account_info()
+            };
 
         // check merkle tree
         for (i, leaves) in self.input.leaves.iter().enumerate() {
@@ -583,28 +565,27 @@ impl<
 
             // check account integrities
             insert_two_leaves_cpi(
-                self.input.accounts.unwrap().program_id,
+                &self.input.ctx.program_id,
                 &self
                     .input
+                    .ctx
                     .accounts
-                    .unwrap()
-                    .program_merkle_tree
+                    .get_program_merkle_tree()
                     .to_account_info(),
-                &self.input.accounts.unwrap().authority.to_account_info(),
-                &self.input.accounts.unwrap().remaining_accounts[T::NR_NULLIFIERS + i]
-                    .to_account_info(),
+                &self.input.ctx.accounts.get_authority().to_account_info(),
+                &self.input.ctx.remaining_accounts[NR_NULLIFIERS + i].to_account_info(),
                 &transaction_merkle_tree,
                 &self
                     .input
+                    .ctx
                     .accounts
-                    .unwrap()
-                    .system_program
+                    .get_system_program()
                     .to_account_info(),
                 &self
                     .input
+                    .ctx
                     .accounts
-                    .unwrap()
-                    .registered_verifier_pda
+                    .get_registered_verifier_pda()
                     .to_account_info(),
                 change_endianness(&leaves[0]).try_into().unwrap(),
                 change_endianness(&leaves[1]).try_into().unwrap(),
@@ -646,29 +627,29 @@ impl<
         }
 
         insert_nullifiers_cpi(
-            self.input.accounts.unwrap().program_id,
+            &self.input.ctx.program_id,
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .program_merkle_tree
+                .get_program_merkle_tree()
                 .to_account_info(),
-            &self.input.accounts.unwrap().authority.to_account_info(),
+            &self.input.ctx.accounts.get_authority().to_account_info(),
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .system_program
+                .get_system_program()
                 .to_account_info()
                 .clone(),
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .registered_verifier_pda
+                .get_registered_verifier_pda()
                 .to_account_info(),
             self.input.nullifiers.to_vec(),
-            self.input.accounts.unwrap().remaining_accounts.to_vec(),
+            self.input.ctx.remaining_accounts.to_vec(),
         )?;
 
         self.inserted_nullifier = true;
@@ -696,9 +677,9 @@ impl<
             let recipient_mint = spl_token::state::Account::unpack(
                 &self
                     .input
+                    .ctx
                     .accounts
-                    .unwrap()
-                    .recipient_spl
+                    .get_recipient_spl()
                     .as_ref()
                     .unwrap()
                     .data
@@ -707,9 +688,9 @@ impl<
             let sender_mint = spl_token::state::Account::unpack(
                 &self
                     .input
+                    .ctx
                     .accounts
-                    .unwrap()
-                    .sender_spl
+                    .get_sender_spl()
                     .as_ref()
                     .unwrap()
                     .data
@@ -731,9 +712,9 @@ impl<
                 self.check_spl_pool_account_derivation(
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .recipient_spl
+                        .get_recipient_spl()
                         .as_ref()
                         .unwrap()
                         .key(),
@@ -743,7 +724,7 @@ impl<
                 let seed = merkle_tree_program::ID.to_bytes();
                 let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
                     &[seed.as_ref()],
-                    self.input.accounts.unwrap().program_id,
+                    &self.input.ctx.program_id,
                 );
                 let bump = &[bump];
                 let seeds = &[&[seed.as_slice(), bump][..]];
@@ -751,36 +732,36 @@ impl<
                 let accounts = Transfer {
                     from: self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .sender_spl
+                        .get_sender_spl()
                         .as_ref()
                         .unwrap()
                         .to_account_info()
                         .clone(),
                     to: self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .recipient_spl
+                        .get_recipient_spl()
                         .as_ref()
                         .unwrap()
                         .to_account_info()
                         .clone(),
                     authority: self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .authority
+                        .get_authority()
                         .to_account_info()
                         .clone(),
                 };
 
                 let cpi_ctx = CpiContext::new_with_signer(
                     self.input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .token_program
+                        .get_token_program()
                         .unwrap()
                         .to_account_info()
                         .clone(),
@@ -792,9 +773,9 @@ impl<
                 self.check_spl_pool_account_derivation(
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .sender_spl
+                        .get_sender_spl()
                         .as_ref()
                         .unwrap()
                         .key(),
@@ -803,51 +784,51 @@ impl<
 
                 // withdraw_spl_cpi
                 withdraw_spl_cpi(
-                    self.input.accounts.unwrap().program_id,
+                    &self.input.ctx.program_id,
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .program_merkle_tree
+                        .get_program_merkle_tree()
                         .to_account_info(),
-                    &self.input.accounts.unwrap().authority.to_account_info(),
+                    &self.input.ctx.accounts.get_authority().to_account_info(),
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .sender_spl
+                        .get_sender_spl()
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .recipient_spl
+                        .get_recipient_spl()
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .token_authority
+                        .get_token_authority()
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .token_program
+                        .get_token_program()
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .registered_verifier_pda
+                        .get_registered_verifier_pda()
                         .to_account_info(),
                     pub_amount_checked,
                 )?;
@@ -879,9 +860,9 @@ impl<
                     fee_amount_checked,
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .recipient_sol
+                        .get_recipient_sol()
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
@@ -892,17 +873,17 @@ impl<
                 self.check_sol_pool_account_derivation(
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .sender_sol
+                        .get_sender_sol()
                         .as_ref()
                         .unwrap()
                         .key(),
                     &*self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .sender_sol
+                        .get_sender_sol()
                         .as_ref()
                         .unwrap()
                         .to_account_info()
@@ -912,35 +893,35 @@ impl<
                 )?;
                 // withdraws sol for the user
                 withdraw_sol_cpi(
-                    self.input.accounts.unwrap().program_id,
+                    &self.input.ctx.program_id,
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .program_merkle_tree
+                        .get_program_merkle_tree()
                         .to_account_info(),
-                    &self.input.accounts.unwrap().authority.to_account_info(),
+                    &self.input.ctx.accounts.get_authority().to_account_info(),
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .sender_sol
+                        .get_sender_sol()
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .recipient_sol
+                        .get_recipient_sol()
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
                     &self
                         .input
+                        .ctx
                         .accounts
-                        .unwrap()
-                        .registered_verifier_pda
+                        .get_registered_verifier_pda()
                         .to_account_info(),
                     fee_amount_checked,
                 )?;
@@ -950,35 +931,34 @@ impl<
         if !self.is_deposit_fee() && relayer_fee > 0 {
             // pays the relayer fee
             withdraw_sol_cpi(
-                self.input.accounts.unwrap().program_id,
+                &self.input.ctx.program_id,
                 &self
                     .input
+                    .ctx
                     .accounts
-                    .unwrap()
-                    .program_merkle_tree
+                    .get_program_merkle_tree()
                     .to_account_info(),
-                &self.input.accounts.unwrap().authority.to_account_info(),
+                &self.input.ctx.accounts.get_authority().to_account_info(),
                 &self
                     .input
+                    .ctx
                     .accounts
-                    .unwrap()
-                    .sender_sol
+                    .get_sender_sol()
                     .as_ref()
                     .unwrap()
                     .to_account_info(),
                 &self
                     .input
+                    .ctx
                     .accounts
-                    .unwrap()
-                    .relayer_recipient
+                    .get_relayer_recipient_sol()
                     .as_ref()
-                    .unwrap()
                     .to_account_info(),
                 &self
                     .input
+                    .ctx
                     .accounts
-                    .unwrap()
-                    .registered_verifier_pda
+                    .get_registered_verifier_pda()
                     .to_account_info(),
                 relayer_fee,
             )?;
@@ -999,26 +979,26 @@ impl<
         let rent = <Rent as sysvar::Sysvar>::get()?;
 
         create_and_check_pda(
-            self.input.accounts.unwrap().program_id,
+            &self.input.ctx.program_id,
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .signing_address
+                .get_signing_address()
                 .to_account_info(),
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .sender_sol
+                .get_sender_sol()
                 .as_ref()
                 .unwrap()
                 .to_account_info(),
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .system_program
+                .get_system_program()
                 .to_account_info(),
             &rent,
             &b"escrow"[..],
@@ -1030,9 +1010,9 @@ impl<
         close_account(
             &self
                 .input
+                .ctx
                 .accounts
-                .unwrap()
-                .sender_sol
+                .get_sender_sol()
                 .as_ref()
                 .unwrap()
                 .to_account_info(),
@@ -1065,7 +1045,7 @@ impl<
             &[&[0u8; 32], self.input.pool_type, POOL_CONFIG_SEED],
             &MerkleTreeProgram::id(),
         );
-        let mut cloned_data = data.clone();
+        let mut cloned_data = data;
         merkle_tree_program::RegisteredAssetPool::try_deserialize(&mut cloned_data)?;
 
         if derived_pubkey.0 != *pubkey {

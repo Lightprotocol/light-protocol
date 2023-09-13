@@ -1,9 +1,10 @@
 use bs58::decode;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{
-    parse::Parse, parse_quote, punctuated::Punctuated, token::Brace, Error, Expr, Field, Fields,
-    FieldsNamed, ItemStruct, LitStr, Result,
+    parse::Parse, parse_quote, punctuated::Punctuated, token::Brace, ConstParam, Error, Expr,
+    Field, Fields, FieldsNamed, GenericParam, ItemStruct, LifetimeDef, LitStr, Result, Token,
+    TypeParam,
 };
 
 const PUBKEY_LEN: usize = 32;
@@ -96,38 +97,104 @@ pub(crate) fn light_verifier_accounts(
     args: LightVerifierAccountsArgs,
     strct: ItemStruct,
 ) -> Result<TokenStream> {
-    let sol_fields = if args.sol {
-        quote! {
-            /// CHECK: Is checked depending on deposit or withdrawal.
-            #[account(mut)]
-            pub sender_sol: UncheckedAccount<'info>,
-            /// CHECK: Is checked depending on deposit or withdrawal.
-            #[account(mut)]
-            pub recipient_sol: UncheckedAccount<'info>,
-        }
+    let (sol_fields, sol_getters) = if args.sol {
+        (
+            quote! {
+                /// CHECK: Is checked depending on deposit or withdrawal.
+                #[account(mut)]
+                pub sender_sol: UncheckedAccount<'info>,
+                /// CHECK: Is checked depending on deposit or withdrawal.
+                #[account(mut)]
+                pub recipient_sol: UncheckedAccount<'info>,
+            },
+            quote! {
+                fn get_sender_sol(&self) -> Option<&UncheckedAccount<'info>> {
+                    Some(&self.sender_sol)
+                }
+
+                fn get_recipient_sol(&self) -> Option<&UncheckedAccount<'info>> {
+                    Some(&self.recipient_sol)
+                }
+            },
+        )
     } else {
-        quote! {}
+        (
+            quote! {},
+            quote! {
+                fn get_sender_sol(&self) -> Option<&UncheckedAccount<'info>> {
+                    None
+                }
+
+                fn get_recipient_sol(&self) -> Option<&UncheckedAccount<'info>> {
+                    None
+                }
+            },
+        )
     };
 
-    let spl_fields = if args.spl {
-        quote! {
-            pub token_program: Program<'info, ::anchor_spl::token::Token>,
-            /// CHECK: Is checked when it is used during spl withdrawals.
-            #[account(
-                mut,
-                seeds=[::merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED],
-                bump,
-                seeds::program=::merkle_tree_program::program::MerkleTreeProgram::id())]
-            pub token_authority: AccountInfo<'info>,
-            /// CHECK: Is checked depending on deposit or withdrawal.
-            #[account(mut)]
-            pub sender_spl: UncheckedAccount<'info>,
-            /// CHECK: Is checked depending on deposit or withdrawal.
-            #[account(mut)]
-            pub recipient_spl: UncheckedAccount<'info>,
-        }
+    let (spl_fields, spl_getters) = if args.spl {
+        (
+            quote! {
+                pub token_program: Program<'info, ::anchor_spl::token::Token>,
+                /// CHECK: Is checked when it is used during spl withdrawals.
+                #[account(
+                    mut,
+                    seeds=[::merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED],
+                    bump,
+                    seeds::program=::merkle_tree_program::program::MerkleTreeProgram::id())]
+                pub token_authority: AccountInfo<'info>,
+                /// CHECK: Is checked depending on deposit or withdrawal.
+                #[account(mut)]
+                pub sender_spl: UncheckedAccount<'info>,
+                /// CHECK: Is checked depending on deposit or withdrawal.
+                #[account(mut)]
+                pub recipient_spl: UncheckedAccount<'info>,
+            },
+            quote! {
+                fn get_token_program(&self) -> Option<&Program<
+                    'info,
+                    ::anchor_spl::token::Token
+                >> {
+                    Some(&self.token_program)
+                }
+
+                fn get_token_authority(&self) -> Option<&AccountInfo<'info>> {
+                    Some(&self.token_authority)
+                }
+
+                fn get_sender_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                    Some(&self.sender_spl)
+                }
+
+                fn get_recipient_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                    Some(&self.recipient_spl)
+                }
+            },
+        )
     } else {
-        quote! {}
+        (
+            quote! {},
+            quote! {
+                fn get_token_program(&self) -> Option<&Program<
+                    'info,
+                    ::anchor_spl::token::Token
+                >> {
+                    None
+                }
+
+                fn get_token_authority(&self) -> Option<&AccountInfo<'info>> {
+                    None
+                }
+
+                fn get_sender_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                    None
+                }
+
+                fn get_recipient_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                    None
+                }
+            },
+        )
     };
 
     let signing_address_cond = match args.signing_address {
@@ -236,6 +303,37 @@ pub(crate) fn light_verifier_accounts(
         named: fields,
     });
 
+    let ident = strct.ident.clone();
+    let impl_generics = strct.generics.clone();
+    // Generics listed after struct ident need to contain only idents, bounds
+    // and const generic types are not expected anymore. Sadly, there seems to
+    // be no quick way to do that cleanup in non-manual way.
+    let strct_generics: Punctuated<GenericParam, Token![,]> = strct
+        .generics
+        .params
+        .clone()
+        .into_iter()
+        .map(|param: GenericParam| match param {
+            GenericParam::Const(ConstParam { ident, .. })
+            | GenericParam::Type(TypeParam { ident, .. }) => GenericParam::Type(TypeParam {
+                attrs: vec![],
+                ident,
+                colon_token: None,
+                bounds: Default::default(),
+                eq_token: None,
+                default: None,
+            }),
+            GenericParam::Lifetime(LifetimeDef { lifetime, .. }) => {
+                GenericParam::Lifetime(LifetimeDef {
+                    attrs: vec![],
+                    lifetime,
+                    colon_token: None,
+                    bounds: Default::default(),
+                })
+            }
+        })
+        .collect();
+
     let strct = ItemStruct {
         attrs: strct.attrs,
         vis: strct.vis,
@@ -246,7 +344,62 @@ pub(crate) fn light_verifier_accounts(
         semi_token: strct.semi_token,
     };
 
-    Ok(strct.into_token_stream())
+    Ok(quote! {
+        #strct
+
+        impl #impl_generics ::light_verifier_sdk::accounts::LightAccounts<'info> for #ident <#strct_generics> {
+            fn get_signing_address(&self) -> &Signer<'info> {
+                &self.signing_address
+            }
+
+            fn get_system_program(&self) -> &Program<'info, System> {
+                &self.system_program
+            }
+
+            fn get_program_merkle_tree(&self) -> &Program<
+                'info,
+                ::merkle_tree_program::program::MerkleTreeProgram
+            > {
+                &self.program_merkle_tree
+            }
+
+            fn get_transaction_merkle_tree(&self) -> &AccountLoader<
+                'info,
+                ::merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree
+            > {
+                &self.transaction_merkle_tree
+            }
+
+            fn get_authority(&self) -> &UncheckedAccount<'info> {
+                &self.authority
+            }
+
+            fn get_relayer_recipient_sol(&self) -> &UncheckedAccount<'info> {
+                &self.relayer_recipient_sol
+            }
+
+            #sol_getters
+            #spl_getters
+
+            fn get_registered_verifier_pda(&self) -> &Account<
+                'info,
+                ::merkle_tree_program::config_accounts::register_verifier::RegisteredVerifier
+            > {
+                &self.registered_verifier_pda
+            }
+
+            fn get_log_wrapper(&self) -> &UncheckedAccount<'info> {
+                &self.log_wrapper
+            }
+
+            fn get_event_merkle_tree(&self) -> &AccountLoader<
+                'info,
+                ::merkle_tree_program::event_merkle_tree::EventMerkleTree
+            > {
+                &self.event_merkle_tree
+            }
+        }
+    })
 }
 
 #[cfg(test)]
