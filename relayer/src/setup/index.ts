@@ -1,35 +1,31 @@
-import {
-  createTestAccounts,
-  initLookUpTable,
-  useWallet,
-} from "@lightprotocol/zk.js";
-import { getAnchorProvider, getKeyPairFromEnv } from "../utils/provider";
-import { PublicKey } from "@solana/web3.js";
-import { readFileSync, writeFileSync } from "fs";
+import { initLookUpTable, useWallet } from "@lightprotocol/zk.js";
+import { getKeyPairFromEnv } from "../utils/provider";
+import { AddressLookupTableAccount, PublicKey } from "@solana/web3.js";
 import { RPC_URL } from "../config";
+import { AnchorProvider } from "@coral-xyz/anchor";
 
-export async function relayerSetup() {
-  const anchorProvider = await getAnchorProvider();
-  await createTestAccounts(anchorProvider.connection);
-
+export async function setupRelayerLookUpTable(anchorProvider: AnchorProvider) {
   let lookUpTable;
-  const path = "lookUpTable.txt";
+
   try {
-    let lookUpTableRead = new PublicKey(readFileSync(path, "utf8"));
+    let lookUpTableRead = new PublicKey(process.env.LOOK_UP_TABLE!);
     let lookUpTableInfoInit = await anchorProvider.connection.getAccountInfo(
       lookUpTableRead,
     );
     if (lookUpTableInfoInit) {
       lookUpTable = lookUpTableRead;
     }
+    AddressLookupTableAccount.deserialize(lookUpTableInfoInit!.data);
   } catch (e) {
-    console.log(".txt not found", e);
+    console.log(".look_up_table env not found or not properly initialized", e);
   }
   if (!lookUpTable) {
     console.log("initing lookuptable...");
     let wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"), RPC_URL);
 
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
-    writeFileSync(path, lookUpTable.toString(), "utf8");
+    console.log("new relayer lookUpTable created: ", lookUpTable.toString());
+    process.env.LOOK_UP_TABLE = lookUpTable.toString();
+    console.log(".env updated with:", process.env.LOOK_UP_TABLE);
   }
 }
