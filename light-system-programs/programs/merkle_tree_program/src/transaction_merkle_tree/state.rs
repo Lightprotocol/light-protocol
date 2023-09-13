@@ -1,4 +1,4 @@
-use crate::utils::config::MERKLE_TREE_HISTORY_SIZE;
+use crate::{impl_indexed_merkle_tree, utils::config::MERKLE_TREE_HISTORY_SIZE};
 use anchor_lang::prelude::*;
 
 // NOTE(vadorovsky): This implementation of Merkle tree exists only for
@@ -21,6 +21,8 @@ pub struct TransactionMerkleTree {
     pub newest: u8,
     _padding: [u8; 7],
 }
+
+impl_indexed_merkle_tree!(TransactionMerkleTree);
 
 #[account]
 #[derive(Eq, PartialEq, Debug)]
