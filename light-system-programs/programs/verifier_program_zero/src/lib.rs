@@ -1,3 +1,14 @@
+use anchor_lang::prelude::*;
+
+use light_macros::light_verifier_accounts;
+use light_verifier_sdk::light_transaction::{Amounts, Proof, Transaction, TransactionInput};
+use merkle_tree_program::program::MerkleTreeProgram;
+
+pub mod verifying_key;
+use verifying_key::VERIFYINGKEY;
+
+declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
+
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
     name: "light_protocol_verifier_program_zero",
@@ -7,24 +18,11 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol-onchain"
 }
 
-pub mod processor;
-pub mod verifying_key;
-use light_macros::light_verifier_accounts;
-pub use processor::*;
-
-use anchor_lang::prelude::*;
-use merkle_tree_program::program::MerkleTreeProgram;
-
-declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
-
 #[constant]
 pub const PROGRAM_ID: &str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";
 
 #[program]
 pub mod verifier_program_zero {
-
-    use light_verifier_sdk::light_transaction::{Amounts, Proof};
-
     use super::*;
 
     /// This instruction is the first step of a shieled transaction.
@@ -52,18 +50,24 @@ pub mod verifier_program_zero {
             sol: inputs.public_amount_sol,
             spl: inputs.public_amount_spl,
         };
-        process_shielded_transfer_2_in_2_out(
-            ctx,
-            &proof,
-            &public_amount,
-            &inputs.input_nullifier,
-            &[inputs.output_commitment; 1],
-            &enc_utxos,
-            inputs.root_index,
-            inputs.relayer_fee,
-            &[],        // checked_public_inputs
-            &[0u8; 32], //pool_type
-        )
+
+        let input = TransactionInput {
+            ctx: &ctx,
+            message: None,
+            proof: &proof,
+            public_amount: &public_amount,
+            nullifiers: &inputs.input_nullifier,
+            leaves: &[inputs.output_commitment; 1],
+            encrypted_utxos: &enc_utxos,
+            merkle_root_index: inputs.root_index as usize,
+            relayer_fee: inputs.relayer_fee,
+            checked_public_inputs: &[],
+            pool_type: &[0u8; 32],
+            verifyingkey: &VERIFYINGKEY,
+        };
+        let mut transaction = Transaction::<0, 1, 2, 9, LightInstruction<'info>>::new(input);
+
+        transaction.transact()
     }
 }
 

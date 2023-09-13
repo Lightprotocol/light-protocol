@@ -1,10 +1,13 @@
 use anchor_lang::prelude::*;
 use light_macros::light_verifier_accounts;
-use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
+use light_verifier_sdk::light_transaction::{
+    Amounts, Message, Proof, Transaction, TransactionInput, VERIFIER_STATE_SEED,
+};
+
 use merkle_tree_program::program::MerkleTreeProgram;
 
-pub mod processor;
 pub mod verifying_key;
+use verifying_key::VERIFYINGKEY;
 
 declare_id!("DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj");
 
@@ -36,8 +39,6 @@ pub enum VerifierError {
 
 #[program]
 pub mod verifier_program_storage {
-    use crate::processor::process_shielded_transfer_2_in_2_out;
-    use light_verifier_sdk::light_transaction::{Amounts, Message, Proof};
 
     use super::*;
 
@@ -100,21 +101,23 @@ pub mod verifier_program_storage {
             spl: [0u8; 32], // Verifier storage does not support SPL tokens.
         };
 
-        process_shielded_transfer_2_in_2_out::<0, 9>(
-            &ctx,
-            Some(&message),
-            &proof,
-            &public_amount,
-            &inputs.input_nullifier,
-            &[inputs.output_commitment; 1],
-            &inputs.encrypted_utxos.to_vec(),
-            inputs.root_index,
-            inputs.relayer_fee,
-            &[], // TODO: provide checked_public_inputs
-            &[0u8; 32],
-        )?;
+        let input = TransactionInput {
+            ctx: &ctx,
+            message: Some(&message),
+            proof: &proof,
+            public_amount: &public_amount,
+            nullifiers: &inputs.input_nullifier,
+            leaves: &[inputs.output_commitment; 1],
+            encrypted_utxos: &inputs.encrypted_utxos.to_vec(),
+            merkle_root_index: inputs.root_index as usize,
+            relayer_fee: inputs.relayer_fee,
+            checked_public_inputs: &[],
+            pool_type: &[0u8; 32],
+            verifyingkey: &VERIFYINGKEY,
+        };
+        let mut transaction = Transaction::<0, 1, 2, 9, LightInstructionSecond<'info>>::new(input);
 
-        Ok(())
+        transaction.transact()
     }
 }
 
