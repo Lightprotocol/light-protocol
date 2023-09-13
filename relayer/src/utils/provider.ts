@@ -9,6 +9,7 @@ import {
   useWallet,
 } from "@lightprotocol/zk.js";
 import { readLookupTable } from "./readLookupTable";
+const circomlibjs = require("circomlibjs");
 
 require("dotenv").config();
 
@@ -42,6 +43,7 @@ export const getLightProvider = async () => {
 
     try {
       let anchorProvider = await getAnchorProvider();
+      let poseidon = await circomlibjs.buildPoseidonOpt();
 
       provider = new Provider({
         wallet: useWallet(getKeyPairFromEnv("KEY_PAIR")),
@@ -50,6 +52,7 @@ export const getLightProvider = async () => {
         url: process.env.RPC_URL!,
         versionedTransactionLookupTable: new PublicKey(readLookupTable()),
         anchorProvider,
+        poseidon,
       });
       await provider.loadPoseidon();
     } catch (e) {

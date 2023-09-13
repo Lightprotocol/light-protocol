@@ -102,7 +102,7 @@ export class User {
 
     if (
       !provider.lookUpTables.verifierProgramLookupTable ||
-      !provider.solMerkleTree ||
+      // !provider.solMerkleTree ||
       !provider.poseidon
     )
       throw new UserError(

@@ -85,8 +85,7 @@ export const getLightProvider = async (localTestRelayer?: boolean) => {
       relayer,
       url: getRpcUrl(),
       confirmConfig,
-      // TODO(@ananas-block): activate once we have a default lookup table
-      // versionedTransactionLookupTable: getLookUpTable(),
+      versionedTransactionLookupTable: getLookUpTable(),
     });
     return provider;
   }
@@ -137,7 +136,7 @@ type Config = {
   relayerRecipient: string;
   relayerPublicKey: string;
   payer: string;
-  lookupTable: string;
+  lookUpTable: string;
 };
 
 export const getRpcUrl = (): string => {
@@ -187,11 +186,11 @@ export const setRelayerPublicKey = (address: string): void => {
 
 export const getLookUpTable = () => {
   const config = getConfig();
-  return new solana.PublicKey(config.lookupTable);
+  return new solana.PublicKey(config.lookUpTable);
 };
 
 export const setLookUpTable = (address: string): void => {
-  setConfig({ lookupTable: address });
+  setConfig({ lookUpTable: address });
 };
 
 export const getPayer = () => {

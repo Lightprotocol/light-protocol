@@ -14,7 +14,7 @@ class ConfigCommand extends Command {
     "$ light config --rpcUrl https://solana-api.example.com",
     "$ light config --relayerUrl https://relayer.example.com",
     "$ light config --secretKey your <SOLANA_SECRET_KEY>",
-    "$ light config --lookupTable <LOOKUP_TABLE>",
+    "$ light config --lookUpTable <LOOKUP_TABLE>",
     "$ light config --relayerRecipient <RECIPIENT_ADDRESS>",
     "$ light config --relayerPublicKey <RELAYER_PUBLIC_KEY>",
   ];
@@ -36,9 +36,9 @@ class ConfigCommand extends Command {
       char: "u",
       description: "Relayer recipient",
     }),
-    lookupTable: Flags.string({
+    lookUpTable: Flags.string({
       char: "t",
-      description: "Look-up table.",
+      description: "LookUpTable.",
     }),
     relayerPublicKey: Flags.string({
       alias: "rp",
@@ -60,7 +60,7 @@ class ConfigCommand extends Command {
       relayerRecipient,
       relayerPublicKey,
       get,
-      lookupTable,
+      lookUpTable,
     } = flags;
 
     try {
@@ -111,11 +111,11 @@ class ConfigCommand extends Command {
         }
       }
 
-      if (lookupTable) {
-        if (new PublicKey(lookupTable)) {
-          config.lookUpTable = lookupTable;
+      if (lookUpTable) {
+        if (new PublicKey(lookUpTable)) {
+          config.lookUpTable = lookUpTable;
         } else {
-          this.error(`\nInvalid publickey format`);
+          this.error(`\nInvalid public key format`);
         }
       }
 

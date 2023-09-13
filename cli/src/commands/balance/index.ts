@@ -7,7 +7,6 @@ import {
   TOKEN_REGISTRY,
   UserError,
   UserErrorCode,
-  convertAndComputeDecimals,
   SOL_DECIMALS,
 } from "@lightprotocol/zk.js";
 import { CustomLoader, getUser, standardFlags } from "../../utils/index";
@@ -130,11 +129,11 @@ class BalanceCommand extends Command {
     let tableData = [];
     for (const tokenBalance of balances.tokenBalances) {
       let _token = tokenBalance[1].tokenData.symbol;
-      let decimals = tokenBalance[1].tokenData.decimals;
-      let balance: BN =
+      let _decimals = tokenBalance[1].tokenData.decimals;
+      let balance =
         _token === "SOL"
-          ? tokenBalance[1].totalBalanceSol.div(decimals)
-          : tokenBalance[1].totalBalanceSpl.div(decimals);
+          ? tokenBalance[1].totalBalanceSol.toString()
+          : tokenBalance[1].totalBalanceSpl.toString();
       let utxoNumber = tokenBalance[1].utxos.size;
 
       tableData.push({
@@ -176,17 +175,15 @@ class BalanceCommand extends Command {
       if (_token === "SOL") {
         for (const iterator of tokenBalance[1]?.utxos.values()!) {
           i++;
-          let amountSol = convertAndComputeDecimals(
-            iterator.amounts[0],
-            SOL_DECIMALS
-          );
+          let amountSol = iterator.amounts[0].toString();
+
           let symbol = tokenBalance[1].tokenData.symbol;
           let commitmentHash = iterator._commitment;
 
           tableData.push(
             { prop: "Utxo No", value: i },
             { prop: "Token", value: `\x1b[32m${symbol}\x1b[0m` },
-            { prop: "Amount SOL", value: amountSol },
+            { prop: "Amount LAMPORTS", value: amountSol },
             { prop: "Commitment Hash", value: commitmentHash }
           );
         }
@@ -203,18 +200,16 @@ class BalanceCommand extends Command {
         if (filter === "SOL") break;
       } else {
         let i = 0;
-        let decimals = tokenBalance[1].tokenData.decimals;
         let tableData = [];
+
+        let _decimals = tokenBalance[1].tokenData.decimals;
+
         for (const iterator of tokenBalance[1].utxos.values()!) {
           i++;
-          let amountSpl = convertAndComputeDecimals(
-            iterator.amounts[1],
-            decimals
-          );
-          let amountSol = convertAndComputeDecimals(
-            iterator.amounts[0],
-            SOL_DECIMALS
-          );
+          let amountSpl = iterator.amounts[1].toString();
+
+          let amountSol = iterator.amounts[0].toString();
+
           let symbol = tokenBalance[1].tokenData.symbol;
           let mint = tokenBalance[1].tokenData.mint.toString();
           let commitmentHash = iterator._commitment;
@@ -223,7 +218,7 @@ class BalanceCommand extends Command {
             { prop: "Utxo No", value: i },
             { prop: "Token", value: `\x1b[32m${symbol}\x1b[0m` },
             { prop: "Amount SPL", value: amountSpl },
-            { prop: "Amount SOL", value: amountSol },
+            { prop: "Amount LAMPORTS", value: amountSol },
             { prop: "Mint", value: mint },
             { prop: "Commitment Hash", value: commitmentHash }
           );
@@ -249,11 +244,11 @@ class BalanceCommand extends Command {
       for (const tokenBalance of balances.tokenBalances) {
         let _token = tokenBalance[1].tokenData.symbol;
         if (token === _token) {
-          let decimals = tokenBalance[1].tokenData.decimals;
+          let _decimals = tokenBalance[1].tokenData.decimals;
           let balance =
             token === "SOL"
-              ? tokenBalance[1].totalBalanceSol.div(decimals)
-              : tokenBalance[1].totalBalanceSpl.div(decimals);
+              ? tokenBalance[1].totalBalanceSol.toString()
+              : tokenBalance[1].totalBalanceSpl.toString();
           let utxoNumber = tokenBalance[1].utxos.size;
           let type = inbox ? "inbox" : "main";
           return {
@@ -288,7 +283,7 @@ class BalanceCommand extends Command {
     });
   }
 
-  private logTokenUtxos(balance: Balance, token: PublicKey, verbose = false) {
+  private logTokenUtxos(balance: Balance, token: PublicKey, _verbose = false) {
     const tokenBalance = balance.tokenBalances.get(token.toString());
     if (tokenBalance && tokenBalance?.tokenData.symbol !== "SOL") {
       let i = 0;
@@ -296,18 +291,15 @@ class BalanceCommand extends Command {
       let tableData = [];
       for (const iterator of tokenBalance?.utxos.values()!) {
         i++;
-        let amountSpl = iterator.amounts[1].div(decimals);
-        let amountSol = convertAndComputeDecimals(
-          iterator.amounts[0],
-          SOL_DECIMALS
-        );
+        let amountSpl = iterator.amounts[1].toString();
+        let amountSol = iterator.amounts[0].toString();
         let symbol = tokenBalance.tokenData.symbol;
         let mint = tokenBalance.tokenData.mint.toString();
         let commitmentHash = iterator._commitment;
         tableData.push(
           { prop: "Utxo No", value: i },
           { prop: "Token", value: symbol },
-          { prop: "Amount SOL", value: amountSol },
+          { prop: "Amount LAMPORTS", value: amountSol },
           { prop: "Amount SPL", value: amountSpl },
           { prop: "Mint", value: mint },
           { prop: "Commitment Hash", value: commitmentHash }
