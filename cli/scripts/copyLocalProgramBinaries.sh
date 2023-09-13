@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-keys="merkle_tree_program verifier_program_zero verifier_program_one verifier_program_two verifier_program_storage"
+keys="merkle_tree_program verifier_program_zero verifier_program_one verifier_program_two verifier_program_storage user_registry"
 
 mkdir -p bin/programs
 cd ..

@@ -12,7 +12,8 @@
     "test-verifiers": "yarn start-test-validator && ts-mocha -t 2000000 tests/verifier_tests.ts --exit",
     "test-merkle-tree": "./../cli/test_bin/run test-validator -b -s && ts-mocha -t 2000000 tests/merkle_tree_tests.ts --exit",
     "test-provider": "yarn start-test-validator && ts-mocha -t 2000000 tests/provider.test.ts --exit",
-    "test": "yarn test-functional && yarn run test-merkle-tree && yarn run test-user && yarn run test-provider && yarn test-user-merge && yarn run test-verifiers",
+    "test-user-registry": "yarn start-test-validator && ts-mocha -t 2000000 tests/user-registry.tests.ts --exit",
+    "test": "yarn test-functional && yarn run test-merkle-tree && yarn run test-user && yarn run test-provider && yarn test-user-merge && yarn run test-verifiers && yarn run test-user-registry",
     "airdrop-testnet": "yarn ts-node ./scripts/airdropTestnet.ts",
     "createLookupTable-testnet": "yarn ts-node ./scripts/createLookUpTable.ts",
     "format": "yarn prettier --write \"tests/**/*.{ts,js}\""

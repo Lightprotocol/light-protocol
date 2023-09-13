@@ -11,7 +11,7 @@ import {
   VerifierProgramOne,
   VerifierProgramZero,
   MerkleTreeProgram,
-} from "./idls";
+} from "./idls/index";
 
 import {
   ConfirmOptions,
@@ -58,6 +58,9 @@ export const verifierProgramOneProgramId = new PublicKey(
 );
 export const verifierProgramTwoProgramId = new PublicKey(
   "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86",
+);
+export const userRegistryProgramId = new PublicKey(
+  "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
 );
 
 export const LOOK_UP_TABLE = new PublicKey(
