@@ -43,11 +43,11 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@coral-xyz/borsh": "^0.28.0",
+    "@lightprotocol/prover.js": "file:../light-prover.js",
     "@noble/hashes": "^1.1.5",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",
     "@solana/web3.js": "1.76.0",
-    "@lightprotocol/prover.js": "file:../light-prover.js",
     "axios": "^1.3.4",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",
@@ -57,7 +57,8 @@
     "fs": "^0.0.1-security",
     "global": "^4.4.0",
     "snarkjs": "^0.7.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "workerpool": "^6.4.2"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
@@ -66,6 +67,7 @@
     "@types/mocha": "^9.0.0",
     "@types/node": "^20.1.0",
     "@types/node-fetch": "^2.6.2",
+    "@types/workerpool": "^6.4.1",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
     "mocha": "^10.2.0",

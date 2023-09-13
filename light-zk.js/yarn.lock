@@ -647,6 +647,13 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-20.1.0.tgz#258805edc37c327cf706e64c6957f241ca4c4c20"
   integrity sha512-O+z53uwx64xY7D6roOi4+jApDGFg0qn6WHcxe5QeqjMaTezBO/mxdfFXIVAVVyNWKx84OmPB3L8kbVYOTeN34A==
 
+"@types/workerpool@^6.4.1":
+  version "6.4.1"
+  resolved "https://registry.yarnpkg.com/@types/workerpool/-/workerpool-6.4.1.tgz#8f2e6a6b15e6bb8195d8b916eb377742a16c8a1d"
+  integrity sha512-QfP+sEevgHz9eKhhfsK4K48lb3/fUZBF6zFvKjpSBP+e5qVcO32EQ8XhHrc3/W5Pn2bupoIiCDZA6I5zx4NDRw==
+  dependencies:
+    "@types/node" "*"
+
 "@types/ws@^7.4.4":
   version "7.4.7"
   resolved "https://registry.npmjs.org/@types/ws/-/ws-7.4.7.tgz"
@@ -2152,6 +2159,11 @@ workerpool@6.2.1:
   version "6.2.1"
   resolved "https://registry.npmjs.org/workerpool/-/workerpool-6.2.1.tgz"
   integrity sha512-ILEIE97kDZvF9Wb9f6h5aXK4swSlKGUcOEGiIYb2OOu/IrDU9iwj0fD//SsA6E5ibwJxpEvhullJY4Sl4GcpAw==
+
+workerpool@^6.4.2:
+  version "6.4.2"
+  resolved "https://registry.yarnpkg.com/workerpool/-/workerpool-6.4.2.tgz#5d086f6fef89adbc4300ca24fcafb7082330e960"
+  integrity sha512-MrDWwemtC4xNV22kbbZDQQQmxNX+yLm790sgYl2wVD3CWnK7LJY1youI/11wHorAjHjK+GEjUxUh74XoPU71uQ==
 
 wrap-ansi@^7.0.0:
   version "7.0.0"

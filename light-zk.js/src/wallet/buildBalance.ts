@@ -1,4 +1,4 @@
-import { Utxo } from "../utxo";
+import { Utxo, UtxoBytes } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 
@@ -18,6 +18,9 @@ import {
   TOKEN_PUBKEY_SYMBOL,
   UserErrorCode,
   BN_0,
+  UtxoBatch,
+  ParsedIndexedTransaction,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
 } from "../index";
 
 // mint | programAdress for programUtxos
@@ -212,6 +215,194 @@ export async function decryptAddUtxoToBalance({
     assetLookupTable,
   });
 
+  // null if utxo did not decrypt -> return nothing and continue
+  if (!decryptedUtxo) return;
+
+  const nullifier = decryptedUtxo.getNullifier(poseidon);
+  if (!nullifier) return;
+
+  const nullifierExists = await fetchNullifierAccountInfo(
+    nullifier,
+    connection,
+  );
+  const queuedLeavesPdaExists = await fetchQueuedLeavesAccountInfo(
+    leftLeaf,
+    connection,
+  );
+
+  const amountsValid =
+    decryptedUtxo.amounts[1].toString() !== "0" ||
+    decryptedUtxo.amounts[0].toString() !== "0";
+  const assetIndex = decryptedUtxo.amounts[1].toString() !== "0" ? 1 : 0;
+
+  // valid amounts and is not app utxo
+  if (
+    amountsValid &&
+    decryptedUtxo.verifierAddress.toBase58() === new PublicKey(0).toBase58() &&
+    decryptedUtxo.appDataHash.toString() === "0"
+  ) {
+    // TODO: add is native to utxo
+    // if !asset try to add asset and then push
+    if (
+      assetIndex &&
+      !balance.tokenBalances.get(decryptedUtxo.assets[assetIndex].toBase58())
+    ) {
+      // TODO: several maps or unify somehow
+      let tokenBalanceUsdc = new TokenUtxoBalance(TOKEN_REGISTRY.get("USDC")!);
+      balance.tokenBalances.set(
+        tokenBalanceUsdc.tokenData.mint.toBase58(),
+        tokenBalanceUsdc,
+      );
+    }
+    const assetKey = decryptedUtxo.assets[assetIndex].toBase58();
+    const utxoType = queuedLeavesPdaExists
+      ? "committedUtxos"
+      : nullifierExists
+      ? "spentUtxos"
+      : "utxos";
+
+    balance.tokenBalances
+      .get(assetKey)
+      ?.addUtxo(decryptedUtxo.getCommitment(poseidon), decryptedUtxo, utxoType);
+  }
+}
+
+export function createUtxoBatches(
+  indexedTransactions: ParsedIndexedTransaction[],
+): UtxoBatch[] {
+  let utxoBatches: UtxoBatch[] = [];
+  for (const trx of indexedTransactions) {
+    let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
+    for (let index = 0; index < trx.leaves.length; index += 2) {
+      const leafLeft = trx.leaves[index];
+      const leafRight = trx.leaves[index + 1];
+
+      let batch: UtxoBatch = {
+        leftLeafIndex: leftLeafIndex,
+        encryptedUtxos: [
+          {
+            index: leftLeafIndex,
+            commitment: Buffer.from([...leafLeft]),
+            leftLeaf: Uint8Array.from([...leafLeft]),
+            encBytes: trx.encryptedUtxos.slice(
+              (index / 2) * 240,
+              (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+            ),
+          },
+          {
+            index: leftLeafIndex + 1,
+            commitment: Buffer.from([...leafRight]),
+            leftLeaf: Uint8Array.from([...leafLeft]),
+            encBytes: trx.encryptedUtxos.slice(
+              (index / 2) * 240 + 120,
+              (index / 2) * 240 +
+                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+                120,
+            ),
+          },
+        ],
+      };
+      utxoBatches.push(batch);
+      // transaction nonce is the same for all utxos in one transaction
+      // await decryptAddUtxoToBalance({
+      //   encBytes: Buffer.from(
+      //     trx.encryptedUtxos.slice(
+      //       (index / 2) * 240,
+      //       (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+      //     ),
+      //   ),
+      //   index: leftLeafIndex,
+      //   commitment: Buffer.from([...leafLeft]),
+      //   account: this.account,
+      //   poseidon: this.provider.poseidon,
+      //   connection: this.provider.provider.connection,
+      //   balance,
+      //   merkleTreePdaPublicKey,
+      //   leftLeaf: Uint8Array.from([...leafLeft]),
+      //   aes,
+      //   verifierProgramLookupTable:
+      //     this.provider.lookUpTables.verifierProgramLookupTable,
+      //   assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+      // });
+      // await decryptAddUtxoToBalance({
+      //   encBytes: Buffer.from(
+      //     trx.encryptedUtxos.slice(
+      //       (index / 2) * 240 + 120,
+      //       (index / 2) * 240 +
+      //         NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+      //         120,
+      //     ),
+      //   ),
+      //   index: leftLeafIndex + 1,
+      //   commitment: Buffer.from([...leafRight]),
+      //   account: this.account,
+      //   poseidon: this.provider.poseidon,
+      //   connection: this.provider.provider.connection,
+      //   balance,
+      //   merkleTreePdaPublicKey,
+      //   leftLeaf: Uint8Array.from([...leafLeft]),
+      //   aes,
+      //   verifierProgramLookupTable:
+      //     this.provider.lookUpTables.verifierProgramLookupTable,
+      //   assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+      // });
+    }
+  }
+  return utxoBatches;
+}
+
+export async function buildUtxoBalanceFromUtxoBytes({
+  utxoBytes,
+  poseidon,
+  account,
+  appDataIdl,
+  assetLookupTable,
+  verifierProgramLookupTable,
+  connection,
+  balance,
+}: {
+  utxoBytes: UtxoBytes[];
+  connection: Connection;
+  poseidon: any;
+  account: Account;
+  appDataIdl: any;
+  assetLookupTable: string[];
+  verifierProgramLookupTable: string[];
+  balance: Balance;
+}): Promise<void> {
+  for (const bytes of utxoBytes) {
+    let decryptedUtxo = Utxo.fromBytes({
+      poseidon,
+      bytes: bytes.bytes!,
+      account,
+      index: bytes.index,
+      appDataIdl,
+      assetLookupTable,
+      verifierProgramLookupTable,
+    });
+    addUtxoToBalance({
+      decryptedUtxo,
+      poseidon,
+      connection,
+      balance,
+      leftLeaf: bytes.leftLeaf,
+    });
+  }
+}
+
+export async function addUtxoToBalance({
+  decryptedUtxo,
+  poseidon,
+  connection,
+  balance,
+  leftLeaf,
+}: {
+  decryptedUtxo: Utxo;
+  poseidon: any;
+  connection: Connection;
+  balance: Balance;
+  leftLeaf: Uint8Array;
+}): Promise<void> {
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo) return;
 

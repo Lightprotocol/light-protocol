@@ -276,10 +276,23 @@ export class Account {
     );
   }
 
-  getDomainSeparatedAesSecretKey(domain: string): Uint8Array {
+  public getDomainSeparatedAesSecretKey(domain: string): Uint8Array {
     return blake2b
       .create(b2params)
       .update(this.aesSecret + domain)
+      .digest();
+  }
+
+  /// For use inside workers where Account instance non accessible (fastDecrypt)
+  static getAesUtxoViewingKey(
+    merkleTreePdaPublicKey: PublicKey,
+    salt: string,
+    aesSecret: Uint8Array,
+  ): Uint8Array {
+    let domain = merkleTreePdaPublicKey.toBase58() + salt.toString();
+    return blake2b
+      .create(b2params)
+      .update(aesSecret + domain)
       .digest();
   }
 

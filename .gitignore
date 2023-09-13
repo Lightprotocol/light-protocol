@@ -41,6 +41,8 @@
 # light-verifier-sdk
 /light-verifier-sdk/target/
 
+/light-prover.js/lib
+/light-provder.js/node_modules
 # other
 /groth16-solana/target
 */target/*

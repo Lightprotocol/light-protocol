@@ -81,6 +81,12 @@ export type ParsedIndexedTransaction = {
   message: Buffer;
 };
 
+export type TrimmedIndexedTransaction = {
+  leaves: number[][];
+  firstLeafIndex: BN;
+  encryptedUtxos: Buffer | any[];
+};
+
 export type UserIndexedTransaction = ParsedIndexedTransaction & {
   inSpentUtxos: Utxo[];
   outSpentUtxos: Utxo[];

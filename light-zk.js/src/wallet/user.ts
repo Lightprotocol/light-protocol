@@ -32,8 +32,6 @@ import {
   Balance,
   InboxBalance,
   TokenUtxoBalance,
-  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  decryptAddUtxoToBalance,
   fetchNullifierAccountInfo,
   getUserIndexTransactions,
   UserIndexedTransaction,
@@ -51,6 +49,8 @@ import {
   ParsedIndexedTransaction,
   MerkleTreeConfig,
   BN_0,
+  buildUtxoBalanceFromUtxoBytes,
+  createUtxoBatches,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -60,6 +60,21 @@ export enum ConfirmOptions {
   finalized = "finalized",
   spendable = "spendable",
 }
+export type UtxoBatch = {
+  leftLeafIndex: number;
+  encryptedUtxos: {
+    index: number;
+    commitment: Buffer;
+    leftLeaf: Uint8Array;
+    encBytes: Buffer | any[];
+  }[];
+};
+
+var workerpool = require("workerpool");
+var pool = workerpool.pool(
+  __dirname + "/../../lib/workers/decryptUtxoBytesWorker.js",
+);
+console.log("pool? init user", pool);
 
 /**
  *
@@ -183,58 +198,42 @@ export class User {
 
     await this.provider.latestMerkleTree(indexedTransactions);
 
-    for (const trx of indexedTransactions) {
-      let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
-
-      for (let index = 0; index < trx.leaves.length; index += 2) {
-        const leafLeft = trx.leaves[index];
-        const leafRight = trx.leaves[index + 1];
-
-        // transaction nonce is the same for all utxos in one transaction
-        await decryptAddUtxoToBalance({
-          encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              (index / 2) * 240,
-              (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-            ),
-          ),
-          index: leftLeafIndex,
-          commitment: Buffer.from([...leafLeft]),
-          account: this.account,
-          poseidon: this.provider.poseidon,
-          connection: this.provider.provider.connection,
-          balance,
-          merkleTreePdaPublicKey,
-          leftLeaf: Uint8Array.from([...leafLeft]),
-          aes,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
-          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-        });
-        await decryptAddUtxoToBalance({
-          encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
-              (index / 2) * 240 + 120,
-              (index / 2) * 240 +
-                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
-                120,
-            ),
-          ),
-          index: leftLeafIndex + 1,
-          commitment: Buffer.from([...leafRight]),
-          account: this.account,
-          poseidon: this.provider.poseidon,
-          connection: this.provider.provider.connection,
-          balance,
-          merkleTreePdaPublicKey,
-          leftLeaf: Uint8Array.from([...leafLeft]),
-          aes,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
-          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-        });
+    let utxoBatches = createUtxoBatches(indexedTransactions);
+    console.log("utxoBatches", utxoBatches);
+    // TODO: slice utxoBatches up into 1000ers send in loop
+    let utxoBytes = [];
+    try {
+      if (window) {
+        let worker = await pool.proxy();
+        console.log("worker = pool.proxy()", worker);
+        utxoBytes = await worker.bulkDecryptUtxoBytes(
+          utxoBatches,
+          true, // compressed
+          aes ? this.account.aesSecret : undefined,
+          aes ? undefined : this.account.encryptionKeypair.secretKey,
+          merkleTreePdaPublicKey.toBase58(),
+        );
+        console.log("utxoBytes RESULT", utxoBytes);
+        await pool.terminate();
+      } else {
+        //node
+        console.log("... NODE");
       }
+    } catch (e) {
+      console.error("error in worker", e);
     }
+
+    await buildUtxoBalanceFromUtxoBytes({
+      utxoBytes,
+      connection: this.provider.connection!,
+      poseidon: this.provider.poseidon,
+      account: this.account,
+      assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        this.provider.lookUpTables.verifierProgramLookupTable,
+      balance: this.balance,
+      appDataIdl: this.verifierIdl, // TODO: check correct
+    });
 
     // caclulate total sol balance
     const calaculateTotalSolBalance = (balance: Balance) => {

@@ -44,6 +44,12 @@ export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 
+export type UtxoBytes = {
+  bytes: Buffer | null;
+  leftLeaf: Uint8Array;
+  index: number;
+};
+
 // TODO: Idl support for U256
 // TODO: add static createSolUtxo()
 // TODO: remove account as attribute and from constructor, replace with shieldedPublicKey
@@ -786,6 +792,85 @@ export class Utxo {
           assetLookupTable,
           verifierProgramLookupTable,
         });
+      } else {
+        return null;
+      }
+    }
+  }
+
+  static async fastDecrypt({
+    merkleTreePdaPublicKey,
+    compressed,
+    encBytes,
+    commitment,
+    aesSecret,
+    asymSecret,
+  }: {
+    merkleTreePdaPublicKey: PublicKey;
+    compressed: boolean;
+    encBytes: Uint8Array;
+    commitment: Uint8Array;
+    aesSecret: Uint8Array;
+    asymSecret: Uint8Array;
+  }) {
+    if (aesSecret) {
+      if (asymSecret)
+        throw new Error("Asymmetric Secret provided for AES decryption");
+      if (!merkleTreePdaPublicKey)
+        throw new UtxoError(
+          UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
+          "fastDecrypt",
+          "For aes decryption the merkle tree pda publickey is necessary to derive the viewingkey",
+        );
+      if (compressed) {
+        encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
+      }
+      setEnvironment();
+      const iv16 = commitment.slice(0, 16);
+
+      try {
+        const cleartext = await decrypt(
+          encBytes,
+          Account.getAesUtxoViewingKey(
+            merkleTreePdaPublicKey,
+            bs58.encode(commitment),
+            aesSecret,
+          ),
+          iv16,
+          "aes-256-cbc",
+          true,
+        );
+
+        const bytes = Buffer.from(cleartext);
+
+        return bytes;
+      } catch (e) {
+        // TODO: return errors - omitted for now because of different error messages on different systems
+        return null;
+      }
+    } else {
+      // asymmetric decryption
+      const nonce = commitment.slice(0, 24);
+      if (compressed) {
+        encBytes = encBytes.slice(
+          0,
+          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+        );
+      }
+
+      if (asymSecret) {
+        const cleartext = box.open(
+          encBytes,
+          nonce,
+          nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
+          asymSecret,
+        );
+
+        if (!cleartext) {
+          return null;
+        }
+        const bytes = Buffer.from(cleartext);
+        return bytes;
       } else {
         return null;
       }
