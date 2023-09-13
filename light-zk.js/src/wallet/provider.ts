@@ -22,6 +22,7 @@ import {
   ParsedIndexedTransaction,
   MerkleTreeConfig,
   RELAYER_FEE,
+  TOKEN_ACCOUNT_FEE,
 } from "../index";
 
 const axios = require("axios");
@@ -105,6 +106,7 @@ export class Provider {
         this.wallet.publicKey,
         RELAYER_RECIPIENT_KEYPAIR.publicKey,
         RELAYER_FEE,
+        TOKEN_ACCOUNT_FEE,
       );
     }
     let tmpAssetLookupTable = assetLookupTable
@@ -195,7 +197,7 @@ export class Provider {
     }
   }
 
-  private async loadPoseidon() {
+  async loadPoseidon() {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     this.poseidon = poseidon;
   }

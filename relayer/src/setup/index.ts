@@ -10,7 +10,6 @@ import { RPC_URL } from "../config";
 
 export async function relayerSetup() {
   const anchorProvider = await getAnchorProvider();
-
   await createTestAccounts(anchorProvider.connection);
 
   let lookUpTable;

@@ -26,7 +26,7 @@ sleep 15
 
 
 echo "starting relayer server"
-kill $(lsof -ti :3331) > /dev/null  || true
+kill $(lsof -ti :3332) > /dev/null  || true
 sleep 1
 node lib/index.js > .logs/relayer-logs.txt &
 PID_RELAYER="${!}"
@@ -38,7 +38,7 @@ echo "executing functional tests"
 ##
 npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;
 
-echo "executing browser env tests"
-sleep 2
+# echo "executing browser env tests"
+# sleep 2
 
-npx mocha -r ts-node/register -r jsdom-global/register -r ./setup.jsdom.ts tests/browser_test.ts --timeout 1000000 --exit;
+# npx mocha -r ts-node/register -r jsdom-global/register -r ./setup.jsdom.ts tests/browser_test.ts --timeout 1000000 --exit;

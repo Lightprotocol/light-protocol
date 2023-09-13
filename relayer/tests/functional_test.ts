@@ -29,6 +29,7 @@ import {
   MerkleTreeConfig,
   Relayer,
   RELAYER_FEE,
+  TOKEN_ACCOUNT_FEE,
 } from "@lightprotocol/zk.js";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
@@ -43,6 +44,7 @@ import {
 import { relayerSetup } from "../src/setup";
 import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
+import { RELAYER_URL } from "../src/config";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
@@ -215,6 +217,8 @@ describe("API tests", () => {
       Keypair.generate().publicKey,
       Keypair.generate().publicKey,
       RELAYER_FEE,
+      TOKEN_ACCOUNT_FEE,
+      RELAYER_URL!,
     );
     const provider = await Provider.init({
       wallet: userKeypair,
@@ -250,7 +254,10 @@ describe("API tests", () => {
       (await getRelayer()).accounts.relayerPubkey,
       Keypair.generate().publicKey,
       RELAYER_FEE,
+      TOKEN_ACCOUNT_FEE,
+      RELAYER_URL!,
     );
+
     const provider = await Provider.init({
       wallet: userKeypair,
       confirmConfig,
@@ -330,6 +337,7 @@ describe("API tests", () => {
         const provider = await Provider.init({
           wallet: userKeypair,
           confirmConfig,
+          relayer: await getRelayer(),
         });
 
         let lookUpTableInfo =

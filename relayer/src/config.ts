@@ -8,8 +8,11 @@ import {
 } from "@lightprotocol/zk.js";
 import "dotenv/config.js";
 
+export const MIN_INDEXER_SLOT = 1693523214000; //arbitrary, based on "deployment version". is actually unix timestamp
 export const relayerFee = RELAYER_FEE;
-export const port = Number(process.env.PORT) || 3331;
+export const port = Number(process.env.PORT) || 3332;
+export const RELAYER_URL =
+  process.env.RELAYER_URL || `http://127.0.0.1:${port}`;
 export const SECONDS = 1000;
 export const MINUTE = 60 * SECONDS;
 export const HOUR = 60 * MINUTE;

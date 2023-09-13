@@ -2,6 +2,7 @@ import { Job } from "bullmq";
 import { Connection } from "@solana/web3.js";
 import { IndexedTransaction } from "@lightprotocol/zk.js";
 import { searchBackward, searchForward } from "./search";
+import { MIN_INDEXER_SLOT } from "../../config";
 
 function mergeAndSortTransactions(
   dbTransactions: IndexedTransaction[],
@@ -51,11 +52,25 @@ export async function indexTransactions({
       `new total: ${dedupedTransactions.length} transactions old: ${job.data.transactions.length}, older: ${olderTransactions.length}, newer: ${newerTransactions.length}`,
     );
 
+    let filteredByDeplomentVersion = filterTransactionsByMinBlockTime(
+      dedupedTransactions,
+      MIN_INDEXER_SLOT,
+    );
+
     await job.updateData({
-      transactions: dedupedTransactions,
+      transactions: filteredByDeplomentVersion,
       lastFetched: Date.now(),
     });
   } catch (e) {
     console.log("restarting indexer -- crash reason:", e);
   }
+}
+
+function filterTransactionsByMinBlockTime(
+  transactions: IndexedTransaction[],
+  minBlockTime: number,
+) {
+  console.log(transactions.map((trx) => trx.blockTime));
+  console.log("minBlockTime(slot)", minBlockTime);
+  return transactions.filter((trx) => trx.blockTime > minBlockTime);
 }

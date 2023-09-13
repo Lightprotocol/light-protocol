@@ -1,7 +1,13 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { relayerFee } from "../config";
-import { confirmConfig, Provider, Relayer } from "@lightprotocol/zk.js";
+import { RELAYER_URL, relayerFee } from "../config";
+import {
+  confirmConfig,
+  Provider,
+  Relayer,
+  TOKEN_ACCOUNT_FEE,
+  useWallet,
+} from "@lightprotocol/zk.js";
 import { readLookupTable } from "./readLookupTable";
 
 require("dotenv").config();
@@ -35,13 +41,17 @@ export const getLightProvider = async () => {
     const relayer = await getRelayer();
 
     try {
-      provider = await Provider.init({
-        wallet: getKeyPairFromEnv("KEY_PAIR"),
+      let anchorProvider = await getAnchorProvider();
+
+      provider = new Provider({
+        wallet: useWallet(getKeyPairFromEnv("KEY_PAIR")),
         relayer,
-        confirmConfig,
+        connection: anchorProvider.connection,
         url: process.env.RPC_URL!,
         versionedTransactionLookupTable: new PublicKey(readLookupTable()),
+        anchorProvider,
       });
+      await provider.loadPoseidon();
     } catch (e) {
       if (e.message.includes("LOOK_UP_TABLE_NOT_INITIALIZED")) {
         console.log("LOOK_UP_TABLE_NOT_INITIALIZED");
@@ -59,6 +69,8 @@ export async function getRelayer() {
       getKeyPairFromEnv("KEY_PAIR").publicKey,
       getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
       relayerFee,
+      TOKEN_ACCOUNT_FEE,
+      RELAYER_URL!,
     );
 
     return relayer;
