@@ -24,8 +24,13 @@ export const addCircuit = async ({
       "generate",
       "--git",
       "https://github.com/Lightprotocol/psp-template",
-      "--tag",
-      PSP_TEMPLATE_TAG,
+      // TODO(vadorovsky): Switch back to tag when
+      // https://github.com/Lightprotocol/psp-template/pull/12
+      // is merged and released.
+      "--branch",
+      "vadorovsky/rm-transaction-config",
+      // "--tag",
+      // PSP_TEMPLATE_TAG,
       circuit_template,
       "--name",
       name,
