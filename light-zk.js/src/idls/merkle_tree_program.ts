@@ -1516,7 +1516,7 @@ export type MerkleTreeProgram = {
     {
       "code": 6019,
       "name": "ExpectedOldMerkleTrees",
-      "msg": "Expected old Merkle trees as a remaining accounts."
+      "msg": "Expected old Merkle trees as remaining accounts."
     },
     {
       "code": 6020,
@@ -3049,7 +3049,7 @@ export const IDL: MerkleTreeProgram = {
     {
       "code": 6019,
       "name": "ExpectedOldMerkleTrees",
-      "msg": "Expected old Merkle trees as a remaining accounts."
+      "msg": "Expected old Merkle trees as remaining accounts."
     },
     {
       "code": 6020,
