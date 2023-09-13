@@ -9,5 +9,5 @@ do
     cp light-system-programs/target/deploy/$key.so cli/bin/$key.so
 done
 
-cp test-env/programs/spl_noop.so cli/bin/spl_noop.so
+cp third-party/solana-program-library/spl_noop.so cli/bin/spl_noop.so
 cd -

@@ -51,6 +51,5 @@ export LIGHT_PROTOCOL_CONFIG_FILE="${top_dir}/cli/config.json"
 for i in "${!keys[@]}"; do
     key=${keys[$i]}
     value=${values[$i]}
-    solana account $value --output-file "test-env/accounts/${key}.json" --output "json"
     solana account $value --output-file "cli/accounts/${key}.json" --output "json"
 done
