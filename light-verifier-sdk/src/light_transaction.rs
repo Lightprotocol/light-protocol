@@ -36,8 +36,8 @@ use merkle_tree_program::{
     program::MerkleTreeProgram,
     state::TransactionMerkleTree,
     utils::{
+        accounts::create_and_check_pda,
         constants::{POOL_CONFIG_SEED, POOL_SEED, TRANSACTION_MERKLE_TREE_SEED},
-        create_pda::create_and_check_pda,
     },
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";

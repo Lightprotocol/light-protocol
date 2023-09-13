@@ -15,6 +15,7 @@ pub mod event_merkle_tree;
 pub use event_merkle_tree::*;
 pub mod instructions;
 pub use instructions::*;
+pub mod indexed_merkle_tree;
 pub mod transaction_merkle_tree;
 pub use transaction_merkle_tree::*;
 pub mod verifier_invoked_instructions;
@@ -31,6 +32,7 @@ use crate::errors::ErrorCode;
 use crate::{
     transaction_merkle_tree::state::TransactionMerkleTree,
     utils::{
+        accounts::deserialize_and_update_old_merkle_tree,
         config::{self, ZERO_BYTES_MERKLE_TREE_18},
         constants::{EVENT_MERKLE_TREE_SEED, TRANSACTION_MERKLE_TREE_SEED},
     },
@@ -59,64 +61,32 @@ pub mod merkle_tree_program {
             return err!(ErrorCode::ExpectedOldMerkleTrees);
         }
 
-        // Transaction Merkle Tree
-
-        let old_merkle_tree_loader: AccountLoader<TransactionMerkleTree> =
-            AccountLoader::try_from(&ctx.remaining_accounts[0])?;
-        let old_merkle_tree_key = old_merkle_tree_loader.key();
-        let mut old_merkle_tree = old_merkle_tree_loader.load_mut()?;
-
-        let index = old_merkle_tree.merkle_tree_nr;
-        let (pubkey, _) = Pubkey::find_program_address(
-            &[TRANSACTION_MERKLE_TREE_SEED, index.to_le_bytes().as_ref()],
-            ctx.program_id,
-        );
-        if old_merkle_tree_key != pubkey {
-            return err!(ErrorCode::InvalidOldMerkleTree);
-        }
-
-        if old_merkle_tree.newest != 1 {
-            return err!(ErrorCode::NotNewestOldMerkleTree);
-        }
-        old_merkle_tree.newest = 0;
-
-        let new_merkle_tree = &mut ctx.accounts.new_transaction_merkle_tree.load_init()?;
         let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
 
+        // Transaction Merkle Tree
+        deserialize_and_update_old_merkle_tree::<TransactionMerkleTree>(
+            &ctx.remaining_accounts[0],
+            TRANSACTION_MERKLE_TREE_SEED,
+            ctx.program_id,
+        )?;
+        let new_transaction_merkle_tree =
+            &mut ctx.accounts.new_transaction_merkle_tree.load_init()?;
         process_initialize_new_merkle_tree_18(
-            new_merkle_tree,
+            new_transaction_merkle_tree,
             merkle_tree_authority,
             18,
             ZERO_BYTES_MERKLE_TREE_18.to_vec(),
         );
-
-        new_merkle_tree.lock_duration = lock_duration;
+        new_transaction_merkle_tree.lock_duration = lock_duration;
 
         // Event Merkle Tree
-
-        let old_merkle_tree_loader: AccountLoader<EventMerkleTree> =
-            AccountLoader::try_from(&ctx.remaining_accounts[1])?;
-        let old_merkle_tree_key = old_merkle_tree_loader.key();
-        let mut old_merkle_tree = old_merkle_tree_loader.load_mut()?;
-
-        let index = old_merkle_tree.merkle_tree_nr;
-        let (pubkey, _) = Pubkey::find_program_address(
-            &[EVENT_MERKLE_TREE_SEED, index.to_le_bytes().as_ref()],
+        deserialize_and_update_old_merkle_tree::<event_merkle_tree::EventMerkleTree>(
+            &ctx.remaining_accounts[1],
+            EVENT_MERKLE_TREE_SEED,
             ctx.program_id,
-        );
-        if old_merkle_tree_key != pubkey {
-            return err!(ErrorCode::InvalidOldMerkleTree);
-        }
-
-        if old_merkle_tree.newest != 1 {
-            return err!(ErrorCode::NotNewestOldMerkleTree);
-        }
-        old_merkle_tree.newest = 0;
-
-        let new_merkle_tree = &mut ctx.accounts.new_event_merkle_tree.load_init()?;
-        let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
-
-        process_initialize_new_event_merkle_tree(new_merkle_tree, merkle_tree_authority);
+        )?;
+        let new_event_merkle_tree = &mut ctx.accounts.new_event_merkle_tree.load_init()?;
+        process_initialize_new_event_merkle_tree(new_event_merkle_tree, merkle_tree_authority);
 
         Ok(())
     }
