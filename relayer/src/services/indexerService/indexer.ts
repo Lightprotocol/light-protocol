@@ -66,6 +66,8 @@ export async function indexTransactions({
   }
 }
 
+// This function is used to exclude transactions which have been executed before a certain block.
+// We need this for testnet to exclude transactions of an old merkle tree.
 function filterTransactionsByMinBlockTime(
   transactions: IndexedTransaction[],
   minBlockTime: number,
