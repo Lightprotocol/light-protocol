@@ -4,7 +4,6 @@ import { getAnchorProvider } from "../utils/provider";
 export async function getLookUpTable(_req: any, res: any): Promise<string> {
   try {
     let contents = readLookupTable();
-    console.log("@getLookUpTable contents:", contents);
     let provider = await getAnchorProvider();
     let info = await provider.connection.getAccountInfo(contents);
     console.log("@getLookUpTable accInfo:", info, "pub:", contents);

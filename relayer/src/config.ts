@@ -8,7 +8,7 @@ import {
 } from "@lightprotocol/zk.js";
 import "dotenv/config.js";
 
-let _LOOK_UP_TABLE: string | undefined | null = process.env.LOOK_UP_TABLE; //undefined; // { LOOK_UP_TABLE: process.env.LOOK_UP_TABLE! };
+let _LOOK_UP_TABLE: string | undefined | null = process.env.LOOK_UP_TABLE;
 console.log("process.env.LOOK_UP_TABLE (initial)", _LOOK_UP_TABLE);
 export function getLookUpTableVar() {
   return _LOOK_UP_TABLE;

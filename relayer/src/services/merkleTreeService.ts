@@ -13,7 +13,6 @@ import {
 export const buildMerkleTree = async (_req: any, res: any) => {
   try {
     const provider: Provider = await getLightProvider();
-    console.log("got provider", provider);
     const transactionMerkleTreePda =
       MerkleTreeConfig.getTransactionMerkleTreePda();
 

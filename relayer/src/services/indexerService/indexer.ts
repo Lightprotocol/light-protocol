@@ -52,13 +52,13 @@ export async function indexTransactions({
       `new total: ${dedupedTransactions.length} transactions old: ${job.data.transactions.length}, older: ${olderTransactions.length}, newer: ${newerTransactions.length}`,
     );
 
-    let filteredByDeplomentVersion = filterTransactionsByMinBlockTime(
+    let filteredByDeploymentVersion = filterTransactionsByMinBlockTime(
       dedupedTransactions,
       MIN_INDEXER_SLOT,
     );
 
     await job.updateData({
-      transactions: filteredByDeplomentVersion,
+      transactions: filteredByDeploymentVersion,
       lastFetched: Date.now(),
     });
   } catch (e) {
@@ -70,7 +70,5 @@ function filterTransactionsByMinBlockTime(
   transactions: IndexedTransaction[],
   minBlockTime: number,
 ) {
-  console.log(transactions.map((trx) => trx.blockTime));
-  console.log("minBlockTime(slot)", minBlockTime);
   return transactions.filter((trx) => trx.blockTime > minBlockTime);
 }
