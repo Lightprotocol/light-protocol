@@ -64,7 +64,6 @@ describe("API tests", () => {
       lamports: 9e8,
       recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
     });
-    // await setupRelayerLookUpTable(anchorProvider);
 
     await airdropSol({
       connection: anchorProvider.connection,
@@ -79,7 +78,7 @@ describe("API tests", () => {
       confirmConfig,
       relayer,
     });
-    console.log("provider inited");
+
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 9e8,
@@ -87,7 +86,6 @@ describe("API tests", () => {
     });
 
     user = await User.init({ provider });
-    console.log("user inited");
   });
 
   it("Should return Merkle tree data", (done) => {
@@ -275,10 +273,6 @@ describe("API tests", () => {
       expectedUtxoHistoryLength: 1,
     };
 
-    console.log(
-      "RELAYER DEFINED ",
-      provider.relayer.accounts.relayerPubkey.toBase58(),
-    );
     const userTestAssertHelper = new UserTestAssertHelper({
       userSender: user,
       userRecipient: user,

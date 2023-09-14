@@ -54,7 +54,6 @@ export const getLightProvider = async () => {
         anchorProvider,
         poseidon,
       });
-      await provider.loadPoseidon();
     } catch (e) {
       if (e.message.includes("LOOK_UP_TABLE_NOT_INITIALIZED")) {
         console.log("LOOK_UP_TABLE_NOT_INITIALIZED");

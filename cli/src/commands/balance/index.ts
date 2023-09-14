@@ -1,5 +1,5 @@
+//@ts-check
 import { Command, Flags, ux } from "@oclif/core";
-import { BN } from "@coral-xyz/anchor";
 import {
   User,
   Balance,
@@ -7,7 +7,6 @@ import {
   TOKEN_REGISTRY,
   UserError,
   UserErrorCode,
-  SOL_DECIMALS,
 } from "@lightprotocol/zk.js";
 import { CustomLoader, getUser, standardFlags } from "../../utils/index";
 import { PublicKey } from "@solana/web3.js";
@@ -129,7 +128,6 @@ class BalanceCommand extends Command {
     let tableData = [];
     for (const tokenBalance of balances.tokenBalances) {
       let _token = tokenBalance[1].tokenData.symbol;
-      let _decimals = tokenBalance[1].tokenData.decimals;
       let balance =
         _token === "SOL"
           ? tokenBalance[1].totalBalanceSol.toString()
@@ -202,8 +200,6 @@ class BalanceCommand extends Command {
         let i = 0;
         let tableData = [];
 
-        let _decimals = tokenBalance[1].tokenData.decimals;
-
         for (const iterator of tokenBalance[1].utxos.values()!) {
           i++;
           let amountSpl = iterator.amounts[1].toString();
@@ -244,7 +240,6 @@ class BalanceCommand extends Command {
       for (const tokenBalance of balances.tokenBalances) {
         let _token = tokenBalance[1].tokenData.symbol;
         if (token === _token) {
-          let _decimals = tokenBalance[1].tokenData.decimals;
           let balance =
             token === "SOL"
               ? tokenBalance[1].totalBalanceSol.toString()
@@ -283,11 +278,11 @@ class BalanceCommand extends Command {
     });
   }
 
-  private logTokenUtxos(balance: Balance, token: PublicKey, _verbose = false) {
+  // TODO: support verbose flag
+  private logTokenUtxos(balance: Balance, token: PublicKey) {
     const tokenBalance = balance.tokenBalances.get(token.toString());
     if (tokenBalance && tokenBalance?.tokenData.symbol !== "SOL") {
       let i = 0;
-      let decimals = tokenBalance.tokenData.decimals;
       let tableData = [];
       for (const iterator of tokenBalance?.utxos.values()!) {
         i++;
