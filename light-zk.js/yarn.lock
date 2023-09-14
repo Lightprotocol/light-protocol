@@ -418,8 +418,10 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
-"@lightprotocol/prover.js@file:../light-prover.js":
+"@lightprotocol/prover.js@0.1.0-alpha.1":
   version "0.1.0-alpha.1"
+  resolved "https://registry.yarnpkg.com/@lightprotocol/prover.js/-/prover.js-0.1.0-alpha.1.tgz#333394fc04325b27fe7bc3b784be704d955c4bd3"
+  integrity sha512-L3ZH28ZWIyJTPRN8wjx0L55E0sjPUfPVkZi8tOChM2PHJfFbLPREezD17tB6zvoSBOI3KOuglxQysForzF8h0w==
   dependencies:
     "@coral-xyz/anchor" "^0.28.0"
     circomlibjs "^0.1.7"

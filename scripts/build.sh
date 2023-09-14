@@ -36,6 +36,13 @@ cleanup_and_install() {
     fi
   done
 
+  if "${dir}" "${dir}" == "light-zk.js" ]]; then
+        yarn link @lightprotocol/prover.js
+  fi
+
+  if [ "${dir}" = "light-circuits" ] || [ "${dir}" = "cli" ] || [ "${dir}" = "relayer" ] || [ "${dir}" = "light-system-programs" ]; then
+      yarn link @lightprotocol/zk.js
+  fi
   yarn install
 
   if [ "${yarn}" = true ] ; then
@@ -44,6 +51,12 @@ cleanup_and_install() {
 
   if [ "${anchor}" = true ] ; then
     light-anchor build
+  fi
+  
+
+  
+  if [ "${dir}" != "light-system-programs" ]; then
+      yarn link
   fi
 
   cd ..

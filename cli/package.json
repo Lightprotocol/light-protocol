@@ -17,7 +17,7 @@
   ],
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
-    "@lightprotocol/zk.js": "file:../light-zk.js",
+    "@lightprotocol/zk.js": "0.3.2-alpha.14",
     "@oclif/core": "^2",
     "@oclif/plugin-autocomplete": "^2.3.4",
     "@oclif/plugin-help": "^5.2.15",
