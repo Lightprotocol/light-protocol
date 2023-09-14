@@ -11,6 +11,7 @@ import {
   Relayer,
   RELAYER_FEE,
   TestRelayer,
+  TOKEN_ACCOUNT_FEE,
   User,
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -112,7 +113,7 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
         relayerPubkey: wallet.publicKey,
         relayerRecipientSol: wallet.publicKey,
         relayerFee: RELAYER_FEE,
-        highRelayerFee: new BN(10_100_000),
+        highRelayerFee: TOKEN_ACCOUNT_FEE,
         payer: wallet,
       });
       return relayer;
@@ -121,7 +122,7 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
         getRelayerPublicKey(),
         getRelayerRecipient(),
         RELAYER_FEE,
-        new BN(10_100_000),
+        TOKEN_ACCOUNT_FEE,
         getRelayerUrl()
       );
     }
@@ -186,6 +187,11 @@ export const setRelayerPublicKey = (address: string): void => {
 
 export const getLookUpTable = () => {
   const config = getConfig();
+
+  if (config.rpcUrl.includes(":8899")) {
+    console.log("CLI on localhost: using random LookUpTable");
+    return undefined;
+  }
   return new solana.PublicKey(config.lookUpTable);
 };
 

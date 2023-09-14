@@ -269,7 +269,6 @@ export class Provider {
       wallet,
       confirmConfig,
     );
-
     if (!versionedTransactionLookupTable) {
       // initializing lookup table or fetching one from relayer in case of browser wallet
       versionedTransactionLookupTable = await Provider.fetchLookupTable(
