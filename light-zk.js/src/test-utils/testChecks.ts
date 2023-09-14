@@ -1,5 +1,4 @@
 const solana = require("@solana/web3.js");
-import { assert } from "chai";
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { MerkleTreeProgram } from "../idls";
@@ -43,11 +42,15 @@ export async function checkMerkleTreeUpdateStateCreated({
   if (!merkleTreeTmpAccountInfo)
     throw new Error("merkleTreeTmpAccountInfo null");
 
-  assert.equal(
-    merkleTreeTmpAccountInfo.owner.toBase58(),
-    merkleTreeProgram.programId.toBase58(),
-    "merkle tree pda owner wrong after initializing",
-  );
+  if (
+    merkleTreeTmpAccountInfo.owner.toBase58() !==
+    merkleTreeProgram.programId.toBase58()
+  ) {
+    throw new Error(
+      `merkle tree pda owner wrong after initializing: expected ${merkleTreeProgram.programId.toBase58()}, got ${merkleTreeTmpAccountInfo.owner.toBase58()}`,
+    );
+  }
+
   const merkleTreeUpdateStateData =
     await merkleTreeProgram.account.merkleTreeUpdateState.fetch(
       merkleTreeUpdateState,
@@ -76,31 +79,45 @@ export async function checkMerkleTreeUpdateStateCreated({
   );
   console.log("current_instruction_index ", current_instruction_index);
 
-  assert.equal(
-    merkleTreeUpdateStateData.relayer.toBase58(),
-    relayer.toBase58(),
-    "The incorrect signer has been saved",
-  );
-  assert.equal(
-    merkleTreeUpdateStateData.merkleTreePdaPubkey.toBase58(),
-    transactionMerkleTree.toBase58(),
-    "the incorrect merkle tree pubkey was saved",
-  );
-  assert.equal(
-    merkleTreeUpdateStateData.numberOfLeaves,
-    leavesPdas.length,
-    "The incorrect number of leaves was saved",
-  );
-  assert(
-    merkleTreeUpdateStateData.currentInstructionIndex.eq(
+  if (merkleTreeUpdateStateData.relayer.toBase58() !== relayer.toBase58()) {
+    throw new Error(
+      `The incorrect signer has been saved: expected ${relayer.toBase58()}, got ${merkleTreeUpdateStateData.relayer.toBase58()}`,
+    );
+  }
+
+  if (
+    merkleTreeUpdateStateData.merkleTreePdaPubkey.toBase58() !==
+    transactionMerkleTree.toBase58()
+  ) {
+    throw new Error(
+      `the incorrect merkle tree pubkey was saved: expected ${transactionMerkleTree.toBase58()}, got ${merkleTreeUpdateStateData.merkleTreePdaPubkey.toBase58()}`,
+    );
+  }
+
+  if (merkleTreeUpdateStateData.numberOfLeaves !== leavesPdas.length) {
+    throw new Error(
+      `The incorrect number of leaves was saved: expected ${leavesPdas.length}, got ${merkleTreeUpdateStateData.numberOfLeaves}`,
+    );
+  }
+
+  if (
+    !merkleTreeUpdateStateData.currentInstructionIndex.eq(
       new anchor.BN(current_instruction_index),
-    ),
-    "The instruction index is wrong",
-  );
-  assert.equal(
-    MerkleTreeAccountInfo.pubkeyLocked.toBase58(),
-    merkleTreeUpdateState.toBase58(),
-  );
+    )
+  ) {
+    throw new Error(
+      `The instruction index is wrong: expected ${current_instruction_index}, got ${merkleTreeUpdateStateData.currentInstructionIndex.toString()}`,
+    );
+  }
+
+  if (
+    MerkleTreeAccountInfo.pubkeyLocked.toBase58() !==
+    merkleTreeUpdateState.toBase58()
+  ) {
+    throw new Error(
+      `Expected ${merkleTreeUpdateState.toBase58()}, got ${MerkleTreeAccountInfo.pubkeyLocked.toBase58()}`,
+    );
+  }
   console.log("checkMerkleTreeUpdateStateCreated: success");
   console.log = x;
 }
@@ -126,11 +143,11 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     "confirmed",
   );
 
-  assert.equal(
-    merkleTreeTmpStateAccount,
-    null,
-    "Shielded transaction failed merkleTreeTmpStateAccount is not closed",
-  );
+  if (merkleTreeTmpStateAccount !== null) {
+    throw new Error(
+      "Shielded transaction failed merkleTreeTmpStateAccount is not closed",
+    );
+  }
 
   var merkleTreeAccount =
     await merkleTreeProgram.account.transactionMerkleTree.fetch(
@@ -138,36 +155,49 @@ export async function checkMerkleTreeBatchUpdateSuccess({
       "confirmed",
     );
   // Merkle tree is locked by merkleTreeUpdateState
-  assert.equal(
-    merkleTreeAccount.pubkeyLocked.toBase58(),
-    new solana.PublicKey(new Uint8Array(32).fill(0)).toBase58(),
-  );
+  if (
+    merkleTreeAccount.pubkeyLocked.toBase58() !==
+    new solana.PublicKey(new Uint8Array(32).fill(0)).toBase58()
+  ) {
+    throw new Error(
+      `Expected ${new solana.PublicKey(
+        new Uint8Array(32).fill(0),
+      ).toBase58()}, got ${merkleTreeAccount.pubkeyLocked.toBase58()}`,
+    );
+  }
 
-  assert.equal(
-    merkleTreeAccount.timeLocked.toNumber(),
-    0,
-    "Lock has not been taken within prior  20 slots",
-  );
+  if (merkleTreeAccount.timeLocked.toNumber() !== 0) {
+    throw new Error(
+      `Lock has not been taken within prior 20 slots: expected 0, got ${merkleTreeAccount.timeLocked.toNumber()}`,
+    );
+  }
 
   let merkle_tree_prior_leaves_index = merkleTreeAccountPrior.nextIndex;
   let merkle_tree_prior_current_root_index =
     merkleTreeAccountPrior.currentRootIndex;
   let current_root_index = merkleTreeAccount.currentRootIndex;
 
-  assert(
-    merkle_tree_prior_current_root_index
+  if (
+    !merkle_tree_prior_current_root_index
       .add(new anchor.BN("1"))
       .mod(new anchor.BN(256))
-      .eq(current_root_index),
-  );
+      .eq(current_root_index)
+  ) {
+    throw new Error("Unexpected value for current root index");
+  }
 
-  assert(
-    merkle_tree_prior_leaves_index
+  if (
+    !merkle_tree_prior_leaves_index
       .add(new anchor.BN(numberOfLeaves))
-      .eq(merkleTreeAccount.nextIndex),
-  );
+      .eq(merkleTreeAccount.nextIndex)
+  ) {
+    throw new Error(
+      `Expected ${merkle_tree_prior_leaves_index
+        .add(new anchor.BN(numberOfLeaves))
+        .toString()}, got ${merkleTreeAccount.nextIndex.toString()}`,
+    );
+  }
 }
-
 export async function checkRentExemption({
   connection,
   account,
@@ -192,7 +222,8 @@ export async function checkNfInserted(
 ) {
   for (var i = 0; i < pubkeys.length; i++) {
     var accountInfo = await connection.getAccountInfo(pubkeys[i].pubkey);
-    if (!returnValue) assert.equal(accountInfo, null);
+    if (!returnValue && accountInfo === null)
+      throw new Error("nullifier not inserted");
     else return accountInfo;
   }
 }

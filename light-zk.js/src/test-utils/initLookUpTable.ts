@@ -9,7 +9,6 @@ import {
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { assert } from "chai";
 import { PathLike, readFileSync, writeFile } from "fs";
 
 import {
@@ -175,7 +174,9 @@ export async function initLookUpTableTest(
       lookupTableAddress,
       "confirmed",
     );
-    assert(lookupTableAccount != null);
+    if (!lookupTableAccount) {
+      throw new Error("lookupTableAccount is null or undefined");
+    }
   }
   return lookupTableAddress;
 }
