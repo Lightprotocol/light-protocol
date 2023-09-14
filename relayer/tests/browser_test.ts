@@ -78,13 +78,11 @@ describe("Browser tests", () => {
       wallet: walletMock,
       confirmConfig,
     });
-    console.log("BROWSER TEST PROVIDER INITED");
 
     user = await User.init({
       provider,
       seed: bs58.encode(signature),
     });
-    console.log("BROWSER TEST USER INITED");
 
     await airdropSol({
       connection: provider.provider.connection,

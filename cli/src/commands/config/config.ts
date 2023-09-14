@@ -38,7 +38,7 @@ class ConfigCommand extends Command {
     }),
     lookUpTable: Flags.string({
       char: "t",
-      description: "LookUpTable.",
+      description: "Lookup Table for versioned transactions.",
     }),
     relayerPublicKey: Flags.string({
       alias: "rp",
