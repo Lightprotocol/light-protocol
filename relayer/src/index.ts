@@ -1,5 +1,5 @@
 import express from "express";
-import { DB_VERSION, port } from "./config";
+import { DB_VERSION, Environment, port } from "./config";
 import { addCorsHeaders } from "./middleware";
 import bodyParser from "body-parser";
 import {
@@ -14,6 +14,7 @@ import { getTransactions } from "./db/redis";
 import { createTestAccounts } from "@lightprotocol/zk.js";
 import { getAnchorProvider } from "./utils/provider";
 import { setupRelayerLookUpTable } from "./setup";
+import { fundRelayer } from "./setup/fundRelayer";
 require("dotenv").config();
 
 const app = express();
@@ -43,11 +44,11 @@ app.get("/indexedTransactions", getIndexedTransactions);
 app.listen(port, async () => {
   const anchorProvider = await getAnchorProvider();
 
+  if (process.env.ENVIRONMENT !== Environment.PROD) await fundRelayer();
   await setupRelayerLookUpTable(anchorProvider);
   console.log("Relayer lookuptable set up!");
   if (process.env.TEST_ENVIRONMENT) {
     // TODO: separate! tesnet too
-    // if (process.env.ENVIRONMENT !== Environment.PROD) await fundRelayer();
     await createTestAccounts(anchorProvider.connection);
     console.log("Test environment setup completed!");
     // TODO: temporary!

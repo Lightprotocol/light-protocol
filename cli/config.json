@@ -1,9 +1,9 @@
 {
-  "relayerUrl": "http://127.0.0.1:3332",
+  "relayerUrl": "http://localhost:3332",
   "secretKey": "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8",
-  "relayerRecipient": "AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44",
-  "rpcUrl": "https://palpable-aged-night.solana-testnet.quiknode.pro/76a038cd904e1bb329e54e130fceb7c138d109aa",
+  "relayerRecipient": "56Qu67F4VbyN9qXdbmzDapZyZZccfKyjHqWeVoH6WPQQ",
+  "rpcUrl": "http://127.0.0.1:8899",
   "relayerPublicKey": "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
   "lookupTable": "8SezKuv7wMNPd574Sq4rQ1wvVrxa22xPYtkeruJRjrhG",
-  "lookUpTable": "5nUKitgdZEBXFb1yy5xH57KSWDdAAddPRWsazmXAyVi9"
+  "lookUpTable": "7hoJiqHpHSUHcjt2iDF7CMMPw3BA5aavF9QwGTK544E8"
 }

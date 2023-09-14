@@ -8,6 +8,7 @@ import {
 } from "@lightprotocol/zk.js";
 import "dotenv/config.js";
 
+export let LOOK_UP_TABLE = { LOOK_UP_TABLE: process.env.LOOK_UP_TABLE! };
 export const MIN_INDEXER_SLOT = 1693523214000; //arbitrary, based on "deployment version". is actually unix timestamp
 export const relayerFee = RELAYER_FEE;
 export const port = Number(process.env.PORT) || 3332;

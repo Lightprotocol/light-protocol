@@ -1,7 +1,7 @@
 import { initLookUpTable, useWallet } from "@lightprotocol/zk.js";
 import { getKeyPairFromEnv } from "../utils/provider";
 import { AddressLookupTableAccount, PublicKey } from "@solana/web3.js";
-import { RPC_URL } from "../config";
+import { LOOK_UP_TABLE, RPC_URL } from "../config";
 import { AnchorProvider } from "@coral-xyz/anchor";
 
 export async function setupRelayerLookUpTable(anchorProvider: AnchorProvider) {
@@ -25,7 +25,8 @@ export async function setupRelayerLookUpTable(anchorProvider: AnchorProvider) {
 
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
     console.log("new relayer lookUpTable created: ", lookUpTable.toString());
-    process.env.LOOK_UP_TABLE = lookUpTable.toString();
-    console.log(".env updated with:", process.env.LOOK_UP_TABLE);
+    LOOK_UP_TABLE.LOOK_UP_TABLE = lookUpTable.toString();
+    console.log("updated LOOK_UP_TABLE object", LOOK_UP_TABLE.LOOK_UP_TABLE);
+    // console.log(".env updated with:", process.env.LOOK_UP_TABLE);
   }
 }
