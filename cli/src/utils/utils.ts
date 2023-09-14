@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
 const spinner = require("cli-spinners");
@@ -16,6 +17,8 @@ import {
   User,
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
+import { file } from "@oclif/core/lib/flags";
 
 require("dotenv").config();
 
@@ -213,16 +216,14 @@ export const setPayer = (key: string) => {
   setConfig({ payer: key });
 };
 
-export const getConfig = (): Config => {
-  let pathsToCheck = [];
-  if (process.env.LIGHT_PROTOCOL_CONFIG_FILE) {
-    pathsToCheck.push(process.env.LIGHT_PROTOCOL_CONFIG_FILE);
-  }
-  pathsToCheck.push(path.join(process.cwd(), "config.json"));
-  if (process.env.HOME) {
-    pathsToCheck.push(
-      path.join(process.env.HOME, ".config/lightprotocol/config.json")
-    );
+export const getConfig = (filePath?: string): Config => {
+  if (!filePath) filePath = process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+
+  try {
+    const data = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    throw new Error("Failed to read configuration file");
   }
 
   for (const configPath of pathsToCheck) {
@@ -239,11 +240,37 @@ export const getConfig = (): Config => {
   throw new Error("Configuration file not found in the specified paths");
 };
 
-export const setConfig = (config: Partial<Config>): void => {
+export function ensureDirectoryExists(dirPath: string): void {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+export const setConfig = (config: Partial<Config>, filePath?: string): void => {
+  if (!filePath) filePath = process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+
+  // Ensure the directory structure exists
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  ensureDirectoryExists(process.env.HOME + CONFIG_PATH);
+  if (!fs.existsSync(filePath)) {
+    let data = {
+      ...DEFAULT_CONFIG,
+      // TODO: remove this default secret key which we need for tests right now
+      secretKey:
+        "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8", // bs58.encode(solana.Keypair.generate().secretKey),
+    };
+    console.log("created file ", filePath);
+
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    console.log("created file ", filePath);
+  }
   try {
     const existingConfig = getConfig();
     const updatedConfig = { ...existingConfig, ...config };
-    fs.writeFileSync("config.json", JSON.stringify(updatedConfig, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(updatedConfig, null, 2));
   } catch (error) {
     throw new Error("Failed to update configuration file");
   }
