@@ -9,7 +9,7 @@ import {
 import "dotenv/config.js";
 
 let _LOOK_UP_TABLE: string | undefined | null = process.env.LOOK_UP_TABLE;
-console.log("process.env.LOOK_UP_TABLE (initial)", _LOOK_UP_TABLE);
+
 export function getLookUpTableVar() {
   return _LOOK_UP_TABLE;
 }

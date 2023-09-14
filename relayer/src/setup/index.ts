@@ -25,12 +25,10 @@ export async function setupRelayerLookUpTable(anchorProvider: AnchorProvider) {
     let wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"), RPC_URL);
 
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
-    console.log("new relayer lookUpTable created: ", lookUpTable.toString());
     setLookUpTableVar(lookUpTable.toString());
-    console.log("putting var into cache:", getLookUpTableVar());
 
     console.log(
-      ">> please set LOOK_UP_TABLE env var to:",
+      ">> var cached. please also set LOOK_UP_TABLE env var to:",
       lookUpTable.toString(),
     );
   }
