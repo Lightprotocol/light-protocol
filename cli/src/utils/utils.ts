@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
 const spinner = require("cli-spinners");
@@ -18,7 +17,6 @@ import {
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
-import { file } from "@oclif/core/lib/flags";
 
 require("dotenv").config();
 
@@ -215,10 +213,28 @@ export const getPayer = () => {
 export const setPayer = (key: string) => {
   setConfig({ payer: key });
 };
+import { existsSync } from 'fs';
+
+function getConfigPath(): string {
+    // Check for the environment variable
+    const envConfigPath = process.env.LIGHT_PROTOCOL_CONFIG;
+    if (envConfigPath ) {
+        if (!existsSync(envConfigPath)) {
+          throw new Error(`Config file not found at ${envConfigPath}, this path is configured with the environment variable LIGHT_PROTOCOL_CONFIG, the default path is ${process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME}, to use the default path, remove the environment variable LIGHT_PROTOCOL_CONFIG`);
+        }
+        return envConfigPath;
+    }
+
+    // Default path
+    const defaultConfigPath = process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+
+    return defaultConfigPath;
+}
+
 
 export const getConfig = (filePath?: string): Config => {
-  if (!filePath) filePath = process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
-
+  if (!filePath) filePath = getConfigPath(); //process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+  console.log("reading config from ", filePath);
   try {
     const data = fs.readFileSync(filePath, "utf-8");
     return JSON.parse(data);
@@ -247,7 +263,7 @@ export function ensureDirectoryExists(dirPath: string): void {
 }
 
 export const setConfig = (config: Partial<Config>, filePath?: string): void => {
-  if (!filePath) filePath = process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+  if (!filePath) filePath = getConfigPath();//process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
 
   // Ensure the directory structure exists
   const dir = path.dirname(filePath);
