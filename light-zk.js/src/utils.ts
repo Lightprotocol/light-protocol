@@ -126,19 +126,30 @@ export function decimalConversion({
   }
   return { publicAmountSpl, publicAmountSol };
 }
+
 export const convertAndComputeDecimals = (
   amount: BN | string | number,
   decimals: BN,
 ) => {
   if (typeof amount === "number" && amount < 0) {
-    throw new Error("Negative amounts are not allowed.");
+    throw new UtilsError(
+      UtilsErrorCode.INVALID_NUMBER,
+      "decimalConversion",
+      "Negative amounts are not allowed.",
+    );
   }
 
   if (typeof amount === "string" && amount.startsWith("-")) {
-    throw new Error("Negative amounts are not allowed.");
+    throw new UtilsError(
+      UtilsErrorCode.INVALID_NUMBER,
+      "decimalConversion",
+      "Negative amounts are not allowed.",
+    );
   }
   if (decimals.lt(BN_1)) {
-    throw new Error(
+    throw new UtilsError(
+      UtilsErrorCode.INVALID_NUMBER,
+      "decimalConversion",
       "Decimal numbers have to be at least 1 since we precompute 10**decimalValue.",
     );
   }
@@ -150,7 +161,11 @@ export const convertAndComputeDecimals = (
       new Decimal(decimals.toString()),
     );
     if (!convertedFloat.isInt())
-      throw new Error(`Decimal conversion of value ${amountStr} failed`);
+      throw new UtilsError(
+        UtilsErrorCode.INVALID_NUMBER,
+        "decimalConversion",
+        `Decimal conversion of value ${amountStr} failed`,
+      );
     return new BN(convertedFloat.toString());
   }
 
@@ -201,26 +216,6 @@ export const fetchQueuedLeavesAccountInfo = async (
 export const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
-
-// export var logger = (function () {
-//   var oldConsoleLog: any = null;
-//   var pub = {};
-
-//   //@ts-ignore
-//   pub.enableLogger = function enableLogger() {
-//     if (oldConsoleLog == null) return;
-
-//     console.log = oldConsoleLog;
-//   };
-
-//   //@ts-ignore
-//   pub.disableLogger = function disableLogger() {
-//     oldConsoleLog = console.log;
-//     window["console"]["log"] = function () {};
-//   };
-
-//   return pub;
-// })();
 
 export type KeyValue = {
   [key: string]: any;
@@ -284,7 +279,12 @@ export function firstLetterToUpper(input: string): string {
  * @returns {boolean} - Returns true if such an account exists, false otherwise.
  */
 export function isProgramVerifier(idl: anchor.Idl): boolean {
-  if (!idl.accounts) throw new Error("Idl does not contain accounts");
+  if (!idl.accounts)
+    throw new UtilsError(
+      UtilsErrorCode.ACCOUNTS_UNDEFINED,
+      "isProgramVerifier",
+      "Idl does not contain accounts",
+    );
   return idl.accounts.some(
     (account) =>
       account.name.endsWith("PublicInputs") &&
@@ -369,10 +369,13 @@ export async function initLookUpTable(
   try {
     await payer.sendAndConfirmTransaction(transaction);
   } catch (e) {
-    console.log("e : ", e);
-    console.log("payerPubkey : ", payerPubkey.toBase58());
-    console.log("transaction : ", JSON.stringify(transaction));
-    throw new Error(`Creating lookup table failed payer: ${payerPubkey}`);
+    throw new UtilsError(
+      UtilsErrorCode.LOOK_UP_TABLE_CREATION_FAILED,
+      "initLookUpTable",
+      `Creating lookup table failed payer: ${payerPubkey}, transaction ${JSON.stringify(
+        transaction,
+      )}, error ${e}`,
+    );
   }
 
   let lookupTableAccount = await provider.connection.getAccountInfo(
@@ -380,7 +383,11 @@ export async function initLookUpTable(
     "confirmed",
   );
   if (lookupTableAccount == null)
-    throw new Error(`Creating lookup table failed payer: ${payerPubkey}`);
+    throw new UtilsError(
+      UtilsErrorCode.LOOK_UP_TABLE_CREATION_FAILED,
+      "initLookUpTable",
+      `Creating lookup table failed payer: ${payerPubkey}`,
+    );
   return lookUpTable;
 }
 
@@ -418,7 +425,11 @@ export function getSystem(): System {
         case "arm64":
           return System.MacOsArm64;
         default:
-          throw new Error(`Architecture ${arch} is not supported.`);
+          throw new UtilsError(
+            UtilsErrorCode.UNSUPPORTED_ARCHITECTURE,
+            "getSystem",
+            `Architecture ${arch} is not supported.`,
+          );
       }
     case "linux":
       switch (arch) {
@@ -429,9 +440,17 @@ export function getSystem(): System {
         case "arm64":
           return System.LinuxArm64;
         default:
-          throw new Error(`Architecture ${arch} is not supported.`);
+          throw new UtilsError(
+            UtilsErrorCode.UNSUPPORTED_ARCHITECTURE,
+            "getSystem",
+            `Architecture ${arch} is not supported.`,
+          );
       }
   }
 
-  throw new Error(`Platform ${platform} is not supported.`);
+  throw new UtilsError(
+    UtilsErrorCode.UNSUPPORTED_PLATFORM,
+    "getSystem",
+    `Platform ${platform} is not supported.`,
+  );
 }
