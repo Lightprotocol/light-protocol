@@ -189,7 +189,7 @@ export const getLookUpTable = () => {
   const config = getConfig();
 
   if (config.rpcUrl.includes(":8899")) {
-    console.log("CLI on localhost: using random LookUpTable");
+    console.log("CLI on localhost: creating new LookUpTable");
     return undefined;
   }
   return new solana.PublicKey(config.lookUpTable);
