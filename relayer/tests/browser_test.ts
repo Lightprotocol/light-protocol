@@ -3,7 +3,6 @@ import { AnchorProvider, utils } from "@coral-xyz/anchor";
 import { Connection, Keypair as SolanaKeypair, Keypair } from "@solana/web3.js";
 import chai, { expect } from "chai";
 import chaiHttp from "chai-http";
-import express from "express";
 import { sign } from "tweetnacl";
 
 import {
@@ -19,40 +18,16 @@ import {
   Action,
   Account,
   ConfirmOptions,
-  RELAYER_FEE,
 } from "@lightprotocol/zk.js";
-import sinon from "sinon";
 
-import {
-  updateMerkleTree,
-  getIndexedTransactions,
-  handleRelayRequest,
-  buildMerkleTree,
-  getLookUpTable,
-} from "../src/services";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RPC_URL } from "../src/config";
-import { getKeyPairFromEnv } from "../src/utils/provider";
+import { getRelayer } from "../src/utils/provider";
 
 let circomlibjs = require("circomlibjs");
 
 chai.use(chaiHttp);
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-// Use sinon to create a stub for the middleware
-const addCorsHeadersStub = sinon
-  .stub()
-  .callsFake((_req: any, _res: any, next: any) => next());
-app.use(addCorsHeadersStub);
-
-app.post("/updatemerkletree", updateMerkleTree);
-app.get("/lookuptable", getLookUpTable);
-app.post("/relayTransaction", handleRelayRequest);
-app.get("/indexedTransactions", getIndexedTransactions);
-app.get("/getBuiltMerkletree", buildMerkleTree);
 
 describe("Browser tests", () => {
   var RELAYER: Relayer;
@@ -76,11 +51,7 @@ describe("Browser tests", () => {
       recipientPublicKey: relayer.publicKey,
     });
 
-    RELAYER = new Relayer(
-      getKeyPairFromEnv("KEY_PAIR").publicKey,
-      getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
-      RELAYER_FEE,
-    );
+    RELAYER = await getRelayer();
     await airdropSol({
       connection: connection,
       lamports: 9e8,
@@ -107,11 +78,13 @@ describe("Browser tests", () => {
       wallet: walletMock,
       confirmConfig,
     });
+    console.log("BROWSER TEST PROVIDER INITED");
 
     user = await User.init({
       provider,
       seed: bs58.encode(signature),
     });
+    console.log("BROWSER TEST USER INITED");
 
     await airdropSol({
       connection: provider.provider.connection,

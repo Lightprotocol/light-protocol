@@ -44,14 +44,13 @@ app.get("/indexedTransactions", getIndexedTransactions);
 app.listen(port, async () => {
   const anchorProvider = await getAnchorProvider();
 
-  if (process.env.ENVIRONMENT !== Environment.PROD) await fundRelayer();
+  if (process.env.ENVIRONMENT !== Environment.PROD) await fundRelayer(); // TODO: testnet should check balance before
   await setupRelayerLookUpTable(anchorProvider);
   console.log("Relayer lookuptable set up!");
   if (process.env.TEST_ENVIRONMENT) {
-    // TODO: separate! tesnet too
+    // TODO: separate! testnet too
     await createTestAccounts(anchorProvider.connection);
     console.log("Test environment setup completed!");
-    // TODO: temporary!
     let { job } = await getTransactions(DB_VERSION);
     await job.updateData({ transactions: [] });
   }

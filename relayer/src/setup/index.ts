@@ -1,14 +1,15 @@
 import { initLookUpTable, useWallet } from "@lightprotocol/zk.js";
 import { getKeyPairFromEnv } from "../utils/provider";
 import { AddressLookupTableAccount, PublicKey } from "@solana/web3.js";
-import { LOOK_UP_TABLE, RPC_URL } from "../config";
+import { getLookUpTableVar, setLookUpTableVar, RPC_URL } from "../config";
 import { AnchorProvider } from "@coral-xyz/anchor";
 
 export async function setupRelayerLookUpTable(anchorProvider: AnchorProvider) {
   let lookUpTable;
 
   try {
-    let lookUpTableRead = new PublicKey(process.env.LOOK_UP_TABLE!);
+    let lookUpTableRead = new PublicKey(getLookUpTableVar()!);
+    console.log("lookUpTableRead::", lookUpTableRead);
     let lookUpTableInfoInit = await anchorProvider.connection.getAccountInfo(
       lookUpTableRead,
     );
@@ -25,8 +26,12 @@ export async function setupRelayerLookUpTable(anchorProvider: AnchorProvider) {
 
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
     console.log("new relayer lookUpTable created: ", lookUpTable.toString());
-    LOOK_UP_TABLE.LOOK_UP_TABLE = lookUpTable.toString();
-    console.log("updated LOOK_UP_TABLE object", LOOK_UP_TABLE.LOOK_UP_TABLE);
-    // console.log(".env updated with:", process.env.LOOK_UP_TABLE);
+    setLookUpTableVar(lookUpTable.toString());
+    console.log("putting var into cache:", getLookUpTableVar());
+
+    console.log(
+      ">> please set LOOK_UP_TABLE env var to:",
+      lookUpTable.toString(),
+    );
   }
 }

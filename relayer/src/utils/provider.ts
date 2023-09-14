@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import { RELAYER_URL, relayerFee } from "../config";
 import {
   confirmConfig,
@@ -50,7 +50,7 @@ export const getLightProvider = async () => {
         relayer,
         connection: anchorProvider.connection,
         url: process.env.RPC_URL!,
-        versionedTransactionLookupTable: new PublicKey(readLookupTable()),
+        versionedTransactionLookupTable: readLookupTable(),
         anchorProvider,
         poseidon,
       });

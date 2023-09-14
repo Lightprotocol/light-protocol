@@ -38,7 +38,7 @@ echo "executing functional tests"
 ##
 npx ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit;
 
-# echo "executing browser env tests"
-sleep 2
+echo "executing browser env tests"
+sleep 3
 
 npx mocha -r ts-node/register -r jsdom-global/register -r ./setup.jsdom.ts tests/browser_test.ts --timeout 1000000 --exit;

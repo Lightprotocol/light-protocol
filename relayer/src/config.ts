@@ -8,7 +8,15 @@ import {
 } from "@lightprotocol/zk.js";
 import "dotenv/config.js";
 
-export let LOOK_UP_TABLE = { LOOK_UP_TABLE: process.env.LOOK_UP_TABLE! };
+let _LOOK_UP_TABLE: string | undefined | null = process.env.LOOK_UP_TABLE; //undefined; // { LOOK_UP_TABLE: process.env.LOOK_UP_TABLE! };
+console.log("process.env.LOOK_UP_TABLE (initial)", _LOOK_UP_TABLE);
+export function getLookUpTableVar() {
+  return _LOOK_UP_TABLE;
+}
+export function setLookUpTableVar(value: string) {
+  _LOOK_UP_TABLE = value;
+}
+
 export const MIN_INDEXER_SLOT = 1693523214000; //arbitrary, based on "deployment version". is actually unix timestamp
 export const relayerFee = RELAYER_FEE;
 export const port = Number(process.env.PORT) || 3332;
