@@ -4,22 +4,27 @@ set -eux
 
 bump_dependency_version() {
     local target_dir="$1"
-    local dependency="$2"
+    local base_dependency="$2"
     local new_version="$3"
+    local full_dependency="@lightprotocol/$base_dependency"
 
     cd "$target_dir"
 
     # Check if package.json exists and has the specified package
-    if [ -f "package.json" ] && grep -q "\"$dependency\"" "package.json"; then
+    if [ -f "package.json" ] && grep -q "\"$full_dependency\"" "package.json"; then
+        
         # Use sed to update the version of the specified package
-        sed -i "s/\(\"$dependency\": \"\)\([^ \"]*\)\"/\1$new_version\"/" package.json
-        echo "Updated $dependency to version $new_version in $target_dir."
+        # Using | as delimiter in sed to avoid issues with / in the package name
+        sed -i "s|\(\"$full_dependency\": \"\)\([^ \"]*\)\"|\1$new_version\"|" package.json
+        echo "Updated $full_dependency to version $new_version in $target_dir."
     else
-        echo "package.json not found or does not contain $dependency in $target_dir."
+        echo "package.json not found or does not contain $full_dependency in $target_dir."
     fi
 
     cd - # Go back to the original directory
 }
+
+
 
 increment_version() {
     while [ "${#}" -gt 0 ]; do
@@ -77,15 +82,18 @@ increment_version() {
     cd ..
 
     bump_dependency_version "zk.js" ${dir} $new_version
+    bump_dependency_version "cli" ${dir} $new_version
+    bump_dependency_version "system-programs" ${dir} $new_version
+    bump_dependency_version "circuits" ${dir} $new_version
+    bump_dependency_version "relayer" ${dir} $new_version
 }
 
 
 
 
-
 increment_version --dir "prover.js"
-# increment_version --dir "light-zk.js"
-# increment_version -d "light-system-programs"
-# increment_version -d "cli"
-# increment_version -d "light-circuits"
-# increment_version -d "relayer"
+increment_version --dir "zk.js"
+increment_version -d "system-programs"
+increment_version -d "cli"
+increment_version -d "circuits"
+increment_version -d "relayer"
