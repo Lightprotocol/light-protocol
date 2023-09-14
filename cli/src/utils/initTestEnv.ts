@@ -74,13 +74,17 @@ export async function initTestEnvIfNeeded({
     await anchorProvider.connection.getBalance(ADMIN_AUTH_KEY);
   } catch (error) {
     // launch local test validator and initialize test environment
-    await initTestEnv({ additonalPrograms, skip_system_accounts });
+    await initTestEnv({
+      additonalPrograms,
+      skip_system_accounts,
+      background: true,
+    });
   }
 }
 
 export async function start_test_validator({
   additonalPrograms,
-  skip_system_accounts
+  skip_system_accounts,
 }: {
   additonalPrograms?: { address: string; path: string }[];
   skip_system_accounts?: boolean;

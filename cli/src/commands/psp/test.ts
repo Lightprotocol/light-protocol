@@ -1,5 +1,5 @@
-import { Args, Command } from "@oclif/core";
-import { toSnakeCase } from "@lightprotocol/zk.js";
+import { Args, Command, Flags } from "@oclif/core";
+import { sleep, toSnakeCase } from "@lightprotocol/zk.js";
 import { start_test_validator } from "../../utils";
 import { executeCommand, PSP_DEFAULT_PROGRAM_ID } from "../../psp-utils";
 
@@ -20,15 +20,25 @@ export default class TestCommand extends Command {
     }),
   };
 
+  static flags = {
+    time: Flags.string({
+      char: "t",
+      description: "Wait time for test validator to start, default is 15s.",
+      default: "15000",
+      required: false,
+    }),
+  };
+
   async run() {
-    const { args } = await this.parse(TestCommand);
+    const { args, flags } = await this.parse(TestCommand);
     let { name, address } = args;
 
     const programName = toSnakeCase(name!);
     const path = `./target/deploy/${programName}.so`;
-    await start_test_validator({
+    start_test_validator({
       additonalPrograms: [{ address: address!, path }],
     });
+    await sleep(Number(flags.time));
 
     await executeCommand({
       command: `yarn`,
