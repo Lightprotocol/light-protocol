@@ -206,11 +206,6 @@ export class Provider {
     }
   }
 
-  async loadPoseidon() {
-    const poseidon = await circomlibjs.buildPoseidonOpt();
-    this.poseidon = poseidon;
-  }
-
   async latestMerkleTree(indexedTransactions?: ParsedIndexedTransaction[]) {
     await this.fetchMerkleTree(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
