@@ -43,6 +43,7 @@ import {
   TestRelayer,
   executeUpdateMerkleTreeTransactions,
   RELAYER_FEE,
+  BN_1,
 } from "@lightprotocol/zk.js";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
@@ -758,20 +759,30 @@ describe("Merkle Tree Tests", () => {
     // Test property: 3
     // try with different Merkle tree than leaves are queued for
     // index might be broken it is wasn't set to mut didn't update
-    let merkleTreeConfig = new MerkleTreeConfig({
-      payer: ADMIN_AUTH_KEYPAIR,
-      connection: provider.connection,
-    });
-    let different_merkle_tree = solana.PublicKey.findProgramAddressSync(
-      [
-        anchor.utils.bytes.utf8.encode("transaction_merkle_tree"),
-        new anchor.BN(1).toArray("le", 8),
-      ],
-      merkleTreeProgram.programId,
-    )[0];
-    if ((await connection.getAccountInfo(different_merkle_tree)) == null) {
+    const newTransactionMerkleTreePubkey =
+      MerkleTreeConfig.getTransactionMerkleTreePda(BN_1);
+    const newEventMerkleTreePubkey =
+      MerkleTreeConfig.getEventMerkleTreePda(BN_1);
+    if (
+      (await connection.getAccountInfo(newTransactionMerkleTreePubkey)) == null
+    ) {
+      let merkleTreeConfig = new MerkleTreeConfig({
+        payer: ADMIN_AUTH_KEYPAIR,
+        connection: provider.connection,
+      });
       await merkleTreeConfig.initializeNewMerkleTrees();
       console.log("created new merkle tree");
+
+      assert.isTrue(
+        await merkleTreeConfig.isNewestTransactionMerkleTree(
+          newTransactionMerkleTreePubkey,
+        ),
+      );
+      assert.isTrue(
+        await merkleTreeConfig.isNewestEventMerkleTree(
+          newEventMerkleTreePubkey,
+        ),
+      );
     }
 
     try {
@@ -1080,7 +1091,9 @@ describe("Merkle Tree Tests", () => {
     });
 
     const newTransactionMerkleTreePubkey =
-      MerkleTreeConfig.getTransactionMerkleTreePda(new anchor.BN(1));
+      MerkleTreeConfig.getTransactionMerkleTreePda(BN_1);
+    const newEventMerkleTreePubkey =
+      MerkleTreeConfig.getEventMerkleTreePda(BN_1);
 
     let txParams = new TransactionParameters({
       outputUtxos: [shieldUtxo],

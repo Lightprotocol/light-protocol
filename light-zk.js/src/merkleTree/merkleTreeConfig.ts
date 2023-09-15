@@ -119,9 +119,7 @@ export class MerkleTreeConfig {
     transactionMerkleTreePda: PublicKey,
   ) {
     var transactionMerkleTreeAccountInfo =
-      await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-        transactionMerkleTreePda,
-      );
+      await this.getTransactionMerkleTreeAccountInfo(transactionMerkleTreePda);
     assert(
       transactionMerkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
@@ -134,10 +132,9 @@ export class MerkleTreeConfig {
   }
 
   async checkEventMerkleTreeIsInitialized(eventMerkleTreePubkey: PublicKey) {
-    var merkleTreeAccountInfo =
-      await this.merkleTreeProgram.account.eventMerkleTree.fetch(
-        eventMerkleTreePubkey,
-      );
+    var merkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
+      eventMerkleTreePubkey,
+    );
     assert(
       merkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
@@ -185,6 +182,24 @@ export class MerkleTreeConfig {
     return transactionMerkleTreePda;
   }
 
+  async getTransactionMerkleTreeAccountInfo(
+    transactionMerkleTreePubkey: PublicKey,
+  ) {
+    return await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
+      transactionMerkleTreePubkey,
+    );
+  }
+
+  async isNewestTransactionMerkleTree(
+    transactionMerkleTreePubkey: PublicKey,
+  ): Promise<boolean> {
+    let transactionMerkleTreeAccountInfo =
+      await this.getTransactionMerkleTreeAccountInfo(
+        transactionMerkleTreePubkey,
+      );
+    return transactionMerkleTreeAccountInfo.newest == 1 ? true : false;
+  }
+
   static getEventMerkleTreePda(eventMerkleTreeIndex: anchor.BN = BN_0) {
     let eventMerkleTreePda = PublicKey.findProgramAddressSync(
       [
@@ -194,6 +209,21 @@ export class MerkleTreeConfig {
       merkleTreeProgramId,
     )[0];
     return eventMerkleTreePda;
+  }
+
+  async getEventMerkleTreeAccountInfo(eventMerkleTreePubkey: PublicKey) {
+    return await this.merkleTreeProgram.account.eventMerkleTree.fetch(
+      eventMerkleTreePubkey,
+    );
+  }
+
+  async isNewestEventMerkleTree(
+    eventMerkleTreePubkey: PublicKey,
+  ): Promise<boolean> {
+    let eventMerkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
+      eventMerkleTreePubkey,
+    );
+    return eventMerkleTreeAccountInfo.newest == 1 ? true : false;
   }
 
   async initMerkleTreeAuthority(
