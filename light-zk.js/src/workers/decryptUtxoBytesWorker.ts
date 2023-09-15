@@ -1,17 +1,39 @@
-import * as workerpool from "workerpool";
 import { PublicKey } from "@solana/web3.js";
 import { Utxo, UtxoBytes } from "../utxo";
 import { UtxoBatch } from "../wallet";
 
 console.log("hi from worker file");
-// load workerpool
-// if (typeof importScripts === "function") {
-//   // web worker
-//   importScripts("workerpool");
-// } else {
-//   // node.js
-// //   var workerpool = require("../../dist/workerpool.js");
-// }
+
+addEventListener("message", (e) => {
+  let params = e.data;
+  bulkDecryptUtxoBytes(
+    params.encBytesArray,
+    params.compressed,
+    new Uint8Array(params.aesSecret),
+    new Uint8Array(params.asymSecret),
+    params.merkleTreePdaPublicKeyString,
+  ).then((result) => {
+    // Construct UtxoBytes objects
+    let utxoBytesArray = result.map((item) => ({
+      bytes: item.bytes ? Buffer.from(item.bytes) : null,
+      leftLeaf: new Uint8Array(item.leftLeaf),
+      index: item.index,
+    }));
+
+    // Prepare transfer list
+    let transferList = [];
+    for (let item of utxoBytesArray) {
+      if (item.bytes) {
+        transferList.push(item.bytes.buffer);
+      }
+      transferList.push(item.leftLeaf.buffer);
+    }
+
+    // Post message back to the main thread
+    self.postMessage(utxoBytesArray, "*", transferList);
+  });
+});
+
 /**
  *
  *
@@ -61,8 +83,3 @@ async function bulkDecryptUtxoBytes(
   console.log("results", results);
   return results;
 }
-
-// create a worker and register public functions
-workerpool.worker({
-  bulkDecryptUtxoBytes: bulkDecryptUtxoBytes,
-});

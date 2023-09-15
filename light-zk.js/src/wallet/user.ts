@@ -51,9 +51,11 @@ import {
   BN_0,
   buildUtxoBalanceFromUtxoBytes,
   createUtxoBatches,
+  UtxoBytes,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { callDecryptUtxoBytesWorker } from "workers/workerUtils";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -69,12 +71,6 @@ export type UtxoBatch = {
     encBytes: Buffer | any[];
   }[];
 };
-
-var workerpool = require("workerpool");
-var pool = workerpool.pool(
-  __dirname + "/../../lib/workers/decryptUtxoBytesWorker.js",
-);
-console.log("pool? init user", pool);
 
 /**
  *
@@ -200,25 +196,19 @@ export class User {
 
     let utxoBatches = createUtxoBatches(indexedTransactions);
     console.log("utxoBatches", utxoBatches);
-    // TODO: slice utxoBatches up into 1000ers send in loop
-    let utxoBytes = [];
+    let utxoBytes: UtxoBytes[] = [];
+
+    let params = {
+      encBytesArray: utxoBatches,
+      compressed: true, // compressed
+      aesSecret: aes ? this.account.aesSecret : undefined,
+      asymSecret: aes ? undefined : this.account.encryptionKeypair.secretKey,
+      merkleTreePdaPublicKeyString: merkleTreePdaPublicKey.toBase58(),
+    };
+
     try {
-      if (window) {
-        let worker = await pool.proxy();
-        console.log("worker = pool.proxy()", worker);
-        utxoBytes = await worker.bulkDecryptUtxoBytes(
-          utxoBatches,
-          true, // compressed
-          aes ? this.account.aesSecret : undefined,
-          aes ? undefined : this.account.encryptionKeypair.secretKey,
-          merkleTreePdaPublicKey.toBase58(),
-        );
-        console.log("utxoBytes RESULT", utxoBytes);
-        await pool.terminate();
-      } else {
-        //node
-        console.log("... NODE");
-      }
+      utxoBytes = await callDecryptUtxoBytesWorker(params);
+      console.log("utxoBytes RESULT", utxoBytes);
     } catch (e) {
       console.error("error in worker", e);
     }
