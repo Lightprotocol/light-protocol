@@ -1,9 +1,9 @@
 import Worker from "web-worker";
 import { UtxoBatch } from "wallet";
 import { UtxoBytes } from "utxo";
-
 let workerScriptFullPath: string;
-let workerScriptRelativePath = "/../../lib/workers/worker.js";
+// let workerScriptRelativePath = "./../../lib/workers/decryptUtxoBytesWorker.js";
+let workerScriptRelativePath = "./decryptUtxoBytesWorker";
 let numWorkers = 1;
 
 if (typeof window === "undefined") {
@@ -11,12 +11,22 @@ if (typeof window === "undefined") {
   const path = require("path");
   const os = require("os");
   workerScriptFullPath = path.resolve(__dirname, `${workerScriptRelativePath}`);
-  os.cpus().length - 1;
+  //   numWorkers = os.cpus().length - 1;
+  console.log("os.cpus().length", os.cpus().length);
 } else {
   // browser
   workerScriptFullPath = workerScriptRelativePath; // TODO: might have to adjust
   numWorkers = navigator.hardwareConcurrency - 1;
+  // Create workers
 }
+
+const workers = Array.from(
+  { length: numWorkers },
+  () =>
+    new Worker(new URL("./decryptUtxoBytesWorker.ts", import.meta.url), {
+      type: "module",
+    }),
+);
 
 console.log(
   "workerScriptFullPath:",
@@ -25,11 +35,6 @@ console.log(
   workerScriptRelativePath,
 );
 console.log("numWorkers", numWorkers);
-// Create workers
-const workers = Array.from(
-  { length: numWorkers },
-  () => new Worker(workerScriptFullPath),
-);
 
 export async function callDecryptUtxoBytesWorker(params: {
   encBytesArray: UtxoBatch[];

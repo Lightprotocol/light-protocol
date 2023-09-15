@@ -58,6 +58,7 @@
     "global": "^4.4.0",
     "snarkjs": "^0.7.0",
     "tweetnacl": "^1.0.3",
+    "web-worker": "^1.2.0",
     "workerpool": "^6.4.2"
   },
   "devDependencies": {

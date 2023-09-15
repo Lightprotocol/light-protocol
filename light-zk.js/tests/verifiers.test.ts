@@ -23,9 +23,8 @@ const verifiers = [
 ];
 
 describe("Verifier tests", () => {
-  let poseidon;
   before(async () => {
-    poseidon = await buildPoseidonOpt();
+    await buildPoseidonOpt();
   });
 
   it("Test functional circuit", async () => {

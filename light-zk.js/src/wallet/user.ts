@@ -55,7 +55,7 @@ import {
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { callDecryptUtxoBytesWorker } from "workers/workerUtils";
+import { callDecryptUtxoBytesWorker } from "../workers/workerUtils";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {

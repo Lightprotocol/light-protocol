@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es2019",
-    "module": "commonjs",
+    "target": "es2020",
+    "module": "es2020",
     "declaration": true,
     "outDir": "./lib",
     "strict": true,
@@ -17,7 +17,7 @@
     "noUnusedParameters": true
   },
   "include": ["src", "__tests__", "tests"],
-  "exclude": ["node_modules", "**/tests/*"],
+  "exclude": ["node_modules"],
   "dry": false,
   "debug": false
 }

@@ -4,7 +4,7 @@ import { UtxoBatch } from "../wallet";
 
 console.log("hi from worker file");
 
-addEventListener("message", (e) => {
+addEventListener("message", async (e) => {
   let params = e.data;
   bulkDecryptUtxoBytes(
     params.encBytesArray,

@@ -40,17 +40,11 @@ describe("Utxo Functional", () => {
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
-  let mockPubkey = SolanaKeypair.generate().publicKey;
-  let relayerMockPubKey = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
-    lightProvider: LightProvider,
-    deposit_utxo1,
-    relayer,
-    keypair;
+  let poseidon: any, lightProvider: LightProvider, deposit_utxo1, keypair;
   before(async () => {
     poseidon = await buildPoseidonOpt();
     // TODO: make fee mandatory
-    relayer = new Relayer(relayerMockPubKey, mockPubkey, new BN(5000));
+    // relayer = new Relayer(relayerMockPubKey, mockPubkey, new BN(5000));
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
