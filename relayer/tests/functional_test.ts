@@ -8,7 +8,6 @@ import {
 } from "@solana/web3.js";
 import chai, { assert } from "chai";
 import chaiHttp from "chai-http";
-import express from "express";
 
 import {
   Account,
@@ -29,39 +28,18 @@ import {
   MerkleTreeConfig,
   Relayer,
   RELAYER_FEE,
+  TOKEN_ACCOUNT_FEE,
 } from "@lightprotocol/zk.js";
-import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
-import {
-  updateMerkleTree,
-  getIndexedTransactions,
-  handleRelayRequest,
-  buildMerkleTree,
-  getLookUpTable,
-  getUidFromIxs,
-} from "../src/services";
-import { relayerSetup } from "../src/setup";
+import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
+import { RELAYER_URL } from "../src/config";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
 const expect = chai.expect;
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-// Use sinon to create a stub for the middleware
-const addCorsHeadersStub = sinon
-  .stub()
-  .callsFake((_req: any, _res: any, next: any) => next());
-app.use(addCorsHeadersStub);
-
-app.post("/updatemerkletree", updateMerkleTree);
-app.get("/lookuptable", getLookUpTable);
-app.post("/relayTransaction", handleRelayRequest);
-app.get("/indexedTransactions", getIndexedTransactions);
-app.get("/getBuiltMerkletree", buildMerkleTree);
+var server = RELAYER_URL;
 
 describe("API tests", () => {
   let poseidon: any;
@@ -81,7 +59,6 @@ describe("API tests", () => {
       confirmConfig,
     );
     poseidon = await circomlibjs.buildPoseidonOpt();
-    await relayerSetup();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 9e8,
@@ -101,6 +78,7 @@ describe("API tests", () => {
       confirmConfig,
       relayer,
     });
+
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 9e8,
@@ -112,7 +90,7 @@ describe("API tests", () => {
 
   it("Should return Merkle tree data", (done) => {
     chai
-      .request(app)
+      .request(server)
       .get("/getBuiltMerkletree")
       .end((_err, res) => {
         expect(res).to.have.status(200);
@@ -158,7 +136,7 @@ describe("API tests", () => {
 
   it("Should fail Merkle tree data with post request", (done: any) => {
     chai
-      .request(app)
+      .request(server)
       .post("/merkletree")
       .end((_err, res) => {
         assert.isTrue(
@@ -171,7 +149,7 @@ describe("API tests", () => {
 
   it("Should fail to update Merkle tree with InvalidNumberOfLeaves", (done: any) => {
     chai
-      .request(app)
+      .request(server)
       .post("/updatemerkletree")
       .end((_err, res) => {
         expect(res).to.have.status(500);
@@ -215,6 +193,8 @@ describe("API tests", () => {
       Keypair.generate().publicKey,
       Keypair.generate().publicKey,
       RELAYER_FEE,
+      TOKEN_ACCOUNT_FEE,
+      RELAYER_URL!,
     );
     const provider = await Provider.init({
       wallet: userKeypair,
@@ -250,7 +230,10 @@ describe("API tests", () => {
       (await getRelayer()).accounts.relayerPubkey,
       Keypair.generate().publicKey,
       RELAYER_FEE,
+      TOKEN_ACCOUNT_FEE,
+      RELAYER_URL!,
     );
+
     const provider = await Provider.init({
       wallet: userKeypair,
       confirmConfig,
@@ -311,7 +294,7 @@ describe("API tests", () => {
   });
   it("Should fail to update Merkle tree", (done: any) => {
     chai
-      .request(app)
+      .request(server)
       .get("/updatemerkletree")
       .end((_err, res) => {
         assert.isTrue(
@@ -324,12 +307,13 @@ describe("API tests", () => {
 
   it("Should return lookup table data", (done: any) => {
     chai
-      .request(app)
+      .request(server)
       .get("/lookuptable")
       .end(async (_err, res) => {
         const provider = await Provider.init({
           wallet: userKeypair,
           confirmConfig,
+          relayer: await getRelayer(),
         });
 
         let lookUpTableInfo =
@@ -347,7 +331,7 @@ describe("API tests", () => {
 
   it("Should fail to return lookup table data", (done: any) => {
     chai
-      .request(app)
+      .request(server)
       .post("/lookuptable")
       .end((_err, res) => {
         assert.isTrue(
@@ -393,7 +377,6 @@ describe("API tests", () => {
       recipient: recipientAccount.getPublicKey(),
     });
 
-    // await waitForBalanceUpdate(testStateValidator, user);
     await sleep(6000);
     await testStateValidator.checkSolTransferred();
   });
@@ -403,7 +386,7 @@ describe("API tests", () => {
   it("Should fail transaction with empty instructions", (done: any) => {
     const instructions: any[] = []; // Replace with a valid instruction object
     chai
-      .request(app)
+      .request(server)
       .post("/relayTransaction")
       .send({ instructions })
       .end((_err, res) => {

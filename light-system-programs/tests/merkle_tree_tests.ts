@@ -1064,12 +1064,8 @@ describe("Merkle Tree Tests", () => {
   });
 
   it("Switch to a new Merkle tree", async () => {
-    var shieldAmount = new anchor.BN(
-      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000),
-    );
-    var shieldFeeAmount = new anchor.BN(
-      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000),
-    );
+    var shieldAmount = new anchor.BN(1_000_000);
+    var shieldFeeAmount = new anchor.BN(1_000_000);
 
     let lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,

@@ -100,11 +100,7 @@ export class User {
         "No wallet provided",
       );
 
-    if (
-      !provider.lookUpTables.verifierProgramLookupTable ||
-      !provider.solMerkleTree ||
-      !provider.poseidon
-    )
+    if (!provider.lookUpTables.verifierProgramLookupTable || !provider.poseidon)
       throw new UserError(
         UserErrorCode.PROVIDER_NOT_INITIALIZED,
         "constructor",

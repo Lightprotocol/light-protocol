@@ -13,3 +13,4 @@ test-ledger
 .DS_store
 /**/.DS_store
 /bin
+/config.json

@@ -763,7 +763,7 @@
   dependencies:
     "@coral-xyz/anchor" "0.28.0"
     "@coral-xyz/borsh" "^0.28.0"
-    "@lightprotocol/prover.js" "file:../../../.cache/yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.14-ee27881d-a82d-453d-929f-3043e81ce8e4-1693574368847/node_modules/@lightprotocol/light-prover.js"
+    "@lightprotocol/prover.js" "file:../../../Library/Caches/Yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.14-f4d509df-a145-494b-8a23-02ca88f3c19a-1694643833261/node_modules/@lightprotocol/light-prover.js"
     "@noble/hashes" "^1.1.5"
     "@solana/spl-account-compression" "^0.1.5"
     "@solana/spl-token" "0.3.7"
