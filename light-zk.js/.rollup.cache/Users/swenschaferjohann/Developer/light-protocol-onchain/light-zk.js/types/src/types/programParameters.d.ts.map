@@ -1,0 +1,1 @@
+{"version":3,"file":"programParameters.d.ts","sourceRoot":"","sources":["../../../src/types/programParameters.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,GAAG,EAAE,MAAM,mBAAmB,CAAC;AAExC,MAAM,MAAM,iBAAiB,GAAG;IAC9B,WAAW,EAAE,GAAG,CAAC;IACjB,MAAM,EAAE,GAAG,CAAC;IACZ,IAAI,EAAE,MAAM,CAAC;IACb,QAAQ,CAAC,EAAE,GAAG,CAAC;IACf,WAAW,EAAE,MAAM,CAAC;CACrB,CAAC"}

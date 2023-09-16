@@ -1,0 +1,29 @@
+{
+  "include": [
+    "./src/**/*",
+    "./circuit-lib/**/*",
+    "./build-circuits/**/*",
+    "./bin/**/*"
+  ],
+  "exclude": ["node_modules", "**/tests/*"],
+  "dry": false,
+  "debug": false,
+  "compilerOptions": {
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "composite": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "rootDirs": ["."],
+    "useUnknownInCatchVariables": false,
+    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
+}
