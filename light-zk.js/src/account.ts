@@ -282,8 +282,6 @@ export class Account {
       .update(this.aesSecret + domain)
       .digest();
   }
-
-  /// For use inside workers where Account instance non accessible (fastDecrypt)
   static getAesUtxoViewingKey(
     merkleTreePdaPublicKey: PublicKey,
     salt: string,
@@ -295,7 +293,6 @@ export class Account {
       .update(aesSecret + domain)
       .digest();
   }
-
   static createBurner(poseidon: any, seed: String, index: BN): Account {
     if (seed.length < 32) {
       throw new AccountError(

@@ -71,6 +71,7 @@
     "@types/workerpool": "^6.4.1",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
+    "esm": "^3.2.25",
     "mocha": "^10.2.0",
     "prettier": "^2.6.2",
     "ts-mocha": "^10.0.0",

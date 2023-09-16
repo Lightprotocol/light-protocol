@@ -1,10 +1,6 @@
+//@ts-nocheck
 import { assert } from "chai";
-import {
-  SystemProgram,
-  Keypair as SolanaKeypair,
-  PublicKey,
-  Keypair,
-} from "@solana/web3.js";
+import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const circomlibjs = require("circomlibjs");

@@ -1,3 +1,5 @@
+//@ts-nocheck
+
 import { assert, expect } from "chai";
 
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";

@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { assert, expect } from "chai";
 import { it } from "mocha";
 import { Prover } from "@lightprotocol/prover.js";

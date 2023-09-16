@@ -5,6 +5,7 @@ import { UtxoBatch } from "../wallet";
 console.log("hi from worker file");
 
 addEventListener("message", async (e) => {
+  console.log("received message from main thread");
   let params = e.data;
   bulkDecryptUtxoBytes(
     params.encBytesArray,
@@ -30,7 +31,7 @@ addEventListener("message", async (e) => {
     }
 
     // Post message back to the main thread
-    self.postMessage(utxoBytesArray, "*", transferList);
+    postMessage(utxoBytesArray, "*", transferList);
   });
 });
 

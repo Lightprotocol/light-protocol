@@ -1,40 +1,37 @@
 import Worker from "web-worker";
 import { UtxoBatch } from "wallet";
 import { UtxoBytes } from "utxo";
-let workerScriptFullPath: string;
-// let workerScriptRelativePath = "./../../lib/workers/decryptUtxoBytesWorker.js";
-let workerScriptRelativePath = "./decryptUtxoBytesWorker";
+
+// let workerScriptFullPath: string;
+// let workerScriptRelativePath = "./decryptUtxoBytesWorker";
 let numWorkers = 1;
+let workers: Worker[] = [];
 
 if (typeof window === "undefined") {
   // node.js
-  const path = require("path");
-  const os = require("os");
-  workerScriptFullPath = path.resolve(__dirname, `${workerScriptRelativePath}`);
+  //   const os = require("os");
+  //   workerScriptFullPath = path.resolve(__dirname, `${workerScriptRelativePath}`);
   //   numWorkers = os.cpus().length - 1;
-  console.log("os.cpus().length", os.cpus().length);
+  //   console.log("os.cpus().length", os.cpus().length);
 } else {
   // browser
-  workerScriptFullPath = workerScriptRelativePath; // TODO: might have to adjust
-  numWorkers = navigator.hardwareConcurrency - 1;
-  // Create workers
+  //   workerScriptFullPath = workerScriptRelativePath; // TODO: might have to adjust
+  //   numWorkers = navigator.hardwareConcurrency - 1;
 }
 
-const workers = Array.from(
+// Write the worker script to a temporary file
+
+workers = Array.from(
   { length: numWorkers },
   () =>
-    new Worker(new URL("./decryptUtxoBytesWorker.ts", import.meta.url), {
-      type: "module",
-    }),
+    new Worker(
+      //   path.resolve(__dirname, "./../../lib/workers/decryptUtxoBytesWorker.js"),
+      new URL("./decryptUtxoBytesWorker.js", import.meta.url),
+      {
+        type: "module",
+      },
+    ),
 );
-
-console.log(
-  "workerScriptFullPath:",
-  workerScriptFullPath,
-  "relative:",
-  workerScriptRelativePath,
-);
-console.log("numWorkers", numWorkers);
 
 export async function callDecryptUtxoBytesWorker(params: {
   encBytesArray: UtxoBatch[];
@@ -60,18 +57,19 @@ export async function callDecryptUtxoBytesWorker(params: {
       let transferList = [];
       for (let encBytesArray of task) {
         for (let encByte of encBytesArray.encryptedUtxos) {
-          transferList.push(encByte.leftLeaf.buffer);
+          transferList.push(Uint8Array.from(encByte.leftLeaf).buffer);
           if (encByte.encBytes instanceof Buffer) {
-            transferList.push(encByte.encBytes.buffer);
+            transferList.push(Uint8Array.from(encByte.encBytes).buffer);
           }
         }
       }
       // passing this to determine in worker whether to use aes or asymmetric decryption. TOOD: find a more elegant approach
-      transferList.push(params.aesSecret ? params.aesSecret.buffer : undefined);
-      transferList.push(
-        params.asymSecret ? params.asymSecret.buffer : undefined,
-      );
-
+      //   transferList.push(params.aesSecret ? params.aesSecret.buffer : undefined);
+      transferList.push(params.aesSecret!.buffer);
+      //   transferList.push(
+      //     params.asymSecret ? params.asymSecret.buffer : undefined,
+      //   );
+      console.log("TRANSFER LIST: ", transferList);
       // Post message to worker
       worker.postMessage({ ...params, encBytesArray: task }, transferList);
     });

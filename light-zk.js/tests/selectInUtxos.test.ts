@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { assert, expect } from "chai";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");

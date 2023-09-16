@@ -1,3 +1,5 @@
+//@ts-nocheck
+
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
 import { Keypair as SolanaKeypair } from "@solana/web3.js";

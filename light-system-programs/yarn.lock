@@ -640,7 +640,7 @@
   dependencies:
     "@coral-xyz/anchor" "0.28.0"
     "@coral-xyz/borsh" "^0.28.0"
-    "@lightprotocol/prover.js" "file:../../../.cache/yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.14-1ad634be-464d-48af-bacd-161518048252-1693350181103/node_modules/@lightprotocol/light-prover.js"
+    "@lightprotocol/prover.js" "file:../../../Library/Caches/Yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.14-55e6511f-ef40-4a61-afb2-c857fcfc4786-1694794951865/node_modules/@lightprotocol/light-prover.js"
     "@noble/hashes" "^1.1.5"
     "@solana/spl-account-compression" "^0.1.5"
     "@solana/spl-token" "0.3.7"
@@ -655,6 +655,8 @@
     global "^4.4.0"
     snarkjs "^0.7.0"
     tweetnacl "^1.0.3"
+    web-worker "^1.2.0"
+    workerpool "^6.4.2"
 
 "@metaplex-foundation/beet-solana@^0.4.0":
   version "0.4.0"
@@ -2586,6 +2588,11 @@ workerpool@6.2.1:
   version "6.2.1"
   resolved "https://registry.npmjs.org/workerpool/-/workerpool-6.2.1.tgz"
   integrity sha512-ILEIE97kDZvF9Wb9f6h5aXK4swSlKGUcOEGiIYb2OOu/IrDU9iwj0fD//SsA6E5ibwJxpEvhullJY4Sl4GcpAw==
+
+workerpool@^6.4.2:
+  version "6.5.0"
+  resolved "https://registry.yarnpkg.com/workerpool/-/workerpool-6.5.0.tgz#f8474762c5e2f81646994aa113685f6c424a2416"
+  integrity sha512-r64Ea3glXY2RVzMeNxB+4J+0YHAVzUdV4cM5nHi4BBC2LvnO1pWFAIYKYuGcPElbg1/7eEiaPtZ/jzCjIUuGBg==
 
 wrap-ansi@^7.0.0:
   version "7.0.0"
