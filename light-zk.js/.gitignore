@@ -4,3 +4,4 @@ build-circuits/ptau17
 lib
 bin
 .idea
+.rollup.cache/
