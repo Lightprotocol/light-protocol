@@ -48,7 +48,7 @@ import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
 var POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 
-console.log = () => {};
+// console.log = () => {};
 describe("Merkle Tree Tests", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   // Configure the client to use the local cluster.
