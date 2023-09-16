@@ -213,24 +213,27 @@ export const getPayer = () => {
 export const setPayer = (key: string) => {
   setConfig({ payer: key });
 };
-import { existsSync } from 'fs';
+import { existsSync } from "fs";
 
 function getConfigPath(): string {
-    // Check for the environment variable
-    const envConfigPath = process.env.LIGHT_PROTOCOL_CONFIG;
-    if (envConfigPath ) {
-        if (!existsSync(envConfigPath)) {
-          throw new Error(`Config file not found at ${envConfigPath}, this path is configured with the environment variable LIGHT_PROTOCOL_CONFIG, the default path is ${process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME}, to use the default path, remove the environment variable LIGHT_PROTOCOL_CONFIG`);
-        }
-        return envConfigPath;
+  // Check for the environment variable
+  const envConfigPath = process.env.LIGHT_PROTOCOL_CONFIG;
+  if (envConfigPath) {
+    if (!existsSync(envConfigPath)) {
+      throw new Error(
+        `Config file not found at ${envConfigPath}, this path is configured with the environment variable LIGHT_PROTOCOL_CONFIG, the default path is ${
+          process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME
+        }, to use the default path, remove the environment variable LIGHT_PROTOCOL_CONFIG`
+      );
     }
+    return envConfigPath;
+  }
 
-    // Default path
-    const defaultConfigPath = process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+  // Default path
+  const defaultConfigPath = process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
 
-    return defaultConfigPath;
+  return defaultConfigPath;
 }
-
 
 export const getConfig = (filePath?: string): Config => {
   if (!filePath) filePath = getConfigPath(); //process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
@@ -263,7 +266,7 @@ export function ensureDirectoryExists(dirPath: string): void {
 }
 
 export const setConfig = (config: Partial<Config>, filePath?: string): void => {
-  if (!filePath) filePath = getConfigPath();//process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+  if (!filePath) filePath = getConfigPath(); //process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
 
   // Ensure the directory structure exists
   const dir = path.dirname(filePath);

@@ -12,7 +12,8 @@ import { PublicKey } from "@solana/web3.js";
 import { CONFIG_FILE_NAME, CONFIG_PATH } from "../../psp-utils";
 
 class ConfigCommand extends Command {
-  static description = "Initialize or update the configuration values. The default config path is ~/.config/light/config.json you can set up a custom path with an environment variable export LIGHT_PROTOCOL_CONFIG=path/to/config.json";
+  static description =
+    "Initialize or update the configuration values. The default config path is ~/.config/light/config.json you can set up a custom path with an environment variable export LIGHT_PROTOCOL_CONFIG=path/to/config.json";
   static examples = [
     "$ light config --rpcUrl https://solana-api.example.com",
     "$ light config --relayerUrl https://relayer.example.com",
