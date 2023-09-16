@@ -14,6 +14,7 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
 
   const anchorProvider = new anchor.AnchorProvider(
     connection,
+    /// Anchor doesn't export Wallet in browser environments, so using updateMerkleTree and by extension TestRelayer will break in browsers.
     new anchor.Wallet(Keypair.generate()),
     confirmConfig,
   );

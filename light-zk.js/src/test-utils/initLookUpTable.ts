@@ -35,6 +35,7 @@ import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 
 // TODO: create cli function to create a lookup table for apps
 // Probably only works for testing
+/// Node only
 export async function initLookUpTableFromFile(
   provider: anchor.AnchorProvider,
   path: PathLike = `lookUpTable.txt`,

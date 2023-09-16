@@ -1,3 +1,7 @@
+if (typeof TextEncoder === "undefined") {
+  global.TextEncoder = require("text-encoding").TextEncoder;
+  global.TextDecoder = require("text-encoding").TextDecoder;
+}
 export * from "./utxo";
 export * from "./test-utils";
 export * from "./account";
