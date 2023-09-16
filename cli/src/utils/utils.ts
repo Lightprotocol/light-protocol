@@ -11,6 +11,7 @@ import {
   Relayer,
   RELAYER_FEE,
   TestRelayer,
+  TOKEN_ACCOUNT_FEE,
   User,
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -85,8 +86,7 @@ export const getLightProvider = async (localTestRelayer?: boolean) => {
       relayer,
       url: getRpcUrl(),
       confirmConfig,
-      // TODO(@ananas-block): activate once we have a default lookup table
-      // versionedTransactionLookupTable: getLookUpTable(),
+      versionedTransactionLookupTable: getLookUpTable(),
     });
     return provider;
   }
@@ -113,7 +113,7 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
         relayerPubkey: wallet.publicKey,
         relayerRecipientSol: wallet.publicKey,
         relayerFee: RELAYER_FEE,
-        highRelayerFee: new BN(10_100_000),
+        highRelayerFee: TOKEN_ACCOUNT_FEE,
         payer: wallet,
       });
       return relayer;
@@ -122,7 +122,7 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
         getRelayerPublicKey(),
         getRelayerRecipient(),
         RELAYER_FEE,
-        new BN(10_100_000),
+        TOKEN_ACCOUNT_FEE,
         getRelayerUrl()
       );
     }
@@ -137,7 +137,7 @@ type Config = {
   relayerRecipient: string;
   relayerPublicKey: string;
   payer: string;
-  lookupTable: string;
+  lookUpTable: string;
 };
 
 export const getRpcUrl = (): string => {
@@ -187,11 +187,16 @@ export const setRelayerPublicKey = (address: string): void => {
 
 export const getLookUpTable = () => {
   const config = getConfig();
-  return new solana.PublicKey(config.lookupTable);
+
+  if (config.rpcUrl.includes(":8899")) {
+    console.log("CLI on localhost: creating new LookUpTable");
+    return undefined;
+  }
+  return new solana.PublicKey(config.lookUpTable);
 };
 
 export const setLookUpTable = (address: string): void => {
-  setConfig({ lookupTable: address });
+  setConfig({ lookUpTable: address });
 };
 
 export const getPayer = () => {

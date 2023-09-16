@@ -43,7 +43,7 @@ export class Relayer {
     relayerPubkey: PublicKey,
     relayerRecipientSol?: PublicKey,
     relayerFee: BN = BN_0,
-    highRelayerFee: BN = new BN(TOKEN_ACCOUNT_FEE),
+    highRelayerFee: BN = TOKEN_ACCOUNT_FEE,
     url: string = "http://localhost:3331",
   ) {
     if (!relayerPubkey) {

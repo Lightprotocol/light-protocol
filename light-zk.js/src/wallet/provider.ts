@@ -22,6 +22,7 @@ import {
   ParsedIndexedTransaction,
   MerkleTreeConfig,
   RELAYER_FEE,
+  TOKEN_ACCOUNT_FEE,
 } from "../index";
 
 const axios = require("axios");
@@ -74,6 +75,7 @@ export class Provider {
     assetLookupTable,
     versionedTransactionLookupTable,
     anchorProvider,
+    poseidon,
   }: {
     wallet: Wallet;
     confirmConfig?: ConfirmOptions;
@@ -85,6 +87,7 @@ export class Provider {
     assetLookupTable?: PublicKey[];
     versionedTransactionLookupTable: PublicKey;
     anchorProvider: AnchorProvider;
+    poseidon: any;
   }) {
     if (!wallet)
       throw new ProviderError(
@@ -105,6 +108,7 @@ export class Provider {
         this.wallet.publicKey,
         RELAYER_RECIPIENT_KEYPAIR.publicKey,
         RELAYER_FEE,
+        TOKEN_ACCOUNT_FEE,
       );
     }
     let tmpAssetLookupTable = assetLookupTable
@@ -127,17 +131,24 @@ export class Provider {
       ],
       versionedTransactionLookupTable,
     };
+    this.poseidon = poseidon;
+    this.solMerkleTree = new SolMerkleTree({
+      pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      poseidon: this.poseidon,
+    });
   }
 
   static async loadMock() {
+    let poseidon = await circomlibjs.buildPoseidonOpt();
+
     // @ts-ignore: @ananas-block ignoring errors to not pass anchorProvider
     let mockProvider = new Provider({
       wallet: useWallet(ADMIN_AUTH_KEYPAIR),
       url: "mock",
       versionedTransactionLookupTable: PublicKey.default,
+      poseidon,
     });
 
-    await mockProvider.loadPoseidon();
     mockProvider.solMerkleTree = new SolMerkleTree({
       poseidon: mockProvider.poseidon,
       pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -195,11 +206,6 @@ export class Provider {
     }
   }
 
-  private async loadPoseidon() {
-    const poseidon = await circomlibjs.buildPoseidonOpt();
-    this.poseidon = poseidon;
-  }
-
   async latestMerkleTree(indexedTransactions?: ParsedIndexedTransaction[]) {
     await this.fetchMerkleTree(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -223,6 +229,7 @@ export class Provider {
     assetLookupTable,
     verifierProgramLookupTable,
     versionedTransactionLookupTable,
+    poseidon,
   }: {
     wallet: Wallet | SolanaKeypair | Keypair;
     connection?: Connection;
@@ -232,6 +239,7 @@ export class Provider {
     assetLookupTable?: PublicKey[];
     verifierProgramLookupTable?: PublicKey[];
     versionedTransactionLookupTable?: PublicKey;
+    poseidon?: any;
   }): Promise<Provider> {
     if (!wallet) {
       throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
@@ -256,7 +264,6 @@ export class Provider {
       wallet,
       confirmConfig,
     );
-
     if (!versionedTransactionLookupTable) {
       // initializing lookup table or fetching one from relayer in case of browser wallet
       versionedTransactionLookupTable = await Provider.fetchLookupTable(
@@ -294,6 +301,9 @@ export class Provider {
         "Initializing lookup table in node.js or fetching it from relayer in browser failed",
       );
 
+    if (!poseidon) {
+      poseidon = await circomlibjs.buildPoseidonOpt();
+    }
     const provider = new Provider({
       wallet,
       confirmConfig,
@@ -304,12 +314,9 @@ export class Provider {
       verifierProgramLookupTable,
       versionedTransactionLookupTable,
       anchorProvider,
+      poseidon,
     });
 
-    await provider.loadPoseidon();
-    await provider.fetchMerkleTree(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    );
     return provider;
   }
 

@@ -1,8 +1,15 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { relayerFee } from "../config";
-import { confirmConfig, Provider, Relayer } from "@lightprotocol/zk.js";
+import { Keypair } from "@solana/web3.js";
+import { RELAYER_URL, relayerFee } from "../config";
+import {
+  confirmConfig,
+  Provider,
+  Relayer,
+  TOKEN_ACCOUNT_FEE,
+  useWallet,
+} from "@lightprotocol/zk.js";
 import { readLookupTable } from "./readLookupTable";
+const circomlibjs = require("circomlibjs");
 
 require("dotenv").config();
 
@@ -35,12 +42,17 @@ export const getLightProvider = async () => {
     const relayer = await getRelayer();
 
     try {
-      provider = await Provider.init({
-        wallet: getKeyPairFromEnv("KEY_PAIR"),
+      let anchorProvider = await getAnchorProvider();
+      let poseidon = await circomlibjs.buildPoseidonOpt();
+
+      provider = new Provider({
+        wallet: useWallet(getKeyPairFromEnv("KEY_PAIR")),
         relayer,
-        confirmConfig,
+        connection: anchorProvider.connection,
         url: process.env.RPC_URL!,
-        versionedTransactionLookupTable: new PublicKey(readLookupTable()),
+        versionedTransactionLookupTable: readLookupTable(),
+        anchorProvider,
+        poseidon,
       });
     } catch (e) {
       if (e.message.includes("LOOK_UP_TABLE_NOT_INITIALIZED")) {
@@ -59,6 +71,8 @@ export async function getRelayer() {
       getKeyPairFromEnv("KEY_PAIR").publicKey,
       getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
       relayerFee,
+      TOKEN_ACCOUNT_FEE,
+      RELAYER_URL!,
     );
 
     return relayer;
