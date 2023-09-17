@@ -102,19 +102,26 @@ export class MerkleTreeConfig {
       ])
       .signers([this.payer])
       .transaction();
+    try {
 
-    const txHash = await sendAndConfirmTransaction(
-      this.connection,
-      tx,
-      [this.payer!],
-      confirmConfig,
-    );
+      const txHash = await sendAndConfirmTransaction(
+        this.connection,
+        tx,
+        [this.payer!],
+        confirmConfig,
+      );
+      await this.checkTransactionMerkleTreeIsInitialized(
+        newTransactionMerkleTree,
+      );
+      await this.checkEventMerkleTreeIsInitialized(newEventMerkleTree);
+      return txHash;
+    }
+    catch (e) {
+      console.log(e);
+      throw e;
+    }
 
-    await this.checkTransactionMerkleTreeIsInitialized(
-      newTransactionMerkleTree,
-    );
-    await this.checkEventMerkleTreeIsInitialized(newEventMerkleTree);
-    return txHash;
+    
   }
 
   async checkTransactionMerkleTreeIsInitialized(
@@ -225,7 +232,7 @@ export class MerkleTreeConfig {
     let eventMerkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
       eventMerkleTreePubkey,
     );
-    return eventMerkleTreeAccountInfo.newest == 1 ? true : false;
+    return eventMerkleTreeAccountInfo.newest.toString() == "1" ? true : false;
   }
 
   async initMerkleTreeAuthority(

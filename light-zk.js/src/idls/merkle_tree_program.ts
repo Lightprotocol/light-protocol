@@ -947,12 +947,6 @@ export type MerkleTreeProgram = {
         "kind": "struct",
         "fields": [
           {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
-            }
-          },
-          {
             "name": "merkleTreeNr",
             "type": "u64"
           },
@@ -967,6 +961,12 @@ export type MerkleTreeProgram = {
                 "u8",
                 7
               ]
+            }
+          },
+          {
+            "name": "merkleTree",
+            "type": {
+              "defined": "MerkleTree"
             }
           }
         ]
@@ -2480,12 +2480,6 @@ export const IDL: MerkleTreeProgram = {
         "kind": "struct",
         "fields": [
           {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
-            }
-          },
-          {
             "name": "merkleTreeNr",
             "type": "u64"
           },
@@ -2500,6 +2494,12 @@ export const IDL: MerkleTreeProgram = {
                 "u8",
                 7
               ]
+            }
+          },
+          {
+            "name": "merkleTree",
+            "type": {
+              "defined": "MerkleTree"
             }
           }
         ]

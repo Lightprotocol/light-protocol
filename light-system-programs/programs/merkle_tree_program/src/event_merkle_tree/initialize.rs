@@ -23,10 +23,10 @@ impl MerkleTreeConfig for EventMerkleTreeConfig {
 
 #[account(zero_copy)]
 pub struct EventMerkleTree {
-    pub merkle_tree: MerkleTree<Sha256, EventMerkleTreeConfig>,
     pub merkle_tree_nr: u64,
     pub newest: u8,
     _padding: [u8; 7],
+    pub merkle_tree: MerkleTree<Sha256, EventMerkleTreeConfig>,
 }
 
 impl_indexed_merkle_tree!(EventMerkleTree);
@@ -35,11 +35,11 @@ pub fn process_initialize_new_event_merkle_tree(
     merkle_tree: &mut RefMut<'_, EventMerkleTree>,
     merkle_tree_authority: &mut Account<'_, MerkleTreeAuthority>,
 ) {
+    merkle_tree.newest = 1u8;
     merkle_tree
         .merkle_tree
         .init(EVENT_MERKLE_TREE_HEIGHT, HashFunction::Sha256);
     merkle_tree.merkle_tree_nr = merkle_tree_authority.event_merkle_tree_index;
-    merkle_tree.newest = 1;
 
     merkle_tree_authority.event_merkle_tree_index += 1;
 }
