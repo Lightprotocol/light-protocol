@@ -44,12 +44,13 @@ import {
   executeUpdateMerkleTreeTransactions,
   RELAYER_FEE,
   BN_1,
+  sleep,
 } from "@lightprotocol/zk.js";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
 var POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 
-console.log = () => {};
+// console.log = () => {};
 describe("Merkle Tree Tests", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   // Configure the client to use the local cluster.
@@ -770,8 +771,27 @@ describe("Merkle Tree Tests", () => {
         payer: ADMIN_AUTH_KEYPAIR,
         connection: provider.connection,
       });
-      await merkleTreeConfig.initializeNewMerkleTrees();
+
+      // let newEventMerkleTreeAccountInfo1 = await merkleTreeConfig.getEventMerkleTreeAccountInfo(
+      //   newEventMerkleTreePubkey
+      // );
+      // console.log("NEW EVENT MERKLE TREE: NEWEST: " + newEventMerkleTreeAccountInfo1);
+
+      let tx = await merkleTreeConfig.initializeNewMerkleTrees();
+      console.log("TX: " + tx);
       console.log("created new merkle tree");
+
+      let newEventMerkleTreeAccountInfo2 = await merkleTreeConfig.getEventMerkleTreeAccountInfo(
+        newEventMerkleTreePubkey
+      );
+      console.log("NEW EVENT MERKLE TREE: NEWEST: " + newEventMerkleTreeAccountInfo2.newest);
+
+      await sleep(5);
+
+      let newEventMerkleTreeAccountInfo3 = await merkleTreeConfig.getEventMerkleTreeAccountInfo(
+        newEventMerkleTreePubkey
+      );
+      console.log("NEV EVENT MERKLE TREE (later): NEWEST: " + newEventMerkleTreeAccountInfo3.newest);
 
       assert.isTrue(
         await merkleTreeConfig.isNewestTransactionMerkleTree(
@@ -793,7 +813,7 @@ describe("Merkle Tree Tests", () => {
           merkleTreeUpdateState: merkleTreeUpdateState,
           systemProgram: SystemProgram.programId,
           rent: DEFAULT_PROGRAMS.rent,
-          transactionMerkleTree: different_merkle_tree,
+          transactionMerkleTree: newTransactionMerkleTreePubkey,
         })
         .remainingAccounts(leavesPdas)
         .preInstructions([
@@ -973,7 +993,7 @@ describe("Merkle Tree Tests", () => {
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
-          transactionMerkleTree: different_merkle_tree,
+          transactionMerkleTree: newTransactionMerkleTreePubkey,
           logWrapper: SPL_NOOP_ADDRESS,
         })
         .signers([signer])
@@ -1114,6 +1134,11 @@ describe("Merkle Tree Tests", () => {
       isSigner: false,
       isWritable: true,
       pubkey: newTransactionMerkleTreePubkey,
+    };
+    transaction.remainingAccounts!.nextEventMerkleTree = {
+      isSigner: false,
+      isWritable: true,
+      pubkey: newEventMerkleTreePubkey,
     };
 
     await transaction.compileAndProve();

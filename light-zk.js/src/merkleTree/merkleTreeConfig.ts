@@ -73,8 +73,10 @@ export class MerkleTreeConfig {
     const oldEventMerkleTree = MerkleTreeConfig.getEventMerkleTreePda(
       eventMerkleTreeIndex.sub(BN_1),
     );
+    console.log("OLD EVENT MERKLE TREE: " + oldEventMerkleTree);
     const newEventMerkleTree =
       MerkleTreeConfig.getEventMerkleTreePda(eventMerkleTreeIndex);
+    console.log("NEW EVENT MERKLE TREE: " + newEventMerkleTree);
 
     const tx = await this.merkleTreeProgram.methods
       .initializeNewMerkleTrees(new anchor.BN("50"))

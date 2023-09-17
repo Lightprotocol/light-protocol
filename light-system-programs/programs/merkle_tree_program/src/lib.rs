@@ -86,7 +86,11 @@ pub mod merkle_tree_program {
             ctx.program_id,
         )?;
         let new_event_merkle_tree = &mut ctx.accounts.new_event_merkle_tree.load_init()?;
+        msg!("Initializing new event merkle tree");
+        new_event_merkle_tree.newest = 69;
         process_initialize_new_event_merkle_tree(new_event_merkle_tree, merkle_tree_authority);
+        new_event_merkle_tree.newest = 42;
+        msg!("Initialized new event merkle tree");
 
         Ok(())
     }

@@ -87,6 +87,7 @@ export class Transaction {
     nullifierPdaPubkeys?: remainingAccount[];
     leavesPdaPubkeys?: remainingAccount[];
     nextTransactionMerkleTree?: remainingAccount;
+    nextEventMerkleTree?: remainingAccount;
   };
 
   proofInput: any;
