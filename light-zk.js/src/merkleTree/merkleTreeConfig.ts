@@ -200,6 +200,12 @@ export class MerkleTreeConfig {
     return transactionMerkleTreeAccountInfo.newest == 1 ? true : false;
   }
 
+  async getEventMerkleTreeIndex(): Promise<anchor.BN> {
+    let merkleTreeAuthorityAccountInfo =
+      await this.getMerkleTreeAuthorityAccountInfo();
+    return merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex;
+  }
+
   static getEventMerkleTreePda(eventMerkleTreeIndex: anchor.BN = BN_0) {
     let eventMerkleTreePda = PublicKey.findProgramAddressSync(
       [

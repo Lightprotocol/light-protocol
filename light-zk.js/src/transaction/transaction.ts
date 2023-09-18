@@ -87,6 +87,7 @@ export class Transaction {
     nullifierPdaPubkeys?: remainingAccount[];
     leavesPdaPubkeys?: remainingAccount[];
     nextTransactionMerkleTree?: remainingAccount;
+    nextEventMerkleTree?: remainingAccount;
   };
 
   proofInput: any;
@@ -482,16 +483,29 @@ export class Transaction {
         let merkleTreeConfig = new MerkleTreeConfig({
           connection: this.provider.provider.connection,
         });
-        let nextTransactionMerkleTreeIndex =
+        const nextTransactionMerkleTreeIndex =
           await merkleTreeConfig.getTransactionMerkleTreeIndex();
         const nextTransactionMerkleTreePubkey =
           MerkleTreeConfig.getTransactionMerkleTreePda(
             nextTransactionMerkleTreeIndex,
           );
+
+        const nextEventMerkleTreeIndex =
+          await merkleTreeConfig.getEventMerkleTreeIndex();
+        const nextEventMerkleTreePubkey =
+          MerkleTreeConfig.getEventMerkleTreePda(
+            nextEventMerkleTreeIndex
+          );
+
         this.remainingAccounts!.nextTransactionMerkleTree = {
           isSigner: false,
           isWritable: true,
           pubkey: nextTransactionMerkleTreePubkey,
+        };
+        this.remainingAccounts!.nextEventMerkleTree = {
+          isSigner: false,
+          isWritable: true,
+          pubkey: nextEventMerkleTreePubkey,
         };
       }
     } else {
@@ -871,6 +885,11 @@ export class Transaction {
         if (this.remainingAccounts!.nextTransactionMerkleTree !== undefined) {
           remainingAccounts.push(
             this.remainingAccounts!.nextTransactionMerkleTree,
+          );
+        }
+        if (this.remainingAccounts!.nextEventMerkleTree !== undefined) {
+          remainingAccounts.push(
+            this.remainingAccounts!.nextEventMerkleTree,
           );
         }
         method.remainingAccounts(remainingAccounts);

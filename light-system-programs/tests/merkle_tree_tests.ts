@@ -793,7 +793,7 @@ describe("Merkle Tree Tests", () => {
           merkleTreeUpdateState: merkleTreeUpdateState,
           systemProgram: SystemProgram.programId,
           rent: DEFAULT_PROGRAMS.rent,
-          transactionMerkleTree: different_merkle_tree,
+          transactionMerkleTree: newTransactionMerkleTreePubkey,
         })
         .remainingAccounts(leavesPdas)
         .preInstructions([
@@ -973,7 +973,7 @@ describe("Merkle Tree Tests", () => {
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
-          transactionMerkleTree: different_merkle_tree,
+          transactionMerkleTree: newTransactionMerkleTreePubkey,
           logWrapper: SPL_NOOP_ADDRESS,
         })
         .signers([signer])
