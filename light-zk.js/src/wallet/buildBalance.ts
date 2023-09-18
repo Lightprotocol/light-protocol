@@ -199,16 +199,16 @@ export async function decryptAddUtxoToBalance({
   assetLookupTable: string[];
 }): Promise<void> {
   let decryptedUtxo = await Utxo.decrypt({
-        poseidon,
-        encBytes: encBytes,
-        account: account,
-        index: index,
-        commitment,
-        aes,
-        merkleTreePdaPublicKey,
-        verifierProgramLookupTable,
-        assetLookupTable,
-      });
+    poseidon,
+    encBytes: encBytes,
+    account: account,
+    index: index,
+    commitment,
+    aes,
+    merkleTreePdaPublicKey,
+    verifierProgramLookupTable,
+    assetLookupTable,
+  });
 
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo) return;
