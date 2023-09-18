@@ -951,6 +951,12 @@ export type MerkleTreeProgram = {
             "type": "u64"
           },
           {
+            "name": "merkleTree",
+            "type": {
+              "defined": "MerkleTree"
+            }
+          },
+          {
             "name": "newest",
             "type": "u8"
           },
@@ -961,12 +967,6 @@ export type MerkleTreeProgram = {
                 "u8",
                 7
               ]
-            }
-          },
-          {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
             }
           }
         ]
@@ -2484,6 +2484,12 @@ export const IDL: MerkleTreeProgram = {
             "type": "u64"
           },
           {
+            "name": "merkleTree",
+            "type": {
+              "defined": "MerkleTree"
+            }
+          },
+          {
             "name": "newest",
             "type": "u8"
           },
@@ -2494,12 +2500,6 @@ export const IDL: MerkleTreeProgram = {
                 "u8",
                 7
               ]
-            }
-          },
-          {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
             }
           }
         ]

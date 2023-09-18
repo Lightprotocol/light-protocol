@@ -1122,8 +1122,10 @@ describe("Merkle Tree Tests", () => {
     // console.log("newTransactionMerkleTreePubkey ", await lightProvider.provider.connection.getAccountInfo(newTransactionMerkleTreePubkey));
     console.log("newEventMerkleTreePubkey ", await lightProvider.provider.connection.getAccountInfo(newEventMerkleTreePubkey));
     // console.log("merkle tree authority ", (await merkleTreeConfig.getMerkleTreeAuthorityAccountInfo()));
-    console.log("old event merkle tree newest ", Array.from((await provider.connection.getAccountInfo(oldEventMerkleTreePubkey)).data).slice(0,24));
-    console.log("old event merkle tree newest ", Array.from((await provider.connection.getAccountInfo(newEventMerkleTreePubkey)).data).slice(0,24));
+    const oldEventMerkleTreeData = Array.from((await provider.connection.getAccountInfo(oldEventMerkleTreePubkey)).data);
+    const newEventMerkleTreeData = Array.from((await provider.connection.getAccountInfo(newEventMerkleTreePubkey)).data);
+    console.log("old event merkle tree newest ", oldEventMerkleTreeData.slice(oldEventMerkleTreeData.length-16));
+    console.log("new event merkle tree newest ", newEventMerkleTreeData.slice(newEventMerkleTreeData.length-16));
 
     console.log("oldEventMerkleTreePubkey ", (await merkleTreeConfig.merkleTreeProgram.account.eventMerkleTree.fetch(oldEventMerkleTreePubkey)).newest);
     console.log("oldTransactionMerkleTreePubkey ", (await merkleTreeConfig.merkleTreeProgram.account.transactionMerkleTree.fetch(oldTransactionMerkleTreePubkey)).newest);
