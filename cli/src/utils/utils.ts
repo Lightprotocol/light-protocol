@@ -16,6 +16,7 @@ import {
   User,
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
 
 require("dotenv").config();
 
@@ -212,38 +213,69 @@ export const getPayer = () => {
 export const setPayer = (key: string) => {
   setConfig({ payer: key });
 };
+import { existsSync } from "fs";
+import { config } from "dotenv";
 
-export const getConfig = (): Config => {
-  let pathsToCheck = [];
-  if (process.env.LIGHT_PROTOCOL_CONFIG_FILE) {
-    pathsToCheck.push(process.env.LIGHT_PROTOCOL_CONFIG_FILE);
-  }
-  pathsToCheck.push(path.join(process.cwd(), "config.json"));
-  if (process.env.HOME) {
-    pathsToCheck.push(
-      path.join(process.env.HOME, ".config/lightprotocol/config.json")
-    );
+function getConfigPath(): string {
+  // Check for the environment variable
+  const envConfigPath = process.env.LIGHT_PROTOCOL_CONFIG;
+  if (envConfigPath) {
+    console.log(`reading config from custom path ${envConfigPath}`);
+    if (!existsSync(envConfigPath)) {
+      throw new Error(
+        `Config file not found at ${envConfigPath}, this path is configured with the environment variable LIGHT_PROTOCOL_CONFIG, the default path is ${
+          process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME
+        }, to use the default path, remove the environment variable LIGHT_PROTOCOL_CONFIG`
+      );
+    }
+    return envConfigPath;
   }
 
-  for (const configPath of pathsToCheck) {
-    if (configPath && fs.existsSync(configPath)) {
-      try {
-        const data = fs.readFileSync(configPath, "utf-8");
-        return JSON.parse(data);
-      } catch (error) {
-        throw new Error(`Failed to read configuration file at ${configPath}`);
-      }
+  // Default path
+  const defaultConfigPath = process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+
+  return defaultConfigPath;
+}
+
+export const getConfig = (filePath?: string): Config => {
+  if (!filePath) filePath = getConfigPath();
+  let configData: any;
+  try {
+    configData = fs.readFileSync(filePath, "utf-8");
+  } catch (error) {
+    // Ensure the directory structure exists
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    ensureDirectoryExists(process.env.HOME + CONFIG_PATH);
+    if (!fs.existsSync(filePath)) {
+      let data = {
+        ...DEFAULT_CONFIG,
+        secretKey: bs58.encode(solana.Keypair.generate().secretKey),
+      };
+
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      console.log("created config file in", filePath);
+      configData = fs.readFileSync(filePath, "utf-8");
     }
   }
-
-  throw new Error("Configuration file not found in the specified paths");
+  return JSON.parse(configData);
 };
 
-export const setConfig = (config: Partial<Config>): void => {
+export function ensureDirectoryExists(dirPath: string): void {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+export const setConfig = (config: Partial<Config>, filePath?: string): void => {
+  if (!filePath) filePath = getConfigPath();
+
   try {
     const existingConfig = getConfig();
     const updatedConfig = { ...existingConfig, ...config };
-    fs.writeFileSync("config.json", JSON.stringify(updatedConfig, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(updatedConfig, null, 2));
   } catch (error) {
     throw new Error("Failed to update configuration file");
   }

@@ -23,7 +23,7 @@ trap "kill ${PID}" EXIT
 sleep 8
 
 echo "starting relayer server"
-kill $(lsof -ti :3331) > /dev/null  || true
+kill $(lsof -ti :3332) > /dev/null  || true
 sleep 1
 node lib/index.js > .logs/relayer-logs.txt &
 PID_RELAYER="${!}"
@@ -31,6 +31,8 @@ trap "kill ${PID_RELAYER} > /dev/null || true" EXIT
 sleep 15
 echo "executing cli tests"
 cd ../cli
+# export LIGHT_PROTOCOL_CONFIG=$PWD/config.json
+./test_bin/run config --secretKey=LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8
 ./test_bin/run airdrop 50 ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k
 ./test_bin/run airdrop 50 --token=USDC ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k
 ./test_bin/run shield:sol 20
