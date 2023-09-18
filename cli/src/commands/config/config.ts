@@ -126,6 +126,8 @@ class ConfigCommand extends Command {
       setConfig(config);
       this.log("\nConfiguration values updated successfully \x1b[32m✔\x1b[0m");
       loader.stop(false);
+      // logging updated config values
+      logConfig(config);
     } catch (error) {
       this.error(`\nFailed to update configuration values\n${error}`);
     }
