@@ -9,7 +9,7 @@ describe("config", () => {
   });
   test
     .stdout()
-    .command(["config", "--relayerUrl=http://localhost:3331"])
+    .command(["config", "--relayerUrl=http://localhost:3332"])
     .it("runs relayer url update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
         "Configuration values updated successfully"
@@ -46,7 +46,6 @@ describe("config with env variable", () => {
     process.env.LIGHT_PROTOCOL_CONFIG = filePath;
     let data = {
       ...DEFAULT_CONFIG,
-      // TODO: remove this default secret key which we need for tests right now
       secretKey:
         "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8",
     };
@@ -55,7 +54,6 @@ describe("config with env variable", () => {
   });
 
   test
-    .only()
     .stdout({ print: true })
     .command(["config", "--rpcUrl=http://127.0.0.1:8899"])
     .it("runs rpc url update cmd", (ctx) => {
