@@ -1171,14 +1171,15 @@ export class UserTestAssertHelper {
         balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos
           .size ?? 0;
     }
+    console.log("balance", balanceSpendable.tokenBalances);
 
     assert.equal(
-      balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())
+      balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())!
         .committedUtxos.size,
       0,
     );
     assert.equal(
-      balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58()).utxos
+      balanceSpendable.tokenBalances.get(this.tokenCtx.mint.toBase58())!.utxos
         .size,
       1,
     );
