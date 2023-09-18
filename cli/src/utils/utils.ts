@@ -259,7 +259,6 @@ export const getConfig = (filePath?: string): Config => {
 
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
       console.log("created config file in", filePath);
-
     }
   }
   const configData = fs.readFileSync(filePath, "utf-8");
