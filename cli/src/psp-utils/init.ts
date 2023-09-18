@@ -38,7 +38,7 @@ export const initRepo = async (name: string, type: ProjectType) => {
       // "--tag",
       // PSP_TEMPLATE_TAG,
       "--branch",
-      "vadorovsky/rm-transaction-config",
+      "main",
       "psp-template",
       "--name",
       name,

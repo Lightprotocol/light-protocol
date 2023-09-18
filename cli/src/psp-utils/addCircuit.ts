@@ -28,7 +28,7 @@ export const addCircuit = async ({
       // https://github.com/Lightprotocol/psp-template/pull/12
       // is merged and released.
       "--branch",
-      "vadorovsky/rm-transaction-config",
+      "main",
       // "--tag",
       // PSP_TEMPLATE_TAG,
       circuit_template,
