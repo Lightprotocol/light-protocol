@@ -2,14 +2,18 @@ import { Command, Flags, ux } from "@oclif/core";
 import * as fs from "fs";
 import {
   CustomLoader,
+  getConfig,
   isValidBase58SecretKey,
   isValidURL,
   readWalletFromFile,
+  setConfig,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
+import { CONFIG_FILE_NAME, CONFIG_PATH } from "../../psp-utils";
 
 class ConfigCommand extends Command {
-  static description = "Update the configuration values";
+  static description =
+    "Initialize or update the configuration values. The default config path is ~/.config/light/config.json you can set up a custom path with an environment variable export LIGHT_PROTOCOL_CONFIG=path/to/config.json";
   static examples = [
     "$ light config --rpcUrl https://solana-api.example.com",
     "$ light config --relayerUrl https://relayer.example.com",
@@ -64,7 +68,7 @@ class ConfigCommand extends Command {
     } = flags;
 
     try {
-      const config = JSON.parse(fs.readFileSync("config.json", "utf-8"));
+      const config = getConfig();
       if (get) {
         logConfig(config);
         return;
@@ -80,7 +84,7 @@ class ConfigCommand extends Command {
           this.error(`\nInvalid URL format`);
         }
       }
-      // http://localhost:3331
+      // http://localhost:3332
       if (relayerUrl) {
         if (isValidURL(relayerUrl)) {
           config.relayerUrl = relayerUrl;
@@ -119,9 +123,11 @@ class ConfigCommand extends Command {
         }
       }
 
-      fs.writeFileSync("config.json", JSON.stringify(config, null, 2));
+      setConfig(config);
       this.log("\nConfiguration values updated successfully \x1b[32m✔\x1b[0m");
       loader.stop(false);
+      // logging updated config values
+      logConfig(config);
     } catch (error) {
       this.error(`\nFailed to update configuration values\n${error}`);
     }
