@@ -107,7 +107,7 @@ describe("verifier_program", () => {
       senderSpl: userTokenAccount,
       shuffleEnabled: true,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
-      updateMerkleTree: true
+      updateMerkleTree: true,
     });
   });
 
@@ -170,7 +170,7 @@ describe("verifier_program", () => {
     senderSpl,
     shuffleEnabled = true,
     verifierIdl,
-    updateMerkleTree = false
+    updateMerkleTree = false,
   }: {
     delegate: anchor.web3.PublicKey;
     spl: boolean;
