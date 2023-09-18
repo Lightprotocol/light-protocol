@@ -219,6 +219,7 @@ function getConfigPath(): string {
   // Check for the environment variable
   const envConfigPath = process.env.LIGHT_PROTOCOL_CONFIG;
   if (envConfigPath) {
+    console.log(`reading config from custom path ${envConfigPath}`);
     if (!existsSync(envConfigPath)) {
       throw new Error(
         `Config file not found at ${envConfigPath}, this path is configured with the environment variable LIGHT_PROTOCOL_CONFIG, the default path is ${
@@ -237,26 +238,32 @@ function getConfigPath(): string {
 
 export const getConfig = (filePath?: string): Config => {
   if (!filePath) filePath = getConfigPath(); //process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
-  console.log("reading config from ", filePath);
   try {
     const data = fs.readFileSync(filePath, "utf-8");
     return JSON.parse(data);
   } catch (error) {
-    throw new Error("Failed to read configuration file");
-  }
+    // throw new Error("Failed to read configuration file");
+    // Ensure the directory structure exists
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    ensureDirectoryExists(process.env.HOME + CONFIG_PATH);
+    if (!fs.existsSync(filePath)) {
+      let data = {
+        ...DEFAULT_CONFIG,
+        // TODO: remove this default secret key which we need for tests right now
+        secretKey:
+          "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8", // bs58.encode(solana.Keypair.generate().secretKey),
+      };
 
-  for (const configPath of pathsToCheck) {
-    if (configPath && fs.existsSync(configPath)) {
-      try {
-        const data = fs.readFileSync(configPath, "utf-8");
-        return JSON.parse(data);
-      } catch (error) {
-        throw new Error(`Failed to read configuration file at ${configPath}`);
-      }
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      console.log("created config file in", filePath);
+
     }
   }
-
-  throw new Error("Configuration file not found in the specified paths");
+  const configData = fs.readFileSync(filePath, "utf-8");
+  return JSON.parse(configData);
 };
 
 export function ensureDirectoryExists(dirPath: string): void {
@@ -268,24 +275,6 @@ export function ensureDirectoryExists(dirPath: string): void {
 export const setConfig = (config: Partial<Config>, filePath?: string): void => {
   if (!filePath) filePath = getConfigPath(); //process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
 
-  // Ensure the directory structure exists
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  ensureDirectoryExists(process.env.HOME + CONFIG_PATH);
-  if (!fs.existsSync(filePath)) {
-    let data = {
-      ...DEFAULT_CONFIG,
-      // TODO: remove this default secret key which we need for tests right now
-      secretKey:
-        "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8", // bs58.encode(solana.Keypair.generate().secretKey),
-    };
-    console.log("created file ", filePath);
-
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-    console.log("created file ", filePath);
-  }
   try {
     const existingConfig = getConfig();
     const updatedConfig = { ...existingConfig, ...config };
