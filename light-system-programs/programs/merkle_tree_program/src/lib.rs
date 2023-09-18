@@ -1,7 +1,5 @@
 use anchor_lang::prelude::*;
 
-use light_merkle_tree::HashFunction;
-
 declare_id!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -15,6 +13,9 @@ solana_security_txt::security_txt! {
 
 pub mod event_merkle_tree;
 pub use event_merkle_tree::*;
+pub mod instructions;
+pub use instructions::*;
+pub mod indexed_merkle_tree;
 pub mod transaction_merkle_tree;
 pub use transaction_merkle_tree::*;
 pub mod verifier_invoked_instructions;
@@ -31,8 +32,9 @@ use crate::errors::ErrorCode;
 use crate::{
     transaction_merkle_tree::state::TransactionMerkleTree,
     utils::{
+        accounts::deserialize_and_update_old_merkle_tree,
         config::{self, ZERO_BYTES_MERKLE_TREE_18},
-        constants::{EVENT_MERKLE_TREE_HEIGHT, TRANSACTION_MERKLE_TREE_SEED},
+        constants::{EVENT_MERKLE_TREE_SEED, TRANSACTION_MERKLE_TREE_SEED},
     },
 };
 
@@ -42,8 +44,8 @@ pub mod merkle_tree_program {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the merkle_tree_authority.
-    pub fn initialize_new_transaction_merkle_tree(
-        ctx: Context<InitializeNewTransactionMerkleTree>,
+    pub fn initialize_new_merkle_trees(
+        ctx: Context<InitializeNewMerkleTrees>,
         lock_duration: u64,
     ) -> Result<()> {
         if !ctx
@@ -55,70 +57,36 @@ pub mod merkle_tree_program {
             return err!(ErrorCode::InvalidAuthority);
         }
 
-        if ctx.remaining_accounts.len() != 1 {
-            return err!(ErrorCode::ExpectedOldMerkleTree);
+        if ctx.remaining_accounts.len() != 2 {
+            return err!(ErrorCode::ExpectedOldMerkleTrees);
         }
 
-        let old_merkle_tree_loader: AccountLoader<TransactionMerkleTree> =
-            AccountLoader::try_from(&ctx.remaining_accounts[0])?;
-        let old_merkle_tree_key = old_merkle_tree_loader.key();
-        let mut old_merkle_tree = old_merkle_tree_loader.load_mut()?;
-
-        let index = old_merkle_tree.merkle_tree_nr;
-        let (pubkey, _) = Pubkey::find_program_address(
-            &[TRANSACTION_MERKLE_TREE_SEED, index.to_le_bytes().as_ref()],
-            ctx.program_id,
-        );
-        if old_merkle_tree_key != pubkey {
-            return err!(ErrorCode::InvalidOldMerkleTree);
-        }
-
-        if old_merkle_tree.newest != 1 {
-            return err!(ErrorCode::NotNewestOldMerkleTree);
-        }
-        old_merkle_tree.newest = 0;
-
-        let new_merkle_tree = &mut ctx.accounts.new_transaction_merkle_tree.load_init()?;
         let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
 
+        // Transaction Merkle Tree
+        deserialize_and_update_old_merkle_tree::<TransactionMerkleTree>(
+            &ctx.remaining_accounts[0],
+            TRANSACTION_MERKLE_TREE_SEED,
+            ctx.program_id,
+        )?;
+        let new_transaction_merkle_tree =
+            &mut ctx.accounts.new_transaction_merkle_tree.load_init()?;
         process_initialize_new_merkle_tree_18(
-            new_merkle_tree,
+            new_transaction_merkle_tree,
             merkle_tree_authority,
             18,
             ZERO_BYTES_MERKLE_TREE_18.to_vec(),
         );
+        new_transaction_merkle_tree.lock_duration = lock_duration;
 
-        new_merkle_tree.lock_duration = lock_duration;
-
-        Ok(())
-    }
-
-    pub fn initialize_new_event_merkle_tree(
-        ctx: Context<InitializeNewEventMerkleTree>,
-    ) -> Result<()> {
-        if !ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .enable_permissionless_merkle_tree_registration
-            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
-        {
-            return err!(ErrorCode::InvalidAuthority);
-        }
-        let merkle_tree = &mut ctx.accounts.event_merkle_tree.load_init()?;
-
-        let merkle_tree_index = ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .event_merkle_tree_index;
-
-        merkle_tree
-            .merkle_tree
-            .init(EVENT_MERKLE_TREE_HEIGHT, HashFunction::Sha256);
-        merkle_tree.merkle_tree_nr = merkle_tree_index;
-
-        ctx.accounts
-            .merkle_tree_authority_pda
-            .event_merkle_tree_index += 1;
+        // Event Merkle Tree
+        deserialize_and_update_old_merkle_tree::<event_merkle_tree::EventMerkleTree>(
+            &ctx.remaining_accounts[1],
+            EVENT_MERKLE_TREE_SEED,
+            ctx.program_id,
+        )?;
+        let new_event_merkle_tree = &mut ctx.accounts.new_event_merkle_tree.load_init()?;
+        process_initialize_new_event_merkle_tree(new_event_merkle_tree, merkle_tree_authority);
 
         Ok(())
     }
@@ -138,6 +106,11 @@ pub mod merkle_tree_program {
             18,
             ZERO_BYTES_MERKLE_TREE_18.to_vec(),
         );
+
+        let event_merkle_tree = &mut ctx.accounts.event_merkle_tree.load_init()?;
+        let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
+
+        process_initialize_new_event_merkle_tree(event_merkle_tree, merkle_tree_authority);
 
         Ok(())
     }

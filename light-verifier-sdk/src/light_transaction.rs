@@ -36,8 +36,8 @@ use merkle_tree_program::{
     program::MerkleTreeProgram,
     state::TransactionMerkleTree,
     utils::{
+        accounts::create_and_check_pda,
         constants::{POOL_CONFIG_SEED, POOL_SEED, TRANSACTION_MERKLE_TREE_SEED},
-        create_pda::create_and_check_pda,
     },
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
@@ -518,8 +518,8 @@ impl<
         let nr_nullifiers_leaves = NR_NULLIFIERS + NR_LEAVES;
         let remaining_accounts_len = self.input.ctx.remaining_accounts.len();
         if remaining_accounts_len != nr_nullifiers_leaves // Only nullifiers and leaves.
-            // Nullifiers, leaves and next transaction Merkle tree.
-            && remaining_accounts_len != nr_nullifiers_leaves + 1
+            // Nullifiers, leaves and next Merkle trees (transaction, event).
+            && remaining_accounts_len != nr_nullifiers_leaves + 2
         {
             msg!(
                 "remaining_accounts.len() {} (expected {} or {})",

@@ -161,7 +161,7 @@ export type MerkleTreeProgram = {
   ],
   "instructions": [
     {
-      "name": "initializeNewTransactionMerkleTree",
+      "name": "initializeNewMerkleTrees",
       "docs": [
         "Initializes a new Merkle tree from config bytes.",
         "Can only be called from the merkle_tree_authority."
@@ -174,6 +174,11 @@ export type MerkleTreeProgram = {
         },
         {
           "name": "newTransactionMerkleTree",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "newEventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -201,32 +206,6 @@ export type MerkleTreeProgram = {
       ]
     },
     {
-      "name": "initializeNewEventMerkleTree",
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "eventMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "merkleTreeAuthorityPda",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "initializeMerkleTreeAuthority",
       "docs": [
         "Initializes a new merkle tree authority which can register new verifiers and configure",
@@ -240,6 +219,11 @@ export type MerkleTreeProgram = {
         },
         {
           "name": "transactionMerkleTree",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -963,14 +947,27 @@ export type MerkleTreeProgram = {
         "kind": "struct",
         "fields": [
           {
+            "name": "merkleTreeNr",
+            "type": "u64"
+          },
+          {
+            "name": "newest",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
             "name": "merkleTree",
             "type": {
               "defined": "MerkleTree"
             }
-          },
-          {
-            "name": "merkleTreeNr",
-            "type": "u64"
           }
         ]
       }
@@ -1518,8 +1515,8 @@ export type MerkleTreeProgram = {
     },
     {
       "code": 6019,
-      "name": "ExpectedOldMerkleTree",
-      "msg": "Expected old Merkle tree as a remaining account."
+      "name": "ExpectedOldMerkleTrees",
+      "msg": "Expected old Merkle trees as remaining accounts."
     },
     {
       "code": 6020,
@@ -1697,7 +1694,7 @@ export const IDL: MerkleTreeProgram = {
   ],
   "instructions": [
     {
-      "name": "initializeNewTransactionMerkleTree",
+      "name": "initializeNewMerkleTrees",
       "docs": [
         "Initializes a new Merkle tree from config bytes.",
         "Can only be called from the merkle_tree_authority."
@@ -1710,6 +1707,11 @@ export const IDL: MerkleTreeProgram = {
         },
         {
           "name": "newTransactionMerkleTree",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "newEventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -1737,32 +1739,6 @@ export const IDL: MerkleTreeProgram = {
       ]
     },
     {
-      "name": "initializeNewEventMerkleTree",
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "eventMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "merkleTreeAuthorityPda",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "initializeMerkleTreeAuthority",
       "docs": [
         "Initializes a new merkle tree authority which can register new verifiers and configure",
@@ -1776,6 +1752,11 @@ export const IDL: MerkleTreeProgram = {
         },
         {
           "name": "transactionMerkleTree",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "eventMerkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -2499,14 +2480,27 @@ export const IDL: MerkleTreeProgram = {
         "kind": "struct",
         "fields": [
           {
+            "name": "merkleTreeNr",
+            "type": "u64"
+          },
+          {
+            "name": "newest",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
             "name": "merkleTree",
             "type": {
               "defined": "MerkleTree"
             }
-          },
-          {
-            "name": "merkleTreeNr",
-            "type": "u64"
           }
         ]
       }
@@ -3054,8 +3048,8 @@ export const IDL: MerkleTreeProgram = {
     },
     {
       "code": 6019,
-      "name": "ExpectedOldMerkleTree",
-      "msg": "Expected old Merkle tree as a remaining account."
+      "name": "ExpectedOldMerkleTrees",
+      "msg": "Expected old Merkle trees as remaining accounts."
     },
     {
       "code": 6020,
