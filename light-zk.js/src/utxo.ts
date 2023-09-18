@@ -44,8 +44,6 @@ export const N_ASSET_PUBKEYS = 3;
 // TODO: Idl support for U256
 // TODO: add static createSolUtxo()
 // TODO: remove account as attribute and from constructor, replace with shieldedPublicKey
-exports;
-
 export class Utxo {
   /**
    * @param {BN[]} amounts array of utxo amounts, amounts[0] is the sol amount amounts[1] is the spl amount

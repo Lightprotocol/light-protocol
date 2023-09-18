@@ -261,7 +261,7 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    if (typeof utxo3 !== "boolean") {
+    if (utxo3) {
       Utxo.equal(poseidon, utxo0, utxo3);
     } else {
       throw new Error("decrypt failed");
