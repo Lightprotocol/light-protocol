@@ -15,7 +15,6 @@ var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
 import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
-import { assert } from "chai";
 import {
   UtxoError,
   UtxoErrorCode,
@@ -833,71 +832,102 @@ export class Utxo {
     utxo1: Utxo,
     skipNullifier: boolean = false,
   ) {
-    assert.equal(
-      utxo0.amounts[0].toString(),
-      utxo1.amounts[0].toString(),
-      "solAmount",
-    );
-    assert.equal(
-      utxo0.amounts[1].toString(),
-      utxo1.amounts[1].toString(),
-      "splAmount",
-    );
-    assert.equal(
-      utxo0.assets[0].toBase58(),
-      utxo1.assets[0].toBase58(),
-      "solAsset",
-    );
-    assert.equal(utxo0.assets[1].toBase58(), utxo1.assets[1].toBase58()),
-      "splAsset";
-    assert.equal(
-      utxo0.assetsCircuit[0].toString(),
-      utxo1.assetsCircuit[0].toString(),
-      "solAsset circuit",
-    );
-    assert.equal(
-      utxo0.assetsCircuit[1].toString(),
-      utxo1.assetsCircuit[1].toString(),
-      "splAsset circuit",
-    );
-    assert.equal(
-      utxo0.appDataHash.toString(),
-      utxo1.appDataHash.toString(),
-      "appDataHash",
-    );
-    assert.equal(
-      utxo0.poolType.toString(),
-      utxo1.poolType.toString(),
-      "poolType",
-    );
-    assert.equal(
-      utxo0.verifierAddress.toString(),
-      utxo1.verifierAddress.toString(),
-      "verifierAddress",
-    );
-    assert.equal(
-      utxo0.verifierAddressCircuit.toString(),
-      utxo1.verifierAddressCircuit.toString(),
-      "verifierAddressCircuit",
-    );
+    if (utxo0.amounts[0].toString() !== utxo1.amounts[0].toString()) {
+      throw new Error(
+        `solAmount not equal: ${utxo0.amounts[0].toString()} vs ${utxo1.amounts[0].toString()}`,
+      );
+    }
 
-    assert.equal(
-      utxo0.getCommitment(poseidon)?.toString(),
-      utxo1.getCommitment(poseidon)?.toString(),
-      "commitment",
-    );
+    if (utxo0.amounts[1].toString() !== utxo1.amounts[1].toString()) {
+      throw new Error(
+        `splAmount not equal: ${utxo0.amounts[1].toString()} vs ${utxo1.amounts[1].toString()}`,
+      );
+    }
+
+    if (utxo0.assets[0].toBase58() !== utxo1.assets[0].toBase58()) {
+      throw new Error(
+        `solAsset not equal: ${utxo0.assets[0].toBase58()} vs ${utxo1.assets[0].toBase58()}`,
+      );
+    }
+
+    if (utxo0.assets[1].toBase58() !== utxo1.assets[1].toBase58()) {
+      throw new Error(
+        `splAsset not equal: ${utxo0.assets[1].toBase58()} vs ${utxo1.assets[1].toBase58()}`,
+      );
+    }
+
+    if (
+      utxo0.assetsCircuit[0].toString() !== utxo1.assetsCircuit[0].toString()
+    ) {
+      throw new Error(
+        `solAsset circuit not equal: ${utxo0.assetsCircuit[0].toString()} vs ${utxo1.assetsCircuit[0].toString()}`,
+      );
+    }
+
+    if (
+      utxo0.assetsCircuit[1].toString() !== utxo1.assetsCircuit[1].toString()
+    ) {
+      throw new Error(
+        `splAsset circuit not equal: ${utxo0.assetsCircuit[1].toString()} vs ${utxo1.assetsCircuit[1].toString()}`,
+      );
+    }
+
+    if (utxo0.appDataHash.toString() !== utxo1.appDataHash.toString()) {
+      throw new Error(
+        `appDataHash not equal: ${utxo0.appDataHash.toString()} vs ${utxo1.appDataHash.toString()}`,
+      );
+    }
+
+    if (utxo0.poolType.toString() !== utxo1.poolType.toString()) {
+      throw new Error(
+        `poolType not equal: ${utxo0.poolType.toString()} vs ${utxo1.poolType.toString()}`,
+      );
+    }
+
+    if (utxo0.verifierAddress.toString() !== utxo1.verifierAddress.toString()) {
+      throw new Error(
+        `verifierAddress not equal: ${utxo0.verifierAddress.toString()} vs ${utxo1.verifierAddress.toString()}`,
+      );
+    }
+
+    if (
+      utxo0.verifierAddressCircuit.toString() !==
+      utxo1.verifierAddressCircuit.toString()
+    ) {
+      throw new Error(
+        `verifierAddressCircuit not equal: ${utxo0.verifierAddressCircuit.toString()} vs ${utxo1.verifierAddressCircuit.toString()}`,
+      );
+    }
+
+    if (
+      utxo0.getCommitment(poseidon)?.toString() !==
+      utxo1.getCommitment(poseidon)?.toString()
+    ) {
+      throw new Error(
+        `commitment not equal: ${utxo0
+          .getCommitment(poseidon)
+          ?.toString()} vs ${utxo1.getCommitment(poseidon)?.toString()}`,
+      );
+    }
+
     if (!skipNullifier) {
       if (utxo0.index || utxo1.index) {
         if (utxo0.account.privkey || utxo1.account.privkey) {
-          assert.equal(
-            utxo0.getNullifier(poseidon)?.toString(),
-            utxo1.getNullifier(poseidon)?.toString(),
-            "nullifier",
-          );
+          if (
+            utxo0.getNullifier(poseidon)?.toString() !==
+            utxo1.getNullifier(poseidon)?.toString()
+          ) {
+            throw new Error(
+              `nullifier not equal: ${utxo0
+                .getNullifier(poseidon)
+                ?.toString()} vs ${utxo1.getNullifier(poseidon)?.toString()}`,
+            );
+          }
         }
       }
     }
   }
+
   static getAppInUtxoIndices(appUtxos: Utxo[]) {
     let isAppInUtxo = [];
     for (const i in appUtxos) {

@@ -39,7 +39,6 @@ import {
   confirmTransaction,
   BN_0,
 } from "../index";
-import { assert } from "chai";
 import { Program } from "@coral-xyz/anchor";
 let circomlibjs = require("circomlibjs");
 
@@ -204,12 +203,13 @@ export async function createMintWrapper({
       [authorityKeypair, mintKeypair],
       confirmConfig,
     );
-    assert(
-      (await connection.getTransaction(res, {
-        commitment: "confirmed",
-      })) != null,
-      "create mint account failed",
-    );
+    const transactionResult = await connection.getTransaction(res, {
+      commitment: "confirmed",
+    });
+    if (transactionResult === null) {
+      throw new Error("create mint account failed");
+    }
+
     let mint = await createMint(
       connection,
       authorityKeypair,
@@ -218,10 +218,11 @@ export async function createMintWrapper({
       decimals, //2,
       mintKeypair,
     );
-    assert(
-      (await connection.getAccountInfo(mint)) != null,
-      "create mint failed",
-    );
+    const accountInfo = await connection.getAccountInfo(mint);
+    if (accountInfo === null) {
+      throw new Error("create mint failed");
+    }
+
     return mintKeypair.publicKey;
   } catch (e) {
     console.log(e);
@@ -243,7 +244,9 @@ export async function createTestAccounts(
 
     let Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
 
-    assert(Newbalance == balance + amount, "airdrop failed");
+    if (Newbalance !== balance + amount) {
+      throw new Error("airdrop failed");
+    }
 
     let signature2 = await connection.requestAirdrop(AUTHORITY_ONE, amount);
     await confirmTransaction(connection, signature2);

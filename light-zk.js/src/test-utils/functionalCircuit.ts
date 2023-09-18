@@ -10,7 +10,6 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
-import { assert, expect } from "chai";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -79,10 +78,12 @@ export async function functionalCircuitTest(
     tx.proofInput.inIndices[0][1][1] = "1";
     // TODO: investigate why this does not kill the proof
     tx.proofInput.inIndices[0][1][0] = "1";
-    expect(await tx.getProof()).to.Throw();
+    await tx.getProof();
     x = false;
   } catch (error) {
     // assert.isTrue(error.toString().includes("CheckIndices_3 line:"));
   }
-  assert.isTrue(x);
+  if (!x) {
+    throw new Error("Expected value to be true, but it was false.");
+  }
 }
