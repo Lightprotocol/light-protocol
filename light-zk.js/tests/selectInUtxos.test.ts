@@ -408,7 +408,6 @@ describe("Test selectInUtxos Errors", () => {
         action: Action.UNSHIELD,
         relayerFee: RELAYER_FEE,
         poseidon,
-        // publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: BN_1,
         numberMaxInUtxos,
@@ -451,7 +450,6 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
-        // relayerFee: RELAYER_FEE,
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -474,7 +472,6 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        // relayerFee: RELAYER_FEE,
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -516,7 +513,6 @@ describe("Test selectInUtxos Errors", () => {
   it("NO_UTXOS_PROVIDED", async () => {
     expect(() => {
       selectInUtxos({
-        // utxos: [utxoSol, utxo1],
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
         poseidon,
