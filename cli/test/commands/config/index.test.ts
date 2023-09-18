@@ -59,6 +59,8 @@ describe("config with env variable", () => {
     .stdout({ print: true })
     .command(["config", "--rpcUrl=http://127.0.0.1:8899"])
     .it("runs rpc url update cmd", (ctx) => {
-      expect(ctx.stdout).to.contain(`reading config from custom path ${filePath}`);
+      expect(ctx.stdout).to.contain(
+        `reading config from custom path ${filePath}`
+      );
     });
 });
