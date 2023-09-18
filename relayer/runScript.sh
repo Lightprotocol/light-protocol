@@ -13,24 +13,7 @@ VERIFIER_PROGRAM_TWO_ID="2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
 MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
 solana config set --url http://localhost:8899
-# kills existing solana processes
-killall solana-test-val &
-sleep 1
-pkill solana-test-validator || true
-solana-test-validator \
-    --reset \
-    --limit-ledger-size="${LIMIT_LEDGER_SIZE}" \
-    --quiet \
-    --bpf-program "${NOOP_PROGRAM_ID}" ../test-env/programs/spl_noop.so \
-    --bpf-program "${MERKLE_TREE_PROGRAM_ID}" ../light-system-programs/target/deploy/merkle_tree_program.so \
-    --bpf-program "${VERIFIER_PROGRAM_ZERO_ID}" ../light-system-programs/target/deploy/verifier_program_zero.so \
-    --bpf-program "${VERIFIER_PROGRAM_STORAGE_ID}" ../light-system-programs/target/deploy/verifier_program_storage.so \
-    --bpf-program "${VERIFIER_PROGRAM_ONE_ID}" ../light-system-programs/target/deploy/verifier_program_one.so \
-    --bpf-program "${VERIFIER_PROGRAM_TWO_ID}" ../light-system-programs/target/deploy/verifier_program_two.so \
-    --account-dir ../test-env/accounts \
-    &
-
-sleep 7
+./../cli/test_bin/run test-validator -b
 
 if [ ! -f "$.env" ]
 then

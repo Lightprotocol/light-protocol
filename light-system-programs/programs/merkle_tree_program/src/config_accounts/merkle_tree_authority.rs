@@ -1,7 +1,10 @@
 use crate::config;
 use crate::errors::ErrorCode;
+use crate::event_merkle_tree::EventMerkleTree;
 use crate::transaction_merkle_tree::state::TransactionMerkleTree;
-use crate::utils::constants::{MERKLE_TREE_AUTHORITY_SEED, TRANSACTION_MERKLE_TREE_SEED};
+use crate::utils::constants::{
+    EVENT_MERKLE_TREE_SEED, MERKLE_TREE_AUTHORITY_SEED, TRANSACTION_MERKLE_TREE_SEED,
+};
 use anchor_lang::prelude::*;
 
 /// Configures the authority of the merkle tree which can:
@@ -42,6 +45,22 @@ pub struct InitializeMerkleTreeAuthority<'info> {
         space = 8880
     )]
     pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
+    #[account(
+        init,
+        seeds = [
+            EVENT_MERKLE_TREE_SEED,
+            0u64.to_le_bytes().as_ref(),
+        ],
+        bump,
+        payer=authority,
+        // discriminator + height (u64) + filled subtrees ([[u8; 32]; 18]) +
+        // roots ([[u8; 32]; 20]) + next_index (u64) + current_root_index (u64)
+        // + hash_function (enum) + merkle_tree_nr (u64) + newest (u8) +
+        // padding (7 * u8)
+        // 8 + 8 + 18 * 32 + 20 * 32 + 8 + 8 + 8 + 8 + 8 + 1 + 7 = 1280
+        space = 1280,
+    )]
+    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
     /// CHECK:` Signer is merkle tree init authority.
     #[account(mut, address=anchor_lang::prelude::Pubkey::try_from(config::INITIAL_MERKLE_TREE_AUTHORITY).map_err(|_| ErrorCode::PubkeyTryFromFailed)? @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,

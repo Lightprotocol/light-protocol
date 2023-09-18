@@ -1,4 +1,4 @@
-use crate::utils::{constants::NULLIFIER_SEED, create_pda::create_and_check_pda};
+use crate::utils::{accounts::create_and_check_pda, constants::NULLIFIER_SEED};
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{pubkey::Pubkey, sysvar};

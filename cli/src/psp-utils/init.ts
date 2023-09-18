@@ -32,9 +32,9 @@ export const initRepo = async (name: string, type: ProjectType) => {
       "generate",
       "--git",
       "https://github.com/Lightprotocol/psp-template",
-      // TODO(vadorovsky): Switch back to a new release when accounts macro is
-      // supported.
-      //
+      // TODO(vadorovsky): Switch back to a new release when
+      // https://github.com/Lightprotocol/psp-template/pull/12
+      // is merged and released.
       // "--tag",
       // PSP_TEMPLATE_TAG,
       "--branch",

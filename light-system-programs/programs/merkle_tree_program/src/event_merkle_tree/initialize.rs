@@ -1,41 +1,17 @@
+use std::cell::RefMut;
+
 use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_merkle_tree::{
     config::MerkleTreeConfig,
     constants::{sha256::ZERO_BYTES, ZeroBytes},
     hasher::Sha256,
-    MerkleTree,
+    HashFunction, MerkleTree,
 };
 
 use crate::{
-    utils::constants::{EVENT_MERKLE_TREE_SEED, MERKLE_TREE_AUTHORITY_SEED},
-    MerkleTreeAuthority,
+    impl_indexed_merkle_tree, utils::constants::EVENT_MERKLE_TREE_HEIGHT, MerkleTreeAuthority,
 };
-
-#[derive(Accounts)]
-pub struct InitializeNewEventMerkleTree<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    /// CHECK: it should be unpacked internally
-    #[account(
-        init,
-        seeds = [
-            EVENT_MERKLE_TREE_SEED,
-            merkle_tree_authority_pda.event_merkle_tree_index.to_le_bytes().as_ref(),
-        ],
-        bump,
-        payer = authority,
-        // discriminator + height (u64) + filled subtrees ([[u8; 32]; 18]) +
-        // roots ([[u8; 32]; 20]) + next_index (u64) + current_root_index (u64)
-        // + hash_function (enum)
-        // 8 + 8 + 18 * 32 + 20 * 32 + 8 + 8 + 8 + 8 = 1264
-        space = 1264,
-    )]
-    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
-    pub system_program: Program<'info, System>,
-    #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
-    pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
-}
 
 #[derive(Clone, Copy)]
 pub struct EventMerkleTreeConfig {}
@@ -47,6 +23,23 @@ impl MerkleTreeConfig for EventMerkleTreeConfig {
 
 #[account(zero_copy)]
 pub struct EventMerkleTree {
-    pub merkle_tree: MerkleTree<Sha256, EventMerkleTreeConfig>,
     pub merkle_tree_nr: u64,
+    pub newest: u8,
+    _padding: [u8; 7],
+    pub merkle_tree: MerkleTree<Sha256, EventMerkleTreeConfig>,
+}
+
+impl_indexed_merkle_tree!(EventMerkleTree);
+
+pub fn process_initialize_new_event_merkle_tree(
+    merkle_tree: &mut RefMut<'_, EventMerkleTree>,
+    merkle_tree_authority: &mut Account<'_, MerkleTreeAuthority>,
+) {
+    merkle_tree
+        .merkle_tree
+        .init(EVENT_MERKLE_TREE_HEIGHT, HashFunction::Sha256);
+    merkle_tree.merkle_tree_nr = merkle_tree_authority.event_merkle_tree_index;
+    merkle_tree.newest = 1;
+
+    merkle_tree_authority.event_merkle_tree_index += 1;
 }
