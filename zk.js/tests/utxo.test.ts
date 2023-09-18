@@ -128,17 +128,17 @@ describe("Utxo Functional", () => {
 
       // decrypt unchecked
       const utxo41u = await Utxo.decryptUnchecked({
-      poseidon,
+        poseidon,
         encBytes: encBytes4,
         account: utxo4Account,
         aes: true,
         index: 0,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         commitment: new BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
-    });
+        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          lightProvider.lookUpTables.verifierProgramLookupTable,
+      });
 
       if (utxo41u !== null) {
         Utxo.equal(poseidon, utxo4, utxo41u);
@@ -637,13 +637,13 @@ describe("Utxo Errors", () => {
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
-      lightProvider.lookUpTables.verifierProgramLookupTable,
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     // encrypt
     const encBytesNacl = await receivingUtxo.encrypt(
-        poseidon,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      poseidon,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
     );
 
     // decrypt
@@ -655,12 +655,12 @@ describe("Utxo Errors", () => {
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       aes: false,
       commitment: new BN(receivingUtxo.getCommitment(poseidon)).toBuffer(
-          "le",
-          32,
+        "le",
+        32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
-      lightProvider.lookUpTables.verifierProgramLookupTable,
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     if (receivingUtxo1) {
@@ -685,11 +685,11 @@ describe("Utxo Benchmark", () => {
       appDataHash: new BN(verifierProgramTwoProgramId.toBuffer()),
       includeAppData: false,
       verifierAddress: new PublicKey(
-          lightProvider.lookUpTables.verifierProgramLookupTable[1],
+        lightProvider.lookUpTables.verifierProgramLookupTable[1],
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
-      lightProvider.lookUpTables.verifierProgramLookupTable,
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     // encrypt
@@ -708,7 +708,7 @@ describe("Utxo Benchmark", () => {
 
     console.time("getTransactionMerkleTreePdaTime");
     const transactionMerkleTreePda =
-        MerkleTreeConfig.getTransactionMerkleTreePda();
+      MerkleTreeConfig.getTransactionMerkleTreePda();
     console.timeEnd("getTransactionMerkleTreePdaTime");
 
     console.time("256kPrefixHashCollisionTestTime");
@@ -723,14 +723,14 @@ describe("Utxo Benchmark", () => {
         commitment: new BN(testUtxo.getCommitment(poseidon)).toBuffer("le", 32),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
       if (resultUtxo === true) collisionCounter++;
     }
     console.timeEnd("256kPrefixHashCollisionTestTime");
     console.log(
-        "collisions detected (over 256k decryption attempts): ",
-        collisionCounter,
+      "collisions detected (over 256k decryption attempts): ",
+      collisionCounter,
     );
   });
 });

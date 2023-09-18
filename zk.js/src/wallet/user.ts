@@ -1644,12 +1644,12 @@ export class User {
     if (shield) {
       this.recentTransactionParameters =
         await this.createShieldTransactionParameters({
-        token: "SOL",
-        publicAmountSol: BN_0,
-        minimumLamports: false,
-        message,
-        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-      });
+          token: "SOL",
+          publicAmountSol: BN_0,
+          minimumLamports: false,
+          message,
+          verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+        });
     } else {
       const inUtxos: Utxo[] = [];
       // any utxo just select any utxo with a non-zero sol balance preferably sol balance
@@ -1678,21 +1678,21 @@ export class User {
 
       this.recentTransactionParameters =
         await TransactionParameters.getTxParams({
-        tokenCtx,
-        action: Action.TRANSFER,
-        account: this.account,
-        inUtxos,
-        provider: this.provider,
-        relayer: this.provider.relayer,
-        appUtxo: this.appUtxoConfig,
-        message,
-        mergeUtxos: true,
-        addInUtxos: false,
-        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-        assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          this.provider.lookUpTables.verifierProgramLookupTable,
-      });
+          tokenCtx,
+          action: Action.TRANSFER,
+          account: this.account,
+          inUtxos,
+          provider: this.provider,
+          relayer: this.provider.relayer,
+          appUtxo: this.appUtxoConfig,
+          message,
+          mergeUtxos: true,
+          addInUtxos: false,
+          verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            this.provider.lookUpTables.verifierProgramLookupTable,
+        });
     }
 
     return this.transactWithParameters({

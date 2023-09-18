@@ -146,9 +146,9 @@ describe("Utxo Functional", () => {
         });
         utxos.push(utxo);
         const encryptedUtxo = await utxo.encrypt(
-            poseidon,
-            MerkleTreeConfig.getTransactionMerkleTreePda(),
-            true,
+          poseidon,
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
+          true,
         );
         encryptedUtxos = [...encryptedUtxos, ...encryptedUtxo];
       }
@@ -168,8 +168,8 @@ describe("Utxo Functional", () => {
           const leafLeft = trx.leaves[index];
           const leafRight = trx.leaves[index + 1];
           let encBytes = Buffer.from(
-              trx.encryptedUtxos.slice(
-                (index / 2) * 240,
+            trx.encryptedUtxos.slice(
+              (index / 2) * 240,
               (index / 2) * 240 +
                 NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
                 PREFIX_LENGTH,
