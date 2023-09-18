@@ -22,7 +22,7 @@ jobs:
       matrix:
         include:
           - name: sdk-tests-light-zk-light-circuits-relayer-cli
-            sub-tests: '["light-zk.js", "light-circuits", "relayer", "cli", "light-prover.js"]'
+            sub-tests: '["light-zk.js", "circuit-lib/circuit-lib.js","circuit-lib/circuit-lib.circom", "relayer", "cli", "light-prover.js"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -41,5 +41,5 @@ jobs:
           do
             cd $subtest
             yarn test
-            cd ..
+            cd -
           done

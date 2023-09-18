@@ -7,7 +7,7 @@ import {
   ParsedIndexedTransaction,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
-import { MerkleTree } from "./merkleTree";
+import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 const anchor = require("@coral-xyz/anchor");
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
