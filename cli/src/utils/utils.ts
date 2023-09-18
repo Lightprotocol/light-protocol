@@ -214,6 +214,7 @@ export const setPayer = (key: string) => {
   setConfig({ payer: key });
 };
 import { existsSync } from "fs";
+import { config } from "dotenv";
 
 function getConfigPath(): string {
   // Check for the environment variable
@@ -237,12 +238,11 @@ function getConfigPath(): string {
 }
 
 export const getConfig = (filePath?: string): Config => {
-  if (!filePath) filePath = getConfigPath(); //process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+  if (!filePath) filePath = getConfigPath();
+  let configData: any;
   try {
-    const data = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(data);
+    configData = fs.readFileSync(filePath, "utf-8");
   } catch (error) {
-    // throw new Error("Failed to read configuration file");
     // Ensure the directory structure exists
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
@@ -252,16 +252,14 @@ export const getConfig = (filePath?: string): Config => {
     if (!fs.existsSync(filePath)) {
       let data = {
         ...DEFAULT_CONFIG,
-        // TODO: remove this default secret key which we need for tests right now
-        secretKey:
-          "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8", // bs58.encode(solana.Keypair.generate().secretKey),
+        secretKey: bs58.encode(solana.Keypair.generate().secretKey),
       };
 
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
       console.log("created config file in", filePath);
+      configData = fs.readFileSync(filePath, "utf-8");
     }
   }
-  const configData = fs.readFileSync(filePath, "utf-8");
   return JSON.parse(configData);
 };
 
@@ -272,7 +270,7 @@ export function ensureDirectoryExists(dirPath: string): void {
 }
 
 export const setConfig = (config: Partial<Config>, filePath?: string): void => {
-  if (!filePath) filePath = getConfigPath(); //process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
+  if (!filePath) filePath = getConfigPath();
 
   try {
     const existingConfig = getConfig();

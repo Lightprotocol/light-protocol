@@ -84,7 +84,7 @@ class ConfigCommand extends Command {
           this.error(`\nInvalid URL format`);
         }
       }
-      // http://localhost:3331
+      // http://localhost:3332
       if (relayerUrl) {
         if (isValidURL(relayerUrl)) {
           config.relayerUrl = relayerUrl;
