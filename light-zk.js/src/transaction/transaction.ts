@@ -493,9 +493,7 @@ export class Transaction {
         const nextEventMerkleTreeIndex =
           await merkleTreeConfig.getEventMerkleTreeIndex();
         const nextEventMerkleTreePubkey =
-          MerkleTreeConfig.getEventMerkleTreePda(
-            nextEventMerkleTreeIndex
-          );
+          MerkleTreeConfig.getEventMerkleTreePda(nextEventMerkleTreeIndex);
 
         this.remainingAccounts!.nextTransactionMerkleTree = {
           isSigner: false,
@@ -888,9 +886,7 @@ export class Transaction {
           );
         }
         if (this.remainingAccounts!.nextEventMerkleTree !== undefined) {
-          remainingAccounts.push(
-            this.remainingAccounts!.nextEventMerkleTree,
-          );
+          remainingAccounts.push(this.remainingAccounts!.nextEventMerkleTree);
         }
         method.remainingAccounts(remainingAccounts);
       }
