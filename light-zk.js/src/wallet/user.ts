@@ -986,7 +986,10 @@ export class User {
     let relayerMerkleTreeUpdateResponse = "notPinged";
 
     if (confirmOptions === ConfirmOptions.finalized) {
-      // Don't add await here
+      // Don't add await here, because the utxos have been spent the transaction is final.
+      // We just want to ping the relayer to update the Merkle tree not wait for the update.
+      // This option should be used to speed up transactions when we do not expect a following
+      // transaction which depends on the newly created utxos.
       this.provider.relayer.updateMerkleTree(this.provider);
       relayerMerkleTreeUpdateResponse = "pinged relayer";
     }
@@ -1030,7 +1033,7 @@ export class User {
     appUtxoConfig?: AppUtxoConfig;
     account?: Account;
     skipFetchBalance?: boolean;
-  }): Promise<any> {
+  }): Promise<User> {
     try {
       if (!seed) {
         if (provider.wallet) {

@@ -107,13 +107,8 @@ describe("verifier_program", () => {
       senderSpl: userTokenAccount,
       shuffleEnabled: true,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      updateMerkleTree: true
     });
-    const lightProvider = await Provider.init({
-      wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
-      confirmConfig,
-    });
-    await lightProvider.relayer.updateMerkleTree(lightProvider);
   });
 
   it("Withdraw (verifier zero)", async () => {
@@ -175,6 +170,7 @@ describe("verifier_program", () => {
     senderSpl,
     shuffleEnabled = true,
     verifierIdl,
+    updateMerkleTree = false
   }: {
     delegate: anchor.web3.PublicKey;
     spl: boolean;
@@ -182,6 +178,7 @@ describe("verifier_program", () => {
     senderSpl: anchor.web3.PublicKey;
     shuffleEnabled: boolean;
     verifierIdl: Idl;
+    updateMerkleTree?: boolean;
   }) => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
@@ -263,6 +260,10 @@ describe("verifier_program", () => {
       tx.proofInput,
       KEYPAIR,
     );
+
+    if (updateMerkleTree) {
+      await lightProvider.relayer.updateMerkleTree(lightProvider);
+    }
   };
 
   const performWithdrawal = async ({
