@@ -20,7 +20,7 @@ const find = require("find-process");
 export async function initTestEnv({
   additonalPrograms,
   skip_system_accounts,
-  background,
+  background = true,
 }: {
   additonalPrograms?: { address: string; path: string }[];
   skip_system_accounts?: boolean;
