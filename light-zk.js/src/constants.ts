@@ -204,3 +204,8 @@ export const TOKEN_PUBKEY_SYMBOL: Map<string, string> = new Map([
  * a margin.
  */
 export const TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD = new anchor.BN(255_000);
+
+/**
+ * Default lock duration of the Transacion Merkle Tree.
+ */
+export const DEFAULT_MERKLE_TREE_LOCK_DURATION = new anchor.BN(50);

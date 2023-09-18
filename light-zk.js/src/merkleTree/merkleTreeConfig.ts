@@ -13,6 +13,7 @@ import {
   BN_0,
   BN_1,
   confirmConfig,
+  DEFAULT_MERKLE_TREE_LOCK_DURATION,
   DEFAULT_PROGRAMS,
   merkleTreeProgramId,
 } from "../index";
@@ -77,7 +78,7 @@ export class MerkleTreeConfig {
       MerkleTreeConfig.getEventMerkleTreePda(eventMerkleTreeIndex);
 
     const tx = await this.merkleTreeProgram.methods
-      .initializeNewMerkleTrees(new anchor.BN("50"))
+      .initializeNewMerkleTrees(DEFAULT_MERKLE_TREE_LOCK_DURATION)
       .accounts({
         authority: this.payer.publicKey,
         newTransactionMerkleTree: newTransactionMerkleTree,
