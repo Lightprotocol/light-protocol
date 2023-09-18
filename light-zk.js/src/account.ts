@@ -271,15 +271,16 @@ export class Account {
     merkleTreePdaPublicKey: PublicKey,
     salt: string,
   ): Uint8Array {
-    return this.getDomainSeparatedAesSecretKey(merkleTreePdaPublicKey.toBase58() + salt.toString()
+    return this.getDomainSeparatedAesSecretKey(
+      merkleTreePdaPublicKey.toBase58() + salt.toString(),
     );
   }
 
   getDomainSeparatedAesSecretKey(domain: string): Uint8Array {
     return blake2b
-        .create(b2params)
-        .update(this.aesSecret + domain)
-        .digest();
+      .create(b2params)
+      .update(this.aesSecret + domain)
+      .digest();
   }
 
   static createBurner(poseidon: any, seed: String, index: BN): Account {
@@ -404,7 +405,7 @@ export class Account {
   static generateAesSecret(seed: String, _domain?: string): Uint8Array {
     const privkeySeed = seed + "aes";
     return Uint8Array.from(
-        blake2b.create(b2params).update(privkeySeed).digest(),
+      blake2b.create(b2params).update(privkeySeed).digest(),
     );
   }
 

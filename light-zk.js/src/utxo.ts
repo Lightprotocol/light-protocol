@@ -44,7 +44,7 @@ export const N_ASSET_PUBKEYS = 3;
 // TODO: Idl support for U256
 // TODO: add static createSolUtxo()
 // TODO: remove account as attribute and from constructor, replace with shieldedPublicKey
-exports
+exports;
 
 export class Utxo {
   /**
@@ -629,7 +629,11 @@ export class Utxo {
     compressed: boolean = true,
   ): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(compressed);
-    const commitment = new BN(this.getCommitment(poseidon)).toArrayLike(Buffer, "le", 32);
+    const commitment = new BN(this.getCommitment(poseidon)).toArrayLike(
+      Buffer,
+      "le",
+      32,
+    );
     const nonce = commitment.subarray(0, 24);
 
     if (!this.account.aesSecret) {
@@ -756,7 +760,10 @@ export class Utxo {
     } else {
       const nonce = commitment.slice(0, 24);
       if (compressed) {
-        encBytes = encBytes.slice(0, NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
+        encBytes = encBytes.slice(
+          0,
+          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+        );
       }
 
       if (account.encryptionKeypair.secretKey) {
