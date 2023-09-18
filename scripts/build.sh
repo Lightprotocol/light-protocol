@@ -2,23 +2,15 @@
 
 set -eux
 
-cleanup_and_install() {
-  if [ "${#}" -ne 6 ]; then
-    echo "Usage: cleanup_and_install --dir <dir> --yarn <yarn_build> --anchor <anchor_build>"
+build() {
+  if [ "${#}" -ne 2 ]; then
+    echo "Usage: build --dir <dir>"
     exit 1
   fi
   while [ "${#}" -gt 0 ]; do
     case "${1}" in
       -d|--dir)
         dir="${2}"
-        shift 2
-        ;;
-      -y|--yarn)
-        yarn="${2}"
-        shift 2
-        ;;
-      -a|--anchor)
-        anchor="${2}"
         shift 2
         ;;
       *)
@@ -36,22 +28,29 @@ cleanup_and_install() {
     fi
   done
 
+  if [ "${dir}" = "light-zk.js" ]; then
+    yarn link @lightprotocol/prover.js
+  fi
+
+  if [ "${dir}" = "light-circuits" ] || [ "${dir}" = "cli" ] || [ "${dir}" = "relayer" ] || [ "${dir}" = "light-system-programs" ]; then
+    yarn link @lightprotocol/zk.js
+  fi
   yarn install
 
-  if [ "${yarn}" = true ] ; then
+  if [ "${dir}" != "light-circuits" ] ; then
     yarn run build
   fi
 
-  if [ "${anchor}" = true ] ; then
-    light-anchor build
+  if [ "${dir}" != "light-circuits" ] && [ "${dir}" != "relayer" ] && [ "${dir}" != "light-system-programs" ]; then
+      yarn link
   fi
 
   cd ..
 }
 
-cleanup_and_install --dir "light-prover.js" --yarn true --anchor false
-cleanup_and_install --dir "light-zk.js" --yarn true --anchor false
-cleanup_and_install -d "light-system-programs" -y true -a false
-cleanup_and_install -d "cli" -y true -a false
-cleanup_and_install -d "light-circuits" -y false -a false
-cleanup_and_install -d "relayer" -y true -a false
+build -d "light-prover.js"
+build -d "light-zk.js"
+build -d "light-system-programs"
+build -d "cli"
+build -d "light-circuits"
+build -d "relayer"

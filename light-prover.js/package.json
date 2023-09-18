@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/prover.js",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "Circom generic prover sdk offering precompile errors for proofInputs as well as parsed publicInputs & proof for private solana programs",
   "license": "GPL-3.0",
   "main": "lib/index",
