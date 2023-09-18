@@ -1115,6 +1115,11 @@ describe("Merkle Tree Tests", () => {
       isWritable: true,
       pubkey: newTransactionMerkleTreePubkey,
     };
+    transaction.remainingAccounts!.nextEventMerkleTree = {
+      isSigner: false,
+      isWritable: true,
+      pubkey: newEventMerkleTreePubkey,
+    };
 
     await transaction.compileAndProve();
     await transaction.sendAndConfirmTransaction();
