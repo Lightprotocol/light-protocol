@@ -139,7 +139,7 @@ export class Provider {
   }
 
   static async loadMock(): Promise<Provider> {
-  let poseidon = await circomlibjs.buildPoseidonOpt();
+    let poseidon = await circomlibjs.buildPoseidonOpt();
     // @ts-ignore: @ananas-block ignoring errors to not pass anchorProvider
     let mockProvider = new Provider({
       wallet: useWallet(ADMIN_AUTH_KEYPAIR),

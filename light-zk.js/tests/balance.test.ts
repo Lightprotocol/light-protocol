@@ -147,9 +147,9 @@ describe("Utxo Functional", () => {
         encryptedUtxos = [
           ...encryptedUtxos,
           ...(await utxo.encrypt(
-              poseidon,
-              MerkleTreeConfig.getTransactionMerkleTreePda(),
-              true,
+            poseidon,
+            MerkleTreeConfig.getTransactionMerkleTreePda(),
+            true,
           )),
         ];
       }
@@ -171,8 +171,7 @@ describe("Utxo Functional", () => {
           let encBytes = Buffer.from(
             trx.encryptedUtxos.slice(
               (index / 2) * 240,
-              (index / 2) * 240 +
-                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH
+              (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
             ),
           );
           let decryptedUtxo = await Utxo.decrypt({
