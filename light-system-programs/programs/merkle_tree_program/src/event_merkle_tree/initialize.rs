@@ -23,10 +23,10 @@ impl MerkleTreeConfig for EventMerkleTreeConfig {
 
 #[account(zero_copy)]
 pub struct EventMerkleTree {
-    pub merkle_tree: MerkleTree<Sha256, EventMerkleTreeConfig>,
     pub merkle_tree_nr: u64,
     pub newest: u8,
     _padding: [u8; 7],
+    pub merkle_tree: MerkleTree<Sha256, EventMerkleTreeConfig>,
 }
 
 impl_indexed_merkle_tree!(EventMerkleTree);
