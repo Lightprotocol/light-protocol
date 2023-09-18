@@ -28,7 +28,7 @@ build() {
     fi
   done
 
-  if [ "${dir}" == "light-zk.js" ]; then
+  if [ "${dir}" = "light-zk.js" ]; then
     yarn link @lightprotocol/prover.js
   fi
 
@@ -41,7 +41,7 @@ build() {
     yarn run build
   fi
 
-  if [ "${dir}" != "light-system-programs" ]; then
+  if [ "${dir}" != "light-circuits" ] && [ "${dir}" != "relayer" ] && [ "${dir}" != "light-system-programs" ]; then
       yarn link
   fi
 

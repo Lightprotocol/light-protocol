@@ -724,20 +724,24 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@lightprotocol/prover.js@file:../light-prover.js":
-  version "0.1.0-alpha.1"
+"@lightprotocol/prover.js@0.1.0-alpha.2":
+  version "0.1.0-alpha.2"
+  resolved "https://registry.yarnpkg.com/@lightprotocol/prover.js/-/prover.js-0.1.0-alpha.2.tgz#855065e2bda4010bfd27a4d86f21d36a4318d4e2"
+  integrity sha512-GLXnVY1Q/YSmL+OnvXR6Gd2wPfTmR3fR+wLoRMvhgJN2JOwWCrx+GTq+MRG0O62vLZLJRh5t/7nSSxeZVx+FxA==
   dependencies:
     "@coral-xyz/anchor" "^0.28.0"
     circomlibjs "^0.1.7"
     ffjavascript "^0.2.60"
     snarkjs "^0.7.0"
 
-"@lightprotocol/zk.js@file:../light-zk.js":
-  version "0.3.2-alpha.14"
+"@lightprotocol/zk.js@0.3.2-alpha.15":
+  version "0.3.2-alpha.15"
+  resolved "https://registry.yarnpkg.com/@lightprotocol/zk.js/-/zk.js-0.3.2-alpha.15.tgz#6a1c94902213cf8a577fe47c9f2761eb425526f0"
+  integrity sha512-MaQodTqeqEhd8jLrwHeeVQryjW3YrVqlX43U2784pA+/grHE1rAZ2qjsGtLpPhURWx96OLZitxczWaT8uFlSnQ==
   dependencies:
     "@coral-xyz/anchor" "0.28.0"
     "@coral-xyz/borsh" "^0.28.0"
-    "@lightprotocol/prover.js" "file:../../../../Library/Caches/Yarn/v6/npm-@lightprotocol-zk-js-0.3.2-alpha.14-06677cc5-0560-42ec-b737-33805bb0b40a-1694641017105/node_modules/@lightprotocol/light-prover.js"
+    "@lightprotocol/prover.js" "0.1.0-alpha.2"
     "@noble/hashes" "^1.1.5"
     "@solana/spl-account-compression" "^0.1.5"
     "@solana/spl-token" "0.3.7"
