@@ -3,7 +3,8 @@ import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import {
   Connection,
-  Keypair, LAMPORTS_PER_SOL,
+  Keypair,
+  LAMPORTS_PER_SOL,
   PublicKey,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
@@ -236,7 +237,7 @@ export async function createTestAccounts(
   // const connection = new Connection('http://127.0.0.1:8899', 'confirmed');
 
   let balance = await connection.getBalance(ADMIN_AUTH_KEY, "confirmed");
-  const amount =  500 * LAMPORTS_PER_SOL;
+  const amount = 500 * LAMPORTS_PER_SOL;
   if (balance < amount) {
     let signature = await connection.requestAirdrop(ADMIN_AUTH_KEY, amount);
     await confirmTransaction(connection, signature);
