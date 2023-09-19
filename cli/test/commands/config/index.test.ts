@@ -62,3 +62,15 @@ describe("config with env variable", () => {
       );
     });
 });
+
+describe("pubkey", () => {
+  before(async () => {
+    await initTestEnvIfNeeded();
+  });
+  test
+    .stdout({ print: true })
+    .command("config:pubkey")
+    .it("Get public key", ({ stdout }) => {
+      expect(stdout).to.contain("ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k");
+    });
+});
