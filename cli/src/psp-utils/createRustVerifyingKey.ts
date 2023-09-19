@@ -20,7 +20,7 @@ type PropertiesObject = {
  * 3- Read .r1cs file and save the #total of Prv, Pbl inputs as well as outputs.
  * 4- Filter inputs with unique name and max size according to circom signals format.
  */
-async function getProofInputsFromSymFile(artifactPath: string) {
+async function getProofInputsFromSymFile(artifactPath: string, suffix: string = "") {
   // filter inputData array based on the maximum size of nested arrays([0] otherwise)
   function uniqueMaxSize(arr: PropertiesObject[]) {
     const uniqueArr = arr.reduce((acc: PropertiesObject[], cur) => {
@@ -61,7 +61,7 @@ async function getProofInputsFromSymFile(artifactPath: string) {
 
   let match;
   let keys = [];
-  const symText = fs.readFileSync(`${artifactPath}.sym`, "utf-8");
+  const symText = fs.readFileSync(`${artifactPath}${suffix}.sym`, "utf-8");
   while ((match = regex.exec(symText)) !== null) {
     keys.push(match[1]);
   }
@@ -82,7 +82,7 @@ async function getProofInputsFromSymFile(artifactPath: string) {
   });
 
   // Retrieve the number of outputs as well as the number of private and public inputs from the R1CS file
-  const r1cs = await snarkjs.r1cs.exportJson(`${artifactPath}.r1cs`);
+  const r1cs = await snarkjs.r1cs.exportJson(`${artifactPath}${suffix}.r1cs`);
   const nOut = r1cs.nOutputs;
   const nPub = r1cs.nPubInputs;
   const nPrv = r1cs.nPrvInputs;
@@ -313,7 +313,7 @@ export async function createVerifyingkeyRsFileArgv() {
       program = "verifier_program_zero";
       var program_storage = "verifier_program_storage";
       var vKeyRsPath_storage =
-        "../../light-system-programs/programs/" +
+        "../light-system-programs/programs/" +
         program_storage +
         "/src/verifying_key.rs";
       paths.push(vKeyRsPath_storage);
@@ -347,14 +347,16 @@ export async function createVerifyingkeyRsFile(
   vKeyJsonPath: string,
   vKeyRsPath: string,
   circuitName: string,
-  artifactPath: string
+  artifactPath: string,
+  suffix: string = ""
 ) {
   if (!vKeyRsPath)
     throw new Error("Undefined output path for the verifying_key.rs file!");
   paths.push(vKeyRsPath);
 
   const ProofInputs: PropertiesObject[] = await getProofInputsFromSymFile(
-    artifactPath
+    artifactPath,
+    suffix
   );
   const PublicInputs = ProofInputs.filter(
     (ProofInputs) => ProofInputs.public === 1

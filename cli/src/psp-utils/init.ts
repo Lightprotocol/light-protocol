@@ -1,6 +1,7 @@
 import { executeCommandInDir } from "./process";
 import { executeCargoGenerate } from "./toolchain";
 import {
+  CIRCUIT_LIB_CIRCOM_VERSION,
   LIGHT_MACROS_VERSION,
   LIGHT_SYSTEM_PROGRAMS_VERSION,
   LIGHT_VERIFIER_SDK_VERSION,
@@ -26,7 +27,7 @@ export const initRepo = async (name: string, type: ProjectType) => {
   var circomName = toSnakeCase(name);
   var rustName = toSnakeCase(name);
   let programsType = type === ProjectType.PSP_CIRCOM ? ProjectType.PSP : type;
-
+  console.log("cwd is", process.cwd());
   await executeCargoGenerate({
     args: [
       "generate",
@@ -38,7 +39,7 @@ export const initRepo = async (name: string, type: ProjectType) => {
       // "--tag",
       // PSP_TEMPLATE_TAG,
       "--branch",
-      "main",
+      "jorrit/refactor-for-circuit-lib",
       "psp-template",
       "--name",
       name,
@@ -60,6 +61,8 @@ export const initRepo = async (name: string, type: ProjectType) => {
       `zk-js-version=${ZK_JS_VERSION}`,
       "--define",
       `prover-js-version=${PROVER_JS_VERSION}`,
+      "--define",
+      `circuit-lib-circom-version=${CIRCUIT_LIB_CIRCOM_VERSION}`,
       "--define",
       `light-system-programs-version=${LIGHT_SYSTEM_PROGRAMS_VERSION}`,
       "--define",

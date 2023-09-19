@@ -5,8 +5,7 @@ import { randomBytes } from "tweetnacl";
 import { utils } from "@coral-xyz/anchor";
 import { downloadFile } from "./download";
 import { executeCommand } from "./process";
-import { executeAnchor, executeCircom } from "./toolchain";
-import { findFile } from "./utils";
+import { executeCircom } from "./toolchain";
 import { toSnakeCase } from "@lightprotocol/zk.js";
 
 /**
@@ -22,11 +21,13 @@ export async function generateCircuit({
   ptau,
   programName,
   circuitPath = "./circuits",
+  linkedCircuitLibraries = [],
 }: {
   circuitName: string;
   ptau: number;
   programName: string;
   circuitPath?: string;
+  linkedCircuitLibraries?: string[];
 }): Promise<void> {
   const POWERS_OF_TAU = ptau;
   const ptauFileName = `ptau${POWERS_OF_TAU}`;
@@ -50,7 +51,8 @@ export async function generateCircuit({
       url: `https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_${POWERS_OF_TAU}.ptau`,
     });
   }
-
+  const circuitLibraryFlags = linkedCircuitLibraries.flatMap((library) => ["-l", library]);
+  console.log("circuitLibraryFlags", circuitLibraryFlags);
   await executeCircom({
     args: [
       "--r1cs",
@@ -59,6 +61,7 @@ export async function generateCircuit({
       `${circuitPath}/${camelToKebab(circuitName)}/${circuitName}Main.circom`,
       "-o",
       `${sdkBuildCircuitDir}/`,
+      ...circuitLibraryFlags,
     ],
   });
 
@@ -135,7 +138,8 @@ export async function generateCircuit({
     vKeyJsonPath,
     vKeyRsPath,
     circuitName,
-    artifactPath
+    artifactPath,
+    "Main"
   );
   console.log("created rust verifying key");
   const sleep = (ms: number) => {
