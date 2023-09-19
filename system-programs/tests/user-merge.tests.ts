@@ -56,7 +56,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
 
     await anchorProvider.connection.requestAirdrop(
       relayerRecipientSol,
-      2_000_000_000,
+      2e9,
     );
 
     environmentConfig.relayer = new TestRelayer({
