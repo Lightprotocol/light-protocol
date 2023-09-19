@@ -671,7 +671,7 @@ export class Utxo {
         commitment,
         PREFIX_LENGTH,
       );
-      if (!compressed) return ciphertext;
+      if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
       const padding = sha3_256
         .create()
         .update(Uint8Array.from([...nonce, ...bytes_message]))
@@ -741,8 +741,7 @@ export class Utxo {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<Utxo | null> {
-    // if(!noPrefix)
-    //encBytes = encBytes.slice(PREFIX_LENGTH);
+    encBytes = encBytes.slice(PREFIX_LENGTH);
     if (aes) {
       if (!account.aesSecret) {
         throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
@@ -754,17 +753,14 @@ export class Utxo {
           "For aes decryption the merkle tree pda publickey is necessary to derive the viewingkey",
         );
       if (compressed) {
-        encBytes = encBytes.slice(
-          PREFIX_LENGTH,
-          ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + PREFIX_LENGTH,
-        );
+        encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
       }
       setEnvironment();
       const iv16 = commitment.slice(0, 16);
 
       try {
         const cleartext = await decrypt(
-          encBytes,
+            encBytes,
           account.getAesUtxoViewingKey(
             merkleTreePdaPublicKey,
             bs58.encode(commitment),
@@ -786,17 +782,13 @@ export class Utxo {
           verifierProgramLookupTable,
         });
       } catch (e) {
-        console.log("decryptUnchecked error: ", e);
         // TODO: return errors - omitted for now because of different error messages on different systems
         return null;
       }
     } else {
       const nonce = commitment.slice(0, 24);
       if (compressed) {
-        encBytes = encBytes.slice(
-          PREFIX_LENGTH,
-          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + PREFIX_LENGTH,
-        );
+        encBytes = encBytes.slice(0, NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
       }
 
       if (account.encryptionKeypair.secretKey) {
