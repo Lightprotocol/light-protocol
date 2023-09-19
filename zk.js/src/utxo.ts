@@ -760,7 +760,7 @@ export class Utxo {
 
       try {
         const cleartext = await decrypt(
-            encBytes,
+          encBytes,
           account.getAesUtxoViewingKey(
             merkleTreePdaPublicKey,
             bs58.encode(commitment),
@@ -788,7 +788,10 @@ export class Utxo {
     } else {
       const nonce = commitment.slice(0, 24);
       if (compressed) {
-        encBytes = encBytes.slice(0, NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
+        encBytes = encBytes.slice(
+          0,
+          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+        );
       }
 
       if (account.encryptionKeypair.secretKey) {
