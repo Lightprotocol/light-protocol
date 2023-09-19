@@ -30,7 +30,11 @@ build() {
 
   if [ "${dir}" = "light-zk.js" ]; then
     yarn link @lightprotocol/prover.js
-    yarn link circuit-lib/circuit-lib.js
+    yarn link @lightprotocol/circuit-lib.js
+  fi
+
+  if [ "${dir}" = "circuit-lib/circuit-lib.circom" ]; then
+    yarn link @lightprotocol/cli
   fi
 
   if [ "${dir}" = "circuit-lib/circuit-lib.circom" ] ||  "${dir}" = "circuit-lib/circuit-lib.js" ] || [ "${dir}" = "cli" ] || [ "${dir}" = "relayer" ] || [ "${dir}" = "light-system-programs" ]; then

@@ -61,7 +61,7 @@ async function getProofInputsFromSymFile(artifactPath: string) {
 
   let match;
   let keys = [];
-  const symText = fs.readFileSync(`${artifactPath}Main.sym`, "utf-8");
+  const symText = fs.readFileSync(`${artifactPath}.sym`, "utf-8");
   while ((match = regex.exec(symText)) !== null) {
     keys.push(match[1]);
   }
@@ -82,7 +82,7 @@ async function getProofInputsFromSymFile(artifactPath: string) {
   });
 
   // Retrieve the number of outputs as well as the number of private and public inputs from the R1CS file
-  const r1cs = await snarkjs.r1cs.exportJson(`${artifactPath}Main.r1cs`);
+  const r1cs = await snarkjs.r1cs.exportJson(`${artifactPath}.r1cs`);
   const nOut = r1cs.nOutputs;
   const nPub = r1cs.nPubInputs;
   const nPrv = r1cs.nPrvInputs;
@@ -313,7 +313,7 @@ export async function createVerifyingkeyRsFileArgv() {
       program = "verifier_program_zero";
       var program_storage = "verifier_program_storage";
       var vKeyRsPath_storage =
-        "../light-system-programs/programs/" +
+        "../../light-system-programs/programs/" +
         program_storage +
         "/src/verifying_key.rs";
       paths.push(vKeyRsPath_storage);
@@ -326,10 +326,10 @@ export async function createVerifyingkeyRsFileArgv() {
     }
     vKeyJsonPath = "./verification_key_mainnet" + nrInputs + ".json";
     vKeyRsPath =
-      "../light-system-programs/programs/" + program + "/src/verifying_key.rs";
+      "../../light-system-programs/programs/" + program + "/src/verifying_key.rs";
     circuitName = "transaction" + process.argv[3];
     artifactPath =
-      "../light-zk.js/build-circuits/transaction" + process.argv[3];
+      "../../light-zk.js/build-circuits/transaction" + process.argv[3];
   }
   await createVerifyingkeyRsFile(
     program,
