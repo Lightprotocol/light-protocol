@@ -20,8 +20,6 @@ describe("merkle-tree", () => {
     .stdout()
     .command(["merkle-tree:initialize"])
     .it("Initialize new Merkle Trees", ({ stdout }) => {
-      expect(stdout).to.contain(
-        "Transaction Merkle Tree initialized successfully"
-      );
+      expect(stdout).to.contain("Merkle Trees initialized successfully");
     });
 });
