@@ -33,6 +33,7 @@ echo "executing cli tests"
 cd ../cli
 # export LIGHT_PROTOCOL_CONFIG=$PWD/config.json
 ./test_bin/run config --secretKey=LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8
+./test_bin/run config --relayerRecipient=AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44
 ./test_bin/run airdrop 50 ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k
 ./test_bin/run airdrop 50 --token=USDC ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k
 ./test_bin/run shield:sol 20

@@ -37,7 +37,6 @@ export async function buildPSP({
         directory: circuitDir,
         extension: ".light",
       });
-      console.log("circuits ", circuits);
       for (let { filename, fullPath } of circuits) {
         console.log("📜 Generating circom files");
         let stdout = await executeMacroCircom({
@@ -62,6 +61,7 @@ export async function buildPSP({
       foundCircuitNames.push(filename.slice(0, -suffix.length));
     }
   }
+  foundCircuitNames = [...new Set(foundCircuitNames)];
   console.log("foundCircuitNames ", foundCircuitNames);
   // TODO: enable multiple programs
   // TODO: add add-psp command which adds a second psp

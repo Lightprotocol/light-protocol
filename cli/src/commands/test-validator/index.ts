@@ -43,17 +43,12 @@ class SetupCommand extends Command {
 
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
-    try {
-      if (!flags.background) {
-        await initTestEnv({ skip_system_accounts: flags.skip_system_accounts });
-      } else {
-        initTestEnv({ skip_system_accounts: flags.skip_system_accounts });
-        await sleep(10000);
-      }
-      this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
-    } catch (error) {
-      this.error(`\nSetup tasks failed: ${error}`);
-    }
+    await initTestEnv({
+      skip_system_accounts: flags.skip_system_accounts,
+      background: flags.background,
+    });
+
+    this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
   }
 }
 
