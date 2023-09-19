@@ -1,4 +1,5 @@
 import {
+  LAMPORTS_PER_SOL,
   PublicKey,
   SystemProgram,
   Transaction as SolanaTransaction,
@@ -367,7 +368,6 @@ export class User {
         "shield",
         "Provider not set!",
       );
-
     let tokenCtx = TOKEN_REGISTRY.get(token);
 
     if (!tokenCtx)
@@ -395,6 +395,23 @@ export class User {
       ? convertedPublicAmounts.publicAmountSol
       : BN_0;
     publicAmountSpl = convertedPublicAmounts.publicAmountSpl;
+
+    if (publicAmountSol && this.provider.connection) {
+      const solBalance = await this.provider.connection.getBalance(
+        this.provider.wallet.publicKey,
+      );
+      if (solBalance < publicAmountSol.toNumber()) {
+        throw new UserError(
+          UserErrorCode.INSUFFICIENT_BAlANCE,
+          "createShieldTransactionParameters",
+          `The current balance is insufficient for this operation. The user's balance is ${
+            solBalance / LAMPORTS_PER_SOL
+          } SOL, but the operation requires ${
+            publicAmountSol.toNumber() / LAMPORTS_PER_SOL
+          } SOL.`,
+        );
+      }
+    }
 
     if (!tokenCtx.isNative && publicAmountSpl) {
       if (senderTokenAccount) {

@@ -130,7 +130,7 @@ export function decimalConversion({
 export const convertAndComputeDecimals = (
   amount: BN | string | number,
   decimals: BN,
-) => {
+): BN => {
   if (typeof amount === "number" && amount < 0) {
     throw new UtilsError(
       UtilsErrorCode.INVALID_NUMBER,
