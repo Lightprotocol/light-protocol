@@ -14,6 +14,7 @@ import {
   airdropShieldedSol,
   airdropShieldedMINTSpl,
   RELAYER_FEE,
+  airdropSol,
 } from "@lightprotocol/zk.js";
 
 import {
@@ -63,6 +64,11 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       relayerRecipientSol,
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
+    });
+    await airdropSol({
+      recipientPublicKey: userKeypair.publicKey,
+      lamports: 1000e9,
+      connection: anchorProvider.connection,
     });
   });
 
