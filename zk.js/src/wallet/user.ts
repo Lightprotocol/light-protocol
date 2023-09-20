@@ -188,11 +188,15 @@ export class User {
         const leafLeft = trx.leaves[index];
         const leafRight = trx.leaves[index + 1];
 
-        const encUtxoSize = NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + PREFIX_LENGTH;
+        const encUtxoSize =
+          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + PREFIX_LENGTH;
         // transaction nonce is the same for all utxos in one transaction
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(index * encUtxoSize, index * encUtxoSize + encUtxoSize),
+            trx.encryptedUtxos.slice(
+              index * encUtxoSize,
+              index * encUtxoSize + encUtxoSize,
+            ),
           ),
           index: leftLeafIndex,
           commitment: Buffer.from([...leafLeft]),
@@ -209,7 +213,10 @@ export class User {
         });
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(index * encUtxoSize + encUtxoSize, index * encUtxoSize + encUtxoSize * 2),
+            trx.encryptedUtxos.slice(
+              index * encUtxoSize + encUtxoSize,
+              index * encUtxoSize + encUtxoSize * 2,
+            ),
           ),
           index: leftLeafIndex + 1,
           commitment: Buffer.from([...leafRight]),
