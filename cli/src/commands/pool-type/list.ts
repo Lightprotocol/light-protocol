@@ -1,5 +1,5 @@
 import { Command, ux } from "@oclif/core";
-import { Program } from "@coral-xyz/anchor";
+import { BN, Program } from "@coral-xyz/anchor";
 import { CustomLoader, setAnchorProvider } from "../../utils";
 import {
   IDL_MERKLE_TREE_PROGRAM,
@@ -28,7 +28,7 @@ class PoolTypeListCommand extends Command {
     ux.table(poolTypes, {
       type: {
         header: "Type",
-        get: (account) => account.account.poolType,
+        get: (account) => new BN(account.account.poolType).toString(),
       },
     });
   }

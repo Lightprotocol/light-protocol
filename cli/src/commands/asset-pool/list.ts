@@ -1,5 +1,5 @@
 import { Command, ux } from "@oclif/core";
-import { Program } from "@coral-xyz/anchor";
+import { BN, Program } from "@coral-xyz/anchor";
 import { CustomLoader, setAnchorProvider } from "../../utils/utils";
 import {
   IDL_MERKLE_TREE_PROGRAM,
@@ -33,7 +33,7 @@ class AssetPoolListCommand extends Command {
       },
       type: {
         header: "Type",
-        get: (account) => account.account.poolType,
+        get: (account) => new BN(account.account.poolType).toString(),
       },
       publicKey: {
         header: "Public key",
