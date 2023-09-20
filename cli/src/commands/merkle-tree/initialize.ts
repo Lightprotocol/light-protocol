@@ -12,7 +12,7 @@ class InitializeCommand extends Command {
   static examples = ["light merkle-tree:initialize"];
 
   async run() {
-    const loader = new CustomLoader("Initializing new Transaction Merkle Tree");
+    const loader = new CustomLoader("Initializing new Merkle Trees");
     loader.start();
 
     const { connection } = await setAnchorProvider();
@@ -30,25 +30,23 @@ class InitializeCommand extends Command {
 
     const newEventMerkleTreeIndex =
       merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex;
-    const newEventMerkleTree = MerkleTreeConfig.getTransactionMerkleTreePda(
+    const newEventMerkleTree = MerkleTreeConfig.getEventMerkleTreePda(
       newEventMerkleTreeIndex
     );
 
     await merkleTreeConfig.initializeNewMerkleTrees();
-    this.log(
-      "Transaction Merkle Tree initialized successfully \x1b[32m✔\x1b[0m"
-    );
+    this.log("Merkle Trees initialized successfully \x1b[32m✔\x1b[0m");
     ux.table(
       [
         {
           type: "Transaction",
-          index: newTransactionMerkleTreeIndex,
-          publicKey: newTransactionMerkleTree,
+          index: newTransactionMerkleTreeIndex.toString(),
+          publicKey: newTransactionMerkleTree.toBase58(),
         },
         {
           type: "Event",
-          index: newEventMerkleTreeIndex,
-          publicKey: newEventMerkleTree,
+          index: newEventMerkleTreeIndex.toString(),
+          publicKey: newEventMerkleTree.toBase58(),
         },
       ],
       {
