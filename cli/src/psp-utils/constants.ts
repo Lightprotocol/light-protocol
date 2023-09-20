@@ -3,7 +3,8 @@ export const PROGRAM_TAG = "v0.3.2";
 export const MACRO_CIRCOM_TAG = "v0.1.6";
 export const ZK_JS_VERSION = "0.3.2-alpha.15";
 export const PROVER_JS_VERSION = "0.1.0-alpha.2";
-export const CIRCUIT_LIB_CIRCOM_VERSION = "file:../circuit-lib/circuit-lib.circom"//"0.1.0-alpha.1";
+export const CIRCUIT_LIB_CIRCOM_VERSION =
+  "file:../circuit-lib/circuit-lib.circom"; //"0.1.0-alpha.1";
 export const PSP_DEFAULT_PROGRAM_ID =
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 export const LIGHT_SYSTEM_PROGRAMS_VERSION =

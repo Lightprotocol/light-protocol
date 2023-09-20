@@ -22,7 +22,7 @@ export async function buildPSP({
   circuitName,
   linkedCircuitLibraries = [],
   skipLinkCircuitlib,
-  skipLinkCircomlib
+  skipLinkCircomlib,
 }: {
   circuitDir: string;
   ptau: number;
@@ -71,12 +71,16 @@ export async function buildPSP({
   foundCircuitNames = [...new Set(foundCircuitNames)];
   console.log("foundCircuitNames ", foundCircuitNames);
 
-  if(!skipLinkCircomlib) {
+  if (!skipLinkCircomlib) {
     linkedCircuitLibraries.push("node_modules/circomlib/circuits/");
   }
-  if(!skipLinkCircuitlib) {
-    linkedCircuitLibraries.push(`node_modules/@lightprotocol/circuit-lib.circom/src/light-utils`);
-    linkedCircuitLibraries.push(`node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree`);
+  if (!skipLinkCircuitlib) {
+    linkedCircuitLibraries.push(
+      `node_modules/@lightprotocol/circuit-lib.circom/src/light-utils`
+    );
+    linkedCircuitLibraries.push(
+      `node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree`
+    );
   }
   // TODO: enable multiple programs
   // TODO: add add-psp command which adds a second psp
@@ -92,7 +96,7 @@ export async function buildPSP({
         circuitName: foundCircuitName,
         ptau,
         programName,
-        linkedCircuitLibraries
+        linkedCircuitLibraries,
       });
       console.log(`✅ Circuit ${foundCircuitName} generated successfully`);
     }
@@ -148,8 +152,7 @@ export const buildFlags = {
     multiple: true,
   }),
   skipLinkCircomlib: Flags.boolean({
-    description:
-      "Omits the linking of the circomlib library.",
+    description: "Omits the linking of the circomlib library.",
     required: false,
     default: false,
   }),

@@ -20,7 +20,10 @@ type PropertiesObject = {
  * 3- Read .r1cs file and save the #total of Prv, Pbl inputs as well as outputs.
  * 4- Filter inputs with unique name and max size according to circom signals format.
  */
-async function getProofInputsFromSymFile(artifactPath: string, suffix: string = "") {
+async function getProofInputsFromSymFile(
+  artifactPath: string,
+  suffix: string = ""
+) {
   // filter inputData array based on the maximum size of nested arrays([0] otherwise)
   function uniqueMaxSize(arr: PropertiesObject[]) {
     const uniqueArr = arr.reduce((acc: PropertiesObject[], cur) => {
@@ -313,7 +316,7 @@ export async function createVerifyingkeyRsFileArgv() {
       program = "verifier_program_zero";
       var program_storage = "verifier_program_storage";
       var vKeyRsPath_storage =
-        "../light-system-programs/programs/" +
+        "../../light-system-programs/programs/" +
         program_storage +
         "/src/verifying_key.rs";
       paths.push(vKeyRsPath_storage);
@@ -326,7 +329,9 @@ export async function createVerifyingkeyRsFileArgv() {
     }
     vKeyJsonPath = "./verification_key_mainnet" + nrInputs + ".json";
     vKeyRsPath =
-      "../../light-system-programs/programs/" + program + "/src/verifying_key.rs";
+      "../../light-system-programs/programs/" +
+      program +
+      "/src/verifying_key.rs";
     circuitName = "transaction" + process.argv[3];
     artifactPath =
       "../../light-zk.js/build-circuits/transaction" + process.argv[3];

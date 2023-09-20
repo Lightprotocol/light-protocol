@@ -5,8 +5,8 @@
   "license": "GPL-3.0",
   "scripts": {
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts --exit",
-    "format": "prettier --write \"tests/**/*.{ts,js}\"",
-    "lint": "yarn prettier \"tests/**/*.{ts,js}\" --check",
+    "format": "prettier --write \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\"",
+    "lint": "yarn prettier \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\" --check",
     "build": "yarn tsc"
   },
   "author": "",

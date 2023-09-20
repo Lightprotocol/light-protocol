@@ -51,7 +51,10 @@ export async function generateCircuit({
       url: `https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_${POWERS_OF_TAU}.ptau`,
     });
   }
-  const circuitLibraryFlags = linkedCircuitLibraries.flatMap((library) => ["-l", library]);
+  const circuitLibraryFlags = linkedCircuitLibraries.flatMap((library) => [
+    "-l",
+    library,
+  ]);
   console.log("circuitLibraryFlags", circuitLibraryFlags);
   await executeCircom({
     args: [

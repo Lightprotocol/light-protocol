@@ -20,6 +20,6 @@ export default class BuildCommand extends Command {
     let { name } = args;
 
     this.log("Building circom-anchor project...");
-    await buildPSP({ ...flags, programName: name! , skipLinkCircuitlib: true});
+    await buildPSP({ ...flags, programName: name!, skipLinkCircuitlib: true });
   }
 }

@@ -13,7 +13,6 @@ import {
   Account,
   DEFAULT_ZERO,
   FEE_ASSET,
-  MerkleTree,
   MERKLE_TREE_HEIGHT,
   MINT,
   Provider,
@@ -29,7 +28,10 @@ import {
   Relayer,
   RELAYER_FEE,
   TOKEN_ACCOUNT_FEE,
+  circuitlibjs,
 } from "@lightprotocol/zk.js";
+const { MerkleTree } = circuitlibjs;
+
 let circomlibjs = require("circomlibjs");
 import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
