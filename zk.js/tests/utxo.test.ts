@@ -290,13 +290,13 @@ describe("Utxo Functional", () => {
       throw new Error("decrypt failed");
     }
 
-    let pubKey = inputs.keypair.getPublicKey();
+    let publicKey = inputs.keypair.getPublicKey();
     // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
     const receivingUtxo = new Utxo({
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      account: Account.fromPubkey(pubKey, poseidon),
+      account: Account.fromPubkey(publicKey, poseidon),
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -337,7 +337,7 @@ describe("Utxo Functional", () => {
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      account: new Account({ poseidon }),
+      account: Account.fromPubkey(publicKey, poseidon),
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
