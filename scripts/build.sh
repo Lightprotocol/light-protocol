@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 
+source "./scripts/devenv.sh"
 set -eux
 
 build() {
