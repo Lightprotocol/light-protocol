@@ -115,6 +115,10 @@ export async function start_test_validator({
       id: "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86",
       name: "verifier_program_two.so",
     },
+    {
+      id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
+      name: "user_registry.so",
+    },
   ];
   if (additonalPrograms)
     additonalPrograms.forEach((program) => {

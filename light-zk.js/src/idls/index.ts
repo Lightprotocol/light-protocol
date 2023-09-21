@@ -18,3 +18,7 @@ export {
   VerifierProgramZero,
   IDL as IDL_VERIFIER_PROGRAM_ZERO,
 } from "./verifier_program_zero";
+export {
+  UserRegistry,
+  IDL as IDL_USER_REGISTRY,
+} from "./user_registry";
