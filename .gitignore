@@ -61,6 +61,7 @@
 /.vscode
 
 /**/.idea
+/**/*.iml
 
 /**/dump.rdb
 /tmp-test-psp
