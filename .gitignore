@@ -25,15 +25,15 @@
 **/yarn-error.log
 
 /**/lookUpTable.txt
-# light-zk.js
-/light-zk.js/node_modules/
-/light-zk.js/lib/
-/light-zk.js/lookUpTable.txt
+# zk.js
+/zk.js/node_modules/
+/zk.js/lib/
+/zk.js/lookUpTable.txt
 
-# light-system-programs
-/light-system-programs/node_modules/
-/light-system-programs/target/
-/light-system-programs/tests/*.js
+# system-programs
+/system-programs/node_modules/
+/system-programs/target/
+/system-programs/tests/*.js
 
 # light-verifier-sdk
 /light-verifier-sdk/target/
@@ -43,8 +43,8 @@
 */target/*
 /anchor_programs/build/*
 /anchor_programs/Light_Circuits/build/circuits/ptau17
-/light-system-programs/lookUpTable.txt
-/light-system-programs/bin
+/system-programs/lookUpTable.txt
+/system-programs/bin
 /groth16-solana/target/
 
 # light-circuits

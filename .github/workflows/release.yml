@@ -21,11 +21,11 @@ jobs:
 
       - name: Prepare artifacts
         run: |
-          cp light-system-programs/target/deploy/merkle_tree_program.so ./merkle_tree_program.so
-          cp light-system-programs/target/deploy/verifier_program_zero.so ./verifier_program_zero.so
-          cp light-system-programs/target/deploy/verifier_program_storage.so ./verifier_program_storage.so
-          cp light-system-programs/target/deploy/verifier_program_one.so ./verifier_program_one.so
-          cp light-system-programs/target/deploy/verifier_program_two.so ./verifier_program_two.so
+          cp system-programs/target/deploy/merkle_tree_program.so ./merkle_tree_program.so
+          cp system-programs/target/deploy/verifier_program_zero.so ./verifier_program_zero.so
+          cp system-programs/target/deploy/verifier_program_storage.so ./verifier_program_storage.so
+          cp system-programs/target/deploy/verifier_program_one.so ./verifier_program_one.so
+          cp system-programs/target/deploy/verifier_program_two.so ./verifier_program_two.so
           cp third-party/solana-program-library/spl_noop.so ./spl_noop.so
 
       - name: Release

@@ -1,0 +1,24 @@
+[package]
+name = "light-verifier-sdk"
+version = "0.1.0"
+license = "GPL-3.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "light_verifier_sdk"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
+merkle_tree_program = { path = "../system-programs/programs/merkle_tree_program", features = ["cpi"] }
+
+ark-ff = { version = "^0.3.0", default-features = false }
+ark-ec = { version = "0.3.0" }
+ark-bn254 = "0.3.0"
+ark-std = { version = "^0.3.0", default-features = false }
+spl-token = "3.3.0"
+borsh = "0.9.3"
+groth16-solana = "0.0.2"
+light-merkle-tree = { git = "https://github.com/Lightprotocol/light-merkle-tree", branch = "main", features = ["solana"] }

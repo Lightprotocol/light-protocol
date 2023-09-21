@@ -1,0 +1,40 @@
+[features]
+seeds = false
+
+[test.validator]
+url = "http://127.0.0.1:8899"
+
+# merkle tree
+[[test.validator.clone]]
+address = "HKwwxmW1WroCFXa5y4txaGgzzQ1S7r8fU16aqq78w3Et"
+
+[programs.localnet]
+verifier_program_two = "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
+verifier_program_one = "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
+verifier_program_zero = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
+verifier_program_storage = "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj"
+merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
+
+[programs.testnet]
+verifier_program_two = "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
+verifier_program_one = "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
+verifier_program_zero = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
+verifier_program_storage = "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj"
+merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
+
+[test]
+startup_wait = 100_000
+
+[registry]
+url = "https://anchor.projectserum.com"
+
+[provider]
+cluster = "testnet"
+wallet = "~/.config/solana/id.json"
+# --resolveJsonModule ./tsconfig.json 
+
+[scripts]
+test = "yarn run ts-mocha -t 100000000 tests/functional_tests.ts --exit"
+
+[workspace]
+types = "../zk.js/src/idls"
