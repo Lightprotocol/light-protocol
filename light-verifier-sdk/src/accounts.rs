@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::Token;
+use anchor_spl::token::{Token, TokenAccount};
 use merkle_tree_program::{
     event_merkle_tree::EventMerkleTree, program::MerkleTreeProgram,
     transaction_merkle_tree::state::TransactionMerkleTree, RegisteredVerifier,
@@ -17,8 +17,8 @@ pub trait LightAccounts<'info> {
     fn get_recipient_sol(&self) -> Option<&UncheckedAccount<'info>>;
     fn get_token_program(&self) -> Option<&Program<'info, Token>>;
     fn get_token_authority(&self) -> Option<&AccountInfo<'info>>;
-    fn get_sender_spl(&self) -> Option<&UncheckedAccount<'info>>;
-    fn get_recipient_spl(&self) -> Option<&UncheckedAccount<'info>>;
+    fn get_sender_spl(&self) -> Option<&Account<'info, TokenAccount>>;
+    fn get_recipient_spl(&self) -> Option<&Account<'info, TokenAccount>>;
     fn get_log_wrapper(&self) -> &UncheckedAccount<'info>;
     fn get_event_merkle_tree(&self) -> &AccountLoader<'info, EventMerkleTree>;
 }

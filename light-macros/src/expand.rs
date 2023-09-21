@@ -145,10 +145,10 @@ pub(crate) fn light_verifier_accounts(
                 pub token_authority: AccountInfo<'info>,
                 /// CHECK: Is checked depending on deposit or withdrawal.
                 #[account(mut)]
-                pub sender_spl: UncheckedAccount<'info>,
+                pub sender_spl: Account<'info, ::anchor_spl::token::TokenAccount>,
                 /// CHECK: Is checked depending on deposit or withdrawal.
                 #[account(mut)]
-                pub recipient_spl: UncheckedAccount<'info>,
+                pub recipient_spl: Account<'info, ::anchor_spl::token::TokenAccount>,
             },
             quote! {
                 fn get_token_program(&self) -> Option<&Program<
@@ -162,11 +162,11 @@ pub(crate) fn light_verifier_accounts(
                     Some(&self.token_authority)
                 }
 
-                fn get_sender_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                fn get_sender_spl(&self) -> Option<&Account<'info, ::anchor_spl::token::TokenAccount>> {
                     Some(&self.sender_spl)
                 }
 
-                fn get_recipient_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                fn get_recipient_spl(&self) -> Option<&Account<'info, ::anchor_spl::token::TokenAccount>> {
                     Some(&self.recipient_spl)
                 }
             },
@@ -186,11 +186,11 @@ pub(crate) fn light_verifier_accounts(
                     None
                 }
 
-                fn get_sender_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                fn get_sender_spl(&self) -> Option<&Account<'info, ::anchor_spl::token::TokenAccount>> {
                     None
                 }
 
-                fn get_recipient_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                fn get_recipient_spl(&self) -> Option<&Account<'info, ::anchor_spl::token::TokenAccount>> {
                     None
                 }
             },
