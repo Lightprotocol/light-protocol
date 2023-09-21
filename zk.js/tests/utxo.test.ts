@@ -1,40 +1,37 @@
-import { assert, expect } from "chai";
+import {assert, expect} from "chai";
+import {Keypair as SolanaKeypair, PublicKey, SystemProgram,} from "@solana/web3.js";
+import {BN} from "@coral-xyz/anchor";
+import {it} from "mocha";
+import {IDL as TEST_PSP_IDL} from "./testData/tmp_test_psp";
+
 import {
-  SystemProgram,
-  Keypair as SolanaKeypair,
-  PublicKey,
-} from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
-import { it } from "mocha";
+  Account,
+  BN_1,
+  BN_2,
+  createAccountObject,
+  EncryptedUtxoError,
+  FIELD_SIZE,
+  hashAndTruncateToCircuit,
+  MerkleTreeConfig,
+  MINT,
+  Provider as LightProvider,
+  Utxo,
+  UTXO_PREFIX_LENGTH,
+  UtxoError,
+  UtxoErrorCode,
+  verifierProgramTwoProgramId,
+} from "../src";
+import {bs58} from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import {randomBytes} from "tweetnacl";
+
 const circomlibjs = require("circomlibjs");
 const { buildPoseidonOpt } = circomlibjs;
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-import { IDL as TEST_PSP_IDL } from "./testData/tmp_test_psp";
-
-import {
-  hashAndTruncateToCircuit,
-  Provider as LightProvider,
-  MINT,
-  UtxoError,
-  UtxoErrorCode,
-  Utxo,
-  Account,
-  verifierProgramTwoProgramId,
-  MerkleTreeConfig,
-  createAccountObject,
-  FIELD_SIZE,
-  BN_1,
-  BN_2,
-} from "../src";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-
-import { UTXO_PREFIX_LENGTH } from "../src";
-import { randomBytes } from "tweetnacl";
 
 describe("Utxo Functional", () => {
   let poseidon: any, lightProvider: LightProvider;
@@ -120,10 +117,10 @@ describe("Utxo Functional", () => {
           lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
-      if (typeof utxo41 !== "boolean") {
-        Utxo.equal(poseidon, utxo4, utxo41);
+      if (utxo41.value) {
+        Utxo.equal(poseidon, utxo4, utxo41.value);
       } else {
-        throw new Error("decrypt failed");
+        throw new Error(`decrypt failed: ${utxo41.error.toString()}`);
       }
 
       // decrypt unchecked
@@ -284,8 +281,8 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    if (typeof utxo3 !== "boolean") {
-      Utxo.equal(poseidon, utxo0, utxo3);
+    if (utxo3.value) {
+      Utxo.equal(poseidon, utxo0, utxo3.value);
     } else {
       throw new Error("decrypt failed");
     }
@@ -367,8 +364,8 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    if (typeof receivingUtxo1NoAes == "boolean") {
-      assert.equal(receivingUtxo1NoAes, false);
+    if (receivingUtxo1NoAes.error) {
+      assert.equal(receivingUtxo1NoAes.error, EncryptedUtxoError.NoCollision);
     } else {
       throw new Error("decrypt checked failed");
     }
@@ -663,7 +660,7 @@ describe("Utxo Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    if (receivingUtxo1) {
+    if (receivingUtxo1.value) {
       throw new Error("decrypt succeeded");
     }
   });
@@ -725,7 +722,7 @@ describe("Utxo Benchmark", () => {
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
       });
-      if (resultUtxo === true) collisionCounter++;
+      if (resultUtxo.error && resultUtxo.error === EncryptedUtxoError.Collision) collisionCounter++;
     }
     console.timeEnd("256kPrefixHashCollisionTestTime");
     console.log(

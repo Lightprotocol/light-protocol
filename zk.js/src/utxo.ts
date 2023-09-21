@@ -25,6 +25,7 @@ import {
   UtxoErrorCode,
 } from "./index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import {Result} from "./types/result";
 
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
@@ -822,7 +823,8 @@ export class Utxo {
 
   // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
   /**
-   * @description Decrypts an utxo from an array of bytes by checking the UTXO prefix hash, the last 24 bytes are the nonce.
+   * * @description Decrypts an utxo from an array of bytes by checking the UTXO prefix hash,
+   * * the first by 16 / 24 bytes of the commitment are the IV / nonce.
    * @param {any} poseidon
    * @param {Uint8Array} encBytes
    * @param {Account} account
@@ -853,7 +855,7 @@ export class Utxo {
     compressed?: boolean;
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
-  }): Promise<Utxo | boolean> {
+  }): Promise<Result<Utxo, EncryptedUtxoError>> {
     const prefixBytes = encBytes.slice(0, UTXO_PREFIX_LENGTH);
     if (aes && this.checkPrefixHash({ account, commitment, prefixBytes })) {
       const utxo = await Utxo.decryptUnchecked({
@@ -869,10 +871,12 @@ export class Utxo {
         assetLookupTable,
         verifierProgramLookupTable,
       });
+
       if (!utxo)
-        return true; // prefixHash matches but decryption fails so utxo is null -> Returns TRUE (COLLISION)
-      else return utxo; // prefixHash matches and decryption succeeds so utxo is good -> Returns UTXO (VALID)
-    } else return false; // prefixHash doesn't match -> Returns FALSE (NO COLLISION)
+        Result.Err(EncryptedUtxoError.Collision); // prefixHash matches but decryption fails so utxo is null -> Returns TRUE (COLLISION)
+      else return Result.Ok(utxo); // prefixHash matches and decryption succeeds so utxo is good -> Returns UTXO (VALID)
+    }
+    return Result.Err(EncryptedUtxoError.NoCollision); // prefixHash doesn't match -> Returns FALSE (NO COLLISION)
   }
 
   /**
@@ -1023,4 +1027,9 @@ export class Utxo {
     }
     return isAppInUtxo;
   }
+}
+
+export enum EncryptedUtxoError {
+  Collision = 'COLLISION',
+  NoCollision = 'NO COLLISION'
 }

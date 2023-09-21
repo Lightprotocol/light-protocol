@@ -796,8 +796,14 @@ export class Transaction {
 
       return orderedInstructionNames;
     };
-    if (this.params.verifierConfig.out == 2) {
-      this.params.encryptedUtxos! = this.params.encryptedUtxos!.slice(
+
+    if (this.params.verifierConfig.out == 2
+        && this.params.encryptedUtxos
+        && this.params.encryptedUtxos
+            .slice(240 + UTXO_PREFIX_LENGTH * 2)
+            .some((el) => el !== 0)
+    ) {
+      this.params.encryptedUtxos = this.params.encryptedUtxos.slice(
         0,
         240 + UTXO_PREFIX_LENGTH * 2,
       );

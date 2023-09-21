@@ -300,7 +300,7 @@ export class Account {
     );
   }
 
-  generateUtxoPrefixHash(commitmentHash: Uint8Array, dkLen?: number) {
+  generateUtxoPrefixHash(commitmentHash: Uint8Array, dkLen: number) {
     const input = Uint8Array.from([
       ...this.getUtxoPrefixViewingKey("hashing"),
       ...commitmentHash,
