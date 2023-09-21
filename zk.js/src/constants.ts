@@ -1,5 +1,4 @@
 import * as anchor from "@coral-xyz/anchor";
-
 import { ACCOUNT_DISCRIMINATOR_SIZE, Program } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -7,11 +6,12 @@ import {
 } from "@solana/spl-token";
 
 import {
-  VerifierProgramTwo,
+  MerkleTreeProgram,
   VerifierProgramOne,
+  VerifierProgramTwo,
   VerifierProgramZero,
   MerkleTreeProgram,
-} from "./idls/index";
+} from "./idls";
 
 import {
   ConfirmOptions,
@@ -212,3 +212,6 @@ export const TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD = new anchor.BN(255_000);
  * Default lock duration of the Transacion Merkle Tree.
  */
 export const DEFAULT_MERKLE_TREE_LOCK_DURATION = new anchor.BN(50);
+export const N_ASSETS = 2;
+export const N_ASSET_PUBKEYS = 3;
+export const UTXO_PREFIX_LENGTH = 4;

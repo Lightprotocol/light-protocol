@@ -33,7 +33,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
-import { PREFIX_LENGTH } from "../src";
+import { UTXO_PREFIX_LENGTH } from "../src";
 import { randomBytes } from "tweetnacl";
 
 describe("Utxo Functional", () => {
@@ -701,7 +701,7 @@ describe("Utxo Benchmark", () => {
     let encBytesVecs: Uint8Array[] = [];
 
     for (let i = 0; i < 256 * 1000; i++) {
-      encBytesVecs.push(randomBytes(120 + PREFIX_LENGTH));
+      encBytesVecs.push(randomBytes(120 + UTXO_PREFIX_LENGTH));
     }
 
     let collisionCounter = 0;

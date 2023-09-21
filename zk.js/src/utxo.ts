@@ -1,48 +1,43 @@
 import nacl, { box } from "tweetnacl";
+import { decrypt, encrypt } from "ethereum-cryptography/aes";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
+import {
+  Account,
+  BN_0,
+  COMPRESSED_UTXO_BYTES_LENGTH,
+  CONSTANT_SECRET_AUTHKEY,
+  createAccountObject,
+  CreateUtxoErrorCode,
+  ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  fetchAssetByIdLookUp,
+  fetchVerifierByIdLookUp,
+  FIELD_SIZE,
+  getAssetIndex,
+  hashAndTruncateToCircuit,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  N_ASSETS,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  UTXO_PREFIX_LENGTH,
+  setEnvironment,
+  UNCOMPRESSED_UTXO_BYTES_LENGTH,
+  UtxoError,
+  UtxoErrorCode,
+} from "./index";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
-import { encrypt, decrypt } from "ethereum-cryptography/aes";
 const { sha3_256 } = require("@noble/hashes/sha3");
 
 const anchor = require("@coral-xyz/anchor");
 
-import { PublicKey, SystemProgram } from "@solana/web3.js";
-
 const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
-import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
-import {
-  UtxoError,
-  UtxoErrorCode,
-  CONSTANT_SECRET_AUTHKEY,
-  fetchAssetByIdLookUp,
-  getAssetIndex,
-  hashAndTruncateToCircuit,
-  Account,
-  IDL_VERIFIER_PROGRAM_ZERO,
-  CreateUtxoErrorCode,
-  createAccountObject,
-  COMPRESSED_UTXO_BYTES_LENGTH,
-  UNCOMPRESSED_UTXO_BYTES_LENGTH,
-  ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  fetchVerifierByIdLookUp,
-  setEnvironment,
-  FIELD_SIZE,
-  BN_0,
-} from "./index";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
-export const randomPrefixBytes = () => nacl.randomBytes(PREFIX_LENGTH);
-
-// TODO: move to constants
-export const N_ASSETS = 2;
-export const N_ASSET_PUBKEYS = 3;
-export const PREFIX_LENGTH = 4;
+export const randomPrefixBytes = () => nacl.randomBytes(UTXO_PREFIX_LENGTH);
 
 // TODO: Idl support for U256
 // TODO: add static createSolUtxo()
@@ -673,7 +668,7 @@ export class Utxo {
 
       let prefix = this.account.generateUtxoPrefixHash(
         commitment,
-        PREFIX_LENGTH,
+        UTXO_PREFIX_LENGTH,
       );
       if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
       const padding = sha3_256
@@ -705,7 +700,7 @@ export class Utxo {
     prefixBytes: Uint8Array;
   }): boolean {
     let p1 = account
-      .generateUtxoPrefixHash(commitment, PREFIX_LENGTH)
+      .generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH)
       .join(",");
     let p2 = prefixBytes.join(",");
     return p1 === p2;
@@ -745,7 +740,7 @@ export class Utxo {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<Utxo | null> {
-    encBytes = encBytes.slice(PREFIX_LENGTH);
+    encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
     if (aes) {
       if (!account.aesSecret) {
         throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
@@ -859,7 +854,7 @@ export class Utxo {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<Utxo | boolean> {
-    const prefixBytes = encBytes.slice(0, PREFIX_LENGTH);
+    const prefixBytes = encBytes.slice(0, UTXO_PREFIX_LENGTH);
     if (aes && this.checkPrefixHash({ account, commitment, prefixBytes })) {
       const utxo = await Utxo.decryptUnchecked({
         poseidon,

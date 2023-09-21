@@ -21,7 +21,7 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   MerkleTreeConfig,
   BN_0,
-  PREFIX_LENGTH,
+  UTXO_PREFIX_LENGTH,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -172,7 +172,7 @@ describe("Utxo Functional", () => {
               (index / 2) * 240,
               (index / 2) * 240 +
                 NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
-                PREFIX_LENGTH,
+                UTXO_PREFIX_LENGTH,
             ),
           );
           let decryptedUtxo = await Utxo.decrypt({
@@ -192,11 +192,11 @@ describe("Utxo Functional", () => {
 
           encBytes = Buffer.from(
             trx.encryptedUtxos.slice(
-              (index / 2) * 240 + 120 + PREFIX_LENGTH,
+              (index / 2) * 240 + 120 + UTXO_PREFIX_LENGTH,
               (index / 2) * 240 +
                 NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
                 120 +
-                PREFIX_LENGTH,
+                UTXO_PREFIX_LENGTH,
             ),
           );
           decryptedUtxo = await Utxo.decrypt({

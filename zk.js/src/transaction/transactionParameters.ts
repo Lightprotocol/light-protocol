@@ -2,8 +2,12 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, BorshAccountsCoder, Program, Idl } from "@coral-xyz/anchor";
-import { AUTHORITY, verifierProgramStorageProgramId } from "../constants";
-import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
+import {
+  AUTHORITY,
+  N_ASSET_PUBKEYS,
+  verifierProgramStorageProgramId,
+} from "../constants";
+import { Utxo } from "../utxo";
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 import {
   FIELD_SIZE,
