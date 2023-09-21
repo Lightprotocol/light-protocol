@@ -27,7 +27,7 @@ export const initRepo = async (name: string, type: ProjectType) => {
   var circomName = toSnakeCase(name);
   var rustName = toSnakeCase(name);
   let programsType = type === ProjectType.PSP_CIRCOM ? ProjectType.PSP : type;
-  console.log("cwd is", process.cwd());
+
   await executeCargoGenerate({
     args: [
       "generate",
