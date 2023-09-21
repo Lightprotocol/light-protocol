@@ -49,7 +49,7 @@ build() {
       yarn link
   fi
   if [ "${dir}" = "circuit-lib/circuit-lib.circom" ] || [ "${dir}" = "circuit-lib/circuit-lib.js" ]; then
-    cd ../..
+      cd ../..
   else
       cd ..
   fi
