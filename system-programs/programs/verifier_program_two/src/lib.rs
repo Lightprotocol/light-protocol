@@ -8,7 +8,7 @@ use light_verifier_sdk::{
 use merkle_tree_program::program::MerkleTreeProgram;
 
 pub mod verifying_key;
-use verifying_key::VERIFYINGKEY;
+use verifying_key::VERIFYINGKEY_TRANSACTION_APP4_MAIN;
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -90,7 +90,7 @@ pub mod verifier_program_two {
             relayer_fee: verifier_state.relayer_fee,
             merkle_root_index: verifier_state.merkle_root_index as usize,
             pool_type: &pool_type,
-            verifyingkey: &VERIFYINGKEY,
+            verifyingkey: &VERIFYINGKEY_TRANSACTION_APP4_MAIN,
         };
         let mut tx = Transaction::<2, 2, 4, 15, LightInstruction<'info>>::new(input);
 

@@ -5,7 +5,7 @@ use light_verifier_sdk::light_transaction::{Amounts, Proof, Transaction, Transac
 use merkle_tree_program::program::MerkleTreeProgram;
 
 pub mod verifying_key;
-use verifying_key::VERIFYINGKEY;
+use verifying_key::VERIFYINGKEY_TRANSACTION_MASP2_MAIN;
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
@@ -63,7 +63,7 @@ pub mod verifier_program_zero {
             relayer_fee: inputs.relayer_fee,
             checked_public_inputs: &[],
             pool_type: &[0u8; 32],
-            verifyingkey: &VERIFYINGKEY,
+            verifyingkey: &VERIFYINGKEY_TRANSACTION_MASP2_MAIN,
         };
         let mut transaction = Transaction::<0, 1, 2, 9, LightInstruction<'info>>::new(input);
 

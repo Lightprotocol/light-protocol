@@ -8,7 +8,7 @@ use light_verifier_sdk::state::VerifierState10Ins;
 use merkle_tree_program::program::MerkleTreeProgram;
 
 pub mod verifying_key;
-use verifying_key::VERIFYINGKEY;
+use verifying_key::VERIFYINGKEY_TRANSACTION_MASP10_MAIN;
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -131,7 +131,7 @@ pub mod verifier_program_one {
                 .unwrap(),
             pool_type: &[0u8; 32],
             checked_public_inputs: &[],
-            verifyingkey: &VERIFYINGKEY,
+            verifyingkey: &VERIFYINGKEY_TRANSACTION_MASP10_MAIN,
         };
         let mut tx = Transaction::<0, 1, 10, 17, LightInstructionSecond<'info, 0>>::new(input);
         tx.transact()

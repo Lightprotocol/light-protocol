@@ -329,12 +329,9 @@ export async function createVerifyingkeyRsFileArgv() {
     }
     vKeyJsonPath = "./verification_key_mainnet" + nrInputs + ".json";
     vKeyRsPath =
-      "../../system-programs/programs/" +
-      program +
-      "/src/verifying_key.rs";
+      "../../system-programs/programs/" + program + "/src/verifying_key.rs";
     circuitName = "transaction" + process.argv[3];
-    artifactPath =
-      "../../zk.js/build-circuits/transaction" + process.argv[3];
+    artifactPath = "../../zk.js/build-circuits/transaction" + process.argv[3];
   }
   await createVerifyingkeyRsFile(
     program,
