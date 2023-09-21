@@ -3,29 +3,29 @@ on:
     branches:
       - main
     paths:
-      - "light-zk.js/**"
-      - "light-system-programs/**"
+      - "zk.js/**"
+      - "system-programs/**"
       - "light-circuits/**"
-      - ".github/workflows/light-system-programs-tests.yml"
+      - ".github/workflows/system-programs-tests.yml"
   pull_request:
     branches:
       - main
     paths:
-      - "light-zk.js/**"
-      - "light-system-programs/**"
+      - "zk.js/**"
+      - "system-programs/**"
       - "light-circuits/**"
-      - ".github/workflows/light-system-programs-tests.yml"
+      - ".github/workflows/system-programs-tests.yml"
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
 
-name: light-system-programs-tests
+name: system-programs-tests
 
 jobs:
-  light-system-programs:
-    name: light-system-programs
+  system-programs:
+    name: system-programs
     if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
     strategy:
@@ -45,7 +45,7 @@ jobs:
       - name: ${{ matrix.test }}
         run: |
           source ./scripts/devenv.sh
-          cd light-system-programs
+          cd system-programs
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do

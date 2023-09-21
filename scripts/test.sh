@@ -5,12 +5,12 @@ set -e
 `dirname "${0}"`/build.sh
 
 
-cd light-zk.js
+cd zk.js
 yarn test
 sleep 1
 cd ..
 
-cd light-system-programs
+cd system-programs
 yarn test
 cd ..
 

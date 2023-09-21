@@ -25,7 +25,7 @@ jobs:
             programs
             verifier-sdk
             circuits
-            light-zk.js
+            zk.js
             cli
             relayer
             scripts

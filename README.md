@@ -112,7 +112,7 @@ cargo test
 ### SDK tests
 
 ```bash
-cd light-zk.js/
+cd zk.js/
 yarn test
 ```
 
@@ -133,7 +133,7 @@ Merkle tree and an spl token, conducting two shields and unshields.
 Tests can be executed in bulk or one by one.
 
 ```bash
-cd light-system-programs/
+cd system-programs/
 yarn test
 yarn test-verifiers
 yarn test-merkle-tree

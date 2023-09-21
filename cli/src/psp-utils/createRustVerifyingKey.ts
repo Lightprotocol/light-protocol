@@ -316,7 +316,7 @@ export async function createVerifyingkeyRsFileArgv() {
       program = "verifier_program_zero";
       var program_storage = "verifier_program_storage";
       var vKeyRsPath_storage =
-        "../../light-system-programs/programs/" +
+        "../../system-programs/programs/" +
         program_storage +
         "/src/verifying_key.rs";
       paths.push(vKeyRsPath_storage);
@@ -329,12 +329,12 @@ export async function createVerifyingkeyRsFileArgv() {
     }
     vKeyJsonPath = "./verification_key_mainnet" + nrInputs + ".json";
     vKeyRsPath =
-      "../../light-system-programs/programs/" +
+      "../../system-programs/programs/" +
       program +
       "/src/verifying_key.rs";
     circuitName = "transaction" + process.argv[3];
     artifactPath =
-      "../../light-zk.js/build-circuits/transaction" + process.argv[3];
+      "../../zk.js/build-circuits/transaction" + process.argv[3];
   }
   await createVerifyingkeyRsFile(
     program,
