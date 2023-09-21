@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 check_file_modified() {
     local filepath
     local modified=0
