@@ -24,7 +24,6 @@ import {
   SolMerkleTreeErrorCode,
   Utxo,
   Account,
-  MerkleTree,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_TWO,
   IDL_VERIFIER_PROGRAM_STORAGE,
@@ -33,6 +32,7 @@ import {
   BN_2,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";

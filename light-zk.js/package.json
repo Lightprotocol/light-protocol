@@ -47,6 +47,7 @@
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",
     "@solana/web3.js": "1.76.0",
+    "@lightprotocol/circuit-lib.js": "file:../circuit-lib/circuit-lib.js",
     "@lightprotocol/prover.js": "0.1.0-alpha.2",
     "axios": "^1.3.4",
     "circomlib": "^2.0.5",

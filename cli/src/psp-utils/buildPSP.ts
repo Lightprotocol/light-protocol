@@ -20,6 +20,9 @@ export async function buildPSP({
   skipCircuit,
   skipMacroCircom,
   circuitName,
+  linkedCircuitLibraries = [],
+  skipLinkCircuitlib,
+  skipLinkCircomlib,
 }: {
   circuitDir: string;
   ptau: number;
@@ -28,6 +31,9 @@ export async function buildPSP({
   skipCircuit?: boolean;
   skipMacroCircom?: boolean;
   circuitName?: string[];
+  linkedCircuitLibraries?: string[];
+  skipLinkCircuitlib?: boolean;
+  skipLinkCircomlib?: boolean;
 }) {
   // TODO: add support to compile only selected circuits
   let foundCircuitNames: string[] = [];
@@ -63,6 +69,18 @@ export async function buildPSP({
   }
   foundCircuitNames = [...new Set(foundCircuitNames)];
   console.log("foundCircuitNames ", foundCircuitNames);
+
+  if (!skipLinkCircomlib) {
+    linkedCircuitLibraries.push("node_modules/circomlib/circuits/");
+  }
+  if (!skipLinkCircuitlib) {
+    linkedCircuitLibraries.push(
+      `node_modules/@lightprotocol/circuit-lib.circom/src/light-utils`
+    );
+    linkedCircuitLibraries.push(
+      `node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree`
+    );
+  }
   // TODO: enable multiple programs
   // TODO: add add-psp command which adds a second psp
   // TODO: add add-circom-circuit command which inits a new circom circuit of name circuitName
@@ -77,6 +95,7 @@ export async function buildPSP({
         circuitName: foundCircuitName,
         ptau,
         programName,
+        linkedCircuitLibraries,
       });
       console.log(`✅ Circuit ${foundCircuitName} generated successfully`);
     }
@@ -123,5 +142,17 @@ export const buildFlags = {
       return circuitName;
     },
     multiple: true,
+  }),
+  linkedCircuitLibraries: Flags.string({
+    description:
+      "Name of a (parent) directory which contains .circom files. These files can be imported in the circuit which is being compiled.",
+    char: "l",
+    required: false,
+    multiple: true,
+  }),
+  skipLinkCircomlib: Flags.boolean({
+    description: "Omits the linking of the circomlib library.",
+    required: false,
+    default: false,
   }),
 };

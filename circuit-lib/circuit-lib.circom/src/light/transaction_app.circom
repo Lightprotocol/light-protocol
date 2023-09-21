@@ -1,8 +1,8 @@
 pragma circom 2.0.0;
-include "../node_modules/circomlib/circuits/poseidon.circom";
-include "./merkleProof.circom";
-include "./keypair.circom";
-include "../node_modules/circomlib/circuits/gates.circom";
+include "poseidon.circom";
+include "../merkle-tree/merkleProof.circom";
+include "../light-utils/keypair.circom";
+include "gates.circom";
 
 
 /*
@@ -49,7 +49,7 @@ template CheckIndices(n, nInAssets, nAssets) {
 template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {
 
     // Range Check to prevent an overflow of wrong circuit instantiation
-    assert( nIns * nAssets < 1000);
+    assert( nIns * nAssets < 49);
     assert( nInAssets <= nAssets);
     assert( nOutAssets <= nAssets);
 
@@ -67,11 +67,12 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal input  inPrivateKey[nIns];
     signal input  inBlinding[nIns];
     signal input  inAppDataHash[nIns];
+    signal input inPoolType[nIns];
+    signal input inVerifierPubkey[nIns];
+    signal input inPathIndices[nIns];
+    signal input inPathElements[nIns][levels];
 
-    signal  input inPathIndices[nIns];
-    signal  input inPathElements[nIns][levels];
-
-    signal  input inIndices[nIns][nInAssets][nAssets];
+    signal input inIndices[nIns][nInAssets][nAssets];
 
     // data for transaction outputsAccount
     signal  input outputCommitment[nOuts];
@@ -80,26 +81,14 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal  input outBlinding[nOuts];
     signal  input outAppDataHash[nOuts];
     signal  input outIndices[nOuts][nOutAssets][nAssets];
-
-    
     signal  input outPoolType[nOuts];
     signal  input outVerifierPubkey[nOuts];
 
-    signal  input inPoolType[nIns];
-    signal  input inVerifierPubkey[nIns];
-    signal input transactionVersion;
-
-    // enforce pooltypes of 0
-    // add public input to distinguish between pool types
-    inPoolType[0] === 0;
-    inPoolType[0] === outPoolType[0];
-    for (var tx = 0; tx < nIns; tx++) {
-        inAppDataHash[tx] === 0;
-        inVerifierPubkey[tx] === 0;
-    }
-
-    
     signal  input assetPubkeys[nAssets];
+
+    signal  input publicAppVerifier;
+    signal  input transactionHash;
+    signal input transactionVersion;
 
     // feeAsset is asset indexFeeAsset
     assetPubkeys[indexFeeAsset] === feeAsset;
@@ -134,6 +123,14 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     component inCheckMint[nIns];
     component selectorCheckMint[nIns];
+    component inVerifierCheck[nIns];
+
+
+    // enforce pooltypes of 0
+    // add public input to distinguish between pool types
+    inPoolType[0] === 0;
+    inPoolType[0] === outPoolType[0];
+
     var sumIns[nAssets];
     for (var i = 0; i < nAssets; i++) {
       sumIns[i] = 0;
@@ -154,8 +151,11 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     // verify correctness of transaction s
     for (var tx = 0; tx < nIns; tx++) {
-
-        inPoolType[0] === inPoolType[tx];
+        // if inAppDataHash is not 0 check publicAppVerifierPubkey === inVerifierPubkey[tx]
+        inVerifierCheck[tx] = ForceEqualIfEnabled();
+        inVerifierCheck[tx].in[0] <== publicAppVerifier;
+        inVerifierCheck[tx].in[1] <== inVerifierPubkey[tx];
+        inVerifierCheck[tx].enabled <== inAppDataHash[tx];
 
         inKeypair[tx] = Keypair();
         inKeypair[tx].privateKey <== inPrivateKey[tx];
@@ -196,6 +196,9 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         inCommitmentHasher[tx].inputs[5] <== inAppDataHash[tx];
         inCommitmentHasher[tx].inputs[6] <== inPoolType[tx];
         inCommitmentHasher[tx].inputs[7] <== inVerifierPubkey[tx];
+
+        // ensure that all pool types are the same
+        inPoolType[0] === inPoolType[tx];
 
         inSignature[tx] = Signature();
         inSignature[tx].privateKey <== inPrivateKey[tx];
@@ -259,7 +262,6 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     // verify correctness of transaction outputs
     for (var tx = 0; tx < nOuts; tx++) {
 
-        outPoolType[0] === outPoolType[tx];
         // for every asset for every tx only one index is 1 others are 0
         // select the asset corresponding to the index
         // and add it to the assetHasher
@@ -298,6 +300,9 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         outCommitmentHasher[tx].inputs[6] <== outPoolType[tx];
         outCommitmentHasher[tx].inputs[7] <== outVerifierPubkey[tx];
         outputCommitment[tx] === outCommitmentHasher[tx].out;
+        
+        // ensure that all pool types are the same
+        outPoolType[0] === outPoolType[tx];
 
         // Increases sumOuts of the correct asset by outAmount
         for (var i = 0; i < nOutAssets; i++) {
@@ -330,9 +335,31 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     for (var a = 2; a < nAssets; a++) {
       sumIns[a] === sumOuts[a];
     }
-
+    
     signal input internalTxIntegrityHash;
     // optional safety constraint to make sure txIntegrityHash cannot be changed
     internalTxIntegrityHash === txIntegrityHash;
+
+    
+    // generating input hash
+    
+    // hash commitment 
+    component inputHasher = Poseidon(nIns);
+    for (var i = 0; i < nIns; i++) {
+        inputHasher.inputs[i] <== inCommitmentHasher[i].out;
+    }
+
+    component outputHasher = Poseidon(nOuts);
+    for (var i = 0; i < nOuts; i++) {
+        outputHasher.inputs[i] <== outCommitmentHasher[i].out;
+    }
+
+    component connectingHasher = Poseidon(3);
+
+    connectingHasher.inputs[0] <== inputHasher.out;
+    connectingHasher.inputs[1] <== outputHasher.out;
+    connectingHasher.inputs[2] <== txIntegrityHash;
+
+    transactionHash === connectingHasher.out;
 
 }

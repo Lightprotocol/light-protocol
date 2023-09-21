@@ -20,9 +20,9 @@ import {
   Action,
   Utxo,
   Account,
-  MerkleTree,
   IDL_VERIFIER_PROGRAM_ZERO,
 } from "../../light-zk.js/src";
+import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";

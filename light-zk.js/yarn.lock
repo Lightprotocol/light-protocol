@@ -418,6 +418,9 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
+"@lightprotocol/circuit-lib.js@file:../circuit-lib/circuit-lib.js":
+  version "0.1.0-alpha.1"
+
 "@lightprotocol/prover.js@0.1.0-alpha.2":
   version "0.1.0-alpha.2"
   resolved "https://registry.yarnpkg.com/@lightprotocol/prover.js/-/prover.js-0.1.0-alpha.2.tgz#855065e2bda4010bfd27a4d86f21d36a4318d4e2"
