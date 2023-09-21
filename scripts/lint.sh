@@ -24,7 +24,7 @@ yarn install
 yarn run lint
 cd ..
 
-cd light-circuits
+cd circuit-lib/circuit-lib.js
 yarn install
 yarn run lint
-cd ..
+cd -

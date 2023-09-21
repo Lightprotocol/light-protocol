@@ -6,6 +6,11 @@ export default class BuildCommand extends Command {
 
   static flags = {
     ...buildFlags,
+    skipLinkCircuitlib: Flags.boolean({
+      description: "Omits the linking of the circuit-lib library.",
+      required: false,
+      default: false,
+    }),
     // TODO: pass along anchor build options // execsync thingy alt.
   };
 

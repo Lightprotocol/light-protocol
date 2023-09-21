@@ -12,7 +12,6 @@ const { buildPoseidonOpt } = circomlibjs;
 import {
   Account,
   Utxo,
-  MerkleTree,
   FEE_ASSET,
   hashAndTruncateToCircuit,
   Provider as LightProvider,
@@ -29,6 +28,7 @@ import {
 } from "../src";
 import { IDL } from "./testData/tmp_test_psp";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";

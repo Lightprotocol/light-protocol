@@ -33,25 +33,34 @@ build() {
     yarn link @lightprotocol/prover.js
   fi
 
-  if [ "${dir}" = "light-circuits" ] || [ "${dir}" = "cli" ] || [ "${dir}" = "relayer" ] || [ "${dir}" = "light-system-programs" ]; then
+  if [ "${dir}" = "light-zk.js" ] || [ "${dir}" = "relayer" ]; then
+    yarn link @lightprotocol/circuit-lib.js
+  fi
+
+  if [ "${dir}" = "circuit-lib/circuit-lib.circom" ] || [ "${dir}" = "cli" ] || [ "${dir}" = "relayer" ] || [ "${dir}" = "light-system-programs" ]; then
     yarn link @lightprotocol/zk.js
   fi
   yarn install
 
-  if [ "${dir}" != "light-circuits" ] ; then
+  if [ "${dir}" != "circuit-lib/circuit-lib.circom" ] ; then
     yarn run build
   fi
 
-  if [ "${dir}" != "light-circuits" ] && [ "${dir}" != "relayer" ] && [ "${dir}" != "light-system-programs" ]; then
+  if [ "${dir}" != "circuit-lib/circuit-lib.circom" ] && [ "${dir}" != "relayer" ] && [ "${dir}" != "light-system-programs" ]; then
       yarn link
   fi
-
-  cd ..
+  if [ "${dir}" = "circuit-lib/circuit-lib.circom" ] || [ "${dir}" = "circuit-lib/circuit-lib.js" ]; then
+      cd ../..
+  else
+      cd ..
+  fi
 }
 
+# need to be built in order because packages depend on each other and need to be linked
 build -d "light-prover.js"
+build -d "circuit-lib/circuit-lib.js"
 build -d "light-zk.js"
 build -d "light-system-programs"
 build -d "cli"
-build -d "light-circuits"
 build -d "relayer"
+build -d "circuit-lib/circuit-lib.circom"

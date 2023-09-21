@@ -25,7 +25,7 @@ yarn format
 cd ..
 
 
-cd light-circuits
+cd circuit-lib/circuit-lib.js
 yarn install
 yarn format
-cd ..
+cd -

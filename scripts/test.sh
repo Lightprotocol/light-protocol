@@ -23,8 +23,12 @@ cd relayer
 yarn test
 cd ..
 
-cd light-circuits
+cd circuit-lib/circuit-lib.circom
 yarn run test
-cd ..
+cd ../..
+
+cd circuit-lib/circuit-lib.js
+yarn run test
+cd ../..
 
 # && cd programs/merkle_tree_program && cargo test
