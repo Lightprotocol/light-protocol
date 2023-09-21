@@ -9,8 +9,7 @@ import {
   MerkleTreeProgram,
   VerifierProgramOne,
   VerifierProgramTwo,
-  VerifierProgramZero,
-  MerkleTreeProgram,
+  VerifierProgramZero
 } from "./idls";
 
 import {
