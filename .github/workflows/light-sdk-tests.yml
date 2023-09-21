@@ -22,7 +22,7 @@ jobs:
       matrix:
         include:
           - name: sdk-tests-light-zk-relayer-cli
-            sub-tests: '["light-zk.js", "relayer", "cli", "light-prover.js"]'
+            sub-tests: '["zk.js", "relayer", "cli", "prover.js"]'
           - name: circuit-tests
             sub-tests: '["circuit-lib/circuit-lib.js","circuit-lib/circuit-lib.circom"]'
     steps:

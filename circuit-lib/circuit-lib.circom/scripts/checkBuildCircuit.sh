@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 check_file_modified() {
     local filepath
@@ -38,15 +38,11 @@ check_file_modified() {
     fi
 }
 
-check_file_modified ../../light-system-programs/programs/verifier_program_zero/src/verifying_key.rs
-check_file_modified ../../light-system-programs/programs/verifier_program_storage/src/verifying_key.rs
-check_file_modified ../../light-system-programs/programs/verifier_program_two/src/verifying_key.rs
-check_file_modified ../../light-system-programs/programs/verifier_program_one/src/verifying_key.rs
+check_file_modified ../../system-programs/programs/verifier_program_zero/src/verifying_key.rs
+check_file_modified ../../system-programs/programs/verifier_program_storage/src/verifying_key.rs
+check_file_modified ../../system-programs/programs/verifier_program_two/src/verifying_key.rs
+check_file_modified ../../system-programs/programs/verifier_program_one/src/verifying_key.rs
 
-check_file_modified ../../light-zk.js/build-circuits/transactionMasp2Main.zkey
-check_file_modified ../../light-zk.js/build-circuits/transactionMasp10Main.zkey
-check_file_modified ../../light-zk.js/build-circuits/transactionApp4Main.zkey
-
-check_file_modified ../../light-zk.js/build-circuits/transactionMasp2Main_js/transactionMasp2Main.wasm
-check_file_modified ../../light-zk.js/build-circuits/transactionMasp10Main_js/transactionMasp10Main.wasm
-check_file_modified ../../light-zk.js/build-circuits/transactionApp4Main_js/transactionApp4Main.wasm
+check_file_modified ../../zk.js/build-circuits/transactionMasp2Main.zkey
+check_file_modified ../../zk.js/build-circuits/transactionMasp10Main.zkey
+check_file_modified ../../zk.js/build-circuits/transactionApp4Main.zkey

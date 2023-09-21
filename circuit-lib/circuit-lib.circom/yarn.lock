@@ -403,7 +403,7 @@
     ffjavascript "^0.2.60"
     snarkjs "^0.7.0"
 
-"@lightprotocol/zk.js@@lightprotocol/zk.js":
+"@lightprotocol/zk.js@0.3.2-alpha.15":
   version "0.3.2-alpha.15"
   resolved "https://registry.yarnpkg.com/@lightprotocol/zk.js/-/zk.js-0.3.2-alpha.15.tgz#6a1c94902213cf8a577fe47c9f2761eb425526f0"
   integrity sha512-MaQodTqeqEhd8jLrwHeeVQryjW3YrVqlX43U2784pA+/grHE1rAZ2qjsGtLpPhURWx96OLZitxczWaT8uFlSnQ==

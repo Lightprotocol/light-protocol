@@ -6,7 +6,7 @@ mkdir -p bin/programs
 cd ..
 for key in $keys
 do
-    cp light-system-programs/target/deploy/$key.so cli/bin/$key.so
+    cp system-programs/target/deploy/$key.so cli/bin/$key.so
 done
 
 cp third-party/solana-program-library/spl_noop.so cli/bin/spl_noop.so
