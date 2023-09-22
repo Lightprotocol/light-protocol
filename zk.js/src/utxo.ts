@@ -25,7 +25,7 @@ import {
   UtxoErrorCode,
 } from "./index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import {Result} from "./types/result";
+import { Result } from "./types/result";
 
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
@@ -740,7 +740,7 @@ export class Utxo {
     compressed?: boolean;
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
-  }): Promise<Utxo | null> {
+  }): Promise<Result<Utxo | null, UtxoError>> {
     encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
     if (aes) {
       if (!account.aesSecret) {
@@ -772,18 +772,19 @@ export class Utxo {
 
         const bytes = Buffer.from(cleartext);
 
-        return Utxo.fromBytes({
-          poseidon,
-          bytes,
-          account,
-          index,
-          appDataIdl,
-          assetLookupTable,
-          verifierProgramLookupTable,
-        });
+        return Result.Ok(
+          Utxo.fromBytes({
+            poseidon,
+            bytes,
+            account,
+            index,
+            appDataIdl,
+            assetLookupTable,
+            verifierProgramLookupTable,
+          }),
+        );
       } catch (e) {
-        // TODO: return errors - omitted for now because of different error messages on different systems
-        return null;
+        return Result.Err(e);
       }
     } else {
       const nonce = commitment.slice(0, 24);
@@ -803,20 +804,22 @@ export class Utxo {
         );
 
         if (!cleartext) {
-          return null;
+          return Result.Ok(null);
         }
         const bytes = Buffer.from(cleartext);
-        return Utxo.fromBytes({
-          poseidon,
-          bytes,
-          account,
-          index,
-          appDataIdl,
-          assetLookupTable,
-          verifierProgramLookupTable,
-        });
+        return Result.Ok(
+          Utxo.fromBytes({
+            poseidon,
+            bytes,
+            account,
+            index,
+            appDataIdl,
+            assetLookupTable,
+            verifierProgramLookupTable,
+          }),
+        );
       } else {
-        return null;
+        return Result.Ok(null);
       }
     }
   }
@@ -855,10 +858,10 @@ export class Utxo {
     compressed?: boolean;
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
-  }): Promise<Result<Utxo, EncryptedUtxoError>> {
+  }): Promise<Result<Utxo | null, UtxoError>> {
     const prefixBytes = encBytes.slice(0, UTXO_PREFIX_LENGTH);
     if (aes && this.checkPrefixHash({ account, commitment, prefixBytes })) {
-      const utxo = await Utxo.decryptUnchecked({
+      const utxoResult = await Utxo.decryptUnchecked({
         poseidon,
         encBytes,
         account,
@@ -872,11 +875,22 @@ export class Utxo {
         verifierProgramLookupTable,
       });
 
-      if (!utxo)
-        Result.Err(EncryptedUtxoError.Collision); // prefixHash matches but decryption fails so utxo is null -> Returns TRUE (COLLISION)
-      else return Result.Ok(utxo); // prefixHash matches and decryption succeeds so utxo is good -> Returns UTXO (VALID)
+      // prefixHash matches but decryption fails so utxo is null -> Returns TRUE (COLLISION)
+      if (utxoResult.value) {
+        return utxoResult;
+      }
+
+      // prefixHash matches and decryption succeeds so utxo is good -> Returns UTXO (VALID)
+      return Result.Err(
+        new UtxoError(
+          UtxoErrorCode.PREFIX_COLLISION,
+          "constructor",
+          "Prefix collision when decrypting utxo. " + utxoResult.error ?? "",
+        ),
+      );
     }
-    return Result.Err(EncryptedUtxoError.NoCollision); // prefixHash doesn't match -> Returns FALSE (NO COLLISION)
+    // prefixHash doesn't match -> Returns FALSE (NO COLLISION)
+    return Result.Ok(null);
   }
 
   /**
@@ -1027,9 +1041,4 @@ export class Utxo {
     }
     return isAppInUtxo;
   }
-}
-
-export enum EncryptedUtxoError {
-  Collision = 'COLLISION',
-  NoCollision = 'NO COLLISION'
 }

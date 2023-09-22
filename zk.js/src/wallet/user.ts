@@ -1544,8 +1544,8 @@ export class User {
               verifierProgramLookupTable,
               assetLookupTable,
             });
-            if (typeof decryptedUtxo !== "boolean") {
-              const utxo = decryptedUtxo as Utxo;
+            if (decryptedUtxo.value) {
+              const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
                 utxo.getNullifier(this.provider.poseidon)!,
                 this.provider.provider?.connection!,

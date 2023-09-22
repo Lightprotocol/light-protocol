@@ -1,8 +1,12 @@
-import {assert, expect} from "chai";
-import {Keypair as SolanaKeypair, PublicKey, SystemProgram,} from "@solana/web3.js";
-import {BN} from "@coral-xyz/anchor";
-import {it} from "mocha";
-import {IDL as TEST_PSP_IDL} from "./testData/tmp_test_psp";
+import { assert, expect } from "chai";
+import {
+  Keypair as SolanaKeypair,
+  PublicKey,
+  SystemProgram,
+} from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+import { it } from "mocha";
+import { IDL as TEST_PSP_IDL } from "./testData/tmp_test_psp";
 
 import {
   Account,
@@ -21,8 +25,8 @@ import {
   UtxoErrorCode,
   verifierProgramTwoProgramId,
 } from "../src";
-import {bs58} from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import {randomBytes} from "tweetnacl";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { randomBytes } from "tweetnacl";
 
 const circomlibjs = require("circomlibjs");
 const { buildPoseidonOpt } = circomlibjs;
@@ -722,7 +726,8 @@ describe("Utxo Benchmark", () => {
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
       });
-      if (resultUtxo.error && resultUtxo.error === EncryptedUtxoError.Collision) collisionCounter++;
+      if (resultUtxo.error && resultUtxo.error === EncryptedUtxoError.Collision)
+        collisionCounter++;
     }
     console.timeEnd("256kPrefixHashCollisionTestTime");
     console.log(
