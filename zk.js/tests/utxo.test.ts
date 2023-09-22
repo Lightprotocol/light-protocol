@@ -690,12 +690,6 @@ describe("Utxo Benchmark", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    // encrypt
-    // const encBytes = await testUtxo.encrypt(
-    //   poseidon,
-    //   MerkleTreeConfig.getTransactionMerkleTreePda(),
-    // );
-
     let encBytesVecs: Uint8Array[] = [];
 
     for (let i = 0; i < 256 * 1000; i++) {
