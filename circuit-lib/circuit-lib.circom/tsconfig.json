@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
+    "target": "es2020",
     "types": ["mocha", "chai", "node"],
     "typeRoots": ["./node_modules/@types"],
-    "lib": ["es2015"],
+    "lib": ["es2020"],
     "module": "commonjs",
-    "target": "es6",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
   "dry": false,
-  "debug": false
+  "debug": false,
 }

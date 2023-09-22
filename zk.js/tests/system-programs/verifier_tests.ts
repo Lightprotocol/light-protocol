@@ -48,7 +48,7 @@ let SLEEP_BUFFER = 0;
 const system = getSystem();
 if (system === System.MacOsArm64) SLEEP_BUFFER = 400;
 
-const transactions: { transaction: Transaction, verifier: string }[] = [];
+const transactions: { transaction: Transaction; verifier: string }[] = [];
 console.log = () => {};
 describe("Verifier Zero and One Tests", () => {
   // Configure the client to use the local cluster.

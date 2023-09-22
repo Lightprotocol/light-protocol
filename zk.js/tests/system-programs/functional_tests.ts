@@ -184,7 +184,11 @@ describe("verifier_program", () => {
     const shieldAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
     const shieldFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
-    await airdropSplToAssociatedTokenAccount(provider.connection, 10e9, ADMIN_AUTH_KEYPAIR.publicKey);
+    await airdropSplToAssociatedTokenAccount(
+      provider.connection,
+      10e9,
+      ADMIN_AUTH_KEYPAIR.publicKey,
+    );
     const tokenAccount = await getOrCreateAssociatedTokenAccount(
       provider.connection,
       ADMIN_AUTH_KEYPAIR,

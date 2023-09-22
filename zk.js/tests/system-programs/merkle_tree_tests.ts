@@ -49,7 +49,10 @@ import {
   AUTHORITY_ONE,
 } from "../../src";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
-import { TokenAccountNotFoundError, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import {
+  TokenAccountNotFoundError,
+  getOrCreateAssociatedTokenAccount,
+} from "@solana/spl-token";
 
 let POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 
