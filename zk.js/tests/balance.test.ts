@@ -187,8 +187,8 @@ describe("Utxo Functional", () => {
             verifierProgramLookupTable,
             assetLookupTable,
           });
-          assert(typeof decryptedUtxo !== "boolean", "Can't decrypt utxo");
-          decryptedUtxos.push(decryptedUtxo);
+          assert(decryptedUtxo.error === null, "Can't decrypt utxo");
+          decryptedUtxos.push(decryptedUtxo.value);
 
           encBytes = Buffer.from(
             trx.encryptedUtxos.slice(
@@ -211,8 +211,8 @@ describe("Utxo Functional", () => {
             verifierProgramLookupTable,
             assetLookupTable,
           });
-          assert(typeof decryptedUtxo !== "boolean", "Can't decrypt utxo");
-          decryptedUtxos.push(decryptedUtxo);
+          assert(decryptedUtxo.error === null, "Can't decrypt utxo");
+          decryptedUtxos.push(decryptedUtxo.value);
         }
       }
       utxos.map((utxo, index) => {

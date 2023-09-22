@@ -13,7 +13,6 @@ import {
   BN_1,
   BN_2,
   createAccountObject,
-  EncryptedUtxoError,
   FIELD_SIZE,
   hashAndTruncateToCircuit,
   MerkleTreeConfig,
@@ -141,8 +140,8 @@ describe("Utxo Functional", () => {
           lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
-      if (utxo41u !== null) {
-        Utxo.equal(poseidon, utxo4, utxo41u);
+      if (utxo41u.value !== null) {
+        Utxo.equal(poseidon, utxo4, utxo41u.value);
       } else {
         throw new Error("decrypt unchecked failed");
       }
@@ -328,8 +327,8 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    if (receivingUtxo1Unchecked) {
-      Utxo.equal(poseidon, receivingUtxo, receivingUtxo1Unchecked, true);
+    if (receivingUtxo1Unchecked.value !== null) {
+      Utxo.equal(poseidon, receivingUtxo, receivingUtxo1Unchecked.value, true);
     } else {
       throw new Error("decrypt unchecked failed");
     }
@@ -369,9 +368,7 @@ describe("Utxo Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     if (receivingUtxo1NoAes.error) {
-      assert.equal(receivingUtxo1NoAes.error, EncryptedUtxoError.NoCollision);
-    } else {
-      throw new Error("decrypt checked failed");
+      throw new Error("decrypt checked failed " + receivingUtxo1NoAes.error);
     }
   });
 
@@ -726,7 +723,7 @@ describe("Utxo Benchmark", () => {
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
       });
-      if (resultUtxo.error && resultUtxo.error === EncryptedUtxoError.Collision)
+      if (resultUtxo.error && resultUtxo.error.code === UtxoErrorCode.PREFIX_COLLISION)
         collisionCounter++;
     }
     console.timeEnd("256kPrefixHashCollisionTestTime");
