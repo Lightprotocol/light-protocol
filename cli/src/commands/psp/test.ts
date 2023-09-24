@@ -41,7 +41,7 @@ export default class TestCommand extends Command {
     await sleep(Number(flags.time));
 
     await executeCommand({
-      command: `yarn`,
+      command: `pnpm`,
       args: [`ts-mocha`, `-t`, `2000000`, `tests/${name}.ts`, `--exit`],
     });
     this.exit(0);

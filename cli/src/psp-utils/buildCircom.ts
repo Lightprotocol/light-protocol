@@ -69,7 +69,7 @@ export async function generateCircuit({
   });
 
   await executeCommand({
-    command: "yarn",
+    command: "pnpm",
     args: [
       "snarkjs",
       "groth16",
@@ -87,7 +87,7 @@ export async function generateCircuit({
     fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
   } catch (_) {}
   await executeCommand({
-    command: "yarn",
+    command: "pnpm",
     args: [
       "snarkjs",
       "zkey",
@@ -99,7 +99,7 @@ export async function generateCircuit({
   });
 
   await executeCommand({
-    command: "yarn",
+    command: "pnpm",
     args: [
       "snarkjs",
       "zkey",
@@ -121,7 +121,7 @@ export async function generateCircuit({
   } catch (_) {}
   while (!fs.existsSync(vKeyJsonPath)) {
     await executeCommand({
-      command: "yarn",
+      command: "pnpm",
       args: [
         "snarkjs",
         "zkey",

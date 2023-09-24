@@ -10,11 +10,11 @@ fi
 
 circom --r1cs --wasm --sym src/light/transaction$1$2Main.circom -o ../../zk.js/build-circuits/ -l node_modules/circomlib/circuits
 
-yarn snarkjs groth16 setup ../../zk.js/build-circuits/transaction$1$2Main.r1cs ./ptau$POWERS_OF_TAU ../../zk.js/build-circuits/tmp_transaction$1$2Main.zkey
-yarn snarkjs zkey contribute ../../zk.js/build-circuits/tmp_transaction$1$2Main.zkey ../../zk.js/build-circuits/transaction$1$2Main.zkey -e="321432151325321543215"
-yarn snarkjs zkey export verificationkey ../../zk.js/build-circuits/transaction$1$2Main.zkey verification_key_mainnet$2.json
+pnpm snarkjs groth16 setup ../../zk.js/build-circuits/transaction$1$2Main.r1cs ./ptau$POWERS_OF_TAU ../../zk.js/build-circuits/tmp_transaction$1$2Main.zkey
+pnpm snarkjs zkey contribute ../../zk.js/build-circuits/tmp_transaction$1$2Main.zkey ../../zk.js/build-circuits/transaction$1$2Main.zkey -e="321432151325321543215"
+pnpm snarkjs zkey export verificationkey ../../zk.js/build-circuits/transaction$1$2Main.zkey verification_key_mainnet$2.json
 
-yarn ts-node ./scripts/createRustVerifyingKey.ts $2 $1$2Main
+pnpm ts-node ./scripts/createRustVerifyingKey.ts $2 $1$2Main
 
 rm verification_key_mainnet$2.json
 rm ../../zk.js/build-circuits/transaction$1$2Main.sym

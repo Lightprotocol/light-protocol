@@ -38,7 +38,7 @@ describe("config", () => {
     });
 });
 
-let filePath = process.cwd() + "/config.json";
+let filePath = process.env.INIT_CWD + "/config.json";
 describe("config with env variable", () => {
   before(async () => {
     await initTestEnvIfNeeded();

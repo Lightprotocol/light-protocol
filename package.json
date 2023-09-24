@@ -1,0 +1,7 @@
+{
+	"devDependencies": {
+		"nx": "^16.9.1",
+		"snarkjs": "^0.7.1",
+		"typescript": "^5.2.2"
+	}
+}

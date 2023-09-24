@@ -1,34 +1,20 @@
 #!/usr/bin/env sh
-
 set -e
 
-`dirname "${0}"`/build.sh
+#npx nx test @lightprotocol/prover.js
+#npx nx test @lightprotocol/zk.js
+#npx nx test @lightprotocol/circuit-lib.circom
+#npx nx test @lightprotocol/circuit-lib.js
+#npx nx test @lightprotocol/system-programs
+#npx nx test @lightprotocol/cli
+#npx nx test @lightprotocol/relayer
 
+# Test one project via nx:
+# npx nx test @lightprotocol/zk.js
 
-cd zk.js
-yarn test
-sleep 1
-cd ..
+# Test projects which cache invalidated:
+# npx nx affected:test
 
-cd system-programs
-yarn test
-cd ..
-
-
-cd cli
-yarn test
-cd ..
-
-cd relayer
-yarn test
-cd ..
-
-cd circuit-lib/circuit-lib.circom
-yarn run test
-cd ../..
-
-cd circuit-lib/circuit-lib.js
-yarn run test
-cd ../..
-
-# && cd programs/merkle_tree_program && cargo test
+# We can't run tests in parallel because of static solana-test-validator port binding.
+# Test all projects via nx:
+ npx nx run-many --target=test --all --parallel=false
