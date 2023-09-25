@@ -257,6 +257,14 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
+    pub register_psp(ctx: Context<RegisterPsp>, index: u64) -> Result<()> {
+        let registered_psp = &mut ctx.accounts.registered_psp;
+        registered_psp.solana_pubkey = ctx.accounts.signer.key().to_bytes();
+        registered_psp.index = index;
+
+        Ok(())
+    }
+
     /// Initializes a merkle tree update state pda. This pda stores the leaves to be inserted
     /// and state of the computation of poseidon hashes to update the Merkle tree.
     /// A maximum of 16 pairs of leaves can be passed in as leaves accounts as remaining accounts.
