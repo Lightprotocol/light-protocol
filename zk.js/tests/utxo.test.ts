@@ -717,7 +717,10 @@ describe("Utxo Benchmark", () => {
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
       });
-      if (resultUtxo.error && resultUtxo.error.code === UtxoErrorCode.PREFIX_COLLISION)
+      if (
+        resultUtxo.error &&
+        resultUtxo.error.code === UtxoErrorCode.PREFIX_COLLISION
+      )
         collisionCounter++;
     }
     console.timeEnd("256kPrefixHashCollisionTestTime");

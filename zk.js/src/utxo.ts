@@ -741,17 +741,21 @@ export class Utxo {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<Result<Utxo | null, UtxoError>> {
+    // Remove UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
     encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
     if (aes) {
+      // Check if account secret key is available for decrypting using AES
       if (!account.aesSecret) {
         throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
       }
+      // Merkle tree public key is necessary for AES decryption
       if (!merkleTreePdaPublicKey)
         throw new UtxoError(
           UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
           "encrypt",
           "For aes decryption the merkle tree pda publickey is necessary to derive the viewingkey",
         );
+      // If encrypted bytes are compressed, only consider specific (ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH) byte length
       if (compressed) {
         encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
       }
@@ -759,6 +763,7 @@ export class Utxo {
       const iv16 = commitment.slice(0, 16);
 
       try {
+        // Attempt to decrypt using AES
         const cleartext = await decrypt(
           encBytes,
           account.getAesUtxoViewingKey(
@@ -770,8 +775,10 @@ export class Utxo {
           true,
         );
 
+        // Convert decrypted cleartext to bytes
         const bytes = Buffer.from(cleartext);
 
+        // Return a decrypted UTXO
         return Result.Ok(
           Utxo.fromBytes({
             poseidon,
@@ -787,7 +794,10 @@ export class Utxo {
         return Result.Err(e);
       }
     } else {
+      // Get the nonce if not using AES
       const nonce = commitment.slice(0, 24);
+
+      // If encrypted bytes are compressed, only consider specific (NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH) byte length
       if (compressed) {
         encBytes = encBytes.slice(
           0,
@@ -795,6 +805,7 @@ export class Utxo {
         );
       }
 
+      // Decrypt using NaCl if account's secret key is available
       if (account.encryptionKeypair.secretKey) {
         const cleartext = box.open(
           encBytes,
@@ -803,10 +814,14 @@ export class Utxo {
           account.encryptionKeypair.secretKey,
         );
 
+        // Return null if unable to decrypt
         if (!cleartext) {
           return Result.Ok(null);
         }
+        // Convert decrypted cleartext to bytes
         const bytes = Buffer.from(cleartext);
+
+        // Return a decrypted UTXO
         return Result.Ok(
           Utxo.fromBytes({
             poseidon,
