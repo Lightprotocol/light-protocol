@@ -709,7 +709,9 @@ export class Utxo {
 
   // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
   /**
-   * @description Decrypts an utxo from an array of bytes without checking the UTXO prefix hash, the last 24 bytes are the nonce.
+   * @description Decrypts an utxo from an array of bytes without checking the UTXO prefix hash.
+   * The prefix hash is assumed exist and to be the first 4 bytes.
+   * Thus, the first 4 bytes are ignored. The first by 16 / 24 bytes of the commitment are the IV / nonce.
    * @param {any} poseidon
    * @param {Uint8Array} encBytes
    * @param {Account} account
