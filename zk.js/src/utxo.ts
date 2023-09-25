@@ -687,7 +687,7 @@ export class Utxo {
   }
 
   /**
-   * @description Checks the UTXO prefix hash of PREFIX_LENGTH-bytes
+   * @description Checks the UTXO prefix hash of UTXO_PREFIX_LENGTH-bytes
    *
    * @returns {boolean} true || false
    */
@@ -700,11 +700,9 @@ export class Utxo {
     commitment: Uint8Array;
     prefixBytes: Uint8Array;
   }): boolean {
-    let p1 = account
-      .generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH)
-      .join(",");
-    let p2 = prefixBytes.join(",");
-    return p1 === p2;
+    const generatedPrefixHash = account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH);
+    return generatedPrefixHash.length === prefixBytes.length &&
+        generatedPrefixHash.every((val: number, idx: number) => val === prefixBytes[idx]);
   }
 
   // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
@@ -876,7 +874,11 @@ export class Utxo {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<Result<Utxo | null, UtxoError>> {
+    // Get UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
     const prefixBytes = encBytes.slice(0, UTXO_PREFIX_LENGTH);
+
+    // If AES is enabled and the prefix of the commitment matches the account and prefixBytes,
+    // try to decrypt the UTXO
     if (aes && this.checkPrefixHash({ account, commitment, prefixBytes })) {
       const utxoResult = await Utxo.decryptUnchecked({
         poseidon,
@@ -892,12 +894,12 @@ export class Utxo {
         verifierProgramLookupTable,
       });
 
-      // prefixHash matches but decryption fails so utxo is null -> Returns TRUE (COLLISION)
+      // If the return value of decryptUnchecked operation is valid
       if (utxoResult.value) {
+        // Return the successfully decrypted UTXO
         return utxoResult;
       }
-
-      // prefixHash matches and decryption succeeds so utxo is good -> Returns UTXO (VALID)
+      // If decryption was unsuccessful, return an error message indicating a prefix collision
       return Result.Err(
         new UtxoError(
           UtxoErrorCode.PREFIX_COLLISION,
@@ -906,7 +908,8 @@ export class Utxo {
         ),
       );
     }
-    // prefixHash doesn't match -> Returns FALSE (NO COLLISION)
+    // If AES isn't enabled or the checkPrefixHash condition fails,
+    // return a successful Result with `null`
     return Result.Ok(null);
   }
 
