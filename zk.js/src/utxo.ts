@@ -700,9 +700,16 @@ export class Utxo {
     commitment: Uint8Array;
     prefixBytes: Uint8Array;
   }): boolean {
-    const generatedPrefixHash = account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH);
-    return generatedPrefixHash.length === prefixBytes.length &&
-        generatedPrefixHash.every((val: number, idx: number) => val === prefixBytes[idx]);
+    const generatedPrefixHash = account.generateUtxoPrefixHash(
+      commitment,
+      UTXO_PREFIX_LENGTH,
+    );
+    return (
+      generatedPrefixHash.length === prefixBytes.length &&
+      generatedPrefixHash.every(
+        (val: number, idx: number) => val === prefixBytes[idx],
+      )
+    );
   }
 
   // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
