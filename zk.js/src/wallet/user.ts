@@ -32,6 +32,7 @@ import {
   MerkleTreeConfig,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   ParsedIndexedTransaction,
+  UTXO_PREFIX_LENGTH,
   ProgramUtxoBalance,
   Provider,
   ProviderErrorCode,
@@ -187,12 +188,14 @@ export class User {
         const leafLeft = trx.leaves[index];
         const leafRight = trx.leaves[index + 1];
 
+        const encUtxoSize =
+          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
         // transaction nonce is the same for all utxos in one transaction
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
             trx.encryptedUtxos.slice(
-              (index / 2) * 240,
-              (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              index * encUtxoSize,
+              index * encUtxoSize + encUtxoSize,
             ),
           ),
           index: leftLeafIndex,
@@ -211,10 +214,8 @@ export class User {
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
             trx.encryptedUtxos.slice(
-              (index / 2) * 240 + 120,
-              (index / 2) * 240 +
-                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
-                120,
+              index * encUtxoSize + encUtxoSize,
+              index * encUtxoSize + encUtxoSize * 2,
             ),
           ),
           index: leftLeafIndex + 1,
@@ -1543,8 +1544,8 @@ export class User {
               verifierProgramLookupTable,
               assetLookupTable,
             });
-            if (decryptedUtxo !== null) {
-              const utxo = decryptedUtxo as Utxo;
+            if (decryptedUtxo.value) {
+              const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
                 utxo.getNullifier(this.provider.poseidon)!,
                 this.provider.provider?.connection!,

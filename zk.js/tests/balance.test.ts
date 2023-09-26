@@ -21,6 +21,7 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   MerkleTreeConfig,
   BN_0,
+  UTXO_PREFIX_LENGTH,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -144,14 +145,12 @@ describe("Utxo Functional", () => {
           blinding: new BN(1),
         });
         utxos.push(utxo);
-        encryptedUtxos = [
-          ...encryptedUtxos,
-          ...(await utxo.encrypt(
-            poseidon,
-            MerkleTreeConfig.getTransactionMerkleTreePda(),
-            true,
-          )),
-        ];
+        const encryptedUtxo = await utxo.encrypt(
+          poseidon,
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
+          true,
+        );
+        encryptedUtxos = [...encryptedUtxos, ...encryptedUtxo];
       }
       let indexedTransactions = [
         {
@@ -162,7 +161,7 @@ describe("Utxo Functional", () => {
           encryptedUtxos,
         },
       ];
-      let decryptedUtxos: Array<Utxo | null> = new Array<Utxo | null>();
+      let decryptedUtxos: Array<Utxo> = new Array<Utxo>();
       for (const trx of indexedTransactions) {
         let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
         for (let index = 0; index < trx.leaves.length; index += 2) {
@@ -171,7 +170,9 @@ describe("Utxo Functional", () => {
           let encBytes = Buffer.from(
             trx.encryptedUtxos.slice(
               (index / 2) * 240,
-              (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              (index / 2) * 240 +
+                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+                UTXO_PREFIX_LENGTH,
             ),
           );
           let decryptedUtxo = await Utxo.decrypt({
@@ -186,15 +187,16 @@ describe("Utxo Functional", () => {
             verifierProgramLookupTable,
             assetLookupTable,
           });
-          assert(typeof decryptedUtxo !== "boolean", "Can't decrypt utxo");
-          decryptedUtxos.push(decryptedUtxo);
+          assert(decryptedUtxo.error === null, "Can't decrypt utxo");
+          decryptedUtxos.push(decryptedUtxo.value);
 
           encBytes = Buffer.from(
             trx.encryptedUtxos.slice(
-              (index / 2) * 240 + 120,
+              (index / 2) * 240 + 120 + UTXO_PREFIX_LENGTH,
               (index / 2) * 240 +
                 NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
-                120,
+                120 +
+                UTXO_PREFIX_LENGTH,
             ),
           );
           decryptedUtxo = await Utxo.decrypt({
@@ -209,7 +211,8 @@ describe("Utxo Functional", () => {
             verifierProgramLookupTable,
             assetLookupTable,
           });
-          decryptedUtxos.push(decryptedUtxo);
+          assert(decryptedUtxo.error === null, "Can't decrypt utxo");
+          decryptedUtxos.push(decryptedUtxo.value);
         }
       }
       utxos.map((utxo, index) => {
