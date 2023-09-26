@@ -332,7 +332,7 @@ const parseTransactionEvents = (
  * @param {any[]} transactions - The array where the fetched transactions will be stored.
  * @returns {Promise<string>} - The signature of the last fetched transaction.
  */
-// TODO: consider explicitly returning a new txs array instead of mutating the passed in one
+// TODO: consider explicitly returning a new txs array instead of mutating the passed in oneDasync functio getn
 async function getTransactionsBatch({
   connection,
   merkleTreeProgramId,
@@ -344,6 +344,11 @@ async function getTransactionsBatch({
   batchOptions: ConfirmedSignaturesForAddress2Options;
   transactions: any;
 }) {
+  /// TODO: hash sigs. poll for hash in db. if matches, skip and keep hash. if not, add to db and process full batch there.
+  /// = if no activity, no/ish calls
+  /// = if heavy activity, lots of calls still. might have to make this slimmer. 
+  ///   e.g. filter by cutoff date before.
+  ///   
   const signatures = await connection.getConfirmedSignaturesForAddress2(
     new PublicKey(merkleTreeProgramId),
     batchOptions,

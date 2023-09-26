@@ -47,6 +47,9 @@ export async function searchBackward(job: Job, connection: Connection) {
           before: oldestTransaction.signature,
         },
       },
+      undefined,
+      job.data.transactions.ll,
+
     );
     return olderTransactions;
   }
