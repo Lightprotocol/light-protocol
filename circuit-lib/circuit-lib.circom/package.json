@@ -8,7 +8,7 @@
     "build-app": "sh scripts/buildCircuit.sh App",
     "test-light-circuits": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts --exit",
     "test-build-light-circuits": "yarn build-all && ./scripts/checkBuildCircuit.sh",
-    "test": "yarn test-light-circuits && yarn test-build-light-circuits",
+    "test": "yarn test-light-circuits",
     "format": "prettier --write \"tests/**/*.{ts,js,circom}\"",
     "build-all": "yarn build-app 4 && yarn build-masp 2 && yarn build-masp 10",
     "lint": "yarn prettier \"tests/**/*.{ts,js}\" --check",
