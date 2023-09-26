@@ -5,7 +5,7 @@ import {
   Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl, Program, utils } from "@coral-xyz/anchor";
-import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
+import { Utxo } from "../utxo";
 import {
   merkleTreeProgramId,
   TransactionErrorCode,
@@ -26,6 +26,8 @@ import {
   MerkleTreeConfig,
   TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
   BN_0,
+  UTXO_PREFIX_LENGTH,
+  N_ASSET_PUBKEYS,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types";
@@ -794,8 +796,18 @@ export class Transaction {
 
       return orderedInstructionNames;
     };
-    if (this.params.verifierConfig.out == 2) {
-      this.params.encryptedUtxos! = this.params.encryptedUtxos!.slice(0, 240);
+
+    if (
+      this.params.verifierConfig.out == 2 &&
+      this.params.encryptedUtxos &&
+      this.params.encryptedUtxos
+        .slice(240 + UTXO_PREFIX_LENGTH * 2)
+        .some((el) => el !== 0)
+    ) {
+      this.params.encryptedUtxos = this.params.encryptedUtxos.slice(
+        0,
+        240 + UTXO_PREFIX_LENGTH * 2,
+      );
     }
     let inputObject = {
       message: this.params.message,

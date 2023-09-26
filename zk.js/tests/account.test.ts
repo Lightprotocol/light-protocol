@@ -274,6 +274,50 @@ describe("Test Account Functional", () => {
       assert.notEqual(msg.toString(), message.toString());
     }
   });
+
+  it("Should correctly generate UTXO prefix viewing key", () => {
+    const salt = "PREFIX_VIEWING_SALT";
+    const expectedOutput: Uint8Array = new Uint8Array([
+      234, 101, 252, 191, 221, 162, 81, 61, 96, 127, 241, 157, 190, 48, 250,
+      147, 52, 212, 35, 226, 126, 246, 241, 98, 248, 163, 63, 9, 66, 56, 170,
+      178,
+    ]);
+    const currentOutput = k0.getUtxoPrefixViewingKey(salt);
+    return expect(currentOutput).to.eql(expectedOutput);
+  });
+
+  it("Should fail to generate UTXO prefix viewing key", () => {
+    const salt = "PREFIX_VIEWING_SALT";
+    // Made the expected output incorrect to make the test fail
+    const expectedOutput: Uint8Array = new Uint8Array([
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0,
+    ]);
+    const currentOutput = k0.getUtxoPrefixViewingKey(salt);
+    return expect(currentOutput).to.not.eql(expectedOutput);
+  });
+
+  it("Should correctly generate UTXO prefix hash", () => {
+    const commitmentHash = new Uint8Array(32).fill(1);
+    const prefix_length = 4;
+    const expectedOutput: Uint8Array = new Uint8Array([55, 154, 4, 63]);
+    const currentOutput = k0.generateUtxoPrefixHash(
+      commitmentHash,
+      prefix_length,
+    );
+    return expect(currentOutput).to.eql(expectedOutput);
+  });
+
+  it("Should fail UTXO prefix hash generation test for wrong expected output", () => {
+    const commitmentHash = new Uint8Array(32).fill(1);
+    const prefix_length = 4;
+    const incorrectExpectedOutput: Uint8Array = new Uint8Array([1, 2, 3, 4]);
+    const currentOutput = k0.generateUtxoPrefixHash(
+      commitmentHash,
+      prefix_length,
+    );
+    return expect(currentOutput).to.not.eql(incorrectExpectedOutput);
+  });
 });
 
 describe("Test Account Errors", () => {

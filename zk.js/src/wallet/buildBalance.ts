@@ -198,22 +198,34 @@ export async function decryptAddUtxoToBalance({
   verifierProgramLookupTable: string[];
   assetLookupTable: string[];
 }): Promise<void> {
-  let decryptedUtxo = await Utxo.decrypt({
-    poseidon,
-    encBytes: encBytes,
-    account: account,
-    index: index,
-    commitment,
-    aes,
-    merkleTreePdaPublicKey,
-    verifierProgramLookupTable,
-    assetLookupTable,
-  });
+  let decryptedUtxo = aes
+    ? await Utxo.decrypt({
+        poseidon,
+        encBytes: encBytes,
+        account: account,
+        index: index,
+        commitment,
+        aes,
+        merkleTreePdaPublicKey,
+        verifierProgramLookupTable,
+        assetLookupTable,
+      })
+    : await Utxo.decryptUnchecked({
+        poseidon,
+        encBytes: encBytes,
+        account: account,
+        index: index,
+        commitment,
+        aes,
+        merkleTreePdaPublicKey,
+        verifierProgramLookupTable,
+        assetLookupTable,
+      });
 
   // null if utxo did not decrypt -> return nothing and continue
-  if (!decryptedUtxo) return;
-
-  const nullifier = decryptedUtxo.getNullifier(poseidon);
+  if (!decryptedUtxo.value || decryptedUtxo.error) return;
+  const utxo = decryptedUtxo.value;
+  const nullifier = utxo.getNullifier(poseidon);
   if (!nullifier) return;
 
   const nullifierExists = await fetchNullifierAccountInfo(
@@ -226,21 +238,20 @@ export async function decryptAddUtxoToBalance({
   );
 
   const amountsValid =
-    decryptedUtxo.amounts[1].toString() !== "0" ||
-    decryptedUtxo.amounts[0].toString() !== "0";
-  const assetIndex = decryptedUtxo.amounts[1].toString() !== "0" ? 1 : 0;
+    utxo.amounts[1].toString() !== "0" || utxo.amounts[0].toString() !== "0";
+  const assetIndex = utxo.amounts[1].toString() !== "0" ? 1 : 0;
 
   // valid amounts and is not app utxo
   if (
     amountsValid &&
-    decryptedUtxo.verifierAddress.toBase58() === new PublicKey(0).toBase58() &&
-    decryptedUtxo.appDataHash.toString() === "0"
+    utxo.verifierAddress.toBase58() === new PublicKey(0).toBase58() &&
+    utxo.appDataHash.toString() === "0"
   ) {
     // TODO: add is native to utxo
     // if !asset try to add asset and then push
     if (
       assetIndex &&
-      !balance.tokenBalances.get(decryptedUtxo.assets[assetIndex].toBase58())
+      !balance.tokenBalances.get(utxo.assets[assetIndex].toBase58())
     ) {
       // TODO: several maps or unify somehow
       let tokenBalanceUsdc = new TokenUtxoBalance(TOKEN_REGISTRY.get("USDC")!);
@@ -249,7 +260,7 @@ export async function decryptAddUtxoToBalance({
         tokenBalanceUsdc,
       );
     }
-    const assetKey = decryptedUtxo.assets[assetIndex].toBase58();
+    const assetKey = utxo.assets[assetIndex].toBase58();
     const utxoType = queuedLeavesPdaExists
       ? "committedUtxos"
       : nullifierExists
@@ -258,6 +269,6 @@ export async function decryptAddUtxoToBalance({
 
     balance.tokenBalances
       .get(assetKey)
-      ?.addUtxo(decryptedUtxo.getCommitment(poseidon), decryptedUtxo, utxoType);
+      ?.addUtxo(utxo.getCommitment(poseidon), utxo, utxoType);
   }
 }

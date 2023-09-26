@@ -1,45 +1,44 @@
 import nacl, { box } from "tweetnacl";
+import { decrypt, encrypt } from "ethereum-cryptography/aes";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
+import {
+  Account,
+  BN_0,
+  COMPRESSED_UTXO_BYTES_LENGTH,
+  CONSTANT_SECRET_AUTHKEY,
+  createAccountObject,
+  CreateUtxoErrorCode,
+  ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  fetchAssetByIdLookUp,
+  fetchVerifierByIdLookUp,
+  FIELD_SIZE,
+  getAssetIndex,
+  hashAndTruncateToCircuit,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  N_ASSETS,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  UTXO_PREFIX_LENGTH,
+  setEnvironment,
+  UNCOMPRESSED_UTXO_BYTES_LENGTH,
+  UtxoError,
+  UtxoErrorCode,
+} from "./index";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Result } from "./types/result";
 
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
-import { encrypt, decrypt } from "ethereum-cryptography/aes";
 const { sha3_256 } = require("@noble/hashes/sha3");
 
 const anchor = require("@coral-xyz/anchor");
 
-import { PublicKey, SystemProgram } from "@solana/web3.js";
-
 const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
-import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
-import {
-  UtxoError,
-  UtxoErrorCode,
-  CONSTANT_SECRET_AUTHKEY,
-  fetchAssetByIdLookUp,
-  getAssetIndex,
-  hashAndTruncateToCircuit,
-  Account,
-  IDL_VERIFIER_PROGRAM_ZERO,
-  CreateUtxoErrorCode,
-  createAccountObject,
-  COMPRESSED_UTXO_BYTES_LENGTH,
-  UNCOMPRESSED_UTXO_BYTES_LENGTH,
-  ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  fetchVerifierByIdLookUp,
-  setEnvironment,
-  FIELD_SIZE,
-  BN_0,
-} from "./index";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
-// TODO: move to constants
-export const N_ASSETS = 2;
-export const N_ASSET_PUBKEYS = 3;
+export const randomPrefixBytes = () => nacl.randomBytes(UTXO_PREFIX_LENGTH);
 
 // TODO: Idl support for U256
 // TODO: add static createSolUtxo()
@@ -645,7 +644,8 @@ export class Utxo {
         CONSTANT_SECRET_AUTHKEY,
       );
 
-      return Uint8Array.from([...ciphertext]);
+      let prefix = randomPrefixBytes();
+      return Uint8Array.from([...prefix, ...ciphertext]);
     } else {
       if (!merkleTreePdaPublicKey)
         throw new UtxoError(
@@ -667,33 +667,69 @@ export class Utxo {
         true,
       );
 
-      if (!compressed) return ciphertext;
+      let prefix = this.account.generateUtxoPrefixHash(
+        commitment,
+        UTXO_PREFIX_LENGTH,
+      );
+      if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
       const padding = sha3_256
         .create()
         .update(Uint8Array.from([...nonce, ...bytes_message]))
         .digest();
 
-      // adding the 8 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of 120 bytes
-      return Uint8Array.from([...ciphertext, ...padding.subarray(0, 8)]);
+      // adding the 8 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of (120 + PREFIX_LENGTH) bytes
+      return Uint8Array.from([
+        ...prefix,
+        ...ciphertext,
+        ...padding.subarray(0, 8),
+      ]);
     }
+  }
+
+  /**
+   * @description Checks the UTXO prefix hash of UTXO_PREFIX_LENGTH-bytes
+   *
+   * @returns {boolean} true || false
+   */
+  static checkPrefixHash({
+    account,
+    commitment,
+    prefixBytes,
+  }: {
+    account: Account;
+    commitment: Uint8Array;
+    prefixBytes: Uint8Array;
+  }): boolean {
+    const generatedPrefixHash = account.generateUtxoPrefixHash(
+      commitment,
+      UTXO_PREFIX_LENGTH,
+    );
+    return (
+      generatedPrefixHash.length === prefixBytes.length &&
+      generatedPrefixHash.every(
+        (val: number, idx: number) => val === prefixBytes[idx],
+      )
+    );
   }
 
   // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
   /**
-   * @description Decrypts a utxo from an array of bytes, the last 24 bytes are the nonce.
+   * @description Decrypts an utxo from an array of bytes without checking the UTXO prefix hash.
+   * The prefix hash is assumed exist and to be the first 4 bytes.
+   * Thus, the first 4 bytes are ignored. The first by 16 / 24 bytes of the commitment are the IV / nonce.
    * @param {any} poseidon
    * @param {Uint8Array} encBytes
    * @param {Account} account
    * @param {number} index
    * @returns {Utxo | null}
    */
-  static async decrypt({
+  static async decryptUnchecked({
     poseidon,
     encBytes,
     account,
     index,
     merkleTreePdaPublicKey,
-    aes = true,
+    aes,
     commitment,
     appDataIdl,
     compressed = true,
@@ -711,17 +747,22 @@ export class Utxo {
     compressed?: boolean;
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
-  }): Promise<Utxo | null> {
+  }): Promise<Result<Utxo | null, UtxoError>> {
+    // Remove UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
+    encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
     if (aes) {
+      // Check if account secret key is available for decrypting using AES
       if (!account.aesSecret) {
         throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
       }
+      // Merkle tree public key is necessary for AES decryption
       if (!merkleTreePdaPublicKey)
         throw new UtxoError(
           UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
           "encrypt",
           "For aes decryption the merkle tree pda publickey is necessary to derive the viewingkey",
         );
+      // If encrypted bytes are compressed, only consider specific (ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH) byte length
       if (compressed) {
         encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
       }
@@ -729,6 +770,7 @@ export class Utxo {
       const iv16 = commitment.slice(0, 16);
 
       try {
+        // Attempt to decrypt using AES
         const cleartext = await decrypt(
           encBytes,
           account.getAesUtxoViewingKey(
@@ -740,23 +782,29 @@ export class Utxo {
           true,
         );
 
+        // Convert decrypted cleartext to bytes
         const bytes = Buffer.from(cleartext);
 
-        return Utxo.fromBytes({
-          poseidon,
-          bytes,
-          account,
-          index,
-          appDataIdl,
-          assetLookupTable,
-          verifierProgramLookupTable,
-        });
+        // Return a decrypted UTXO
+        return Result.Ok(
+          Utxo.fromBytes({
+            poseidon,
+            bytes,
+            account,
+            index,
+            appDataIdl,
+            assetLookupTable,
+            verifierProgramLookupTable,
+          }),
+        );
       } catch (e) {
-        // TODO: return errors - omitted for now because of different error messages on different systems
-        return null;
+        return Result.Err(e);
       }
     } else {
+      // Get the nonce if not using AES
       const nonce = commitment.slice(0, 24);
+
+      // If encrypted bytes are compressed, only consider specific (NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH) byte length
       if (compressed) {
         encBytes = encBytes.slice(
           0,
@@ -764,6 +812,7 @@ export class Utxo {
         );
       }
 
+      // Decrypt using NaCl if account's secret key is available
       if (account.encryptionKeypair.secretKey) {
         const cleartext = box.open(
           encBytes,
@@ -772,23 +821,103 @@ export class Utxo {
           account.encryptionKeypair.secretKey,
         );
 
+        // Return null if unable to decrypt
         if (!cleartext) {
-          return null;
+          return Result.Ok(null);
         }
+        // Convert decrypted cleartext to bytes
         const bytes = Buffer.from(cleartext);
-        return Utxo.fromBytes({
-          poseidon,
-          bytes,
-          account,
-          index,
-          appDataIdl,
-          assetLookupTable,
-          verifierProgramLookupTable,
-        });
+
+        // Return a decrypted UTXO
+        return Result.Ok(
+          Utxo.fromBytes({
+            poseidon,
+            bytes,
+            account,
+            index,
+            appDataIdl,
+            assetLookupTable,
+            verifierProgramLookupTable,
+          }),
+        );
       } else {
-        return null;
+        return Result.Ok(null);
       }
     }
+  }
+
+  // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
+  /**
+   * * @description Decrypts an utxo from an array of bytes by checking the UTXO prefix hash,
+   * * the first by 16 / 24 bytes of the commitment are the IV / nonce.
+   * @param {any} poseidon
+   * @param {Uint8Array} encBytes
+   * @param {Account} account
+   * @param {number} index
+   * @returns {Utxo | boolean }
+   */
+  static async decrypt({
+    poseidon,
+    encBytes,
+    account,
+    index,
+    merkleTreePdaPublicKey,
+    aes,
+    commitment,
+    appDataIdl,
+    compressed = true,
+    assetLookupTable,
+    verifierProgramLookupTable,
+  }: {
+    poseidon: any;
+    encBytes: Uint8Array;
+    account: Account;
+    index: number;
+    merkleTreePdaPublicKey?: PublicKey;
+    aes: boolean;
+    commitment: Uint8Array;
+    appDataIdl?: Idl;
+    compressed?: boolean;
+    assetLookupTable: string[];
+    verifierProgramLookupTable: string[];
+  }): Promise<Result<Utxo | null, UtxoError>> {
+    // Get UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
+    const prefixBytes = encBytes.slice(0, UTXO_PREFIX_LENGTH);
+
+    // If AES is enabled and the prefix of the commitment matches the account and prefixBytes,
+    // try to decrypt the UTXO
+    if (aes && this.checkPrefixHash({ account, commitment, prefixBytes })) {
+      const utxoResult = await Utxo.decryptUnchecked({
+        poseidon,
+        encBytes,
+        account,
+        index,
+        merkleTreePdaPublicKey,
+        aes,
+        commitment,
+        appDataIdl,
+        compressed,
+        assetLookupTable,
+        verifierProgramLookupTable,
+      });
+
+      // If the return value of decryptUnchecked operation is valid
+      if (utxoResult.value) {
+        // Return the successfully decrypted UTXO
+        return utxoResult;
+      }
+      // If decryption was unsuccessful, return an error message indicating a prefix collision
+      return Result.Err(
+        new UtxoError(
+          UtxoErrorCode.PREFIX_COLLISION,
+          "constructor",
+          "Prefix collision when decrypting utxo. " + utxoResult.error ?? "",
+        ),
+      );
+    }
+    // If AES isn't enabled or the checkPrefixHash condition fails,
+    // return a successful Result with `null`
+    return Result.Ok(null);
   }
 
   /**
@@ -940,5 +1069,3 @@ export class Utxo {
     return isAppInUtxo;
   }
 }
-
-exports.Utxo = Utxo;

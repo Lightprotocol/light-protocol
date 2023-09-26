@@ -54,10 +54,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     environmentConfig.providerSolanaKeypair = ADMIN_AUTH_KEYPAIR;
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await anchorProvider.connection.requestAirdrop(
-      relayerRecipientSol,
-      2_000_000_000,
-    );
+    await anchorProvider.connection.requestAirdrop(relayerRecipientSol, 2e9);
 
     environmentConfig.relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
