@@ -307,7 +307,7 @@ export class TestTransaction {
         let decryptedUtxo1 = await Utxo.decrypt({
           poseidon: this.provider.poseidon,
           encBytes: this.params!.encryptedUtxos,
-          account: account ? account : this.params!.outputUtxos![0].account,
+          account: account!, //? account : this.params!.outputUtxos![0].publicKey,
           aes: true,
           index: 0, // this is just a placeholder
           merkleTreePdaPublicKey: this.params!.accounts.transactionMerkleTree,

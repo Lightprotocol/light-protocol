@@ -23,6 +23,7 @@ import {
   UtxoError,
   UtxoErrorCode,
   verifierProgramTwoProgramId,
+  CreateUtxoErrorCode,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { randomBytes } from "tweetnacl";
@@ -51,7 +52,7 @@ describe("Utxo Functional", () => {
       const utxo4 = new Utxo({
         poseidon,
         amounts: [new BN(123)],
-        account: utxo4Account,
+        publicKey: utxo4Account.pubkey,
         appDataHash: new BN(verifierProgramTwoProgramId.toBuffer()),
         includeAppData: false,
         verifierAddress: new PublicKey(
@@ -92,14 +93,16 @@ describe("Utxo Functional", () => {
       Utxo.equal(poseidon, utxo4, utxo40Compressed);
 
       // encrypt
-      const encBytes4 = await utxo4.encrypt(
+      const encBytes4 = await utxo4.encrypt({
         poseidon,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
-      );
-      const encBytes41 = await utxo4.encrypt(
+        account: utxo4Account,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      });
+      const encBytes41 = await utxo4.encrypt({
         poseidon,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
-      );
+        account: utxo4Account,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      });
       assert.equal(encBytes4.toString(), encBytes41.toString());
 
       // decrypt checked
@@ -168,7 +171,8 @@ describe("Utxo Functional", () => {
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      account: inputs.keypair,
+      publicKey: inputs.keypair.pubkey,
+      encryptionPublicKey: inputs.keypair.encryptionKeypair.publicKey,
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -206,7 +210,7 @@ describe("Utxo Functional", () => {
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      account: inputs.keypair,
+      publicKey: inputs.keypair.pubkey,
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -243,7 +247,7 @@ describe("Utxo Functional", () => {
     );
 
     assert.equal(
-      utxo0.getNullifier(poseidon)?.toString(),
+      utxo0.getNullifier({ poseidon, account: inputs.keypair })?.toString(),
       "6203060337570741528902613554275892537213176828384528961609701446906034353029",
     );
 
@@ -262,10 +266,11 @@ describe("Utxo Functional", () => {
     Utxo.equal(poseidon, utxo0, utxo1);
 
     // encrypt
-    const encBytes = await utxo1.encrypt(
+    const encBytes = await utxo1.encrypt({
       poseidon,
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    );
+      account: inputs.keypair,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+    });
 
     // decrypt
     const utxo3 = await Utxo.decrypt({
@@ -296,7 +301,9 @@ describe("Utxo Functional", () => {
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      account: Account.fromPubkey(publicKey, poseidon),
+      publicKey: Account.fromPubkey(publicKey, poseidon).pubkey,
+      encryptionPublicKey: Account.fromPubkey(publicKey, poseidon)
+        .encryptionKeypair.publicKey,
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -305,10 +312,10 @@ describe("Utxo Functional", () => {
     });
 
     // encrypt
-    const encBytesNacl = await receivingUtxo.encrypt(
+    const encBytesNacl = await receivingUtxo.encrypt({
       poseidon,
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    );
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+    });
 
     // decrypt
     const receivingUtxo1Unchecked = await Utxo.decryptUnchecked({
@@ -337,7 +344,9 @@ describe("Utxo Functional", () => {
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      account: Account.fromPubkey(publicKey, poseidon),
+      publicKey: Account.fromPubkey(publicKey, poseidon).pubkey,
+      encryptionPublicKey: Account.fromPubkey(publicKey, poseidon)
+        .encryptionKeypair.publicKey,
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -346,10 +355,10 @@ describe("Utxo Functional", () => {
     });
 
     // encrypt
-    const encBytesNaclNoAes = await receivingUtxoNoAes.encrypt(
+    const encBytesNaclNoAes = await receivingUtxoNoAes.encrypt({
       poseidon,
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    );
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+    });
 
     // decrypt
     const receivingUtxo1NoAes = await Utxo.decrypt({
@@ -384,7 +393,7 @@ describe("Utxo Functional", () => {
     const outputUtxo = new Utxo({
       poseidon,
       assets: [SystemProgram.programId],
-      account,
+      publicKey: account.pubkey,
       amounts: [new BN(1_000_000)],
       appData: { releaseSlot: BN_1 },
       appDataIdl: TEST_PSP_IDL,
@@ -463,14 +472,14 @@ describe("Utxo Errors", () => {
     let pubkeyUtxo = new Utxo({
       poseidon,
       amounts: [BN_1],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     expect(() => {
-      pubkeyUtxo.getNullifier(poseidon);
+      pubkeyUtxo.getNullifier({ poseidon, account });
     })
       .throw(UtxoError)
       .include({
@@ -486,7 +495,7 @@ describe("Utxo Errors", () => {
     let pubkeyUtxo = new Utxo({
       poseidon,
       amounts: [BN_1],
-      account,
+      publicKey: account.pubkey,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -494,11 +503,12 @@ describe("Utxo Errors", () => {
     });
 
     expect(() => {
-      pubkeyUtxo.getNullifier(poseidon);
+      // @ts-ignore
+      pubkeyUtxo.getNullifier({ poseidon });
     })
       .throw(UtxoError)
       .include({
-        code: UtxoErrorCode.ACCOUNT_HAS_NO_PRIVKEY,
+        code: CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
         functionName: "getNullifier",
       });
   });
@@ -509,7 +519,7 @@ describe("Utxo Errors", () => {
         poseidon,
         assets: [inputs.assets[1]],
         amounts: inputs.amounts,
-        account: inputs.keypair,
+        publicKey: inputs.keypair.pubkey,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -529,7 +539,7 @@ describe("Utxo Errors", () => {
         poseidon,
         assets: [MINT, MINT, MINT],
         amounts: [BN_1, BN_1, BN_1],
-        account: inputs.keypair,
+        publicKey: inputs.keypair.pubkey,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -549,7 +559,7 @@ describe("Utxo Errors", () => {
         poseidon,
         assets: inputs.assets,
         amounts: [inputs.amounts[0], new BN(-1)],
-        account: inputs.keypair,
+        publicKey: inputs.keypair.pubkey,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -569,7 +579,7 @@ describe("Utxo Errors", () => {
         poseidon,
         assets: inputs.assets,
         amounts: inputs.amounts,
-        account: inputs.keypair,
+        publicKey: inputs.keypair.pubkey,
         blinding: inputs.blinding,
         appData: new Array(32).fill(1),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -590,7 +600,7 @@ describe("Utxo Errors", () => {
         poseidon,
         assets: [SystemProgram.programId, SolanaKeypair.generate().publicKey],
         amounts: inputs.amounts,
-        account: inputs.keypair,
+        publicKey: inputs.keypair.pubkey,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -610,7 +620,7 @@ describe("Utxo Errors", () => {
         poseidon,
         assets: [SystemProgram.programId, SolanaKeypair.generate().publicKey],
         amounts: inputs.amounts,
-        account: inputs.keypair,
+        publicKey: inputs.keypair.pubkey,
         blinding: new BN(FIELD_SIZE),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -630,7 +640,9 @@ describe("Utxo Errors", () => {
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      account: Account.fromPubkey(publicKey, poseidon),
+      publicKey: Account.fromPubkey(publicKey, poseidon).pubkey,
+      encryptionPublicKey: Account.fromPubkey(publicKey, poseidon)
+        .encryptionKeypair.publicKey,
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -639,10 +651,10 @@ describe("Utxo Errors", () => {
     });
 
     // encrypt
-    const encBytesNacl = await receivingUtxo.encrypt(
+    const encBytesNacl = await receivingUtxo.encrypt({
       poseidon,
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    );
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+    });
 
     // decrypt
     const receivingUtxo1 = await Utxo.decrypt({
@@ -679,7 +691,7 @@ describe("Utxo Benchmark", () => {
     const testUtxo = new Utxo({
       poseidon,
       amounts: [new BN(123)],
-      account: utxoTestAccount,
+      publicKey: utxoTestAccount.pubkey,
       appDataHash: new BN(verifierProgramTwoProgramId.toBuffer()),
       includeAppData: false,
       verifierAddress: new PublicKey(

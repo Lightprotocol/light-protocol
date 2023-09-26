@@ -58,7 +58,7 @@ describe("Transaction Error Tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -288,7 +288,7 @@ describe("Transaction Functional Tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: account,
+      publicKey: account.pubkey,
       blinding: new BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -394,6 +394,7 @@ describe("Transaction Functional Tests", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: account.pubkey,
     });
 
     const relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
@@ -439,6 +440,7 @@ describe("Transaction Functional Tests", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: new Account({ poseidon }).pubkey,
     });
 
     const indices3 = tx.getIndices([deposit_utxo2]);
@@ -454,6 +456,7 @@ describe("Transaction Functional Tests", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: new Account({ poseidon }).pubkey,
     });
 
     const indices4 = tx.getIndices([deposit_utxo3]);
@@ -471,6 +474,7 @@ describe("Transaction Functional Tests", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: new Account({ poseidon }).pubkey,
     });
 
     const indices5 = tx.getIndices([deposit_utxo4]);
@@ -503,6 +507,7 @@ describe("Transaction Functional Tests", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: new Account({ poseidon }).pubkey,
     });
 
     const indices7 = tx.getIndices([deposit_utxo5]);

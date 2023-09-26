@@ -120,7 +120,7 @@ describe("Verifier Zero and One Tests", () => {
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
         ],
-        account: ACCOUNT,
+        publicKey: ACCOUNT.pubkey,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -164,7 +164,7 @@ describe("Verifier Zero and One Tests", () => {
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
         ],
-        account: ACCOUNT,
+        publicKey: ACCOUNT.pubkey,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,

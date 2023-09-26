@@ -111,7 +111,7 @@ describe("API tests", () => {
           poseidon: poseidon,
           assets: [FEE_ASSET, MINT],
           amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-          account: new Account({ poseidon: poseidon, seed: seed32 }),
+          publicKey: new Account({ poseidon: poseidon, seed: seed32 }).pubkey,
           blinding: new BN(new Array(31).fill(1)),
           assetLookupTable: lookUpTable,
           verifierProgramLookupTable: lookUpTable,

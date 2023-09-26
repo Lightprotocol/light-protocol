@@ -63,7 +63,7 @@ describe("Masp circuit tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -73,7 +73,7 @@ describe("Masp circuit tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), BN_0],
-      account: account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -141,6 +141,7 @@ describe("Masp circuit tests", () => {
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
             lightProvider.lookUpTables.verifierProgramLookupTable,
+          publicKey: account.pubkey,
         }),
       ],
       eventMerkleTreePubkey: mockPubkey,
@@ -162,6 +163,7 @@ describe("Masp circuit tests", () => {
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
             lightProvider.lookUpTables.verifierProgramLookupTable,
+          publicKey: account.pubkey,
         }),
       ],
       eventMerkleTreePubkey: mockPubkey,
@@ -182,6 +184,7 @@ describe("Masp circuit tests", () => {
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
             lightProvider.lookUpTables.verifierProgramLookupTable,
+          publicKey: account.pubkey,
         }),
       ],
       eventMerkleTreePubkey: mockPubkey,
@@ -203,6 +206,7 @@ describe("Masp circuit tests", () => {
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
             lightProvider.lookUpTables.verifierProgramLookupTable,
+          publicKey: account.pubkey,
         }),
       ],
       eventMerkleTreePubkey: mockPubkey,
@@ -224,7 +228,7 @@ describe("Masp circuit tests", () => {
       provider: lightProvider,
       params: txParams,
     });
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.root = new BN("123").toString();
 
     await tx.getProof(account);
@@ -235,7 +239,7 @@ describe("Masp circuit tests", () => {
       provider: lightProvider,
       params: paramsWithdrawal,
     });
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.root = new BN("123").toString();
     await chai.assert.isRejected(
       tx.getProof(account),
@@ -248,7 +252,7 @@ describe("Masp circuit tests", () => {
       provider: lightProvider,
       params: paramsWithdrawal,
     });
-    await tx.compile();
+    await tx.compile(account);
 
     tx.proofInput.txIntegrityHash = new BN("123").toString();
 
@@ -263,7 +267,7 @@ describe("Masp circuit tests", () => {
       provider: lightProvider,
       params: txParams,
     });
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
@@ -278,7 +282,7 @@ describe("Masp circuit tests", () => {
       provider: lightProvider,
       params: paramsWithdrawal,
     });
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
@@ -294,7 +298,7 @@ describe("Masp circuit tests", () => {
       provider: lightProvider,
       params: txParamsSol,
     });
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
@@ -306,7 +310,7 @@ describe("Masp circuit tests", () => {
       provider: lightProvider,
       params: paramsWithdrawal,
     });
-    await tx.compile();
+    await tx.compile(account);
 
     tx.proofInput.inPathElements[0] =
       tx.provider.solMerkleTree?.merkleTree.path(1).pathElements;
@@ -321,7 +325,7 @@ describe("Masp circuit tests", () => {
       provider: lightProvider,
       params: paramsWithdrawal,
     });
-    await tx.compile();
+    await tx.compile(account);
 
     tx.proofInput.inPathIndices[0] = 1;
     await chai.assert.isRejected(
@@ -336,7 +340,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     // tx.proofInput.inPrivateKey[0] = new BN("123").toString();
     await chai.assert.isRejected(
       tx.getProof(new Account({ poseidon })),
@@ -350,7 +354,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.publicAmountSpl = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -365,7 +369,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.publicAmountSol = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -380,7 +384,7 @@ describe("Masp circuit tests", () => {
       params: txParamsSol,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.publicAmountSpl = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -395,7 +399,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     console.log();
 
     tx.proofInput.outputCommitment[0] = new BN("123").toString();
@@ -412,7 +416,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.inAmount[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -427,7 +431,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.outAmount[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -442,7 +446,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.inBlinding[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -457,7 +461,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.outBlinding[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -472,7 +476,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.outPubkey[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -487,7 +491,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     for (let i = 0; i < 3; i++) {
       tx.proofInput.assetPubkeys[i] = hashAndTruncateToCircuit(
         SolanaKeypair.generate().publicKey.toBytes(),
@@ -508,7 +512,7 @@ describe("Masp circuit tests", () => {
       appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
     });
 
-    await tx.compile();
+    await tx.compile(account);
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -522,7 +526,7 @@ describe("Masp circuit tests", () => {
       params: txParamsOutApp,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     await tx.getProof(account);
   });
 
@@ -533,7 +537,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.outAppDataHash[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -548,7 +552,7 @@ describe("Masp circuit tests", () => {
       params: txParamsPoolType,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -561,7 +565,7 @@ describe("Masp circuit tests", () => {
       params: txParamsPoolTypeOut,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -574,7 +578,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.inPoolType[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -589,7 +593,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.outPoolType[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -604,7 +608,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
 
     tx.proofInput.inIndices[0][0][0] = new BN("123").toString();
 
@@ -620,7 +624,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     chai.assert.notEqual(tx.proofInput.outIndices[1][1][1].toString(), "1");
     tx.proofInput.inIndices[1][1][1] = "1";
 
@@ -636,7 +640,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
 
     tx.proofInput.outIndices[0][0][0] = new BN("123").toString();
 
@@ -652,7 +656,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
 
-    await tx.compile();
+    await tx.compile(account);
     chai.assert.notEqual(tx.proofInput.outIndices[1][1][1].toString(), "1");
     tx.proofInput.outIndices[1][1][1] = "1";
 
@@ -677,7 +681,7 @@ describe("App system circuit tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -708,6 +712,7 @@ describe("App system circuit tests", () => {
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
             lightProvider.lookUpTables.verifierProgramLookupTable,
+          publicKey: account.pubkey,
         }),
       ],
       eventMerkleTreePubkey: mockPubkey,
@@ -728,7 +733,7 @@ describe("App system circuit tests", () => {
       params: txParams,
       appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
     });
-    await tx.compile();
+    await tx.compile(account);
 
     tx.proofInput.transactionHash = new BN("123").toString();
     await chai.assert.isRejected(
@@ -743,7 +748,7 @@ describe("App system circuit tests", () => {
       params: txParamsApp,
       appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
     });
-    await tx.compile();
+    await tx.compile(account);
     tx.proofInput.publicAppVerifier = new BN("123").toString();
     await chai.assert.isRejected(
       tx.getProof(account),

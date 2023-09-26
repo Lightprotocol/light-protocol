@@ -60,7 +60,8 @@ export class Utxo {
   assets: PublicKey[];
   assetsCircuit: BN[] = [];
   blinding: BN;
-  account: Account;
+  publicKey: BN;
+  encryptionPublicKey?: Uint8Array;
   index?: number;
   appData: any;
   verifierAddress: PublicKey;
@@ -82,7 +83,7 @@ export class Utxo {
    * @param {BN[]} amounts array of utxo amounts, amounts[0] is the sol amount amounts[1] is the spl amount
    * @param {PublicKey[]} assets  array of utxo assets, assets[0] is the sol asset assets[1] is the spl asset
    * @param {BN} blinding Blinding factor, a 31 bytes big number, to add randomness to the commitment hash.
-   * @param {Account} account the account owning the utxo.
+   * @param {BN} publicKey the shielded public key owning the utxo.
    * @param {index} index? the index of the utxo's commitment hash in the Merkle tree.
    * @param {Array<any>} appData application data of app utxos not provided for normal utxos.
    * @param {PublicKey} verifierAddress the solana address of the verifier, SystemProgramId/BN(0) for system verifiers.
@@ -97,7 +98,7 @@ export class Utxo {
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
     assets = [SystemProgram.programId],
     amounts = [BN_0],
-    account,
+    publicKey,
     blinding = new BN(randomBN(), 31, "be"),
     poolType = BN_0,
     verifierAddress = SystemProgram.programId,
@@ -109,11 +110,12 @@ export class Utxo {
     assetLookupTable,
     verifierProgramLookupTable,
     isFillingUtxo = false,
+    encryptionPublicKey,
   }: {
     poseidon: any;
     assets?: PublicKey[];
     amounts?: BN[];
-    account?: Account;
+    publicKey: BN;
     blinding?: BN;
     poolType?: BN;
     verifierAddress?: PublicKey;
@@ -125,6 +127,7 @@ export class Utxo {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
     isFillingUtxo?: boolean;
+    encryptionPublicKey?: Uint8Array;
   }) {
     if (!blinding.eq(blinding.mod(FIELD_SIZE))) {
       throw new UtxoError(
@@ -207,8 +210,9 @@ export class Utxo {
       return new BN(x.toString());
     });
 
+    this.encryptionPublicKey = encryptionPublicKey;
     this.isFillingUtxo = isFillingUtxo;
-    this.account = account || new Account({ poseidon });
+    this.publicKey = publicKey;
     this.blinding = blinding;
     this.index = index;
     this.assets = assets;
@@ -377,8 +381,10 @@ export class Utxo {
   async toBytes(compressed: boolean = false) {
     let serializeObject = {
       ...this,
-      accountShieldedPublicKey: this.account.pubkey,
-      accountEncryptionPublicKey: this.account.encryptionKeypair.publicKey,
+      accountShieldedPublicKey: this.publicKey,
+      accountEncryptionPublicKey: this.encryptionPublicKey
+        ? this.encryptionPublicKey
+        : new Uint8Array(32).fill(0),
       verifierAddressIndex: this.verifierProgramIndex,
     };
     let serializedData;
@@ -489,19 +495,17 @@ export class Utxo {
       decodedUtxoData.verifierAddressIndex,
       verifierProgramLookupTable,
     );
-    if (!account) {
-      let concatPublicKey = bs58.encode(
-        new Uint8Array([
-          ...decodedUtxoData.accountShieldedPublicKey.toArray("be", 32),
-          ...decodedUtxoData.accountEncryptionPublicKey,
-        ]),
-      );
-      account = Account.fromPubkey(concatPublicKey, poseidon);
-    }
 
     return new Utxo({
       assets,
-      account,
+      publicKey: !account
+        ? decodedUtxoData.accountShieldedPublicKey
+        : account.pubkey,
+      encryptionPublicKey: new BN(
+        decodedUtxoData.accountEncryptionPublicKey,
+      ).eq(BN_0)
+        ? undefined
+        : new Uint8Array(decodedUtxoData.accountEncryptionPublicKey),
       index,
       poseidon,
       appDataIdl,
@@ -525,10 +529,8 @@ export class Utxo {
       let assetHash = poseidon.F.toString(
         poseidon(this.assetsCircuit.map((x) => x.toString())),
       );
-      let publicKey: BN;
-      if (this.account) {
-        publicKey = this.account.pubkey;
-      } else {
+
+      if (!this.publicKey) {
         throw new UtxoError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
           "getCommitment",
@@ -538,7 +540,7 @@ export class Utxo {
       // console.log("this.assetsCircuit ", this.assetsCircuit);
 
       // console.log("amountHash ", amountHash.toString());
-      // console.log("this.keypair.pubkey ", this.account.pubkey.toString());
+      // console.log("this.keypair.pubkey ", this.publicKey.toString());
       // console.log("this.blinding ", this.blinding.toString());
       // console.log("assetHash ", assetHash.toString());
       // console.log("this.appDataHash ", this.appDataHash.toString());
@@ -547,7 +549,7 @@ export class Utxo {
         poseidon([
           this.transactionVersion,
           amountHash,
-          publicKey.toString(),
+          this.publicKey.toString(),
           this.blinding.toString(),
           assetHash.toString(),
           this.appDataHash.toString(),
@@ -570,7 +572,15 @@ export class Utxo {
    *
    * @returns {string}
    */
-  getNullifier(poseidon: any, index?: number | undefined) {
+  getNullifier({
+    poseidon,
+    account,
+    index,
+  }: {
+    poseidon: any;
+    account: Account;
+    index?: number | undefined;
+  }) {
     if (this.index === undefined) {
       if (index) {
         this.index = index;
@@ -584,26 +594,19 @@ export class Utxo {
         );
       }
     }
-
-    if (
-      (!this.amounts[0].eq(BN_0) || !this.amounts[1].eq(BN_0)) &&
-      this.account.privkey.toString() === "0"
-    ) {
+    if (!account)
       throw new UtxoError(
-        UtxoErrorCode.ACCOUNT_HAS_NO_PRIVKEY,
+        CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
         "getNullifier",
-        "The index of an utxo in the merkle tree is required to compute the nullifier hash.",
+        "Account is required to compute the nullifier hash.",
       );
-    }
 
     if (!this._nullifier) {
-      const signature = this.account.privkey
-        ? this.account.sign(
-            poseidon,
-            this.getCommitment(poseidon),
-            this.index || 0,
-          )
-        : 0;
+      const signature = account.sign(
+        poseidon,
+        this.getCommitment(poseidon),
+        this.index || 0,
+      );
       // console.log("this.getCommitment() ", this.getCommitment());
       // console.log("this.index || 0 ", this.index || 0);
       // console.log("signature ", signature);
@@ -616,16 +619,23 @@ export class Utxo {
     return this._nullifier;
   }
 
+  // TODO: evaluate whether to add a flag to encrypt asymetrically
   /**
    * @description Encrypts the utxo to the utxo's accounts public key with nacl.box.
    *
    * @returns {Uint8Array} with the first 24 bytes being the nonce
    */
-  async encrypt(
-    poseidon: any,
-    merkleTreePdaPublicKey?: PublicKey,
-    compressed: boolean = true,
-  ): Promise<Uint8Array> {
+  async encrypt({
+    poseidon,
+    account,
+    merkleTreePdaPublicKey,
+    compressed = true,
+  }: {
+    poseidon: any;
+    account?: Account;
+    merkleTreePdaPublicKey?: PublicKey;
+    compressed?: boolean;
+  }): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(compressed);
     const commitment = new BN(this.getCommitment(poseidon)).toArrayLike(
       Buffer,
@@ -633,15 +643,15 @@ export class Utxo {
       32,
     );
 
-    if (!this.account.aesSecret) {
+    if (this.encryptionPublicKey) {
       const ciphertext = Account.encryptNaclUtxo(
-        this.account.encryptionKeypair.publicKey,
+        this.encryptionPublicKey,
         bytes_message,
         commitment,
       );
       let prefix = randomPrefixBytes();
       return Uint8Array.from([...prefix, ...ciphertext]);
-    } else {
+    } else if (account) {
       if (!merkleTreePdaPublicKey)
         throw new UtxoError(
           UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
@@ -649,7 +659,7 @@ export class Utxo {
           "For aes encryption the merkle tree pda publickey is necessary to derive the viewingkey",
         );
 
-      const ciphertext = await this.account.encryptAesUtxo(
+      const ciphertext = await account.encryptAesUtxo(
         bytes_message,
         merkleTreePdaPublicKey,
         commitment,
@@ -658,7 +668,7 @@ export class Utxo {
       // If utxo is filling utxo we don't want to decrypt it in the future so we use a random prefix
       // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
       let prefix = !this.isFillingUtxo
-        ? this.account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH)
+        ? account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH)
         : randomPrefixBytes();
       if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
       const padding = sha3_256
@@ -672,6 +682,12 @@ export class Utxo {
         ...ciphertext,
         ...padding.subarray(0, 8),
       ]);
+    } else {
+      throw new UtxoError(
+        CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
+        "encrypt",
+        "Neither account nor this.encryptionPublicKey is defined",
+      );
     }
   }
 
@@ -893,6 +909,8 @@ export class Utxo {
     utxo0: Utxo,
     utxo1: Utxo,
     skipNullifier: boolean = false,
+    account0?: Account,
+    account1?: Account,
   ) {
     if (utxo0.amounts[0].toString() !== utxo1.amounts[0].toString()) {
       throw new Error(
@@ -974,10 +992,10 @@ export class Utxo {
 
     if (!skipNullifier) {
       if (utxo0.index || utxo1.index) {
-        if (utxo0.account.privkey || utxo1.account.privkey) {
+        if (account0 && account1) {
           if (
-            utxo0.getNullifier(poseidon)?.toString() !==
-            utxo1.getNullifier(poseidon)?.toString()
+            utxo0.getNullifier({ poseidon, account: account0 })?.toString() !==
+            utxo1.getNullifier({ poseidon, account: account1 })?.toString()
           ) {
             throw new Error(
               `nullifier not equal: ${utxo0
@@ -985,6 +1003,7 @@ export class Utxo {
                 ?.toString()} vs ${utxo1.getNullifier(poseidon)?.toString()}`,
             );
           }
+          throw new Error("Acccount0 or Account1 not defined");
         }
       }
     }

@@ -616,7 +616,7 @@ describe("Merkle Tree Tests", () => {
       poseidon: POSEIDON,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: KEYPAIR,
+      publicKey: KEYPAIR.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1085,7 +1085,7 @@ describe("Merkle Tree Tests", () => {
       poseidon: POSEIDON,
       assets: [FEE_ASSET, MINT],
       amounts: [shieldFeeAmount, shieldAmount],
-      account: KEYPAIR,
+      publicKey: KEYPAIR.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
