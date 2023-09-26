@@ -496,7 +496,7 @@ export class User {
       shuffleEnabled,
     });
 
-    await tx.compileAndProve();
+    await tx.compileAndProve(this.account);
     this.recentTransaction = tx;
     return tx;
   }

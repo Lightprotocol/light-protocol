@@ -74,6 +74,7 @@ export class Utxo {
   appDataIdl?: Idl;
   splAssetIndex: BN;
   verifierProgramIndex: BN;
+  isFillingUtxo: boolean;
 
   /**
    * @description Initialize a new utxo - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
@@ -107,6 +108,7 @@ export class Utxo {
     includeAppData = true,
     assetLookupTable,
     verifierProgramLookupTable,
+    isFillingUtxo = false,
   }: {
     poseidon: any;
     assets?: PublicKey[];
@@ -122,6 +124,7 @@ export class Utxo {
     appDataHash?: BN;
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
+    isFillingUtxo?: boolean;
   }) {
     if (!blinding.eq(blinding.mod(FIELD_SIZE))) {
       throw new UtxoError(
@@ -204,6 +207,7 @@ export class Utxo {
       return new BN(x.toString());
     });
 
+    this.isFillingUtxo = isFillingUtxo;
     this.account = account || new Account({ poseidon });
     this.blinding = blinding;
     this.index = index;
@@ -651,10 +655,11 @@ export class Utxo {
         commitment,
       );
 
-      let prefix = this.account.generateUtxoPrefixHash(
-        commitment,
-        UTXO_PREFIX_LENGTH,
-      );
+      // If utxo is filling utxo we don't want to decrypt it in the future so we use a random prefix
+      // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
+      let prefix = !this.isFillingUtxo
+        ? this.account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH)
+        : randomPrefixBytes();
       if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
       const padding = sha3_256
         .create()

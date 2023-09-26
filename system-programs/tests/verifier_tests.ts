@@ -39,8 +39,6 @@ import {
   BN_0,
 } from "@lightprotocol/zk.js";
 
-import { BN } from "@coral-xyz/anchor";
-
 var POSEIDON, ACCOUNT, RELAYER, deposit_utxo1;
 var SLEEP_BUFFER = 0;
 const system = getSystem();
@@ -138,6 +136,7 @@ describe("Verifier Zero and One Tests", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         verifierIdl: VERIFIER_IDLS[verifier],
+        account: ACCOUNT,
       });
 
       var transaction = new Transaction({
@@ -145,7 +144,7 @@ describe("Verifier Zero and One Tests", () => {
         params: txParams,
       });
 
-      await transaction.compileAndProve();
+      await transaction.compileAndProve(ACCOUNT);
       await transaction.provider.provider.connection.confirmTransaction(
         await transaction.provider.provider.connection.requestAirdrop(
           transaction.params.accounts.authority,
@@ -181,13 +180,14 @@ describe("Verifier Zero and One Tests", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         verifierIdl: VERIFIER_IDLS[verifier],
+        account: ACCOUNT,
       });
 
       var transaction1 = new Transaction({
         provider: lightProvider,
         params: txParams1,
       });
-      await transaction1.compileAndProve();
+      await transaction1.compileAndProve(ACCOUNT);
       transactions.push(transaction1);
 
       // Withdrawal
@@ -224,13 +224,14 @@ describe("Verifier Zero and One Tests", () => {
         poseidon: POSEIDON,
         action: Action.UNSHIELD,
         verifierIdl: VERIFIER_IDLS[verifier],
+        account: ACCOUNT,
       });
       var tx = new Transaction({
         provider: lightProviderWithdrawal,
         params: txParams2,
       });
 
-      await tx.compileAndProve();
+      await tx.compileAndProve(ACCOUNT);
       transactions.push(tx);
     }
   });

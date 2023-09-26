@@ -632,12 +632,13 @@ describe("Merkle Tree Tests", () => {
       action: Action.SHIELD,
       poseidon: POSEIDON,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account: KEYPAIR,
     });
     var transaction = new Transaction({
       provider: lightProvider,
       params: txParams,
     });
-    await transaction.compileAndProve();
+    await transaction.compileAndProve(KEYPAIR);
     console.log(transaction.params.accounts);
 
     // does one successful transaction
@@ -1105,6 +1106,7 @@ describe("Merkle Tree Tests", () => {
       action: Action.SHIELD,
       poseidon: POSEIDON,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account: KEYPAIR,
     });
     let transaction = new Transaction({
       provider: lightProvider,
@@ -1121,7 +1123,7 @@ describe("Merkle Tree Tests", () => {
       pubkey: newEventMerkleTreePubkey,
     };
 
-    await transaction.compileAndProve();
+    await transaction.compileAndProve(KEYPAIR);
     await transaction.sendAndConfirmTransaction();
 
     let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(

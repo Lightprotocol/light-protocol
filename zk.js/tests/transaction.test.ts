@@ -47,18 +47,18 @@ describe("Transaction Error Tests", () => {
   let poseidon: any,
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
-    keypair,
+    account: Account,
     params: TransactionParameters;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -72,6 +72,7 @@ describe("Transaction Error Tests", () => {
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
   });
 
@@ -144,6 +145,7 @@ describe("Transaction Error Tests", () => {
       senderSol: mockPubkey,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
     expect(() => {
       new Transaction({
@@ -193,7 +195,7 @@ describe("Transaction Error Tests", () => {
       params,
     });
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_INPUT_UNDEFINED,
     );
   });
@@ -204,7 +206,7 @@ describe("Transaction Error Tests", () => {
       params,
     });
     await chai.assert.isRejected(
-      tx.getAppProof(),
+      tx.getAppProof(account),
       TransactionErrorCode.APP_PARAMETERS_UNDEFINED,
     );
   });
@@ -272,21 +274,21 @@ describe("Transaction Functional Tests", () => {
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
     relayer: Relayer,
-    keypair,
+    account: Account,
     paramsDeposit: TransactionParameters,
     paramsWithdrawal: TransactionParameters;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
+      account: account,
       blinding: new BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -301,6 +303,7 @@ describe("Transaction Functional Tests", () => {
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(poseidon),
@@ -322,6 +325,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
   });
 
@@ -330,7 +334,7 @@ describe("Transaction Functional Tests", () => {
       provider: lightProvider,
       params: paramsDeposit,
     });
-    await tx.compileAndProve();
+    await tx.compileAndProve(account);
   });
 
   it("Functional storage ", async () => {
@@ -345,12 +349,13 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
       relayer,
+      account,
     });
     let tx = new Transaction({
       provider: lightProvider,
       params: paramsDepositStorage,
     });
-    await tx.compileAndProve();
+    await tx.compileAndProve(account);
     await tx.getInstructions(tx.params);
   });
 
@@ -403,6 +408,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
 
     let tx = new Transaction({
@@ -522,6 +528,7 @@ describe("Transaction Functional Tests", () => {
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
 
     let txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(
@@ -613,6 +620,7 @@ describe("Transaction Functional Tests", () => {
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
     let tx = new Transaction({
       provider: lightProvider,
@@ -661,6 +669,7 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      account,
     });
     expect(() => {
       new Transaction({
@@ -685,6 +694,7 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
     expect(() => {
       new Transaction({

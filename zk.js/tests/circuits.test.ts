@@ -91,6 +91,7 @@ describe("Masp circuit tests", () => {
       action: Action.SHIELD,
       poseidon,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
 
     txParamsSol = new TransactionParameters({
@@ -102,6 +103,7 @@ describe("Masp circuit tests", () => {
       action: Action.SHIELD,
       poseidon,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(poseidon),
@@ -126,6 +128,7 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
     appData = { releaseSlot: BN_1 };
     txParamsApp = new TransactionParameters({
@@ -148,6 +151,7 @@ describe("Masp circuit tests", () => {
       poseidon,
       relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      account,
     });
     txParamsPoolType = new TransactionParameters({
       inputUtxos: [
@@ -168,6 +172,7 @@ describe("Masp circuit tests", () => {
       poseidon,
       relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
     txParamsPoolTypeOut = new TransactionParameters({
       outputUtxos: [
@@ -187,6 +192,7 @@ describe("Masp circuit tests", () => {
       poseidon,
       relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
     txParamsOutApp = new TransactionParameters({
       outputUtxos: [
@@ -208,6 +214,7 @@ describe("Masp circuit tests", () => {
       // automatic encryption for app utxos is not implemented
       encryptedUtxos: new Uint8Array(256).fill(1),
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
   });
 
@@ -220,7 +227,7 @@ describe("Masp circuit tests", () => {
     await tx.compile();
     tx.proofInput.root = new BN("123").toString();
 
-    await tx.getProof();
+    await tx.getProof(account);
   });
 
   it("With in utxo test invalid root", async () => {
@@ -231,7 +238,7 @@ describe("Masp circuit tests", () => {
     await tx.compile();
     tx.proofInput.root = new BN("123").toString();
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -246,7 +253,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.txIntegrityHash = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -261,7 +268,7 @@ describe("Masp circuit tests", () => {
       SolanaKeypair.generate().publicKey.toBytes(),
     );
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -276,7 +283,7 @@ describe("Masp circuit tests", () => {
       SolanaKeypair.generate().publicKey.toBytes(),
     );
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -291,7 +298,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
-    await tx.getProof();
+    await tx.getProof(account);
   });
 
   it("With in utxo test invalid merkle proof path elements", async () => {
@@ -304,7 +311,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.inPathElements[0] =
       tx.provider.solMerkleTree?.merkleTree.path(1).pathElements;
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -318,7 +325,7 @@ describe("Masp circuit tests", () => {
 
     tx.proofInput.inPathIndices[0] = 1;
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -330,10 +337,9 @@ describe("Masp circuit tests", () => {
     });
 
     await tx.compile();
-    tx.proofInput.inPrivateKey[0] = new BN("123").toString();
-
+    // tx.proofInput.inPrivateKey[0] = new BN("123").toString();
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(new Account({ poseidon })),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -348,7 +354,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.publicAmountSpl = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -363,7 +369,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.publicAmountSol = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -378,7 +384,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.publicAmountSpl = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -395,7 +401,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.outputCommitment[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -410,7 +416,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.inAmount[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -425,7 +431,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.outAmount[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -440,7 +446,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.inBlinding[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -455,7 +461,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.outBlinding[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -470,7 +476,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.outPubkey[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -488,7 +494,7 @@ describe("Masp circuit tests", () => {
       );
 
       await chai.assert.isRejected(
-        tx.getProof(),
+        tx.getProof(account),
         TransactionErrorCode.PROOF_GENERATION_FAILED,
       );
     }
@@ -504,7 +510,7 @@ describe("Masp circuit tests", () => {
 
     await tx.compile();
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -517,7 +523,7 @@ describe("Masp circuit tests", () => {
     });
 
     await tx.compile();
-    await tx.getProof();
+    await tx.getProof(account);
   });
 
   // this fails because it's inconsistent with the utxo
@@ -531,7 +537,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.outAppDataHash[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -544,7 +550,7 @@ describe("Masp circuit tests", () => {
 
     await tx.compile();
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -557,7 +563,7 @@ describe("Masp circuit tests", () => {
 
     await tx.compile();
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -572,7 +578,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.inPoolType[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -587,7 +593,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.outPoolType[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -603,7 +609,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.inIndices[0][0][0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -619,7 +625,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.inIndices[1][1][1] = "1";
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -635,7 +641,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.outIndices[0][0][0] = new BN("123").toString();
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -651,7 +657,7 @@ describe("Masp circuit tests", () => {
     tx.proofInput.outIndices[1][1][1] = "1";
 
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -689,6 +695,7 @@ describe("App system circuit tests", () => {
       action: Action.SHIELD,
       poseidon,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      account,
     });
 
     relayer = new Relayer(relayerPubkey, mockPubkey, new BN(5000));
@@ -711,6 +718,7 @@ describe("App system circuit tests", () => {
       poseidon,
       relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      account,
     });
   });
 
@@ -724,7 +732,7 @@ describe("App system circuit tests", () => {
 
     tx.proofInput.transactionHash = new BN("123").toString();
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -738,7 +746,7 @@ describe("App system circuit tests", () => {
     await tx.compile();
     tx.proofInput.publicAppVerifier = new BN("123").toString();
     await chai.assert.isRejected(
-      tx.getProof(),
+      tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });

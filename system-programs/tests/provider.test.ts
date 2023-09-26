@@ -151,12 +151,13 @@ describe("verifier_program", () => {
       poseidon: POSEIDON,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account: KEYPAIR,
     });
     let tx = new Transaction({
       provider: lightProvider,
       params: txParams,
     });
-    await tx.compileAndProve();
+    await tx.compileAndProve(KEYPAIR);
 
     try {
       let res = await tx.sendAndConfirmTransaction();
