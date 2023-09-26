@@ -42,4 +42,4 @@ pub const TRANSACTION_MERKLE_TREE_SEED: &[u8] = b"transaction_merkle_tree";
 
 // Merkle tree parameters
 #[constant]
-pub const EVENT_MERKLE_TREE_HEIGHT: usize = 8;
+pub const EVENT_MERKLE_TREE_HEIGHT: usize = 18;
