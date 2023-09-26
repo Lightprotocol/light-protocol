@@ -43,5 +43,8 @@ jobs:
           do
             cd $subtest
             yarn test
+            if [[ "$subtest" == "circuit-lib/circuit-lib.circom" ]]; then
+              yarn test-build-light-circuits
+            fi
             cd -
           done
