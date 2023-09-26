@@ -9,6 +9,7 @@ import {
   TransactionParametersErrorCode,
   UtxoErrorCode,
   BN_0,
+  setEnvironment,
 } from "./index";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
@@ -16,6 +17,7 @@ const ffjavascript = require("ffjavascript");
 const buildEddsa = require("circomlibjs").buildEddsa;
 import { PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Result } from "./types/result";
 // TODO: add fromPubkeyString()
 export class Account {
   /**
@@ -442,40 +444,94 @@ export class Account {
     return new BN(poseidon.F.toString(poseidon([privateKey])));
   }
 
-  static async encryptAes(
-    aesSecret: Uint8Array,
+  async encryptAesUtxo(
+    bytes_message: Uint8Array,
+    merkleTreePdaPublicKey: PublicKey,
+    commitment: Uint8Array,
+  ): Promise<Uint8Array> {
+
+    setEnvironment();
+    const iv16 = commitment.subarray(0, 16);
+    return this._encryptAes(
+      bytes_message,
+      this.getAesUtxoViewingKey(
+        merkleTreePdaPublicKey,
+        bs58.encode(commitment),
+      ),
+      iv16,
+    );
+  }
+
+  async encryptAes(encryptedBytes: Uint8Array, iv16: Uint8Array = nacl.randomBytes(16)) {
+
+    const ciphertext = await encrypt(
+      encryptedBytes,
+      this.aesSecret,
+      iv16,
+      "aes-256-cbc",
+      true,
+    )
+    return new Uint8Array([...iv16,...ciphertext]);
+  }
+
+  private async _encryptAes(
     message: Uint8Array,
-    iv: Uint8Array,
+    secretKey: Uint8Array,
+    iv16: Uint8Array,
   ) {
-    if (iv.length != 16)
+    if (iv16.length != 16)
       throw new AccountError(
         UtxoErrorCode.INVALID_NONCE_LENGTH,
         "encryptAes",
-        `Required iv length 16, provided ${iv.length}`,
+        `Required iv length 16, provided ${iv16.length}`,
       );
-    const secretKey = aesSecret;
-    const ciphertext = await encrypt(
+
+    return await encrypt(
       message,
       secretKey,
-      iv,
+      iv16,
       "aes-256-cbc",
       true,
     );
-    return new Uint8Array([...iv, ...ciphertext]);
   }
 
-  static async decryptAes(aesSecret: Uint8Array, encryptedBytes: Uint8Array) {
-    const iv = encryptedBytes.slice(0, 16);
-    const encryptedMessageBytes = encryptedBytes.slice(16);
-    const secretKey = aesSecret;
-    const cleartext = await decrypt(
-      encryptedMessageBytes,
-      secretKey,
-      iv,
-      "aes-256-cbc",
-      true,
-    );
-    return cleartext;
+  async decryptAesUtxo(encryptedBytes: Uint8Array, merkleTreePdaPublicKey: PublicKey, commitment: Uint8Array) {
+    // Check if account secret key is available for decrypting using AES
+    if (!this.aesSecret) {
+      throw new AccountError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decryptAesUtxo");
+    }
+    setEnvironment();
+    const iv16 = commitment.slice(0, 16);
+    return this._decryptAes(
+      encryptedBytes,
+      this.getAesUtxoViewingKey(
+        merkleTreePdaPublicKey,
+        bs58.encode(commitment),
+      ),
+      iv16,
+    )
+  }
+
+  async decryptAes(encryptedBytes: Uint8Array): Promise<Result<Uint8Array | null, Error>>  {
+    if(!this.aesSecret) {
+      throw new AccountError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decryptAes");
+    }
+    const iv16 = encryptedBytes.slice(0, 16);
+    return this._decryptAes(encryptedBytes.slice(16), this.aesSecret, iv16);
+  }
+
+  private async _decryptAes(encryptedBytes: Uint8Array, secretKey: Uint8Array, iv16: Uint8Array): Promise<Result<Uint8Array | null, Error>> {
+    try {
+      return Result.Ok(await decrypt(
+        encryptedBytes,
+        secretKey,
+        iv16,
+        "aes-256-cbc",
+        true,
+      ));
+    } catch (error) {
+      return Result.Err(error);
+    }
   }
 
   static encryptNacl(

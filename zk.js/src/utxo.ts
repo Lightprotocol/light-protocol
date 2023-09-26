@@ -1,5 +1,4 @@
 import nacl, { box } from "tweetnacl";
-import { decrypt, encrypt } from "ethereum-cryptography/aes";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import {
@@ -19,7 +18,6 @@ import {
   N_ASSETS,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   UTXO_PREFIX_LENGTH,
-  setEnvironment,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
   UtxoError,
   UtxoErrorCode,
@@ -654,17 +652,10 @@ export class Utxo {
           "For aes encryption the merkle tree pda publickey is necessary to derive the viewingkey",
         );
 
-      setEnvironment();
-      const iv16 = nonce.subarray(0, 16);
-      const ciphertext = await encrypt(
+      const ciphertext = await this.account.encryptAesUtxo(
         bytes_message,
-        this.account.getAesUtxoViewingKey(
-          merkleTreePdaPublicKey,
-          bs58.encode(commitment),
-        ),
-        iv16,
-        "aes-256-cbc",
-        true,
+        merkleTreePdaPublicKey,
+        commitment,
       );
 
       let prefix = this.account.generateUtxoPrefixHash(
@@ -751,10 +742,6 @@ export class Utxo {
     // Remove UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
     encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
     if (aes) {
-      // Check if account secret key is available for decrypting using AES
-      if (!account.aesSecret) {
-        throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
-      }
       // Merkle tree public key is necessary for AES decryption
       if (!merkleTreePdaPublicKey)
         throw new UtxoError(
@@ -766,40 +753,31 @@ export class Utxo {
       if (compressed) {
         encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
       }
-      setEnvironment();
-      const iv16 = commitment.slice(0, 16);
 
-      try {
-        // Attempt to decrypt using AES
-        const cleartext = await decrypt(
-          encBytes,
-          account.getAesUtxoViewingKey(
-            merkleTreePdaPublicKey,
-            bs58.encode(commitment),
-          ),
-          iv16,
-          "aes-256-cbc",
-          true,
-        );
+      
+      // Attempt to decrypt using AES
+      const cleartext = await account.decryptAesUtxo(
+        encBytes,
+        merkleTreePdaPublicKey,
+        commitment,
+      );
+      if(cleartext.error) return Result.Ok(null);
+      else if (!cleartext.value) return Result.Ok(null);
+      // Convert decrypted cleartext to bytes
+      const bytes = Buffer.from(cleartext.value);
 
-        // Convert decrypted cleartext to bytes
-        const bytes = Buffer.from(cleartext);
-
-        // Return a decrypted UTXO
-        return Result.Ok(
-          Utxo.fromBytes({
-            poseidon,
-            bytes,
-            account,
-            index,
-            appDataIdl,
-            assetLookupTable,
-            verifierProgramLookupTable,
-          }),
-        );
-      } catch (e) {
-        return Result.Err(e);
-      }
+      // Return a decrypted UTXO
+      return Result.Ok(
+        Utxo.fromBytes({
+          poseidon,
+          bytes,
+          account,
+          index,
+          appDataIdl,
+          assetLookupTable,
+          verifierProgramLookupTable,
+        }),
+      );
     } else {
       // Get the nonce if not using AES
       const nonce = commitment.slice(0, 24);

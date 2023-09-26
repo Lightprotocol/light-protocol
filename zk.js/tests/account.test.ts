@@ -24,6 +24,7 @@ const b2params = { dkLen: 32 };
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+let seed32_2 = bs58.encode(new Uint8Array(32).fill(2));
 
 describe("Test Account Functional", () => {
   let poseidon: any,
@@ -252,25 +253,25 @@ describe("Test Account Functional", () => {
     let nonce = newNonce().subarray(0, 16);
     if (!k0.aesSecret) throw new Error("aes secret undefined");
 
-    let cipherText1 = await Account.encryptAes(k0.aesSecret, message, nonce);
-    let cleartext1 = await Account.decryptAes(k0.aesSecret, cipherText1);
+    let cipherText1 = await k0.encryptAes(message, nonce);
+    let cleartext1 = await k0.decryptAes(cipherText1);
 
-    assert.equal(cleartext1.toString(), message.toString());
+    assert.equal(cleartext1.value!.toString(), message.toString());
     assert.notEqual(
       new Uint8Array(32).fill(1).toString(),
       k0.aesSecret.toString(),
     );
 
-    // try to decrypt with invalid secret key
+    // try to decrypt with invalid secretkey
     // added try catch because in some cases it doesn't decrypt but doesn't throw an error either
     //TODO: revisit this and possibly switch aes library
     try {
       await chai.assert.isRejected(
-        Account.decryptAes(new Uint8Array(32).fill(1), cipherText1),
+        kBurner.decryptAes(cipherText1),
         Error,
       );
     } catch (error) {
-      const msg = Account.decryptAes(new Uint8Array(32).fill(1), cipherText1);
+      const msg = k0.decryptAes(cipherText1);
       assert.notEqual(msg.toString(), message.toString());
     }
   });
