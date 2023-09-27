@@ -333,7 +333,7 @@ const parseTransactionEvents = (
  * @param {any[]} transactions - The array where the fetched transactions will be stored.
  * @returns {Promise<string>} - The signature of the last fetched transaction.
  */
-// TODO: consider explicitly returning a new txs array instead of mutating the passed in oneDasync functio getn
+// TODO: consider explicitly returning a new txs array instead of mutating the passed in one.
 async function getTransactionsBatch({
   connection,
   merkleTreeProgramId,
