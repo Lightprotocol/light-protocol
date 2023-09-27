@@ -14,7 +14,7 @@ export async function searchForward(job: Job, connection: Connection) {
       a.blockTime > b.blockTime ? a : b,
   );
 
-  let newerTransactions = await fetchRecentTransactions({
+  let { transactions: newerTransactions } = await fetchRecentTransactions({
     connection,
     batchOptions: {
       limit: FORWARD_SEARCH_BATCH_SIZE,
@@ -24,33 +24,39 @@ export async function searchForward(job: Job, connection: Connection) {
   return newerTransactions;
 }
 
-export async function searchBackward(job: Job, connection: Connection) {
-  if (job.data.transactions.length === 0) {
-    let olderTransactions = await fetchRecentTransactions({
-      connection,
-      batchOptions: {
-        limit: TX_BATCH_SIZE,
-      },
-    });
-    return olderTransactions;
-  } else {
-    let oldestTransaction = job.data.transactions.reduce(
-      (a: IndexedTransaction, b: IndexedTransaction) =>
-        a.blockTime < b.blockTime ? a : b,
-    );
+/*
+ * Search backward from the most oldestFetchedSignature in the database.
+ * This is not necessarily the oldestTransactions of the db. (if previous ones filterd out before)
+ * If there are no transactions in the database, search backward from the most recent transaction in the chain.
+ */
 
-    let olderTransactions: IndexedTransaction[] = await fetchRecentTransactions(
-      {
+export async function searchBackward(
+  job: Job,
+  connection: Connection,
+): Promise<{
+  olderTransactions: IndexedTransaction[];
+  oldestFetchedSignature: string;
+}> {
+  if (job.data.transactions.length === 0) {
+    let { transactions: olderTransactions, oldestFetchedSignature } =
+      await fetchRecentTransactions({
         connection,
         batchOptions: {
           limit: TX_BATCH_SIZE,
-          before: oldestTransaction.signature,
         },
-      },
-      undefined,
-      job.data.transactions.ll,
+      });
+    return { olderTransactions, oldestFetchedSignature };
+  } else {
+    let previousOldestFetchedSignature = job.data.oldestFetchedSignature;
 
-    );
-    return olderTransactions;
+    let { transactions: olderTransactions, oldestFetchedSignature } =
+      await fetchRecentTransactions({
+        connection,
+        batchOptions: {
+          limit: TX_BATCH_SIZE,
+          before: previousOldestFetchedSignature,
+        },
+      });
+    return { olderTransactions, oldestFetchedSignature };
   }
 }

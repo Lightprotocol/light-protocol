@@ -1,4 +1,5 @@
 import {
+  ConfirmedSignatureInfo,
   ConfirmedSignaturesForAddress2Options,
   Connection,
   ParsedMessageAccount,
@@ -343,12 +344,7 @@ async function getTransactionsBatch({
   merkleTreeProgramId: PublicKey;
   batchOptions: ConfirmedSignaturesForAddress2Options;
   transactions: any;
-}) {
-  /// TODO: hash sigs. poll for hash in db. if matches, skip and keep hash. if not, add to db and process full batch there.
-  /// = if no activity, no/ish calls
-  /// = if heavy activity, lots of calls still. might have to make this slimmer. 
-  ///   e.g. filter by cutoff date before.
-  ///   
+}): Promise<ConfirmedSignatureInfo> {
   const signatures = await connection.getConfirmedSignaturesForAddress2(
     new PublicKey(merkleTreeProgramId),
     batchOptions,
@@ -424,7 +420,10 @@ export async function fetchRecentTransactions({
   connection: Connection;
   batchOptions: ConfirmedSignaturesForAddress2Options;
   transactions?: IndexedTransaction[];
-}): Promise<IndexedTransaction[]> {
+}): Promise<{
+  transactions: IndexedTransaction[];
+  oldestFetchedSignature: string;
+}> {
   const batchSize = 1000;
   const rounds = Math.ceil(batchOptions.limit! / batchSize);
 
@@ -450,9 +449,12 @@ export async function fetchRecentTransactions({
     batchBefore = lastSignature.signature;
     await sleep(500);
   }
-  return transactions.sort(
-    (a, b) =>
-      new BN(a.firstLeafIndex, "hex").toNumber() -
-      new BN(b.firstLeafIndex, "hex").toNumber(),
-  );
+  return {
+    transactions: transactions.sort(
+      (a, b) =>
+        new BN(a.firstLeafIndex, "hex").toNumber() -
+        new BN(b.firstLeafIndex, "hex").toNumber(),
+    ),
+    oldestFetchedSignature: batchBefore!,
+  };
 }
