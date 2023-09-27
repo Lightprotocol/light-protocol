@@ -92,7 +92,9 @@ const selectBiggestSmallest = (
           filteredUtxos[utxo].amounts[0],
         );
 
-        if (selectedUtxos.length == threshold) {
+        // If we select more than 1 UTXO and we reached the treshold, set the
+        // current UTXO as the 2nd one.
+        if (selectedUtxos.length > 1 && selectedUtxos.length == threshold) {
           // overwrite existing utxo
           selectedUtxosAmount = selectedUtxosAmount.sub(
             selectedUtxos[1].amounts[assetIndex],

@@ -47,9 +47,13 @@ describe("Test selectInUtxos Functional", () => {
     utxo1: Utxo,
     utxo2: Utxo,
     utxoSol: Utxo,
+    inUtxo: Utxo,
+    inUtxoSol: Utxo,
     utxoSolBurner,
     utxo2Burner,
-    utxo1Burner;
+    utxo1Burner,
+    inUtxoBurner,
+    inUtxoSolBurner;
   let lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
@@ -57,6 +61,8 @@ describe("Test selectInUtxos Functional", () => {
     utxo1Burner = Account.createBurner(poseidon, seed32, BN_0);
     utxo2Burner = Account.createBurner(poseidon, seed32, BN_1);
     utxoSolBurner = Account.createBurner(poseidon, seed32, BN_2);
+    inUtxoBurner = Account.createBurner(poseidon, seed32, new BN(3));
+    inUtxoSolBurner = Account.createBurner(poseidon, seed32, new BN(4));
 
     splAmount = new BN(3);
     token = "USDC";
@@ -93,6 +99,24 @@ describe("Test selectInUtxos Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
+    inUtxo = new Utxo({
+      poseidon,
+      assets: [SystemProgram.programId, tokenCtx.mint],
+      amounts: [BN_1, new BN(1 * tokenCtx.decimals.toNumber())],
+      index: 3,
+      account: inUtxoBurner,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+    inUtxoSol = new Utxo({
+      poseidon,
+      assets: [SystemProgram.programId],
+      amounts: [BN_1],
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
   });
 
   it("Unshield select spl", async () => {
@@ -111,6 +135,25 @@ describe("Test selectInUtxos Functional", () => {
     Utxo.equal(poseidon, selectedUtxos[0], utxo1);
   });
 
+  it("Unshield select spl, inUtxos", async () => {
+    const utxos = [inUtxo, utxo1, utxoSol];
+    const inUtxos = [inUtxo];
+
+    let selectedUtxos = selectInUtxos({
+      publicMint: utxo1.assets[1],
+      relayerFee: RELAYER_FEE,
+      publicAmountSpl: BN_1,
+      poseidon,
+      utxos,
+      inUtxos,
+      action: Action.UNSHIELD,
+      numberMaxInUtxos,
+      numberMaxOutUtxos,
+    });
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[1], inUtxo);
+  });
+
   it("Unshield select sol", async () => {
     const utxos = [utxoSol, utxo1];
 
@@ -125,6 +168,25 @@ describe("Test selectInUtxos Functional", () => {
     });
 
     Utxo.equal(poseidon, selectedUtxos[0], utxoSol);
+    assert.equal(selectInUtxos.length, 1);
+  });
+
+  it("Unshield select sol, inUtxos", async () => {
+    const utxos = [inUtxoSol, utxoSol, utxo1];
+    const inUtxos = [inUtxoSol];
+
+    let selectedUtxos = selectInUtxos({
+      utxos,
+      inUtxos,
+      relayerFee: RELAYER_FEE,
+      publicAmountSol: new BN(1e7),
+      poseidon,
+      action: Action.UNSHIELD,
+      numberMaxInUtxos,
+      numberMaxOutUtxos,
+    });
+
+    Utxo.equal(poseidon, selectedUtxos[0], inUtxoSol);
     assert.equal(selectInUtxos.length, 1);
   });
 
@@ -145,6 +207,27 @@ describe("Test selectInUtxos Functional", () => {
 
     Utxo.equal(poseidon, selectedUtxos[1], utxoSol);
     Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+  });
+
+  it("UNSHIELD select sol & spl", async () => {
+    const utxos = [inUtxoSol, inUtxo, utxoSol, utxo1];
+    const inUtxos = [inUtxoSol, inUtxo];
+
+    let selectedUtxos = selectInUtxos({
+      utxos,
+      inUtxos,
+      action: Action.UNSHIELD,
+      relayerFee: RELAYER_FEE,
+      poseidon,
+      publicMint: utxo1.assets[1],
+      publicAmountSol: new BN(1e5),
+      publicAmountSpl: BN_1,
+      numberMaxInUtxos,
+      numberMaxOutUtxos,
+    });
+
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[1], inUtxo);
   });
 
   it("Transfer select sol & spl", async () => {
@@ -178,6 +261,39 @@ describe("Test selectInUtxos Functional", () => {
     Utxo.equal(poseidon, selectedUtxos[0], utxo1);
   });
 
+  it("Transfer select sol & spl, inUtxos", async () => {
+    const utxos = [inUtxoSol, inUtxo, utxoSol, utxo1];
+    const inUtxos = [inUtxoSol, inUtxo];
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: new BN(1e5),
+          splAmount: BN_2,
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+
+    let selectedUtxos = selectInUtxos({
+      utxos,
+      inUtxos,
+      action: Action.TRANSFER,
+      relayerFee: RELAYER_FEE,
+      poseidon,
+      outUtxos,
+      numberMaxInUtxos,
+      numberMaxOutUtxos,
+    });
+
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[1], inUtxo);
+  });
+
   it("Transfer select sol", async () => {
     const utxos = [utxoSol, utxo1];
     const outUtxos = createRecipientUtxos({
@@ -206,6 +322,39 @@ describe("Test selectInUtxos Functional", () => {
 
     Utxo.equal(poseidon, selectedUtxos[0], utxoSol);
     Utxo.equal(poseidon, selectedUtxos[1], utxo1);
+  });
+
+  it("Transfer select sol, inUtxos", async () => {
+    const utxos = [inUtxoSol, utxoSol, utxo1];
+    const inUtxos = [inUtxoSol];
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: new BN(1e7),
+          splAmount: BN_0,
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+    let selectedUtxos = selectInUtxos({
+      utxos,
+      inUtxos,
+      action: Action.TRANSFER,
+      relayerFee: RELAYER_FEE,
+      poseidon,
+      outUtxos,
+      numberMaxInUtxos,
+      numberMaxOutUtxos,
+    });
+
+    Utxo.equal(poseidon, selectedUtxos[0], inUtxoSol);
+    Utxo.equal(poseidon, selectedUtxos[1], utxoSol);
+    Utxo.equal(poseidon, selectedUtxos[2], utxo1);
   });
 
   it("Transfer select spl", async () => {
@@ -238,6 +387,39 @@ describe("Test selectInUtxos Functional", () => {
     Utxo.equal(poseidon, selectedUtxos[0], utxo1);
   });
 
+  it("Transfer select spl, inUtxos", async () => {
+    const utxos = [inUtxo, utxoSol, utxo1];
+    const inUtxos = [inUtxo];
+    const outUtxos = createRecipientUtxos({
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: BN_0,
+          splAmount: BN_1,
+          account: new Account({ poseidon }),
+        },
+      ],
+      poseidon,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+    });
+
+    let selectedUtxos = selectInUtxos({
+      utxos,
+      inUtxos,
+      action: Action.TRANSFER,
+      relayerFee: RELAYER_FEE,
+      poseidon,
+      outUtxos,
+      numberMaxInUtxos,
+      numberMaxOutUtxos,
+    });
+
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[1], inUtxo);
+  });
+
   it("Shield select sol & spl", async () => {
     const utxos = [utxoSol, utxo1];
 
@@ -253,6 +435,26 @@ describe("Test selectInUtxos Functional", () => {
     });
 
     Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+  });
+
+  it("Shield select sol & spl, inUtxos", async () => {
+    const utxos = [inUtxoSol, inUtxo, utxoSol, utxo1];
+    const inUtxos = [inUtxoSol, inUtxo];
+
+    let selectedUtxos = selectInUtxos({
+      utxos,
+      inUtxos,
+      action: Action.SHIELD,
+      publicMint: utxo1.assets[1],
+      publicAmountSol: BN_2,
+      poseidon,
+      publicAmountSpl: BN_2,
+      numberMaxInUtxos,
+      numberMaxOutUtxos,
+    });
+
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[1], inUtxo);
   });
 
   it("Shield select sol", async () => {
@@ -271,6 +473,25 @@ describe("Test selectInUtxos Functional", () => {
     Utxo.equal(poseidon, selectedUtxos[1], utxo1);
   });
 
+  it("Shield select sol, inUtxos", async () => {
+    const utxos = [inUtxoSol, utxoSol, utxo1];
+    const inUtxos = [inUtxoSol];
+
+    let selectedUtxos = selectInUtxos({
+      utxos,
+      inUtxos,
+      action: Action.SHIELD,
+      poseidon,
+      publicAmountSol: BN_2,
+      numberMaxInUtxos,
+      numberMaxOutUtxos,
+    });
+
+    Utxo.equal(poseidon, selectedUtxos[0], inUtxoSol);
+    Utxo.equal(poseidon, selectedUtxos[1], utxoSol);
+    Utxo.equal(poseidon, selectedUtxos[2], utxo1);
+  });
+
   it("Shield select spl", async () => {
     const utxos = [utxoSol, utxo1];
 
@@ -286,6 +507,26 @@ describe("Test selectInUtxos Functional", () => {
 
     Utxo.equal(poseidon, selectedUtxos[0], utxo1);
     assert.equal(selectedUtxos.length, 1);
+  });
+
+  it("Shield select spl, inUtxos", async () => {
+    const utxos = [inUtxo, utxoSol, utxo1, utxo2];
+    const inUtxos = [inUtxo];
+
+    let selectedUtxos = selectInUtxos({
+      utxos,
+      inUtxos,
+      action: Action.SHIELD,
+      publicMint: utxo1.assets[1],
+      poseidon,
+      publicAmountSpl: BN_2,
+      numberMaxInUtxos,
+      numberMaxOutUtxos,
+    });
+
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[1], utxo2);
+    Utxo.equal(poseidon, selectedUtxos[2], inUtxo);
   });
 
   it("3 utxos spl & sol", async () => {
