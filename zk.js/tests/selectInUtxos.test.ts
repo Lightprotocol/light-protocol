@@ -164,7 +164,7 @@ describe("Test selectInUtxos Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let selectedUtxo = selectInUtxos({
+    let selectedUtxos = selectInUtxos({
       utxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
@@ -174,8 +174,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(poseidon, selectedUtxo[1], utxoSol);
-    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[1], utxoSol);
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
   });
 
   it("Transfer select sol", async () => {
@@ -194,7 +194,7 @@ describe("Test selectInUtxos Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let selectedUtxo = selectInUtxos({
+    let selectedUtxos = selectInUtxos({
       utxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
@@ -204,8 +204,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(poseidon, selectedUtxo[0], utxoSol);
-    Utxo.equal(poseidon, selectedUtxo[1], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[0], utxoSol);
+    Utxo.equal(poseidon, selectedUtxos[1], utxo1);
   });
 
   it("Transfer select spl", async () => {
@@ -225,7 +225,7 @@ describe("Test selectInUtxos Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let selectedUtxo = selectInUtxos({
+    let selectedUtxos = selectInUtxos({
       utxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
@@ -235,13 +235,13 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
   });
 
   it("Shield select sol & spl", async () => {
     const utxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
+    let selectedUtxos = selectInUtxos({
       utxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
@@ -252,13 +252,13 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
   });
 
   it("Shield select sol", async () => {
     const utxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
+    let selectedUtxos = selectInUtxos({
       utxos,
       action: Action.SHIELD,
       poseidon,
@@ -267,14 +267,14 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(poseidon, selectedUtxo[0], utxoSol);
-    Utxo.equal(poseidon, selectedUtxo[1], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[0], utxoSol);
+    Utxo.equal(poseidon, selectedUtxos[1], utxo1);
   });
 
   it("Shield select spl", async () => {
     const utxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
+    let selectedUtxos = selectInUtxos({
       utxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
@@ -284,8 +284,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
-    assert.equal(selectedUtxo.length, 1);
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+    assert.equal(selectedUtxos.length, 1);
   });
 
   it("3 utxos spl & sol", async () => {
@@ -305,7 +305,7 @@ describe("Test selectInUtxos Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let selectedUtxo = selectInUtxos({
+    let selectedUtxos = selectInUtxos({
       utxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
@@ -315,8 +315,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
-    Utxo.equal(poseidon, selectedUtxo[1], utxo2);
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[1], utxo2);
   });
 });
 
