@@ -1,11 +1,10 @@
-import nacl, { box } from "tweetnacl";
+import nacl from "tweetnacl";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import {
   Account,
   BN_0,
   COMPRESSED_UTXO_BYTES_LENGTH,
-  CONSTANT_SECRET_AUTHKEY,
   createAccountObject,
   CreateUtxoErrorCode,
   ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
