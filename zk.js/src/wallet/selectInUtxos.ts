@@ -320,7 +320,7 @@ export function selectInUtxos({
       sumOutSol,
       numberMaxInUtxos - selectedUtxosR.length,
     );
-    selectedUtxosR = selectedUtxos;
+    selectedUtxosR = [...selectedUtxosR, ...selectedUtxos];
   }
 
   if (mint && !getUtxoArrayAmount(mint, selectedUtxosR).gte(sumOutSpl))
