@@ -27,6 +27,7 @@ import {
   RELAYER_FEE,
   BN_0,
   BN_1,
+  BN_2,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -53,9 +54,9 @@ describe("Test selectInUtxos Functional", () => {
   before(async () => {
     lightProvider = await Provider.loadMock();
     poseidon = await circomlibjs.buildPoseidonOpt();
-    utxo1Burner = new Account({ poseidon, seed: seed32 });
-    utxo2Burner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
-    utxoSolBurner = Account.createBurner(poseidon, seed32, new anchor.BN("1"));
+    utxo1Burner = Account.createBurner(poseidon, seed32, BN_0);
+    utxo2Burner = Account.createBurner(poseidon, seed32, BN_1);
+    utxoSolBurner = Account.createBurner(poseidon, seed32, BN_2);
 
     splAmount = new BN(3);
     token = "USDC";
@@ -76,7 +77,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
-      index: 0,
+      index: 1,
       account: utxo2Burner,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -86,7 +87,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
-      index: 1,
+      index: 2,
       account: utxoSolBurner,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
