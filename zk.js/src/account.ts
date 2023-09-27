@@ -471,16 +471,16 @@ export class Account {
 
   /**
    * Encrypts bytes with aes secret key.
-   * @param encryptedBytes - The bytes to be encrypted.
+   * @param messageBytes - The bytes to be encrypted.
    * @param iv16 - Optional Initialization Vector (iv), 16 random bytes by default.
    * @returns A Uint8Array of encrypted bytes with the iv as the first 16 bytes of the cipher text.
    */
   async encryptAes(
-    encryptedBytes: Uint8Array,
+    messageBytes: Uint8Array,
     iv16: Uint8Array = nacl.randomBytes(16),
   ) {
     const ciphertext = await encrypt(
-      encryptedBytes,
+      messageBytes,
       this.aesSecret,
       iv16,
       "aes-256-cbc",
