@@ -96,26 +96,26 @@ describe("Test selectInUtxos Functional", () => {
   });
 
   it("Unshield select spl", async () => {
-    const inUtxos: Utxo[] = [utxo1, utxoSol];
+    const utxos: Utxo[] = [utxo1, utxoSol];
 
-    let selectedUtxo = selectInUtxos({
+    let selectedUtxos = selectInUtxos({
       publicMint: utxo1.assets[1],
       relayerFee: RELAYER_FEE,
       publicAmountSpl: BN_1,
       poseidon,
-      utxos: inUtxos,
+      utxos,
       action: Action.UNSHIELD,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
-    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
   });
 
   it("Unshield select sol", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
-      utxos: inUtxos,
+    let selectedUtxos = selectInUtxos({
+      utxos,
       relayerFee: RELAYER_FEE,
       publicAmountSol: new BN(1e7),
       poseidon,
@@ -124,15 +124,15 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(poseidon, selectedUtxo[0], utxoSol);
+    Utxo.equal(poseidon, selectedUtxos[0], utxoSol);
     assert.equal(selectInUtxos.length, 1);
   });
 
   it("UNSHIELD select sol & spl", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
-      utxos: inUtxos,
+    let selectedUtxos = selectInUtxos({
+      utxos,
       action: Action.UNSHIELD,
       relayerFee: RELAYER_FEE,
       poseidon,
@@ -143,12 +143,12 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(poseidon, selectedUtxo[1], utxoSol);
-    Utxo.equal(poseidon, selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon, selectedUtxos[1], utxoSol);
+    Utxo.equal(poseidon, selectedUtxos[0], utxo1);
   });
 
   it("Transfer select sol & spl", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
     const outUtxos = createRecipientUtxos({
       recipients: [
         {
@@ -165,7 +165,7 @@ describe("Test selectInUtxos Functional", () => {
     });
 
     let selectedUtxo = selectInUtxos({
-      utxos: inUtxos,
+      utxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
       poseidon,
@@ -179,7 +179,7 @@ describe("Test selectInUtxos Functional", () => {
   });
 
   it("Transfer select sol", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
     const outUtxos = createRecipientUtxos({
       recipients: [
         {
@@ -195,7 +195,7 @@ describe("Test selectInUtxos Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     let selectedUtxo = selectInUtxos({
-      utxos: inUtxos,
+      utxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
       poseidon,
@@ -209,7 +209,7 @@ describe("Test selectInUtxos Functional", () => {
   });
 
   it("Transfer select spl", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
     const outUtxos = createRecipientUtxos({
       recipients: [
         {
@@ -226,7 +226,7 @@ describe("Test selectInUtxos Functional", () => {
     });
 
     let selectedUtxo = selectInUtxos({
-      utxos: inUtxos,
+      utxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
       poseidon,
@@ -239,10 +239,10 @@ describe("Test selectInUtxos Functional", () => {
   });
 
   it("Shield select sol & spl", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
     let selectedUtxo = selectInUtxos({
-      utxos: inUtxos,
+      utxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
@@ -256,10 +256,10 @@ describe("Test selectInUtxos Functional", () => {
   });
 
   it("Shield select sol", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
     let selectedUtxo = selectInUtxos({
-      utxos: inUtxos,
+      utxos,
       action: Action.SHIELD,
       poseidon,
       publicAmountSol: new BN(1e7),
@@ -272,10 +272,10 @@ describe("Test selectInUtxos Functional", () => {
   });
 
   it("Shield select spl", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
     let selectedUtxo = selectInUtxos({
-      utxos: inUtxos,
+      utxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
       poseidon,
@@ -289,7 +289,7 @@ describe("Test selectInUtxos Functional", () => {
   });
 
   it("3 utxos spl & sol", async () => {
-    const inUtxos = [utxoSol, utxo1, utxo2];
+    const utxos = [utxoSol, utxo1, utxo2];
     const outUtxos = createRecipientUtxos({
       recipients: [
         {
@@ -306,7 +306,7 @@ describe("Test selectInUtxos Functional", () => {
     });
 
     let selectedUtxo = selectInUtxos({
-      utxos: inUtxos,
+      utxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
       poseidon,
@@ -368,7 +368,7 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("NO_PUBLIC_AMOUNTS_PROVIDED", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
     const outUtxos = createRecipientUtxos({
       recipients: [
         {
@@ -385,7 +385,7 @@ describe("Test selectInUtxos Errors", () => {
     });
     expect(() => {
       selectInUtxos({
-        utxos: inUtxos,
+        utxos,
         action: Action.UNSHIELD,
         poseidon,
         outUtxos,
@@ -401,11 +401,11 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("NO_PUBLIC_MINT_PROVIDED", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
     expect(() => {
       selectInUtxos({
-        utxos: inUtxos,
+        utxos,
         action: Action.UNSHIELD,
         relayerFee: RELAYER_FEE,
         poseidon,
@@ -423,11 +423,11 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("PUBLIC_SPL_AMOUNT_UNDEFINED", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
     expect(() => {
       selectInUtxos({
-        utxos: inUtxos,
+        utxos,
         action: Action.UNSHIELD,
         relayerFee: RELAYER_FEE,
         poseidon,
@@ -445,11 +445,11 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("RELAYER_FEE_UNDEFINED", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
     expect(() => {
       selectInUtxos({
-        utxos: inUtxos,
+        utxos,
         action: Action.UNSHIELD,
         poseidon,
         publicMint: utxo1.assets[1],
@@ -467,11 +467,11 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("RELAYER_FEE_UNDEFINED", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
     expect(() => {
       selectInUtxos({
-        utxos: inUtxos,
+        utxos,
         action: Action.TRANSFER,
         poseidon,
         publicMint: utxo1.assets[1],
@@ -489,11 +489,11 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("RELAYER_FEE_DEFINED", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
 
     expect(() => {
       selectInUtxos({
-        utxos: inUtxos,
+        utxos,
         action: Action.SHIELD,
         relayerFee: RELAYER_FEE,
         poseidon,
@@ -576,7 +576,7 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("FAILED_TO_FIND_UTXO_COMBINATION sol", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
     const outUtxos = createRecipientUtxos({
       recipients: [
         {
@@ -593,7 +593,7 @@ describe("Test selectInUtxos Errors", () => {
     });
     expect(() => {
       selectInUtxos({
-        utxos: inUtxos,
+        utxos,
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
         poseidon,
@@ -610,7 +610,7 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("FAILED_TO_FIND_UTXO_COMBINATION spl", async () => {
-    const inUtxos = [utxoSol, utxo1];
+    const utxos = [utxoSol, utxo1];
     const outUtxos = createRecipientUtxos({
       recipients: [
         {
@@ -627,7 +627,7 @@ describe("Test selectInUtxos Errors", () => {
     });
     expect(() => {
       selectInUtxos({
-        utxos: inUtxos,
+        utxos,
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
         poseidon,
@@ -644,7 +644,7 @@ describe("Test selectInUtxos Errors", () => {
   });
 
   it("FAILED_TO_FIND_UTXO_COMBINATION spl & sol", async () => {
-    const inUtxos = [utxoSol, utxo1, utxo2];
+    const utxos = [utxoSol, utxo1, utxo2];
     const outUtxos = createRecipientUtxos({
       recipients: [
         {
@@ -661,7 +661,7 @@ describe("Test selectInUtxos Errors", () => {
     });
     expect(() => {
       selectInUtxos({
-        utxos: inUtxos,
+        utxos,
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
         poseidon,
