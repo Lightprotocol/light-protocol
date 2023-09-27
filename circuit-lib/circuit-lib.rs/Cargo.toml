@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "src/decode-babyjubjub/decode",
+    "src/decode-babyjubjub/xtask",
+    "tests"
+]
+
+[workspace.dependencies]
+serde = { version = "1.0.188", features = ["derive"] }
+bincode = "1.3.3"
