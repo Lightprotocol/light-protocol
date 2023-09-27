@@ -266,10 +266,7 @@ describe("Test Account Functional", () => {
     // added try catch because in some cases it doesn't decrypt but doesn't throw an error either
     //TODO: revisit this and possibly switch aes library
     try {
-      await chai.assert.isRejected(
-        kBurner.decryptAes(cipherText1),
-        Error,
-      );
+      await chai.assert.isRejected(kBurner.decryptAes(cipherText1), Error);
     } catch (error) {
       const msg = k0.decryptAes(cipherText1);
       assert.notEqual(msg.toString(), message.toString());

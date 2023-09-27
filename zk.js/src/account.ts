@@ -450,7 +450,6 @@ export class Account {
     merkleTreePdaPublicKey: PublicKey,
     commitment: Uint8Array,
   ): Promise<Uint8Array> {
-
     setEnvironment();
     const iv16 = commitment.subarray(0, 16);
     return this._encryptAes(
@@ -463,16 +462,18 @@ export class Account {
     );
   }
 
-  async encryptAes(encryptedBytes: Uint8Array, iv16: Uint8Array = nacl.randomBytes(16)) {
-
+  async encryptAes(
+    encryptedBytes: Uint8Array,
+    iv16: Uint8Array = nacl.randomBytes(16),
+  ) {
     const ciphertext = await encrypt(
       encryptedBytes,
       this.aesSecret,
       iv16,
       "aes-256-cbc",
       true,
-    )
-    return new Uint8Array([...iv16,...ciphertext]);
+    );
+    return new Uint8Array([...iv16, ...ciphertext]);
   }
 
   private async _encryptAes(
@@ -487,19 +488,20 @@ export class Account {
         `Required iv length 16, provided ${iv16.length}`,
       );
 
-    return await encrypt(
-      message,
-      secretKey,
-      iv16,
-      "aes-256-cbc",
-      true,
-    );
+    return await encrypt(message, secretKey, iv16, "aes-256-cbc", true);
   }
 
-  async decryptAesUtxo(encryptedBytes: Uint8Array, merkleTreePdaPublicKey: PublicKey, commitment: Uint8Array) {
+  async decryptAesUtxo(
+    encryptedBytes: Uint8Array,
+    merkleTreePdaPublicKey: PublicKey,
+    commitment: Uint8Array,
+  ) {
     // Check if account secret key is available for decrypting using AES
     if (!this.aesSecret) {
-      throw new AccountError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decryptAesUtxo");
+      throw new AccountError(
+        UtxoErrorCode.AES_SECRET_UNDEFINED,
+        "decryptAesUtxo",
+      );
     }
     setEnvironment();
     const iv16 = commitment.slice(0, 16);
@@ -510,29 +512,50 @@ export class Account {
         bs58.encode(commitment),
       ),
       iv16,
-    )
+    );
   }
 
-  async decryptAes(encryptedBytes: Uint8Array): Promise<Result<Uint8Array | null, Error>>  {
-    if(!this.aesSecret) {
+  async decryptAes(
+    encryptedBytes: Uint8Array,
+  ): Promise<Result<Uint8Array | null, Error>> {
+    if (!this.aesSecret) {
       throw new AccountError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decryptAes");
     }
     const iv16 = encryptedBytes.slice(0, 16);
     return this._decryptAes(encryptedBytes.slice(16), this.aesSecret, iv16);
   }
 
-  private async _decryptAes(encryptedBytes: Uint8Array, secretKey: Uint8Array, iv16: Uint8Array): Promise<Result<Uint8Array | null, Error>> {
+  private async _decryptAes(
+    encryptedBytes: Uint8Array,
+    secretKey: Uint8Array,
+    iv16: Uint8Array,
+  ): Promise<Result<Uint8Array | null, Error>> {
     try {
-      return Result.Ok(await decrypt(
-        encryptedBytes,
-        secretKey,
-        iv16,
-        "aes-256-cbc",
-        true,
-      ));
+      return Result.Ok(
+        await decrypt(encryptedBytes, secretKey, iv16, "aes-256-cbc", true),
+      );
     } catch (error) {
       return Result.Err(error);
     }
+  }
+
+  static encryptNaclUtxo(
+    publicKey: Uint8Array,
+    bytes_message: Uint8Array,
+    commitment: Uint8Array,
+  ) {
+    const nonce = commitment.subarray(0, 24);
+
+    // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
+    // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
+    // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
+    return Account.encryptNacl(
+      publicKey,
+      bytes_message,
+      CONSTANT_SECRET_AUTHKEY,
+      nonce,
+      true,
+    );
   }
 
   static encryptNacl(
@@ -556,15 +579,19 @@ export class Account {
   async decryptNaclUtxo(
     ciphertext: Uint8Array,
     commitment: Uint8Array,
-  ): Promise<Uint8Array | null> {
+  ): Promise<Result<Uint8Array | null, Error>> {
     const nonce = commitment.slice(0, 24);
-    return this._decryptNacl(ciphertext, nonce, nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey);
+    return this._decryptNacl(
+      ciphertext,
+      nonce,
+      nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
+    );
   }
   async decryptNacl(
     ciphertext: Uint8Array,
     nonce?: Uint8Array,
     signerpublicKey?: Uint8Array,
-  ): Promise<Uint8Array | null> {
+  ): Promise<Result<Uint8Array | null, Error>> {
     if (!nonce) {
       nonce = ciphertext.slice(0, 24);
       ciphertext = ciphertext.slice(24);
@@ -579,20 +606,16 @@ export class Account {
 
   private async _decryptNacl(
     ciphertext: Uint8Array,
-    nonce?: Uint8Array,
+    nonce: Uint8Array,
     signerpublicKey?: Uint8Array,
-  ): Promise<Uint8Array | null> {
-    return nacl.box.open(
-      ciphertext,
-      nonce,
-      signerpublicKey,
-      this.encryptionKeypair.secretKey,
+  ): Promise<Result<Uint8Array | null, Error>> {
+    return Result.Ok(
+      nacl.box.open(
+        ciphertext,
+        nonce,
+        signerpublicKey,
+        this.encryptionKeypair.secretKey,
+      ),
     );
-    // return box.open(
-    //   encBytes,
-    //   nonce,
-    //   nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
-    //   account.encryptionKeypair.secretKey,
-    // );
   }
 }

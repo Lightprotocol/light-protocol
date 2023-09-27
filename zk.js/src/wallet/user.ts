@@ -1517,7 +1517,7 @@ export class User {
     /**
      * - aes: boolean = true
      * - decrypt storage verifier
-    */
+     */
     const decryptIndexStorage = async (
       indexedTransactions: ParsedIndexedTransaction[],
       assetLookupTable: string[],

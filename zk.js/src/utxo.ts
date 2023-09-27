@@ -629,19 +629,13 @@ export class Utxo {
       "le",
       32,
     );
-    const nonce = commitment.subarray(0, 24);
 
     if (!this.account.aesSecret) {
-      // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
-      // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
-      // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
-      const ciphertext = box(
-        bytes_message,
-        nonce,
+      const ciphertext = Account.encryptNaclUtxo(
         this.account.encryptionKeypair.publicKey,
-        CONSTANT_SECRET_AUTHKEY,
+        bytes_message,
+        commitment,
       );
-
       let prefix = randomPrefixBytes();
       return Uint8Array.from([...prefix, ...ciphertext]);
     } else {
@@ -665,7 +659,7 @@ export class Utxo {
       if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
       const padding = sha3_256
         .create()
-        .update(Uint8Array.from([...nonce, ...bytes_message]))
+        .update(Uint8Array.from([...commitment, ...bytes_message]))
         .digest();
 
       // adding the 8 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of (120 + PREFIX_LENGTH) bytes
@@ -703,7 +697,7 @@ export class Utxo {
     );
   }
 
-  // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
+  // TODO: add method decryptWithViewingKey(viewingkey, bytes, commithash, aes) (issue is right now it's difficult to give a viewing key to another party and for this party to decrypt)
   /**
    * @description Decrypts an utxo from an array of bytes without checking the UTXO prefix hash.
    * The prefix hash is assumed exist and to be the first 4 bytes.
@@ -731,7 +725,7 @@ export class Utxo {
     encBytes: Uint8Array;
     account: Account;
     index: number;
-    merkleTreePdaPublicKey?: PublicKey;
+    merkleTreePdaPublicKey: PublicKey;
     aes: boolean;
     commitment: Uint8Array;
     appDataIdl?: Idl;
@@ -741,73 +735,44 @@ export class Utxo {
   }): Promise<Result<Utxo | null, UtxoError>> {
     // Remove UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
     encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
-    if (aes) {
-      // Merkle tree public key is necessary for AES decryption
-      if (!merkleTreePdaPublicKey)
-        throw new UtxoError(
-          UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
-          "encrypt",
-          "For aes decryption the merkle tree pda publickey is necessary to derive the viewingkey",
-        );
-      // If encrypted bytes are compressed, only consider specific (ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH) byte length
-      if (compressed) {
-        encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
-      }
 
-      
-      // Attempt to decrypt using AES
-      const cleartext = await account.decryptAesUtxo(
-        encBytes,
-        merkleTreePdaPublicKey,
-        commitment,
-      );
-      if(cleartext.error) return Result.Ok(null);
-      else if (!cleartext.value) return Result.Ok(null);
-      // Convert decrypted cleartext to bytes
-      const bytes = Buffer.from(cleartext.value);
-
-      // Return a decrypted UTXO
-      return Result.Ok(
-        Utxo.fromBytes({
-          poseidon,
-          bytes,
-          account,
-          index,
-          appDataIdl,
-          assetLookupTable,
-          verifierProgramLookupTable,
-        }),
-      );
-    } else {
-      // If encrypted bytes are compressed, only consider specific (NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH) byte length
-      if (compressed) {
-        encBytes = encBytes.slice(
-          0,
-          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-        );
-      }
-
-      const cleartext = await account.decryptNaclUtxo(encBytes, commitment);
-      // Return null if unable to decrypt
-      if (!cleartext) {
-        return Result.Ok(null);
-      }
-      // Convert decrypted cleartext to bytes
-      const bytes = Buffer.from(cleartext);
-
-      // Return a decrypted UTXO
-      return Result.Ok(
-        Utxo.fromBytes({
-          poseidon,
-          bytes,
-          account,
-          index,
-          appDataIdl,
-          assetLookupTable,
-          verifierProgramLookupTable,
-        }),
+    if (aes && !merkleTreePdaPublicKey) {
+      throw new UtxoError(
+        UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
+        "encrypt",
+        "Merkle tree pda public key is necessary for AES decryption",
       );
     }
+
+    if (compressed) {
+      const length = aes
+        ? ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH
+        : NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH;
+      encBytes = encBytes.slice(0, length);
+    }
+    const cleartext = aes
+      ? await account.decryptAesUtxo(
+          encBytes,
+          merkleTreePdaPublicKey,
+          commitment,
+        )
+      : await account.decryptNaclUtxo(encBytes, commitment);
+
+    if (!cleartext || cleartext.error || !cleartext.value)
+      return Result.Ok(null);
+    const bytes = Buffer.from(cleartext.value || cleartext);
+
+    return Result.Ok(
+      Utxo.fromBytes({
+        poseidon,
+        bytes,
+        account,
+        index,
+        appDataIdl,
+        assetLookupTable,
+        verifierProgramLookupTable,
+      }),
+    );
   }
 
   // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
@@ -837,7 +802,7 @@ export class Utxo {
     encBytes: Uint8Array;
     account: Account;
     index: number;
-    merkleTreePdaPublicKey?: PublicKey;
+    merkleTreePdaPublicKey: PublicKey;
     aes: boolean;
     commitment: Uint8Array;
     appDataIdl?: Idl;
