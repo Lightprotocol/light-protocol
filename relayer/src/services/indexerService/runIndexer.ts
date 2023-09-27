@@ -12,7 +12,7 @@ export async function runIndexer(rounds: number = 0) {
   var initialSync = false;
   var laps = -1;
   while (laps < rounds) {
-    if (initialSync) await sleep(2 * SECONDS);
+    if (initialSync) await sleep(3 * SECONDS);
     else await sleep(5 * SECONDS);
     const { job } = await getTransactions(DB_VERSION);
     const url = process.env.RPC_URL;

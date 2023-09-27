@@ -1,4 +1,5 @@
 import {
+  ConfirmedSignatureInfo,
   ConfirmedSignaturesForAddress2Options,
   Connection,
   ParsedMessageAccount,
@@ -332,7 +333,7 @@ const parseTransactionEvents = (
  * @param {any[]} transactions - The array where the fetched transactions will be stored.
  * @returns {Promise<string>} - The signature of the last fetched transaction.
  */
-// TODO: consider explicitly returning a new txs array instead of mutating the passed in one
+// TODO: consider explicitly returning a new txs array instead of mutating the passed in one.
 async function getTransactionsBatch({
   connection,
   merkleTreeProgramId,
@@ -343,7 +344,7 @@ async function getTransactionsBatch({
   merkleTreeProgramId: PublicKey;
   batchOptions: ConfirmedSignaturesForAddress2Options;
   transactions: any;
-}) {
+}): Promise<ConfirmedSignatureInfo> {
   const signatures = await connection.getConfirmedSignaturesForAddress2(
     new PublicKey(merkleTreeProgramId),
     batchOptions,
@@ -419,7 +420,10 @@ export async function fetchRecentTransactions({
   connection: Connection;
   batchOptions: ConfirmedSignaturesForAddress2Options;
   transactions?: IndexedTransaction[];
-}): Promise<IndexedTransaction[]> {
+}): Promise<{
+  transactions: IndexedTransaction[];
+  oldestFetchedSignature: string;
+}> {
   const batchSize = 1000;
   const rounds = Math.ceil(batchOptions.limit! / batchSize);
 
@@ -445,9 +449,12 @@ export async function fetchRecentTransactions({
     batchBefore = lastSignature.signature;
     await sleep(500);
   }
-  return transactions.sort(
-    (a, b) =>
-      new BN(a.firstLeafIndex, "hex").toNumber() -
-      new BN(b.firstLeafIndex, "hex").toNumber(),
-  );
+  return {
+    transactions: transactions.sort(
+      (a, b) =>
+        new BN(a.firstLeafIndex, "hex").toNumber() -
+        new BN(b.firstLeafIndex, "hex").toNumber(),
+    ),
+    oldestFetchedSignature: batchBefore!,
+  };
 }

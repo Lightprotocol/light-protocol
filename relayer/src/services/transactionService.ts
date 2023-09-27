@@ -50,12 +50,14 @@ export async function indexedTransactions(_req: any, res: any) {
 
     if (!provider) throw new Error("no provider set");
 
-    const indexedTransactions = await fetchRecentTransactions({
-      connection: provider.connection,
-      batchOptions: {
-        limit: 5000,
+    const { transactions: indexedTransactions } = await fetchRecentTransactions(
+      {
+        connection: provider.connection,
+        batchOptions: {
+          limit: 5000,
+        },
       },
-    });
+    );
 
     const stringifiedIndexedTransactions = indexedTransactions.map(
       (trx: IndexedTransaction) => {
