@@ -32,7 +32,7 @@ export default class TestCommand extends Command {
 
   async run() {
     const { args, flags } = await this.parse(TestCommand);
-    let { name, address } = args;
+    const { name, address } = args;
 
     const programName = toSnakeCase(name!);
     const path = `./target/deploy/${programName}.so`;

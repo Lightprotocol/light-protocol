@@ -42,7 +42,7 @@ export async function initLookUpTableFromFile(
   const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
 
   const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
-  var [lookUpTable] = PublicKey.findProgramAddressSync(
+  let [lookUpTable] = PublicKey.findProgramAddressSync(
     [
       payerPubkey.toBuffer(),
       new anchor.BN(recentSlot).toArrayLike(Buffer, "le", 8),
@@ -50,16 +50,18 @@ export async function initLookUpTableFromFile(
     AddressLookupTableProgram.programId,
   );
   try {
-    let lookUpTableRead = new PublicKey(readFileSync(path, "utf8"));
-    let lookUpTableInfoInit = await provider.connection.getAccountInfo(
+    const lookUpTableRead = new PublicKey(readFileSync(path, "utf8"));
+    const lookUpTableInfoInit = await provider.connection.getAccountInfo(
       lookUpTableRead,
     );
     if (lookUpTableInfoInit) {
       lookUpTable = lookUpTableRead;
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("Error: ", e);
+  }
 
-  let LOOK_UP_TABLE = await initLookUpTableTest(
+  const LOOK_UP_TABLE = await initLookUpTableTest(
     provider,
     lookUpTable,
     recentSlot,
@@ -80,7 +82,7 @@ export async function initLookUpTableTest(
   recentSlot: number,
   extraAccounts: Array<PublicKey> = [],
 ): Promise<PublicKey> {
-  var lookUpTableInfoInit: AccountInfo<Buffer> | null = null;
+  let lookUpTableInfoInit: AccountInfo<Buffer> | null = null;
   if (lookupTableAddress != undefined) {
     lookUpTableInfoInit = await provider.connection.getAccountInfo(
       lookupTableAddress,
@@ -101,20 +103,20 @@ export async function initLookUpTableTest(
       verifierProgramZeroProgramId,
       provider,
     );
-    let escrows = (
+    const escrows = (
       await PublicKey.findProgramAddress(
         [anchor.utils.bytes.utf8.encode("escrow")],
         verifierProgramZero.programId,
       )
     )[0];
 
-    let ix0 = SystemProgram.transfer({
+    const ix0 = SystemProgram.transfer({
       fromPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       toPubkey: AUTHORITY,
       lamports: 1_000_000_0000,
     });
 
-    var transaction = new Transaction().add(createInstruction);
+    const transaction = new Transaction().add(createInstruction);
 
     const addressesToAdd = [
       SystemProgram.programId,
@@ -140,7 +142,7 @@ export async function initLookUpTableTest(
     ];
     extraAccounts = extraAccounts.concat(additonalAccounts);
     if (extraAccounts) {
-      for (var i in extraAccounts) {
+      for (const i in extraAccounts) {
         addressesToAdd.push(extraAccounts[i]);
       }
     }
@@ -154,7 +156,7 @@ export async function initLookUpTableTest(
 
     transaction.add(extendInstruction);
     transaction.add(ix0);
-    let recentBlockhash = await provider.connection.getLatestBlockhash(
+    const recentBlockhash = await provider.connection.getLatestBlockhash(
       "confirmed",
     );
     transaction.feePayer = payerPubkey;
@@ -171,7 +173,7 @@ export async function initLookUpTableTest(
       console.log("e : ", e);
     }
 
-    let lookupTableAccount = await provider.connection.getAccountInfo(
+    const lookupTableAccount = await provider.connection.getAccountInfo(
       lookupTableAddress,
       "confirmed",
     );

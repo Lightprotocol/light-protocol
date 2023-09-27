@@ -54,7 +54,7 @@ describe("Utxo Functional", () => {
   });
 
   it("Test Balance moveToSpentUtxos", async () => {
-    let balance: Balance = {
+    const balance: Balance = {
       tokenBalances: new Map([
         [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
       ]),
@@ -62,7 +62,7 @@ describe("Utxo Functional", () => {
       programBalances: new Map(),
       nftBalances: new Map(),
     };
-    let tokenBalanceUsdc = new TokenUtxoBalance(TOKEN_REGISTRY.get("USDC")!);
+    const tokenBalanceUsdc = new TokenUtxoBalance(TOKEN_REGISTRY.get("USDC")!);
     balance.tokenBalances.set(
       tokenBalanceUsdc.tokenData.mint.toBase58(),
       tokenBalanceUsdc,
@@ -88,7 +88,7 @@ describe("Utxo Functional", () => {
       shieldUtxo1.amounts[1].toString(),
     );
     assert.equal(
-      balance.tokenBalances.get(SystemProgram.programId.toBase58())?.spentUtxos
+      balance.tokenBalances.get(SystemProgram.programId.toBase58()).spentUtxos
         .size,
       0,
     );
@@ -97,19 +97,19 @@ describe("Utxo Functional", () => {
       .get(MINT.toBase58())
       ?.moveToSpentUtxos(shieldUtxo1.getCommitment(poseidon));
     assert.equal(
-      balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
+      balance.tokenBalances.get(MINT.toBase58()).totalBalanceSol.toString(),
       "0",
     );
     assert.equal(
-      balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSpl.toString(),
+      balance.tokenBalances.get(MINT.toBase58()).totalBalanceSpl.toString(),
       "0",
     );
     assert.equal(
-      balance.tokenBalances.get(MINT.toBase58())?.spentUtxos.size,
+      balance.tokenBalances.get(MINT.toBase58()).spentUtxos.size,
       1,
     );
 
-    assert.equal(balance.tokenBalances.get(MINT.toBase58())?.utxos.size, 0);
+    assert.equal(balance.tokenBalances.get(MINT.toBase58()).utxos.size, 0);
 
     Utxo.equal(
       poseidon,
@@ -123,12 +123,12 @@ describe("Utxo Functional", () => {
   // this test is mock of the syncState function
   it("Test Decrypt Balance 2 and 4 utxos", async () => {
     const provider = await LightProvider.loadMock();
-    let verifierProgramLookupTable =
+    const verifierProgramLookupTable =
       provider.lookUpTables.verifierProgramLookupTable;
-    let assetLookupTable = provider.lookUpTables.assetLookupTable;
+    const assetLookupTable = provider.lookUpTables.assetLookupTable;
     const account = new Account({ poseidon: poseidon, seed: seed32 });
     for (let j = 2; j < 4; j += 2) {
-      let utxos: Utxo[] = [];
+      const utxos: Utxo[] = [];
       let encryptedUtxos: any[] = [];
       for (let index = 0; index < j; index++) {
         const shieldAmount = index;
@@ -149,12 +149,12 @@ describe("Utxo Functional", () => {
           poseidon,
           account,
           merkleTreePdaPublicKey:
-            MerkleTreeConfig.getTransactionMerkleTreePda(),
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
           compressed: true,
         });
         encryptedUtxos = [...encryptedUtxos, ...encryptedUtxo];
       }
-      let indexedTransactions = [
+      const indexedTransactions = [
         {
           leaves: utxos.map((utxo) =>
             new BN(utxo.getCommitment(poseidon)).toBuffer("le", 32),
@@ -163,9 +163,9 @@ describe("Utxo Functional", () => {
           encryptedUtxos,
         },
       ];
-      let decryptedUtxos: Array<Utxo> = new Array<Utxo>();
+      const decryptedUtxos: Array<Utxo> = new Array<Utxo>();
       for (const trx of indexedTransactions) {
-        let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
+        const leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
         for (let index = 0; index < trx.leaves.length; index += 2) {
           const leafLeft = trx.leaves[index];
           const leafRight = trx.leaves[index + 1];

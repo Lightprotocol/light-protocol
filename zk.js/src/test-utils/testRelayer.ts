@@ -70,7 +70,7 @@ export class TestRelayer extends Relayer {
     instructions: any[],
     provider: Provider,
   ): Promise<RelayerSendTransactionsResponse> {
-    var res = await sendVersionedTransactions(
+    const res = await sendVersionedTransactions(
       instructions,
       provider.provider!.connection!,
       provider.lookUpTables.versionedTransactionLookupTable,
@@ -129,7 +129,7 @@ export class TestRelayer extends Relayer {
     } else {
       if (this.indexedTransactions.length === 0) return [];
 
-      let mostRecentTransaction = this.indexedTransactions.reduce((a, b) =>
+      const mostRecentTransaction = this.indexedTransactions.reduce((a, b) =>
         a.blockTime > b.blockTime ? a : b,
       );
 
@@ -140,7 +140,7 @@ export class TestRelayer extends Relayer {
           until: mostRecentTransaction.signature,
         },
       });
-      let parsedNewTransactions = newTransactions.map((trx) => {
+      const parsedNewTransactions = newTransactions.map((trx) => {
         return {
           ...trx,
           firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),

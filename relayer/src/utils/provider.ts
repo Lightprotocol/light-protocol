@@ -42,8 +42,8 @@ export const getLightProvider = async () => {
     const relayer = await getRelayer();
 
     try {
-      let anchorProvider = await getAnchorProvider();
-      let poseidon = await circomlibjs.buildPoseidonOpt();
+      const anchorProvider = await getAnchorProvider();
+      const poseidon = await circomlibjs.buildPoseidonOpt();
 
       provider = new Provider({
         wallet: useWallet(getKeyPairFromEnv("KEY_PAIR")),

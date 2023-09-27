@@ -74,7 +74,7 @@ export class Account {
   }: {
     poseidon?: any;
     seed?: string;
-    burner?: Boolean;
+    burner?: boolean;
     privateKey?: BN;
     publicKey?: BN;
     poseidonEddsaPrivateKey?: Uint8Array;
@@ -325,7 +325,7 @@ export class Account {
     return blake2b.create({ dkLen }).update(input).digest();
   }
 
-  static createBurner(poseidon: any, seed: String, index: BN): Account {
+  static createBurner(poseidon: any, seed: string, index: BN): Account {
     if (seed.length < 32) {
       throw new AccountError(
         AccountErrorCode.INVALID_SEED_SIZE,
@@ -399,7 +399,7 @@ export class Account {
   }
 
   static fromPubkey(publicKey: string, poseidon: any): Account {
-    let decoded = bs58.decode(publicKey);
+    const decoded = bs58.decode(publicKey);
     if (decoded.length != 64)
       throw new AccountError(
         AccountErrorCode.INVALID_PUBLIC_KEY_SIZE,
@@ -416,14 +416,14 @@ export class Account {
   }
 
   getPublicKey(): string {
-    let concatPublicKey = new Uint8Array([
+    const concatPublicKey = new Uint8Array([
       ...this.pubkey.toArray("be", 32),
       ...this.encryptionKeypair.publicKey,
     ]);
     return bs58.encode(concatPublicKey);
   }
 
-  static getEncryptionKeyPair(seed: String): nacl.BoxKeyPair {
+  static getEncryptionKeyPair(seed: string): nacl.BoxKeyPair {
     const encSeed = seed + "encryption";
     const encryptionPrivateKey = blake2b
       .create(b2params)
@@ -432,7 +432,7 @@ export class Account {
     return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
   }
 
-  static generateShieldedPrivateKey(seed: String, poseidon: any): BN {
+  static generateShieldedPrivateKey(seed: string, poseidon: any): BN {
     const privkeySeed = seed + "shielded";
     const privateKey = new BN(
       poseidon.F.toString(
@@ -446,8 +446,8 @@ export class Account {
 
   static generateSecret(
     dkLen: number,
-    seed?: String,
-    domain?: String,
+    seed?: string,
+    domain?: string,
   ): Uint8Array {
     return Uint8Array.from(
       blake2b.create({ dkLen }).update(`${seed}${domain}`).digest(),

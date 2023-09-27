@@ -127,14 +127,14 @@ export async function start_test_validator({
 
   const dirPath = path.resolve(__dirname, BASE_PATH);
 
-  let solanaArgs = [
+  const solanaArgs = [
     "--reset",
     `--limit-ledger-size=${LIMIT_LEDGER_SIZE}`,
     "--quiet",
   ];
 
-  for (let program of programs) {
-    let filePathString = BASE_PATH + program.name;
+  for (const program of programs) {
+    const filePathString = BASE_PATH + program.name;
     const localFilePath = path.resolve(__dirname, filePathString);
     if (!program.path) {
       // TODO: add tag
@@ -148,10 +148,10 @@ export async function start_test_validator({
       });
     }
 
-    let path1 = program.path ? program.path : `${localFilePath}`;
+    const path1 = program.path ? program.path : `${localFilePath}`;
     solanaArgs.push("--bpf-program", program.id, path1);
   }
-  let dirPathString = "../../accounts/";
+  const dirPathString = "../../accounts/";
   const localFilePath = path.resolve(__dirname, dirPathString);
   if (!skip_system_accounts) {
     solanaArgs.push("--account-dir", localFilePath);

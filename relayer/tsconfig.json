@@ -15,7 +15,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["./src/**/*.ts"],
+  "include": ["src", "nukeDB.ts", "setup.jsdom.ts"],
+  "exclude": ["node_modules", "**/tests/*"],
   "dry": false,
   "debug": false
 }

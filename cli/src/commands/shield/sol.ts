@@ -5,7 +5,7 @@ import {
   generateSolanaTransactionURL,
   getConfirmOptions,
   getUser,
-} from "../../utils/utils";
+} from "../../utils";
 import { shieldSolFlags } from ".";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
@@ -34,7 +34,7 @@ class ShieldSolCommand extends Command {
 
   async run() {
     const { args, flags } = await this.parse(ShieldSolCommand);
-    let amountSol = args.amount;
+    const amountSol = args.amount;
 
     const recipient = flags["recipient"];
     const skipDecimalConversions = flags["skip-decimal-conversions"];
@@ -63,7 +63,7 @@ class ShieldSolCommand extends Command {
           "custom"
         )
       );
-      let amount = skipDecimalConversions
+      const amount = skipDecimalConversions
         ? Number(amountSol) / 1_000_000_000
         : amountSol;
       this.log(`\nSuccessfully shielded ${amount} SOL`, "\x1b[32m✔\x1b[0m");

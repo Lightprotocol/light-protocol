@@ -13,8 +13,8 @@ export async function sendTransaction(req: any, res: any) {
 
     if (!provider.provider) throw new Error("no provider set");
 
-    let instructions: TransactionInstruction[] = [];
-    for (let instruction of req.body.instructions) {
+    const instructions: TransactionInstruction[] = [];
+    for (const instruction of req.body.instructions) {
       const accounts = instruction.keys.map((key: any) => {
         return {
           pubkey: new PublicKey(key.pubkey),
@@ -30,7 +30,7 @@ export async function sendTransaction(req: any, res: any) {
       instructions.push(newInstruction);
     }
 
-    var response = await sendVersionedTransactions(
+    const response = await sendVersionedTransactions(
       instructions,
       provider.provider.connection,
       provider.lookUpTables.versionedTransactionLookupTable,

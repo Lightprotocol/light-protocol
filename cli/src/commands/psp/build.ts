@@ -23,7 +23,7 @@ export default class BuildCommand extends Command {
   };
   async run() {
     const { flags, args } = await this.parse(BuildCommand);
-    let { name } = args;
+    const { name } = args;
     this.log("building PSP...");
 
     await buildPSP({ ...flags, programName: name! });

@@ -126,7 +126,9 @@ export class UserTestAssertHelper {
               userBalances.recipientSplAccount,
             )
           )?.value.uiAmount;
-        } catch (error) {}
+        } catch (e) {
+          console.error("Error: ", e);
+        }
         userBalances.preTokenBalance = balance ? balance : 0;
       } else {
         let balance: number | null = null;
@@ -136,7 +138,9 @@ export class UserTestAssertHelper {
               userBalances.senderSplAccount!,
             )
           )?.value.uiAmount;
-        } catch (error) {}
+        } catch (e) {
+          console.error("Error: ", e);
+        }
         userBalances.preTokenBalance = balance ? balance : 0;
       }
 
@@ -558,18 +562,18 @@ export class UserTestAssertHelper {
       ? await userBalances.user.getBalance(false)
       : await userBalances.user.getUtxoInbox();
 
-    let tokenBalanceAfter = postShieldedBalances.tokenBalances.get(
+    const tokenBalanceAfter = postShieldedBalances.tokenBalances.get(
       this.tokenCtx?.mint.toBase58(),
     )?.totalBalanceSpl;
 
-    let _tokenBalancePre = !shieldToRecipient
+    const _tokenBalancePre = !shieldToRecipient
       ? userBalances.preShieldedBalance!.tokenBalances.get(
           this.tokenCtx?.mint.toBase58(),
         )?.totalBalanceSpl
       : userBalances.preShieldedInboxBalance!.tokenBalances.get(
           this.tokenCtx?.mint.toBase58(),
         )?.totalBalanceSpl;
-    let tokenBalancePre = _tokenBalancePre ? _tokenBalancePre : BN_0;
+    const tokenBalancePre = _tokenBalancePre ? _tokenBalancePre : BN_0;
 
     assert.equal(
       tokenBalanceAfter!
@@ -643,8 +647,8 @@ export class UserTestAssertHelper {
       ? await userBalances.user.getBalance(false)
       : await userBalances.user.getUtxoInbox();
 
-    let solBalanceAfter = postShieldedBalances.totalSolBalance;
-    let solBalancePre = !shieldToRecipient
+    const solBalanceAfter = postShieldedBalances.totalSolBalance;
+    const solBalancePre = !shieldToRecipient
       ? userBalances.preShieldedBalance!.totalSolBalance
       : userBalances.preShieldedInboxBalance!.totalSolBalance;
 
@@ -998,7 +1002,7 @@ export class UserTestAssertHelper {
     // if pre number of utxos was less than 10 expect current number to be one
     let preNumberUtxos = this.sender.preShieldedBalance!.tokenBalances.get(
       this.tokenCtx.mint.toBase58(),
-    )?.utxos.size!;
+    )!.utxos.size!;
     preNumberUtxos = preNumberUtxos ? preNumberUtxos : 0;
 
     if (preNumberUtxos < 10) {
@@ -1011,14 +1015,14 @@ export class UserTestAssertHelper {
     } else {
       throw new Error(`Sender had more than 10 utxos ${preNumberUtxos}`);
     }
-    let preNumberInboxUtxos =
+    const preNumberInboxUtxos =
       this.sender.preShieldedInboxBalance!.tokenBalances.get(
         this.tokenCtx.mint.toBase58(),
       )?.utxos.size;
-    let postNumberUtxos = this.sender.user.inboxBalance!.tokenBalances.get(
+    const postNumberUtxos = this.sender.user.inboxBalance!.tokenBalances.get(
       this.tokenCtx.mint.toBase58(),
     )?.utxos.size;
-    let expectedRemainingInboxUtxos =
+    const expectedRemainingInboxUtxos =
       preNumberInboxUtxos! + preNumberUtxos - 10;
     assert.equal(
       postNumberUtxos,
@@ -1044,7 +1048,7 @@ export class UserTestAssertHelper {
     // if pre number of utxos was less than 10 expect current number to be one
     let preNumberUtxos = this.sender.preShieldedBalance!.tokenBalances.get(
       this.tokenCtx.mint.toBase58(),
-    )?.utxos.size!;
+    )!.utxos.size!;
     preNumberUtxos = preNumberUtxos ? preNumberUtxos : 0;
 
     if (preNumberUtxos < 10) {
@@ -1116,10 +1120,10 @@ export class UserTestAssertHelper {
       throw new Error("Test inputs message undefined to assert message stored");
     const { transactions: indexedTransactions } = await fetchRecentTransactions(
       {
-        connection: this.provider!.provider!.connection,
-        batchOptions: {
-          limit: 5000,
-        },
+      connection: this.provider!.provider!.connection,
+      batchOptions: {
+        limit: 5000,
+      },
       },
     );
     indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
@@ -1159,8 +1163,8 @@ export class UserTestAssertHelper {
     if (this.tokenCtx.isNative)
       throw new Error("checkCommittedBalanceSpl is not implemented for sol");
     if (this.testInputs.type !== Action.TRANSFER) {
-      let balance = await this.sender.user.getBalance();
-      let numberOfUtxos =
+      const balance = await this.sender.user.getBalance();
+      const numberOfUtxos =
         balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size ??
         0;
       assert.equal(numberOfUtxos, 0);
@@ -1171,11 +1175,11 @@ export class UserTestAssertHelper {
         1,
       );
     } else {
-      let balance = await this.recipient.user.getBalance();
-      let numberOfUtxos =
+      const balance = await this.recipient.user.getBalance();
+      const numberOfUtxos =
         balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size ??
         0;
-      let numberOfCommittedUtxos =
+      const numberOfCommittedUtxos =
         balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.committedUtxos
           .size ?? 0;
 

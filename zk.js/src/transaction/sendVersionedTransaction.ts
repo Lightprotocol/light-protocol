@@ -62,7 +62,7 @@ export const sendVersionedTransaction = async (
     compiledTx.addressTableLookups[0].accountKey = lookUpTable;
   }
 
-  var tx = new VersionedTransaction(compiledTx);
+  let tx = new VersionedTransaction(compiledTx);
   let retries = 3;
   while (retries > 0) {
     tx = await payer.signTransaction(tx);
@@ -91,9 +91,9 @@ export async function sendVersionedTransactions(
   payer: Wallet,
 ): Promise<SendVersionedTransactionsResult> {
   try {
-    let signatures: TransactionSignature[] = [];
-    for (var instruction of instructions) {
-      let signature = await sendVersionedTransaction(
+    const signatures: TransactionSignature[] = [];
+    for (const instruction of instructions) {
+      const signature = await sendVersionedTransaction(
         instruction,
         connection,
         lookUpTable,
@@ -116,7 +116,7 @@ export async function confirmTransaction(
   confirmation: Commitment = "confirmed",
 ) {
   const latestBlockHash = await connection.getLatestBlockhash(confirmation);
-  let strategy: TransactionConfirmationStrategy = {
+  const strategy: TransactionConfirmationStrategy = {
     signature: signature.toString(),
     lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
     blockhash: latestBlockHash.blockhash,

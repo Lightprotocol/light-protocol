@@ -79,8 +79,8 @@ describe("Masp circuit tests", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
-    let mockPubkey2 = SolanaKeypair.generate().publicKey;
-    let mockPubkey3 = SolanaKeypair.generate().publicKey;
+    const mockPubkey2 = SolanaKeypair.generate().publicKey;
+    const mockPubkey3 = SolanaKeypair.generate().publicKey;
 
     txParams = new TransactionParameters({
       outputUtxos: [shieldUtxo1],
@@ -717,7 +717,7 @@ describe("App system circuit tests", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
-    let relayerPubkey = SolanaKeypair.generate().publicKey;
+    const relayerPubkey = SolanaKeypair.generate().publicKey;
 
     lightProvider = await LightProvider.loadMock();
     txParams = new TransactionParameters({

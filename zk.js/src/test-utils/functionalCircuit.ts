@@ -19,7 +19,7 @@ export async function functionalCircuitTest(
   app: boolean = false,
   verifierIdl: Idl,
 ) {
-  let lightProvider = await LightProvider.loadMock();
+  const lightProvider = await LightProvider.loadMock();
 
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
@@ -35,7 +35,7 @@ export async function functionalCircuitTest(
     verifierProgramLookupTable:
       lightProvider.lookUpTables.verifierProgramLookupTable,
   });
-  let mockPubkey = SolanaKeypair.generate().publicKey;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
 
   let txParams = new TransactionParameters({
     outputUtxos: [shieldUtxo1],

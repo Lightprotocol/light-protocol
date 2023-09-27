@@ -444,7 +444,7 @@ export class Transaction {
           "getInstructions",
           "Probably sth in the associated token address generation went wrong",
         );
-      let ix = createAssociatedTokenAccountInstruction(
+      const ix = createAssociatedTokenAccountInstruction(
         this.params.relayer.accounts.relayerPubkey,
         this.params.accounts.recipientSpl,
         this.params.accounts.recipientSol,
@@ -459,13 +459,13 @@ export class Transaction {
       const coder = new BorshAccountsCoder(params.verifierIdl);
 
       const accountName = "instructionData" + firstLetterToUpper(instruction);
-      let inputs = createAccountObject(
+      const inputs = createAccountObject(
         inputObject,
         params.verifierIdl.accounts!,
         accountName,
       );
 
-      let inputsVec = (await coder.encode(accountName, inputs)).subarray(8);
+      const inputsVec = (await coder.encode(accountName, inputs)).subarray(8);
       // TODO: check whether app account names overlap with system account names and throw an error if so
       let appAccounts = {};
       if (this.appParams?.accounts) {
@@ -486,7 +486,7 @@ export class Transaction {
 
       // Check if it's the last iteration
       if (i === instructionNames.length - 1) {
-        let remainingAccounts = [
+        const remainingAccounts = [
           ...this.remainingAccounts!.nullifierPdaPubkeys!,
           ...this.remainingAccounts!.leavesPdaPubkeys!,
         ];
@@ -534,8 +534,8 @@ export class Transaction {
         "Remaining accounts undefined",
       );
 
-    let nullifiers = this.transactionInputs.publicInputs.inputNullifier;
-    let signer = this.params.relayer.accounts.relayerPubkey;
+    const nullifiers = this.transactionInputs.publicInputs.inputNullifier;
+    const signer = this.params.relayer.accounts.relayerPubkey;
 
     this.remainingAccounts.nullifierPdaPubkeys = [];
     for (const i in nullifiers) {

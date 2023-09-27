@@ -8,9 +8,9 @@ export async function setupRelayerLookUpTable(anchorProvider: AnchorProvider) {
   let lookUpTable;
 
   try {
-    let lookUpTableRead = new PublicKey(getLookUpTableVar()!);
+    const lookUpTableRead = new PublicKey(getLookUpTableVar()!);
     console.log("lookUpTableRead::", lookUpTableRead);
-    let lookUpTableInfoInit = await anchorProvider.connection.getAccountInfo(
+    const lookUpTableInfoInit = await anchorProvider.connection.getAccountInfo(
       lookUpTableRead,
     );
     if (lookUpTableInfoInit) {
@@ -22,7 +22,7 @@ export async function setupRelayerLookUpTable(anchorProvider: AnchorProvider) {
   }
   if (!lookUpTable) {
     console.log("initing lookuptable...");
-    let wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"), RPC_URL);
+    const wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"), RPC_URL);
 
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
     setLookUpTableVar(lookUpTable.toString());

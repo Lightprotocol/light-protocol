@@ -112,7 +112,7 @@ export class Prover<
       inputKeys.push(fieldName);
     });
 
-    let inputsObject: { [key: string]: any } = {};
+    const inputsObject: { [key: string]: any } = {};
 
     inputKeys.forEach((key) => {
       inputsObject[key] = proofInputs[key];
@@ -158,19 +158,19 @@ export class Prover<
     proofB: number[][];
     proofC: number[];
   } {
-    let proofJson = JSON.stringify(proof, null, 1);
-    var mydata = JSON.parse(proofJson.toString());
+    const proofJson = JSON.stringify(proof, null, 1);
+    const mydata = JSON.parse(proofJson.toString());
     try {
-      for (var i in mydata) {
+      for (const i in mydata) {
         if (i == "pi_a" || i == "pi_c") {
-          for (var j in mydata[i]) {
+          for (const j in mydata[i]) {
             mydata[i][j] = Array.from(
               leInt2Buff(unstringifyBigInts(mydata[i][j]), 32),
             ).reverse();
           }
         } else if (i == "pi_b") {
-          for (var j in mydata[i]) {
-            for (var z in mydata[i][j]) {
+          for (const j in mydata[i]) {
+            for (const z in mydata[i][j]) {
               mydata[i][j][z] = Array.from(
                 leInt2Buff(unstringifyBigInts(mydata[i][j][z]), 32),
               );
@@ -196,11 +196,11 @@ export class Prover<
   // mainly used to parse the public signals of groth16 fullProve
   parseToBytesArray(publicSignals: string[]): number[][] {
     const publicInputsJson = JSON.stringify(publicSignals, null, 1);
-    var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
+    const publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
     try {
-      var publicInputsBytes = new Array<Array<number>>();
-      for (var i in publicInputsBytesJson) {
-        let ref: Array<number> = Array.from([
+      const publicInputsBytes = new Array<Array<number>>();
+      for (const i in publicInputsBytesJson) {
+        const ref: Array<number> = Array.from([
           ...leInt2Buff(unstringifyBigInts(publicInputsBytesJson[i]), 32),
         ]).reverse();
         publicInputsBytes.push(ref);
@@ -233,7 +233,7 @@ export class Prover<
     };
 
     function getNrPublicInputs(input: SizeObject): number {
-      let arr: number[] = [];
+r      let arr = [];
       for (const key in input) {
         arr.push(...input[key]);
       }
@@ -266,7 +266,7 @@ export class Prover<
     }
 
     function getObjectSizes(idlObject: any): SizeObject {
-      let output: SizeObject = {};
+      const output: SizeObject = {};
 
       for (const field of idlObject[0].type.fields) {
         output[field.name] = getSize(field.type);
@@ -304,7 +304,7 @@ export class Prover<
             currentIndex,
             currentIndex + totalElements,
           );
-          let reshapedArray: any = slicedArray;
+          let reshapedArray: number[][] = slicedArray;
 
           if (shape.length > 1) {
             let currentData = reshapedArray;

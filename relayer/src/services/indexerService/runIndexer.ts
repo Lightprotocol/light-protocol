@@ -9,8 +9,8 @@ export async function runIndexer(rounds: number = 0) {
   console.log("runIndexer initializing...");
   await getTransactions(DB_VERSION);
   console.log("initialized");
-  var initialSync = false;
-  var laps = -1;
+  const initialSync = false;
+  let laps = -1;
   while (laps < rounds) {
     if (initialSync) await sleep(3 * SECONDS);
     else await sleep(5 * SECONDS);

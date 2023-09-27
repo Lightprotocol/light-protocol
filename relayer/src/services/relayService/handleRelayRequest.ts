@@ -12,7 +12,7 @@ import { sha3_256 } from "@noble/hashes/sha3";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export function getUidFromIxs(ixs: TransactionInstruction[]): string {
-  let hasher = sha3_256.create();
+  const hasher = sha3_256.create();
   ixs.forEach((ix) => {
     hasher.update(new Uint8Array([...ix.data]));
   });
@@ -24,8 +24,8 @@ async function addRelayJob({
 }: {
   instructions: TransactionInstruction[];
 }) {
-  let uid = getUidFromIxs(instructions); // TODO: add a test that checks that this is unique
-  let job = await relayQueue.add(
+  const uid = getUidFromIxs(instructions); // TODO: add a test that checks that this is unique
+  const job = await relayQueue.add(
     "relay",
     {
       instructions,
@@ -51,10 +51,10 @@ function validateReqParams(req: any) {
 }
 
 export async function parseReqParams(reqInstructions: any) {
-  let instructions: TransactionInstruction[] = [];
+  const instructions: TransactionInstruction[] = [];
   let accounts: AccountMeta[] = [];
-  let relayer = await getRelayer();
-  for (let instruction of reqInstructions) {
+  const relayer = await getRelayer();
+  for (const instruction of reqInstructions) {
     accounts = instruction.keys.map((key: AccountMeta) => {
       return {
         pubkey: new PublicKey(key.pubkey),
@@ -79,7 +79,7 @@ export async function parseReqParams(reqInstructions: any) {
       accounts[0].pubkey.toBase58() ===
         relayer.accounts.relayerPubkey.toBase58(),
     );
-    let newInstruction = new TransactionInstruction({
+    const newInstruction = new TransactionInstruction({
       keys: accounts,
       programId: new PublicKey(instruction.programId),
       data: Buffer.from(instruction.data),
@@ -111,8 +111,8 @@ async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
   console.log(`/awaitJobCompletion - id: ${job.id}`);
   let state;
   let i = 0;
-  let maxSteps = MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION;
-  let sleepTime = 1 * SECONDS;
+  const maxSteps = MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION;
+  const sleepTime = 1 * SECONDS;
   while (i < maxSteps) {
     await sleep(sleepTime);
     state = await job.getState();

@@ -1,6 +1,6 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
-import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const chai = require("chai");
@@ -314,9 +314,8 @@ describe("Transaction Functional Tests", () => {
 
   it("Functional ", async () => {
     let tx = new Transaction({
-      ...(await lightProvider.getRootIndex()),
-      solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsShield,
+      provider: lightProvider,
+      params: paramsDeposit,
     });
     await tx.compileAndProve(lightProvider.poseidon, account);
   });
@@ -380,7 +379,7 @@ describe("Transaction Functional Tests", () => {
     });
     await tx.compileAndProve(poseidon, account);
     await tx.getInstructions(tx.params);
-  });
+    });
 
   it("getMint ", async () => {
     let tx = new Transaction({
@@ -413,7 +412,7 @@ describe("Transaction Functional Tests", () => {
       account,
     });
 
-    let txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(
+    const txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(
       poseidon,
     );
 

@@ -29,7 +29,7 @@ export const RECIPIENT_TOKEN_ACCOUNT = Keypair.fromSecretKey(
   ]),
 );
 
-export var KEYPAIR_PRIVKEY = new BN(
+export const KEYPAIR_PRIVKEY = new BN(
   "d67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896",
   "hex",
 );

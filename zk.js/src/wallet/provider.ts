@@ -121,12 +121,12 @@ export class Provider {
         TOKEN_ACCOUNT_FEE,
       );
     }
-    let tmpAssetLookupTable = assetLookupTable
-      ? [...assetLookupTable?.map((entry) => entry.toBase58())]
+    const tmpAssetLookupTable = assetLookupTable
+      ? [...assetLookupTable.map((entry) => entry.toBase58())]
       : [];
 
-    let tmpVerifierProgramLookupTable = verifierProgramLookupTable
-      ? [...verifierProgramLookupTable?.map((entry) => entry.toBase58())]
+    const tmpVerifierProgramLookupTable = verifierProgramLookupTable
+      ? [...verifierProgramLookupTable.map((entry) => entry.toBase58())]
       : [];
     this.lookUpTables = {
       assetLookupTable: [
@@ -149,9 +149,9 @@ export class Provider {
   }
 
   static async loadMock(): Promise<Provider> {
-    let poseidon = await circomlibjs.buildPoseidonOpt();
+    const poseidon = await circomlibjs.buildPoseidonOpt();
     // @ts-ignore: @ananas-block ignoring errors to not pass anchorProvider
-    let mockProvider = new Provider({
+    const mockProvider = new Provider({
       wallet: useWallet(ADMIN_AUTH_KEYPAIR),
       url: "mock",
       versionedTransactionLookupTable: PublicKey.default,

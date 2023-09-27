@@ -299,7 +299,7 @@ export class Utxo {
           UtxoErrorCode.APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS,
           "APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS",
         );
-      let i = appDataIdl.accounts.findIndex((acc) => {
+      const i = appDataIdl.accounts.findIndex((acc) => {
         return acc.name === "utxo";
       });
       if (i === -1)
@@ -329,7 +329,7 @@ export class Utxo {
           inputKeys.push(fieldName);
         });
 
-        let inputsObject: { [key: string]: any } = {};
+        const inputsObject: { [key: string]: any } = {};
 
         inputKeys.forEach((key) => {
           inputsObject[key] = appData[key];
@@ -390,10 +390,10 @@ export class Utxo {
     };
     let serializedData;
     if (!this.appDataIdl || !this.includeAppData) {
-      let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+      const coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
       serializedData = await coder.encode("utxo", serializeObject);
     } else if (this.appDataIdl) {
-      let coder = new BorshAccountsCoder(this.appDataIdl);
+      const coder = new BorshAccountsCoder(this.appDataIdl);
       serializeObject = {
         ...serializeObject,
         ...this.appData,
@@ -449,7 +449,7 @@ export class Utxo {
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding
     if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
-      let tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
+      const tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
       bytes = Buffer.from([
         ...tmp,
         ...new Uint8Array(
@@ -466,11 +466,10 @@ export class Utxo {
     }
 
     let decodedUtxoData: any;
-    let assets: Array<PublicKey>;
     let appData: any = undefined;
     // TODO: should I check whether an account is passed or not?
     if (!appDataIdl) {
-      let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+      const coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
       decodedUtxoData = coder.decode("utxo", bytes);
     } else {
       if (!appDataIdl.accounts)
@@ -479,7 +478,7 @@ export class Utxo {
           "fromBytes",
         );
 
-      let coder = new BorshAccountsCoder(appDataIdl);
+      const coder = new BorshAccountsCoder(appDataIdl);
       decodedUtxoData = coder.decode("utxo", bytes);
       appData = createAccountObject(
         decodedUtxoData,
@@ -526,8 +525,8 @@ export class Utxo {
    */
   getCommitment(poseidon: any): string {
     if (!this._commitment) {
-      let amountHash = poseidon.F.toString(poseidon(this.amounts));
-      let assetHash = poseidon.F.toString(
+      const amountHash = poseidon.F.toString(poseidon(this.amounts));
+      const assetHash = poseidon.F.toString(
         poseidon(this.assetsCircuit.map((x) => x.toString())),
       );
 
@@ -546,7 +545,7 @@ export class Utxo {
       // console.log("assetHash ", assetHash.toString());
       // console.log("this.appDataHash ", this.appDataHash.toString());
       // console.log("this.poolType ", this.poolType.toString());
-      let commitment: string = poseidon.F.toString(
+      const commitment: string = poseidon.F.toString(
         poseidon([
           this.transactionVersion,
           amountHash,
@@ -646,6 +645,7 @@ export class Utxo {
         bytes_message,
         commitment,
       );
+
       let prefix = randomPrefixBytes();
       return Uint8Array.from([...prefix, ...ciphertext]);
     } else if (account) {
@@ -1009,7 +1009,7 @@ export class Utxo {
   static getAppInUtxoIndices(appUtxos: Utxo[]) {
     let isAppInUtxo: BN[][] = [];
     for (const i in appUtxos) {
-      let array = new Array(4).fill(new BN(0));
+      const array = new Array(4).fill(new BN(0));
       if (appUtxos[i].appData) {
         array[i] = new BN(1);
         isAppInUtxo.push(array);

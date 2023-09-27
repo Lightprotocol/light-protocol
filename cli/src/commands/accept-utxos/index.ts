@@ -4,9 +4,8 @@ import {
   CustomLoader,
   generateSolanaTransactionURL,
   getUser,
-} from "../../utils/utils";
-import { standardFlags } from "../../utils";
-
+  standardFlags
+} from "../../utils";
 class MergeUtxosCommand extends Command {
   static description = "Merge multiple inbox utxos into a single UTXO.";
   static examples = [
@@ -59,7 +58,7 @@ class MergeUtxosCommand extends Command {
       let response;
       if (all) {
         response = await user.mergeAllUtxos(
-          tokenCtx?.mint!,
+          tokenCtx!.mint!,
           ConfirmOptions.spendable,
           latest
         );
@@ -70,7 +69,7 @@ class MergeUtxosCommand extends Command {
           );
         response = await user.mergeUtxos(
           commitments,
-          tokenCtx?.mint!,
+          tokenCtx!.mint!,
           ConfirmOptions.spendable,
           latest
         );

@@ -18,7 +18,7 @@ import {
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
-var assert = require("assert");
+const assert = require("assert");
 
 export class TestTransaction {
   testValues?: {
@@ -120,19 +120,15 @@ export class TestTransaction {
               this.params.accounts.recipientSpl,
             ),
           );
-        } catch (e) {}
+        } catch (e) {
+          console.error("Error: ", e);
+        }
       }
     }
 
-    try {
-      this.testValues.recipientFeeBalancePriorTx = new BN(
-        await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientSol,
-        ),
-      );
-    } catch (error) {
-      throw error;
-    }
+    this.testValues.recipientFeeBalancePriorTx = new BN(
+        await this.provider.provider.connection.getBalance(this.params.accounts.recipientSol),
+    );
     if (this.params.action === "SHIELD") {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
@@ -262,7 +258,7 @@ export class TestTransaction {
 
     // Checking that nullifiers were inserted
     for (let i = 0; i < remainingAccounts.nullifierPdaPubkeys?.length; i++) {
-      let nullifierAccount =
+      const nullifierAccount =
         await this.provider.provider!.connection.getAccountInfo(
           remainingAccounts.nullifierPdaPubkeys[i].pubkey,
           {
@@ -301,10 +297,10 @@ export class TestTransaction {
         this.provider.solMerkleTree.pubkey.toBase58(),
         "merkleTreePubkey not inserted correctly",
       );
-      let lightProvider = await Provider.loadMock();
+      const lightProvider = await Provider.loadMock();
 
       for (let j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
-        let decryptedUtxo1 = await Utxo.decrypt({
+        const decryptedUtxo1 = await Utxo.decrypt({
           poseidon: this.provider.poseidon,
           encBytes: this.params!.encryptedUtxos,
           account: account!, //? account : this.params!.outputUtxos![0].publicKey,

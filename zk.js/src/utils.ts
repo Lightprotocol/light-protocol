@@ -59,9 +59,9 @@ export async function getAssetLookUpId({
   let mtConf = new MerkleTreeConfig({
     anchorProvider,
   });
-  let pubkey = await mtConf.getSplPoolPda(asset, poolType);
+  const pubkey = await mtConf.getSplPoolPda(asset, poolType);
 
-  let registeredAssets =
+  const registeredAssets =
     await mtConf.merkleTreeProgram.account.registeredAssetPool.fetch(
       pubkey.pda,
     );
@@ -154,7 +154,7 @@ export const convertAndComputeDecimals = (
     );
   }
 
-  let amountStr = amount.toString();
+  const amountStr = amount.toString();
 
   if (!new Decimal(amountStr).isInt()) {
     const convertedFloat = new Decimal(amountStr).times(
@@ -192,7 +192,7 @@ export const fetchNullifierAccountInfo = async (
     ],
     merkleTreeProgramId,
   )[0];
-  var retries = 2;
+  let retries = 2;
   while (retries > 0) {
     const res = await connection.getAccountInfo(nullifierPubkey, "processed");
     if (res) return res;
@@ -248,7 +248,7 @@ export function createAccountObject<T extends KeyValue>(
     (field: { name: string }) => field.name,
   );
 
-  let accountObject: Partial<T> = {};
+  const accountObject: Partial<T> = {};
   fieldNames.forEach((fieldName: keyof T) => {
     accountObject[fieldName] = obj[fieldName];
     if (!accountObject[fieldName])
@@ -300,7 +300,7 @@ export async function initLookUpTable(
   const payerPubkey = payer.publicKey;
   const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
 
-  var [lookUpTable] = PublicKey.findProgramAddressSync(
+  const [lookUpTable] = PublicKey.findProgramAddressSync(
     [
       payerPubkey.toBuffer(),
       new anchor.BN(recentSlot).toArrayLike(Buffer, "le", 8),
@@ -314,12 +314,12 @@ export async function initLookUpTable(
     recentSlot,
   })[0];
 
-  let escrows = PublicKey.findProgramAddressSync(
+  const escrows = PublicKey.findProgramAddressSync(
     [anchor.utils.bytes.utf8.encode("escrow")],
     verifierProgramZeroProgramId,
   )[0];
 
-  var transaction = new Transaction().add(createInstruction);
+  const transaction = new Transaction().add(createInstruction);
 
   const addressesToAdd = [
     SystemProgram.programId,
@@ -346,7 +346,7 @@ export async function initLookUpTable(
   ];
 
   if (extraAccounts) {
-    for (var i in extraAccounts) {
+    for (const i in extraAccounts) {
       addressesToAdd.push(extraAccounts[i]);
     }
   }
@@ -360,7 +360,7 @@ export async function initLookUpTable(
 
   transaction.add(extendInstruction);
 
-  let recentBlockhash = await provider.connection.getLatestBlockhash(
+  const recentBlockhash = await provider.connection.getLatestBlockhash(
     "confirmed",
   );
   transaction.feePayer = payerPubkey;
@@ -378,7 +378,7 @@ export async function initLookUpTable(
     );
   }
 
-  let lookupTableAccount = await provider.connection.getAccountInfo(
+  const lookupTableAccount = await provider.connection.getAccountInfo(
     lookUpTable,
     "confirmed",
   );

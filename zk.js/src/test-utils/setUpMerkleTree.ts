@@ -25,7 +25,7 @@ export async function setUpMerkleTree(
   provider: anchor.AnchorProvider,
   merkleTreeAuthority: PublicKey,
 ) {
-  let merkleTreeConfig = new MerkleTreeConfig({
+  const merkleTreeConfig = new MerkleTreeConfig({
     payer: ADMIN_AUTH_KEYPAIR,
     anchorProvider: provider,
   });
@@ -99,7 +99,7 @@ export async function setUpMerkleTree(
     ),
   );
   // registering verifiers and airdrop sol to authority pdas
-  for (var verifier of verifierArray) {
+  for (const verifier of verifierArray) {
     const pda = (
       await merkleTreeConfig.getRegisteredVerifierPda(verifier.programId)
     ).registeredVerifierPda;

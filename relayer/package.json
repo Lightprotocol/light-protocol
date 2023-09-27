@@ -11,7 +11,9 @@
     "start-local": "sh runScript.sh",
     "build": "pnpm tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier \"src/**/*{ts,js}\"  \"tests/**/*.{ts,js}\" --check",
+     "format:check": "yarn prettier \"src/**/*{ts,js}\"  \"tests/**/*.{ts,js}\" --check",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --fix"
     "preinstall": "npx only-allow pnpm"
   },
   "keywords": [],
@@ -45,9 +47,12 @@
     "@types/node": "^18.14.1",
     "@types/node-fetch": "^2.6.2",
     "@types/sinon": "^10.0.16",
+    "@typescript-eslint/eslint-plugin": "^6.7.3",
+    "@typescript-eslint/parser": "^6.7.3",
     "chai": "^4.3.7",
     "chai-as-promised": "^7.1.1",
     "chai-http": "^4.3.0",
+    "eslint": "^8.50.0",
     "jsdom": "^22.1.0",
     "jsdom-global": "^3.0.2",
     "prettier": "^2.8.8",

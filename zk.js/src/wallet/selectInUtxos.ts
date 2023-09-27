@@ -59,16 +59,16 @@ const selectBiggestSmallest = (
   sumOutSpl: BN,
   threshold: number,
 ) => {
-  var selectedUtxos: Utxo[] = [];
-  var selectedUtxosAmount: BN = BN_0;
-  var selectedUtxosSolAmount: BN = BN_0;
+  const selectedUtxos: Utxo[] = [];
+  let selectedUtxosAmount: BN = BN_0;
+  let selectedUtxosSolAmount: BN = BN_0;
   // TODO: write sort that works with BN
   filteredUtxos.sort(
     (a, b) =>
       b.amounts[assetIndex].toNumber() - a.amounts[assetIndex].toNumber(),
   );
 
-  for (var utxo = 0; utxo < filteredUtxos.length; utxo++) {
+  for (let utxo = 0; utxo < filteredUtxos.length; utxo++) {
     // Init with biggest spl utxo
     if (utxo == 0) {
       selectedUtxos.push(filteredUtxos[utxo]);
@@ -200,7 +200,7 @@ export function selectInUtxos({
 
   // check publicMint and recipients mints are all the same
   let mint = publicMint;
-  for (var utxo of outUtxos) {
+  for (const utxo of outUtxos) {
     if (!mint && utxo.amounts[1]?.gt(BN_0)) mint = utxo.assets[1];
     if (mint && mint.toBase58() !== utxo.assets[1].toBase58())
       throw new SelectInUtxosError(
@@ -212,8 +212,8 @@ export function selectInUtxos({
 
   // if mint is provided filter for only utxos that contain the mint
   let filteredUtxos: Utxo[] = [];
-  var sumOutSpl = publicAmountSpl ? publicAmountSpl : BN_0;
-  var sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
+  let sumOutSpl = publicAmountSpl ? publicAmountSpl : BN_0;
+  let sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
   if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
   if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
   if (mint) {
@@ -226,14 +226,14 @@ export function selectInUtxos({
   }
 
   // TODO: make work with input utxo
-  var selectedUtxosR: Utxo[] = inUtxos ? [...inUtxos] : [];
+  let selectedUtxosR: Utxo[] = inUtxos ? [...inUtxos] : [];
   if (numberMaxInUtxos - selectedUtxosR.length < 0)
     throw new SelectInUtxosError(
       SelectInUtxosErrorCode.INVALID_NUMBER_OF_IN_UTXOS,
       "selectInUtxos",
     );
   if (mint && mint != TOKEN_REGISTRY.get("SOL")?.mint) {
-    var { selectedUtxosSolAmount, selectedUtxos } = selectBiggestSmallest(
+    const { selectedUtxosSolAmount, selectedUtxos } = selectBiggestSmallest(
       filteredUtxos,
       1,
       sumOutSpl,
@@ -258,7 +258,7 @@ export function selectInUtxos({
       // if one spl utxo is enough try to find one sol utxo which can make up the difference in all utxos with only sol
       if (selectedUtxosR[0].amounts[1].gte(sumOutSpl)) {
         // exclude the utxo which is already selected and utxos which hold other assets than only sol
-        let reFilteredUtxos = utxos.filter(
+        const reFilteredUtxos = utxos.filter(
           (utxo) =>
             utxo.getCommitment(poseidon) !=
               selectedUtxosR[0].getCommitment(poseidon) &&
@@ -266,7 +266,7 @@ export function selectInUtxos({
         );
 
         // search for suitable sol utxo in remaining utxos
-        var { selectedUtxosSolAmount, selectedUtxos: selectedUtxo1 } =
+        const { selectedUtxos: selectedUtxo1 } =
           selectBiggestSmallest(
             reFilteredUtxos,
             1,
@@ -301,7 +301,7 @@ export function selectInUtxos({
           )}`,
         );
       } else {
-        // sort ascending and take smallest index
+        // sort ascending and take the smallest index
         filteredUtxos.sort((a, b) => a.amounts[1].sub(b.amounts[1]).toNumber());
         if (selectedUtxosR.length == numberMaxInUtxos) {
           // overwrite existing utxo
@@ -314,7 +314,7 @@ export function selectInUtxos({
     }
   } else {
     // case no spl amount only select sol
-    var { selectedUtxos } = selectBiggestSmallest(
+    const { selectedUtxos } = selectBiggestSmallest(
       filteredUtxos,
       0,
       sumOutSol,

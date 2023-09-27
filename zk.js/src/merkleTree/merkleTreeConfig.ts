@@ -62,7 +62,7 @@ export class MerkleTreeConfig {
     if (!this.payer) throw new Error("Payer undefined");
     this.getMerkleTreeAuthorityPda();
 
-    let merkleTreeAuthorityAccountInfo =
+    const merkleTreeAuthorityAccountInfo =
       await this.getMerkleTreeAuthorityAccountInfo();
     const transactionMerkleTreeIndex =
       merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex;
@@ -123,7 +123,7 @@ export class MerkleTreeConfig {
   async checkTransactionMerkleTreeIsInitialized(
     transactionMerkleTreePda: PublicKey,
   ) {
-    var transactionMerkleTreeAccountInfo =
+    const transactionMerkleTreeAccountInfo =
       await this.getTransactionMerkleTreeAccountInfo(transactionMerkleTreePda);
     assert(
       transactionMerkleTreeAccountInfo != null,
@@ -134,7 +134,7 @@ export class MerkleTreeConfig {
   }
 
   async checkEventMerkleTreeIsInitialized(eventMerkleTreePubkey: PublicKey) {
-    var merkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
+    const merkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
       eventMerkleTreePubkey,
     );
     assert(
@@ -145,7 +145,7 @@ export class MerkleTreeConfig {
   }
 
   async printMerkleTree() {
-    var merkleTreeAccountInfo =
+    const merkleTreeAccountInfo =
       await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
         MerkleTreeConfig.getTransactionMerkleTreePda(),
       );
@@ -167,7 +167,7 @@ export class MerkleTreeConfig {
   }
 
   async getTransactionMerkleTreeIndex(): Promise<anchor.BN> {
-    let merkleTreeAuthorityAccountInfo =
+    const merkleTreeAuthorityAccountInfo =
       await this.getMerkleTreeAuthorityAccountInfo();
     return merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex;
   }
@@ -175,7 +175,7 @@ export class MerkleTreeConfig {
   static getTransactionMerkleTreePda(
     transactionMerkleTreeIndex: anchor.BN = new anchor.BN(0),
   ) {
-    let transactionMerkleTreePda = PublicKey.findProgramAddressSync(
+    const transactionMerkleTreePda = PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("transaction_merkle_tree"),
         transactionMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
@@ -196,7 +196,7 @@ export class MerkleTreeConfig {
   async isNewestTransactionMerkleTree(
     transactionMerkleTreePubkey: PublicKey,
   ): Promise<boolean> {
-    let transactionMerkleTreeAccountInfo =
+    const transactionMerkleTreeAccountInfo =
       await this.getTransactionMerkleTreeAccountInfo(
         transactionMerkleTreePubkey,
       );
@@ -204,13 +204,13 @@ export class MerkleTreeConfig {
   }
 
   async getEventMerkleTreeIndex(): Promise<anchor.BN> {
-    let merkleTreeAuthorityAccountInfo =
+    const merkleTreeAuthorityAccountInfo =
       await this.getMerkleTreeAuthorityAccountInfo();
     return merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex;
   }
 
   static getEventMerkleTreePda(eventMerkleTreeIndex: anchor.BN = BN_0) {
-    let eventMerkleTreePda = PublicKey.findProgramAddressSync(
+    const eventMerkleTreePda = PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("event_merkle_tree"),
         eventMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
@@ -229,7 +229,7 @@ export class MerkleTreeConfig {
   async isNewestEventMerkleTree(
     eventMerkleTreePubkey: PublicKey,
   ): Promise<boolean> {
-    let eventMerkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
+    const eventMerkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
       eventMerkleTreePubkey,
     );
     return eventMerkleTreeAccountInfo.newest == 1 ? true : false;
@@ -342,7 +342,7 @@ export class MerkleTreeConfig {
     );
 
     if (test != true) {
-      let merkleTreeAuthority =
+      const merkleTreeAuthority =
         await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
           this.merkleTreeAuthorityPda!,
         );
@@ -380,7 +380,7 @@ export class MerkleTreeConfig {
       [this.payer!],
       confirmConfig,
     );
-    let merkleTreeAuthority =
+    const merkleTreeAuthority =
       await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
         this.merkleTreeAuthorityPda!,
       );
@@ -388,7 +388,7 @@ export class MerkleTreeConfig {
     return txHash;
   }
 
-  async updateLockDuration(lockDuration: Number) {
+  async updateLockDuration(lockDuration: number) {
     if (!this.payer) throw new Error("Payer undefined");
     if (this.merkleTreeAuthorityPda == undefined) {
       await this.getMerkleTreeAuthorityPda();
@@ -414,7 +414,7 @@ export class MerkleTreeConfig {
       [this.payer!],
       confirmConfig,
     );
-    let merkleTree =
+    const merkleTree =
       await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
         transactionMerkleTreePda!,
       );
@@ -475,13 +475,13 @@ export class MerkleTreeConfig {
   }
 
   async checkVerifierIsRegistered(verifierPubkey: PublicKey) {
-    let registeredVerifierPda = this.registeredVerifierPdas.filter(
+    const registeredVerifierPda = this.registeredVerifierPdas.filter(
       (item: any) => {
         return item.verifierPubkey === verifierPubkey;
       },
     )[0];
 
-    var registeredVerifierAccountInfo =
+    const registeredVerifierAccountInfo =
       await this.merkleTreeProgram.account.registeredVerifier.fetch(
         registeredVerifierPda.registeredVerifierPda,
       );
@@ -548,12 +548,12 @@ export class MerkleTreeConfig {
   ) {
     if (!this.merkleTreeAuthorityPda)
       throw new Error("merkleTreeAuthorityPda undefined");
-    var registeredTokenConfigAccount =
+    const registeredTokenConfigAccount =
       await this.merkleTreeProgram.account.registeredAssetPool.fetch(
         poolPda.pda,
       );
 
-    var merkleTreeAuthorityPdaAccountInfo =
+    const merkleTreeAuthorityPdaAccountInfo =
       await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
         this.merkleTreeAuthorityPda,
       );
@@ -574,7 +574,7 @@ export class MerkleTreeConfig {
         poolPda.token.toBase58(),
       );
 
-      var registeredTokenAccount = await token.getAccount(
+      const registeredTokenAccount = await token.getAccount(
         this.connection,
         poolPda.token,
         { commitment: "confirmed", preflightCommitment: "confirmed" },
@@ -618,7 +618,7 @@ export class MerkleTreeConfig {
     if (!registeredPoolTypePda) {
       registeredPoolTypePda = await this.getPoolTypePda(poolType);
     }
-    let solPoolPda = MerkleTreeConfig.getSolPoolPda(
+    const solPoolPda = MerkleTreeConfig.getSolPoolPda(
       this.merkleTreeProgram.programId,
       poolType,
     );
@@ -654,7 +654,7 @@ export class MerkleTreeConfig {
     programId: PublicKey,
     poolType: Array<number> = new Array(32).fill(0),
   ) {
-    let pda = PublicKey.findProgramAddressSync(
+    const pda = PublicKey.findProgramAddressSync(
       [
         mint.toBytes(),
         Buffer.from(poolType),
@@ -706,7 +706,7 @@ export class MerkleTreeConfig {
       registeredPoolTypePda = await this.getPoolTypePda(poolType);
     }
 
-    let splPoolPda = await this.getSplPoolPda(mint, poolType);
+    const splPoolPda = await this.getSplPoolPda(mint, poolType);
 
     if (!this.tokenAuthority) {
       await this.getTokenAuthority();

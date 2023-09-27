@@ -17,7 +17,7 @@ export default class BuildCommand extends Command {
   };
   async run() {
     const { flags, args } = await this.parse(BuildCommand);
-    let { name } = args;
+    const { name } = args;
 
     this.log("Building circom-anchor project...");
     await buildPSP({ ...flags, programName: name!, skipLinkCircuitlib: true });

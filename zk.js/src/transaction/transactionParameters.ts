@@ -454,16 +454,16 @@ export class TransactionParameters implements transactionParameters {
 
   async toBytes(): Promise<Buffer> {
     let utxo;
-    let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
-    let inputUtxosBytes: any[] = [];
+    const coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+    const inputUtxosBytes: any[] = [];
     for (utxo of this.inputUtxos) {
       inputUtxosBytes.push(await utxo.toBytes());
     }
-    let outputUtxosBytes: any[] = [];
+    const outputUtxosBytes: any[] = [];
     for (utxo of this.outputUtxos) {
       outputUtxosBytes.push(await utxo.toBytes());
     }
-    let preparedObject = {
+    const preparedObject = {
       outputUtxosBytes,
       inputUtxosBytes,
       relayerPubkey: this.relayer.accounts.relayerPubkey,
@@ -577,15 +577,15 @@ export class TransactionParameters implements transactionParameters {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<TransactionParameters> {
-    let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
-    let decoded = coder.decodeUnchecked("transactionParameters", bytes);
+    const coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+    const decoded = coder.decodeUnchecked("transactionParameters", bytes);
 
     const getUtxos = (
       utxoBytesArray: Array<Buffer>,
       utxoIdls?: anchor.Idl[],
     ) => {
-      let utxos: Utxo[] = [];
-      for (var [_, utxoBytes] of utxoBytesArray.entries()) {
+      const utxos: Utxo[] = [];
+      for (const [_, utxoBytes] of utxoBytesArray.entries()) {
         let appDataIdl: any = undefined;
         if (
           utxoBytes.subarray(128, 160).toString() !==
@@ -597,7 +597,7 @@ export class TransactionParameters implements transactionParameters {
               "fromBytes",
             );
           }
-          let idlIndex = TransactionParameters.findIdlIndex(
+          const idlIndex = TransactionParameters.findIdlIndex(
             new PublicKey(utxoBytes.subarray(128, 160)).toBase58(),
             utxoIdls,
           );
@@ -775,7 +775,7 @@ export class TransactionParameters implements transactionParameters {
       });
     }
 
-    let txParams = new TransactionParameters({
+    const txParams = new TransactionParameters({
       outputUtxos,
       inputUtxos,
       transactionMerkleTreePubkey:
@@ -915,11 +915,11 @@ export class TransactionParameters implements transactionParameters {
     inputUtxos?: Utxo[],
     outputUtxos?: Utxo[],
   ): { assetPubkeysCircuit: string[]; assetPubkeys: PublicKey[] } {
-    let assetPubkeysCircuit: string[] = [
+    const assetPubkeysCircuit: string[] = [
       hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
     ];
 
-    let assetPubkeys: PublicKey[] = [SystemProgram.programId];
+    const assetPubkeys: PublicKey[] = [SystemProgram.programId];
 
     if (inputUtxos) {
       inputUtxos.map((utxo) => {
@@ -940,7 +940,7 @@ export class TransactionParameters implements transactionParameters {
     if (outputUtxos) {
       outputUtxos.map((utxo) => {
         let found = false;
-        for (var _asset in assetPubkeysCircuit) {
+        for (const _asset in assetPubkeysCircuit) {
           if (
             assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1].toString()) !== -1
           ) {
@@ -1102,7 +1102,7 @@ export class TransactionParameters implements transactionParameters {
         this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
       );
 
-      let nullifiersHasher = sha256.create();
+      const nullifiersHasher = sha256.create();
       this.inputUtxos.forEach((x) => {
         let _account = this.account;
         if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
@@ -1118,13 +1118,13 @@ export class TransactionParameters implements transactionParameters {
           account: _account,
         });
         if (nullifier) {
-          let nullifierBytes = new anchor.BN(nullifier).toArray("be", 32);
+          const nullifierBytes = new anchor.BN(nullifier).toArray("be", 32);
           nullifiersHasher.update(new Uint8Array(nullifierBytes));
         }
       });
       const nullifiersHash = nullifiersHasher.digest();
 
-      let leavesHasher = sha256.create();
+      const leavesHasher = sha256.create();
       this.outputUtxos.forEach((x) => {
         const commitment = new anchor.BN(x.getCommitment(poseidon)).toArray(
           "be",

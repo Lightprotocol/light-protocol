@@ -24,9 +24,9 @@ export enum ProjectType {
 }
 
 export const initRepo = async (name: string, type: ProjectType) => {
-  var circomName = toSnakeCase(name);
-  var rustName = toSnakeCase(name);
-  let programsType = type === ProjectType.PSP_CIRCOM ? ProjectType.PSP : type;
+  const circomName = toSnakeCase(name);
+  const rustName = toSnakeCase(name);
+  const programsType = type === ProjectType.PSP_CIRCOM ? ProjectType.PSP : type;
 
   await executeCargoGenerate({
     args: [

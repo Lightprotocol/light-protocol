@@ -182,7 +182,7 @@ export async function downloadFile({
     });
   } else {
     if (!localFilePath) throw new Error("localFilePath is undefined");
-    let writeStream = fs.createWriteStream(localFilePath);
+    const writeStream = fs.createWriteStream(localFilePath);
     data.pipe(writeStream);
 
     return new Promise<void>((resolve, reject) => {

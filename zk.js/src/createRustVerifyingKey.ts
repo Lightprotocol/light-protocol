@@ -68,7 +68,7 @@ async function getProofInputsFromSymFile(
     keys.push(match[1]);
   }
 
-  let arr: PropertiesObject[] = [];
+  const arr: PropertiesObject[] = [];
 
   keys.map((name) => {
     const dimension = (name.match(/\[/g) || []).length;
@@ -128,7 +128,7 @@ function createStringRsIdlAccountStruct(
       return "u8";
     }
 
-    let rustType = buildRustType(
+    const rustType = buildRustType(
       dimension - 1,
       size.slice(1),
       isInstructionData,
@@ -168,16 +168,16 @@ async function createVerifyingKeyRsFile(
 
       for (const i in mydata) {
         if (i == "vk_alpha_1") {
-          for (let j in mydata[i]) {
+          for (const j in mydata[i]) {
             mydata[i][j] = leInt2Buff(
               unstringifyBigInts(mydata[i][j]),
               32,
             ).reverse();
           }
         } else if (i == "vk_beta_2") {
-          for (let j in mydata[i]) {
-            let tmp = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
+          for (const j in mydata[i]) {
+            const tmp = Array.from(
+              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
             )
               .concat(
                 Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
@@ -188,8 +188,8 @@ async function createVerifyingKeyRsFile(
           }
         } else if (i == "vk_gamma_2") {
           for (const j in mydata[i]) {
-            let tmp = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
+            const tmp = Array.from(
+              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
             )
               .concat(
                 Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
@@ -200,8 +200,8 @@ async function createVerifyingKeyRsFile(
           }
         } else if (i == "vk_delta_2") {
           for (const j in mydata[i]) {
-            let tmp = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
+            const tmp = Array.from(
+              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
             )
               .concat(
                 Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
@@ -221,8 +221,8 @@ async function createVerifyingKeyRsFile(
             }
           }
         } else if (i == "IC") {
-          for (let j in mydata[i]) {
-            for (let z in mydata[i][j]) {
+          for (const j in mydata[i]) {
+            for (const z in mydata[i][j]) {
               mydata[i][j][z] = leInt2Buff(
                 unstringifyBigInts(mydata[i][j][z]),
                 32,
@@ -232,8 +232,8 @@ async function createVerifyingKeyRsFile(
         }
       }
 
-      for (var path of paths) {
-        let resFile = await fs.openSync(path, "w");
+      for (const path of paths) {
+        const resFile = await fs.openSync(path, "w");
 
         let s = `use groth16_solana::groth16::Groth16Verifyingkey;\nuse anchor_lang::prelude::*;\n\npub const VERIFYINGKEY_${camelToScreamingSnake(
           circuitName,
@@ -273,7 +273,7 @@ async function createVerifyingKeyRsFile(
         fs.writeSync(resFile, s);
         s = "\tvk_ic: &[\n";
 
-        for (let ic in mydata.IC) {
+        for (const ic in mydata.IC) {
           s += "\t\t[\n";
           for (let j = 0; j < mydata.IC[ic].length - 1; j++) {
             s += "\t\t\t" + mydata.IC[ic][j] + ",\n";
@@ -293,13 +293,13 @@ async function createVerifyingKeyRsFile(
 }
 
 export async function createVerifyingkeyRsFileArgv() {
-  let nrInputs = process.argv[2];
+  const nrInputs = process.argv[2];
   if (!nrInputs) {
     throw new Error("Circuit nrInputs is not specified!");
   }
 
   let program: string;
-  let paths: string[] = [];
+  const paths: string[] = [];
   let vKeyJsonPath: string;
   let vKeyRsPath: string;
   let circuitName: string;
@@ -373,7 +373,7 @@ export async function createVerifyingkeyRsFile(
     "ZK",
     false,
   );
-  let circuitNameUpperCamelCase =
+  const circuitNameUpperCamelCase =
     circuitName.charAt(0).toUpperCase() + circuitName.slice(1);
   appendingStrings += createStringRsIdlAccountStruct(
     PublicInputs,

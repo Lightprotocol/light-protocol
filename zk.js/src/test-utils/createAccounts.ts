@@ -11,7 +11,7 @@ import {
 const { SystemProgram } = require("@solana/web3.js");
 // const token = require('@solana/spl-token')
 // @ts-ignore
-var _ = require("lodash");
+const _ = require("lodash");
 import {
   createAccount,
   getAccount,
@@ -41,7 +41,7 @@ import {
   BN_0,
 } from "../index";
 import { Program } from "@coral-xyz/anchor";
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 
 // TODO: check whether we need all of these functions
 
@@ -86,14 +86,14 @@ export const newProgramOwnedAccount = async ({
 }: {
   connection: Connection;
   owner: Program;
-  lamports: Number;
+  lamports: number;
 }) => {
-  let account = new anchor.web3.Account();
-  let payer = new anchor.web3.Account();
+  const account = new anchor.web3.Account();
+  const payer = new anchor.web3.Account();
   let retry = 0;
   while (retry < 30) {
     try {
-      let signature = await connection.requestAirdrop(payer.publicKey, 1e7);
+      const signature = await connection.requestAirdrop(payer.publicKey, 1e7);
       await confirmTransaction(connection, signature);
 
       const tx = new solana.Transaction().add(
@@ -113,7 +113,9 @@ export const newProgramOwnedAccount = async ({
         preflightCommitment: "confirmed",
       });
       return account;
-    } catch {}
+    } catch(e) {
+      console.error("Error: ", e);
+    }
 
     retry++;
   }
@@ -134,7 +136,7 @@ export async function newAccountWithTokens({
   userAccount: Keypair;
   amount: BN;
 }): Promise<any> {
-  let tokenAccount = await createAccount(
+  const tokenAccount = await createAccount(
     connection,
     ADMIN_AUTH_KEYPAIR,
     MINT,
@@ -177,7 +179,7 @@ export async function createMintWrapper({
 }: {
   authorityKeypair: Keypair;
   mintKeypair?: Keypair;
-  nft?: Boolean;
+  nft?: boolean;
   decimals?: number;
   connection: Connection;
 }) {
@@ -186,9 +188,9 @@ export async function createMintWrapper({
   }
 
   try {
-    let space = MINT_SIZE;
+    const space = MINT_SIZE;
 
-    let txCreateAccount = new solana.Transaction().add(
+    const txCreateAccount = new solana.Transaction().add(
       SystemProgram.createAccount({
         fromPubkey: authorityKeypair.publicKey,
         lamports: connection.getMinimumBalanceForRentExemption(space),
@@ -198,7 +200,7 @@ export async function createMintWrapper({
       }),
     );
 
-    let res = await sendAndConfirmTransaction(
+    const res = await sendAndConfirmTransaction(
       connection,
       txCreateAccount,
       [authorityKeypair, mintKeypair],
@@ -211,7 +213,7 @@ export async function createMintWrapper({
       throw new Error("create mint account failed");
     }
 
-    let mint = await createMint(
+    const mint = await createMint(
       connection,
       authorityKeypair,
       authorityKeypair.publicKey,
@@ -236,22 +238,22 @@ export async function createTestAccounts(
 ) {
   // const connection = new Connection('http://127.0.0.1:8899', 'confirmed');
 
-  let balance = await connection.getBalance(ADMIN_AUTH_KEY, "confirmed");
+  const balance = await connection.getBalance(ADMIN_AUTH_KEY, "confirmed");
   const amount = 500 * LAMPORTS_PER_SOL;
   if (balance < amount) {
-    let signature = await connection.requestAirdrop(ADMIN_AUTH_KEY, amount);
+    const signature = await connection.requestAirdrop(ADMIN_AUTH_KEY, amount);
     await confirmTransaction(connection, signature);
 
-    let Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
+    const Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
 
     if (Newbalance !== balance + amount) {
       throw new Error("airdrop failed");
     }
 
-    let signature2 = await connection.requestAirdrop(AUTHORITY_ONE, amount);
+    const signature2 = await connection.requestAirdrop(AUTHORITY_ONE, amount);
     await confirmTransaction(connection, signature2);
     // subsidising transactions
-    let txTransfer1 = new solana.Transaction().add(
+    const txTransfer1 = new solana.Transaction().add(
       solana.SystemProgram.transfer({
         fromPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
         toPubkey: AUTHORITY,
@@ -287,7 +289,7 @@ export async function createTestAccounts(
   let balanceUserToken: null | any = null;
   let userSplAccount: PublicKey | null = null;
   try {
-    let tokenCtx = TOKEN_REGISTRY.get("USDC");
+    const tokenCtx = TOKEN_REGISTRY.get("USDC");
     if (userTokenAccount) {
       userSplAccount = userTokenAccount;
     } else {
@@ -308,7 +310,9 @@ export async function createTestAccounts(
       "confirmed",
       TOKEN_PROGRAM_ID,
     );
-  } catch (e) {}
+  } catch (e) {
+    console.error("Error: ", e);
+  }
 
   try {
     if (balanceUserToken == null) {
@@ -337,14 +341,16 @@ export async function createTestAccounts(
         amount: BN_0,
       });
     }
-  } catch (error) {}
+  } catch (e) {
+    console.error("Error: ", e);
+  }
 
-  let POSEIDON = await circomlibjs.buildPoseidonOpt();
-  let KEYPAIR = new Account({
+  const POSEIDON = await circomlibjs.buildPoseidonOpt();
+  const KEYPAIR = new Account({
     poseidon: POSEIDON,
     seed: KEYPAIR_PRIVKEY.toString(),
   });
-  let RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
+  const RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
   return {
     POSEIDON,
     KEYPAIR,

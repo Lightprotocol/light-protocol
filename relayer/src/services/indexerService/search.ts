@@ -40,11 +40,11 @@ export async function searchBackward(
   if (job.data.transactions.length === 0) {
     let { transactions: olderTransactions, oldestFetchedSignature } =
       await fetchRecentTransactions({
-        connection,
-        batchOptions: {
-          limit: TX_BATCH_SIZE,
-        },
-      });
+      connection,
+      batchOptions: {
+        limit: TX_BATCH_SIZE,
+      },
+    });
     return { olderTransactions, oldestFetchedSignature };
   } else {
     let previousOldestFetchedSignature = job.data.oldestFetchedSignature;
