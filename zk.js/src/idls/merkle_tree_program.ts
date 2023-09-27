@@ -156,7 +156,7 @@ export type MerkleTreeProgram = {
       "type": {
         "defined": "usize"
       },
-      "value": "8"
+      "value": "18"
     }
   ],
   "instructions": [
@@ -1689,7 +1689,7 @@ export const IDL: MerkleTreeProgram = {
       "type": {
         "defined": "usize"
       },
-      "value": "8"
+      "value": "18"
     }
   ],
   "instructions": [
