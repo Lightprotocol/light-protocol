@@ -517,12 +517,13 @@ export class TestTransaction {
     }
 
     if (this.params.message) {
-      const indexedTransactions = await fetchRecentTransactions({
-        connection: this.provider!.provider!.connection,
-        batchOptions: {
-          limit: 5000,
-        },
-      });
+      const { transactions: indexedTransactions } =
+        await fetchRecentTransactions({
+          connection: this.provider!.provider!.connection,
+          batchOptions: {
+            limit: 5000,
+          },
+        });
       indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
       assert.equal(
         indexedTransactions[0].message.toString(),

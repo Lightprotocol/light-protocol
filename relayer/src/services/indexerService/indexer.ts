@@ -34,7 +34,7 @@ export async function indexTransactions({
   connection: Connection;
 }) {
   try {
-    const olderTransactions: IndexedTransaction[] = await searchBackward(
+    const { olderTransactions, oldestFetchedSignature } = await searchBackward(
       job,
       connection,
     );
@@ -60,6 +60,7 @@ export async function indexTransactions({
     await job.updateData({
       transactions: filteredByDeploymentVersion,
       lastFetched: Date.now(),
+      oldestFetchedSignature,
     });
   } catch (e) {
     console.log("restarting indexer -- crash reason:", e);
