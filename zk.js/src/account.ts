@@ -10,6 +10,7 @@ import {
   UtxoErrorCode,
   BN_0,
   setEnvironment,
+  CONSTANT_SECRET_AUTHKEY,
 } from "./index";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
@@ -552,11 +553,18 @@ export class Account {
     return Uint8Array.from([...nonce!, ...ciphertext]);
   }
 
-  decryptNacl(
+  async decryptNaclUtxo(
+    ciphertext: Uint8Array,
+    commitment: Uint8Array,
+  ): Promise<Uint8Array | null> {
+    const nonce = commitment.slice(0, 24);
+    return this._decryptNacl(ciphertext, nonce, nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey);
+  }
+  async decryptNacl(
     ciphertext: Uint8Array,
     nonce?: Uint8Array,
     signerpublicKey?: Uint8Array,
-  ): Uint8Array | null {
+  ): Promise<Uint8Array | null> {
     if (!nonce) {
       nonce = ciphertext.slice(0, 24);
       ciphertext = ciphertext.slice(24);
@@ -566,11 +574,25 @@ export class Account {
       ciphertext = ciphertext.slice(32);
     }
 
+    return this._decryptNacl(ciphertext, nonce, signerpublicKey);
+  }
+
+  private async _decryptNacl(
+    ciphertext: Uint8Array,
+    nonce?: Uint8Array,
+    signerpublicKey?: Uint8Array,
+  ): Promise<Uint8Array | null> {
     return nacl.box.open(
       ciphertext,
       nonce,
       signerpublicKey,
       this.encryptionKeypair.secretKey,
     );
+    // return box.open(
+    //   encBytes,
+    //   nonce,
+    //   nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
+    //   account.encryptionKeypair.secretKey,
+    // );
   }
 }

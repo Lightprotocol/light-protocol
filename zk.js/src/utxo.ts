@@ -779,9 +779,6 @@ export class Utxo {
         }),
       );
     } else {
-      // Get the nonce if not using AES
-      const nonce = commitment.slice(0, 24);
-
       // If encrypted bytes are compressed, only consider specific (NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH) byte length
       if (compressed) {
         encBytes = encBytes.slice(
@@ -790,37 +787,26 @@ export class Utxo {
         );
       }
 
-      // Decrypt using NaCl if account's secret key is available
-      if (account.encryptionKeypair.secretKey) {
-        const cleartext = box.open(
-          encBytes,
-          nonce,
-          nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
-          account.encryptionKeypair.secretKey,
-        );
-
-        // Return null if unable to decrypt
-        if (!cleartext) {
-          return Result.Ok(null);
-        }
-        // Convert decrypted cleartext to bytes
-        const bytes = Buffer.from(cleartext);
-
-        // Return a decrypted UTXO
-        return Result.Ok(
-          Utxo.fromBytes({
-            poseidon,
-            bytes,
-            account,
-            index,
-            appDataIdl,
-            assetLookupTable,
-            verifierProgramLookupTable,
-          }),
-        );
-      } else {
+      const cleartext = await account.decryptNaclUtxo(encBytes, commitment);
+      // Return null if unable to decrypt
+      if (!cleartext) {
         return Result.Ok(null);
       }
+      // Convert decrypted cleartext to bytes
+      const bytes = Buffer.from(cleartext);
+
+      // Return a decrypted UTXO
+      return Result.Ok(
+        Utxo.fromBytes({
+          poseidon,
+          bytes,
+          account,
+          index,
+          appDataIdl,
+          assetLookupTable,
+          verifierProgramLookupTable,
+        }),
+      );
     }
   }
 
