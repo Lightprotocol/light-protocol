@@ -9,6 +9,8 @@ import {
   TransactionParametersErrorCode,
   UtxoErrorCode,
   BN_0,
+  setEnvironment,
+  CONSTANT_SECRET_AUTHKEY,
 } from "./index";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
@@ -16,6 +18,7 @@ const ffjavascript = require("ffjavascript");
 const buildEddsa = require("circomlibjs").buildEddsa;
 import { PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Result } from "./types/result";
 // TODO: add fromPubkeyString()
 export class Account {
   /**
@@ -442,65 +445,241 @@ export class Account {
     return new BN(poseidon.F.toString(poseidon([privateKey])));
   }
 
-  static async encryptAes(
-    aesSecret: Uint8Array,
-    message: Uint8Array,
-    iv: Uint8Array,
+  /**
+   * Encrypts UTXO bytes with UTXO viewing key and iv from commitment.
+   * @param messageBytes - The bytes message to be encrypted.
+   * @param merkleTreePdaPublicKey - The public key used in encryption.
+   * @param commitment - The commitment used as the Initialization Vector (iv).
+   * @returns A promise that resolves to the encrypted Uint8Array.
+   */
+  async encryptAesUtxo(
+    messageBytes: Uint8Array,
+    merkleTreePdaPublicKey: PublicKey,
+    commitment: Uint8Array,
+  ): Promise<Uint8Array> {
+    setEnvironment();
+    const iv16 = commitment.subarray(0, 16);
+    return this._encryptAes(
+      messageBytes,
+      this.getAesUtxoViewingKey(
+        merkleTreePdaPublicKey,
+        bs58.encode(commitment),
+      ),
+      iv16,
+    );
+  }
+
+  /**
+   * Encrypts bytes with aes secret key.
+   * @param messageBytes - The bytes to be encrypted.
+   * @param iv16 - Optional Initialization Vector (iv), 16 random bytes by default.
+   * @returns A Uint8Array of encrypted bytes with the iv as the first 16 bytes of the cipher text.
+   */
+  async encryptAes(
+    messageBytes: Uint8Array,
+    iv16: Uint8Array = nacl.randomBytes(16),
   ) {
-    if (iv.length != 16)
+    const ciphertext = await encrypt(
+      messageBytes,
+      this.aesSecret,
+      iv16,
+      "aes-256-cbc",
+      true,
+    );
+    return new Uint8Array([...iv16, ...ciphertext]);
+  }
+
+  /**
+   * Private aes encryption method.
+   * @private
+   * @param messageBytes - The messageBytes to be encrypted.
+   * @param secretKey - The secret key to be used for encryption.
+   * @param iv16 - The Initialization Vector (iv) to be used for encryption.
+   * @returns A promise that resolves to the encrypted Uint8Array.
+   */
+  private async _encryptAes(
+    messageBytes: Uint8Array,
+    secretKey: Uint8Array,
+    iv16: Uint8Array,
+  ) {
+    if (iv16.length != 16)
       throw new AccountError(
         UtxoErrorCode.INVALID_NONCE_LENGTH,
         "encryptAes",
-        `Required iv length 16, provided ${iv.length}`,
+        `Required iv length 16, provided ${iv16.length}`,
       );
-    const secretKey = aesSecret;
-    const ciphertext = await encrypt(
-      message,
-      secretKey,
-      iv,
-      "aes-256-cbc",
-      true,
-    );
-    return new Uint8Array([...iv, ...ciphertext]);
+
+    return await encrypt(messageBytes, secretKey, iv16, "aes-256-cbc", true);
   }
 
-  static async decryptAes(aesSecret: Uint8Array, encryptedBytes: Uint8Array) {
-    const iv = encryptedBytes.slice(0, 16);
-    const encryptedMessageBytes = encryptedBytes.slice(16);
-    const secretKey = aesSecret;
-    const cleartext = await decrypt(
-      encryptedMessageBytes,
-      secretKey,
-      iv,
-      "aes-256-cbc",
-      true,
+  /**
+   * Decrypts encrypted UTXO bytes with UTXO viewing key and iv from commitment.
+   * @param encryptedBytes - The encrypted bytes to be decrypted.
+   * @param merkleTreePdaPublicKey - The public key used in decryption.
+   * @param commitment - The commitment used as the Initialization Vector (iv).
+   * @returns A promise that resolves to a Result object containing the decrypted Uint8Array or an error if the decryption fails.
+   */
+  async decryptAesUtxo(
+    encryptedBytes: Uint8Array,
+    merkleTreePdaPublicKey: PublicKey,
+    commitment: Uint8Array,
+  ) {
+    // Check if account secret key is available for decrypting using AES
+    if (!this.aesSecret) {
+      throw new AccountError(
+        UtxoErrorCode.AES_SECRET_UNDEFINED,
+        "decryptAesUtxo",
+      );
+    }
+    setEnvironment();
+    const iv16 = commitment.slice(0, 16);
+    return this._decryptAes(
+      encryptedBytes,
+      this.getAesUtxoViewingKey(
+        merkleTreePdaPublicKey,
+        bs58.encode(commitment),
+      ),
+      iv16,
     );
-    return cleartext;
   }
 
+  /**
+   * Decrypts AES encrypted bytes, the iv is expected to be the first 16 bytes.
+   * @param encryptedBytes - The AES encrypted bytes to be decrypted.
+   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
+   * @throws Will throw an error if the aesSecret is undefined.
+   */
+  async decryptAes(
+    encryptedBytes: Uint8Array,
+  ): Promise<Result<Uint8Array | null, Error>> {
+    if (!this.aesSecret) {
+      throw new AccountError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decryptAes");
+    }
+    const iv16 = encryptedBytes.slice(0, 16);
+    return this._decryptAes(encryptedBytes.slice(16), this.aesSecret, iv16);
+  }
+  /**
+   * Private aes decryption method.
+   * @private
+   * @param encryptedBytes - The AES encrypted bytes to be decrypted.
+   * @param secretKey - The secret key to be used for decryption.
+   * @param iv16 - The Initialization Vector (iv) to be used for decryption.
+   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
+   */
+  private async _decryptAes(
+    encryptedBytes: Uint8Array,
+    secretKey: Uint8Array,
+    iv16: Uint8Array,
+  ): Promise<Result<Uint8Array | null, Error>> {
+    try {
+      return Result.Ok(
+        await decrypt(encryptedBytes, secretKey, iv16, "aes-256-cbc", true),
+      );
+    } catch (error) {
+      return Result.Err(error);
+    }
+  }
+
+  /**
+   * Encrypts utxo bytes to public key using a nonce and a standardized secret for hmac.
+   * @static
+   * @param publicKey - The public key to encrypt to.
+   * @param bytes_message - The message to be encrypted.
+   * @param commitment - The commitment used to generate the nonce.
+   * @returns The encrypted Uint8Array.
+   */
+  static encryptNaclUtxo(
+    publicKey: Uint8Array,
+    messageBytes: Uint8Array,
+    commitment: Uint8Array,
+  ) {
+    const nonce = commitment.subarray(0, 24);
+
+    // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
+    // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
+    // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
+    return Account.encryptNacl(
+      publicKey,
+      messageBytes,
+      CONSTANT_SECRET_AUTHKEY,
+      true,
+      nonce,
+      true,
+    );
+  }
+
+  /**
+   * Encrypts bytes to a public key.
+   * @static
+   * @param publicKey - The public key to encrypt to.
+   * @param message - The message to be encrypted.
+   * @param signerSecretKey - Optional signing secret key.
+   * @param returnWithoutSigner - Optional flag to return without signer.
+   * @param nonce - Optional nonce, generates random if undefined.
+   * @param returnWithoutNonce - Optional flag to return without nonce.
+   * @returns The encrypted Uint8Array.
+   */
   static encryptNacl(
     publicKey: Uint8Array,
-    message: Uint8Array,
-    signerSecretKey: Uint8Array,
+    messageBytes: Uint8Array,
+    signerSecretKey?: Uint8Array,
+    returnWithoutSigner?: boolean,
     nonce?: Uint8Array,
     returnWithoutNonce?: boolean,
   ): Uint8Array {
     if (!nonce) {
       nonce = nacl.randomBytes(nacl.nonceLength);
     }
-    const ciphertext = box(message, nonce!, publicKey, signerSecretKey);
+    if (!signerSecretKey) {
+      signerSecretKey = nacl.box.keyPair.generate().secretKey;
+    }
+    const ciphertext = box(messageBytes, nonce!, publicKey, signerSecretKey!);
 
     if (returnWithoutNonce) {
       return Uint8Array.from([...ciphertext]);
     }
-    return Uint8Array.from([...nonce!, ...ciphertext]);
+    if (returnWithoutSigner) {
+      return Uint8Array.from([...nonce!, ...ciphertext]);
+    }
+    return Uint8Array.from([
+      ...nonce!,
+      ...nacl.box.keyPair.fromSecretKey(signerSecretKey).publicKey,
+      ...ciphertext,
+    ]);
   }
 
-  decryptNacl(
+  /**
+   * Decrypts encrypted UTXO bytes.
+   * @param ciphertext - The encrypted bytes to be decrypted.
+   * @param commitment - The commitment used to generate the nonce.
+   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
+   */
+  async decryptNaclUtxo(
+    ciphertext: Uint8Array,
+    commitment: Uint8Array,
+  ): Promise<Result<Uint8Array | null, Error>> {
+    const nonce = commitment.slice(0, 24);
+    return this._decryptNacl(
+      ciphertext,
+      nonce,
+      nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
+    );
+  }
+
+  /**
+   * Decrypts encrypted bytes.
+   * If nonce is not provided, it expects the first 24 bytes to be the nonce.
+   * If signerPublicKey is not provided, expects the subsequent 32 bytes (after the nonce) to be the signer public key.
+   * @param ciphertext - The encrypted bytes to be decrypted.
+   * @param nonce - Optional nonce, if not provided, it is extracted from the ciphertext.
+   * @param signerpublicKey - Optional signer public key, if not provided, it is extracted from the ciphertext.
+   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
+   */
+  async decryptNacl(
     ciphertext: Uint8Array,
     nonce?: Uint8Array,
     signerpublicKey?: Uint8Array,
-  ): Uint8Array | null {
+  ): Promise<Result<Uint8Array | null, Error>> {
     if (!nonce) {
       nonce = ciphertext.slice(0, 24);
       ciphertext = ciphertext.slice(24);
@@ -510,11 +689,29 @@ export class Account {
       ciphertext = ciphertext.slice(32);
     }
 
-    return nacl.box.open(
-      ciphertext,
-      nonce,
-      signerpublicKey,
-      this.encryptionKeypair.secretKey,
+    return this._decryptNacl(ciphertext, nonce, signerpublicKey);
+  }
+
+  /**
+   * Private nacl decryption method.
+   * @private
+   * @param ciphertext - The encrypted bytes to be decrypted.
+   * @param nonce - The nonce to be used for decryption.
+   * @param signerpublicKey - Optional signer public key.
+   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
+   */
+  private async _decryptNacl(
+    ciphertext: Uint8Array,
+    nonce: Uint8Array,
+    signerpublicKey?: Uint8Array,
+  ): Promise<Result<Uint8Array | null, Error>> {
+    return Result.Ok(
+      nacl.box.open(
+        ciphertext,
+        nonce,
+        signerpublicKey,
+        this.encryptionKeypair.secretKey,
+      ),
     );
   }
 }
