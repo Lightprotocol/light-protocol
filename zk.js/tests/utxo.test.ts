@@ -123,7 +123,7 @@ describe("Utxo Functional", () => {
       if (utxo41.value) {
         Utxo.equal(poseidon, utxo4, utxo41.value);
       } else {
-        throw new Error(`decrypt failed: ${utxo41.error.toString()}`);
+        throw new Error(`decrypt failed: ${utxo41.error?.toString()}`);
       }
 
       // decrypt unchecked
