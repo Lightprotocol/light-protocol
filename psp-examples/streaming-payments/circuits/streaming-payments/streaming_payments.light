@@ -1,0 +1,151 @@
+pragma circom 2.1.4;
+
+include "poseidon.circom";
+include "merkleProof.circom";
+include "keypair.circom";
+include "gates.circom";
+include "comparators.circom";
+
+// will create a new instance of the circuit
+#[instance]
+{
+    fileName: streaming_payments,
+    config(),
+    nrAppUtoxs: 1,
+    publicInputs: [currentSlot]
+}
+
+#[lightTransaction(verifierTwo)]
+template streaming_payments() {
+    /**
+    * -------------------------- Application starts here --------------------------
+    */
+    // defines the data which is saved in the utxo
+    // this data is defined at utxo creation
+    // is checked that only utxos with instructionData = hash or 0
+    // exist in input utxos
+    // is outside instruction
+    // could add signal inputs automatically for these
+    // are private inputs
+    #[utxoData]
+    {
+        endSlot,
+        rate
+    }
+    signal input currentSlotPrivate;
+    signal input currentSlot;
+    signal input diff;
+    signal input remainingAmount;
+    signal input isOutUtxo[nOuts];
+
+    // check that diff is a 64bit value to prevent an overflow during additon
+    component rangeCheckDiff = Num2Bits(64);
+    rangeCheckDiff.in <== diff;
+    // check that currentSlotPrivate is a 64bit value to prevent an overflow during additon
+    component rangeCheckSlotPrivate = Num2Bits(64);
+    rangeCheckSlotPrivate.in <== currentSlotPrivate;
+
+    // check that currentSlot is the sum of currentSlotPrivate + diff
+    // there is no need for a range check of currentSlot since it is checked
+    // onchain in the solana program to be <= the actual current slot during execution
+    currentSlotPrivate + diff === currentSlot;
+
+    // calculate remaining amount of payment stream
+    (endSlot - currentSlotPrivate) * rate === remainingAmount;
+
+    // check that endSlot - currentSlotPrivate >= 0
+    component greaterThanZero = GreaterEqThan(64);
+    greaterThanZero.in[0] <== endSlot - currentSlotPrivate;
+    greaterThanZero.in[1] <== 0;
+    greaterThanZero.out === 1;
+
+    // check that one out utxo conforms to the requirements of the correct
+    // it is the same as the input utxo except the amount
+    // - standardProgramUtxoPubkey
+    // - remainingAmount as sol amount in index 0
+    // - instructionHasher.out
+    var standardProgramUtxoPubkey = 0; //Poseidon(0);
+    component checkRemainingAmount[nOuts][nOuts];
+    component checkOutInstructionHash[nOuts][nOuts];
+    component checkPublicAppVerifier[nOuts][nOuts];
+
+    for(var i=0; i < nOuts; i++) {
+        for(var j = 0 ; j < nOuts; j++) {
+            checkRemainingAmount[i][j] = ForceEqualIfEnabled();
+            checkRemainingAmount[i][j].in[0] <== remainingAmount;
+            checkRemainingAmount[i][j].in[1] <== outAmount[i][0];
+            checkRemainingAmount[i][j].enabled <== isOutUtxo[j];
+
+            checkOutInstructionHash[i][j] = ForceEqualIfEnabled();
+            checkOutInstructionHash[i][j].in[0] <== instructionHasher[0].out;
+            checkOutInstructionHash[i][j].in[1] <== outAppDataHash[i];
+            checkOutInstructionHash[i][j].enabled <== isOutUtxo[j];
+
+            checkPublicAppVerifier[i][j] = ForceEqualIfEnabled();
+            checkPublicAppVerifier[i][j].in[0] <== publicAppVerifier;
+            checkPublicAppVerifier[i][j].in[1] <== outVerifierPubkey[i];
+            checkPublicAppVerifier[i][j].enabled <== isOutUtxo[j];
+        }
+    }
+
+    // check that all isOutUtxo are either one or zero
+    // and that there is exactly one one in the array
+    component checkIndices = CheckIndices(nOuts);
+    checkIndices.indices <== isOutUtxo;
+    checkIndices.threshold <== 1;
+    checkIndices.enabled <== remainingAmount;
+}
+
+// checks one dim indices array that every index is 0 or 1
+// and that threshold of indices are 1
+template CheckIndices(n) {
+    signal input indices[n];    
+    signal input threshold;
+    signal input enabled;
+    var varSumIndices = 0;
+    for (var j = 0; j < n; j++) {
+        varSumIndices += indices[j];
+        // all indices are 0 or 1
+        indices[j] * (1 - indices[j]) === 0;
+    }
+    component checkIfEnabled = ForceEqualIfEnabled();
+    checkIfEnabled.in[0] <== threshold;
+    checkIfEnabled.in[1] <== varSumIndices;
+    checkIfEnabled.enabled <== enabled;
+}
+
+/*
+* Environment Constants:
+*   levels = 18
+*   nIns = 4
+*   nOuts = 4
+*   feeAsset = TruncatedKeccak256(0)
+*   indexFeeAsset = 0
+*   indexPublicAsset = 1
+*   nAssets = 3
+*   nInAssets = 2
+*   nOutAssets = 2
+* Environment variables:
+*   txIntegrityHash;
+*   transactionVersion;
+*   publicAppVerifier;
+*   transactionHash;
+*   instructionHasher.out;
+*  InUtxos:
+*   inAmount[nIns][nInAssets];
+*   inPublicKey[nIns];
+*   inBlinding[nIns];
+*   inAppDataHash[nIns];
+*   inPoolType[nIns];
+*   inVerifierPubkey[nIns];
+*   inIndices[nIns][nInAssets][nAssets];
+* OutUtxos:
+*   outputCommitment[nOuts];
+*   outAmount[nOuts][nOutAssets];
+*   outPubkey[nOuts];
+*   outBlinding[nOuts];
+*   outAppDataHash[nOuts];
+*   outIndices[nOuts][nOutAssets][nAssets];
+*   outPoolType[nOuts];
+*   outVerifierPubkey[nOuts];
+*/

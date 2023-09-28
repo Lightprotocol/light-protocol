@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { ACCOUNT_DISCRIMINATOR_SIZE, Program } from "@coral-xyz/anchor";
+import { ACCOUNT_DISCRIMINATOR_SIZE, BN, Program } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
@@ -214,3 +214,8 @@ export const DEFAULT_MERKLE_TREE_LOCK_DURATION = new anchor.BN(50);
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 export const UTXO_PREFIX_LENGTH = 4;
+
+export const STANDARD_SHIELDED_PRIVATE_KEY = BN_1;
+export const STANDARD_SHIELDED_PUBLIC_KEY = new BN(
+  "18586133768512220936620570745912940619677854269274689475585506675881198879027",
+);

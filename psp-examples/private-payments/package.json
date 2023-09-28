@@ -1,0 +1,23 @@
+{
+  "name": "light-private-payments",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test-local": "../../cli/test_bin/run test-validator -b; yarn ts-node src/main.ts --exit"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.28.0",
+    "@lightprotocol/zk.js": "file:../../zk.js"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.1",
+    "@types/chai": "^4.3.6",
+    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.8",
+    "mocha": "^10.2.0",
+    "prettier": "^3.0.3",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.2.2"
+  }
+}
