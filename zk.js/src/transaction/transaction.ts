@@ -29,10 +29,13 @@ import {
   UTXO_PREFIX_LENGTH,
   N_ASSET_PUBKEYS,
   Account,
+  STANDARD_SHIELDED_PUBLIC_KEY,
+  STANDARD_SHIELDED_PRIVATE_KEY,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
@@ -249,12 +252,24 @@ export class Transaction {
 
     const { inputMerklePathIndices, inputMerklePathElements } =
       Transaction.getMerkleProofs(this.provider, this.params.inputUtxos);
-
+    const inputNullifier = this.params.inputUtxos.map((x) => {
+      let _account = account;
+      if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
+        _account = Account.fromPrivkey(
+          this.provider.poseidon,
+          bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+          bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+          bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+        );
+      }
+      return x.getNullifier({
+        poseidon: this.provider.poseidon,
+        account: _account,
+      });
+    });
     this.proofInput = {
       root: this.provider.solMerkleTree.merkleTree.root(),
-      inputNullifier: this.params.inputUtxos.map((x) =>
-        x.getNullifier({ poseidon: this.provider.poseidon, account }),
-      ),
+      inputNullifier,
       publicAmountSpl: this.params.publicAmountSpl.toString(),
       publicAmountSol: this.params.publicAmountSol.toString(),
       publicMintPubkey: this.getMint(),
@@ -349,7 +364,7 @@ export class Transaction {
       this.appParams.path,
       this.appParams,
       this.proofInput,
-      true,
+      false,
     );
     this.transactionInputs.proofBytesApp = {
       proofAApp: res.parsedProof.proofA,

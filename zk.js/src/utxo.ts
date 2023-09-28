@@ -524,6 +524,8 @@ export class Utxo {
    * @returns {string}
    */
   getCommitment(poseidon: any): string {
+    // TODO: UNDO!!!
+    this._commitment = undefined;
     if (!this._commitment) {
       let amountHash = poseidon.F.toString(poseidon(this.amounts));
       let assetHash = poseidon.F.toString(
@@ -581,6 +583,8 @@ export class Utxo {
     account: Account;
     index?: number | undefined;
   }) {
+    this._nullifier = undefined;
+
     if (this.index === undefined) {
       if (index) {
         this.index = index;
@@ -607,10 +611,6 @@ export class Utxo {
         this.getCommitment(poseidon),
         this.index || 0,
       );
-      // console.log("this.getCommitment() ", this.getCommitment());
-      // console.log("this.index || 0 ", this.index || 0);
-      // console.log("signature ", signature);
-
       this._nullifier = poseidon.F.toString(
         poseidon([this.getCommitment(poseidon), this.index || 0, signature]),
       );

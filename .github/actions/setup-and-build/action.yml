@@ -25,7 +25,7 @@ runs:
       uses: buildjet/cache@v3
       with:
         path: "**/node_modules"
-        key: ${{ runner.os }}-node-${{ hashFiles('**/yarn.lock', '**/package.json') }}
+        key: ${{ runner.os }}-node-cache-${{ hashFiles('**/yarn.lock', '**/package.json') }}
 
     - name: Cache .local directory
       uses: buildjet/cache@v3

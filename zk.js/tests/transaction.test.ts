@@ -1,6 +1,10 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
-import { Keypair as SolanaKeypair } from "@solana/web3.js";
+import {
+  Keypair as SolanaKeypair,
+  PublicKey,
+  SystemProgram,
+} from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const chai = require("chai");
@@ -33,6 +37,7 @@ import {
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
+import { STANDARD_SHIELDED_PUBLIC_KEY } from "../lib";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -354,6 +359,42 @@ describe("Transaction Functional Tests", () => {
     let tx = new Transaction({
       provider: lightProvider,
       params: paramsDepositStorage,
+    });
+    await tx.compileAndProve(account);
+    await tx.getInstructions(tx.params);
+  });
+
+  it.only("Functional with STANDARD_SHIELDED_PRIVATE_KEY", async () => {
+    const utxo = new Utxo({
+      poseidon: poseidon,
+      assets: [SystemProgram.programId],
+      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
+      amounts: [BN_1],
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+      index: 0,
+    });
+
+    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
+      utxo.getCommitment(poseidon),
+    ]);
+
+    const params = new TransactionParameters({
+      inputUtxos: [utxo],
+      eventMerkleTreePubkey: mockPubkey2,
+      transactionMerkleTreePubkey: mockPubkey2,
+      poseidon,
+      recipientSpl: mockPubkey,
+      recipientSol: lightProvider.wallet?.publicKey,
+      action: Action.UNSHIELD,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      relayer,
+      account,
+    });
+    let tx = new Transaction({
+      provider: lightProvider,
+      params,
     });
     await tx.compileAndProve(account);
     await tx.getInstructions(tx.params);
