@@ -146,7 +146,7 @@ case "${OS}" in
                 ARCH_SUFFIX_LP="linux-amd64"
                 ARCH_SUFFIX_NODE="linux-x64"
                 ;;
-            "arch64"|"arm64")
+            "aarch64"|"arch64"|"arm64")
                 ARCH_SUFFIX_SOLANA="aarch64-unknown-linux-gnu"
                 ARCH_SUFFIX_LP="linux-arm64"
                 ARCH_SUFFIX_NODE="linux-arm64"
