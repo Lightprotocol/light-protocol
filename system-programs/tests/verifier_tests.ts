@@ -38,6 +38,7 @@ import {
   RELAYER_FEE,
   BN_0,
   closeVerifierState,
+  Provider,
 } from "@lightprotocol/zk.js";
 
 var POSEIDON, ACCOUNT, RELAYER, deposit_utxo1;
@@ -58,7 +59,7 @@ describe("Verifier Zero and One Tests", () => {
   anchor.setProvider(provider);
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  var depositAmount, depositFeeAmount;
+  var depositAmount, depositFeeAmount, lightProvider: Provider;
   const VERIFIER_IDLS = [IDL_VERIFIER_PROGRAM_ZERO, IDL_VERIFIER_PROGRAM_ONE];
 
   before(async () => {
@@ -108,11 +109,11 @@ describe("Verifier Zero and One Tests", () => {
         [USER_TOKEN_ACCOUNT],
       );
 
-      let lightProvider = await LightProvider.init({
+      lightProvider = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
         relayer: RELAYER,
         confirmConfig,
-      }); // userKeypair
+      });
 
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -139,15 +140,18 @@ describe("Verifier Zero and One Tests", () => {
         verifierIdl: VERIFIER_IDLS[verifier],
         account: ACCOUNT,
       });
-
-      var transaction = new Transaction({
-        provider: lightProvider,
+      const { rootIndex: rootIndex0, remainingAccounts: remainingAccounts0 } =
+        await lightProvider.getRootIndex();
+      let transaction = new Transaction({
+        rootIndex: rootIndex0,
+        nextTransactionMerkleTree: remainingAccounts0.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
         params: txParams,
       });
 
-      const instructions = await transaction.compileAndProve(ACCOUNT);
-      await transaction.provider.provider.connection.confirmTransaction(
-        await transaction.provider.provider.connection.requestAirdrop(
+      const instructions = await transaction.compileAndProve(POSEIDON, ACCOUNT);
+      await lightProvider.provider.connection.confirmTransaction(
+        await lightProvider.provider.connection.requestAirdrop(
           transaction.params.accounts.authority,
           1_000_000_000,
         ),
@@ -183,12 +187,16 @@ describe("Verifier Zero and One Tests", () => {
         verifierIdl: VERIFIER_IDLS[verifier],
         account: ACCOUNT,
       });
-
-      var transaction1 = new Transaction({
-        provider: lightProvider,
+      await lightProvider.latestMerkleTree();
+      const { rootIndex, remainingAccounts } =
+        await lightProvider.getRootIndex();
+      let transaction1 = new Transaction({
+        rootIndex,
+        nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
         params: txParams1,
       });
-      await transaction1.compileAndProve(ACCOUNT);
+      await transaction1.compileAndProve(POSEIDON, ACCOUNT);
       transactions.push(transaction1);
 
       // Withdrawal
@@ -227,12 +235,17 @@ describe("Verifier Zero and One Tests", () => {
         verifierIdl: VERIFIER_IDLS[verifier],
         account: ACCOUNT,
       });
-      var tx = new Transaction({
-        provider: lightProviderWithdrawal,
+      await lightProvider.latestMerkleTree();
+      const { rootIndex: rootIndex1, remainingAccounts: remainingAccounts1 } =
+        await lightProvider.getRootIndex();
+      let tx = new Transaction({
+        rootIndex: rootIndex1,
+        nextTransactionMerkleTree: remainingAccounts1.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
         params: txParams2,
       });
 
-      await tx.compileAndProve(ACCOUNT);
+      await tx.compileAndProve(POSEIDON, ACCOUNT);
       transactions.push(tx);
     }
   });
@@ -244,10 +257,10 @@ describe("Verifier Zero and One Tests", () => {
       "http://127.0.0.1:8899",
       confirmConfig,
     );
-    tx.provider.provider = provider;
+    lightProvider.provider = provider;
     var e;
     try {
-      e = await tx.provider.sendAndConfirmTransaction(instructions);
+      e = await lightProvider.sendAndConfirmTransaction(instructions);
     } catch (error) {
       e = error;
     }
@@ -273,7 +286,7 @@ describe("Verifier Zero and One Tests", () => {
     }
     if (instructions.length > 1) {
       await closeVerifierState(
-        tx.provider,
+        lightProvider,
         tx.params.verifierIdl,
         tx.params.accounts.verifierState,
       );
@@ -382,7 +395,7 @@ describe("Verifier Zero and One Tests", () => {
         ),
         "confirmed",
       );
-      tmp_tx.provider.wallet = useWallet(wrongSinger);
+      lightProvider.wallet = useWallet(wrongSinger);
       tmp_tx.params.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }

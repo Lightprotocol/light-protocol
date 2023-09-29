@@ -248,12 +248,6 @@ export class Provider {
         merkleTreeProgramId,
         this.provider,
       );
-      // let root = Uint8Array.from(
-      //   leInt2Buff(
-      //     unstringifyBigInts(this.solMerkleTree.merkleTree.root()),
-      //     32,
-      //   ),
-      // );
       let root = new BN(this.solMerkleTree.merkleTree.root()).toArray("le", 32);
       let merkle_tree_account_data =
         await merkleTreeProgram.account.transactionMerkleTree.fetch(
