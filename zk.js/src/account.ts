@@ -11,6 +11,9 @@ import {
   BN_0,
   setEnvironment,
   CONSTANT_SECRET_AUTHKEY,
+  TransactionErrorCode,
+  TransactionParameters,
+  Utxo,
 } from "./index";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
@@ -19,6 +22,7 @@ const buildEddsa = require("circomlibjs").buildEddsa;
 import { PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types/result";
+import { Prover } from "@lightprotocol/prover.js";
 // TODO: add fromPubkeyString()
 export class Account {
   /**
@@ -713,5 +717,81 @@ export class Account {
         this.encryptionKeypair.secretKey,
       ),
     );
+  }
+
+  private addPrivateKey(proofInput: any, transaction: TransactionParameters) {
+    proofInput["inPrivateKey"] = transaction.inputUtxos.map((utxo: Utxo) => {
+      if (utxo.account.pubkey == this.pubkey) {
+        return this.privkey;
+      }
+      // TODO: add else for utxos that belong to different private keys
+      // (a case for this could be the standard private key which we will use for public utxos)
+    });
+  }
+
+  async getProofInternal(
+    firstPath: string,
+    transaction: TransactionParameters | any,
+    proofInput: any,
+    addPrivateKey: boolean = false,
+    enableLogging: boolean = false,
+  ) {
+    if (!proofInput)
+      throw new AccountError(
+        TransactionErrorCode.PROOF_INPUT_UNDEFINED,
+        "getProofInternal",
+      );
+    if (!transaction)
+      throw new AccountError(
+        TransactionErrorCode.NO_PARAMETERS_PROVIDED,
+        "getProofInternal",
+      );
+    if (!transaction.verifierIdl)
+      throw new AccountError(
+        TransactionErrorCode.NO_PARAMETERS_PROVIDED,
+        "getProofInternal",
+        "verifierIdl is missing in TransactionParameters",
+      );
+    if (addPrivateKey) {
+      this.addPrivateKey(proofInput, transaction);
+    }
+    let prover = new Prover(
+      transaction.verifierIdl,
+      firstPath,
+      transaction.circuitName,
+    );
+    await prover.addProofInputs(proofInput);
+    const prefix = `\x1b[37m[${new Date(Date.now()).toISOString()}]\x1b[0m`;
+    const logMsg = `${prefix} Proving ${transaction.verifierIdl.name} circuit`;
+    if (enableLogging) {
+      console.time(logMsg);
+    }
+
+    let parsedProof, parsedPublicInputs;
+    try {
+      const result = await prover.fullProveAndParse();
+      parsedProof = result.parsedProof;
+      parsedPublicInputs = result.parsedPublicInputs;
+    } catch (error) {
+      throw new AccountError(
+        TransactionErrorCode.PROOF_GENERATION_FAILED,
+        "getProofInternal",
+        error,
+      );
+    }
+    if (enableLogging) {
+      console.timeEnd(logMsg);
+    }
+
+    const res = await prover.verify();
+    if (!res) {
+      throw new AccountError(
+        TransactionErrorCode.INVALID_PROOF,
+        "getProofInternal",
+      );
+    }
+    const parsedPublicInputsObject =
+      prover.parsePublicInputsFromArray(parsedPublicInputs);
+    return { parsedProof, parsedPublicInputsObject };
   }
 }

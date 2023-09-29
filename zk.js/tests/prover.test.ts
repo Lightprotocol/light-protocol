@@ -37,17 +37,18 @@ describe("Prover Functionality Tests", () => {
   let lightProvider: LightProvider;
   let paramsDeposit: TransactionParameters;
   let deposit_utxo: Utxo;
-  let keypair: Account;
+  let account: Account;
   let poseidon: any;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     lightProvider = await LightProvider.loadMock();
+    account = new Account({ poseidon });
 
     deposit_utxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: keypair,
+      account,
       blinding: new anchor.BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -63,6 +64,7 @@ describe("Prover Functionality Tests", () => {
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      account,
     });
 
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
@@ -91,9 +93,10 @@ describe("Prover Functionality Tests", () => {
     await tx.compile();
 
     const genericProver = new Prover(tx.params.verifierIdl, tx.firstPath);
+    tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
     await genericProver.addProofInputs(tx.proofInput);
     await genericProver.fullProve();
-    await tx.getProof();
+    await tx.getProof(account);
 
     const publicInputsBytes = genericProver.parseToBytesArray(
       genericProver.publicInputs,
@@ -128,14 +131,15 @@ describe("Prover Functionality Tests", () => {
     await tx.compile();
 
     const prover1 = new Prover(tx.params.verifierIdl, tx.firstPath);
+    tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
     await prover1.addProofInputs(tx.proofInput);
     await prover1.fullProve();
-    await tx.getProof();
+    await tx.getProof(account);
 
     const prover2 = new Prover(tx.params.verifierIdl, tx.firstPath);
     await prover2.addProofInputs(tx.proofInput);
     await prover2.fullProve();
-    await tx.getProof();
+    await tx.getProof(account);
 
     expect(prover1.publicInputs).to.deep.equal(
       prover2.publicInputs,

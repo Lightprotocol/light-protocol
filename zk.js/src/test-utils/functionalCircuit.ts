@@ -23,14 +23,14 @@ export async function functionalCircuitTest(
 
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let keypair = new Account({ poseidon: poseidon, seed: seed32 });
+  let account = new Account({ poseidon: poseidon, seed: seed32 });
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let deposit_utxo1 = new Utxo({
     poseidon: poseidon,
     assets: [FEE_ASSET, MINT],
     amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-    account: keypair,
+    account,
     assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     verifierProgramLookupTable:
       lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -46,6 +46,7 @@ export async function functionalCircuitTest(
     action: Action.SHIELD,
     poseidon,
     verifierIdl: verifierIdl,
+    account,
   });
 
   let tx;
@@ -70,7 +71,7 @@ export async function functionalCircuitTest(
   }
   await tx.compile();
 
-  await tx.getProof();
+  await tx.getProof(account);
   // unsuccessful proof generation
   let x = true;
 
@@ -78,7 +79,7 @@ export async function functionalCircuitTest(
     tx.proofInput.inIndices[0][1][1] = "1";
     // TODO: investigate why this does not kill the proof
     tx.proofInput.inIndices[0][1][0] = "1";
-    await tx.getProof();
+    await tx.getProof(account);
     x = false;
   } catch (error) {
     // assert.isTrue(error.toString().includes("CheckIndices_3 line:"));

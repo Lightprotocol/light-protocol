@@ -61,6 +61,7 @@ export class TransactionParameters implements transactionParameters {
   verifierIdl: Idl;
   verifierProgramId: PublicKey;
   verifierConfig: VerifierConfig;
+  account: Account;
 
   constructor({
     message,
@@ -78,6 +79,7 @@ export class TransactionParameters implements transactionParameters {
     action,
     ataCreationFee,
     verifierIdl,
+    account,
   }: {
     message?: Buffer;
     eventMerkleTreePubkey: PublicKey;
@@ -95,6 +97,7 @@ export class TransactionParameters implements transactionParameters {
     provider?: Provider;
     ataCreationFee?: boolean;
     verifierIdl: Idl;
+    account: Account;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactionParametersError(
@@ -127,7 +130,7 @@ export class TransactionParameters implements transactionParameters {
         "Define an action either Action.TRANSFER, Action.SHIELD,Action.UNSHIELD",
       );
     }
-
+    this.account = account;
     this.verifierProgramId =
       TransactionParameters.getVerifierProgramId(verifierIdl);
     this.verifierConfig = TransactionParameters.getVerifierConfig(verifierIdl);
@@ -786,6 +789,7 @@ export class TransactionParameters implements transactionParameters {
       verifierIdl,
       message,
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      account,
     });
 
     return txParams;
@@ -804,8 +808,10 @@ export class TransactionParameters implements transactionParameters {
       utxos.push(
         new Utxo({
           poseidon: this.poseidon,
+          account: this.account,
           assetLookupTable: [SystemProgram.programId.toBase58()],
           verifierProgramLookupTable: [SystemProgram.programId.toBase58()],
+          isFillingUtxo: true,
         }),
       );
     }

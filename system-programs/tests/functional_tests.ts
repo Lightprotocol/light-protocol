@@ -235,6 +235,7 @@ describe("verifier_program", () => {
       action: Action.SHIELD,
       poseidon: POSEIDON,
       verifierIdl: verifierIdl,
+      account: KEYPAIR,
     });
     let transactionTester = new TestTransaction({
       txParams,
@@ -246,7 +247,7 @@ describe("verifier_program", () => {
       params: txParams,
       shuffleEnabled,
     });
-    await tx.compileAndProve();
+    await tx.compileAndProve(KEYPAIR);
 
     try {
       let res = await tx.sendAndConfirmTransaction();
@@ -316,6 +317,7 @@ describe("verifier_program", () => {
       action: Action.UNSHIELD,
       poseidon: POSEIDON,
       verifierIdl: verifierIdl,
+      account: KEYPAIR,
     });
 
     let transactionTester = new TestTransaction({
@@ -330,7 +332,7 @@ describe("verifier_program", () => {
       params: txParams,
     });
 
-    await tx.compileAndProve();
+    await tx.compileAndProve(KEYPAIR);
 
     await tx.sendAndConfirmTransaction();
 
