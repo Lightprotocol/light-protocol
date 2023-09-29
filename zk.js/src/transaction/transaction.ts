@@ -1,12 +1,11 @@
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
-import { BN, BorshAccountsCoder, Idl, Program, utils } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder, Idl, utils } from "@coral-xyz/anchor";
 import { Utxo } from "../utxo";
 import {
   merkleTreeProgramId,
   TransactionErrorCode,
   TransactionError,
   ProviderErrorCode,
-  Provider,
   TransactionParameters,
   firstLetterToUpper,
   createAccountObject,
@@ -18,22 +17,13 @@ import {
   UTXO_PREFIX_LENGTH,
   N_ASSET_PUBKEYS,
   Account,
+  SolMerkleTree,
 } from "../index";
-import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 import { getIndices3Dim } from "@lightprotocol/circuit-lib.js";
 
 const path = require("path");
-
-// TODO: make dev provide the classification and check here -> it is easier to check whether transaction parameters are plausible
-
-// add verifier class which is passed in with the constructor
-// this class replaces the send transaction, also configures path the proving key and witness, the inputs for the integrity hash
-// input custom verifier with three functions by default prepare, proof, send
-// include functions from sdk in shieldedTransaction
-
-// TODO: add log option that enables logs
 
 export enum Action {
   SHIELD = "SHIELD",
@@ -54,14 +44,12 @@ type PublicInputs = {
   checkedParams?: Array<Array<number>>;
   publicAppVerifier?: Array<number>;
 };
-
+// const { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
 export class Transaction {
-  merkleTreeProgram?: Program<typeof IDL_MERKLE_TREE_PROGRAM>;
+  solMerkleTree: SolMerkleTree;
   shuffleEnabled: Boolean;
   params: TransactionParameters; // contains accounts
   appParams?: any;
-  // TODO: relayer shd pls should be part of the provider by default + optional override on Transaction level
-  provider: Provider;
 
   transactionInputs: {
     publicInputs?: PublicInputs;
@@ -89,39 +77,24 @@ export class Transaction {
    * @param shuffleEnabled
    */
   constructor({
-    provider,
     shuffleEnabled = false,
     params,
     appParams,
+    rootIndex,
+    nextTransactionMerkleTree,
+    solMerkleTree,
   }: {
-    provider: Provider;
     shuffleEnabled?: boolean;
     params: TransactionParameters;
     appParams?: any;
+    rootIndex: BN;
+    nextTransactionMerkleTree?: {
+      isSigner: boolean;
+      isWritable: boolean;
+      pubkey: PublicKey;
+    };
+    solMerkleTree: SolMerkleTree;
   }) {
-    if (!provider)
-      throw new TransactionError(
-        TransactionErrorCode.PROVIDER_UNDEFINED,
-        "constructor",
-      );
-    if (!provider.poseidon)
-      throw new TransactionError(
-        TransactionErrorCode.POSEIDON_HASHER_UNDEFINED,
-        "constructor",
-        "Poseidon hasher in provider undefined.",
-      );
-    if (!provider.solMerkleTree)
-      throw new TransactionError(
-        ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
-        "constructor",
-        "Merkle tree not set in provider",
-      );
-    if (!provider.wallet)
-      throw new TransactionError(
-        TransactionErrorCode.WALLET_UNDEFINED,
-        "constructor",
-        "Wallet not set in provider.",
-      );
     if (!params) {
       throw new TransactionError(
         TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
@@ -148,36 +121,39 @@ export class Transaction {
         "constructor",
         "For application transactions, an application-enabled verifier (like verifier two) is required.",
       );
-    this.provider = provider;
 
     this.shuffleEnabled = shuffleEnabled;
     // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
     this.params = params;
     this.appParams = appParams;
-
-    //TODO: change to check whether browser/node wallet are the same as signing address
-    if (params.action === Action.SHIELD) {
-      let wallet = this.provider.wallet;
-      if (
-        wallet?.publicKey.toBase58() !==
-          params.relayer.accounts.relayerPubkey.toBase58() &&
-        wallet?.publicKey.toBase58() !==
-          params.accounts.signingAddress?.toBase58()
-      ) {
-        throw new TransactionError(
-          TransactionErrorCode.WALLET_RELAYER_INCONSISTENT,
-          "constructor",
-          "The wallet used in your Node.js or Browser environment does not match the wallet used for the senderFee when setting up the relayer during the deposit process. They need to be the same.",
-        );
-      }
-    }
-
     this.transactionInputs = {};
     this.remainingAccounts = {};
+    this.transactionInputs.rootIndex = rootIndex;
+    this.remainingAccounts = {
+      nextTransactionMerkleTree,
+    };
+    this.solMerkleTree = solMerkleTree;
+
+    // TODO: move this check into the user or provider
+    // TODO: change to check whether browser/node wallet are the same as signing address
+    // if (params.action === Action.SHIELD) {
+    //   let wallet = this.provider.wallet;
+    //   if (
+    //     wallet?.publicKey.toBase58() !==
+    //       params.relayer.accounts.relayerPubkey.toBase58() &&
+    //     wallet?.publicKey.toBase58() !==
+    //       params.accounts.signingAddress?.toBase58()
+    //   ) {
+    //     throw new TransactionError(
+    //       TransactionErrorCode.WALLET_RELAYER_INCONSISTENT,
+    //       "constructor",
+    //       "The wallet used in your Node.js or Browser environment does not match the wallet used for the senderFee when setting up the relayer during the deposit process. They need to be the same.",
+    //     );
+    //   }
   }
 
-  async compileAndProve(account: Account) {
-    await this.compile(account);
+  async compileAndProve(poseidon: any, account: Account) {
+    await this.compile(poseidon, account);
     if (!this.params)
       throw new TransactionError(
         TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
@@ -186,12 +162,6 @@ export class Transaction {
     await this.getProof(account);
     if (this.appParams) await this.getAppProof(account);
 
-    const { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
-    this.transactionInputs.rootIndex = rootIndex;
-    this.remainingAccounts = {
-      ...this.remainingAccounts,
-      ...remainingAccounts,
-    };
     this.getPdaAddresses();
     return this.getInstructions(this.appParams ? this.appParams : this.params);
   }
@@ -199,18 +169,18 @@ export class Transaction {
   /**
    * @description Prepares proof inputs.
    */
-  async compile(account: Account) {
+  async compile(poseidon: any, account: Account) {
     this.firstPath = path.resolve(__dirname, "../../build-circuits/");
 
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
 
-    if (!this.provider.solMerkleTree)
+    if (!this.solMerkleTree)
       throw new TransactionError(
         ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
         "getProofInput",
       );
-    await this.params.getTxIntegrityHash(this.provider.poseidon);
+    await this.params.getTxIntegrityHash(poseidon);
     if (!this.params.txIntegrityHash)
       throw new TransactionError(
         TransactionErrorCode.TX_INTEGRITY_HASH_UNDEFINED,
@@ -218,15 +188,12 @@ export class Transaction {
       );
 
     const { inputMerklePathIndices, inputMerklePathElements } =
-      this.provider.solMerkleTree.getMerkleProofs(
-        this.provider,
-        this.params.inputUtxos,
-      );
+      this.solMerkleTree.getMerkleProofs(poseidon, this.params.inputUtxos);
 
     this.proofInput = {
-      root: this.provider.solMerkleTree.merkleTree.root(),
+      root: this.solMerkleTree.merkleTree.root(),
       inputNullifier: this.params.inputUtxos.map((x) =>
-        x.getNullifier({ poseidon: this.provider.poseidon, account }),
+        x.getNullifier({ poseidon: poseidon, account }),
       ),
       publicAmountSpl: this.params.publicAmountSpl.toString(),
       publicAmountSol: this.params.publicAmountSol.toString(),
@@ -237,7 +204,7 @@ export class Transaction {
       transactionVersion: "0",
       txIntegrityHash: this.params.txIntegrityHash.toString(),
       outputCommitment: this.params.outputUtxos.map((x) =>
-        x.getCommitment(this.provider.poseidon),
+        x.getCommitment(poseidon),
       ),
       inAmount: this.params.inputUtxos?.map((x) => x.amounts),
       inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
@@ -270,9 +237,8 @@ export class Transaction {
     };
 
     if (this.appParams) {
-      this.proofInput.transactionHash = this.params.getTransactionHash(
-        this.provider.poseidon,
-      );
+      this.proofInput.transactionHash =
+        this.params.getTransactionHash(poseidon);
 
       this.proofInput.publicAppVerifier = hashAndTruncateToCircuit(
         TransactionParameters.getVerifierProgramId(
@@ -380,7 +346,7 @@ export class Transaction {
   ): Promise<TransactionInstruction[]> {
     const verifierProgram = TransactionParameters.getVerifierProgram(
       params.verifierIdl,
-      this.provider.provider,
+      {} as any,
     );
 
     if (!this.transactionInputs.publicInputs)

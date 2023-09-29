@@ -48,7 +48,9 @@ describe("Transaction Error Tests", () => {
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
     account: Account,
-    params: TransactionParameters;
+    params: TransactionParameters,
+    rootIndex: BN,
+    nextTransactionMerkleTree: any;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
@@ -74,97 +76,19 @@ describe("Transaction Error Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       account,
     });
-  });
-
-  it("Constructor PROVIDER_UNDEFINED", async () => {
-    expect(() => {
-      // @ts-ignore:
-      new Transaction({
-        params,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.PROVIDER_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
-
-  it("Constructor POSEIDON_HASHER_UNDEFINED", async () => {
-    expect(() => {
-      new Transaction({
-        // @ts-ignore:
-        provider: {},
-        params,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.POSEIDON_HASHER_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
-
-  it("Constructor SOL_MERKLE_TREE_UNDEFINED", async () => {
-    expect(() => {
-      new Transaction({
-        // @ts-ignore:
-        provider: { poseidon },
-        params,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
-
-  it("Constructor WALLET_UNDEFINED", async () => {
-    expect(() => {
-      new Transaction({
-        // @ts-ignore:
-        provider: { poseidon, solMerkleTree: {} },
-        params,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.WALLET_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
-
-  it("Constructor WALLET_RELAYER_INCONSISTENT", async () => {
-    const params1 = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
-      eventMerkleTreePubkey: mockPubkey2,
-      transactionMerkleTreePubkey: mockPubkey2,
-      poseidon,
-      senderSpl: mockPubkey,
-      senderSol: mockPubkey,
-      action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
-      account,
-    });
-    expect(() => {
-      new Transaction({
-        provider: lightProvider,
-        params: params1,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.WALLET_RELAYER_INCONSISTENT,
-        functionName: "constructor",
-      });
+    const res = await lightProvider.getRootIndex();
+    nextTransactionMerkleTree = res.remainingAccounts.nextTransactionMerkleTree;
+    rootIndex = res.rootIndex;
   });
 
   it("Constructor TX_PARAMETERS_UNDEFINED", async () => {
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     expect(() => {
       // @ts-ignore:
       new Transaction({
-        provider: lightProvider,
+        rootIndex,
+        nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
       });
     })
       .throw(TransactionError)
@@ -175,9 +99,12 @@ describe("Transaction Error Tests", () => {
   });
 
   it("getProof VERIFIER_IDL_UNDEFINED", async () => {
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     expect(() => {
       new Transaction({
-        provider: lightProvider,
+        rootIndex,
+        nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
         // @ts-ignore
         params: {},
       });
@@ -191,7 +118,8 @@ describe("Transaction Error Tests", () => {
 
   it("getProofInternal PROOF_INPUT_UNDEFINED", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params,
     });
     await chai.assert.isRejected(
@@ -202,7 +130,8 @@ describe("Transaction Error Tests", () => {
 
   it("getAppProof APP_PARAMETERS_UNDEFINED", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params,
     });
     await chai.assert.isRejected(
@@ -211,55 +140,56 @@ describe("Transaction Error Tests", () => {
     );
   });
 
-  it.skip("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
-    let tx = new Transaction({
-      provider: {
-        // @ts-ignore
-        solMerkleTree: {},
-        poseidon,
-        wallet: lightProvider.wallet,
-      },
-      params,
-    });
-    await chai.assert.isRejected(
-      tx.provider.getRootIndex(),
-      SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
-    );
-  });
+  // it.skip("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
+  //   let tx = new Transaction({
+  //     provider: {
+  //       // @ts-ignore
+  //       solMerkleTree: {},
+  //       poseidon,
+  //       wallet: lightProvider.wallet,
+  //     },
+  //     params,
+  //   });
+  //   await chai.assert.isRejected(
+  //     tx.provider.getRootIndex(),
+  //     SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+  //   );
+  // });
 
-  it.skip("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
-    let tx = new Transaction({
-      provider: {
-        // @ts-ignore
-        solMerkleTree: {},
-        poseidon,
-        wallet: lightProvider.wallet,
-      },
-      params,
-    });
-    await chai.assert.isRejected(
-      tx.provider.getRootIndex(),
-      SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
-    );
-  });
+  // it.skip("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
+  //   let tx = new Transaction({
+  //     provider: {
+  //       // @ts-ignore
+  //       solMerkleTree: {},
+  //       poseidon,
+  //       wallet: lightProvider.wallet,
+  //     },
+  //     params,
+  //   });
+  //   await chai.assert.isRejected(
+  //     tx.provider.getRootIndex(),
+  //     SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+  //   );
+  // });
 
-  it.skip("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
-    let tx = new Transaction({
-      // @ts-ignore
-      provider: lightProvider,
-      params,
-    });
-    // @ts-ignore
-    tx.params.assetPubkeysCircuit = undefined;
-    expect(() => {
-      tx.getIndices(params.inputUtxos);
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
-        functionName: "getIndices",
-      });
-  });
+  //   it.skip("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
+  //     let tx = new Transaction({
+  //       // @ts-ignore
+  //       ... (await lightProvider.getRootIndex()),
+  // solMerkleTree: lightProvider.solMerkleTree!,
+  //       params,
+  //     });
+  //     // @ts-ignore
+  //     tx.params.assetPubkeysCircuit = undefined;
+  //     expect(() => {
+  //       tx.getIndices(params.inputUtxos);
+  //     })
+  //       .throw(TransactionError)
+  //       .includes({
+  //         code: TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
+  //         functionName: "getIndices",
+  //       });
+  //   });
 });
 
 describe("Transaction Functional Tests", () => {
@@ -331,10 +261,11 @@ describe("Transaction Functional Tests", () => {
 
   it("Functional ", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsDeposit,
     });
-    await tx.compileAndProve(account);
+    await tx.compileAndProve(lightProvider.poseidon, account);
   });
 
   it("Functional storage ", async () => {
@@ -352,16 +283,18 @@ describe("Transaction Functional Tests", () => {
       account,
     });
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsDepositStorage,
     });
-    await tx.compileAndProve(account);
+    await tx.compileAndProve(lightProvider.poseidon, account);
     await tx.getInstructions(tx.params);
   });
 
   it("getMint ", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsDeposit,
     });
     let mint = tx.getMint();
@@ -370,15 +303,6 @@ describe("Transaction Functional Tests", () => {
       hashAndTruncateToCircuit(MINT.toBuffer()).toString(),
     );
     assert.notEqual(mint.toString(), MINT.toString());
-  });
-
-  it.skip("getRootIndex Provider Undefined", async () => {
-    let tx = new Transaction({
-      provider: lightProvider,
-      params: paramsDeposit,
-    });
-    await tx.provider.getRootIndex();
-    assert.equal(tx.transactionInputs.rootIndex?.toNumber(), 0);
   });
 
   it("getConnectingHash", async () => {
@@ -487,7 +411,8 @@ describe("Transaction Functional Tests", () => {
       account,
     });
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsStaticEncryptedUtxos,
     });
     // @ts-ignore
@@ -535,9 +460,12 @@ describe("Transaction Functional Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
       account,
     });
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     expect(() => {
       new Transaction({
-        provider: lightProvider,
+        rootIndex,
+        nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
         params,
       });
     })
@@ -560,9 +488,12 @@ describe("Transaction Functional Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       account,
     });
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     expect(() => {
       new Transaction({
-        provider: lightProvider,
+        rootIndex,
+        nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
         params,
         appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
       });

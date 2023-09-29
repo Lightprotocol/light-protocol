@@ -634,16 +634,22 @@ describe("Merkle Tree Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       account: KEYPAIR,
     });
+    let { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     var transaction = new Transaction({
-      provider: lightProvider,
+      rootIndex,
+      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+      solMerkleTree: lightProvider.solMerkleTree,
       params: txParams,
     });
-    await transaction.compileAndProve(KEYPAIR);
+    const instructions = await transaction.compileAndProve(
+      lightProvider.poseidon,
+      KEYPAIR,
+    );
     console.log(transaction.params.accounts);
 
     // does one successful transaction
     try {
-      await transaction.sendAndConfirmTransaction();
+      await lightProvider.sendAndConfirmShieldedTransaction(instructions);
     } catch (e) {
       console.error(e);
     }
@@ -1108,8 +1114,12 @@ describe("Merkle Tree Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       account: KEYPAIR,
     });
+
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     let transaction = new Transaction({
-      provider: lightProvider,
+      rootIndex,
+      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+      solMerkleTree: lightProvider.solMerkleTree,
       params: txParams,
     });
     transaction.remainingAccounts!.nextTransactionMerkleTree = {
@@ -1123,8 +1133,11 @@ describe("Merkle Tree Tests", () => {
       pubkey: newEventMerkleTreePubkey,
     };
 
-    await transaction.compileAndProve(KEYPAIR);
-    await transaction.sendAndConfirmTransaction();
+    const instructions = await transaction.compileAndProve(
+      lightProvider.poseidon,
+      KEYPAIR,
+    );
+    await lightProvider.sendAndConfirmTransaction(instructions);
 
     let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
       newTransactionMerkleTreePubkey,

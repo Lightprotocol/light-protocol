@@ -243,12 +243,18 @@ describe("verifier_program", () => {
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     let tx = new Transaction({
-      provider: lightProvider,
+      rootIndex,
+      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
       shuffleEnabled,
     });
-    const instructions = await tx.compileAndProve(KEYPAIR);
+    const instructions = await tx.compileAndProve(
+      lightProvider.poseidon,
+      KEYPAIR,
+    );
 
     try {
       let res = await lightProvider.sendAndConfirmTransaction(instructions);
@@ -327,13 +333,19 @@ describe("verifier_program", () => {
     });
     await transactionTester.getTestValues();
 
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     let tx = new Transaction({
-      provider: lightProvider,
+      rootIndex,
+      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+      solMerkleTree: lightProvider.solMerkleTree!,
       shuffleEnabled,
       params: txParams,
     });
 
-    const instructions = await tx.compileAndProve(KEYPAIR);
+    const instructions = await tx.compileAndProve(
+      lightProvider.poseidon,
+      KEYPAIR,
+    );
 
     await lightProvider.sendAndConfirmShieldedTransaction(instructions);
 

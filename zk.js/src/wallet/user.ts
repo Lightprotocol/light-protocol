@@ -495,14 +495,20 @@ export class User {
         "compileAndProveTransaction",
         "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
+    const { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
     let tx = new Transaction({
-      provider: this.provider,
+      rootIndex,
+      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+      solMerkleTree: this.provider.solMerkleTree!,
       params: this.recentTransactionParameters,
       appParams,
       shuffleEnabled,
     });
 
-    this.recentInstructions = await tx.compileAndProve(this.account);
+    this.recentInstructions = await tx.compileAndProve(
+      this.provider.poseidon,
+      this.account,
+    );
     return this.recentInstructions;
   }
 
