@@ -201,7 +201,6 @@ export class SolMerkleTree {
     inputMerklePathIndices: Array<string>;
     inputMerklePathElements: Array<Array<string>>;
   } {
-
     let inputMerklePathIndices = new Array<string>();
     let inputMerklePathElements = new Array<Array<string>>();
     // getting merkle proofs
@@ -223,8 +222,7 @@ export class SolMerkleTree {
           }
           inputMerklePathIndices.push(inputUtxo.index.toString());
           inputMerklePathElements.push(
-            this.merkleTree.path(inputUtxo.index)
-              .pathElements,
+            this.merkleTree.path(inputUtxo.index).pathElements,
           );
         }
       } else {

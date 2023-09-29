@@ -30,6 +30,7 @@ import {
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
+import { getIndices3Dim } from "@lightprotocol/circuit-lib.js";
 
 const path = require("path");
 
@@ -247,7 +248,10 @@ export class Transaction {
       );
 
     const { inputMerklePathIndices, inputMerklePathElements } =
-      this.provider.solMerkleTree.getMerkleProofs(this.provider, this.params.inputUtxos);
+      this.provider.solMerkleTree.getMerkleProofs(
+        this.provider,
+        this.params.inputUtxos,
+      );
 
     this.proofInput = {
       root: this.provider.solMerkleTree.merkleTree.root(),
@@ -271,8 +275,18 @@ export class Transaction {
       outAmount: this.params.outputUtxos?.map((x) => x.amounts),
       outBlinding: this.params.outputUtxos?.map((x) => x.blinding),
       outPubkey: this.params.outputUtxos?.map((x) => x.publicKey),
-      inIndices: this.getIndices(this.params.inputUtxos),
-      outIndices: this.getIndices(this.params.outputUtxos),
+      inIndices: getIndices3Dim(
+        this.params.inputUtxos[0].assets.length,
+        N_ASSET_PUBKEYS,
+        this.params.inputUtxos.map((utxo) => utxo.assetsCircuit),
+        this.params.assetPubkeysCircuit,
+      ),
+      outIndices: getIndices3Dim(
+        this.params.inputUtxos[0].assets.length,
+        N_ASSET_PUBKEYS,
+        this.params.outputUtxos.map((utxo) => utxo.assetsCircuit),
+        this.params.assetPubkeysCircuit,
+      ),
       inAppDataHash: this.params.inputUtxos?.map((x) => x.appDataHash),
       outAppDataHash: this.params.outputUtxos?.map((x) => x.appDataHash),
       inPoolType: this.params.inputUtxos?.map((x) => x.poolType),
@@ -355,55 +369,6 @@ export class Transaction {
       proofCApp: res.parsedProof.proofC,
     };
     this.transactionInputs.publicInputsApp = res.parsedPublicInputsObject;
-  }
-
-  /**
-   * @description Computes the indices in which the asset for the utxo is in the asset pubkeys array.
-   * @note Using the indices the zero knowledge proof circuit enforces that only utxos containing the
-   * @note assets in the asset pubkeys array are contained in the transaction.
-   * @param utxos
-   * @returns
-   */
-  // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
-  // TODO: fix edge case of an asset pubkey being 0
-  // TODO: !== !! and check non-null
-  getIndices(utxos: Utxo[]): string[][][] {
-    if (!this.params.assetPubkeysCircuit)
-      throw new TransactionError(
-        TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
-        "getIndices",
-        "",
-      );
-
-    let inIndices: string[][][] = [];
-    utxos.map((utxo) => {
-      let tmpInIndices: string[][] = [];
-      for (let a = 0; a < utxo.assets.length; a++) {
-        let tmpInIndices1: string[] = [];
-
-        for (let i = 0; i < N_ASSET_PUBKEYS; i++) {
-          try {
-            if (
-              utxo.assetsCircuit[a].toString() ===
-                this.params.assetPubkeysCircuit![i].toString() &&
-              !tmpInIndices1.includes("1") &&
-              this.params.assetPubkeysCircuit![i].toString() != "0"
-            ) {
-              tmpInIndices1.push("1");
-            } else {
-              tmpInIndices1.push("0");
-            }
-          } catch (error) {
-            tmpInIndices1.push("0");
-          }
-        }
-
-        tmpInIndices.push(tmpInIndices1);
-      }
-
-      inIndices.push(tmpInIndices);
-    });
-    return inIndices;
   }
 
   static getSignerAuthorityPda(
