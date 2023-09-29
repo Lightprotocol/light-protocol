@@ -55,19 +55,19 @@ describe("Transaction Parameters Functional", () => {
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
     relayer: Relayer,
-    keypair: Account;
+    account: Account;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     lightProvider = await LightProvider.loadMock();
 
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ poseidon: poseidon, seed: seed32 });
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -85,7 +85,7 @@ describe("Transaction Parameters Functional", () => {
         new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new BN(depositAmount),
       ],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -105,6 +105,7 @@ describe("Transaction Parameters Functional", () => {
       action: Action.TRANSFER,
       relayer,
       verifierIdl: VERIFIER_IDLS[j],
+      account,
     });
 
     let bytes = await paramsOriginal.toBytes();
@@ -213,7 +214,7 @@ describe("Transaction Parameters Functional", () => {
         new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new BN(depositAmount),
       ],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -231,8 +232,8 @@ describe("Transaction Parameters Functional", () => {
         poseidon,
         action: Action.TRANSFER,
         relayer,
-
         verifierIdl: VERIFIER_IDLS[j],
+        account,
       });
 
       assert.equal(params.action.toString(), Action.TRANSFER.toString());
@@ -336,6 +337,7 @@ describe("Transaction Parameters Functional", () => {
         action: Action.SHIELD,
 
         verifierIdl: VERIFIER_IDLS[j],
+        account,
       });
 
       assert.equal(params.publicAmountSpl.toString(), depositAmount.toString());
@@ -433,6 +435,7 @@ describe("Transaction Parameters Functional", () => {
         relayer,
 
         verifierIdl: VERIFIER_IDLS[j],
+        account,
       });
       assert.equal(params.action.toString(), Action.UNSHIELD.toString());
       assert.equal(
@@ -666,18 +669,18 @@ describe("Test General TransactionParameters Errors", () => {
   let poseidon: any,
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
-    keypair: Account;
+    account: Account;
 
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -694,8 +697,8 @@ describe("Test General TransactionParameters Errors", () => {
           senderSol: mockPubkey,
           poseidon,
           action: Action.SHIELD,
-
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -717,6 +720,7 @@ describe("Test General TransactionParameters Errors", () => {
           senderSol: mockPubkey,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -738,6 +742,7 @@ describe("Test General TransactionParameters Errors", () => {
           senderSol: mockPubkey,
           poseidon,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -773,7 +778,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let keypair: Account;
+  let account: Account;
   let poseidon: any,
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
@@ -783,13 +788,13 @@ describe("Test TransactionParameters Transfer Errors", () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -802,7 +807,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new BN(depositAmount),
       ],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -819,8 +824,8 @@ describe("Test TransactionParameters Transfer Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           poseidon,
           action: Action.TRANSFER,
-
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -836,7 +841,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount).sub(relayer.getRelayerFee()), BN_0],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -852,6 +857,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -867,7 +873,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN(depositAmount)],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -883,6 +889,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -906,6 +913,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           recipientSpl: mockPubkey,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -929,6 +937,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           recipientSol: mockPubkey,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -952,6 +961,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           senderSol: mockPubkey,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -975,6 +985,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           senderSpl: mockPubkey,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -991,7 +1002,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let keypair: Account;
+  let account: Account;
 
   let poseidon: any,
     lightProvider: LightProvider,
@@ -1001,13 +1012,13 @@ describe("Test TransactionParameters Deposit Errors", () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1025,6 +1036,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1046,6 +1058,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1069,6 +1082,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           action: Action.SHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1084,7 +1098,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), new BN(depositAmount)],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1093,7 +1107,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1109,6 +1123,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1124,7 +1139,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1134,7 +1149,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("1")],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1151,6 +1166,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1174,6 +1190,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1197,6 +1214,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1212,7 +1230,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1228,6 +1246,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         poseidon,
         action: Action.SHIELD,
         verifierIdl: VERIFIER_IDLS[verifier],
+        account,
       });
     }
   });
@@ -1245,6 +1264,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1268,6 +1288,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1284,7 +1305,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
-  let keypair: Account;
+  let account: Account;
 
   let poseidon: any,
     lightProvider: LightProvider,
@@ -1295,13 +1316,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1321,6 +1342,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1343,6 +1365,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1358,7 +1381,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), new BN(depositAmount)],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1368,7 +1391,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1386,6 +1409,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1401,7 +1425,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1411,7 +1435,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("1")],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1428,6 +1452,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1452,6 +1477,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1476,6 +1502,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
+          account,
         });
       })
         .to.throw(TransactionParametersError)
@@ -1491,7 +1518,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1508,6 +1535,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         action: Action.UNSHIELD,
         relayer,
         verifierIdl: VERIFIER_IDLS[verifier],
+        account,
       });
     }
   });
@@ -1517,7 +1545,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
-      account: keypair,
+      account,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1534,6 +1562,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         action: Action.UNSHIELD,
         relayer,
         verifierIdl: VERIFIER_IDLS[verifier],
+        account,
       });
     }
   });

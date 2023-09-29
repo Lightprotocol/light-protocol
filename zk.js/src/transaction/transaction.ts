@@ -28,10 +28,10 @@ import {
   BN_0,
   UTXO_PREFIX_LENGTH,
   N_ASSET_PUBKEYS,
+  Account,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "../types";
-import { Prover } from "@lightprotocol/prover.js";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 
 const ffjavascript = require("ffjavascript");
@@ -212,15 +212,15 @@ export class Transaction {
   //   }
   // }
 
-  async compileAndProve() {
+  async compileAndProve(account: Account) {
     await this.compile();
     if (!this.params)
       throw new TransactionError(
         TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
         "compileAndProve",
       );
-    await this.getProof();
-    if (this.appParams) await this.getAppProof();
+    await this.getProof(account);
+    if (this.appParams) await this.getAppProof(account);
 
     await this.getRootIndex();
     this.getPdaAddresses();
@@ -258,7 +258,6 @@ export class Transaction {
       publicAmountSpl: this.params.publicAmountSpl.toString(),
       publicAmountSol: this.params.publicAmountSol.toString(),
       publicMintPubkey: this.getMint(),
-      inPrivateKey: this.params.inputUtxos?.map((x) => x.account.privkey),
       inPathIndices: inputMerklePathIndices,
       inPathElements: inputMerklePathElements,
       internalTxIntegrityHash: this.params.txIntegrityHash.toString(),
@@ -323,13 +322,19 @@ export class Transaction {
     }
   }
 
-  async getProof() {
-    const res = await this.getProofInternal(this.params, this.firstPath);
-    this.transactionInputs.proofBytes = res.parsedProof;
-    this.transactionInputs.publicInputs = res.parsedPublicInputsObject as any;
+  async getProof(account: Account) {
+    const { parsedProof, parsedPublicInputsObject } =
+      await account.getProofInternal(
+        this.firstPath,
+        this.params,
+        this.proofInput,
+        true,
+      );
+    this.transactionInputs.proofBytes = parsedProof;
+    this.transactionInputs.publicInputs = parsedPublicInputsObject as any;
   }
 
-  async getAppProof() {
+  async getAppProof(account: Account) {
     if (!this.appParams)
       throw new TransactionError(
         TransactionErrorCode.APP_PARAMETERS_UNDEFINED,
@@ -342,9 +347,11 @@ export class Transaction {
         "The app path is not defined. Please ensure it is specified in 'appParams'.",
       );
 
-    const res = await this.getProofInternal(
-      this.appParams,
+    const res = await account.getProofInternal(
       this.appParams.path,
+      this.appParams,
+      this.proofInput,
+      true,
     );
     this.transactionInputs.proofBytesApp = {
       proofAApp: res.parsedProof.proofA,
@@ -352,55 +359,6 @@ export class Transaction {
       proofCApp: res.parsedProof.proofC,
     };
     this.transactionInputs.publicInputsApp = res.parsedPublicInputsObject;
-  }
-
-  async getProofInternal(
-    params: TransactionParameters | any,
-    firstPath: string,
-  ) {
-    if (!this.proofInput)
-      throw new TransactionError(
-        TransactionErrorCode.PROOF_INPUT_UNDEFINED,
-        "getProofInternal",
-      );
-    if (!this.params)
-      throw new TransactionError(
-        TransactionErrorCode.NO_PARAMETERS_PROVIDED,
-        "getProofInternal",
-      );
-    if (!this.params.verifierIdl)
-      throw new TransactionError(
-        TransactionErrorCode.NO_PARAMETERS_PROVIDED,
-        "getProofInternal",
-        "verifierIdl is missing in TransactionParameters",
-      );
-    let prover = new Prover(params.verifierIdl, firstPath, params.circuitName);
-    await prover.addProofInputs(this.proofInput);
-    const prefix = `\x1b[37m[${new Date(Date.now()).toISOString()}]\x1b[0m`;
-    console.time(`${prefix} Proving ${params.verifierIdl.name} circuit`);
-    let parsedProof, parsedPublicInputs;
-    try {
-      const result = await prover.fullProveAndParse();
-      parsedProof = result.parsedProof;
-      parsedPublicInputs = result.parsedPublicInputs;
-    } catch (error) {
-      throw new TransactionError(
-        TransactionErrorCode.PROOF_GENERATION_FAILED,
-        "getProofInternal",
-        error,
-      );
-    }
-    console.timeEnd(`${prefix} Proving ${params.verifierIdl.name} circuit`);
-    const res = await prover.verify();
-    if (!res) {
-      throw new TransactionError(
-        TransactionErrorCode.INVALID_PROOF,
-        "getProofInternal",
-      );
-    }
-    const parsedPublicInputsObject =
-      prover.parsePublicInputsFromArray(parsedPublicInputs);
-    return { parsedProof, parsedPublicInputsObject };
   }
 
   static getTransactionHash(
