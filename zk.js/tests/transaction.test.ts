@@ -551,8 +551,8 @@ describe("Transaction Functional Tests", () => {
   });
 
   it("getMerkleProof", async () => {
-    let merkleProofsDeposit = Transaction.getMerkleProofs(
-      lightProvider,
+    let merkleProofsDeposit = lightProvider.solMerkleTree!.getMerkleProofs(
+      lightProvider.poseidon,
       paramsDeposit.inputUtxos,
     );
     assert.equal(
@@ -568,8 +568,8 @@ describe("Transaction Functional Tests", () => {
       new Array(18).fill("0").toString(),
     );
 
-    let merkleProofsWithdrawal = Transaction.getMerkleProofs(
-      lightProvider,
+    let merkleProofsWithdrawal = lightProvider.solMerkleTree!.getMerkleProofs(
+      lightProvider.poseidon,
       paramsWithdrawal.inputUtxos,
     );
     assert.equal(

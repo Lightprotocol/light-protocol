@@ -116,6 +116,7 @@ export enum ProviderErrorCode {
 
 export enum SolMerkleTreeErrorCode {
   MERKLE_TREE_UNDEFINED = "MERKLE_TREE_UNDEFINED",
+  INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE = "INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE",
 }
 
 export enum TransactionParametersErrorCode {
@@ -177,7 +178,6 @@ export enum TransactionErrorCode {
   SEND_TRANSACTION_FAILED = "SEND_TRANSACTION_FAILED",
   PUBLIC_INPUTS_UNDEFINED = "PUBLIC_INPUTS_UNDEFINED",
   MERKLE_TREE_PROGRAM_UNDEFINED = "MERKLE_TREE_PROGRAM_UNDEFINED",
-  INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE = "INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE",
   INVALID_PROOF = "INVALID_PROOF",
   POSEIDON_HASHER_UNDEFINED = "POSEIDON_HASHER_UNDEFINED",
   PROOF_GENERATION_FAILED = "PROOF_GENERATION_FAILED",
@@ -247,3 +247,5 @@ export class UtilsError extends MetaError {}
 export class TokenUtxoBalanceError extends MetaError {}
 
 export class ProgramUtxoBalanceError extends MetaError {}
+
+export class SolMerkleTreeError extends MetaError {}

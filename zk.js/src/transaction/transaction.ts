@@ -11,7 +11,6 @@ import {
   TransactionErrorCode,
   TransactionError,
   ProviderErrorCode,
-  SolMerkleTreeErrorCode,
   Provider,
   TransactionParameters,
   firstLetterToUpper,
@@ -248,7 +247,7 @@ export class Transaction {
       );
 
     const { inputMerklePathIndices, inputMerklePathElements } =
-      Transaction.getMerkleProofs(this.provider, this.params.inputUtxos);
+      this.provider.solMerkleTree.getMerkleProofs(this.provider, this.params.inputUtxos);
 
     this.proofInput = {
       root: this.provider.solMerkleTree.merkleTree.root(),
@@ -405,65 +404,6 @@ export class Transaction {
       inIndices.push(tmpInIndices);
     });
     return inIndices;
-  }
-
-  /**
-   * @description Gets the merkle proofs for every input utxo with amounts > 0.
-   * @description For input utxos with amounts == 0 it returns merkle paths with all elements = 0.
-   */
-  static getMerkleProofs(
-    provider: Provider,
-    inputUtxos: Utxo[],
-  ): {
-    inputMerklePathIndices: Array<string>;
-    inputMerklePathElements: Array<Array<string>>;
-  } {
-    if (!provider.solMerkleTree)
-      throw new TransactionError(
-        SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
-        "getMerkleProofs",
-        "",
-      );
-    if (!provider.solMerkleTree.merkleTree)
-      throw new TransactionError(
-        SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
-        "getMerkleProofs",
-        "",
-      );
-
-    let inputMerklePathIndices = new Array<string>();
-    let inputMerklePathElements = new Array<Array<string>>();
-    // getting merkle proofs
-    for (const inputUtxo of inputUtxos) {
-      if (inputUtxo.amounts[0].gt(BN_0) || inputUtxo.amounts[1].gt(BN_0)) {
-        inputUtxo.index = provider.solMerkleTree.merkleTree.indexOf(
-          inputUtxo.getCommitment(provider.poseidon),
-        );
-
-        if (inputUtxo.index || inputUtxo.index == 0) {
-          if (inputUtxo.index < 0) {
-            throw new TransactionError(
-              TransactionErrorCode.INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE,
-              "getMerkleProofs",
-              `Input commitment ${inputUtxo.getCommitment(
-                provider.poseidon,
-              )} was not found. Was the local merkle tree synced since the utxo was inserted?`,
-            );
-          }
-          inputMerklePathIndices.push(inputUtxo.index.toString());
-          inputMerklePathElements.push(
-            provider.solMerkleTree.merkleTree.path(inputUtxo.index)
-              .pathElements,
-          );
-        }
-      } else {
-        inputMerklePathIndices.push("0");
-        inputMerklePathElements.push(
-          new Array<string>(provider.solMerkleTree.merkleTree.levels).fill("0"),
-        );
-      }
-    }
-    return { inputMerklePathIndices, inputMerklePathElements };
   }
 
   static getSignerAuthorityPda(
