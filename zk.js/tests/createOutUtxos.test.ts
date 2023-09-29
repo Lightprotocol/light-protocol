@@ -71,6 +71,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: k0.pubkey,
     });
     utxoSol = new Utxo({
       poseidon,
@@ -79,6 +80,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: k0.pubkey,
     });
     relayerFee = RELAYER_FEE;
 
@@ -581,13 +583,13 @@ describe("createRecipientUtxos", () => {
     });
 
     expect(outputUtxos.length).to.equal(recipients.length);
-    expect(outputUtxos[0].account).to.equal(account1);
+    expect(outputUtxos[0].publicKey).to.equal(account1.pubkey);
     expect(outputUtxos[0].amounts[0].toString()).to.equal("5");
     expect(outputUtxos[0].amounts[1].toString()).to.equal("10");
     expect(outputUtxos[0].assets[0].equals(SystemProgram.programId)).to.be.true;
     expect(outputUtxos[0].assets[1].equals(mint)).to.be.true;
 
-    expect(outputUtxos[1].account).to.equal(account2);
+    expect(outputUtxos[1].publicKey).to.equal(account2.pubkey);
     expect(outputUtxos[1].amounts[0].toString()).to.equal("3");
     expect(outputUtxos[1].amounts[1].toString()).to.equal("7");
     expect(outputUtxos[1].assets[0].equals(SystemProgram.programId)).to.be.true;
@@ -616,7 +618,7 @@ describe("validateUtxoAmounts", () => {
       amounts,
       assets,
       blinding: BN_0,
-      account: new Account({ poseidon }),
+      publicKey: new Account({ poseidon }).pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -674,6 +676,7 @@ describe("Test createOutUtxos Errors", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: k0.pubkey,
     });
     utxoSol = new Utxo({
       poseidon,
@@ -682,6 +685,7 @@ describe("Test createOutUtxos Errors", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: k0.pubkey,
     });
 
     createOutUtxos({
@@ -735,12 +739,14 @@ describe("Test createOutUtxos Errors", () => {
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
             verifierProgramLookupTable:
               lightProvider.lookUpTables.verifierProgramLookupTable,
+            publicKey: k0.pubkey,
           }),
           new Utxo({
             poseidon,
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
             verifierProgramLookupTable:
               lightProvider.lookUpTables.verifierProgramLookupTable,
+            publicKey: k0.pubkey,
           }),
         ],
         numberMaxOutUtxos,
@@ -779,6 +785,7 @@ describe("Test createOutUtxos Errors", () => {
             ],
             verifierProgramLookupTable:
               lightProvider.lookUpTables.verifierProgramLookupTable,
+            publicKey: k0.pubkey,
           }),
         ],
       });
@@ -809,6 +816,7 @@ describe("Test createOutUtxos Errors", () => {
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
             verifierProgramLookupTable:
               lightProvider.lookUpTables.verifierProgramLookupTable,
+            publicKey: k0.pubkey,
           }),
         ],
       });
@@ -894,6 +902,7 @@ describe("Test createOutUtxos Errors", () => {
       ],
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: k0.pubkey,
     });
 
     expect(() => {
@@ -916,6 +925,7 @@ describe("Test createOutUtxos Errors", () => {
             ],
             verifierProgramLookupTable:
               lightProvider.lookUpTables.verifierProgramLookupTable,
+            publicKey: k0.pubkey,
           }),
         ],
         numberMaxOutUtxos,

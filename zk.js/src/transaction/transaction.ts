@@ -213,7 +213,7 @@ export class Transaction {
   // }
 
   async compileAndProve(account: Account) {
-    await this.compile();
+    await this.compile(account);
     if (!this.params)
       throw new TransactionError(
         TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
@@ -229,7 +229,7 @@ export class Transaction {
   /**
    * @description Prepares proof inputs.
    */
-  async compile() {
+  async compile(account: Account) {
     this.firstPath = path.resolve(__dirname, "../../build-circuits/");
 
     this.shuffleUtxos(this.params.inputUtxos);
@@ -253,7 +253,7 @@ export class Transaction {
     this.proofInput = {
       root: this.provider.solMerkleTree.merkleTree.root(),
       inputNullifier: this.params.inputUtxos.map((x) =>
-        x.getNullifier(this.provider.poseidon),
+        x.getNullifier({ poseidon: this.provider.poseidon, account }),
       ),
       publicAmountSpl: this.params.publicAmountSpl.toString(),
       publicAmountSol: this.params.publicAmountSol.toString(),
@@ -271,7 +271,7 @@ export class Transaction {
       assetPubkeys: this.params.assetPubkeysCircuit,
       outAmount: this.params.outputUtxos?.map((x) => x.amounts),
       outBlinding: this.params.outputUtxos?.map((x) => x.blinding),
-      outPubkey: this.params.outputUtxos?.map((x) => x.account.pubkey),
+      outPubkey: this.params.outputUtxos?.map((x) => x.publicKey),
       inIndices: this.getIndices(this.params.inputUtxos),
       outIndices: this.getIndices(this.params.outputUtxos),
       inAppDataHash: this.params.inputUtxos?.map((x) => x.appDataHash),
@@ -301,9 +301,7 @@ export class Transaction {
       this.proofInput = {
         ...this.appParams.inputs,
         ...this.proofInput,
-        inPublicKey: this.params?.inputUtxos?.map(
-          (utxo) => utxo.account.pubkey,
-        ),
+        inPublicKey: this.params?.inputUtxos?.map((utxo) => utxo.publicKey),
       };
     }
   }

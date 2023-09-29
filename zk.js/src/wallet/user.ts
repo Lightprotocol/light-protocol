@@ -158,7 +158,10 @@ export class User {
     for (const [, tokenBalance] of balance.tokenBalances) {
       for (const [key, utxo] of tokenBalance.utxos) {
         let nullifierAccountInfo = await fetchNullifierAccountInfo(
-          utxo.getNullifier(this.provider.poseidon)!,
+          utxo.getNullifier({
+            poseidon: this.provider.poseidon,
+            account: this.account,
+          })!,
           this.provider.provider.connection,
         );
         if (nullifierAccountInfo !== null) {
@@ -443,7 +446,8 @@ export class User {
           poseidon: this.provider.poseidon,
           assets,
           amounts,
-          account: recipient,
+          publicKey: recipient.pubkey,
+          encryptionPublicKey: recipient.encryptionKeypair.publicKey,
           appDataHash: appUtxo?.appDataHash,
           verifierAddress: appUtxo?.verifierAddress,
           includeAppData: appUtxo?.includeAppData,
@@ -1321,15 +1325,20 @@ export class User {
             UserErrorCode.INVALID_TOKEN,
             "createStoreAppUtxoTransactionParameters",
           );
-
+        const recipientAccount = recipientPublicKey
+          ? Account.fromPubkey(recipientPublicKey!, this.provider.poseidon)
+          : undefined;
         appUtxo = new Utxo({
           poseidon: this.provider.poseidon,
           amounts: [amountSol, amountSpl],
           assets: [SystemProgram.programId, tokenCtx.mint],
           ...appUtxoConfig,
-          account: recipientPublicKey
-            ? Account.fromPubkey(recipientPublicKey, this.provider.poseidon)
-            : this.account,
+          publicKey: recipientAccount
+            ? recipientAccount.pubkey
+            : this.account.pubkey,
+          encryptionPublicKey: recipientAccount
+            ? recipientAccount.encryptionKeypair.publicKey
+            : undefined,
           verifierProgramLookupTable:
             this.provider.lookUpTables.verifierProgramLookupTable,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
@@ -1373,11 +1382,12 @@ export class User {
       );
 
     const message = Buffer.from(
-      await appUtxo.encrypt(
-        this.provider.poseidon,
-        MerkleTreeConfig.getEventMerkleTreePda(),
-        false,
-      ),
+      await appUtxo.encrypt({
+        poseidon: this.provider.poseidon,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
+        compressed: false,
+        account: this.account,
+      }),
     );
 
     if (message.length > MAX_MESSAGE_SIZE)
@@ -1546,7 +1556,10 @@ export class User {
             if (decryptedUtxo.value) {
               const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
-                utxo.getNullifier(this.provider.poseidon)!,
+                utxo.getNullifier({
+                  poseidon: this.provider.poseidon,
+                  account: this.account,
+                })!,
                 this.provider.provider?.connection!,
               );
               if (!nfExists) {
@@ -1611,7 +1624,10 @@ export class User {
       for (const [, tokenBalance] of programBalance.tokenBalances) {
         for (const [key, utxo] of tokenBalance.utxos) {
           let nullifierAccountInfo = await fetchNullifierAccountInfo(
-            utxo.getNullifier(this.provider.poseidon)!,
+            utxo.getNullifier({
+              poseidon: this.provider.poseidon,
+              account: this.account,
+            })!,
             this.provider.provider!.connection,
           );
           if (nullifierAccountInfo !== null) {
