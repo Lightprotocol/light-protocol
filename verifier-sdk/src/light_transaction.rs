@@ -968,12 +968,11 @@ impl<
     }
 
     /// Creates and closes an account such that deposited sol is part of the transaction fees.
-    fn deposit_sol(&self, amount_checked: u64, recipient_spl: &AccountInfo) -> Result<()> {
+    fn deposit_sol(&self, amount_checked: u64, recipient_sol: &AccountInfo) -> Result<()> {
         self.check_sol_pool_account_derivation(
-            &recipient_spl.key(),
-            &*recipient_spl.data.try_borrow().unwrap(),
+            &recipient_sol.key(),
+            &*recipient_sol.data.try_borrow().unwrap(),
         )?;
-        // TODO: add check that recipient_spl account is initialized
 
         msg!("is deposit");
         let rent = <Rent as sysvar::Sysvar>::get()?;
@@ -1016,7 +1015,7 @@ impl<
                 .as_ref()
                 .unwrap()
                 .to_account_info(),
-            recipient_spl,
+            recipient_sol,
         )
     }
 
