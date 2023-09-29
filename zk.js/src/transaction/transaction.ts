@@ -287,8 +287,7 @@ export class Transaction {
     };
 
     if (this.appParams) {
-      this.proofInput.transactionHash = Transaction.getTransactionHash(
-        this.params,
+      this.proofInput.transactionHash = this.params.getTransactionHash(
         this.provider.poseidon,
       );
 
@@ -357,29 +356,6 @@ export class Transaction {
       proofCApp: res.parsedProof.proofC,
     };
     this.transactionInputs.publicInputsApp = res.parsedPublicInputsObject;
-  }
-
-  static getTransactionHash(
-    params: TransactionParameters,
-    poseidon: any,
-  ): string {
-    if (!params.txIntegrityHash)
-      throw new TransactionError(
-        TransactionErrorCode.TX_INTEGRITY_HASH_UNDEFINED,
-        "getTransactionHash",
-      );
-    const inputHasher = poseidon.F.toString(
-      poseidon(params?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
-    );
-    const outputHasher = poseidon.F.toString(
-      poseidon(
-        params?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
-      ),
-    );
-    const transactionHash = poseidon.F.toString(
-      poseidon([inputHasher, outputHasher, params.txIntegrityHash.toString()]),
-    );
-    return transactionHash;
   }
 
   /**

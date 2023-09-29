@@ -545,10 +545,7 @@ describe("Transaction Functional Tests", () => {
       "6150353308703750134875659224593639995108994571023605893130935914916250029450",
     );
     assert.equal(
-      Transaction.getTransactionHash(
-        paramsStaticEncryptedUtxos,
-        poseidon,
-      ).toString(),
+      paramsStaticEncryptedUtxos.getTransactionHash(poseidon).toString(),
       "5933194464001103981860458884656917415381806542379509455129642519383560866951",
     );
   });
