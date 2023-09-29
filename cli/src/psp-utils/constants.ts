@@ -1,3 +1,5 @@
+import { RELAYER_FEE, TOKEN_ACCOUNT_FEE } from "@lightprotocol/zk.js";
+
 export const PSP_TEMPLATE_TAG = "v0.1.2";
 export const PROGRAM_TAG = "v0.3.2";
 export const MACRO_CIRCOM_TAG = "v0.1.6";
@@ -22,4 +24,6 @@ export const DEFAULT_CONFIG = {
   rpcUrl: "http://127.0.0.1:8899",
   relayerPublicKey: "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
   lookupTable: "8SezKuv7wMNPd574Sq4rQ1wvVrxa22xPYtkeruJRjrhG",
+  relayerFee: RELAYER_FEE,
+  highRelayerFee: TOKEN_ACCOUNT_FEE,
 };

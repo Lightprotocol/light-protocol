@@ -9,6 +9,7 @@ import {
   handleRelayRequest,
   runIndexer,
   getLookUpTable,
+  getRelayerInfo,
 } from "./services";
 import { getTransactions } from "./db/redis";
 import { createTestAccounts } from "@lightprotocol/zk.js";
@@ -40,6 +41,8 @@ app.get("/lookuptable", getLookUpTable);
 app.post("/relayTransaction", handleRelayRequest);
 
 app.get("/indexedTransactions", getIndexedTransactions);
+
+app.get("/getRelayerInfo", getRelayerInfo);
 
 app.listen(port, async () => {
   const anchorProvider = await getAnchorProvider();
