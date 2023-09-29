@@ -1,9 +1,4 @@
-import {
-  PublicKey,
-  TransactionSignature,
-  TransactionInstruction,
-  Transaction as SolanaTransaction,
-} from "@solana/web3.js";
+import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl, Program, utils } from "@coral-xyz/anchor";
 import { Utxo } from "../utxo";
 import {
@@ -387,6 +382,7 @@ export class Transaction {
       params.verifierIdl,
       this.provider.provider,
     );
+
     if (!this.transactionInputs.publicInputs)
       throw new TransactionError(
         TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
@@ -546,55 +542,6 @@ export class Transaction {
       instructions?.push(ix);
     }
     return instructions;
-  }
-
-  // TODO: deal with this: set own payer just for that? where is this used?
-  // This is used by applications not the relayer
-  async closeVerifierState(): Promise<TransactionSignature> {
-    if (!this.provider.wallet)
-      throw new TransactionError(
-        TransactionErrorCode.WALLET_UNDEFINED,
-        "closeVerifierState",
-        "Cannot use closeVerifierState without wallet",
-      );
-    if (!this.params)
-      throw new TransactionError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-        "closeVerifierState",
-        "",
-      );
-    if (!this.params.verifierIdl)
-      throw new TransactionError(
-        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
-        "closeVerifierState",
-        "",
-      );
-    if (this.appParams) {
-      const transaction = new SolanaTransaction().add(
-        await this.appParams?.verifier.verifierProgram.methods
-          .closeVerifierState()
-          .accounts({
-            ...this.params.accounts,
-          })
-          .instruction(),
-      );
-
-      return await this.provider.wallet!.sendAndConfirmTransaction(transaction);
-    } else {
-      const transaction = new SolanaTransaction().add(
-        await TransactionParameters.getVerifierProgram(
-          this.params?.verifierIdl,
-          this.provider.provider,
-        )
-          .methods.closeVerifierState()
-          .accounts({
-            ...this.params.accounts,
-          })
-          .instruction(),
-      );
-
-      return await this.provider.wallet!.sendAndConfirmTransaction(transaction);
-    }
   }
 
   getPdaAddresses() {

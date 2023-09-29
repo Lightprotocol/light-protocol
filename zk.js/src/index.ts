@@ -11,4 +11,5 @@ export * from "./errors";
 export * from "./types";
 export * from "./transaction";
 export * from "./convertCase";
+export * from "./closeVerifierState";
 export * as circuitlibjs from "@lightprotocol/circuit-lib.js";

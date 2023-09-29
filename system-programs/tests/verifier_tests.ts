@@ -37,6 +37,7 @@ import {
   System,
   RELAYER_FEE,
   BN_0,
+  closeVerifierState,
 } from "@lightprotocol/zk.js";
 
 var POSEIDON, ACCOUNT, RELAYER, deposit_utxo1;
@@ -144,7 +145,7 @@ describe("Verifier Zero and One Tests", () => {
         params: txParams,
       });
 
-      await transaction.compileAndProve(ACCOUNT);
+      const instructions = await transaction.compileAndProve(ACCOUNT);
       await transaction.provider.provider.connection.confirmTransaction(
         await transaction.provider.provider.connection.requestAirdrop(
           transaction.params.accounts.authority,
@@ -153,7 +154,7 @@ describe("Verifier Zero and One Tests", () => {
         "confirmed",
       );
       // does one successful transaction
-      await transaction.sendAndConfirmTransaction();
+      await lightProvider.sendAndConfirmTransaction(instructions);
       await lightProvider.relayer.updateMerkleTree(lightProvider);
 
       // // Deposit
@@ -246,7 +247,7 @@ describe("Verifier Zero and One Tests", () => {
     tx.provider.provider = provider;
     var e;
     try {
-      e = await tx.sendAndConfirmTransaction();
+      e = await tx.provider.sendAndConfirmTransaction(instructions);
     } catch (error) {
       e = error;
     }
@@ -271,7 +272,11 @@ describe("Verifier Zero and One Tests", () => {
       assert.isTrue(e.logs.includes(account));
     }
     if (instructions.length > 1) {
-      await tx.closeVerifierState();
+      await closeVerifierState(
+        tx.provider,
+        tx.params.verifierIdl,
+        tx.params.accounts.verifierState,
+      );
     }
   }
 
