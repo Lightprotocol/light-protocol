@@ -175,7 +175,7 @@ impl<
         self.fetch_root()?;
         self.fetch_mint()?;
         self.verify()?;
-        self.check_inputs()?;
+        self.check_remaining_accounts()?;
         self.insert_leaves()?;
         self.insert_nullifiers()?;
         self.emit_indexer_transaction_event()?;
@@ -514,7 +514,11 @@ impl<
         }
     }
 
-    fn check_inputs(&self) -> Result<()> {
+    /// Checks the expected number of remaning accounts:
+    ///
+    /// * Nullifier and leaf accounts (mandatory).
+    /// * Merkle tree accounts (optional).
+    fn check_remaining_accounts(&self) -> Result<()> {
         let nr_nullifiers_leaves = NR_NULLIFIERS + NR_LEAVES;
         let remaining_accounts_len = self.input.ctx.remaining_accounts.len();
         if remaining_accounts_len != nr_nullifiers_leaves // Only nullifiers and leaves.
