@@ -721,7 +721,7 @@ export class Account {
 
   private addPrivateKey(proofInput: any, transaction: TransactionParameters) {
     proofInput["inPrivateKey"] = transaction.inputUtxos.map((utxo: Utxo) => {
-      if (utxo.account.pubkey == this.pubkey) {
+      if (utxo.publicKey == this.pubkey) {
         return this.privkey;
       }
       // TODO: add else for utxos that belong to different private keys

@@ -48,7 +48,7 @@ describe("Prover Functionality Tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       blinding: new anchor.BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -90,7 +90,7 @@ describe("Prover Functionality Tests", () => {
       params: paramsDeposit,
     });
 
-    await tx.compile();
+    await tx.compile(account);
 
     const genericProver = new Prover(tx.params.verifierIdl, tx.firstPath);
     tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
@@ -128,7 +128,7 @@ describe("Prover Functionality Tests", () => {
       params: paramsDeposit,
     });
 
-    await tx.compile();
+    await tx.compile(account);
 
     const prover1 = new Prover(tx.params.verifierIdl, tx.firstPath);
     tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);

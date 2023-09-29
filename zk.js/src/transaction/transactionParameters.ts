@@ -808,7 +808,7 @@ export class TransactionParameters implements transactionParameters {
       utxos.push(
         new Utxo({
           poseidon: this.poseidon,
-          account: this.account,
+          publicKey: this.account.pubkey,
           assetLookupTable: [SystemProgram.programId.toBase58()],
           verifierProgramLookupTable: [SystemProgram.programId.toBase58()],
           isFillingUtxo: true,
@@ -1103,7 +1103,7 @@ export class TransactionParameters implements transactionParameters {
 
       let nullifiersHasher = sha256.create();
       this.inputUtxos.forEach((x) => {
-        const nullifier = x.getNullifier(poseidon);
+        const nullifier = x.getNullifier({ poseidon, account: this.account });
         if (nullifier) {
           let nullifierBytes = new anchor.BN(nullifier).toArray("be", 32);
           nullifiersHasher.update(new Uint8Array(nullifierBytes));
@@ -1192,10 +1192,11 @@ export class TransactionParameters implements transactionParameters {
             "Automatic encryption for utxos with application data is not implemented.",
           );
         encryptedOutputs.push(
-          await this.outputUtxos[utxo].encrypt(
+          await this.outputUtxos[utxo].encrypt({
             poseidon,
-            this.accounts.transactionMerkleTree,
-          ),
+            account: this.account,
+            merkleTreePdaPublicKey: this.accounts.transactionMerkleTree,
+          }),
         );
       }
       encryptedOutputs = encryptedOutputs

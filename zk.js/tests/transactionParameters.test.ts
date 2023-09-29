@@ -67,7 +67,7 @@ describe("Transaction Parameters Functional", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -85,7 +85,7 @@ describe("Transaction Parameters Functional", () => {
         new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new BN(depositAmount),
       ],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -214,7 +214,7 @@ describe("Transaction Parameters Functional", () => {
         new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new BN(depositAmount),
       ],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -527,18 +527,21 @@ describe("Test TransactionParameters Methods", () => {
   it("Test getAssetPubkeys", async () => {
     lightProvider = await LightProvider.loadMock();
     const poseidon = await buildPoseidonOpt();
+    let account = new Account({ poseidon });
     let inputUtxos = [
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        publicKey: account.pubkey,
       }),
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        publicKey: account.pubkey,
       }),
     ];
     let outputUtxos = [
@@ -549,12 +552,14 @@ describe("Test TransactionParameters Methods", () => {
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        publicKey: new Account({ poseidon }).pubkey,
       }),
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        publicKey: new Account({ poseidon }).pubkey,
       }),
     ];
 
@@ -589,12 +594,14 @@ describe("Test TransactionParameters Methods", () => {
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        publicKey: new Account({ poseidon }).pubkey,
       }),
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        publicKey: new Account({ poseidon }).pubkey,
       }),
     ];
     let outputUtxos = [
@@ -605,12 +612,14 @@ describe("Test TransactionParameters Methods", () => {
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        publicKey: new Account({ poseidon }).pubkey,
       }),
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        publicKey: new Account({ poseidon }).pubkey,
       }),
     ];
     let { assetPubkeysCircuit } = TransactionParameters.getAssetPubkeys(
@@ -641,6 +650,7 @@ describe("Test TransactionParameters Methods", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: new Account({ poseidon }).pubkey,
     });
     let publicAmountSpl2Outputs = TransactionParameters.getExternalAmount(
       1,
@@ -680,7 +690,7 @@ describe("Test General TransactionParameters Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -794,7 +804,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -807,7 +817,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new BN(depositAmount),
       ],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -841,7 +851,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount).sub(relayer.getRelayerFee()), BN_0],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -873,7 +883,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1018,7 +1028,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1098,7 +1108,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), new BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1107,7 +1117,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1139,7 +1149,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1149,7 +1159,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("1")],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1230,7 +1240,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1322,7 +1332,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1381,7 +1391,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), new BN(depositAmount)],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1391,7 +1401,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1425,7 +1435,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1435,7 +1445,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("1")],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1518,7 +1528,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -1545,7 +1555,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
-      account,
+      publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,

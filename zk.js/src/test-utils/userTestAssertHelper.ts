@@ -410,10 +410,18 @@ export class UserTestAssertHelper {
           ),
           -1,
         );
-        if (!utxo.getNullifier(this.provider.poseidon))
+        if (
+          !utxo.getNullifier({
+            poseidon: this.provider.poseidon,
+            account: user.account,
+          })
+        )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         await this.assertNullifierAccountDoesNotExist(
-          utxo.getNullifier(this.sender.user.provider.poseidon)!,
+          utxo.getNullifier({
+            poseidon: user.provider.poseidon,
+            account: user.account,
+          })!,
         );
         checkCategorizationByAsset(asset, utxo);
       }
@@ -425,19 +433,35 @@ export class UserTestAssertHelper {
           ),
           -1,
         );
-        if (!utxo.getNullifier(this.provider.poseidon))
+        if (
+          !utxo.getNullifier({
+            poseidon: this.provider.poseidon,
+            account: user.account,
+          })
+        )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountDoesNotExist(
-          utxo.getNullifier(this.sender.user.provider.poseidon)!,
+          utxo.getNullifier({
+            poseidon: user.provider.poseidon,
+            account: user.account,
+          })!,
         );
         checkCategorizationByAsset(asset, utxo);
       }
       // nullifier of utxo is inserted
       for (const utxo of tokenBalance.spentUtxos.values()) {
-        if (!utxo.getNullifier(this.provider.poseidon))
+        if (
+          !utxo.getNullifier({
+            poseidon: this.provider.poseidon,
+            account: user.account,
+          })
+        )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountExists(
-          utxo.getNullifier(this.provider.poseidon)!,
+          utxo.getNullifier({
+            poseidon: this.provider.poseidon,
+            account: user.account,
+          })!,
         );
         checkCategorizationByAsset(asset, utxo);
       }
@@ -468,10 +492,18 @@ export class UserTestAssertHelper {
       }
       // nullifier of utxo is inserted
       for (const utxo of tokenBalance.spentUtxos.values()) {
-        if (!utxo.getNullifier(this.provider.poseidon))
+        if (
+          !utxo.getNullifier({
+            poseidon: this.provider.poseidon,
+            account: user.account,
+          })
+        )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountExists(
-          utxo.getNullifier(this.provider.poseidon)!,
+          utxo.getNullifier({
+            poseidon: this.provider.poseidon,
+            account: user.account,
+          })!,
         );
       }
     }
@@ -490,7 +522,10 @@ export class UserTestAssertHelper {
       for (const [commitment, utxo] of tokenBalance.utxos.entries()) {
         if (
           await fetchNullifierAccountInfo(
-            utxo.getNullifier(this.provider.poseidon)!,
+            utxo.getNullifier({
+              poseidon: this.provider.poseidon,
+              account: this.sender.user.account,
+            })!,
             this.provider.provider?.connection!,
           )
         ) {
@@ -760,7 +795,10 @@ export class UserTestAssertHelper {
         .get(this.tokenCtx.mint.toBase58())
         ?.utxos.values()
         .next()!
-        .value.getNullifier(this.provider.poseidon),
+        .value.getNullifier({
+          poseidon: this.provider.poseidon,
+          account: this.recipient.user.account,
+        })!,
     );
   }
 

@@ -149,6 +149,7 @@ describe("verifier_program", () => {
       outputUtxos: [
         new Utxo({
           poseidon: POSEIDON,
+          publicKey: inputUtxos[0].publicKey,
           assets: inputUtxos[0].assets,
           amounts: [BN_0, inputUtxos[0].amounts[1]],
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -210,7 +211,7 @@ describe("verifier_program", () => {
             new anchor.BN(depositFeeAmount),
             new anchor.BN(depositAmount),
           ],
-          account: KEYPAIR,
+          publicKey: KEYPAIR.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
             lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -218,7 +219,7 @@ describe("verifier_program", () => {
       : new Utxo({
           poseidon: POSEIDON,
           amounts: [new anchor.BN(depositFeeAmount)],
-          account: KEYPAIR,
+          publicKey: KEYPAIR.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
             lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -340,6 +341,7 @@ describe("verifier_program", () => {
       tx.transactionInputs,
       tx.remainingAccounts,
       tx.proofInput,
+      KEYPAIR,
     );
   };
 });

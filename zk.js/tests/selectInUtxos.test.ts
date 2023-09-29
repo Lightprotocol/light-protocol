@@ -46,9 +46,9 @@ describe("Test selectInUtxos Functional", () => {
     utxo1: Utxo,
     utxo2: Utxo,
     utxoSol: Utxo,
-    utxoSolBurner,
-    utxo2Burner,
-    utxo1Burner;
+    utxoSolBurner: Account,
+    utxo2Burner: Account,
+    utxo1Burner: Account;
   let lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
@@ -67,7 +67,7 @@ describe("Test selectInUtxos Functional", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals.toNumber())],
       index: 0,
-      account: utxo1Burner,
+      publicKey: utxo1Burner.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -77,7 +77,7 @@ describe("Test selectInUtxos Functional", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
-      account: utxo2Burner,
+      publicKey: utxo2Burner.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -87,7 +87,7 @@ describe("Test selectInUtxos Functional", () => {
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
       index: 1,
-      account: utxoSolBurner,
+      publicKey: utxoSolBurner.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -327,7 +327,8 @@ describe("Test selectInUtxos Errors", () => {
     utxo1: Utxo,
     utxo2: Utxo,
     utxoSol: Utxo,
-    lightProvider: Provider;
+    lightProvider: Provider,
+    account: Account;
 
   before(async () => {
     lightProvider = await Provider.loadMock();
@@ -337,6 +338,7 @@ describe("Test selectInUtxos Errors", () => {
     tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
+    account = new Account({ poseidon });
     utxo1 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.mint],
@@ -345,6 +347,7 @@ describe("Test selectInUtxos Errors", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: account.pubkey,
     });
     utxo2 = new Utxo({
       poseidon,
@@ -354,6 +357,7 @@ describe("Test selectInUtxos Errors", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: account.pubkey,
     });
     utxoSol = new Utxo({
       poseidon,
@@ -363,6 +367,7 @@ describe("Test selectInUtxos Errors", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: account.pubkey,
     });
   });
 

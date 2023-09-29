@@ -30,7 +30,7 @@ export async function functionalCircuitTest(
     poseidon: poseidon,
     assets: [FEE_ASSET, MINT],
     amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-    account,
+    publicKey: account.pubkey,
     assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     verifierProgramLookupTable:
       lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -69,7 +69,7 @@ export async function functionalCircuitTest(
       params: txParams,
     });
   }
-  await tx.compile();
+  await tx.compile(account);
 
   await tx.getProof(account);
   // unsuccessful proof generation

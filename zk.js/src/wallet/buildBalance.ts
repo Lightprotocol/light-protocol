@@ -225,7 +225,7 @@ export async function decryptAddUtxoToBalance({
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo.value || decryptedUtxo.error) return;
   const utxo = decryptedUtxo.value;
-  const nullifier = utxo.getNullifier(poseidon);
+  const nullifier = utxo.getNullifier({ poseidon, account });
   if (!nullifier) return;
 
   const nullifierExists = await fetchNullifierAccountInfo(

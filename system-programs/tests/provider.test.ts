@@ -129,7 +129,7 @@ describe("verifier_program", () => {
       poseidon: POSEIDON,
       assets: [SystemProgram.programId, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: KEYPAIR,
+      publicKey: KEYPAIR.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -139,6 +139,7 @@ describe("verifier_program", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      publicKey: KEYPAIR.pubkey,
     });
 
     let txParams = new TransactionParameters({

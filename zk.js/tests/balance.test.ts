@@ -45,7 +45,7 @@ describe("Utxo Functional", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-      account: keypair,
+      publicKey: keypair.pubkey,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -137,7 +137,7 @@ describe("Utxo Functional", () => {
           poseidon: poseidon,
           assets: [FEE_ASSET, MINT],
           amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
-          account: account,
+          publicKey: account.pubkey,
           index: index,
           assetLookupTable: provider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
@@ -145,11 +145,13 @@ describe("Utxo Functional", () => {
           blinding: new BN(1),
         });
         utxos.push(utxo);
-        const encryptedUtxo = await utxo.encrypt(
+        const encryptedUtxo = await utxo.encrypt({
           poseidon,
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
-          true,
-        );
+          account,
+          merkleTreePdaPublicKey:
+            MerkleTreeConfig.getTransactionMerkleTreePda(),
+          compressed: true,
+        });
         encryptedUtxos = [...encryptedUtxos, ...encryptedUtxo];
       }
       let indexedTransactions = [
