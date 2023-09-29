@@ -1,3 +1,4 @@
+use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 
 use crate::{
@@ -10,6 +11,7 @@ use crate::{
 // in Solana is implemented, this implementation will be replaced with
 // light-merkle-tree crate.
 #[account(zero_copy)]
+#[aligned_sized(anchor)]
 #[derive(Eq, PartialEq, Debug)]
 pub struct TransactionMerkleTree {
     pub filled_subtrees: [[u8; 32]; MERKLE_TREE_HEIGHT],

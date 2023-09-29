@@ -21,7 +21,7 @@ pub struct InitializeNewMerkleTrees<'info> {
         ],
         bump,
         payer = authority,
-        space = 8880 //10240 //1698
+        space = TransactionMerkleTree::LEN,
     )]
     pub new_transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     #[account(
@@ -32,12 +32,7 @@ pub struct InitializeNewMerkleTrees<'info> {
         ],
         bump,
         payer = authority,
-        // discriminator + height (u64) + filled subtrees ([[u8; 32]; 18]) +
-        // roots ([[u8; 32]; 20]) + next_index (u64) + current_root_index (u64)
-        // + hash_function (enum) + merkle_tree_nr (u64) + newest (u8) +
-        // padding (7 * u8)
-        // 8 + 8 + 18 * 32 + 20 * 32 + 8 + 8 + 8 + 8 + 8 + 1 + 7 = 1280
-        space = 1280,
+        space = EventMerkleTree::LEN,
     )]
     pub new_event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
     pub system_program: Program<'info, System>,

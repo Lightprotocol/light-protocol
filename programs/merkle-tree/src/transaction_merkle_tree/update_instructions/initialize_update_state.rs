@@ -6,7 +6,7 @@ use anchor_lang::{
 use crate::{
     errors::ErrorCode,
     transaction_merkle_tree::state::{TransactionMerkleTree, TwoLeavesBytesPda},
-    utils::{config::MERKLE_TREE_TMP_PDA_SIZE, constants::STORAGE_SEED},
+    utils::constants::STORAGE_SEED,
     MerkleTreeUpdateState,
 };
 
@@ -20,7 +20,7 @@ pub struct InitializeUpdateState<'info> {
         seeds = [authority.key().to_bytes().as_ref(), STORAGE_SEED],
         bump,
         payer = authority,
-        space = MERKLE_TREE_TMP_PDA_SIZE,
+        space = MerkleTreeUpdateState::LEN,
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     #[account(mut)]

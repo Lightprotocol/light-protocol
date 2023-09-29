@@ -53,7 +53,7 @@ pub mod light_psp4in4out_app_storage {
             c: proof_c,
         };
 
-        let verifier_state = VerifierState10Ins::<2, TransactionConfig>::deserialize(
+        let verifier_state = VerifierState10Ins::<2, 2, 4, TransactionConfig>::deserialize(
             &mut &*ctx.accounts.verifier_state.to_account_info().data.take(),
         )?;
 

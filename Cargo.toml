@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "macros",
+    "macros/aligned-sized",
+    "macros/light",
     "programs/*",
     "verifier-sdk",
 ]
