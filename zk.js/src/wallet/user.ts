@@ -3,6 +3,7 @@ import {
   PublicKey,
   SystemProgram,
   Transaction as SolanaTransaction,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { BN, Idl } from "@coral-xyz/anchor";
@@ -81,6 +82,7 @@ export class User {
   balance: Balance;
   inboxBalance: InboxBalance;
   verifierIdl: Idl;
+  recentInstructions?: TransactionInstruction[];
 
   constructor({
     provider,
@@ -486,7 +488,7 @@ export class User {
   async compileAndProveTransaction(
     appParams?: any,
     shuffleEnabled: boolean = true,
-  ): Promise<Transaction> {
+  ): Promise<TransactionInstruction[]> {
     if (!this.recentTransactionParameters)
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
@@ -500,9 +502,8 @@ export class User {
       shuffleEnabled,
     });
 
-    await tx.compileAndProve(this.account);
-    this.recentTransaction = tx;
-    return tx;
+    this.recentInstructions = await tx.compileAndProve(this.account);
+    return this.recentInstructions;
   }
 
   async approve() {
@@ -588,15 +589,23 @@ export class User {
         "sendTransaction",
         "Please approve SPL funds before executing a shield with SPL tokens.",
       );
-    if (!this.recentTransaction)
+    if (!this.recentInstructions)
       throw new UserError(
-        UserErrorCode.TRANSACTION_UNDEFINED,
+        UserErrorCode.INSTRUCTIONS_UNDEFINED,
         "sendTransaction",
-        "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
+        "Unable to send transaction. The transaction must be compiled and a proof must be generated first to create solana instructions.",
       );
     let txResult;
     try {
-      txResult = await this.recentTransaction.sendAndConfirmTransaction();
+      if (this.recentTransactionParameters.action === Action.SHIELD) {
+        txResult = await this.provider.sendAndConfirmTransaction(
+          this.recentInstructions,
+        );
+      } else {
+        txResult = await this.provider.sendAndConfirmShieldedTransaction(
+          this.recentInstructions,
+        );
+      }
     } catch (e) {
       throw new UserError(
         TransactionErrorCode.SEND_TRANSACTION_FAILED,
@@ -997,7 +1006,10 @@ export class User {
   }) {
     this.recentTransactionParameters = txParams;
 
-    await this.compileAndProveTransaction(appParams, shuffleEnabled);
+    this.recentInstructions = await this.compileAndProveTransaction(
+      appParams,
+      shuffleEnabled,
+    );
 
     await this.approve();
     this.approved = true;

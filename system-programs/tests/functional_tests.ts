@@ -248,10 +248,10 @@ describe("verifier_program", () => {
       params: txParams,
       shuffleEnabled,
     });
-    await tx.compileAndProve(KEYPAIR);
+    const instructions = await tx.compileAndProve(KEYPAIR);
 
     try {
-      let res = await tx.sendAndConfirmTransaction();
+      let res = await lightProvider.sendAndConfirmTransaction(instructions);
       console.log(res);
     } catch (e) {
       console.log(e);
@@ -333,9 +333,9 @@ describe("verifier_program", () => {
       params: txParams,
     });
 
-    await tx.compileAndProve(KEYPAIR);
+    const instructions = await tx.compileAndProve(KEYPAIR);
 
-    await tx.sendAndConfirmTransaction();
+    await lightProvider.sendAndConfirmShieldedTransaction(instructions);
 
     await transactionTester.checkBalances(
       tx.transactionInputs,

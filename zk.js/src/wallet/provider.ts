@@ -7,6 +7,7 @@ import {
   Keypair,
   SystemProgram,
   AddressLookupTableAccount,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import { initLookUpTable } from "../utils";
 import {
@@ -29,6 +30,9 @@ import {
   merkleTreeProgramId,
   TransactionErrorCode,
   TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
+  SendVersionedTransactionsResult,
+  RelayerSendTransactionsResponse,
+  sendVersionedTransactions,
 } from "../index";
 
 const axios = require("axios");
@@ -309,6 +313,31 @@ export class Provider {
       rootIndex = BN_0;
     }
     return { rootIndex, remainingAccounts };
+  }
+
+  async sendAndConfirmTransaction(
+    instructions: TransactionInstruction[],
+  ): Promise<
+    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
+  > {
+    let response = await sendVersionedTransactions(
+      instructions,
+      this.provider.connection,
+      this.lookUpTables.versionedTransactionLookupTable,
+      this.wallet,
+    );
+    if (response.error) throw response.error;
+    return response;
+  }
+
+  async sendAndConfirmShieldedTransaction(
+    instructions: TransactionInstruction[],
+  ): Promise<
+    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
+  > {
+    let response = await this.relayer.sendTransactions(instructions, this);
+    if (response.error) throw response.error;
+    return response;
   }
 
   /**

@@ -18,9 +18,6 @@ import {
   firstLetterToLower,
   hashAndTruncateToCircuit,
   MINT,
-  sendVersionedTransactions,
-  RelayerSendTransactionsResponse,
-  SendVersionedTransactionsResult,
   AUTHORITY,
   BN_0,
   UTXO_PREFIX_LENGTH,
@@ -184,29 +181,6 @@ export class Transaction {
     this.remainingAccounts = {};
   }
 
-  // TODO: evaluate whether we need this function
-  // /** Returns serialized instructions */
-  // async proveAndCreateInstructionsJson(): Promise<string[]> {
-  //   await this.compileAndProve();
-  //   return await this.getInstructionsJson();
-  // }
-
-  // TODO: evaluate whether we need this function
-  // async proveAndCreateInstructions(): Promise<TransactionInstruction[]> {
-  //   await this.compileAndProve();
-  //   if (this.appParams) {
-  //     return await this.appParams.verifier.getInstructions(this);
-  //   } else if (this.params) {
-  //     return await this.params.verifier.getInstructions(this);
-  //   } else {
-  //     throw new TransactionError(
-  //       TransactionErrorCode.NO_PARAMETERS_PROVIDED,
-  //       "proveAndCreateInstructions",
-  //       "",
-  //     );
-  //   }
-  // }
-
   async compileAndProve(account: Account) {
     await this.compile(account);
     if (!this.params)
@@ -224,6 +198,7 @@ export class Transaction {
       ...remainingAccounts,
     };
     this.getPdaAddresses();
+    return this.getInstructions(this.appParams ? this.appParams : this.params);
   }
 
   /**
@@ -389,90 +364,6 @@ export class Transaction {
       [verifierProgramId.toBytes()],
       merkleTreeProgramId,
     )[0];
-  }
-
-  // TODO: evaluate whether we need this function
-  // async getInstructionsJson(): Promise<string[]> {
-  //   if (!this.params)
-  //     throw new TransactionError(
-  //       TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-  //       "getInstructionsJson",
-  //       "",
-  //     );
-
-  //   if (!this.appParams) {
-  //     const instructions = await this.params.verifier.getInstructions(this);
-  //     let serialized = instructions.map((ix) => JSON.stringify(ix));
-  //     return serialized;
-  //   } else {
-  //     const instructions = await this.appParams.verifier.getInstructions(this);
-  //     let serialized = instructions.map((ix: any) => JSON.stringify(ix));
-  //     return serialized;
-  //   }
-  // }
-
-  async sendAndConfirmTransaction(): Promise<
-    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
-  > {
-    const instructions = await this.getInstructions(
-      this.appParams ? this.appParams : this.params,
-    );
-    let response = undefined;
-    if (this.params.action !== Action.SHIELD) {
-      // TODO: replace this with (this.provider.wallet.pubkey != new relayer... this.relayer
-      // then we know that an actual relayer was passed in and that it's supposed to be sent to one.
-      // we cant do that tho as we'd want to add the default relayer to the provider itself.
-      // so just pass in a flag here "shield, unshield, transfer" -> so devs don't have to know that it goes to a relayer.
-      // send tx to relayer
-      response = await this.params.relayer.sendTransactions(
-        instructions,
-        this.provider,
-      );
-    } else {
-      if (!this.provider.provider)
-        throw new TransactionError(
-          ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
-          "sendTransaction",
-          "Provider.provider undefined",
-        );
-      if (!this.params)
-        throw new TransactionError(
-          TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-          "sendTransaction",
-          "",
-        );
-      if (!this.params.relayer)
-        throw new TransactionError(
-          TransactionErrorCode.RELAYER_UNDEFINED,
-          "sendTransaction",
-          "",
-        );
-
-      if (this.transactionInputs.rootIndex === undefined) {
-        throw new TransactionError(
-          TransactionErrorCode.ROOT_INDEX_NOT_FETCHED,
-          "sendTransaction",
-          "",
-        );
-      }
-
-      if (!this.remainingAccounts?.leavesPdaPubkeys) {
-        throw new TransactionError(
-          TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
-          "sendTransaction",
-          "Run await getPdaAddresses() before invoking sendTransaction",
-        );
-      }
-
-      response = await sendVersionedTransactions(
-        instructions,
-        this.provider.provider.connection,
-        this.provider.lookUpTables.versionedTransactionLookupTable,
-        this.provider.wallet,
-      );
-    }
-    if (response.error) throw response.error;
-    return response;
   }
 
   /**
