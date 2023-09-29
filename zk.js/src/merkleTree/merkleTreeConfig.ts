@@ -283,7 +283,6 @@ export class MerkleTreeConfig {
     //     this.merkleTreeAuthorityPda!,
     //   );
     // assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
-    // assert(merkleTreeAuthority.enableNfts == false);
     // assert(
     //   merkleTreeAuthority.pubkey.toBase58() == authority!.publicKey.toBase58(),
     // );
@@ -346,39 +345,12 @@ export class MerkleTreeConfig {
         merkleTreeAuthorityPrior!.enablePermissionlessSplTokens,
       );
       assert.equal(
-        merkleTreeAuthority.enableNfts,
-        merkleTreeAuthorityPrior!.enableNfts,
-      );
-      assert.equal(
         merkleTreeAuthority.pubkey.toBase58(),
         newAuthority.toBase58(),
       );
     }
     return txHash;
   }
-
-  // commented in program
-  // async enableNfts(configValue: Boolean) {
-  //   if (this.merkleTreeAuthorityPda == undefined) {
-  //     await this.getMerkleTreeAuthorityPda();
-  //   }
-  //   const tx = await this.merkleTreeProgram.methods
-  //     .enableNfts(configValue)
-  //     .accounts({
-  //       authority: this.payer.publicKey,
-  //       merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
-  //       ...DEFAULT_PROGRAMS,
-  //     })
-  //     .signers([this.payer])
-  //     .rpc(confirmConfig);
-  //   let merkleTreeAuthority =
-  //     await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-  //       this.merkleTreeAuthorityPda,
-  //     );
-  //   assert(merkleTreeAuthority.enableNfts == configValue);
-
-  //   return tx;
-  // }
 
   async enablePermissionlessSplTokens(configValue: boolean) {
     if (!this.payer) throw new Error("Payer undefined");

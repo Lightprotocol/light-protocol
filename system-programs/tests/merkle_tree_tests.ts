@@ -265,44 +265,10 @@ describe("Merkle Tree Tests", () => {
     merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda = tmp;
     error = undefined;
 
-    // update merkle tree with invalid signer
-    // merkleTreeConfig.payer = INVALID_SIGNER;
-    // try {
-    //   await merkleTreeConfig.enableNfts(true);
-    // } catch (e) {
-    //   error = e;
-    // }
-    // assert.equal(error.error.errorMessage, "InvalidAuthority");
-    // error = undefined;
-    // merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
-
-    // // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
-    // merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA;
-    // try {
-    //   await merkleTreeConfig.enableNfts(true);
-    // } catch (e) {
-    //   error = e;
-    // }
-    // await merkleTreeConfig.getMerkleTreeAuthorityPda();
-    // assert.equal(
-    //   error.error.errorMessage,
-    //   "The program expected this account to be already initialized"
-    // );
-    // error = undefined;
-
-    // await merkleTreeConfig.enableNfts(true);
-
     let merkleTreeAuthority =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
         merkleTreeConfig.merkleTreeAuthorityPda,
       );
-    // assert.equal(merkleTreeAuthority.enableNfts, true);
-    // await merkleTreeConfig.enableNfts(false);
-    // merkleTreeAuthority =
-    //   await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-    //     merkleTreeConfig.merkleTreeAuthorityPda
-    //   );
-    // assert.equal(merkleTreeAuthority.enableNfts, false);
 
     // update lock duration with invalid signer
 

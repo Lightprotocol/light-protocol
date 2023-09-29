@@ -299,30 +299,6 @@ export type MerkleTreeProgram = {
       ]
     },
     {
-      "name": "enableNfts",
-      "docs": [
-        "Enables permissionless deposits of any spl token with supply of one and zero decimals."
-      ],
-      "accounts": [
-        {
-          "name": "merkleTreeAuthorityPda",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "enablePermissionless",
-          "type": "bool"
-        }
-      ]
-    },
-    {
       "name": "enablePermissionlessSplTokens",
       "docs": [
         "Enables anyone to create token pools."
@@ -1019,10 +995,6 @@ export type MerkleTreeProgram = {
           {
             "name": "registeredAssetIndex",
             "type": "u64"
-          },
-          {
-            "name": "enableNfts",
-            "type": "bool"
           },
           {
             "name": "enablePermissionlessSplTokens",
@@ -1832,30 +1804,6 @@ export const IDL: MerkleTreeProgram = {
       ]
     },
     {
-      "name": "enableNfts",
-      "docs": [
-        "Enables permissionless deposits of any spl token with supply of one and zero decimals."
-      ],
-      "accounts": [
-        {
-          "name": "merkleTreeAuthorityPda",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "enablePermissionless",
-          "type": "bool"
-        }
-      ]
-    },
-    {
       "name": "enablePermissionlessSplTokens",
       "docs": [
         "Enables anyone to create token pools."
@@ -2552,10 +2500,6 @@ export const IDL: MerkleTreeProgram = {
           {
             "name": "registeredAssetIndex",
             "type": "u64"
-          },
-          {
-            "name": "enableNfts",
-            "type": "bool"
           },
           {
             "name": "enablePermissionlessSplTokens",

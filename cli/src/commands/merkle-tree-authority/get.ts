@@ -26,7 +26,6 @@ class GetCommand extends Command {
             merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex.toString(),
           registeredAssetIndex:
             merkleTreeAuthorityAccountInfo.registeredAssetIndex.toString(),
-          enableNfts: merkleTreeAuthorityAccountInfo.enableNfts,
           enablePermissionlessSplTokens:
             merkleTreeAuthorityAccountInfo.enablePermissionlessSplTokens,
           enablePermissionlessMerkleTreeRegistration:
@@ -42,9 +41,6 @@ class GetCommand extends Command {
         },
         registeredAssetIndex: {
           header: "Registered asset index",
-        },
-        enableNfts: {
-          header: "Enable NFTs",
         },
         enablePermissionlessSplTokens: {
           header: "Enable permissionless SPL tokens",
