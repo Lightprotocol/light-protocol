@@ -144,4 +144,25 @@ export class Relayer {
       throw err;
     }
   }
+
+  async syncRelayerInfo(): Promise<void> {
+    const response = await axios.get(this.url + "/getRelayerInfo");
+    const data = response.data.data;
+    this.accounts.relayerPubkey = new PublicKey(data.relayerPubkey);
+    this.accounts.relayerRecipientSol = new PublicKey(data.relayerRecipientSol);
+    this.relayerFee = new BN(data.relayerFee);
+    this.highRelayerFee = new BN(data.highRelayerFee);
+  }
+
+  static async initFromUrl(url: string): Promise<Relayer> {
+    const response = await axios.get(url + "/getRelayerInfo");
+    const data = response.data.data;
+    return new Relayer(
+      new PublicKey(data.relayerPubkey),
+      new PublicKey(data.relayerRecipientSol),
+      new BN(data.relayerFee),
+      new BN(data.highRelayerFee),
+      url,
+    );
+  }
 }

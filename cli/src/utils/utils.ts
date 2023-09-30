@@ -120,12 +120,13 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
       });
       return relayer;
     } else {
+      const config = getConfig();
       relayer = new Relayer(
-        getRelayerPublicKey(),
-        getRelayerRecipient(),
-        RELAYER_FEE,
-        TOKEN_ACCOUNT_FEE,
-        getRelayerUrl()
+        new solana.PublicKey(config.relayerPublicKey),
+        new solana.PublicKey(config.relayerRecipient),
+        new BN(config.relayerFee),
+        new BN(config.highRelayerFee),
+        config.relayerUrl
       );
     }
   }
@@ -138,6 +139,8 @@ type Config = {
   secretKey: string;
   relayerRecipient: string;
   relayerPublicKey: string;
+  relayerFee: string;
+  highRelayerFee: string;
   payer: string;
   lookUpTable: string;
 };
@@ -214,7 +217,6 @@ export const setPayer = (key: string) => {
   setConfig({ payer: key });
 };
 import { existsSync } from "fs";
-import { config } from "dotenv";
 
 function getConfigPath(): string {
   // Check for the environment variable
