@@ -134,15 +134,6 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
-    /// Enables permissionless deposits of any spl token with supply of one and zero decimals.
-    pub fn enable_nfts(
-        _ctx: Context<UpdateMerkleTreeAuthorityConfig>,
-        _enable_permissionless: bool,
-    ) -> Result<()> {
-        // ctx.accounts.merkle_tree_authority_pda.enable_nfts = enable_permissionless;
-        unimplemented!();
-    }
-
     /// Enables anyone to create token pools.
     pub fn enable_permissionless_spl_tokens(
         ctx: Context<UpdateMerkleTreeAuthorityConfig>,
@@ -194,20 +185,6 @@ pub mod merkle_tree_program {
 
     /// Creates a new spl token pool which can be used by any registered verifier.
     pub fn register_spl_pool(ctx: Context<RegisterSplPool>) -> Result<()> {
-        // let is_nft = false;
-        // ctx.accounts.mint.decimals == 0
-        // && ctx.accounts.mint.supply == 1
-        // should add check that authority is metaplex nft
-        // && metaplex_token_metadata::state::get_master_edition(&ctx.accounts.metaplex_token.to_account_info()).is_ok();
-        // msg!("is_nft {}", is_nft);
-        // nfts enabled
-        // if is_nft
-        //     && !ctx.accounts.merkle_tree_authority_pda.enable_nfts
-        //     && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
-        // {
-        //     return err!(ErrorCode::InvalidAuthority);
-        // }
-
         // any token enabled
         if !ctx
             .accounts

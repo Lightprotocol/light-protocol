@@ -19,7 +19,6 @@ pub struct MerkleTreeAuthority {
     pub transaction_merkle_tree_index: u64,
     pub event_merkle_tree_index: u64,
     pub registered_asset_index: u64,
-    pub enable_nfts: bool,
     pub enable_permissionless_spl_tokens: bool,
     pub enable_permissionless_merkle_tree_registration: bool,
 }
