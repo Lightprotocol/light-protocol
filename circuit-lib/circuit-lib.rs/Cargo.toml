@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "src/decode-babyjubjub/decode",
-    "src/decode-babyjubjub/xtask",
+    "decode-babyjubjub",
+    "xtask",
     "tests"
 ]
 

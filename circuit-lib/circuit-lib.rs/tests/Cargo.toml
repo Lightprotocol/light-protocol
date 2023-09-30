@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-decode ={ path = "../src/elgamal-babyjubjub/decode"}
+decode ={ path = "../decode-babyjubjub"}
 bincode ={ workspace = true }

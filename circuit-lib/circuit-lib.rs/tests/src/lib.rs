@@ -1,2 +1,1 @@
-mod elgamal_babyjubjub;
-
+mod decode_babyjubjub;

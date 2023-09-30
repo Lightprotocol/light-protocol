@@ -33,7 +33,7 @@ pub use {
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, thread};
 
-const BASE: EdwardsAffine = EdwardsAffine::new_unchecked(GENERATOR_X, GENERATOR_Y);
+pub const BASE: EdwardsAffine = EdwardsAffine::new_unchecked(GENERATOR_X, GENERATOR_Y);
 
 #[derive(Debug)]
 pub enum DiscreteLogError {

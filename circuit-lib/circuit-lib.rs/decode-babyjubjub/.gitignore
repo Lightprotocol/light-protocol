@@ -1,0 +1,4 @@
+target
+Cargo.lock
+src/*.bincode
+!decode_lookup_table16.bincode

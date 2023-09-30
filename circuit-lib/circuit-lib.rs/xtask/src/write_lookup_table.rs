@@ -19,14 +19,16 @@ pub struct Args {
 #[allow(non_snake_case)]
 pub fn build_lookup_table(args: Args) { 
     let precomputation_size = args.size;
+    
+    let mut f = File::create(PathBuf::from(
+        format!("./decode-babyjubjub/src/decode_lookup_table{}.bincode", precomputation_size),
+    )).unwrap();
+
     let decode_u32_precomputation_for_G = decode_u32_precomputation(
         G::from(BabyJubConfig::GENERATOR), 
         precomputation_size
     );
 
-    let mut f = File::create(PathBuf::from(
-        format!("babyjub_ecdlp/src/decode_lookup_table{}.bincode", precomputation_size),
-    )).unwrap();
     f.write_all(
         &bincode::serialize(&decode_u32_precomputation_for_G).unwrap()
     ).unwrap();
