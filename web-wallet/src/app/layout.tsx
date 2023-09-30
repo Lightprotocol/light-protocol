@@ -1,7 +1,7 @@
 "use client";
-import "./globals.css";
+import "../styles/globals.css";
 
-import { Providers } from "./providers";
+import { Providers } from "../state/providers";
 
 export default function RootLayout({
   children,
