@@ -111,7 +111,6 @@ The second flow consists out of the following functions in the merkle_tree_progr
   - pubkey // is the current merkle tree authority
   - merkle_tree_index // is the counter how many merkle tree exist
   - registered_asset_index //
-  - enable_nfts
   - enable_permissionless_spl_tokens
   - enable_permissionless_merkle_tree_registration
 
