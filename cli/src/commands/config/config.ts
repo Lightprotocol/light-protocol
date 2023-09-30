@@ -3,6 +3,7 @@ import * as fs from "fs";
 import {
   CustomLoader,
   getConfig,
+  getRelayerUrl,
   isValidBase58SecretKey,
   isValidURL,
   readWalletFromFile,
@@ -10,6 +11,7 @@ import {
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
 import { CONFIG_FILE_NAME, CONFIG_PATH } from "../../psp-utils";
+import { Relayer } from "@lightprotocol/zk.js";
 
 class ConfigCommand extends Command {
   static description =
@@ -48,6 +50,10 @@ class ConfigCommand extends Command {
       alias: "rp",
       description: "Relayer public key.",
     }),
+    syncRelayer: Flags.boolean({
+      description: "Syncs the relayer and updates it's public keys.",
+      required: false,
+    }),
     get: Flags.boolean({
       char: "g",
       description: "Gets the current config values.",
@@ -65,6 +71,7 @@ class ConfigCommand extends Command {
       relayerPublicKey,
       get,
       lookUpTable,
+      syncRelayer,
     } = flags;
 
     try {
@@ -98,6 +105,16 @@ class ConfigCommand extends Command {
         } else {
           this.error(`\nInvalid solana keypair base58 string format`);
         }
+      }
+
+      if (syncRelayer) {
+        let fetchedRelayer = await Relayer.initFromUrl(getRelayerUrl());
+        config.relayerPublicKey =
+          fetchedRelayer.accounts.relayerPubkey.toBase58();
+        config.relayerRecipient =
+          fetchedRelayer.accounts.relayerRecipientSol.toBase58();
+        config.relayerFee = fetchedRelayer.relayerFee.toString();
+        config.highRelayerFee = fetchedRelayer.highRelayerFee.toString();
       }
       // TODO: remove this from config and fetch this from the relayer, use the signer as relayer recipient when using a test relayer
       if (relayerRecipient) {

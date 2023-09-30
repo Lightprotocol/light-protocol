@@ -34,7 +34,7 @@ const { MerkleTree } = circuitlibjs;
 
 let circomlibjs = require("circomlibjs");
 import { getUidFromIxs } from "../src/services";
-import { getKeyPairFromEnv, getRelayer } from "../src/utils/provider";
+import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RELAYER_URL } from "../src/config";
 const bs58 = require("bs58");
@@ -51,7 +51,10 @@ describe("API tests", () => {
   let previousMerkleRoot =
     "15800883723037093133305280672853871715176051618981698111580373208012928757479";
   let userKeypair = Keypair.generate();
-  let provider: Provider, user: User, anchorProvider: AnchorProvider;
+  let provider: Provider,
+    user: User,
+    anchorProvider: AnchorProvider,
+    relayer: Relayer;
 
   before(async () => {
     process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -72,9 +75,9 @@ describe("API tests", () => {
       lamports: 9e8,
       recipientPublicKey: userKeypair.publicKey,
     });
-    const relayer = await getRelayer();
 
-    relayer.relayerFee = RELAYER_FEE;
+    const relayer = await Relayer.initFromUrl(RELAYER_URL);
+
     provider = await Provider.init({
       wallet: userKeypair,
       confirmConfig,
@@ -88,6 +91,24 @@ describe("API tests", () => {
     });
 
     user = await User.init({ provider });
+  });
+
+  it("initFromUrl with relayerInfo", async () => {
+    relayer = await Relayer.initFromUrl(RELAYER_URL);
+    console.log("relayer", relayer);
+    assert.equal(
+      relayer.accounts.relayerRecipientSol.toBase58(),
+      getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey.toBase58(),
+    );
+    assert.equal(
+      relayer.accounts.relayerPubkey.toBase58(),
+      getKeyPairFromEnv("KEY_PAIR").publicKey.toBase58(),
+    );
+    assert.equal(relayer.relayerFee.toString(), RELAYER_FEE.toString());
+    assert.equal(
+      relayer.highRelayerFee.toString(),
+      TOKEN_ACCOUNT_FEE.toString(),
+    );
   });
 
   it("Should return Merkle tree data", (done) => {
@@ -228,19 +249,15 @@ describe("API tests", () => {
 
   it("should fail to unshield SOL with invalid relayer sol recipient", async () => {
     const solRecipient = Keypair.generate();
-    const relayer = new Relayer(
-      (await getRelayer()).accounts.relayerPubkey,
-      Keypair.generate().publicKey,
-      RELAYER_FEE,
-      TOKEN_ACCOUNT_FEE,
-      RELAYER_URL!,
-    );
+    let invalidRelayer = [...[relayer]][0];
+    invalidRelayer.accounts.relayerRecipientSol = Keypair.generate().publicKey;
 
     const provider = await Provider.init({
       wallet: userKeypair,
       confirmConfig,
-      relayer,
+      relayer: invalidRelayer,
     });
+
     const user = await User.init({ provider });
 
     const testInputs = {
@@ -315,7 +332,7 @@ describe("API tests", () => {
         const provider = await Provider.init({
           wallet: userKeypair,
           confirmConfig,
-          relayer: await getRelayer(),
+          relayer,
         });
 
         let lookUpTableInfo =
