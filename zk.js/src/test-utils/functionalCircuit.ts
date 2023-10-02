@@ -86,7 +86,11 @@ export async function functionalCircuitTest(
     await tx.getProof(account);
     x = false;
   } catch (error) {
-    // assert.isTrue(error.toString().includes("CheckIndices_3 line:"));
+    if (!error.toString().includes("CheckIndices_3 line: 34")) {
+      throw new Error(
+        "Expected error to be CheckIndices_3, but it was " + error.toString(),
+      );
+    }
   }
   if (!x) {
     throw new Error("Expected value to be true, but it was false.");
