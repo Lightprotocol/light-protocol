@@ -1,4 +1,4 @@
-import { AnchorProvider, BN } from "@coral-xyz/anchor";
+import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import {
   PublicKey,
   Keypair as SolanaKeypair,
@@ -7,6 +7,7 @@ import {
   Keypair,
   SystemProgram,
   AddressLookupTableAccount,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import { initLookUpTable } from "../utils";
 import {
@@ -23,6 +24,15 @@ import {
   MerkleTreeConfig,
   RELAYER_FEE,
   TOKEN_ACCOUNT_FEE,
+  BN_0,
+  SolMerkleTreeErrorCode,
+  IDL_MERKLE_TREE_PROGRAM,
+  merkleTreeProgramId,
+  TransactionErrorCode,
+  TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
+  SendVersionedTransactionsResult,
+  RelayerSendTransactionsResponse,
+  sendVersionedTransactions,
 } from "../index";
 
 const axios = require("axios");
@@ -210,6 +220,118 @@ export class Provider {
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       indexedTransactions,
     );
+  }
+
+  // TODO: add index to merkle tree and check correctness at setup
+  // TODO: repeat check for example at tx init to acertain that the merkle tree is not outdated
+  /**
+   * @description fetches the merkle tree pda from the chain and checks in which index the root of the local merkle tree is.
+   */
+  async getRootIndex() {
+    if (!this.solMerkleTree)
+      throw new ProviderError(
+        ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
+        "getRootIndex",
+        "",
+      );
+    if (!this.solMerkleTree.merkleTree)
+      throw new ProviderError(
+        SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+        "getRootIndex",
+        "The Merkle tree is not defined in the 'provider.solMerkleTree' object.",
+      );
+    let rootIndex: BN | undefined;
+    let remainingAccounts: any = {};
+    if (this.provider && this.solMerkleTree.merkleTree) {
+      const merkleTreeProgram = new Program(
+        IDL_MERKLE_TREE_PROGRAM,
+        merkleTreeProgramId,
+        this.provider,
+      );
+      let root = new BN(this.solMerkleTree.merkleTree.root()).toArray("le", 32);
+      let merkle_tree_account_data =
+        await merkleTreeProgram.account.transactionMerkleTree.fetch(
+          this.solMerkleTree.pubkey,
+          "confirmed",
+        );
+      // @ts-ignore: unknown type error
+      merkle_tree_account_data.roots.map((x: any, index: any) => {
+        if (x.toString() === root.toString()) {
+          rootIndex = new BN(index.toString());
+        }
+      });
+
+      if (rootIndex === undefined) {
+        throw new ProviderError(
+          TransactionErrorCode.ROOT_NOT_FOUND,
+          "getRootIndex",
+          `Root index not found for root${root}`,
+        );
+      }
+
+      if (
+        merkle_tree_account_data.nextIndex.gte(
+          TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
+        )
+      ) {
+        let merkleTreeConfig = new MerkleTreeConfig({
+          connection: this.provider.connection,
+        });
+        const nextTransactionMerkleTreeIndex =
+          await merkleTreeConfig.getTransactionMerkleTreeIndex();
+        const nextTransactionMerkleTreePubkey =
+          MerkleTreeConfig.getTransactionMerkleTreePda(
+            nextTransactionMerkleTreeIndex,
+          );
+
+        const nextEventMerkleTreeIndex =
+          await merkleTreeConfig.getEventMerkleTreeIndex();
+        const nextEventMerkleTreePubkey =
+          MerkleTreeConfig.getEventMerkleTreePda(nextEventMerkleTreeIndex);
+
+        remainingAccounts.nextTransactionMerkleTree = {
+          isSigner: false,
+          isWritable: true,
+          pubkey: nextTransactionMerkleTreePubkey,
+        };
+        remainingAccounts.nextEventMerkleTree = {
+          isSigner: false,
+          isWritable: true,
+          pubkey: nextEventMerkleTreePubkey,
+        };
+      }
+    } else {
+      console.log(
+        "Provider is not defined. Unable to fetch rootIndex. Setting root index to 0 as a default value.",
+      );
+      rootIndex = BN_0;
+    }
+    return { rootIndex, remainingAccounts };
+  }
+
+  async sendAndConfirmTransaction(
+    instructions: TransactionInstruction[],
+  ): Promise<
+    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
+  > {
+    let response = await sendVersionedTransactions(
+      instructions,
+      this.provider.connection,
+      this.lookUpTables.versionedTransactionLookupTable,
+      this.wallet,
+    );
+    if (response.error) throw response.error;
+    return response;
+  }
+
+  async sendAndConfirmShieldedTransaction(
+    instructions: TransactionInstruction[],
+  ): Promise<
+    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
+  > {
+    let response = await this.relayer.sendTransactions(instructions, this);
+    if (response.error) throw response.error;
+    return response;
   }
 
   /**

@@ -86,11 +86,12 @@ describe("Prover Functionality Tests", () => {
 
   it("Verifies Prover with VerifierZero", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsDeposit,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
 
     const genericProver = new Prover(tx.params.verifierIdl, tx.firstPath);
     tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
@@ -124,11 +125,12 @@ describe("Prover Functionality Tests", () => {
 
   it("Checks identical public inputs with different randomness", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsDeposit,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
 
     const prover1 = new Prover(tx.params.verifierIdl, tx.firstPath);
     tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
