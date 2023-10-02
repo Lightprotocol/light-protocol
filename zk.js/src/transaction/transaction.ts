@@ -179,19 +179,19 @@ export class Transaction {
       let _account = account;
       if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
         _account = Account.fromPrivkey(
-          this.provider.poseidon,
+          poseidon,
           bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
           bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
           bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
         );
       }
       return x.getNullifier({
-        poseidon: this.provider.poseidon,
+        poseidon: poseidon,
         account: _account,
       });
     });
     this.proofInput = {
-      root: this.provider.solMerkleTree.merkleTree.root(),
+      root: this.solMerkleTree.merkleTree.root(),
       inputNullifier,
       publicAmountSpl: this.params.publicAmountSpl.toString(),
       publicAmountSol: this.params.publicAmountSol.toString(),

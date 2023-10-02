@@ -179,15 +179,17 @@ describe("Streaming Payments tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
       account: lightUser.account
     });
-
+    let {rootIndex, remainingAccounts} = await lightProvider.getRootIndex();
     let tx = new Transaction({
-      provider: lightProvider,
+      rootIndex, 
+      ...remainingAccounts,
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
       appParams,
     });
 
-    await tx.compileAndProve(lightUser.account);
-    await tx.sendAndConfirmTransaction();
+    const instructions = await tx.compileAndProve(POSEIDON, lightUser.account);
+    await lightProvider.sendAndConfirmTransaction(instructions);
   }
 
   async function paymentStreaming(wallet: anchor.web3.Keypair, relayerRecipientSol: anchor.web3.PublicKey) {
