@@ -15,8 +15,10 @@ import {
   Account,
   AccountError,
   AccountErrorCode,
+  ADMIN_AUTH_KEYPAIR,
   newNonce,
   TransactionParametersErrorCode,
+  useWallet,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const { blake2b } = require("@noble/hashes/blake2b");
@@ -25,6 +27,16 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 let seed32_2 = bs58.encode(new Uint8Array(32).fill(2));
+const keypairReferenceAccount = {
+  encryptionPublicKey:
+    "187,15,119,127,223,162,69,232,129,87,132,195,89,178,128,174,220,77,191,34,63,115,138,98,193,57,4,92,247,18,190,114",
+  privkey:
+    "10549614312533267481475691431782247653443118790544059346879074363637081087224",
+  pubkey:
+    "4872110042567103538494256021660200303799952171296478346021664068592360300729",
+  eddsaSignature:
+    "149,4,55,200,119,181,112,89,28,114,19,62,250,125,9,166,167,0,255,21,231,177,123,126,100,125,212,10,93,27,186,172,107,200,130,11,182,98,146,73,73,248,205,73,73,217,201,196,85,249,115,198,152,225,175,160,254,131,131,146,148,73,211,1",
+};
 
 describe("Test Account Functional", () => {
   let poseidon: any,
@@ -166,7 +178,7 @@ describe("Test Account Functional", () => {
     );
   };
 
-  it("Functional", async () => {
+  it("Constructor & from seed Functional", async () => {
     // generate the same keypair from seed
     compareKeypairsEqual(k0, k00);
     let referenceAccount = {
@@ -185,6 +197,47 @@ describe("Test Account Functional", () => {
     let k1 = new Account({ poseidon, seed: seedDiff32 });
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(k0, k1);
+
+    let k2 = Account.createFromSeed(poseidon, seed32);
+    compareKeypairsEqual(k0, k2);
+  });
+
+  it("createFromSolanaKeypair Functional", async () => {
+    const keypair = ADMIN_AUTH_KEYPAIR;
+
+    const solanaKeypairAccount = Account.createFromSolanaKeypair(
+      poseidon,
+      keypair,
+      eddsa,
+    );
+    await compareAccountToReference(
+      solanaKeypairAccount,
+      keypairReferenceAccount,
+    );
+
+    let seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
+    let k1 = new Account({ poseidon, seed: seedDiff32 });
+    // keypairs from different seeds are not equal
+    compareKeypairsNotEqual(solanaKeypairAccount, k1);
+  });
+
+  it("createFromBrowserWallet Functional", async () => {
+    const wallet = useWallet(ADMIN_AUTH_KEYPAIR);
+
+    const solanaWalletAccount = await Account.createFromBrowserWallet(
+      poseidon,
+      wallet,
+      eddsa,
+    );
+    await compareAccountToReference(
+      solanaWalletAccount,
+      keypairReferenceAccount,
+    );
+
+    let seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
+    let k1 = new Account({ poseidon, seed: seedDiff32 });
+    // keypairs from different seeds are not equal
+    compareKeypairsNotEqual(solanaWalletAccount, k1);
   });
 
   it("Burner functional", async () => {

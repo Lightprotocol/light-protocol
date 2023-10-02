@@ -39,7 +39,6 @@ import {
   ProviderErrorCode,
   RelayerErrorCode,
   SelectInUtxosErrorCode,
-  SIGN_MESSAGE,
   TOKEN_PUBKEY_SYMBOL,
   TOKEN_REGISTRY,
   TokenUtxoBalance,
@@ -54,7 +53,6 @@ import {
   UtxoError,
   UtxoErrorCode,
 } from "../index";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const circomlibjs = require("circomlibjs");
 
@@ -1075,30 +1073,37 @@ export class User {
     skipFetchBalance?: boolean;
   }): Promise<User> {
     try {
-      if (!seed) {
-        if (provider.wallet) {
-          const encodedMessage = anchor.utils.bytes.utf8.encode(SIGN_MESSAGE);
-          const signature: Uint8Array = await provider.wallet.signMessage(
-            encodedMessage,
-          );
-
-          seed = bs58.encode(signature);
-        } else {
-          throw new UserError(
-            UserErrorCode.NO_WALLET_PROVIDED,
-            "load",
-            "No payer or browser wallet provided",
-          );
-        }
-      }
       if (!provider.poseidon) {
         provider.poseidon = await circomlibjs.buildPoseidonOpt();
       }
-      if (!account) {
-        account = new Account({
-          poseidon: provider.poseidon,
-          seed,
-        });
+      if (seed && account)
+        throw new UserError(
+          UserErrorCode.ACCOUNT_AND_SEED_PROVIDED,
+          "load",
+          "Cannot provide both seed and account!",
+        );
+      if (!seed && !account && provider.wallet) {
+        account = await Account.createFromBrowserWallet(
+          provider.poseidon,
+          provider.wallet,
+        );
+      } else if (!account && seed) {
+        account = Account.createFromSeed(provider.poseidon, seed);
+      } else if (!account) {
+        throw new UserError(
+          CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
+          "load",
+          "No account, provider with wallet or seed provided!",
+        );
+      }
+      if (
+        account.solanaPublicKey &&
+        provider.wallet.publicKey.toBase58() !==
+          account.solanaPublicKey.toBase58()
+      ) {
+        console.warn(
+          "Account seems to be created from a different wallet than provider uses.",
+        );
       }
       const user = new User({ provider, appUtxoConfig, account });
       if (!skipFetchBalance) await user.getBalance();
