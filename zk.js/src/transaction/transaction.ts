@@ -21,7 +21,7 @@ import {
 } from "../index";
 import { remainingAccount } from "../types";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
-import { getIndices3Dim } from "@lightprotocol/circuit-lib.js";
+import { getIndices3D } from "@lightprotocol/circuit-lib.js";
 
 const path = require("path");
 
@@ -133,23 +133,6 @@ export class Transaction {
       nextTransactionMerkleTree,
     };
     this.solMerkleTree = solMerkleTree;
-
-    // TODO: move this check into the user or provider
-    // TODO: change to check whether browser/node wallet are the same as signing address
-    // if (params.action === Action.SHIELD) {
-    //   let wallet = this.provider.wallet;
-    //   if (
-    //     wallet?.publicKey.toBase58() !==
-    //       params.relayer.accounts.relayerPubkey.toBase58() &&
-    //     wallet?.publicKey.toBase58() !==
-    //       params.accounts.signingAddress?.toBase58()
-    //   ) {
-    //     throw new TransactionError(
-    //       TransactionErrorCode.WALLET_RELAYER_INCONSISTENT,
-    //       "constructor",
-    //       "The wallet used in your Node.js or Browser environment does not match the wallet used for the senderFee when setting up the relayer during the deposit process. They need to be the same.",
-    //     );
-    //   }
   }
 
   async compileAndProve(poseidon: any, account: Account) {
@@ -212,13 +195,13 @@ export class Transaction {
       outAmount: this.params.outputUtxos?.map((x) => x.amounts),
       outBlinding: this.params.outputUtxos?.map((x) => x.blinding),
       outPubkey: this.params.outputUtxos?.map((x) => x.publicKey),
-      inIndices: getIndices3Dim(
+      inIndices: getIndices3D(
         this.params.inputUtxos[0].assets.length,
         N_ASSET_PUBKEYS,
         this.params.inputUtxos.map((utxo) => utxo.assetsCircuit),
         this.params.assetPubkeysCircuit,
       ),
-      outIndices: getIndices3Dim(
+      outIndices: getIndices3D(
         this.params.inputUtxos[0].assets.length,
         N_ASSET_PUBKEYS,
         this.params.outputUtxos.map((utxo) => utxo.assetsCircuit),

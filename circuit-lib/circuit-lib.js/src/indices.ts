@@ -8,7 +8,7 @@
 // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
 // TODO: fix edge case of an asset pubkey being 0
 // TODO: !== !! and check non-null
-export function getIndices3Dim(
+export function getIndices3D(
   dimension2: number,
   dimension3: number,
   assetsCircuitArray: any[][],

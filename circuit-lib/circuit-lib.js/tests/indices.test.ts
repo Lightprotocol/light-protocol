@@ -1,6 +1,6 @@
 import { assert } from "chai";
 import { MINT, hashAndTruncateToCircuit } from "../../../zk.js/src/index";
-import { getIndices3Dim } from "../src/index";
+import { getIndices3D } from "../src/index";
 import { PublicKey } from "@solana/web3.js";
 
 //TODO: separate 3 dim indices template from light circuits in circuit-lib.circom and add similar test
@@ -23,7 +23,7 @@ describe("Utxo Functional", () => {
       hashAndTruncateToCircuit(new PublicKey(1).toBytes()),
     ];
 
-    const indices1 = getIndices3Dim(
+    const indices1 = getIndices3D(
       dimension2,
       dimension3,
       [utxo1AssetsCircuit],
@@ -36,7 +36,7 @@ describe("Utxo Functional", () => {
     assert.equal(indices1[0][1][1], "1");
     assert.equal(indices1[0][1][2], "0");
 
-    const indices2 = getIndices3Dim(
+    const indices2 = getIndices3D(
       dimension2,
       dimension3,
       [utxo1AssetsCircuit, utxo1AssetsCircuit],
@@ -49,7 +49,7 @@ describe("Utxo Functional", () => {
     assert.equal(indices2[0][1][1], "1");
     assert.equal(indices2[0][1][2], "0");
 
-    const indices3 = getIndices3Dim(
+    const indices3 = getIndices3D(
       dimension2,
       dimension3,
       [utxo2AssetsCircuit],
@@ -63,7 +63,7 @@ describe("Utxo Functional", () => {
     assert.equal(indices3[0][1][2], "0");
 
     // no overlap
-    const indices4 = getIndices3Dim(
+    const indices4 = getIndices3D(
       dimension2,
       dimension3,
       [utxo3AssetsCircuit],
@@ -76,7 +76,7 @@ describe("Utxo Functional", () => {
     assert.equal(indices4[0][1][1], "0");
     assert.equal(indices4[0][1][2], "0");
 
-    const indices5 = getIndices3Dim(
+    const indices5 = getIndices3D(
       dimension2,
       dimension3,
       [utxo3AssetsCircuit, utxo1AssetsCircuit],
