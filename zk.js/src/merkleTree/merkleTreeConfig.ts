@@ -125,11 +125,8 @@ export class MerkleTreeConfig {
       transactionMerkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
     );
-    // zero values
-    // index == 0
-    // roots are empty save for 0
-    // lock duration is correct
-    assert(transactionMerkleTreeAccountInfo.lockDuration.toString() == "50");
+    assert(transactionMerkleTreeAccountInfo.lockDuration.eq(new anchor.BN(50)));
+    assert(transactionMerkleTreeAccountInfo.newest == 1);
   }
 
   async checkEventMerkleTreeIsInitialized(eventMerkleTreePubkey: PublicKey) {
@@ -140,6 +137,7 @@ export class MerkleTreeConfig {
       merkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
     );
+    assert(merkleTreeAccountInfo.newest == 1);
   }
 
   async printMerkleTree() {
@@ -271,22 +269,27 @@ export class MerkleTreeConfig {
       confirmConfig,
     );
 
-    // assert(
-    //   this.connection.getAccountInfo(
-    //     this.merkleTreeAuthorityPda!,
-    //     "confirmed",
-    //   ) != null,
-    //   "init authority failed",
-    // );
-    // let merkleTreeAuthority =
-    //   await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-    //     this.merkleTreeAuthorityPda!,
-    //   );
-    // assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
-    // assert(
-    //   merkleTreeAuthority.pubkey.toBase58() == authority!.publicKey.toBase58(),
-    // );
-    // assert(merkleTreeAuthority.registeredAssetIndex.toString() == "0");
+    assert(
+      this.connection.getAccountInfo(
+        this.merkleTreeAuthorityPda!,
+        "confirmed",
+      ) != null,
+      "init authority failed",
+    );
+    let merkleTreeAuthority =
+      await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
+        this.merkleTreeAuthorityPda!,
+      );
+    assert(
+      merkleTreeAuthority.pubkey.toBase58() == authority!.publicKey.toBase58(),
+    );
+    assert(merkleTreeAuthority.transactionMerkleTreeIndex.eq(BN_1));
+    assert(merkleTreeAuthority.eventMerkleTreeIndex.eq(BN_1));
+    assert(merkleTreeAuthority.registeredAssetIndex.eq(BN_0));
+    assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
+    assert(
+      merkleTreeAuthority.enablePermissionlessMerkleTreeRegistration == false,
+    );
 
     return txHash;
   }
