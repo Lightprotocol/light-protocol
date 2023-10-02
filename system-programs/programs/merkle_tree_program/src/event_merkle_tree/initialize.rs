@@ -9,9 +9,7 @@ use light_merkle_tree::{
     HashFunction, MerkleTree,
 };
 
-use crate::{
-    impl_indexed_merkle_tree, utils::constants::EVENT_MERKLE_TREE_HEIGHT, MerkleTreeAuthority,
-};
+use crate::{impl_indexed_merkle_tree, utils::config::MERKLE_TREE_HEIGHT, MerkleTreeAuthority};
 
 #[derive(Clone, Copy)]
 pub struct EventMerkleTreeConfig {}
@@ -37,7 +35,7 @@ pub fn process_initialize_new_event_merkle_tree(
 ) {
     merkle_tree
         .merkle_tree
-        .init(EVENT_MERKLE_TREE_HEIGHT, HashFunction::Sha256);
+        .init(MERKLE_TREE_HEIGHT, HashFunction::Sha256);
     merkle_tree.merkle_tree_nr = merkle_tree_authority.event_merkle_tree_index;
     merkle_tree.newest = 1;
 

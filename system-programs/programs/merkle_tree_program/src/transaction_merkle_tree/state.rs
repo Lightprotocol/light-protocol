@@ -1,4 +1,7 @@
-use crate::{impl_indexed_merkle_tree, utils::config::MERKLE_TREE_HISTORY_SIZE};
+use crate::{
+    impl_indexed_merkle_tree,
+    utils::config::{MERKLE_TREE_HEIGHT, MERKLE_TREE_HISTORY_SIZE},
+};
 use anchor_lang::prelude::*;
 
 // NOTE(vadorovsky): This implementation of Merkle tree exists only for
@@ -8,7 +11,7 @@ use anchor_lang::prelude::*;
 #[account(zero_copy)]
 #[derive(Eq, PartialEq, Debug)]
 pub struct TransactionMerkleTree {
-    pub filled_subtrees: [[u8; 32]; 18],
+    pub filled_subtrees: [[u8; 32]; MERKLE_TREE_HEIGHT],
     pub current_root_index: u64,
     pub next_index: u64,
     pub roots: [[u8; 32]; MERKLE_TREE_HISTORY_SIZE as usize],
