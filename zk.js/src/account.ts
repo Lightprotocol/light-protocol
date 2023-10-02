@@ -1,8 +1,8 @@
 const nacl = require("tweetnacl");
 import { box } from "tweetnacl";
 const { encrypt, decrypt } = require("ethereum-cryptography/aes");
-
-import { BN } from "@coral-xyz/anchor";
+import { sign } from "tweetnacl";
+import { BN, utils } from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
@@ -14,12 +14,14 @@ import {
   TransactionErrorCode,
   TransactionParameters,
   Utxo,
+  SIGN_MESSAGE,
+  Wallet,
 } from "./index";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 const ffjavascript = require("ffjavascript");
 const buildEddsa = require("circomlibjs").buildEddsa;
-import { PublicKey } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types/result";
 import { Prover } from "@lightprotocol/prover.js";
@@ -43,6 +45,8 @@ export class Account {
   eddsa: any;
   aesSecret?: Uint8Array;
   hashingSecret?: Uint8Array;
+  solanaPublicKey?: PublicKey;
+
   /**
    *
    * @param poseidon required
@@ -63,6 +67,7 @@ export class Account {
     encryptionPublicKey,
     encryptionPrivateKey,
     aesSecret,
+    solanaPublicKey,
   }: {
     poseidon?: any;
     seed?: string;
@@ -74,6 +79,7 @@ export class Account {
     encryptionPublicKey?: Uint8Array;
     encryptionPrivateKey?: Uint8Array;
     aesSecret?: Uint8Array;
+    solanaPublicKey?: PublicKey;
   }) {
     if (!poseidon) {
       throw new AccountError(
@@ -81,7 +87,7 @@ export class Account {
         "constructor",
       );
     }
-
+    this.solanaPublicKey = solanaPublicKey;
     this.burnerSeed = new Uint8Array();
     if (aesSecret && !privateKey) {
       this.aesSecret = aesSecret;
@@ -793,5 +799,42 @@ export class Account {
     const parsedPublicInputsObject =
       prover.parsePublicInputsFromArray(parsedPublicInputs);
     return { parsedProof, parsedPublicInputsObject };
+  }
+
+  static createFromSeed(poseidon: any, seed: string, eddsa?: any): Account {
+    return new Account({ poseidon, seed, eddsa });
+  }
+
+  static createFromSolanaKeypair(
+    poseidon: any,
+    keypair: Keypair,
+    eddsa?: any,
+  ): Account {
+    const encodedMessage = utils.bytes.utf8.encode(SIGN_MESSAGE);
+    const signature: Uint8Array = sign.detached(
+      encodedMessage,
+      keypair.secretKey,
+    );
+    return new Account({
+      poseidon,
+      seed: bs58.encode(signature),
+      solanaPublicKey: keypair.publicKey,
+      eddsa,
+    });
+  }
+
+  static async createFromBrowserWallet(
+    poseidon: any,
+    wallet: Wallet,
+    eddsa?: any,
+  ): Promise<Account> {
+    const encodedMessage = utils.bytes.utf8.encode(SIGN_MESSAGE);
+    const signature: Uint8Array = await wallet.signMessage(encodedMessage);
+    return new Account({
+      poseidon,
+      seed: bs58.encode(signature),
+      solanaPublicKey: wallet.publicKey,
+      eddsa,
+    });
   }
 }
