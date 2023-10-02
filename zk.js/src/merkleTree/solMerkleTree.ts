@@ -5,6 +5,10 @@ import {
   MERKLE_TREE_HEIGHT,
   sleep,
   ParsedIndexedTransaction,
+  SolMerkleTreeErrorCode,
+  SolMerkleTreeError,
+  Utxo,
+  BN_0,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -184,5 +188,50 @@ export class SolMerkleTree {
     ).map((pda) => {
       return { isSigner: false, isWritable: true, pubkey: pda.publicKey };
     });
+  }
+
+  /**
+   * @description Gets the merkle proofs for every input utxo with amounts > 0.
+   * @description For input utxos with amounts == 0 it returns merkle paths with all elements = 0.
+   */
+  getMerkleProofs(
+    poseidon: any,
+    inputUtxos: Utxo[],
+  ): {
+    inputMerklePathIndices: Array<string>;
+    inputMerklePathElements: Array<Array<string>>;
+  } {
+    let inputMerklePathIndices = new Array<string>();
+    let inputMerklePathElements = new Array<Array<string>>();
+    // getting merkle proofs
+    for (const inputUtxo of inputUtxos) {
+      if (inputUtxo.amounts[0].gt(BN_0) || inputUtxo.amounts[1].gt(BN_0)) {
+        inputUtxo.index = this.merkleTree.indexOf(
+          inputUtxo.getCommitment(poseidon),
+        );
+
+        if (inputUtxo.index || inputUtxo.index == 0) {
+          if (inputUtxo.index < 0) {
+            throw new SolMerkleTreeError(
+              SolMerkleTreeErrorCode.INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE,
+              "getMerkleProofs",
+              `Input commitment ${inputUtxo.getCommitment(
+                poseidon,
+              )} was not found. Was the local merkle tree synced since the utxo was inserted?`,
+            );
+          }
+          inputMerklePathIndices.push(inputUtxo.index.toString());
+          inputMerklePathElements.push(
+            this.merkleTree.path(inputUtxo.index).pathElements,
+          );
+        }
+      } else {
+        inputMerklePathIndices.push("0");
+        inputMerklePathElements.push(
+          new Array<string>(this.merkleTree.levels).fill("0"),
+        );
+      }
+    }
+    return { inputMerklePathIndices, inputMerklePathElements };
   }
 }

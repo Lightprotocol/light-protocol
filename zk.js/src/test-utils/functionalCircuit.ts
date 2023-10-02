@@ -50,11 +50,13 @@ export async function functionalCircuitTest(
   });
 
   let tx;
-
+  const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
   // successful proof generation
   if (app) {
     tx = new Transaction({
-      provider: lightProvider,
+      rootIndex,
+      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
       appParams: {
         mock: "123",
@@ -65,11 +67,13 @@ export async function functionalCircuitTest(
     });
   } else {
     tx = new Transaction({
-      provider: lightProvider,
+      rootIndex,
+      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
     });
   }
-  await tx.compile(account);
+  await tx.compile(lightProvider.poseidon, account);
 
   await tx.getProof(account);
   // unsuccessful proof generation

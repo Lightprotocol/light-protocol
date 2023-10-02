@@ -154,14 +154,21 @@ describe("verifier_program", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       account: KEYPAIR,
     });
+    const { rootIndex: rootIndex1, remainingAccounts: remainingAccounts1 } =
+      await lightProvider.getRootIndex();
     let tx = new Transaction({
-      provider: lightProvider,
+      rootIndex: rootIndex1,
+      nextTransactionMerkleTree: remainingAccounts1.nextTransactionMerkleTree,
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
     });
-    await tx.compileAndProve(KEYPAIR);
+    const instructions = await tx.compileAndProve(
+      lightProvider.poseidon,
+      KEYPAIR,
+    );
 
     try {
-      let res = await tx.sendAndConfirmTransaction();
+      let res = await lightProvider.sendAndConfirmTransaction(instructions);
       console.log(res);
     } catch (e) {
       console.log(e);

@@ -48,7 +48,9 @@ describe("Transaction Error Tests", () => {
     lightProvider: LightProvider,
     deposit_utxo1: Utxo,
     account: Account,
-    params: TransactionParameters;
+    params: TransactionParameters,
+    rootIndex: BN,
+    nextTransactionMerkleTree: any;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
@@ -74,97 +76,19 @@ describe("Transaction Error Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       account,
     });
-  });
-
-  it("Constructor PROVIDER_UNDEFINED", async () => {
-    expect(() => {
-      // @ts-ignore:
-      new Transaction({
-        params,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.PROVIDER_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
-
-  it("Constructor POSEIDON_HASHER_UNDEFINED", async () => {
-    expect(() => {
-      new Transaction({
-        // @ts-ignore:
-        provider: {},
-        params,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.POSEIDON_HASHER_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
-
-  it("Constructor SOL_MERKLE_TREE_UNDEFINED", async () => {
-    expect(() => {
-      new Transaction({
-        // @ts-ignore:
-        provider: { poseidon },
-        params,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
-
-  it("Constructor WALLET_UNDEFINED", async () => {
-    expect(() => {
-      new Transaction({
-        // @ts-ignore:
-        provider: { poseidon, solMerkleTree: {} },
-        params,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.WALLET_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
-
-  it("Constructor WALLET_RELAYER_INCONSISTENT", async () => {
-    const params1 = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
-      eventMerkleTreePubkey: mockPubkey2,
-      transactionMerkleTreePubkey: mockPubkey2,
-      poseidon,
-      senderSpl: mockPubkey,
-      senderSol: mockPubkey,
-      action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
-      account,
-    });
-    expect(() => {
-      new Transaction({
-        provider: lightProvider,
-        params: params1,
-      });
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.WALLET_RELAYER_INCONSISTENT,
-        functionName: "constructor",
-      });
+    const res = await lightProvider.getRootIndex();
+    nextTransactionMerkleTree = res.remainingAccounts.nextTransactionMerkleTree;
+    rootIndex = res.rootIndex;
   });
 
   it("Constructor TX_PARAMETERS_UNDEFINED", async () => {
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     expect(() => {
       // @ts-ignore:
       new Transaction({
-        provider: lightProvider,
+        rootIndex,
+        nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
       });
     })
       .throw(TransactionError)
@@ -175,9 +99,12 @@ describe("Transaction Error Tests", () => {
   });
 
   it("getProof VERIFIER_IDL_UNDEFINED", async () => {
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     expect(() => {
       new Transaction({
-        provider: lightProvider,
+        rootIndex,
+        nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
         // @ts-ignore
         params: {},
       });
@@ -191,7 +118,8 @@ describe("Transaction Error Tests", () => {
 
   it("getProofInternal PROOF_INPUT_UNDEFINED", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params,
     });
     await chai.assert.isRejected(
@@ -202,7 +130,8 @@ describe("Transaction Error Tests", () => {
 
   it("getAppProof APP_PARAMETERS_UNDEFINED", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params,
     });
     await chai.assert.isRejected(
@@ -211,55 +140,56 @@ describe("Transaction Error Tests", () => {
     );
   });
 
-  it("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
-    let tx = new Transaction({
-      provider: {
-        // @ts-ignore
-        solMerkleTree: {},
-        poseidon,
-        wallet: lightProvider.wallet,
-      },
-      params,
-    });
-    await chai.assert.isRejected(
-      tx.getRootIndex(),
-      SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
-    );
-  });
+  // it.skip("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
+  //   let tx = new Transaction({
+  //     provider: {
+  //       // @ts-ignore
+  //       solMerkleTree: {},
+  //       poseidon,
+  //       wallet: lightProvider.wallet,
+  //     },
+  //     params,
+  //   });
+  //   await chai.assert.isRejected(
+  //     tx.provider.getRootIndex(),
+  //     SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+  //   );
+  // });
 
-  it("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
-    let tx = new Transaction({
-      provider: {
-        // @ts-ignore
-        solMerkleTree: {},
-        poseidon,
-        wallet: lightProvider.wallet,
-      },
-      params,
-    });
-    await chai.assert.isRejected(
-      tx.getRootIndex(),
-      SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
-    );
-  });
+  // it.skip("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
+  //   let tx = new Transaction({
+  //     provider: {
+  //       // @ts-ignore
+  //       solMerkleTree: {},
+  //       poseidon,
+  //       wallet: lightProvider.wallet,
+  //     },
+  //     params,
+  //   });
+  //   await chai.assert.isRejected(
+  //     tx.provider.getRootIndex(),
+  //     SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+  //   );
+  // });
 
-  it("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
-    let tx = new Transaction({
-      // @ts-ignore
-      provider: lightProvider,
-      params,
-    });
-    // @ts-ignore
-    tx.params.assetPubkeysCircuit = undefined;
-    expect(() => {
-      tx.getIndices(params.inputUtxos);
-    })
-      .throw(TransactionError)
-      .includes({
-        code: TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
-        functionName: "getIndices",
-      });
-  });
+  //   it.skip("getRootIndex MERKLE_TREE_UNDEFINED", async () => {
+  //     let tx = new Transaction({
+  //       // @ts-ignore
+  //       ... (await lightProvider.getRootIndex()),
+  // solMerkleTree: lightProvider.solMerkleTree!,
+  //       params,
+  //     });
+  //     // @ts-ignore
+  //     tx.params.assetPubkeysCircuit = undefined;
+  //     expect(() => {
+  //       tx.getIndices(params.inputUtxos);
+  //     })
+  //       .throw(TransactionError)
+  //       .includes({
+  //         code: TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
+  //         functionName: "getIndices",
+  //       });
+  //   });
 });
 
 describe("Transaction Functional Tests", () => {
@@ -331,10 +261,11 @@ describe("Transaction Functional Tests", () => {
 
   it("Functional ", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsDeposit,
     });
-    await tx.compileAndProve(account);
+    await tx.compileAndProve(lightProvider.poseidon, account);
   });
 
   it("Functional storage ", async () => {
@@ -352,16 +283,18 @@ describe("Transaction Functional Tests", () => {
       account,
     });
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsDepositStorage,
     });
-    await tx.compileAndProve(account);
+    await tx.compileAndProve(lightProvider.poseidon, account);
     await tx.getInstructions(tx.params);
   });
 
   it("getMint ", async () => {
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsDeposit,
     });
     let mint = tx.getMint();
@@ -370,153 +303,6 @@ describe("Transaction Functional Tests", () => {
       hashAndTruncateToCircuit(MINT.toBuffer()).toString(),
     );
     assert.notEqual(mint.toString(), MINT.toString());
-  });
-
-  it("getRootIndex Provider Undefined", async () => {
-    let tx = new Transaction({
-      provider: lightProvider,
-      params: paramsDeposit,
-    });
-    await tx.getRootIndex();
-    assert.equal(tx.transactionInputs.rootIndex?.toNumber(), 0);
-  });
-
-  it("getIndices", async () => {
-    const poseidon = await circomlibjs.buildPoseidonOpt();
-
-    let mockPubkey = SolanaKeypair.generate().publicKey;
-    let lightProvider = await LightProvider.loadMock();
-
-    let deposit_utxo1 = new Utxo({
-      poseidon,
-      assets: [FEE_ASSET, MINT],
-      amounts: [BN_1, BN_2],
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
-      publicKey: account.pubkey,
-    });
-
-    const relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
-
-    let params = new TransactionParameters({
-      inputUtxos: [deposit_utxo1],
-      eventMerkleTreePubkey: mockPubkey,
-      transactionMerkleTreePubkey: mockPubkey,
-      recipientSpl: mockPubkey,
-      recipientSol: mockPubkey,
-      poseidon,
-      action: Action.UNSHIELD,
-      relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
-      account,
-    });
-
-    let tx = new Transaction({
-      provider: lightProvider,
-      params,
-    });
-
-    const indices1 = tx.getIndices([deposit_utxo1]);
-    assert.equal(indices1[0][0][0], "1");
-    assert.equal(indices1[0][0][1], "0");
-    assert.equal(indices1[0][0][2], "0");
-    assert.equal(indices1[0][1][0], "0");
-    assert.equal(indices1[0][1][1], "1");
-    assert.equal(indices1[0][1][2], "0");
-
-    const indices2 = tx.getIndices([deposit_utxo1, deposit_utxo1]);
-    assert.equal(indices2[0][0][0], "1");
-    assert.equal(indices2[0][0][1], "0");
-    assert.equal(indices2[0][0][2], "0");
-    assert.equal(indices2[0][1][0], "0");
-    assert.equal(indices2[0][1][1], "1");
-    assert.equal(indices2[0][1][2], "0");
-
-    let deposit_utxo2 = new Utxo({
-      poseidon,
-      assets: [FEE_ASSET],
-      amounts: [BN_1],
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
-      publicKey: new Account({ poseidon }).pubkey,
-    });
-
-    const indices3 = tx.getIndices([deposit_utxo2]);
-    assert.equal(indices3[0][0][0], "1");
-    assert.equal(indices3[0][0][1], "0");
-    assert.equal(indices3[0][0][2], "0");
-    assert.equal(indices3[0][1][0], "0");
-    assert.equal(indices3[0][1][1], "0");
-    assert.equal(indices3[0][1][2], "0");
-
-    let deposit_utxo3 = new Utxo({
-      poseidon,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
-      publicKey: new Account({ poseidon }).pubkey,
-    });
-
-    const indices4 = tx.getIndices([deposit_utxo3]);
-    assert.equal(indices4[0][0][0], "0");
-    assert.equal(indices4[0][0][1], "0");
-    assert.equal(indices4[0][0][2], "0");
-    assert.equal(indices4[0][1][0], "0");
-    assert.equal(indices4[0][1][1], "0");
-    assert.equal(indices4[0][1][2], "0");
-
-    let deposit_utxo4 = new Utxo({
-      poseidon,
-      assets: [FEE_ASSET, MINT],
-      amounts: [BN_0, BN_2],
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
-      publicKey: new Account({ poseidon }).pubkey,
-    });
-
-    const indices5 = tx.getIndices([deposit_utxo4]);
-    assert.equal(indices5[0][0][0], "1");
-    assert.equal(indices5[0][0][1], "0");
-    assert.equal(indices5[0][0][2], "0");
-    assert.equal(indices5[0][1][0], "0");
-    assert.equal(indices5[0][1][1], "1");
-    assert.equal(indices5[0][1][2], "0");
-
-    const indices6 = tx.getIndices([deposit_utxo3, deposit_utxo4]);
-    assert.equal(indices6[0][0][0], "0");
-    assert.equal(indices6[0][0][1], "0");
-    assert.equal(indices6[0][0][2], "0");
-    assert.equal(indices6[0][1][0], "0");
-    assert.equal(indices6[0][1][1], "0");
-    assert.equal(indices6[0][1][2], "0");
-
-    assert.equal(indices6[1][0][0], "1");
-    assert.equal(indices6[1][0][1], "0");
-    assert.equal(indices6[1][0][2], "0");
-    assert.equal(indices6[1][1][0], "0");
-    assert.equal(indices6[1][1][1], "1");
-    assert.equal(indices6[1][1][2], "0");
-
-    let deposit_utxo5 = new Utxo({
-      poseidon,
-      assets: [FEE_ASSET, MINT],
-      amounts: [BN_2, BN_0],
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
-      publicKey: new Account({ poseidon }).pubkey,
-    });
-
-    const indices7 = tx.getIndices([deposit_utxo5]);
-    assert.equal(indices7[0][0][0], "1");
-    assert.equal(indices7[0][0][1], "0");
-    assert.equal(indices7[0][0][2], "0");
-    assert.equal(indices7[0][1][0], "0");
-    assert.equal(indices7[0][1][1], "1");
-    assert.equal(indices7[0][1][2], "0");
   });
 
   it("getConnectingHash", async () => {
@@ -545,17 +331,14 @@ describe("Transaction Functional Tests", () => {
       "6150353308703750134875659224593639995108994571023605893130935914916250029450",
     );
     assert.equal(
-      Transaction.getTransactionHash(
-        paramsStaticEncryptedUtxos,
-        poseidon,
-      ).toString(),
+      paramsStaticEncryptedUtxos.getTransactionHash(poseidon).toString(),
       "5933194464001103981860458884656917415381806542379509455129642519383560866951",
     );
   });
 
   it("getMerkleProof", async () => {
-    let merkleProofsDeposit = Transaction.getMerkleProofs(
-      lightProvider,
+    let merkleProofsDeposit = lightProvider.solMerkleTree!.getMerkleProofs(
+      lightProvider.poseidon,
       paramsDeposit.inputUtxos,
     );
     assert.equal(
@@ -571,8 +354,8 @@ describe("Transaction Functional Tests", () => {
       new Array(18).fill("0").toString(),
     );
 
-    let merkleProofsWithdrawal = Transaction.getMerkleProofs(
-      lightProvider,
+    let merkleProofsWithdrawal = lightProvider.solMerkleTree!.getMerkleProofs(
+      lightProvider.poseidon,
       paramsWithdrawal.inputUtxos,
     );
     assert.equal(
@@ -628,7 +411,8 @@ describe("Transaction Functional Tests", () => {
       account,
     });
     let tx = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsStaticEncryptedUtxos,
     });
     // @ts-ignore
@@ -676,9 +460,12 @@ describe("Transaction Functional Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
       account,
     });
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     expect(() => {
       new Transaction({
-        provider: lightProvider,
+        rootIndex,
+        nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
         params,
       });
     })
@@ -701,9 +488,12 @@ describe("Transaction Functional Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       account,
     });
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     expect(() => {
       new Transaction({
-        provider: lightProvider,
+        rootIndex,
+        nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+        solMerkleTree: lightProvider.solMerkleTree!,
         params,
         appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
       });

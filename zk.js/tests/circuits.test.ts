@@ -225,10 +225,11 @@ describe("Masp circuit tests", () => {
   // should pass because no non-zero input utxo is provided
   it("No in utxo test invalid root", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.root = new BN("123").toString();
 
     await tx.getProof(account);
@@ -236,10 +237,11 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid root", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.root = new BN("123").toString();
     await chai.assert.isRejected(
       tx.getProof(account),
@@ -249,10 +251,11 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid tx integrity hash", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
 
     tx.proofInput.txIntegrityHash = new BN("123").toString();
 
@@ -264,10 +267,11 @@ describe("Masp circuit tests", () => {
 
   it("No in utxo test invalid publicMintPubkey", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
@@ -279,10 +283,11 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid publicMintPubkey", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
@@ -295,10 +300,11 @@ describe("Masp circuit tests", () => {
   // should succeed because no public spl amount is provided thus mint is not checked
   it("No public spl amount test invalid publicMintPubkey", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsSol,
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
@@ -307,13 +313,14 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid merkle proof path elements", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
 
     tx.proofInput.inPathElements[0] =
-      tx.provider.solMerkleTree?.merkleTree.path(1).pathElements;
+      lightProvider.solMerkleTree?.merkleTree.path(1).pathElements;
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -322,10 +329,11 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid merkle proof path index", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
 
     tx.proofInput.inPathIndices[0] = 1;
     await chai.assert.isRejected(
@@ -336,11 +344,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid inPrivateKey", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     // tx.proofInput.inPrivateKey[0] = new BN("123").toString();
     await chai.assert.isRejected(
       tx.getProof(new Account({ poseidon })),
@@ -350,11 +359,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid publicAmountSpl", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.publicAmountSpl = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -365,11 +375,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid publicAmountSol", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.publicAmountSol = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -380,11 +391,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid publicAmountSpl", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsSol,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.publicAmountSpl = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -395,11 +407,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid outputCommitment", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     console.log();
 
     tx.proofInput.outputCommitment[0] = new BN("123").toString();
@@ -412,11 +425,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid inAmount", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.inAmount[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -427,11 +441,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid outAmount", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.outAmount[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -442,11 +457,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid inBlinding", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.inBlinding[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -457,11 +473,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid outBlinding", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.outBlinding[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -472,11 +489,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid outPubkey", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.outPubkey[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -487,11 +505,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid assetPubkeys", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     for (let i = 0; i < 3; i++) {
       tx.proofInput.assetPubkeys[i] = hashAndTruncateToCircuit(
         SolanaKeypair.generate().publicKey.toBytes(),
@@ -507,12 +526,13 @@ describe("Masp circuit tests", () => {
   // this fails because the system verifier does not allow
   it("With in utxo test invalid inAppDataHash", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsApp,
       appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -522,22 +542,24 @@ describe("Masp circuit tests", () => {
   // this works because the system verifier does not check output utxos other than commit hashes being well-formed and the sum
   it("With out utxo test inAppDataHash", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsOutApp,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     await tx.getProof(account);
   });
 
   // this fails because it's inconsistent with the utxo
   it("With in utxo test invalid outAppDataHash", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.outAppDataHash[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -548,11 +570,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid pooltype", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsPoolType,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -561,11 +584,12 @@ describe("Masp circuit tests", () => {
 
   it("With out utxo test invalid pooltype", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsPoolTypeOut,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -574,11 +598,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid inPoolType", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.inPoolType[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -589,11 +614,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid outPoolType", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.outPoolType[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -604,11 +630,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid inIndices", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
 
     tx.proofInput.inIndices[0][0][0] = new BN("123").toString();
 
@@ -620,11 +647,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid inIndices", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     chai.assert.notEqual(tx.proofInput.outIndices[1][1][1].toString(), "1");
     tx.proofInput.inIndices[1][1][1] = "1";
 
@@ -636,11 +664,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid outIndices", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
 
     tx.proofInput.outIndices[0][0][0] = new BN("123").toString();
 
@@ -652,11 +681,12 @@ describe("Masp circuit tests", () => {
 
   it("With in utxo test invalid outIndices", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsWithdrawal,
     });
 
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     chai.assert.notEqual(tx.proofInput.outIndices[1][1][1].toString(), "1");
     tx.proofInput.outIndices[1][1][1] = "1";
 
@@ -729,11 +759,12 @@ describe("App system circuit tests", () => {
 
   it("No in utxo test invalid transactionHash", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
       appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
 
     tx.proofInput.transactionHash = new BN("123").toString();
     await chai.assert.isRejected(
@@ -744,11 +775,12 @@ describe("App system circuit tests", () => {
 
   it("No in utxo test invalid transactionHash", async () => {
     let tx: Transaction = new Transaction({
-      provider: lightProvider,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsApp,
       appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
     });
-    await tx.compile(account);
+    await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.publicAppVerifier = new BN("123").toString();
     await chai.assert.isRejected(
       tx.getProof(account),
