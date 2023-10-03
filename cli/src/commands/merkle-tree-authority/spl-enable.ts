@@ -14,8 +14,8 @@ class SplEnableCommand extends Command {
     const loader = new CustomLoader("Enabling permissionless SPL tokens");
     loader.start();
 
-    const { connection } = await setAnchorProvider();
-    let merkleTreeConfig = await getWalletConfig(connection);
+    const anchorProvider = await setAnchorProvider();
+    let merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     await merkleTreeConfig.enablePermissionlessSplTokens(true);
 

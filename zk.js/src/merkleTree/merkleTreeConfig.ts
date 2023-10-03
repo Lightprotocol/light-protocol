@@ -19,6 +19,7 @@ import {
 } from "../index";
 import { Program } from "@coral-xyz/anchor";
 
+/// NODE ENV ONLY
 export class MerkleTreeConfig {
   merkleTreeProgram: Program<MerkleTreeProgram>;
   transactionMerkleTreePda?: PublicKey;
@@ -37,21 +38,24 @@ export class MerkleTreeConfig {
   poolPdas: any;
   constructor({
     payer,
-    connection,
+    anchorProvider,
   }: {
     payer?: Keypair;
-    connection: Connection;
+    anchorProvider: anchor.AnchorProvider;
   }) {
     this.payer = payer;
+
     this.merkleTreeProgram = new Program(
       IDL_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
+      anchorProvider,
     );
+
     // TODO: reorg pool pdas, have one object per pool type and then an array with registered pools of this type
     this.poolPdas = [];
     this.poolTypes = [];
     this.registeredVerifierPdas = [];
-    this.connection = connection;
+    this.connection = anchorProvider.connection;
   }
 
   async initializeNewMerkleTrees() {
