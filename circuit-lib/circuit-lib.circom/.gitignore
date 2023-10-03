@@ -2,5 +2,6 @@ node_modules
 test-ledger
 ptau17
 ptau15
+artifacts
 tests/*.js
 *.js

@@ -11,5 +11,5 @@
     "noUnusedParameters": true
   },
   "dry": false,
-  "debug": false
+  "debug": false,
 }
