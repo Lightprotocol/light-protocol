@@ -275,7 +275,7 @@ export class Provider {
         )
       ) {
         let merkleTreeConfig = new MerkleTreeConfig({
-          connection: this.provider.connection,
+          anchorProvider: this.provider,
         });
         const nextTransactionMerkleTreeIndex =
           await merkleTreeConfig.getTransactionMerkleTreeIndex();
