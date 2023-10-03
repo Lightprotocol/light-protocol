@@ -15,7 +15,7 @@ fi
 
 circom --r1cs --wasm --sym ./tests/circuits/$CIRCUIT\Main.circom -o $CIRCUITS_DIR
 
-yarn snarkjs groth16 setup $CIRCUITS_DIR/$CIRCUIT\Main.r1cs $CIRCUITS_DIR/ptau$POWERS_OF_TAU $CIRCUITS_DIR/tmp_$CIRCUIT.zkey
-yarn snarkjs zkey contribute $CIRCUITS_DIR/tmp_$CIRCUIT.zkey $CIRCUITS_DIR/$CIRCUIT.zkey -e="12345"
-yarn snarkjs zkey verify $CIRCUITS_DIR/$CIRCUIT\Main.r1cs $CIRCUITS_DIR/ptau$POWERS_OF_TAU $CIRCUITS_DIR/$CIRCUIT.zkey
-yarn snarkjs zkey export verificationkey $CIRCUITS_DIR/$CIRCUIT.zkey $CIRCUITS_DIR/verifying_key.json
+pnpm snarkjs groth16 setup $CIRCUITS_DIR/$CIRCUIT\Main.r1cs $CIRCUITS_DIR/ptau$POWERS_OF_TAU $CIRCUITS_DIR/tmp_$CIRCUIT.zkey
+pnpm snarkjs zkey contribute $CIRCUITS_DIR/tmp_$CIRCUIT.zkey $CIRCUITS_DIR/$CIRCUIT.zkey -e="12345"
+pnpm snarkjs zkey verify $CIRCUITS_DIR/$CIRCUIT\Main.r1cs $CIRCUITS_DIR/ptau$POWERS_OF_TAU $CIRCUITS_DIR/$CIRCUIT.zkey
+pnpm snarkjs zkey export verificationkey $CIRCUITS_DIR/$CIRCUIT.zkey $CIRCUITS_DIR/verifying_key.json

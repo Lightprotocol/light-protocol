@@ -85,5 +85,5 @@ export const initRepo = async (name: string, type: ProjectType) => {
     `${process.cwd()}/${name}/programs`
   );
 
-  await executeCommandInDir("yarn", ["install"], name);
+  await executeCommandInDir("pnpm", ["install"], name);
 };

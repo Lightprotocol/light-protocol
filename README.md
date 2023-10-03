@@ -50,7 +50,7 @@ Then follow the sections below, which describe the usage of `build.sh` and
 `test.sh` scripts.
 
 When the development environment is active, you can manually run commands
-like `yarn`, `cargo`, `solana`, `solana-test-validator`. They are going to
+like `pnpm`, `cargo`, `solana`, `solana-test-validator`. They are going to
 use the dependencies installed in `.local` directory, so even if you have
 different global installations, they are not going to interfere.
 
@@ -113,14 +113,14 @@ cargo test
 
 ```bash
 cd zk.js/
-yarn test
+pnpm test
 ```
 
 ### Circuit tests
 
 ```bash
 cd light-circuits
-yarn test
+pnpm test
 ```
 
 ### Anchor tests
@@ -134,9 +134,9 @@ Tests can be executed in bulk or one by one.
 
 ```bash
 cd system-programs/
-yarn test
-yarn test-verifiers
-yarn test-merkle-tree
+pnpm test
+pnpm test-verifiers
+pnpm test-merkle-tree
 ```
 
 ## Common errors

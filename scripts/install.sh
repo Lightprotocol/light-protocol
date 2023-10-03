@@ -191,12 +191,6 @@ mkdir -p "${NPM_DIR}"
 export PATH="${PREFIX}/bin:${NPM_DIR}/bin:${PATH}"
 export NPM_CONFIG_PREFIX="${NPM_DIR}"
 
-echo "📦 Installing yarn"
-npm install -g yarn
-
-echo "📦 Installing TypeScript"
-yarn global add typescript
-
 echo "📥 Downloading Solana toolchain"
 download_and_extract_github \
     solana-labs \

@@ -49,5 +49,5 @@ jobs:
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            yarn test-$subtest
+            pnpm test-$subtest
           done
