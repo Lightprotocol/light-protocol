@@ -21,12 +21,6 @@ runs:
           **/target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Cache Node modules
-      uses: buildjet/cache@v3
-      with:
-        path: "**/node_modules"
-        key: ${{ runner.os }}-node-${{ hashFiles('**/yarn.lock', '**/package.json') }}
-
     - name: Cache .local directory
       uses: buildjet/cache@v3
       with:
