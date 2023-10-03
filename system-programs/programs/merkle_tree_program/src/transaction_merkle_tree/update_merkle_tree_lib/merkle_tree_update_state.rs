@@ -20,7 +20,7 @@ pub struct MerkleTreeUpdateState {
     pub current_level: u64,
     pub current_level_hash: [u8; 32],
     pub tmp_leaves_index: u64,
-    pub filled_subtrees: [[u8; 32]; MERKLE_TREE_HEIGHT as usize],
+    pub filled_subtrees: [[u8; 32]; MERKLE_TREE_HEIGHT],
 
     pub leaves: [[[u8; 32]; 2]; 16],
     pub number_of_leaves: u8,

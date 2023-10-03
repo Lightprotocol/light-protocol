@@ -33,7 +33,7 @@ use crate::{
     transaction_merkle_tree::state::TransactionMerkleTree,
     utils::{
         accounts::deserialize_and_update_old_merkle_tree,
-        config::{self, ZERO_BYTES_MERKLE_TREE_18},
+        config::{self, MERKLE_TREE_HEIGHT, ZERO_BYTES_MERKLE_TREE_18},
         constants::{EVENT_MERKLE_TREE_SEED, TRANSACTION_MERKLE_TREE_SEED},
     },
 };
@@ -74,7 +74,7 @@ pub mod merkle_tree_program {
         process_initialize_new_merkle_tree_18(
             new_transaction_merkle_tree,
             merkle_tree_authority,
-            18,
+            MERKLE_TREE_HEIGHT,
             ZERO_BYTES_MERKLE_TREE_18.to_vec(),
         );
         new_transaction_merkle_tree.lock_duration = lock_duration;
@@ -103,7 +103,7 @@ pub mod merkle_tree_program {
         process_initialize_new_merkle_tree_18(
             merkle_tree,
             merkle_tree_authority,
-            18,
+            MERKLE_TREE_HEIGHT,
             ZERO_BYTES_MERKLE_TREE_18.to_vec(),
         );
 
