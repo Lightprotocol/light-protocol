@@ -296,7 +296,7 @@ describe("Transaction Functional Tests", () => {
     await tx.getInstructions(tx.params);
   });
 
-  it.only("Functional with STANDARD_SHIELDED_PRIVATE_KEY", async () => {
+  it("Functional with STANDARD_SHIELDED_PRIVATE_KEY", async () => {
     const utxo = new Utxo({
       poseidon: poseidon,
       assets: [SystemProgram.programId],
@@ -324,11 +324,13 @@ describe("Transaction Functional Tests", () => {
       relayer,
       account,
     });
+
     let tx = new Transaction({
-      provider: lightProvider,
-      params,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
+      params: paramsDeposit,
     });
-    await tx.compileAndProve(account);
+    await tx.compileAndProve(poseidon, account);
     await tx.getInstructions(tx.params);
   });
 

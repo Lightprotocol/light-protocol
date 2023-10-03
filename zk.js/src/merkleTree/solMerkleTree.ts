@@ -210,7 +210,7 @@ export class SolMerkleTree {
           inputUtxo.getCommitment(poseidon),
         );
 
-        if (inputUtxo.index || inputUtxo.index == 0) {
+        if (inputUtxo.index || inputUtxo.index === 0) {
           if (inputUtxo.index < 0) {
             throw new SolMerkleTreeError(
               SolMerkleTreeErrorCode.INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE,
