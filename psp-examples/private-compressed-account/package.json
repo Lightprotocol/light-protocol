@@ -2,8 +2,8 @@
   "name": "@lightprotocol/private-compressed-account",
   "version": "0.0.1",
   "scripts": {
-    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "format": "prettier --write \"tests/**/*.{ts,js}\" -w",
+    "lint": "prettier \"tests/**/*{ts,js}\" --check",
     "test": "../../cli/test_bin/run psp:test private-compressed-account Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
     "build": "../../cli/test_bin/run psp:build private-compressed-account"
   },

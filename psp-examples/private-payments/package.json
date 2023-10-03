@@ -4,6 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
+    "format": "prettier --write \"src/**/*.{ts,js}\" -w",
+    "lint": "prettier \"src/**/*{ts,js}\" --check",
     "test": "../../cli/test_bin/run test-validator -b; pnpm ts-node src/main.ts --exit"
   },
   "dependencies": {

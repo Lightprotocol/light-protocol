@@ -26,7 +26,7 @@ import {
   ConfirmOptions,
 } from "@lightprotocol/zk.js";
 import { Prover } from "@lightprotocol/prover.js";
-import {MerkleTree} from "@lightprotocol/circuit-lib.js";
+import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 const path = require("path");
 
 const getSubTreeHash = (subTrees: BN[], poseidon: any) => {

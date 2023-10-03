@@ -22,7 +22,7 @@ describe("Test foobar", () => {
   it("Test encrypted messaging", async () => {
     const authorityPda = Transaction.getSignerAuthorityPda(
       merkleTreeProgramId,
-      verifierProgramStorageProgramId
+      verifierProgramStorageProgramId,
     );
     const authorityBalance =
       (await provider.connection.getBalance(authorityPda)) / 1e9;
@@ -50,7 +50,7 @@ describe("Test foobar", () => {
 
     await messageClient.encryptAndStoreForRecipient(
       "foobaz",
-      recipient.account.encryptionKeypair.publicKey
+      recipient.account.encryptionKeypair.publicKey,
     );
 
     const recipientMessageClient = new MessageClient(recipient);
@@ -69,7 +69,7 @@ function setupAnchor(): anchor.AnchorProvider {
 
 async function createWalletAndAirdropSol(
   provider: anchor.AnchorProvider,
-  amount: number
+  amount: number,
 ): Promise<Keypair> {
   const wallet = Keypair.generate();
   await airdropSol({

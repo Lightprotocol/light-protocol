@@ -27,12 +27,12 @@ import {
 
 import { buildPoseidonOpt } from "circomlibjs";
 import { IDL } from "../target/types/streaming_payments";
-import {MerkleTree} from "@lightprotocol/circuit-lib.js";
+import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
 let POSEIDON;
 
@@ -42,8 +42,8 @@ const USERS_COUNT = 3;
 const users = new Array(USERS_COUNT).fill(null).map(() => {
   return {
     wallet: Keypair.generate(),
-    relayerRecipientSol: SolanaKeypair.generate().publicKey
-  }
+    relayerRecipientSol: SolanaKeypair.generate().publicKey,
+  };
 });
 
 describe("Streaming Payments tests", () => {
@@ -59,15 +59,20 @@ describe("Streaming Payments tests", () => {
   });
 
   it("Create and Spend Program Utxo for one user", async () => {
-    await createAndSpendProgramUtxo(users[0].wallet, users[0].relayerRecipientSol)
+    await createAndSpendProgramUtxo(
+      users[0].wallet,
+      users[0].relayerRecipientSol,
+    );
   });
 
   it.skip(`Create and Spend Program Utxo for ${users.length} users`, async () => {
-    const logLabel = 'Create and Spend Program Utxo for ${users.length} users';
+    const logLabel = "Create and Spend Program Utxo for ${users.length} users";
     console.time(logLabel);
     let calls = [];
-    for(const user of users) {
-        calls.push(createAndSpendProgramUtxo(user.wallet, user.relayerRecipientSol));
+    for (const user of users) {
+      calls.push(
+        createAndSpendProgramUtxo(user.wallet, user.relayerRecipientSol),
+      );
     }
     await Promise.all(calls);
     console.timeEnd(logLabel);
@@ -78,16 +83,19 @@ describe("Streaming Payments tests", () => {
   });
 
   it.skip(`Payment streaming for ${users.length} users`, async () => {
-    const logLabel = 'Payment streaming for ${users.length} users';
+    const logLabel = "Payment streaming for ${users.length} users";
     console.time(logLabel);
     let calls = [];
-    for(const user of users) {
+    for (const user of users) {
       calls.push(paymentStreaming(user.wallet, user.relayerRecipientSol));
     }
     await Promise.all(calls);
     console.timeEnd(logLabel);
   });
-  async function createAndSpendProgramUtxo(wallet: anchor.web3.Keypair, relayerRecipientSol: anchor.web3.PublicKey): Promise<void> {
+  async function createAndSpendProgramUtxo(
+    wallet: anchor.web3.Keypair,
+    relayerRecipientSol: anchor.web3.PublicKey,
+  ): Promise<void> {
     await airdropSol({
       connection: provider.connection,
       lamports: 1e9,
@@ -114,19 +122,19 @@ describe("Streaming Payments tests", () => {
       relayer,
       confirmConfig,
     });
-    const lightUser: User = await User.init({provider: lightProvider});
+    const lightUser: User = await User.init({ provider: lightProvider });
 
     const outputUtxoSol = new Utxo({
       poseidon: POSEIDON,
       assets: [SystemProgram.programId],
       publicKey: lightUser.account.pubkey,
       amounts: [new BN(1_000_000)],
-      appData: {endSlot: new BN(1), rate: new BN(1)},
+      appData: { endSlot: new BN(1), rate: new BN(1) },
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
-      lightProvider.lookUpTables.verifierProgramLookupTable,
+        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const testInputsShield = {
@@ -139,13 +147,13 @@ describe("Streaming Payments tests", () => {
       action: testInputsShield.action,
     });
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
-        await lightUser.syncStorage(IDL);
+      await lightUser.syncStorage(IDL);
     const shieldedUtxoCommitmentHash =
-        testInputsShield.utxo.getCommitment(POSEIDON);
+      testInputsShield.utxo.getCommitment(POSEIDON);
     const inputUtxo = programUtxoBalance
-        .get(verifierProgramId.toBase58())
-        .tokenBalances.get(testInputsShield.utxo.assets[1].toBase58())
-        .utxos.get(shieldedUtxoCommitmentHash);
+      .get(verifierProgramId.toBase58())
+      .tokenBalances.get(testInputsShield.utxo.assets[1].toBase58())
+      .utxos.get(shieldedUtxoCommitmentHash);
 
     Utxo.equal(POSEIDON, inputUtxo, testInputsShield.utxo, true);
 
@@ -169,7 +177,7 @@ describe("Streaming Payments tests", () => {
     const txParams = new TransactionParameters({
       inputUtxos: [inputUtxo],
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-          new BN(0)
+        new BN(0),
       ),
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
       recipientSol: SolanaKeypair.generate().publicKey,
@@ -177,11 +185,11 @@ describe("Streaming Payments tests", () => {
       poseidon: POSEIDON,
       relayer: relayer,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
-      account: lightUser.account
+      account: lightUser.account,
     });
-    let {rootIndex, remainingAccounts} = await lightProvider.getRootIndex();
+    let { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     let tx = new Transaction({
-      rootIndex, 
+      rootIndex,
       ...remainingAccounts,
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
@@ -192,7 +200,10 @@ describe("Streaming Payments tests", () => {
     await lightProvider.sendAndConfirmTransaction(instructions);
   }
 
-  async function paymentStreaming(wallet: anchor.web3.Keypair, relayerRecipientSol: anchor.web3.PublicKey) {
+  async function paymentStreaming(
+    wallet: anchor.web3.Keypair,
+    relayerRecipientSol: anchor.web3.PublicKey,
+  ) {
     const circuitPath = path.join("build-circuit");
     await airdropSol({
       connection: provider.connection,
@@ -224,15 +235,18 @@ describe("Streaming Payments tests", () => {
     const lightUser: User = await User.init({ provider: lightProvider });
 
     let client: PaymentStreamClient = new PaymentStreamClient(
-        IDL, POSEIDON, circuitPath, lightProvider
+      IDL,
+      POSEIDON,
+      circuitPath,
+      lightProvider,
     );
     const currentSlot = await provider.connection.getSlot("confirmed");
     const duration = 1;
     const streamInitUtxo = client.setupSolStream(
-        new BN(1e9),
-        new BN(duration),
-        new BN(currentSlot),
-        lightUser.account
+      new BN(1e9),
+      new BN(duration),
+      new BN(currentSlot),
+      lightUser.account,
     );
 
     const testInputsSol1 = {
@@ -248,7 +262,7 @@ describe("Streaming Payments tests", () => {
     });
     await lightUser.syncStorage(IDL);
     const commitment = testInputsSol1.utxo.getCommitment(
-        testInputsSol1.poseidon
+      testInputsSol1.poseidon,
     );
 
     const utxo = (await lightUser.getUtxo(commitment))!;
@@ -260,9 +274,9 @@ describe("Streaming Payments tests", () => {
     let merkleTree = lightUser.provider.solMerkleTree.merkleTree;
 
     const { programParameters, inUtxo, outUtxo, action } = client.collectStream(
-        new BN(currentSlot1),
-        Action.TRANSFER,
-        merkleTree
+      new BN(currentSlot1),
+      Action.TRANSFER,
+      merkleTree,
     );
 
     await lightUser.executeAppUtxo({
@@ -273,18 +287,18 @@ describe("Streaming Payments tests", () => {
     });
     const balance = await lightUser.getBalance();
     console.log(
-        "totalSolBalance: ",
-        balance.totalSolBalance.toNumber() * 1e-9,
-        "SOL"
+      "totalSolBalance: ",
+      balance.totalSolBalance.toNumber() * 1e-9,
+      "SOL",
     );
     assert.equal(
-        outUtxo.amounts[0].toString(),
-        balance.totalSolBalance.toString()
+      outUtxo.amounts[0].toString(),
+      balance.totalSolBalance.toString(),
     );
     console.log("inUtxo commitment: ", inUtxo.getCommitment(POSEIDON));
 
     const spentCommitment = testInputsSol1.utxo.getCommitment(
-        testInputsSol1.poseidon
+      testInputsSol1.poseidon,
     );
     const utxoSpent = (await lightUser.getUtxo(spentCommitment, true, IDL))!;
     assert.equal(utxoSpent.status, "spent");
@@ -301,12 +315,12 @@ class PaymentStreamClient {
   lightProvider: LightProvider;
 
   constructor(
-      idl: anchor.Idl,
-      poseidon: any,
-      circuitPath: string,
-      lightProvider: LightProvider,
-      streamInitUtxo?: Utxo,
-      latestStreamUtxo?: Utxo,
+    idl: anchor.Idl,
+    poseidon: any,
+    circuitPath: string,
+    lightProvider: LightProvider,
+    streamInitUtxo?: Utxo,
+    latestStreamUtxo?: Utxo,
   ) {
     this.idl = idl;
     this.streamInitUtxo = streamInitUtxo;
@@ -324,10 +338,10 @@ class PaymentStreamClient {
    * @param account
    */
   setupSolStream(
-      amount: BN,
-      timeInSlots: BN,
-      currentSlot: BN,
-      account: Account
+    amount: BN,
+    timeInSlots: BN,
+    currentSlot: BN,
+    account: Account,
   ) {
     if (this.streamInitUtxo)
       throw new Error("This stream client is already initialized");
@@ -348,7 +362,8 @@ class PaymentStreamClient {
       appDataIdl: this.idl,
       verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
       assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable: this.lightProvider.lookUpTables.verifierProgramLookupTable,
+      verifierProgramLookupTable:
+        this.lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     this.streamInitUtxo = streamInitUtxo;
@@ -359,7 +374,7 @@ class PaymentStreamClient {
   collectStream(currentSlot: BN, action: Action, merkleTree: MerkleTree) {
     if (!this.streamInitUtxo)
       throw new Error(
-          "Streaming client is not initialized with streamInitUtxo"
+        "Streaming client is not initialized with streamInitUtxo",
       );
     if (currentSlot.gte(this.streamInitUtxo?.appData.endSlot)) {
       const currentSlotPrivate = this.streamInitUtxo.appData.endSlot;
@@ -375,33 +390,31 @@ class PaymentStreamClient {
         },
         verifierIdl: IDL,
         path: this.circuitPath,
-        circuitName: "streamingPayments"
+        circuitName: "streamingPayments",
       };
 
       const index = merkleTree.indexOf(
-          this.latestStreamUtxo?.getCommitment(this.poseidon)
+        this.latestStreamUtxo?.getCommitment(this.poseidon),
       );
       this.latestStreamUtxo.index = index;
       const inUtxo = this.latestStreamUtxo;
       if (action === Action.TRANSFER) {
         const outUtxo = new Utxo({
           assets: inUtxo.assets,
-          amounts: [
-            inUtxo.amounts[0].sub(new BN(100_000)),
-            inUtxo.amounts[1],
-          ],
+          amounts: [inUtxo.amounts[0].sub(new BN(100_000)), inUtxo.amounts[1]],
           publicKey: inUtxo.publicKey,
           poseidon: this.poseidon,
           assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable: this.lightProvider.lookUpTables.verifierProgramLookupTable,
+          verifierProgramLookupTable:
+            this.lightProvider.lookUpTables.verifierProgramLookupTable,
         });
         return { programParameters, inUtxo, outUtxo, action };
       }
       return { programParameters, inUtxo, action };
     } else {
       const remainingAmount = this.streamInitUtxo.appData?.endSlot
-          .sub(currentSlot)
-          .mul(this.streamInitUtxo.appData?.rate);
+        .sub(currentSlot)
+        .mul(this.streamInitUtxo.appData?.rate);
       const programParameters: ProgramParameters = {
         inputs: {
           currentSlotPrivate: currentSlot,
@@ -414,7 +427,7 @@ class PaymentStreamClient {
         },
         verifierIdl: IDL,
         path: this.circuitPath,
-        circuitName: "streamingPayments"
+        circuitName: "streamingPayments",
       };
       const inUtxo = this.latestStreamUtxo;
       const outUtxo = new Utxo({
@@ -424,11 +437,10 @@ class PaymentStreamClient {
         amounts: [remainingAmount],
         appData: this.streamInitUtxo.appData,
         appDataIdl: this.idl,
-        verifierAddress: TransactionParameters.getVerifierProgramId(
-            this.idl
-        ),
+        verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
         assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable: this.lightProvider.lookUpTables.verifierProgramLookupTable,
+        verifierProgramLookupTable:
+          this.lightProvider.lookUpTables.verifierProgramLookupTable,
       });
       return { programParameters, outUtxo, inUtxo };
     }

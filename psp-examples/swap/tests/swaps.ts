@@ -11,7 +11,10 @@ import {
   FIELD_SIZE,
   Relayer,
   Account,
-  sendVersionedTransactions, STANDARD_SHIELDED_PUBLIC_KEY, BN_0, BN_1,
+  sendVersionedTransactions,
+  STANDARD_SHIELDED_PUBLIC_KEY,
+  BN_0,
+  BN_1,
 } from "@lightprotocol/zk.js";
 import {
   SystemProgram,
@@ -235,8 +238,7 @@ class Participant {
     const serializationObject = {
       ...this.swap.programUtxo,
       ...this.swap.programUtxo.appData,
-      accountEncryptionPublicKey:
-        this.swap.programUtxo.encryptionPublicKey,
+      accountEncryptionPublicKey: this.swap.programUtxo.encryptionPublicKey,
       accountShieldedPublicKey: this.swap.programUtxo.publicKey,
     };
     const utxoBytes = (
@@ -298,8 +300,7 @@ class Participant {
     const serializationObject = {
       ...this.swap.programUtxo,
       ...this.swap.programUtxo.appData,
-      accountEncryptionPublicKey:
-        this.swap.programUtxo.encryptionPublicKey,
+      accountEncryptionPublicKey: this.swap.programUtxo.encryptionPublicKey,
       accountShieldedPublicKey: this.swap.programUtxo.publicKey,
     };
     const utxoBytes = (
@@ -421,7 +422,7 @@ class Participant {
       assets: [SystemProgram.programId],
       publicKey: swapTakeParameters.userPubkey,
       encryptionPublicKey: new Uint8Array(
-          swapPdaAccountInfo.swap.swapTakerProgramUtxo.accountEncryptionPublicKey,
+        swapPdaAccountInfo.swap.swapTakerProgramUtxo.accountEncryptionPublicKey,
       ),
       amounts: [this.swap.swapParameters.amountFrom],
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,

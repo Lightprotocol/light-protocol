@@ -2,8 +2,8 @@
   "name": "@lightprotocol/encrypted-messaging",
   "version": "0.0.1",
   "scripts": {
-    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "format": "prettier --write \"tests/**/*.{ts,js}\" -w",
+    "lint": "prettier \"tests/**/*{ts,js}\" --check",
     "test": "../../cli/test_bin/run test-validator -b && pnpm ts-mocha ./tests/encrypted-messaging.ts -t 100000 --exit"
   },
   "dependencies": {
