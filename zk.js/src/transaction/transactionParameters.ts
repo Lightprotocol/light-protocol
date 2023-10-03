@@ -5,6 +5,8 @@ import { BN, BorshAccountsCoder, Program, Idl } from "@coral-xyz/anchor";
 import {
   AUTHORITY,
   N_ASSET_PUBKEYS,
+  STANDARD_SHIELDED_PRIVATE_KEY,
+  STANDARD_SHIELDED_PUBLIC_KEY,
   verifierProgramStorageProgramId,
 } from "../constants";
 import { Utxo } from "../utxo";
@@ -37,6 +39,7 @@ import {
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import nacl from "tweetnacl";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 type VerifierConfig = {
   in: number;
@@ -1098,10 +1101,26 @@ export class TransactionParameters implements transactionParameters {
       const relayerFee = new Uint8Array(
         this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
       );
-
+      
       let nullifiersHasher = sha256.create();
       this.inputUtxos.forEach((x) => {
-        const nullifier = x.getNullifier({ poseidon, account: this.account });
+        // const nullifier = x.getNullifier({ poseidon, account: this.account });
+        // const nullifier = this.params.inputUtxos.map((x) => {
+          
+        // });
+        let _account = this.account;
+        if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
+          _account = Account.fromPrivkey(
+            poseidon,
+            bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+            bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+            bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+          );
+        }
+        const nullifier = x.getNullifier({
+          poseidon: poseidon,
+          account: _account,
+        });
         if (nullifier) {
           let nullifierBytes = new anchor.BN(nullifier).toArray("be", 32);
           nullifiersHasher.update(new Uint8Array(nullifierBytes));
