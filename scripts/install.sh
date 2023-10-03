@@ -106,6 +106,7 @@ check_flag() {
 }
 
 NODE_VERSION="16.20.1"
+PNPM_VERSION="8.8.0"
 SOLANA_VERSION="1.16.13"
 ANCHOR_VERSION=`latest_release Lightprotocol anchor`
 CIRCOM_VERSION=`latest_release Lightprotocol circom`
@@ -127,11 +128,13 @@ case "${OS}" in
                 ARCH_SUFFIX_SOLANA="x86_64-apple-darwin"
                 ARCH_SUFFIX_LP="macos-amd64"
                 ARCH_SUFFIX_NODE="darwin-x64"
+                ARCH_SUFFIX_PNPM="macos-x64"
                 ;;
             "aarch64"|"arm64")
                 ARCH_SUFFIX_SOLANA="aarch64-apple-darwin"
                 ARCH_SUFFIX_LP="macos-arm64"
                 ARCH_SUFFIX_NODE="darwin-arm64"
+                ARCH_SUFFIX_PNPM="macos-arm64"
                 ;;
             "*")
                 echo "Architecture ${ARCH} on operating system ${OS} is not supported."
@@ -145,11 +148,13 @@ case "${OS}" in
                 ARCH_SUFFIX_SOLANA="x86_64-unknown-linux-gnu"
                 ARCH_SUFFIX_LP="linux-amd64"
                 ARCH_SUFFIX_NODE="linux-x64"
+                ARCH_SUFFIX_PNPM="linuxstatic-x64"
                 ;;
             "aarch64"|"arch64"|"arm64")
                 ARCH_SUFFIX_SOLANA="aarch64-unknown-linux-gnu"
                 ARCH_SUFFIX_LP="linux-arm64"
                 ARCH_SUFFIX_NODE="linux-arm64"
+                ARCH_SUFFIX_PNPM="linuxstatic-arm64"
                 ;;
             "*")
                 echo "Architecture ${ARCH} on operating system ${OS} is not supported."
@@ -190,6 +195,15 @@ NPM_DIR="${PREFIX}/npm-global"
 mkdir -p "${NPM_DIR}"
 export PATH="${PREFIX}/bin:${NPM_DIR}/bin:${PATH}"
 export NPM_CONFIG_PREFIX="${NPM_DIR}"
+
+echo "📥 Downloading pnpm"
+download_file_github \
+    pnpm \
+    pnpm \
+    "v${PNPM_VERSION}" \
+    "pnpm-${ARCH_SUFFIX_PNPM}" \
+    pnpm \
+    "${PREFIX}/bin"
 
 echo "📥 Downloading Solana toolchain"
 download_and_extract_github \
