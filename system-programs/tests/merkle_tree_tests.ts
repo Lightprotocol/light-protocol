@@ -131,9 +131,9 @@ describe("Merkle Tree Tests", () => {
     )[0];
     let merkleTreeConfig = new MerkleTreeConfig({
       payer: ADMIN_AUTH_KEYPAIR,
-      connection: provider.connection,
+      anchorProvider: provider,
     });
-    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.getMerkleTreeAuthorityPda();
 
     let error;
 
@@ -143,7 +143,7 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.getMerkleTreeAuthorityPda();
     console.log(error);
 
     assert.isTrue(
@@ -741,7 +741,7 @@ describe("Merkle Tree Tests", () => {
     ) {
       let merkleTreeConfig = new MerkleTreeConfig({
         payer: ADMIN_AUTH_KEYPAIR,
-        connection: provider.connection,
+        anchorProvider: provider,
       });
       await merkleTreeConfig.initializeNewMerkleTrees();
       console.log("created new merkle tree");

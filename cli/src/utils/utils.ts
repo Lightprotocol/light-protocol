@@ -35,15 +35,15 @@ export const createNewWallet = () => {
 };
 
 export const getWalletConfig = async (
-  connection: solana.Connection
+  anchorProvider: anchor.AnchorProvider
 ): Promise<MerkleTreeConfig> => {
   try {
     let merkleTreeConfig = new MerkleTreeConfig({
       payer: getPayer(),
-      connection,
+      anchorProvider: anchorProvider,
     });
 
-    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.getMerkleTreeAuthorityPda();
 
     return merkleTreeConfig;
   } catch (error) {
@@ -74,6 +74,7 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   );
 
   anchor.setProvider(anchorProvider);
+
   return anchorProvider;
 };
 

@@ -7,8 +7,8 @@ class GetCommand extends Command {
   static examples = ["light merkle-tree-authority:get"];
 
   async run() {
-    const { connection } = await setAnchorProvider();
-    let merkleTreeConfig = await getWalletConfig(connection);
+    const anchorProvider = await setAnchorProvider();
+    let merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     if (!(await merkleTreeConfig.isMerkleTreeAuthorityInitialized())) {
       this.logToStderr("Merkle Tree Authority is not initialized");
