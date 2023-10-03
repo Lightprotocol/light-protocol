@@ -27,11 +27,15 @@ runs:
         path: .local
         key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
 
-    - uses: pnpm/action-setup@v2
-      name: Install pnpm
-      with:
-        version: 8
-        run_install: false
+    - name: Install dependencies
+      shell: bash
+      run: |
+        if [[ "${{ inputs.enable_redis }}" == "true" ]]; then
+          ./scripts/install.sh --enable-redis
+        else
+          ./scripts/install.sh
+        fi
+        source ./scripts/devenv.sh
 
     - name: Get pnpm store directory
       shell: bash
@@ -45,17 +49,6 @@ runs:
         key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
-
-    - name: Install dependencies
-      shell: bash
-      run: |
-        pnpm install        
-        if [[ "${{ inputs.enable_redis }}" == "true" ]]; then
-          ./scripts/install.sh --enable-redis
-        else
-          ./scripts/install.sh
-        fi
-        source ./scripts/devenv.sh
 
     - name: Build and prepare for tests
       shell: bash
