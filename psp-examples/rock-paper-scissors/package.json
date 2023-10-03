@@ -1,14 +1,16 @@
 {
+  "name": "@lightprotocol/rock-paper-scissors",
+  "version": "0.0.1",
   "scripts": {
-    "lint:fix": "yarn prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "yarn prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "test": "../../cli/test_bin/run psp:test rock-paper-scissors Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
     "build": "../../cli/test_bin/run psp:build rock-paper-scissors"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0",
-    "@lightprotocol/zk.js": "file:../../zk.js",
-    "@lightprotocol/circuit-lib.circom": "file:../../circuit-lib/circuit-lib.circom",
+    "@lightprotocol/zk.js": "workspace:*",
+    "@lightprotocol/circuit-lib.circom": "workspace:*",
     "@project-serum/anchor": "^0.26.0",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7"

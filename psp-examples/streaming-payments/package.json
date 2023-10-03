@@ -1,15 +1,17 @@
 {
+    "name": "@lightprotocol/streaming-payments",
+    "version": "0.0.1",
     "scripts": {
         "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
         "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-        "test": "../../cli/test_bin/run  psp:test streaming-payments Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
-        "build": "../../cli/test_bin/run  psp:build streaming-payments --ptau=15"
+        "test": "../../cli/test_bin/run psp:test streaming-payments Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+        "build": "../../cli/test_bin/run psp:build streaming-payments --ptau=15"
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.28.0",
-        "@lightprotocol/zk.js": "file:../../zk.js",
-        "@lightprotocol/circuit-lib.circom": "file:../../circuit-lib/circuit-lib.circom",
-        "@lightprotocol/circuit-lib.js": "file:../../circuit-lib/circuit-lib.js",
+        "@lightprotocol/zk.js": "workspace:*",
+        "@lightprotocol/circuit-lib.circom": "workspace:*",
+        "@lightprotocol/circuit-lib.js": "workspace:*",
         "circomlib": "^2.0.5",
         "circomlibjs": "^0.1.7"
     },

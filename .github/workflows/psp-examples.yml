@@ -19,12 +19,12 @@ jobs:
     strategy:
       matrix:
         psp: [
-          "encrypted-messaging",
-          "private-compressed-account",
-          "private-payments",
-          "rock-paper-scissors",
-          "streaming-payments",
-          "swap"
+          "@lightprotocol/encrypted-messaging",
+          "@lightprotocol/private-compressed-account",
+          "@lightprotocol/private-payments",
+          "@lightprotocol/rock-paper-scissors",
+          "@lightprotocol/streaming-payments",
+          "@lightprotocol/swap"
         ]
 
     steps:
@@ -39,5 +39,4 @@ jobs:
       - name: ${{ matrix.psp }}
         run: |
           source ./scripts/devenv.sh
-          cd psp-examples
-          make ${{ matrix.psp }}
+          npx nx test ${{ matrix.psp }}

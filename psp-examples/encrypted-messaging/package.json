@@ -1,12 +1,14 @@
 {
+  "name": "@lightprotocol/encrypted-messaging",
+  "version": "0.0.1",
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-    "test": "../../cli/test_bin/run test-validator -b && yarn ts-mocha ./tests/encrypted-messaging.ts -t 100000 --exit"
+    "test": "../../cli/test_bin/run test-validator -b && pnpm ts-mocha ./tests/encrypted-messaging.ts -t 100000 --exit"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0",
-    "@lightprotocol/zk.js": "file:../../zk.js",
+    "@lightprotocol/zk.js": "workspace:*",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7"
   },
