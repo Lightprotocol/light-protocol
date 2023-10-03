@@ -544,20 +544,7 @@ impl<
             return err!(VerifierSdkError::ProofNotVerified);
         }
 
-        let transaction_merkle_tree_ix = NR_NULLIFIERS + self.input.leaves.len();
-        let transaction_merkle_tree =
-            if self.input.ctx.remaining_accounts.len() == transaction_merkle_tree_ix + 1 {
-                let transaction_merkle_tree =
-                    self.input.ctx.remaining_accounts[transaction_merkle_tree_ix].to_account_info();
-                self.validate_transaction_merkle_tree(&transaction_merkle_tree)?;
-                transaction_merkle_tree
-            } else {
-                self.input
-                    .ctx
-                    .accounts
-                    .get_transaction_merkle_tree()
-                    .to_account_info()
-            };
+        let transaction_merkle_tree = self.get_transaction_merkle_tree()?;
 
         // check merkle tree
         for (i, leaves) in self.input.leaves.iter().enumerate() {
@@ -599,6 +586,38 @@ impl<
 
         self.inserted_leaves = true;
         Ok(())
+    }
+
+    /// Returns a Transaction Merkle Tree which should be used for the current
+    /// transaction. It might be either:
+    ///
+    /// * Transaction Merkle Tree provided in the context.
+    /// * A new Transaction Merkle Tree provided as a remaining account, which
+    ///   usually is the case when we reached the switch threshold (255_000).
+    ///   We pass a new Transaction Merkle Tree as remaining account, because
+    ///   Anchor does not support passing two accounts of the same type in the
+    ///   same instruction. We need a second Transacton Merkle Tree account for
+    ///   the UTXOs we want to spend in the transaction are in the old
+    ///   Transaction Merkle Tree. Since the old Merkle Tree is almost full we
+    ///   need to insert the new utxo commitments into the new Transaction
+    ///   Merkle Tree.
+    fn get_transaction_merkle_tree(&self) -> Result<AccountInfo<'info>> {
+        // Index of a new Transaction Merkle Tree in remaining accounts.
+        let index = NR_NULLIFIERS + self.input.leaves.len();
+
+        match self.input.ctx.remaining_accounts.get(index) {
+            Some(transaction_merkle_tree) => {
+                let transaction_merkle_tree = transaction_merkle_tree.to_account_info();
+                self.validate_transaction_merkle_tree(&transaction_merkle_tree)?;
+                Ok(transaction_merkle_tree)
+            }
+            None => Ok(self
+                .input
+                .ctx
+                .accounts
+                .get_transaction_merkle_tree()
+                .to_account_info()),
+        }
     }
 
     fn validate_transaction_merkle_tree(
