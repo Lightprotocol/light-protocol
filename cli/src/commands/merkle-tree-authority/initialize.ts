@@ -14,10 +14,10 @@ class InitializeCommand extends Command {
     const loader = new CustomLoader("Initializing Merkle Tree Authority");
     loader.start();
 
-    const { connection } = await setAnchorProvider();
-    let merkleTreeConfig = await getWalletConfig(connection);
+    const anchorProvider = await setAnchorProvider();
+    let merkleTreeConfig = await getWalletConfig(anchorProvider);
 
-    const accountInfo = await connection.getAccountInfo(
+    const accountInfo = await anchorProvider.connection.getAccountInfo(
       merkleTreeConfig.getMerkleTreeAuthorityPda()
     );
     if (accountInfo && accountInfo.data.length > 0) {

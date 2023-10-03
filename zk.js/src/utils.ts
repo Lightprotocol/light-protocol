@@ -48,16 +48,16 @@ export function hashAndTruncateToCircuit(data: Uint8Array) {
 
 // TODO: add pooltype
 export async function getAssetLookUpId({
-  connection,
+  anchorProvider,
   asset,
 }: {
   asset: PublicKey;
-  connection: Connection;
+  anchorProvider: anchor.AnchorProvider;
   // poolType?: Uint8Array
 }): Promise<any> {
   let poolType = new Array(32).fill(0);
   let mtConf = new MerkleTreeConfig({
-    connection,
+    anchorProvider,
   });
   let pubkey = await mtConf.getSplPoolPda(asset, poolType);
 

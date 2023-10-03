@@ -21,8 +21,8 @@ class RegisterSolCommand extends Command {
     const { args } = await this.parse(RegisterSolCommand);
     const poolType = new BN(args.poolType);
 
-    const { connection } = await setAnchorProvider();
-    let merkleTreeConfig = await getWalletConfig(connection);
+    const anchorProvider = await setAnchorProvider();
+    let merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     await merkleTreeConfig.registerSolPool([
       ...poolType.toArrayLike(Buffer, "be", 32),

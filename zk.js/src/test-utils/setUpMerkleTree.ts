@@ -27,18 +27,18 @@ export async function setUpMerkleTree(
 ) {
   let merkleTreeConfig = new MerkleTreeConfig({
     payer: ADMIN_AUTH_KEYPAIR,
-    connection: provider.connection,
+    anchorProvider: provider,
   });
-  console.log(await merkleTreeConfig.getMerkleTreeAuthorityPda());
+  console.log(merkleTreeConfig.getMerkleTreeAuthorityPda());
   console.log(
     await provider.connection.getAccountInfo(
-      await merkleTreeConfig.getMerkleTreeAuthorityPda(),
+      merkleTreeConfig.getMerkleTreeAuthorityPda(),
     ),
   );
 
   if (
     (await provider.connection.getAccountInfo(
-      await merkleTreeConfig.getMerkleTreeAuthorityPda(),
+      merkleTreeConfig.getMerkleTreeAuthorityPda(),
     )) == null
   ) {
     await merkleTreeConfig.initMerkleTreeAuthority();

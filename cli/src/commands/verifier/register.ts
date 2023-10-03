@@ -22,8 +22,8 @@ class VerifierRegisterCommand extends Command {
     const { args } = await this.parse(VerifierRegisterCommand);
     const { verifier } = args;
 
-    const { connection } = await setAnchorProvider();
-    const merkleTreeConfig = await getWalletConfig(connection);
+    const anchorProvider = await setAnchorProvider();
+    const merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     const verifierKey = new PublicKey(verifier);
 
