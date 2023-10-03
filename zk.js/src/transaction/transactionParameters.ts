@@ -35,6 +35,7 @@ import {
   AppUtxoConfig,
   createOutUtxos,
   BN_0,
+  truncateToCircuit,
 } from "../index";
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
@@ -1177,7 +1178,7 @@ export class TransactionParameters implements transactionParameters {
         .update(relayerFee)
         .update(this.encryptedUtxos)
         .digest();
-      this.txIntegrityHash = new anchor.BN(hash).mod(FIELD_SIZE);
+      this.txIntegrityHash = truncateToCircuit(hash);
 
       return this.txIntegrityHash;
     } else {
