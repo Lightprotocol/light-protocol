@@ -1101,12 +1101,12 @@ export class TransactionParameters implements transactionParameters {
       const relayerFee = new Uint8Array(
         this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
       );
-      
+
       let nullifiersHasher = sha256.create();
       this.inputUtxos.forEach((x) => {
         // const nullifier = x.getNullifier({ poseidon, account: this.account });
         // const nullifier = this.params.inputUtxos.map((x) => {
-          
+
         // });
         let _account = this.account;
         if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
