@@ -1,8 +1,9 @@
-import { execSync } from "child_process";
-import { toCamelCase, camelToScreamingSnake } from "@lightprotocol/zk.js";
-var ffjavascript = require("ffjavascript");
+import {execSync} from "child_process";
+import {camelToScreamingSnake} from "./convertCase";
+
+const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
-var fs = require("fs");
+const fs = require("fs");
 const snarkjs = require("snarkjs");
 
 // type array of circuit inputs properties
@@ -45,7 +46,7 @@ async function getProofInputsFromSymFile(
       return acc;
     }, []);
 
-    const filteredArr = uniqueArr.reduce((acc: PropertiesObject[], cur) => {
+    return uniqueArr.reduce((acc: PropertiesObject[], cur) => {
       const idx = acc.findIndex(
         (obj: PropertiesObject) => obj.inputName === cur.inputName
       );
@@ -55,8 +56,6 @@ async function getProofInputsFromSymFile(
       }
       return acc;
     }, []);
-
-    return filteredArr;
   }
 
   // filter signal names from the sym file
@@ -165,9 +164,9 @@ async function createVerifyingKeyRsFile(
       if (err) {
         return console.error(err);
       }
-      var mydata = JSON.parse(fd.toString());
+      const mydata = JSON.parse(fd.toString());
 
-      for (let i in mydata) {
+      for (const i in mydata) {
         if (i == "vk_alpha_1") {
           for (let j in mydata[i]) {
             mydata[i][j] = leInt2Buff(
@@ -188,7 +187,7 @@ async function createVerifyingKeyRsFile(
             mydata[i][j][1] = tmp.slice(32, 64);
           }
         } else if (i == "vk_gamma_2") {
-          for (var j in mydata[i]) {
+          for (const j in mydata[i]) {
             let tmp = Array.from(
               leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
             )
@@ -200,7 +199,7 @@ async function createVerifyingKeyRsFile(
             mydata[i][j][1] = tmp.slice(32, 64);
           }
         } else if (i == "vk_delta_2") {
-          for (var j in mydata[i]) {
+          for (const j in mydata[i]) {
             let tmp = Array.from(
               leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
             )
@@ -212,9 +211,9 @@ async function createVerifyingKeyRsFile(
             mydata[i][j][1] = tmp.slice(32, 64);
           }
         } else if (i == "vk_alphabeta_12") {
-          for (var j in mydata[i]) {
-            for (var z in mydata[i][j]) {
-              for (var u in mydata[i][j][z]) {
+          for (const j in mydata[i]) {
+            for (const z in mydata[i][j]) {
+              for (const u in mydata[i][j][z]) {
                 mydata[i][j][z][u] = leInt2Buff(
                   unstringifyBigInts(mydata[i][j][z][u])
                 );
@@ -304,18 +303,17 @@ export async function createVerifyingkeyRsFileArgv() {
   let vKeyJsonPath: string;
   let vKeyRsPath: string;
   let circuitName: string;
-  let artifactPath: string;
+  let artifactPath: string = "";
   if (nrInputs == "app") {
     program = `${process.argv[3]}`;
     vKeyJsonPath = "./verifyingkey.json";
     vKeyRsPath = "./programs/" + program + "/src/verifying_key.rs";
     circuitName = process.argv[4] ? `${process.argv[4]}` : "appTransaction";
-    artifactPath = "./sdk/build-circuit/" + toCamelCase(circuitName);
   } else {
     if (nrInputs == "2") {
       program = "verifier_program_zero";
-      var program_storage = "verifier_program_storage";
-      var vKeyRsPath_storage =
+      const program_storage = "verifier_program_storage";
+      const vKeyRsPath_storage =
         "../../system-programs/programs/" +
         program_storage +
         "/src/verifying_key.rs";
