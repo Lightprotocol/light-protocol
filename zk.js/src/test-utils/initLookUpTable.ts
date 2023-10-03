@@ -1,4 +1,4 @@
-import { Program, Provider } from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
 import {
   PublicKey,
   AddressLookupTableProgram,
@@ -75,7 +75,7 @@ export async function initLookUpTableFromFile(
 }
 
 export async function initLookUpTableTest(
-  provider: Provider,
+  provider: anchor.AnchorProvider,
   lookupTableAddress: PublicKey,
   recentSlot: number,
   extraAccounts: Array<PublicKey> = [],
@@ -99,6 +99,7 @@ export async function initLookUpTableTest(
     const verifierProgramZero: Program<VerifierProgramZero> = new Program(
       IDL_VERIFIER_PROGRAM_ZERO,
       verifierProgramZeroProgramId,
+      provider,
     );
     let escrows = (
       await PublicKey.findProgramAddress(
