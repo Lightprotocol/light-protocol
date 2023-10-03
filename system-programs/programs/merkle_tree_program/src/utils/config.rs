@@ -4,10 +4,12 @@ use anchor_lang::constant;
 pub const ENCRYPTED_UTXOS_LENGTH: usize = 174;
 #[constant]
 pub const MERKLE_TREE_TMP_PDA_SIZE: usize = 2048;
+
 #[constant]
 pub const MERKLE_TREE_HISTORY_SIZE: u64 = 256;
+
 #[constant]
-pub const MERKLE_TREE_HEIGHT: u64 = 18;
+pub const MERKLE_TREE_HEIGHT: usize = 18;
 
 #[constant]
 pub const INITIAL_MERKLE_TREE_AUTHORITY: [u8; 32] = [

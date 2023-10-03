@@ -23,7 +23,9 @@ export type MerkleTreeProgram = {
     },
     {
       "name": "MERKLE_TREE_HEIGHT",
-      "type": "u64",
+      "type": {
+        "defined": "usize"
+      },
       "value": "18"
     },
     {
@@ -150,13 +152,6 @@ export type MerkleTreeProgram = {
       "name": "TRANSACTION_MERKLE_TREE_SEED",
       "type": "bytes",
       "value": "[116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
-    },
-    {
-      "name": "EVENT_MERKLE_TREE_HEIGHT",
-      "type": {
-        "defined": "usize"
-      },
-      "value": "18"
     }
   ],
   "instructions": [
@@ -1528,7 +1523,9 @@ export const IDL: MerkleTreeProgram = {
     },
     {
       "name": "MERKLE_TREE_HEIGHT",
-      "type": "u64",
+      "type": {
+        "defined": "usize"
+      },
       "value": "18"
     },
     {
@@ -1655,13 +1652,6 @@ export const IDL: MerkleTreeProgram = {
       "name": "TRANSACTION_MERKLE_TREE_SEED",
       "type": "bytes",
       "value": "[116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
-    },
-    {
-      "name": "EVENT_MERKLE_TREE_HEIGHT",
-      "type": {
-        "defined": "usize"
-      },
-      "value": "18"
     }
   ],
   "instructions": [

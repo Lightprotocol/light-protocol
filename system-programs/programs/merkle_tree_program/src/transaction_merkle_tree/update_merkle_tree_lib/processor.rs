@@ -24,7 +24,7 @@ pub fn compute_updated_merkle_tree(
     } else if id == HASH_2 {
         poseidon_2(merkle_tree_update_state_data)?;
         // Updating the current level hash after a new hash is completely computed.
-        if merkle_tree_update_state_data.current_level < MERKLE_TREE_HEIGHT {
+        if merkle_tree_update_state_data.current_level < MERKLE_TREE_HEIGHT as u64 {
             insert_1_inner_loop(merkle_tree_pda_data, merkle_tree_update_state_data)?;
         }
     } else if id == MERKLE_TREE_UPDATE_START {
