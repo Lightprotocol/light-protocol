@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true
+  },
+  "extends": "./tsconfig",
+  "include": [
+    "./src/**/*.ts",
+    "./tests/**/*.ts"
+  ]
+}

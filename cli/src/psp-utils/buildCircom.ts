@@ -1,4 +1,3 @@
-import { createVerifyingkeyRsFile } from "./index";
 import * as fs from "fs";
 import * as path from "path";
 import { randomBytes } from "tweetnacl";
@@ -6,7 +5,7 @@ import { utils } from "@coral-xyz/anchor";
 import { downloadFile } from "./download";
 import { executeCommand } from "./process";
 import { executeCircom } from "./toolchain";
-import { toSnakeCase } from "@lightprotocol/zk.js";
+import { toSnakeCase, createVerifyingkeyRsFile } from "@lightprotocol/zk.js";
 
 /**
  * Generates a zk-SNARK circuit given a circuit name.
@@ -69,7 +68,7 @@ export async function generateCircuit({
   });
 
   await executeCommand({
-    command: "yarn",
+    command: "pnpm",
     args: [
       "snarkjs",
       "groth16",
@@ -87,7 +86,7 @@ export async function generateCircuit({
     fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
   } catch (_) {}
   await executeCommand({
-    command: "yarn",
+    command: "pnpm",
     args: [
       "snarkjs",
       "zkey",
@@ -99,7 +98,7 @@ export async function generateCircuit({
   });
 
   await executeCommand({
-    command: "yarn",
+    command: "pnpm",
     args: [
       "snarkjs",
       "zkey",
@@ -121,7 +120,7 @@ export async function generateCircuit({
   } catch (_) {}
   while (!fs.existsSync(vKeyJsonPath)) {
     await executeCommand({
-      command: "yarn",
+      command: "pnpm",
       args: [
         "snarkjs",
         "zkey",

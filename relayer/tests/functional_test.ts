@@ -28,11 +28,11 @@ import {
   Relayer,
   RELAYER_FEE,
   TOKEN_ACCOUNT_FEE,
-  circuitlibjs,
 } from "@lightprotocol/zk.js";
-const { MerkleTree } = circuitlibjs;
 
-let circomlibjs = require("circomlibjs");
+import { MerkleTree } from "@lightprotocol/circuit-lib.js";
+const circomlibjs = require("circomlibjs");
+const { buildPoseidonOpt } = circomlibjs;
 import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
@@ -63,7 +63,7 @@ describe("API tests", () => {
       "http://127.0.0.1:8899",
       confirmConfig,
     );
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await buildPoseidonOpt();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 9e8,

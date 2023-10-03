@@ -22,8 +22,8 @@ The server combines relaying transactions and indexing of past transactions.
 Starts a local test validator, redis data base and relayer.
 
 ```
-yarn build
-yarn start-local
+pnpm build
+pnpm start-local
 ```
 
 ### testnet
@@ -31,8 +31,8 @@ yarn start-local
 Adjust .env file with correct rpc url (not tested yet)
 
 ```
-yarn build
-yarn start
+pnpm build
+pnpm start
 ```
 
 ## Test
@@ -40,6 +40,6 @@ yarn start
 - make sure you installed the dev environment with the true flag to install redis
 
 ```
-yarn build
-yarn test
+pnpm build
+pnpm test
 ```

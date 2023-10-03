@@ -7,10 +7,11 @@
   "typings": "lib/index",
   "scripts": {
     "test-prepare-circom": "./scripts/build_test_circuit.sh",
-    "test": "yarn test-prepare-circom && ts-mocha --timeout 500000 tests/*.test.ts",
-    "build": "yarn tsc",    
+    "test": "pnpm test-prepare-circom && ts-mocha --timeout 500000 tests/*.test.ts",
+    "build": "pnpm tsc",    
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier \"src/**/*{ts,js}\" --check"
+    "lint": "prettier \"src/**/*{ts,js}\" --check",
+    "preinstall": "npx only-allow pnpm"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0",

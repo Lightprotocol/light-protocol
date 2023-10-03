@@ -8,11 +8,11 @@ prover.js offers swift access to circom circuits' inputs that makes implementing
 
 ## Install
 
-`yarn install` to install the dependencies.
+`pnpm install` to install the dependencies.
 
 ## Test
 
-`yarn test` to run prover class test.
+`pnpm test` to run prover class test.
 
 ## Example
 

@@ -42,9 +42,9 @@ jobs:
           for subtest in "${sub_tests[@]}"
           do
             cd $subtest
-            yarn test
+            pnpm test
             if [[ "$subtest" == "circuit-lib/circuit-lib.circom" ]]; then
-              yarn test-build-light-circuits
+              pnpm test-build-light-circuits
             fi
             cd -
           done
