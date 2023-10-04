@@ -10,31 +10,32 @@ on:
       - synchronize
       - ready_for_review
       - reopened
-
-name: tests
-
+name: psp-examples
 jobs:
-  tests:
-    name: tests
+  psp-examples:
+    name: psp-examples
     if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
+    strategy:
+      matrix:
+        psp: [
+          "@lightprotocol/encrypted-messaging",
+          "@lightprotocol/private-payments",
+          "@lightprotocol/rock-paper-scissors",
+          "@lightprotocol/streaming-payments",
+          "@lightprotocol/swap"
+        ]
+
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: '0'
+        uses: actions/checkout@v3
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
           enable_redis: "true"
 
-      - name: run lint
+      - name: ${{ matrix.psp }}
         run: |
           source ./scripts/devenv.sh
-          ./scripts/lint.sh
-
-      - name: run tests
-        run: |
-          source ./scripts/devenv.sh
-          ./scripts/test.sh
+          npx nx test ${{ matrix.psp }}

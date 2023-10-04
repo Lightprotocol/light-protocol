@@ -1,0 +1,53 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "zk.js/**"
+      - "system-programs/**"
+      - "light-circuits/**"
+      - ".github/workflows/system-programs-tests.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "zk.js/**"
+      - "system-programs/**"
+      - "light-circuits/**"
+      - ".github/workflows/system-programs-tests.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: system-programs-tests
+
+jobs:
+  system-programs:
+    name: system-programs
+    if: github.event.pull_request.draft == false
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    strategy:
+      matrix:
+        include:
+          - test: system-programs-tests-transaction-user-verifiers-merkle-tree-provider
+            sub-tests: '["functional", "user", "verifiers", "merkle-tree", "provider"]'
+          - test: system-programs-tests-user-merge
+            sub-tests: '["user-merge"]'
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: ${{ matrix.test }}
+        run: |
+          source ./scripts/devenv.sh
+          cd system-programs
+          IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+          for subtest in "${sub_tests[@]}"
+          do
+            pnpm test-$subtest
+          done

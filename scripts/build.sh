@@ -4,4 +4,4 @@ source "./scripts/devenv.sh"
 set -eux
 
 pnpm install
-npx nx affected --target=build
+npx nx run-many --target=build --all
