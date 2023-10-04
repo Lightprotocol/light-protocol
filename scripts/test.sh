@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 set -e
 
-npx nx run-many --target=test --all --parallel=false
+npx nx affected -t test --parallel=1

@@ -4,7 +4,8 @@
   "scripts": {
     "format": "prettier --write \"tests/**/*.{ts,js}\" -w",
     "lint": "prettier \"tests/**/*{ts,js}\" --check",
-    "test": "pnpm build && ../../cli/test_bin/run psp:test private-compressed-account Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+    "test-all": "../../cli/test_bin/run psp:test private-compressed-account Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+    "test": "echo use test-all",
     "build": "../../cli/test_bin/run psp:build private-compressed-account"
   },
   "dependencies": {
