@@ -264,6 +264,64 @@ describe("Transaction Functional Tests", () => {
     });
   });
 
+  it("getMerkleProof", async () => {
+    let merkleProofsDeposit = lightProvider.solMerkleTree!.getMerkleProofs(
+        lightProvider.poseidon,
+        paramsDeposit.inputUtxos,
+    );
+    assert.equal(
+        merkleProofsDeposit.inputMerklePathIndices.toString(),
+        new Array(2).fill("0").toString(),
+    );
+    assert.equal(
+        merkleProofsDeposit.inputMerklePathElements[0].toString(),
+        new Array(18).fill("0").toString(),
+    );
+    assert.equal(
+        merkleProofsDeposit.inputMerklePathElements[1].toString(),
+        new Array(18).fill("0").toString(),
+    );
+
+    let merkleProofsWithdrawal = lightProvider.solMerkleTree!.getMerkleProofs(
+        lightProvider.poseidon,
+        paramsWithdrawal.inputUtxos,
+    );
+    assert.equal(
+        merkleProofsWithdrawal.inputMerklePathIndices.toString(),
+        new Array(2).fill("0").toString(),
+    );
+
+    const constElements = [
+      "14522046728041339886521211779101644712859239303505368468566383402165481390632",
+      "12399300409582020702502593817695692114365413884629119646752088755594619792099",
+      "8395588225108361090185968542078819429341401311717556516132539162074718138649",
+      "4057071915828907980454096850543815456027107468656377022048087951790606859731",
+      "3743829818366380567407337724304774110038336483209304727156632173911629434824",
+      "3362607757998999405075010522526038738464692355542244039606578632265293250219",
+      "20015677184605935901566129770286979413240288709932102066659093803039610261051",
+      "10225829025262222227965488453946459886073285580405166440845039886823254154094",
+      "5686141661288164258066217031114275192545956158151639326748108608664284882706",
+      "13358779464535584487091704300380764321480804571869571342660527049603988848871",
+      "20788849673815300643597200320095485951460468959391698802255261673230371848899",
+      "18755746780925592439082197927133359790105305834996978755923950077317381403267",
+      "10861549147121384785495888967464291400837754556942768811917754795517438910238",
+      "7537538922575546318235739307792157434585071385790082150452199061048979169447",
+      "19170203992070410766412159884086833170469632707946611516547317398966021022253",
+      "9623414539891033920851862231973763647444234218922568879041788217598068601671",
+      "3060533073600086539557684568063736193011911125938770961176821146879145827363",
+      "138878455357257924790066769656582592677416924479878379980482552822708744793",
+    ];
+    assert.equal(
+        merkleProofsWithdrawal.inputMerklePathElements[0].toString(),
+        constElements.toString(),
+    );
+
+    assert.equal(
+        merkleProofsWithdrawal.inputMerklePathElements[1].toString(),
+        new Array(18).fill("0").toString(),
+    );
+  });
+
   it("Functional ", async () => {
     let tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
@@ -378,8 +436,8 @@ describe("Transaction Functional Tests", () => {
       "5933194464001103981860458884656917415381806542379509455129642519383560866951",
     );
   });
-
-  it("getMerkleProof", async () => {
+  
+it("getMerkleProof", async () => {
     let merkleProofsShield = lightProvider.solMerkleTree!.getMerkleProofs(
       lightProvider.poseidon,
       paramsShield.inputUtxos,
@@ -436,7 +494,6 @@ describe("Transaction Functional Tests", () => {
       new Array(18).fill("0").toString(),
     );
   });
-
   it("getPdaAddresses", async () => {
     const relayerConst = new Relayer(AUTHORITY, AUTHORITY, new BN(5000));
     const paramsStaticEncryptedUtxos = new TransactionParameters({

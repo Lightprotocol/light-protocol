@@ -625,7 +625,7 @@ export class Account {
    * Encrypts bytes to a public key.
    * @static
    * @param publicKey - The public key to encrypt to.
-   * @param message - The message to be encrypted.
+   * @param messageBytes - The message to be encrypted.
    * @param signerSecretKey - Optional signing secret key.
    * @param returnWithoutSigner - Optional flag to return without signer.
    * @param nonce - Optional nonce, generates random if undefined.
