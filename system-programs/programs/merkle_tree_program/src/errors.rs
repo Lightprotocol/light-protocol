@@ -16,8 +16,8 @@ pub enum ErrorCode {
     PubkeyCheckFailed,
     #[msg("CloseAccountFailed")]
     CloseAccountFailed,
-    #[msg("WithdrawalFailed")]
-    WithdrawalFailed,
+    #[msg("UnshieldFailed")]
+    UnshieldFailed,
     #[msg("MerkleTreeUpdateNotInRootInsert")]
     MerkleTreeUpdateNotInRootInsert,
     #[msg("MerkleTreeUpdateNotInRootInsert")]

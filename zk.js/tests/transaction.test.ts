@@ -39,14 +39,14 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Transaction Error Tests", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  let shieldAmount = 20_000;
+  let shieldFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let mockPubkey2 = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1: Utxo,
+    shieldUtxo1: Utxo,
     account: Account,
     params: TransactionParameters,
     rootIndex: BN,
@@ -56,17 +56,17 @@ describe("Transaction Error Tests", () => {
     // TODO: make fee mandatory
     account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
-    deposit_utxo1 = new Utxo({
+    shieldUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     params = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
+      outputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
@@ -194,38 +194,38 @@ describe("Transaction Error Tests", () => {
 
 describe("Transaction Functional Tests", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  let shieldAmount = 20_000;
+  let shieldFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let mockPubkey2 = SolanaKeypair.generate().publicKey;
   let mockPubkey3 = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1: Utxo,
+    shieldUtxo1: Utxo,
     relayer: Relayer,
     account: Account,
-    paramsDeposit: TransactionParameters,
-    paramsWithdrawal: TransactionParameters;
+    paramsShield: TransactionParameters,
+    paramsUnshield: TransactionParameters;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
-    deposit_utxo1 = new Utxo({
+    shieldUtxo1 = new Utxo({
       index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       blinding: new BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    paramsDeposit = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
+    paramsShield = new TransactionParameters({
+      outputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
@@ -236,17 +236,17 @@ describe("Transaction Functional Tests", () => {
       account,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
-      deposit_utxo1.getCommitment(poseidon),
+      shieldUtxo1.getCommitment(poseidon),
     ]);
 
     assert.equal(
       lightProvider.solMerkleTree?.merkleTree.indexOf(
-        deposit_utxo1.getCommitment(poseidon),
+        shieldUtxo1.getCommitment(poseidon),
       ),
       0,
     );
-    paramsWithdrawal = new TransactionParameters({
-      inputUtxos: [deposit_utxo1],
+    paramsUnshield = new TransactionParameters({
+      inputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
@@ -263,15 +263,15 @@ describe("Transaction Functional Tests", () => {
     let tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsDeposit,
+      params: paramsShield,
     });
     await tx.compileAndProve(lightProvider.poseidon, account);
   });
 
   it("Functional storage ", async () => {
-    const paramsDepositStorage = new TransactionParameters({
+    const paramsShieldStorage = new TransactionParameters({
       message: Buffer.alloc(928).fill(1),
-      inputUtxos: [deposit_utxo1],
+      inputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
@@ -285,7 +285,7 @@ describe("Transaction Functional Tests", () => {
     let tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsDepositStorage,
+      params: paramsShieldStorage,
     });
     await tx.compileAndProve(lightProvider.poseidon, account);
     await tx.getInstructions(tx.params);
@@ -295,7 +295,7 @@ describe("Transaction Functional Tests", () => {
     let tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsDeposit,
+      params: paramsShield,
     });
     let mint = tx.getMint();
     assert.equal(
@@ -308,8 +308,8 @@ describe("Transaction Functional Tests", () => {
   it("getConnectingHash", async () => {
     const relayerConst = new Relayer(AUTHORITY, AUTHORITY, new BN(5000));
     const paramsStaticEncryptedUtxos = new TransactionParameters({
-      inputUtxos: [deposit_utxo1, deposit_utxo1],
-      outputUtxos: [deposit_utxo1, deposit_utxo1],
+      inputUtxos: [shieldUtxo1, shieldUtxo1],
+      outputUtxos: [shieldUtxo1, shieldUtxo1],
       eventMerkleTreePubkey: AUTHORITY,
       transactionMerkleTreePubkey: AUTHORITY,
       poseidon,
@@ -337,29 +337,29 @@ describe("Transaction Functional Tests", () => {
   });
 
   it("getMerkleProof", async () => {
-    let merkleProofsDeposit = lightProvider.solMerkleTree!.getMerkleProofs(
+    let merkleProofsShield = lightProvider.solMerkleTree!.getMerkleProofs(
       lightProvider.poseidon,
-      paramsDeposit.inputUtxos,
+      paramsShield.inputUtxos,
     );
     assert.equal(
-      merkleProofsDeposit.inputMerklePathIndices.toString(),
+      merkleProofsShield.inputMerklePathIndices.toString(),
       new Array(2).fill("0").toString(),
     );
     assert.equal(
-      merkleProofsDeposit.inputMerklePathElements[0].toString(),
+      merkleProofsShield.inputMerklePathElements[0].toString(),
       new Array(18).fill("0").toString(),
     );
     assert.equal(
-      merkleProofsDeposit.inputMerklePathElements[1].toString(),
+      merkleProofsShield.inputMerklePathElements[1].toString(),
       new Array(18).fill("0").toString(),
     );
 
-    let merkleProofsWithdrawal = lightProvider.solMerkleTree!.getMerkleProofs(
+    let merkleProofsUnshield = lightProvider.solMerkleTree!.getMerkleProofs(
       lightProvider.poseidon,
-      paramsWithdrawal.inputUtxos,
+      paramsUnshield.inputUtxos,
     );
     assert.equal(
-      merkleProofsWithdrawal.inputMerklePathIndices.toString(),
+      merkleProofsUnshield.inputMerklePathIndices.toString(),
       new Array(2).fill("0").toString(),
     );
 
@@ -384,12 +384,12 @@ describe("Transaction Functional Tests", () => {
       "138878455357257924790066769656582592677416924479878379980482552822708744793",
     ];
     assert.equal(
-      merkleProofsWithdrawal.inputMerklePathElements[0].toString(),
+      merkleProofsUnshield.inputMerklePathElements[0].toString(),
       constElements.toString(),
     );
 
     assert.equal(
-      merkleProofsWithdrawal.inputMerklePathElements[1].toString(),
+      merkleProofsUnshield.inputMerklePathElements[1].toString(),
       new Array(18).fill("0").toString(),
     );
   });
@@ -397,8 +397,8 @@ describe("Transaction Functional Tests", () => {
   it("getPdaAddresses", async () => {
     const relayerConst = new Relayer(AUTHORITY, AUTHORITY, new BN(5000));
     const paramsStaticEncryptedUtxos = new TransactionParameters({
-      inputUtxos: [deposit_utxo1, deposit_utxo1],
-      outputUtxos: [deposit_utxo1, deposit_utxo1],
+      inputUtxos: [shieldUtxo1, shieldUtxo1],
+      outputUtxos: [shieldUtxo1, shieldUtxo1],
       eventMerkleTreePubkey: AUTHORITY,
       transactionMerkleTreePubkey: AUTHORITY,
       poseidon,
@@ -450,7 +450,7 @@ describe("Transaction Functional Tests", () => {
 
   it("APP_PARAMETERS_UNDEFINED", async () => {
     const params = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
+      outputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
@@ -478,7 +478,7 @@ describe("Transaction Functional Tests", () => {
 
   it("INVALID_VERIFIER_SELECTED", async () => {
     const params = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
+      outputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,

@@ -41,19 +41,19 @@ The second flow consists out of the following functions in the merkle_tree_progr
 ## Verifier Program Zero:
 - verifies Groth16 ZKPs
 - invokes the Merkle Tree program to:
-  - withdraw funds from a liquidity pool
+  - unshield funds from a liquidity pool
   - create Merkle tree leaves account
   - insert nullifiers
-- deposits are handled in the verifier program
+- shields are handled in the verifier program
 - we use lookup tables to get everything into one transaction, this does not require any changes of the program therefore it should not be security relevant as long as the correct lookup table is used by the client.
 
 ## Verifier Program One:
 - verifies Groth16 ZKPs
 - invokes the Merkle Tree program to:
-  - withdraw funds from a liquidity pool
+  - unshield funds from a liquidity pool
   - create Merkle tree leaves account
   - insert nullifiers
-- deposits are handled in the verifier program
+- shields are handled in the verifier program
 - creates one state account to save state between two transactions:
   - first transaction, send data except proof
   - second transction: send proof data, verify, etc.
@@ -62,7 +62,7 @@ The second flow consists out of the following functions in the merkle_tree_progr
 - trusts the verifier programs -> does only access control checks
 - owns merkle tree update state accounts
 - owns accounts of the liquidity pools
-- implements transfer logic to deposit and withdraw tokens
+- implements transfer logic to shield and unshield tokens
 - owns Merkle tree permanent storage accounts which store the state for sparse
   Merkle trees
 - registers verifier program
@@ -137,8 +137,8 @@ The second flow consists out of the following functions in the merkle_tree_progr
   inserts a number of nullifiers passed in as remaining accounts
   - insert_two_leaves
   creates a leaves account which stores a pair of leaves and a message of 256 bytes which can contain 2 encrypted utxos
-  - withdraw_spl
-  - withdraw_sol
+  - unshield_spl
+  - unshield_sol
 
   **Security Claims**
 

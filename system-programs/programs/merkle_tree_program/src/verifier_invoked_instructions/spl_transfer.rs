@@ -3,7 +3,7 @@ use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, Transfer};
 #[derive(Accounts)]
-pub struct WithdrawSpl<'info> {
+pub struct UnshieldSpl<'info> {
     /// CHECK:` Signer is registered verifier program.
     #[account(mut, seeds=[__program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
@@ -22,10 +22,9 @@ pub struct WithdrawSpl<'info> {
 }
 
 pub fn process_spl_transfer<'info>(
-    ctx: Context<'_, '_, '_, 'info, WithdrawSpl<'info>>,
+    ctx: Context<'_, '_, '_, 'info, UnshieldSpl<'info>>,
     amount: u64,
 ) -> Result<()> {
-    // msg!("Withdrawing spl token {}", amount);
     let (_, bump) =
         anchor_lang::prelude::Pubkey::find_program_address(&[TOKEN_AUTHORITY_SEED], ctx.program_id);
     let bump = &[bump][..];

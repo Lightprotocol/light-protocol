@@ -44,7 +44,7 @@ template CheckIndices(n, nInAssets, nAssets) {
 // nOuts outputs
 // nAssets
 // one feeAsset at indexFeeAsset in assetPubkeys[nAssets]
-// the asset in position 1 can be withdrawn
+// the asset in position 1 can be unshielded
 // all other assets can only be used in internal txs
 template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {
 
@@ -54,7 +54,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     assert( nOutAssets <= nAssets);
 
     signal input root;
-    // extAmount = external amount used for deposits and withdrawals
+    // extAmount = external amount used for shields and unshields
     // correct extAmount range is enforced on the smart contract
     // publicAmountSpl = extAmount - fee
     signal input publicAmountSpl;

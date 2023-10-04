@@ -23,7 +23,7 @@ use crate::{
     accounts::LightAccounts,
     cpi_instructions::{
         insert_nullifiers_cpi, insert_two_leaves_cpi, insert_two_leaves_event_cpi,
-        invoke_indexer_transaction_event, withdraw_sol_cpi, withdraw_spl_cpi,
+        invoke_indexer_transaction_event, unshield_sol_cpi, unshield_spl_cpi,
     },
     errors::VerifierSdkError,
     state::TransactionIndexerEvent,
@@ -711,8 +711,8 @@ impl<
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
 
-            // is a token deposit or withdrawal
-            if self.is_deposit() {
+            // is a token shield or unshield
+            if self.is_shield_spl() {
                 self.check_spl_pool_account_derivation(
                     &self
                         .input
@@ -786,8 +786,8 @@ impl<
                     &sender_spl.mint,
                 )?;
 
-                // withdraw_spl_cpi
-                withdraw_spl_cpi(
+                // shield_spl_cpi
+                unshield_spl_cpi(
                     &self.input.ctx.program_id,
                     &self
                         .input
@@ -858,9 +858,9 @@ impl<
         )?;
         msg!("fee amount {} ", fee_amount_checked);
         if fee_amount_checked > 0 {
-            if self.is_deposit_fee() {
-                msg!("is deposit");
-                self.deposit_sol(
+            if self.is_shield_sol() {
+                msg!("is shield");
+                self.shield_sol(
                     fee_amount_checked,
                     &self
                         .input
@@ -872,7 +872,7 @@ impl<
                         .to_account_info(),
                 )?;
             } else {
-                msg!("is withdrawal");
+                msg!("is unshield");
 
                 self.check_sol_pool_account_derivation(
                     &self
@@ -895,8 +895,9 @@ impl<
                         .try_borrow()
                         .unwrap(),
                 )?;
-                // withdraws sol for the user
-                withdraw_sol_cpi(
+                // Unshield sol for the user
+                msg!("unshield sol cpi");
+                unshield_sol_cpi(
                     &self.input.ctx.program_id,
                     &self
                         .input
@@ -929,12 +930,12 @@ impl<
                         .to_account_info(),
                     fee_amount_checked,
                 )?;
-                msg!("withdrew sol for the user");
+                msg!("unshielded sol for the user");
             }
         }
-        if !self.is_deposit_fee() && relayer_fee > 0 {
+        if !self.is_shield_sol() && relayer_fee > 0 {
             // pays the relayer fee
-            withdraw_sol_cpi(
+            unshield_sol_cpi(
                 &self.input.ctx.program_id,
                 &self
                     .input
@@ -971,14 +972,14 @@ impl<
         Ok(())
     }
 
-    /// Creates and closes an account such that deposited sol is part of the transaction fees.
-    fn deposit_sol(&self, amount_checked: u64, recipient_sol: &AccountInfo) -> Result<()> {
+    /// Creates and closes an account such that shielded sol is part of the transaction fees.
+    fn shield_sol(&self, amount_checked: u64, recipient_sol: &AccountInfo) -> Result<()> {
         self.check_sol_pool_account_derivation(
             &recipient_sol.key(),
             &*recipient_sol.data.try_borrow().unwrap(),
         )?;
 
-        msg!("is deposit");
+        msg!("is shield");
         let rent = <Rent as sysvar::Sysvar>::get()?;
 
         create_and_check_pda(
@@ -1023,8 +1024,8 @@ impl<
         )
     }
 
-    /// Checks whether a transaction is a deposit by inspecting the public amount.
-    pub fn is_deposit(&self) -> bool {
+    /// Checks whether a transaction is a shield by inspecting the public amount.
+    pub fn is_shield_spl(&self) -> bool {
         if self.input.public_amount.spl[24..] != [0u8; 8]
             && self.input.public_amount.spl[..24] == [0u8; 24]
         {
@@ -1034,7 +1035,7 @@ impl<
     }
 
     /// Checks whether a transaction is a deposit by inspecting the public amount.
-    pub fn is_deposit_fee(&self) -> bool {
+    pub fn is_shield_sol(&self) -> bool {
         if self.input.public_amount.sol[24..] != [0u8; 8]
             && self.input.public_amount.sol[..24] == [0u8; 24]
         {
@@ -1089,7 +1090,7 @@ impl<
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
         // Big integers are stored in 4 u64 limbs, if the number is <= U64::max() and encoded in little endian,
         // only the first limb is greater than 0.
-        // Amounts in shielded accounts are limited to 64bit therefore a withdrawal will always be greater
+        // Amounts in shielded accounts are limited to 64bit therefore an unshield will always be greater
         // than one U64::max().
         if pub_amount.0[0] > 0
             && pub_amount.0[1] == 0
@@ -1114,7 +1115,7 @@ impl<
 
             if field.0[0] < relayer_fee {
                 msg!(
-                    "Withdrawal invalid relayer_fee: pub amount {} < {} fee",
+                    "Unshield invalid relayer_fee: pub amount {} < {} fee",
                     field.0[0],
                     relayer_fee
                 );

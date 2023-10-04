@@ -30,21 +30,21 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Utxo Functional", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  let shieldAmount = 20_000;
+  let shieldFeeAmount = 10_000;
 
   let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1: Utxo,
+    shieldUtxo1: Utxo,
     keypair: Account;
   before(async () => {
     poseidon = await buildPoseidonOpt();
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
-    deposit_utxo1 = new Utxo({
+    shieldUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: keypair.pubkey,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -70,22 +70,22 @@ describe("Utxo Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.addUtxo(deposit_utxo1.getCommitment(poseidon), deposit_utxo1, "utxos");
+      ?.addUtxo(shieldUtxo1.getCommitment(poseidon), shieldUtxo1, "utxos");
 
     Utxo.equal(
       poseidon,
       balance.tokenBalances
         .get(MINT.toBase58())
-        ?.utxos.get(deposit_utxo1.getCommitment(poseidon))!,
-      deposit_utxo1,
+        ?.utxos.get(shieldUtxo1.getCommitment(poseidon))!,
+      shieldUtxo1,
     );
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
-      deposit_utxo1.amounts[0].toString(),
+      shieldUtxo1.amounts[0].toString(),
     );
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSpl.toString(),
-      deposit_utxo1.amounts[1].toString(),
+      shieldUtxo1.amounts[1].toString(),
     );
     assert.equal(
       balance.tokenBalances.get(SystemProgram.programId.toBase58())?.spentUtxos
@@ -95,7 +95,7 @@ describe("Utxo Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.moveToSpentUtxos(deposit_utxo1.getCommitment(poseidon));
+      ?.moveToSpentUtxos(shieldUtxo1.getCommitment(poseidon));
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       "0",
@@ -115,8 +115,8 @@ describe("Utxo Functional", () => {
       poseidon,
       balance.tokenBalances
         .get(MINT.toBase58())
-        ?.spentUtxos.get(deposit_utxo1.getCommitment(poseidon))!,
-      deposit_utxo1,
+        ?.spentUtxos.get(shieldUtxo1.getCommitment(poseidon))!,
+      shieldUtxo1,
     );
   });
 
@@ -131,12 +131,12 @@ describe("Utxo Functional", () => {
       let utxos: Utxo[] = [];
       let encryptedUtxos: any[] = [];
       for (let index = 0; index < j; index++) {
-        const depositAmount = index;
-        const depositFeeAmount = index;
+        const shieldAmount = index;
+        const shieldFeeAmount = index;
         const utxo = new Utxo({
           poseidon: poseidon,
           assets: [FEE_ASSET, MINT],
-          amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+          amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
           publicKey: account.pubkey,
           index: index,
           assetLookupTable: provider.lookUpTables.assetLookupTable,

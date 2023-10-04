@@ -45,8 +45,8 @@ const server = RELAYER_URL;
 
 describe("API tests", () => {
   let poseidon: any;
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  let shieldAmount = 20_000;
+  let shieldFeeAmount = 10_000;
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let previousMerkleRoot =
     "15800883723037093133305280672853871715176051618981698111580373208012928757479";
@@ -128,10 +128,10 @@ describe("API tests", () => {
           fetchedMerkleTree._layers[0],
         );
         let lookUpTable = [FEE_ASSET.toBase58(), MINT.toBase58()];
-        const deposit_utxo1 = new Utxo({
+        const shieldUtxo1 = new Utxo({
           poseidon: poseidon,
           assets: [FEE_ASSET, MINT],
-          amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+          amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
           publicKey: new Account({ poseidon: poseidon, seed: seed32 }).pubkey,
           blinding: new BN(new Array(31).fill(1)),
           assetLookupTable: lookUpTable,
@@ -149,7 +149,7 @@ describe("API tests", () => {
         assert.equal(merkleTree._layers[0].length, 0);
         assert.equal(merkleTree.zeroElement, DEFAULT_ZERO);
         assert.equal(
-          merkleTree.indexOf(deposit_utxo1.getCommitment(poseidon)),
+          merkleTree.indexOf(shieldUtxo1.getCommitment(poseidon)),
           -1,
         );
 

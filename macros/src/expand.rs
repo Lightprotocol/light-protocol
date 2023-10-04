@@ -100,10 +100,10 @@ pub(crate) fn light_verifier_accounts(
     let (sol_fields, sol_getters) = if args.sol {
         (
             quote! {
-                /// CHECK: Is checked depending on deposit or withdrawal.
+                /// CHECK: Is checked in verifier-sdk.
                 #[account(mut)]
                 pub sender_sol: UncheckedAccount<'info>,
-                /// CHECK: Is checked depending on deposit or withdrawal.
+                /// CHECK: Is checked in verifier-sdk.
                 #[account(mut)]
                 pub recipient_sol: UncheckedAccount<'info>,
             },
@@ -136,17 +136,17 @@ pub(crate) fn light_verifier_accounts(
         (
             quote! {
                 pub token_program: Program<'info, ::anchor_spl::token::Token>,
-                /// CHECK: Is checked when it is used during spl withdrawals.
+                /// CHECK: Is checked when it is used during spl unshields.
                 #[account(
                     mut,
                     seeds=[::merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED],
                     bump,
                     seeds::program=::merkle_tree_program::program::MerkleTreeProgram::id())]
                 pub token_authority: AccountInfo<'info>,
-                /// CHECK: Is checked depending on deposit or withdrawal.
+                /// CHECK: Is checked in verifier-sdk.
                 #[account(mut)]
                 pub sender_spl: UncheckedAccount<'info>,
-                /// CHECK: Is checked depending on deposit or withdrawal.
+                /// CHECK: Is checked in verifier-sdk.
                 #[account(mut)]
                 pub recipient_spl: UncheckedAccount<'info>,
             },
