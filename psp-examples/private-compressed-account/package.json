@@ -14,10 +14,11 @@
     "circomlibjs": "^0.1.7",
     "@lightprotocol/prover.js": "workspace:*",
     "@lightprotocol/zk.js": "workspace:*",
-    "@lightprotocol/circuit-lib.circom": "workspace:*",
     "@lightprotocol/circuit-lib.js": "workspace:*"
   },
   "devDependencies": {
+    "@lightprotocol/cli": "workspace:*",
+    "@lightprotocol/circuit-lib.circom": "workspace:*",
     "chai": "^4.3.4",
     "mocha": "^9.0.3",
     "ts-mocha": "^10.0.0",

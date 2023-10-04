@@ -414,9 +414,6 @@ importers:
       '@coral-xyz/anchor':
         specifier: ^0.28.0
         version: 0.28.0
-      '@lightprotocol/circuit-lib.circom':
-        specifier: workspace:*
-        version: link:../../circuit-lib/circuit-lib.circom
       '@lightprotocol/circuit-lib.js':
         specifier: workspace:*
         version: link:../../circuit-lib/circuit-lib.js
@@ -436,6 +433,12 @@ importers:
         specifier: ^0.1.7
         version: 0.1.7
     devDependencies:
+      '@lightprotocol/circuit-lib.circom':
+        specifier: workspace:*
+        version: link:../../circuit-lib/circuit-lib.circom
+      '@lightprotocol/cli':
+        specifier: workspace:*
+        version: link:../../cli
       '@types/bn.js':
         specifier: ^5.1.0
         version: 5.1.2
