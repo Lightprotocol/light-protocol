@@ -20,7 +20,6 @@ jobs:
       matrix:
         psp: [
           "@lightprotocol/encrypted-messaging",
-          "@lightprotocol/private-compressed-account",
           "@lightprotocol/private-payments",
           "@lightprotocol/rock-paper-scissors",
           "@lightprotocol/streaming-payments",
