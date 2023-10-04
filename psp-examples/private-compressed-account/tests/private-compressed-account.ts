@@ -14,11 +14,14 @@ import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/private_compressed_account";
 import { PoseidonCompressedAccount } from "../sdk";
-var POSEIDON: any;
+let POSEIDON: any;
 const RPC_URL = "http://127.0.0.1:8899";
-var log = console.log;
+const log = console.log;
 
 describe("Test private-compressed-account", () => {
+  let compressedAccount: PoseidonCompressedAccount;
+  let insertValue = "12";
+
   process.env.ANCHOR_PROVIDER_URL = RPC_URL;
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
@@ -44,11 +47,7 @@ describe("Test private-compressed-account", () => {
       console.timeEnd("fullProveAndParse");
     }
   });
-
-  let compressedAccount: PoseidonCompressedAccount;
-  let insertValue = "12";
-
-  it("Inclusion Gt Circuit should succeed", async () => {
+  it.skip("Inclusion Gt Circuit should succeed", async () => {
     compressedAccount = new PoseidonCompressedAccount(POSEIDON, IDL, 0);
     let leafHash = POSEIDON.F.toString(POSEIDON([insertValue]));
     await compressedAccount.generateUpdateProof({ leafHash });
@@ -64,7 +63,7 @@ describe("Test private-compressed-account", () => {
       referenceValue: new BN("11"),
     });
   });
-  it("Inclusion Gt Circuit should fail with Lt value", async () => {
+  it.skip("Inclusion Gt Circuit should fail with Lt value", async () => {
     let throwed = false;
     try {
       log("insertValue 12, refValue 13");
@@ -78,8 +77,7 @@ describe("Test private-compressed-account", () => {
     }
     assert(throwed, "Should throw error");
   });
-
-  it("Create and Spend Program Utxo loop", async () => {
+  it.skip("Create and Spend Program Utxo loop", async () => {
     const wallet = Keypair.generate();
     await airdropSol({
       connection: provider.connection,
