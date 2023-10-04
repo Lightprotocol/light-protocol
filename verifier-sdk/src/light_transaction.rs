@@ -478,7 +478,7 @@ impl<
         match &self.input.ctx.accounts.get_sender_spl() {
             Some(sender_spl) => {
                 match spl_token::state::Account::unpack(sender_spl.data.borrow().as_ref()) {
-                    Ok(sender_mint) => {
+                    Ok(sender_spl) => {
                         // Omits the last byte for the mint pubkey bytes to fit into the bn254 field.
                         // msg!(
                         //     "{:?}",
@@ -489,7 +489,7 @@ impl<
                         } else {
                             self.mint_pubkey = [
                                 vec![0u8],
-                                hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
+                                hash(&sender_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
                             ]
                             .concat()
                             .try_into()
@@ -678,7 +678,7 @@ impl<
 
         // Only transfer if pub amount is greater than zero otherwise recipient_spl and sender_spl accounts are not checked
         if pub_amount_checked > 0 {
-            let recipient_mint = spl_token::state::Account::unpack(
+            let recipient_spl = spl_token::state::Account::unpack(
                 &self
                     .input
                     .ctx
@@ -689,7 +689,7 @@ impl<
                     .data
                     .borrow(),
             )?;
-            let sender_mint = spl_token::state::Account::unpack(
+            let sender_spl = spl_token::state::Account::unpack(
                 &self
                     .input
                     .ctx
@@ -702,11 +702,11 @@ impl<
             )?;
 
             // check mint
-            if self.mint_pubkey[1..] != hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..] {
+            if self.mint_pubkey[1..] != hash(&recipient_spl.mint.to_bytes()).try_to_vec()?[1..] {
                 msg!(
                     "*self.mint_pubkey[..31] {:?}, {:?}, recipient_spl mint",
                     self.mint_pubkey[1..].to_vec(),
-                    hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
+                    hash(&recipient_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec()
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
@@ -722,7 +722,7 @@ impl<
                         .as_ref()
                         .unwrap()
                         .key(),
-                    &recipient_mint.mint,
+                    &recipient_spl.mint,
                 )?;
 
                 let seed = merkle_tree_program::ID.to_bytes();
@@ -783,7 +783,7 @@ impl<
                         .as_ref()
                         .unwrap()
                         .key(),
-                    &sender_mint.mint,
+                    &sender_spl.mint,
                 )?;
 
                 // withdraw_spl_cpi
