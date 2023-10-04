@@ -9,13 +9,14 @@
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.28.0",
-        "@lightprotocol/zk.js": "workspace:*",
         "@lightprotocol/circuit-lib.circom": "workspace:*",
         "@lightprotocol/circuit-lib.js": "workspace:*",
+        "@lightprotocol/zk.js": "workspace:*",
         "circomlib": "^2.0.5",
         "circomlibjs": "^0.1.7"
     },
     "devDependencies": {
+        "@lightprotocol/cli": "workspace:*",
         "@types/bn.js": "^5.1.1",
         "@types/chai": "^4.3.6",
         "@types/mocha": "^10.0.1",

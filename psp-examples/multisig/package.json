@@ -36,7 +36,6 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
-    "@lightprotocol/cli": "workspace:*",
     "@lightprotocol/zk.js": "workspace:*",
     "@oclif/core": "^2",
     "@oclif/plugin-help": "^5",
@@ -50,6 +49,7 @@
   },
   "devDependencies": {
     "@lightprotocol/circuit-lib.circom": "workspace:*",
+    "@lightprotocol/cli": "workspace:*",
     "@oclif/test": "2.3.33",
     "@types/bn.js": "^5.1.0",
     "@types/chai": "^4.3.0",

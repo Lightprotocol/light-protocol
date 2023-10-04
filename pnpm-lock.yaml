@@ -302,6 +302,9 @@ importers:
         specifier: ^0.1.7
         version: 0.1.7
     devDependencies:
+      '@lightprotocol/cli':
+        specifier: workspace:0.1.1-alpha.21
+        version: link:../../cli
       '@types/bn.js':
         specifier: ^5.1.1
         version: 5.1.2
@@ -332,9 +335,6 @@ importers:
       '@coral-xyz/anchor':
         specifier: 0.28.0
         version: 0.28.0
-      '@lightprotocol/cli':
-        specifier: workspace:*
-        version: link:../../cli
       '@lightprotocol/zk.js':
         specifier: workspace:*
         version: link:../../zk.js
@@ -369,6 +369,9 @@ importers:
       '@lightprotocol/circuit-lib.circom':
         specifier: workspace:*
         version: link:../../circuit-lib/circuit-lib.circom
+      '@lightprotocol/cli':
+        specifier: workspace:*
+        version: link:../../cli
       '@oclif/test':
         specifier: 2.3.33
         version: 2.3.33(@types/node@20.8.0)(typescript@5.2.2)
@@ -473,6 +476,9 @@ importers:
         specifier: workspace:*
         version: link:../../zk.js
     devDependencies:
+      '@lightprotocol/cli':
+        specifier: workspace:0.1.1-alpha.21
+        version: link:../../cli
       '@types/bn.js':
         specifier: ^5.1.1
         version: 5.1.2
@@ -522,6 +528,9 @@ importers:
         specifier: ^0.1.7
         version: 0.1.7
     devDependencies:
+      '@lightprotocol/cli':
+        specifier: workspace:0.1.1-alpha.21
+        version: link:../../cli
       '@types/bn.js':
         specifier: ^5.1.0
         version: 5.1.2
@@ -568,6 +577,9 @@ importers:
         specifier: ^0.1.7
         version: 0.1.7
     devDependencies:
+      '@lightprotocol/cli':
+        specifier: workspace:0.1.1-alpha.21
+        version: link:../../cli
       '@types/bn.js':
         specifier: ^5.1.1
         version: 5.1.2
@@ -614,6 +626,9 @@ importers:
         specifier: ^0.1.7
         version: 0.1.7
     devDependencies:
+      '@lightprotocol/cli':
+        specifier: workspace:0.1.1-alpha.21
+        version: link:../../cli
       '@types/bn.js':
         specifier: ^5.1.0
         version: 5.1.2
