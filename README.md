@@ -10,22 +10,21 @@
 Light is a zkLayer enabling private program execution, purpose-built for Solana.
 
 Developers can use Light to build applications such as
+
 - fast private payments
 - encrypted orderbooks
 - public on-chain games with private state
-
 
 ## Development environment
 
 There are three ways of setting up the development environment:
 
-* [devenv.sh script](#devenv.sh) - the most recommended one, both for Linux and
+- [devenv.sh script](#devenv.sh) - the most recommended one, both for Linux and
   macOS. Works with Bash and zsh.
-* [Development Containers](#development-containers) - recommended on Linux,
+- [Development Containers](#development-containers) - recommended on Linux,
   unfortunately has performance problems on macOS.
-* [Manual setup](#manual-setup) - not recommended, but may be useful if the
+- [Manual setup](#manual-setup) - not recommended, but may be useful if the
   methods above don't work for you.
-
 
 ### devenv.sh
 
@@ -34,7 +33,7 @@ and development environment.
 
 First, install the dependencies (they will be installed in the `.local`
 directory inside your repository clone). If you want to install Redis (needed
-only for the relayer), use the  `--enable-redis` option.
+only for the relayer), use the `--enable-redis` option.
 
 ```
 ./scripts/install.sh
@@ -64,17 +63,18 @@ that comes pre-configured with all necessary dependencies for building and testi
 Support for Development Containers (either native or through a plugin) is
 provided by the following IDEs and editors:
 
-* [Visual Studio Code](https://code.visualstudio.com/docs/devcontainers/containers)
-* [Neovim](https://github.com/esensar/nvim-dev-container)
-* [Emacs](https://github.com/emacs-lsp/lsp-docker)
+- [Visual Studio Code](https://code.visualstudio.com/docs/devcontainers/containers)
+- [Neovim](https://github.com/esensar/nvim-dev-container)
+- [Emacs](https://github.com/emacs-lsp/lsp-docker)
 
 ### Manual setup
 
 If you still want to setup dependencies manually, these are the requirements:
 
-* [Rust installed with Rustup](https://rustup.rs/), stable and nightly toolchains
-* [NodeJS](https://nodejs.org/) [(16.16 LTS)](https://nodejs.org/en/blog/release/v16.16.0)
-* [Anchor](https://www.anchor-lang.com/) [(0.26.0)](https://crates.io/crates/anchor-cli/0.26.0)
+- [Rust installed with Rustup](https://rustup.rs/), stable and nightly toolchains
+- [NodeJS](https://nodejs.org/) [(16.16 LTS)](https://nodejs.org/en/blog/release/v16.16.0)
+- [Anchor](https://www.anchor-lang.com/) [(0.26.0)](https://crates.io/crates/anchor-cli/0.26.0)
+- [pnpm](https://pnpm.io/) [(8.8.0)](https://www.npmjs.com/package/pnpm/v/8.8.0)
 
 ## Building
 
@@ -83,7 +83,6 @@ To build the project, use the following commands:
 ```bash
 ./scripts/build.sh
 ```
-
 
 ## Solana keypair
 
@@ -140,8 +139,10 @@ pnpm test-merkle-tree
 ```
 
 ## Common errors
+
 If you're seeing this error:
-- ``` error: package `solana-program v1.16.4` cannot be built because it requires rustc 1.68.0 or newer, while the currently active rustc version is 1.65.0-dev ```
+
+- `` error: package `solana-program v1.16.4` cannot be built because it requires rustc 1.68.0 or newer, while the currently active rustc version is 1.65.0-dev ``
 
 update your solana-cli version to >=1.16.4.
 
