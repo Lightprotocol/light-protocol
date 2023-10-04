@@ -27,6 +27,11 @@ jobs:
         with:
           enable_redis: "true"
 
+      - name: run lint
+        run: |
+          source ./scripts/devenv.sh
+          ./scripts/lint.sh
+
       - name: run tests
         run: |
           source ./scripts/devenv.sh
