@@ -46,8 +46,10 @@ import {
   BN_0,
   BN_2,
   closeMerkleTreeUpdateState,
+  AUTHORITY_ONE,
 } from "../../src";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
+import { TokenAccountNotFoundError, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 let POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 
@@ -555,10 +557,16 @@ describe("Merkle Tree Tests", () => {
     const depositFeeAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
+    const tokenAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      ADMIN_AUTH_KEYPAIR,
+      MINT,
+      ADMIN_AUTH_KEYPAIR.publicKey,
+    );
     await token.approve(
       provider.connection,
       ADMIN_AUTH_KEYPAIR,
-      userTokenAccount,
+      tokenAccount.address,
       Transaction.getSignerAuthorityPda(
         merkleTreeProgramId,
         new PublicKey(
@@ -568,10 +576,11 @@ describe("Merkle Tree Tests", () => {
           ),
         ),
       ), //delegate
-      USER_TOKEN_ACCOUNT, // owner
+      ADMIN_AUTH_KEYPAIR.publicKey, // owner
       depositAmount * 10,
-      [USER_TOKEN_ACCOUNT],
+      [ADMIN_AUTH_KEYPAIR],
     );
+    const senderSpl = tokenAccount.address;
 
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
@@ -585,8 +594,6 @@ describe("Merkle Tree Tests", () => {
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       publicKey: KEYPAIR.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const txParams = new TransactionParameters({
@@ -594,7 +601,7 @@ describe("Merkle Tree Tests", () => {
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       transactionMerkleTreePubkey:
         MerkleTreeConfig.getTransactionMerkleTreePda(),
-      senderSpl: userTokenAccount,
+      senderSpl: tokenAccount.address,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
       poseidon: POSEIDON,
@@ -1147,6 +1154,13 @@ describe("Merkle Tree Tests", () => {
     const shieldAmount = new anchor.BN(1_000_000);
     const shieldFeeAmount = new anchor.BN(1_000_000);
 
+    const tokenAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      ADMIN_AUTH_KEYPAIR,
+      MINT,
+      ADMIN_AUTH_KEYPAIR.publicKey,
+    );
+    const senderSpl = tokenAccount.address;
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
@@ -1159,8 +1173,6 @@ describe("Merkle Tree Tests", () => {
       amounts: [shieldFeeAmount, shieldAmount],
       publicKey: KEYPAIR.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const newTransactionMerkleTreePubkey =
@@ -1173,7 +1185,7 @@ describe("Merkle Tree Tests", () => {
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       transactionMerkleTreePubkey:
         MerkleTreeConfig.getTransactionMerkleTreePda(),
-      senderSpl: userTokenAccount,
+      senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
       poseidon: POSEIDON,
