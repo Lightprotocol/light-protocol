@@ -17,8 +17,8 @@
     "/oclif.manifest.json"
   ],
   "scripts": {
-    "format": "pnpm prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "pnpm prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "format": "prettier --write \"{src,tests}/**/*.{ts,js}\" -w",
+    "lint": "prettier \"{src,tests}/**/*{ts,js}\" --check",
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-psp": "light psp:test multisig Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
     "test-cli": "pnpm test-cli-create && pnpm test-cli-approve && pnpm test-cli-execute",

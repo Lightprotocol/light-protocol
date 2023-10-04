@@ -266,29 +266,29 @@ describe("Transaction Functional Tests", () => {
 
   it("getMerkleProof", async () => {
     let merkleProofsDeposit = lightProvider.solMerkleTree!.getMerkleProofs(
-        lightProvider.poseidon,
-        paramsDeposit.inputUtxos,
+      lightProvider.poseidon,
+      paramsDeposit.inputUtxos,
     );
     assert.equal(
-        merkleProofsDeposit.inputMerklePathIndices.toString(),
-        new Array(2).fill("0").toString(),
+      merkleProofsDeposit.inputMerklePathIndices.toString(),
+      new Array(2).fill("0").toString(),
     );
     assert.equal(
-        merkleProofsDeposit.inputMerklePathElements[0].toString(),
-        new Array(18).fill("0").toString(),
+      merkleProofsDeposit.inputMerklePathElements[0].toString(),
+      new Array(18).fill("0").toString(),
     );
     assert.equal(
-        merkleProofsDeposit.inputMerklePathElements[1].toString(),
-        new Array(18).fill("0").toString(),
+      merkleProofsDeposit.inputMerklePathElements[1].toString(),
+      new Array(18).fill("0").toString(),
     );
 
     let merkleProofsWithdrawal = lightProvider.solMerkleTree!.getMerkleProofs(
-        lightProvider.poseidon,
-        paramsWithdrawal.inputUtxos,
+      lightProvider.poseidon,
+      paramsWithdrawal.inputUtxos,
     );
     assert.equal(
-        merkleProofsWithdrawal.inputMerklePathIndices.toString(),
-        new Array(2).fill("0").toString(),
+      merkleProofsWithdrawal.inputMerklePathIndices.toString(),
+      new Array(2).fill("0").toString(),
     );
 
     const constElements = [
@@ -312,13 +312,13 @@ describe("Transaction Functional Tests", () => {
       "138878455357257924790066769656582592677416924479878379980482552822708744793",
     ];
     assert.equal(
-        merkleProofsWithdrawal.inputMerklePathElements[0].toString(),
-        constElements.toString(),
+      merkleProofsWithdrawal.inputMerklePathElements[0].toString(),
+      constElements.toString(),
     );
 
     assert.equal(
-        merkleProofsWithdrawal.inputMerklePathElements[1].toString(),
-        new Array(18).fill("0").toString(),
+      merkleProofsWithdrawal.inputMerklePathElements[1].toString(),
+      new Array(18).fill("0").toString(),
     );
   });
 
