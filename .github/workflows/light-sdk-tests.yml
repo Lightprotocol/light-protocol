@@ -34,13 +34,13 @@ jobs:
             "@lightprotocol/circuit-lib.circom"
             ]'
           - name: psp-examples
-            sub-tests: [
+            sub-tests: '[
               "@lightprotocol/encrypted-messaging",
               "@lightprotocol/private-payments",
               "@lightprotocol/rock-paper-scissors",
               "@lightprotocol/streaming-payments",
               "@lightprotocol/swap"
-            ]
+            ]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
