@@ -28,15 +28,15 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Prover Functionality Tests", () => {
-  const depositAmount = 20_000;
-  const depositFeeAmount = 10_000;
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
 
   const mockPubkey = SolanaKeypair.generate().publicKey;
   const mockPubkey2 = SolanaKeypair.generate().publicKey;
 
   let lightProvider: LightProvider;
-  let paramsDeposit: TransactionParameters;
-  let deposit_utxo: Utxo;
+  let paramsShield: TransactionParameters;
+  let shieldUtxo: Utxo;
   let account: Account;
   let poseidon: any;
   before(async () => {
@@ -44,10 +44,10 @@ describe("Prover Functionality Tests", () => {
     lightProvider = await LightProvider.loadMock();
     account = new Account({ poseidon });
 
-    deposit_utxo = new Utxo({
+    shieldUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
       publicKey: account.pubkey,
       blinding: new anchor.BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -55,8 +55,8 @@ describe("Prover Functionality Tests", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    paramsDeposit = new TransactionParameters({
-      outputUtxos: [deposit_utxo],
+    paramsShield = new TransactionParameters({
+      outputUtxos: [shieldUtxo],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
@@ -68,12 +68,12 @@ describe("Prover Functionality Tests", () => {
     });
 
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
-      deposit_utxo.getCommitment(poseidon),
+      shieldUtxo.getCommitment(poseidon),
     ]);
 
     assert.equal(
       lightProvider.solMerkleTree?.merkleTree.indexOf(
-        deposit_utxo.getCommitment(poseidon),
+        shieldUtxo.getCommitment(poseidon),
       ),
       0,
     );
@@ -88,7 +88,7 @@ describe("Prover Functionality Tests", () => {
     let tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsDeposit,
+      params: paramsShield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -127,7 +127,7 @@ describe("Prover Functionality Tests", () => {
     let tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsDeposit,
+      params: paramsShield,
     });
 
     await tx.compile(lightProvider.poseidon, account);

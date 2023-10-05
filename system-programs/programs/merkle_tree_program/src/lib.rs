@@ -151,7 +151,7 @@ pub mod merkle_tree_program {
     //     Ok(())
     // }
 
-    /// Registers a new verifier which can withdraw tokens, insert new nullifiers, add new leaves.
+    /// Registers a new verifier which can unshield tokens, insert new nullifiers, add new leaves.
     /// These functions can only be invoked from registered verifiers.
     pub fn register_verifier(
         ctx: Context<RegisterVerifier>,
@@ -293,11 +293,11 @@ pub mod merkle_tree_program {
         process_insert_two_leaves_event(ctx, leaf_left, leaf_right)
     }
 
-    /// Withdraws sol from a liquidity pool.
+    /// Unshields sol from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
     /// Can only be called from a registered verifier program.
-    pub fn withdraw_sol<'info>(
-        ctx: Context<'_, '_, '_, 'info, WithdrawSol<'info>>,
+    pub fn unshield_sol<'info>(
+        ctx: Context<'_, '_, '_, 'info, UnshieldSol<'info>>,
         amount: u64,
     ) -> Result<()> {
         process_sol_transfer(
@@ -307,11 +307,11 @@ pub mod merkle_tree_program {
         )
     }
 
-    /// Withdraws spl tokens from a liquidity pool.
+    /// Unshields spl tokens from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
     /// Can only be called from a registered verifier program.
-    pub fn withdraw_spl<'info>(
-        ctx: Context<'_, '_, '_, 'info, WithdrawSpl<'info>>,
+    pub fn unshield_spl<'info>(
+        ctx: Context<'_, '_, '_, 'info, UnshieldSpl<'info>>,
         amount: u64,
     ) -> Result<()> {
         process_spl_transfer(ctx, amount)

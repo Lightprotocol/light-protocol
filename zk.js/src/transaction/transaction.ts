@@ -413,7 +413,7 @@ export class Transaction {
     // TODO: make mint dynamic
     /**
      * Problem:
-     * - for spl withdrawals we need an initialized associated token we can withdraw to
+     * - for spl unshields we need an initialized associated token we can unshield to
      * - this transaction needs to be signed by the owner of the associated token account? has it?
      */
     if (this.params.ataCreationFee) {

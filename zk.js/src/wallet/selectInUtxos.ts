@@ -27,7 +27,7 @@ export const getUtxoSum = (utxos: Utxo[], asset: PublicKey) => {
  * Algorithm
  *
  * assumptions:
- * - send/withdraw max 1 spl asset and sol
+ * - transfer/unshield max 1 spl asset and sol
  *
  * general strategy:
  * - merge biggest with smallest

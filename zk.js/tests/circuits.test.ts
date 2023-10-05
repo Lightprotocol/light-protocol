@@ -34,7 +34,7 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 let account: Account,
-  deposit_utxo1: Utxo,
+  shieldUtxo1: Utxo,
   mockPubkey,
   poseidon,
   lightProvider: LightProvider,
@@ -44,7 +44,7 @@ let account: Account,
   txParamsOutApp: TransactionParameters,
   txParams: TransactionParameters,
   txParamsSol: TransactionParameters,
-  paramsWithdrawal: TransactionParameters,
+  paramsUnshield: TransactionParameters,
   appData: any,
   relayer: Relayer;
 let seed32 = bs58.encode(new Uint8Array(32).fill(1));
@@ -56,23 +56,23 @@ describe("Masp circuit tests", () => {
     poseidon = await buildPoseidonOpt();
     account = new Account({ poseidon: poseidon, seed: seed32 });
     await account.getEddsaPublicKey();
-    let depositAmount = 20_000;
-    let depositFeeAmount = 10_000;
-    deposit_utxo1 = new Utxo({
+    let shieldAmount = 20_000;
+    let shieldFeeAmount = 10_000;
+    shieldUtxo1 = new Utxo({
       index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let deposit_utxoSol = new Utxo({
+    let shieldUtxoSol = new Utxo({
       index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), BN_0],
+      amounts: [new BN(shieldFeeAmount), BN_0],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -83,7 +83,7 @@ describe("Masp circuit tests", () => {
     let mockPubkey3 = SolanaKeypair.generate().publicKey;
 
     txParams = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
+      outputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
@@ -95,7 +95,7 @@ describe("Masp circuit tests", () => {
     });
 
     txParamsSol = new TransactionParameters({
-      outputUtxos: [deposit_utxoSol],
+      outputUtxos: [shieldUtxoSol],
       eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
@@ -106,20 +106,20 @@ describe("Masp circuit tests", () => {
       account,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
-      deposit_utxo1.getCommitment(poseidon),
+      shieldUtxo1.getCommitment(poseidon),
       // random invalid other commitment
       poseidon.F.toString(poseidon(["123124"])),
     ]);
 
     assert.equal(
       lightProvider.solMerkleTree?.merkleTree.indexOf(
-        deposit_utxo1.getCommitment(poseidon),
+        shieldUtxo1.getCommitment(poseidon),
       ),
       0,
     );
     relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
-    paramsWithdrawal = new TransactionParameters({
-      inputUtxos: [deposit_utxo1],
+    paramsUnshield = new TransactionParameters({
+      inputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
       poseidon,
@@ -239,7 +239,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
     await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.root = new BN("123").toString();
@@ -253,7 +253,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
     await tx.compile(lightProvider.poseidon, account);
 
@@ -285,7 +285,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
     await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
@@ -315,7 +315,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
     await tx.compile(lightProvider.poseidon, account);
 
@@ -331,7 +331,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
     await tx.compile(lightProvider.poseidon, account);
 
@@ -346,7 +346,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -361,7 +361,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -377,7 +377,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -409,7 +409,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -427,7 +427,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -443,7 +443,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -459,7 +459,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -475,7 +475,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -491,7 +491,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -507,7 +507,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -556,7 +556,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -600,7 +600,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -616,7 +616,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -632,7 +632,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -649,7 +649,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -666,7 +666,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -683,7 +683,7 @@ describe("Masp circuit tests", () => {
     let tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsWithdrawal,
+      params: paramsUnshield,
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -705,12 +705,12 @@ describe("App system circuit tests", () => {
     poseidon = await buildPoseidonOpt();
     account = new Account({ poseidon: poseidon, seed: seed32 });
     await account.getEddsaPublicKey();
-    let depositAmount = 20_000;
-    let depositFeeAmount = 10_000;
-    deposit_utxo1 = new Utxo({
+    let shieldAmount = 20_000;
+    let shieldFeeAmount = 10_000;
+    shieldUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -721,7 +721,7 @@ describe("App system circuit tests", () => {
 
     lightProvider = await LightProvider.loadMock();
     txParams = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
+      outputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey,
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,

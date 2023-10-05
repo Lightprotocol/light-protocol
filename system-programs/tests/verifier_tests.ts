@@ -41,7 +41,7 @@ import {
   Provider,
 } from "@lightprotocol/zk.js";
 
-var POSEIDON, ACCOUNT, RELAYER, deposit_utxo1;
+var POSEIDON, ACCOUNT, RELAYER, shieldUtxo1;
 var SLEEP_BUFFER = 0;
 const system = getSystem();
 if (system === System.MacOsArm64) SLEEP_BUFFER = 400;
@@ -59,7 +59,7 @@ describe("Verifier Zero and One Tests", () => {
   anchor.setProvider(provider);
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  var depositAmount, depositFeeAmount, lightProvider: Provider;
+  var shieldAmount, shieldFeeAmount, lightProvider: Provider;
   const VERIFIER_IDLS = [IDL_VERIFIER_PROGRAM_ZERO, IDL_VERIFIER_PROGRAM_ONE];
 
   before(async () => {
@@ -86,9 +86,9 @@ describe("Verifier Zero and One Tests", () => {
       payer: ADMIN_AUTH_KEYPAIR,
     });
 
-    depositAmount =
+    shieldAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
-    depositFeeAmount =
+    shieldFeeAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
     for (var verifier in VERIFIER_IDLS) {
@@ -105,7 +105,7 @@ describe("Verifier Zero and One Tests", () => {
           ),
         ), //delegate
         USER_TOKEN_ACCOUNT, // owner
-        depositAmount * 10,
+        shieldAmount * 10,
         [USER_TOKEN_ACCOUNT],
       );
 
@@ -115,13 +115,10 @@ describe("Verifier Zero and One Tests", () => {
         confirmConfig,
       });
 
-      deposit_utxo1 = new Utxo({
+      shieldUtxo1 = new Utxo({
         poseidon: POSEIDON,
         assets: [FEE_ASSET, MINT],
-        amounts: [
-          new anchor.BN(depositFeeAmount),
-          new anchor.BN(depositAmount),
-        ],
+        amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
         publicKey: ACCOUNT.pubkey,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -129,7 +126,7 @@ describe("Verifier Zero and One Tests", () => {
       });
 
       let txParams = new TransactionParameters({
-        outputUtxos: [deposit_utxo1],
+        outputUtxos: [shieldUtxo1],
         eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
         transactionMerkleTreePubkey:
           MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -161,14 +158,11 @@ describe("Verifier Zero and One Tests", () => {
       await lightProvider.sendAndConfirmTransaction(instructions);
       await lightProvider.relayer.updateMerkleTree(lightProvider);
 
-      // // Deposit
-      var deposit_utxo2 = new Utxo({
+      // Shield
+      var shieldUtxo2 = new Utxo({
         poseidon: POSEIDON,
         assets: [FEE_ASSET, MINT],
-        amounts: [
-          new anchor.BN(depositFeeAmount),
-          new anchor.BN(depositAmount),
-        ],
+        amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
         publicKey: ACCOUNT.pubkey,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
@@ -176,7 +170,7 @@ describe("Verifier Zero and One Tests", () => {
       });
 
       let txParams1 = new TransactionParameters({
-        outputUtxos: [deposit_utxo2],
+        outputUtxos: [shieldUtxo2],
         eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
         transactionMerkleTreePubkey:
           MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -199,10 +193,10 @@ describe("Verifier Zero and One Tests", () => {
       await transaction1.compileAndProve(POSEIDON, ACCOUNT);
       transactions.push(transaction1);
 
-      // Withdrawal
+      // Unshield
       var tokenRecipient = recipientTokenAccount;
 
-      let lightProviderWithdrawal = await LightProvider.init({
+      let lightProviderUnshield = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
         relayer: RELAYER,
         confirmConfig,
@@ -214,7 +208,7 @@ describe("Verifier Zero and One Tests", () => {
       );
 
       let user: User = await User.init({
-        provider: lightProviderWithdrawal,
+        provider: lightProviderUnshield,
         account: ACCOUNT,
       });
       let inputUtxos: Utxo[] = [

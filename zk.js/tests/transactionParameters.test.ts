@@ -44,8 +44,8 @@ const VERIFIER_IDLS = [
 
 describe("Transaction Parameters Functional", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  let shieldAmount = 20_000;
+  let shieldFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let mockPubkey1 = SolanaKeypair.generate().publicKey;
@@ -53,7 +53,7 @@ describe("Transaction Parameters Functional", () => {
   let mockPubkey3 = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1: Utxo,
+    shieldUtxo1: Utxo,
     relayer: Relayer,
     account: Account;
   before(async () => {
@@ -63,10 +63,10 @@ describe("Transaction Parameters Functional", () => {
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     account = new Account({ poseidon: poseidon, seed: seed32 });
-    deposit_utxo1 = new Utxo({
+    shieldUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -82,8 +82,8 @@ describe("Transaction Parameters Functional", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new BN(depositAmount),
+        new BN(shieldFeeAmount).sub(relayer.getRelayerFee()),
+        new BN(shieldAmount),
       ],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -92,7 +92,7 @@ describe("Transaction Parameters Functional", () => {
     });
 
     let j = 0;
-    const inputUtxos = [deposit_utxo1];
+    const inputUtxos = [shieldUtxo1];
     const outputUtxos = [outputUtxo];
 
     const paramsOriginal = new TransactionParameters({
@@ -211,8 +211,8 @@ describe("Transaction Parameters Functional", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new BN(depositAmount),
+        new BN(shieldFeeAmount).sub(relayer.getRelayerFee()),
+        new BN(shieldAmount),
       ],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -221,7 +221,7 @@ describe("Transaction Parameters Functional", () => {
     });
 
     for (let j in VERIFIER_IDLS) {
-      const inputUtxos = [deposit_utxo1];
+      const inputUtxos = [shieldUtxo1];
       const outputUtxos = [outputUtxo];
 
       const params = new TransactionParameters({
@@ -323,9 +323,9 @@ describe("Transaction Parameters Functional", () => {
       }
     }
   });
-  it("Deposit Functional", async () => {
+  it("Shield Functional", async () => {
     for (let j in VERIFIER_IDLS) {
-      const outputUtxos = [deposit_utxo1];
+      const outputUtxos = [shieldUtxo1];
 
       const params = new TransactionParameters({
         outputUtxos,
@@ -340,10 +340,10 @@ describe("Transaction Parameters Functional", () => {
         account,
       });
 
-      assert.equal(params.publicAmountSpl.toString(), depositAmount.toString());
+      assert.equal(params.publicAmountSpl.toString(), shieldAmount.toString());
       assert.equal(
         params.publicAmountSol.toString(),
-        depositFeeAmount.toString(),
+        shieldFeeAmount.toString(),
       );
       assert.equal(
         params.assetPubkeys[0].toBase58(),
@@ -420,9 +420,9 @@ describe("Transaction Parameters Functional", () => {
     }
   });
 
-  it("Withdrawal Functional", async () => {
+  it("Unshield Functional", async () => {
     for (let j in VERIFIER_IDLS) {
-      const inputUtxos = [deposit_utxo1];
+      const inputUtxos = [shieldUtxo1];
 
       const params = new TransactionParameters({
         inputUtxos,
@@ -440,11 +440,11 @@ describe("Transaction Parameters Functional", () => {
       assert.equal(params.action.toString(), Action.UNSHIELD.toString());
       assert.equal(
         params.publicAmountSpl.sub(FIELD_SIZE).mul(new BN(-1)).toString(),
-        depositAmount.toString(),
+        shieldAmount.toString(),
       );
       assert.equal(
         params.publicAmountSol.sub(FIELD_SIZE).mul(new BN(-1)).toString(),
-        depositFeeAmount.toString(),
+        shieldFeeAmount.toString(),
       );
       assert.equal(
         params.assetPubkeys[0].toBase58(),
@@ -672,13 +672,13 @@ describe("Test TransactionParameters Methods", () => {
 
 describe("Test General TransactionParameters Errors", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  let shieldAmount = 20_000;
+  let shieldFeeAmount = 10_000;
 
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1: Utxo,
+    shieldUtxo1: Utxo,
     account: Account;
 
   before(async () => {
@@ -686,10 +686,10 @@ describe("Test General TransactionParameters Errors", () => {
     // TODO: make fee mandatory
     account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
-    deposit_utxo1 = new Utxo({
+    shieldUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -724,7 +724,7 @@ describe("Test General TransactionParameters Errors", () => {
       expect(() => {
         // @ts-ignore:
         new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
+          outputUtxos: [shieldUtxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -746,7 +746,7 @@ describe("Test General TransactionParameters Errors", () => {
       expect(() => {
         // @ts-ignore:
         new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
+          outputUtxos: [shieldUtxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
@@ -767,7 +767,7 @@ describe("Test General TransactionParameters Errors", () => {
     expect(() => {
       // @ts-ignore:
       new TransactionParameters({
-        outputUtxos: [deposit_utxo1],
+        outputUtxos: [shieldUtxo1],
         transactionMerkleTreePubkey: mockPubkey,
         senderSpl: mockPubkey,
         senderSol: mockPubkey,
@@ -785,13 +785,13 @@ describe("Test General TransactionParameters Errors", () => {
 
 describe("Test TransactionParameters Transfer Errors", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  let shieldAmount = 20_000;
+  let shieldFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
   let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1: Utxo,
+    shieldUtxo1: Utxo,
     outputUtxo: Utxo,
     relayer: Relayer;
   before(async () => {
@@ -800,10 +800,10 @@ describe("Test TransactionParameters Transfer Errors", () => {
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
     account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
-    deposit_utxo1 = new Utxo({
+    shieldUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -814,8 +814,8 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new BN(depositFeeAmount).sub(relayer.getRelayerFee()),
-        new BN(depositAmount),
+        new BN(shieldFeeAmount).sub(relayer.getRelayerFee()),
+        new BN(shieldAmount),
       ],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -828,7 +828,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
@@ -850,7 +850,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     const localOutputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount).sub(relayer.getRelayerFee()), BN_0],
+      amounts: [new BN(shieldFeeAmount).sub(relayer.getRelayerFee()), BN_0],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -859,7 +859,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           outputUtxos: [localOutputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
@@ -882,7 +882,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     const localOutputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [BN_0, new BN(depositAmount)],
+      amounts: [BN_0, new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -891,7 +891,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           outputUtxos: [localOutputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
@@ -914,7 +914,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
@@ -938,7 +938,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
@@ -962,7 +962,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
@@ -986,7 +986,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
@@ -1007,16 +1007,16 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 });
 
-describe("Test TransactionParameters Deposit Errors", () => {
+describe("Test TransactionParameters Shield Errors", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  let shieldAmount = 20_000;
+  let shieldFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
 
   let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1: Utxo,
+    shieldUtxo1: Utxo,
     relayer: Relayer;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
@@ -1024,10 +1024,10 @@ describe("Test TransactionParameters Deposit Errors", () => {
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
     account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
-    deposit_utxo1 = new Utxo({
+    shieldUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1039,7 +1039,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
+          outputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
@@ -1061,7 +1061,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
+          outputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
@@ -1083,7 +1083,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
+          outputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
@@ -1107,7 +1107,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     let utxo_sol_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN("18446744073709551615"), new BN(depositAmount)],
+      amounts: [new BN("18446744073709551615"), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1191,7 +1191,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
+          outputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
@@ -1215,7 +1215,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
+          outputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
@@ -1265,7 +1265,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
+          outputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
@@ -1289,7 +1289,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          outputUtxos: [deposit_utxo1],
+          outputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
@@ -1310,16 +1310,16 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 });
 
-describe("Test TransactionParameters Withdrawal Errors", () => {
+describe("Test TransactionParameters Unshield Errors", () => {
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  let shieldAmount = 20_000;
+  let shieldFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
 
   let poseidon: any,
     lightProvider: LightProvider,
-    deposit_utxo1: Utxo,
+    shieldUtxo1: Utxo,
     relayer: Relayer;
 
   before(async () => {
@@ -1328,10 +1328,10 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
     account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
-    deposit_utxo1 = new Utxo({
+    shieldUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1343,7 +1343,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
@@ -1367,7 +1367,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
@@ -1390,7 +1390,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     let utxo_sol_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN("18446744073709551615"), new BN(depositAmount)],
+      amounts: [new BN("18446744073709551615"), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1477,7 +1477,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
@@ -1502,7 +1502,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     for (let verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
-          inputUtxos: [deposit_utxo1],
+          inputUtxos: [shieldUtxo1],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,

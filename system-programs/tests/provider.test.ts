@@ -122,19 +122,19 @@ describe("verifier_program", () => {
       confirmConfig,
     }); // userKeypair
 
-    let depositFeeAmount = 10000;
-    let depositAmount = 0;
+    let shieldFeeAmount = 10000;
+    let shieldAmount = 0;
 
-    let deposit_utxo1 = new Utxo({
+    let shieldUtxo1 = new Utxo({
       poseidon: POSEIDON,
       assets: [SystemProgram.programId, MINT],
-      amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: KEYPAIR.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let deposit_utxo2 = new Utxo({
+    let shieldUtxo2 = new Utxo({
       poseidon: POSEIDON,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -143,7 +143,7 @@ describe("verifier_program", () => {
     });
 
     let txParams = new TransactionParameters({
-      outputUtxos: [deposit_utxo1, deposit_utxo2],
+      outputUtxos: [shieldUtxo1, shieldUtxo2],
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       transactionMerkleTreePubkey:
         MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -190,13 +190,13 @@ describe("verifier_program", () => {
     }
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        deposit_utxo1.getCommitment(POSEIDON),
+        shieldUtxo1.getCommitment(POSEIDON),
       ),
       -1,
     );
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        deposit_utxo2.getCommitment(POSEIDON),
+        shieldUtxo2.getCommitment(POSEIDON),
       ),
       -1,
     );
@@ -204,13 +204,13 @@ describe("verifier_program", () => {
     await lightProvider.latestMerkleTree();
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        deposit_utxo1.getCommitment(POSEIDON),
+        shieldUtxo1.getCommitment(POSEIDON),
       ),
       0,
     );
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        deposit_utxo2.getCommitment(POSEIDON),
+        shieldUtxo2.getCommitment(POSEIDON),
       ),
       1,
     );

@@ -21,7 +21,7 @@ let relayerFee = new BN("123214");
 let relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
 describe("Test Relayer Functional", () => {
-  it("Relayer Deposit", () => {
+  it("Relayer Shield", () => {
     let relayer = new Relayer(
       mockKeypair.publicKey,
       mockKeypair1.publicKey,
@@ -38,7 +38,7 @@ describe("Test Relayer Functional", () => {
     assert.equal(relayer.relayerFee.toString(), "1");
   });
 
-  it("Relayer Transfer/Withdrawal", () => {
+  it("Relayer Transfer/Unshield", () => {
     let relayer = new Relayer(
       mockKeypair.publicKey,
       relayerRecipientSol,
