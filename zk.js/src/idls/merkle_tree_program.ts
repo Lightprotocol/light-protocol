@@ -320,7 +320,7 @@ export type MerkleTreeProgram = {
     {
       "name": "registerVerifier",
       "docs": [
-        "Registers a new verifier which can withdraw tokens, insert new nullifiers, add new leaves.",
+        "Registers a new verifier which can unshield tokens, insert new nullifiers, add new leaves.",
         "These functions can only be invoked from registered verifiers."
       ],
       "accounts": [
@@ -747,9 +747,9 @@ export type MerkleTreeProgram = {
       ]
     },
     {
-      "name": "withdrawSol",
+      "name": "unshieldSol",
       "docs": [
-        "Withdraws sol from a liquidity pool.",
+        "Unshields sol from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
         "Can only be called from a registered verifier program."
       ],
@@ -783,9 +783,9 @@ export type MerkleTreeProgram = {
       ]
     },
     {
-      "name": "withdrawSpl",
+      "name": "unshieldSpl",
       "docs": [
-        "Withdraws spl tokens from a liquidity pool.",
+        "Unshields spl tokens from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
         "Can only be called from a registered verifier program."
       ],
@@ -1422,8 +1422,8 @@ export type MerkleTreeProgram = {
     },
     {
       "code": 6007,
-      "name": "WithdrawalFailed",
-      "msg": "WithdrawalFailed"
+      "name": "UnshieldFailed",
+      "msg": "UnshieldFailed"
     },
     {
       "code": 6008,
@@ -1820,7 +1820,7 @@ export const IDL: MerkleTreeProgram = {
     {
       "name": "registerVerifier",
       "docs": [
-        "Registers a new verifier which can withdraw tokens, insert new nullifiers, add new leaves.",
+        "Registers a new verifier which can unshield tokens, insert new nullifiers, add new leaves.",
         "These functions can only be invoked from registered verifiers."
       ],
       "accounts": [
@@ -2247,9 +2247,9 @@ export const IDL: MerkleTreeProgram = {
       ]
     },
     {
-      "name": "withdrawSol",
+      "name": "unshieldSol",
       "docs": [
-        "Withdraws sol from a liquidity pool.",
+        "Unshields sol from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
         "Can only be called from a registered verifier program."
       ],
@@ -2283,9 +2283,9 @@ export const IDL: MerkleTreeProgram = {
       ]
     },
     {
-      "name": "withdrawSpl",
+      "name": "unshieldSpl",
       "docs": [
-        "Withdraws spl tokens from a liquidity pool.",
+        "Unshields spl tokens from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
         "Can only be called from a registered verifier program."
       ],
@@ -2922,8 +2922,8 @@ export const IDL: MerkleTreeProgram = {
     },
     {
       "code": 6007,
-      "name": "WithdrawalFailed",
-      "msg": "WithdrawalFailed"
+      "name": "UnshieldFailed",
+      "msg": "UnshieldFailed"
     },
     {
       "code": 6008,

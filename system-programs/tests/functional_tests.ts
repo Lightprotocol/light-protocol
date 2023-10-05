@@ -79,8 +79,8 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Deposit (verifier one)", async () => {
-    await performDeposit({
+  it("Shield (verifier one)", async () => {
+    await performShield({
       delegate: AUTHORITY_ONE,
       spl: true,
       senderSpl: userTokenAccount,
@@ -89,8 +89,8 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Deposit (verifier storage)", async () => {
-    await performDeposit({
+  it("Shield (verifier storage)", async () => {
+    await performShield({
       delegate: AUTHORITY,
       spl: false,
       message: Buffer.alloc(900).fill(1),
@@ -100,8 +100,8 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Deposit (verifier zero)", async () => {
-    await performDeposit({
+  it("Shield (verifier zero)", async () => {
+    await performShield({
       delegate: AUTHORITY,
       spl: true,
       senderSpl: userTokenAccount,
@@ -111,8 +111,8 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Withdraw (verifier zero)", async () => {
-    await performWithdrawal({
+  it("Shield (verifier zero)", async () => {
+    await performUnshield({
       outputUtxos: [],
       tokenProgram: MINT,
       recipientSpl: recipientTokenAccount,
@@ -121,8 +121,8 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Withdraw (verifier storage)", async () => {
-    await performWithdrawal({
+  it("Shield (verifier storage)", async () => {
+    await performUnshield({
       outputUtxos: [],
       tokenProgram: SystemProgram.programId,
       message: Buffer.alloc(900).fill(1),
@@ -131,7 +131,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Withdraw (verifier one)", async () => {
+  it("Shield (verifier one)", async () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
@@ -145,7 +145,7 @@ describe("verifier_program", () => {
       user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
         .value,
     ];
-    await performWithdrawal({
+    await performUnshield({
       outputUtxos: [
         new Utxo({
           poseidon: POSEIDON,
@@ -164,7 +164,7 @@ describe("verifier_program", () => {
     });
   });
 
-  const performDeposit = async ({
+  const performShield = async ({
     delegate,
     spl = false,
     message,
@@ -185,8 +185,8 @@ describe("verifier_program", () => {
       throw "undefined LOOK_UP_TABLE";
     }
 
-    let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
-    let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+    let shieldAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+    let shieldFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
     await token.approve(
       provider.connection,
@@ -194,7 +194,7 @@ describe("verifier_program", () => {
       userTokenAccount,
       delegate, // delegate
       USER_TOKEN_ACCOUNT, // owner
-      depositAmount * 2,
+      shieldAmount * 2,
       [USER_TOKEN_ACCOUNT],
     );
     const lightProvider = await Provider.init({
@@ -203,13 +203,13 @@ describe("verifier_program", () => {
       confirmConfig,
     });
 
-    let deposit_utxo1 = spl
+    let shieldUtxo1 = spl
       ? new Utxo({
           poseidon: POSEIDON,
           assets: [FEE_ASSET, MINT],
           amounts: [
-            new anchor.BN(depositFeeAmount),
-            new anchor.BN(depositAmount),
+            new anchor.BN(shieldFeeAmount),
+            new anchor.BN(shieldAmount),
           ],
           publicKey: KEYPAIR.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -218,7 +218,7 @@ describe("verifier_program", () => {
         })
       : new Utxo({
           poseidon: POSEIDON,
-          amounts: [new anchor.BN(depositFeeAmount)],
+          amounts: [new anchor.BN(shieldFeeAmount)],
           publicKey: KEYPAIR.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
@@ -226,7 +226,7 @@ describe("verifier_program", () => {
         });
 
     let txParams = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
+      outputUtxos: [shieldUtxo1],
       message,
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       transactionMerkleTreePubkey:
@@ -274,7 +274,7 @@ describe("verifier_program", () => {
     }
   };
 
-  const performWithdrawal = async ({
+  const performUnshield = async ({
     outputUtxos,
     tokenProgram,
     message,

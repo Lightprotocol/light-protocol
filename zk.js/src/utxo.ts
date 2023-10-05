@@ -190,7 +190,8 @@ export class Utxo {
       amounts.push(BN_0);
     }
 
-    // TODO: check that this does not lead to hiccups since publicAmountSpl cannot withdraw the fee asset sol
+    // TODO: check that this does not lead to hiccups since publicAmountSpl
+    // cannot unshield the fee asset sol
     if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
       amounts[0] = amounts[0].add(amounts[1]);
       amounts[1] = BN_0;

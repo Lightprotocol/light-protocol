@@ -281,7 +281,8 @@ export function createOutUtxos({
       .clone();
   }
   // create change utxo
-  // Also handles case that we have more than one change utxo because we wanted to withdraw sol and used utxos with different spl tokens
+  // Also handles case that we have more than one change utxo because we wanted
+  // to unshield sol and used utxos with different spl tokens
   // it creates a change utxo for every asset that is non-zero then check that number of utxos is less or equal to verifier.config.outs
   let publicSplAssets = assets.filter(
     (x) =>
@@ -328,7 +329,7 @@ export function createOutUtxos({
     if (x == 0) {
       solAmount = assets[publicSolAssetIndex].sumIn;
     }
-    // catch case of sol deposit with undefined spl assets
+    // catch case of sol shield with undefined spl assets
     let splAmount = publicSplAssets[x]?.sumIn ? publicSplAssets[x].sumIn : BN_0;
     let splAsset = publicSplAssets[x]?.asset
       ? publicSplAssets[x].asset

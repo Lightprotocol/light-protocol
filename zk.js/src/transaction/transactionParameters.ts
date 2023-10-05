@@ -159,7 +159,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionErrorCode.RELAYER_UNDEFINED,
           "constructor",
-          "For a transfer or withdrawal a relayer needs to be provided.",
+          "For a transfer or unshield a relayer needs to be provided.",
         );
       }
     }
@@ -209,7 +209,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.RELAYER_DEFINED,
           "constructor",
-          "For a deposit no relayer should to be provided, the user send the transaction herself.",
+          "For a shield no relayer should to be provided, the user send the transaction herself.",
         );
       try {
         this.publicAmountSol.toArray("be", 8);
@@ -217,7 +217,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          `Public amount sol ${this.publicAmountSol} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
+          `Public amount sol ${this.publicAmountSol} needs to be a u64 at shield. Check whether you defined input and output utxos correctly, for a shield the amounts of output utxos need to be bigger than the amounts of input utxos`,
         );
       }
 
@@ -227,7 +227,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          `Public amount spl ${this.publicAmountSpl} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
+          `Public amount spl ${this.publicAmountSpl} needs to be a u64 at shield. Check whether you defined input and output utxos correctly, for a shield the amounts of output utxos need to be bigger than the amounts of input utxos`,
         );
       }
       if (!this.publicAmountSol.eq(BN_0) && recipientSol) {
@@ -272,7 +272,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionErrorCode.RELAYER_UNDEFINED,
           "constructor",
-          "For a withdrawal a relayer needs to be provided.",
+          "For an unshield, a relayer needs to be provided.",
         );
       // public amount is either 0 or negative
       // this.publicAmountSol.add(FIELD_SIZE).mod(FIELD_SIZE) this changes the value
@@ -298,7 +298,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          "Public amount needs to be a u64 at deposit.",
+          "Public amount needs to be a u64 at shield.",
         );
       }
 
@@ -310,7 +310,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          "Public amount needs to be a u64 at deposit.",
+          "Public amount needs to be a u64 at shield.",
         );
       }
 
@@ -387,7 +387,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
           "constructor",
-          "This is a transfer, no spl amount should be withdrawn. To withdraw an spl amount mark the transaction as withdrawal.",
+          "This is a transfer, no spl amount should be unshielded. To unshield an spl amount mark the transaction as unshield.",
         );
       }
 
@@ -395,7 +395,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactionParametersError(
           TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
           "constructor",
-          "This is a transfer, no sol amount should be withdrawn. To withdraw an sol amount mark the transaction as withdrawal.",
+          "This is a transfer, no sol amount should be unshielded. To unshield an sol amount mark the transaction as unshield.",
         );
       }
 
@@ -870,15 +870,7 @@ export class TransactionParameters implements transactionParameters {
           );
         }
       }
-    } else {
-      if (this.action.toString() !== Action.SHIELD.toString()) {
-        throw new TransactionParametersError(
-          TransactionErrorCode.ACTION_IS_NO_DEPOSIT,
-          "assignAccounts",
-          "Action is withdrawal but should not be. Spl & sol senderSpl accounts are provided and a relayer which is used to identify transfers and withdrawals. For a deposit do not provide a relayer.",
-        );
-      }
-
+    } else if (this.action.toString() == Action.SHIELD.toString()) {
       this.accounts.recipientSpl = MerkleTreeConfig.getSplPoolPdaToken(
         this.assetPubkeys[1],
         merkleTreeProgramId,
@@ -899,6 +891,12 @@ export class TransactionParameters implements transactionParameters {
       }
       this.accounts.senderSol = TransactionParameters.getEscrowPda(
         this.verifierProgramId,
+      );
+    } else {
+      throw new TransactionParametersError(
+        TransactionErrorCode.INVALID_ACTION,
+        "assignAccounts",
+        "Invalid action, supported actions are 'shield', 'unsield' and 'transfer'.",
       );
     }
   }

@@ -54,7 +54,7 @@ export class TestTransaction {
     this.testValues = {};
   }
 
-  // send transaction should be the same for both deposit and withdrawal
+  // send transaction should be the same for both shiel and unshield
   // the function should just send the tx to the rpc or relayer respectively
   // in case there is more than one transaction to be sent to the verifier these can be sent separately
   // TODO: make optional and default no
