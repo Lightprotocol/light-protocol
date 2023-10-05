@@ -22,9 +22,25 @@ jobs:
       matrix:
         include:
           - name: sdk-tests-light-zk-relayer-cli
-            sub-tests: '["zk.js", "relayer", "cli", "prover.js"]'
+            sub-tests: '[
+            "@lightprotocol/zk.js", 
+            "@lightprotocol/relayer", 
+            "@lightprotocol/cli", 
+            "@lightprotocol/prover.js"
+            ]'
           - name: circuit-tests
-            sub-tests: '["circuit-lib/circuit-lib.js","circuit-lib/circuit-lib.circom"]'
+            sub-tests: '[
+            "@lightprotocol/circuit-lib.js",
+            "@lightprotocol/circuit-lib.circom"
+            ]'
+          - name: psp-examples
+            sub-tests: [
+              "@lightprotocol/encrypted-messaging",
+              "@lightprotocol/private-payments",
+              "@lightprotocol/rock-paper-scissors",
+              "@lightprotocol/streaming-payments",
+              "@lightprotocol/swap"
+            ]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
@@ -37,14 +53,11 @@ jobs:
       - name: ${{ matrix.test.name }}
         run: |
           source ./scripts/devenv.sh
-
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            cd $subtest
-            pnpm test
-            if [[ "$subtest" == "circuit-lib/circuit-lib.circom" ]]; then
-              pnpm test-build-light-circuits
+            npx nx test $subtest
+            if [[ "$subtest" == "@lightprotocol/circuit-lib.circom" ]]; then
+              npx nx test-build-light-circuits $subtest
             fi
-            cd -
           done
