@@ -74,7 +74,6 @@ describe("Test {{project-name}}", () => {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable: lightProvider.lookUpTables.verifierProgramLookupTable
     });
 
     const testInputsShield = {

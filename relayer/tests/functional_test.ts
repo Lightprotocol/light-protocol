@@ -135,7 +135,6 @@ describe("API tests", () => {
           publicKey: new Account({ poseidon: poseidon, seed: seed32 }).pubkey,
           blinding: new BN(new Array(31).fill(1)),
           assetLookupTable: lookUpTable,
-          verifierProgramLookupTable: lookUpTable,
         });
 
         expect(res.body.data.merkleTree).to.exist;

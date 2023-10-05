@@ -568,7 +568,6 @@ export class TransactionParameters implements transactionParameters {
     relayer,
     verifierIdl,
     assetLookupTable,
-    verifierProgramLookupTable,
   }: {
     poseidon: any;
     utxoIdls?: anchor.Idl[];
@@ -576,7 +575,6 @@ export class TransactionParameters implements transactionParameters {
     relayer: Relayer;
     verifierIdl: Idl;
     assetLookupTable: string[];
-    verifierProgramLookupTable: string[];
   }): Promise<TransactionParameters> {
     const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
     const decoded = coder.decodeUnchecked("transactionParameters", bytes);
@@ -611,7 +609,6 @@ export class TransactionParameters implements transactionParameters {
             bytes: utxoBytes,
             appDataIdl,
             assetLookupTable,
-            verifierProgramLookupTable,
           }),
         );
       }
@@ -814,7 +811,6 @@ export class TransactionParameters implements transactionParameters {
           poseidon: this.poseidon,
           publicKey: this.account.pubkey,
           assetLookupTable: [SystemProgram.programId.toBase58()],
-          verifierProgramLookupTable: [SystemProgram.programId.toBase58()],
           isFillingUtxo: true,
         }),
       );

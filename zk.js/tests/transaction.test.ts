@@ -58,8 +58,6 @@ describe("Transaction Error Tests", () => {
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     params = new TransactionParameters({
       outputUtxos: [shieldUtxo1],
@@ -216,8 +214,6 @@ describe("Transaction Functional Tests", () => {
       publicKey: account.pubkey,
       blinding: new BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     paramsShield = new TransactionParameters({
       outputUtxos: [shieldUtxo1],
@@ -351,8 +347,6 @@ describe("Transaction Functional Tests", () => {
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       amounts: [BN_1],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       index: 0,
     });
 

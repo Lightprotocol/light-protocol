@@ -37,6 +37,7 @@ import {
   MerkleTreeConfig,
   RELAYER_FEE,
   BN_0,
+  lightPsp2in2outId,
 } from "../../src";
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -153,8 +154,6 @@ describe("verifier_program", () => {
           assets: inputUtxos[0].assets,
           amounts: [BN_0, inputUtxos[0].amounts[1]],
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
         }),
       ],
       tokenProgram: MINT,
@@ -213,16 +212,12 @@ describe("verifier_program", () => {
           ],
           publicKey: KEYPAIR.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
         })
       : new Utxo({
           poseidon: POSEIDON,
           amounts: [new anchor.BN(shieldFeeAmount)],
           publicKey: KEYPAIR.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
         });
 
     const txParams = new TransactionParameters({

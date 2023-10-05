@@ -9,7 +9,6 @@ import {
   CreateUtxoErrorCode,
   ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   fetchAssetByIdLookUp,
-  fetchVerifierByIdLookUp,
   FIELD_SIZE,
   getAssetIndex,
   hashAndTruncateToCircuit,
@@ -20,6 +19,9 @@ import {
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
   UtxoError,
   UtxoErrorCode,
+  TransactionParameters,
+  BN_1,
+  lightPsp2in2outId,
 } from "./index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types/result";
@@ -108,7 +110,6 @@ export class Utxo {
     appDataIdl,
     includeAppData = true,
     assetLookupTable,
-    verifierProgramLookupTable,
     isFillingUtxo = false,
     encryptionPublicKey,
   }: {
@@ -125,7 +126,6 @@ export class Utxo {
     includeAppData?: boolean;
     appDataHash?: BN;
     assetLookupTable: string[];
-    verifierProgramLookupTable: string[];
     isFillingUtxo?: boolean;
     encryptionPublicKey?: Uint8Array;
   }) {
@@ -218,6 +218,7 @@ export class Utxo {
     this.index = index;
     this.assets = assets;
     this.appData = appData;
+    this.verifierAddress = verifierAddress;
     this.poolType = poolType;
     this.includeAppData = includeAppData;
     this.transactionVersion = "0";
@@ -258,20 +259,25 @@ export class Utxo {
     }
 
     if (verifierAddress.toBase58() == SystemProgram.programId.toBase58()) {
-      this.verifierAddress = verifierAddress;
       this.verifierAddressCircuit = BN_0;
       this.verifierProgramIndex = BN_0;
     } else {
-      this.verifierAddress = verifierAddress;
       this.verifierAddressCircuit = hashAndTruncateToCircuit(
         verifierAddress.toBytes(),
       );
 
-      this.verifierProgramIndex = new BN(
-        verifierProgramLookupTable.findIndex((verifierAddress: string) => {
-          return verifierAddress === this.verifierAddress.toBase58();
-        }),
-      );
+      // NOTE(vadorovsky): Currently we don't use the `verifierProgramIndex`,
+      // but we might revisit it and implement a registry for verifiers,
+      // where each system verifier and registered PSP would have an unique
+      // ID in the whole protocol. It's not certain though.
+      //
+      // For now, assign 0 to UTXOs coming from system verifier zero and
+      // 1 to UTXOs coming from PSPs through other verifiers.
+      if (appDataIdl) {
+        this.verifierProgramIndex = BN_1;
+      } else {
+        this.verifierProgramIndex = BN_0;
+      }
       if (this.verifierProgramIndex.isNeg())
         throw new UtxoError(
           UtxoErrorCode.VERIFIER_INDEX_NOT_FOUND,
@@ -433,9 +439,7 @@ export class Utxo {
     includeAppData = true,
     index,
     appDataIdl,
-    verifierAddress,
     assetLookupTable,
-    verifierProgramLookupTable,
   }: {
     poseidon: any;
     bytes: Buffer;
@@ -443,9 +447,7 @@ export class Utxo {
     includeAppData?: boolean;
     index?: number;
     appDataIdl?: Idl;
-    verifierAddress?: PublicKey;
     assetLookupTable: string[];
-    verifierProgramLookupTable: string[];
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding
     if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
@@ -467,10 +469,12 @@ export class Utxo {
 
     let decodedUtxoData: any;
     let appData: any = undefined;
+    let verifierAddress: PublicKey;
     // TODO: should I check whether an account is passed or not?
     if (!appDataIdl) {
       const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
       decodedUtxoData = coder.decode("utxo", bytes);
+      verifierAddress = SystemProgram.programId;
     } else {
       if (!appDataIdl.accounts)
         throw new UtxoError(
@@ -485,16 +489,13 @@ export class Utxo {
         appDataIdl.accounts,
         "utxoAppData",
       );
+
+      verifierAddress = TransactionParameters.getVerifierProgramId(appDataIdl);
     }
     const assets = [
       SystemProgram.programId,
       fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
     ];
-
-    verifierAddress = fetchVerifierByIdLookUp(
-      decodedUtxoData.verifierAddressIndex,
-      verifierProgramLookupTable,
-    );
 
     return new Utxo({
       assets,
@@ -513,7 +514,6 @@ export class Utxo {
       appData,
       verifierAddress,
       ...decodedUtxoData,
-      verifierProgramLookupTable,
       assetLookupTable,
     });
   }
@@ -737,7 +737,6 @@ export class Utxo {
     appDataIdl,
     compressed = true,
     assetLookupTable,
-    verifierProgramLookupTable,
   }: {
     poseidon: any;
     encBytes: Uint8Array;
@@ -749,7 +748,6 @@ export class Utxo {
     appDataIdl?: Idl;
     compressed?: boolean;
     assetLookupTable: string[];
-    verifierProgramLookupTable: string[];
   }): Promise<Result<Utxo | null, UtxoError>> {
     // Remove UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
     encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
@@ -788,7 +786,6 @@ export class Utxo {
         index,
         appDataIdl,
         assetLookupTable,
-        verifierProgramLookupTable,
       }),
     );
   }
@@ -814,7 +811,6 @@ export class Utxo {
     appDataIdl,
     compressed = true,
     assetLookupTable,
-    verifierProgramLookupTable,
   }: {
     poseidon: any;
     encBytes: Uint8Array;
@@ -826,7 +822,6 @@ export class Utxo {
     appDataIdl?: Idl;
     compressed?: boolean;
     assetLookupTable: string[];
-    verifierProgramLookupTable: string[];
   }): Promise<Result<Utxo | null, UtxoError>> {
     // Get UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
     const prefixBytes = encBytes.slice(0, UTXO_PREFIX_LENGTH);
@@ -845,7 +840,6 @@ export class Utxo {
         appDataIdl,
         compressed,
         assetLookupTable,
-        verifierProgramLookupTable,
       });
 
       // If the return value of decryptUnchecked operation is valid
@@ -877,13 +871,11 @@ export class Utxo {
     string: string,
     poseidon: any,
     assetLookupTable: string[],
-    verifierProgramLookupTable: string[],
   ): Utxo {
     return Utxo.fromBytes({
       bytes: bs58.decode(string),
       poseidon,
       assetLookupTable,
-      verifierProgramLookupTable,
     });
   }
 
