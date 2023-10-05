@@ -1,9 +1,6 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
-import {
-  Keypair as SolanaKeypair,
-  SystemProgram,
-} from "@solana/web3.js";
+import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const chai = require("chai");
@@ -429,8 +426,8 @@ describe("Transaction Functional Tests", () => {
       "5933194464001103981860458884656917415381806542379509455129642519383560866951",
     );
   });
-  
-it("getMerkleProof", async () => {
+
+  it("getMerkleProof", async () => {
     let merkleProofsShield = lightProvider.solMerkleTree!.getMerkleProofs(
       lightProvider.poseidon,
       paramsShield.inputUtxos,

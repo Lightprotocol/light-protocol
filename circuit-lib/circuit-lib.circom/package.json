@@ -11,7 +11,7 @@
     "test": "pnpm test-light-circuits",
     "format": "prettier --write \"tests/**/*.{ts,js,circom}\"",
     "build-all": "pnpm build-app 4 && pnpm build-masp 2 && pnpm build-masp 10",
-    "lint": "pnpm prettier \"tests/**/*.{ts,js}\" --check",
+    "lint": "pnpm prettier \"tests/**/*.ts\" --check",
     "build": "pnpm tsc",
     "preinstall": "npx only-allow pnpm"
   },
