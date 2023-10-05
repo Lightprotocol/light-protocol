@@ -10,22 +10,12 @@ on:
       - synchronize
       - ready_for_review
       - reopened
-name: psp-examples
+name: build-lint-test
 jobs:
-  psp-examples:
-    name: psp-examples
+  build-lint-test:
+    name: build-lint-test
     if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
-    strategy:
-      matrix:
-        psp: [
-          "@lightprotocol/encrypted-messaging",
-          "@lightprotocol/private-payments",
-          "@lightprotocol/rock-paper-scissors",
-          "@lightprotocol/streaming-payments",
-          "@lightprotocol/swap"
-        ]
-
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
@@ -38,4 +28,6 @@ jobs:
       - name: ${{ matrix.psp }}
         run: |
           source ./scripts/devenv.sh
-          npx nx test ${{ matrix.psp }}
+          ./scripts/build.sh
+          ./scripts/lint.sh
+          ./scripts/test.sh
