@@ -1104,10 +1104,6 @@ export class TransactionParameters implements transactionParameters {
 
       let nullifiersHasher = sha256.create();
       this.inputUtxos.forEach((x) => {
-        // const nullifier = x.getNullifier({ poseidon, account: this.account });
-        // const nullifier = this.params.inputUtxos.map((x) => {
-
-        // });
         let _account = this.account;
         if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
           _account = Account.fromPrivkey(

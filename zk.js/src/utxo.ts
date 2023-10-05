@@ -525,8 +525,6 @@ export class Utxo {
    * @returns {string}
    */
   getCommitment(poseidon: any): string {
-    // TODO: UNDO!!!
-    this._commitment = undefined;
     if (!this._commitment) {
       let amountHash = poseidon.F.toString(poseidon(this.amounts));
       let assetHash = poseidon.F.toString(
