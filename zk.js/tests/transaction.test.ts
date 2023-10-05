@@ -2,7 +2,6 @@ import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
 import {
   Keypair as SolanaKeypair,
-  PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
@@ -24,16 +23,12 @@ import {
   Relayer,
   AUTHORITY,
   TransactionError,
-  ProviderErrorCode,
-  SolMerkleTreeErrorCode,
   Utxo,
   Account,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_TWO,
   IDL_VERIFIER_PROGRAM_STORAGE,
-  BN_0,
   BN_1,
-  BN_2,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -54,8 +49,7 @@ describe("Transaction Error Tests", () => {
     shieldUtxo1: Utxo,
     account: Account,
     params: TransactionParameters,
-    rootIndex: BN,
-    nextTransactionMerkleTree: any;
+    rootIndex: BN;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
@@ -82,7 +76,6 @@ describe("Transaction Error Tests", () => {
       account,
     });
     const res = await lightProvider.getRootIndex();
-    nextTransactionMerkleTree = res.remainingAccounts.nextTransactionMerkleTree;
     rootIndex = res.rootIndex;
   });
 
@@ -267,7 +260,7 @@ describe("Transaction Functional Tests", () => {
   it("getMerkleProof", async () => {
     let merkleProofsDeposit = lightProvider.solMerkleTree!.getMerkleProofs(
       lightProvider.poseidon,
-      paramsDeposit.inputUtxos,
+      paramsShield.inputUtxos,
     );
     assert.equal(
       merkleProofsDeposit.inputMerklePathIndices.toString(),
@@ -284,7 +277,7 @@ describe("Transaction Functional Tests", () => {
 
     let merkleProofsWithdrawal = lightProvider.solMerkleTree!.getMerkleProofs(
       lightProvider.poseidon,
-      paramsWithdrawal.inputUtxos,
+      paramsUnshield.inputUtxos,
     );
     assert.equal(
       merkleProofsWithdrawal.inputMerklePathIndices.toString(),
@@ -386,7 +379,7 @@ describe("Transaction Functional Tests", () => {
     let tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsDeposit,
+      params: params,
     });
     await tx.compileAndProve(poseidon, account);
     await tx.getInstructions(tx.params);
