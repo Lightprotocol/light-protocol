@@ -30,6 +30,7 @@ pub struct InitializeNewMerkleTrees<'info> {
             EVENT_MERKLE_TREE_SEED,
             merkle_tree_authority_pda.event_merkle_tree_index.to_le_bytes().as_ref(),
         ],
+        constraint = new_event_merkle_tree.load()?.merkle_tree_nr == new_transaction_merkle_tree.load()?.merkle_tree_nr,
         bump,
         payer = authority,
         // discriminator + height (u64) + filled subtrees ([[u8; 32]; 18]) +

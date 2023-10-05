@@ -268,7 +268,10 @@ pub(crate) fn light_verifier_accounts(
             >,
             /// CHECK: It gets checked inside the event_call.
             pub log_wrapper: UncheckedAccount<'info>,
-            #[account(mut)]
+            #[account(
+                mut,
+                constraint = event_merkle_tree.load()?.merkle_tree_nr == transaction_merkle_tree.load()?.merkle_tree_nr,
+            )]
             pub event_merkle_tree: AccountLoader<'info, ::merkle_tree_program::event_merkle_tree::EventMerkleTree>,
         }
     };
