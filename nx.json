@@ -1,24 +1,39 @@
 {
   "tasksRunnerOptions": {
     "default": {
-      "runner": "nx/tasks-runners/default",
+      "runner": "nx-cloud",
       "options": {
-        "cacheableOperations": ["build", "test"]
+        "cacheableOperations": [
+          "build",
+          "test"
+        ],
+        "accessToken": "MmE0ODU2ZjMtNTdmMy00MDNlLTk5NGYtY2VjNzA0ODNmMzY5fHJlYWQtd3JpdGU="
       }
     }
   },
   "namedInputs": {
-    "noMarkdown": ["!{projectRoot}/**/*.md"]
+    "noMarkdown": [
+      "!{projectRoot}/**/*.md"
+    ]
   },
   "targetDefaults": {
     "build": {
-      "inputs": ["noMarkdown", "^noMarkdown"],
-      "dependsOn": ["^build"]
+      "inputs": [
+        "noMarkdown",
+        "^noMarkdown"
+      ],
+      "dependsOn": [
+        "^build"
+      ]
     },
     "test": {
-      "inputs": ["noMarkdown", "^noMarkdown"],
-      "dependsOn": ["^build"]
+      "inputs": [
+        "noMarkdown",
+        "^noMarkdown"
+      ],
+      "dependsOn": [
+        "^build"
+      ]
     }
   }
-
 }
