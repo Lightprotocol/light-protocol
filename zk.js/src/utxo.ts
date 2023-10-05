@@ -582,8 +582,6 @@ export class Utxo {
     account: Account;
     index?: number | undefined;
   }) {
-    this._nullifier = undefined;
-
     if (this.index === undefined) {
       if (index) {
         this.index = index;
