@@ -28,6 +28,13 @@ jobs:
     name: system-programs
     if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
+    strategy:
+      matrix:
+        include:
+          - test: system-programs-tests-transaction-user-verifiers-merkle-tree-provider
+            sub-tests: '["functional", "user", "verifiers", "merkle-tree", "provider"]'
+          - test: system-programs-tests-user-merge
+            sub-tests: '["user-merge"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
@@ -35,7 +42,12 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      - name: test system-programs
+      - name: ${{ matrix.test }}
         run: |
           source ./scripts/devenv.sh
-          npx nx test @lightprotocol/system-programs
+          cd system-programs
+          IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+          for subtest in "${sub_tests[@]}"
+          do
+            pnpm test-$subtest
+          done
