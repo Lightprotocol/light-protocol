@@ -44,6 +44,8 @@ import {
   executeUpdateMerkleTreeTransactions,
   RELAYER_FEE,
   BN_1,
+  BN_0,
+  BN_2,
 } from "@lightprotocol/zk.js";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
@@ -643,17 +645,18 @@ describe("Merkle Tree Tests", () => {
     // 13 signer is consistent
 
     const signer = ADMIN_AUTH_KEYPAIR;
-    const transactionMerkleTreePda =
+    const transactionMerkleTreePubkey =
       MerkleTreeConfig.getTransactionMerkleTreePda();
+    const eventMerkleTreePubkey = MerkleTreeConfig.getEventMerkleTreePda();
 
     await merkleTreeProgram.account.transactionMerkleTree.fetch(
-      transactionMerkleTreePda,
+      transactionMerkleTreePubkey,
     );
     let error;
 
     // fetch uninserted utxos from chain
     let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
-      transactionMerkleTreePda,
+      transactionMerkleTreePubkey,
     );
 
     await circomlibjs.buildPoseidonOpt();
@@ -678,7 +681,7 @@ describe("Merkle Tree Tests", () => {
             merkleTreeUpdateState: merkleTreeUpdateState,
             systemProgram: DEFAULT_PROGRAMS.systemProgram,
             rent: DEFAULT_PROGRAMS.rent,
-            transactionMerkleTree: transactionMerkleTreePda,
+            transactionMerkleTree: transactionMerkleTreePubkey,
           })
           .remainingAccounts(leavesPdas)
           .preInstructions([
@@ -708,7 +711,7 @@ describe("Merkle Tree Tests", () => {
             merkleTreeUpdateState: merkleTreeUpdateState,
             systemProgram: SystemProgram.programId,
             rent: DEFAULT_PROGRAMS.rent,
-            transactionMerkleTree: transactionMerkleTreePda,
+            transactionMerkleTree: transactionMerkleTreePubkey,
           })
           .remainingAccounts([leavesPdas[1]])
           .preInstructions([
@@ -729,35 +732,81 @@ describe("Merkle Tree Tests", () => {
       console.log("pdas.length <=" + 1 + " skipping some tests");
     }
 
-    // Test property: 3
-    // try with different Merkle tree than leaves are queued for
-    // index might be broken it is wasn't set to mut didn't update
+    let merkleTreeConfig = new MerkleTreeConfig({
+      payer: ADMIN_AUTH_KEYPAIR,
+      anchorProvider: provider,
+    });
+
+    // Check the next Merkle Tree indexes in Merkle Tree Authority. They should
+    // be 1.
+    let merkleTreeAuthorityAccountInfo =
+      await merkleTreeConfig.getMerkleTreeAuthorityAccountInfo();
+    assert(merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex.eq(BN_1));
+    assert(merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex.eq(BN_1));
+
+    // Check if the previous Merkle Trees, before initializing the new ones,
+    // are the newest ones. Check their indexes (0) as well.
+    let transactionMerkleTreeAccountInfo =
+      await merkleTreeConfig.getTransactionMerkleTreeAccountInfo(
+        transactionMerkleTreePubkey,
+      );
+    assert.equal(transactionMerkleTreeAccountInfo.newest, 1);
+    assert(transactionMerkleTreeAccountInfo.merkleTreeNr.eq(BN_0));
+    let eventMerkleTreeAccountInfo =
+      await merkleTreeConfig.getEventMerkleTreeAccountInfo(
+        eventMerkleTreePubkey,
+      );
+    assert.equal(eventMerkleTreeAccountInfo.newest, 1);
+    assert(eventMerkleTreeAccountInfo.merkleTreeNr.eq(BN_0));
+
+    // Initialize new Merkle Trees.
     const newTransactionMerkleTreePubkey =
       MerkleTreeConfig.getTransactionMerkleTreePda(BN_1);
     const newEventMerkleTreePubkey =
       MerkleTreeConfig.getEventMerkleTreePda(BN_1);
-    if (
-      (await connection.getAccountInfo(newTransactionMerkleTreePubkey)) == null
-    ) {
-      let merkleTreeConfig = new MerkleTreeConfig({
-        payer: ADMIN_AUTH_KEYPAIR,
-        anchorProvider: provider,
-      });
-      await merkleTreeConfig.initializeNewMerkleTrees();
-      console.log("created new merkle tree");
+    await merkleTreeConfig.initializeNewMerkleTrees();
+    console.log("created new merkle trees");
 
-      assert.isTrue(
-        await merkleTreeConfig.isNewestTransactionMerkleTree(
-          newTransactionMerkleTreePubkey,
-        ),
+    // Check if the previous Merkle Trees, after initializing the new ones,
+    // aren't the newest ones anymore.
+    let transactionMerkleTreeUpdatedAccountInfo =
+      await merkleTreeConfig.getTransactionMerkleTreeAccountInfo(
+        transactionMerkleTreePubkey,
       );
-      assert.isTrue(
-        await merkleTreeConfig.isNewestEventMerkleTree(
-          newEventMerkleTreePubkey,
-        ),
+    assert.equal(transactionMerkleTreeUpdatedAccountInfo.newest, 0);
+    let eventMerkleTreeUpdatedAccountInfo =
+      await merkleTreeConfig.getEventMerkleTreeAccountInfo(
+        eventMerkleTreePubkey,
       );
-    }
+    assert.equal(eventMerkleTreeUpdatedAccountInfo.newest, 0);
 
+    // Check if the new Merkle Trees are the newest ones. Check their indexes
+    // (1) as well.
+    let newTransactionMerkleTreeAccountInfo =
+      await merkleTreeConfig.getTransactionMerkleTreeAccountInfo(
+        newTransactionMerkleTreePubkey,
+      );
+    assert.equal(newTransactionMerkleTreeAccountInfo.newest, 1);
+    assert(newTransactionMerkleTreeAccountInfo.merkleTreeNr.eq(BN_1));
+    let newEventMerkleTreeAccountInfo =
+      await merkleTreeConfig.getEventMerkleTreeAccountInfo(
+        newEventMerkleTreePubkey,
+      );
+    assert.equal(newEventMerkleTreeAccountInfo.newest, 1);
+    assert(newEventMerkleTreeAccountInfo.merkleTreeNr.eq(BN_1));
+
+    // Check the next Merkle Tree indexes in MerkleTreeAuthority. They should
+    // be 2.
+    let merkleTreeAuthorityUpdatedAccountInfo =
+      await merkleTreeConfig.getMerkleTreeAuthorityAccountInfo();
+    assert(
+      merkleTreeAuthorityUpdatedAccountInfo.transactionMerkleTreeIndex.eq(BN_2),
+    );
+    assert(merkleTreeAuthorityUpdatedAccountInfo.eventMerkleTreeIndex.eq(BN_2));
+
+    // Test property: 3
+    // try with different Merkle tree than leaves are queued for
+    // index might be broken it is wasn't set to mut didn't update
     try {
       await merkleTreeProgram.methods
         .initializeMerkleTreeUpdateState()
@@ -792,7 +841,7 @@ describe("Merkle Tree Tests", () => {
           merkleTreeUpdateState: merkleTreeUpdateState,
           systemProgram: SystemProgram.programId,
           rent: DEFAULT_PROGRAMS.rent,
-          transactionMerkleTree: transactionMerkleTreePda,
+          transactionMerkleTree: transactionMerkleTreePubkey,
         })
         .remainingAccounts([leavesPdas[0]])
         .preInstructions([
@@ -813,7 +862,7 @@ describe("Merkle Tree Tests", () => {
     await checkMerkleTreeUpdateStateCreated({
       connection: connection,
       merkleTreeUpdateState,
-      transactionMerkleTree: transactionMerkleTreePda,
+      transactionMerkleTree: transactionMerkleTreePubkey,
       relayer: signer.publicKey,
       leavesPdas: [leavesPdas[0]],
       current_instruction_index: 1,
@@ -824,7 +873,7 @@ describe("Merkle Tree Tests", () => {
     await executeMerkleTreeUpdateTransactions({
       signer,
       merkleTreeProgram,
-      transactionMerkleTree: transactionMerkleTreePda,
+      transactionMerkleTree: transactionMerkleTreePubkey,
       connection: provider.connection,
       merkleTreeUpdateState,
       numberOfTransactions: 10,
@@ -835,7 +884,7 @@ describe("Merkle Tree Tests", () => {
     await checkMerkleTreeUpdateStateCreated({
       connection: connection,
       merkleTreeUpdateState,
-      transactionMerkleTree: transactionMerkleTreePda,
+      transactionMerkleTree: transactionMerkleTreePubkey,
       relayer: signer.publicKey,
       leavesPdas: [leavesPdas[0]],
       current_instruction_index: 22, // 22 because one tx executes two instructions, it started out in ix index 1 and increments at the end of a tx
@@ -861,7 +910,7 @@ describe("Merkle Tree Tests", () => {
       await executeMerkleTreeUpdateTransactions({
         signer: maliciousSigner,
         merkleTreeProgram,
-        transactionMerkleTree: transactionMerkleTreePda,
+        transactionMerkleTree: transactionMerkleTreePubkey,
         connection: provider.connection,
         merkleTreeUpdateState,
         numberOfTransactions: 1,
@@ -886,7 +935,7 @@ describe("Merkle Tree Tests", () => {
           merkleTreeUpdateState: maliciousMerkleTreeUpdateState,
           systemProgram: SystemProgram.programId,
           rent: DEFAULT_PROGRAMS.rent,
-          transactionMerkleTree: transactionMerkleTreePda,
+          transactionMerkleTree: transactionMerkleTreePubkey,
         })
         .remainingAccounts([leavesPdas[0]])
         .signers([maliciousSigner])
@@ -905,7 +954,7 @@ describe("Merkle Tree Tests", () => {
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
-          transactionMerkleTree: transactionMerkleTreePda,
+          transactionMerkleTree: transactionMerkleTreePubkey,
           logWrapper: SPL_NOOP_ADDRESS,
         })
         .signers([signer])
@@ -921,7 +970,7 @@ describe("Merkle Tree Tests", () => {
     await executeMerkleTreeUpdateTransactions({
       signer,
       merkleTreeProgram,
-      transactionMerkleTree: transactionMerkleTreePda,
+      transactionMerkleTree: transactionMerkleTreePubkey,
       connection: provider.connection,
       merkleTreeUpdateState,
       numberOfTransactions: 50,
@@ -930,7 +979,7 @@ describe("Merkle Tree Tests", () => {
     await checkMerkleTreeUpdateStateCreated({
       connection: connection,
       merkleTreeUpdateState,
-      transactionMerkleTree: transactionMerkleTreePda,
+      transactionMerkleTree: transactionMerkleTreePubkey,
       relayer: signer.publicKey,
       leavesPdas: [leavesPdas[0]],
       current_instruction_index: 56,
@@ -964,7 +1013,7 @@ describe("Merkle Tree Tests", () => {
         .accounts({
           authority: maliciousSigner.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
-          transactionMerkleTree: transactionMerkleTreePda,
+          transactionMerkleTree: transactionMerkleTreePubkey,
           logWrapper: SPL_NOOP_ADDRESS,
         })
         .signers([maliciousSigner])
@@ -976,7 +1025,7 @@ describe("Merkle Tree Tests", () => {
 
     var merkleTreeAccountPrior =
       await merkleTreeProgram.account.transactionMerkleTree.fetch(
-        transactionMerkleTreePda,
+        transactionMerkleTreePubkey,
       );
 
     const indexedTransactions = await RELAYER.getIndexedTransactions(
@@ -984,7 +1033,7 @@ describe("Merkle Tree Tests", () => {
     );
 
     let merkleTree = await SolMerkleTree.build({
-      pubkey: transactionMerkleTreePda,
+      pubkey: transactionMerkleTreePubkey,
       poseidon: POSEIDON,
       indexedTransactions,
       provider: provider,
@@ -996,7 +1045,7 @@ describe("Merkle Tree Tests", () => {
       .accounts({
         authority: signer.publicKey,
         merkleTreeUpdateState: merkleTreeUpdateState,
-        transactionMerkleTree: transactionMerkleTreePda,
+        transactionMerkleTree: transactionMerkleTreePubkey,
         logWrapper: SPL_NOOP_ADDRESS,
       })
       .signers([signer])
@@ -1005,7 +1054,7 @@ describe("Merkle Tree Tests", () => {
     console.log("merkleTreeAccountPrior ", merkleTreeAccountPrior);
     console.log("leavesPdas[0] ", leavesPdas[0]);
     console.log("merkleTree ", merkleTree);
-    console.log("merkle_tree_pubkey ", transactionMerkleTreePda);
+    console.log("merkle_tree_pubkey ", transactionMerkleTreePubkey);
 
     await checkMerkleTreeBatchUpdateSuccess({
       connection: provider.connection,
@@ -1013,7 +1062,7 @@ describe("Merkle Tree Tests", () => {
       merkleTreeAccountPrior,
       numberOfLeaves: 2,
       leavesPdas: [leavesPdas[0]],
-      transactionMerkleTree: transactionMerkleTreePda,
+      transactionMerkleTree: transactionMerkleTreePubkey,
       merkleTreeProgram,
     });
 
@@ -1029,7 +1078,7 @@ describe("Merkle Tree Tests", () => {
           merkleTreeUpdateState: merkleTreeUpdateState,
           systemProgram: SystemProgram.programId,
           rent: DEFAULT_PROGRAMS.rent,
-          transactionMerkleTree: transactionMerkleTreePda,
+          transactionMerkleTree: transactionMerkleTreePubkey,
         })
         .remainingAccounts([leavesPdas[0]])
         .preInstructions([
