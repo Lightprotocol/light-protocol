@@ -13,7 +13,8 @@
     "@chakra-ui/react": "^2.8.1",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
-    "@lightprotocol/zk.js": "^0.3.2-alpha.15",
+    "@lightprotocol/zk.js": "workspace:*",
+    "@tanstack/react-query": "^4.35.7",
     "framer-motion": "^10.16.4",
     "jotai": "^2.4.3",
     "next": "latest",
@@ -25,8 +26,10 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/styled-jsx": "^3.4.4",
     "eslint": "latest",
     "eslint-config-next": "latest",
+    "styled-jsx": "^5.1.2",
     "typescript": "latest"
   }
 }

@@ -1,5 +1,4 @@
 "use client";
-
 import { theme } from "@/styles/theme";
 import { CacheProvider } from "@chakra-ui/next-js";
 import { ChakraProvider } from "@chakra-ui/react";
@@ -9,6 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <>
+      {/* @ts-ignore */}
       <style jsx global>
         {`
           :root {

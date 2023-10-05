@@ -1745,6 +1745,7 @@ export class User {
       confirmOptions,
     });
   }
+
   async executeAppUtxo({
     appUtxos = [],
     inUtxos = [],
