@@ -486,7 +486,7 @@ export class Utxo {
         "utxoAppData",
       );
     }
-    assets = [
+    const assets = [
       SystemProgram.programId,
       fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
     ];
@@ -646,7 +646,7 @@ export class Utxo {
         commitment,
       );
 
-      let prefix = randomPrefixBytes();
+      const prefix = randomPrefixBytes();
       return Uint8Array.from([...prefix, ...ciphertext]);
     } else if (account) {
       if (!merkleTreePdaPublicKey)
@@ -664,7 +664,7 @@ export class Utxo {
 
       // If utxo is filling utxo we don't want to decrypt it in the future so we use a random prefix
       // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
-      let prefix = !this.isFillingUtxo
+      const prefix = !this.isFillingUtxo
         ? account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH)
         : randomPrefixBytes();
       if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);

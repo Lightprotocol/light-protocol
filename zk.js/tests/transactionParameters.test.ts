@@ -43,14 +43,14 @@ const VERIFIER_IDLS = [
 ];
 
 describe("Transaction Parameters Functional", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
 
-  let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey1 = SolanaKeypair.generate().publicKey;
-  let mockPubkey2 = SolanaKeypair.generate().publicKey;
-  let mockPubkey3 = SolanaKeypair.generate().publicKey;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
+  const mockPubkey1 = SolanaKeypair.generate().publicKey;
+  const mockPubkey2 = SolanaKeypair.generate().publicKey;
+  const mockPubkey3 = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
@@ -91,7 +91,7 @@ describe("Transaction Parameters Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let j = 0;
+    const j = 0;
     const inputUtxos = [shieldUtxo1];
     const outputUtxos = [outputUtxo];
 
@@ -220,7 +220,7 @@ describe("Transaction Parameters Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (let j in VERIFIER_IDLS) {
+    for (const j in VERIFIER_IDLS) {
       const inputUtxos = [shieldUtxo1];
       const outputUtxos = [outputUtxo];
 
@@ -324,7 +324,7 @@ describe("Transaction Parameters Functional", () => {
     }
   });
   it("Shield Functional", async () => {
-    for (let j in VERIFIER_IDLS) {
+    for (const j in VERIFIER_IDLS) {
       const outputUtxos = [shieldUtxo1];
 
       const params = new TransactionParameters({
@@ -421,7 +421,7 @@ describe("Transaction Parameters Functional", () => {
   });
 
   it("Unshield Functional", async () => {
-    for (let j in VERIFIER_IDLS) {
+    for (const j in VERIFIER_IDLS) {
       const inputUtxos = [shieldUtxo1];
 
       const params = new TransactionParameters({
@@ -527,7 +527,7 @@ describe("Test TransactionParameters Methods", () => {
   it("Test getAssetPubkeys", async () => {
     lightProvider = await LightProvider.loadMock();
     const poseidon = await buildPoseidonOpt();
-    let inputUtxos = [
+    const inputUtxos = [
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -670,9 +670,9 @@ describe("Test TransactionParameters Methods", () => {
 });
 
 describe("Test General TransactionParameters Errors", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const depositAmount = 20_000;
+  const depositFeeAmount = 10_000;
 
   const mockPubkey = SolanaKeypair.generate().publicKey;
   let poseidon: any,
@@ -783,10 +783,10 @@ describe("Test General TransactionParameters Errors", () => {
 });
 
 describe("Test TransactionParameters Transfer Errors", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
-  let mockPubkey = SolanaKeypair.generate().publicKey;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const depositAmount = 20_000;
+  const depositFeeAmount = 10_000;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
   let keypair: Account;
   let poseidon: any,
     lightProvider: LightProvider,
@@ -1007,10 +1007,10 @@ describe("Test TransactionParameters Transfer Errors", () => {
 });
 
 describe("Test TransactionParameters Deposit Errors", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
-  let mockPubkey = SolanaKeypair.generate().publicKey;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const depositAmount = 20_000;
+  const depositFeeAmount = 10_000;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
   let keypair: Account;
 
   let poseidon: any,
@@ -1310,10 +1310,10 @@ describe("Test TransactionParameters Deposit Errors", () => {
 });
 
 describe("Test TransactionParameters Withdrawal Errors", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
-  let mockPubkey = SolanaKeypair.generate().publicKey;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const depositAmount = 20_000;
+  const depositFeeAmount = 10_000;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
   let keypair: Account;
 
   let poseidon: any,

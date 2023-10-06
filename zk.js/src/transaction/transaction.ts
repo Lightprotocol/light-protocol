@@ -50,7 +50,7 @@ type PublicInputs = {
 // const { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
 export class Transaction {
   solMerkleTree: SolMerkleTree;
-  shuffleEnabled: Boolean;
+  shuffleEnabled: boolean;
   params: TransactionParameters; // contains accounts
   appParams?: any;
 

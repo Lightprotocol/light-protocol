@@ -201,8 +201,8 @@ export class SolMerkleTree {
     inputMerklePathIndices: Array<string>;
     inputMerklePathElements: Array<Array<string>>;
   } {
-    let inputMerklePathIndices = new Array<string>();
-    let inputMerklePathElements = new Array<Array<string>>();
+    const inputMerklePathIndices = new Array<string>();
+    const inputMerklePathElements = new Array<Array<string>>();
     // getting merkle proofs
     for (const inputUtxo of inputUtxos) {
       if (inputUtxo.amounts[0].gt(BN_0) || inputUtxo.amounts[1].gt(BN_0)) {

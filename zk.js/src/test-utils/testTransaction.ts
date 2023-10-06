@@ -127,7 +127,9 @@ export class TestTransaction {
     }
 
     this.testValues.recipientFeeBalancePriorTx = new BN(
-        await this.provider.provider.connection.getBalance(this.params.accounts.recipientSol),
+      await this.provider.provider.connection.getBalance(
+        this.params.accounts.recipientSol,
+      ),
     );
     if (this.params.action === "SHIELD") {
       this.testValues.senderFeeBalancePriorTx = new BN(

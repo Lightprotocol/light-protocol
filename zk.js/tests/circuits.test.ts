@@ -47,7 +47,7 @@ let account: Account,
   paramsUnshield: TransactionParameters,
   appData: any,
   relayer: Relayer;
-let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 // TODO: check more specific errors in tests
 describe("Masp circuit tests", () => {
@@ -56,8 +56,8 @@ describe("Masp circuit tests", () => {
     poseidon = await buildPoseidonOpt();
     account = new Account({ poseidon: poseidon, seed: seed32 });
     await account.getEddsaPublicKey();
-    let shieldAmount = 20_000;
-    let shieldFeeAmount = 10_000;
+    const shieldAmount = 20_000;
+    const shieldFeeAmount = 10_000;
     shieldUtxo1 = new Utxo({
       index: 0,
       poseidon: poseidon,
@@ -68,7 +68,7 @@ describe("Masp circuit tests", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let shieldUtxoSol = new Utxo({
+    const shieldUtxoSol = new Utxo({
       index: 0,
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -224,7 +224,7 @@ describe("Masp circuit tests", () => {
 
   // should pass because no non-zero input utxo is provided
   it("No in utxo test invalid root", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
@@ -236,7 +236,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid root", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -250,7 +250,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid tx integrity hash", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -266,7 +266,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("No in utxo test invalid publicMintPubkey", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
@@ -282,7 +282,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid publicMintPubkey", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -299,7 +299,7 @@ describe("Masp circuit tests", () => {
 
   // should succeed because no public spl amount is provided thus mint is not checked
   it("No public spl amount test invalid publicMintPubkey", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsSol,
@@ -312,7 +312,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid merkle proof path elements", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -328,7 +328,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid merkle proof path index", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -343,7 +343,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid inPrivateKey", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -358,7 +358,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid publicAmountSpl", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -374,7 +374,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid publicAmountSol", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -390,7 +390,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid publicAmountSpl", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsSol,
@@ -406,7 +406,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid outputCommitment", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -424,7 +424,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid inAmount", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -440,7 +440,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid outAmount", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -456,7 +456,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid inBlinding", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -472,7 +472,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid outBlinding", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -488,7 +488,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid outPubkey", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -504,7 +504,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid assetPubkeys", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -525,7 +525,7 @@ describe("Masp circuit tests", () => {
 
   // this fails because the system verifier does not allow
   it("With in utxo test invalid inAppDataHash", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsApp,
@@ -541,7 +541,7 @@ describe("Masp circuit tests", () => {
 
   // this works because the system verifier does not check output utxos other than commit hashes being well-formed and the sum
   it("With out utxo test inAppDataHash", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsOutApp,
@@ -553,7 +553,7 @@ describe("Masp circuit tests", () => {
 
   // this fails because it's inconsistent with the utxo
   it("With in utxo test invalid outAppDataHash", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -569,7 +569,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid pooltype", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsPoolType,
@@ -583,7 +583,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With out utxo test invalid pooltype", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsPoolTypeOut,
@@ -597,7 +597,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid inPoolType", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -613,7 +613,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid outPoolType", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -629,7 +629,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid inIndices", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -646,7 +646,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid inIndices", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -663,7 +663,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid outIndices", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -680,7 +680,7 @@ describe("Masp circuit tests", () => {
   });
 
   it("With in utxo test invalid outIndices", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
@@ -705,8 +705,8 @@ describe("App system circuit tests", () => {
     poseidon = await buildPoseidonOpt();
     account = new Account({ poseidon: poseidon, seed: seed32 });
     await account.getEddsaPublicKey();
-    let shieldAmount = 20_000;
-    let shieldFeeAmount = 10_000;
+    const shieldAmount = 20_000;
+    const shieldFeeAmount = 10_000;
     shieldUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -758,7 +758,7 @@ describe("App system circuit tests", () => {
   });
 
   it("No in utxo test invalid transactionHash", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
@@ -774,7 +774,7 @@ describe("App system circuit tests", () => {
   });
 
   it("No in utxo test invalid transactionHash", async () => {
-    let tx: Transaction = new Transaction({
+    const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsApp,

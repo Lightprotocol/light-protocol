@@ -113,7 +113,7 @@ export const newProgramOwnedAccount = async ({
         preflightCommitment: "confirmed",
       });
       return account;
-    } catch(e) {
+    } catch (e) {
       console.error("Error: ", e);
     }
 

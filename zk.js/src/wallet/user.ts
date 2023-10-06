@@ -158,7 +158,7 @@ export class User {
     // identify spent utxos
     for (const [, tokenBalance] of balance.tokenBalances) {
       for (const [key, utxo] of tokenBalance.utxos) {
-        let nullifierAccountInfo = await fetchNullifierAccountInfo(
+        const nullifierAccountInfo = await fetchNullifierAccountInfo(
           utxo.getNullifier({
             poseidon: this.provider.poseidon,
             account: this.account,
@@ -495,7 +495,7 @@ export class User {
         "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
     const { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
-    let tx = new Transaction({
+    const tx = new Transaction({
       rootIndex,
       nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
       solMerkleTree: this.provider.solMerkleTree!,
@@ -1049,7 +1049,7 @@ export class User {
     action,
     inUtxoCommitments,
     inUtxos,
-    outUtxos
+    outUtxos,
   }: {
     action: Action;
     inUtxoCommitments: string[];
@@ -1088,7 +1088,7 @@ export class User {
           UserErrorCode.ACCOUNT_AND_SEED_PROVIDED,
           "load",
           "Cannot provide both seed and account!",
-          );
+        );
       if (!seed && !account && provider.wallet) {
         account = await Account.createFromBrowserWallet(
           provider.poseidon,
@@ -1097,12 +1097,12 @@ export class User {
       } else if (!account && seed) {
         account = Account.createFromSeed(provider.poseidon, seed);
       } else if (!account) {
-          throw new UserError(
+        throw new UserError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-            "load",
+          "load",
           "No account, provider with wallet or seed provided!",
-          );
-        }
+        );
+      }
       if (
         account.solanaPublicKey &&
         provider.wallet.publicKey.toBase58() !==
@@ -1588,7 +1588,7 @@ export class User {
               const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
                 utxo.getNullifier(this.provider.poseidon)!,
-                this.provider.provider?.connection!,
+                this.provider.provider?.connection,
               );
               if (!nfExists) {
                 decryptedStorageUtxos.push(utxo);
@@ -1651,7 +1651,7 @@ export class User {
     for (const [, programBalance] of this.balance.programBalances) {
       for (const [, tokenBalance] of programBalance.tokenBalances) {
         for (const [key, utxo] of tokenBalance.utxos) {
-          let nullifierAccountInfo = await fetchNullifierAccountInfo(
+          const nullifierAccountInfo = await fetchNullifierAccountInfo(
             utxo.getNullifier({
               poseidon: this.provider.poseidon,
               account: this.account,

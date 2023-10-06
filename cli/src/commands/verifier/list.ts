@@ -12,7 +12,7 @@ class VerifierListCommand extends Command {
   static examples = ["light merkle-tree-authority:verifier-list"];
 
   async run() {
-    let anchorProvider = await setAnchorProvider();
+    const anchorProvider = await setAnchorProvider();
 
     const merkleTreeProgram = new Program(
       IDL_MERKLE_TREE_PROGRAM,

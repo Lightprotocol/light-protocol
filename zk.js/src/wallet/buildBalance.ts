@@ -254,7 +254,9 @@ export async function decryptAddUtxoToBalance({
       !balance.tokenBalances.get(utxo.assets[assetIndex].toBase58())
     ) {
       // TODO: several maps or unify somehow
-      const tokenBalanceUsdc = new TokenUtxoBalance(TOKEN_REGISTRY.get("USDC")!);
+      const tokenBalanceUsdc = new TokenUtxoBalance(
+        TOKEN_REGISTRY.get("USDC")!,
+      );
       balance.tokenBalances.set(
         tokenBalanceUsdc.tokenData.mint.toBase58(),
         tokenBalanceUsdc,

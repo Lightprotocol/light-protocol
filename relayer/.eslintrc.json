@@ -1,6 +1,6 @@
 {
     "root": true,
-    "ignorePatterns": ["node_modules", "dist"],
+    "ignorePatterns": ["node_modules", "dist", "tests"],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "project": ["./tsconfig.json", "./tsconfig.test.json"]

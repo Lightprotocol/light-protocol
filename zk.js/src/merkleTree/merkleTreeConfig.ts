@@ -280,7 +280,7 @@ export class MerkleTreeConfig {
       ) != null,
       "init authority failed",
     );
-    let merkleTreeAuthority =
+    const merkleTreeAuthority =
       await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
         this.merkleTreeAuthorityPda!,
       );

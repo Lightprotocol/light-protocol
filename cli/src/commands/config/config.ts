@@ -108,7 +108,7 @@ class ConfigCommand extends Command {
       }
 
       if (syncRelayer) {
-        let fetchedRelayer = await Relayer.initFromUrl(getRelayerUrl());
+        const fetchedRelayer = await Relayer.initFromUrl(getRelayerUrl());
         config.relayerPublicKey =
           fetchedRelayer.accounts.relayerPubkey.toBase58();
         config.relayerRecipient =

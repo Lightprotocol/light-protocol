@@ -266,13 +266,12 @@ export function selectInUtxos({
         );
 
         // search for suitable sol utxo in remaining utxos
-        const { selectedUtxos: selectedUtxo1 } =
-          selectBiggestSmallest(
-            reFilteredUtxos,
-            1,
-            sumOutSol.sub(selectedUtxosR[0].amounts[0]),
-            1,
-          );
+        const { selectedUtxos: selectedUtxo1 } = selectBiggestSmallest(
+          reFilteredUtxos,
+          1,
+          sumOutSol.sub(selectedUtxosR[0].amounts[0]),
+          1,
+        );
 
         // if a sol utxo was found replace small spl utxo
         if (

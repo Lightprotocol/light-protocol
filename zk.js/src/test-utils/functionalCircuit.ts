@@ -22,11 +22,11 @@ export async function functionalCircuitTest(
   const lightProvider = await LightProvider.loadMock();
 
   const poseidon = await circomlibjs.buildPoseidonOpt();
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let account = new Account({ poseidon: poseidon, seed: seed32 });
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
-  let shieldUtxo1 = new Utxo({
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const account = new Account({ poseidon: poseidon, seed: seed32 });
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
+  const shieldUtxo1 = new Utxo({
     poseidon: poseidon,
     assets: [FEE_ASSET, MINT],
     amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
@@ -37,7 +37,7 @@ export async function functionalCircuitTest(
   });
   const mockPubkey = SolanaKeypair.generate().publicKey;
 
-  let txParams = new TransactionParameters({
+  const txParams = new TransactionParameters({
     outputUtxos: [shieldUtxo1],
     eventMerkleTreePubkey: mockPubkey,
     transactionMerkleTreePubkey: mockPubkey,

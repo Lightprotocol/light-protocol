@@ -22,7 +22,7 @@ class PoolTypeRegister extends Command {
     const poolType = new BN(args.poolType);
 
     const anchorProvider = await setAnchorProvider();
-    let merkleTreeConfig = await getWalletConfig(anchorProvider);
+    const merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     await merkleTreeConfig.registerPoolType([
       ...poolType.toArrayLike(Buffer, "be", 32),

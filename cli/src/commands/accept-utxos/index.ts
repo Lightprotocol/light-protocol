@@ -4,7 +4,7 @@ import {
   CustomLoader,
   generateSolanaTransactionURL,
   getUser,
-  standardFlags
+  standardFlags,
 } from "../../utils";
 class MergeUtxosCommand extends Command {
   static description = "Merge multiple inbox utxos into a single UTXO.";

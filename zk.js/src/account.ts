@@ -765,7 +765,7 @@ export class Account {
     if (addPrivateKey) {
       this.addPrivateKey(proofInput, transaction);
     }
-    let prover = new Prover(
+    const prover = new Prover(
       transaction.verifierIdl,
       firstPath,
       transaction.circuitName,

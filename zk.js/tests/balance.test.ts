@@ -29,9 +29,9 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Utxo Functional", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
 
   let poseidon: any,
     lightProvider: LightProvider,
@@ -76,7 +76,7 @@ describe("Utxo Functional", () => {
       poseidon,
       balance.tokenBalances
         .get(MINT.toBase58())
-        ?.utxos.get(shieldUtxo1.getCommitment(poseidon))!,
+        ?.utxos.get(shieldUtxo1.getCommitment(poseidon)),
       shieldUtxo1,
     );
     assert.equal(
@@ -104,10 +104,7 @@ describe("Utxo Functional", () => {
       balance.tokenBalances.get(MINT.toBase58()).totalBalanceSpl.toString(),
       "0",
     );
-    assert.equal(
-      balance.tokenBalances.get(MINT.toBase58()).spentUtxos.size,
-      1,
-    );
+    assert.equal(balance.tokenBalances.get(MINT.toBase58()).spentUtxos.size, 1);
 
     assert.equal(balance.tokenBalances.get(MINT.toBase58()).utxos.size, 0);
 
@@ -115,7 +112,7 @@ describe("Utxo Functional", () => {
       poseidon,
       balance.tokenBalances
         .get(MINT.toBase58())
-        ?.spentUtxos.get(shieldUtxo1.getCommitment(poseidon))!,
+        ?.spentUtxos.get(shieldUtxo1.getCommitment(poseidon)),
       shieldUtxo1,
     );
   });
@@ -149,7 +146,7 @@ describe("Utxo Functional", () => {
           poseidon,
           account,
           merkleTreePdaPublicKey:
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
+            MerkleTreeConfig.getTransactionMerkleTreePda(),
           compressed: true,
         });
         encryptedUtxos = [...encryptedUtxos, ...encryptedUtxo];

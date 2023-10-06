@@ -177,7 +177,7 @@ async function createVerifyingKeyRsFile(
         } else if (i == "vk_beta_2") {
           for (const j in mydata[i]) {
             const tmp = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
+              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
             )
               .concat(
                 Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
@@ -189,7 +189,7 @@ async function createVerifyingKeyRsFile(
         } else if (i == "vk_gamma_2") {
           for (const j in mydata[i]) {
             const tmp = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
+              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
             )
               .concat(
                 Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
@@ -201,7 +201,7 @@ async function createVerifyingKeyRsFile(
         } else if (i == "vk_delta_2") {
           for (const j in mydata[i]) {
             const tmp = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
+              leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
             )
               .concat(
                 Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),

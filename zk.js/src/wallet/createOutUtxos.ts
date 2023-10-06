@@ -330,8 +330,8 @@ export function createOutUtxos({
       solAmount = assets[publicSolAssetIndex].sumIn;
     }
     // catch case of sol shield with undefined spl assets
-    let splAmount = publicSplAssets[x]?.sumIn ? publicSplAssets[x].sumIn : BN_0;
-    let splAsset = publicSplAssets[x]?.asset
+    const splAmount = publicSplAssets[x]?.sumIn ? publicSplAssets[x].sumIn : BN_0;
+    const splAsset = publicSplAssets[x]?.asset
       ? publicSplAssets[x].asset
       : SystemProgram.programId;
 

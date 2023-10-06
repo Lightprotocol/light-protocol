@@ -25,8 +25,8 @@ const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-let seed32_2 = bs58.encode(new Uint8Array(32).fill(2));
+const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+const seed32_2 = bs58.encode(new Uint8Array(32).fill(2));
 const keypairReferenceAccount = {
   encryptionPublicKey:
     "187,15,119,127,223,162,69,232,129,87,132,195,89,178,128,174,220,77,191,34,63,115,138,98,193,57,4,92,247,18,190,114",
@@ -198,7 +198,7 @@ describe("Test Account Functional", () => {
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(k0, k1);
 
-    let k2 = Account.createFromSeed(poseidon, seed32);
+    const k2 = Account.createFromSeed(poseidon, seed32);
     compareKeypairsEqual(k0, k2);
   });
 
@@ -215,8 +215,8 @@ describe("Test Account Functional", () => {
       keypairReferenceAccount,
     );
 
-    let seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    let k1 = new Account({ poseidon, seed: seedDiff32 });
+    const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
+    const k1 = new Account({ poseidon, seed: seedDiff32 });
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(solanaKeypairAccount, k1);
   });
@@ -234,8 +234,8 @@ describe("Test Account Functional", () => {
       keypairReferenceAccount,
     );
 
-    let seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    let k1 = new Account({ poseidon, seed: seedDiff32 });
+    const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
+    const k1 = new Account({ poseidon, seed: seedDiff32 });
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(solanaWalletAccount, k1);
   });
@@ -306,8 +306,8 @@ describe("Test Account Functional", () => {
     const nonce = newNonce().subarray(0, 16);
     if (!k0.aesSecret) throw new Error("aes secret undefined");
 
-    let cipherText1 = await Account.encryptAes(k0.aesSecret, message, nonce);
-    let cleartext1 = await Account.decryptAes(k0.aesSecret, cipherText1);
+    const cipherText1 = await Account.encryptAes(k0.aesSecret, message, nonce);
+    const cleartext1 = await Account.decryptAes(k0.aesSecret, cipherText1);
 
     assert.equal(cleartext1.value!.toString(), message.toString());
     assert.notEqual(

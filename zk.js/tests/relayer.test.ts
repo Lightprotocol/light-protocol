@@ -22,7 +22,7 @@ const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
 describe("Test Relayer Functional", () => {
   it("Relayer Shield", () => {
-    let relayer = new Relayer(
+    const relayer = new Relayer(
       mockKeypair.publicKey,
       mockKeypair1.publicKey,
       BN_1,
@@ -39,7 +39,7 @@ describe("Test Relayer Functional", () => {
   });
 
   it("Relayer Transfer/Unshield", () => {
-    let relayer = new Relayer(
+    const relayer = new Relayer(
       mockKeypair.publicKey,
       relayerRecipientSol,
       relayerFee,

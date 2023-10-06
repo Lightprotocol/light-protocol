@@ -85,7 +85,7 @@ describe("Prover Functionality Tests", () => {
   });
 
   it("Verifies Prover with VerifierZero", async () => {
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsShield,
@@ -124,7 +124,7 @@ describe("Prover Functionality Tests", () => {
   });
 
   it("Checks identical public inputs with different randomness", async () => {
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsShield,

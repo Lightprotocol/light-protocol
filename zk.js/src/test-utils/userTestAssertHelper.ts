@@ -530,7 +530,7 @@ export class UserTestAssertHelper {
               poseidon: this.provider.poseidon,
               account: this.sender.user.account,
             })!,
-            this.provider.provider?.connection!,
+            this.provider.provider?.connection,
           )
         ) {
           amountSol = amountSol.add(utxo.amounts[0]);
@@ -802,7 +802,7 @@ export class UserTestAssertHelper {
         .value.getNullifier({
           poseidon: this.provider.poseidon,
           account: this.recipient.user.account,
-        })!,
+        }),
     );
   }
 
@@ -1120,10 +1120,10 @@ export class UserTestAssertHelper {
       throw new Error("Test inputs message undefined to assert message stored");
     const { transactions: indexedTransactions } = await fetchRecentTransactions(
       {
-      connection: this.provider!.provider!.connection,
-      batchOptions: {
-        limit: 5000,
-      },
+        connection: this.provider!.provider!.connection,
+        batchOptions: {
+          limit: 5000,
+        },
       },
     );
     indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);

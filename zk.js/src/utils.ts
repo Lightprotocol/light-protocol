@@ -55,8 +55,8 @@ export async function getAssetLookUpId({
   anchorProvider: anchor.AnchorProvider;
   // poolType?: Uint8Array
 }): Promise<any> {
-  let poolType = new Array(32).fill(0);
-  let mtConf = new MerkleTreeConfig({
+  const poolType = new Array(32).fill(0);
+  const mtConf = new MerkleTreeConfig({
     anchorProvider,
   });
   const pubkey = await mtConf.getSplPoolPda(asset, poolType);

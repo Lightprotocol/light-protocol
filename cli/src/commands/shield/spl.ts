@@ -6,7 +6,7 @@ import {
   getConfirmOptions,
   getUser,
   confirmOptionsFlags,
-  standardFlags
+  standardFlags,
 } from "../../utils";
 import { shieldFlags, shieldSolFlags } from ".";
 
