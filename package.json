@@ -1,5 +1,6 @@
 {
 	"devDependencies": {
+		"husky": "^8.0.3",
 		"nx": "^16.9.1",
 		"nx-cloud": "^16.4.0",
 		"snarkjs": "^0.7.1",
