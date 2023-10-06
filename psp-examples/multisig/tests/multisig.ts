@@ -57,7 +57,7 @@ describe("Test multisig", () => {
       confirmConfig,
     });
     lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      TransactionParameters.getVerifierProgramId(IDL),
+      TransactionParameters.getVerifierProgramId(IDL)
     );
 
     const user: User = await User.init({ provider: lightProvider });
@@ -76,7 +76,7 @@ describe("Test multisig", () => {
       signers,
       poseidon,
       eddsa,
-      lightProvider,
+      lightProvider
     );
 
     console.log("------------------------------------------");
@@ -84,13 +84,13 @@ describe("Test multisig", () => {
     console.log("------------------------------------------");
     console.log("The creator of the multisig creates a shared encryption key.");
     console.log(
-      "The shared encryption key is encrypted to the encryption publickeys of all signers individually.",
+      "The shared encryption key is encrypted to the encryption publickeys of all signers individually."
     );
     console.log(
-      "The shared encryption key is used to encrypt all subsequent transactions.",
+      "The shared encryption key is used to encrypt all subsequent transactions."
     );
     console.log(
-      "Together with the encrypted shared key,\n parameter data is encrypted to a shared encryption key and stored in a compressed account on Solana.",
+      "Together with the encrypted shared key,\n parameter data is encrypted to a shared encryption key and stored in a compressed account on Solana."
     );
 
     client.multiSigParams.print();
@@ -105,11 +105,11 @@ describe("Test multisig", () => {
     console.log("\t Depositing to Multisig ");
     console.log("------------------------------------------");
     console.log(
-      "A normal light protocol deposit transaction creates a multisig utxo.",
+      "A normal light protocol deposit transaction creates a multisig utxo."
     );
     console.log("Every light transaction has input and output utxos.");
     console.log(
-      "During transaction execution input utxos are invalidated, \n while output utxos are inserted into the merkle tree",
+      "During transaction execution input utxos are invalidated, \n while output utxos are inserted into the merkle tree"
     );
     console.log("This is the multisig output utxo");
     console.log(printUtxo(outputUtxo, poseidon, 0, "ouput"));
@@ -132,7 +132,7 @@ describe("Test multisig", () => {
     console.log("\t Created Multisig Transaction ");
     console.log("------------------------------------------");
     console.log(
-      "The multisig transaction is encrypted to the shared encryption key and stored in a compressed account on Solana.",
+      "The multisig transaction is encrypted to the shared encryption key and stored in a compressed account on Solana."
     );
     //    console.log(client.queuedTransactions[0]);
     const approvedTransaction = await client.approve(0);
@@ -141,7 +141,7 @@ describe("Test multisig", () => {
     console.log("\tSigner 2 Client");
     console.log("------------------------------------------");
     console.log(
-      " Signer 2 fetches the multisig configuration, transaction and the approval from Solana.",
+      " Signer 2 fetches the multisig configuration, transaction and the approval from Solana."
     );
 
     // creates a client object with the second signer

@@ -33,7 +33,7 @@ export class StorageUtils {
     recipientPublicKeys: Uint8Array[],
     message: Uint8Array,
     baseNonce?: Uint8Array,
-    aesSecretKey?: Uint8Array,
+    aesSecretKey?: Uint8Array
   ) {
     if (!aesSecretKey) {
       aesSecretKey = nacl.randomBytes(32);
@@ -57,8 +57,8 @@ export class StorageUtils {
           CONSTANT_SECRET_AUTHKEY,
           false,
           nonce,
-          true,
-        ),
+          true
+        )
       );
       i = index;
     }
@@ -73,7 +73,7 @@ export class StorageUtils {
       aesSecretKey,
       iv,
       "aes-256-cbc",
-      true,
+      true
     );
     const ciphertextWithIV = new Uint8Array([...iv, ...ciphertext]);
 
@@ -91,7 +91,7 @@ export class StorageUtils {
    */
   static async decryptMultipleRecipients(
     account: Account,
-    ciphertext: Uint8Array,
+    ciphertext: Uint8Array
   ): Promise<Uint8Array> {
     const baseNonce = ciphertext.slice(0, 32);
     const ciphertextPublicKeys = ciphertext.slice(32);
@@ -116,12 +116,12 @@ export class StorageUtils {
 
       const encryptedAesKeyCandidate = ciphertextPublicKeys.slice(
         i * publicKeyCiphertextLength,
-        (i + 1) * publicKeyCiphertextLength,
+        (i + 1) * publicKeyCiphertextLength
       );
       const decryptedAesKeyCandidate = await account.decryptNacl(
         encryptedAesKeyCandidate,
         nonce,
-        nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
+        nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey
       );
       if (decryptedAesKeyCandidate.value) {
         encryptedAesKey = decryptedAesKeyCandidate.value;
@@ -132,7 +132,7 @@ export class StorageUtils {
         ciphertextPublicKeys
           .slice(
             i * publicKeyCiphertextLength,
-            i * publicKeyCiphertextLength + 16,
+            i * publicKeyCiphertextLength + 16
           )
           .toString()
       ) {
@@ -143,7 +143,7 @@ export class StorageUtils {
 
     if (!encryptedAesKey) {
       throw new Error(
-        "Failed to decrypt the AES key with the provided secret key",
+        "Failed to decrypt the AES key with the provided secret key"
       );
     }
 
@@ -156,7 +156,7 @@ export class StorageUtils {
       encryptedAesKey,
       iv16,
       "aes-256-cbc",
-      true,
+      true
     );
   }
 }

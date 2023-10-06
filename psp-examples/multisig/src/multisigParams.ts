@@ -62,8 +62,8 @@ export class MultisigParams {
         threshold,
         nrSigners,
         publicKeyX,
-        publicKeyY,
-      ),
+        publicKeyY
+      )
     );
     this.seed = seed;
     this.account = new Account({ poseidon, seed: bs58.encode(seed) });
@@ -88,7 +88,7 @@ export class MultisigParams {
     }
     if (threshold > signers.length) {
       throw new Error(
-        `Not enough signers ${signers.length} for threshold ${threshold}`,
+        `Not enough signers ${signers.length} for threshold ${threshold}`
       );
     }
     if (poseidon === undefined) {
@@ -119,7 +119,7 @@ export class MultisigParams {
     }
 
     const signersEncryptionPublicKeys = signers.map(
-      (signer) => signer.encryptionKeypair.publicKey,
+      (signer) => signer.encryptionKeypair.publicKey
     );
 
     return new MultisigParams({
@@ -164,9 +164,9 @@ export class MultisigParams {
         `Signer: ${i}`,
         utils.bytes.hex.encode(
           Buffer.from(
-            Array.from([...this.publicKeyX[i], ...this.publicKeyY[i]]).flat(),
-          ),
-        ),
+            Array.from([...this.publicKeyX[i], ...this.publicKeyY[i]]).flat()
+          )
+        )
       );
     }
   }
@@ -187,8 +187,8 @@ export class MultisigParams {
         i +
         utils.bytes.hex.encode(
           Buffer.from(
-            Array.from([...this.publicKeyX[i], ...this.publicKeyY[i]]).flat(),
-          ),
+            Array.from([...this.publicKeyX[i], ...this.publicKeyY[i]]).flat()
+          )
         ) +
         "\n";
     }
@@ -200,10 +200,10 @@ export class MultisigParams {
       new BN(threshold),
       new BN(nrSigners),
       ...publicKeyX.map((s) =>
-        new BN(poseidon.F.toString(s)).toArrayLike(Buffer, "le", 32),
+        new BN(poseidon.F.toString(s)).toArrayLike(Buffer, "le", 32)
       ),
       ...publicKeyY.map((s) =>
-        new BN(poseidon.F.toString(s)).toArrayLike(Buffer, "be", 32),
+        new BN(poseidon.F.toString(s)).toArrayLike(Buffer, "be", 32)
       ),
     ];
   }
@@ -217,58 +217,58 @@ export class MultisigParams {
       assert.equal(
         key.toString(),
         multiSig2.publicKeyX[i].toString(),
-        `invalid publicKeyX key ${i}`,
-      ),
+        `invalid publicKeyX key ${i}`
+      )
     );
     multiSig1.publicKeyY.map((key, i) =>
       assert.equal(
         key.toString(),
         multiSig2.publicKeyY[i].toString(),
-        `invalid publicKeyY key ${i}`,
-      ),
+        `invalid publicKeyY key ${i}`
+      )
     );
     multiSig1.signersEncryptionPublicKeys.map((key, i) =>
       assert.equal(
         key.toString(),
         multiSig2.signersEncryptionPublicKeys[i].toString(),
-        `invalid encryption key ${i}`,
-      ),
+        `invalid encryption key ${i}`
+      )
     );
     assert.equal(
       multiSig1.priorMultiSigSlot.toString(),
       multiSig2.priorMultiSigSlot.toString(),
-      "invalid priorMultiSigSlot",
+      "invalid priorMultiSigSlot"
     );
     assert.equal(
       multiSig1.priorMultiSigHash.toString(),
       multiSig2.priorMultiSigHash.toString(),
-      "invalid priorMultiSigHash",
+      "invalid priorMultiSigHash"
     );
     assert.equal(
       multiSig1.priorMultiSigSeed.toString(),
       multiSig2.priorMultiSigSeed.toString(),
-      "invalid priorMultiSigSeed",
+      "invalid priorMultiSigSeed"
     );
     assert.equal(
       multiSig1.threshold.toString(),
       multiSig2.threshold.toString(),
-      "invalid threshold",
+      "invalid threshold"
     );
     assert.equal(
       multiSig1.nrSigners.toString(),
       multiSig2.nrSigners.toString(),
-      "invalid nrSigners",
+      "invalid nrSigners"
     );
 
     assert.equal(
       multiSig1.seed.toString(),
       multiSig2.seed.toString(),
-      "invalid seed",
+      "invalid seed"
     );
     assert.equal(
       multiSig1.appDataHash.toString(),
       multiSig2.appDataHash.toString(),
-      "invalid appDataHash",
+      "invalid appDataHash"
     );
   }
 }

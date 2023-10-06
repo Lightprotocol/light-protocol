@@ -75,8 +75,8 @@ export class QueuedTransaction {
           this.transactionParams.inputUtxos[utxo],
           poseidon,
           Number(utxo) + 1,
-          "input",
-        ),
+          "input"
+        )
       );
     }
     console.log("\n\n");
@@ -88,8 +88,8 @@ export class QueuedTransaction {
           this.transactionParams.outputUtxos[utxo],
           poseidon,
           Number(utxo) + 1,
-          "output",
-        ),
+          "output"
+        )
       );
     }
     console.log("\n\n");
@@ -130,7 +130,7 @@ export class QueuedTransaction {
     });
 
     const connectingHash = this.transactionParams.getTransactionHash(
-      provider.poseidon,
+      provider.poseidon
     );
 
     console.log(`-------------- Shielded Transaction Hash --------------\n`);

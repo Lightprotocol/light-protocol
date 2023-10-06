@@ -32,7 +32,7 @@ import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 );
 let POSEIDON;
 
@@ -61,7 +61,7 @@ describe("Streaming Payments tests", () => {
   it("Create and Spend Program Utxo for one user", async () => {
     await createAndSpendProgramUtxo(
       users[0].wallet,
-      users[0].relayerRecipientSol,
+      users[0].relayerRecipientSol
     );
   });
 
@@ -71,7 +71,7 @@ describe("Streaming Payments tests", () => {
     let calls = [];
     for (const user of users) {
       calls.push(
-        createAndSpendProgramUtxo(user.wallet, user.relayerRecipientSol),
+        createAndSpendProgramUtxo(user.wallet, user.relayerRecipientSol)
       );
     }
     await Promise.all(calls);
@@ -94,7 +94,7 @@ describe("Streaming Payments tests", () => {
   });
   async function createAndSpendProgramUtxo(
     wallet: anchor.web3.Keypair,
-    relayerRecipientSol: anchor.web3.PublicKey,
+    relayerRecipientSol: anchor.web3.PublicKey
   ): Promise<void> {
     await airdropSol({
       connection: provider.connection,
@@ -177,7 +177,7 @@ describe("Streaming Payments tests", () => {
     const txParams = new TransactionParameters({
       inputUtxos: [inputUtxo],
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0),
+        new BN(0)
       ),
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
       recipientSol: SolanaKeypair.generate().publicKey,
@@ -202,7 +202,7 @@ describe("Streaming Payments tests", () => {
 
   async function paymentStreaming(
     wallet: anchor.web3.Keypair,
-    relayerRecipientSol: anchor.web3.PublicKey,
+    relayerRecipientSol: anchor.web3.PublicKey
   ) {
     const circuitPath = path.join("build-circuit");
     await airdropSol({
@@ -238,7 +238,7 @@ describe("Streaming Payments tests", () => {
       IDL,
       POSEIDON,
       circuitPath,
-      lightProvider,
+      lightProvider
     );
     const currentSlot = await provider.connection.getSlot("confirmed");
     const duration = 1;
@@ -246,7 +246,7 @@ describe("Streaming Payments tests", () => {
       new BN(1e9),
       new BN(duration),
       new BN(currentSlot),
-      lightUser.account,
+      lightUser.account
     );
 
     const testInputsSol1 = {
@@ -262,7 +262,7 @@ describe("Streaming Payments tests", () => {
     });
     await lightUser.syncStorage(IDL);
     const commitment = testInputsSol1.utxo.getCommitment(
-      testInputsSol1.poseidon,
+      testInputsSol1.poseidon
     );
 
     const utxo = (await lightUser.getUtxo(commitment))!;
@@ -276,7 +276,7 @@ describe("Streaming Payments tests", () => {
     const { programParameters, inUtxo, outUtxo, action } = client.collectStream(
       new BN(currentSlot1),
       Action.TRANSFER,
-      merkleTree,
+      merkleTree
     );
 
     await lightUser.executeAppUtxo({
@@ -289,16 +289,16 @@ describe("Streaming Payments tests", () => {
     console.log(
       "totalSolBalance: ",
       balance.totalSolBalance.toNumber() * 1e-9,
-      "SOL",
+      "SOL"
     );
     assert.equal(
       outUtxo.amounts[0].toString(),
-      balance.totalSolBalance.toString(),
+      balance.totalSolBalance.toString()
     );
     console.log("inUtxo commitment: ", inUtxo.getCommitment(POSEIDON));
 
     const spentCommitment = testInputsSol1.utxo.getCommitment(
-      testInputsSol1.poseidon,
+      testInputsSol1.poseidon
     );
     const utxoSpent = (await lightUser.getUtxo(spentCommitment, true, IDL))!;
     assert.equal(utxoSpent.status, "spent");
@@ -320,7 +320,7 @@ class PaymentStreamClient {
     circuitPath: string,
     lightProvider: LightProvider,
     streamInitUtxo?: Utxo,
-    latestStreamUtxo?: Utxo,
+    latestStreamUtxo?: Utxo
   ) {
     this.idl = idl;
     this.streamInitUtxo = streamInitUtxo;
@@ -341,7 +341,7 @@ class PaymentStreamClient {
     amount: BN,
     timeInSlots: BN,
     currentSlot: BN,
-    account: Account,
+    account: Account
   ) {
     if (this.streamInitUtxo)
       throw new Error("This stream client is already initialized");
@@ -374,7 +374,7 @@ class PaymentStreamClient {
   collectStream(currentSlot: BN, action: Action, merkleTree: MerkleTree) {
     if (!this.streamInitUtxo)
       throw new Error(
-        "Streaming client is not initialized with streamInitUtxo",
+        "Streaming client is not initialized with streamInitUtxo"
       );
     if (currentSlot.gte(this.streamInitUtxo?.appData.endSlot)) {
       const currentSlotPrivate = this.streamInitUtxo.appData.endSlot;
@@ -394,7 +394,7 @@ class PaymentStreamClient {
       };
 
       const index = merkleTree.indexOf(
-        this.latestStreamUtxo?.getCommitment(this.poseidon),
+        this.latestStreamUtxo?.getCommitment(this.poseidon)
       );
       this.latestStreamUtxo.index = index;
       const inUtxo = this.latestStreamUtxo;

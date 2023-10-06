@@ -62,7 +62,7 @@ export class Multisig {
       confirmConfig,
     });
     lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      TransactionParameters.getVerifierProgramId(IDL),
+      TransactionParameters.getVerifierProgramId(IDL)
     );
 
     const user: User = await User.init({ provider: lightProvider });
@@ -81,7 +81,7 @@ export class Multisig {
       signers,
       poseidon,
       eddsa,
-      lightProvider,
+      lightProvider
     );
 
     const multisig = new Multisig(client);
