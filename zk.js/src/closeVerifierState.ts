@@ -16,10 +16,7 @@ export async function closeVerifierState(
   verifierIdl: Idl,
   verifierState: PublicKey,
 ): Promise<TransactionSignature> {
-
-
-
-      if (!provider.wallet)
+  if (!provider.wallet)
     throw new TransactionError(
       TransactionErrorCode.WALLET_UNDEFINED,
       "closeVerifierState",
