@@ -3,7 +3,6 @@ import {
   Keypair as SolanaKeypair,
   SystemProgram,
 } from "@solana/web3.js";
-import _ from "lodash";
 import { assert } from "chai";
 import {
   Account,
@@ -17,7 +16,7 @@ import {
   airdropSol,
   MerkleTreeConfig,
   RELAYER_FEE,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 
 let circomlibjs = require("circomlibjs");
 
@@ -31,12 +30,12 @@ import {
   confirmConfig,
   DEFAULT_ZERO,
   TestRelayer,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 
 import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
 
-var POSEIDON, KEYPAIR;
-var RELAYER;
+let POSEIDON: any, KEYPAIR: Account;
+let RELAYER: TestRelayer;
 
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {

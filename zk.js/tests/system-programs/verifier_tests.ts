@@ -39,7 +39,7 @@ import {
   BN_0,
   closeVerifierState,
   Provider,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 
 var POSEIDON, ACCOUNT, RELAYER, shieldUtxo1;
 var SLEEP_BUFFER = 0;

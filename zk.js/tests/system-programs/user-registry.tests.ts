@@ -14,7 +14,7 @@ import {
   Provider,
   TestRelayer,
   RELAYER_FEE,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 import {
   Keypair as SolanaKeypair,
   PublicKey,
