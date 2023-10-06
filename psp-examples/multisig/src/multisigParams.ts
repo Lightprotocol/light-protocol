@@ -114,7 +114,6 @@ export class MultisigParams {
 
     while (MAX_SIGNERS > signers.length) {
       signers.push(dummyAccount);
-      // const pubkey = new Uint8Array(32).fill(0)
       publicKeyX.push(new Uint8Array(32).fill(0));
       publicKeyY.push(new Uint8Array(32).fill(0));
     }
@@ -150,7 +149,7 @@ export class MultisigParams {
 
   print() {
     console.log("----------------- MultiSig Parameters -----------------");
-    console.log("threshold: ", this.threshold.toString());
+    console.log("Threshold: ", this.threshold.toString());
     console.log("Number of Signers: ", this.nrSigners.toString());
     console.log(`Shielded pubkey: ${this.appDataHash}`);
     console.log("Shared encryption public key: <encryption-key>");
