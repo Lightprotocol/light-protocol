@@ -256,29 +256,29 @@ describe("Transaction Functional Tests", () => {
 
   it("getMerkleProof", async () => {
     const merkleProofsShield = lightProvider.solMerkleTree!.getMerkleProofs(
-        lightProvider.poseidon,
-        paramsShield.inputUtxos,
+      lightProvider.poseidon,
+      paramsShield.inputUtxos,
     );
     assert.equal(
-        merkleProofsShield.inputMerklePathIndices.toString(),
-        new Array(2).fill("0").toString(),
+      merkleProofsShield.inputMerklePathIndices.toString(),
+      new Array(2).fill("0").toString(),
     );
     assert.equal(
-        merkleProofsShield.inputMerklePathElements[0].toString(),
-        new Array(18).fill("0").toString(),
+      merkleProofsShield.inputMerklePathElements[0].toString(),
+      new Array(18).fill("0").toString(),
     );
     assert.equal(
-        merkleProofsShield.inputMerklePathElements[1].toString(),
-        new Array(18).fill("0").toString(),
+      merkleProofsShield.inputMerklePathElements[1].toString(),
+      new Array(18).fill("0").toString(),
     );
 
     const merkleProofsUnshield = lightProvider.solMerkleTree!.getMerkleProofs(
-        lightProvider.poseidon,
-        paramsUnshield.inputUtxos,
+      lightProvider.poseidon,
+      paramsUnshield.inputUtxos,
     );
     assert.equal(
-        merkleProofsUnshield.inputMerklePathIndices.toString(),
-        new Array(2).fill("0").toString(),
+      merkleProofsUnshield.inputMerklePathIndices.toString(),
+      new Array(2).fill("0").toString(),
     );
 
     const constElements = [
@@ -302,13 +302,13 @@ describe("Transaction Functional Tests", () => {
       "138878455357257924790066769656582592677416924479878379980482552822708744793",
     ];
     assert.equal(
-        merkleProofsUnshield.inputMerklePathElements[0].toString(),
-        constElements.toString(),
+      merkleProofsUnshield.inputMerklePathElements[0].toString(),
+      constElements.toString(),
     );
 
     assert.equal(
-        merkleProofsUnshield.inputMerklePathElements[1].toString(),
-        new Array(18).fill("0").toString(),
+      merkleProofsUnshield.inputMerklePathElements[1].toString(),
+      new Array(18).fill("0").toString(),
     );
   });
 
@@ -379,7 +379,7 @@ describe("Transaction Functional Tests", () => {
     });
     await tx.compileAndProve(poseidon, account);
     await tx.getInstructions(tx.params);
-    });
+  });
 
   it("getMint ", async () => {
     const tx = new Transaction({

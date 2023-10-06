@@ -568,6 +568,7 @@ export class Utxo {
    * @description Computes the nullifier for this utxo.
    * @description PoseidonHash(commitment, index, signature)
    * @param poseidon
+   * @param account
    * @param {number} index Merkle tree index of the utxo commitment (Optional)
    *
    * @returns {string}
@@ -580,7 +581,7 @@ export class Utxo {
     poseidon: any;
     account: Account;
     index?: number | undefined;
-  }) {
+  }): string {
     if (this.index === undefined) {
       if (index) {
         this.index = index;
@@ -612,7 +613,7 @@ export class Utxo {
       );
     }
 
-    return this._nullifier;
+    return this._nullifier!;
   }
 
   // TODO: evaluate whether to add a flag to encrypt asymetrically
@@ -1007,7 +1008,7 @@ export class Utxo {
   }
 
   static getAppInUtxoIndices(appUtxos: Utxo[]) {
-    let isAppInUtxo: BN[][] = [];
+    const isAppInUtxo: BN[][] = [];
     for (const i in appUtxos) {
       const array = new Array(4).fill(new BN(0));
       if (appUtxos[i].appData) {

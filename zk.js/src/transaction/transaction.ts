@@ -424,7 +424,7 @@ export class Transaction {
       };
     }
 
-    let instructions: TransactionInstruction[] = [];
+    const instructions: TransactionInstruction[] = [];
     // TODO: make mint dynamic
     /**
      * Problem:

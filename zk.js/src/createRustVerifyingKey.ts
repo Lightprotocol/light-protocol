@@ -62,7 +62,7 @@ async function getProofInputsFromSymFile(
   const regex = /main\.(.+)/g;
 
   let match: any[] | null;
-  let keys: any[] = [];
+  const keys: any[] = [];
   const symText = fs.readFileSync(`${artifactPath}${suffix}.sym`, "utf-8");
   while ((match = regex.exec(symText)) !== null) {
     keys.push(match[1]);

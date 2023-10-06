@@ -1587,9 +1587,13 @@ export class User {
             if (decryptedUtxo.value) {
               const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
-                utxo.getNullifier(this.provider.poseidon)!,
+                utxo.getNullifier({
+                  poseidon: this.provider.poseidon,
+                  account: this.account,
+                })!,
                 this.provider.provider?.connection,
               );
+
               if (!nfExists) {
                 decryptedStorageUtxos.push(utxo);
               } else {
