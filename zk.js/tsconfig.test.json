@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "target": "ES2022"
+  },
+  "extends": "./tsconfig",
+  "include": [
+    "./src/**/*.ts",
+    "./tests/**/*.ts"
+  ]
+}

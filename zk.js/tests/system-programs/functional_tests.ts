@@ -37,7 +37,7 @@ import {
   MerkleTreeConfig,
   RELAYER_FEE,
   BN_0,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 

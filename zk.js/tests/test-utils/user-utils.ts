@@ -7,7 +7,7 @@ import {
   User,
   TestInputs,
   confirmConfig,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 
 export type EnvironmentConfig = {
   relayer?: TestRelayer;

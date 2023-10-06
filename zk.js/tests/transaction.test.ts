@@ -29,7 +29,7 @@ import {
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
-import { STANDARD_SHIELDED_PUBLIC_KEY } from "../lib";
+import { STANDARD_SHIELDED_PUBLIC_KEY } from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
