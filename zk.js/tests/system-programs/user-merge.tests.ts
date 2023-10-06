@@ -15,14 +15,14 @@ import {
   airdropShieldedMINTSpl,
   RELAYER_FEE,
   airdropSol,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 
 import {
   performShielding,
   EnvironmentConfig,
   performMergeAll,
   performMergeUtxos,
-} from "./test-utils/user-utils";
+} from "../test-utils/user-utils";
 
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";

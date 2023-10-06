@@ -29,7 +29,7 @@ import {
   useWallet,
   RELAYER_FEE,
   BN_1,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { expect } from "chai";
