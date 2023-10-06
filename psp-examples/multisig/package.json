@@ -1,0 +1,87 @@
+{
+  "name": "@lightprotocol/multisig-cli",
+  "version": "0.0.1",
+  "description": "PSP multisig",
+  "author": "",
+  "bin": {
+    "multisig": "./bin/run"
+  },
+  "homepage": "https://github.com/lightprotocol/psp-examples/tree/main/multisig",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "repository": "lightprotocol/psp-examples",
+  "files": [
+    "/bin",
+    "/dist",
+    "/npm-shrinkwrap.json",
+    "/oclif.manifest.json"
+  ],
+  "scripts": {
+    "format": "prettier --write \"{src,tests}/**/*.{ts,js}\" -w",
+    "lint": "prettier \"{src,tests}/**/*{ts,js}\" --check",
+    "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
+    "test-psp": "light psp:test multisig Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+    "test-cli": "pnpm test-cli-create && pnpm test-cli-approve && pnpm test-cli-execute",
+    "test-cli-create": "mocha ./tests/commands/create/index.test.ts --exit",
+    "test-cli-approve": "mocha ./tests/commands/approve/index.test.ts --exit",
+    "test-cli-execute": "mocha ./tests/commands/execute/index.test.ts --exit",
+    "test-cli-all": "mocha --forbid-only \"tests/**/*.test.ts\"",
+    "test-all": "pnpm kill && pnpm test-psp",
+    "test": "echo use test-all",
+    "build-circuit": "light psp:build multisig --ptau=17",
+    "build": "shx rm -rf dist && pnpm build-circuit && pnpm tsc -b",
+    "postpack": "shx rm -f oclif.manifest.json",
+    "prepack": "pnpm build && oclif manifest && oclif readme",
+    "version": "oclif readme && git add README.md"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "0.28.0",
+    "@lightprotocol/zk.js": "workspace:*",
+    "@oclif/core": "^2",
+    "@oclif/plugin-help": "^5",
+    "@oclif/plugin-plugins": "^3.8.4",
+    "@project-serum/anchor": "0.26.0",
+    "@sqds/sdk": "^2.0.4",
+    "circomlib": "2.0.5",
+    "circomlibjs": "0.1.7",
+    "ffjavascript": "^0.2.60",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@lightprotocol/circuit-lib.circom": "workspace:*",
+    "@lightprotocol/cli": "workspace:*",
+    "@oclif/test": "2.3.33",
+    "@types/bn.js": "^5.1.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.2",
+    "chai": "^4.3.10",
+    "mocha": "^10.0.2",
+    "oclif": "^3.17.2",
+    "prettier": "^3.0.3",
+    "shx": "^0.3.4",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1",
+    "tslib": "^2.6.2",
+    "typescript": "^5.2.2"
+  },
+  "oclif": {
+    "bin": "multisig",
+    "dirname": "multisig",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-help",
+      "@oclif/plugin-plugins"
+    ],
+    "topicSeparator": " ",
+    "topics": {
+      "hello": {
+        "description": "Say hello to the world and others"
+      }
+    }
+  },
+  "bugs": "https://github.com/lightprotocol/multisig-cli/issues",
+  "keywords": [
+    "oclif"
+  ],
+  "types": "dist/index.d.ts"
+}

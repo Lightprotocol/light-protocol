@@ -1,0 +1,26 @@
+[package]
+name = "psp_payment_streaming"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "streaming_payments"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
+merkle_tree_program = { path = "../../../../system-programs/programs/merkle_tree_program", features = ["cpi"] }
+verifier_program_two = { path = "../../../../system-programs/programs/verifier_program_two", features = ["cpi"] }
+light-macros = { path = "../../../../macros" }
+light-verifier-sdk = { path = "../../../../verifier-sdk" }
+solana-program = "1.16.4"
+groth16-solana = "0.0.2"

@@ -1,6 +1,6 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
-import { Keypair as SolanaKeypair } from "@solana/web3.js";
+import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const chai = require("chai");
@@ -20,19 +20,16 @@ import {
   Relayer,
   AUTHORITY,
   TransactionError,
-  ProviderErrorCode,
-  SolMerkleTreeErrorCode,
   Utxo,
   Account,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_TWO,
   IDL_VERIFIER_PROGRAM_STORAGE,
-  BN_0,
   BN_1,
-  BN_2,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
+import { STANDARD_SHIELDED_PUBLIC_KEY } from "../lib";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -49,8 +46,7 @@ describe("Transaction Error Tests", () => {
     shieldUtxo1: Utxo,
     account: Account,
     params: TransactionParameters,
-    rootIndex: BN,
-    nextTransactionMerkleTree: any;
+    rootIndex: BN;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     // TODO: make fee mandatory
@@ -77,7 +73,6 @@ describe("Transaction Error Tests", () => {
       account,
     });
     const res = await lightProvider.getRootIndex();
-    nextTransactionMerkleTree = res.remainingAccounts.nextTransactionMerkleTree;
     rootIndex = res.rootIndex;
   });
 
@@ -259,6 +254,64 @@ describe("Transaction Functional Tests", () => {
     });
   });
 
+  it("getMerkleProof", async () => {
+    let merkleProofsShield = lightProvider.solMerkleTree!.getMerkleProofs(
+        lightProvider.poseidon,
+        paramsShield.inputUtxos,
+    );
+    assert.equal(
+        merkleProofsShield.inputMerklePathIndices.toString(),
+        new Array(2).fill("0").toString(),
+    );
+    assert.equal(
+        merkleProofsShield.inputMerklePathElements[0].toString(),
+        new Array(18).fill("0").toString(),
+    );
+    assert.equal(
+        merkleProofsShield.inputMerklePathElements[1].toString(),
+        new Array(18).fill("0").toString(),
+    );
+
+    let merkleProofsUnshield = lightProvider.solMerkleTree!.getMerkleProofs(
+        lightProvider.poseidon,
+        paramsUnshield.inputUtxos,
+    );
+    assert.equal(
+        merkleProofsUnshield.inputMerklePathIndices.toString(),
+        new Array(2).fill("0").toString(),
+    );
+
+    const constElements = [
+      "14522046728041339886521211779101644712859239303505368468566383402165481390632",
+      "12399300409582020702502593817695692114365413884629119646752088755594619792099",
+      "8395588225108361090185968542078819429341401311717556516132539162074718138649",
+      "4057071915828907980454096850543815456027107468656377022048087951790606859731",
+      "3743829818366380567407337724304774110038336483209304727156632173911629434824",
+      "3362607757998999405075010522526038738464692355542244039606578632265293250219",
+      "20015677184605935901566129770286979413240288709932102066659093803039610261051",
+      "10225829025262222227965488453946459886073285580405166440845039886823254154094",
+      "5686141661288164258066217031114275192545956158151639326748108608664284882706",
+      "13358779464535584487091704300380764321480804571869571342660527049603988848871",
+      "20788849673815300643597200320095485951460468959391698802255261673230371848899",
+      "18755746780925592439082197927133359790105305834996978755923950077317381403267",
+      "10861549147121384785495888967464291400837754556942768811917754795517438910238",
+      "7537538922575546318235739307792157434585071385790082150452199061048979169447",
+      "19170203992070410766412159884086833170469632707946611516547317398966021022253",
+      "9623414539891033920851862231973763647444234218922568879041788217598068601671",
+      "3060533073600086539557684568063736193011911125938770961176821146879145827363",
+      "138878455357257924790066769656582592677416924479878379980482552822708744793",
+    ];
+    assert.equal(
+        merkleProofsUnshield.inputMerklePathElements[0].toString(),
+        constElements.toString(),
+    );
+
+    assert.equal(
+        merkleProofsUnshield.inputMerklePathElements[1].toString(),
+        new Array(18).fill("0").toString(),
+    );
+  });
+
   it("Functional ", async () => {
     let tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
@@ -288,6 +341,44 @@ describe("Transaction Functional Tests", () => {
       params: paramsShieldStorage,
     });
     await tx.compileAndProve(lightProvider.poseidon, account);
+    await tx.getInstructions(tx.params);
+  });
+
+  it("Functional with STANDARD_SHIELDED_PRIVATE_KEY", async () => {
+    const utxo = new Utxo({
+      poseidon: poseidon,
+      assets: [SystemProgram.programId],
+      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
+      amounts: [BN_1],
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+      index: 0,
+    });
+
+    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
+      utxo.getCommitment(poseidon),
+    ]);
+
+    const params = new TransactionParameters({
+      inputUtxos: [utxo],
+      eventMerkleTreePubkey: mockPubkey2,
+      transactionMerkleTreePubkey: mockPubkey2,
+      poseidon,
+      recipientSpl: mockPubkey,
+      recipientSol: lightProvider.wallet?.publicKey,
+      action: Action.UNSHIELD,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      relayer,
+      account,
+    });
+
+    let tx = new Transaction({
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
+      params: params,
+    });
+    await tx.compileAndProve(poseidon, account);
     await tx.getInstructions(tx.params);
   });
 
@@ -333,64 +424,6 @@ describe("Transaction Functional Tests", () => {
     assert.equal(
       paramsStaticEncryptedUtxos.getTransactionHash(poseidon).toString(),
       "5933194464001103981860458884656917415381806542379509455129642519383560866951",
-    );
-  });
-
-  it("getMerkleProof", async () => {
-    let merkleProofsShield = lightProvider.solMerkleTree!.getMerkleProofs(
-      lightProvider.poseidon,
-      paramsShield.inputUtxos,
-    );
-    assert.equal(
-      merkleProofsShield.inputMerklePathIndices.toString(),
-      new Array(2).fill("0").toString(),
-    );
-    assert.equal(
-      merkleProofsShield.inputMerklePathElements[0].toString(),
-      new Array(18).fill("0").toString(),
-    );
-    assert.equal(
-      merkleProofsShield.inputMerklePathElements[1].toString(),
-      new Array(18).fill("0").toString(),
-    );
-
-    let merkleProofsUnshield = lightProvider.solMerkleTree!.getMerkleProofs(
-      lightProvider.poseidon,
-      paramsUnshield.inputUtxos,
-    );
-    assert.equal(
-      merkleProofsUnshield.inputMerklePathIndices.toString(),
-      new Array(2).fill("0").toString(),
-    );
-
-    const constElements = [
-      "14522046728041339886521211779101644712859239303505368468566383402165481390632",
-      "12399300409582020702502593817695692114365413884629119646752088755594619792099",
-      "8395588225108361090185968542078819429341401311717556516132539162074718138649",
-      "4057071915828907980454096850543815456027107468656377022048087951790606859731",
-      "3743829818366380567407337724304774110038336483209304727156632173911629434824",
-      "3362607757998999405075010522526038738464692355542244039606578632265293250219",
-      "20015677184605935901566129770286979413240288709932102066659093803039610261051",
-      "10225829025262222227965488453946459886073285580405166440845039886823254154094",
-      "5686141661288164258066217031114275192545956158151639326748108608664284882706",
-      "13358779464535584487091704300380764321480804571869571342660527049603988848871",
-      "20788849673815300643597200320095485951460468959391698802255261673230371848899",
-      "18755746780925592439082197927133359790105305834996978755923950077317381403267",
-      "10861549147121384785495888967464291400837754556942768811917754795517438910238",
-      "7537538922575546318235739307792157434585071385790082150452199061048979169447",
-      "19170203992070410766412159884086833170469632707946611516547317398966021022253",
-      "9623414539891033920851862231973763647444234218922568879041788217598068601671",
-      "3060533073600086539557684568063736193011911125938770961176821146879145827363",
-      "138878455357257924790066769656582592677416924479878379980482552822708744793",
-    ];
-    assert.equal(
-      merkleProofsUnshield.inputMerklePathElements[0].toString(),
-      constElements.toString(),
-    );
-
-    assert.equal(
-      merkleProofsUnshield.inputMerklePathElements[1].toString(),
-      new Array(18).fill("0").toString(),
     );
   });
 

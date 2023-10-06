@@ -16,7 +16,10 @@ import {
   Utxo,
   SIGN_MESSAGE,
   Wallet,
+  STANDARD_SHIELDED_PUBLIC_KEY,
+  STANDARD_SHIELDED_PRIVATE_KEY,
 } from "./index";
+
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 const ffjavascript = require("ffjavascript");
@@ -622,7 +625,7 @@ export class Account {
    * Encrypts bytes to a public key.
    * @static
    * @param publicKey - The public key to encrypt to.
-   * @param message - The message to be encrypted.
+   * @param messageBytes - The message to be encrypted.
    * @param signerSecretKey - Optional signing secret key.
    * @param returnWithoutSigner - Optional flag to return without signer.
    * @param nonce - Optional nonce, generates random if undefined.
@@ -730,8 +733,9 @@ export class Account {
       if (utxo.publicKey == this.pubkey) {
         return this.privkey;
       }
-      // TODO: add else for utxos that belong to different private keys
-      // (a case for this could be the standard private key which we will use for public utxos)
+      if (STANDARD_SHIELDED_PUBLIC_KEY.eq(utxo.publicKey)) {
+        return STANDARD_SHIELDED_PRIVATE_KEY;
+      }
     });
   }
 
