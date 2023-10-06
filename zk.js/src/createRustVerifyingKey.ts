@@ -61,8 +61,8 @@ async function getProofInputsFromSymFile(
   // filter signal names from the sym file
   const regex = /main\.(.+)/g;
 
-  let match;
-  let keys = [];
+  let match: any[] | null;
+  let keys: any[] = [];
   const symText = fs.readFileSync(`${artifactPath}${suffix}.sym`, "utf-8");
   while ((match = regex.exec(symText)) !== null) {
     keys.push(match[1]);

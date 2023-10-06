@@ -1007,7 +1007,7 @@ export class Utxo {
   }
 
   static getAppInUtxoIndices(appUtxos: Utxo[]) {
-    let isAppInUtxo = [];
+    let isAppInUtxo: BN[][] = [];
     for (const i in appUtxos) {
       let array = new Array(4).fill(new BN(0));
       if (appUtxos[i].appData) {

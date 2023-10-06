@@ -424,7 +424,7 @@ export class Transaction {
       };
     }
 
-    let instructions = [];
+    let instructions: TransactionInstruction[] = [];
     // TODO: make mint dynamic
     /**
      * Problem:
@@ -503,7 +503,7 @@ export class Transaction {
 
       const ix = await method.instruction();
 
-      instructions?.push(ix);
+      instructions.push(ix);
     }
     return instructions;
   }

@@ -202,7 +202,7 @@ const sendAndConfirmTransactions = async (
           [signer],
           confirmConfig,
         );
-      } catch (err) {
+      } catch (err: any) {
         errors.push(err);
       }
     }),
@@ -270,7 +270,7 @@ export async function executeMerkleTreeUpdateTransactions({
 
     try {
       await sendAndConfirmTransactions(transactions, signer, connection);
-    } catch (err) {
+    } catch (err: any) {
       error = err;
     }
     if (interrupt || counter.value >= 240) {

@@ -187,7 +187,7 @@ export class Prover<
         ].flat(),
         proofC: [mydata.pi_c[0], mydata.pi_c[1]].flat(),
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error while parsing the proof.", error.message);
       throw error;
     }
@@ -207,7 +207,7 @@ export class Prover<
       }
 
       return publicInputsBytes;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error while parsing public inputs.", error.message);
       throw error;
     }
@@ -233,7 +233,7 @@ export class Prover<
     };
 
     function getNrPublicInputs(input: SizeObject): number {
-      let arr = [];
+      let arr: number[] = [];
       for (const key in input) {
         arr.push(...input[key]);
       }
@@ -246,7 +246,7 @@ export class Prover<
     }
 
     function getSize(type: any): number[] {
-      const sizeArray = [];
+      let sizeArray: number[] = [];
       if (Array.isArray(type) && type[0] === "u8" && type[1] === 32) {
         return [32];
       }

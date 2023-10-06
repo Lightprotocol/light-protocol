@@ -20,6 +20,7 @@
     "snarkjs": "^0.7.0"
   },
   "devDependencies": {
+    "@lightprotocol/tsconfig": "workspace:*",
     "@solana/web3.js": "^1.78.4",
     "@types/chai": "^4.3.5",
     "@types/chai-as-promised": "^7.1.5",

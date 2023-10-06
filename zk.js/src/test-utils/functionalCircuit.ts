@@ -85,7 +85,7 @@ export async function functionalCircuitTest(
     tx.proofInput.inIndices[0][1][0] = "1";
     await tx.getProof(account);
     x = false;
-  } catch (error) {
+  } catch (error: any) {
     if (!error.toString().includes("CheckIndices_3 line: 34")) {
       throw new Error(
         "Expected error to be CheckIndices_3, but it was " + error.toString(),

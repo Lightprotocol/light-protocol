@@ -1,4 +1,5 @@
 packages:
+  - "tsconfig/**"
   - "prover.js/**"
   - "circuit-lib/**"
   - "zk.js/**"
