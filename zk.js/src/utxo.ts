@@ -663,7 +663,7 @@ export class Utxo {
         commitment,
       );
 
-      // If utxo is filling utxo we don't want to decrypt it in the future so we use a random prefix
+      // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
       // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
       const prefix = !this.isFillingUtxo
         ? account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH)
@@ -1001,7 +1001,7 @@ export class Utxo {
                 ?.toString()} vs ${utxo1.getNullifier(poseidon)?.toString()}`,
             );
           }
-          throw new Error("Acccount0 or Account1 not defined");
+          throw new Error("Account0 or Account1 not defined");
         }
       }
     }

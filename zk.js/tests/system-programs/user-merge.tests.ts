@@ -196,7 +196,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     const utxoCommitment: string = (
       await userSender.getUtxoInbox()
     ).tokenBalances
-      .get(MINT.toBase58())
+      .get(MINT.toBase58())!
       .utxos.keys()
       .next().value;
 
@@ -286,7 +286,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     const utxoCommitment: string = (
       await userSender.getUtxoInbox()
     ).tokenBalances
-      .get(PublicKey.default.toBase58())
+      .get(PublicKey.default.toBase58())!
       .utxos.keys()
       .next().value;
 

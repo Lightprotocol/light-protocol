@@ -84,9 +84,7 @@ export async function generateCircuit({
   );
   try {
     fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
-  } catch (e) {
-    console.error("Error: ", e);
-  }
+  } catch (_) { /* empty */ }
   await executeCommand({
     command: "pnpm",
     args: [
@@ -119,9 +117,7 @@ export async function generateCircuit({
   const artifactPath = sdkBuildCircuitDir + "/" + circuitName;
   try {
     fs.unlinkSync(vKeyJsonPath);
-  } catch (e) {
-    console.error("Error: ", e);
-  }
+  } catch (_) { /* empty */ }
   while (!fs.existsSync(vKeyJsonPath)) {
     await executeCommand({
       command: "pnpm",
@@ -137,9 +133,7 @@ export async function generateCircuit({
   }
   try {
     fs.unlinkSync(vKeyRsPath);
-  } catch (e) {
-    console.error("Error: ", e);
-  }
+  } catch (_) { /* empty */ }
   await createVerifyingkeyRsFile(
     programName,
     [],

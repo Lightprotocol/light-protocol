@@ -126,9 +126,7 @@ export class UserTestAssertHelper {
               userBalances.recipientSplAccount,
             )
           )?.value.uiAmount;
-        } catch (e) {
-          console.error("Error: ", e);
-        }
+        } catch (e) { /* empty */ }
         userBalances.preTokenBalance = balance ? balance : 0;
       } else {
         let balance: number | null = null;
@@ -138,9 +136,7 @@ export class UserTestAssertHelper {
               userBalances.senderSplAccount!,
             )
           )?.value.uiAmount;
-        } catch (e) {
-          console.error("Error: ", e);
-        }
+        } catch (e) { /* empty */ }
         userBalances.preTokenBalance = balance ? balance : 0;
       }
 

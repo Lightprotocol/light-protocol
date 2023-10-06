@@ -113,9 +113,7 @@ export const newProgramOwnedAccount = async ({
         preflightCommitment: "confirmed",
       });
       return account;
-    } catch (e) {
-      console.error("Error: ", e);
-    }
+    } catch (_) { /* empty */ }
 
     retry++;
   }
@@ -310,9 +308,7 @@ export async function createTestAccounts(
       "confirmed",
       TOKEN_PROGRAM_ID,
     );
-  } catch (e) {
-    console.error("Error: ", e);
-  }
+  } catch (_) { /* empty */ }
 
   try {
     if (balanceUserToken == null) {
@@ -341,9 +337,7 @@ export async function createTestAccounts(
         amount: BN_0,
       });
     }
-  } catch (e) {
-    console.error("Error: ", e);
-  }
+  } catch (_) { /* empty */ }
 
   const POSEIDON = await circomlibjs.buildPoseidonOpt();
   const KEYPAIR = new Account({

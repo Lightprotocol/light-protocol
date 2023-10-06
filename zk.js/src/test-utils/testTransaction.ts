@@ -120,9 +120,7 @@ export class TestTransaction {
               this.params.accounts.recipientSpl,
             ),
           );
-        } catch (e) {
-          console.error("Error: ", e);
-        }
+        } catch (_) { /* empty */ }
       }
     }
 
