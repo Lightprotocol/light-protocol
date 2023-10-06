@@ -13,6 +13,10 @@ on:
 
 name: light-sdk-tests
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   light-sdk-tests:
     name: light-sdk-tests

@@ -13,6 +13,10 @@ on:
 
 name: psp-examples
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   psp-examples:
     name: psp-examples
