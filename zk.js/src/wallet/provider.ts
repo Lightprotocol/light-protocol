@@ -248,7 +248,10 @@ export class Provider {
         merkleTreeProgramId,
         this.provider,
       );
-      const root = new BN(this.solMerkleTree.merkleTree.root()).toArray("le", 32);
+      const root = new BN(this.solMerkleTree.merkleTree.root()).toArray(
+        "le",
+        32,
+      );
       const merkle_tree_account_data =
         await merkleTreeProgram.account.transactionMerkleTree.fetch(
           this.solMerkleTree.pubkey,

@@ -137,11 +137,11 @@ describe("verifier_program", () => {
       relayer: RELAYER,
       confirmConfig,
     });
-    let user: User = await User.init({
+    const user: User = await User.init({
       provider: lightProvider,
       account: KEYPAIR,
     });
-    let inputUtxos: Utxo[] = [
+    const inputUtxos: Utxo[] = [
       user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
         .value,
     ];
@@ -185,8 +185,8 @@ describe("verifier_program", () => {
       throw "undefined LOOK_UP_TABLE";
     }
 
-    let shieldAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
-    let shieldFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+    const shieldAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+    const shieldFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
     await token.approve(
       provider.connection,
@@ -203,7 +203,7 @@ describe("verifier_program", () => {
       confirmConfig,
     });
 
-    let shieldUtxo1 = spl
+    const shieldUtxo1 = spl
       ? new Utxo({
           poseidon: POSEIDON,
           assets: [FEE_ASSET, MINT],
@@ -225,7 +225,7 @@ describe("verifier_program", () => {
             lightProvider.lookUpTables.verifierProgramLookupTable,
         });
 
-    let txParams = new TransactionParameters({
+    const txParams = new TransactionParameters({
       outputUtxos: [shieldUtxo1],
       message,
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
@@ -238,13 +238,13 @@ describe("verifier_program", () => {
       verifierIdl: verifierIdl,
       account: KEYPAIR,
     });
-    let transactionTester = new TestTransaction({
+    const transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
     const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
-    let tx = new Transaction({
+    const tx = new Transaction({
       rootIndex,
       nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
       solMerkleTree: lightProvider.solMerkleTree!,
@@ -257,7 +257,7 @@ describe("verifier_program", () => {
     );
 
     try {
-      let res = await lightProvider.sendAndConfirmTransaction(instructions);
+      const res = await lightProvider.sendAndConfirmTransaction(instructions);
       console.log(res);
     } catch (e) {
       console.log(e);
@@ -294,7 +294,7 @@ describe("verifier_program", () => {
       relayer: RELAYER,
       confirmConfig,
     });
-    let user = await User.init({
+    const user = await User.init({
       provider: lightProvider,
       account: KEYPAIR,
     });
@@ -306,7 +306,7 @@ describe("verifier_program", () => {
       recipientPublicKey: origin.publicKey,
     });
 
-    let txParams = new TransactionParameters({
+    const txParams = new TransactionParameters({
       inputUtxos: [
         user.balance.tokenBalances
           .get(tokenProgram.toBase58())
@@ -327,14 +327,14 @@ describe("verifier_program", () => {
       account: KEYPAIR,
     });
 
-    let transactionTester = new TestTransaction({
+    const transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
 
     const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
-    let tx = new Transaction({
+    const tx = new Transaction({
       rootIndex,
       nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
       solMerkleTree: lightProvider.solMerkleTree!,

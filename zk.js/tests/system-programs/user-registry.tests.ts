@@ -43,7 +43,7 @@ describe("User registry", () => {
   before("Create user", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    let poseidon = await circomlibjs.buildPoseidonOpt();
+    const poseidon = await circomlibjs.buildPoseidonOpt();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     KEYPAIR = new Account({
       poseidon: poseidon,
@@ -94,7 +94,7 @@ describe("User registry", () => {
       confirmConfig,
     );
 
-    let accountInfo = await userRegistryProgram.account.userEntry.fetch(
+    const accountInfo = await userRegistryProgram.account.userEntry.fetch(
       userEntryPubkey,
     );
     assert.deepEqual(accountInfo.lightPubkey, KEYPAIR.pubkey.toArray());

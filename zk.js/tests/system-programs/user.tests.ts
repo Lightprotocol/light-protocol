@@ -6,7 +6,7 @@ const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 import {
   ADMIN_AUTH_KEYPAIR,
   Provider,
@@ -57,7 +57,7 @@ describe("Test User", () => {
       relayerRecipientSol,
       2_000_000_000,
     );
-    let relayer = Keypair.generate();
+    const relayer = Keypair.generate();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 2_000_000_000,
@@ -105,7 +105,7 @@ describe("Test User", () => {
     )
       throw new Error("Invalid signature!");
 
-    let testRelayer = new TestRelayer({
+    const testRelayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol: Keypair.generate().publicKey,
       relayerFee: RELAYER_FEE,
@@ -145,7 +145,7 @@ describe("Test User", () => {
   it("(user class) shield SPL", async () => {
     const expectedSpentUtxosLength = 0;
     const expectedUtxoHistoryLength = 1;
-    let testInputs = {
+    const testInputs = {
       amountSpl: generateRandomTestAmount(0, 100000, 2),
       token: "USDC",
       type: Action.SHIELD,
@@ -171,7 +171,7 @@ describe("Test User", () => {
   });
 
   it("(user class) shield SOL", async () => {
-    let testInputs = {
+    const testInputs = {
       amountSol: 15,
       token: "SOL",
       type: Action.SHIELD,
@@ -198,7 +198,7 @@ describe("Test User", () => {
   it("(user class) confirm options SPL", async () => {
     const userSeed = bs58.encode(new Uint8Array(32).fill(3));
     await airdropShieldedSol({ provider, amount: 10, seed: userSeed });
-    let testInputs = {
+    const testInputs = {
       amountSpl: 15,
       token: "USDC",
       type: Action.SHIELD,
@@ -230,7 +230,7 @@ describe("Test User", () => {
       seed: recipientSeed,
     });
 
-    let testInputsTransfer = {
+    const testInputsTransfer = {
       amountSpl: 1,
       token: "USDC",
       type: Action.TRANSFER,
@@ -259,7 +259,7 @@ describe("Test User", () => {
 
     const recipient = SolanaKeypair.generate();
 
-    let testInputsUnshield = {
+    const testInputsUnshield = {
       amountSpl: 0.5,
       token: "USDC",
       type: Action.UNSHIELD,
@@ -359,7 +359,7 @@ describe("Test User", () => {
   });
 
   it("(user class) storage shield", async () => {
-    let testInputs = {
+    const testInputs = {
       amountSpl: 0,
       amountSol: 0,
       token: "SOL",
@@ -384,7 +384,7 @@ describe("Test User", () => {
   });
 
   it("(user class) storage transfer", async () => {
-    let testInputs = {
+    const testInputs = {
       amountSpl: 0,
       amountSol: 0,
       token: "SOL",
