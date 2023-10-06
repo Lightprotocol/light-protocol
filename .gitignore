@@ -33,22 +33,11 @@
 /zk.js/lib/
 /zk.js/lookUpTable.txt
 
-# system-programs
-/system-programs/node_modules/
-/system-programs/target/
-/system-programs/tests/*.js
-
-# light-verifier-sdk
-/light-verifier-sdk/target/
-
 # other
-/groth16-solana/target
-*/target/*
 /anchor_programs/build/*
 /anchor_programs/Light_Circuits/build/circuits/ptau17
 /system-programs/lookUpTable.txt
 /system-programs/bin
-/groth16-solana/target/
 
 # light-circuits
 /light-circuits/node_modules/
@@ -74,3 +63,5 @@
 qodana.yaml
 
 node_modules
+
+**/target/

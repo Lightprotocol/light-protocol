@@ -2,7 +2,7 @@ import { Command, ux } from "@oclif/core";
 import { BN, Program } from "@coral-xyz/anchor";
 import { CustomLoader, setAnchorProvider } from "../../utils/utils";
 import {
-  IDL_MERKLE_TREE_PROGRAM,
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
   merkleTreeProgramId,
 } from "@lightprotocol/zk.js";
 
@@ -17,7 +17,7 @@ class AssetPoolListCommand extends Command {
 
     const provider = await setAnchorProvider();
     const merkleTreeProgram = new Program(
-      IDL_MERKLE_TREE_PROGRAM,
+      IDL_LIGHT_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
       provider
     );

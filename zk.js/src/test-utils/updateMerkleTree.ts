@@ -12,10 +12,10 @@ import {
   merkleTreeProgramId,
   UPDATE_MERKLE_TREE_RETRIES,
 } from "../constants";
-import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
+import { IDL_LIGHT_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { sleep } from "../index";
-import { MerkleTreeProgram } from "../../src";
+import { LightMerkleTreeProgram } from "../../src";
 
 async function retryOperation(
   operation: () => Promise<void>,
@@ -58,7 +58,7 @@ async function getLeavesPdas(
  * close the update state account if it exists, else don't handle the error
  */
 async function handleUpdateMerkleTreeError(
-  merkleTreeProgram: anchor.Program<MerkleTreeProgram>,
+  merkleTreeProgram: anchor.Program<LightMerkleTreeProgram>,
   payer: Keypair,
   connection: Connection,
 ) {
@@ -85,7 +85,7 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
   );
 
   const merkleTreeProgram = new anchor.Program(
-    IDL_MERKLE_TREE_PROGRAM,
+    IDL_LIGHT_MERKLE_TREE_PROGRAM,
     merkleTreeProgramId,
     anchorProvider && anchorProvider,
   );

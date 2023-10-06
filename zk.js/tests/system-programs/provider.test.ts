@@ -12,7 +12,7 @@ import {
   Transaction,
   TransactionParameters,
   userTokenAccount,
-  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_LIGHT_PSP2IN2OUT,
   airdropSol,
   MerkleTreeConfig,
   RELAYER_FEE,
@@ -150,7 +150,7 @@ describe("verifier_program", () => {
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       poseidon: POSEIDON,
       action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account: KEYPAIR,
     });
     const { rootIndex: rootIndex1, remainingAccounts: remainingAccounts1 } =

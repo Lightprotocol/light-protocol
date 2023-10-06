@@ -1,13 +1,5 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnv, killTestValidator } from "../../../src/utils/initTestEnv";
-import {
-  REGISTERED_VERIFIER_ONE_PDA,
-  REGISTERED_VERIFIER_TWO_PDA,
-  verifierProgramOneProgramId,
-  verifierProgramStorageProgramId,
-  verifierProgramTwoProgramId,
-  verifierProgramZeroProgramId,
-} from "@lightprotocol/zk.js";
 
 describe("Merkle Tree Authority", () => {
   before(async () => {

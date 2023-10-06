@@ -1,0 +1,28 @@
+[package]
+name = "light-psp2in2out"
+version = "0.3.0"
+description = "Native PSP which can verify 2 inputs and 2 outputs without additional public inputs."
+license = "GPL-3.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "light_psp2in2out"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
+light-merkle-tree-program = { path = "../merkle-tree", features = ["cpi"] }
+solana-security-txt = "1.1.0"
+
+# Light Deps
+groth16-solana = "0.0.2"
+light-macros = { path = "../../macros" }
+light-verifier-sdk = {path = "../../verifier-sdk"}

@@ -1,23 +1,23 @@
 export {
-  type MerkleTreeProgram,
-  IDL as IDL_MERKLE_TREE_PROGRAM,
-} from "./merkle_tree_program";
+  type LightMerkleTreeProgram,
+  IDL as IDL_LIGHT_MERKLE_TREE_PROGRAM,
+} from "./light_merkle_tree_program";
 export {
-  type VerifierProgramStorage,
-  IDL as IDL_VERIFIER_PROGRAM_STORAGE,
-} from "./verifier_program_storage";
+  type LightPsp2in2out,
+  IDL as IDL_LIGHT_PSP2IN2OUT,
+} from "./light_psp2in2out";
 export {
-  type VerifierProgramOne,
-  IDL as IDL_VERIFIER_PROGRAM_ONE,
-} from "./verifier_program_one";
+  type LightPsp10in2out,
+  IDL as IDL_LIGHT_PSP10IN2OUT,
+} from "./light_psp10in2out";
 export {
-  type VerifierProgramTwo,
-  IDL as IDL_VERIFIER_PROGRAM_TWO,
-} from "./verifier_program_two";
+  type LightPsp4in4out,
+  IDL as IDL_LIGHT_PSP4IN4OUT,
+} from "./light_psp4in4out";
 export {
-  type VerifierProgramZero,
-  IDL as IDL_VERIFIER_PROGRAM_ZERO,
-} from "./verifier_program_zero";
+  type LightPsp2in2outStorage,
+  IDL as IDL_LIGHT_PSP2IN2OUT_STORAGE,
+} from "./light_psp2in2out_storage";
 export {
   type UserRegistry,
   IDL as IDL_USER_REGISTRY,

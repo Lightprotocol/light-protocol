@@ -10,7 +10,10 @@ import {
   Utxo,
   BN_0,
 } from "../index";
-import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
+import {
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
+  LightMerkleTreeProgram,
+} from "../idls/index";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 const anchor = require("@coral-xyz/anchor");
 const ffjavascript = require("ffjavascript");
@@ -42,8 +45,8 @@ export class SolMerkleTree {
   }
 
   static async getLeaves(merkleTreePubkey: PublicKey, provider?: Provider) {
-    const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(
-      IDL_MERKLE_TREE_PROGRAM,
+    const merkleTreeProgram: Program<LightMerkleTreeProgram> = new Program(
+      IDL_LIGHT_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
       provider,
     );
@@ -70,8 +73,8 @@ export class SolMerkleTree {
     indexedTransactions: ParsedIndexedTransaction[];
     provider?: Provider;
   }) {
-    const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(
-      IDL_MERKLE_TREE_PROGRAM,
+    const merkleTreeProgram: Program<LightMerkleTreeProgram> = new Program(
+      IDL_LIGHT_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
       provider,
     );

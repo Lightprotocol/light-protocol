@@ -9,7 +9,11 @@ import {
 } from "../transaction";
 import { ParsedIndexedTransaction } from "../types";
 import { airdropSol } from "./airdrop";
-import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeConfig, BN_0 } from "../index";
+import {
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
+  MerkleTreeConfig,
+  BN_0,
+} from "../index";
 
 export class TestRelayer extends Relayer {
   indexedTransactions: ParsedIndexedTransaction[] = [];
@@ -97,7 +101,7 @@ export class TestRelayer extends Relayer {
     );
     if (!merkleTreeAccountInfo)
       throw new Error("Failed to fetch merkle tree account");
-    const coder = new BorshAccountsCoder(IDL_MERKLE_TREE_PROGRAM);
+    const coder = new BorshAccountsCoder(IDL_LIGHT_MERKLE_TREE_PROGRAM);
     const merkleTreeAccount = coder.decode(
       "transactionMerkleTree",
       merkleTreeAccountInfo.data,

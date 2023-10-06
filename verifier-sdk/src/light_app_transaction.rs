@@ -1,12 +1,11 @@
+use std::ops::Neg;
+
 use anchor_lang::{prelude::*, solana_program::msg};
 use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_std::marker::PhantomData;
-
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 
 use crate::{errors::VerifierSdkError, light_transaction::Proof, utils::change_endianness};
-
-use std::ops::Neg;
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 use crate::light_transaction::Config;
@@ -34,7 +33,7 @@ impl<'a, const NR_CHECKED_INPUTS: usize, T: Config> AppTransaction<'a, NR_CHECKE
         let mut proof_a_neg = [0u8; 64];
         proof_a_neg.copy_from_slice(&proof_a_neg_buf[..64]);
 
-        let proof_a_neg: [u8; 64] = change_endianness(&proof_a_neg).try_into().unwrap();
+        let proof_a_neg: [u8; 64] = change_endianness(&proof_a_neg);
         let proof = Proof {
             a: proof_a_neg,
             b: proof.b,
@@ -42,7 +41,7 @@ impl<'a, const NR_CHECKED_INPUTS: usize, T: Config> AppTransaction<'a, NR_CHECKE
         };
 
         AppTransaction {
-            proof: proof,
+            proof,
             verified_proof: false,
             invoked_system_verifier: false,
             e_phantom: PhantomData,
@@ -64,7 +63,7 @@ impl<'a, const NR_CHECKED_INPUTS: usize, T: Config> AppTransaction<'a, NR_CHECKE
             &self.proof.a,
             &self.proof.b,
             &self.proof.c,
-            &self.checked_public_inputs, // do I need to add the merkle tree? don't think so but think this through
+            self.checked_public_inputs, // do I need to add the merkle tree? don't think so but think this through
             self.verifyingkey,
         )
         .unwrap();

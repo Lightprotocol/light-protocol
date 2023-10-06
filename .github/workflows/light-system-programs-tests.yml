@@ -4,7 +4,7 @@ on:
       - main
     paths:
       - "zk.js/**"
-      - "system-programs/**"
+      - "programs/**"
       - "light-circuits/**"
       - ".github/workflows/system-programs-tests.yml"
   pull_request:
@@ -12,7 +12,7 @@ on:
       - main
     paths:
       - "zk.js/**"
-      - "system-programs/**"
+      - "programs/**"
       - "light-circuits/**"
       - ".github/workflows/system-programs-tests.yml"
     types:

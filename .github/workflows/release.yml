@@ -21,12 +21,12 @@ jobs:
 
       - name: Prepare artifacts
         run: |
-          cp system-programs/target/deploy/merkle_tree_program.so ./merkle_tree_program.so
-          cp system-programs/target/deploy/verifier_program_zero.so ./verifier_program_zero.so
-          cp system-programs/target/deploy/verifier_program_storage.so ./verifier_program_storage.so
-          cp system-programs/target/deploy/verifier_program_one.so ./verifier_program_one.so
-          cp system-programs/target/deploy/verifier_program_two.so ./verifier_program_two.so
-          cp third-party/solana-program-library/spl_noop.so ./spl_noop.so
+          cp target/deploy/light_merkle_tree_program.so .
+          cp target/deploy/light_psp2in2out.so .
+          cp target/deploy/light_psp10in2out.so .
+          cp target/deploy/light_psp4in4out.so .
+          cp target/deploy/light_psp2in2out_storage.so .
+          cp third-party/solana-program-library/spl_noop.so .
 
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -34,9 +34,9 @@ jobs:
         with:
           token: ${{ secrets.PAT_TOKEN }}
           files: |
-            merkle_tree_program.so
-            verifier_program_zero.so
-            verifier_program_storage.so
-            verifier_program_one.so
-            verifier_program_two.so
+            light_merkle_tree_program.so
+            light_psp2in2out.so
+            light_psp10in2out.sp
+            light_psp4in4out.so
+            light_psp2in2out_storage.so
             spl_noop.so

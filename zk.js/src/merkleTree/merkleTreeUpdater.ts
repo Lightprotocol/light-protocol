@@ -8,7 +8,7 @@ import {
 import {
   confirmConfig,
   DEFAULT_PROGRAMS,
-  MerkleTreeProgram,
+  LightMerkleTreeProgram,
   sleep,
 } from "../index";
 import {
@@ -23,7 +23,7 @@ import {
 import { Program } from "@coral-xyz/anchor";
 
 export async function closeMerkleTreeUpdateState(
-  merkleTreeProgram: Program<MerkleTreeProgram>,
+  merkleTreeProgram: Program<LightMerkleTreeProgram>,
   signer: Keypair,
   connection: Connection,
 ) {
@@ -48,7 +48,7 @@ export async function closeMerkleTreeUpdateState(
 
 export function getMerkleTreeUpdateStatePda(
   authority: PublicKey,
-  merkleTreeProgram: Program<MerkleTreeProgram>,
+  merkleTreeProgram: Program<LightMerkleTreeProgram>,
 ) {
   return PublicKey.findProgramAddressSync(
     [
@@ -67,7 +67,7 @@ export async function executeUpdateMerkleTreeTransactions({
   connection,
 }: {
   signer: Keypair;
-  merkleTreeProgram: Program<MerkleTreeProgram>;
+  merkleTreeProgram: Program<LightMerkleTreeProgram>;
   leavesPdas: any;
   transactionMerkleTree: PublicKey;
   connection: Connection;
@@ -172,7 +172,7 @@ const createTransactions = async ({
   transactionMerkleTree,
 }: {
   counter: { value: number };
-  merkleTreeProgram: Program<MerkleTreeProgram>;
+  merkleTreeProgram: Program<LightMerkleTreeProgram>;
   numberOfTransactions: number;
   signer: Keypair;
   merkleTreeUpdateState: PublicKey;
@@ -212,7 +212,7 @@ const createTransactions = async ({
 };
 
 const checkComputeInstructionsCompleted = async (
-  merkleTreeProgram: Program<MerkleTreeProgram>,
+  merkleTreeProgram: Program<LightMerkleTreeProgram>,
   merkleTreeUpdateState: PublicKey,
 ) => {
   const accountInfo =
@@ -278,7 +278,7 @@ export async function executeMerkleTreeUpdateTransactions({
   interrupt = false,
 }: {
   numberOfTransactions?: number;
-  merkleTreeProgram: Program<MerkleTreeProgram>;
+  merkleTreeProgram: Program<LightMerkleTreeProgram>;
   merkleTreeUpdateState: PublicKey;
   transactionMerkleTree: PublicKey;
   signer: Keypair;

@@ -1530,16 +1530,56 @@ dependencies = [
 
 [[package]]
 name = "light-merkle-tree"
-version = "0.1.0"
-source = "git+https://github.com/Lightprotocol/light-merkle-tree?branch=main#bbf12361cbd44b0a0a19c59094aefc86edac4238"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2333421ea391d2fd1580a534f0ae6d5dee0a46ea7c71d4bf2ad15d254eb8c29"
 dependencies = [
  "anchor-lang",
  "bytemuck",
 ]
 
 [[package]]
+name = "light-merkle-tree-program"
+version = "0.3.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "ark-bn254 0.3.0",
+ "ark-crypto-primitives",
+ "ark-ec 0.3.0",
+ "ark-ed-on-bn254",
+ "ark-ff 0.3.0",
+ "ark-relations",
+ "ark-std 0.3.0",
+ "arkworks-gadgets",
+ "arrayref",
+ "bincode",
+ "borsh 0.9.3",
+ "bytemuck",
+ "byteorder",
+ "getrandom 0.2.10",
+ "light-macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "light-merkle-tree",
+ "solana-security-txt",
+ "spl-token",
+]
+
+[[package]]
+name = "light-psp4in4out"
+version = "0.3.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "groth16-solana",
+ "light-macros 0.1.0",
+ "light-merkle-tree-program",
+ "light-verifier-sdk",
+ "solana-security-txt",
+]
+
+[[package]]
 name = "light-verifier-sdk"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -1550,7 +1590,7 @@ dependencies = [
  "borsh 0.9.3",
  "groth16-solana",
  "light-merkle-tree",
- "merkle_tree_program",
+ "light-merkle-tree-program",
  "spl-token",
 ]
 
@@ -1592,32 +1632,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "merkle_tree_program"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "ark-bn254 0.3.0",
- "ark-crypto-primitives",
- "ark-ec 0.3.0",
- "ark-ed-on-bn254",
- "ark-ff 0.3.0",
- "ark-relations",
- "ark-std 0.3.0",
- "arkworks-gadgets",
- "arrayref",
- "bincode",
- "borsh 0.9.3",
- "bytemuck",
- "byteorder",
- "getrandom 0.2.10",
- "light-macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "light-merkle-tree",
- "solana-security-txt",
- "spl-token",
 ]
 
 [[package]]
@@ -2018,10 +2032,10 @@ dependencies = [
  "bytemuck",
  "groth16-solana",
  "light-macros 0.1.0",
+ "light-merkle-tree-program",
+ "light-psp4in4out",
  "light-verifier-sdk",
- "merkle_tree_program",
  "solana-program",
- "verifier_program_two",
 ]
 
 [[package]]
@@ -2712,19 +2726,6 @@ name = "valuable"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
-
-[[package]]
-name = "verifier_program_two"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "groth16-solana",
- "light-macros 0.1.0",
- "light-verifier-sdk",
- "merkle_tree_program",
- "solana-security-txt",
-]
 
 [[package]]
 name = "version_check"

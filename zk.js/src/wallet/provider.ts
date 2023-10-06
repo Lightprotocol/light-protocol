@@ -26,7 +26,7 @@ import {
   TOKEN_ACCOUNT_FEE,
   BN_0,
   SolMerkleTreeErrorCode,
-  IDL_MERKLE_TREE_PROGRAM,
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
   merkleTreeProgramId,
   TransactionErrorCode,
   TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
@@ -244,7 +244,7 @@ export class Provider {
     const remainingAccounts: any = {};
     if (this.provider && this.solMerkleTree.merkleTree) {
       const merkleTreeProgram = new Program(
-        IDL_MERKLE_TREE_PROGRAM,
+        IDL_LIGHT_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
         this.provider,
       );

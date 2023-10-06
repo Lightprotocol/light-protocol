@@ -1,0 +1,40 @@
+[features]
+seeds = false
+
+[test.validator]
+url = "http://127.0.0.1:8899"
+
+# merkle tree
+[[test.validator.clone]]
+address = "HKwwxmW1WroCFXa5y4txaGgzzQ1S7r8fU16aqq78w3Et"
+
+[programs.localnet]
+light_merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
+light_psp2in2out = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
+light_psp10in2out = "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
+light_psp4in4out = "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
+light_psp2in2out_storage = "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj"
+
+[programs.testnet]
+light_merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
+light_psp2in2out = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
+light_psp10in2out = "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
+light_psp4in4out = "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
+light_psp2in2out_storage = "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj"
+
+[test]
+startup_wait = 100_000
+
+[registry]
+url = "https://anchor.projectserum.com"
+
+[provider]
+cluster = "testnet"
+wallet = "~/.config/solana/id.json"
+# --resolveJsonModule ./tsconfig.json 
+
+[scripts]
+test = "pnpm run ts-mocha -t 100000000 tests/functional_tests.ts --exit"
+
+[workspace]
+types = "zk.js/src/idls"

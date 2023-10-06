@@ -1,14 +1,14 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
-use merkle_tree_program::{
-    event_merkle_tree::EventMerkleTree, program::MerkleTreeProgram,
+use light_merkle_tree_program::{
+    event_merkle_tree::EventMerkleTree, program::LightMerkleTreeProgram,
     transaction_merkle_tree::state::TransactionMerkleTree, RegisteredVerifier,
 };
 
 pub trait LightAccounts<'info> {
     fn get_signing_address(&self) -> &Signer<'info>;
     fn get_system_program(&self) -> &Program<'info, System>;
-    fn get_program_merkle_tree(&self) -> &Program<'info, MerkleTreeProgram>;
+    fn get_program_merkle_tree(&self) -> &Program<'info, LightMerkleTreeProgram>;
     fn get_transaction_merkle_tree(&self) -> &AccountLoader<'info, TransactionMerkleTree>;
     fn get_authority(&self) -> &UncheckedAccount<'info>;
     fn get_relayer_recipient_sol(&self) -> &UncheckedAccount<'info>;

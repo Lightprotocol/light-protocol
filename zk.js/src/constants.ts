@@ -6,10 +6,10 @@ import {
 } from "@solana/spl-token";
 
 import {
-  MerkleTreeProgram,
-  VerifierProgramOne,
-  VerifierProgramTwo,
-  VerifierProgramZero,
+  LightMerkleTreeProgram,
+  LightPsp2in2out,
+  LightPsp10in2out,
+  LightPsp4in4out,
 } from "./idls";
 
 import {
@@ -46,16 +46,16 @@ export const TYPE_INIT_DATA = { array: ["u8", 642] };
 export const merkleTreeProgramId = new PublicKey(
   "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6",
 );
-export const verifierProgramStorageProgramId = new PublicKey(
+export const lightPsp2in2outStorageId = new PublicKey(
   "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj",
 );
-export const verifierProgramZeroProgramId = new PublicKey(
+export const lightPsp2in2outId = new PublicKey(
   "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i",
 );
-export const verifierProgramOneProgramId = new PublicKey(
+export const lightPsp10in2outId = new PublicKey(
   "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc",
 );
-export const verifierProgramTwoProgramId = new PublicKey(
+export const lightPsp4in4outId = new PublicKey(
   "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86",
 );
 export const userRegistryProgramId = new PublicKey(
@@ -68,15 +68,15 @@ export const LOOK_UP_TABLE = new PublicKey(
 
 export const MAX_U64 = new anchor.BN("18446744073709551615");
 export const VERIFIER_PUBLIC_KEYS = [
-  verifierProgramZeroProgramId,
-  verifierProgramOneProgramId,
-  verifierProgramTwoProgramId,
-  verifierProgramStorageProgramId,
+  lightPsp2in2outId,
+  lightPsp10in2outId,
+  lightPsp4in4outId,
+  lightPsp2in2outStorageId,
 ];
-export type merkleTreeProgram = Program<MerkleTreeProgram>;
-export type verifierProgramZero = Program<VerifierProgramZero>;
-export type verifierProgramOne = Program<VerifierProgramOne>;
-export type verifierProgramTwo = Program<VerifierProgramTwo>;
+export type merkleTreeProgram = Program<LightMerkleTreeProgram>;
+export type lightPsp2in2out = Program<LightPsp2in2out>;
+export type lightPsp10in2out = Program<LightPsp10in2out>;
+export type lightPsp4in4out = Program<LightPsp4in4out>;
 
 export const confirmConfig: ConfirmOptions = {
   commitment: "confirmed",
