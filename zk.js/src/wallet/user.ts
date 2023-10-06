@@ -84,11 +84,11 @@ export class User {
   recentInstructions?: TransactionInstruction[];
 
   constructor({
-                provider,
-                account,
-                appUtxoConfig,
-                verifierIdl = IDL_VERIFIER_PROGRAM_ZERO,
-              }: {
+    provider,
+    account,
+    appUtxoConfig,
+    verifierIdl = IDL_VERIFIER_PROGRAM_ZERO,
+  }: {
     provider: Provider;
     serializedUtxos?: Buffer;
     serializedSpentUtxos?: Buffer;
@@ -98,25 +98,25 @@ export class User {
   }) {
     if (!provider.wallet)
       throw new UserError(
-          UserErrorCode.NO_WALLET_PROVIDED,
-          "constructor",
-          "No wallet provided",
+        UserErrorCode.NO_WALLET_PROVIDED,
+        "constructor",
+        "No wallet provided",
       );
 
     if (!provider.lookUpTables.verifierProgramLookupTable || !provider.poseidon)
       throw new UserError(
-          UserErrorCode.PROVIDER_NOT_INITIALIZED,
-          "constructor",
-          "Provider not properly initialized",
+        UserErrorCode.PROVIDER_NOT_INITIALIZED,
+        "constructor",
+        "Provider not properly initialized",
       );
 
     this.provider = provider;
     this.account = account;
     if (appUtxoConfig && !isProgramVerifier(verifierIdl))
       throw new UserError(
-          UserErrorCode.VERIFIER_IS_NOT_APP_ENABLED,
-          "constructor",
-          `appUtxo config is provided but there is no app enabled verifier defined. The defined verifier is ${verifierIdl.name}.`,
+        UserErrorCode.VERIFIER_IS_NOT_APP_ENABLED,
+        "constructor",
+        `appUtxo config is provided but there is no app enabled verifier defined. The defined verifier is ${verifierIdl.name}.`,
       );
     this.appUtxoConfig = appUtxoConfig;
     this.verifierIdl = verifierIdl ? verifierIdl : IDL_VERIFIER_PROGRAM_ZERO;
@@ -143,27 +143,27 @@ export class User {
   // TODO: test robustness
   // TODO: nonce incrementing is very ugly revisit
   async syncState(
-      aes: boolean = true,
-      balance: Balance | InboxBalance,
-      merkleTreePdaPublicKey: PublicKey,
+    aes: boolean = true,
+    balance: Balance | InboxBalance,
+    merkleTreePdaPublicKey: PublicKey,
   ): Promise<Balance | InboxBalance> {
     // reduce balance by spent utxos
     if (!this.provider.provider)
       throw new UserError(
-          UserErrorCode.PROVIDER_NOT_INITIALIZED,
-          "syncState",
-          "provider is undefined",
+        UserErrorCode.PROVIDER_NOT_INITIALIZED,
+        "syncState",
+        "provider is undefined",
       );
 
     // identify spent utxos
     for (const [, tokenBalance] of balance.tokenBalances) {
       for (const [key, utxo] of tokenBalance.utxos) {
         let nullifierAccountInfo = await fetchNullifierAccountInfo(
-            utxo.getNullifier({
-              poseidon: this.provider.poseidon,
-              account: this.account,
-            })!,
-            this.provider.provider.connection,
+          utxo.getNullifier({
+            poseidon: this.provider.poseidon,
+            account: this.account,
+          })!,
+          this.provider.provider.connection,
         );
         if (nullifierAccountInfo !== null) {
           // tokenBalance.utxos.delete(key)
@@ -179,9 +179,9 @@ export class User {
     // TODO: adapt to indexedTransactions such that this works with verifier two for
 
     const indexedTransactions =
-        await this.provider.relayer.getIndexedTransactions(
-            this.provider.provider!.connection,
-        );
+      await this.provider.relayer.getIndexedTransactions(
+        this.provider.provider!.connection,
+      );
 
     await this.provider.latestMerkleTree(indexedTransactions);
 
@@ -193,14 +193,14 @@ export class User {
         const leafRight = trx.leaves[index + 1];
 
         const encUtxoSize =
-            NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
+          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
         // transaction nonce is the same for all utxos in one transaction
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-              trx.encryptedUtxos.slice(
-                  index * encUtxoSize,
-                  index * encUtxoSize + encUtxoSize,
-              ),
+            trx.encryptedUtxos.slice(
+              index * encUtxoSize,
+              index * encUtxoSize + encUtxoSize,
+            ),
           ),
           index: leftLeafIndex,
           commitment: Buffer.from([...leafLeft]),
@@ -212,15 +212,15 @@ export class User {
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
           verifierProgramLookupTable:
-          this.provider.lookUpTables.verifierProgramLookupTable,
+            this.provider.lookUpTables.verifierProgramLookupTable,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         });
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-              trx.encryptedUtxos.slice(
-                  index * encUtxoSize + encUtxoSize,
-                  index * encUtxoSize + encUtxoSize * 2,
-              ),
+            trx.encryptedUtxos.slice(
+              index * encUtxoSize + encUtxoSize,
+              index * encUtxoSize + encUtxoSize * 2,
+            ),
           ),
           index: leftLeafIndex + 1,
           commitment: Buffer.from([...leafRight]),
@@ -232,7 +232,7 @@ export class User {
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
           verifierProgramLookupTable:
-          this.provider.lookUpTables.verifierProgramLookupTable,
+            this.provider.lookUpTables.verifierProgramLookupTable,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         });
       }
@@ -248,9 +248,9 @@ export class User {
     };
 
     this.transactionHistory = await getUserIndexTransactions(
-        indexedTransactions,
-        this.provider,
-        this.balance.tokenBalances,
+      indexedTransactions,
+      this.provider,
+      this.balance.tokenBalances,
     );
 
     balance.totalSolBalance = calculateTotalSolBalance(balance);
@@ -264,9 +264,9 @@ export class User {
   async getUtxoInbox(latest: boolean = true): Promise<InboxBalance> {
     if (latest) {
       await this.syncState(
-          false,
-          this.inboxBalance,
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
+        false,
+        this.inboxBalance,
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       );
     }
     return this.inboxBalance;
@@ -275,38 +275,38 @@ export class User {
   async getBalance(latest: boolean = true): Promise<Balance> {
     if (!this.account)
       throw new UserError(
-          UserErrorCode.UTXOS_NOT_INITIALIZED,
-          "getBalances",
-          "Account not initialized",
+        UserErrorCode.UTXOS_NOT_INITIALIZED,
+        "getBalances",
+        "Account not initialized",
       );
     if (!this.provider)
       throw new UserError(
-          UserErrorCode.USER_ACCOUNT_NOT_INITIALIZED,
-          "Provider not initialized",
+        UserErrorCode.USER_ACCOUNT_NOT_INITIALIZED,
+        "Provider not initialized",
       );
     if (!this.provider.poseidon)
       throw new UserError(
-          TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
-          "Poseidon not initialized",
+        TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
+        "Poseidon not initialized",
       );
     if (!this.provider.solMerkleTree)
       throw new UserError(
-          ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
-          "getBalance",
-          "Merkle Tree not initialized",
+        ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
+        "getBalance",
+        "Merkle Tree not initialized",
       );
     if (!this.provider.lookUpTables.verifierProgramLookupTable)
       throw new UserError(
-          RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
-          "getBalance",
-          "Look up table not initialized",
+        RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
+        "getBalance",
+        "Look up table not initialized",
       );
 
     if (latest) {
       await this.syncState(
-          true,
-          this.balance,
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
+        true,
+        this.balance,
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       );
     }
     return this.balance;
@@ -320,19 +320,19 @@ export class User {
    * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
    */
   async createShieldTransactionParameters({
-                                            token,
-                                            publicAmountSpl,
-                                            recipient,
-                                            publicAmountSol,
-                                            senderTokenAccount,
-                                            minimumLamports = true,
-                                            appUtxo,
-                                            mergeExistingUtxos = true,
-                                            verifierIdl,
-                                            message,
-                                            skipDecimalConversions = false,
-                                            utxo,
-                                          }: {
+    token,
+    publicAmountSpl,
+    recipient,
+    publicAmountSol,
+    senderTokenAccount,
+    minimumLamports = true,
+    appUtxo,
+    mergeExistingUtxos = true,
+    verifierIdl,
+    message,
+    skipDecimalConversions = false,
+    utxo,
+  }: {
     token: string;
     recipient?: Account;
     publicAmountSpl?: number | BN | string;
@@ -349,43 +349,43 @@ export class User {
     // TODO: add errors for if appUtxo appDataHash or appData, no verifierAddress
     if (publicAmountSpl && token === "SOL")
       throw new UserError(
-          UserErrorCode.INVALID_TOKEN,
-          "shield",
-          "No public amount provided. Shield needs a public amount.",
+        UserErrorCode.INVALID_TOKEN,
+        "shield",
+        "No public amount provided. Shield needs a public amount.",
       );
     if (!publicAmountSpl && !publicAmountSol)
       throw new UserError(
-          CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
-          "shield",
-          "No public amounts provided. Shield needs a public amount.",
+        CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
+        "shield",
+        "No public amounts provided. Shield needs a public amount.",
       );
 
     if (publicAmountSpl && !token)
       throw new UserError(
-          UserErrorCode.TOKEN_UNDEFINED,
-          "shield",
-          "No public amounts provided. Shield needs a public amount.",
+        UserErrorCode.TOKEN_UNDEFINED,
+        "shield",
+        "No public amounts provided. Shield needs a public amount.",
       );
 
     if (!this.provider)
       throw new UserError(
-          UserErrorCode.PROVIDER_NOT_INITIALIZED,
-          "shield",
-          "Provider not set!",
+        UserErrorCode.PROVIDER_NOT_INITIALIZED,
+        "shield",
+        "Provider not set!",
       );
     let tokenCtx = TOKEN_REGISTRY.get(token);
 
     if (!tokenCtx)
       throw new UserError(
-          UserErrorCode.TOKEN_NOT_FOUND,
-          "shield",
-          "Token not supported!",
+        UserErrorCode.TOKEN_NOT_FOUND,
+        "shield",
+        "Token not supported!",
       );
     if (tokenCtx.isNative && senderTokenAccount)
       throw new UserError(
-          UserErrorCode.TOKEN_ACCOUNT_DEFINED,
-          "shield",
-          "Cannot use senderTokenAccount for SOL!",
+        UserErrorCode.TOKEN_ACCOUNT_DEFINED,
+        "shield",
+        "Cannot use senderTokenAccount for SOL!",
       );
     let userSplAccount: PublicKey | undefined = undefined;
     const convertedPublicAmounts = decimalConversion({
@@ -397,23 +397,23 @@ export class User {
       minimumLamportsAmount: this.provider.minimumLamports,
     });
     publicAmountSol = convertedPublicAmounts.publicAmountSol
-        ? convertedPublicAmounts.publicAmountSol
-        : BN_0;
+      ? convertedPublicAmounts.publicAmountSol
+      : BN_0;
     publicAmountSpl = convertedPublicAmounts.publicAmountSpl;
 
     if (publicAmountSol && this.provider.connection) {
       const solBalance = await this.provider.connection.getBalance(
-          this.provider.wallet.publicKey,
+        this.provider.wallet.publicKey,
       );
       if (solBalance < publicAmountSol.toNumber()) {
         throw new UserError(
-            UserErrorCode.INSUFFICIENT_BAlANCE,
-            "createShieldTransactionParameters",
-            `The current balance is insufficient for this operation. The user's balance is ${
-                solBalance / LAMPORTS_PER_SOL
-            } SOL, but the operation requires ${
-                publicAmountSol.toNumber() / LAMPORTS_PER_SOL
-            } SOL.`,
+          UserErrorCode.INSUFFICIENT_BAlANCE,
+          "createShieldTransactionParameters",
+          `The current balance is insufficient for this operation. The user's balance is ${
+            solBalance / LAMPORTS_PER_SOL
+          } SOL, but the operation requires ${
+            publicAmountSol.toNumber() / LAMPORTS_PER_SOL
+          } SOL.`,
         );
       }
     }
@@ -423,40 +423,40 @@ export class User {
         userSplAccount = senderTokenAccount;
       } else {
         userSplAccount = splToken.getAssociatedTokenAddressSync(
-            tokenCtx!.mint,
-            this.provider!.wallet!.publicKey,
+          tokenCtx!.mint,
+          this.provider!.wallet!.publicKey,
         );
       }
     }
     // TODO: add get utxos as array method
     let utxosEntries = this.balance.tokenBalances
-        .get(tokenCtx.mint.toBase58())
-        ?.utxos.values();
+      .get(tokenCtx.mint.toBase58())
+      ?.utxos.values();
     let utxos: Utxo[] =
-        utxosEntries && mergeExistingUtxos ? Array.from(utxosEntries) : [];
+      utxosEntries && mergeExistingUtxos ? Array.from(utxosEntries) : [];
     let outUtxos: Utxo[] = [];
     if (recipient) {
       const amounts: BN[] = publicAmountSpl
-          ? [publicAmountSol, publicAmountSpl]
-          : [publicAmountSol];
+        ? [publicAmountSol, publicAmountSpl]
+        : [publicAmountSol];
       const assets = !tokenCtx.isNative
-          ? [SystemProgram.programId, tokenCtx.mint]
-          : [SystemProgram.programId];
+        ? [SystemProgram.programId, tokenCtx.mint]
+        : [SystemProgram.programId];
       outUtxos.push(
-          new Utxo({
-            poseidon: this.provider.poseidon,
-            assets,
-            amounts,
-            publicKey: recipient.pubkey,
-            encryptionPublicKey: recipient.encryptionKeypair.publicKey,
-            appDataHash: appUtxo?.appDataHash,
-            verifierAddress: appUtxo?.verifierAddress,
-            includeAppData: appUtxo?.includeAppData,
-            appData: appUtxo?.appData,
-            assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-            verifierProgramLookupTable:
+        new Utxo({
+          poseidon: this.provider.poseidon,
+          assets,
+          amounts,
+          publicKey: recipient.pubkey,
+          encryptionPublicKey: recipient.encryptionKeypair.publicKey,
+          appDataHash: appUtxo?.appDataHash,
+          verifierAddress: appUtxo?.verifierAddress,
+          includeAppData: appUtxo?.includeAppData,
+          appData: appUtxo?.appData,
+          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
             this.provider.lookUpTables.verifierProgramLookupTable,
-          }),
+        }),
       );
       utxos = [];
     }
@@ -478,23 +478,23 @@ export class User {
       message,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
-      this.provider.lookUpTables.verifierProgramLookupTable,
+        this.provider.lookUpTables.verifierProgramLookupTable,
     });
     this.recentTransactionParameters = txParams;
     return txParams;
   }
 
   async compileAndProveTransaction(
-      appParams?: any,
-      shuffleEnabled: boolean = true,
+    appParams?: any,
+    shuffleEnabled: boolean = true,
   ): Promise<TransactionInstruction[]> {
     if (!this.recentTransactionParameters)
       throw new UserError(
-          UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
-          "compileAndProveTransaction",
-          "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
+        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        "compileAndProveTransaction",
+        "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
-    const {rootIndex, remainingAccounts} = await this.provider.getRootIndex();
+    const { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
     let tx = new Transaction({
       rootIndex,
       nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
@@ -505,8 +505,8 @@ export class User {
     });
 
     this.recentInstructions = await tx.compileAndProve(
-        this.provider.poseidon,
-        this.account,
+      this.provider.poseidon,
+      this.account,
     );
     return this.recentInstructions;
   }
@@ -514,63 +514,63 @@ export class User {
   async approve() {
     if (!this.recentTransactionParameters)
       throw new UserError(
-          UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
-          "compileAndProveTransaction",
-          "The method 'createShieldTransactionParameters' must be executed first to approve SPL funds before initiating a shield transaction.",
+        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        "compileAndProveTransaction",
+        "The method 'createShieldTransactionParameters' must be executed first to approve SPL funds before initiating a shield transaction.",
       );
     if (
-        this.recentTransactionParameters?.publicAmountSpl.gt(BN_0) &&
-        this.recentTransactionParameters?.action === Action.SHIELD
+      this.recentTransactionParameters?.publicAmountSpl.gt(BN_0) &&
+      this.recentTransactionParameters?.action === Action.SHIELD
     ) {
       let tokenAccountInfo =
-          await this.provider.provider?.connection!.getAccountInfo(
-              this.recentTransactionParameters.accounts.senderSpl!,
-          );
+        await this.provider.provider?.connection!.getAccountInfo(
+          this.recentTransactionParameters.accounts.senderSpl!,
+        );
 
       if (!tokenAccountInfo)
         throw new UserError(
-            UserErrorCode.ASSOCIATED_TOKEN_ACCOUNT_DOESNT_EXIST,
-            "shield",
-            "AssociatedTokenAccount doesn't exist!",
+          UserErrorCode.ASSOCIATED_TOKEN_ACCOUNT_DOESNT_EXIST,
+          "shield",
+          "AssociatedTokenAccount doesn't exist!",
         );
       let tokenBalance = await splToken.getAccount(
-          this.provider.provider?.connection!,
-          this.recentTransactionParameters.accounts.senderSpl!,
+        this.provider.provider?.connection!,
+        this.recentTransactionParameters.accounts.senderSpl!,
       );
 
       if (
-          this.recentTransactionParameters?.publicAmountSpl.gt(
-              new BN(tokenBalance.amount.toString()),
-          )
+        this.recentTransactionParameters?.publicAmountSpl.gt(
+          new BN(tokenBalance.amount.toString()),
+        )
       )
         throw new UserError(
-            UserErrorCode.INSUFFICIENT_BAlANCE,
-            "shield",
-            `Insufficient token balance! ${this.recentTransactionParameters?.publicAmountSpl.toString()} bal: ${tokenBalance!
-                .amount!}`,
+          UserErrorCode.INSUFFICIENT_BAlANCE,
+          "shield",
+          `Insufficient token balance! ${this.recentTransactionParameters?.publicAmountSpl.toString()} bal: ${tokenBalance!
+            .amount!}`,
         );
 
       try {
         const transaction = new SolanaTransaction().add(
-            splToken.createApproveInstruction(
-                this.recentTransactionParameters.accounts.senderSpl!,
-                AUTHORITY,
-                this.provider.wallet!.publicKey,
-                this.recentTransactionParameters?.publicAmountSpl.toNumber(),
-            ),
+          splToken.createApproveInstruction(
+            this.recentTransactionParameters.accounts.senderSpl!,
+            AUTHORITY,
+            this.provider.wallet!.publicKey,
+            this.recentTransactionParameters?.publicAmountSpl.toNumber(),
+          ),
         );
         transaction.recentBlockhash = (
-            await this.provider.provider?.connection.getLatestBlockhash(
-                "confirmed",
-            )
+          await this.provider.provider?.connection.getLatestBlockhash(
+            "confirmed",
+          )
         )?.blockhash;
         await this.provider.wallet!.sendAndConfirmTransaction(transaction);
         this.approved = true;
       } catch (e: any) {
         throw new UserError(
-            UserErrorCode.APPROVE_ERROR,
-            "shield",
-            `Error approving token transfer! ${e.stack}`,
+          UserErrorCode.APPROVE_ERROR,
+          "shield",
+          `Error approving token transfer! ${e.stack}`,
         );
       }
     } else {
@@ -581,41 +581,41 @@ export class User {
   async sendTransaction() {
     if (!this.recentTransactionParameters)
       throw new UserError(
-          UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
-          "sendTransaction",
-          "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
+        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        "sendTransaction",
+        "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
       );
     if (
-        this.recentTransactionParameters?.action === Action.SHIELD &&
-        !this.approved
+      this.recentTransactionParameters?.action === Action.SHIELD &&
+      !this.approved
     )
       throw new UserError(
-          UserErrorCode.SPL_FUNDS_NOT_APPROVED,
-          "sendTransaction",
-          "Please approve SPL funds before executing a shield with SPL tokens.",
+        UserErrorCode.SPL_FUNDS_NOT_APPROVED,
+        "sendTransaction",
+        "Please approve SPL funds before executing a shield with SPL tokens.",
       );
     if (!this.recentInstructions)
       throw new UserError(
-          UserErrorCode.INSTRUCTIONS_UNDEFINED,
-          "sendTransaction",
-          "Unable to send transaction. The transaction must be compiled and a proof must be generated first to create solana instructions.",
+        UserErrorCode.INSTRUCTIONS_UNDEFINED,
+        "sendTransaction",
+        "Unable to send transaction. The transaction must be compiled and a proof must be generated first to create solana instructions.",
       );
     let txResult;
     try {
       if (this.recentTransactionParameters.action === Action.SHIELD) {
         txResult = await this.provider.sendAndConfirmTransaction(
-            this.recentInstructions,
+          this.recentInstructions,
         );
       } else {
         txResult = await this.provider.sendAndConfirmShieldedTransaction(
-            this.recentInstructions,
+          this.recentInstructions,
         );
       }
     } catch (e) {
       throw new UserError(
-          TransactionErrorCode.SEND_TRANSACTION_FAILED,
-          "shield",
-          `Error in tx.sendTransaction ${e}`,
+        TransactionErrorCode.SEND_TRANSACTION_FAILED,
+        "shield",
+        `Error in tx.sendTransaction ${e}`,
       );
     }
     return txResult;
@@ -635,16 +635,16 @@ export class User {
    * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
    */
   async shield({
-                 token,
-                 publicAmountSpl,
-                 recipient,
-                 publicAmountSol,
-                 senderTokenAccount,
-                 minimumLamports = true,
-                 appUtxo,
-                 skipDecimalConversions = false,
-                 confirmOptions = ConfirmOptions.spendable,
-               }: {
+    token,
+    publicAmountSpl,
+    recipient,
+    publicAmountSol,
+    senderTokenAccount,
+    minimumLamports = true,
+    appUtxo,
+    skipDecimalConversions = false,
+    confirmOptions = ConfirmOptions.spendable,
+  }: {
     token: string;
     recipient?: string;
     publicAmountSpl?: number | BN | string;
@@ -656,8 +656,8 @@ export class User {
     confirmOptions?: ConfirmOptions;
   }) {
     let recipientAccount = recipient
-        ? Account.fromPubkey(recipient, this.provider.poseidon)
-        : undefined;
+      ? Account.fromPubkey(recipient, this.provider.poseidon)
+      : undefined;
 
     const txParams = await this.createShieldTransactionParameters({
       token,
@@ -669,17 +669,17 @@ export class User {
       appUtxo,
       skipDecimalConversions,
     });
-    return await this.transactWithParameters({txParams, confirmOptions});
+    return await this.transactWithParameters({ txParams, confirmOptions });
   }
 
   async unshield({
-                   token,
-                   publicAmountSpl,
-                   publicAmountSol,
-                   recipient = AUTHORITY,
-                   minimumLamports = true,
-                   confirmOptions = ConfirmOptions.spendable,
-                 }: {
+    token,
+    publicAmountSpl,
+    publicAmountSol,
+    recipient = AUTHORITY,
+    minimumLamports = true,
+    confirmOptions = ConfirmOptions.spendable,
+  }: {
     token: string;
     recipient?: PublicKey;
     publicAmountSpl?: number | BN | string;
@@ -694,7 +694,7 @@ export class User {
       recipient,
       minimumLamports,
     });
-    return await this.transactWithParameters({txParams, confirmOptions});
+    return await this.transactWithParameters({ txParams, confirmOptions });
   }
 
   // TODO: add unshieldSol and unshieldSpl
@@ -707,12 +707,12 @@ export class User {
    * @params extraSolAmount: number - optional, if not set, will use MINIMUM_LAMPORTS
    */
   async createUnshieldTransactionParameters({
-                                              token,
-                                              publicAmountSpl,
-                                              publicAmountSol,
-                                              recipient = AUTHORITY,
-                                              minimumLamports = true,
-                                            }: {
+    token,
+    publicAmountSpl,
+    publicAmountSol,
+    recipient = AUTHORITY,
+    minimumLamports = true,
+  }: {
     token: string;
     recipient?: PublicKey;
     publicAmountSpl?: number | BN | string;
@@ -722,34 +722,34 @@ export class User {
     const tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx)
       throw new UserError(
-          UserErrorCode.TOKEN_NOT_FOUND,
-          "unshield",
-          "Token not supported!",
+        UserErrorCode.TOKEN_NOT_FOUND,
+        "unshield",
+        "Token not supported!",
       );
 
     if (!publicAmountSpl && !publicAmountSol)
       throw new UserError(
-          CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
-          "unshield",
-          "Need to provide at least one amount for an unshield",
+        CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
+        "unshield",
+        "Need to provide at least one amount for an unshield",
       );
     if (publicAmountSol && recipient.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
-          TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
-          "getTxParams",
-          "Please provide a recipient for unshielding SOL",
+        TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+        "getTxParams",
+        "Please provide a recipient for unshielding SOL",
       );
     if (publicAmountSpl && recipient.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
-          TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
-          "getTxParams",
-          "Please provide a recipient for unshielding SPL",
+        TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+        "getTxParams",
+        "Please provide a recipient for unshielding SPL",
       );
     if (publicAmountSpl && token == "SOL")
       throw new UserError(
-          UserErrorCode.INVALID_TOKEN,
-          "getTxParams",
-          "public amount spl provided for SOL token",
+        UserErrorCode.INVALID_TOKEN,
+        "getTxParams",
+        "public amount spl provided for SOL token",
       );
 
     let ataCreationFee = false;
@@ -757,11 +757,11 @@ export class User {
 
     if (publicAmountSpl) {
       recipientSpl = splToken.getAssociatedTokenAddressSync(
-          tokenCtx!.mint,
-          recipient,
+        tokenCtx!.mint,
+        recipient,
       );
       const tokenAccountInfo =
-          await this.provider.provider!.connection?.getAccountInfo(recipientSpl);
+        await this.provider.provider!.connection?.getAccountInfo(recipientSpl);
       if (!tokenAccountInfo) {
         ataCreationFee = true;
       }
@@ -770,30 +770,30 @@ export class User {
     let _publicSplAmount: BN | undefined = undefined;
     if (publicAmountSpl) {
       _publicSplAmount = convertAndComputeDecimals(
-          publicAmountSpl,
-          tokenCtx.decimals,
+        publicAmountSpl,
+        tokenCtx.decimals,
       );
     }
 
     // if no sol amount by default min amount if disabled 0
     const _publicSolAmount = publicAmountSol
-        ? convertAndComputeDecimals(publicAmountSol, new BN(1e9))
-        : minimumLamports
-            ? this.provider.minimumLamports
-            : BN_0;
+      ? convertAndComputeDecimals(publicAmountSol, new BN(1e9))
+      : minimumLamports
+      ? this.provider.minimumLamports
+      : BN_0;
     let utxosEntries = this.balance.tokenBalances
-        .get(tokenCtx.mint.toBase58())
-        ?.utxos.values();
+      .get(tokenCtx.mint.toBase58())
+      ?.utxos.values();
     let solUtxos = this.balance.tokenBalances
-        .get(SystemProgram.programId.toBase58())
-        ?.utxos.values();
+      .get(SystemProgram.programId.toBase58())
+      ?.utxos.values();
 
     let utxosEntriesSol: Utxo[] =
-        solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
+      solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
 
     let utxos: Utxo[] = utxosEntries
-        ? Array.from([...utxosEntries, ...utxosEntriesSol])
-        : [];
+      ? Array.from([...utxosEntries, ...utxosEntriesSol])
+      : [];
 
     const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
@@ -811,7 +811,7 @@ export class User {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
-      this.provider.lookUpTables.verifierProgramLookupTable,
+        this.provider.lookUpTables.verifierProgramLookupTable,
     });
     this.recentTransactionParameters = txParams;
     return txParams;
@@ -819,13 +819,13 @@ export class User {
 
   // TODO: replace recipient with recipient light public key
   async transfer({
-                   token,
-                   recipient,
-                   amountSpl,
-                   amountSol,
-                   appUtxo,
-                   confirmOptions = ConfirmOptions.spendable,
-                 }: {
+    token,
+    recipient,
+    amountSpl,
+    amountSol,
+    appUtxo,
+    confirmOptions = ConfirmOptions.spendable,
+  }: {
     token: string;
     amountSpl?: BN | number | string;
     amountSol?: BN | number | string;
@@ -835,13 +835,13 @@ export class User {
   }) {
     if (!recipient)
       throw new UserError(
-          UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
-          "transfer",
-          "Please provide a shielded recipient for the transfer.",
+        UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
+        "transfer",
+        "Please provide a shielded recipient for the transfer.",
       );
     let recipientAccount = Account.fromPubkey(
-        recipient,
-        this.provider.poseidon,
+      recipient,
+      this.provider.poseidon,
     );
 
     let txParams = await this.createTransferTransactionParameters({
@@ -851,7 +851,7 @@ export class User {
       amountSol,
       appUtxo,
     });
-    return this.transactWithParameters({txParams, confirmOptions});
+    return this.transactWithParameters({ txParams, confirmOptions });
   }
 
   // TODO: add separate lookup function for users.
@@ -864,19 +864,19 @@ export class User {
    * @returns
    */
   async createTransferTransactionParameters({
-                                              token,
-                                              recipient,
-                                              amountSpl,
-                                              amountSol,
-                                              appUtxo,
-                                              message,
-                                              inUtxos,
-                                              outUtxos,
-                                              verifierIdl,
-                                              skipDecimalConversions,
-                                              addInUtxos = true,
-                                              addOutUtxos = true,
-                                            }: {
+    token,
+    recipient,
+    amountSpl,
+    amountSol,
+    appUtxo,
+    message,
+    inUtxos,
+    outUtxos,
+    verifierIdl,
+    skipDecimalConversions,
+    addInUtxos = true,
+    addOutUtxos = true,
+  }: {
     token?: string;
     amountSpl?: BN | number | string;
     amountSol?: BN | number | string;
@@ -892,9 +892,9 @@ export class User {
   }) {
     if (!amountSol && !amountSpl && !outUtxos && !inUtxos)
       throw new UserError(
-          UserErrorCode.NO_AMOUNTS_PROVIDED,
-          "createTransferTransactionParameters",
-          "At least one amount should be provided for a transfer.",
+        UserErrorCode.NO_AMOUNTS_PROVIDED,
+        "createTransferTransactionParameters",
+        "At least one amount should be provided for a transfer.",
       );
     if ((!token && outUtxos) || inUtxos) {
       if (outUtxos)
@@ -904,16 +904,16 @@ export class User {
     }
     if (!token)
       throw new UserError(
-          UserErrorCode.TOKEN_UNDEFINED,
-          "createTransferTransactionParameters",
+        UserErrorCode.TOKEN_UNDEFINED,
+        "createTransferTransactionParameters",
       );
 
     const tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx)
       throw new UserError(
-          UserErrorCode.TOKEN_NOT_FOUND,
-          "createTransferTransactionParameters",
-          "Token not supported!",
+        UserErrorCode.TOKEN_NOT_FOUND,
+        "createTransferTransactionParameters",
+        "Token not supported!",
       );
     const convertedPublicAmounts = decimalConversion({
       tokenCtx,
@@ -923,16 +923,16 @@ export class User {
       minimumLamportsAmount: this.provider.minimumLamports,
     });
     const parsedSolAmount = convertedPublicAmounts.publicAmountSol
-        ? convertedPublicAmounts.publicAmountSol
-        : BN_0;
+      ? convertedPublicAmounts.publicAmountSol
+      : BN_0;
     const parsedSplAmount = convertedPublicAmounts.publicAmountSpl
-        ? convertedPublicAmounts.publicAmountSpl
-        : BN_0;
+      ? convertedPublicAmounts.publicAmountSpl
+      : BN_0;
 
     if (recipient && !tokenCtx)
       throw new UserError(
-          UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
-          "createTransferTransactionParameters",
+        UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
+        "createTransferTransactionParameters",
       );
 
     let _outUtxos: Utxo[] = [];
@@ -950,7 +950,7 @@ export class User {
         poseidon: this.provider.poseidon,
         assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
-        this.provider.lookUpTables.verifierProgramLookupTable,
+          this.provider.lookUpTables.verifierProgramLookupTable,
       });
     }
 
@@ -959,23 +959,23 @@ export class User {
     let utxos: Utxo[];
 
     let solUtxos = this.balance.tokenBalances
-        .get(SystemProgram.programId.toBase58())
-        ?.utxos.values();
+      .get(SystemProgram.programId.toBase58())
+      ?.utxos.values();
     let utxosEntriesSol: Utxo[] =
-        solUtxos && token !== "SOL" ? Array.from(solUtxos) : new Array<Utxo>();
+      solUtxos && token !== "SOL" ? Array.from(solUtxos) : new Array<Utxo>();
 
     let utxosEntries = this.balance.tokenBalances
-        .get(tokenCtx.mint.toBase58())
-        ?.utxos.values();
+      .get(tokenCtx.mint.toBase58())
+      ?.utxos.values();
     utxos = utxosEntries
-        ? Array.from([...utxosEntries, ...utxosEntriesSol])
-        : [];
+      ? Array.from([...utxosEntries, ...utxosEntriesSol])
+      : [];
 
     if (!tokenCtx.isNative && !utxosEntries)
       throw new UserError(
-          UserErrorCode.INSUFFICIENT_BAlANCE,
-          "createTransferTransactionParameters",
-          `Balance does not have any utxos of ${token}`,
+        UserErrorCode.INSUFFICIENT_BAlANCE,
+        "createTransferTransactionParameters",
+        `Balance does not have any utxos of ${token}`,
       );
 
     const txParams = await TransactionParameters.getTxParams({
@@ -994,18 +994,18 @@ export class User {
       addOutUtxos,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
-      this.provider.lookUpTables.verifierProgramLookupTable,
+        this.provider.lookUpTables.verifierProgramLookupTable,
     });
     this.recentTransactionParameters = txParams;
     return txParams;
   }
 
   async transactWithParameters({
-                                 txParams,
-                                 appParams,
-                                 confirmOptions,
-                                 shuffleEnabled = true,
-                               }: {
+    txParams,
+    appParams,
+    confirmOptions,
+    shuffleEnabled = true,
+  }: {
     txParams: TransactionParameters;
     appParams?: any;
     confirmOptions?: ConfirmOptions;
@@ -1014,8 +1014,8 @@ export class User {
     this.recentTransactionParameters = txParams;
 
     this.recentInstructions = await this.compileAndProveTransaction(
-        appParams,
-        shuffleEnabled,
+      appParams,
+      shuffleEnabled,
     );
 
     await this.approve();
@@ -1043,7 +1043,7 @@ export class User {
     await this.getBalance();
 
     this.resetTxState();
-    return {txHash, response: relayerMerkleTreeUpdateResponse};
+    return { txHash, response: relayerMerkleTreeUpdateResponse };
   }
 
   async transactWithUtxos({}: {
@@ -1062,12 +1062,12 @@ export class User {
    * @param utxos - Optional user utxos to instantiate from
    */
   static async init({
-                      provider,
-                      seed,
-                      appUtxoConfig,
-                      account,
-                      skipFetchBalance,
-                    }: {
+    provider,
+    seed,
+    appUtxoConfig,
+    account,
+    skipFetchBalance,
+  }: {
     provider: Provider;
     seed?: string;
     utxos?: Utxo[];
@@ -1081,42 +1081,42 @@ export class User {
       }
       if (seed && account)
         throw new UserError(
-            UserErrorCode.ACCOUNT_AND_SEED_PROVIDED,
-            "load",
-            "Cannot provide both seed and account!",
+          UserErrorCode.ACCOUNT_AND_SEED_PROVIDED,
+          "load",
+          "Cannot provide both seed and account!",
         );
       if (!seed && !account && provider.wallet) {
         account = await Account.createFromBrowserWallet(
-            provider.poseidon,
-            provider.wallet,
+          provider.poseidon,
+          provider.wallet,
         );
       } else if (!account && seed) {
         account = Account.createFromSeed(provider.poseidon, seed);
       } else if (!account) {
         throw new UserError(
-            CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-            "load",
-            "No account, provider with wallet or seed provided!",
+          CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
+          "load",
+          "No account, provider with wallet or seed provided!",
         );
       }
       if (
-          account.solanaPublicKey &&
-          provider.wallet.publicKey.toBase58() !==
+        account.solanaPublicKey &&
+        provider.wallet.publicKey.toBase58() !==
           account.solanaPublicKey.toBase58()
       ) {
         console.warn(
-            "Account seems to be created from a different wallet than provider uses.",
+          "Account seems to be created from a different wallet than provider uses.",
         );
       }
-      const user = new User({provider, appUtxoConfig, account});
+      const user = new User({ provider, appUtxoConfig, account });
       if (!skipFetchBalance) await user.getBalance();
 
       return user;
     } catch (e) {
       throw new UserError(
-          UserErrorCode.LOAD_ERROR,
-          "load",
-          `Error while loading user! ${e}`,
+        UserErrorCode.LOAD_ERROR,
+        "load",
+        `Error while loading user! ${e}`,
       );
     }
   }
@@ -1128,48 +1128,48 @@ export class User {
    * loops in steps of 9 or 10
    */
   async mergeAllUtxos(
-      asset: PublicKey,
-      confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
-      latest: boolean = true,
+    asset: PublicKey,
+    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
+    latest: boolean = true,
   ) {
     await this.getUtxoInbox(latest);
     await this.getBalance(latest);
     let inboxTokenBalance: TokenUtxoBalance | undefined =
-        this.inboxBalance.tokenBalances.get(asset.toString());
+      this.inboxBalance.tokenBalances.get(asset.toString());
     if (!inboxTokenBalance)
       throw new UserError(
-          UserErrorCode.EMPTY_INBOX,
-          "mergeAllUtxos",
-          `for asset ${asset} the utxo inbox is empty`,
+        UserErrorCode.EMPTY_INBOX,
+        "mergeAllUtxos",
+        `for asset ${asset} the utxo inbox is empty`,
       );
 
     let utxosEntries = this.balance.tokenBalances
-        .get(asset.toBase58())
-        ?.utxos.values();
+      .get(asset.toBase58())
+      ?.utxos.values();
     let _solUtxos = this.balance.tokenBalances
-        .get(new PublicKey(0).toBase58())
-        ?.utxos.values();
+      .get(new PublicKey(0).toBase58())
+      ?.utxos.values();
     const solUtxos = _solUtxos ? Array.from(_solUtxos) : [];
     let inboxUtxosEntries = Array.from(inboxTokenBalance.utxos.values());
 
     if (inboxUtxosEntries.length == 0)
       throw new UserError(
-          UserErrorCode.EMPTY_INBOX,
-          "mergeAllUtxos",
-          `for asset ${asset} the utxo inbox is empty`,
+        UserErrorCode.EMPTY_INBOX,
+        "mergeAllUtxos",
+        `for asset ${asset} the utxo inbox is empty`,
       );
     let assetIndex =
-        asset.toBase58() === SystemProgram.programId.toBase58() ? 0 : 1;
+      asset.toBase58() === SystemProgram.programId.toBase58() ? 0 : 1;
     // sort inbox utxos descending
     inboxUtxosEntries.sort(
-        (a, b) =>
-            b.amounts[assetIndex].toNumber() - a.amounts[assetIndex].toNumber(),
+      (a, b) =>
+        b.amounts[assetIndex].toNumber() - a.amounts[assetIndex].toNumber(),
     );
 
     let inUtxos: Utxo[] =
-        utxosEntries && asset.toBase58() !== new PublicKey(0).toBase58()
-            ? Array.from([...utxosEntries, ...solUtxos, ...inboxUtxosEntries])
-            : Array.from([...solUtxos, ...inboxUtxosEntries]);
+      utxosEntries && asset.toBase58() !== new PublicKey(0).toBase58()
+        ? Array.from([...utxosEntries, ...solUtxos, ...inboxUtxosEntries])
+        : Array.from([...solUtxos, ...inboxUtxosEntries]);
     if (inUtxos.length > 10) {
       inUtxos = inUtxos.slice(0, 10);
     }
@@ -1188,9 +1188,9 @@ export class User {
       verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
-      this.provider.lookUpTables.verifierProgramLookupTable,
+        this.provider.lookUpTables.verifierProgramLookupTable,
     });
-    return await this.transactWithParameters({txParams, confirmOptions});
+    return await this.transactWithParameters({ txParams, confirmOptions });
   }
 
   // TODO: how do we handle app utxos?, some will not be able to be accepted we can only mark these as accepted
@@ -1200,58 +1200,58 @@ export class User {
    * loops in steps of 9 or 10
    */
   async mergeUtxos(
-      commitments: string[],
-      asset: PublicKey,
-      confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
-      latest: boolean = false,
+    commitments: string[],
+    asset: PublicKey,
+    confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
+    latest: boolean = false,
   ) {
     if (commitments.length == 0)
       throw new UserError(
-          UserErrorCode.NO_COMMITMENTS_PROVIDED,
-          "mergeAllUtxos",
-          `No commitments for merging specified ${asset}`,
+        UserErrorCode.NO_COMMITMENTS_PROVIDED,
+        "mergeAllUtxos",
+        `No commitments for merging specified ${asset}`,
       );
 
     await this.getUtxoInbox(latest);
     await this.getBalance(latest);
     let inboxTokenBalance: TokenUtxoBalance | undefined =
-        this.inboxBalance.tokenBalances.get(asset.toString());
+      this.inboxBalance.tokenBalances.get(asset.toString());
     if (!inboxTokenBalance)
       throw new UserError(
-          UserErrorCode.EMPTY_INBOX,
-          "mergeAllUtxos",
-          `for asset ${asset} the utxo inbox is empty`,
+        UserErrorCode.EMPTY_INBOX,
+        "mergeAllUtxos",
+        `for asset ${asset} the utxo inbox is empty`,
       );
 
     let utxosEntries = this.balance.tokenBalances
-        .get(asset.toBase58())
-        ?.utxos.values();
+      .get(asset.toBase58())
+      ?.utxos.values();
 
     let commitmentUtxos: Utxo[] = [];
     for (const commitment of commitments) {
       let utxo = inboxTokenBalance.utxos.get(commitment);
       if (!utxo)
         throw new UserError(
-            UserErrorCode.COMMITMENT_NOT_FOUND,
-            "mergeUtxos",
-            `commitment ${commitment} is it of asset ${asset} ?`,
+          UserErrorCode.COMMITMENT_NOT_FOUND,
+          "mergeUtxos",
+          `commitment ${commitment} is it of asset ${asset} ?`,
         );
       commitmentUtxos.push(utxo);
     }
 
     let inUtxos: Utxo[] = utxosEntries
-        ? Array.from([...utxosEntries, ...commitmentUtxos])
-        : Array.from(commitmentUtxos);
+      ? Array.from([...utxosEntries, ...commitmentUtxos])
+      : Array.from(commitmentUtxos);
 
     if (inUtxos.length > 10) {
       throw new UserError(
-          UserErrorCode.TOO_MANY_COMMITMENTS,
-          "mergeUtxos",
-          `too many commitments provided to merge at once provided ${
-              commitmentUtxos.length
-          }, number of existing utxos ${
-              Array.from(utxosEntries ? utxosEntries : []).length
-          } > 10 (can only merge 10 utxos in one transaction)`,
+        UserErrorCode.TOO_MANY_COMMITMENTS,
+        "mergeUtxos",
+        `too many commitments provided to merge at once provided ${
+          commitmentUtxos.length
+        }, number of existing utxos ${
+          Array.from(utxosEntries ? utxosEntries : []).length
+        } > 10 (can only merge 10 utxos in one transaction)`,
       );
     }
 
@@ -1268,13 +1268,13 @@ export class User {
       verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
-      this.provider.lookUpTables.verifierProgramLookupTable,
+        this.provider.lookUpTables.verifierProgramLookupTable,
     });
-    return this.transactWithParameters({txParams, confirmOptions});
+    return this.transactWithParameters({ txParams, confirmOptions });
   }
 
   async getTransactionHistory(
-      latest: boolean = true,
+    latest: boolean = true,
   ): Promise<UserIndexedTransaction[]> {
     try {
       if (latest) {
@@ -1283,9 +1283,9 @@ export class User {
       return this.transactionHistory!;
     } catch (error) {
       throw new UserError(
-          TransactionErrorCode.GET_USER_TRANSACTION_HISTORY_FAILED,
-          "getLatestTransactionHistory",
-          `Error while getting user transaction history ! ${error}`,
+        TransactionErrorCode.GET_USER_TRANSACTION_HISTORY_FAILED,
+        "getLatestTransactionHistory",
+        `Error while getting user transaction history ! ${error}`,
       );
     }
   }
@@ -1305,18 +1305,18 @@ export class User {
   }
 
   async createStoreAppUtxoTransactionParameters({
-                                                  token,
-                                                  amountSol,
-                                                  amountSpl,
-                                                  minimumLamports,
-                                                  senderTokenAccount,
-                                                  recipientPublicKey,
-                                                  appUtxo,
-                                                  stringUtxo,
-                                                  action,
-                                                  appUtxoConfig,
-                                                  skipDecimalConversions = false,
-                                                }: {
+    token,
+    amountSol,
+    amountSpl,
+    minimumLamports,
+    senderTokenAccount,
+    recipientPublicKey,
+    appUtxo,
+    stringUtxo,
+    action,
+    appUtxoConfig,
+    skipDecimalConversions = false,
+  }: {
     token?: string;
     amountSol?: BN;
     amountSpl?: BN;
@@ -1333,55 +1333,55 @@ export class User {
       if (appUtxoConfig) {
         if (!token)
           throw new UserError(
-              UserErrorCode.TOKEN_UNDEFINED,
-              "createStoreAppUtxoTransactionParameters",
+            UserErrorCode.TOKEN_UNDEFINED,
+            "createStoreAppUtxoTransactionParameters",
           );
         if (!amountSol)
           throw new UserError(
-              CreateUtxoErrorCode.PUBLIC_SOL_AMOUNT_UNDEFINED,
-              "createStoreAppUtxoTransactionParameters",
+            CreateUtxoErrorCode.PUBLIC_SOL_AMOUNT_UNDEFINED,
+            "createStoreAppUtxoTransactionParameters",
           );
         if (!amountSpl)
           throw new UserError(
-              CreateUtxoErrorCode.PUBLIC_SPL_AMOUNT_UNDEFINED,
-              "createStoreAppUtxoTransactionParameters",
+            CreateUtxoErrorCode.PUBLIC_SPL_AMOUNT_UNDEFINED,
+            "createStoreAppUtxoTransactionParameters",
           );
         const tokenCtx = TOKEN_REGISTRY.get(token);
         if (!tokenCtx)
           throw new UserError(
-              UserErrorCode.INVALID_TOKEN,
-              "createStoreAppUtxoTransactionParameters",
+            UserErrorCode.INVALID_TOKEN,
+            "createStoreAppUtxoTransactionParameters",
           );
         const recipientAccount = recipientPublicKey
-            ? Account.fromPubkey(recipientPublicKey!, this.provider.poseidon)
-            : undefined;
+          ? Account.fromPubkey(recipientPublicKey!, this.provider.poseidon)
+          : undefined;
         appUtxo = new Utxo({
           poseidon: this.provider.poseidon,
           amounts: [amountSol, amountSpl],
           assets: [SystemProgram.programId, tokenCtx.mint],
           ...appUtxoConfig,
           publicKey: recipientAccount
-              ? recipientAccount.pubkey
-              : this.account.pubkey,
+            ? recipientAccount.pubkey
+            : this.account.pubkey,
           encryptionPublicKey: recipientAccount
-              ? recipientAccount.encryptionKeypair.publicKey
-              : undefined,
+            ? recipientAccount.encryptionKeypair.publicKey
+            : undefined,
           verifierProgramLookupTable:
-          this.provider.lookUpTables.verifierProgramLookupTable,
+            this.provider.lookUpTables.verifierProgramLookupTable,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         });
       } else if (stringUtxo) {
         appUtxo = Utxo.fromString(
-            stringUtxo,
-            this.provider.poseidon,
-            this.provider.lookUpTables.assetLookupTable,
-            this.provider.lookUpTables.verifierProgramLookupTable,
+          stringUtxo,
+          this.provider.poseidon,
+          this.provider.lookUpTables.assetLookupTable,
+          this.provider.lookUpTables.verifierProgramLookupTable,
         );
       } else {
         throw new UserError(
-            UserErrorCode.APP_UTXO_UNDEFINED,
-            "createStoreAppUtxoTransactionParameters",
-            "invalid parameters to generate app utxo",
+          UserErrorCode.APP_UTXO_UNDEFINED,
+          "createStoreAppUtxoTransactionParameters",
+          "invalid parameters to generate app utxo",
         );
       }
     } else {
@@ -1389,52 +1389,52 @@ export class User {
     }
     if (!appUtxo)
       throw new UserError(
-          UserErrorCode.APP_UTXO_UNDEFINED,
-          "createStoreAppUtxoTransactionParameters",
-          `app utxo is undefined or could not generate one from provided parameters`,
+        UserErrorCode.APP_UTXO_UNDEFINED,
+        "createStoreAppUtxoTransactionParameters",
+        `app utxo is undefined or could not generate one from provided parameters`,
       );
 
     if (!token) {
       const utxoAsset =
-          appUtxo.amounts[1].toString() === "0"
-              ? new PublicKey(0).toBase58()
-              : appUtxo.assets[1].toBase58();
+        appUtxo.amounts[1].toString() === "0"
+          ? new PublicKey(0).toBase58()
+          : appUtxo.assets[1].toBase58();
       token = TOKEN_PUBKEY_SYMBOL.get(utxoAsset);
     }
 
     if (!token)
       throw new UserError(
-          UserErrorCode.TOKEN_UNDEFINED,
-          "createStoreAppUtxoTransactionParameters",
+        UserErrorCode.TOKEN_UNDEFINED,
+        "createStoreAppUtxoTransactionParameters",
       );
 
     const message = Buffer.from(
-        await appUtxo.encrypt({
-          poseidon: this.provider.poseidon,
-          merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
-          compressed: false,
-          account: this.account,
-        }),
+      await appUtxo.encrypt({
+        poseidon: this.provider.poseidon,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
+        compressed: false,
+        account: this.account,
+      }),
     );
 
     if (message.length > MAX_MESSAGE_SIZE)
       throw new UserError(
-          UserErrorCode.MAX_STORAGE_MESSAGE_SIZE_EXCEEDED,
-          "storeData",
-          `${message.length}/${MAX_MESSAGE_SIZE}`,
+        UserErrorCode.MAX_STORAGE_MESSAGE_SIZE_EXCEEDED,
+        "storeData",
+        `${message.length}/${MAX_MESSAGE_SIZE}`,
       );
     appUtxo.includeAppData = false;
     if (action === Action.SHIELD) {
       if (!amountSol)
         amountSol =
-            appUtxo.amounts[0].toString() === "0"
-                ? undefined
-                : appUtxo.amounts[0];
+          appUtxo.amounts[0].toString() === "0"
+            ? undefined
+            : appUtxo.amounts[0];
       if (!amountSpl)
         amountSpl =
-            appUtxo.amounts[1].toString() === "0"
-                ? undefined
-                : appUtxo.amounts[1];
+          appUtxo.amounts[1].toString() === "0"
+            ? undefined
+            : appUtxo.amounts[1];
 
       return this.createShieldTransactionParameters({
         token,
@@ -1453,10 +1453,10 @@ export class User {
         verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
         token,
         recipient: recipientPublicKey
-            ? Account.fromPubkey(recipientPublicKey, this.provider.poseidon)
-            : !appUtxo
-                ? this.account
-                : undefined,
+          ? Account.fromPubkey(recipientPublicKey, this.provider.poseidon)
+          : !appUtxo
+          ? this.account
+          : undefined,
         amountSpl,
         amountSol,
         outUtxos: [appUtxo],
@@ -1471,19 +1471,19 @@ export class User {
   // TODO: group shield parameters into type
   // TODO: group transfer parameters into type
   async storeAppUtxo({
-                       token,
-                       amountSol,
-                       amountSpl,
-                       minimumLamports,
-                       senderTokenAccount,
-                       recipientPublicKey,
-                       appUtxo,
-                       stringUtxo,
-                       action,
-                       appUtxoConfig,
-                       skipDecimalConversions = false,
-                       confirmOptions = ConfirmOptions.spendable,
-                     }: {
+    token,
+    amountSol,
+    amountSpl,
+    minimumLamports,
+    senderTokenAccount,
+    recipientPublicKey,
+    appUtxo,
+    stringUtxo,
+    action,
+    appUtxoConfig,
+    skipDecimalConversions = false,
+    confirmOptions = ConfirmOptions.spendable,
+  }: {
     token?: string;
     amountSol?: BN;
     amountSpl?: BN;
@@ -1511,7 +1511,7 @@ export class User {
       skipDecimalConversions,
     });
 
-    return this.transactWithParameters({txParams, confirmOptions});
+    return this.transactWithParameters({ txParams, confirmOptions });
   }
 
   // TODO: add storage transaction nonce to rotate keypairs
@@ -1535,15 +1535,15 @@ export class User {
      * ]
      */
     const indexedTransactions =
-        await this.provider.relayer.getIndexedTransactions(
-            this.provider.provider!.connection,
-        );
+      await this.provider.relayer.getIndexedTransactions(
+        this.provider.provider!.connection,
+      );
     await this.provider.latestMerkleTree(indexedTransactions);
 
     const indexedStorageVerifierTransactionsFiltered =
-        indexedTransactions.filter((indexedTransaction) => {
-          return indexedTransaction.message.length !== 0;
-        });
+      indexedTransactions.filter((indexedTransaction) => {
+        return indexedTransaction.message.length !== 0;
+      });
     // /**
     //  * - match first 8 bytes against account discriminator for every appIdl that is cached in the user class
     //  * TODO: in case we don't have it we should get the Idl from the verifierAddress
@@ -1556,9 +1556,9 @@ export class User {
      * - decrypt storage verifier
      */
     const decryptIndexStorage = async (
-        indexedTransactions: ParsedIndexedTransaction[],
-        assetLookupTable: string[],
-        verifierProgramLookupTable: string[],
+      indexedTransactions: ParsedIndexedTransaction[],
+      assetLookupTable: string[],
+      verifierProgramLookupTable: string[],
     ) => {
       const decryptedStorageUtxos: Utxo[] = [];
       const spentUtxos: Utxo[] = [];

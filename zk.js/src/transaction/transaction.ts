@@ -359,7 +359,6 @@ export class Transaction {
       );
 
     const getOrderedInstructionNames = (verifierIdl: Idl) => {
-
       const orderedInstructionNames = verifierIdl.instructions
         .filter((instruction) =>
           /First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth/.test(
