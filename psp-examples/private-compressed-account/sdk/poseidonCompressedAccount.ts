@@ -101,7 +101,7 @@ export class PoseidonCompressedAccount {
 
   static getMerkleTreeAccountPublicKey(idl: Idl, pda_index: number) {
     const pdaIndexBytes = new BN(pda_index).toBuffer("le", 8);
-    const seed = utils.bytes.utf8.encode("compression_merkle_tree"); //Buffer.from(idl.constants.find((c) => c.name === "COMPRESSION_MERKLE_TREE_SEED").value);
+    const seed = utils.bytes.utf8.encode("compression_merkle_tree");
     const programId = PoseidonCompressedAccount.findProgramId(idl);
     return PublicKey.findProgramAddressSync([pdaIndexBytes, seed], programId);
   }

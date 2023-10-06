@@ -1,10 +1,12 @@
 import { BN, BorshAccountsCoder, utils } from "@coral-xyz/anchor";
 import { IDL } from "./types/multisig";
-import { Account, Utxo } from "@lightprotocol/zk.js";
+import { Account } from "@lightprotocol/zk.js";
 import nacl from "tweetnacl";
 import { MAX_SIGNERS } from "./constants";
 import { assert } from "chai";
 const bs58 = require("bs58");
+
+// TODO:
 // add encrypt to primitive, nonces are H(base_nonce||pubkey), H(base_nonce||pubkey), H(base_nonce||pubkey), etc.
 // if only one recipient use nonce directly
 // fields [base_nonce], [encryptedAes1,..., encryptedAesN ], [aesCiphertext],
@@ -84,7 +86,6 @@ export class MultisigParams {
     if (signers.length > MAX_SIGNERS) {
       throw new Error(`Too many signers ${signers.length} > 6`);
     }
-    const nrSigners = signers.length;
     if (threshold > signers.length) {
       throw new Error(
         `Not enough signers ${signers.length} for threshold ${threshold}`,
@@ -125,7 +126,7 @@ export class MultisigParams {
     return new MultisigParams({
       poseidon,
       threshold,
-      nrSigners,
+      nrSigners: signers.length,
       publicKeyX,
       publicKeyY,
       signersEncryptionPublicKeys,
@@ -155,17 +156,15 @@ export class MultisigParams {
     console.log("Shared encryption public key: <encryption-key>");
     console.log("Shared encryption private key: <encryption-key>");
 
-    for (var i = 0; i < this.publicKeyX.length; i++) {
-      if (i < this.nrSigners.toNumber()) {
-        console.log(
-          `Signer: ${i}`,
-          utils.bytes.hex.encode(
-            Buffer.from(
-              Array.from([...this.publicKeyX[i], ...this.publicKeyY[i]]).flat(),
-            ),
+    for (let i = 0; i < Math.min(this.nrSigners.toNumber(), this.publicKeyX.length); i++) {
+      console.log(
+        `Signer: ${i}`,
+        utils.bytes.hex.encode(
+          Buffer.from(
+            Array.from([...this.publicKeyX[i], ...this.publicKeyY[i]]).flat(),
           ),
-        );
-      }
+        ),
+      );
     }
   }
 
@@ -175,18 +174,16 @@ export class MultisigParams {
     log += "Number of Signers: " + this.nrSigners.toString() + "\n";
     log += "Shielded pubkey: " + this.appDataHash + "\n";
 
-    for (var i = 0; i < this.publicKeyX.length; i++) {
-      if (i < this.nrSigners.toNumber()) {
-        log +=
-          "Signer: " +
-          i +
-          utils.bytes.hex.encode(
-            Buffer.from(
-              Array.from([...this.publicKeyX[i], ...this.publicKeyY[i]]).flat(),
-            ),
-          ) +
-          "\n";
-      }
+    for (let i = 0; Math.min(this.nrSigners.toNumber(), this.publicKeyX.length); i++) {
+      log +=
+        "Signer: " +
+        i +
+        utils.bytes.hex.encode(
+          Buffer.from(
+            Array.from([...this.publicKeyX[i], ...this.publicKeyY[i]]).flat(),
+          ),
+        ) +
+        "\n";
     }
     return log;
   }
@@ -227,7 +224,7 @@ export class MultisigParams {
       assert.equal(
         key.toString(),
         multiSig2.signersEncryptionPublicKeys[i].toString(),
-        `invalid encryoption key ${i}`,
+        `invalid encryption key ${i}`,
       ),
     );
     assert.equal(

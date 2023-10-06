@@ -103,42 +103,6 @@ pub struct CloseVerifierState<'info, const NR_CHECKED_INPUTS: usize> {
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionsConfig>>,
 }
 
-// /// Multisig parameters which are not part of the zero-knowledge proof.
-// #[account]
-// pub struct MultiSigParameters {
-//     pub encryptionPubkeysSigners: [[u8; 32]; 7],
-// }
-
-// not necessary because will make this a utils function of the storage verifier
-/// encrypted multisig parameters
-/// space = 8 (discriminator) + 7 * 32 + 32 + 458 = 722
-/// nonces are Sha3(base_nonce||counter), aes256 iv: counter = 8
-// #[account]
-// pub struct EncryptedMultiSigParameters {
-//     // length [48; 7]
-//     encryptedAesSecretKey: Vec<Vec<u8>>,
-//     base_nonce: [u8; 32],
-//     aesCipherText: [u8; 512],
-// }
-
-// #[derive(Default, Copy)]
-// #[account]
-// pub struct Utxo {
-//     publicKey: [u8; 32],
-//     blinding: [u8; 31],
-//     appData: UtxoAppData,
-// }
-
-// TODO: check how the solana transaction sig hash is calculated
-// it should hash the complete transaction then we can omit any auth encryption
-// storage verifier client
-// - encryptToNaclBox({recipientsPubkeys[], msg, aesSecret})
-// - encryptAes(aesSecret, message)
-// - store(msg)
-// - getNaclBoxEncrypted()
-// - getAesEncrypted()
-// - getAllMessages()
-
 #[account]
 pub struct CreateMultiSig {
     pub seed: [u8; 32],

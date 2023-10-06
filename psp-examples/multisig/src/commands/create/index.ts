@@ -17,14 +17,6 @@ export default class Create extends Command {
       required: true,
     }),
   };
-
-  // static args = {
-  //   person: Args.string({
-  //     description: "Person to say create multisig to",
-  //     required: true,
-  //   }),
-  // };
-
   async run(): Promise<void> {
     const { flags } = await this.parse(Create);
 

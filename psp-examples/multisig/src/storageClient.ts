@@ -6,6 +6,8 @@ const b2params24 = { dkLen: 24 };
 const b2params16 = { dkLen: 16 };
 
 const bs58 = require("bs58");
+
+// TODO:
 // add encrypt to primitive, nonces are H(base_nonce||pubkey), H(base_nonce||pubkey), H(base_nonce||pubkey), etc.
 // if only one recipient use nonce directly
 // fields [base_nonce], [encryptedAes1,..., encryptedAesN ], [aesCiphertext],
