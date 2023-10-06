@@ -1,5 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
+  closeMerkleTreeUpdateState,
   executeUpdateMerkleTreeTransactions,
   MerkleTreeConfig,
   SolMerkleTree,
@@ -18,13 +19,13 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
     confirmConfig,
   );
 
-  try {
-    const merkleTreeProgram = new anchor.Program(
-      IDL_MERKLE_TREE_PROGRAM,
-      merkleTreeProgramId,
-      anchorProvider && anchorProvider,
-    );
+  const merkleTreeProgram = new anchor.Program(
+    IDL_MERKLE_TREE_PROGRAM,
+    merkleTreeProgramId,
+    anchorProvider && anchorProvider,
+  );
 
+  try {
     const transactionMerkleTreePda =
       MerkleTreeConfig.getTransactionMerkleTreePda();
 
@@ -47,7 +48,18 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
       transactionMerkleTree: transactionMerkleTreePda,
     });
   } catch (err) {
+    // TODO: Revisit recovery.
+    // Rn, we're just blanked-closing the update state account on failure which
+    // might not be desirable in some cases.
     console.error("failed at updateMerkleTreeForTest", err);
+    try {
+      console.log("closing update state account...");
+      await closeMerkleTreeUpdateState(merkleTreeProgram, payer, connection);
+      console.log("successfully closed update state account");
+    } catch (e) {
+      // TODO: append to error stack trace or solve differently
+      console.log("failed to close update state account");
+    }
     throw err;
   }
 }

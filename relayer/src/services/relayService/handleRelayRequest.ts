@@ -120,7 +120,12 @@ async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
       i = maxSteps;
       if (state === "failed") {
         console.log(`/awaitJobCompletion error (500) failed - id: ${job.id}`);
-        return res.status(500).json({ status: "error", message: "500" });
+        const newJob = await relayQueue.getJob(job.id!); // we need to refetch the job to get the error message
+
+        // TODO: add nuanced error handling with different error codes
+        return res
+          .status(400)
+          .json({ status: "error", message: newJob!.data.response.error });
       } else {
         console.log(`/awaitJobCompletion success - id: ${job.id}`);
         return res.status(200).json({
