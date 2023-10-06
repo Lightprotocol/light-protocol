@@ -155,7 +155,11 @@ export class MultisigParams {
     console.log("Shared encryption public key: <encryption-key>");
     console.log("Shared encryption private key: <encryption-key>");
 
-    for (let i = 0; i < Math.min(this.nrSigners.toNumber(), this.publicKeyX.length); i++) {
+    for (
+      let i = 0;
+      i < Math.min(this.nrSigners.toNumber(), this.publicKeyX.length);
+      i++
+    ) {
       console.log(
         `Signer: ${i}`,
         utils.bytes.hex.encode(
@@ -173,7 +177,11 @@ export class MultisigParams {
     log += "Number of Signers: " + this.nrSigners.toString() + "\n";
     log += "Shielded pubkey: " + this.appDataHash + "\n";
 
-    for (let i = 0; Math.min(this.nrSigners.toNumber(), this.publicKeyX.length); i++) {
+    for (
+      let i = 0;
+      Math.min(this.nrSigners.toNumber(), this.publicKeyX.length);
+      i++
+    ) {
       log +=
         "Signer: " +
         i +
