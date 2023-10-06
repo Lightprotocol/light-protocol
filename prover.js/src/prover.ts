@@ -233,7 +233,7 @@ export class Prover<
     };
 
     function getNrPublicInputs(input: SizeObject): number {
-r      let arr = [];
+      const arr: number[] = [];
       for (const key in input) {
         arr.push(...input[key]);
       }
@@ -246,7 +246,7 @@ r      let arr = [];
     }
 
     function getSize(type: any): number[] {
-      let sizeArray: number[] = [];
+      const sizeArray: number[] = [];
       if (Array.isArray(type) && type[0] === "u8" && type[1] === 32) {
         return [32];
       }
