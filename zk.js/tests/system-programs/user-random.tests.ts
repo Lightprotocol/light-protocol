@@ -20,7 +20,7 @@ import {
   ADMIN_AUTH_KEYPAIR,
   RELAYER_FEE,
   BN_0,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 
 import { BN } from "@coral-xyz/anchor";
 import {

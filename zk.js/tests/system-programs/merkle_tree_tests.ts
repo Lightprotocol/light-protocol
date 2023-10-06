@@ -6,7 +6,6 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
-import _ from "lodash";
 import { assert } from "chai";
 const token = require("@solana/spl-token");
 let circomlibjs = require("circomlibjs");
@@ -46,10 +45,10 @@ import {
   BN_1,
   BN_0,
   BN_2,
-} from "@lightprotocol/zk.js";
+} from "../../src";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
-var POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
+let POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
@@ -494,7 +493,6 @@ describe("Merkle Tree Tests", () => {
         "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.",
       ),
     );
-    error = undefined;
 
     // valid
     await merkleTreeConfig.registerSplPool(new Array(32).fill(0), mint);
