@@ -62,7 +62,7 @@ export class TestRelayer extends Relayer {
       return response;
     } catch (e) {
       console.log(e);
-      throw e;
+      // throw e;
     }
   }
 

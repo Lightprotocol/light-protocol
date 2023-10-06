@@ -18,10 +18,13 @@ import {
   N_ASSET_PUBKEYS,
   Account,
   SolMerkleTree,
+  STANDARD_SHIELDED_PUBLIC_KEY,
+  STANDARD_SHIELDED_PRIVATE_KEY,
 } from "../index";
 import { remainingAccount } from "../types";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 import { getIndices3D } from "@lightprotocol/circuit-lib.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const path = require("path");
 
@@ -172,12 +175,24 @@ export class Transaction {
 
     const { inputMerklePathIndices, inputMerklePathElements } =
       this.solMerkleTree.getMerkleProofs(poseidon, this.params.inputUtxos);
-
+    const inputNullifier = this.params.inputUtxos.map((x) => {
+      let _account = account;
+      if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
+        _account = Account.fromPrivkey(
+          poseidon,
+          bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+          bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+          bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+        );
+      }
+      return x.getNullifier({
+        poseidon: poseidon,
+        account: _account,
+      });
+    });
     this.proofInput = {
       root: this.solMerkleTree.merkleTree.root(),
-      inputNullifier: this.params.inputUtxos.map((x) =>
-        x.getNullifier({ poseidon: poseidon, account }),
-      ),
+      inputNullifier,
       publicAmountSpl: this.params.publicAmountSpl.toString(),
       publicAmountSol: this.params.publicAmountSol.toString(),
       publicMintPubkey: this.getMint(),
@@ -280,7 +295,7 @@ export class Transaction {
       this.appParams.path,
       this.appParams,
       this.proofInput,
-      true,
+      false,
     );
     this.transactionInputs.proofBytesApp = {
       proofAApp: res.parsedProof.proofA,

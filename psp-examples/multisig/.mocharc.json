@@ -1,0 +1,11 @@
+{
+  "require": [
+    "tests/helpers/init.js"
+  ],
+  "watch-extensions": [
+    "ts"
+  ],
+  "recursive": true,
+  "reporter": "spec",
+  "timeout": 60000
+}

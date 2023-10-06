@@ -608,10 +608,6 @@ export class Utxo {
         this.getCommitment(poseidon),
         this.index || 0,
       );
-      // console.log("this.getCommitment() ", this.getCommitment());
-      // console.log("this.index || 0 ", this.index || 0);
-      // console.log("signature ", signature);
-
       this._nullifier = poseidon.F.toString(
         poseidon([this.getCommitment(poseidon), this.index || 0, signature]),
       );

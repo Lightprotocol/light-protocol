@@ -5,3 +5,4 @@ packages:
   - "system-programs/**"
   - "cli/**"
   - "relayer/**"
+  - "psp-examples/**"
