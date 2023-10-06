@@ -119,7 +119,7 @@ export class UserTestAssertHelper {
       }
 
       if (userBalances.recipientSplAccount) {
-        let balance = undefined;
+        let balance: number | null = null;
         try {
           balance = (
             await this.provider.provider?.connection.getTokenAccountBalance(
@@ -129,7 +129,7 @@ export class UserTestAssertHelper {
         } catch (error) {}
         userBalances.preTokenBalance = balance ? balance : 0;
       } else {
-        let balance = undefined;
+        let balance: number | null = null;
         try {
           balance = (
             await this.provider.provider?.connection.getTokenAccountBalance(

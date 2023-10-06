@@ -588,7 +588,7 @@ export class Account {
       return Result.Ok(
         await decrypt(encryptedBytes, secretKey, iv16, "aes-256-cbc", true),
       );
-    } catch (error) {
+    } catch (error: any) {
       return Result.Err(error);
     }
   }
@@ -782,7 +782,7 @@ export class Account {
       const result = await prover.fullProveAndParse();
       parsedProof = result.parsedProof;
       parsedPublicInputs = result.parsedPublicInputs;
-    } catch (error) {
+    } catch (error: any) {
       throw new AccountError(
         TransactionErrorCode.PROOF_GENERATION_FAILED,
         "getProofInternal",

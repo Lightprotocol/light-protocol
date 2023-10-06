@@ -53,6 +53,7 @@ import {
   UtxoError,
   UtxoErrorCode,
 } from "../index";
+import { Result } from "types/result";
 
 const circomlibjs = require("circomlibjs");
 
@@ -565,7 +566,7 @@ export class User {
         )?.blockhash;
         await this.provider.wallet!.sendAndConfirmTransaction(transaction);
         this.approved = true;
-      } catch (e) {
+      } catch (e: any) {
         throw new UserError(
           UserErrorCode.APPROVE_ERROR,
           "shield",
@@ -750,8 +751,10 @@ export class User {
         "getTxParams",
         "public amount spl provided for SOL token",
       );
+
     let ataCreationFee = false;
-    let recipientSpl = undefined;
+    let recipientSpl: PublicKey | undefined;
+
     if (publicAmountSpl) {
       recipientSpl = splToken.getAssociatedTokenAddressSync(
         tokenCtx!.mint,
@@ -1293,6 +1296,7 @@ export class User {
   getUtxoStatus() {
     throw new Error("not implemented yet");
   }
+
   // getPrivacyScore() -> for unshield only, can separate into its own helper method
   // Fetch utxos should probably be a function such the user object is not occupied while fetching,
   // but it would probably be more logical to fetch utxos here as well
@@ -1559,7 +1563,7 @@ export class User {
       const decryptedStorageUtxos: Utxo[] = [];
       const spentUtxos: Utxo[] = [];
       for (const data of indexedTransactions) {
-        let decryptedUtxo = null;
+        let decryptedUtxo: Result<Utxo | null, UtxoError>;
         let index = data.firstLeafIndex.toNumber();
         for (const [, leaf] of data.leaves.entries()) {
           try {
