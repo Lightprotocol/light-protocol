@@ -81,7 +81,8 @@ export async function setUpMerkleTree(
   }
 
   // TODO: do verifier registry in constants
-  const verifierArray = [];
+  let verifierArray;
+
   verifierArray.push(
     new anchor.Program(IDL_VERIFIER_PROGRAM_ZERO, verifierProgramZeroProgramId),
   );

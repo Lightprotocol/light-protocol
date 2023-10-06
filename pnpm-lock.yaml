@@ -913,6 +913,9 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
     devDependencies:
+      '@lightprotocol/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@types/bn.js':
         specifier: ^5.1.0
         version: 5.1.2

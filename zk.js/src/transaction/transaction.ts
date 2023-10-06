@@ -359,6 +359,7 @@ export class Transaction {
       );
 
     const getOrderedInstructionNames = (verifierIdl: Idl) => {
+
       const orderedInstructionNames = verifierIdl.instructions
         .filter((instruction) =>
           /First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth/.test(
@@ -424,7 +425,7 @@ export class Transaction {
       };
     }
 
-    let instructions = [];
+    let instructions: TransactionInstruction[] = [];
     // TODO: make mint dynamic
     /**
      * Problem:
@@ -503,7 +504,7 @@ export class Transaction {
 
       const ix = await method.instruction();
 
-      instructions?.push(ix);
+      instructions.push(ix);
     }
     return instructions;
   }

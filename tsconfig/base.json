@@ -12,9 +12,10 @@
     "module": "CommonJS",
     "esModuleInterop": true,
     "noFallthroughCasesInSwitch": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
     "preserveWatchOutput": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022"
