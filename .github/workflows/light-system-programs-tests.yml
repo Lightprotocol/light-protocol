@@ -23,6 +23,11 @@ on:
 
 name: system-programs-tests
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
 jobs:
   system-programs:
     name: system-programs
