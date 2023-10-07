@@ -49,10 +49,9 @@ jobs:
 
       - name: ${{ matrix.test }}
         run: |
-          source ./scripts/devenv.sh
-          cd zk.js
+          source ./scripts/devenv.sh          
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            pnpm test-sp-$subtest
+            npx nx test-sp-$subtest "@lightprotocol/zk.js"
           done
