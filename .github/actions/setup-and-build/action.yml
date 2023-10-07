@@ -65,4 +65,3 @@ runs:
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
-        ./scripts/build.sh
