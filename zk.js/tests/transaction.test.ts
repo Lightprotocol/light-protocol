@@ -1,6 +1,6 @@
 import { assert, expect } from "chai";
 const circomlibjs = require("circomlibjs");
-import {Keypair as SolanaKeypair, SystemProgram} from "@solana/web3.js";
+import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const chai = require("chai");

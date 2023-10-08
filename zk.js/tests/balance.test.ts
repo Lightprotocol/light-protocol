@@ -73,13 +73,9 @@ describe("Utxo Functional", () => {
       ?.addUtxo(shieldUtxo1.getCommitment(poseidon), shieldUtxo1, "utxos");
 
     const utxo = balance.tokenBalances
-        .get(MINT.toBase58())
-        ?.utxos.get(shieldUtxo1.getCommitment(poseidon));
-    Utxo.equal(
-      poseidon,
-      utxo!,
-      shieldUtxo1,
-    );
+      .get(MINT.toBase58())
+      ?.utxos.get(shieldUtxo1.getCommitment(poseidon));
+    Utxo.equal(poseidon, utxo!, shieldUtxo1);
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       shieldUtxo1.amounts[0].toString(),
@@ -105,13 +101,16 @@ describe("Utxo Functional", () => {
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSpl.toString(),
       "0",
     );
-    assert.equal(balance.tokenBalances.get(MINT.toBase58())?.spentUtxos.size, 1);
+    assert.equal(
+      balance.tokenBalances.get(MINT.toBase58())?.spentUtxos.size,
+      1,
+    );
 
     assert.equal(balance.tokenBalances.get(MINT.toBase58())?.utxos.size, 0);
 
     const _shieldUtxo1 = balance.tokenBalances
-        .get(MINT.toBase58())
-        ?.spentUtxos.get(shieldUtxo1.getCommitment(poseidon));
+      .get(MINT.toBase58())
+      ?.spentUtxos.get(shieldUtxo1.getCommitment(poseidon));
     Utxo.equal(poseidon, _shieldUtxo1!, shieldUtxo1);
   });
 

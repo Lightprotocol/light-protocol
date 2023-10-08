@@ -166,7 +166,7 @@ describe("API tests", () => {
         assert.isNotFalse(error);
         if (error != false) {
           assert.isTrue(
-              error.message.includes("cannot POST /merkletree (404)"),
+            error.message.includes("cannot POST /merkletree (404)"),
           );
         }
         expect(res).to.have.status(404);
@@ -324,7 +324,7 @@ describe("API tests", () => {
         assert.isNotFalse(error);
         if (error !== false) {
           assert.isTrue(
-              error.message.includes("cannot GET /updatemerkletree (404)"),
+            error.message.includes("cannot GET /updatemerkletree (404)"),
           );
         }
         expect(res).to.have.status(404);
@@ -365,7 +365,7 @@ describe("API tests", () => {
         assert.isNotFalse(error);
         if (error !== false) {
           assert.isTrue(
-              error.message.includes("cannot POST /lookuptable (404)"),
+            error.message.includes("cannot POST /lookuptable (404)"),
           );
         }
         expect(res).to.have.status(404);

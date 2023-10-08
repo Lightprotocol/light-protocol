@@ -120,7 +120,9 @@ export class TestTransaction {
               this.params.accounts.recipientSpl,
             ),
           );
-        } catch (_) { /* empty */ }
+        } catch (_) {
+          /* empty */
+        }
       }
     }
 

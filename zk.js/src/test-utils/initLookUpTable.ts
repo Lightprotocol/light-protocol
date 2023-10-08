@@ -57,7 +57,9 @@ export async function initLookUpTableFromFile(
     if (lookUpTableInfoInit) {
       lookUpTable = lookUpTableRead;
     }
-  } catch (_) { /* empty */ }
+  } catch (_) {
+    /* empty */
+  }
 
   const LOOK_UP_TABLE = await initLookUpTableTest(
     provider,
