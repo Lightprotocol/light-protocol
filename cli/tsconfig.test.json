@@ -1,9 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2019",
-    "module": "commonjs"
+    "esModuleInterop": true,
+    "noEmit": true
   },
-  "include": [
-    "test/**/*"
-  ]
+  "extends": "./tsconfig",
+  "include": ["./src/**/*", "./test/**/*"]
 }
