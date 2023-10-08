@@ -306,8 +306,8 @@ describe("Test Account Functional", () => {
     const nonce = newNonce().subarray(0, 16);
     if (!k0.aesSecret) throw new Error("aes secret undefined");
 
-    const cipherText1 = await Account.encryptAes(k0.aesSecret, message, nonce);
-    const cleartext1 = await Account.decryptAes(k0.aesSecret, cipherText1);
+    const cipherText1 = await k0.encryptAes(message, nonce);
+    const cleartext1 = await k0.decryptAes(cipherText1);
 
     assert.equal(cleartext1.value!.toString(), message.toString());
     assert.notEqual(

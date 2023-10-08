@@ -527,6 +527,7 @@ describe("Test TransactionParameters Methods", () => {
   it("Test getAssetPubkeys", async () => {
     lightProvider = await LightProvider.loadMock();
     const poseidon = await buildPoseidonOpt();
+    const account = new Account({ poseidon });
     const inputUtxos = [
       new Utxo({
         poseidon,
@@ -671,8 +672,8 @@ describe("Test TransactionParameters Methods", () => {
 
 describe("Test General TransactionParameters Errors", () => {
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  const depositAmount = 20_000;
-  const depositFeeAmount = 10_000;
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
 
   const mockPubkey = SolanaKeypair.generate().publicKey;
   let poseidon: any,
@@ -784,10 +785,10 @@ describe("Test General TransactionParameters Errors", () => {
 
 describe("Test TransactionParameters Transfer Errors", () => {
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  const depositAmount = 20_000;
-  const depositFeeAmount = 10_000;
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
   const mockPubkey = SolanaKeypair.generate().publicKey;
-  let keypair: Account;
+  let account: Account;
   let poseidon: any,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
@@ -1008,10 +1009,10 @@ describe("Test TransactionParameters Transfer Errors", () => {
 
 describe("Test TransactionParameters Deposit Errors", () => {
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  const depositAmount = 20_000;
-  const depositFeeAmount = 10_000;
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
   const mockPubkey = SolanaKeypair.generate().publicKey;
-  let keypair: Account;
+  let account: Account;
 
   let poseidon: any,
     lightProvider: LightProvider,
@@ -1311,10 +1312,10 @@ describe("Test TransactionParameters Deposit Errors", () => {
 
 describe("Test TransactionParameters Withdrawal Errors", () => {
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  const depositAmount = 20_000;
-  const depositFeeAmount = 10_000;
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
   const mockPubkey = SolanaKeypair.generate().publicKey;
-  let keypair: Account;
+  let account: Account;
 
   let poseidon: any,
     lightProvider: LightProvider,

@@ -1,6 +1,6 @@
 import { assert, expect } from "chai";
 const circomlibjs = require("circomlibjs");
-import { Keypair as SolanaKeypair } from "@solana/web3.js";
+import {Keypair as SolanaKeypair, SystemProgram} from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 const chai = require("chai");
@@ -314,8 +314,9 @@ describe("Transaction Functional Tests", () => {
 
   it("Functional ", async () => {
     const tx = new Transaction({
-      provider: lightProvider,
-      params: paramsDeposit,
+      ...(await lightProvider.getRootIndex()),
+      solMerkleTree: lightProvider.solMerkleTree!,
+      params: paramsShield,
     });
     await tx.compileAndProve(lightProvider.poseidon, account);
   });

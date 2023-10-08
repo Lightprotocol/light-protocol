@@ -10,7 +10,7 @@ import {
   verifierProgramStorageProgramId,
 } from "../constants";
 import { Utxo } from "../utxo";
-import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
+import { MerkleTreeConfig } from "../merkleTree";
 import {
   FIELD_SIZE,
   hashAndTruncateToCircuit,
@@ -844,7 +844,7 @@ export class TransactionParameters implements transactionParameters {
         MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
 
       if (!this.accounts.recipientSpl) {
-        // AUTHORITY is used as place holder
+        // AUTHORITY is used as placeholder
         this.accounts.recipientSpl = AUTHORITY;
         if (!this.publicAmountSpl?.eq(BN_0)) {
           throw new TransactionError(
@@ -856,7 +856,7 @@ export class TransactionParameters implements transactionParameters {
       }
 
       if (!this.accounts.recipientSol) {
-        // AUTHORITY is used as place holder
+        // AUTHORITY is used as placeholder
         this.accounts.recipientSol = AUTHORITY;
         if (
           !this.publicAmountSol.eq(BN_0) &&

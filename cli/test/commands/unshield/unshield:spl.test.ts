@@ -29,7 +29,7 @@ describe("unshield:spl", () => {
       "--localTestRelayer",
     ])
     .exit(2)
-    .it("Should fail unshield of unsufficient SPL token amount");
+    .it("Should fail unshield of insufficient SPL token amount");
 
   test
     .stdout()

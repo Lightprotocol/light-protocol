@@ -998,8 +998,8 @@ export class UserTestAssertHelper {
     // if pre number of utxos was less than 10 expect current number to be one
     let preNumberUtxos = this.sender.preShieldedBalance!.tokenBalances.get(
       this.tokenCtx.mint.toBase58(),
-    )!.utxos.size!;
-    preNumberUtxos = preNumberUtxos ? preNumberUtxos : 0;
+    )?.utxos.size;
+    preNumberUtxos = preNumberUtxos ?? 0;
 
     if (preNumberUtxos < 10) {
       assert.equal(

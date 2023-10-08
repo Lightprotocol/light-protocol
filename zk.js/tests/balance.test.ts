@@ -72,11 +72,12 @@ describe("Utxo Functional", () => {
       .get(MINT.toBase58())
       ?.addUtxo(shieldUtxo1.getCommitment(poseidon), shieldUtxo1, "utxos");
 
+    const utxo = balance.tokenBalances
+        .get(MINT.toBase58())
+        ?.utxos.get(shieldUtxo1.getCommitment(poseidon));
     Utxo.equal(
       poseidon,
-      balance.tokenBalances
-        .get(MINT.toBase58())
-        ?.utxos.get(shieldUtxo1.getCommitment(poseidon)),
+      utxo!,
       shieldUtxo1,
     );
     assert.equal(
@@ -88,7 +89,7 @@ describe("Utxo Functional", () => {
       shieldUtxo1.amounts[1].toString(),
     );
     assert.equal(
-      balance.tokenBalances.get(SystemProgram.programId.toBase58()).spentUtxos
+      balance.tokenBalances.get(SystemProgram.programId.toBase58())?.spentUtxos
         .size,
       0,
     );
@@ -97,24 +98,21 @@ describe("Utxo Functional", () => {
       .get(MINT.toBase58())
       ?.moveToSpentUtxos(shieldUtxo1.getCommitment(poseidon));
     assert.equal(
-      balance.tokenBalances.get(MINT.toBase58()).totalBalanceSol.toString(),
+      balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       "0",
     );
     assert.equal(
-      balance.tokenBalances.get(MINT.toBase58()).totalBalanceSpl.toString(),
+      balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSpl.toString(),
       "0",
     );
-    assert.equal(balance.tokenBalances.get(MINT.toBase58()).spentUtxos.size, 1);
+    assert.equal(balance.tokenBalances.get(MINT.toBase58())?.spentUtxos.size, 1);
 
-    assert.equal(balance.tokenBalances.get(MINT.toBase58()).utxos.size, 0);
+    assert.equal(balance.tokenBalances.get(MINT.toBase58())?.utxos.size, 0);
 
-    Utxo.equal(
-      poseidon,
-      balance.tokenBalances
+    const _shieldUtxo1 = balance.tokenBalances
         .get(MINT.toBase58())
-        ?.spentUtxos.get(shieldUtxo1.getCommitment(poseidon)),
-      shieldUtxo1,
-    );
+        ?.spentUtxos.get(shieldUtxo1.getCommitment(poseidon));
+    Utxo.equal(poseidon, _shieldUtxo1!, shieldUtxo1);
   });
 
   // this test is mock of the syncState function
@@ -187,7 +185,9 @@ describe("Utxo Functional", () => {
             assetLookupTable,
           });
           assert(decryptedUtxo.error === null, "Can't decrypt utxo");
-          decryptedUtxos.push(decryptedUtxo.value);
+          if (decryptedUtxo.value !== null) {
+            decryptedUtxos.push(decryptedUtxo.value);
+          }
 
           encBytes = Buffer.from(
             trx.encryptedUtxos.slice(
@@ -211,7 +211,9 @@ describe("Utxo Functional", () => {
             assetLookupTable,
           });
           assert(decryptedUtxo.error === null, "Can't decrypt utxo");
-          decryptedUtxos.push(decryptedUtxo.value);
+          if (decryptedUtxo.value !== null) {
+            decryptedUtxos.push(decryptedUtxo.value);
+          }
         }
       }
       utxos.map((utxo, index) => {
