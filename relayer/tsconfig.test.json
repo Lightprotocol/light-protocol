@@ -3,5 +3,5 @@
     "esModuleInterop": true,
   },
   "extends": "./tsconfig",
-  "include": ["./src/**/*", "./tests/**/*"]
+  "include": ["./src/**/*", "./tests/**/*", "setup.jsdom.ts"]
 }
