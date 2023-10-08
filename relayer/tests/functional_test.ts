@@ -162,9 +162,13 @@ describe("API tests", () => {
       .request(server)
       .post("/merkletree")
       .end((_err, res) => {
-        assert.isTrue(
-          res.error.message.includes("cannot POST /merkletree (404)"),
-        );
+        const error = res.error;
+        assert.isNotFalse(error);
+        if (error != false) {
+          assert.isTrue(
+              error.message.includes("cannot POST /merkletree (404)"),
+          );
+        }
         expect(res).to.have.status(404);
         done();
       });
@@ -316,9 +320,13 @@ describe("API tests", () => {
       .request(server)
       .get("/updatemerkletree")
       .end((_err, res) => {
-        assert.isTrue(
-          res.error.message.includes("cannot GET /updatemerkletree (404)"),
-        );
+        const error = res.error;
+        assert.isNotFalse(error);
+        if (error !== false) {
+          assert.isTrue(
+              error.message.includes("cannot GET /updatemerkletree (404)"),
+          );
+        }
         expect(res).to.have.status(404);
         done();
       });
@@ -353,9 +361,13 @@ describe("API tests", () => {
       .request(server)
       .post("/lookuptable")
       .end((_err, res) => {
-        assert.isTrue(
-          res.error.message.includes("cannot POST /lookuptable (404)"),
-        );
+        const error = res.error;
+        assert.isNotFalse(error);
+        if (error !== false) {
+          assert.isTrue(
+              error.message.includes("cannot POST /lookuptable (404)"),
+          );
+        }
         expect(res).to.have.status(404);
         done();
       });
