@@ -1,5 +1,5 @@
 import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 
 import {
   initLookUpTableFromFile,
@@ -41,7 +41,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   setProvider(anchorProvider);
 
   const userKeypair = ADMIN_AUTH_KEYPAIR;
-  let environmentConfig: EnvironmentConfig = {};
+  const environmentConfig: EnvironmentConfig = {};
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
@@ -70,7 +70,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   });
 
   it("Merge all sol & spl (no existing utxo)", async () => {
-    let testInputsShieldSol = {
+    const testInputsShieldSol = {
       amountSpl: 0,
       amountSol: 15,
       token: "SOL",
@@ -88,7 +88,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       environmentConfig,
     });
 
-    let testInputsShieldSpl = {
+    const testInputsShieldSpl = {
       amountSpl: 20,
       token: "USDC",
       type: Action.SHIELD,
@@ -104,7 +104,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       environmentConfig,
     });
 
-    let testInputsMergeAllSol = {
+    const testInputsMergeAllSol = {
       token: "SOL",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,
@@ -117,7 +117,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       testInputs: testInputsMergeAllSol,
     });
 
-    let testInputsMergeAllSpl = {
+    const testInputsMergeAllSpl = {
       type: Action.TRANSFER,
       token: "USDC",
       expectedUtxoHistoryLength: 1,
@@ -132,7 +132,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   });
 
   it("Merge all spl (existing utxos)", async () => {
-    let testInputsShield = {
+    const testInputsShield = {
       amountSpl: 20,
       token: "USDC",
       type: Action.SHIELD,
@@ -148,7 +148,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       environmentConfig,
     });
 
-    let testInputs = {
+    const testInputs = {
       type: Action.TRANSFER,
       token: "USDC",
       expectedUtxoHistoryLength: 1,
@@ -167,7 +167,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       amount: 11,
     });
     // shield SPL to recipient
-    let testInputsShield = {
+    const testInputsShield = {
       amountSpl: 20,
       token: "USDC",
       type: Action.SHIELD,
@@ -196,11 +196,11 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     const utxoCommitment: string = (
       await userSender.getUtxoInbox()
     ).tokenBalances
-      .get(MINT.toBase58())
+      .get(MINT.toBase58())!
       .utxos.keys()
       .next().value;
 
-    let testInputs = {
+    const testInputs = {
       type: Action.TRANSFER,
       token: "USDC",
       expectedUtxoHistoryLength: 1,
@@ -220,7 +220,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       seed: recipientSeed,
       amount: 15,
     });
-    let testInputsShield = {
+    const testInputsShield = {
       amountSol: 20,
       token: "SOL",
       type: Action.SHIELD,
@@ -236,7 +236,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       environmentConfig,
     });
 
-    let testInputs = {
+    const testInputs = {
       type: Action.TRANSFER,
       token: "SOL",
       expectedUtxoHistoryLength: 1,
@@ -255,7 +255,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       seed: recipientSeed,
       amount: 1,
     });
-    let testInputsShield = {
+    const testInputsShield = {
       amountSpl: 0,
       amountSol: 20,
       token: "SOL",
@@ -286,11 +286,11 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     const utxoCommitment: string = (
       await userSender.getUtxoInbox()
     ).tokenBalances
-      .get(PublicKey.default.toBase58())
+      .get(PublicKey.default.toBase58())!
       .utxos.keys()
       .next().value;
 
-    let testInputs = {
+    const testInputs = {
       type: Action.TRANSFER,
       token: "SOL",
       expectedUtxoHistoryLength: 1,

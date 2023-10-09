@@ -8,10 +8,10 @@ function mergeAndSortTransactions(
   dbTransactions: IndexedTransaction[],
   newTransactions: IndexedTransaction[][],
 ) {
-  let mergedTransactions: IndexedTransaction[] = dbTransactions.concat(
+  const mergedTransactions: IndexedTransaction[] = dbTransactions.concat(
     ...newTransactions,
   );
-  let dedupedTransactions = mergedTransactions.reduce(
+  const dedupedTransactions = mergedTransactions.reduce(
     (acc: IndexedTransaction[], cur: IndexedTransaction) => {
       if (cur && !acc.find((item) => item.signature === cur.signature)) {
         acc.push(cur);
@@ -44,7 +44,7 @@ export async function indexTransactions({
       connection,
     );
 
-    let dedupedTransactions: IndexedTransaction[] = mergeAndSortTransactions(
+    const dedupedTransactions: IndexedTransaction[] = mergeAndSortTransactions(
       job.data.transactions,
       [olderTransactions, newerTransactions],
     );
@@ -52,7 +52,7 @@ export async function indexTransactions({
       `new total: ${dedupedTransactions.length} transactions old: ${job.data.transactions.length}, older: ${olderTransactions.length}, newer: ${newerTransactions.length}`,
     );
 
-    let filteredByDeploymentVersion = filterTransactionsByMinBlockTime(
+    const filteredByDeploymentVersion = filterTransactionsByMinBlockTime(
       dedupedTransactions,
       MIN_INDEXER_SLOT,
     );

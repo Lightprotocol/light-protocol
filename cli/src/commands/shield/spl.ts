@@ -5,9 +5,10 @@ import {
   generateSolanaTransactionURL,
   getConfirmOptions,
   getUser,
-} from "../../utils/utils";
+  confirmOptionsFlags,
+  standardFlags,
+} from "../../utils";
 import { shieldFlags, shieldSolFlags } from ".";
-import { confirmOptionsFlags, standardFlags } from "../../utils";
 
 class ShieldSplCommand extends Command {
   static summary = "Shield SPL tokens for a user.";
@@ -75,7 +76,7 @@ class ShieldSplCommand extends Command {
           "custom"
         )
       );
-      let amount = skipDecimalConversions
+      const amount = skipDecimalConversions
         ? Number(amountSpl) / decimals!
         : amountSpl;
 

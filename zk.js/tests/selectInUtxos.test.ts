@@ -32,7 +32,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 const numberMaxInUtxos = 2;
 const numberMaxOutUtxos = 2;
 // TODO: add more tests with different numbers of utxos
@@ -97,7 +97,7 @@ describe("Test selectInUtxos Functional", () => {
   it("Unshield select spl", async () => {
     const inUtxos: Utxo[] = [utxo1, utxoSol];
 
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       publicMint: utxo1.assets[1],
       relayerFee: RELAYER_FEE,
       publicAmountSpl: BN_1,
@@ -113,7 +113,7 @@ describe("Test selectInUtxos Functional", () => {
   it("Unshield select sol", async () => {
     const inUtxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       relayerFee: RELAYER_FEE,
       publicAmountSol: new BN(1e7),
@@ -130,7 +130,7 @@ describe("Test selectInUtxos Functional", () => {
   it("UNSHIELD select sol & spl", async () => {
     const inUtxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.UNSHIELD,
       relayerFee: RELAYER_FEE,
@@ -163,7 +163,7 @@ describe("Test selectInUtxos Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
@@ -193,7 +193,7 @@ describe("Test selectInUtxos Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
@@ -224,7 +224,7 @@ describe("Test selectInUtxos Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
@@ -240,7 +240,7 @@ describe("Test selectInUtxos Functional", () => {
   it("Shield select sol & spl", async () => {
     const inUtxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
@@ -257,7 +257,7 @@ describe("Test selectInUtxos Functional", () => {
   it("Shield select sol", async () => {
     const inUtxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.SHIELD,
       poseidon,
@@ -273,7 +273,7 @@ describe("Test selectInUtxos Functional", () => {
   it("Shield select spl", async () => {
     const inUtxos = [utxoSol, utxo1];
 
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
@@ -304,7 +304,7 @@ describe("Test selectInUtxos Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let selectedUtxo = selectInUtxos({
+    const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,

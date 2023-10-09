@@ -38,6 +38,7 @@ function createPathFunction({
 }: {
   envVarName: string;
   defaultPath: string;
+  // eslint-disable-next-line
   downloadFunction: Function;
   downloadParams?: object;
 }) {
@@ -127,6 +128,7 @@ async function solanaPath(): Promise<string> {
  * @param pathFunction - The function which looks up for the path to the binary.
  * @returns {Function}
  */
+// eslint-disable-next-line
 function createExecuteFunction(pathFunction: Function) {
   return async function ({ args }: { args: string[] }): Promise<string> {
     const command = await pathFunction();

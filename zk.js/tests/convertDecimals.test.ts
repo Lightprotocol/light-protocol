@@ -23,9 +23,9 @@ describe("convertAndComputeDecimals", () => {
       return parseInt(Math.floor(Math.random() * 7).toString());
     };
     for (let i = 0; i < 100000; i++) {
-      let decimalsNumber = new BN(getRandomElement());
+      const decimalsNumber = new BN(getRandomElement());
       console.log("decimals ", decimalsNumber);
-      let decimals = new BN(10).pow(new BN(decimalsNumber));
+      const decimals = new BN(10).pow(new BN(decimalsNumber));
       const amount = generateRandomTestAmount(
         0,
         1000_000_000,

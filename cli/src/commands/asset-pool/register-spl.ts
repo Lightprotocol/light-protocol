@@ -29,7 +29,7 @@ class RegisterSplCommand extends Command {
     const mint = new PublicKey(args.mint);
 
     const anchorProvider = await setAnchorProvider();
-    let merkleTreeConfig = await getWalletConfig(anchorProvider);
+    const merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     try {
       await merkleTreeConfig.registerSplPool(

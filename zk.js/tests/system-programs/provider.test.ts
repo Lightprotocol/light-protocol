@@ -18,7 +18,7 @@ import {
   RELAYER_FEE,
 } from "../../src";
 
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 
 // TODO: add and use  namespaces in SDK
 import {
@@ -73,7 +73,7 @@ describe("verifier_program", () => {
   });
 
   it("Provider", async () => {
-    let connection = new Connection("http://127.0.0.1:8899", "confirmed");
+    const connection = new Connection("http://127.0.0.1:8899", "confirmed");
     await connection.confirmTransaction(
       await connection.requestAirdrop(
         ADMIN_AUTH_KEYPAIR.publicKey,
@@ -121,10 +121,10 @@ describe("verifier_program", () => {
       confirmConfig,
     }); // userKeypair
 
-    let shieldFeeAmount = 10000;
-    let shieldAmount = 0;
+    const shieldFeeAmount = 10000;
+    const shieldAmount = 0;
 
-    let shieldUtxo1 = new Utxo({
+    const shieldUtxo1 = new Utxo({
       poseidon: POSEIDON,
       assets: [SystemProgram.programId, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
@@ -133,7 +133,7 @@ describe("verifier_program", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let shieldUtxo2 = new Utxo({
+    const shieldUtxo2 = new Utxo({
       poseidon: POSEIDON,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -141,7 +141,7 @@ describe("verifier_program", () => {
       publicKey: KEYPAIR.pubkey,
     });
 
-    let txParams = new TransactionParameters({
+    const txParams = new TransactionParameters({
       outputUtxos: [shieldUtxo1, shieldUtxo2],
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       transactionMerkleTreePubkey:
@@ -155,7 +155,7 @@ describe("verifier_program", () => {
     });
     const { rootIndex: rootIndex1, remainingAccounts: remainingAccounts1 } =
       await lightProvider.getRootIndex();
-    let tx = new Transaction({
+    const tx = new Transaction({
       rootIndex: rootIndex1,
       nextTransactionMerkleTree: remainingAccounts1.nextTransactionMerkleTree,
       solMerkleTree: lightProvider.solMerkleTree!,
@@ -167,7 +167,7 @@ describe("verifier_program", () => {
     );
 
     try {
-      let res = await lightProvider.sendAndConfirmTransaction(instructions);
+      const res = await lightProvider.sendAndConfirmTransaction(instructions);
       console.log(res);
     } catch (e) {
       console.log(e);
@@ -175,7 +175,7 @@ describe("verifier_program", () => {
     // TODO: add random amount and amount checks
     try {
       console.log("updating merkle tree...");
-      let initLog = console.log;
+      const initLog = console.log;
       console.log = () => {};
       await lightProvider.relayer.updateMerkleTree(
         lightProvider,

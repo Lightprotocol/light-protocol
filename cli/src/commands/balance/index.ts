@@ -125,14 +125,14 @@ class BalanceCommand extends Command {
     if (_inbox) this.log(PURPLE, "\n--- Inbox Balances ---\n");
     else this.log(PURPLE, "\n--- Main Balances ---\n");
 
-    let tableData = [];
+    const tableData = [];
     for (const tokenBalance of balances.tokenBalances) {
-      let _token = tokenBalance[1].tokenData.symbol;
-      let balance =
+      const _token = tokenBalance[1].tokenData.symbol;
+      const balance =
         _token === "SOL"
           ? tokenBalance[1].totalBalanceSol.toString()
           : tokenBalance[1].totalBalanceSpl.toString();
-      let utxoNumber = tokenBalance[1].utxos.size;
+      const utxoNumber = tokenBalance[1].utxos.size;
 
       tableData.push({
         token: _token,
@@ -168,15 +168,15 @@ class BalanceCommand extends Command {
 
     for (const tokenBalance of balances.tokenBalances) {
       let i = 0;
-      let tableData = [];
-      let _token = tokenBalance[1].tokenData.symbol;
+      const tableData = [];
+      const _token = tokenBalance[1].tokenData.symbol;
       if (_token === "SOL") {
-        for (const iterator of tokenBalance[1]?.utxos.values()!) {
+        for (const iterator of tokenBalance[1].utxos.values()!) {
           i++;
-          let amountSol = iterator.amounts[0].toString();
+          const amountSol = iterator.amounts[0].toString();
 
-          let symbol = tokenBalance[1].tokenData.symbol;
-          let commitmentHash = iterator._commitment;
+          const symbol = tokenBalance[1].tokenData.symbol;
+          const commitmentHash = iterator._commitment;
 
           tableData.push(
             { prop: "Utxo No", value: i },
@@ -198,17 +198,17 @@ class BalanceCommand extends Command {
         if (filter === "SOL") break;
       } else {
         let i = 0;
-        let tableData = [];
+        const tableData = [];
 
         for (const iterator of tokenBalance[1].utxos.values()!) {
           i++;
-          let amountSpl = iterator.amounts[1].toString();
+          const amountSpl = iterator.amounts[1].toString();
 
-          let amountSol = iterator.amounts[0].toString();
+          const amountSol = iterator.amounts[0].toString();
 
-          let symbol = tokenBalance[1].tokenData.symbol;
-          let mint = tokenBalance[1].tokenData.mint.toString();
-          let commitmentHash = iterator._commitment;
+          const symbol = tokenBalance[1].tokenData.symbol;
+          const mint = tokenBalance[1].tokenData.mint.toString();
+          const commitmentHash = iterator._commitment;
 
           tableData.push(
             { prop: "Utxo No", value: i },
@@ -238,14 +238,14 @@ class BalanceCommand extends Command {
       inbox = false
     ) {
       for (const tokenBalance of balances.tokenBalances) {
-        let _token = tokenBalance[1].tokenData.symbol;
+        const _token = tokenBalance[1].tokenData.symbol;
         if (token === _token) {
-          let balance =
+          const balance =
             token === "SOL"
               ? tokenBalance[1].totalBalanceSol.toString()
               : tokenBalance[1].totalBalanceSpl.toString();
-          let utxoNumber = tokenBalance[1].utxos.size;
-          let type = inbox ? "inbox" : "main";
+          const utxoNumber = tokenBalance[1].utxos.size;
+          const type = inbox ? "inbox" : "main";
           return {
             token: _token,
             amount: balance,
@@ -256,20 +256,20 @@ class BalanceCommand extends Command {
       }
     }
 
-    let balanceObj = fetchTokenBalance(balances, token) ?? {
+    const balanceObj = fetchTokenBalance(balances, token) ?? {
       token: token,
       amount: 0,
       balance: "main",
       utxos: 0,
     };
-    let inboxBalanceObj = fetchTokenBalance(inboxBalances, token, true) ?? {
+    const inboxBalanceObj = fetchTokenBalance(inboxBalances, token, true) ?? {
       token: token,
       amount: 0,
       balance: "inbox",
       utxos: 0,
     };
 
-    let tableData = [balanceObj, inboxBalanceObj];
+    const tableData = [balanceObj, inboxBalanceObj];
     ux.table(tableData, {
       token: {},
       amount: {},
@@ -283,14 +283,14 @@ class BalanceCommand extends Command {
     const tokenBalance = balance.tokenBalances.get(token.toString());
     if (tokenBalance && tokenBalance?.tokenData.symbol !== "SOL") {
       let i = 0;
-      let tableData = [];
-      for (const iterator of tokenBalance?.utxos.values()!) {
+      const tableData = [];
+      for (const iterator of tokenBalance.utxos.values()!) {
         i++;
-        let amountSpl = iterator.amounts[1].toString();
-        let amountSol = iterator.amounts[0].toString();
-        let symbol = tokenBalance.tokenData.symbol;
-        let mint = tokenBalance.tokenData.mint.toString();
-        let commitmentHash = iterator._commitment;
+        const amountSpl = iterator.amounts[1].toString();
+        const amountSol = iterator.amounts[0].toString();
+        const symbol = tokenBalance.tokenData.symbol;
+        const mint = tokenBalance.tokenData.mint.toString();
+        const commitmentHash = iterator._commitment;
         tableData.push(
           { prop: "Utxo No", value: i },
           { prop: "Token", value: symbol },

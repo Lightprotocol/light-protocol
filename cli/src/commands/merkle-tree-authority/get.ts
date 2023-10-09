@@ -8,7 +8,7 @@ class GetCommand extends Command {
 
   async run() {
     const anchorProvider = await setAnchorProvider();
-    let merkleTreeConfig = await getWalletConfig(anchorProvider);
+    const merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     if (!(await merkleTreeConfig.isMerkleTreeAuthorityInitialized())) {
       this.logToStderr("Merkle Tree Authority is not initialized");

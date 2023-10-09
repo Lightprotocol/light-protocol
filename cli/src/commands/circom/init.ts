@@ -14,7 +14,7 @@ export default class InitCommand extends Command {
 
   async run() {
     const { args } = await this.parse(InitCommand);
-    let { name } = args;
+    const { name } = args;
 
     this.log("Initializing circom-anchor project...");
 

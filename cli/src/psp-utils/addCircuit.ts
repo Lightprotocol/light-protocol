@@ -13,9 +13,9 @@ export const addCircuit = async ({
   name: string;
   circom?: boolean;
 }) => {
-  var circomName = toSnakeCase(name);
-  var rustName = toSnakeCase(name);
-  let circuit_template = circom
+  const circomName = toSnakeCase(name);
+  const rustName = toSnakeCase(name);
+  const circuit_template = circom
     ? "psp-template/circuits/circuit_circom"
     : "psp-template/circuits/circuit_psp";
 

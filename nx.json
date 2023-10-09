@@ -31,7 +31,8 @@
         "^noMarkdown"
       ],
       "dependsOn": [
-        "^build"
+        "^build",
+        "build"
       ]
     }
   }

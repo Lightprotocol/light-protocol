@@ -175,7 +175,7 @@ async function enrichParsedTransactionEvents(
   );
   // if we didn't find a main instruction to a verifier program we check the inner instructions
   // this is the case for private programs which call verifier two via cpi
-  for (let innerInstruction of tx.meta.innerInstructions) {
+  for (const innerInstruction of tx.meta.innerInstructions) {
     if (!instruction)
       instruction = findMatchingInstruction(
         innerInstruction.instructions,
@@ -186,7 +186,7 @@ async function enrichParsedTransactionEvents(
 
   const signature = tx.transaction.signatures[0];
   let accountKeys = instruction.accounts;
-  let verifier = instruction.programId;
+  const verifier = instruction.programId;
 
   const getTypeAndAmounts = (
     publicAmountSpl: Uint8Array,
@@ -196,8 +196,8 @@ async function enrichParsedTransactionEvents(
     let amountSpl = new BN(publicAmountSpl, 32, "be");
     let amountSol = new BN(publicAmountSol, 32, "be");
 
-    let splIsU64 = amountSpl.lte(MAX_U64);
-    let solIsU64 = amountSol.lte(MAX_U64);
+    const splIsU64 = amountSpl.lte(MAX_U64);
+    const solIsU64 = amountSol.lte(MAX_U64);
     if (!splIsU64 || !solIsU64) {
       amountSpl = amountSpl.sub(FIELD_SIZE).mod(FIELD_SIZE).abs();
       amountSol = amountSol
@@ -236,15 +236,15 @@ async function enrichParsedTransactionEvents(
   // 12: registeredVerifierPda
   // 13: logWrapper
   // 14: eventMerkleTree
-  let relayerRecipientSol = accountKeys[5];
-  let from = accountKeys[6];
-  let to = accountKeys[7];
-  let fromSpl = accountKeys[10];
-  let toSpl = accountKeys[11];
+  const relayerRecipientSol = accountKeys[5];
+  const from = accountKeys[6];
+  const to = accountKeys[7];
+  const fromSpl = accountKeys[10];
+  const toSpl = accountKeys[11];
 
   const nullifiers = event.nullifiers;
 
-  let solTokenPoolIndex = type === Action.SHIELD ? 9 : 8;
+  const solTokenPoolIndex = type === Action.SHIELD ? 9 : 8;
   let changeSolAmount = new BN(
     tx.meta.postBalances[solTokenPoolIndex] -
       tx.meta.preBalances[solTokenPoolIndex],

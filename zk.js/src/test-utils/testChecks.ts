@@ -33,9 +33,9 @@ export async function checkMerkleTreeUpdateStateCreated({
   current_instruction_index: number;
   merkleTreeProgram: anchor.Program<MerkleTreeProgram>;
 }) {
-  let x = console.log;
+  const x = console.log;
   console.log = () => {};
-  var merkleTreeTmpAccountInfo = await connection.getAccountInfo(
+  const merkleTreeTmpAccountInfo = await connection.getAccountInfo(
     merkleTreeUpdateState,
     "confirmed",
   );
@@ -61,7 +61,7 @@ export async function checkMerkleTreeUpdateStateCreated({
   //   merkleTreeTmpAccountInfo.data,
   // );
 
-  var MerkleTreeAccountInfo =
+  const MerkleTreeAccountInfo =
     await merkleTreeProgram.account.transactionMerkleTree.fetch(
       transactionMerkleTree,
       "confirmed",
@@ -138,7 +138,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   transactionMerkleTree: PublicKey;
   merkleTreeProgram: Program<MerkleTreeProgram>;
 }) {
-  var merkleTreeTmpStateAccount = await connection.getAccountInfo(
+  const merkleTreeTmpStateAccount = await connection.getAccountInfo(
     merkleTreeUpdateState,
     "confirmed",
   );
@@ -149,7 +149,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     );
   }
 
-  var merkleTreeAccount =
+  const merkleTreeAccount =
     await merkleTreeProgram.account.transactionMerkleTree.fetch(
       transactionMerkleTree,
       "confirmed",
@@ -172,10 +172,10 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     );
   }
 
-  let merkle_tree_prior_leaves_index = merkleTreeAccountPrior.nextIndex;
-  let merkle_tree_prior_current_root_index =
+  const merkle_tree_prior_leaves_index = merkleTreeAccountPrior.nextIndex;
+  const merkle_tree_prior_current_root_index =
     merkleTreeAccountPrior.currentRootIndex;
-  let current_root_index = merkleTreeAccount.currentRootIndex;
+  const current_root_index = merkleTreeAccount.currentRootIndex;
 
   if (
     !merkle_tree_prior_current_root_index
@@ -205,7 +205,7 @@ export async function checkRentExemption({
   connection: Connection;
   account: any;
 }) {
-  let requiredBalance = await connection.getMinimumBalanceForRentExemption(
+  const requiredBalance = await connection.getMinimumBalanceForRentExemption(
     account.data.length,
   );
   if (account.lamports < requiredBalance) {
@@ -220,8 +220,8 @@ export async function checkNfInserted(
   connection: Connection,
   returnValue: boolean = false,
 ) {
-  for (var i = 0; i < pubkeys.length; i++) {
-    var accountInfo = await connection.getAccountInfo(pubkeys[i].pubkey);
+  for (let i = 0; i < pubkeys.length; i++) {
+    const accountInfo = await connection.getAccountInfo(pubkeys[i].pubkey);
     if (!returnValue && accountInfo === null)
       throw new Error("nullifier not inserted");
     else return accountInfo;

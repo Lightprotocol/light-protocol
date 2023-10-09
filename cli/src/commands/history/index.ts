@@ -5,8 +5,7 @@ import {
   SOL_DECIMALS,
   convertAndComputeDecimals,
 } from "@lightprotocol/zk.js";
-import { CustomLoader, getUser } from "../../utils/utils";
-import { standardFlags } from "../../utils";
+import { CustomLoader, getUser, standardFlags } from "../../utils";
 
 type TransactionHistory = {
   TransactionNumber: number;
@@ -46,8 +45,8 @@ class TransactionHistoryCommand extends Command {
       transactions.reverse().forEach((transaction, index) => {
         // TODO: add mint to indexed transactions
         const splDecimals = new BN(100);
-        let date = new Date(transaction.blockTime);
-        let transactionHistory: TransactionHistory = {
+        const date = new Date(transaction.blockTime);
+        const transactionHistory: TransactionHistory = {
           TransactionNumber: index + 1,
           Timestamp: date.toString(),
           Type: `\x1b[32m${transaction.type}\x1b[0m`,
@@ -110,8 +109,8 @@ class TransactionHistoryCommand extends Command {
     transaction: TransactionHistory,
     ignoreKeys: string[] = []
   ): void {
-    let tableData: any[] = [];
-    let actionCheck =
+    const tableData: any[] = [];
+    const actionCheck =
       transaction.Type == `\x1b[32mTRANSFER\x1b[0m` ||
       transaction.Type == `\x1b[32mUNSHIELD\x1b[0m`;
     Object.keys(transaction).forEach((key) => {

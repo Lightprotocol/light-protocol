@@ -179,7 +179,7 @@ export function createOutUtxos({
     publicAmountSpl,
     action,
   });
-  let publicSolAssetIndex = assets.findIndex(
+  const publicSolAssetIndex = assets.findIndex(
     (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
   );
 
@@ -209,7 +209,7 @@ export function createOutUtxos({
         "publicMint not initialized for unshield",
       );
 
-    let publicSplAssetIndex = assets.findIndex(
+    const publicSplAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === publicMint?.toBase58(),
     );
 
@@ -227,10 +227,10 @@ export function createOutUtxos({
       );
     if (!publicAmountSpl) publicAmountSpl = BN_0;
     if (!publicAmountSol) publicAmountSol = BN_0;
-    let publicSplAssetIndex = assets.findIndex(
+    const publicSplAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === publicMint?.toBase58(),
     );
-    let publicSolAssetIndex = assets.findIndex(
+    const publicSolAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
     );
     assets[publicSplAssetIndex].sumIn =
@@ -243,7 +243,7 @@ export function createOutUtxos({
         CreateUtxoErrorCode.PUBLIC_SOL_AMOUNT_UNDEFINED,
         "constructor",
       );
-    let publicSolAssetIndex = assets.findIndex(
+    const publicSolAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
     );
 
@@ -251,10 +251,10 @@ export function createOutUtxos({
       assets[publicSolAssetIndex].sumIn.sub(publicAmountSol);
   }
 
-  var outputUtxos: Utxo[] = [...outUtxos];
+  const outputUtxos: Utxo[] = [...outUtxos];
 
   // create recipient output utxos, one for each defined recipient
-  for (var j in outUtxos) {
+  for (const j in outUtxos) {
     if (outUtxos[j].assets[1] && !outUtxos[j].amounts[1]) {
       throw new CreateUtxoError(
         CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
@@ -263,13 +263,13 @@ export function createOutUtxos({
       );
     }
 
-    let solAmount = outUtxos[j].amounts[0] ? outUtxos[j].amounts[0] : BN_0;
-    let splAmount = outUtxos[j].amounts[1] ? outUtxos[j].amounts[1] : BN_0;
-    let splMint = outUtxos[j].assets[1]
+    const solAmount = outUtxos[j].amounts[0] ? outUtxos[j].amounts[0] : BN_0;
+    const splAmount = outUtxos[j].amounts[1] ? outUtxos[j].amounts[1] : BN_0;
+    const splMint = outUtxos[j].assets[1]
       ? outUtxos[j].assets[1]
       : SystemProgram.programId;
 
-    let publicSplAssetIndex = assets.findIndex(
+    const publicSplAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === splMint?.toBase58(),
     );
 
@@ -284,13 +284,13 @@ export function createOutUtxos({
   // Also handles case that we have more than one change utxo because we wanted
   // to unshield sol and used utxos with different spl tokens
   // it creates a change utxo for every asset that is non-zero then check that number of utxos is less or equal to verifier.config.outs
-  let publicSplAssets = assets.filter(
+  const publicSplAssets = assets.filter(
     (x) =>
       x.sumIn.toString() !== "0" &&
       x.asset.toBase58() !== SystemProgram.programId.toBase58(),
   );
 
-  let nrOutUtxos = publicSplAssets.length ? publicSplAssets.length : 1;
+  const nrOutUtxos = publicSplAssets.length ? publicSplAssets.length : 1;
 
   if (separateSolUtxo && publicSplAssets.length > 0) {
     // nrOutUtxos -= 1;
@@ -309,7 +309,7 @@ export function createOutUtxos({
       : preliminarySolAmount;
     assets[publicSolAssetIndex].sumIn =
       assets[publicSolAssetIndex].sumIn.sub(solAmount);
-    let solChangeUtxo = new Utxo({
+    const solChangeUtxo = new Utxo({
       poseidon,
       assets: [SystemProgram.programId],
       amounts: [solAmount],
@@ -324,20 +324,22 @@ export function createOutUtxos({
     outputUtxos.push(solChangeUtxo);
   }
 
-  for (var x = 0; x < nrOutUtxos; x++) {
+  for (let x = 0; x < nrOutUtxos; x++) {
     let solAmount = BN_0;
     if (x == 0) {
       solAmount = assets[publicSolAssetIndex].sumIn;
     }
     // catch case of sol shield with undefined spl assets
-    let splAmount = publicSplAssets[x]?.sumIn ? publicSplAssets[x].sumIn : BN_0;
-    let splAsset = publicSplAssets[x]?.asset
+    const splAmount = publicSplAssets[x]?.sumIn
+      ? publicSplAssets[x].sumIn
+      : BN_0;
+    const splAsset = publicSplAssets[x]?.asset
       ? publicSplAssets[x].asset
       : SystemProgram.programId;
 
     if (solAmount.isZero() && splAmount.isZero()) continue;
 
-    let changeUtxo = new Utxo({
+    const changeUtxo = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, splAsset],
       amounts: [solAmount, splAmount],
@@ -383,10 +385,10 @@ export function createRecipientUtxos({
   assetLookupTable: string[];
   verifierProgramLookupTable: string[];
 }): Utxo[] {
-  var outputUtxos: Utxo[] = [];
+  const outputUtxos: Utxo[] = [];
 
   // create recipient output utxos, one for each defined recipient
-  for (var j in recipients) {
+  for (const j in recipients) {
     if (recipients[j].mint && !recipients[j].splAmount) {
       throw new CreateUtxoError(
         CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
@@ -395,13 +397,13 @@ export function createRecipientUtxos({
       );
     }
 
-    let solAmount = recipients[j].solAmount ? recipients[j].solAmount : BN_0;
-    let splAmount = recipients[j].splAmount ? recipients[j].splAmount : BN_0;
-    let splMint = recipients[j].mint
+    const solAmount = recipients[j].solAmount ? recipients[j].solAmount : BN_0;
+    const splAmount = recipients[j].splAmount ? recipients[j].splAmount : BN_0;
+    const splMint = recipients[j].mint
       ? recipients[j].mint
       : SystemProgram.programId;
 
-    let recipientUtxo = new Utxo({
+    const recipientUtxo = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, splMint],
       amounts: [solAmount, splAmount],
@@ -452,20 +454,20 @@ export function validateUtxoAmounts({
     ? publicAmountSpl.mul(publicAmountMultiplier)
     : BN_0;
 
-  let assets: Asset[] = [];
+  const assets: Asset[] = [];
   for (const [index, assetPubkey] of assetPubkeys.entries()) {
-    var sumIn = inUtxos ? getUtxoArrayAmount(assetPubkey, inUtxos) : BN_0;
-    var sumOut =
+    const sumIn = inUtxos ? getUtxoArrayAmount(assetPubkey, inUtxos) : BN_0;
+    const sumOut =
       action === Action.TRANSFER && outUtxos.length === 0
         ? sumIn
         : getUtxoArrayAmount(assetPubkey, outUtxos);
-    var sumInAdd =
+    let sumInAdd =
       assetPubkey.toBase58() === SystemProgram.programId.toBase58()
         ? sumIn.add(_publicAmountSol)
         : index < 2
         ? sumIn.add(_publicAmountSpl)
         : sumIn;
-    var sumOutAdd =
+    let sumOutAdd =
       assetPubkey.toBase58() === SystemProgram.programId.toBase58()
         ? sumOut.add(_publicAmountSol)
         : index < 2

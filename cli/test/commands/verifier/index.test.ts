@@ -1,5 +1,5 @@
 import test, { expect } from "@oclif/test";
-import { initTestEnv, killTestValidator } from "../../../src/utils/initTestEnv";
+import { initTestEnv, killTestValidator } from "../../../src";
 import {
   verifierProgramOneProgramId,
   verifierProgramStorageProgramId,

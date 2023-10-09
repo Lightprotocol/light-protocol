@@ -29,7 +29,7 @@ export async function performShielding({
     throw new Error("testinputs recipientSeed is undefined");
   for (let i = 0; i < numberOfShields; i++) {
     const provider = await Provider.init({
-      wallet: environmentConfig.providerSolanaKeypair,
+      wallet: environmentConfig.providerSolanaKeypair!,
       relayer: environmentConfig.relayer,
       confirmConfig,
     });
@@ -89,7 +89,7 @@ export async function performMergeAll({
   if (!testInputs.recipientSeed)
     throw new Error("testinputs recipientSeed is undefined");
   const provider = await Provider.init({
-    wallet: environmentConfig.providerSolanaKeypair,
+    wallet: environmentConfig.providerSolanaKeypair!,
     relayer: environmentConfig.relayer,
     confirmConfig,
   });
@@ -132,7 +132,7 @@ export async function performMergeUtxos({
     throw new Error("testinputs recipientSeed is undefined");
 
   const provider = await Provider.init({
-    wallet: environmentConfig.providerSolanaKeypair,
+    wallet: environmentConfig.providerSolanaKeypair!,
     relayer: environmentConfig.relayer,
     confirmConfig,
   });
@@ -152,7 +152,7 @@ export async function performMergeUtxos({
 
   await testStateValidator.fetchAndSaveState();
   await userSender.mergeUtxos(
-    testInputs.utxoCommitments,
+    testInputs.utxoCommitments!,
     testStateValidator.tokenCtx.mint,
   );
 

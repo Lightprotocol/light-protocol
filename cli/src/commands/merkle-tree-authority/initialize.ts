@@ -15,7 +15,7 @@ class InitializeCommand extends Command {
     loader.start();
 
     const anchorProvider = await setAnchorProvider();
-    let merkleTreeConfig = await getWalletConfig(anchorProvider);
+    const merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     const accountInfo = await anchorProvider.connection.getAccountInfo(
       merkleTreeConfig.getMerkleTreeAuthorityPda()

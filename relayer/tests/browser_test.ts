@@ -25,15 +25,15 @@ import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RPC_URL } from "../src/config";
 import { getRelayer } from "../src/utils/provider";
 
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 
 chai.use(chaiHttp);
 
 describe("Browser tests", () => {
-  var RELAYER: Relayer;
-  var poseidon: any;
-  var provider: Provider;
-  var user: User;
+  let RELAYER: Relayer;
+  let poseidon: any;
+  let provider: Provider;
+  let user: User;
   const walletMock = useWallet(ADMIN_AUTH_KEYPAIR, RPC_URL);
   const connection = new Connection(RPC_URL, "confirmed");
 
@@ -44,7 +44,7 @@ describe("Browser tests", () => {
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     await connection.requestAirdrop(relayerRecipientSol, 9e8);
-    let relayer = SolanaKeypair.generate();
+    const relayer = SolanaKeypair.generate();
     await airdropSol({
       connection: connection,
       lamports: 9e8,
@@ -99,7 +99,7 @@ describe("Browser tests", () => {
   });
 
   it("(browser) should shield and update merkle tree", async () => {
-    let testInputs = {
+    const testInputs = {
       amountSol: 0.2,
       token: "SOL",
       type: Action.SHIELD,

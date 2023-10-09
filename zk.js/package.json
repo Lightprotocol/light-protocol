@@ -31,7 +31,9 @@
     "test-sp-user-registry": "pnpm run start-test-validator && ts-mocha -t 2000000 tests/system-programs/user-registry.tests.ts --exit",
     "build": "pnpm tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier \"src/**/*{ts,js}\" --check",
+    "format:check": "prettier \"src/**/*{ts,js}\" --check",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "preinstall": "npx only-allow pnpm"
   },
   "format-staged": {
@@ -82,8 +84,11 @@
     "@types/node": "^20.1.0",
     "@types/node-fetch": "^2.6.2",
     "@types/seedrandom": "^3.0.5",
+    "@typescript-eslint/eslint-plugin": "^6.7.3",
+    "@typescript-eslint/parser": "^6.7.3",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
+    "eslint": "^8.50.0",
     "lodash": "^4.17.21",
     "mocha": "^10.2.0",
     "prettier": "^2.6.2",

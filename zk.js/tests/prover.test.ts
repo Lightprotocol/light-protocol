@@ -2,7 +2,7 @@ import { assert, expect } from "chai";
 import { it } from "mocha";
 import { Prover } from "@lightprotocol/prover.js";
 import * as anchor from "@coral-xyz/anchor";
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 const ffjavascript = require("ffjavascript");
 const utils = ffjavascript.utils;
@@ -85,7 +85,7 @@ describe("Prover Functionality Tests", () => {
   });
 
   it("Verifies Prover with VerifierZero", async () => {
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsShield,
@@ -110,8 +110,8 @@ describe("Prover Functionality Tests", () => {
 
     const publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
     const publicInputsBytesVerifier = new Array<Array<number>>();
-    for (let i in publicInputsBytesJson) {
-      let ref: Array<number> = Array.from([
+    for (const i in publicInputsBytesJson) {
+      const ref: Array<number> = Array.from([
         ...utils.leInt2Buff(
           utils.unstringifyBigInts(publicInputsBytesJson[i]),
           32,
@@ -124,7 +124,7 @@ describe("Prover Functionality Tests", () => {
   });
 
   it("Checks identical public inputs with different randomness", async () => {
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsShield,

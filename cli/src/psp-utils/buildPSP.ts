@@ -39,13 +39,13 @@ export async function buildPSP({
   let foundCircuitNames: string[] = [];
   if (!skipCircuit) {
     if (!skipMacroCircom) {
-      let circuits = findFile({
+      const circuits = findFile({
         directory: circuitDir,
         extension: ".light",
       });
-      for (let { filename, fullPath } of circuits) {
+      for (const { filename, fullPath } of circuits) {
         console.log("📜 Generating circom files");
-        let stdout = await executeMacroCircom({
+        const stdout = await executeMacroCircom({
           args: [fullPath, programName],
         });
         console.log("✅ Circom files generated successfully");
@@ -57,11 +57,11 @@ export async function buildPSP({
         foundCircuitNames.push(circuitMainFileName.slice(0, -suffix.length));
       }
     }
-    let circuits = findFile({
+    const circuits = findFile({
       directory: circuitDir,
       extension: "Main.circom",
     });
-    for (let { filename, fullPath, light } of circuits) {
+    for (const { filename, fullPath, light } of circuits) {
       // skip main files from macro circom generated main circom files
       if (light) continue;
       foundCircuitNames.push(filename.slice(0, -suffix.length));
@@ -86,7 +86,7 @@ export async function buildPSP({
   // TODO: add add-circom-circuit command which inits a new circom circuit of name circuitName
   // TODO: add add-circuit command which inits a new .light file of name circuitName
   if (foundCircuitNames.length > 0) {
-    for (let foundCircuitName of foundCircuitNames) {
+    for (const foundCircuitName of foundCircuitNames) {
       // if circuitName is provided skip circuits which have not been provided in the circuitName flag
       if (circuitName && circuitName.indexOf(foundCircuitName) === -1) continue;
 
