@@ -15,7 +15,7 @@ import {
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { sleep } from "../index";
-import { MerkleTreeProgram } from "../../lib";
+import { MerkleTreeProgram } from "../../src";
 
 async function retryOperation(
   operation: () => Promise<void>,
@@ -62,7 +62,7 @@ async function handleUpdateMerkleTreeError(
   payer: Keypair,
   connection: Connection,
 ) {
-  let merkleTreeUpdateState = getMerkleTreeUpdateStatePda(
+  const merkleTreeUpdateState = getMerkleTreeUpdateStatePda(
     payer.publicKey,
     merkleTreeProgram,
   );
@@ -93,7 +93,7 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
   const transactionMerkleTreePda =
     MerkleTreeConfig.getTransactionMerkleTreePda();
 
-  let leavesPdas = await getLeavesPdas(
+  const leavesPdas = await getLeavesPdas(
     transactionMerkleTreePda,
     anchorProvider,
   );
