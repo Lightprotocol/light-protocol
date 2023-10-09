@@ -2,7 +2,7 @@
   "name": "@lightprotocol/private-payments",
   "version": "1.0.0",
   "main": "index.js",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "scripts": {
     "format": "prettier --write \"src/**/*.{ts,js}\" -w",
     "lint": "prettier \"src/**/*{ts,js}\" --check",
