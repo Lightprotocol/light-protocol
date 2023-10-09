@@ -50,14 +50,13 @@ function getMerkleTreeUpdateStatePda(
   authority: PublicKey,
   merkleTreeProgram: Program<MerkleTreeProgram>,
 ) {
-  let merkleTreeUpdateState = PublicKey.findProgramAddressSync(
+  return PublicKey.findProgramAddressSync(
     [
       Buffer.from(new Uint8Array(authority.toBytes())),
       anchor.utils.bytes.utf8.encode("storage"),
     ],
     merkleTreeProgram.programId,
   )[0];
-  return merkleTreeUpdateState;
 }
 
 export async function executeUpdateMerkleTreeTransactions({

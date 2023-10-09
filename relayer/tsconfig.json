@@ -15,7 +15,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["./src/**/*.ts"],
+  "include": ["./src/**/*.ts", "./closeUpdateState.ts", "./nukeDB.ts"],
   "dry": false,
   "debug": false
 }

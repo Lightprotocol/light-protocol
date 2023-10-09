@@ -6,7 +6,7 @@ import { getTransactions } from "./src/db/redis";
 (async () => {
   console.log("NUKING DB IN 5 SECONDS!");
   await sleep(5 * 1000);
-  let { job } = await getTransactions(DB_VERSION);
+  const { job } = await getTransactions(DB_VERSION);
 
   await job.updateData({ transactions: [] });
   const { job: job2 } = await getTransactions(DB_VERSION);

@@ -10,8 +10,8 @@ import { getKeyPairFromEnv } from "./src/utils/provider";
 import { RPC_URL } from "./src/config";
 
 (async () => {
-  let wallet = getKeyPairFromEnv("KEY_PAIR");
-  let url = RPC_URL;
+  const wallet = getKeyPairFromEnv("KEY_PAIR");
+  const url = RPC_URL;
   const connection = new Connection(url, confirmConfig);
 
   const anchorProvider = new AnchorProvider(
@@ -26,7 +26,7 @@ import { RPC_URL } from "./src/config";
     anchorProvider,
   );
 
-  let pda = PublicKey.findProgramAddressSync(
+  const pda = PublicKey.findProgramAddressSync(
     [
       Buffer.from(new Uint8Array(wallet.publicKey.toBytes())),
       utils.bytes.utf8.encode("storage"),
@@ -34,9 +34,5 @@ import { RPC_URL } from "./src/config";
     merkleTreeProgram.programId,
   )[0];
   console.log("closing merkletreeupdatestate:", pda.toBase58());
-  try {
-    await closeMerkleTreeUpdateState(merkleTreeProgram, wallet, connection);
-  } catch (e) {
-    throw e;
-  }
+  await closeMerkleTreeUpdateState(merkleTreeProgram, wallet, connection);
 })();
