@@ -22,7 +22,7 @@ class RegisterSolCommand extends Command {
     const poolType = new BN(args.poolType);
 
     const anchorProvider = await setAnchorProvider();
-    let merkleTreeConfig = await getWalletConfig(anchorProvider);
+    const merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     await merkleTreeConfig.registerSolPool([
       ...poolType.toArrayLike(Buffer, "be", 32),

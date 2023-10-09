@@ -9,12 +9,12 @@ import {
 
 export async function searchForward(job: Job, connection: Connection) {
   if (job.data.transactions.length === 0) return [];
-  let mostRecentTransaction = job.data.transactions.reduce(
+  const mostRecentTransaction = job.data.transactions.reduce(
     (a: IndexedTransaction, b: IndexedTransaction) =>
       a.blockTime > b.blockTime ? a : b,
   );
 
-  let { transactions: newerTransactions } = await fetchRecentTransactions({
+  const { transactions: newerTransactions } = await fetchRecentTransactions({
     connection,
     batchOptions: {
       limit: FORWARD_SEARCH_BATCH_SIZE,
@@ -38,7 +38,7 @@ export async function searchBackward(
   oldestFetchedSignature: string;
 }> {
   if (job.data.transactions.length === 0) {
-    let { transactions: olderTransactions, oldestFetchedSignature } =
+    const { transactions: olderTransactions, oldestFetchedSignature } =
       await fetchRecentTransactions({
         connection,
         batchOptions: {
@@ -47,9 +47,9 @@ export async function searchBackward(
       });
     return { olderTransactions, oldestFetchedSignature };
   } else {
-    let previousOldestFetchedSignature = job.data.oldestFetchedSignature;
+    const previousOldestFetchedSignature = job.data.oldestFetchedSignature;
 
-    let { transactions: olderTransactions, oldestFetchedSignature } =
+    const { transactions: olderTransactions, oldestFetchedSignature } =
       await fetchRecentTransactions({
         connection,
         batchOptions: {

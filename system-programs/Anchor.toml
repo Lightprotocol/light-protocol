@@ -31,7 +31,7 @@ url = "https://anchor.projectserum.com"
 [provider]
 cluster = "testnet"
 wallet = "~/.config/solana/id.json"
-# --resolveJsonModule ./tsconfig.json 
+# --resolveJsonModule ./tsconfig.test.json
 
 [scripts]
 test = "pnpm run ts-mocha -t 100000000 tests/functional_tests.ts --exit"

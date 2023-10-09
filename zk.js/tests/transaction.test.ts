@@ -1,5 +1,5 @@
 import { assert, expect } from "chai";
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
@@ -35,12 +35,12 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Transaction Error Tests", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
 
-  let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey2 = SolanaKeypair.generate().publicKey;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
+  const mockPubkey2 = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
@@ -112,7 +112,7 @@ describe("Transaction Error Tests", () => {
   });
 
   it("getProofInternal PROOF_INPUT_UNDEFINED", async () => {
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params,
@@ -124,7 +124,7 @@ describe("Transaction Error Tests", () => {
   });
 
   it("getAppProof APP_PARAMETERS_UNDEFINED", async () => {
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params,
@@ -188,13 +188,13 @@ describe("Transaction Error Tests", () => {
 });
 
 describe("Transaction Functional Tests", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
 
-  let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey2 = SolanaKeypair.generate().publicKey;
-  let mockPubkey3 = SolanaKeypair.generate().publicKey;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
+  const mockPubkey2 = SolanaKeypair.generate().publicKey;
+  const mockPubkey3 = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
@@ -255,7 +255,7 @@ describe("Transaction Functional Tests", () => {
   });
 
   it("getMerkleProof", async () => {
-    let merkleProofsShield = lightProvider.solMerkleTree!.getMerkleProofs(
+    const merkleProofsShield = lightProvider.solMerkleTree!.getMerkleProofs(
       lightProvider.poseidon,
       paramsShield.inputUtxos,
     );
@@ -272,7 +272,7 @@ describe("Transaction Functional Tests", () => {
       new Array(18).fill("0").toString(),
     );
 
-    let merkleProofsUnshield = lightProvider.solMerkleTree!.getMerkleProofs(
+    const merkleProofsUnshield = lightProvider.solMerkleTree!.getMerkleProofs(
       lightProvider.poseidon,
       paramsUnshield.inputUtxos,
     );
@@ -313,7 +313,7 @@ describe("Transaction Functional Tests", () => {
   });
 
   it("Functional ", async () => {
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsShield,
@@ -335,7 +335,7 @@ describe("Transaction Functional Tests", () => {
       relayer,
       account,
     });
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsShieldStorage,
@@ -373,7 +373,7 @@ describe("Transaction Functional Tests", () => {
       account,
     });
 
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: params,
@@ -383,12 +383,12 @@ describe("Transaction Functional Tests", () => {
   });
 
   it("getMint ", async () => {
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsShield,
     });
-    let mint = tx.getMint();
+    const mint = tx.getMint();
     assert.equal(
       mint.toString(),
       hashAndTruncateToCircuit(MINT.toBuffer()).toString(),
@@ -413,7 +413,7 @@ describe("Transaction Functional Tests", () => {
       account,
     });
 
-    let txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(
+    const txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(
       poseidon,
     );
 
@@ -443,7 +443,7 @@ describe("Transaction Functional Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       account,
     });
-    let tx = new Transaction({
+    const tx = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsStaticEncryptedUtxos,

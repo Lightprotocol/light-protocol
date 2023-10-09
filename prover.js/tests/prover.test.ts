@@ -1,11 +1,10 @@
 import { it } from "mocha";
 import { Prover } from "../src";
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 import { IDL } from "./circuits/idl";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
-import { expect, assert } from "chai";
 
 describe("Prover Functionality Tests", () => {
   it("Valid proof test", async () => {

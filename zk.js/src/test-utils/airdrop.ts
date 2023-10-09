@@ -107,7 +107,7 @@ export async function airdropShieldedMINTSpl({
     });
   }
 
-  let tokenAccount = await getOrCreateAssociatedTokenAccount(
+  const tokenAccount = await getOrCreateAssociatedTokenAccount(
     provider.provider!.connection,
     ADMIN_AUTH_KEYPAIR,
     MINT,
@@ -116,7 +116,7 @@ export async function airdropShieldedMINTSpl({
   if (new BN(tokenAccount.amount.toString()).toNumber() < amount) {
     await airdropSplToAssociatedTokenAccount(
       provider.provider!.connection,
-      1_000_000_000_000 ? amount : 1_000_000_000_000,
+      amount,
       ADMIN_AUTH_KEYPAIR.publicKey,
     );
   }
@@ -136,7 +136,7 @@ export async function airdropSplToAssociatedTokenAccount(
   lamports: number,
   recipient: PublicKey,
 ) {
-  let tokenAccount = await getOrCreateAssociatedTokenAccount(
+  const tokenAccount = await getOrCreateAssociatedTokenAccount(
     connection,
     ADMIN_AUTH_KEYPAIR,
     MINT,

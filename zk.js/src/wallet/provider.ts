@@ -121,12 +121,12 @@ export class Provider {
         TOKEN_ACCOUNT_FEE,
       );
     }
-    let tmpAssetLookupTable = assetLookupTable
-      ? [...assetLookupTable?.map((entry) => entry.toBase58())]
+    const tmpAssetLookupTable = assetLookupTable
+      ? [...assetLookupTable.map((entry) => entry.toBase58())]
       : [];
 
-    let tmpVerifierProgramLookupTable = verifierProgramLookupTable
-      ? [...verifierProgramLookupTable?.map((entry) => entry.toBase58())]
+    const tmpVerifierProgramLookupTable = verifierProgramLookupTable
+      ? [...verifierProgramLookupTable.map((entry) => entry.toBase58())]
       : [];
     this.lookUpTables = {
       assetLookupTable: [
@@ -149,9 +149,9 @@ export class Provider {
   }
 
   static async loadMock(): Promise<Provider> {
-    let poseidon = await circomlibjs.buildPoseidonOpt();
+    const poseidon = await circomlibjs.buildPoseidonOpt();
     // @ts-ignore: @ananas-block ignoring errors to not pass anchorProvider
-    let mockProvider = new Provider({
+    const mockProvider = new Provider({
       wallet: useWallet(ADMIN_AUTH_KEYPAIR),
       url: "mock",
       versionedTransactionLookupTable: PublicKey.default,
@@ -241,15 +241,18 @@ export class Provider {
         "The Merkle tree is not defined in the 'provider.solMerkleTree' object.",
       );
     let rootIndex: BN | undefined;
-    let remainingAccounts: any = {};
+    const remainingAccounts: any = {};
     if (this.provider && this.solMerkleTree.merkleTree) {
       const merkleTreeProgram = new Program(
         IDL_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
         this.provider,
       );
-      let root = new BN(this.solMerkleTree.merkleTree.root()).toArray("le", 32);
-      let merkle_tree_account_data =
+      const root = new BN(this.solMerkleTree.merkleTree.root()).toArray(
+        "le",
+        32,
+      );
+      const merkle_tree_account_data =
         await merkleTreeProgram.account.transactionMerkleTree.fetch(
           this.solMerkleTree.pubkey,
           "confirmed",
@@ -274,7 +277,7 @@ export class Provider {
           TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
         )
       ) {
-        let merkleTreeConfig = new MerkleTreeConfig({
+        const merkleTreeConfig = new MerkleTreeConfig({
           anchorProvider: this.provider,
         });
         const nextTransactionMerkleTreeIndex =
@@ -314,7 +317,7 @@ export class Provider {
   ): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {
-    let response = await sendVersionedTransactions(
+    const response = await sendVersionedTransactions(
       instructions,
       this.provider.connection,
       this.lookUpTables.versionedTransactionLookupTable,
@@ -329,7 +332,7 @@ export class Provider {
   ): Promise<
     RelayerSendTransactionsResponse | SendVersionedTransactionsResult
   > {
-    let response = await this.relayer.sendTransactions(instructions, this);
+    const response = await this.relayer.sendTransactions(instructions, this);
     if (response.error) throw response.error;
     return response;
   }

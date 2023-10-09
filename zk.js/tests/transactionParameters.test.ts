@@ -43,14 +43,14 @@ const VERIFIER_IDLS = [
 ];
 
 describe("Transaction Parameters Functional", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
 
-  let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey1 = SolanaKeypair.generate().publicKey;
-  let mockPubkey2 = SolanaKeypair.generate().publicKey;
-  let mockPubkey3 = SolanaKeypair.generate().publicKey;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
+  const mockPubkey1 = SolanaKeypair.generate().publicKey;
+  const mockPubkey2 = SolanaKeypair.generate().publicKey;
+  const mockPubkey3 = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
@@ -78,7 +78,7 @@ describe("Transaction Parameters Functional", () => {
   // borsh buffer. Once we are closer to implementing multisig, we need to fix
   // that problem properly.
   it.skip("Serialization Transfer Functional", async () => {
-    let outputUtxo = new Utxo({
+    const outputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
@@ -91,7 +91,7 @@ describe("Transaction Parameters Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let j = 0;
+    const j = 0;
     const inputUtxos = [shieldUtxo1];
     const outputUtxos = [outputUtxo];
 
@@ -108,9 +108,9 @@ describe("Transaction Parameters Functional", () => {
       account,
     });
 
-    let bytes = await paramsOriginal.toBytes();
+    const bytes = await paramsOriginal.toBytes();
 
-    let params = await TransactionParameters.fromBytes({
+    const params = await TransactionParameters.fromBytes({
       poseidon,
       utxoIdls: [IDL_VERIFIER_PROGRAM_ZERO],
       relayer,
@@ -191,14 +191,14 @@ describe("Transaction Parameters Functional", () => {
       TransactionParameters.getVerifierConfig(params.verifierIdl).out,
     );
 
-    for (let i in inputUtxos) {
+    for (const i in inputUtxos) {
       assert.equal(
         params.inputUtxos[i].getCommitment(poseidon),
         inputUtxos[i].getCommitment(poseidon),
       );
     }
 
-    for (let i in outputUtxos) {
+    for (const i in outputUtxos) {
       assert.equal(
         params.outputUtxos[i].getCommitment(poseidon),
         outputUtxos[i].getCommitment(poseidon),
@@ -207,7 +207,7 @@ describe("Transaction Parameters Functional", () => {
   });
 
   it("Transfer Functional", async () => {
-    let outputUtxo = new Utxo({
+    const outputUtxo = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
@@ -220,7 +220,7 @@ describe("Transaction Parameters Functional", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (let j in VERIFIER_IDLS) {
+    for (const j in VERIFIER_IDLS) {
       const inputUtxos = [shieldUtxo1];
       const outputUtxos = [outputUtxo];
 
@@ -308,14 +308,14 @@ describe("Transaction Parameters Functional", () => {
         TransactionParameters.getVerifierConfig(params.verifierIdl).out,
       );
 
-      for (let i in inputUtxos) {
+      for (const i in inputUtxos) {
         assert.equal(
           params.inputUtxos[i].getCommitment(poseidon),
           inputUtxos[i].getCommitment(poseidon),
         );
       }
 
-      for (let i in outputUtxos) {
+      for (const i in outputUtxos) {
         assert.equal(
           params.outputUtxos[i].getCommitment(poseidon),
           outputUtxos[i].getCommitment(poseidon),
@@ -324,7 +324,7 @@ describe("Transaction Parameters Functional", () => {
     }
   });
   it("Shield Functional", async () => {
-    for (let j in VERIFIER_IDLS) {
+    for (const j in VERIFIER_IDLS) {
       const outputUtxos = [shieldUtxo1];
 
       const params = new TransactionParameters({
@@ -411,7 +411,7 @@ describe("Transaction Parameters Functional", () => {
         TransactionParameters.getVerifierConfig(params.verifierIdl).out,
       );
 
-      for (let i in outputUtxos) {
+      for (const i in outputUtxos) {
         assert.equal(
           params.outputUtxos[i].getCommitment(poseidon),
           outputUtxos[i].getCommitment(poseidon),
@@ -421,7 +421,7 @@ describe("Transaction Parameters Functional", () => {
   });
 
   it("Unshield Functional", async () => {
-    for (let j in VERIFIER_IDLS) {
+    for (const j in VERIFIER_IDLS) {
       const inputUtxos = [shieldUtxo1];
 
       const params = new TransactionParameters({
@@ -512,7 +512,7 @@ describe("Transaction Parameters Functional", () => {
         TransactionParameters.getVerifierConfig(params.verifierIdl).out,
       );
 
-      for (let i in inputUtxos) {
+      for (const i in inputUtxos) {
         assert.equal(
           params.inputUtxos[i].getCommitment(poseidon),
           inputUtxos[i].getCommitment(poseidon),
@@ -527,8 +527,8 @@ describe("Test TransactionParameters Methods", () => {
   it("Test getAssetPubkeys", async () => {
     lightProvider = await LightProvider.loadMock();
     const poseidon = await buildPoseidonOpt();
-    let account = new Account({ poseidon });
-    let inputUtxos = [
+    const account = new Account({ poseidon });
+    const inputUtxos = [
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -544,7 +544,7 @@ describe("Test TransactionParameters Methods", () => {
         publicKey: account.pubkey,
       }),
     ];
-    let outputUtxos = [
+    const outputUtxos = [
       new Utxo({
         poseidon,
         amounts: [BN_2, new BN(4)],
@@ -563,7 +563,7 @@ describe("Test TransactionParameters Methods", () => {
       }),
     ];
 
-    let { assetPubkeysCircuit, assetPubkeys } =
+    const { assetPubkeysCircuit, assetPubkeys } =
       TransactionParameters.getAssetPubkeys(inputUtxos, outputUtxos);
     assert.equal(
       assetPubkeys[0].toBase58(),
@@ -588,7 +588,7 @@ describe("Test TransactionParameters Methods", () => {
 
   it("Test getExtAmount", async () => {
     const poseidon = await buildPoseidonOpt();
-    let inputUtxos = [
+    const inputUtxos = [
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -604,7 +604,7 @@ describe("Test TransactionParameters Methods", () => {
         publicKey: new Account({ poseidon }).pubkey,
       }),
     ];
-    let outputUtxos = [
+    const outputUtxos = [
       new Utxo({
         poseidon,
         amounts: [BN_2, new BN(4)],
@@ -622,19 +622,19 @@ describe("Test TransactionParameters Methods", () => {
         publicKey: new Account({ poseidon }).pubkey,
       }),
     ];
-    let { assetPubkeysCircuit } = TransactionParameters.getAssetPubkeys(
+    const { assetPubkeysCircuit } = TransactionParameters.getAssetPubkeys(
       inputUtxos,
       outputUtxos,
     );
 
-    let publicAmountSol = TransactionParameters.getExternalAmount(
+    const publicAmountSol = TransactionParameters.getExternalAmount(
       0,
       inputUtxos,
       outputUtxos,
       assetPubkeysCircuit,
     );
     assert.equal(publicAmountSol.toString(), "2");
-    let publicAmountSpl = TransactionParameters.getExternalAmount(
+    const publicAmountSpl = TransactionParameters.getExternalAmount(
       1,
       inputUtxos,
       outputUtxos,
@@ -652,7 +652,7 @@ describe("Test TransactionParameters Methods", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: new Account({ poseidon }).pubkey,
     });
-    let publicAmountSpl2Outputs = TransactionParameters.getExternalAmount(
+    const publicAmountSpl2Outputs = TransactionParameters.getExternalAmount(
       1,
       inputUtxos,
       outputUtxos,
@@ -660,7 +660,7 @@ describe("Test TransactionParameters Methods", () => {
     );
     assert.equal(publicAmountSpl2Outputs.toString(), "9");
 
-    let publicAmountSol2Outputs = TransactionParameters.getExternalAmount(
+    const publicAmountSol2Outputs = TransactionParameters.getExternalAmount(
       0,
       inputUtxos,
       outputUtxos,
@@ -671,11 +671,11 @@ describe("Test TransactionParameters Methods", () => {
 });
 
 describe("Test General TransactionParameters Errors", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
 
-  let mockPubkey = SolanaKeypair.generate().publicKey;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
   let poseidon: any,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
@@ -698,7 +698,7 @@ describe("Test General TransactionParameters Errors", () => {
   });
 
   it("NO_UTXOS_PROVIDED", async () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           eventMerkleTreePubkey: mockPubkey,
@@ -720,7 +720,7 @@ describe("Test General TransactionParameters Errors", () => {
   });
 
   it("NO_POSEIDON_HASHER_PROVIDED", async () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         // @ts-ignore:
         new TransactionParameters({
@@ -742,7 +742,7 @@ describe("Test General TransactionParameters Errors", () => {
   });
 
   it("NO_ACTION_PROVIDED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         // @ts-ignore:
         new TransactionParameters({
@@ -784,10 +784,10 @@ describe("Test General TransactionParameters Errors", () => {
 });
 
 describe("Test TransactionParameters Transfer Errors", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
-  let mockPubkey = SolanaKeypair.generate().publicKey;
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
   let poseidon: any,
     lightProvider: LightProvider,
@@ -825,7 +825,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("RELAYER_UNDEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -856,7 +856,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -888,7 +888,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -911,7 +911,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SPL_RECIPIENT_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -935,7 +935,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SOL_RECIPIENT_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -959,7 +959,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SOL_SENDER_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -983,7 +983,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SPL_SENDER_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -1007,11 +1007,11 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 });
 
-describe("Test TransactionParameters Shield Errors", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
-  let mockPubkey = SolanaKeypair.generate().publicKey;
+describe("Test TransactionParameters Deposit Errors", () => {
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
 
   let poseidon: any,
@@ -1036,7 +1036,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("SOL_SENDER_UNDEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [shieldUtxo1],
@@ -1058,7 +1058,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("SPL_SENDER_UNDEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [shieldUtxo1],
@@ -1080,7 +1080,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("RELAYER_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [shieldUtxo1],
@@ -1104,7 +1104,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("SOL PUBLIC_AMOUNT_NOT_U64", () => {
-    let utxo_sol_amount_no_u641 = new Utxo({
+    const utxo_sol_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), new BN(shieldAmount)],
@@ -1113,7 +1113,7 @@ describe("Test TransactionParameters Shield Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let utxo_sol_amount_no_u642 = new Utxo({
+    const utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
@@ -1122,7 +1122,7 @@ describe("Test TransactionParameters Shield Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
@@ -1145,7 +1145,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("SPL PUBLIC_AMOUNT_NOT_U64", () => {
-    let utxo_spl_amount_no_u641 = new Utxo({
+    const utxo_spl_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
@@ -1155,7 +1155,7 @@ describe("Test TransactionParameters Shield Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let utxo_spl_amount_no_u642 = new Utxo({
+    const utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("1")],
@@ -1165,7 +1165,7 @@ describe("Test TransactionParameters Shield Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
@@ -1188,7 +1188,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("SOL_RECIPIENT_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [shieldUtxo1],
@@ -1212,7 +1212,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("SPL_RECIPIENT_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [shieldUtxo1],
@@ -1236,7 +1236,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("No senderSpl spl needed without spl amount", () => {
-    let utxo_sol_amount_no_u642 = new Utxo({
+    const utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
@@ -1245,7 +1245,7 @@ describe("Test TransactionParameters Shield Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       // senderSpl fee always needs to be defined because we use it as the signer
       // should work since no spl amount
       new TransactionParameters({
@@ -1262,7 +1262,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("SPL_RECIPIENT_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [shieldUtxo1],
@@ -1286,7 +1286,7 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 
   it("SOL_RECIPIENT_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [shieldUtxo1],
@@ -1310,11 +1310,11 @@ describe("Test TransactionParameters Shield Errors", () => {
   });
 });
 
-describe("Test TransactionParameters Unshield Errors", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
-  let mockPubkey = SolanaKeypair.generate().publicKey;
+describe("Test TransactionParameters Withdrawal Errors", () => {
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const shieldAmount = 20_000;
+  const shieldFeeAmount = 10_000;
+  const mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
 
   let poseidon: any,
@@ -1340,7 +1340,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
   });
 
   it("SOL_RECIPIENT_UNDEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -1364,7 +1364,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
   });
 
   it("RELAYER_UNDEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -1387,7 +1387,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
   });
 
   it("SOL PUBLIC_AMOUNT_NOT_U64", () => {
-    let utxo_sol_amount_no_u641 = new Utxo({
+    const utxo_sol_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), new BN(shieldAmount)],
@@ -1397,7 +1397,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let utxo_sol_amount_no_u642 = new Utxo({
+    const utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
@@ -1407,7 +1407,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
@@ -1431,7 +1431,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
   });
 
   it("SPL PUBLIC_AMOUNT_NOT_U64", () => {
-    let utxo_spl_amount_no_u641 = new Utxo({
+    const utxo_spl_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
@@ -1441,7 +1441,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let utxo_spl_amount_no_u642 = new Utxo({
+    const utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("1")],
@@ -1450,7 +1450,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
@@ -1474,7 +1474,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
   });
 
   it("SOL_SENDER_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -1499,7 +1499,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
   });
 
   it("SPL_SENDER_DEFINED", () => {
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [shieldUtxo1],
@@ -1524,7 +1524,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
   });
 
   it("no recipientSpl spl should work since no spl amount", () => {
-    let utxo_sol_amount_no_u642 = new Utxo({
+    const utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
@@ -1534,7 +1534,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       // should work since no spl amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
@@ -1551,7 +1551,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
   });
 
   it("no recipientSpl sol should work since no sol amount", () => {
-    let utxo_sol_amount_no_u642 = new Utxo({
+    const utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
@@ -1561,7 +1561,7 @@ describe("Test TransactionParameters Unshield Errors", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    for (let verifier in VERIFIER_IDLS) {
+    for (const verifier in VERIFIER_IDLS) {
       // should work since no sol amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],

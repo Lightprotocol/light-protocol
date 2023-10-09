@@ -53,7 +53,7 @@ app.listen(port, async () => {
   if (process.env.TEST_ENVIRONMENT) {
     await createTestAccounts(anchorProvider.connection);
     console.log("Test environment setup completed!");
-    let { job } = await getTransactions(DB_VERSION);
+    const { job } = await getTransactions(DB_VERSION);
     await job.updateData({ transactions: [] });
   }
 

@@ -13,7 +13,7 @@ import { sendVersionedTransactions } from "@lightprotocol/zk.js";
 import { getLightProvider } from "../utils/provider";
 import { parseReqParams } from "../services/index";
 
-var redisConnection: any;
+let redisConnection: any;
 
 if (process.env.ENVIRONMENT === Environment.PROD) {
   redisConnection = new IORedis(Number(PORT), HOST, {
@@ -60,7 +60,7 @@ export const relayWorker = new Worker(
     const parsedInstructions = await parseReqParams(instructions);
     try {
       const provider = await getLightProvider();
-      var response = await sendVersionedTransactions(
+      const response = await sendVersionedTransactions(
         parsedInstructions,
         provider.provider!.connection,
         provider.lookUpTables.versionedTransactionLookupTable!,
@@ -78,8 +78,8 @@ export const relayWorker = new Worker(
 );
 
 relayWorker.on("completed", async (job) => {
-  let duration = Date.now() - job.timestamp;
-  let message = `relay: ${job.id} completed! duration: ${duration / 1000}s`;
+  const duration = Date.now() - job.timestamp;
+  const message = `relay: ${job.id} completed! duration: ${duration / 1000}s`;
   console.log(message);
 });
 
@@ -91,8 +91,8 @@ relayWorker.on("failed", async (job, err) => {
       );
       return;
     }
-    let duration = Date.now() - job!.timestamp;
-    let message = `relay ${job.id} failed (${err.message}) after ${
+    const duration = Date.now() - job!.timestamp;
+    const message = `relay ${job.id} failed (${err.message}) after ${
       duration / 1000
     }s`;
     console.log(message);
@@ -108,7 +108,7 @@ export const getTransactions = async (version = 0) => {
   if (job) {
     return { transactions: job.data.transactions, job };
   } else {
-    let newJob = await indexQueue.add("indexJob", {
+    const newJob = await indexQueue.add("indexJob", {
       transactions: [],
       lastFetched: 0,
     });

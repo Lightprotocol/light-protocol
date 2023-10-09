@@ -13,7 +13,7 @@ import {
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 const anchor = require("@coral-xyz/anchor");
-var ffjavascript = require("ffjavascript");
+const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 export type QueuedLeavesPda = {
   leftLeafIndex: BN;
@@ -54,7 +54,7 @@ export class SolMerkleTree {
       );
     const merkleTreeIndex = mtFetched.nextIndex;
     // ProgramAccount<MerkleTreeProgram["accounts"][7]>
-    var leavesAccounts: Array<any> =
+    const leavesAccounts: Array<any> =
       await merkleTreeProgram.account.twoLeavesBytesPda.all();
     return { leavesAccounts, merkleTreeIndex, mtFetched };
   }
@@ -101,7 +101,7 @@ export class SolMerkleTree {
       }
     }
 
-    let fetchedMerkleTree = new MerkleTree(
+    const fetchedMerkleTree = new MerkleTree(
       MERKLE_TREE_HEIGHT,
       poseidon,
       leaves,
@@ -160,7 +160,7 @@ export class SolMerkleTree {
       provider,
     );
 
-    let filteredLeaves = leavesAccounts
+    const filteredLeaves = leavesAccounts
       .filter((pda) => {
         if (
           pda.account.merkleTreePubkey.toBase58() ===
@@ -201,8 +201,8 @@ export class SolMerkleTree {
     inputMerklePathIndices: Array<string>;
     inputMerklePathElements: Array<Array<string>>;
   } {
-    let inputMerklePathIndices = new Array<string>();
-    let inputMerklePathElements = new Array<Array<string>>();
+    const inputMerklePathIndices = new Array<string>();
+    const inputMerklePathElements = new Array<Array<string>>();
     // getting merkle proofs
     for (const inputUtxo of inputUtxos) {
       if (inputUtxo.amounts[0].gt(BN_0) || inputUtxo.amounts[1].gt(BN_0)) {

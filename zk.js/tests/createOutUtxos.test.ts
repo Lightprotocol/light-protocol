@@ -39,7 +39,7 @@ const numberMaxOutUtxos = 2;
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test createOutUtxos Functional", () => {
   let poseidon: any, k0: Account;
@@ -84,7 +84,7 @@ describe("Test createOutUtxos Functional", () => {
     });
     relayerFee = RELAYER_FEE;
 
-    let recipientAccountRoot = new Account({
+    const recipientAccountRoot = new Account({
       poseidon,
       seed: bs58.encode(new Uint8Array(32).fill(3)),
     });
@@ -96,7 +96,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield sol", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
@@ -125,7 +125,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield spl", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: new BN(10),
       publicAmountSol: BN_0,
@@ -154,7 +154,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield sol with input utxo", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
@@ -184,7 +184,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield sol & spl with input utxo", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: new BN(10),
@@ -214,7 +214,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield sol & spl", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: new BN(10),
       publicAmountSol: solAmount,
@@ -243,7 +243,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield SPL - no relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
@@ -274,7 +274,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield SPL - with relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
@@ -305,7 +305,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield sol - no relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
@@ -336,7 +336,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield sol - with relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
@@ -367,7 +367,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield spl & sol - no relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
@@ -398,7 +398,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield spl & sol - with relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
@@ -429,7 +429,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield in:1SOL + 1SPL should merge 2-1", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxoSol],
@@ -460,7 +460,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield in:1SPL + 1SPL should merge 2-1", async () => {
-    let outUtxos = createOutUtxos({
+    const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxo1],
@@ -490,7 +490,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("transfer in:1 SPL ", async () => {
-    let recipients = [
+    const recipients = [
       {
         account: recipientAccount,
         mint: utxo1.assets[1],
@@ -665,7 +665,7 @@ describe("Test createOutUtxos Errors", () => {
     k0 = new Account({ poseidon, seed: seed32 });
     splAmount = new BN(3);
     token = "USDC";
-    let tmpTokenCtx = TOKEN_REGISTRY.get(token);
+    const tmpTokenCtx = TOKEN_REGISTRY.get(token);
     if (!tmpTokenCtx) throw new Error("Token not supported!");
     tokenCtx = tmpTokenCtx as TokenData;
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
@@ -763,7 +763,7 @@ describe("Test createOutUtxos Errors", () => {
   });
 
   it("INVALID_RECIPIENT_MINT", async () => {
-    let invalidMint = SolanaKeypair.generate().publicKey;
+    const invalidMint = SolanaKeypair.generate().publicKey;
     expect(() => {
       // @ts-ignore
       createOutUtxos({
@@ -890,9 +890,9 @@ describe("Test createOutUtxos Errors", () => {
   // })
 
   it("INVALID_OUTPUT_UTXO_LENGTH", async () => {
-    let invalidMint = SolanaKeypair.generate().publicKey;
+    const invalidMint = SolanaKeypair.generate().publicKey;
 
-    let utxoSol0 = new Utxo({
+    const utxoSol0 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, invalidMint],
       amounts: [new BN(1e6), new BN(1e6)],

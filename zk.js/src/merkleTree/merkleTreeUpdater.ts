@@ -35,11 +35,11 @@ export async function executeUpdateMerkleTreeTransactions({
   transactionMerkleTree: PublicKey;
   connection: Connection;
 }) {
-  var merkleTreeAccountPrior =
+  const merkleTreeAccountPrior =
     await merkleTreeProgram.account.transactionMerkleTree.fetch(
       transactionMerkleTree,
     );
-  let merkleTreeUpdateState = PublicKey.findProgramAddressSync(
+  const merkleTreeUpdateState = PublicKey.findProgramAddressSync(
     [
       Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
       anchor.utils.bytes.utf8.encode("storage"),
@@ -143,7 +143,7 @@ const createTransactions = async ({
   merkleTreeUpdateState: PublicKey;
   transactionMerkleTree: PublicKey;
 }) => {
-  let transactions: Transaction[] = [];
+  const transactions: Transaction[] = [];
   for (let ix_id = 0; ix_id < numberOfTransactions; ix_id++) {
     const transaction = new Transaction();
     transaction.add(
@@ -249,8 +249,8 @@ export async function executeMerkleTreeUpdateTransactions({
   connection: Connection;
   interrupt?: boolean;
 }) {
-  var counter = { value: 0 };
-  var error = undefined;
+  const counter = { value: 0 };
+  let error = undefined;
   while (
     !(await checkComputeInstructionsCompleted(
       merkleTreeProgram,

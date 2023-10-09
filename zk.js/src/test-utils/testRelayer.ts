@@ -70,7 +70,7 @@ export class TestRelayer extends Relayer {
     instructions: any[],
     provider: Provider,
   ): Promise<RelayerSendTransactionsResponse> {
-    var res = await sendVersionedTransactions(
+    const res = await sendVersionedTransactions(
       instructions,
       provider.provider!.connection!,
       provider.lookUpTables.versionedTransactionLookupTable,
@@ -109,7 +109,7 @@ export class TestRelayer extends Relayer {
     // which is approximately the number of transactions sent to send one shielded transaction and update the merkle tree
     const limit = 1000 + 260 * merkleTreeAccount.nextIndex.toNumber();
     if (this.indexedTransactions.length === 0) {
-      let { transactions: newTransactions } = await fetchRecentTransactions({
+      const { transactions: newTransactions } = await fetchRecentTransactions({
         connection,
         batchOptions: {
           limit,
@@ -129,18 +129,18 @@ export class TestRelayer extends Relayer {
     } else {
       if (this.indexedTransactions.length === 0) return [];
 
-      let mostRecentTransaction = this.indexedTransactions.reduce((a, b) =>
+      const mostRecentTransaction = this.indexedTransactions.reduce((a, b) =>
         a.blockTime > b.blockTime ? a : b,
       );
 
-      let { transactions: newTransactions } = await fetchRecentTransactions({
+      const { transactions: newTransactions } = await fetchRecentTransactions({
         connection,
         batchOptions: {
           limit,
           until: mostRecentTransaction.signature,
         },
       });
-      let parsedNewTransactions = newTransactions.map((trx) => {
+      const parsedNewTransactions = newTransactions.map((trx) => {
         return {
           ...trx,
           firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),

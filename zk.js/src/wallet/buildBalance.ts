@@ -56,7 +56,7 @@ export class TokenUtxoBalance {
   }
 
   addUtxo(commitment: string, utxo: Utxo, attribute: VariableType): boolean {
-    let utxoExists = this[attribute].get(commitment) !== undefined;
+    const utxoExists = this[attribute].get(commitment) !== undefined;
     this[attribute].set(commitment, utxo);
 
     if (attribute === ("utxos" as VariableType) && !utxoExists) {
@@ -69,7 +69,7 @@ export class TokenUtxoBalance {
   }
 
   moveToSpentUtxos(commitment: string) {
-    let utxo = this.utxos.get(commitment);
+    const utxo = this.utxos.get(commitment);
     if (!utxo)
       throw new TokenUtxoBalanceError(
         TokenUtxoBalanceErrorCode.UTXO_UNDEFINED,
@@ -110,11 +110,11 @@ export class ProgramUtxoBalance {
         `Verifier address ${utxo.verifierAddress} does not match the program address (trying to add utxo to program utxos balance)`,
       );
     }
-    let utxoAsset =
+    const utxoAsset =
       utxo.amounts[1].toString() === "0"
         ? new PublicKey(0).toBase58()
         : utxo.assets[1].toBase58();
-    let tokenBalance = this.tokenBalances?.get(utxoAsset);
+    const tokenBalance = this.tokenBalances?.get(utxoAsset);
     // if not token balance for utxoAsset create token balance
     if (!tokenBalance) {
       const tokenSymbol = TOKEN_PUBKEY_SYMBOL.get(utxoAsset);
@@ -198,7 +198,7 @@ export async function decryptAddUtxoToBalance({
   verifierProgramLookupTable: string[];
   assetLookupTable: string[];
 }): Promise<void> {
-  let decryptedUtxo = aes
+  const decryptedUtxo = aes
     ? await Utxo.decrypt({
         poseidon,
         encBytes: encBytes,
@@ -254,7 +254,9 @@ export async function decryptAddUtxoToBalance({
       !balance.tokenBalances.get(utxo.assets[assetIndex].toBase58())
     ) {
       // TODO: several maps or unify somehow
-      let tokenBalanceUsdc = new TokenUtxoBalance(TOKEN_REGISTRY.get("USDC")!);
+      const tokenBalanceUsdc = new TokenUtxoBalance(
+        TOKEN_REGISTRY.get("USDC")!,
+      );
       balance.tokenBalances.set(
         tokenBalanceUsdc.tokenData.mint.toBase58(),
         tokenBalanceUsdc,

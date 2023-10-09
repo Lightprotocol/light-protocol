@@ -18,7 +18,7 @@ export async function executeCommand({
   additionalPath?: string;
 }): Promise<string> {
   return new Promise((resolve, reject) => {
-    let commandBase = path.basename(command);
+    const commandBase = path.basename(command);
     let stdoutData = "";
 
     const childPathEnv = additionalPath

@@ -3,7 +3,7 @@ import { Keypair as SolanaKeypair, PublicKey, Keypair } from "@solana/web3.js";
 import seedrandom from "seedrandom";
 
 // Create a seeded random number generator
-let rng = seedrandom("some_seed");
+const rng = seedrandom("some_seed");
 
 import {
   Provider,
@@ -66,13 +66,16 @@ const calculateAmounts = async (
   const balance = await user.getBalance();
 
   const relayerFee = user.provider.relayer.getRelayerFee().toNumber();
-  const totalSolBalance = balance.tokenBalances.get(mint.toBase58())
-    ? balance.tokenBalances.get(mint.toBase58()).totalBalanceSol.toNumber()
+  let totalSolBalance = balance.tokenBalances.get(mint.toBase58())
+    ? balance.tokenBalances.get(mint.toBase58())?.totalBalanceSol.toNumber()
     : 0;
-  const totalSplBalance =
+  totalSolBalance = totalSolBalance ?? 0;
+
+  let totalSplBalance =
     balance.tokenBalances.get(mint.toBase58()) && !isSol
-      ? balance.tokenBalances.get(mint.toBase58()).totalBalanceSpl.toNumber()
+      ? balance.tokenBalances.get(mint.toBase58())?.totalBalanceSpl.toNumber()
       : 0;
+  totalSplBalance = totalSplBalance ?? 0;
 
   const amountSol =
     isSol || sol
@@ -98,7 +101,7 @@ const shield = async (
 ) => {
   const isSol = token === "SOL";
 
-  let testInputs = {
+  const testInputs = {
     amountSol: sol ? generateRandomTestAmount(1, 5000, 9, rng) : undefined,
     amountSpl: !isSol ? generateRandomTestAmount(1, 5000, 2, rng) : undefined,
     token,
@@ -123,14 +126,14 @@ const shield = async (
   await airdropSol({
     connection: user.provider.provider.connection,
     lamports:
-      convertAndComputeDecimals(testInputs.amountSol, new BN(1e9)).toNumber() +
+      convertAndComputeDecimals(testInputs.amountSol!, new BN(1e9)).toNumber() +
       5000,
     recipientPublicKey: user.provider.wallet.publicKey,
   });
   if (!isSol) {
     await airdropSplToAssociatedTokenAccount(
       user.provider.provider.connection,
-      convertAndComputeDecimals(testInputs.amountSpl, new BN(1e2)).toNumber(),
+      convertAndComputeDecimals(testInputs.amountSpl!, new BN(1e2)).toNumber(),
       keypair.publicKey,
     );
   }
@@ -159,7 +162,7 @@ const unshield = async (
   token: string = "SOL",
 ) => {
   const isSol = token === "SOL";
-  const mint = TOKEN_REGISTRY.get(token).mint;
+  const mint = TOKEN_REGISTRY.get(token)!.mint;
   const { amountSol, amountSpl } = await calculateAmounts(
     user,
     rng,
@@ -169,7 +172,7 @@ const unshield = async (
   );
   const recipientKeypair = SolanaKeypair.generate();
 
-  let testInputs = {
+  const testInputs = {
     token,
     type: Action.UNSHIELD,
     expectedUtxoHistoryLength: 0,
@@ -269,7 +272,7 @@ const transfer = async (
   token: string = "SOL",
 ) => {
   const isSol = token === "SOL";
-  const mint = TOKEN_REGISTRY.get(token).mint;
+  const mint = TOKEN_REGISTRY.get(token)!.mint;
   const { amountSol, amountSpl } = await calculateAmounts(
     senderUser,
     rng,
@@ -282,7 +285,7 @@ const transfer = async (
     await recipientUser.getUtxoInbox()
   ).tokenBalances.get(TOKEN_REGISTRY.get(token)!.mint.toBase58());
 
-  let testInputs = {
+  const testInputs = {
     token,
     type: Action.TRANSFER,
     expectedUtxoHistoryLength: 0,
@@ -318,15 +321,15 @@ const transfer = async (
 };
 
 const mergeAllInboxUtxos = async (user: User, token: string) => {
-  const tokenCtx = TOKEN_REGISTRY.get(token);
+  const tokenCtx = TOKEN_REGISTRY.get(token)!;
   const inboxBalance = await user.getUtxoInbox();
+  const tokenUtxoBalances = inboxBalance.tokenBalances.get(
+    tokenCtx.mint.toBase58(),
+  );
   if (
-    inboxBalance.tokenBalances
-      .get(tokenCtx.mint.toBase58())
-      ?.totalBalanceSol.toNumber() > 0 ||
-    inboxBalance.tokenBalances
-      .get(tokenCtx.mint.toBase58())
-      ?.totalBalanceSpl.toNumber() > 0
+    tokenUtxoBalances &&
+    (tokenUtxoBalances.totalBalanceSol.toNumber() > 0 ||
+      tokenUtxoBalances?.totalBalanceSpl.toNumber() > 0)
   ) {
     console.log("merging all utxos for ", token);
     const userTestAssertHelper = new UserTestAssertHelper({
@@ -382,8 +385,9 @@ const checkSolBalanceGtRelayerFee = async (
   )
     return false;
   return (
+    solBalance &&
     solBalance.toNumber() >
-    user.provider.relayer.getRelayerFee().toNumber() + 1e9
+      user.provider.relayer.getRelayerFee().toNumber() + 1e9
   );
 };
 
@@ -447,14 +451,14 @@ describe("Test User", () => {
       recipientPublicKey: relayerRecipientSol.publicKey,
     });
 
-    let relayer = new TestRelayer({
+    const relayer = new TestRelayer({
       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       relayerRecipientSol: relayerRecipientSol.publicKey,
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
     });
 
-    let testUsers: { user: User; wallet: Keypair }[] = [];
+    const testUsers: { user: User; wallet: Keypair }[] = [];
     for (let user = 0; user < noUsers; user++) {
       testUsers.push(await createTestUser(anchorProvider, relayer));
     }
@@ -465,14 +469,16 @@ describe("Test User", () => {
      * perform action
      */
     let transactions = 0;
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       console.log("\n----------------------------------\n");
       const res = getRandomObjectAndArray(testUsers);
-      const rndUser = res[0].user;
-      const wallet = res[0].wallet;
+      const rndUser = res[0]!.user;
+      const wallet = res[0]!.wallet;
       const remainingTestUsers = res[1];
-      const _token = token != "BOTH" ? token : getRandomObject(["SOL", "USDC"]);
-      const tokenMint = TOKEN_REGISTRY.get(_token).mint;
+      const _token =
+        token != "BOTH" ? token : getRandomObject(["SOL", "USDC"])!;
+      const tokenMint = TOKEN_REGISTRY.get(_token)!.mint;
       console.log("no users ", testUsers.length);
       console.log("no transactions ", transactions);
       await rndUser.getBalance();
@@ -493,7 +499,7 @@ describe("Test User", () => {
             recipientUser = await createTestUser(anchorProvider, relayer);
             testUsers.push(recipientUser);
           } else {
-            recipientUser = getRandomObject(remainingTestUsers);
+            recipientUser = getRandomObject(remainingTestUsers)!;
           }
           console.log(
             "selected recipientUser ",

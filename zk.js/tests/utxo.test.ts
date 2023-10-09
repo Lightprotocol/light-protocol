@@ -156,7 +156,7 @@ describe("Utxo Functional", () => {
     const amountToken = "2";
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
-    let inputs = {
+    const inputs = {
       keypair: new Account({ poseidon, seed: seed32 }),
       amountFee,
       amountToken,
@@ -167,7 +167,7 @@ describe("Utxo Functional", () => {
       index: 1,
     };
 
-    let utxo0 = new Utxo({
+    const utxo0 = new Utxo({
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
@@ -179,8 +179,8 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let string = await utxo0.toString();
-    let utxo1 = Utxo.fromString(
+    const string = await utxo0.toString();
+    const utxo1 = Utxo.fromString(
       string,
       poseidon,
       lightProvider.lookUpTables.assetLookupTable,
@@ -195,7 +195,7 @@ describe("Utxo Functional", () => {
     const amountToken = "2";
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
-    let inputs = {
+    const inputs = {
       keypair: new Account({ poseidon, seed: seed32 }),
       amountFee,
       amountToken,
@@ -206,7 +206,7 @@ describe("Utxo Functional", () => {
       index: 1,
     };
 
-    let utxo0 = new Utxo({
+    const utxo0 = new Utxo({
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
@@ -295,7 +295,7 @@ describe("Utxo Functional", () => {
       throw new Error("decrypt failed");
     }
 
-    let publicKey = inputs.keypair.getPublicKey();
+    const publicKey = inputs.keypair.getPublicKey();
     // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
     const receivingUtxo = new Utxo({
       poseidon,
@@ -403,9 +403,9 @@ describe("Utxo Functional", () => {
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
-    let bytes = await outputUtxo.toBytes();
+    const bytes = await outputUtxo.toBytes();
 
-    let utxo1 = Utxo.fromBytes({
+    const utxo1 = Utxo.fromBytes({
       poseidon,
       bytes,
       index: 0,
@@ -418,7 +418,7 @@ describe("Utxo Functional", () => {
     Utxo.equal(poseidon, outputUtxo, utxo1);
   });
   it("Pick app data from utxo data", () => {
-    let data = createAccountObject(
+    const data = createAccountObject(
       {
         releaseSlot: 1,
         rndOtherStuff: { s: 2342 },
@@ -443,7 +443,7 @@ describe("Utxo Functional", () => {
 });
 
 describe("Utxo Errors", () => {
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
   let poseidon: any, inputs: any, keypair: Account;
 
@@ -467,9 +467,9 @@ describe("Utxo Errors", () => {
   });
 
   it("get nullifier without index", async () => {
-    let publicKey = keypair.getPublicKey();
-    let account = Account.fromPubkey(publicKey, poseidon);
-    let pubkeyUtxo = new Utxo({
+    const publicKey = keypair.getPublicKey();
+    const account = Account.fromPubkey(publicKey, poseidon);
+    const pubkeyUtxo = new Utxo({
       poseidon,
       amounts: [BN_1],
       publicKey: account.pubkey,
@@ -489,10 +489,10 @@ describe("Utxo Errors", () => {
   });
 
   it("get nullifier without private key", async () => {
-    let publicKey = keypair.getPublicKey();
+    const publicKey = keypair.getPublicKey();
 
-    let account = Account.fromPubkey(publicKey, poseidon);
-    let pubkeyUtxo = new Utxo({
+    const account = Account.fromPubkey(publicKey, poseidon);
+    const pubkeyUtxo = new Utxo({
       poseidon,
       amounts: [BN_1],
       publicKey: account.pubkey,
@@ -635,7 +635,7 @@ describe("Utxo Errors", () => {
   });
 
   it("decryption fails with checkPrefixHash on prefix generated from random bytes", async () => {
-    let publicKey = keypair.getPublicKey();
+    const publicKey = keypair.getPublicKey();
     const receivingUtxo = new Utxo({
       poseidon,
       assets: inputs.assets,
@@ -702,7 +702,7 @@ describe("Utxo Benchmark", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let encBytesVecs: Uint8Array[] = [];
+    const encBytesVecs: Uint8Array[] = [];
 
     for (let i = 0; i < 256 * 1000; i++) {
       encBytesVecs.push(randomBytes(120 + UTXO_PREFIX_LENGTH));

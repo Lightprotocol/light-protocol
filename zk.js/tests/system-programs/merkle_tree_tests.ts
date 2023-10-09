@@ -8,7 +8,7 @@ import {
 const solana = require("@solana/web3.js");
 import { assert } from "chai";
 const token = require("@solana/spl-token");
-let circomlibjs = require("circomlibjs");
+const circomlibjs = require("circomlibjs");
 
 import {
   Transaction,
@@ -54,7 +54,7 @@ console.log = () => {};
 describe("Merkle Tree Tests", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   // Configure the client to use the local cluster.
-  var provider = anchor.AnchorProvider.local(
+  const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig,
   );
@@ -64,11 +64,11 @@ describe("Merkle Tree Tests", () => {
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
-  var INVALID_MERKLE_TREE_AUTHORITY_PDA, INVALID_SIGNER;
+  let INVALID_MERKLE_TREE_AUTHORITY_PDA, INVALID_SIGNER;
   before(async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
+    const merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
@@ -113,7 +113,7 @@ describe("Merkle Tree Tests", () => {
     // Update authority pda
     // - can only be invoked by current authority
 
-    var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
+    const merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
@@ -130,7 +130,7 @@ describe("Merkle Tree Tests", () => {
       [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY_INV")],
       merkleTreeProgram.programId,
     )[0];
-    let merkleTreeConfig = new MerkleTreeConfig({
+    const merkleTreeConfig = new MerkleTreeConfig({
       payer: ADMIN_AUTH_KEYPAIR,
       anchorProvider: provider,
     });
@@ -172,7 +172,7 @@ describe("Merkle Tree Tests", () => {
     // initing real mt authority
     await merkleTreeConfig.initMerkleTreeAuthority();
 
-    let newAuthority = Keypair.generate();
+    const newAuthority = Keypair.generate();
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         newAuthority.publicKey,
@@ -249,7 +249,8 @@ describe("Merkle Tree Tests", () => {
     merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
 
     // invalid pda
-    let tmp = merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda;
+    const tmp =
+      merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda;
     merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda =
       INVALID_SIGNER.publicKey;
     try {
@@ -391,7 +392,7 @@ describe("Merkle Tree Tests", () => {
 
     await merkleTreeConfig.registerPoolType(new Array(32).fill(0));
 
-    let registeredPoolTypePdaAccount =
+    const registeredPoolTypePdaAccount =
       await merkleTreeProgram.account.registeredPoolType.fetch(
         merkleTreeConfig.poolTypes[0].poolPda,
       );
@@ -441,7 +442,7 @@ describe("Merkle Tree Tests", () => {
     await merkleTreeConfig.registerSolPool(new Array(32).fill(0));
     console.log("merkleTreeConfig ", merkleTreeConfig);
 
-    let registeredSolPdaAccount =
+    const registeredSolPdaAccount =
       await merkleTreeProgram.account.registeredAssetPool.fetch(
         MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
       );
@@ -455,7 +456,7 @@ describe("Merkle Tree Tests", () => {
       MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda.toBase58(),
     );
 
-    let mint = await createMintWrapper({
+    const mint = await createMintWrapper({
       authorityKeypair: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
     });
@@ -521,7 +522,7 @@ describe("Merkle Tree Tests", () => {
       ].token.toBase58(),
     );
 
-    let merkleTreeAuthority1 =
+    const merkleTreeAuthority1 =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
         merkleTreeConfig.merkleTreeAuthorityPda,
       );
@@ -549,9 +550,9 @@ describe("Merkle Tree Tests", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
-    var depositAmount =
+    const depositAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
-    var depositFeeAmount =
+    const depositFeeAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
     await token.approve(
@@ -572,7 +573,7 @@ describe("Merkle Tree Tests", () => {
       [USER_TOKEN_ACCOUNT],
     );
 
-    let lightProvider = await Provider.init({
+    const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
       confirmConfig,
@@ -588,7 +589,7 @@ describe("Merkle Tree Tests", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
-    let txParams = new TransactionParameters({
+    const txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       transactionMerkleTreePubkey:
@@ -600,8 +601,8 @@ describe("Merkle Tree Tests", () => {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       account: KEYPAIR,
     });
-    let { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
-    var transaction = new Transaction({
+    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
+    const transaction = new Transaction({
       rootIndex,
       nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
       solMerkleTree: lightProvider.solMerkleTree,
@@ -653,20 +654,20 @@ describe("Merkle Tree Tests", () => {
     let error;
 
     // fetch uninserted utxos from chain
-    let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
+    const leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
       transactionMerkleTreePubkey,
     );
 
     await circomlibjs.buildPoseidonOpt();
     // build tree from chain
-    let merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
+    const merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
       [
         Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
         anchor.utils.bytes.utf8.encode("storage"),
       ],
       merkleTreeProgram.programId,
     )[0];
-    let connection = provider.connection;
+    const connection = provider.connection;
 
     if (leavesPdas.length > 1) {
       // test leaves with higher starting index than merkle tree next index
@@ -730,27 +731,27 @@ describe("Merkle Tree Tests", () => {
       console.log("pdas.length <=" + 1 + " skipping some tests");
     }
 
-    let merkleTreeConfig = new MerkleTreeConfig({
+    const merkleTreeConfig = new MerkleTreeConfig({
       payer: ADMIN_AUTH_KEYPAIR,
       anchorProvider: provider,
     });
 
     // Check the next Merkle Tree indexes in Merkle Tree Authority. They should
     // be 1.
-    let merkleTreeAuthorityAccountInfo =
+    const merkleTreeAuthorityAccountInfo =
       await merkleTreeConfig.getMerkleTreeAuthorityAccountInfo();
     assert(merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex.eq(BN_1));
     assert(merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex.eq(BN_1));
 
     // Check if the previous Merkle Trees, before initializing the new ones,
     // are the newest ones. Check their indexes (0) as well.
-    let transactionMerkleTreeAccountInfo =
+    const transactionMerkleTreeAccountInfo =
       await merkleTreeConfig.getTransactionMerkleTreeAccountInfo(
         transactionMerkleTreePubkey,
       );
     assert.equal(transactionMerkleTreeAccountInfo.newest, 1);
     assert(transactionMerkleTreeAccountInfo.merkleTreeNr.eq(BN_0));
-    let eventMerkleTreeAccountInfo =
+    const eventMerkleTreeAccountInfo =
       await merkleTreeConfig.getEventMerkleTreeAccountInfo(
         eventMerkleTreePubkey,
       );
@@ -767,12 +768,12 @@ describe("Merkle Tree Tests", () => {
 
     // Check if the previous Merkle Trees, after initializing the new ones,
     // aren't the newest ones anymore.
-    let transactionMerkleTreeUpdatedAccountInfo =
+    const transactionMerkleTreeUpdatedAccountInfo =
       await merkleTreeConfig.getTransactionMerkleTreeAccountInfo(
         transactionMerkleTreePubkey,
       );
     assert.equal(transactionMerkleTreeUpdatedAccountInfo.newest, 0);
-    let eventMerkleTreeUpdatedAccountInfo =
+    const eventMerkleTreeUpdatedAccountInfo =
       await merkleTreeConfig.getEventMerkleTreeAccountInfo(
         eventMerkleTreePubkey,
       );
@@ -780,13 +781,13 @@ describe("Merkle Tree Tests", () => {
 
     // Check if the new Merkle Trees are the newest ones. Check their indexes
     // (1) as well.
-    let newTransactionMerkleTreeAccountInfo =
+    const newTransactionMerkleTreeAccountInfo =
       await merkleTreeConfig.getTransactionMerkleTreeAccountInfo(
         newTransactionMerkleTreePubkey,
       );
     assert.equal(newTransactionMerkleTreeAccountInfo.newest, 1);
     assert(newTransactionMerkleTreeAccountInfo.merkleTreeNr.eq(BN_1));
-    let newEventMerkleTreeAccountInfo =
+    const newEventMerkleTreeAccountInfo =
       await merkleTreeConfig.getEventMerkleTreeAccountInfo(
         newEventMerkleTreePubkey,
       );
@@ -795,7 +796,7 @@ describe("Merkle Tree Tests", () => {
 
     // Check the next Merkle Tree indexes in MerkleTreeAuthority. They should
     // be 2.
-    let merkleTreeAuthorityUpdatedAccountInfo =
+    const merkleTreeAuthorityUpdatedAccountInfo =
       await merkleTreeConfig.getMerkleTreeAuthorityAccountInfo();
     assert(
       merkleTreeAuthorityUpdatedAccountInfo.transactionMerkleTreeIndex.eq(BN_2),
@@ -892,10 +893,10 @@ describe("Merkle Tree Tests", () => {
     // Test property: 6
     // trying to use merkleTreeUpdateState with different signer
 
-    let maliciousSigner = await newAccountWithLamports(provider.connection);
+    const maliciousSigner = await newAccountWithLamports(provider.connection);
     console.log("maliciousSigner: ", maliciousSigner.publicKey.toBase58());
 
-    let maliciousMerkleTreeUpdateState =
+    const maliciousMerkleTreeUpdateState =
       solana.PublicKey.findProgramAddressSync(
         [
           Buffer.from(new Uint8Array(maliciousSigner.publicKey.toBytes())),
@@ -1021,7 +1022,7 @@ describe("Merkle Tree Tests", () => {
     }
     assert(error.error.errorCode.code == "InvalidAuthority");
 
-    var merkleTreeAccountPrior =
+    const merkleTreeAccountPrior =
       await merkleTreeProgram.account.transactionMerkleTree.fetch(
         transactionMerkleTreePubkey,
       );
@@ -1030,7 +1031,7 @@ describe("Merkle Tree Tests", () => {
       provider!.connection,
     );
 
-    let merkleTree = await SolMerkleTree.build({
+    const merkleTree = await SolMerkleTree.build({
       pubkey: transactionMerkleTreePubkey,
       poseidon: POSEIDON,
       indexedTransactions,
@@ -1091,16 +1092,16 @@ describe("Merkle Tree Tests", () => {
   });
 
   it("Switch to a new Merkle tree", async () => {
-    var shieldAmount = new anchor.BN(1_000_000);
-    var shieldFeeAmount = new anchor.BN(1_000_000);
+    const shieldAmount = new anchor.BN(1_000_000);
+    const shieldFeeAmount = new anchor.BN(1_000_000);
 
-    let lightProvider = await Provider.init({
+    const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
       confirmConfig,
     });
 
-    let shieldUtxo = new Utxo({
+    const shieldUtxo = new Utxo({
       poseidon: POSEIDON,
       assets: [FEE_ASSET, MINT],
       amounts: [shieldFeeAmount, shieldAmount],
@@ -1115,7 +1116,7 @@ describe("Merkle Tree Tests", () => {
     const newEventMerkleTreePubkey =
       MerkleTreeConfig.getEventMerkleTreePda(BN_1);
 
-    let txParams = new TransactionParameters({
+    const txParams = new TransactionParameters({
       outputUtxos: [shieldUtxo],
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       transactionMerkleTreePubkey:
@@ -1129,7 +1130,7 @@ describe("Merkle Tree Tests", () => {
     });
 
     const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
-    let transaction = new Transaction({
+    const transaction = new Transaction({
       rootIndex,
       nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
       solMerkleTree: lightProvider.solMerkleTree,
@@ -1152,7 +1153,7 @@ describe("Merkle Tree Tests", () => {
     );
     await lightProvider.sendAndConfirmTransaction(instructions);
 
-    let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
+    const leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
       newTransactionMerkleTreePubkey,
     );
 

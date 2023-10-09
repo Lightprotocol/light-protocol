@@ -38,7 +38,7 @@ export const getWalletConfig = async (
   anchorProvider: anchor.AnchorProvider
 ): Promise<MerkleTreeConfig> => {
   try {
-    let merkleTreeConfig = new MerkleTreeConfig({
+    const merkleTreeConfig = new MerkleTreeConfig({
       payer: getPayer(),
       anchorProvider: anchorProvider,
     });
@@ -208,8 +208,8 @@ export const setLookUpTable = (address: string): void => {
 export const getPayer = () => {
   const secretKey = bs58.decode(getSecretKey());
 
-  let asUint8Array: Uint8Array = new Uint8Array(secretKey);
-  let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
+  const asUint8Array: Uint8Array = new Uint8Array(secretKey);
+  const keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
 
   return keypair;
 };
@@ -253,7 +253,7 @@ export const getConfig = (filePath?: string): Config => {
     }
     ensureDirectoryExists(process.env.HOME + CONFIG_PATH);
     if (!fs.existsSync(filePath)) {
-      let data = {
+      const data = {
         ...DEFAULT_CONFIG,
         secretKey: bs58.encode(solana.Keypair.generate().secretKey),
       };

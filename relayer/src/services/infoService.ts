@@ -2,7 +2,7 @@ import { getRelayer } from "../utils/provider";
 
 export async function getRelayerInfo(_req: any, res: any): Promise<string> {
   try {
-    let relayer = await getRelayer();
+    const relayer = await getRelayer();
     return res.status(200).json({
       data: {
         relayerPubkey: relayer.accounts.relayerPubkey.toBase58(),

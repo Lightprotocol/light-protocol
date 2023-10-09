@@ -15,14 +15,14 @@ import {
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-let mockKeypair = SolanaKeypair.generate();
-let mockKeypair1 = SolanaKeypair.generate();
-let relayerFee = new BN("123214");
-let relayerRecipientSol = SolanaKeypair.generate().publicKey;
+const mockKeypair = SolanaKeypair.generate();
+const mockKeypair1 = SolanaKeypair.generate();
+const relayerFee = new BN("123214");
+const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
 describe("Test Relayer Functional", () => {
   it("Relayer Shield", () => {
-    let relayer = new Relayer(
+    const relayer = new Relayer(
       mockKeypair.publicKey,
       mockKeypair1.publicKey,
       BN_1,
@@ -39,7 +39,7 @@ describe("Test Relayer Functional", () => {
   });
 
   it("Relayer Transfer/Unshield", () => {
-    let relayer = new Relayer(
+    const relayer = new Relayer(
       mockKeypair.publicKey,
       relayerRecipientSol,
       relayerFee,
@@ -56,7 +56,7 @@ describe("Test Relayer Functional", () => {
   });
 
   it("Relayer ataCreationFee", () => {
-    let relayer = new Relayer(mockKeypair.publicKey);
+    const relayer = new Relayer(mockKeypair.publicKey);
     assert.equal(relayer.relayerFee.toString(), "0");
     assert.equal(
       TOKEN_ACCOUNT_FEE.toNumber(),

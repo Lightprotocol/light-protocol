@@ -158,7 +158,7 @@ export class User {
     // identify spent utxos
     for (const [, tokenBalance] of balance.tokenBalances) {
       for (const [key, utxo] of tokenBalance.utxos) {
-        let nullifierAccountInfo = await fetchNullifierAccountInfo(
+        const nullifierAccountInfo = await fetchNullifierAccountInfo(
           utxo.getNullifier({
             poseidon: this.provider.poseidon,
             account: this.account,
@@ -186,7 +186,7 @@ export class User {
     await this.provider.latestMerkleTree(indexedTransactions);
 
     for (const trx of indexedTransactions) {
-      let leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
+      const leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
 
       for (let index = 0; index < trx.leaves.length; index += 2) {
         const leafLeft = trx.leaves[index];
@@ -373,7 +373,7 @@ export class User {
         "shield",
         "Provider not set!",
       );
-    let tokenCtx = TOKEN_REGISTRY.get(token);
+    const tokenCtx = TOKEN_REGISTRY.get(token);
 
     if (!tokenCtx)
       throw new UserError(
@@ -429,12 +429,12 @@ export class User {
       }
     }
     // TODO: add get utxos as array method
-    let utxosEntries = this.balance.tokenBalances
+    const utxosEntries = this.balance.tokenBalances
       .get(tokenCtx.mint.toBase58())
       ?.utxos.values();
     let utxos: Utxo[] =
       utxosEntries && mergeExistingUtxos ? Array.from(utxosEntries) : [];
-    let outUtxos: Utxo[] = [];
+    const outUtxos: Utxo[] = [];
     if (recipient) {
       const amounts: BN[] = publicAmountSpl
         ? [publicAmountSol, publicAmountSpl]
@@ -495,7 +495,7 @@ export class User {
         "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
     const { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
-    let tx = new Transaction({
+    const tx = new Transaction({
       rootIndex,
       nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
       solMerkleTree: this.provider.solMerkleTree!,
@@ -522,7 +522,7 @@ export class User {
       this.recentTransactionParameters?.publicAmountSpl.gt(BN_0) &&
       this.recentTransactionParameters?.action === Action.SHIELD
     ) {
-      let tokenAccountInfo =
+      const tokenAccountInfo =
         await this.provider.provider?.connection!.getAccountInfo(
           this.recentTransactionParameters.accounts.senderSpl!,
         );
@@ -533,8 +533,8 @@ export class User {
           "shield",
           "AssociatedTokenAccount doesn't exist!",
         );
-      let tokenBalance = await splToken.getAccount(
-        this.provider.provider?.connection!,
+      const tokenBalance = await splToken.getAccount(
+        this.provider.provider.connection!,
         this.recentTransactionParameters.accounts.senderSpl!,
       );
 
@@ -655,7 +655,7 @@ export class User {
     skipDecimalConversions?: boolean;
     confirmOptions?: ConfirmOptions;
   }) {
-    let recipientAccount = recipient
+    const recipientAccount = recipient
       ? Account.fromPubkey(recipient, this.provider.poseidon)
       : undefined;
 
@@ -781,17 +781,17 @@ export class User {
       : minimumLamports
       ? this.provider.minimumLamports
       : BN_0;
-    let utxosEntries = this.balance.tokenBalances
+    const utxosEntries = this.balance.tokenBalances
       .get(tokenCtx.mint.toBase58())
       ?.utxos.values();
-    let solUtxos = this.balance.tokenBalances
+    const solUtxos = this.balance.tokenBalances
       .get(SystemProgram.programId.toBase58())
       ?.utxos.values();
 
-    let utxosEntriesSol: Utxo[] =
+    const utxosEntriesSol: Utxo[] =
       solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
 
-    let utxos: Utxo[] = utxosEntries
+    const utxos: Utxo[] = utxosEntries
       ? Array.from([...utxosEntries, ...utxosEntriesSol])
       : [];
 
@@ -839,12 +839,12 @@ export class User {
         "transfer",
         "Please provide a shielded recipient for the transfer.",
       );
-    let recipientAccount = Account.fromPubkey(
+    const recipientAccount = Account.fromPubkey(
       recipient,
       this.provider.poseidon,
     );
 
-    let txParams = await this.createTransferTransactionParameters({
+    const txParams = await this.createTransferTransactionParameters({
       token,
       recipient: recipientAccount,
       amountSpl,
@@ -956,18 +956,16 @@ export class User {
 
     if (outUtxos) _outUtxos = [..._outUtxos, ...outUtxos];
 
-    let utxos: Utxo[];
-
-    let solUtxos = this.balance.tokenBalances
+    const solUtxos = this.balance.tokenBalances
       .get(SystemProgram.programId.toBase58())
       ?.utxos.values();
-    let utxosEntriesSol: Utxo[] =
+    const utxosEntriesSol: Utxo[] =
       solUtxos && token !== "SOL" ? Array.from(solUtxos) : new Array<Utxo>();
 
-    let utxosEntries = this.balance.tokenBalances
+    const utxosEntries = this.balance.tokenBalances
       .get(tokenCtx.mint.toBase58())
       ?.utxos.values();
-    utxos = utxosEntries
+    const utxos = utxosEntries
       ? Array.from([...utxosEntries, ...utxosEntriesSol])
       : [];
 
@@ -1046,7 +1044,13 @@ export class User {
     return { txHash, response: relayerMerkleTreeUpdateResponse };
   }
 
-  async transactWithUtxos({}: {
+  // @ts-ignore
+  async transactWithUtxos({
+    action,
+    inUtxoCommitments,
+    inUtxos,
+    outUtxos,
+  }: {
     action: Action;
     inUtxoCommitments: string[];
     inUtxos: Utxo[];
@@ -1134,7 +1138,7 @@ export class User {
   ) {
     await this.getUtxoInbox(latest);
     await this.getBalance(latest);
-    let inboxTokenBalance: TokenUtxoBalance | undefined =
+    const inboxTokenBalance: TokenUtxoBalance | undefined =
       this.inboxBalance.tokenBalances.get(asset.toString());
     if (!inboxTokenBalance)
       throw new UserError(
@@ -1143,14 +1147,14 @@ export class User {
         `for asset ${asset} the utxo inbox is empty`,
       );
 
-    let utxosEntries = this.balance.tokenBalances
+    const utxosEntries = this.balance.tokenBalances
       .get(asset.toBase58())
       ?.utxos.values();
-    let _solUtxos = this.balance.tokenBalances
+    const _solUtxos = this.balance.tokenBalances
       .get(new PublicKey(0).toBase58())
       ?.utxos.values();
     const solUtxos = _solUtxos ? Array.from(_solUtxos) : [];
-    let inboxUtxosEntries = Array.from(inboxTokenBalance.utxos.values());
+    const inboxUtxosEntries = Array.from(inboxTokenBalance.utxos.values());
 
     if (inboxUtxosEntries.length == 0)
       throw new UserError(
@@ -1158,7 +1162,7 @@ export class User {
         "mergeAllUtxos",
         `for asset ${asset} the utxo inbox is empty`,
       );
-    let assetIndex =
+    const assetIndex =
       asset.toBase58() === SystemProgram.programId.toBase58() ? 0 : 1;
     // sort inbox utxos descending
     inboxUtxosEntries.sort(
@@ -1174,7 +1178,7 @@ export class User {
       inUtxos = inUtxos.slice(0, 10);
     }
 
-    let txParams = await TransactionParameters.getTxParams({
+    const txParams = await TransactionParameters.getTxParams({
       tokenCtx: inboxTokenBalance.tokenData,
       action: Action.TRANSFER,
       provider: this.provider,
@@ -1214,7 +1218,7 @@ export class User {
 
     await this.getUtxoInbox(latest);
     await this.getBalance(latest);
-    let inboxTokenBalance: TokenUtxoBalance | undefined =
+    const inboxTokenBalance: TokenUtxoBalance | undefined =
       this.inboxBalance.tokenBalances.get(asset.toString());
     if (!inboxTokenBalance)
       throw new UserError(
@@ -1223,13 +1227,13 @@ export class User {
         `for asset ${asset} the utxo inbox is empty`,
       );
 
-    let utxosEntries = this.balance.tokenBalances
+    const utxosEntries = this.balance.tokenBalances
       .get(asset.toBase58())
       ?.utxos.values();
 
-    let commitmentUtxos: Utxo[] = [];
+    const commitmentUtxos: Utxo[] = [];
     for (const commitment of commitments) {
-      let utxo = inboxTokenBalance.utxos.get(commitment);
+      const utxo = inboxTokenBalance.utxos.get(commitment);
       if (!utxo)
         throw new UserError(
           UserErrorCode.COMMITMENT_NOT_FOUND,
@@ -1239,7 +1243,7 @@ export class User {
       commitmentUtxos.push(utxo);
     }
 
-    let inUtxos: Utxo[] = utxosEntries
+    const inUtxos: Utxo[] = utxosEntries
       ? Array.from([...utxosEntries, ...commitmentUtxos])
       : Array.from(commitmentUtxos);
 
@@ -1255,7 +1259,7 @@ export class User {
       );
     }
 
-    let txParams = await TransactionParameters.getTxParams({
+    const txParams = await TransactionParameters.getTxParams({
       tokenCtx: inboxTokenBalance.tokenData,
       action: Action.TRANSFER,
       provider: this.provider,
@@ -1497,7 +1501,7 @@ export class User {
     skipDecimalConversions?: boolean;
     confirmOptions?: ConfirmOptions;
   }) {
-    let txParams = await this.createStoreAppUtxoTransactionParameters({
+    const txParams = await this.createStoreAppUtxoTransactionParameters({
       token,
       amountSol,
       amountSpl,
@@ -1587,8 +1591,9 @@ export class User {
                   poseidon: this.provider.poseidon,
                   account: this.account,
                 })!,
-                this.provider.provider?.connection!,
+                this.provider.provider?.connection,
               );
+
               if (!nfExists) {
                 decryptedStorageUtxos.push(utxo);
               } else {
@@ -1650,7 +1655,7 @@ export class User {
     for (const [, programBalance] of this.balance.programBalances) {
       for (const [, tokenBalance] of programBalance.tokenBalances) {
         for (const [key, utxo] of tokenBalance.utxos) {
-          let nullifierAccountInfo = await fetchNullifierAccountInfo(
+          const nullifierAccountInfo = await fetchNullifierAccountInfo(
             utxo.getNullifier({
               poseidon: this.provider.poseidon,
               account: this.account,
@@ -1778,11 +1783,11 @@ export class User {
         `provided program parameters: ${programParameters}`,
       );
 
-    let isAppInUtxo = Utxo.getAppInUtxoIndices(appUtxos);
+    const isAppInUtxo = Utxo.getAppInUtxoIndices(appUtxos);
     programParameters.inputs.isAppInUtxo = isAppInUtxo;
     if (!addOutUtxos) addOutUtxos = !outUtxos;
     if (action === Action.TRANSFER) {
-      let txParams = await this.createTransferTransactionParameters({
+      const txParams = await this.createTransferTransactionParameters({
         verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
         inUtxos: [...appUtxos, ...inUtxos],
         outUtxos,
@@ -1875,7 +1880,7 @@ export class User {
       }
     };
     for (const [, programBalance] of this.balance.programBalances) {
-      let res = iterateOverTokenBalance(programBalance.tokenBalances);
+      const res = iterateOverTokenBalance(programBalance.tokenBalances);
       if (res) return res;
     }
     return iterateOverTokenBalance(this.balance.tokenBalances);

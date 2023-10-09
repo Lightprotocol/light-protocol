@@ -1,5 +1,5 @@
 import { Idl } from "@coral-xyz/anchor";
-import { IdlAccountDef, IdlAccountItem } from "@coral-xyz/anchor/dist/cjs/idl";
+import { IdlAccountDef } from "@coral-xyz/anchor/dist/cjs/idl";
 
 export type zkIdl = Idl;
 

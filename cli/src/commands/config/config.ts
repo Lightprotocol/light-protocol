@@ -108,7 +108,7 @@ class ConfigCommand extends Command {
       }
 
       if (syncRelayer) {
-        let fetchedRelayer = await Relayer.initFromUrl(getRelayerUrl());
+        const fetchedRelayer = await Relayer.initFromUrl(getRelayerUrl());
         config.relayerPublicKey =
           fetchedRelayer.accounts.relayerPubkey.toBase58();
         config.relayerRecipient =
@@ -118,6 +118,7 @@ class ConfigCommand extends Command {
       }
       // TODO: remove this from config and fetch this from the relayer, use the signer as relayer recipient when using a test relayer
       if (relayerRecipient) {
+        // eslint-disable-next-line
         if (new PublicKey(relayerRecipient)) {
           config.relayerRecipient = relayerRecipient;
         } else {
@@ -125,6 +126,7 @@ class ConfigCommand extends Command {
         }
       }
       if (relayerPublicKey) {
+        // eslint-disable-next-line
         if (new PublicKey(relayerPublicKey)) {
           config.relayerPublicKey = relayerPublicKey;
         } else {
@@ -133,6 +135,7 @@ class ConfigCommand extends Command {
       }
 
       if (lookUpTable) {
+        // eslint-disable-next-line
         if (new PublicKey(lookUpTable)) {
           config.lookUpTable = lookUpTable;
         } else {
@@ -152,7 +155,7 @@ class ConfigCommand extends Command {
 }
 
 function logConfig(config: any) {
-  let tableData = [];
+  const tableData = [];
 
   tableData.push({
     name: "user public key",
