@@ -45,9 +45,9 @@ import {
   BN_1,
   BN_0,
   BN_2,
+  closeMerkleTreeUpdateState,
 } from "../../src";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
-import { closeMerkleTreeUpdateState } from "../../lib";
 
 let POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 

@@ -222,7 +222,6 @@ const checkComputeInstructionsCompleted = async (
   return accountInfo.currentInstructionIndex.toNumber() === 56;
 };
 
-// TODO: investigate
 const sendAndConfirmTransactions = async (
   transactions: Transaction[],
   signer: Keypair,

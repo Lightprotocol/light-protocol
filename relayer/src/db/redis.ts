@@ -2,7 +2,7 @@ import "dotenv/config.js";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 import {
-  ATTEMPTS,
+  WORKER_ATTEMPTS_PER_JOB,
   CONCURRENT_RELAY_WORKERS,
   Environment,
   HOST,
@@ -40,7 +40,7 @@ export const getDbConnection = async () => {
 export const relayQueue = new Queue("relay", {
   connection: redisConnection,
   defaultJobOptions: {
-    attempts: ATTEMPTS,
+    attempts: WORKER_ATTEMPTS_PER_JOB,
     backoff: {
       type: "exponential",
       delay: 2000,
@@ -99,7 +99,7 @@ relayWorker.on("completed", async (job) => {
 
 relayWorker.on("failed", async (job, err) => {
   if (job) {
-    if (job.attemptsMade < ATTEMPTS) {
+    if (job.attemptsMade < WORKER_ATTEMPTS_PER_JOB) {
       console.log(
         `relay #${job.id} attempt ${job.attemptsMade} failed - retrying`,
       );
