@@ -6,7 +6,7 @@
   "bin": {
     "light": "./test_bin/run"
   },
-  "license": "MIT",
+  "license": "GPL-3.0",
   "main": "dist/index.js",
   "files": [
     "/accounts",

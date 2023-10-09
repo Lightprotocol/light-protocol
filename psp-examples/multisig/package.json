@@ -7,7 +7,7 @@
     "multisig": "./bin/run"
   },
   "homepage": "https://github.com/lightprotocol/psp-examples/tree/main/multisig",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "main": "dist/index.js",
   "repository": "lightprotocol/psp-examples",
   "files": [
