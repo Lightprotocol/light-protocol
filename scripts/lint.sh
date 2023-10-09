@@ -2,7 +2,7 @@
 
 set -e
 
-npx nx run-many --target=lint:fix --all
+npx nx run-many --target=format:check --all
 
 npx nx run-many --target=lint --all
 
