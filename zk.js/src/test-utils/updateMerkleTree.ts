@@ -2,13 +2,78 @@ import * as anchor from "@coral-xyz/anchor";
 import {
   closeMerkleTreeUpdateState,
   executeUpdateMerkleTreeTransactions,
+  getMerkleTreeUpdateStatePda,
   MerkleTreeConfig,
   SolMerkleTree,
 } from "../merkleTree/index";
-import { confirmConfig, merkleTreeProgramId } from "../constants";
+import {
+  confirmConfig,
+  FETCH_QUEUED_LEAVES_RETRIES,
+  merkleTreeProgramId,
+  UPDATE_MERKLE_TREE_RETRIES,
+} from "../constants";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
-import { Connection, Keypair } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { sleep } from "../index";
+import { MerkleTreeProgram } from "../../lib";
+
+async function retryOperation(
+  operation: () => Promise<void>,
+  handleError: () => Promise<void>,
+  retries = 1,
+) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await operation();
+      break;
+    } catch (err) {
+      if (i === retries - 1) {
+        throw err;
+      }
+      await handleError();
+    }
+  }
+}
+
+async function getLeavesPdas(
+  transactionMerkleTreePda: PublicKey,
+  anchorProvider: anchor.AnchorProvider,
+) {
+  let leavesPdas: any[] = [];
+  let retries = FETCH_QUEUED_LEAVES_RETRIES;
+
+  while (leavesPdas.length === 0 && retries > 0) {
+    if (retries !== FETCH_QUEUED_LEAVES_RETRIES) await sleep(1000);
+    leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
+      transactionMerkleTreePda,
+      anchorProvider,
+    );
+    retries--;
+  }
+
+  return leavesPdas;
+}
+
+/**
+ * close the update state account if it exists, else don't handle the error
+ */
+async function handleUpdateMerkleTreeError(
+  merkleTreeProgram: anchor.Program<MerkleTreeProgram>,
+  payer: Keypair,
+  connection: Connection,
+) {
+  let merkleTreeUpdateState = getMerkleTreeUpdateStatePda(
+    payer.publicKey,
+    merkleTreeProgram,
+  );
+  const isInited = await connection.getAccountInfo(merkleTreeUpdateState);
+
+  if (!isInited) throw new Error("update state account not initialized");
+
+  console.log("closing update state account...");
+  await closeMerkleTreeUpdateState(merkleTreeProgram, payer, connection);
+  console.log("successfully closed update state account");
+}
 
 export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
   const connection = new Connection(url, confirmConfig);
@@ -25,41 +90,28 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
     anchorProvider && anchorProvider,
   );
 
-  try {
-    const transactionMerkleTreePda =
-      MerkleTreeConfig.getTransactionMerkleTreePda();
+  const transactionMerkleTreePda =
+    MerkleTreeConfig.getTransactionMerkleTreePda();
 
-    let leavesPdas: any[] = [];
-    let retries = 5;
-    while (leavesPdas.length === 0 && retries > 0) {
-      if (retries !== 5) await sleep(1000);
-      leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
-        transactionMerkleTreePda,
-        anchorProvider && anchorProvider,
-      );
-      retries--;
-    }
+  let leavesPdas = await getLeavesPdas(
+    transactionMerkleTreePda,
+    anchorProvider,
+  );
+  if (leavesPdas.length === 0) throw new Error("didn't find any leaves");
 
-    await executeUpdateMerkleTreeTransactions({
-      connection,
-      signer: payer,
-      merkleTreeProgram,
-      leavesPdas,
-      transactionMerkleTree: transactionMerkleTreePda,
-    });
-  } catch (err) {
-    // TODO: Revisit recovery.
-    // Rn, we're just blanked-closing the update state account on failure which
-    // might not be desirable in some cases.
-    console.error("failed at updateMerkleTreeForTest", err);
-    try {
-      console.log("closing update state account...");
-      await closeMerkleTreeUpdateState(merkleTreeProgram, payer, connection);
-      console.log("successfully closed update state account");
-    } catch (e) {
-      // TODO: append to error stack trace or solve differently
-      console.log("failed to close update state account");
-    }
-    throw err;
-  }
+  await retryOperation(
+    async () => {
+      await executeUpdateMerkleTreeTransactions({
+        connection,
+        signer: payer,
+        merkleTreeProgram,
+        leavesPdas,
+        transactionMerkleTree: transactionMerkleTreePda,
+      });
+    },
+    async () => {
+      await handleUpdateMerkleTreeError(merkleTreeProgram, payer, connection);
+    },
+    UPDATE_MERKLE_TREE_RETRIES,
+  );
 }

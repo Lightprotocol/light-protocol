@@ -46,7 +46,7 @@ export async function closeMerkleTreeUpdateState(
   }
 }
 
-function getMerkleTreeUpdateStatePda(
+export function getMerkleTreeUpdateStatePda(
   authority: PublicKey,
   merkleTreeProgram: Program<MerkleTreeProgram>,
 ) {
