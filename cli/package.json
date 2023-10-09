@@ -78,7 +78,7 @@
     "topicSeparator": ""
   },
   "scripts": {
-    "build": "shx rm -rf dist && pnpm tsc -b && sh scripts/copyLocalProgramBinaries.sh",
+    "build": "shx rm -rf dist && yarn tsc -b && sh scripts/copyLocalProgramBinaries.sh",
     "format": "yarn prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
     "format:check": "yarn prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
     "lint": "eslint . --ext .ts",
