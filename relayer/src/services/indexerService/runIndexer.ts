@@ -17,7 +17,7 @@ export async function runIndexer(rounds: number = 0) {
     const { job } = await getTransactions(DB_VERSION);
     const url = process.env.RPC_URL;
     if (!url) throw new Error("Environment variable RPC_URL not set");
-    let connection = new Connection(url, "confirmed");
+    const connection = new Connection(url, "confirmed");
 
     if (job) {
       console.log(

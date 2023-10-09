@@ -6,8 +6,8 @@ import {
   closeMerkleTreeUpdateState,
 } from "@lightprotocol/zk.js";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { getKeyPairFromEnv } from "../src/utils/provider";
-import { RPC_URL } from "../src/config";
+import { getKeyPairFromEnv } from "./src/utils/provider";
+import { RPC_URL } from "./src/config";
 
 (async () => {
   let wallet = getKeyPairFromEnv("KEY_PAIR");
