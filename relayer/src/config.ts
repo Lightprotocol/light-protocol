@@ -9,8 +9,9 @@ import {
 import "dotenv/config.js";
 
 let _LOOK_UP_TABLE: string | undefined | null = process.env.LOOK_UP_TABLE;
-
+console.log("() => _LOOK_UP_TABLE", _LOOK_UP_TABLE);
 export function getLookUpTableVar() {
+  console.log("config - LOOK_UP_TABLE", _LOOK_UP_TABLE);
   return _LOOK_UP_TABLE;
 }
 export function setLookUpTableVar(value: string) {

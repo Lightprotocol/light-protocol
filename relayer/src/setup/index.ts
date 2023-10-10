@@ -25,6 +25,7 @@ export async function setupRelayerLookUpTable(anchorProvider: AnchorProvider) {
     const wallet = useWallet(getKeyPairFromEnv("KEY_PAIR"), RPC_URL);
 
     lookUpTable = await initLookUpTable(wallet, anchorProvider);
+    process.env.LOOK_UP_TABLE = lookUpTable.toString();
     setLookUpTableVar(lookUpTable.toString());
 
     console.log(
