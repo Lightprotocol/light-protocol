@@ -33,4 +33,5 @@ jobs:
       install-commands: |
         ./scripts/install.sh --enable-redis
         mkdir -p /home/runner/.config/solana/
+        source ./scripts/devenv.sh
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
