@@ -19,9 +19,9 @@ import {
   TOKEN_AUTHORITY,
   REGISTERED_POOL_PDA_SPL_TOKEN,
   PRE_INSERTED_LEAVES_INDEX,
-  verifierProgramTwoProgramId,
+  lightPsp4in4outId,
   confirmConfig,
-  verifierProgramZeroProgramId,
+  lightPsp2in2outId,
   merkleTreeProgramId,
   REGISTERED_VERIFIER_ONE_PDA,
   REGISTERED_VERIFIER_PDA,
@@ -29,7 +29,7 @@ import {
   MINT,
   MerkleTreeConfig,
 } from "../index";
-import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
+import { LightPsp2in2out, IDL_LIGHT_PSP2IN2OUT } from "../idls/index";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 
 // TODO: create cli function to create a lookup table for apps
@@ -98,15 +98,15 @@ export async function initLookUpTableTest(
       payer: payerPubkey,
       recentSlot,
     })[0];
-    const verifierProgramZero: Program<VerifierProgramZero> = new Program(
-      IDL_VERIFIER_PROGRAM_ZERO,
-      verifierProgramZeroProgramId,
+    const lightPsp2in2out: Program<LightPsp2in2out> = new Program(
+      IDL_LIGHT_PSP2IN2OUT,
+      lightPsp2in2outId,
       provider,
     );
     const escrows = (
       await PublicKey.findProgramAddress(
         [anchor.utils.bytes.utf8.encode("escrow")],
-        verifierProgramZero.programId,
+        lightPsp2in2out.programId,
       )
     )[0];
 
@@ -134,7 +134,7 @@ export async function initLookUpTableTest(
       TOKEN_AUTHORITY,
       REGISTERED_POOL_PDA_SOL,
       REGISTERED_POOL_PDA_SPL_TOKEN,
-      verifierProgramTwoProgramId,
+      lightPsp4in4outId,
       REGISTERED_VERIFIER_ONE_PDA,
       REGISTERED_VERIFIER_PDA,
       REGISTERED_VERIFIER_TWO_PDA,

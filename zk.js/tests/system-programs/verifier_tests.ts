@@ -28,8 +28,8 @@ import {
   Action,
   useWallet,
   TestRelayer,
-  IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_ONE,
+  IDL_LIGHT_PSP2IN2OUT,
+  IDL_LIGHT_PSP10IN2OUT,
   MerkleTreeConfig,
   User,
   sleep,
@@ -60,7 +60,7 @@ describe("Verifier Zero and One Tests", () => {
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
   let shieldAmount, shieldFeeAmount, lightProvider: Provider;
-  const VERIFIER_IDLS = [IDL_VERIFIER_PROGRAM_ZERO, IDL_VERIFIER_PROGRAM_ONE];
+  const VERIFIER_IDLS = [IDL_LIGHT_PSP2IN2OUT, IDL_LIGHT_PSP10IN2OUT];
 
   before(async () => {
     await createTestAccounts(provider.connection, userTokenAccount);

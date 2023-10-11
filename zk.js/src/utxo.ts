@@ -13,7 +13,7 @@ import {
   FIELD_SIZE,
   getAssetIndex,
   hashAndTruncateToCircuit,
-  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_LIGHT_PSP2IN2OUT,
   N_ASSETS,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   UTXO_PREFIX_LENGTH,
@@ -390,7 +390,7 @@ export class Utxo {
     };
     let serializedData;
     if (!this.appDataIdl || !this.includeAppData) {
-      const coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+      const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
       serializedData = await coder.encode("utxo", serializeObject);
     } else if (this.appDataIdl) {
       const coder = new BorshAccountsCoder(this.appDataIdl);
@@ -469,7 +469,7 @@ export class Utxo {
     let appData: any = undefined;
     // TODO: should I check whether an account is passed or not?
     if (!appDataIdl) {
-      const coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+      const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
       decodedUtxoData = coder.decode("utxo", bytes);
     } else {
       if (!appDataIdl.accounts)

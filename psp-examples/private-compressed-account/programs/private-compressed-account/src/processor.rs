@@ -5,10 +5,7 @@ use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::light_transaction::Proof;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
-use light_verifier_sdk::{
-    light_app_transaction::AppTransaction,
-    light_transaction::Config,
-};
+use light_verifier_sdk::{light_app_transaction::AppTransaction, light_transaction::Config};
 
 #[derive(Clone)]
 pub struct TransactionsConfig;
@@ -40,8 +37,8 @@ pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
     let cpi_seed = &[seed, domain_separation_seed, &bump[..]];
     let final_seed = &[&cpi_seed[..]];
 
-    let accounts: verifier_program_two::cpi::accounts::LightInstruction<'info> =
-        verifier_program_two::cpi::accounts::LightInstruction {
+    let accounts: light_psp4in4out::cpi::accounts::LightInstruction<'info> =
+        light_psp4in4out::cpi::accounts::LightInstruction {
             verifier_state: ctx.accounts.verifier_state.to_account_info(),
             signing_address: ctx.accounts.signing_address.to_account_info(),
             authority: ctx.accounts.authority.to_account_info(),
@@ -68,7 +65,7 @@ pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
     );
     cpi_ctx = cpi_ctx.with_remaining_accounts(ctx.remaining_accounts.to_vec());
 
-    // verifier_program_two::cpi::shielded_transfer_inputs(
+    // light_psp4in4out::cpi::shielded_transfer_inputs(
     //     cpi_ctx,
     //     proof_verifier.a,
     //     proof_verifier.b,
@@ -76,7 +73,7 @@ pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
     //     ctx.accounts.verifier_state.transaction_hash,
     // )
 
-    verifier_program_two::cpi::shielded_transfer_inputs(
+    light_psp4in4out::cpi::shielded_transfer_inputs(
         cpi_ctx,
         proof_verifier.a,
         proof_verifier.b,
@@ -84,7 +81,7 @@ pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
         <Vec<u8> as TryInto<[u8; 32]>>::try_into(
             ctx.accounts.verifier_state.checked_public_inputs[1].to_vec(),
         )
-            .unwrap(),
+        .unwrap(),
     )
 }
 

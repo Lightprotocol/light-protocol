@@ -314,9 +314,7 @@ export async function createVerifyingkeyRsFileArgv() {
       program = "verifier_program_zero";
       const program_storage = "verifier_program_storage";
       const vKeyRsPath_storage =
-        "../../system-programs/programs/" +
-        program_storage +
-        "/src/verifying_key.rs";
+        "../../programs/" + program_storage + "/src/verifying_key.rs";
       paths.push(vKeyRsPath_storage);
     } else if (nrInputs == "10") {
       program = "verifier_program_one";
@@ -326,8 +324,7 @@ export async function createVerifyingkeyRsFileArgv() {
       throw new Error("invalid nr of inputs");
     }
     vKeyJsonPath = "./verification_key_mainnet" + nrInputs + ".json";
-    vKeyRsPath =
-      "../../system-programs/programs/" + program + "/src/verifying_key.rs";
+    vKeyRsPath = "../../programs/" + program + "/src/verifying_key.rs";
     circuitName = "transaction" + process.argv[3];
     artifactPath = "../../zk.js/build-circuits/transaction" + process.argv[3];
   }

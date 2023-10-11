@@ -1,7 +1,7 @@
 const solana = require("@solana/web3.js");
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { MerkleTreeProgram } from "../idls";
+import { LightMerkleTreeProgram } from "../idls";
 import { Program } from "@coral-xyz/anchor";
 
 /*
@@ -31,7 +31,7 @@ export async function checkMerkleTreeUpdateStateCreated({
   transactionMerkleTree: PublicKey;
   leavesPdas: Array<any>;
   current_instruction_index: number;
-  merkleTreeProgram: anchor.Program<MerkleTreeProgram>;
+  merkleTreeProgram: anchor.Program<LightMerkleTreeProgram>;
 }) {
   const x = console.log;
   console.log = () => {};
@@ -136,7 +136,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   numberOfLeaves: number;
   leavesPdas: any;
   transactionMerkleTree: PublicKey;
-  merkleTreeProgram: Program<MerkleTreeProgram>;
+  merkleTreeProgram: Program<LightMerkleTreeProgram>;
 }) {
   const merkleTreeTmpStateAccount = await connection.getAccountInfo(
     merkleTreeUpdateState,

@@ -97,27 +97,27 @@ export async function start_test_validator({
     { id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV", name: "spl_noop.so" },
     {
       id: "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6",
-      name: "merkle_tree_program.so",
+      name: "light_merkle_tree_program.so",
     },
     {
       id: "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i",
-      name: "verifier_program_zero.so",
+      name: "light_psp2in2out.so",
     },
     {
       id: "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj",
-      name: "verifier_program_storage.so",
+      name: "light_psp2in2out_storage.so",
     },
     {
       id: "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc",
-      name: "verifier_program_one.so",
+      name: "light_psp10in2out.so",
     },
     {
       id: "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86",
-      name: "verifier_program_two.so",
+      name: "light_psp4in4out.so",
     },
     {
       id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
-      name: "user_registry.so",
+      name: "light_user_registry.so",
     },
   ];
   if (additonalPrograms)

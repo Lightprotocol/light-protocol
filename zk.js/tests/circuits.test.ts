@@ -21,8 +21,8 @@ import {
   Transaction,
   TransactionParameters,
   Action,
-  IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_TWO,
+  IDL_LIGHT_PSP2IN2OUT,
+  IDL_LIGHT_PSP4IN4OUT,
   BN_0,
   BN_1,
 } from "../src";
@@ -90,7 +90,7 @@ describe("Masp circuit tests", () => {
       senderSol: lightProvider.wallet.publicKey,
       action: Action.SHIELD,
       poseidon,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
 
@@ -102,7 +102,7 @@ describe("Masp circuit tests", () => {
       senderSol: lightProvider.wallet.publicKey,
       action: Action.SHIELD,
       poseidon,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
@@ -127,7 +127,7 @@ describe("Masp circuit tests", () => {
       recipientSol: lightProvider.wallet.publicKey,
       action: Action.UNSHIELD,
       relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
     appData = { releaseSlot: BN_1 };
@@ -151,7 +151,7 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
       account,
     });
     txParamsPoolType = new TransactionParameters({
@@ -173,7 +173,7 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
     txParamsPoolTypeOut = new TransactionParameters({
@@ -194,7 +194,7 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
     txParamsOutApp = new TransactionParameters({
@@ -217,7 +217,7 @@ describe("Masp circuit tests", () => {
       poseidon,
       // automatic encryption for app utxos is not implemented
       encryptedUtxos: new Uint8Array(256).fill(1),
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
   });
@@ -529,7 +529,7 @@ describe("Masp circuit tests", () => {
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsApp,
-      appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
+      appParams: { mock: "1231", verifierIdl: IDL_LIGHT_PSP2IN2OUT },
     });
 
     await tx.compile(lightProvider.poseidon, account);
@@ -728,7 +728,7 @@ describe("App system circuit tests", () => {
       senderSol: lightProvider.wallet.publicKey,
       action: Action.SHIELD,
       poseidon,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
       account,
     });
 
@@ -752,7 +752,7 @@ describe("App system circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
       account,
     });
   });
@@ -762,7 +762,7 @@ describe("App system circuit tests", () => {
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
-      appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
+      appParams: { mock: "123", verifierIdl: IDL_LIGHT_PSP2IN2OUT },
     });
     await tx.compile(lightProvider.poseidon, account);
 
@@ -778,7 +778,7 @@ describe("App system circuit tests", () => {
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsApp,
-      appParams: { mock: "123", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
+      appParams: { mock: "123", verifierIdl: IDL_LIGHT_PSP2IN2OUT },
     });
     await tx.compile(lightProvider.poseidon, account);
     tx.proofInput.publicAppVerifier = new BN("123").toString();

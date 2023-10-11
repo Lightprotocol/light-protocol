@@ -7,7 +7,7 @@ import {
   N_ASSET_PUBKEYS,
   STANDARD_SHIELDED_PRIVATE_KEY,
   STANDARD_SHIELDED_PUBLIC_KEY,
-  verifierProgramStorageProgramId,
+  lightPsp2in2outStorageId,
 } from "../constants";
 import { Utxo } from "../utxo";
 import { MerkleTreeConfig } from "../merkleTree";
@@ -31,7 +31,7 @@ import {
   TokenData,
   transactionParameters,
   lightAccounts,
-  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_LIGHT_PSP2IN2OUT,
   AppUtxoConfig,
   createOutUtxos,
   BN_0,
@@ -454,7 +454,7 @@ export class TransactionParameters implements transactionParameters {
 
   async toBytes(): Promise<Buffer> {
     let utxo;
-    const coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+    const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
     const inputUtxosBytes: any[] = [];
     for (utxo of this.inputUtxos) {
       inputUtxosBytes.push(await utxo.toBytes());
@@ -577,7 +577,7 @@ export class TransactionParameters implements transactionParameters {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
   }): Promise<TransactionParameters> {
-    const coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+    const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
     const decoded = coder.decodeUnchecked("transactionParameters", bytes);
 
     const getUtxos = (
@@ -1164,7 +1164,7 @@ export class TransactionParameters implements transactionParameters {
       // verifier program method.
       const recipientSpl =
         this.verifierProgramId.toBase58() ===
-        verifierProgramStorageProgramId.toBase58()
+        lightPsp2in2outStorageId.toBase58()
           ? new Uint8Array(32)
           : this.accounts.recipientSpl.toBytes();
 

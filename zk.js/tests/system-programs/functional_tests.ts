@@ -29,9 +29,9 @@ import {
   Action,
   TestRelayer,
   TestTransaction,
-  IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_ONE,
-  IDL_VERIFIER_PROGRAM_STORAGE,
+  IDL_LIGHT_PSP2IN2OUT,
+  IDL_LIGHT_PSP10IN2OUT,
+  IDL_LIGHT_PSP2IN2OUT_STORAGE,
   Account,
   airdropSol,
   MerkleTreeConfig,
@@ -85,7 +85,7 @@ describe("verifier_program", () => {
       spl: true,
       senderSpl: userTokenAccount,
       shuffleEnabled: true,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
+      verifierIdl: IDL_LIGHT_PSP10IN2OUT,
     });
   });
 
@@ -96,7 +96,7 @@ describe("verifier_program", () => {
       message: Buffer.alloc(900).fill(1),
       senderSpl: null,
       shuffleEnabled: false,
-      verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
     });
   });
 
@@ -106,7 +106,7 @@ describe("verifier_program", () => {
       spl: true,
       senderSpl: userTokenAccount,
       shuffleEnabled: true,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       updateMerkleTree: true,
     });
   });
@@ -117,7 +117,7 @@ describe("verifier_program", () => {
       tokenProgram: MINT,
       recipientSpl: recipientTokenAccount,
       shuffleEnabled: false,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
     });
   });
 
@@ -127,7 +127,7 @@ describe("verifier_program", () => {
       tokenProgram: SystemProgram.programId,
       message: Buffer.alloc(900).fill(1),
       shuffleEnabled: false,
-      verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
     });
   });
 
@@ -160,7 +160,7 @@ describe("verifier_program", () => {
       tokenProgram: MINT,
       recipientSpl: recipientTokenAccount,
       shuffleEnabled: true,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
+      verifierIdl: IDL_LIGHT_PSP10IN2OUT,
     });
   });
 

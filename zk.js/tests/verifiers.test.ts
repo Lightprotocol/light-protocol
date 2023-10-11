@@ -6,17 +6,17 @@ import { it } from "mocha";
 
 import {
   functionalCircuitTest,
-  IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_ONE,
-  IDL_VERIFIER_PROGRAM_TWO,
+  IDL_LIGHT_PSP2IN2OUT,
+  IDL_LIGHT_PSP10IN2OUT,
+  IDL_LIGHT_PSP4IN4OUT,
 } from "../src";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 const verifiers = [
-  { verifierIdl: IDL_VERIFIER_PROGRAM_ZERO, isApp: false },
-  { verifierIdl: IDL_VERIFIER_PROGRAM_ONE, isApp: false },
-  { verifierIdl: IDL_VERIFIER_PROGRAM_TWO, isApp: true },
+  { verifierIdl: IDL_LIGHT_PSP2IN2OUT, isApp: false },
+  { verifierIdl: IDL_LIGHT_PSP10IN2OUT, isApp: false },
+  { verifierIdl: IDL_LIGHT_PSP4IN4OUT, isApp: true },
 ];
 
 describe("Verifier tests", () => {

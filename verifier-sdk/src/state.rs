@@ -1,6 +1,8 @@
-use crate::light_transaction::Config;
-use anchor_lang::prelude::*;
 use std::marker::PhantomData;
+
+use anchor_lang::prelude::*;
+
+use crate::light_transaction::Config;
 
 /// Verifier state is a boiler plate struct which should be versatile enough to serve many use cases.
 /// For specialized use cases with less

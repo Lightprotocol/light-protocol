@@ -1,9 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
-  verifierProgramZeroProgramId,
-  verifierProgramOneProgramId,
-  verifierProgramTwoProgramId,
-  verifierProgramStorageProgramId,
+  lightPsp2in2outId,
+  lightPsp10in2outId,
+  lightPsp4in4outId,
+  lightPsp2in2outStorageId,
   RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 import "dotenv/config.js";
@@ -59,9 +59,9 @@ export const HOST = process.env.HOSTNAME!;
 
 // TODO: EXPORT FROM ZK.JS RELEASE
 export const VERIFIER_PUBLIC_KEYS = [
-  verifierProgramZeroProgramId,
-  verifierProgramOneProgramId,
-  verifierProgramTwoProgramId,
-  verifierProgramStorageProgramId,
+  lightPsp2in2outId,
+  lightPsp10in2outId,
+  lightPsp4in4outId,
+  lightPsp2in2outStorageId,
 ];
 export const MAX_U64 = new anchor.BN("18446744073709551615");

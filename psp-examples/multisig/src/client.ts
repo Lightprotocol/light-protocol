@@ -7,17 +7,12 @@ import {
   Relayer,
   SolMerkleTree,
   Transaction,
-  VerifierProgramTwo,
   TransactionParameters,
   Account,
   Utxo,
   ADMIN_AUTH_KEYPAIR,
-  merkleTreeProgramId,
+  IDL_LIGHT_PSP4IN4OUT,
   MerkleTreeConfig,
-  verifierProgramTwoProgramId,
-  IDL_VERIFIER_PROGRAM_TWO,
-  updateMerkleTreeForTest,
-  User,
 } from "@lightprotocol/zk.js";
 import { MultisigParams } from "./multisigParams";
 import { Scalar } from "ffjavascript";
@@ -274,7 +269,7 @@ export class MultiSigClient {
       action,
       poseidon: this.poseidon,
       relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
       encryptedUtxos: new Uint8Array([
         ...encryptedUtxos.flat(),
         ...new Array(512 - encryptedUtxos.flat().length).fill(1),

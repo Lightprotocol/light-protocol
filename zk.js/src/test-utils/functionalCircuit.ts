@@ -7,7 +7,7 @@ import {
   Transaction,
   Action,
   TransactionParameters,
-  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_LIGHT_PSP2IN2OUT,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
@@ -61,7 +61,7 @@ export async function functionalCircuitTest(
       appParams: {
         mock: "123",
         // just a placeholder the test does not compute an app proof
-        verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+        verifierIdl: IDL_LIGHT_PSP2IN2OUT,
         path: "./build-circuits",
       },
     });

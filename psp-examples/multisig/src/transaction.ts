@@ -1,8 +1,5 @@
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import {
-  Action,
-  IDL_VERIFIER_PROGRAM_TWO,
-  MerkleTreeConfig,
   Provider,
   Transaction,
   TransactionParameters,
@@ -17,7 +14,6 @@ export type QueuedTransactionsType = {
 };
 import { IDL } from "./types/multisig";
 import { printUtxo } from "./client";
-import { Keypair as SolanaKeypair } from "@solana/web3.js";
 
 export class Approval {
   signature: Uint8Array;

@@ -14,9 +14,9 @@ import {
   Transaction,
   Utxo,
   createMintWrapper,
-  MerkleTreeProgram,
+  LightMerkleTreeProgram,
   merkleTreeProgramId,
-  IDL_MERKLE_TREE_PROGRAM,
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   KEYPAIR_PRIVKEY,
@@ -27,7 +27,7 @@ import {
   confirmConfig,
   TransactionParameters,
   SolMerkleTree,
-  verifierProgramZeroProgramId,
+  lightPsp2in2outId,
   MerkleTreeConfig,
   DEFAULT_PROGRAMS,
   checkMerkleTreeUpdateStateCreated,
@@ -35,7 +35,7 @@ import {
   newAccountWithLamports,
   checkMerkleTreeBatchUpdateSuccess,
   POOL_TYPE,
-  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_LIGHT_PSP2IN2OUT,
   Account,
   Provider,
   Action,
@@ -62,8 +62,8 @@ describe("Merkle Tree Tests", () => {
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
   anchor.setProvider(provider);
-  const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
-    new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
+  const merkleTreeProgram: anchor.Program<LightMerkleTreeProgram> =
+    new anchor.Program(IDL_LIGHT_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
   let INVALID_MERKLE_TREE_AUTHORITY_PDA, INVALID_SIGNER;
   before(async () => {
@@ -102,11 +102,10 @@ describe("Merkle Tree Tests", () => {
   });
 
   it("Initialize Merkle Tree Test", async () => {
-    const verifierProgramZero = new anchor.Program(
-      IDL_VERIFIER_PROGRAM_ZERO,
-      verifierProgramZeroProgramId,
+    const lightPsp2in2out = new anchor.Program(
+      IDL_LIGHT_PSP2IN2OUT,
+      lightPsp2in2outId,
     );
-    // const verifierProgramOne = new anchor.Program(VerifierProgramOne, verifierProgramOneProgramId);
 
     // Security Claims
     // Init authority pda
@@ -235,7 +234,7 @@ describe("Merkle Tree Tests", () => {
     // invalid signer
     merkleTreeConfig.payer = INVALID_SIGNER;
     try {
-      await merkleTreeConfig.registerVerifier(verifierProgramZero.programId);
+      await merkleTreeConfig.registerVerifier(lightPsp2in2out.programId);
     } catch (e) {
       error = e;
     }
@@ -255,7 +254,7 @@ describe("Merkle Tree Tests", () => {
     merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda =
       INVALID_SIGNER.publicKey;
     try {
-      await merkleTreeConfig.registerVerifier(verifierProgramZero.programId);
+      await merkleTreeConfig.registerVerifier(lightPsp2in2out.programId);
     } catch (e) {
       error = e;
     }
@@ -529,7 +528,7 @@ describe("Merkle Tree Tests", () => {
       );
     console.log(merkleTreeAuthority1);
     assert.equal(merkleTreeAuthority1.registeredAssetIndex.toString(), "2");
-    await merkleTreeConfig.registerVerifier(verifierProgramZero.programId);
+    await merkleTreeConfig.registerVerifier(lightPsp2in2out.programId);
     await merkleTreeConfig.registerSplPool(POOL_TYPE, MINT);
 
     // let nftMint = await createMintWrapper({authorityKeypair: ADMIN_AUTH_KEYPAIR, nft: true, connection: provider.connection})
@@ -563,9 +562,9 @@ describe("Merkle Tree Tests", () => {
       Transaction.getSignerAuthorityPda(
         merkleTreeProgramId,
         new PublicKey(
-          IDL_VERIFIER_PROGRAM_ZERO.constants[0].value.slice(
+          IDL_LIGHT_PSP2IN2OUT.constants[0].value.slice(
             1,
-            IDL_VERIFIER_PROGRAM_ZERO.constants[0].value.length - 1,
+            IDL_LIGHT_PSP2IN2OUT.constants[0].value.length - 1,
           ),
         ),
       ), //delegate
@@ -599,7 +598,7 @@ describe("Merkle Tree Tests", () => {
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
       poseidon: POSEIDON,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account: KEYPAIR,
     });
     const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
@@ -1178,7 +1177,7 @@ describe("Merkle Tree Tests", () => {
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
       poseidon: POSEIDON,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account: KEYPAIR,
     });
 

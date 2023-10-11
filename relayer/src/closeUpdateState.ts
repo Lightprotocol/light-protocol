@@ -1,7 +1,7 @@
 import { AnchorProvider, Program, Wallet, utils } from "@coral-xyz/anchor";
 import {
   confirmConfig,
-  IDL_MERKLE_TREE_PROGRAM,
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
   merkleTreeProgramId,
   closeMerkleTreeUpdateState,
 } from "@lightprotocol/zk.js";
@@ -21,7 +21,7 @@ import { RPC_URL } from "./config";
   );
 
   const merkleTreeProgram = new Program(
-    IDL_MERKLE_TREE_PROGRAM,
+    IDL_LIGHT_MERKLE_TREE_PROGRAM,
     merkleTreeProgramId,
     anchorProvider,
   );

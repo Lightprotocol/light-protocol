@@ -1,5 +1,5 @@
 export type UserRegistry = {
-  "version": "0.1.0",
+  "version": "0.3.0",
   "name": "user_registry",
   "instructions": [
     {
@@ -83,7 +83,7 @@ export type UserRegistry = {
 };
 
 export const IDL: UserRegistry = {
-  "version": "0.1.0",
+  "version": "0.3.0",
   "name": "user_registry",
   "instructions": [
     {

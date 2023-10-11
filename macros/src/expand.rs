@@ -139,9 +139,9 @@ pub(crate) fn light_verifier_accounts(
                 /// CHECK: Is checked when it is used during spl unshields.
                 #[account(
                     mut,
-                    seeds=[::merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED],
+                    seeds=[::light_merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED],
                     bump,
-                    seeds::program=::merkle_tree_program::program::MerkleTreeProgram::id())]
+                    seeds::program=::light_merkle_tree_program::program::LightMerkleTreeProgram::id())]
                 pub token_authority: AccountInfo<'info>,
                 /// CHECK: Is checked in verifier-sdk.
                 #[account(mut)]
@@ -232,15 +232,15 @@ pub(crate) fn light_verifier_accounts(
             )]
             pub signing_address: Signer<'info>,
             pub system_program: Program<'info, System>,
-            pub program_merkle_tree: Program<'info, ::merkle_tree_program::program::MerkleTreeProgram>,
+            pub program_merkle_tree: Program<'info, ::light_merkle_tree_program::program::LightMerkleTreeProgram>,
             /// CHECK: Is the same as in integrity hash.
             #[account(mut)]
-            pub transaction_merkle_tree: AccountLoader<'info, ::merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree>,
+            pub transaction_merkle_tree: AccountLoader<'info, ::light_merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree>,
             /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
             #[account(
                 mut,
                 seeds = [
-                    ::merkle_tree_program::program::MerkleTreeProgram::id().to_bytes().as_ref()
+                    ::light_merkle_tree_program::program::LightMerkleTreeProgram::id().to_bytes().as_ref()
                 ],
                 bump,
                 #authority_seeds_program
@@ -260,16 +260,16 @@ pub(crate) fn light_verifier_accounts(
                 mut,
                 #registered_verifier_pda_seeds,
                 bump,
-                seeds::program = MerkleTreeProgram::id()
+                seeds::program = ::light_merkle_tree_program::program::LightMerkleTreeProgram::id()
             )]
             pub registered_verifier_pda: Account<
                 'info,
-                ::merkle_tree_program::config_accounts::register_verifier::RegisteredVerifier
+                ::light_merkle_tree_program::config_accounts::register_verifier::RegisteredVerifier
             >,
             /// CHECK: It gets checked inside the event_call.
             pub log_wrapper: UncheckedAccount<'info>,
             #[account(mut)]
-            pub event_merkle_tree: AccountLoader<'info, ::merkle_tree_program::event_merkle_tree::EventMerkleTree>,
+            pub event_merkle_tree: AccountLoader<'info, ::light_merkle_tree_program::event_merkle_tree::EventMerkleTree>,
         }
     };
 
@@ -280,7 +280,7 @@ pub(crate) fn light_verifier_accounts(
             attrs: field.attrs.clone(),
             vis: field.vis.clone(),
             ident: field.ident.clone(),
-            colon_token: field.colon_token.clone(),
+            colon_token: field.colon_token,
             ty: field.ty.clone(),
         };
         fields.push(field);
@@ -290,7 +290,7 @@ pub(crate) fn light_verifier_accounts(
             attrs: field.attrs.clone(),
             vis: field.vis.clone(),
             ident: field.ident.clone(),
-            colon_token: field.colon_token.clone(),
+            colon_token: field.colon_token,
             ty: field.ty.clone(),
         };
         fields.push(field);
@@ -358,14 +358,14 @@ pub(crate) fn light_verifier_accounts(
 
             fn get_program_merkle_tree(&self) -> &Program<
                 'info,
-                ::merkle_tree_program::program::MerkleTreeProgram
+                ::light_merkle_tree_program::program::LightMerkleTreeProgram
             > {
                 &self.program_merkle_tree
             }
 
             fn get_transaction_merkle_tree(&self) -> &AccountLoader<
                 'info,
-                ::merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree
+                ::light_merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree
             > {
                 &self.transaction_merkle_tree
             }
@@ -383,7 +383,7 @@ pub(crate) fn light_verifier_accounts(
 
             fn get_registered_verifier_pda(&self) -> &Account<
                 'info,
-                ::merkle_tree_program::config_accounts::register_verifier::RegisteredVerifier
+                ::light_merkle_tree_program::config_accounts::register_verifier::RegisteredVerifier
             > {
                 &self.registered_verifier_pda
             }
@@ -394,7 +394,7 @@ pub(crate) fn light_verifier_accounts(
 
             fn get_event_merkle_tree(&self) -> &AccountLoader<
                 'info,
-                ::merkle_tree_program::event_merkle_tree::EventMerkleTree
+                ::light_merkle_tree_program::event_merkle_tree::EventMerkleTree
             > {
                 &self.event_merkle_tree
             }
@@ -473,14 +473,14 @@ mod tests {
         );
 
         let res_verifier_program_id = light_verifier_accounts(
-            parse_quote! { verifier_program_id = VerifierProgramTwo::id() },
+            parse_quote! { verifier_program_id = LightPsp4in4out::id() },
             strct,
         )
         .expect("Failed to expand light_verifier_accounts")
         .to_string();
 
-        assert!(res_verifier_program_id.contains("seeds :: program = VerifierProgramTwo :: id ()"));
+        assert!(res_verifier_program_id.contains("seeds :: program = LightPsp4in4out :: id ()"));
         assert!(res_verifier_program_id
-            .contains("seeds = [VerifierProgramTwo :: id () . to_bytes () . as_ref ()]"))
+            .contains("seeds = [LightPsp4in4out :: id () . to_bytes () . as_ref ()]"))
     }
 }
