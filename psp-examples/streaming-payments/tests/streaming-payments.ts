@@ -7,7 +7,7 @@ import {
   airdropSol,
   confirmConfig,
   ConfirmOptions,
-  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   MerkleTreeConfig,
   ProgramUtxoBalance,
   Provider as LightProvider,
@@ -184,7 +184,7 @@ describe("Streaming Payments tests", () => {
       action: Action.UNSHIELD,
       poseidon: POSEIDON,
       relayer: relayer,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account: lightUser.account,
     });
     let { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();

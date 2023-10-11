@@ -23,7 +23,7 @@ import {
   Utxo,
   Account,
   IDL_LIGHT_PSP2IN2OUT,
-  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
   BN_1,
 } from "../src";
@@ -490,7 +490,7 @@ describe("Transaction Functional Tests", () => {
       senderSol: mockPubkey,
       poseidon,
       action: Action.SHIELD,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account,
     });
     const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();

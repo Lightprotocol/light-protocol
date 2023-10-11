@@ -3,6 +3,7 @@ import { executeCargoGenerate } from "./toolchain";
 import {
   CIRCUIT_LIB_CIRCOM_VERSION,
   LIGHT_MACROS_VERSION,
+  LIGHT_SYSTEM_PROGRAM,
   LIGHT_SYSTEM_PROGRAMS_VERSION,
   LIGHT_VERIFIER_SDK_VERSION,
   PROVER_JS_VERSION,
@@ -31,6 +32,8 @@ export const initRepo = async (name: string, type: ProjectType) => {
   await executeCargoGenerate({
     args: [
       "generate",
+      // "--path",
+      // "/home/ananas/test_light/psp-template",
       "--git",
       "https://github.com/Lightprotocol/psp-template",
       // TODO(vadorovsky): Switch back to a new release when
@@ -39,7 +42,7 @@ export const initRepo = async (name: string, type: ProjectType) => {
       // "--tag",
       // PSP_TEMPLATE_TAG,
       "--branch",
-      "jorrit/refactor-for-circuit-lib",
+      "jorrit/adapt-to-psp4in4out-app-storage",
       "psp-template",
       "--name",
       name,
@@ -64,7 +67,11 @@ export const initRepo = async (name: string, type: ProjectType) => {
       "--define",
       `circuit-lib-circom-version=${CIRCUIT_LIB_CIRCOM_VERSION}`,
       "--define",
-      `light-system-programs-version=${LIGHT_SYSTEM_PROGRAMS_VERSION}`,
+      `light-merkle-tree-program-version=${LIGHT_SYSTEM_PROGRAMS_VERSION}`,
+      "--define",
+      `light-system-program-version=${LIGHT_SYSTEM_PROGRAMS_VERSION}`,
+      "--define",
+      `light-system-program=${LIGHT_SYSTEM_PROGRAM}`,
       "--define",
       `light-macros-version=${LIGHT_MACROS_VERSION}`,
       "--define",

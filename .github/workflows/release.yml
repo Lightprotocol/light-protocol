@@ -24,7 +24,7 @@ jobs:
           cp target/deploy/light_merkle_tree_program.so .
           cp target/deploy/light_psp2in2out.so .
           cp target/deploy/light_psp10in2out.so .
-          cp target/deploy/light_psp4in4out.so .
+          cp target/deploy/light_psp4in4out_app_storage.so .
           cp target/deploy/light_psp2in2out_storage.so .
           cp third-party/solana-program-library/spl_noop.so .
 
@@ -37,6 +37,6 @@ jobs:
             light_merkle_tree_program.so
             light_psp2in2out.so
             light_psp10in2out.sp
-            light_psp4in4out.so
+            light_psp4in4out_app_storage.so
             light_psp2in2out_storage.so
             spl_noop.so

@@ -3,7 +3,7 @@ import { PublicKey } from "@solana/web3.js";
 import {
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP10IN2OUT,
-  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
 } from "../idls/index";
 
@@ -16,7 +16,7 @@ import {
   airdropSol,
   lightPsp2in2outId,
   lightPsp10in2outId,
-  lightPsp4in4outId,
+  lightPsp4in4outAppStorageId,
   lightPsp2in2outStorageId,
 } from "../index";
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
@@ -90,7 +90,7 @@ export async function setUpMerkleTree(
     new anchor.Program(IDL_LIGHT_PSP10IN2OUT, lightPsp10in2outId),
   );
   verifierArray.push(
-    new anchor.Program(IDL_LIGHT_PSP4IN4OUT, lightPsp4in4outId),
+    new anchor.Program(IDL_LIGHT_PSP4IN4OUT_APP_STORAGE, lightPsp4in4outAppStorageId),
   );
   verifierArray.push(
     new anchor.Program(IDL_LIGHT_PSP2IN2OUT_STORAGE, lightPsp2in2outStorageId),

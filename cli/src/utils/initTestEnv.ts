@@ -113,7 +113,7 @@ export async function start_test_validator({
     },
     {
       id: "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86",
-      name: "light_psp4in4out.so",
+      name: "light_psp4in4out_app_storage.so",
     },
     {
       id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",

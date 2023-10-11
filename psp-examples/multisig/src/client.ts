@@ -11,7 +11,7 @@ import {
   Account,
   Utxo,
   ADMIN_AUTH_KEYPAIR,
-  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   MerkleTreeConfig,
 } from "@lightprotocol/zk.js";
 import { MultisigParams } from "./multisigParams";
@@ -269,7 +269,7 @@ export class MultiSigClient {
       action,
       poseidon: this.poseidon,
       relayer,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       encryptedUtxos: new Uint8Array([
         ...encryptedUtxos.flat(),
         ...new Array(512 - encryptedUtxos.flat().length).fill(1),

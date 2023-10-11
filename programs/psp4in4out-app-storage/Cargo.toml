@@ -1,5 +1,5 @@
 [package]
-name = "light-psp4in4out"
+name = "light-psp4in4out-app-storage"
 version = "0.3.0"
 description = "Native PSP which can verify 4 inputs and 4 outputs with 2 public inputs."
 license = "GPL-3.0"
@@ -7,7 +7,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "light_psp4in4out"
+name = "light_psp4in4out_app_storage"
 
 [features]
 no-entrypoint = []

@@ -3,7 +3,7 @@ import { initTestEnv, killTestValidator } from "../../../src";
 import {
   lightPsp2in2outId,
   lightPsp10in2outId,
-  lightPsp4in4outId,
+  lightPsp4in4outAppStorageId,
   lightPsp2in2outStorageId,
 } from "@lightprotocol/zk.js";
 
@@ -43,7 +43,7 @@ describe("With preloaded accounts", () => {
     .it("List verifiers", ({ stdout }) => {
       expect(stdout).to.contain(lightPsp2in2outId.toBase58());
       expect(stdout).to.contain(lightPsp10in2outId.toBase58());
-      expect(stdout).to.contain(lightPsp4in4outId.toBase58());
+      expect(stdout).to.contain(lightPsp4in4outAppStorageId.toBase58());
       expect(stdout).to.contain(lightPsp2in2outStorageId.toBase58());
     });
 });
