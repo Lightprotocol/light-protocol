@@ -36,7 +36,7 @@ impl Config for TransactionConfig {
 }
 
 #[program]
-pub mod light_psp4in4out {
+pub mod light_psp4in4out_app_storage {
     use super::*;
 
     /// This instruction is used to invoke this system verifier and can only be invoked via cpi.

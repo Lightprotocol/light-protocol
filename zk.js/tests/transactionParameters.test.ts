@@ -26,7 +26,7 @@ import {
   Account,
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP10IN2OUT,
-  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   MerkleTreeConfig,
   BN_0,
   BN_2,
@@ -39,7 +39,7 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const VERIFIER_IDLS = [
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP10IN2OUT,
-  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
 ];
 
 describe("Transaction Parameters Functional", () => {

@@ -22,7 +22,7 @@ import {
   TransactionParameters,
   Action,
   IDL_LIGHT_PSP2IN2OUT,
-  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   BN_0,
   BN_1,
 } from "../src";
@@ -151,7 +151,7 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account,
     });
     txParamsPoolType = new TransactionParameters({
@@ -728,7 +728,7 @@ describe("App system circuit tests", () => {
       senderSol: lightProvider.wallet.publicKey,
       action: Action.SHIELD,
       poseidon,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account,
     });
 
@@ -752,7 +752,7 @@ describe("App system circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account,
     });
   });

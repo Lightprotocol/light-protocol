@@ -11,9 +11,9 @@ export {
   IDL as IDL_LIGHT_PSP10IN2OUT,
 } from "./light_psp10in2out";
 export {
-  type LightPsp4in4out,
-  IDL as IDL_LIGHT_PSP4IN4OUT,
-} from "./light_psp4in4out";
+  type LightPsp4in4outAppStorage,
+  IDL as IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+} from "./light_psp4in4out_app_storage";
 export {
   type LightPsp2in2outStorage,
   IDL as IDL_LIGHT_PSP2IN2OUT_STORAGE,

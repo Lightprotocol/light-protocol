@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import {
   lightPsp2in2outId,
   lightPsp10in2outId,
-  lightPsp4in4outId,
+  lightPsp4in4outAppStorageId,
   lightPsp2in2outStorageId,
   RELAYER_FEE,
 } from "@lightprotocol/zk.js";
@@ -61,7 +61,7 @@ export const HOST = process.env.HOSTNAME!;
 export const VERIFIER_PUBLIC_KEYS = [
   lightPsp2in2outId,
   lightPsp10in2outId,
-  lightPsp4in4outId,
+  lightPsp4in4outAppStorageId,
   lightPsp2in2outStorageId,
 ];
 export const MAX_U64 = new anchor.BN("18446744073709551615");

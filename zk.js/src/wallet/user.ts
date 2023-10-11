@@ -25,7 +25,7 @@ import {
   getUserIndexTransactions,
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP10IN2OUT,
-  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
   InboxBalance,
   isProgramVerifier,
@@ -1788,7 +1788,7 @@ export class User {
     if (!addOutUtxos) addOutUtxos = !outUtxos;
     if (action === Action.TRANSFER) {
       const txParams = await this.createTransferTransactionParameters({
-        verifierIdl: IDL_LIGHT_PSP4IN4OUT,
+        verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
         inUtxos: [...appUtxos, ...inUtxos],
         outUtxos,
         addInUtxos,
