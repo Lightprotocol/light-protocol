@@ -13,6 +13,9 @@ concurrency:
 jobs:
   main:
     name: Nx Cloud - Main Job
+    permissions:
+      contents: 'read'
+      actions: 'read'
     uses: nrwl/ci/.github/workflows/nx-cloud-main.yml@v0.13.0
     with:
       init-commands: |
