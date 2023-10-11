@@ -18,12 +18,18 @@
   },
   "targetDefaults": {
     "build": {
+      "dependsOn": [
+        "^build"
+      ],
       "inputs": [
         "noMarkdown",
         "^noMarkdown"
       ],
-      "dependsOn": [
-        "^build"
+      "outputs": [
+        "{projectRoot}/dist",
+        "{projectRoot}/lib",
+        "{projectRoot}/build-circuit",
+        "{projectRoot}/target"
       ]
     },
     "test": {
