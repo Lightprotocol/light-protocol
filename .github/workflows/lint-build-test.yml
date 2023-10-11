@@ -71,15 +71,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Install dependencies
-        run: |
-          ./scripts/install.sh
-
       - name: Initialize the Nx Cloud distributed CI run
         run: npx nx-cloud start-ci-run
 
       - name: Run commands in parallel
         run: |
+          ./scripts/install.sh
+          . ./scripts/devenv.sh
           pids=()
           # list of commands to be run on main has env flag NX_CLOUD_DISTRIBUTED_EXECUTION set to false
           NX_CLOUD_DISTRIBUTED_EXECUTION=false npx nx-cloud record -- npx nx format:check & pids+=($!)
@@ -102,9 +100,6 @@ jobs:
           done
           
           exit 0
-      - name:
-        run: |
-          source ./scripts/devenv.sh
 
       - name: Stop all running agents for this CI run
         # It's important that we always run this step, otherwise in the case of any failures in preceding non-Nx steps, the agents will keep running and waste billable minutes
