@@ -17,7 +17,7 @@ jobs:
     with:
       init-commands: |
         ./scripts/install.sh --enable-redis
-        . ./scripts/source.sh
+        . ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
 
