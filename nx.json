@@ -3,28 +3,18 @@
     "default": {
       "runner": "nx-cloud",
       "options": {
-        "cacheableOperations": [
-          "build",
-          "test"
-        ],
+        "cacheableOperations": ["build", "test"],
         "accessToken": "MTdjMjM5MjMtOGJjMS00OTJlLTgyYzYtYTAwMmY2ZjljZjM3fHJlYWQtd3JpdGU="
       }
     }
   },
   "namedInputs": {
-    "noMarkdown": [
-      "!{projectRoot}/**/*.md"
-    ]
+    "noMarkdown": ["!{projectRoot}/**/*.md"]
   },
   "targetDefaults": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "noMarkdown",
-        "^noMarkdown"
-      ],
+      "dependsOn": ["^build"],
+      "inputs": ["noMarkdown", "^noMarkdown"],
       "outputs": [
         "{projectRoot}/dist",
         "{projectRoot}/lib",
@@ -33,14 +23,8 @@
       ]
     },
     "test": {
-      "inputs": [
-        "noMarkdown",
-        "^noMarkdown"
-      ],
-      "dependsOn": [
-        "^build",
-        "build"
-      ]
+      "inputs": ["noMarkdown", "^noMarkdown"],
+      "dependsOn": ["^build", "build"]
     }
   }
 }
