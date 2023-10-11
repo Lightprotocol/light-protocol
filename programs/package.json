@@ -3,6 +3,6 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
-    "build": "light-anchor build"
+    "build": "`git rev-parse --show-toplevel`/.local/bin/light-anchor build"
   }
 }
