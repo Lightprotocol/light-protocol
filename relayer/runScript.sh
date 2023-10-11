@@ -28,6 +28,6 @@ PID_redis="${!}"
 sleep 15
 trap "kill ${PID_redis}" EXIT
 # redis specific export
-export ENVIRONMENT=LOCAL
+export REDIS_ENVIRONMENT=LOCAL
 
 pnpm ts-node lib/index.js

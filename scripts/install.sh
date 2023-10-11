@@ -224,6 +224,7 @@ download_file_github \
     light-anchor \
     "${PREFIX}/bin"
 
+
 echo "📥 Downloading Circom"
 download_file_github \
     Lightprotocol \
@@ -242,7 +243,8 @@ download_file_github \
     macro-circom \
     "${PREFIX}/bin"
 
-if $ENABLE_REDIS == true ; then
+
+if [ "$ENABLE_REDIS" = true ] ; then
     echo "📥 Downloading Redis"
     mkdir -p "${PREFIX}/redis"
     download_and_extract \

@@ -53,7 +53,7 @@ function validateReqParams(req: any) {
 export async function parseReqParams(reqInstructions: any) {
   const instructions: TransactionInstruction[] = [];
   let accounts: AccountMeta[] = [];
-  const relayer = await getRelayer();
+  const relayer = getRelayer();
   for (const instruction of reqInstructions) {
     accounts = instruction.keys.map((key: AccountMeta) => {
       return {
@@ -98,7 +98,6 @@ export async function parseReqParams(reqInstructions: any) {
     relayerRecipientSol.pubkey.toBase58() !==
     relayer.accounts.relayerRecipientSol.toBase58()
   )
-    // || accounts[10].isSigner != false || accounts[10].isWritable != true
     throw new Error(
       `Relayer recipient sol pubkey in instruction != relayer recipient sol pubkey ${relayerRecipientSol.pubkey.toBase58()} ${relayer.accounts.relayerRecipientSol.toBase58()} not signer ${
         relayerRecipientSol.isSigner
