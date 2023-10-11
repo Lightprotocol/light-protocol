@@ -15,6 +15,12 @@ jobs:
     name: Nx Cloud - Main Job
     uses: nrwl/ci/.github/workflows/nx-cloud-main.yml@v0.13.0
     with:
+      init-commands: |
+        ./scripts/install.sh --enable-redis
+        . ./scripts/source.sh
+        mkdir -p /home/runner/.config/solana/
+        solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+
       # NOTE: Here we are using the special `nx-cloud record` command to ensure that any commands we run that do not go through the cloud task runner natively
       # (i.e. anything that starts with `nx run`/`nx run-many`/`nx affected --target`), are still captured in the Nx Cloud UI and Github App comment for
       # easier troubleshooting. See more here: https://nx.dev/nx-cloud/set-up/record-commands#recording-non-nx-commands
