@@ -34,10 +34,16 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          enable_redis: "false"
+
       - name: lint-build-test
         run: |
-          source ./scripts/devenv.sh          
-
+          source ./scripts/devenv.sh    
+          pnpm install 
+          
       - name: Initialize the Nx Cloud distributed CI run
         run: npx nx-cloud start-ci-run
 
@@ -89,7 +95,7 @@ jobs:
       - name: lint-build-test
         run: |
           source ./scripts/devenv.sh
-          
+
       - name: Start Nx Agent ${{ matrix.agent }}
         run: npx nx-cloud start-agent
         env:
