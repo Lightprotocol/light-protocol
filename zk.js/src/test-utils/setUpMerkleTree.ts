@@ -90,7 +90,10 @@ export async function setUpMerkleTree(
     new anchor.Program(IDL_LIGHT_PSP10IN2OUT, lightPsp10in2outId),
   );
   verifierArray.push(
-    new anchor.Program(IDL_LIGHT_PSP4IN4OUT_APP_STORAGE, lightPsp4in4outAppStorageId),
+    new anchor.Program(
+      IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      lightPsp4in4outAppStorageId,
+    ),
   );
   verifierArray.push(
     new anchor.Program(IDL_LIGHT_PSP2IN2OUT_STORAGE, lightPsp2in2outStorageId),

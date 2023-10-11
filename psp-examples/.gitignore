@@ -21,3 +21,4 @@ build-circuit
 **/verifying_key_*.rs
 **/*.circom
 !private-compressed-account/**/*.circom
+!multisig/**/*.circom
