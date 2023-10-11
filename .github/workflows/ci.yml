@@ -17,7 +17,6 @@ jobs:
     with:
       init-commands: |
         ./scripts/install.sh --enable-redis
-        . ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
 
@@ -27,9 +26,9 @@ jobs:
       parallel-commands: |
         npx nx-cloud record -- npx nx format:check
       parallel-commands-on-agents: |
-        NX_CLOUD_DISTRIBUTED_EXECUTION=false npx nx affected --target=lint --parallel=3
-        npx nx affected --target=build --parallel=3
-        npx nx affected --target=test --parallel=3
+        source ./scripts/devenv.sh && NX_CLOUD_DISTRIBUTED_EXECUTION=false npx nx affected --target=lint --parallel=3
+        source ./scripts/devenv.sh && npx nx affected --target=build --parallel=3
+        source ./scripts/devenv.sh && npx nx affected --target=test --parallel=3
 
   agents:
     name: Nx Cloud - Agents
