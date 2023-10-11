@@ -71,13 +71,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-
 
+
       - name: Initialize the Nx Cloud distributed CI run
         run: npx nx-cloud start-ci-run
 
       - name: Run commands in parallel
         run: |
           ./scripts/install.sh
-          . ./scripts/devenv.sh
+          pnpm install
+          . ./scripts/devenv.sh          
           pids=()
           # list of commands to be run on main has env flag NX_CLOUD_DISTRIBUTED_EXECUTION set to false
           NX_CLOUD_DISTRIBUTED_EXECUTION=false npx nx-cloud record -- npx nx format:check & pids+=($!)
