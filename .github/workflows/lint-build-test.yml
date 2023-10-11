@@ -8,8 +8,8 @@ on:
     types:
       - opened
       - synchronize
-      - reopened
       - ready_for_review
+      - reopened
 
 name: lint-build-test
 
@@ -18,89 +18,58 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NX_CLOUD_DISTRIBUTED_EXECUTION: true
-  NX_CLOUD_DISTRIBUTED_EXECUTION_AGENT_COUNT: 3
+  NX_CLOUD_DISTRIBUTED_EXECUTION: true # this enables DTE
+  NX_CLOUD_DISTRIBUTED_EXECUTION_AGENT_COUNT: 3 # expected number of agents
   NX_BRANCH: ${{ github.event.number || github.ref_name }}
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
-  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # this is needed if our pipeline publishes to npm
 
 jobs:
   lint-build-test:
     name: lint-build-test
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: buildjet-16vcpu-ubuntu-2204
+
     steps:
-      - uses: actions/checkout@v3
-        name: Checkout [Pull Request]
-        if: ${{ github.event_name == 'pull_request' }}
-        with:
-          # By default, PRs will be checked-out based on the Merge Commit, but we want the actual branch HEAD.
-          ref: ${{ github.event.pull_request.head.sha }}
-          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
-          fetch-depth: 0
+      - name: Checkout sources
+        uses: actions/checkout@v3
 
-      - uses: actions/checkout@v3
-        name: Checkout [Default Branch]
-        if: ${{ github.event_name != 'pull_request' }}
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
         with:
-          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
-          fetch-depth: 0
+          enable_redis: "true"
 
-      - name: Cache .local directory
-        uses: buildjet/cache@v3
-        with:
-          path: .local
-          key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
-
-      - uses: pnpm/action-setup@v2
-        name: Install pnpm
-        with:
-          version: 8
-          run_install: false
-
-      - name: Get pnpm store directory
-        shell: bash
+      - name: lint-build-test
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - uses: actions/cache@v3
-        name: Setup pnpm cache
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
-
+          source ./scripts/devenv.sh
+          
 
       - name: Initialize the Nx Cloud distributed CI run
         run: npx nx-cloud start-ci-run
 
       - name: Run commands in parallel
         run: |
-          ./scripts/install.sh
-          pnpm install
-          . ./scripts/devenv.sh          
           pids=()
           # list of commands to be run on main has env flag NX_CLOUD_DISTRIBUTED_EXECUTION set to false
           NX_CLOUD_DISTRIBUTED_EXECUTION=false npx nx-cloud record -- npx nx format:check & pids+=($!)
-          
+
           # list of commands to be run on agents
           npx nx affected -t lint --parallel=3 & 
           pids+=($!)
-          
+
           npx nx affected -t build --parallel=3 & 
           pids+=($!)
-          
+
           npx nx affected -t test --parallel=3 & 
           pids+=($!)
-          
+
           # run all commands in parallel and bail if one of them fails
           for pid in ${pids[*]}; do
-          if ! wait $pid; then
-           exit 1
-          fi
+            if ! wait $pid; then
+              exit 1
+            fi
           done
-          
+
           exit 0
 
       - name: Stop all running agents for this CI run
@@ -113,39 +82,19 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        agent: [ 1, 2, 3 ]
+        agent: [1, 2, 3]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Cache .local directory
-        uses: buildjet/cache@v3
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
         with:
-          path: .local
-          key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
+          enable_redis: "true"
 
-      - uses: pnpm/action-setup@v2
-        name: Install pnpm
-        with:
-          version: 8
-          run_install: false
-
-      - name: Get pnpm store directory
-        shell: bash
+      - name: lint-build-test
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - uses: actions/cache@v3
-        name: Setup pnpm cache
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
-
-      - name: Install dependencies
-        run: |
-          ./scripts/install.sh
+          source ./scripts/devenv.sh
 
       - name: Start Nx Agent ${{ matrix.agent }}
         run: npx nx-cloud start-agent
