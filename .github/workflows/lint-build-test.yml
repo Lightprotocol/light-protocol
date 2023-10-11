@@ -32,17 +32,11 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
-        with:
-          enable_redis: "true"
+        uses: actions/checkout@v3
 
       - name: lint-build-test
         run: |
-          source ./scripts/devenv.sh
-          
+          source ./scripts/devenv.sh          
 
       - name: Initialize the Nx Cloud distributed CI run
         run: npx nx-cloud start-ci-run
@@ -85,7 +79,7 @@ jobs:
         agent: [1, 2, 3]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -95,7 +89,7 @@ jobs:
       - name: lint-build-test
         run: |
           source ./scripts/devenv.sh
-
+          
       - name: Start Nx Agent ${{ matrix.agent }}
         run: npx nx-cloud start-agent
         env:
