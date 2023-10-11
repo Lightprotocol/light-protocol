@@ -40,6 +40,7 @@ jobs:
       number-of-agents: 3
       install-commands: |
         ./scripts/install.sh --enable-redis
+        pnpm install
         mkdir -p /home/runner/.config/solana/
         source ./scripts/devenv.sh
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
