@@ -32,8 +32,6 @@ export const initRepo = async (name: string, type: ProjectType) => {
   await executeCargoGenerate({
     args: [
       "generate",
-      // "--path",
-      // "/home/ananas/test_light/psp-template",
       "--git",
       "https://github.com/Lightprotocol/psp-template",
       // TODO(vadorovsky): Switch back to a new release when
