@@ -2,7 +2,7 @@
   "devDependencies": {
     "husky": "^8.0.3",
     "nx": "^16.9.1",
-    "nx-cloud": "^16.4.0",
+    "nx-cloud": "^16.5.2",
     "snarkjs": "^0.7.1",
     "typescript": "^5.2.2"
   }
