@@ -40,7 +40,7 @@ export const initRepo = async (name: string, type: ProjectType) => {
       // "--tag",
       // PSP_TEMPLATE_TAG,
       "--branch",
-      "jorrit/adapt-to-psp4in4out-app-storage",
+      "main",
       "psp-template",
       "--name",
       name,
