@@ -1,23 +1,22 @@
 #[cfg(test)]
 mod tests {
+    use std::{marker::PhantomData, ops::Neg};
+
     use anchor_lang::prelude::*;
-    use ark_bn254;
-    use ark_bn254::FrParameters;
+    use ark_bn254::{self, FrParameters};
     use ark_ec;
-    use ark_ff::biginteger::BigInteger;
-    use ark_ff::biginteger::BigInteger256;
-    use ark_ff::bytes::{FromBytes, ToBytes};
-    use ark_ff::fields::PrimeField;
-    use ark_ff::Fp256;
-    use ark_ff::FpParameters;
+    use ark_ff::{
+        biginteger::{BigInteger, BigInteger256},
+        bytes::{FromBytes, ToBytes},
+        fields::PrimeField,
+        Fp256, FpParameters,
+    };
     use groth16_solana::groth16::Groth16Verifyingkey;
-    use light_verifier_sdk::light_transaction::Config;
-    use light_verifier_sdk::light_transaction::Transaction;
-    use merkle_tree_program::program::MerkleTreeProgram;
-    use merkle_tree_program::utils::constants::POOL_CONFIG_SEED;
-    use merkle_tree_program::utils::constants::POOL_SEED;
-    use std::marker::PhantomData;
-    use std::ops::Neg;
+    use light_merkle_tree_program::{
+        program::MerkleTreeProgram,
+        utils::constants::{POOL_CONFIG_SEED, POOL_SEED},
+    };
+    use light_verifier_sdk::light_transaction::{Config, Transaction};
 
     pub const VERIFYING_KEY: Groth16Verifyingkey = Groth16Verifyingkey {
         nr_pubinputs: 10,

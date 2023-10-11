@@ -23,10 +23,10 @@ import {
   decryptAddUtxoToBalance,
   fetchNullifierAccountInfo,
   getUserIndexTransactions,
-  IDL_VERIFIER_PROGRAM_ONE,
-  IDL_VERIFIER_PROGRAM_STORAGE,
-  IDL_VERIFIER_PROGRAM_TWO,
-  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_LIGHT_PSP2IN2OUT,
+  IDL_LIGHT_PSP10IN2OUT,
+  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP2IN2OUT_STORAGE,
   InboxBalance,
   isProgramVerifier,
   MAX_MESSAGE_SIZE,
@@ -87,7 +87,7 @@ export class User {
     provider,
     account,
     appUtxoConfig,
-    verifierIdl = IDL_VERIFIER_PROGRAM_ZERO,
+    verifierIdl = IDL_LIGHT_PSP2IN2OUT,
   }: {
     provider: Provider;
     serializedUtxos?: Buffer;
@@ -119,7 +119,7 @@ export class User {
         `appUtxo config is provided but there is no app enabled verifier defined. The defined verifier is ${verifierIdl.name}.`,
       );
     this.appUtxoConfig = appUtxoConfig;
-    this.verifierIdl = verifierIdl ? verifierIdl : IDL_VERIFIER_PROGRAM_ZERO;
+    this.verifierIdl = verifierIdl ? verifierIdl : IDL_LIGHT_PSP2IN2OUT;
     this.balance = {
       tokenBalances: new Map([
         [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
@@ -808,7 +808,7 @@ export class User {
       relayer: this.provider.relayer,
       ataCreationFee,
       appUtxo: this.appUtxoConfig,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         this.provider.lookUpTables.verifierProgramLookupTable,
@@ -1189,7 +1189,7 @@ export class User {
       account: this.account,
       mergeUtxos: true,
       relayer: this.provider.relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
+      verifierIdl: IDL_LIGHT_PSP10IN2OUT,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         this.provider.lookUpTables.verifierProgramLookupTable,
@@ -1269,7 +1269,7 @@ export class User {
       account: this.account,
       mergeUtxos: true,
       relayer: this.provider.relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
+      verifierIdl: IDL_LIGHT_PSP10IN2OUT,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         this.provider.lookUpTables.verifierProgramLookupTable,
@@ -1447,14 +1447,14 @@ export class User {
         senderTokenAccount,
         minimumLamports,
         message,
-        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+        verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
         skipDecimalConversions,
         utxo: appUtxo,
       });
     } else {
       return this.createTransferTransactionParameters({
         message,
-        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+        verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
         token,
         recipient: recipientPublicKey
           ? Account.fromPubkey(recipientPublicKey, this.provider.poseidon)
@@ -1702,7 +1702,7 @@ export class User {
           publicAmountSol: BN_0,
           minimumLamports: false,
           message,
-          verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+          verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
         });
     } else {
       const inUtxos: Utxo[] = [];
@@ -1742,7 +1742,7 @@ export class User {
           message,
           mergeUtxos: true,
           addInUtxos: false,
-          verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+          verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
           verifierProgramLookupTable:
             this.provider.lookUpTables.verifierProgramLookupTable,
@@ -1788,7 +1788,7 @@ export class User {
     if (!addOutUtxos) addOutUtxos = !outUtxos;
     if (action === Action.TRANSFER) {
       const txParams = await this.createTransferTransactionParameters({
-        verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+        verifierIdl: IDL_LIGHT_PSP4IN4OUT,
         inUtxos: [...appUtxos, ...inUtxos],
         outUtxos,
         addInUtxos,

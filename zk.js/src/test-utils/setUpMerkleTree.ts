@@ -1,23 +1,23 @@
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import {
-  IDL_VERIFIER_PROGRAM_ONE,
-  IDL_VERIFIER_PROGRAM_TWO,
-  IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_STORAGE,
+  IDL_LIGHT_PSP2IN2OUT,
+  IDL_LIGHT_PSP10IN2OUT,
+  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP2IN2OUT_STORAGE,
 } from "../idls/index";
 
 import {
   ADMIN_AUTH_KEYPAIR,
   POOL_TYPE,
   MINT,
-  verifierProgramZeroProgramId,
-  verifierProgramOneProgramId,
-  verifierProgramTwoProgramId,
-  verifierProgramStorageProgramId,
   Transaction,
   merkleTreeProgramId,
   airdropSol,
+  lightPsp2in2outId,
+  lightPsp10in2outId,
+  lightPsp4in4outId,
+  lightPsp2in2outStorageId,
 } from "../index";
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 
@@ -84,19 +84,16 @@ export async function setUpMerkleTree(
   let verifierArray;
 
   verifierArray.push(
-    new anchor.Program(IDL_VERIFIER_PROGRAM_ZERO, verifierProgramZeroProgramId),
+    new anchor.Program(IDL_LIGHT_PSP2IN2OUT, lightPsp2in2outId),
   );
   verifierArray.push(
-    new anchor.Program(IDL_VERIFIER_PROGRAM_ONE, verifierProgramOneProgramId),
+    new anchor.Program(IDL_LIGHT_PSP10IN2OUT, lightPsp10in2outId),
   );
   verifierArray.push(
-    new anchor.Program(IDL_VERIFIER_PROGRAM_TWO, verifierProgramTwoProgramId),
+    new anchor.Program(IDL_LIGHT_PSP4IN4OUT, lightPsp4in4outId),
   );
   verifierArray.push(
-    new anchor.Program(
-      IDL_VERIFIER_PROGRAM_STORAGE,
-      verifierProgramStorageProgramId,
-    ),
+    new anchor.Program(IDL_LIGHT_PSP2IN2OUT_STORAGE, lightPsp2in2outStorageId),
   );
   // registering verifiers and airdrop sol to authority pdas
   for (const verifier of verifierArray) {

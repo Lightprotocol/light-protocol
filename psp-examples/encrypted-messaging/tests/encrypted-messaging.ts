@@ -6,7 +6,7 @@ import {
   TestRelayer,
   User,
   airdropSol,
-  verifierProgramStorageProgramId,
+  lightPsp2in2outStorageId,
   merkleTreeProgramId,
 } from "@lightprotocol/zk.js";
 import { Keypair } from "@solana/web3.js";
@@ -22,7 +22,7 @@ describe("Test foobar", () => {
   it("Test encrypted messaging", async () => {
     const authorityPda = Transaction.getSignerAuthorityPda(
       merkleTreeProgramId,
-      verifierProgramStorageProgramId,
+      lightPsp2in2outStorageId,
     );
     const authorityBalance =
       (await provider.connection.getBalance(authorityPda)) / 1e9;

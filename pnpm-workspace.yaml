@@ -1,9 +1,9 @@
 packages:
   - "tsconfig/**"
+  - "programs/**"
   - "prover.js/**"
   - "circuit-lib/**"
   - "zk.js/**"
-  - "system-programs/**"
   - "cli/**"
   - "relayer/**"
   - "psp-examples/**"

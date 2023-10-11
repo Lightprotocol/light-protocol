@@ -1,0 +1,8 @@
+{
+  "name": "@lightprotocol/programs",
+  "version": "0.3.0",
+  "license": "GPL-3.0",
+  "scripts": {
+    "build": "light-anchor build"
+  }
+}

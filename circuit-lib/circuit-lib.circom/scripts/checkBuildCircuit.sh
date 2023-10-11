@@ -38,11 +38,13 @@ check_file_modified() {
     fi
 }
 
-check_file_modified ../../system-programs/programs/verifier_program_zero/src/verifying_key.rs
-check_file_modified ../../system-programs/programs/verifier_program_storage/src/verifying_key.rs
-check_file_modified ../../system-programs/programs/verifier_program_two/src/verifying_key.rs
-check_file_modified ../../system-programs/programs/verifier_program_one/src/verifying_key.rs
+top_dir=`git rev-parse --show-toplevel`
 
-check_file_modified ../../zk.js/build-circuits/transactionMasp2Main.zkey
-check_file_modified ../../zk.js/build-circuits/transactionMasp10Main.zkey
-check_file_modified ../../zk.js/build-circuits/transactionApp4Main.zkey
+check_file_modified "${top_dir}/programs/psp2in2out/src/verifying_key.rs"
+check_file_modified "${top_dir}/programs/psp10in2out/src/verifying_key.rs"
+check_file_modified "${top_dir}/programs/psp4in4out/src/verifying_key.rs"
+check_file_modified "${top_dir}/programs/psp2in2out-storage/src/verifying_key.rs"
+
+check_file_modified "${top_dir}/zk.js/build-circuits/transactionMasp2Main.zkey"
+check_file_modified "${top_dir}/zk.js/build-circuits/transactionMasp10Main.zkey"
+check_file_modified "${top_dir}/zk.js/build-circuits/transactionApp4Main.zkey"

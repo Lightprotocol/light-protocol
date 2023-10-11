@@ -1,0 +1,27 @@
+[package]
+name = "light-psp2in2out-storage"
+version = "0.1.0"
+description = "Native PSP"
+license = "GPL-3.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "light_psp2in2out_storage"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
+anchor-spl = "0.28.0"
+
+# Light deps
+groth16-solana = "0.0.2"
+light-macros = { path = "../../macros" }
+light-merkle-tree-program = { path = "../merkle-tree", features = ["cpi"] }
+light-verifier-sdk = { path = "../../verifier-sdk" }

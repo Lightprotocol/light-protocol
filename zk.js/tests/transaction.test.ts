@@ -22,9 +22,9 @@ import {
   TransactionError,
   Utxo,
   Account,
-  IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_TWO,
-  IDL_VERIFIER_PROGRAM_STORAGE,
+  IDL_LIGHT_PSP2IN2OUT,
+  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP2IN2OUT_STORAGE,
   BN_1,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -69,7 +69,7 @@ describe("Transaction Error Tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
     const res = await lightProvider.getRootIndex();
@@ -227,7 +227,7 @@ describe("Transaction Functional Tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
@@ -249,7 +249,7 @@ describe("Transaction Functional Tests", () => {
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
       relayer,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
   });
@@ -331,7 +331,7 @@ describe("Transaction Functional Tests", () => {
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
       relayer,
       account,
     });
@@ -368,7 +368,7 @@ describe("Transaction Functional Tests", () => {
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       relayer,
       account,
     });
@@ -409,7 +409,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
 
@@ -440,7 +440,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
     const tx = new Transaction({
@@ -490,7 +490,7 @@ describe("Transaction Functional Tests", () => {
       senderSol: mockPubkey,
       poseidon,
       action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT,
       account,
     });
     const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
@@ -518,7 +518,7 @@ describe("Transaction Functional Tests", () => {
       senderSol: mockPubkey,
       poseidon,
       action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
     const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
@@ -528,7 +528,7 @@ describe("Transaction Functional Tests", () => {
         nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
         solMerkleTree: lightProvider.solMerkleTree!,
         params,
-        appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO },
+        appParams: { mock: "1231", verifierIdl: IDL_LIGHT_PSP2IN2OUT },
       });
     })
       .to.throw(TransactionError)

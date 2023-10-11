@@ -7,7 +7,7 @@ import {
   Account,
   TransactionParameters,
   Provider,
-  IDL_MERKLE_TREE_PROGRAM,
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
   checkRentExemption,
   Utxo,
   FIELD_SIZE,
@@ -31,7 +31,7 @@ export class TestTransaction {
   };
   params: TransactionParameters;
   provider: Provider;
-  merkleTreeProgram?: Program<typeof IDL_MERKLE_TREE_PROGRAM>;
+  merkleTreeProgram?: Program<typeof IDL_LIGHT_MERKLE_TREE_PROGRAM>;
   appParams?: any;
 
   constructor({
@@ -44,7 +44,7 @@ export class TestTransaction {
     provider: Provider;
   }) {
     this.merkleTreeProgram = new Program(
-      IDL_MERKLE_TREE_PROGRAM,
+      IDL_LIGHT_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
       provider.provider,
     );

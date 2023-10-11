@@ -1,5 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
-import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
+import {
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
+  LightMerkleTreeProgram,
+} from "../idls/index";
 import { assert } from "chai";
 const token = require("@solana/spl-token");
 import {
@@ -21,7 +24,7 @@ import { Program } from "@coral-xyz/anchor";
 
 /// NODE ENV ONLY
 export class MerkleTreeConfig {
-  merkleTreeProgram: Program<MerkleTreeProgram>;
+  merkleTreeProgram: Program<LightMerkleTreeProgram>;
   transactionMerkleTreePda?: PublicKey;
   connection: Connection;
   registeredVerifierPdas: any;
@@ -46,7 +49,7 @@ export class MerkleTreeConfig {
     this.payer = payer;
 
     this.merkleTreeProgram = new Program(
-      IDL_MERKLE_TREE_PROGRAM,
+      IDL_LIGHT_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
       anchorProvider,
     );

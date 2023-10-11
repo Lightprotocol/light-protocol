@@ -133,7 +133,7 @@ Merkle tree and an spl token, conducting two shields and unshields.
 Tests can be executed in bulk or one by one.
 
 ```bash
-cd system-programs/
+cd zk.js/
 pnpm test
 pnpm test-verifiers
 pnpm test-merkle-tree

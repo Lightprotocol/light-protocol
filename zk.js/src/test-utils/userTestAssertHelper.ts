@@ -25,9 +25,9 @@ import {
   MINIMUM_LAMPORTS,
   TOKEN_REGISTRY,
   merkleTreeProgramId,
-  verifierProgramOneProgramId,
-  verifierProgramZeroProgramId,
   BN_0,
+  lightPsp10in2outId,
+  lightPsp2in2outId,
 } from "../constants";
 import { Utxo } from "../utxo";
 import { MerkleTreeConfig } from "../index";
@@ -295,8 +295,8 @@ export class UserTestAssertHelper {
                 this.sender.user.provider.relayer.accounts.relayerRecipientSol,
               type: Action.TRANSFER,
               verifier: this.testInputs.isMerge
-                ? verifierProgramOneProgramId
-                : verifierProgramZeroProgramId,
+                ? lightPsp10in2outId
+                : lightPsp2in2outId,
               message: undefined,
             },
             this.recentTransaction!,
@@ -308,9 +308,7 @@ export class UserTestAssertHelper {
             {
               signer: this.sender.user.provider.wallet.publicKey,
               to: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
-              from: TransactionParameters.getEscrowPda(
-                verifierProgramZeroProgramId,
-              ),
+              from: TransactionParameters.getEscrowPda(lightPsp2in2outId),
               publicAmountSpl: amountSpl
                 ? convertAndComputeDecimals(amountSpl, this.tokenCtx!.decimals)
                 : BN_0,
@@ -320,7 +318,7 @@ export class UserTestAssertHelper {
               relayerFee: BN_0,
               relayerRecipientSol: AUTHORITY,
               type: Action.SHIELD,
-              verifier: verifierProgramZeroProgramId,
+              verifier: lightPsp2in2outId,
               message: undefined,
             },
             this.recentTransaction!,
@@ -351,7 +349,7 @@ export class UserTestAssertHelper {
               relayerRecipientSol:
                 this.sender.user.provider.relayer.accounts.relayerRecipientSol,
               type: Action.UNSHIELD,
-              verifier: verifierProgramZeroProgramId,
+              verifier: lightPsp2in2outId,
               message: undefined,
             },
             this.recentTransaction!,

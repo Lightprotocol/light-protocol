@@ -1,9 +1,9 @@
 import {
   confirmConfig,
   functionalCircuitTest,
-  IDL_VERIFIER_PROGRAM_ZERO,
-  IDL_VERIFIER_PROGRAM_ONE,
-  IDL_VERIFIER_PROGRAM_TWO,
+  IDL_LIGHT_PSP2IN2OUT,
+  IDL_LIGHT_PSP10IN2OUT,
+  IDL_LIGHT_PSP4IN4OUT,
 } from "@lightprotocol/zk.js";
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
@@ -27,14 +27,14 @@ describe("verifier_program", () => {
   });
 
   it("Test functional circuit 2 in 2 out", async () => {
-    await functionalCircuitTest(false, IDL_VERIFIER_PROGRAM_ZERO);
+    await functionalCircuitTest(false, IDL_LIGHT_PSP2IN2OUT);
   });
 
   it("Test functional circuit 10 in 2 out", async () => {
-    await functionalCircuitTest(false, IDL_VERIFIER_PROGRAM_ONE);
+    await functionalCircuitTest(false, IDL_LIGHT_PSP10IN2OUT);
   });
 
   it("Test functional circuit 4 in 4 out + connecting hash", async () => {
-    await functionalCircuitTest(true, IDL_VERIFIER_PROGRAM_TWO);
+    await functionalCircuitTest(true, IDL_LIGHT_PSP4IN4OUT);
   });
 });

@@ -1,10 +1,10 @@
 import test, { expect } from "@oclif/test";
 import { initTestEnv, killTestValidator } from "../../../src";
 import {
-  verifierProgramOneProgramId,
-  verifierProgramStorageProgramId,
-  verifierProgramTwoProgramId,
-  verifierProgramZeroProgramId,
+  lightPsp2in2outId,
+  lightPsp10in2outId,
+  lightPsp4in4outId,
+  lightPsp2in2outStorageId,
 } from "@lightprotocol/zk.js";
 
 describe("Without preloaded accounts", () => {
@@ -27,7 +27,7 @@ describe("Without preloaded accounts", () => {
     });
   test
     .stdout()
-    .command(["verifier:register", verifierProgramZeroProgramId.toBase58()])
+    .command(["verifier:register", lightPsp2in2outId.toBase58()])
     .it("Register verifier", ({ stdout }) => {
       expect(stdout).to.contain("Verifier registered successfully");
     });
@@ -41,9 +41,9 @@ describe("With preloaded accounts", () => {
     .stdout()
     .command(["verifier:list"])
     .it("List verifiers", ({ stdout }) => {
-      expect(stdout).to.contain(verifierProgramZeroProgramId.toBase58());
-      expect(stdout).to.contain(verifierProgramOneProgramId.toBase58());
-      expect(stdout).to.contain(verifierProgramTwoProgramId.toBase58());
-      expect(stdout).to.contain(verifierProgramStorageProgramId.toBase58());
+      expect(stdout).to.contain(lightPsp2in2outId.toBase58());
+      expect(stdout).to.contain(lightPsp10in2outId.toBase58());
+      expect(stdout).to.contain(lightPsp4in4outId.toBase58());
+      expect(stdout).to.contain(lightPsp2in2outStorageId.toBase58());
     });
 });

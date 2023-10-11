@@ -1,0 +1,20 @@
+[package]
+name = "light-user-registry"
+version = "0.3.0"
+description = "Registry for Light Protocol users"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "light_user_registry"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.28.0"
+bytemuck = "1.14"

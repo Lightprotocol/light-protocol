@@ -11,8 +11,8 @@ import {
   REGISTERED_VERIFIER_PDA,
   REGISTERED_VERIFIER_TWO_PDA,
   TOKEN_AUTHORITY,
-  verifierProgramTwoProgramId,
-  verifierProgramZeroProgramId,
+  lightPsp2in2outId,
+  lightPsp4in4outId,
   BN_0,
   BN_1,
 } from "./constants";
@@ -316,7 +316,7 @@ export async function initLookUpTable(
 
   const escrows = PublicKey.findProgramAddressSync(
     [anchor.utils.bytes.utf8.encode("escrow")],
-    verifierProgramZeroProgramId,
+    lightPsp2in2outId,
   )[0];
 
   const transaction = new Transaction().add(createInstruction);
@@ -338,7 +338,7 @@ export async function initLookUpTable(
     TOKEN_AUTHORITY,
     REGISTERED_POOL_PDA_SOL,
     REGISTERED_POOL_PDA_SPL_TOKEN,
-    verifierProgramTwoProgramId,
+    lightPsp4in4outId,
     REGISTERED_VERIFIER_ONE_PDA,
     REGISTERED_VERIFIER_PDA,
     REGISTERED_VERIFIER_TWO_PDA,

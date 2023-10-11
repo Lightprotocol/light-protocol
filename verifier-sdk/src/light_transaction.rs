@@ -1,3 +1,5 @@
+use std::ops::Neg;
+
 use anchor_lang::{
     prelude::*,
     solana_program::{
@@ -8,16 +10,22 @@ use anchor_lang::{
     },
 };
 use anchor_spl::token::Transfer;
+use ark_bn254::{Fr, FrParameters};
 use ark_ff::{
     bytes::{FromBytes, ToBytes},
     BigInteger, BigInteger256, Fp256, FpParameters, PrimeField,
 };
 use ark_std::vec::Vec;
-
-use ark_bn254::{Fr, FrParameters};
-
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 use light_merkle_tree::HashFunction;
+use light_merkle_tree_program::{
+    program::LightMerkleTreeProgram,
+    state::TransactionMerkleTree,
+    utils::{
+        accounts::create_and_check_pda,
+        constants::{POOL_CONFIG_SEED, POOL_SEED, TRANSACTION_MERKLE_TREE_SEED},
+    },
+};
 
 use crate::{
     accounts::LightAccounts,
@@ -28,17 +36,6 @@ use crate::{
     errors::VerifierSdkError,
     state::TransactionIndexerEvent,
     utils::{change_endianness, close_account::close_account},
-};
-
-use std::ops::Neg;
-
-use merkle_tree_program::{
-    program::MerkleTreeProgram,
-    state::TransactionMerkleTree,
-    utils::{
-        accounts::create_and_check_pda,
-        constants::{POOL_CONFIG_SEED, POOL_SEED, TRANSACTION_MERKLE_TREE_SEED},
-    },
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
@@ -194,11 +191,11 @@ impl<
         let mut first_leaf_index = merkle_tree.next_queued_index;
 
         for (_i, leaves) in self.input.leaves.iter().enumerate() {
-            let leaf_left = change_endianness(&leaves[0]).try_into().unwrap();
-            let leaf_right = change_endianness(&leaves[1]).try_into().unwrap();
+            let leaf_left = change_endianness(&leaves[0]);
+            let leaf_right = change_endianness(&leaves[1]);
             leaves_vec.push(leaf_left);
             leaves_vec.push(leaf_right);
-            first_leaf_index = first_leaf_index - 2
+            first_leaf_index -= 2
         }
 
         let message = match &self.input.message {
@@ -207,12 +204,12 @@ impl<
         };
         let transaction_data_event = TransactionIndexerEvent {
             leaves: leaves_vec.clone(),
-            public_amount_sol: self.input.public_amount.sol.clone(),
-            public_amount_spl: self.input.public_amount.spl.clone(),
-            relayer_fee: self.input.relayer_fee.clone(),
+            public_amount_sol: self.input.public_amount.sol,
+            public_amount_spl: self.input.public_amount.spl,
+            relayer_fee: self.input.relayer_fee,
             encrypted_utxos: self.input.encrypted_utxos.clone(),
             nullifiers: self.input.nullifiers.to_vec(),
-            first_leaf_index: first_leaf_index.clone(),
+            first_leaf_index,
             message,
         };
 
@@ -317,8 +314,7 @@ impl<
 
     pub fn compute_event_hash(&mut self) {
         let nullifiers_hash = hashv(
-            &self
-                .input
+            self.input
                 .nullifiers
                 .iter()
                 .map(|arr| arr.as_slice())
@@ -327,8 +323,7 @@ impl<
         );
 
         let leaves_hash = hashv(
-            &self
-                .input
+            self.input
                 .leaves
                 .iter()
                 .flat_map(|two_d| two_d.iter())
@@ -368,7 +363,7 @@ impl<
             return err!(VerifierSdkError::EventMerkleTreeInvalidHashFunction);
         }
         insert_two_leaves_event_cpi(
-            &self.input.ctx.program_id,
+            self.input.ctx.program_id,
             &self
                 .input
                 .ctx
@@ -456,7 +451,7 @@ impl<
         let hash = Fr::from_be_bytes_mod_order(&tx_integrity_hash.to_bytes());
         let mut bytes = [0u8; 32];
         <Fp256<FrParameters> as ToBytes>::write(&hash, &mut bytes[..]).unwrap();
-        self.tx_integrity_hash = change_endianness(&bytes).try_into().unwrap();
+        self.tx_integrity_hash = change_endianness(&bytes);
         // msg!("tx_integrity_hash be: {:?}", self.tx_integrity_hash);
         // msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", hash);
         self.computed_tx_integrity_hash = true;
@@ -556,7 +551,7 @@ impl<
 
             // check account integrities
             insert_two_leaves_cpi(
-                &self.input.ctx.program_id,
+                self.input.ctx.program_id,
                 &self
                     .input
                     .ctx
@@ -578,8 +573,8 @@ impl<
                     .accounts
                     .get_registered_verifier_pda()
                     .to_account_info(),
-                change_endianness(&leaves[0]).try_into().unwrap(),
-                change_endianness(&leaves[1]).try_into().unwrap(),
+                change_endianness(&leaves[0]),
+                change_endianness(&leaves[1]),
                 msg,
             )?;
         }
@@ -629,7 +624,7 @@ impl<
         let index = transaction_merkle_tree.load()?.merkle_tree_nr;
         let (pubkey, _) = Pubkey::find_program_address(
             &[TRANSACTION_MERKLE_TREE_SEED, index.to_le_bytes().as_ref()],
-            &MerkleTreeProgram::id(),
+            &LightMerkleTreeProgram::id(),
         );
         if transaction_merkle_tree.key() != pubkey {
             msg!(
@@ -650,7 +645,7 @@ impl<
         }
 
         insert_nullifiers_cpi(
-            &self.input.ctx.program_id,
+            self.input.ctx.program_id,
             &self
                 .input
                 .ctx
@@ -688,12 +683,8 @@ impl<
 
         msg!("transferring user funds");
         // check mintPubkey
-        let (pub_amount_checked, _) = self.check_amount(
-            0,
-            change_endianness(&self.input.public_amount.spl)
-                .try_into()
-                .unwrap(),
-        )?;
+        let (pub_amount_checked, _) =
+            self.check_amount(0, change_endianness(&self.input.public_amount.spl))?;
 
         // Only transfer if pub amount is greater than zero otherwise recipient_spl and sender_spl accounts are not checked
         if pub_amount_checked > 0 {
@@ -744,10 +735,10 @@ impl<
                     &recipient_spl.mint,
                 )?;
 
-                let seed = merkle_tree_program::ID.to_bytes();
+                let seed = light_merkle_tree_program::ID.to_bytes();
                 let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
                     &[seed.as_ref()],
-                    &self.input.ctx.program_id,
+                    self.input.ctx.program_id,
                 );
                 let bump = &[bump];
                 let seeds = &[&[seed.as_slice(), bump][..]];
@@ -807,7 +798,7 @@ impl<
 
                 // shield_spl_cpi
                 unshield_spl_cpi(
-                    &self.input.ctx.program_id,
+                    self.input.ctx.program_id,
                     &self
                         .input
                         .ctx
@@ -902,7 +893,7 @@ impl<
                         .as_ref()
                         .unwrap()
                         .key(),
-                    &*self
+                    *self
                         .input
                         .ctx
                         .accounts
@@ -917,7 +908,7 @@ impl<
                 // Unshield sol for the user
                 msg!("unshield sol cpi");
                 unshield_sol_cpi(
-                    &self.input.ctx.program_id,
+                    self.input.ctx.program_id,
                     &self
                         .input
                         .ctx
@@ -955,7 +946,7 @@ impl<
         if !self.is_shield_sol() && relayer_fee > 0 {
             // pays the relayer fee
             unshield_sol_cpi(
-                &self.input.ctx.program_id,
+                self.input.ctx.program_id,
                 &self
                     .input
                     .ctx
@@ -995,14 +986,14 @@ impl<
     fn shield_sol(&self, amount_checked: u64, recipient_sol: &AccountInfo) -> Result<()> {
         self.check_sol_pool_account_derivation(
             &recipient_sol.key(),
-            &*recipient_sol.data.try_borrow().unwrap(),
+            *recipient_sol.data.try_borrow().unwrap(),
         )?;
 
         msg!("is shield");
         let rent = <Rent as sysvar::Sysvar>::get()?;
 
         create_and_check_pda(
-            &self.input.ctx.program_id,
+            self.input.ctx.program_id,
             &self
                 .input
                 .ctx
@@ -1066,10 +1057,10 @@ impl<
     pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey, data: &[u8]) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
             &[&[0u8; 32], self.input.pool_type, POOL_CONFIG_SEED],
-            &MerkleTreeProgram::id(),
+            &LightMerkleTreeProgram::id(),
         );
         let mut cloned_data = data;
-        merkle_tree_program::RegisteredAssetPool::try_deserialize(&mut cloned_data)?;
+        light_merkle_tree_program::RegisteredAssetPool::try_deserialize(&mut cloned_data)?;
 
         if derived_pubkey.0 != *pubkey {
             return err!(VerifierSdkError::InvalidSenderorRecipient);
@@ -1080,7 +1071,7 @@ impl<
     pub fn check_spl_pool_account_derivation(&self, pubkey: &Pubkey, mint: &Pubkey) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
             &[&mint.to_bytes(), self.input.pool_type, POOL_SEED],
-            &MerkleTreeProgram::id(),
+            &LightMerkleTreeProgram::id(),
         );
 
         if derived_pubkey.0 != *pubkey {

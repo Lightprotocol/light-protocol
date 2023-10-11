@@ -1,7 +1,7 @@
-use std::marker::PhantomData;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::hash::hash;
 use light_verifier_sdk::state::VerifierState10Ins;
+use std::marker::PhantomData;
 pub mod psp_accounts;
 pub use psp_accounts::*;
 // pub mod auto_generated_accounts;
@@ -19,7 +19,7 @@ pub const PROGRAM_ID: &str = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 
 #[program]
 pub mod private_compressed_account {
-    use light_verifier_sdk::light_transaction::{Proof};
+    use light_verifier_sdk::light_transaction::Proof;
 
     use super::*;
 
@@ -46,7 +46,9 @@ pub mod private_compressed_account {
         let mut program_id_hash = hash(&ctx.program_id.to_bytes()).to_bytes();
         program_id_hash[0] = 0;
 
-        let mut checked_public_inputs: [[u8; 32]; VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs] = [[0u8; 32]; VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs];
+        let mut checked_public_inputs: [[u8; 32];
+            VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs] =
+            [[0u8; 32]; VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs];
         checked_public_inputs[0] = program_id_hash;
         checked_public_inputs[1] = inputs_des.transaction_hash;
 

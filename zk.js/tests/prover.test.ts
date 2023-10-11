@@ -20,7 +20,7 @@ import {
   Action,
   Utxo,
   Account,
-  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_LIGHT_PSP2IN2OUT,
 } from "../../zk.js/src";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
@@ -63,7 +63,7 @@ describe("Prover Functionality Tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
 

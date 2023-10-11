@@ -1,11 +1,11 @@
 use crate::processor::TransactionsConfig;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
+use light_merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree;
+use light_merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
+use light_merkle_tree_program::{program::LightMerkleTreeProgram, EventMerkleTree};
+use light_psp4in4out::{self, program::LightPsp4in4out};
 use light_verifier_sdk::{light_transaction::VERIFIER_STATE_SEED, state::VerifierState10Ins};
-use merkle_tree_program::{program::MerkleTreeProgram, EventMerkleTree};
-use merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree;
-use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
-use verifier_program_two::{self, program::VerifierProgramTwo};
 
 // Send and stores data.
 #[derive(Accounts)]
@@ -48,12 +48,12 @@ pub struct LightInstructionThird<'info, const NR_CHECKED_INPUTS: usize> {
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
     pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionsConfig>>,
     pub system_program: Program<'info, System>,
-    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+    pub program_merkle_tree: Program<'info, LightMerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
     pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
-    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump, seeds::program= VerifierProgramTwo::id())]
+    #[account(mut, seeds= [LightMerkleTreeProgram::id().to_bytes().as_ref()], bump, seeds::program=LightPsp4in4out::id())]
     pub authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
@@ -72,12 +72,12 @@ pub struct LightInstructionThird<'info, const NR_CHECKED_INPUTS: usize> {
     #[account(mut)]
     pub relayer_recipient_sol: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
-    #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
+    #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program=LightMerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,
     /// CHECK: Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
-    #[account(mut, seeds= [VerifierProgramTwo::id().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
+    #[account(mut, seeds= [LightPsp4in4out::id().to_bytes().as_ref()], bump, seeds::program=LightMerkleTreeProgram::id())]
     pub registered_verifier_pda: UncheckedAccount<'info>, //Account<'info, RegisteredVerifier>,
-    pub verifier_program: Program<'info, VerifierProgramTwo>,
+    pub verifier_program: Program<'info, LightPsp4in4out>,
     /// CHECK:` It get checked inside the event_call
     pub log_wrapper: UncheckedAccount<'info>,
     #[account(mut)]
