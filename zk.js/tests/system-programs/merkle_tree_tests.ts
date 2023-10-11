@@ -45,6 +45,7 @@ import {
   BN_1,
   BN_0,
   BN_2,
+  closeMerkleTreeUpdateState,
 } from "../../src";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
@@ -831,6 +832,7 @@ describe("Merkle Tree Tests", () => {
     assert((await connection.getAccountInfo(merkleTreeUpdateState)) == null);
     error = undefined;
 
+    await merkleTreeConfig.updateLockDuration(0);
     // correct
     try {
       await merkleTreeProgram.methods
@@ -867,6 +869,56 @@ describe("Merkle Tree Tests", () => {
       current_instruction_index: 1,
       merkleTreeProgram,
     });
+
+    // close merkletreeupdatestate
+    try {
+      console.log("closeMerkleTreeUpdateState 1");
+      await closeMerkleTreeUpdateState(merkleTreeProgram, signer, connection);
+      assert((await connection.getAccountInfo(merkleTreeUpdateState)) === null);
+    } catch (e) {
+      error = e;
+      console.log(error);
+      throw e;
+    }
+
+    // init again
+    try {
+      await merkleTreeProgram.methods
+        .initializeMerkleTreeUpdateState()
+        .accounts({
+          authority: signer.publicKey,
+          merkleTreeUpdateState: merkleTreeUpdateState,
+          systemProgram: SystemProgram.programId,
+          rent: DEFAULT_PROGRAMS.rent,
+          transactionMerkleTree: transactionMerkleTreePubkey,
+        })
+        .remainingAccounts([leavesPdas[0]])
+        .preInstructions([
+          solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+        ])
+        .signers([signer])
+        .rpc(confirmConfig);
+    } catch (e) {
+      error = e;
+      console.log(error);
+    }
+
+    // should not be an error
+    assert(error === undefined);
+    console.log("created update state ", merkleTreeUpdateState.toBase58());
+
+    assert((await connection.getAccountInfo(merkleTreeUpdateState)) != null);
+
+    await checkMerkleTreeUpdateStateCreated({
+      connection: connection,
+      merkleTreeUpdateState,
+      transactionMerkleTree: transactionMerkleTreePubkey,
+      relayer: signer.publicKey,
+      leavesPdas: [leavesPdas[0]],
+      current_instruction_index: 1,
+      merkleTreeProgram,
+    });
+
     console.log("executeMerkleTreeUpdateTransactions 10");
 
     await executeMerkleTreeUpdateTransactions({
@@ -923,6 +975,7 @@ describe("Merkle Tree Tests", () => {
         "Program log: AnchorError caused by account: authority. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
       ),
     );
+    await merkleTreeConfig.updateLockDuration(10);
 
     // Test property: 4
     // try to take lock

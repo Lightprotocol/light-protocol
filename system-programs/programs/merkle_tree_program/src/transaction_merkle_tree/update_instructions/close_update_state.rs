@@ -3,7 +3,6 @@ use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
-#[instruction(merkle_tree_index: u64)]
 pub struct CloseUpdateState<'info> {
     #[account(mut, address=merkle_tree_update_state.load()?.relayer)]
     pub authority: Signer<'info>,

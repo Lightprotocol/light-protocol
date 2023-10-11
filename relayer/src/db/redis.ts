@@ -2,6 +2,7 @@ import "dotenv/config.js";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 import {
+  WORKER_RETRIES_PER_JOB,
   CONCURRENT_RELAY_WORKERS,
   Environment,
   HOST,
@@ -23,6 +24,7 @@ if (process.env.ENVIRONMENT === Environment.PROD) {
     maxRetriesPerRequest: 20,
     connectTimeout: 20_000,
   });
+  console.log("using REMOTE REDIS");
 } else if (process.env.ENVIRONMENT === Environment.LOCAL) {
   console.log(process.env.ENVIRONMENT);
   redisConnection = new IORedis({ maxRetriesPerRequest: null });
@@ -38,7 +40,7 @@ export const getDbConnection = async () => {
 export const relayQueue = new Queue("relay", {
   connection: redisConnection,
   defaultJobOptions: {
-    attempts: 3,
+    attempts: WORKER_RETRIES_PER_JOB,
     backoff: {
       type: "exponential",
       delay: 2000,
@@ -67,7 +69,19 @@ export const relayWorker = new Worker(
         provider.wallet,
       );
       console.log("RELAY  JOB WORKER SENT TX, RESPONSE: ", response);
-      job.updateData({ ...job.data, response });
+      if (response.error) {
+        await job.updateData({
+          ...job.data,
+          response: { error: response.error.message },
+        });
+        // fetch newes job data and print
+        throw new Error(response.error.message);
+      }
+      await job.updateData({
+        ...job.data,
+        response,
+      });
+      // this is not yet returned
     } catch (e) {
       console.log(e);
       throw e;
@@ -85,7 +99,7 @@ relayWorker.on("completed", async (job) => {
 
 relayWorker.on("failed", async (job, err) => {
   if (job) {
-    if (job.attemptsMade < 2) {
+    if (job.attemptsMade < WORKER_RETRIES_PER_JOB) {
       console.log(
         `relay #${job.id} attempt ${job.attemptsMade} failed - retrying`,
       );
@@ -99,6 +113,9 @@ relayWorker.on("failed", async (job, err) => {
     console.log(
       `relay (job: ${job.id} failed after ${job.attemptsMade} attempts - exiting`,
     );
+    await job.updateData({ ...job.data, response: { error: message } });
+
+    return message;
   }
 });
 

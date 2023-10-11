@@ -5,6 +5,7 @@ import {
   getKeyPairFromEnv,
   getRelayer,
 } from "../utils/provider";
+import { PublicKey } from "@solana/web3.js";
 
 export async function fundRelayer() {
   const anchorProvider = await getAnchorProvider();
@@ -21,34 +22,63 @@ export async function fundRelayer() {
     relayerPublicKey,
   );
 
+  // print balances
+  console.log(
+    "Relayer Feepayer balance:",
+    keyPairBalance,
+    keyPairPublicKey.toBase58(),
+  );
+  console.log(
+    "Relayer Recipient (SOL) balance:",
+    relayerBalance,
+    relayerPublicKey.toBase58(),
+  );
+
   const airdropAmount =
     NETWORK === Network.TESTNET
+      ? 1000 * 1e6
+      : NETWORK === Network.DEVNET
       ? 1000 * 1e6
       : NETWORK === Network.LOCALNET
       ? 1000 * 1e9
       : 1000 * 1e9; // TODO: supply env to CI env, set to 0
 
-  if (keyPairBalance > airdropAmount && relayerBalance > airdropAmount) {
-    console.log("Relayer keys already funded. Skipping airdrops.");
-    return;
-  }
+  const fundAccount = async (
+    balance: number,
+    account: PublicKey,
+    accountName: string,
+  ) => {
+    if (balance > airdropAmount) {
+      console.log(`${accountName} key already funded. Skipping airdrop.`);
+    } else {
+      try {
+        await airdropSol({
+          connection: anchorProvider.connection,
+          lamports: airdropAmount,
+          recipientPublicKey: account,
+        });
+        console.log(
+          `${accountName} funded:`,
+          (
+            relayer.accounts[
+              accountName as keyof typeof relayer.accounts
+            ] as PublicKey
+          ).toBase58(),
+        );
+      } catch (e) {
+        throw new Error(`Error funding ${accountName} ${e}`);
+      }
+    }
+  };
 
-  await airdropSol({
-    connection: anchorProvider.connection,
-    lamports: airdropAmount,
-    recipientPublicKey: getKeyPairFromEnv("KEY_PAIR").publicKey,
-  });
-  console.log(
-    "Relayer Feepayer funded:",
-    relayer.accounts.relayerPubkey.toBase58(),
+  await fundAccount(
+    keyPairBalance,
+    getKeyPairFromEnv("KEY_PAIR").publicKey,
+    "relayerPubkey",
   );
-  await airdropSol({
-    connection: anchorProvider.connection,
-    lamports: airdropAmount,
-    recipientPublicKey: relayer.accounts.relayerRecipientSol,
-  });
-  console.log(
-    "Relayer Recipient (SOL) funded:",
-    relayer.accounts.relayerRecipientSol.toBase58(),
+  await fundAccount(
+    relayerBalance,
+    relayer.accounts.relayerRecipientSol,
+    "relayerRecipientSol",
   );
 }
