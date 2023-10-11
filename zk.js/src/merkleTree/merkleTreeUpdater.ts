@@ -22,6 +22,43 @@ import {
 } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";
 
+export async function closeMerkleTreeUpdateState(
+  merkleTreeProgram: Program<MerkleTreeProgram>,
+  signer: Keypair,
+  connection: Connection,
+) {
+  try {
+    const tx1 = await merkleTreeProgram.methods
+      .closeMerkleTreeUpdateState()
+      .accounts({
+        authority: signer.publicKey,
+        merkleTreeUpdateState: getMerkleTreeUpdateStatePda(
+          signer.publicKey,
+          merkleTreeProgram,
+        ),
+      })
+
+      .transaction();
+    await sendAndConfirmTransaction(connection, tx1, [signer], confirmConfig);
+  } catch (e) {
+    console.log(e);
+    throw e;
+  }
+}
+
+export function getMerkleTreeUpdateStatePda(
+  authority: PublicKey,
+  merkleTreeProgram: Program<MerkleTreeProgram>,
+) {
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(new Uint8Array(authority.toBytes())),
+      anchor.utils.bytes.utf8.encode("storage"),
+    ],
+    merkleTreeProgram.programId,
+  )[0];
+}
+
 export async function executeUpdateMerkleTreeTransactions({
   signer,
   merkleTreeProgram,
@@ -39,13 +76,11 @@ export async function executeUpdateMerkleTreeTransactions({
     await merkleTreeProgram.account.transactionMerkleTree.fetch(
       transactionMerkleTree,
     );
-  const merkleTreeUpdateState = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
-      anchor.utils.bytes.utf8.encode("storage"),
-    ],
-    merkleTreeProgram.programId,
-  )[0];
+
+  const merkleTreeUpdateState = getMerkleTreeUpdateStatePda(
+    signer.publicKey,
+    merkleTreeProgram,
+  );
   try {
     const tx1 = await merkleTreeProgram.methods
       .initializeMerkleTreeUpdateState()
@@ -194,7 +229,7 @@ const sendAndConfirmTransactions = async (
 ) => {
   const errors: Error[] = [];
   await Promise.all(
-    transactions.map(async (tx) => {
+    transactions.map(async (tx, i) => {
       try {
         await sendAndConfirmTransaction(
           connection,
@@ -207,6 +242,7 @@ const sendAndConfirmTransactions = async (
       }
     }),
   );
+
   if (errors.length > 0) throw errors[0];
 };
 
@@ -267,7 +303,6 @@ export async function executeMerkleTreeUpdateTransactions({
       merkleTreeUpdateState,
       transactionMerkleTree,
     });
-
     try {
       await sendAndConfirmTransactions(transactions, signer, connection);
     } catch (err: any) {
