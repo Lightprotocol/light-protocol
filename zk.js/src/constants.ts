@@ -9,7 +9,7 @@ import {
   LightMerkleTreeProgram,
   LightPsp2in2out,
   LightPsp10in2out,
-  LightPsp4in4out,
+  LightPsp4in4outAppStorage,
 } from "./idls";
 
 import {
@@ -55,7 +55,7 @@ export const lightPsp2in2outId = new PublicKey(
 export const lightPsp10in2outId = new PublicKey(
   "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc",
 );
-export const lightPsp4in4outId = new PublicKey(
+export const lightPsp4in4outAppStorageId = new PublicKey(
   "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86",
 );
 export const userRegistryProgramId = new PublicKey(
@@ -70,13 +70,13 @@ export const MAX_U64 = new anchor.BN("18446744073709551615");
 export const VERIFIER_PUBLIC_KEYS = [
   lightPsp2in2outId,
   lightPsp10in2outId,
-  lightPsp4in4outId,
+  lightPsp4in4outAppStorageId,
   lightPsp2in2outStorageId,
 ];
 export type merkleTreeProgram = Program<LightMerkleTreeProgram>;
 export type lightPsp2in2out = Program<LightPsp2in2out>;
 export type lightPsp10in2out = Program<LightPsp10in2out>;
-export type lightPsp4in4out = Program<LightPsp4in4out>;
+export type lightPsp4in4out = Program<LightPsp4in4outAppStorage>;
 
 export const confirmConfig: ConfirmOptions = {
   commitment: "confirmed",

@@ -22,7 +22,7 @@ import {
   UTXO_PREFIX_LENGTH,
   UtxoError,
   UtxoErrorCode,
-  lightPsp4in4outId,
+  lightPsp4in4outAppStorageId,
   CreateUtxoErrorCode,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -53,7 +53,7 @@ describe("Utxo Functional", () => {
         poseidon,
         amounts: [new BN(123)],
         publicKey: utxo4Account.pubkey,
-        appDataHash: new BN(lightPsp4in4outId.toBuffer()),
+        appDataHash: new BN(lightPsp4in4outAppStorageId.toBuffer()),
         includeAppData: false,
         verifierAddress: new PublicKey(
           lightProvider.lookUpTables.verifierProgramLookupTable[1],
@@ -692,7 +692,7 @@ describe("Utxo Benchmark", () => {
       poseidon,
       amounts: [new BN(123)],
       publicKey: utxoTestAccount.pubkey,
-      appDataHash: new BN(lightPsp4in4outId.toBuffer()),
+      appDataHash: new BN(lightPsp4in4outAppStorageId.toBuffer()),
       includeAppData: false,
       verifierAddress: new PublicKey(
         lightProvider.lookUpTables.verifierProgramLookupTable[1],

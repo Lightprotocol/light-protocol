@@ -2522,7 +2522,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-psp4in4out"
+name = "light-psp4in4out-app-storage"
 version = "0.3.0"
 dependencies = [
  "anchor-lang",

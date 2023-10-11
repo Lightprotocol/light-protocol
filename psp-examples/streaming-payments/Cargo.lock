@@ -1564,7 +1564,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-psp4in4out"
+name = "light-psp4in4out-app-storage"
 version = "0.3.0"
 dependencies = [
  "anchor-lang",
@@ -1874,7 +1874,7 @@ dependencies = [
  "groth16-solana",
  "light-macros 0.1.0",
  "light-merkle-tree-program",
- "light-psp4in4out",
+ "light-psp4in4out-app-storage",
  "light-verifier-sdk",
  "solana-program",
 ]

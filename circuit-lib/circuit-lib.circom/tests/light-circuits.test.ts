@@ -3,7 +3,7 @@ import {
   functionalCircuitTest,
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP10IN2OUT,
-  IDL_LIGHT_PSP4IN4OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
 } from "@lightprotocol/zk.js";
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
@@ -35,6 +35,6 @@ describe("verifier_program", () => {
   });
 
   it("Test functional circuit 4 in 4 out + connecting hash", async () => {
-    await functionalCircuitTest(true, IDL_LIGHT_PSP4IN4OUT);
+    await functionalCircuitTest(true, IDL_LIGHT_PSP4IN4OUT_APP_STORAGE);
   });
 });
