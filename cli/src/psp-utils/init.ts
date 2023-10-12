@@ -29,18 +29,29 @@ export const initRepo = async (name: string, type: ProjectType, flags: any) => {
   const rustName = toSnakeCase(name);
   const programsType = type === ProjectType.PSP_CIRCOM ? ProjectType.PSP : type;
 
+  const templateSource = flags.path ? ["--path",flags.path] : [
+    ["--git", flags.git],
+    flags.tag ? ["--tag", flags.tag] : flags.branch ? ["--branch", flags.branch] : ["--branch", "main"],
+  ];
+  console.log(templateSource);
   await executeCargoGenerate({
     args: [
       "generate",
-      "--git",
-      "https://github.com/Lightprotocol/psp-template",
+      ...templateSource,
+      // flags.templateSourceFlag,
+      // flags.git,
       // TODO(vadorovsky): Switch back to a new release when
       // https://github.com/Lightprotocol/psp-template/pull/12
       // is merged and released.
       // "--tag",
       // PSP_TEMPLATE_TAG,
+<<<<<<< HEAD
       "--branch",
       "jorrit/refactor-for-circuit-lib",
+=======
+      // "--branch",
+      // "jorrit/adapt-to-psp4in4out-app-storage",
+>>>>>>> feat - added cli version flags
       "psp-template",
       "--name",
       name,
@@ -49,7 +60,7 @@ export const initRepo = async (name: string, type: ProjectType, flags: any) => {
       "--define",
       `rust-name=${rustName}`,
       "--define",
-      `program-id=${flags.pspDefaultProgramId}`,
+      `program-id=${PSP_DEFAULT_PROGRAM_ID}`,
       "--define",
       `VERIFYING_KEY_NAME=${camelToScreamingSnake(circomName)}`,
       "--define",
@@ -93,53 +104,90 @@ export const initRepo = async (name: string, type: ProjectType, flags: any) => {
   await executeCommandInDir("pnpm", ["install"], name);
 };
 
-
 export const cliFlags = {
   zkJsVersion: Flags.string({
-    char: 'z',
+    aliases: ['zkjs'],
     description: 'ZK JS version',
     default: ZK_JS_VERSION,
+    required: false,
   }),
 
   proverJsVersion: Flags.string({
-    char: 'p',
+    aliases: ['pjs'],
     description: 'Prover JS version',
     default: PROVER_JS_VERSION,
+    required: false,
   }),
 
   circuitLibCircomVersion: Flags.string({
-    char: 'c',
+    aliases: ['clib'],
     description: 'Circuit Lib Circom version',
     default: CIRCUIT_LIB_CIRCOM_VERSION,
+    required: false,
   }),
 
-  pspDefaultProgramId: Flags.string({
-    char: 'i',
-    description: 'PSP default program ID',
-    default: PSP_DEFAULT_PROGRAM_ID,
+  lightMerkleTreeProgramVersion: Flags.string({
+    aliases: ['lmtv'],
+    description: 'Light System Programs version',
+    default: LIGHT_SYSTEM_PROGRAMS_VERSION,
+    required: false,
   }),
 
   lightSystemProgramsVersion: Flags.string({
-    char: 'l',
+    aliases: ['lspv'],
     description: 'Light System Programs version',
     default: LIGHT_SYSTEM_PROGRAMS_VERSION,
+    required: false,
   }),
 
   lightSystemProgram: Flags.string({
-    char: 's',
+    aliases: ['lsp'],
     description: 'Light System Program',
     default: LIGHT_SYSTEM_PROGRAM,
+    required: false,
   }),
 
   lightMacrosVersion: Flags.string({
-    char: 'm',
+    aliases: ['m'],
     description: 'Light Macros version',
     default: LIGHT_MACROS_VERSION,
+    required: false,
   }),
 
   lightVerifierSdkVersion: Flags.string({
-    char: 'v',
+    aliases: ['vsdk'],
     description: 'Light Verifier SDK version',
     default: LIGHT_VERIFIER_SDK_VERSION,
+<<<<<<< HEAD
   }),
+=======
+    required: false,
+  }),
+
+  path: Flags.string({
+    aliases: ['p'],
+    description: 'Path of the template repo.',
+    required: false,
+  }),
+
+  git: Flags.string({
+    aliases: ['g'],
+    description: 'Github url of the template repo',
+    default: "https://github.com/Lightprotocol/psp-template",
+    required: false,
+  }),
+
+  tag: Flags.string({
+    aliases: ['t'],
+    description: 'Tag must be used in conjuction with --git',
+    required: false,
+  }),
+
+  branch: Flags.string({
+    aliases: ['b'],
+    description: 'Branch must be used in conjuction with --git',
+    default: "main",
+    required: false,
+  }),
+>>>>>>> feat - added cli version flags
 };
