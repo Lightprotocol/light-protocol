@@ -1,0 +1,45 @@
+name: Auto Tag Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  auto-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Auto Tag
+        run: |
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
+          if [[ "$COMMIT_AUTHOR" == "github-actions"* ]]; then
+            CHANGED_FILES=$(git --no-pager show @ --name-only)
+            PACKAGE_NAME=""
+
+            if [[ "$CHANGED_FILES" == *"macros"* ]]; then
+              PACKAGE_NAME="light-macros"
+            elif [[ "$CHANGED_FILES" == *"programs/merkle-tree"* ]]; then
+              PACKAGE_NAME="light-merkle-tree-program"
+            elif [[ "$CHANGED_FILES" == *"psp2in2out"* ]]; then
+              PACKAGE_NAME="light-psp2in2out"
+            elif [[ "$CHANGED_FILES" == *"psp10in2out"* ]]; then
+              PACKAGE_NAME="light-psp10in2out"
+            elif [[ "$CHANGED_FILES" == *"psp4in4out-app-storage"* ]]; then
+              PACKAGE_NAME="light-psp4in4out-app-storage"
+            elif [[ "$CHANGED_FILES" == *"psp2in2out-storage"* ]]; then
+              PACKAGE_NAME="light-psp2in2out-storage"
+            elif [[ "$CHANGED_FILES" == *"verifier-sdk"* ]]; then
+              PACKAGE_NAME="light-verifier-sdk"
+            fi
+
+            if [[ -n "$PACKAGE_NAME" ]]; then
+              NEW_TAG="v$(cargo metadata --format-version=1  | jq -r ".packages[] | select(.name == \"$PACKAGE_NAME\") | .version" | head -n 1)"
+              git config user.name "GitHub Actions"
+              git config user.email "github-actions@github.com"
+              git tag "${PACKAGE_NAME}-${NEW_TAG}"
+              git push origin "${PACKAGE_NAME}-${NEW_TAG}"
+            fi
+          fi

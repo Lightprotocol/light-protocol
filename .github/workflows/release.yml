@@ -19,6 +19,38 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
+      - name: Extract crate name from tag
+        id: extract-crate
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          CRATE_NAME=$(echo $TAG_NAME | cut -d'-' -f 1)
+
+          if [ "$CRATE_NAME" == *"light-merkle-tree-program"* ]; then
+            SO_FILE="light_merkle_tree_program.so"
+          elif [ "$CRATE_NAME" == *"light-psp2in2out"* ]; then
+            SO_FILE="light_psp2in2out.so"
+          elif [ "$CRATE_NAME" == *"light-psp10in2out"* ]; then
+            SO_FILE="light_psp10in2out.so"
+          elif [ "$CRATE_NAME" == *"light-psp4in4out-app-storage"* ]; then
+            SO_FILE="light_psp4in4out_app_storage.so"
+          elif [ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]; then
+            SO_FILE="light_psp2in2out_storage.so"
+          fi
+          echo "::set-output name=crate::$CRATE_NAME"
+          echo "::set-output name=so-file::$SO_FILE"
+
+      - name: Prepare and Release Crate
+        run: |
+          CRATE=${{ steps.extract-crate.outputs.crate }}
+
+          # Put conditional steps to prepare and release specific crates
+          if [[ "$CRATE" == "light-macros" ]]; then
+            # Prepare artifacts and release for light-macros
+          elif [[ "$CRATE" == "light-merkle-tree-program" ]]; then
+            # Prepare artifacts and release for light-merkle-tree-program
+          # Add more elif branches for other crates as needed
+          fi
+
       - name: Prepare artifacts
         run: |
           cp target/deploy/light_merkle_tree_program.so .
@@ -34,9 +66,17 @@ jobs:
         with:
           token: ${{ secrets.PAT_TOKEN }}
           files: |
-            light_merkle_tree_program.so
-            light_psp2in2out.so
-            light_psp10in2out.sp
-            light_psp4in4out_app_storage.so
-            light_psp2in2out_storage.so
-            spl_noop.so
+            ${{ steps.extract-crate.outputs.so-file }}
+
+      - name: Install cargo-release
+        run: |
+          VERSION=$(curl --silent "https://api.github.com/repos/crate-ci/cargo-release/releases/latest" | jq -r .tag_name)
+          wget https://github.com/crate-ci/cargo-release/releases/download/$VERSION/cargo-release-$VERSION-x86_64-unknown-linux-gnu.tar.gz
+          tar -xzvf cargo-release-$VERSION-x86_64-unknown-linux-gnu.tar.gz --wildcards '*cargo-release' --strip-components=1
+          cp cargo-release $HOME/.cargo/bin
+
+      - name: Run cargo release
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          cargo release -p ${{ steps.extract-crate.outputs.crate }} --no-dev-version --no-confirm --no-tag --token $CARGO_REGISTRY_TOKEN
