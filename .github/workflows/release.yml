@@ -36,8 +36,8 @@ jobs:
           elif [ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]; then
             SO_FILE="light_psp2in2out_storage.so"
           fi
-          echo "::set-output name=crate::$CRATE_NAME"
-          echo "::set-output name=so-file::$SO_FILE"
+          echo "crate=$CRATE_NAME" >> $GITHUB_OUTPUT
+          echo "so-file=$SO_FILE" >> $GITHUB_OUTPUT
 
       - name: Prepare artifacts
         run: |
@@ -56,15 +56,8 @@ jobs:
           files: |
             ${{ steps.extract-crate.outputs.so-file }}
 
-      - name: Install cargo-release
-        run: |
-          VERSION=$(curl --silent "https://api.github.com/repos/crate-ci/cargo-release/releases/latest" | jq -r .tag_name)
-          wget https://github.com/crate-ci/cargo-release/releases/download/$VERSION/cargo-release-$VERSION-x86_64-unknown-linux-gnu.tar.gz
-          tar -xzvf cargo-release-$VERSION-x86_64-unknown-linux-gnu.tar.gz --wildcards '*cargo-release' --strip-components=1
-          cp cargo-release $HOME/.cargo/bin
-
-      - name: Run cargo release
+      - name: Run cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
-          cargo release -p ${{ steps.extract-crate.outputs.crate }} -- --token $CARGO_REGISTRY_TOKEN
+          cargo publish -p ${{ steps.extract-crate.outputs.crate }} --token $CARGO_REGISTRY_TOKEN
