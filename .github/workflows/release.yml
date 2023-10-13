@@ -23,7 +23,7 @@ jobs:
         id: extract-crate
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
-          CRATE_NAME=$(echo $TAG_NAME | cut -d'-' -f 1)
+          CRATE_NAME=$(echo $TAG_NAME | rev | cut -d'-' -f2- | rev)
 
           if [ "$CRATE_NAME" == *"light-merkle-tree-program"* ]; then
             SO_FILE="light_merkle_tree_program.so"
