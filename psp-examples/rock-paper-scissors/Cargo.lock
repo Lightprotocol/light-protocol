@@ -1509,6 +1509,8 @@ dependencies = [
 [[package]]
 name = "light-macros"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f032792df1b0157cee19e7e5de18009e171b22154e07432fe92f1c7e8bb5e1d5"
 dependencies = [
  "bs58 0.4.0",
  "proc-macro2",
@@ -1518,9 +1520,7 @@ dependencies = [
 
 [[package]]
 name = "light-macros"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f032792df1b0157cee19e7e5de18009e171b22154e07432fe92f1c7e8bb5e1d5"
+version = "0.3.0"
 dependencies = [
  "bs58 0.4.0",
  "proc-macro2",
@@ -1558,7 +1558,7 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "getrandom 0.2.10",
- "light-macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "light-macros 0.1.0",
  "light-merkle-tree",
  "solana-security-txt",
  "spl-token",
@@ -1571,7 +1571,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "groth16-solana",
- "light-macros 0.1.0",
+ "light-macros 0.3.0",
  "light-merkle-tree-program",
  "light-verifier-sdk",
  "solana-security-txt",
@@ -2031,7 +2031,7 @@ dependencies = [
  "anchor-spl",
  "bytemuck",
  "groth16-solana",
- "light-macros 0.1.0",
+ "light-macros 0.3.0",
  "light-merkle-tree-program",
  "light-psp4in4out-app-storage",
  "light-verifier-sdk",
