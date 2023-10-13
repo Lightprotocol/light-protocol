@@ -3,15 +3,26 @@ import {
   IndexedTransaction,
   fetchRecentTransactions,
   sendVersionedTransactions,
+  ProviderErrorCode,
+  ProviderError,
 } from "@lightprotocol/zk.js";
 import { getAnchorProvider, getLightProvider } from "../utils/provider";
+import { RelayError, RelayErrorCode } from "../errors";
 
 export async function sendTransaction(req: any, res: any) {
   try {
-    if (!req.body.instructions) throw new Error("No instructions provided");
+    if (!req.body.instructions)
+      throw new RelayError(
+        RelayErrorCode.NO_INSTRUCTIONS_PROVIDED,
+        "sendTransaction",
+      );
     const provider = await getLightProvider();
 
-    if (!provider.provider) throw new Error("no provider set");
+    if (!provider.provider)
+      throw new ProviderError(
+        ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
+        "sendTransaction",
+      );
 
     const instructions: TransactionInstruction[] = [];
     for (const instruction of req.body.instructions) {
@@ -48,7 +59,11 @@ export async function indexedTransactions(_req: any, res: any) {
   try {
     const provider = await getAnchorProvider();
 
-    if (!provider) throw new Error("no provider set");
+    if (!provider)
+      throw new ProviderError(
+        ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
+        "indexedTransactions",
+      );
 
     const { transactions: indexedTransactions } = await fetchRecentTransactions(
       {

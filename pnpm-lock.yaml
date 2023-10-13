@@ -342,10 +342,10 @@ importers:
         version: 4.3.6
       '@types/mocha':
         specifier: ^10.0.1
-        version: 10.0.1
+        version: 10.0.2
       chai:
         specifier: ^4.3.8
-        version: 4.3.8
+        version: 4.3.10
       mocha:
         specifier: ^10.2.0
         version: 10.2.0
@@ -375,7 +375,7 @@ importers:
         version: 5.2.19(@types/node@20.8.0)(typescript@5.2.2)
       '@oclif/plugin-plugins':
         specifier: ^3.8.4
-        version: 3.8.4(@types/node@20.8.0)(typescript@5.2.2)
+        version: 3.9.1(@types/node@20.8.0)(typescript@5.2.2)
       '@project-serum/anchor':
         specifier: 0.26.0
         version: 0.26.0
@@ -482,7 +482,7 @@ importers:
         version: 9.1.1
       chai:
         specifier: ^4.3.4
-        version: 4.3.8
+        version: 4.3.10
       mocha:
         specifier: ^9.0.3
         version: 9.2.2
@@ -516,10 +516,10 @@ importers:
         version: 4.3.6
       '@types/mocha':
         specifier: ^10.0.1
-        version: 10.0.1
+        version: 10.0.2
       chai:
         specifier: ^4.3.8
-        version: 4.3.8
+        version: 4.3.10
       mocha:
         specifier: ^10.2.0
         version: 10.2.0
@@ -571,7 +571,7 @@ importers:
         version: 9.1.1
       chai:
         specifier: ^4.3.4
-        version: 4.3.8
+        version: 4.3.10
       mocha:
         specifier: ^9.0.3
         version: 9.2.2
@@ -617,10 +617,10 @@ importers:
         version: 4.3.6
       '@types/mocha':
         specifier: ^10.0.1
-        version: 10.0.1
+        version: 10.0.2
       chai:
         specifier: ^4.3.8
-        version: 4.3.8
+        version: 4.3.10
       mocha:
         specifier: ^10.2.0
         version: 10.2.0
@@ -666,10 +666,10 @@ importers:
         version: 4.3.6
       '@types/mocha':
         specifier: ^10.0.1
-        version: 10.0.1
+        version: 10.0.2
       chai:
         specifier: ^4.3.4
-        version: 4.3.8
+        version: 4.3.10
       mocha:
         specifier: ^10.2.0
         version: 10.2.0
@@ -788,6 +788,9 @@ importers:
       prettier:
         specifier: ^2.8.8
         version: 2.8.8
+      rimraf:
+        specifier: ^5.0.5
+        version: 5.0.5
       sinon:
         specifier: ^15.2.0
         version: 15.2.0
@@ -2080,8 +2083,8 @@ packages:
       - typescript
     dev: false
 
-  /@oclif/plugin-plugins@3.8.4(@types/node@20.8.0)(typescript@5.2.2):
-    resolution: {integrity: sha512-msar390ub3aCohh4ZsbbS/mKobmF3p/BUd3J1WQ62XE9UDbrzkhVAowf3fsmgSSYCQxMwgGokJwj24O6ZpW+6w==}
+  /@oclif/plugin-plugins@3.9.1(@types/node@20.8.0)(typescript@5.2.2):
+    resolution: {integrity: sha512-86155GW6fQ8ZsmscffIOuvjjCCnXfuUJ/3dA+s6vqVgyGu8VshsHxnA9LCVja/Gz53j9TeaEog08IMcMDsmS7g==}
     engines: {node: '>=16'}
     dependencies:
       '@oclif/core': 2.15.0(@types/node@20.8.0)(typescript@5.2.2)
@@ -3760,7 +3763,7 @@ packages:
     dependencies:
       '@npmcli/fs': 3.1.0
       fs-minipass: 3.0.3
-      glob: 10.3.6
+      glob: 10.3.10
       lru-cache: 7.18.3
       minipass: 7.0.3
       minipass-collect: 1.0.2
@@ -5574,7 +5577,6 @@ packages:
 
   /get-func-name@2.0.2:
     resolution: {integrity: sha512-8vXOvuE167CtIc3OyItco7N/dpRtBbYOsPsXCz7X/PMnlGjYjSGuZJgM1Y7mmew7BKf9BqvLX2tnOVy1BBUsxQ==}
-    dev: true
 
   /get-intrinsic@1.2.1:
     resolution: {integrity: sha512-2DcsyfABl+gVHEfCOaTrWgyt+tb6MSEGmKq+kI5HwLbIYgjgmMcV8KQ41uaKz1xxUcn9tJtgFbQUEVcEbd0FYw==}
@@ -5646,18 +5648,6 @@ packages:
     dependencies:
       foreground-child: 3.1.1
       jackspeak: 2.3.6
-      minimatch: 9.0.3
-      minipass: 7.0.3
-      path-scurry: 1.10.1
-    dev: true
-
-  /glob@10.3.6:
-    resolution: {integrity: sha512-mEfImdc/fiYHEcF6pHFfD2b/KrdFB1qH9mRe5vI5HROF8G51SWxQJ2V56Ezl6ZL9y86gsxQ1Lgo2S746KGUPSQ==}
-    engines: {node: '>=16 || 14 >=14.17'}
-    hasBin: true
-    dependencies:
-      foreground-child: 3.1.1
-      jackspeak: 2.3.3
       minimatch: 9.0.3
       minipass: 7.0.3
       path-scurry: 1.10.1
@@ -6334,15 +6324,6 @@ packages:
     dependencies:
       ws: 7.5.9
 
-  /jackspeak@2.3.3:
-    resolution: {integrity: sha512-R2bUw+kVZFS/h1AZqBKrSgDmdmjApzgY0AlCPumopFiAlbUxE2gf+SCuBzQ0cP5hHmUmFYF5yw55T97Th5Kstg==}
-    engines: {node: '>=14'}
-    dependencies:
-      '@isaacs/cliui': 8.0.2
-    optionalDependencies:
-      '@pkgjs/parseargs': 0.11.0
-    dev: true
-
   /jackspeak@2.3.6:
     resolution: {integrity: sha512-N3yCS/NegsOBokc8GAdM8UcmfsKiSS8cipheD/nivzr700H+nsMOxJjQnvwOcRYVuFkdH0wGUvW2WbXGmrZGbQ==}
     engines: {node: '>=14'}
@@ -6698,7 +6679,7 @@ packages:
   /loupe@2.3.6:
     resolution: {integrity: sha512-RaPMZKiMy8/JruncMU5Bt6na1eftNoo++R4Y+N2FrxkDVTrGvcyzFTsaGif4QTeKESheMGegbhw6iUAq+5A8zA==}
     dependencies:
-      get-func-name: 2.0.0
+      get-func-name: 2.0.2
 
   /lower-case@2.0.2:
     resolution: {integrity: sha512-7fm3l3NAF9WfN6W3JOmf5drwpVqX78JtoGJ3A6W0a6ZnldM41w2fV5D490psKFTpMds8TJse/eHLFFsNHHjHgg==}
@@ -8443,7 +8424,7 @@ packages:
     resolution: {integrity: sha512-AEtWXYfopBj2z5N5PbkAOeNHRPUg5q+Nen7QLxV8M2zJq1ym6/lCz3fYNTCXe19puu2d06jfHhrP7v/S2PtMMw==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
     dependencies:
-      glob: 10.3.6
+      glob: 10.3.10
       json-parse-even-better-errors: 3.0.0
       normalize-package-data: 5.0.0
       npm-normalize-package-bin: 3.0.1

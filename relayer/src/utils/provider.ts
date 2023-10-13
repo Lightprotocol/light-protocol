@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair } from "@solana/web3.js";
-import { RELAYER_URL, relayerFee } from "../config";
+import { RELAYER_LOOK_UP_TABLE, RELAYER_URL, relayerFee } from "../config";
 import {
   confirmConfig,
   Provider,
@@ -8,7 +8,10 @@ import {
   TOKEN_ACCOUNT_FEE,
   useWallet,
 } from "@lightprotocol/zk.js";
-import { readLookupTable } from "./readLookupTable";
+import {
+  EnvironmentVariableError,
+  EnvironmentVariableErrorCode,
+} from "../errors";
 const circomlibjs = require("circomlibjs");
 
 require("dotenv").config();
@@ -26,7 +29,12 @@ export const getAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = process.env.RPC_URL;
   const url = process.env.RPC_URL;
-  if (!url) throw new Error("Environment variable RPC_URL not set");
+  if (!url)
+    throw new EnvironmentVariableError(
+      EnvironmentVariableErrorCode.VARIABLE_NOT_SET,
+      "getAnchorProvider",
+      "RPC_URL",
+    );
   console.log("url", url);
   const connection = new anchor.web3.Connection(url, "confirmed");
   const providerAnchor = new anchor.AnchorProvider(
@@ -39,7 +47,7 @@ export const getAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
 
 export const getLightProvider = async () => {
   if (!provider) {
-    const relayer = await getRelayer();
+    const relayer = getRelayer();
 
     try {
       const anchorProvider = await getAnchorProvider();
@@ -50,7 +58,7 @@ export const getLightProvider = async () => {
         relayer,
         connection: anchorProvider.connection,
         url: process.env.RPC_URL!,
-        versionedTransactionLookupTable: readLookupTable(),
+        versionedTransactionLookupTable: RELAYER_LOOK_UP_TABLE,
         anchorProvider,
         poseidon,
       });
@@ -65,7 +73,7 @@ export const getLightProvider = async () => {
   return provider;
 };
 
-export async function getRelayer() {
+export function getRelayer(): Relayer {
   if (!relayer) {
     relayer = new Relayer(
       getKeyPairFromEnv("KEY_PAIR").publicKey,

@@ -1,5 +1,5 @@
 import express from "express";
-import { DB_VERSION, Environment, port } from "./config";
+import { DB_VERSION, LOCAL_TEST_ENVIRONMENT, port } from "./config";
 import { addCorsHeaders } from "./middleware";
 import bodyParser from "body-parser";
 import {
@@ -14,8 +14,9 @@ import {
 import { getTransactions } from "./db/redis";
 import { createTestAccounts } from "@lightprotocol/zk.js";
 import { getAnchorProvider } from "./utils/provider";
-import { setupRelayerLookUpTable } from "./setup";
-import { fundRelayer } from "./setup/fundRelayer";
+
+import { fundRelayer, lookUpTableIsInited } from "./setup";
+import { AccountError, AccountErrorCode } from "./errors";
 require("dotenv").config();
 
 const app = express();
@@ -48,11 +49,20 @@ app.listen(port, async () => {
   console.log("Starting relayer...");
   const anchorProvider = await getAnchorProvider();
 
-  if (process.env.ENVIRONMENT !== Environment.PROD) await fundRelayer();
-  await setupRelayerLookUpTable(anchorProvider);
-  console.log("Relayer lookuptable set up!");
-  if (process.env.TEST_ENVIRONMENT) {
-    console.log("Setting up test environment...", process.env.TEST_ENVIRONMENT);
+  /// We always expect the environment variable to be set to a valid and initialized lookuptable pubkey
+  /// In local tests, we preload the hardcoded pubkey with `light test-validator`
+  if (!(await lookUpTableIsInited(anchorProvider)))
+    throw new AccountError(
+      AccountErrorCode.LOOK_UP_TABLE_NOT_INITIALIZED,
+      "startup",
+    );
+
+  /// Should only run in local tests.
+  /// TODO: consider moving to a separate setup script for tests where relayer is involved
+  if (LOCAL_TEST_ENVIRONMENT) {
+    console.log("Funding relayer...");
+    await fundRelayer();
+    console.log("Setting up test environment...");
     await createTestAccounts(anchorProvider.connection);
     console.log("Test environment setup completed!");
     const { job } = await getTransactions(DB_VERSION);

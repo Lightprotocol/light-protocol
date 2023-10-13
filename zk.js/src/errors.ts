@@ -206,15 +206,14 @@ export enum ProgramUtxoBalanceErrorCode {
 
 export class MetaError extends Error {
   code: string;
-  codeMessage?: string;
   functionName: string;
+  codeMessage?: string;
 
   constructor(code: string, functionName: string, codeMessage?: string) {
     super(`${code}: ${codeMessage}`);
-
-    this.codeMessage = codeMessage;
     this.code = code;
     this.functionName = functionName;
+    this.codeMessage = codeMessage;
   }
 }
 

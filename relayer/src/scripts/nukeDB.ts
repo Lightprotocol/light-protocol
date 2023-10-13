@@ -1,7 +1,7 @@
 // nuke redis db entries
 import { sleep } from "@lightprotocol/zk.js";
-import { DB_VERSION } from "./config";
-import { getTransactions } from "./db/redis";
+import { DB_VERSION } from "../config";
+import { getTransactions } from "../db/redis";
 
 (async () => {
   console.log("NUKING DB IN 5 SECONDS!");

@@ -16,7 +16,7 @@ export const buildMerkleTree = async (_req: any, res: any) => {
     const transactionMerkleTreePda =
       MerkleTreeConfig.getTransactionMerkleTreePda();
 
-    const relayer = await getRelayer();
+    const relayer = getRelayer();
 
     const indexedTransactions = await relayer.getIndexedTransactions(
       provider.provider!.connection,

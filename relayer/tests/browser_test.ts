@@ -51,7 +51,7 @@ describe("Browser tests", () => {
       recipientPublicKey: relayer.publicKey,
     });
 
-    RELAYER = await getRelayer();
+    RELAYER = getRelayer();
     await airdropSol({
       connection: connection,
       lamports: 9e8,
