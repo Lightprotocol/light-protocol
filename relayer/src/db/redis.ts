@@ -8,15 +8,22 @@ import {
   HOST,
   PASSWORD,
   PORT,
+  REDIS_ENVIRONMENT,
 } from "../config";
 
 import { sendVersionedTransactions } from "@lightprotocol/zk.js";
 import { getLightProvider } from "../utils/provider";
 import { parseReqParams } from "../services/index";
+import {
+  EnvironmentVariableError,
+  EnvironmentVariableErrorCode,
+  RedisError,
+  RedisErrorCode,
+} from "../errors";
 
 let redisConnection: any;
 
-if (process.env.ENVIRONMENT === Environment.PROD) {
+if (REDIS_ENVIRONMENT === Environment.PROD) {
   redisConnection = new IORedis(Number(PORT), HOST, {
     username: "default",
     password: PASSWORD,
@@ -25,15 +32,20 @@ if (process.env.ENVIRONMENT === Environment.PROD) {
     connectTimeout: 20_000,
   });
   console.log("using REMOTE REDIS");
-} else if (process.env.ENVIRONMENT === Environment.LOCAL) {
-  console.log(process.env.ENVIRONMENT);
+} else if (REDIS_ENVIRONMENT === Environment.LOCAL) {
+  console.log(REDIS_ENVIRONMENT);
   redisConnection = new IORedis({ maxRetriesPerRequest: null });
 } else {
-  throw new Error("Please provide ENVIRONMENT env varibale (LOCAL/PROD)!");
+  throw new EnvironmentVariableError(
+    EnvironmentVariableErrorCode.VARIABLE_NOT_SET,
+    "redis.ts",
+    "provide either LOCAL or PROD for REDIS_ENVIRONMENT",
+  );
 }
 
 export const getDbConnection = async () => {
-  if (!redisConnection) throw new Error("REDIS env not configured correctly!");
+  if (!redisConnection)
+    throw new RedisError(RedisErrorCode.NO_REDIS_CONNECTION, "redis.ts");
   return redisConnection;
 };
 

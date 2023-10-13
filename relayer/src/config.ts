@@ -7,14 +7,36 @@ import {
   RELAYER_FEE,
 } from "@lightprotocol/zk.js";
 import "dotenv/config.js";
+import { PublicKey } from "@solana/web3.js";
+import {
+  EnvironmentVariableError,
+  EnvironmentVariableErrorCode,
+} from "./errors";
 
-let _LOOK_UP_TABLE: string | undefined | null = process.env.LOOK_UP_TABLE;
+const _LOOK_UP_TABLE: string | undefined | null = process.env.LOOK_UP_TABLE;
 export function getLookUpTableVar() {
   return _LOOK_UP_TABLE;
 }
-export function setLookUpTableVar(value: string) {
-  _LOOK_UP_TABLE = value;
-}
+
+const lookUpTable = process.env.LOOK_UP_TABLE;
+if (!lookUpTable)
+  throw new EnvironmentVariableError(
+    EnvironmentVariableErrorCode.VARIABLE_NOT_SET,
+    "config.ts",
+  );
+
+export const RELAYER_LOOK_UP_TABLE = new PublicKey(lookUpTable);
+
+const _LOCAL_TEST_ENVIRONMENT: string | undefined | null =
+  process.env.LOCAL_TEST_ENVIRONMENT;
+if (_LOCAL_TEST_ENVIRONMENT !== "true" && _LOCAL_TEST_ENVIRONMENT !== "false")
+  throw new EnvironmentVariableError(
+    EnvironmentVariableErrorCode.INVALID_VARIABLE,
+    "config.ts",
+    "Must be either 'true' or 'false'.",
+  );
+
+export const LOCAL_TEST_ENVIRONMENT = _LOCAL_TEST_ENVIRONMENT === "true";
 
 export const WORKER_RETRIES_PER_JOB = 1;
 export const MIN_INDEXER_SLOT = 1693523214000; //arbitrary, based on "deployment version". is actually unix timestamp
@@ -49,7 +71,7 @@ export enum TransactionType {
 }
 
 export const NETWORK = process.env.NETWORK;
-export const ENVIRONMENT = process.env.ENVIRONMENT;
+export const REDIS_ENVIRONMENT = process.env.REDIS_ENVIRONMENT;
 
 export const RPC_URL = process.env.RPC_URL!;
 

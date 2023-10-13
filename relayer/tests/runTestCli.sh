@@ -11,7 +11,7 @@ PID_redis="${!}"
 sleep 15
 trap "kill ${PID_redis}" EXIT
 # redis specific export
-export ENVIRONMENT=LOCAL
+export REDIS_ENVIRONMENT=LOCAL
 
 echo "starting solana-test-validator"
 solana config set --url http://localhost:8899

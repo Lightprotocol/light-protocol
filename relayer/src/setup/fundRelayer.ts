@@ -10,28 +10,28 @@ import { PublicKey } from "@solana/web3.js";
 export async function fundRelayer() {
   const anchorProvider = await getAnchorProvider();
 
-  const keyPairPublicKey = getKeyPairFromEnv("KEY_PAIR").publicKey;
-  const relayer = await getRelayer();
-  const relayerPublicKey = relayer.accounts.relayerRecipientSol;
+  const relayer = getRelayer();
+  const relayerPubkey = relayer.accounts.relayerPubkey;
+  const relayerRecipient = relayer.accounts.relayerRecipientSol;
   relayer.relayerFee = RELAYER_FEE;
 
   const keyPairBalance = await anchorProvider.connection.getBalance(
-    keyPairPublicKey,
+    relayerPubkey,
   );
   const relayerBalance = await anchorProvider.connection.getBalance(
-    relayerPublicKey,
+    relayerRecipient,
   );
 
   // print balances
   console.log(
     "Relayer Feepayer balance:",
     keyPairBalance,
-    keyPairPublicKey.toBase58(),
+    relayerPubkey.toBase58(),
   );
   console.log(
     "Relayer Recipient (SOL) balance:",
     relayerBalance,
-    relayerPublicKey.toBase58(),
+    relayerRecipient.toBase58(),
   );
 
   const airdropAmount =
