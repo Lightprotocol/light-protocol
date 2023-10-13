@@ -67,4 +67,4 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
-          cargo release -p ${{ steps.extract-crate.outputs.crate }} --no-dev-version --no-confirm --no-tag --token $CARGO_REGISTRY_TOKEN
+          cargo release -p ${{ steps.extract-crate.outputs.crate }} -- --token $CARGO_REGISTRY_TOKEN
