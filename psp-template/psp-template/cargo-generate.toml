@@ -1,0 +1,67 @@
+[template]
+cargo_generate_version = ">=0.18.2"
+ignore = [ "circuits/cargo-generate.toml" ]
+
+[placeholders.circom-name]
+type = "string"
+prompt = "Name of the Circom circuit (snake_case)"
+
+[placeholders.circom-name-camel-case]
+type = "string"
+prompt = "Name of the Circom circuit (camelCase)"
+
+[placeholders.rust-name]
+type = "string"
+prompt = "Name of the Rust crate (snake_case)"
+
+[placeholders.program-id]
+type = "string"
+prompt = "Solana program ID"
+default = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+
+[placeholders.type]
+type = "string"
+prompt = "Repo type (psp, circom, psp-circom)"
+default = "psp"
+
+[placeholders.prover-js-version]
+type = "string"
+prompt = "Prover js version"
+
+[placeholders.zk-js-version]
+type = "string"
+prompt = "zk js version"
+
+[placeholders.light-merkle-tree-program-version]
+type = "string"
+prompt = "Merkle tree program version"
+
+[placeholders.light-system-program-version]
+type = "string"
+prompt = "Native PSP version"
+
+[placeholders.light-system-program]
+type = "string"
+prompt = "Native PSP"
+
+[placeholders.light-macros-version]
+type = "string"
+prompt = "light-macros version"
+
+[placeholders.light-verifier-sdk-version]
+type = "string"
+prompt = "Light Verifier SDK version"
+
+[placeholders.type-prefix]
+type = "string"
+prompt = "Sub cli type (psp, circom)"
+default = "psp"
+
+[conditional.'type == "psp"']
+ignore = [ "circuits/circuit_circom", "tests_circom", "programs_circom" ]
+
+[conditional.'type == "circom"']
+ignore = [ "circuits/circuit_psp", "tests_psp", "programs_psp" ]
+
+[conditional.'type == "psp-circom"']
+ignore = [ "circuits/circuit_psp", "tests_circom", "programs_circom" ]

@@ -1,0 +1,26 @@
+[package]
+name = "{{rust-name}}"
+version = "0.1.0"
+description = "Created with Light Protocol"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "{{rust-name}}"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
+light-merkle-tree-program = {{ light-merkle-tree-program-version }}
+{{ light-system-program }} = {{ light-system-program-version }}
+light-macros = {{ light-macros-version }}
+light-verifier-sdk = {{ light-verifier-sdk-version }}
+solana-program = "1.16.4"
+groth16-solana = "0.0.2"

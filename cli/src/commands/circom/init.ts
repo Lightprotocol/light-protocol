@@ -1,5 +1,5 @@
 import { Command, Args } from "@oclif/core";
-import { ProjectType, initRepo } from "../../psp-utils/init";
+import { ProjectType, initRepo, cliFlags } from "../../psp-utils/init";
 
 export default class InitCommand extends Command {
   static description = "Initialize circom-anchor project";
@@ -11,14 +11,17 @@ export default class InitCommand extends Command {
       required: true,
     }),
   };
+  static flags = {
+    ...cliFlags,
+  };
 
   async run() {
-    const { args } = await this.parse(InitCommand);
+    const { args, flags } = await this.parse(InitCommand);
     const { name } = args;
 
     this.log("Initializing circom-anchor project...");
 
-    await initRepo(name, ProjectType.CIRCOM);
+    await initRepo(name, ProjectType.CIRCOM, flags);
     this.log("✅ Project initialized successfully");
   }
 }

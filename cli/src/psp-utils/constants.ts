@@ -6,16 +6,17 @@ export const MACRO_CIRCOM_TAG = "v0.1.6";
 export const ZK_JS_VERSION = "0.3.2-alpha.15";
 export const PROVER_JS_VERSION = "0.1.0-alpha.2";
 export const CIRCUIT_LIB_CIRCOM_VERSION =
-  "file:../circuit-lib/circuit-lib.circom"; //"0.1.0-alpha.1";
+  "file:../circuit-lib/circuit-lib.circom";
 export const PSP_DEFAULT_PROGRAM_ID =
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
+
 export const LIGHT_SYSTEM_PROGRAM = "light-psp4in4out-app-storage";
 export const LIGHT_SYSTEM_PROGRAMS_VERSION =
-  '{ git = "https://github.com/lightprotocol/light-protocol", features = ["cpi"], rev = "cf88fdedc3596a78f1e04a08695a29cb0f1b607f" }';
+  '{ git = "https://github.com/lightprotocol/light-protocol", features = ["cpi"], branch = "main" }';
 export const LIGHT_MACROS_VERSION =
-  '{ git = "https://github.com/lightprotocol/light-protocol", rev = "cf88fdedc3596a78f1e04a08695a29cb0f1b607f" }';
+  '{ git = "https://github.com/lightprotocol/light-protocol", branch = "main" }';
 export const LIGHT_VERIFIER_SDK_VERSION =
-  '{ git = "https://github.com/lightprotocol/light-protocol", rev = "cf88fdedc3596a78f1e04a08695a29cb0f1b607f" }';
+  '{ git = "https://github.com/lightprotocol/light-protocol", branch = "main" }';
 export const CONFIG_PATH = "/.config/light/";
 export const CONFIG_FILE_NAME = "config.json";
 

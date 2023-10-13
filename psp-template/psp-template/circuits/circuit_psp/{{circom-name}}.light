@@ -1,0 +1,66 @@
+pragma circom 2.1.4;
+include "../../node_modules/circomlib/circuits/poseidon.circom";
+include "../../node_modules/@lightprotocol/zk.js/circuit-lib/merkleProof.circom";
+include "../../node_modules/@lightprotocol/zk.js/circuit-lib/keypair.circom";
+include "../../node_modules/circomlib/circuits/gates.circom";
+include "../../node_modules/circomlib/circuits/comparators.circom";
+
+// will create a new instance of the circuit
+#[instance]
+{
+    fileName: {{circom-name}},
+    config(),
+    nrAppUtoxs: 1,
+    publicInputs: [publicZ]
+}
+
+#[lightTransaction(verifierTwo)]
+template {{circom-name}}() {
+    // Defines the data which is saved in the utxo
+    // utxoData variables need to be lowerCamelCase
+    #[utxoData]
+    {
+        x,
+        y
+    }
+    signal input publicZ;
+    publicZ === x + y;
+}
+
+/*
+* Environment Constants:
+*   levels = 18
+*   nIns = 4 (number of in utxos)
+*   nOuts = 4 (number of out utxos)
+*   feeAsset = TruncatedSha256(0)
+*   indexFeeAsset = 0
+*   indexPublicAsset = 1
+*   nAssets = 3
+*   nInAssets = 2
+*   nOutAssets = 2
+* Environment variables:
+*   txIntegrityHash;
+*   transactionVersion;
+*   publicAppVerifier;
+*   transactionHash;
+*   instructionHasher.out;
+*   isAppInUtxo[nAppUtxos][nIns];
+*   
+*  InUtxos:
+*   inAmount[nIns][nInAssets];
+*   inPublicKey[nIns];
+*   inBlinding[nIns];
+*   inAppDataHash[nIns];
+*   inPoolType[nIns];
+*   inVerifierPubkey[nIns];
+*   inIndices[nIns][nInAssets][nAssets];
+* OutUtxos:
+*   outputCommitment[nOuts];
+*   outAmount[nOuts][nOutAssets];
+*   outPubkey[nOuts];
+*   outBlinding[nOuts];
+*   outAppDataHash[nOuts];
+*   outIndices[nOuts][nOutAssets][nAssets];
+*   outPoolType[nOuts];
+*   outVerifierPubkey[nOuts];
+*/
