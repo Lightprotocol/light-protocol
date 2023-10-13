@@ -39,18 +39,6 @@ jobs:
           echo "::set-output name=crate::$CRATE_NAME"
           echo "::set-output name=so-file::$SO_FILE"
 
-      - name: Prepare and Release Crate
-        run: |
-          CRATE=${{ steps.extract-crate.outputs.crate }}
-
-          # Put conditional steps to prepare and release specific crates
-          if [[ "$CRATE" == "light-macros" ]]; then
-            # Prepare artifacts and release for light-macros
-          elif [[ "$CRATE" == "light-merkle-tree-program" ]]; then
-            # Prepare artifacts and release for light-merkle-tree-program
-          # Add more elif branches for other crates as needed
-          fi
-
       - name: Prepare artifacts
         run: |
           cp target/deploy/light_merkle_tree_program.so .
