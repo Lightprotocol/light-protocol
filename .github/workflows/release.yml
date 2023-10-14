@@ -23,7 +23,7 @@ jobs:
         id: extract-crate
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
-          CRATE_NAME=$(echo $TAG_NAME | cut -d'-' -f 1)
+          CRATE_NAME=$(echo $TAG_NAME | rev | cut -d'-' -f2- | rev)
 
           if [ "$CRATE_NAME" == *"light-merkle-tree-program"* ]; then
             SO_FILE="light_merkle_tree_program.so"
@@ -36,20 +36,8 @@ jobs:
           elif [ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]; then
             SO_FILE="light_psp2in2out_storage.so"
           fi
-          echo "::set-output name=crate::$CRATE_NAME"
-          echo "::set-output name=so-file::$SO_FILE"
-
-      - name: Prepare and Release Crate
-        run: |
-          CRATE=${{ steps.extract-crate.outputs.crate }}
-
-          # Put conditional steps to prepare and release specific crates
-          if [[ "$CRATE" == "light-macros" ]]; then
-            # Prepare artifacts and release for light-macros
-          elif [[ "$CRATE" == "light-merkle-tree-program" ]]; then
-            # Prepare artifacts and release for light-merkle-tree-program
-          # Add more elif branches for other crates as needed
-          fi
+          echo "crate=$CRATE_NAME" >> $GITHUB_OUTPUT
+          echo "so-file=$SO_FILE" >> $GITHUB_OUTPUT
 
       - name: Prepare artifacts
         run: |
@@ -68,15 +56,8 @@ jobs:
           files: |
             ${{ steps.extract-crate.outputs.so-file }}
 
-      - name: Install cargo-release
-        run: |
-          VERSION=$(curl --silent "https://api.github.com/repos/crate-ci/cargo-release/releases/latest" | jq -r .tag_name)
-          wget https://github.com/crate-ci/cargo-release/releases/download/$VERSION/cargo-release-$VERSION-x86_64-unknown-linux-gnu.tar.gz
-          tar -xzvf cargo-release-$VERSION-x86_64-unknown-linux-gnu.tar.gz --wildcards '*cargo-release' --strip-components=1
-          cp cargo-release $HOME/.cargo/bin
-
-      - name: Run cargo release
+      - name: Run cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
-          cargo release -p ${{ steps.extract-crate.outputs.crate }} --no-dev-version --no-confirm --no-tag --token $CARGO_REGISTRY_TOKEN
+          cargo publish -p ${{ steps.extract-crate.outputs.crate }} --token $CARGO_REGISTRY_TOKEN
