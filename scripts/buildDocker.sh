@@ -2,9 +2,8 @@
 
 # 1. builds zk.js with local circuit-lib and prover.js instead of workspace dependencies
 # 2. builds relayer with local zk.js instead of workspace dependency
-# 3. builds docker image and deploys to digitalocean
+# 3. builds docker image (consumed in deployRelayer.sh)
 
-# TODO: find way to wrap into a test. repo changes can easily break this script.
 
 set -eux
 
@@ -51,12 +50,17 @@ cleanup() {
         rm -f $(dirname $0)/../relayer/package.json
         mv -f $(dirname $0)/../relayer/package.json.bak $(dirname $0)/../relayer/package.json
     fi
+    # Delete node_modules, cached files, and lock files
+    echo "Deleting node_modules, cached files, and lock files..."
+    rm -rf $(dirname $0)/../zk.js/node_modules
+    rm -rf $(dirname $0)/../relayer/node_modules
+    rm -f $(dirname $0)/../zk.js/pnpm-lock.yaml
+    rm -f $(dirname $0)/../relayer/pnpm-lock.yaml
+    rm -f $(dirname $0)/../pnpm-lock.yaml
     # Rebuilding workspace
+    echo "Rebuilding workspace..."
     $(dirname $0)/build.sh
 
-
-    echo "Deleting builder instance..."
-    docker buildx rm mybuilder
 }
 
 trap cleanup EXIT
@@ -92,6 +96,3 @@ docker buildx use mybuilder
 docker run --privileged --rm tonistiigi/binfmt --install all
 docker buildx build --platform linux/amd64 -t relayer-app:latest . --load
 docker tag relayer-app:latest registry.digitalocean.com/v3-relayer/relayer-app:latest
-doctl registry login
-docker push registry.digitalocean.com/v3-relayer/relayer-app:latest
-

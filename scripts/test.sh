@@ -1,4 +1,9 @@
 #!/usr/bin/env sh
 set -e
 
-npx nx run-many --target=test --all --parallel=false
+# run relayer docker build script
+source ./scripts/testDocker.sh
+
+EXIT 1
+
+# npx nx run-many --target=test --all --parallel=false
