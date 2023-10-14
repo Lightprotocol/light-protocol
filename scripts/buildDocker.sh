@@ -54,8 +54,6 @@ cleanup() {
     echo "Deleting node_modules, cached files, and lock files..."
     rm -rf $(dirname $0)/../zk.js/node_modules
     rm -rf $(dirname $0)/../relayer/node_modules
-    rm -f $(dirname $0)/../zk.js/pnpm-lock.yaml
-    rm -f $(dirname $0)/../relayer/pnpm-lock.yaml
     rm -f $(dirname $0)/../pnpm-lock.yaml
     # Rebuilding workspace
     echo "Rebuilding workspace..."
