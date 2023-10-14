@@ -25,5 +25,9 @@ jobs:
         with:
           enable_redis: "true"
 
+      - name: Set execute permissions
+        run: |
+          chmod +x ./scripts/testDocker.sh
+          chmod +x ./scripts/buildDocker.sh
       - name: Run Docker build test
         run: ./scripts/testDocker.sh
