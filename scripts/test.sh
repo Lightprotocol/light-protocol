@@ -2,8 +2,6 @@
 set -e
 
 # run relayer docker build script
-source ./scripts/testDocker.sh
+source $(dirname $0)/testDockerRelayer.sh
 
-EXIT 1
-
-# npx nx run-many --target=test --all --parallel=false
+npx nx run-many --target=test --all --parallel=false
