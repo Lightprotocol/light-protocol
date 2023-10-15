@@ -56,7 +56,7 @@ cleanup() {
     rm -f $(dirname $0)/../pnpm-lock.yaml
 
     echo "Rebuilding workspace..."
- 3
+    $(dirname $0)/build.sh
 
 }
 
