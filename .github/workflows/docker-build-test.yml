@@ -1,0 +1,35 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - ready_for_review
+      - reopened
+
+name: docker-build-test
+jobs:
+  docker-build-test:
+    name: docker-build-test
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          enable_redis: "true"
+
+      - name: Set execute permissions
+        run: |
+          chmod +x ./scripts/testDockerRelayer.sh
+          chmod +x ./scripts/buildDockerRelayer.sh
+          chmod +x ./scripts/build.sh
+          chmod +x ./scripts/devenv.sh
+      - name: Run Docker build test
+        run: ./scripts/testDockerRelayer.sh
