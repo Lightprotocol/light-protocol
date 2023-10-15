@@ -27,7 +27,8 @@ jobs:
 
       - name: Set execute permissions
         run: |
-          chmod +x ./scripts/testDocker.sh
-          chmod +x ./scripts/buildDocker.sh
+          chmod +x ./scripts/testDockerRelayer.sh
+          chmod +x ./scripts/buildDockerRelayer.sh
+          chmod +x ./scripts/build.sh
       - name: Run Docker build test
-        run: ./scripts/testDocker.sh
+        run: ./scripts/testDockerRelayer.sh

@@ -25,7 +25,6 @@ generate_temp_package_json() {
 
 
 
-# Create .tgz files for the workspace dependencies
 cd ./zk.js && pnpm pack
 zkjs_tgz=$(ls *.tgz)
 cd ../circuit-lib/circuit-lib.js && pnpm pack
@@ -40,24 +39,24 @@ cleanup() {
     rm -f $(dirname $0)/../circuit-lib/circuit-lib.js/$circuit_lib_tgz
     rm -f $(dirname $0)/../prover.js/$prover_tgz
     echo "Restoring original package.json files..."
-    # Restore original package.json for zk.js
+
     if [ -f $(dirname $0)/../zk.js/package.json.bak ]; then
         rm -f $(dirname $0)/../zk.js/package.json
         mv -f $(dirname $0)/../zk.js/package.json.bak $(dirname $0)/../zk.js/package.json
     fi
-    # Restore original package.json for relayer
+
     if [ -f $(dirname $0)/../relayer/package.json.bak ]; then
         rm -f $(dirname $0)/../relayer/package.json
         mv -f $(dirname $0)/../relayer/package.json.bak $(dirname $0)/../relayer/package.json
     fi
-    # Delete node_modules, cached files, and lock files
+
     echo "Deleting node_modules, cached files, and lock files..."
     rm -rf $(dirname $0)/../zk.js/node_modules
     rm -rf $(dirname $0)/../relayer/node_modules
     rm -f $(dirname $0)/../pnpm-lock.yaml
-    # Rebuilding workspace
+
     echo "Rebuilding workspace..."
-    $(dirname $0)/build.sh
+ 3
 
 }
 
@@ -88,7 +87,7 @@ pnpm install
 cd ..
 
 
-# build docker image and deploy to digitalocean
+# build docker image
 docker buildx create --name mybuilder
 docker buildx use mybuilder
 docker run --privileged --rm tonistiigi/binfmt --install all

@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# builds relayer as docker image (buildDocker.sh) and deploys to digitalocean
-source $(dirname $0)/buildDocker.sh
+source $(dirname $0)/buildDockerRelayer.sh
 
 cleanup() {
     echo "Deleting builder instance..."
