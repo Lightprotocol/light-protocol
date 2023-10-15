@@ -10,9 +10,10 @@
 Light is a zkLayer enabling private program execution, purpose-built for Solana.
 
 Developers can use Light to build applications such as
-- fast private payments
+
 - encrypted orderbooks
-- public on-chain games with private state
+- private governance
+- on-chain games with private state
 
 
 ## Development environment
