@@ -68,7 +68,7 @@ generate_temp_package_json ./zk.js "@lightprotocol/circuit-lib.js" "file:../circ
 mv ./zk.js/package.json ./zk.js/package.json.bak
 mv ./zk.js/temp.package.json ./zk.js/package.json
 cd ./zk.js
-pnpm install
+pnpm install --no-frozen-lockfile
 pnpm build
 cd ..
 
@@ -83,7 +83,7 @@ mv ./relayer/package.json ./relayer/package.json.bak
 mv ./relayer/temp.package.json ./relayer/package.json
 
 cd ./relayer
-pnpm install
+pnpm install --no-frozen-lockfile
 cd ..
 
 
