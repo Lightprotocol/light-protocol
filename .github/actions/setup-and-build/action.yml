@@ -26,6 +26,11 @@ runs:
         path: .local
         key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
 
+    - name: Install redis
+      uses: shogo82148/actions-setup-redis@v1
+      with:
+        redis-version: "7.x"
+
     - name: Install dependencies
       shell: bash
       run: |

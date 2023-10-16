@@ -34,4 +34,4 @@ jobs:
     with:
       number-of-agents: 3
       install-commands: |
-        ./scripts/install.sh --enable-redis
+        ./scripts/install.sh
