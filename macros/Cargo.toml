@@ -1,6 +1,8 @@
 [package]
 name = "light-macros"
 version = "0.3.0"
+description = "Macros used in Light Protocol on-chain programs"
+license = "GPL-3.0"
 edition = "2021"
 
 [dependencies]
