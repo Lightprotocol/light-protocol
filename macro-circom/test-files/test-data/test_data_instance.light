@@ -1,0 +1,22 @@
+pragma circom 2.1.4;
+include "poseidon.circom";
+include "merkleProof.circom";
+include "keypair.circom";
+include "gates.circom";
+include "comparators.circom";
+
+#[instance]
+{
+    fileName: test_data,
+};
+
+template TestData() {
+    signal input publicZ;
+    publicZ === x + y;
+}
+
+template otherTemplate() {
+    signal input a;
+    signal input b;
+    a === b;
+}

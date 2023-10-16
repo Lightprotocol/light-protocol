@@ -9,34 +9,86 @@ include "comparators.circom";
 // will create a new instance of the circuit
 #[instance]
 {
-    fileName: rock_paper_scissors,
-    config(
-      nPlayers: 2,
-    ),
-    nrAppUtoxs: 2,
-    publicInputs: [publicGameCommitment0, publicGameCommitment1]
+  name: rock_paper_scissors,
+  publicInputs: [publicGameCommitment0, publicGameCommitment1],
 }
 
-#[lightTransaction(verifierTwo)]
+utxoType gameUtxo {
+  slot, // after this slot the game should timeout and player two should win by default not implemented yet
+  choice,
+  opponentGameCommitmentHash, // zero for player 1
+  userPubkey,
+}
+
+inUtxo playerOne {
+  type: gameUtxo,
+  checks:
+  {
+    utxoDataHash == publicGameCommitment0,
+  },
+}
+
+inUtxo playerTwo {
+  type: gameUtxo,
+  checks:
+  {
+    amountSol == playerOne.amountSol,
+    amountSpl == playerOne.amountSpl,
+    assetSpl == playerOne.assetSpl,
+    utxoDataHash == publicGameCommitment1,
+  },
+  dataChecks: {
+    opponentGameCommitmentHash == playerOne.opponentGameCommitmentHash,
+  },
+}
+
+// TODO: enable expression in fields
+outUtxo drawPlayerTwo {
+  type: native,
+  enabled: isDraw,
+  checks:
+  {
+    amountSol == playerTwo.amountSol,
+    amountSpl == playerTwo.amountSpl,
+    assetSpl == playerTwo.assetSpl,
+    blinding == playerTwoOutUtxoBlinding,
+    publicKey == playerTwo.userPubkey,
+  },
+}
+
+// Player one loses, since player one executes we need to check the utxo of player two
+outUtxo winPlayerTwo {
+  type: native,
+  enabled: isLoss,
+  checks:
+  {
+    amountSol == doubleAmountSol,
+    amountSpl == doubleAmountSpl,
+    assetSpl == playerTwo.assetSpl,
+    blinding == playerTwoOutUtxoBlinding,
+    publicKey == playerTwo.userPubkey,
+  },
+}
+
+#[entrypoint]
 template rock_paper_scissors() {
-    // Defines the data which is saved in the utxo
-    #[utxoData]
-    {
-        gameCommitmentHash,
-        userPubkey
-    }
 
     signal input isDraw;
     signal input isWin[3]; // player 1 executes the transaction
     signal input isLoss;
-    signal input choice[2];
-    signal input slot[2];
-    signal input gameAmount;
     signal input publicGameCommitment0;
     signal input publicGameCommitment1;
 
-    // todo check indices
-    signal input isPlayer2OutUtxo[nOuts];
+    utxo playerOne;
+    playerOne.check();
+    utxo playerTwo;
+    playerTwo.check();
+    utxo drawPlayerTwo;
+    utxo winPlayerTwo;
+
+    var playerTwoOutUtxoBlinding = playerTwo.publicKey + playerTwo.publicKey;
+    var doubleAmountSol = playerTwo.amountSol * 2;
+    var doubleAmountSpl = playerTwo.amountSpl * 2;
 
     var isWinTmp = 0;
     for (var i = 0; i < 3; i++) {
@@ -60,20 +112,20 @@ template rock_paper_scissors() {
     checkLossDrawEqual1.in[1] <== 1;
     checkLossDrawEqual1.enabled <== isLoss + isDraw;
 
-    component gameCommitmentHasher0 = Poseidon(4);
-    gameCommitmentHasher0.inputs[0] <== choice[0];
-    gameCommitmentHasher0.inputs[1] <== slot[0];
-    gameCommitmentHasher0.inputs[2] <== 0;
-    gameCommitmentHasher0.inputs[3] <== gameAmount;
+    // component gameCommitmentHasher0 = Poseidon(4);
+    // gameCommitmentHasher0.inputs[0] <== playerOne.choice;
+    // gameCommitmentHasher0.inputs[1] <== slot[0];
+    // gameCommitmentHasher0.inputs[2] <== 0;
+    // gameCommitmentHasher0.inputs[3] <== gameAmount;
 
-    component gameCommitmentHasher1 = Poseidon(4);
-    gameCommitmentHasher1.inputs[0] <== choice[1];
-    gameCommitmentHasher1.inputs[1] <== slot[1];
-    gameCommitmentHasher1.inputs[2] <== gameCommitmentHasher0.out;
-    gameCommitmentHasher1.inputs[3] <== gameAmount;
+    // component gameCommitmentHasher1 = Poseidon(4);
+    // gameCommitmentHasher1.inputs[0] <== playerTwo.choice;
+    // gameCommitmentHasher1.inputs[1] <== slot[1];
+    // gameCommitmentHasher1.inputs[2] <== gameCommitmentHasher0.out;
+    // gameCommitmentHasher1.inputs[3] <== gameAmount;
 
-    gameCommitmentHasher0.out === publicGameCommitment0;
-    gameCommitmentHasher1.out === publicGameCommitment1;
+    // gameCommitmentHasher0.out === publicGameCommitment0;
+    // gameCommitmentHasher1.out === publicGameCommitment1;
 
     // TODO check that this works
     // component checkCommitmentHashOrder = LessThan(64);
@@ -81,15 +133,15 @@ template rock_paper_scissors() {
     // checkCommitmentHashOrder.b <== slot[1];
 
     // check if the amount in the escrow utxos is correct
-    component checkCommittedAmount[2][nIns];
-    for (var playerIndex =0; playerIndex < 2; playerIndex++) {
-      for(var inUtxoIndex = 0; inUtxoIndex < nIns; inUtxoIndex++) {
-        checkCommittedAmount[playerIndex][inUtxoIndex] = ForceEqualIfEnabled();
-        checkCommittedAmount[playerIndex][inUtxoIndex].in[0] <== inAmount[inUtxoIndex][0];
-        checkCommittedAmount[playerIndex][inUtxoIndex].in[1] <== gameAmount;
-        checkCommittedAmount[playerIndex][inUtxoIndex].enabled <== isAppInUtxo[playerIndex][inUtxoIndex];
-      }
-    }
+    // component checkCommittedAmount[2][nIns];
+    // for (var playerIndex =0; playerIndex < 2; playerIndex++) {
+    //   for(var inUtxoIndex = 0; inUtxoIndex < nIns; inUtxoIndex++) {
+    //     checkCommittedAmount[playerIndex][inUtxoIndex] = ForceEqualIfEnabled();
+    //     checkCommittedAmount[playerIndex][inUtxoIndex].in[0] <== inAmount[inUtxoIndex][0];
+    //     checkCommittedAmount[playerIndex][inUtxoIndex].in[1] <== gameAmount;
+    //     checkCommittedAmount[playerIndex][inUtxoIndex].enabled <== isAppInUtxo[playerIndex][inUtxoIndex];
+    //   }
+    // }
 
 
     /*  rock = 0, paper = 1, scissors = 2
@@ -106,87 +158,53 @@ template rock_paper_scissors() {
     */
 
     component caseDraw = ForceEqualIfEnabled();
-    caseDraw.in[0] <== choice[0];
-    caseDraw.in[1] <== choice[1];
+    caseDraw.in[0] <== playerOne.choice;
+    caseDraw.in[1] <== playerTwo.choice;
     caseDraw.enabled <== isDraw;
 
     component caseWin1 = game_logic();
-    caseWin1.choice <== choice;
+    caseWin1.choice <== [playerOne.choice, playerTwo.choice];
     caseWin1.isWin <== isWin[0];
     caseWin1.refChoice <== [0, 2];
 
     component caseWin2 = game_logic();
-    caseWin2.choice <== choice;
+    caseWin2.choice <== [playerOne.choice, playerTwo.choice];
     caseWin2.isWin <== isWin[1];
     caseWin2.refChoice <== [1, 0];
 
     component caseWin3 = game_logic();
-    caseWin3.choice <== choice;
+    caseWin3.choice <== [playerOne.choice, playerTwo.choice];
     caseWin3.isWin <== isWin[2];
     caseWin3.refChoice <== [2, 1];
 
+
+    
     // check utxos for case draw
     // the locked amounts should go back to each player
     // we just need to check for player 2 because player 1 executes the tx
-    component checkUtxoDraw[nOuts];
-    for (var outUtxoIndex = 0;outUtxoIndex < nOuts; outUtxoIndex++) {
-      checkUtxoDraw[outUtxoIndex] = CheckUtxo(2);
-      checkUtxoDraw[outUtxoIndex].isEnabled <== isDraw;
-      checkUtxoDraw[outUtxoIndex].isAccount <== isPlayer2OutUtxo[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].assetIsNative <== 1;
-      checkUtxoDraw[outUtxoIndex].actualAmounts[0] <== outAmount[outUtxoIndex][0];
-      checkUtxoDraw[outUtxoIndex].actualAmounts[1] <== 0;
-      checkUtxoDraw[outUtxoIndex].requestedAmount <== gameAmount;
-      checkUtxoDraw[outUtxoIndex].actualPubkey <== outPubkey[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].requestedPubkey <== userPubkey[1];
-      checkUtxoDraw[outUtxoIndex].actualInstructionType <== outAppDataHash[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].requestedInstructionType <== 0;
-      checkUtxoDraw[outUtxoIndex].actualVerifierPubkey <== outVerifierPubkey[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].requestedVerifierPubkey <== 0;
-      checkUtxoDraw[outUtxoIndex].actualOutBlinding <== outBlinding[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].requestedOutBlinding <== userPubkey[1] + userPubkey[1];
-    }
-
-    component checkUtxoLoss[nOuts];
-    for (var outUtxoIndex = 0;outUtxoIndex < nOuts; outUtxoIndex++) {
-      checkUtxoLoss[outUtxoIndex] = CheckUtxo(2);
-      checkUtxoLoss[outUtxoIndex].isEnabled <== isLoss;
-      checkUtxoLoss[outUtxoIndex].isAccount <== isPlayer2OutUtxo[outUtxoIndex];
-      checkUtxoLoss[outUtxoIndex].assetIsNative <== 1;
-      checkUtxoLoss[outUtxoIndex].actualAmounts[0] <== outAmount[outUtxoIndex][0];
-      checkUtxoLoss[outUtxoIndex].actualAmounts[1] <== 0;
-      checkUtxoLoss[outUtxoIndex].requestedAmount <== gameAmount * 2;
-      checkUtxoLoss[outUtxoIndex].actualPubkey <== outPubkey[outUtxoIndex];
-      checkUtxoLoss[outUtxoIndex].requestedPubkey <== userPubkey[1];
-      checkUtxoLoss[outUtxoIndex].actualInstructionType <== outAppDataHash[outUtxoIndex];
-      checkUtxoLoss[outUtxoIndex].requestedInstructionType <== 0;
-      checkUtxoLoss[outUtxoIndex].actualVerifierPubkey <== outVerifierPubkey[outUtxoIndex];
-      checkUtxoLoss[outUtxoIndex].requestedVerifierPubkey <== 0;
-      checkUtxoLoss[outUtxoIndex].actualOutBlinding <== outBlinding[outUtxoIndex];
-      checkUtxoLoss[outUtxoIndex].requestedOutBlinding <== userPubkey[1] + userPubkey[1];
-    }
-
+    drawPlayerTwo.check();
+    winPlayerTwo.check();
 }
 
-template get_publickey(nIns) {
-  signal input isAppInUtxo[nIns];
-  signal input inPublicKey[nIns];
-  signal input opponentPubkey;
-  signal input inAppDataHash[nIns];
-  signal input actualAppDataHash;
-  component getPublickey[nIns];
-  component checkAppDataHash[nIns];
-  for (var inUtxo = 0; inUtxo < nIns; inUtxo++) {
-    getPublickey[inUtxo] = ForceEqualIfEnabled();
-    getPublickey[inUtxo].in[0] <== inPublicKey[inUtxo];
-    getPublickey[inUtxo].in[1] <== opponentPubkey;
-    getPublickey[inUtxo].enabled <== isAppInUtxo[inUtxo];
-    checkAppDataHash[inUtxo] = ForceEqualIfEnabled();
-    checkAppDataHash[inUtxo].in[0] <== inAppDataHash[inUtxo];
-    checkAppDataHash[inUtxo].in[1] <== actualAppDataHash;
-    checkAppDataHash[inUtxo].enabled <== isAppInUtxo[inUtxo];
-  }
-}
+// template get_publickey(nIns) {
+//   signal input isAppInUtxo[nIns];
+//   signal input inPublicKey[nIns];
+//   signal input opponentPubkey;
+//   signal input inAppDataHash[nIns];
+//   signal input actualAppDataHash;
+//   component getPublickey[nIns];
+//   component checkAppDataHash[nIns];
+//   for (var inUtxo = 0; inUtxo < nIns; inUtxo++) {
+//     getPublickey[inUtxo] = ForceEqualIfEnabled();
+//     getPublickey[inUtxo].in[0] <== inPublicKey[inUtxo];
+//     getPublickey[inUtxo].in[1] <== opponentPubkey;
+//     getPublickey[inUtxo].enabled <== isAppInUtxo[inUtxo];
+//     checkAppDataHash[inUtxo] = ForceEqualIfEnabled();
+//     checkAppDataHash[inUtxo].in[0] <== inAppDataHash[inUtxo];
+//     checkAppDataHash[inUtxo].in[1] <== actualAppDataHash;
+//     checkAppDataHash[inUtxo].enabled <== isAppInUtxo[inUtxo];
+//   }
+// }
 template game_logic() {
   signal input choice[2];
   signal input isWin;
@@ -200,83 +218,4 @@ template game_logic() {
   caseWin1B.in[0] <== choice[1];
   caseWin1B.in[1] <== refChoice[1];
   caseWin1B.enabled <== isWin;
-}
-
-template CheckUtxo(nrAssets) {
-    signal input isEnabled;
-    signal input isAccount;
-
-    // signal input assetIsNotNative;
-    signal input assetIsNative;
-
-    signal input actualAmounts[nrAssets];
-    signal input requestedAmount;
-    signal input actualPubkey;
-    signal input requestedPubkey;
-    // signal input actualAssets[nrAssets];
-    // signal input requestedAsset;
-    signal input actualInstructionType;
-    signal input requestedInstructionType;
-    signal input actualVerifierPubkey;
-    signal input requestedVerifierPubkey;
-    signal input actualOutBlinding;
-    signal input requestedOutBlinding;
-
-    // the asset which is paying is native or non native
-    // check price integrity of swap in utxo non native asset
-    // component outCheckAmountNotNative = ForceEqualIfEnabled();
-    // outCheckAmountNotNative.in[0] <== actualAmounts[1];
-    // outCheckAmountNotNative.in[1] <== requestedAmount;
-    // outCheckAmountNotNative.enabled <== isAccount * assetIsNotNative;
-    
-    // check price integrity of swap in utxo native asset
-    component outCheckAmountNative = ForceEqualIfEnabled();
-    outCheckAmountNative.in[0] <== actualAmounts[0];
-    outCheckAmountNative.in[1] <== requestedAmount;
-    outCheckAmountNative.enabled <== isAccount * isEnabled;
-    
-    
-    // the asset which is paying is native or non native
-    component outCheckBlinding = ForceEqualIfEnabled();
-    outCheckBlinding.in[0] <== actualOutBlinding;
-    outCheckBlinding.in[1] <== requestedOutBlinding;
-    outCheckBlinding.enabled <== isAccount * isEnabled;
-
-    // the outPubkey is the specified authPubkey, the recipient of the proceeds of the trade
-
-    component outCheckRecipient = ForceEqualIfEnabled();
-    outCheckRecipient.in[0] <== actualPubkey; //outPubkey;
-    outCheckRecipient.in[1] <== requestedPubkey; //authPubkey[i];
-    outCheckRecipient.enabled <== isAccount * isEnabled;
-    
-    // the asset of the out utxo is the asset swapped to
-    // component outCheckAssetNotNative = ForceEqualIfEnabled();
-    // outCheckAssetNotNative.in[0] <== actualAssets[1];
-    // outCheckAssetNotNative.in[1] <== requestedAsset;
-    // outCheckAssetNotNative.enabled <== isAccount * assetIsNotNative;
-
-    // component outCheckAssetNative = ForceEqualIfEnabled();
-    // outCheckAssetNative.in[0] <== actualAssets[0];
-    // outCheckAssetNative.in[1] <== requestedAsset;
-    // outCheckAssetNative.enabled <== isAccount * assetIsNative;
-    
-    // output utxo is a normal utxo
-    component outCheckInstructionType = ForceEqualIfEnabled();
-    outCheckInstructionType.in[0] <== actualInstructionType;
-    outCheckInstructionType.in[1] <== requestedInstructionType;
-    outCheckInstructionType.enabled <== isAccount * isEnabled;
-
-    // output utxo is of the same pool type as the input utxo
-    // this might be unnessary because this check will be enforced by the systemverifier
-    // outCheckPoolType = ForceEqualIfEnabled();
-    // outCheckPoolType.in[0] <== outPoolType;
-    // outCheckPoolType.in[1] <== inPoolType[0];
-    // outCheckPoolType.enabled <== isAccount * isEnabled;
-
-    // output utxo is a normal utxo
-    component outCheckVerifier = ForceEqualIfEnabled();
-    outCheckVerifier.in[0] <== actualVerifierPubkey;
-    outCheckVerifier.in[1] <== requestedVerifierPubkey;
-    outCheckVerifier.enabled <== isAccount * isEnabled;
-    
 }

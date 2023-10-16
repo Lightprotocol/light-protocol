@@ -1,4 +1,3 @@
-use crate::processor::TransactionsConfig;
 use crate::u256;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
@@ -7,25 +6,17 @@ use light_merkle_tree_program::{
     utils::constants::TOKEN_AUTHORITY_SEED, EventMerkleTree,
 };
 use light_psp4in4out_app_storage::{self, program::LightPsp4in4outAppStorage};
-use light_verifier_sdk::{light_transaction::VERIFIER_STATE_SEED, state::VerifierState10Ins};
+use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 
 // Send and stores data.
 #[derive(Accounts)]
-pub struct LightInstructionFirst<
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
-> {
+pub struct LightInstructionFirst<'info, const NR_CHECKED_INPUTS: usize> {
     /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 3000, payer = signing_address )]
-    pub verifier_state: Account<
-        'info,
-        VerifierState10Ins<NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, TransactionsConfig>,
-    >,
+    pub verifier_state: AccountLoader<'info, VerifierState>,
 }
 
 #[derive(Debug)]
@@ -42,37 +33,21 @@ pub struct InstructionDataLightInstructionFirst {
 }
 
 #[derive(Accounts)]
-pub struct LightInstructionSecond<
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
-> {
+pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
     /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump)]
-    pub verifier_state: Account<
-        'info,
-        VerifierState10Ins<NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, TransactionsConfig>,
-    >,
+    pub verifier_state: AccountLoader<'info, VerifierState>,
 }
 
 /// Executes light transaction with state created in the first instruction.
 #[derive(Accounts)]
-pub struct LightInstructionThird<
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
-> {
-    #[account(mut, address=verifier_state.signer)]
+pub struct LightInstructionThird<'info, const NR_CHECKED_INPUTS: usize> {
+    #[account(mut, address=verifier_state.load().unwrap().signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Account<
-        'info,
-        VerifierState10Ins<NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, TransactionsConfig>,
-    >,
+    pub verifier_state: AccountLoader<'info, VerifierState>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, LightMerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
@@ -108,8 +83,8 @@ pub struct LightInstructionThird<
     pub log_wrapper: UncheckedAccount<'info>,
     #[account(mut)]
     pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
-    #[account(mut)]
-    pub swap_pda: Box<Account<'info, SwapPda>>,
+    // #[account(mut)]
+    // pub swap_pda: Box<Account<'info, SwapPda>>,
 }
 
 #[allow(non_snake_case)]
@@ -212,17 +187,16 @@ pub struct InstructionDataLightInstructionThird {
 }
 
 #[derive(Accounts)]
-pub struct CloseVerifierState<
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
-> {
-    #[account(mut, address=verifier_state.signer)]
+pub struct CloseVerifierState<'info, const NR_CHECKED_INPUTS: usize> {
+    #[account(mut, address=verifier_state.load().unwrap().signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Account<
-        'info,
-        VerifierState10Ins<NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, TransactionsConfig>,
-    >,
+    pub verifier_state: AccountLoader<'info, VerifierState>,
+}
+
+#[account(zero_copy)]
+pub struct VerifierState {
+    pub signer: Pubkey,
+    pub verifier_state_data: [u8; 1024], //VerifierState,
+    pub checked_public_inputs: [[u8; 32]; 2],
 }

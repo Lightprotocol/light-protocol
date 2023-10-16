@@ -1,8 +1,8 @@
 use anchor_lang::{prelude::*, solana_program::hash::hash};
+use bytemuck::{Pod, Zeroable};
 use light_macros::{light_verifier_accounts, pubkey};
-use light_verifier_sdk::{
-    light_transaction::{Amounts, Config, Proof, Transaction, TransactionInput},
-    state::VerifierState10Ins,
+use light_verifier_sdk::light_transaction::{
+    Amounts, Config, Proof, Transaction, TransactionInput,
 };
 
 pub mod verifying_key;
@@ -46,15 +46,20 @@ pub mod light_psp4in4out_app_storage {
         proof_b: [u8; 128],
         proof_c: [u8; 64],
         connecting_hash: [u8; 32],
+        start_offset: usize,
     ) -> Result<()> {
         let proof = Proof {
             a: proof_a,
             b: proof_b,
             c: proof_c,
         };
+        // + 8 to account for the discriminator
+        let start_offset = start_offset;
+        let end_offset =
+            start_offset + 8 + std::mem::size_of::<Psp4In4OutAppStorageVerifierState>();
 
-        let verifier_state = VerifierState10Ins::<2, 2, 4, TransactionConfig>::deserialize(
-            &mut &*ctx.accounts.verifier_state.to_account_info().data.take(),
+        let verifier_state = Psp4In4OutAppStorageVerifierState::try_deserialize_unchecked(
+            &mut &ctx.accounts.verifier_state.to_account_info().data.borrow()[32..end_offset],
         )?;
 
         let public_amount = Amounts {
@@ -101,3 +106,16 @@ pub mod light_psp4in4out_app_storage {
 pub struct LightInstruction<'info> {
     pub verifier_state: Signer<'info>,
 }
+
+#[derive(Debug, Copy, Zeroable)]
+#[account]
+pub struct Psp4In4OutAppStorageVerifierState {
+    pub nullifiers: [[u8; 32]; 4],
+    pub leaves: [[u8; 32]; 4],
+    pub public_amount_spl: [u8; 32],
+    pub public_amount_sol: [u8; 32],
+    pub relayer_fee: u64,
+    pub encrypted_utxos: [u8; 512],
+    pub merkle_root_index: u64,
+}
+unsafe impl Pod for Psp4In4OutAppStorageVerifierState {}

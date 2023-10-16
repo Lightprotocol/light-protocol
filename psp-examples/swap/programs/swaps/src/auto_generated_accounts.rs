@@ -5,23 +5,20 @@ use anchor_lang::prelude::*;
  * DO NOT EDIT MANUALLY.
  * THE FILE WILL BE OVERWRITTEN EVERY TIME THE LIGHT CLI BUILD IS RUN.
  */
-    #[allow(non_camel_case_types)]
-    // helper struct to create anchor idl with u256 type
-    #[account]
-    #[derive(Debug, Copy, PartialEq)]
-    pub struct u256 {
-        pub x: [u8; 32],
-    }
- 
-pub const NR_CHECKED_INPUTS: usize = 4;
+#[allow(non_camel_case_types)]
+// helper struct to create anchor idl with u256 type
+#[account]
+#[derive(Debug, Copy, PartialEq)]
+pub struct u256 {
+    pub x: [u8; 32],
+}
+
+pub const NR_CHECKED_INPUTS: usize = 2;
 
 #[allow(non_snake_case)]
 #[derive(Debug)]
 #[account]
-pub struct InstructionDataLightInstructionSecond {
-    pub publicSwapCommitment0: [u8; 32],
-    pub publicSwapCommitment1: [u8; 32],
-}
+pub struct InstructionDataLightInstructionSecond {}
 
 #[allow(non_snake_case)]
 #[derive(Debug, Copy, PartialEq)]
@@ -34,14 +31,20 @@ pub struct Utxo {
     pub app_data_hash: u256,
     pub account_shielded_public_key: u256,
     pub account_encryption_public_key: [u8; 32],
-    pub swapCommitmentHash: u256,
-    pub userPubkey: u256,
+    pub priceSol: u256,
+    pub priceSpl: u256,
+    pub splAsset: u256,
+    pub recipient: u256,
+    pub recipientEncryptionPublicKey: u256,
 }
 
 #[allow(non_snake_case)]
 #[account]
 #[derive(Debug, Copy, PartialEq)]
 pub struct UtxoAppData {
-    pub swapCommitmentHash: u256,
-    pub userPubkey: u256,
+    pub priceSol: u256,
+    pub priceSpl: u256,
+    pub splAsset: u256,
+    pub recipient: u256,
+    pub recipientEncryptionPublicKey: u256,
 }

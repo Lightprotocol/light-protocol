@@ -1,0 +1,7 @@
+/target
+/node_modules
+/build
+buildLocal*
+.vscode
+parser/src/lang.rs
+macro-circom/src/parsers/circom_parser.rs

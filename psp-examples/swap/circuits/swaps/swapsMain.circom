@@ -5,4 +5,4 @@
 */
 pragma circom 2.1.4;
 include "./swaps.circom";
-component main {public [publicSwapCommitment0, publicSwapCommitment1, transactionHash, publicAppVerifier]} =  swaps( 2, 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);
+component main {public [transactionHash, publicAppVerifier]} =  swaps( 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);

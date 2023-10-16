@@ -11,325 +11,762 @@ include "keypair.circom";
 include "gates.circom";
 include "comparators.circom";
 
-
-template swaps( nAppUtxos, levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {
-
-
-    assert( nIns * nAssets < 49);
-    assert( nInAssets <= nAssets);
-    assert( nOutAssets <= nAssets);
-
-    signal input isAppInUtxo[nAppUtxos][nIns];
-    signal input txIntegrityHash;
-    signal input  inAmount[nIns][nInAssets];
-    signal input  inPublicKey[nIns];
-    signal input  inBlinding[nIns];
-    signal input  inAppDataHash[nIns];
-    signal  input inPoolType[nIns];
-    signal  input inVerifierPubkey[nIns];
-    signal  input inIndices[nIns][nInAssets][nAssets];
-
-    // data for transaction outputsAccount
-    signal  input outputCommitment[nOuts];
-    signal  input outAmount[nOuts][nOutAssets];
-    signal  input outPubkey[nOuts];
-    signal  input outBlinding[nOuts];
-    signal  input outAppDataHash[nOuts];
-    signal  input outIndices[nOuts][nOutAssets][nAssets];
-    signal  input outPoolType[nOuts];
-    signal  input outVerifierPubkey[nOuts];
-
-    signal  input assetPubkeys[nAssets];
-    signal input transactionVersion;
-
-    component inGetAsset[nIns][nInAssets][nAssets];
-
-    component inCommitmentHasher[nIns];
-    component inAmountsHasher[nIns];
-    component inAssetsHasher[nIns];
-
-    component sumIn[nIns][nInAssets][nAssets];
-    component inAmountCheck[nIns][nInAssets];
-
-
-    // enforce pooltypes of 0
-    // add public input to distinguish between pool types
-    inPoolType[0] === 0;
-    inPoolType[0] === outPoolType[0];
-
-    var sumIns[nAssets];
-    for (var i = 0; i < nAssets; i++) {
-    sumIns[i] = 0;
-    }
-
-    var assetsIns[nIns][nInAssets];
-    for (var i = 0; i < nIns; i++) {
-        for (var j = 0; j < nInAssets; j++) {
-        assetsIns[i][j] = 0;
-        }
-    }
-
-    // verify correctness of transaction s
-    for (var tx = 0; tx < nIns; tx++) {
-
-        // determine the asset type
-        // and checks that the asset is included in assetPubkeys[nInAssets]
-        // skips first asset since that is the feeAsset
-        // iterates over remaining assets and adds the assetPubkey if index is 1
-        // all other indices are zero
-        inAssetsHasher[tx] = Poseidon(nInAssets);
-        for (var a = 0; a < nInAssets; a++) {
-
-            for (var i = 0; i < nAssets; i++) {
-                inGetAsset[tx][a][i] = AND();
-                inGetAsset[tx][a][i].a <== assetPubkeys[i];
-                inGetAsset[tx][a][i].b <== inIndices[tx][a][i];
-                assetsIns[tx][a] += inGetAsset[tx][a][i].out;
-            }
-            inAssetsHasher[tx].inputs[a] <== assetsIns[tx][a];
-        }
-
-        inAmountsHasher[tx] = Poseidon(nInAssets);
-        var sumInAmount = 0;
-        for (var a = 0; a < nInAssets; a++) {
-            inAmountCheck[tx][a] = Num2Bits(64);
-            inAmountCheck[tx][a].in <== inAmount[tx][a];
-            inAmountsHasher[tx].inputs[a] <== inAmount[tx][a];
-            sumInAmount += inAmount[tx][a];
-        }
-
-        inCommitmentHasher[tx] = Poseidon(8);
-        inCommitmentHasher[tx].inputs[0] <== transactionVersion; // transaction version
-        inCommitmentHasher[tx].inputs[1] <== inAmountsHasher[tx].out;
-        inCommitmentHasher[tx].inputs[2] <== inPublicKey[tx];
-        inCommitmentHasher[tx].inputs[3] <== inBlinding[tx];
-        inCommitmentHasher[tx].inputs[4] <== inAssetsHasher[tx].out;
-        inCommitmentHasher[tx].inputs[5] <== inAppDataHash[tx];
-        inCommitmentHasher[tx].inputs[6] <== inPoolType[tx];
-        inCommitmentHasher[tx].inputs[7] <== inVerifierPubkey[tx];
-
-
-
-
-        // for (var i = 0; i < nInAssets; i++) {
-        //     for (var j = 0; j < nAssets; j++) {
-        //         sumIn[tx][i][j] = AND();
-        //         sumIn[tx][i][j].a <== inAmount[tx][i];
-        //         sumIn[tx][i][j].b <== inIndices[tx][i][j];
-        //         sumIns[j] += sumIn[tx][i][j].out;
-        //     }
-        // }
-    }
-
-    component outGetAsset[nOuts][nOutAssets][nAssets];
-    component outCommitmentHasher[nOuts];
-    component outAmountCheck[nOuts][nOutAssets];
-    component sumOut[nOuts][nOutAssets][nAssets];
-    component outAmountsHasher[nOuts];
-    component outAssetsHasher[nOuts];
-
-    var sumOuts[nAssets];
-    for (var i = 0; i < nAssets; i++) {
-    sumOuts[i] = 0;
-    }
-
-    var assetsOuts[nOuts][nOutAssets];
-    for (var i = 0; i < nOuts; i++) {
-        for (var j = 0; j < nOutAssets; j++) {
-        assetsOuts[i][j] = 0;
-        }
-    }
-
-    // verify correctness of transaction outputs
-    for (var tx = 0; tx < nOuts; tx++) {
-
-        // for every asset for every tx only one index is 1 others are 0
-        // select the asset corresponding to the index
-        // and add it to the assetHasher
-        outAssetsHasher[tx] = Poseidon(nOutAssets);
-
-        for (var a = 0; a < nOutAssets; a++) {
-            var asset = 0;
-            for (var i = 0; i < nAssets; i++) {
-                outGetAsset[tx][a][i] = AND();
-                outGetAsset[tx][a][i].a <== assetPubkeys[i];
-                outGetAsset[tx][a][i].b <== outIndices[tx][a][i];
-                asset += outGetAsset[tx][a][i].out;
-            }
-            assetsOuts[tx][a] = asset;
-            outAssetsHasher[tx].inputs[a] <== asset;
-        }
-
-        for (var i = 0; i < nOutAssets; i++) {
-            // Check that amount fits into 64 bits to prevent overflow
-            outAmountCheck[tx][i] = Num2Bits(64);
-            outAmountCheck[tx][i].in <== outAmount[tx][i];
-        }
-
-        outAmountsHasher[tx] = Poseidon(nOutAssets);
-        for (var i = 0; i < nOutAssets; i++) {
-            outAmountsHasher[tx].inputs[i] <== outAmount[tx][i];
-        }
-
-        outCommitmentHasher[tx] = Poseidon(8);
-        outCommitmentHasher[tx].inputs[0] <== transactionVersion; // transaction version
-        outCommitmentHasher[tx].inputs[1] <== outAmountsHasher[tx].out;
-        outCommitmentHasher[tx].inputs[2] <== outPubkey[tx];
-        outCommitmentHasher[tx].inputs[3] <== outBlinding[tx];
-        outCommitmentHasher[tx].inputs[4] <== outAssetsHasher[tx].out;
-        outCommitmentHasher[tx].inputs[5] <== outAppDataHash[tx];
-        outCommitmentHasher[tx].inputs[6] <== outPoolType[tx];
-        outCommitmentHasher[tx].inputs[7] <== outVerifierPubkey[tx];
-        outCommitmentHasher[tx].out === outputCommitment[tx];
-
-        // ensure that all pool types are the same
-        outPoolType[0] === outPoolType[tx];
-    }
-
-    // public inputs
-    signal input publicAppVerifier;
-    signal  input transactionHash;
-
-    // generating input hash
-    // hash commitment 
-    component inputHasher = Poseidon(nIns);
-    for (var i = 0; i < nIns; i++) {
-        inputHasher.inputs[i] <== inCommitmentHasher[i].out;
-    }
-
-    component outputHasher = Poseidon(nOuts);
-    for (var i = 0; i < nOuts; i++) {
-        outputHasher.inputs[i] <== outCommitmentHasher[i].out;
-    }
-
-    component transactionHasher = Poseidon(3);
-
-    transactionHasher.inputs[0] <== inputHasher.out;
-    transactionHasher.inputs[1] <== outputHasher.out;
-    transactionHasher.inputs[2] <== txIntegrityHash;
-
-
-    transactionHash === transactionHasher.out;
-
-signal input swapCommitmentHash[nAppUtxos];
-signal input userPubkey[nAppUtxos];
-component instructionHasher[nAppUtxos];
-
-            component checkInstructionHash[nAppUtxos][nIns];
-for (var appUtxoIndex = 0; appUtxoIndex < nAppUtxos; appUtxoIndex++) {
-            	instructionHasher[appUtxoIndex] = Poseidon(2);
-instructionHasher[appUtxoIndex].inputs[0] <== swapCommitmentHash[appUtxoIndex];
-instructionHasher[appUtxoIndex].inputs[1] <== userPubkey[appUtxoIndex];
-for (var inUtxoIndex = 0; inUtxoIndex < nIns; inUtxoIndex++) {
-        checkInstructionHash[appUtxoIndex][inUtxoIndex] = ForceEqualIfEnabled();
-        checkInstructionHash[appUtxoIndex][inUtxoIndex].in[0] <== inAppDataHash[inUtxoIndex];
-        checkInstructionHash[appUtxoIndex][inUtxoIndex].in[1] <== instructionHasher[appUtxoIndex].out;
-        checkInstructionHash[appUtxoIndex][inUtxoIndex].enabled <== isAppInUtxo[appUtxoIndex][inUtxoIndex];
-   }
-
-    }
-
-
-signal input slot[2];
-signal input amountFrom;
-signal input amountTo;
-signal input publicSwapCommitment0;
-signal input publicSwapCommitment1;
-
-signal input isTakerOutUtxo[nOuts];
-
-component swapCommitmentHasher0 = Poseidon(4);
-swapCommitmentHasher0.inputs[0] <== slot[0];
-swapCommitmentHasher0.inputs[1] <== 0;
-swapCommitmentHasher0.inputs[2] <== amountFrom;
-swapCommitmentHasher0.inputs[3] <== amountTo;
-
-component swapCommitmentHasher1 = Poseidon(4);
-swapCommitmentHasher1.inputs[0] <== slot[1];
-swapCommitmentHasher1.inputs[1] <== swapCommitmentHasher0.out;
-swapCommitmentHasher1.inputs[2] <== amountFrom;
-swapCommitmentHasher1.inputs[3] <== amountTo;
-
-swapCommitmentHasher0.out === publicSwapCommitment0;
-swapCommitmentHasher1.out === publicSwapCommitment1;
-
-component checkCommittedAmount[2][nIns];
-
-for(var inUtxoIndex = 0; inUtxoIndex < nIns; inUtxoIndex++) {
-checkCommittedAmount[0][inUtxoIndex] = ForceEqualIfEnabled();
-checkCommittedAmount[0][inUtxoIndex].in[0] <== inAmount[inUtxoIndex][0];
-checkCommittedAmount[0][inUtxoIndex].in[1] <== amountFrom;
-checkCommittedAmount[0][inUtxoIndex].enabled <== isAppInUtxo[0][inUtxoIndex];
-
-checkCommittedAmount[1][inUtxoIndex] = ForceEqualIfEnabled();
-checkCommittedAmount[1][inUtxoIndex].in[0] <== inAmount[inUtxoIndex][0];
-checkCommittedAmount[1][inUtxoIndex].in[1] <== amountTo;
-checkCommittedAmount[1][inUtxoIndex].enabled <== isAppInUtxo[1][inUtxoIndex];
+template swaps( levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {
+	
+	assert( nIns * nAssets < 49);
+	assert( nInAssets <= nAssets);
+	assert( nOutAssets <= nAssets);
+	
+	signal input txIntegrityHash;
+	signal input  inAmount[nIns][nInAssets];
+	signal input  inPublicKey[nIns];
+	signal input  inBlinding[nIns];
+	signal input  inAppDataHash[nIns];
+	signal  input inPoolType[nIns];
+	signal  input inVerifierPubkey[nIns];
+	signal  input inIndices[nIns][nInAssets][nAssets];
+	
+	// data for transaction outputsAccount
+	signal  input outputCommitment[nOuts];
+	signal  input outAmount[nOuts][nOutAssets];
+	signal  input outPubkey[nOuts];
+	signal  input outBlinding[nOuts];
+	signal  input outAppDataHash[nOuts];
+	signal  input outIndices[nOuts][nOutAssets][nAssets];
+	signal  input outPoolType[nOuts];
+	signal  input outVerifierPubkey[nOuts];
+	
+	signal  input assetPubkeys[nAssets];
+	signal input transactionVersion;
+	
+	component inGetAsset[nIns][nInAssets][nAssets];
+	
+	component inCommitmentHasher[nIns];
+	component inAmountsHasher[nIns];
+	component inAssetsHasher[nIns];
+	
+	component sumIn[nIns][nInAssets][nAssets];
+	component inAmountCheck[nIns][nInAssets];
+	
+	// enforce pooltypes of 0
+	// add public input to distinguish between pool types
+	inPoolType[0] === 0;
+	inPoolType[0] === outPoolType[0];
+	
+	var sumIns[nAssets];
+	for (var i = 0; i < nAssets; i++) {
+		sumIns[i] = 0;
+	}
+	
+	var assetsIns[nIns][nInAssets];
+	for (var i = 0; i < nIns; i++) {
+		for (var j = 0; j < nInAssets; j++) {
+			assetsIns[i][j] = 0;
+		}
+	}
+	
+	// verify correctness of transaction s
+	for (var tx = 0; tx < nIns; tx++) {
+		
+		// determine the asset type
+		// and checks that the asset is included in assetPubkeys[nInAssets]
+		// skips first asset since that is the feeAsset
+		// iterates over remaining assets and adds the assetPubkey if index is 1
+		// all other indices are zero
+		inAssetsHasher[tx] = Poseidon(nInAssets);
+		for (var a = 0; a < nInAssets; a++) {
+			
+			for (var i = 0; i < nAssets; i++) {
+				inGetAsset[tx][a][i] = AND();
+				inGetAsset[tx][a][i].a <== assetPubkeys[i];
+				inGetAsset[tx][a][i].b <== inIndices[tx][a][i];
+				assetsIns[tx][a] += inGetAsset[tx][a][i].out;
+			}
+			inAssetsHasher[tx].inputs[a] <== assetsIns[tx][a];
+		}
+		
+		inAmountsHasher[tx] = Poseidon(nInAssets);
+		var sumInAmount = 0;
+		for (var a = 0; a < nInAssets; a++) {
+			inAmountCheck[tx][a] = Num2Bits(64);
+			inAmountCheck[tx][a].in <== inAmount[tx][a];
+			inAmountsHasher[tx].inputs[a] <== inAmount[tx][a];
+			sumInAmount += inAmount[tx][a];
+		}
+		
+		inCommitmentHasher[tx] = Poseidon(8);
+		inCommitmentHasher[tx].inputs[0] <== transactionVersion; // transaction version
+		inCommitmentHasher[tx].inputs[1] <== inAmountsHasher[tx].out;
+		inCommitmentHasher[tx].inputs[2] <== inPublicKey[tx];
+		inCommitmentHasher[tx].inputs[3] <== inBlinding[tx];
+		inCommitmentHasher[tx].inputs[4] <== inAssetsHasher[tx].out;
+		inCommitmentHasher[tx].inputs[5] <== inAppDataHash[tx];
+		inCommitmentHasher[tx].inputs[6] <== inPoolType[tx];
+		inCommitmentHasher[tx].inputs[7] <== inVerifierPubkey[tx];
+		
+		// for (var i = 0; i < nInAssets; i++) {
+			//     for (var j = 0; j < nAssets; j++) {
+				//         sumIn[tx][i][j] = AND();
+				//         sumIn[tx][i][j].a <== inAmount[tx][i];
+				//         sumIn[tx][i][j].b <== inIndices[tx][i][j];
+				//         sumIns[j] += sumIn[tx][i][j].out;
+			//     }
+		// }
+	}
+	
+	component outGetAsset[nOuts][nOutAssets][nAssets];
+	component outCommitmentHasher[nOuts];
+	component outAmountCheck[nOuts][nOutAssets];
+	component sumOut[nOuts][nOutAssets][nAssets];
+	component outAmountsHasher[nOuts];
+	component outAssetsHasher[nOuts];
+	
+	var sumOuts[nAssets];
+	for (var i = 0; i < nAssets; i++) {
+		sumOuts[i] = 0;
+	}
+	
+	var assetsOuts[nOuts][nOutAssets];
+	for (var i = 0; i < nOuts; i++) {
+		for (var j = 0; j < nOutAssets; j++) {
+			assetsOuts[i][j] = 0;
+		}
+	}
+	
+	// verify correctness of transaction outputs
+	for (var tx = 0; tx < nOuts; tx++) {
+		
+		// for every asset for every tx only one index is 1 others are 0
+		// select the asset corresponding to the index
+		// and add it to the assetHasher
+		outAssetsHasher[tx] = Poseidon(nOutAssets);
+		
+		for (var a = 0; a < nOutAssets; a++) {
+			var asset = 0;
+			for (var i = 0; i < nAssets; i++) {
+				outGetAsset[tx][a][i] = AND();
+				outGetAsset[tx][a][i].a <== assetPubkeys[i];
+				outGetAsset[tx][a][i].b <== outIndices[tx][a][i];
+				asset += outGetAsset[tx][a][i].out;
+			}
+			assetsOuts[tx][a] = asset;
+			outAssetsHasher[tx].inputs[a] <== asset;
+		}
+		
+		for (var i = 0; i < nOutAssets; i++) {
+			// Check that amount fits into 64 bits to prevent overflow
+			outAmountCheck[tx][i] = Num2Bits(64);
+			outAmountCheck[tx][i].in <== outAmount[tx][i];
+		}
+		
+		outAmountsHasher[tx] = Poseidon(nOutAssets);
+		for (var i = 0; i < nOutAssets; i++) {
+			outAmountsHasher[tx].inputs[i] <== outAmount[tx][i];
+		}
+		
+		outCommitmentHasher[tx] = Poseidon(8);
+		outCommitmentHasher[tx].inputs[0] <== transactionVersion; // transaction version
+		outCommitmentHasher[tx].inputs[1] <== outAmountsHasher[tx].out;
+		outCommitmentHasher[tx].inputs[2] <== outPubkey[tx];
+		outCommitmentHasher[tx].inputs[3] <== outBlinding[tx];
+		outCommitmentHasher[tx].inputs[4] <== outAssetsHasher[tx].out;
+		outCommitmentHasher[tx].inputs[5] <== outAppDataHash[tx];
+		outCommitmentHasher[tx].inputs[6] <== outPoolType[tx];
+		outCommitmentHasher[tx].inputs[7] <== outVerifierPubkey[tx];
+		outCommitmentHasher[tx].out === outputCommitment[tx];
+		
+		// ensure that all pool types are the same
+		outPoolType[0] === outPoolType[tx];
+	}
+	
+	// public inputs
+	signal input publicAppVerifier;
+	signal  input transactionHash;
+	
+	// generating input hash
+	// hash commitment
+	component inputHasher = Poseidon(nIns);
+	for (var i = 0; i < nIns; i++) {
+		inputHasher.inputs[i] <== inCommitmentHasher[i].out;
+	}
+	
+	component outputHasher = Poseidon(nOuts);
+	for (var i = 0; i < nOuts; i++) {
+		outputHasher.inputs[i] <== outCommitmentHasher[i].out;
+	}
+	
+	component transactionHasher = Poseidon(3);
+	
+	transactionHasher.inputs[0] <== inputHasher.out;
+	transactionHasher.inputs[1] <== outputHasher.out;
+	transactionHasher.inputs[2] <== txIntegrityHash;
+	
+	transactionHash === transactionHasher.out;
+	
+	signal input takeOfferInstruction;
+	
+	signal input isInAppUtxoOfferUtxo[nIns];
+	var sumIsInAppUtxoOfferUtxo = 0;
+	for (var i= 0; i < nIns; i++) {
+		(1 - isInAppUtxoOfferUtxo[i]) * isInAppUtxoOfferUtxo[i] === 0;
+		sumIsInAppUtxoOfferUtxo += isInAppUtxoOfferUtxo[i];
+	}
+	sumIsInAppUtxoOfferUtxo === 1 * 1;
+	
+	signal input offerUtxoPriceSol;
+	
+	signal input offerUtxoPriceSpl;
+	
+	signal input offerUtxoSplAsset;
+	
+	signal input offerUtxoRecipient;
+	
+	signal input offerUtxoRecipientEncryptionPublicKey;
+	
+	component utxoDataHasherOfferUtxo = Poseidon(5);
+	
+	utxoDataHasherOfferUtxo.inputs[0] <== offerUtxoPriceSol;
+	
+	utxoDataHasherOfferUtxo.inputs[1] <== offerUtxoPriceSpl;
+	
+	utxoDataHasherOfferUtxo.inputs[2] <== offerUtxoSplAsset;
+	
+	utxoDataHasherOfferUtxo.inputs[3] <== offerUtxoRecipient;
+	
+	utxoDataHasherOfferUtxo.inputs[4] <== offerUtxoRecipientEncryptionPublicKey;
+	
+	component checkInstructionHashOfferUtxo[nIns];
+	for (var inUtxoIndex = 0; inUtxoIndex < nIns; inUtxoIndex++) {
+		checkInstructionHashOfferUtxo[inUtxoIndex] = ForceEqualIfEnabled();
+		checkInstructionHashOfferUtxo[inUtxoIndex].in[0] <== inAppDataHash[inUtxoIndex];
+		checkInstructionHashOfferUtxo[inUtxoIndex].in[1] <== utxoDataHasherOfferUtxo.out;
+		checkInstructionHashOfferUtxo[inUtxoIndex].enabled <== isInAppUtxoOfferUtxo[inUtxoIndex];
+	}
+	component offerUtxo = SwapUtxo();
+	
+	offerUtxo.priceSolIn <== offerUtxoPriceSol;
+	
+	offerUtxo.priceSplIn <== offerUtxoPriceSpl;
+	
+	offerUtxo.splAssetIn <== offerUtxoSplAsset;
+	
+	offerUtxo.recipientIn <== offerUtxoRecipient;
+	
+	offerUtxo.recipientEncryptionPublicKeyIn <== offerUtxoRecipientEncryptionPublicKey;
+	
+	signal input offerUtxoPublicKey;
+	offerUtxo.publicKeyIn <== offerUtxoPublicKey;
+	
+	signal input offerUtxoBlinding;
+	offerUtxo.blindingIn <== offerUtxoBlinding;
+	
+	signal input offerUtxoPspOwner;
+	offerUtxo.pspOwnerIn <== offerUtxoPspOwner;
+	
+	signal input offerUtxoAmountSol;
+	offerUtxo.amountSolIn <== offerUtxoAmountSol;
+	
+	signal input offerUtxoAmountSpl;
+	offerUtxo.amountSplIn <== offerUtxoAmountSpl;
+	
+	signal input offerUtxoAssetSpl;
+	offerUtxo.assetSplIn <== offerUtxoAssetSpl;
+	
+	signal input offerUtxoTxVersion;
+	offerUtxo.txVersionIn <== offerUtxoTxVersion;
+	
+	signal input offerUtxoPoolType;
+	offerUtxo.poolTypeIn <== offerUtxoPoolType;
+	
+	offerUtxo.utxoDataHashIn <== utxoDataHasherOfferUtxo.out;
+	
+	component offerUtxoAmountHasher = Poseidon(2);
+	offerUtxoAmountHasher.inputs[0] <== 0;
+	offerUtxoAmountHasher.inputs[1] <== offerUtxo.assetSpl;
+	
+	component offerUtxoAssetHasher = Poseidon(2);
+	offerUtxoAssetHasher.inputs[0] <== offerUtxo.amountSol;
+	offerUtxoAssetHasher.inputs[1] <== offerUtxo.amountSpl;
+	
+	component offerUtxoUtxoCheckHasher = Poseidon(8);
+	offerUtxoUtxoCheckHasher.inputs[0] <== 0; // TxVersion
+	offerUtxoUtxoCheckHasher.inputs[1] <== offerUtxoAmountHasher.out;
+	offerUtxoUtxoCheckHasher.inputs[2] <== offerUtxoAssetHasher.out;
+	offerUtxoUtxoCheckHasher.inputs[3] <== offerUtxo.blinding;
+	offerUtxoUtxoCheckHasher.inputs[4] <== offerUtxoAssetHasher.out;
+	offerUtxoUtxoCheckHasher.inputs[5] <== offerUtxo.utxoDataHash;
+	offerUtxoUtxoCheckHasher.inputs[6] <== 0;
+	offerUtxoUtxoCheckHasher.inputs[7] <== offerUtxo.pspOwner;
+	
+	signal input isOutAppUtxoOfferRewardUtxo[nOuts];
+	var sumIsOutAppUtxoOfferRewardUtxo = 0;
+	for (var i= 0; i < nOuts; i++) {
+		(1 - isOutAppUtxoOfferRewardUtxo[i]) * isOutAppUtxoOfferRewardUtxo[i] === 0;
+		sumIsOutAppUtxoOfferRewardUtxo += isOutAppUtxoOfferRewardUtxo[i];
+	}
+	sumIsOutAppUtxoOfferRewardUtxo === 1 * takeOfferInstruction;
+	component offerRewardUtxo = Native();
+	
+	signal input offerRewardUtxoPublicKey;
+	offerRewardUtxo.publicKeyIn <== offerRewardUtxoPublicKey;
+	
+	signal input offerRewardUtxoBlinding;
+	offerRewardUtxo.blindingIn <== offerRewardUtxoBlinding;
+	
+	signal input offerRewardUtxoPspOwner;
+	offerRewardUtxo.pspOwnerIn <== offerRewardUtxoPspOwner;
+	
+	signal input offerRewardUtxoAmountSol;
+	offerRewardUtxo.amountSolIn <== offerRewardUtxoAmountSol;
+	
+	signal input offerRewardUtxoAmountSpl;
+	offerRewardUtxo.amountSplIn <== offerRewardUtxoAmountSpl;
+	
+	signal input offerRewardUtxoAssetSpl;
+	offerRewardUtxo.assetSplIn <== offerRewardUtxoAssetSpl;
+	
+	signal input offerRewardUtxoTxVersion;
+	offerRewardUtxo.txVersionIn <== offerRewardUtxoTxVersion;
+	
+	signal input offerRewardUtxoPoolType;
+	offerRewardUtxo.poolTypeIn <== offerRewardUtxoPoolType;
+	
+	offerRewardUtxo.utxoDataHashIn <== 0;
+	
+	component offerRewardUtxoAmountHasher = Poseidon(2);
+	offerRewardUtxoAmountHasher.inputs[0] <== 0;
+	offerRewardUtxoAmountHasher.inputs[1] <== offerRewardUtxo.assetSpl;
+	
+	component offerRewardUtxoAssetHasher = Poseidon(2);
+	offerRewardUtxoAssetHasher.inputs[0] <== offerRewardUtxo.amountSol;
+	offerRewardUtxoAssetHasher.inputs[1] <== offerRewardUtxo.amountSpl;
+	
+	component offerRewardUtxoUtxoCheckHasher = Poseidon(8);
+	offerRewardUtxoUtxoCheckHasher.inputs[0] <== 0; // TxVersion
+	offerRewardUtxoUtxoCheckHasher.inputs[1] <== offerRewardUtxoAmountHasher.out;
+	offerRewardUtxoUtxoCheckHasher.inputs[2] <== offerRewardUtxoAssetHasher.out;
+	offerRewardUtxoUtxoCheckHasher.inputs[3] <== offerRewardUtxo.blinding;
+	offerRewardUtxoUtxoCheckHasher.inputs[4] <== offerRewardUtxoAssetHasher.out;
+	offerRewardUtxoUtxoCheckHasher.inputs[5] <== offerRewardUtxo.utxoDataHash;
+	offerRewardUtxoUtxoCheckHasher.inputs[6] <== 0;
+	offerRewardUtxoUtxoCheckHasher.inputs[7] <== offerRewardUtxo.pspOwner;
+	
+	component checkAppDataHashOfferRewardUtxo[nOuts];
+	
+	component checkPspOwnerOfferRewardUtxo[nOuts];
+	
+	component checkAmountSolOfferRewardUtxo[nOuts];
+	
+	component checkAmountSplOfferRewardUtxo[nOuts];
+	
+	component checkAssetSplOfferRewardUtxo[nOuts];
+	
+	component checkBlindingOfferRewardUtxo[nOuts];
+	
+	component checkPublicKeyOfferRewardUtxo[nOuts];
+	
+	for (var i = 0; i < nOuts; i++) {
+		
+		checkAppDataHashOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkAppDataHashOfferRewardUtxo[i].in[0] <== outAppDataHash[i];
+		checkAppDataHashOfferRewardUtxo[i].in[1] <== 0;
+		checkAppDataHashOfferRewardUtxo[i].enabled <== isOutAppUtxoOfferRewardUtxo[i] * takeOfferInstruction;
+		
+		checkPspOwnerOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkPspOwnerOfferRewardUtxo[i].in[0] <== outCommitmentHasher[i].inputs[7];
+		checkPspOwnerOfferRewardUtxo[i].in[1] <== 0;
+		checkPspOwnerOfferRewardUtxo[i].enabled <== isOutAppUtxoOfferRewardUtxo[i] * takeOfferInstruction;
+		
+		checkAmountSolOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkAmountSolOfferRewardUtxo[i].in[0] <== outAmountsHasher[i].inputs[0];
+		checkAmountSolOfferRewardUtxo[i].in[1] <== offerUtxo.priceSol;
+		checkAmountSolOfferRewardUtxo[i].enabled <== isOutAppUtxoOfferRewardUtxo[i] * takeOfferInstruction;
+		
+		checkAmountSplOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkAmountSplOfferRewardUtxo[i].in[0] <== outAmountsHasher[i].inputs[1];
+		checkAmountSplOfferRewardUtxo[i].in[1] <== offerUtxo.priceSpl;
+		checkAmountSplOfferRewardUtxo[i].enabled <== isOutAppUtxoOfferRewardUtxo[i] * takeOfferInstruction;
+		
+		checkAssetSplOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkAssetSplOfferRewardUtxo[i].in[0] <== outAssetsHasher[i].inputs[1];
+		checkAssetSplOfferRewardUtxo[i].in[1] <== offerUtxo.splAsset;
+		checkAssetSplOfferRewardUtxo[i].enabled <== isOutAppUtxoOfferRewardUtxo[i] * takeOfferInstruction;
+		
+		checkBlindingOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkBlindingOfferRewardUtxo[i].in[0] <== outCommitmentHasher[i].inputs[3];
+		checkBlindingOfferRewardUtxo[i].in[1] <== offerUtxo.blinding;
+		checkBlindingOfferRewardUtxo[i].enabled <== isOutAppUtxoOfferRewardUtxo[i] * takeOfferInstruction;
+		
+		checkPublicKeyOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkPublicKeyOfferRewardUtxo[i].in[0] <== outCommitmentHasher[i].inputs[2];
+		checkPublicKeyOfferRewardUtxo[i].in[1] <== offerUtxo.recipient;
+		checkPublicKeyOfferRewardUtxo[i].enabled <== isOutAppUtxoOfferRewardUtxo[i] * takeOfferInstruction;
+		
+	}
+	
+	signal input takeCounterOfferInstruction;
+	
+	signal input isInAppUtxoCounterOfferUtxo[nIns];
+	var sumIsInAppUtxoCounterOfferUtxo = 0;
+	for (var i= 0; i < nIns; i++) {
+		(1 - isInAppUtxoCounterOfferUtxo[i]) * isInAppUtxoCounterOfferUtxo[i] === 0;
+		sumIsInAppUtxoCounterOfferUtxo += isInAppUtxoCounterOfferUtxo[i];
+	}
+	sumIsInAppUtxoCounterOfferUtxo === 1 * takeCounterOfferInstruction;
+	
+	signal input counterOfferUtxoPriceSol;
+	
+	signal input counterOfferUtxoPriceSpl;
+	
+	signal input counterOfferUtxoSplAsset;
+	
+	signal input counterOfferUtxoRecipient;
+	
+	signal input counterOfferUtxoRecipientEncryptionPublicKey;
+	
+	component utxoDataHasherCounterOfferUtxo = Poseidon(5);
+	
+	utxoDataHasherCounterOfferUtxo.inputs[0] <== counterOfferUtxoPriceSol;
+	
+	utxoDataHasherCounterOfferUtxo.inputs[1] <== counterOfferUtxoPriceSpl;
+	
+	utxoDataHasherCounterOfferUtxo.inputs[2] <== counterOfferUtxoSplAsset;
+	
+	utxoDataHasherCounterOfferUtxo.inputs[3] <== counterOfferUtxoRecipient;
+	
+	utxoDataHasherCounterOfferUtxo.inputs[4] <== counterOfferUtxoRecipientEncryptionPublicKey;
+	
+	component checkInstructionHashCounterOfferUtxo[nIns];
+	for (var inUtxoIndex = 0; inUtxoIndex < nIns; inUtxoIndex++) {
+		checkInstructionHashCounterOfferUtxo[inUtxoIndex] = ForceEqualIfEnabled();
+		checkInstructionHashCounterOfferUtxo[inUtxoIndex].in[0] <== inAppDataHash[inUtxoIndex];
+		checkInstructionHashCounterOfferUtxo[inUtxoIndex].in[1] <== utxoDataHasherCounterOfferUtxo.out;
+		checkInstructionHashCounterOfferUtxo[inUtxoIndex].enabled <== isInAppUtxoCounterOfferUtxo[inUtxoIndex];
+	}
+	component counterOfferUtxo = SwapUtxo();
+	
+	counterOfferUtxo.priceSolIn <== counterOfferUtxoPriceSol;
+	
+	counterOfferUtxo.priceSplIn <== counterOfferUtxoPriceSpl;
+	
+	counterOfferUtxo.splAssetIn <== counterOfferUtxoSplAsset;
+	
+	counterOfferUtxo.recipientIn <== counterOfferUtxoRecipient;
+	
+	counterOfferUtxo.recipientEncryptionPublicKeyIn <== counterOfferUtxoRecipientEncryptionPublicKey;
+	
+	signal input counterOfferUtxoPublicKey;
+	counterOfferUtxo.publicKeyIn <== counterOfferUtxoPublicKey;
+	
+	signal input counterOfferUtxoBlinding;
+	counterOfferUtxo.blindingIn <== counterOfferUtxoBlinding;
+	
+	signal input counterOfferUtxoPspOwner;
+	counterOfferUtxo.pspOwnerIn <== counterOfferUtxoPspOwner;
+	
+	signal input counterOfferUtxoAmountSol;
+	counterOfferUtxo.amountSolIn <== counterOfferUtxoAmountSol;
+	
+	signal input counterOfferUtxoAmountSpl;
+	counterOfferUtxo.amountSplIn <== counterOfferUtxoAmountSpl;
+	
+	signal input counterOfferUtxoAssetSpl;
+	counterOfferUtxo.assetSplIn <== counterOfferUtxoAssetSpl;
+	
+	signal input counterOfferUtxoTxVersion;
+	counterOfferUtxo.txVersionIn <== counterOfferUtxoTxVersion;
+	
+	signal input counterOfferUtxoPoolType;
+	counterOfferUtxo.poolTypeIn <== counterOfferUtxoPoolType;
+	
+	counterOfferUtxo.utxoDataHashIn <== utxoDataHasherCounterOfferUtxo.out;
+	
+	component counterOfferUtxoAmountHasher = Poseidon(2);
+	counterOfferUtxoAmountHasher.inputs[0] <== 0;
+	counterOfferUtxoAmountHasher.inputs[1] <== counterOfferUtxo.assetSpl;
+	
+	component counterOfferUtxoAssetHasher = Poseidon(2);
+	counterOfferUtxoAssetHasher.inputs[0] <== counterOfferUtxo.amountSol;
+	counterOfferUtxoAssetHasher.inputs[1] <== counterOfferUtxo.amountSpl;
+	
+	component counterOfferUtxoUtxoCheckHasher = Poseidon(8);
+	counterOfferUtxoUtxoCheckHasher.inputs[0] <== 0; // TxVersion
+	counterOfferUtxoUtxoCheckHasher.inputs[1] <== counterOfferUtxoAmountHasher.out;
+	counterOfferUtxoUtxoCheckHasher.inputs[2] <== counterOfferUtxoAssetHasher.out;
+	counterOfferUtxoUtxoCheckHasher.inputs[3] <== counterOfferUtxo.blinding;
+	counterOfferUtxoUtxoCheckHasher.inputs[4] <== counterOfferUtxoAssetHasher.out;
+	counterOfferUtxoUtxoCheckHasher.inputs[5] <== counterOfferUtxo.utxoDataHash;
+	counterOfferUtxoUtxoCheckHasher.inputs[6] <== 0;
+	counterOfferUtxoUtxoCheckHasher.inputs[7] <== counterOfferUtxo.pspOwner;
+	
+	signal input isOutAppUtxoCounterOfferRewardUtxo[nOuts];
+	var sumIsOutAppUtxoCounterOfferRewardUtxo = 0;
+	for (var i= 0; i < nOuts; i++) {
+		(1 - isOutAppUtxoCounterOfferRewardUtxo[i]) * isOutAppUtxoCounterOfferRewardUtxo[i] === 0;
+		sumIsOutAppUtxoCounterOfferRewardUtxo += isOutAppUtxoCounterOfferRewardUtxo[i];
+	}
+	sumIsOutAppUtxoCounterOfferRewardUtxo === 1 * takeCounterOfferInstruction;
+	component counterOfferRewardUtxo = Native();
+	
+	signal input counterOfferRewardUtxoPublicKey;
+	counterOfferRewardUtxo.publicKeyIn <== counterOfferRewardUtxoPublicKey;
+	
+	signal input counterOfferRewardUtxoBlinding;
+	counterOfferRewardUtxo.blindingIn <== counterOfferRewardUtxoBlinding;
+	
+	signal input counterOfferRewardUtxoPspOwner;
+	counterOfferRewardUtxo.pspOwnerIn <== counterOfferRewardUtxoPspOwner;
+	
+	signal input counterOfferRewardUtxoAmountSol;
+	counterOfferRewardUtxo.amountSolIn <== counterOfferRewardUtxoAmountSol;
+	
+	signal input counterOfferRewardUtxoAmountSpl;
+	counterOfferRewardUtxo.amountSplIn <== counterOfferRewardUtxoAmountSpl;
+	
+	signal input counterOfferRewardUtxoAssetSpl;
+	counterOfferRewardUtxo.assetSplIn <== counterOfferRewardUtxoAssetSpl;
+	
+	signal input counterOfferRewardUtxoTxVersion;
+	counterOfferRewardUtxo.txVersionIn <== counterOfferRewardUtxoTxVersion;
+	
+	signal input counterOfferRewardUtxoPoolType;
+	counterOfferRewardUtxo.poolTypeIn <== counterOfferRewardUtxoPoolType;
+	
+	counterOfferRewardUtxo.utxoDataHashIn <== 0;
+	
+	component counterOfferRewardUtxoAmountHasher = Poseidon(2);
+	counterOfferRewardUtxoAmountHasher.inputs[0] <== 0;
+	counterOfferRewardUtxoAmountHasher.inputs[1] <== counterOfferRewardUtxo.assetSpl;
+	
+	component counterOfferRewardUtxoAssetHasher = Poseidon(2);
+	counterOfferRewardUtxoAssetHasher.inputs[0] <== counterOfferRewardUtxo.amountSol;
+	counterOfferRewardUtxoAssetHasher.inputs[1] <== counterOfferRewardUtxo.amountSpl;
+	
+	component counterOfferRewardUtxoUtxoCheckHasher = Poseidon(8);
+	counterOfferRewardUtxoUtxoCheckHasher.inputs[0] <== 0; // TxVersion
+	counterOfferRewardUtxoUtxoCheckHasher.inputs[1] <== counterOfferRewardUtxoAmountHasher.out;
+	counterOfferRewardUtxoUtxoCheckHasher.inputs[2] <== counterOfferRewardUtxoAssetHasher.out;
+	counterOfferRewardUtxoUtxoCheckHasher.inputs[3] <== counterOfferRewardUtxo.blinding;
+	counterOfferRewardUtxoUtxoCheckHasher.inputs[4] <== counterOfferRewardUtxoAssetHasher.out;
+	counterOfferRewardUtxoUtxoCheckHasher.inputs[5] <== counterOfferRewardUtxo.utxoDataHash;
+	counterOfferRewardUtxoUtxoCheckHasher.inputs[6] <== 0;
+	counterOfferRewardUtxoUtxoCheckHasher.inputs[7] <== counterOfferRewardUtxo.pspOwner;
+	
+	component checkAppDataHashCounterOfferRewardUtxo[nOuts];
+	
+	component checkPspOwnerCounterOfferRewardUtxo[nOuts];
+	
+	component checkAmountSolCounterOfferRewardUtxo[nOuts];
+	
+	component checkAmountSplCounterOfferRewardUtxo[nOuts];
+	
+	component checkAssetSplCounterOfferRewardUtxo[nOuts];
+	
+	component checkBlindingCounterOfferRewardUtxo[nOuts];
+	
+	component checkPublicKeyCounterOfferRewardUtxo[nOuts];
+	
+	for (var i = 0; i < nOuts; i++) {
+		
+		checkAppDataHashCounterOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkAppDataHashCounterOfferRewardUtxo[i].in[0] <== outAppDataHash[i];
+		checkAppDataHashCounterOfferRewardUtxo[i].in[1] <== 0;
+		checkAppDataHashCounterOfferRewardUtxo[i].enabled <== isOutAppUtxoCounterOfferRewardUtxo[i] * takeCounterOfferInstruction;
+		
+		checkPspOwnerCounterOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkPspOwnerCounterOfferRewardUtxo[i].in[0] <== outCommitmentHasher[i].inputs[7];
+		checkPspOwnerCounterOfferRewardUtxo[i].in[1] <== 0;
+		checkPspOwnerCounterOfferRewardUtxo[i].enabled <== isOutAppUtxoCounterOfferRewardUtxo[i] * takeCounterOfferInstruction;
+		
+		checkAmountSolCounterOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkAmountSolCounterOfferRewardUtxo[i].in[0] <== outAmountsHasher[i].inputs[0];
+		checkAmountSolCounterOfferRewardUtxo[i].in[1] <== counterOfferUtxo.priceSol;
+		checkAmountSolCounterOfferRewardUtxo[i].enabled <== isOutAppUtxoCounterOfferRewardUtxo[i] * takeCounterOfferInstruction;
+		
+		checkAmountSplCounterOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkAmountSplCounterOfferRewardUtxo[i].in[0] <== outAmountsHasher[i].inputs[1];
+		checkAmountSplCounterOfferRewardUtxo[i].in[1] <== counterOfferUtxo.priceSpl;
+		checkAmountSplCounterOfferRewardUtxo[i].enabled <== isOutAppUtxoCounterOfferRewardUtxo[i] * takeCounterOfferInstruction;
+		
+		checkAssetSplCounterOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkAssetSplCounterOfferRewardUtxo[i].in[0] <== outAssetsHasher[i].inputs[1];
+		checkAssetSplCounterOfferRewardUtxo[i].in[1] <== counterOfferUtxo.splAsset;
+		checkAssetSplCounterOfferRewardUtxo[i].enabled <== isOutAppUtxoCounterOfferRewardUtxo[i] * takeCounterOfferInstruction;
+		
+		checkBlindingCounterOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkBlindingCounterOfferRewardUtxo[i].in[0] <== outCommitmentHasher[i].inputs[3];
+		checkBlindingCounterOfferRewardUtxo[i].in[1] <== counterOfferUtxo.blinding;
+		checkBlindingCounterOfferRewardUtxo[i].enabled <== isOutAppUtxoCounterOfferRewardUtxo[i] * takeCounterOfferInstruction;
+		
+		checkPublicKeyCounterOfferRewardUtxo[i] = ForceEqualIfEnabled();
+		checkPublicKeyCounterOfferRewardUtxo[i].in[0] <== outCommitmentHasher[i].inputs[2];
+		checkPublicKeyCounterOfferRewardUtxo[i].in[1] <== counterOfferUtxo.recipient;
+		checkPublicKeyCounterOfferRewardUtxo[i].enabled <== isOutAppUtxoCounterOfferRewardUtxo[i] * takeCounterOfferInstruction;
+		
+	}
+	
+	signal input cancelInstruction;
+	
+	signal input isInAppUtxoCancelSignerUtxo[nIns];
+	var sumIsInAppUtxoCancelSignerUtxo = 0;
+	for (var i= 0; i < nIns; i++) {
+		(1 - isInAppUtxoCancelSignerUtxo[i]) * isInAppUtxoCancelSignerUtxo[i] === 0;
+		sumIsInAppUtxoCancelSignerUtxo += isInAppUtxoCancelSignerUtxo[i];
+	}
+	sumIsInAppUtxoCancelSignerUtxo === 1 * cancelInstruction;
+	component cancelSignerUtxo = Native();
+	
+	signal input cancelSignerUtxoPublicKey;
+	cancelSignerUtxo.publicKeyIn <== cancelSignerUtxoPublicKey;
+	
+	signal input cancelSignerUtxoBlinding;
+	cancelSignerUtxo.blindingIn <== cancelSignerUtxoBlinding;
+	
+	signal input cancelSignerUtxoPspOwner;
+	cancelSignerUtxo.pspOwnerIn <== cancelSignerUtxoPspOwner;
+	
+	signal input cancelSignerUtxoAmountSol;
+	cancelSignerUtxo.amountSolIn <== cancelSignerUtxoAmountSol;
+	
+	signal input cancelSignerUtxoAmountSpl;
+	cancelSignerUtxo.amountSplIn <== cancelSignerUtxoAmountSpl;
+	
+	signal input cancelSignerUtxoAssetSpl;
+	cancelSignerUtxo.assetSplIn <== cancelSignerUtxoAssetSpl;
+	
+	signal input cancelSignerUtxoTxVersion;
+	cancelSignerUtxo.txVersionIn <== cancelSignerUtxoTxVersion;
+	
+	signal input cancelSignerUtxoPoolType;
+	cancelSignerUtxo.poolTypeIn <== cancelSignerUtxoPoolType;
+	
+	cancelSignerUtxo.utxoDataHashIn <== 0;
+	
+	component cancelSignerUtxoAmountHasher = Poseidon(2);
+	cancelSignerUtxoAmountHasher.inputs[0] <== 0;
+	cancelSignerUtxoAmountHasher.inputs[1] <== cancelSignerUtxo.assetSpl;
+	
+	component cancelSignerUtxoAssetHasher = Poseidon(2);
+	cancelSignerUtxoAssetHasher.inputs[0] <== cancelSignerUtxo.amountSol;
+	cancelSignerUtxoAssetHasher.inputs[1] <== cancelSignerUtxo.amountSpl;
+	
+	component cancelSignerUtxoUtxoCheckHasher = Poseidon(8);
+	cancelSignerUtxoUtxoCheckHasher.inputs[0] <== 0; // TxVersion
+	cancelSignerUtxoUtxoCheckHasher.inputs[1] <== cancelSignerUtxoAmountHasher.out;
+	cancelSignerUtxoUtxoCheckHasher.inputs[2] <== cancelSignerUtxoAssetHasher.out;
+	cancelSignerUtxoUtxoCheckHasher.inputs[3] <== cancelSignerUtxo.blinding;
+	cancelSignerUtxoUtxoCheckHasher.inputs[4] <== cancelSignerUtxoAssetHasher.out;
+	cancelSignerUtxoUtxoCheckHasher.inputs[5] <== cancelSignerUtxo.utxoDataHash;
+	cancelSignerUtxoUtxoCheckHasher.inputs[6] <== 0;
+	cancelSignerUtxoUtxoCheckHasher.inputs[7] <== cancelSignerUtxo.pspOwner;
+	
+	component checkAppDataHashCancelSignerUtxo[nIns];
+	
+	component checkPspOwnerCancelSignerUtxo[nIns];
+	
+	component checkPublicKeyCancelSignerUtxo[nIns];
+	
+	for (var i = 0; i < nIns; i++) {
+		
+		checkAppDataHashCancelSignerUtxo[i] = ForceEqualIfEnabled();
+		checkAppDataHashCancelSignerUtxo[i].in[0] <== inAppDataHash[i];
+		checkAppDataHashCancelSignerUtxo[i].in[1] <== 0;
+		checkAppDataHashCancelSignerUtxo[i].enabled <== isInAppUtxoCancelSignerUtxo[i] * cancelInstruction;
+		
+		checkPspOwnerCancelSignerUtxo[i] = ForceEqualIfEnabled();
+		checkPspOwnerCancelSignerUtxo[i].in[0] <== inCommitmentHasher[i].inputs[7];
+		checkPspOwnerCancelSignerUtxo[i].in[1] <== 0;
+		checkPspOwnerCancelSignerUtxo[i].enabled <== isInAppUtxoCancelSignerUtxo[i] * cancelInstruction;
+		
+		checkPublicKeyCancelSignerUtxo[i] = ForceEqualIfEnabled();
+		checkPublicKeyCancelSignerUtxo[i].in[0] <== inCommitmentHasher[i].inputs[2];
+		checkPublicKeyCancelSignerUtxo[i].in[1] <== offerUtxo.recipient;
+		checkPublicKeyCancelSignerUtxo[i].enabled <== isInAppUtxoCancelSignerUtxo[i] * cancelInstruction;
+		
+	}
+	
+	var instructionIsSet = 0;
+	(1 - takeOfferInstruction) * takeOfferInstruction === 0;
+	instructionIsSet += takeOfferInstruction;
+	(1 - takeCounterOfferInstruction) * takeCounterOfferInstruction === 0;
+	instructionIsSet += takeCounterOfferInstruction;
+	(1 - cancelInstruction) * cancelInstruction === 0;
+	instructionIsSet += cancelInstruction;
+	
+	instructionIsSet === 1;
 }
 
-component checkUtxoDraw[nOuts];
-for (var outUtxoIndex = 0;outUtxoIndex < nOuts; outUtxoIndex++) {
-checkUtxoDraw[outUtxoIndex] = CheckUtxo(2);
-checkUtxoDraw[outUtxoIndex].isEnabled <== 1;
-checkUtxoDraw[outUtxoIndex].isAccount <== isTakerOutUtxo[outUtxoIndex];
-checkUtxoDraw[outUtxoIndex].assetIsNative <== 1;
-checkUtxoDraw[outUtxoIndex].actualAmounts[0] <== outAmount[outUtxoIndex][1];
-checkUtxoDraw[outUtxoIndex].actualAmounts[1] <== 0;
-checkUtxoDraw[outUtxoIndex].requestedAmount <== amountFrom;
-checkUtxoDraw[outUtxoIndex].actualPubkey <== outPubkey[outUtxoIndex];
-checkUtxoDraw[outUtxoIndex].requestedPubkey <== userPubkey[1];
-checkUtxoDraw[outUtxoIndex].actualInstructionType <== outAppDataHash[outUtxoIndex];
-checkUtxoDraw[outUtxoIndex].requestedInstructionType <== 0;
-checkUtxoDraw[outUtxoIndex].actualVerifierPubkey <== outVerifierPubkey[outUtxoIndex];
-checkUtxoDraw[outUtxoIndex].requestedVerifierPubkey <== 0;
-checkUtxoDraw[outUtxoIndex].actualOutBlinding <== outBlinding[outUtxoIndex];
-checkUtxoDraw[outUtxoIndex].requestedOutBlinding <== userPubkey[1] + userPubkey[1];
+template SwapUtxo() {
+	signal input publicKeyIn;
+	signal output publicKey;
+	publicKey <== publicKeyIn;
+	signal input blindingIn;
+	signal output blinding;
+	blinding <== blindingIn;
+	signal input pspOwnerIn;
+	signal output pspOwner;
+	pspOwner <== pspOwnerIn;
+	signal input utxoDataHashIn;
+	signal output utxoDataHash;
+	utxoDataHash <== utxoDataHashIn;
+	signal input amountSolIn;
+	signal output amountSol;
+	amountSol <== amountSolIn;
+	signal input amountSplIn;
+	signal output amountSpl;
+	amountSpl <== amountSplIn;
+	signal input assetSplIn;
+	signal output assetSpl;
+	assetSpl <== assetSplIn;
+	signal input txVersionIn;
+	signal output txVersion;
+	txVersion <== txVersionIn;
+	signal input poolTypeIn;
+	signal output poolType;
+	poolType <== poolTypeIn;
+	signal input priceSolIn;
+	signal output priceSol;
+	priceSol <== priceSolIn;
+	signal input priceSplIn;
+	signal output priceSpl;
+	priceSpl <== priceSplIn;
+	signal input splAssetIn;
+	signal output splAsset;
+	splAsset <== splAssetIn;
+	signal input recipientIn;
+	signal output recipient;
+	recipient <== recipientIn;
+	signal input recipientEncryptionPublicKeyIn;
+	signal output recipientEncryptionPublicKey;
+	recipientEncryptionPublicKey <== recipientEncryptionPublicKeyIn;
 }
 
-}
-
-template CheckUtxo(nrAssets) {
-signal input isEnabled;
-signal input isAccount;
-
-signal input assetIsNative;
-
-signal input actualAmounts[nrAssets];
-signal input requestedAmount;
-signal input actualPubkey;
-signal input requestedPubkey;
-signal input actualInstructionType;
-signal input requestedInstructionType;
-signal input actualVerifierPubkey;
-signal input requestedVerifierPubkey;
-signal input actualOutBlinding;
-signal input requestedOutBlinding;
-
-
-
-
-component outCheckBlinding = ForceEqualIfEnabled();
-outCheckBlinding.in[0] <== actualOutBlinding;
-outCheckBlinding.in[1] <== requestedOutBlinding;
-outCheckBlinding.enabled <== isAccount * isEnabled;
-
-
-component outCheckRecipient = ForceEqualIfEnabled();
-outCheckRecipient.in[0] <== actualPubkey; //outPubkey;
-outCheckRecipient.in[1] <== requestedPubkey; //authPubkey[i];
-outCheckRecipient.enabled <== isAccount * isEnabled;
-
-
-
-component outCheckInstructionType = ForceEqualIfEnabled();
-outCheckInstructionType.in[0] <== actualInstructionType;
-outCheckInstructionType.in[1] <== requestedInstructionType;
-outCheckInstructionType.enabled <== isAccount * isEnabled;
-
-
-component outCheckVerifier = ForceEqualIfEnabled();
-outCheckVerifier.in[0] <== actualVerifierPubkey;
-outCheckVerifier.in[1] <== requestedVerifierPubkey;
-outCheckVerifier.enabled <== isAccount * isEnabled;
-
+template Native() {
+	signal input publicKeyIn;
+	signal output publicKey;
+	publicKey <== publicKeyIn;
+	signal input blindingIn;
+	signal output blinding;
+	blinding <== blindingIn;
+	signal input pspOwnerIn;
+	signal output pspOwner;
+	pspOwner <== pspOwnerIn;
+	signal input utxoDataHashIn;
+	signal output utxoDataHash;
+	utxoDataHash <== utxoDataHashIn;
+	signal input amountSolIn;
+	signal output amountSol;
+	amountSol <== amountSolIn;
+	signal input amountSplIn;
+	signal output amountSpl;
+	amountSpl <== amountSplIn;
+	signal input assetSplIn;
+	signal output assetSpl;
+	assetSpl <== assetSplIn;
+	signal input txVersionIn;
+	signal output txVersion;
+	txVersion <== txVersionIn;
+	signal input poolTypeIn;
+	signal output poolType;
+	poolType <== poolTypeIn;
 }

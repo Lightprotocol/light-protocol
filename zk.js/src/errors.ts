@@ -187,6 +187,7 @@ export enum TransactionErrorCode {
   GET_USER_TRANSACTION_HISTORY_FAILED = "GET_USER_TRANSACTION_HISTORY_FAILED",
   FIRST_PATH_APP_UNDEFINED = "FIRST_PATH_APP_UNDEFINED",
   INVALID_ACTION = "INVALID_ACTION",
+  ENCRYPTED_UTXOS_UNDEFINED = "ENCRYPTED_UTXOS_UNDEFINED",
 }
 
 export enum UtilsErrorCode {
@@ -202,6 +203,10 @@ export enum UtilsErrorCode {
 export enum ProgramUtxoBalanceErrorCode {
   INVALID_PROGRAM_ADDRESS = "INVALID_PROGRAM_ADDRESS",
   TOKEN_DATA_NOT_FOUND = "TOKEN_DATA_NOT_FOUND",
+}
+
+export enum SolanaTransactionErrorCode {
+  INVALID_ACTION = "INVALID_ACTION",
 }
 
 export class MetaError extends Error {
@@ -248,3 +253,6 @@ export class TokenUtxoBalanceError extends MetaError {}
 export class ProgramUtxoBalanceError extends MetaError {}
 
 export class SolMerkleTreeError extends MetaError {}
+
+export class SolanaTransactionError extends MetaError {}
+
