@@ -36,3 +36,4 @@ jobs:
       install-commands: |
         ./scripts/install.sh --enable-redis
         source ./scripts/devenv.sh
+        pnpm install
