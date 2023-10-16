@@ -27,6 +27,7 @@ jobs:
         npx nx affected --target=lint --parallel=3
         npx nx affected --target=build --parallel=3
         npx nx affected --target=test --parallel=3
+      runs-on: buildjet-16vcpu-ubuntu-2204
 
   agents:
     name: Nx Cloud - Agents
@@ -37,3 +38,4 @@ jobs:
         ./scripts/install.sh --enable-redis
         source ./scripts/devenv.sh
         pnpm install
+      runs-on: buildjet-16vcpu-ubuntu-2204
