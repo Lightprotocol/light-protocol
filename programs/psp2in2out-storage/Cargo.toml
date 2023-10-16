@@ -1,7 +1,7 @@
 [package]
 name = "light-psp2in2out-storage"
 version = "0.1.0"
-description = "Native PSP"
+description = "Native PSP which can verify 2 inputsn and 2 outpus with additional data to store."
 license = "GPL-3.0"
 edition = "2021"
 
