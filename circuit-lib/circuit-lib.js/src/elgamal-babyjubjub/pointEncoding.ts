@@ -9,7 +9,7 @@ export type LookupTable = { [key: string]: string };
  */
 export function encode(plaintext: bigint): ExtPointType {
   if (plaintext >= BigInt(2 ** 32)) {
-    throw new Error("The plaintext should nit be bigger than a 32-bit bigint");
+    throw new Error("The plaintext should not be bigger than a 32-bit bigint");
   } else return babyjubjubExt.BASE.multiplyUnsafe(plaintext);
 }
 
@@ -23,16 +23,16 @@ export function decode(
   encoded: ExtPointType,
   precomputeSize: number,
   lookupTable: LookupTable,
-): bigint {
+): { value: bigint; xlo: bigint; xhi: bigint } {
   const range = 32 - precomputeSize;
   const rangeBound = BigInt(2) ** BigInt(range);
-
   for (let xlo = BigInt(0); xlo < rangeBound; xlo++) {
     let loBase = babyjubjubExt.BASE.multiplyUnsafe(xlo);
     let key = encoded.subtract(loBase).toAffine().x.toString();
 
     if (lookupTable.hasOwnProperty(key)) {
-      return xlo + rangeBound * BigInt("0x" + lookupTable[key]);
+      const value = xlo + rangeBound * BigInt("0x" + lookupTable[key]);
+      return { value, xlo, xhi: BigInt("0x" + lookupTable[key]) };
     }
   }
   throw new Error("Not Found!");

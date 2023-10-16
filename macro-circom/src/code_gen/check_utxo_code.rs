@@ -167,7 +167,7 @@ impl Utxo {
         {{../../utxoName}}.{{this.inputField}}In <== {{../../utxoName}}{{this.InputField}};
         {{/each}}{{/with}}
         {{../../utxoName}}.utxoDataHashIn <== {{isAppUtxo}};
-        
+
         component {{../../utxoName}}AmountHasher = Poseidon(2);
         {{../../utxoName}}AmountHasher.inputs[0] <== 0;
         {{../../utxoName}}AmountHasher.inputs[1] <== {{../../utxoName}}.assetSpl;
@@ -267,7 +267,7 @@ component check{{this.component}}{{../../UtxoName}}[{{../../is_ins}}];
 {{/with}}{{/each}}
 for (var i = 0; i < {{is_ins}}; i++) {
 
-{{#with this}} {{#each comparisons}} 
+{{#with this}} {{#each comparisons}}
 
     check{{is_In}}{{this.component}}{{../../UtxoName}}[i] = ForceEqualIfEnabled();
     check{{is_In}}{{this.component}}{{../../UtxoName}}[i].in[0] <== {{../../is_in}}{{this.hasher}}[i]{{this.input}};
@@ -553,7 +553,7 @@ mod tests_utxo {
         sumIsInAppUtxoUtxoName += isInAppUtxoUtxoName[i];
     }
     sumIsInAppUtxoUtxoName === 1 * instruction;
-    
+
     signal input UtxoNameAttribute1;
 
     signal input UtxoNameAttribute2;
@@ -573,38 +573,38 @@ mod tests_utxo {
     }
     component UtxoName = UtxoType();
 
-        
+
         UtxoName.attribute1In <== UtxoNameAttribute1;
-        
+
         UtxoName.attribute2In <== UtxoNameAttribute2;
-        
-        
+
+
         signal input UtxoNamePublicKey;
         UtxoName.publicKeyIn <== UtxoNamePublicKey;
-        
+
         signal input UtxoNameBlinding;
         UtxoName.blindingIn <== UtxoNameBlinding;
-        
+
         signal input UtxoNamePspOwner;
         UtxoName.pspOwnerIn <== UtxoNamePspOwner;
-        
+
         signal input UtxoNameAmountSol;
         UtxoName.amountSolIn <== UtxoNameAmountSol;
-        
+
         signal input UtxoNameAmountSpl;
         UtxoName.amountSplIn <== UtxoNameAmountSpl;
-        
+
         signal input UtxoNameAssetSpl;
         UtxoName.assetSplIn <== UtxoNameAssetSpl;
-        
+
         signal input UtxoNameTxVersion;
         UtxoName.txVersionIn <== UtxoNameTxVersion;
-        
+
         signal input UtxoNamePoolType;
         UtxoName.poolTypeIn <== UtxoNamePoolType;
-        
+
         UtxoName.utxoDataHashIn <== utxoDataHasherUtxoName.out;
-        
+
         component UtxoNameAmountHasher = Poseidon(2);
         UtxoNameAmountHasher.inputs[0] <== 0;
         UtxoNameAmountHasher.inputs[1] <== UtxoName.assetSpl;
@@ -686,7 +686,7 @@ for (var i = 0; i < nIns; i++) {
     checkAmountSolUtxoName[i] = ForceEqualIfEnabled();
     checkAmountSolUtxoName[i].in[0] <== inAmountsHasher[i].inputs[0];
     checkAmountSolUtxoName[i].in[1] <== sth;
-    checkAmountSolUtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction; 
+    checkAmountSolUtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction;
 
     checkAmountSplUtxoName[i] = ForceEqualIfEnabled();
     checkAmountSplUtxoName[i].in[0] <== inAmountsHasher[i].inputs[1];
@@ -830,7 +830,7 @@ for (var i = 0; i < nIns; i++) {
             dataChecks: {
                 attribute21 == testComparison1,
                },
-           } 
+           }
            inUtxo utxoName1
             {
                 type: UtxoType,

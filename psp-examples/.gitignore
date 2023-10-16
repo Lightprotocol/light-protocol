@@ -22,3 +22,5 @@ build-circuit
 **/*.circom
 !private-compressed-account/**/*.circom
 !multisig/**/*.circom
+!zk-voting/circuits/init-vote/*.circom
+!zk-voting/circuits/publish-decrypted-tally/*.circom

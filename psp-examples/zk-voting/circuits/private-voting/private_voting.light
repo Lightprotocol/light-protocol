@@ -1,0 +1,248 @@
+pragma circom 2.1.4;
+include "poseidon.circom";
+include "merkleProof.circom";
+include "keypair.circom";
+include "gates.circom";
+include "comparators.circom";
+include "encrypt.circom";
+
+// will create a new instance of the circuit
+#[instance]
+{
+    name: private_voting,
+    publicInputs: [
+        publicVoteWeightYesX,
+        publicVoteWeightYesY,
+        publicVoteWeightYesEmphemeralKeyX,
+        publicVoteWeightYesEmphemeralKeyY,
+        publicVoteWeightNoX,
+        publicVoteWeightNoY,
+        publicVoteWeightNoEmphemeralKeyX,
+        publicVoteWeightNoEmphemeralKeyY,
+        publicElGamalPublicKeyX,
+        publicElGamalPublicKeyY,
+        publicVoteEnd,
+        publicMint,
+        publicVoteWeightPspAddress,
+        voteWeightNullifier,
+        publicVoteId,
+        currentSlot,
+        publicOldVoteWeightYesX,
+        publicOldVoteWeightYesY,
+        publicOldVoteWeightYesEmphemeralKeyX,
+        publicOldVoteWeightYesEmphemeralKeyY,
+        publicOldVoteWeightNoX,
+        publicOldVoteWeightNoY,
+        publicOldVoteWeightNoEmphemeralKeyX,
+        publicOldVoteWeightNoEmphemeralKeyY
+        ],
+}
+
+/**
+Development steps:
+First iter:
+* 1. create vote weight config
+* 2. create vote weight utxo with store in account // will be replaced in the future by insertion through psp
+* 3. initialize vote by initing pda in vote program
+* 4. vote by executing this circuit
+
+Second iter:
+
+- add el gamal encryption to vote circuit
+
+Third: iter
+- add voteweight program and cpi to vote program
+
+Fourth iter:
+- add output utxos message storage
+*/
+
+
+utxoType voteUtxo {
+    // vote weight this utxo can vote with
+    voteWeight,
+    // slot when the tokens will be released, should the vote utxo still be usable once currentSlot >= releaseSlot?
+    releaseSlot,
+    // rate at which the tokens will be released
+    rate,
+    // ensures that no tokens can be withdrawn before the vote is over
+    voteLock,
+    // id to identify the vote weight utxo, is used to expose a nullifier
+    voteUtxoId,
+    voteWeightPspAddress,
+}
+
+// TODO: support multiple voteweight utxos (need to support multiple utxos in macro circom)
+inUtxo voteWeightUtxo {
+    type: voteUtxo,
+    checks: {
+        assetSpl == publicMint,
+        pspOwner == publicVoteWeightPspAddress,
+    },
+    dataChecks: {
+        voteWeightPspAddress == publicVoteWeightPspAddress,
+        // TODO: implement >=
+        // voteLock <= publicVoteStart,
+        // releaseSlot >= publicVoteEnd,
+    },
+}
+
+// TODO: implement checkEqualsUtxo property, which then equals utxo except for the defined checks
+outUtxo lockedVoteWeightUtxo {
+    type: voteUtxo,
+    checks: {
+        amountSol == voteWeightUtxo.amountSol,
+        amountSpl == voteWeightUtxo.amountSpl,
+        assetSpl == voteWeightUtxo.assetSpl,
+        pspOwner == voteWeightUtxo.pspOwner,
+    },
+    dataChecks: {
+        voteLock == publicVoteEnd,
+        rate == voteWeightUtxo.rate,
+        releaseSlot == voteWeightUtxo.releaseSlot,
+        voteWeight == voteWeightUtxo.voteWeight,
+    },
+}
+
+/**
+* 1. check that is vote weight is eligible for voting, check assetSpl, voteWeightPspAddress, 
+* 2. 
+*/
+#[entrypoint]
+template private_voting() {
+    // Defines the data which is saved in the utxo
+    // utxoData variables need to be lowerCamelCase
+    // signal input instruction;
+    // signal input publicElGamalPublicKey;
+    // TODO: replace with encrypted variables
+    // signal output publicVoteWeightYesX;
+    // signal output publicVoteWeightYesY;
+    // signal output publicVoteWeightYesEmphemeralKeyX;
+    // signal output publicVoteWeightYesEmphemeralKeyY;
+    // signal output publicVoteWeightNoX;
+    // signal output publicVoteWeightNoY;
+    // signal output publicVoteWeightNoEmphemeralKeyX;
+    // signal output publicVoteWeightNoEmphemeralKeyY;
+    signal input publicVoteWeightYesX;
+    signal input publicVoteWeightYesY;
+    signal input publicVoteWeightYesEmphemeralKeyX;
+    signal input publicVoteWeightYesEmphemeralKeyY;
+    signal input publicVoteWeightNoX;
+    signal input publicVoteWeightNoY;
+    signal input publicVoteWeightNoEmphemeralKeyX;
+    signal input publicVoteWeightNoEmphemeralKeyY;
+    signal input publicElGamalPublicKeyX;
+    signal input publicElGamalPublicKeyY;
+    signal input publicVoteEnd;
+    signal input publicMint;
+    signal input publicVoteWeightPspAddress;
+    signal input voteWeightNullifier;
+    signal input publicVoteId;
+
+    // that vote has started and hasn't ended is checked in PSP
+    // slot is just used to set the vote lock
+    signal input currentSlot;
+    signal input publicOldVoteWeightYesX;
+    signal input publicOldVoteWeightYesY;
+    signal input publicOldVoteWeightYesEmphemeralKeyX;
+    signal input publicOldVoteWeightYesEmphemeralKeyY;
+    signal input publicOldVoteWeightNoX;
+    signal input publicOldVoteWeightNoY;
+    signal input publicOldVoteWeightNoEmphemeralKeyX;
+    signal input publicOldVoteWeightNoEmphemeralKeyY;
+
+    // private inputs
+    signal input nonceZeroCiphertext;
+    signal input nonceVoteCiphertext;
+    signal input choiceIsYes;
+
+    utxo voteWeightUtxo;
+    voteWeightUtxo.check();
+
+    utxo lockedVoteWeightUtxo;
+    lockedVoteWeightUtxo.check();
+
+    /**
+    * generate vote weight nullifier
+    */
+    component voteWeightNullifierHasher = Poseidon(2);
+    voteWeightNullifierHasher.inputs[0] <== voteWeightUtxo.voteUtxoId;
+    voteWeightNullifierHasher.inputs[1] <== publicVoteId;
+    voteWeightNullifier === voteWeightNullifierHasher.out;
+
+    /**
+    * Check that encrypted vote weight is well formed
+    *
+    */
+    component encodedVoteWeight = Encode(64);
+    encodedVoteWeight.plaintext <== voteWeightUtxo.voteWeight;
+    component encryptVoteWeight = Encrypt();
+    encryptVoteWeight.message <== encodedVoteWeight.out;
+    encryptVoteWeight.publicKey <== [publicElGamalPublicKeyX, publicElGamalPublicKeyY];
+    encryptVoteWeight.nonce <== nonceVoteCiphertext;
+
+    // Hardcoded encoded BigInt(0)
+    component encryptZero = Encrypt();
+    encryptZero.message <== [0,1];
+    encryptZero.publicKey <== [publicElGamalPublicKeyX, publicElGamalPublicKeyY];
+    encryptZero.nonce <== nonceZeroCiphertext;
+
+    // two switchers to choose between yes and no
+    component yesSwitcherX = Switcher();
+    yesSwitcherX.L <== encryptVoteWeight.ciphertext[0];
+    yesSwitcherX.R <== encryptZero.ciphertext[0];
+    yesSwitcherX.sel <== (1 - choiceIsYes);
+
+    component yesSwitcherY = Switcher();
+    yesSwitcherY.R <== encryptVoteWeight.ciphertext[1];
+    yesSwitcherY.L <== encryptZero.ciphertext[1];
+    yesSwitcherY.sel <== (1 - choiceIsYes);
+	
+    // TODO: investigate why for Y R and L need to be swapped
+	// publicVoteWeightYesX === yesSwitcherX.outL;
+	// publicVoteWeightYesY === yesSwitcherY.outR;
+	// publicVoteWeightNoX === yesSwitcherX.outR;
+	// publicVoteWeightNoY === yesSwitcherY.outL;
+    component addYes = BabyAdd();
+    addYes.x1 <== publicOldVoteWeightYesX;
+    addYes.y1 <== publicOldVoteWeightYesY;
+    addYes.x2 <== yesSwitcherX.outL;
+    addYes.y2 <== yesSwitcherY.outR;
+    publicVoteWeightYesX === addYes.xout;
+    publicVoteWeightYesY === addYes.yout;
+
+    component addNo = BabyAdd();
+    addNo.x1 <== publicOldVoteWeightNoX;
+    addNo.y1 <== publicOldVoteWeightNoY;
+    addNo.x2 <== yesSwitcherX.outR;
+    addNo.y2 <== yesSwitcherY.outL;
+    publicVoteWeightNoX === addNo.xout;
+    publicVoteWeightNoY === addNo.yout;
+
+    component yesSwitcherEphemeralKeyX = Switcher();
+    yesSwitcherEphemeralKeyX.L <== encryptVoteWeight.ephemeralKey[0];
+    yesSwitcherEphemeralKeyX.R <== encryptZero.ephemeralKey[0];
+    yesSwitcherEphemeralKeyX.sel <== (1 - choiceIsYes);
+
+    component yesSwitcherEphemeralKeyY = Switcher();
+    yesSwitcherEphemeralKeyY.R <== encryptVoteWeight.ephemeralKey[1];
+    yesSwitcherEphemeralKeyY.L <== encryptZero.ephemeralKey[1];
+    yesSwitcherEphemeralKeyY.sel <== (1 - choiceIsYes);
+    
+
+    component addEphemeralYes = BabyAdd();
+    addEphemeralYes.x1 <== publicOldVoteWeightYesEmphemeralKeyX;
+    addEphemeralYes.y1 <== publicOldVoteWeightYesEmphemeralKeyY;
+    addEphemeralYes.x2 <== yesSwitcherEphemeralKeyX.outL;
+    addEphemeralYes.y2 <== yesSwitcherEphemeralKeyY.outR;
+    publicVoteWeightYesEmphemeralKeyX === addEphemeralYes.xout;
+    publicVoteWeightYesEmphemeralKeyY === addEphemeralYes.yout;
+
+    component addEphemeralNo = BabyAdd();
+    addEphemeralNo.x1 <== publicOldVoteWeightNoEmphemeralKeyX;
+    addEphemeralNo.y1 <== publicOldVoteWeightNoEmphemeralKeyY;
+    addEphemeralNo.x2 <== yesSwitcherEphemeralKeyX.outR;
+    addEphemeralNo.y2 <== yesSwitcherEphemeralKeyY.outL;
+    publicVoteWeightNoEmphemeralKeyX === addEphemeralNo.xout;
+    publicVoteWeightNoEmphemeralKeyY === addEphemeralNo.yout;  
+}
