@@ -91,9 +91,6 @@ cd ./relayer
 # remove node_modules to ensure we're using the local zk.js
 rm -rf node_modules
 npm install
-ls node_modules
-echo "show lib:"
-ls lib
 cd ..
 
 
