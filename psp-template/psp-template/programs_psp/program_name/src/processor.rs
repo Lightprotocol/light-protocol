@@ -32,6 +32,7 @@ pub fn cpi_system_verifier<
     >,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
+    let verifier_state = ctx.accounts.verifier_state.load()?;
     let proof_verifier = Proof {
         a: inputs[256..256 + 64].try_into().unwrap(),
         b: inputs[256 + 64..256 + 192].try_into().unwrap(),

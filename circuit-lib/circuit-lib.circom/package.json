@@ -6,7 +6,7 @@
   "scripts": {
     "build-masp": "sh scripts/buildCircuit.sh Masp",
     "build-app": "sh scripts/buildCircuit.sh App",
-    "test-elgamal": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 --require mocha-suppress-logs tests/elgamal-babyjubjub/circuits.test.ts --exit",
+    "test-elgamal": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/elgamal-babyjubjub/circuits.test.ts --exit",
     "test-light-circuits": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/light-circuits.test.ts --exit",
     "test-build-light-circuits": "pnpm build-all && ./scripts/checkBuildCircuit.sh",
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**/*.ts --exit",

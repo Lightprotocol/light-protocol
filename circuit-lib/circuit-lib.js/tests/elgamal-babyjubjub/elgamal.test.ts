@@ -179,7 +179,7 @@ describe("Testing Encoding/Decoding for ElGamal Scheme", async () => {
     const encoded = encode(plaintext);
     const decoded = decode(encoded, 19, lookupTable);
 
-    assert(plaintext === decoded, "Decoded number is different!");
+    assert(plaintext === decoded.value, "Decoded number is different!");
   });
 
   it("Check LOOPED compliance of orignal and decoded message as 32-bit numbers", async () => {
@@ -188,7 +188,7 @@ describe("Testing Encoding/Decoding for ElGamal Scheme", async () => {
       let encoded = encode(plaintext);
       let decoded = decode(encoded, 19, lookupTable);
 
-      assert(plaintext === decoded, "Decoded number is different!");
+      assert(plaintext === decoded.value, "Decoded number is different!");
     }
   });
 
@@ -215,8 +215,8 @@ describe("Testing Encoding/Decoding for ElGamal Scheme", async () => {
       encryption2.ciphertext,
     );
 
-    const xlo_decoded = decode(decryptedMessage1, 19, lookupTable);
-    const xhi_decoded = decode(decryptedMessage2, 19, lookupTable);
+    const xlo_decoded = decode(decryptedMessage1, 19, lookupTable).value;
+    const xhi_decoded = decode(decryptedMessage2, 19, lookupTable).value;
 
     const decoded_input = xlo_decoded + TWO_32 * xhi_decoded;
 
@@ -247,8 +247,8 @@ describe("Testing Encoding/Decoding for ElGamal Scheme", async () => {
       encryption2.ciphertext,
     );
 
-    const xl0_decoded = decode(decryptedMessage1, 19, lookupTable);
-    const xhi_decoded = decode(decryptedMessage2, 19, lookupTable);
+    const xl0_decoded = decode(decryptedMessage1, 19, lookupTable).value;
+    const xhi_decoded = decode(decryptedMessage2, 19, lookupTable).value;
 
     const decoded_input = xl0_decoded + TWO_32 * xhi_decoded;
 
@@ -279,8 +279,8 @@ describe("Testing Encoding/Decoding for ElGamal Scheme", async () => {
         encryption2.ciphertext,
       );
 
-      const xl0_decoded = decode(decryptedMessage1, 19, lookupTable);
-      const xhi_decoded = decode(decryptedMessage2, 19, lookupTable);
+      const xl0_decoded = decode(decryptedMessage1, 19, lookupTable).value;
+      const xhi_decoded = decode(decryptedMessage2, 19, lookupTable).value;
 
       const decoded_input = xl0_decoded + TWO_32 * xhi_decoded;
 

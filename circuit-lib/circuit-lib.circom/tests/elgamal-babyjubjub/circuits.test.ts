@@ -14,7 +14,9 @@ import {
   encrypt,
   ElGamalUtils,
   encode,
-} from "../../../circuit-lib.js/src/elgamal-babyjubjub";
+  decode,
+  decrypt,
+} from "../../../circuit-lib.js/lib/elgamal-babyjubjub";
 
 import {
   getSignalByName,
@@ -27,9 +29,15 @@ const {
   coordinatesToExtPoint,
 } = ElGamalUtils;
 
+type DecodeCircuitInputs = {
+  xhi: string;
+  xlo: string;
+  encodedMessage: string[];
+};
+
 type EncryptCircuitInputs = {
   message: string[];
-  nonceKey: string;
+  nonce: string;
   publicKey: string[];
 };
 
@@ -54,7 +62,7 @@ const genCircuitInputs = (
 
   let input_encrypt: EncryptCircuitInputs = stringifyBigInts({
     message: toBigIntArray(encodedMessage),
-    nonceKey: nonce,
+    nonce: nonce,
     publicKey: toBigIntArray(keypair.publicKey),
   });
 
@@ -65,7 +73,10 @@ const genCircuitInputs = (
 
 const loadCircuit = async (
   circuit: any,
-  inputs_object: EncryptCircuitInputs | DecryptCircuitInputs,
+  inputs_object:
+    | EncryptCircuitInputs
+    | DecryptCircuitInputs
+    | DecodeCircuitInputs,
   witness_return = false,
 ) => {
   const witness = await circuit.calculateWitness(inputs_object, true);
@@ -76,7 +87,10 @@ const loadCircuit = async (
 
 const securityCheck = async (
   circuit: any,
-  invalid_input: EncryptCircuitInputs | DecryptCircuitInputs,
+  invalid_input:
+    | EncryptCircuitInputs
+    | DecryptCircuitInputs
+    | DecodeCircuitInputs,
   errorMessage: string,
 ) => {
   try {
@@ -139,7 +153,7 @@ describe("ElGamal Circuits Tests", () => {
     it("Encrypt circuit invalid curve attacks should fail: public key not on curve", async () => {
       const invalid_input = {
         message: input_encrypt.message,
-        nonceKey: input_encrypt.nonceKey,
+        nonce: input_encrypt.nonce,
         publicKey: ["1", "0"],
       };
       await securityCheck(
@@ -152,7 +166,7 @@ describe("ElGamal Circuits Tests", () => {
     it("Encrypt circuit invalid curve attacks should fail: identity", async () => {
       const invalid_input = {
         message: input_encrypt.message,
-        nonceKey: input_encrypt.nonceKey,
+        nonce: input_encrypt.nonce,
         publicKey: ["0", "1"],
       };
       await securityCheck(
@@ -165,7 +179,7 @@ describe("ElGamal Circuits Tests", () => {
     it("Encrypt circuit should fail: message not on curve", async () => {
       const invalid_input = {
         message: ["1", "0"],
-        nonceKey: input_encrypt.nonceKey,
+        nonce: input_encrypt.nonce,
         publicKey: input_encrypt.publicKey,
       };
       await securityCheck(
@@ -176,7 +190,7 @@ describe("ElGamal Circuits Tests", () => {
     });
 
     it("Encrypt circuit decrypt invalid nonce should fail", async () => {
-      input_encrypt.nonceKey = formatSecretKey(generateRandomSalt());
+      input_encrypt.nonce = formatSecretKey(generateRandomSalt());
       const encrypt_witness = await loadCircuit(
         encryptCircuit,
         input_encrypt,
@@ -492,4 +506,69 @@ describe("ElGamal Circuits Tests", () => {
       });
     },
   );
+});
+describe("ElGamal Circuits Tests", () => {
+  let decodeCircuit: any;
+
+  before(async () => {
+    const options = {
+      include: ["node_modules/circomlib/circuits"],
+    };
+    decodeCircuit = await wasm_tester(
+      "./test-circuits/decode_test.circom",
+      options,
+    );
+  });
+
+  it.only("Decode circuit functional", async () => {
+    let directoryPath = "../circuit-lib.js/build";
+    const fs = require("fs");
+
+    const lookupTable19Path = directoryPath + `/lookupTableBBJub19.json`;
+    const lookupTable = JSON.parse(fs.readFileSync(lookupTable19Path));
+    // const plaintext1 = BigInt(1);
+    // const encodedMessage1 = encode(plaintext1);
+    // const plaintext2 = BigInt(2);
+    // const encodedMessage2 = encode(plaintext2);
+
+    const keypair = generateKeypair();
+
+    const randomPlaintext1 = BigInt(1); // getRandomBytes(4);
+
+    const message1 = encode(randomPlaintext1);
+
+    const randomPlaintext2 = BigInt(2); //getRandomBytes(4);
+    const message2 = encode(randomPlaintext2);
+
+    const encryption1 = encrypt(keypair.publicKey, randomPlaintext1);
+    const encryption2 = encrypt(keypair.publicKey, randomPlaintext2);
+
+    // We want to prove that message3 is equal to decrypted(encryptedMessage3)
+    const message3 = message1.add(message2);
+    const encryptedMessage3 = encryption1.ciphertext.add(
+      encryption2.ciphertext,
+    );
+    const ephemeralKey3 = encryption1.ephemeralKey.add(
+      encryption2.ephemeralKey,
+    );
+
+    const decryptedMessage3 = decrypt(
+      keypair.secretKey,
+      ephemeralKey3,
+      encryptedMessage3,
+    );
+    const decoded = decode(decryptedMessage3, 19, lookupTable);
+    let decodeProofInputs: DecodeCircuitInputs = {
+      xhi: decoded.xhi.toString(),
+      xlo: decoded.xlo.toString(),
+      encodedMessage: pointToStringArray(message3),
+    };
+    const decode_witness = await decodeCircuit.calculateWitness(
+      decodeProofInputs,
+      true,
+    );
+    await decodeCircuit.assertOut(decode_witness, {
+      decodedMessage: "3",
+    });
+  });
 });

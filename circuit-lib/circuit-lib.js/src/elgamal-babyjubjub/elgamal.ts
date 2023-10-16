@@ -20,8 +20,19 @@ interface Keypair {
   publicKey: PublicKey;
 }
 
-const generateRandomSalt = (): bigint => {
-  return genRandomSalt() as bigint;
+// Limiting the maximum value of the nonce to be consistent with the el gamal circuit
+const MAX_253_BIT_INT: BigInt = BigInt(
+  "14474011154664524427946373126085988481658748083205070504932198000989141204992",
+);
+const generateRandomSalt = (maxValue: BigInt = MAX_253_BIT_INT): bigint => {
+  let res: BigInt = maxValue;
+  while (true) {
+    res = genRandomSalt() as bigint;
+    if (res < maxValue) {
+      break;
+    }
+  }
+  return res as bigint;
 };
 
 const babyjubjubExt = babyjubjub.ExtendedPoint;
