@@ -11,18 +11,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  main:
+  lint-build-test:
     name: Nx Cloud - Main Job
     permissions:
       contents: 'read'
       actions: 'read'
-    uses: nrwl/ci/.github/workflows/nx-cloud-main.yml@v0.13.0
+    uses: ./.github/workflows/nx-main.yml
     with:
-      init-commands: |
-        ./scripts/install.sh --enable-redis
-        mkdir -p /home/runner/.config/solana/
-        source ./scripts/devenv.sh
-        solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
       # NOTE: Here we are using the special `nx-cloud record` command to ensure that any commands we run that do not go through the cloud task runner natively
       # (i.e. anything that starts with `nx run`/`nx run-many`/`nx affected --target`), are still captured in the Nx Cloud UI and Github App comment for
       # easier troubleshooting. See more here: https://nx.dev/nx-cloud/set-up/record-commands#recording-non-nx-commands
@@ -35,12 +30,6 @@ jobs:
 
   agents:
     name: Nx Cloud - Agents
-    uses: nrwl/ci/.github/workflows/nx-cloud-agents.yml@v0.13.0
+    uses: ./.github/workflows/nx-agents.yml
     with:
       number-of-agents: 3
-      install-commands: |
-        ./scripts/install.sh --enable-redis
-        pnpm install
-        mkdir -p /home/runner/.config/solana/
-        source ./scripts/devenv.sh
-        solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
