@@ -2511,7 +2511,7 @@ dependencies = [
 
 [[package]]
 name = "light-psp2in2out-storage"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
