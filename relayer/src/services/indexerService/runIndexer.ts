@@ -13,7 +13,7 @@ export async function runIndexer(rounds: number = 0) {
   console.log("runIndexer initializing...");
   await getTransactions(DB_VERSION);
   console.log("initialized");
-  var fillBackward = true;
+  let fillBackward = true;
   let laps = -1;
   while (laps < rounds) {
     if (fillBackward) await sleep(3 * SECONDS);
@@ -33,11 +33,12 @@ export async function runIndexer(rounds: number = 0) {
         `transactions indexed in db v${DB_VERSION}: ${job.data.transactions.length}`,
       );
     }
-    let { continueBackwardFill } = await indexTransactions({
-      job,
-      connection,
-      fillBackward,
-    });
+    const { continueBackwardFill }: { continueBackwardFill: boolean } =
+      await indexTransactions({
+        job,
+        connection,
+        fillBackward,
+      });
     fillBackward = continueBackwardFill;
     if (rounds !== 0) {
       laps++;
