@@ -8,15 +8,15 @@ import {
   EnvironmentVariableErrorCode,
 } from "../../errors";
 
+/// TODO: once we add webhooks for forward indexing, we can turn runIndexer() into fillBackward().
 export async function runIndexer(rounds: number = 0) {
-  // initialize
   console.log("runIndexer initializing...");
   await getTransactions(DB_VERSION);
   console.log("initialized");
-  const initialSync = false;
+  var fillBackward = true;
   let laps = -1;
   while (laps < rounds) {
-    if (initialSync) await sleep(3 * SECONDS);
+    if (fillBackward) await sleep(3 * SECONDS);
     else await sleep(5 * SECONDS);
     const { job } = await getTransactions(DB_VERSION);
     const url = process.env.RPC_URL;
@@ -33,10 +33,12 @@ export async function runIndexer(rounds: number = 0) {
         `transactions indexed in db v${DB_VERSION}: ${job.data.transactions.length}`,
       );
     }
-    await indexTransactions({
+    let { continueBackwardFill } = await indexTransactions({
       job,
       connection,
+      fillBackward,
     });
+    fillBackward = continueBackwardFill;
     if (rounds !== 0) {
       laps++;
     }
