@@ -33,7 +33,6 @@ jobs:
     uses: nrwl/ci/.github/workflows/nx-cloud-agents.yml@v0.13.0
     with:
       number-of-agents: 3
-      runs-on: buildjet-16vcpu-ubuntu-2204
       install-commands: |
         ./scripts/install.sh --enable-redis
         source ./scripts/devenv.sh
