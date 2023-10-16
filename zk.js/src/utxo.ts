@@ -370,7 +370,7 @@ export class Utxo {
         throw new UtxoError(
           UtxoErrorCode.INVALID_APP_DATA,
           "constructor",
-          "appDataHash and appData are inconsistent, appData produced a different hash than appDataHash",
+          `appDataHash and appData are inconsistent, appData produced a different hash than appDataHash appData: ${JSON.stringify(appData)}`,
         );
       this.appData = appData;
       this.appDataIdl = appDataIdl;
@@ -524,44 +524,40 @@ export class Utxo {
    * @returns {string}
    */
   getCommitment(poseidon: any): string {
-    if (!this._commitment) {
-      const amountHash = poseidon.F.toString(poseidon(this.amounts));
-      const assetHash = poseidon.F.toString(
-        poseidon(this.assetsCircuit.map((x) => x.toString())),
-      );
+    const amountHash = poseidon.F.toString(poseidon(this.amounts));
+    const assetHash = poseidon.F.toString(
+      poseidon(this.assetsCircuit.map((x) => x.toString())),
+    );
 
-      if (!this.publicKey) {
-        throw new UtxoError(
-          CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-          "getCommitment",
-          "Neither Account nor shieldedPublicKey was provided",
-        );
-      }
-      // console.log("this.assetsCircuit ", this.assetsCircuit);
-
-      // console.log("amountHash ", amountHash.toString());
-      // console.log("this.keypair.pubkey ", this.publicKey.toString());
-      // console.log("this.blinding ", this.blinding.toString());
-      // console.log("assetHash ", assetHash.toString());
-      // console.log("this.appDataHash ", this.appDataHash.toString());
-      // console.log("this.poolType ", this.poolType.toString());
-      const commitment: string = poseidon.F.toString(
-        poseidon([
-          this.transactionVersion,
-          amountHash,
-          this.publicKey.toString(),
-          this.blinding.toString(),
-          assetHash.toString(),
-          this.appDataHash.toString(),
-          this.poolType,
-          this.verifierAddressCircuit,
-        ]),
+    if (!this.publicKey) {
+      throw new UtxoError(
+        CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
+        "getCommitment",
+        "Neither Account nor shieldedPublicKey was provided",
       );
-      this._commitment = commitment;
-      return this._commitment;
-    } else {
-      return this._commitment;
     }
+    // console.log("this.assetsCircuit ", this.assetsCircuit);
+
+    // console.log("amountHash ", amountHash.toString());
+    // console.log("this.keypair.pubkey ", this.publicKey.toString());
+    // console.log("this.blinding ", this.blinding.toString());
+    // console.log("assetHash ", assetHash.toString());
+    // console.log("this.appDataHash ", this.appDataHash.toString());
+    // console.log("this.poolType ", this.poolType.toString());
+    const commitment: string = poseidon.F.toString(
+      poseidon([
+        this.transactionVersion,
+        amountHash,
+        this.publicKey.toString(),
+        this.blinding.toString(),
+        assetHash.toString(),
+        this.appDataHash.toString(),
+        this.poolType,
+        this.verifierAddressCircuit,
+      ]),
+    );
+    this._commitment = commitment;
+    return this._commitment;
   }
 
   /**
@@ -602,16 +598,14 @@ export class Utxo {
         "Account is required to compute the nullifier hash.",
       );
 
-    if (!this._nullifier) {
-      const signature = account.sign(
-        poseidon,
-        this.getCommitment(poseidon),
-        this.index || 0,
-      );
-      this._nullifier = poseidon.F.toString(
-        poseidon([this.getCommitment(poseidon), this.index || 0, signature]),
-      );
-    }
+    const signature = account.sign(
+      poseidon,
+      this.getCommitment(poseidon),
+      this.index || 0,
+    );
+    this._nullifier = poseidon.F.toString(
+      poseidon([this.getCommitment(poseidon), this.index || 0, signature]),
+    );
 
     return this._nullifier!;
   }

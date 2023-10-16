@@ -8,6 +8,9 @@ import * as fs from "fs";
 export function extractFilename(input: string): string | null {
   const regex = /main\s+(\S+\.circom)/;
   const match = input.match(regex);
+  console.log("input ");
+  console.log("input ", input);
+  console.log("match ", match);
   return match ? match[1] : null;
 }
 

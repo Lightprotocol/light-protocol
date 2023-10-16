@@ -1,4 +1,6 @@
 pragma circom 2.1.4;
+// templates from other files can be imported by path or linking the file with light psp:build -l <file-name>
+// The following imports are automatically linked
 include "poseidon.circom";
 include "merkleProof.circom";
 include "keypair.circom";
@@ -8,23 +10,28 @@ include "comparators.circom";
 // will create a new instance of the circuit
 #[instance]
 {
-    fileName: {{circom-name}},
-    config(),
-    nrAppUtoxs: 1,
-    publicInputs: [publicZ]
+    name: {{circom-name}},
+    publicInputs: [publicZ],
 }
 
-#[lightTransaction(verifierTwo)]
+utxoType inputUtxoType {
+    x,
+    y,
+}
+// Defines the data which is saved in the utxo
+// utxoData variables need to be lowerCamelCase
+inUtxo inputUtxo {
+    type: inputUtxoType,
+}
+
+#[entrypoint]
 template {{circom-name}}() {
-    // Defines the data which is saved in the utxo
-    // utxoData variables need to be lowerCamelCase
-    #[utxoData]
-    {
-        x,
-        y
-    }
+
     signal input publicZ;
-    publicZ === x + y;
+    // instantiates and checks the utxo
+    utxo inputUtxo;
+    inputUtxo.check();
+    publicZ === inputUtxo.x + inputUtxo.y;
 }
 
 /*
@@ -45,7 +52,7 @@ template {{circom-name}}() {
 *   transactionHash;
 *   instructionHasher.out;
 *   isAppInUtxo[nAppUtxos][nIns];
-*   
+*
 *  InUtxos:
 *   inAmount[nIns][nInAssets];
 *   inPublicKey[nIns];

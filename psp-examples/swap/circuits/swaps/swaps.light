@@ -9,161 +9,93 @@ include "comparators.circom";
 // will create a new instance of the circuit
 #[instance]
 {
-    fileName: swaps,
-    config(
-      nParticipants: 2,
-    ),
-    nrAppUtoxs: 2,
-    publicInputs: [publicSwapCommitment0, publicSwapCommitment1]
+    name: swaps,
 }
 
-#[lightTransaction(verifierTwo)]
+utxoType SwapUtxo {
+    priceSol,
+    priceSpl,
+    splAsset,
+    recipient,
+    recipientEncryptionPublicKey,
+}
+
+inUtxo offerUtxo {
+  type: SwapUtxo,
+}
+
+outUtxo offerRewardUtxo {
+  type: native,
+  enabled: takeOfferInstruction,
+  checks: {
+    amountSol == offerUtxo.priceSol,
+    amountSpl == offerUtxo.priceSpl,
+    assetSpl == offerUtxo.splAsset,
+    publicKey == offerUtxo.recipient,
+    blinding == offerUtxo.blinding,
+  },
+}
+
+// in case someone makes a counter offer and maker accepts it
+inUtxo counterOfferUtxo {
+  type: SwapUtxo,
+  enabled: takeCounterOfferInstruction,
+}
+
+outUtxo counterOfferRewardUtxo {
+  type: native,
+  enabled: takeCounterOfferInstruction,
+  checks: {
+    amountSol == counterOfferUtxo.priceSol,
+    amountSpl == counterOfferUtxo.priceSpl,
+    assetSpl == counterOfferUtxo.splAsset,
+    publicKey == counterOfferUtxo.recipient,
+    blinding ==  counterOfferUtxo.blinding,
+  },
+}
+
+inUtxo cancelSignerUtxo {
+  type: native,
+  enabled: cancelInstruction,
+  checks: {
+    publicKey == offerUtxo.recipient,
+  },
+}
+
+// TODO: add partial fill, requires encryption of amount to maker, and config of min fill amount
+// TODO: add expiry slot
+
+// TODO: add instruction primitive which checks that only one instruction is 1 all others are zero
+#[entrypoint]
 template swaps() {
-    // Defines the data which is saved in the utxo
-    #[utxoData]
-    {
-        swapCommitmentHash,
-        userPubkey
-    }
+  signal input takeOfferInstruction;
+  utxo offerUtxo;
+  offerUtxo.check();
 
-    signal input slot[2];
-    signal input amountFrom;
-    signal input amountTo;
-    signal input publicSwapCommitment0;
-    signal input publicSwapCommitment1;
+  utxo offerRewardUtxo;
+  offerRewardUtxo.check();
 
-    // todo check indices
-    signal input isTakerOutUtxo[nOuts];
+  signal input takeCounterOfferInstruction;
 
-    component swapCommitmentHasher0 = Poseidon(4);
-    swapCommitmentHasher0.inputs[0] <== slot[0];
-    swapCommitmentHasher0.inputs[1] <== 0;
-    swapCommitmentHasher0.inputs[2] <== amountFrom;
-    swapCommitmentHasher0.inputs[3] <== amountTo;
+  utxo counterOfferUtxo;
+  counterOfferUtxo.check();
+  
+  utxo counterOfferRewardUtxo;
+  counterOfferRewardUtxo.check();
 
-    component swapCommitmentHasher1 = Poseidon(4);
-    swapCommitmentHasher1.inputs[0] <== slot[1];
-    swapCommitmentHasher1.inputs[1] <== swapCommitmentHasher0.out;
-    swapCommitmentHasher1.inputs[2] <== amountFrom;
-    swapCommitmentHasher1.inputs[3] <== amountTo;
+  signal input cancelInstruction;
 
-    swapCommitmentHasher0.out === publicSwapCommitment0;
-    swapCommitmentHasher1.out === publicSwapCommitment1;
+  utxo cancelSignerUtxo;
+  cancelSignerUtxo.check();
 
-    // check if the amount in the escrow utxos is correct
-    component checkCommittedAmount[2][nIns];
-
-    for(var inUtxoIndex = 0; inUtxoIndex < nIns; inUtxoIndex++) {
-      checkCommittedAmount[0][inUtxoIndex] = ForceEqualIfEnabled();
-      checkCommittedAmount[0][inUtxoIndex].in[0] <== inAmount[inUtxoIndex][0];
-      checkCommittedAmount[0][inUtxoIndex].in[1] <== amountFrom;
-      checkCommittedAmount[0][inUtxoIndex].enabled <== isAppInUtxo[0][inUtxoIndex];
-
-      checkCommittedAmount[1][inUtxoIndex] = ForceEqualIfEnabled();
-      checkCommittedAmount[1][inUtxoIndex].in[0] <== inAmount[inUtxoIndex][0];
-      checkCommittedAmount[1][inUtxoIndex].in[1] <== amountTo;
-      checkCommittedAmount[1][inUtxoIndex].enabled <== isAppInUtxo[1][inUtxoIndex];
-    }
-
-    // check utxos 
-    // the locked amounts should be swapped between participants
-    // we just need to check for taker because maker executes the tx
-    component checkUtxoDraw[nOuts];
-    for (var outUtxoIndex = 0;outUtxoIndex < nOuts; outUtxoIndex++) {
-      checkUtxoDraw[outUtxoIndex] = CheckUtxo(2);
-      checkUtxoDraw[outUtxoIndex].isEnabled <== 1;
-      checkUtxoDraw[outUtxoIndex].isAccount <== isTakerOutUtxo[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].assetIsNative <== 1;
-      checkUtxoDraw[outUtxoIndex].actualAmounts[0] <== outAmount[outUtxoIndex][1];
-      checkUtxoDraw[outUtxoIndex].actualAmounts[1] <== 0;
-      checkUtxoDraw[outUtxoIndex].requestedAmount <== amountFrom;
-      checkUtxoDraw[outUtxoIndex].actualPubkey <== outPubkey[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].requestedPubkey <== userPubkey[1];
-      checkUtxoDraw[outUtxoIndex].actualInstructionType <== outAppDataHash[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].requestedInstructionType <== 0;
-      checkUtxoDraw[outUtxoIndex].actualVerifierPubkey <== outVerifierPubkey[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].requestedVerifierPubkey <== 0;
-      checkUtxoDraw[outUtxoIndex].actualOutBlinding <== outBlinding[outUtxoIndex];
-      checkUtxoDraw[outUtxoIndex].requestedOutBlinding <== userPubkey[1] + userPubkey[1];
-    }
-
-}
-
-template CheckUtxo(nrAssets) {
-    signal input isEnabled;
-    signal input isAccount;
-
-    // signal input assetIsNotNative;
-    signal input assetIsNative;
-
-    signal input actualAmounts[nrAssets];
-    signal input requestedAmount;
-    signal input actualPubkey;
-    signal input requestedPubkey;
-    // signal input actualAssets[nrAssets];
-    // signal input requestedAsset;
-    signal input actualInstructionType;
-    signal input requestedInstructionType;
-    signal input actualVerifierPubkey;
-    signal input requestedVerifierPubkey;
-    signal input actualOutBlinding;
-    signal input requestedOutBlinding;
-
-    // the asset which is paying is native or non native
-    // check price integrity of swap in utxo non native asset
-    // component outCheckAmountNotNative = ForceEqualIfEnabled();
-    // outCheckAmountNotNative.in[0] <== actualAmounts[1];
-    // outCheckAmountNotNative.in[1] <== requestedAmount;
-    // outCheckAmountNotNative.enabled <== isAccount * assetIsNotNative;
-    
-    // check price integrity of swap in utxo native asset
-    // component outCheckAmountNative = ForceEqualIfEnabled();
-    // outCheckAmountNative.in[0] <== actualAmounts[0];
-    // outCheckAmountNative.in[1] <== requestedAmount;
-    // outCheckAmountNative.enabled <== isAccount * isEnabled;
-    
-    
-    // the asset which is paying is native or non native
-    component outCheckBlinding = ForceEqualIfEnabled();
-    outCheckBlinding.in[0] <== actualOutBlinding;
-    outCheckBlinding.in[1] <== requestedOutBlinding;
-    outCheckBlinding.enabled <== isAccount * isEnabled;
-
-    // the outPubkey is the specified authPubkey, the recipient of the proceeds of the trade
-
-    component outCheckRecipient = ForceEqualIfEnabled();
-    outCheckRecipient.in[0] <== actualPubkey; //outPubkey;
-    outCheckRecipient.in[1] <== requestedPubkey; //authPubkey[i];
-    outCheckRecipient.enabled <== isAccount * isEnabled;
-    
-    // the asset of the out utxo is the asset swapped to
-    // component outCheckAssetNotNative = ForceEqualIfEnabled();
-    // outCheckAssetNotNative.in[0] <== actualAssets[1];
-    // outCheckAssetNotNative.in[1] <== requestedAsset;
-    // outCheckAssetNotNative.enabled <== isAccount * assetIsNotNative;
-
-    // component outCheckAssetNative = ForceEqualIfEnabled();
-    // outCheckAssetNative.in[0] <== actualAssets[0];
-    // outCheckAssetNative.in[1] <== requestedAsset;
-    // outCheckAssetNative.enabled <== isAccount * assetIsNative;
-    
-    // output utxo is a normal utxo
-    component outCheckInstructionType = ForceEqualIfEnabled();
-    outCheckInstructionType.in[0] <== actualInstructionType;
-    outCheckInstructionType.in[1] <== requestedInstructionType;
-    outCheckInstructionType.enabled <== isAccount * isEnabled;
-
-    // output utxo is of the same pool type as the input utxo
-    // this might be unnessary because this check will be enforced by the systemverifier
-    // outCheckPoolType = ForceEqualIfEnabled();
-    // outCheckPoolType.in[0] <== outPoolType;
-    // outCheckPoolType.in[1] <== inPoolType[0];
-    // outCheckPoolType.enabled <== isAccount * isEnabled;
-
-    // output utxo is a normal utxo
-    component outCheckVerifier = ForceEqualIfEnabled();
-    outCheckVerifier.in[0] <== actualVerifierPubkey;
-    outCheckVerifier.in[1] <== requestedVerifierPubkey;
-    outCheckVerifier.enabled <== isAccount * isEnabled;
-    
+  // all instructions are 0 or 1
+  var instructionIsSet = 0;
+  (1 - takeOfferInstruction) * takeOfferInstruction === 0;
+  instructionIsSet += takeOfferInstruction;
+  (1 - takeCounterOfferInstruction) * takeCounterOfferInstruction === 0;
+  instructionIsSet += takeCounterOfferInstruction;
+  (1 - cancelInstruction) * cancelInstruction === 0;
+  instructionIsSet += cancelInstruction;
+  // exactly one instruction is 1
+  instructionIsSet === 1;
 }

@@ -1,7 +1,7 @@
 import { assert, expect } from "chai";
 
-import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
+import { SystemProgram, Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import { BN, utils } from "@coral-xyz/anchor";
 import { it } from "mocha";
 
 const circomlibjs = require("circomlibjs");
@@ -141,7 +141,14 @@ describe("Transaction Parameters Functional", () => {
       params.accounts.transactionMerkleTree.toBase58(),
       MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
     );
-    assert.equal(params.accounts.verifierState, undefined);
+    const verifierState = PublicKey.findProgramAddressSync(
+      [
+        params.accounts.signingAddress!.toBytes(),
+        utils.bytes.utf8.encode("VERIFIER_STATE"),
+      ],
+      TransactionParameters.getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT),
+    )[0]
+    assert.equal(params.accounts.verifierState, verifierState);
     assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
     assert.equal(
       params.accounts.signingAddress?.toBase58(),
@@ -255,7 +262,14 @@ describe("Transaction Parameters Functional", () => {
         params.accounts.transactionMerkleTree.toBase58(),
         mockPubkey2.toBase58(),
       );
-      assert.equal(params.accounts.verifierState, undefined);
+      const verifierState = PublicKey.findProgramAddressSync(
+        [
+          params.accounts.signingAddress!.toBytes(),
+          utils.bytes.utf8.encode("VERIFIER_STATE"),
+        ],
+        TransactionParameters.getVerifierProgramId(VERIFIER_IDLS[j]),
+      )[0]
+      assert.equal(params.accounts.verifierState?.toBase58(), verifierState.toBase58());
       assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
       assert.equal(
         params.accounts.signingAddress,
@@ -360,7 +374,14 @@ describe("Transaction Parameters Functional", () => {
         params.accounts.transactionMerkleTree.toBase58(),
         mockPubkey2.toBase58(),
       );
-      assert.equal(params.accounts.verifierState, undefined);
+      const verifierState = PublicKey.findProgramAddressSync(
+        [
+          params.accounts.signingAddress!.toBytes(),
+          utils.bytes.utf8.encode("VERIFIER_STATE"),
+        ],
+        TransactionParameters.getVerifierProgramId(VERIFIER_IDLS[j]),
+      )[0]
+      assert.equal(params.accounts.verifierState?.toBase58(), verifierState.toBase58());
       assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
       assert.equal(params.accounts.signingAddress, mockPubkey1);
       assert.equal(
@@ -459,7 +480,14 @@ describe("Transaction Parameters Functional", () => {
         params.accounts.transactionMerkleTree.toBase58(),
         mockPubkey2.toBase58(),
       );
-      assert.equal(params.accounts.verifierState, undefined);
+      const verifierState = PublicKey.findProgramAddressSync(
+        [
+          params.accounts.signingAddress!.toBytes(),
+          utils.bytes.utf8.encode("VERIFIER_STATE"),
+        ],
+        TransactionParameters.getVerifierProgramId(VERIFIER_IDLS[j]),
+      )[0]
+      assert.equal(params.accounts.verifierState?.toBase58(), verifierState.toBase58());
       assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
       assert.equal(
         params.accounts.signingAddress,

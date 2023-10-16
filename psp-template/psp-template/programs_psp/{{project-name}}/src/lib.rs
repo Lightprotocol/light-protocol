@@ -1,9 +1,6 @@
-use std::marker::PhantomData;
-
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::hash::hash;
-
-use light_verifier_sdk::state::VerifierState10Ins;
+use light_psp4in4out_app_storage::Psp4In4OutAppStorageVerifierState;
 
 pub mod psp_accounts;
 pub use psp_accounts::*;
@@ -47,32 +44,27 @@ pub mod {{rust-name}} {
         let mut program_id_hash = hash(&ctx.program_id.to_bytes()).to_bytes();
         program_id_hash[0] = 0;
 
-        let mut checked_public_inputs: [[u8; 32]; VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs] = [[0u8; 32]; VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs];
-        checked_public_inputs[0] = program_id_hash;
-        checked_public_inputs[1] = inputs_des.transaction_hash;
-
-        let state = VerifierState10Ins {
-            merkle_root_index: inputs_des.root_index,
-            signer: Pubkey::from([0u8; 32]),
-            nullifiers: inputs_des.input_nullifier.to_vec(),
-            leaves: inputs_des.output_commitment.to_vec(),
+        let mut verifier_state = ctx.accounts.verifier_state.load_init()?;
+        verifier_state.signer = *ctx.accounts.signing_address.key;
+        let verifier_state_data = Psp4In4OutAppStorageVerifierState {
+            nullifiers: inputs_des.input_nullifier,
+            leaves: inputs_des.output_commitment.try_into().unwrap(),
             public_amount_spl: inputs_des.public_amount_spl,
             public_amount_sol: inputs_des.public_amount_sol,
-            mint_pubkey: [0u8; 32],
-            merkle_root: [0u8; 32],
-            tx_integrity_hash: [0u8; 32],
             relayer_fee: inputs_des.relayer_fee,
-            encrypted_utxos: inputs_des.encrypted_utxos,
-            checked_public_inputs,
-            proof_a: [0u8; 64],
-            proof_b: [0u8; 128],
-            proof_c: [0u8; 64],
-            transaction_hash: [0u8; 32],
-            e_phantom: PhantomData,
+            encrypted_utxos: inputs_des.encrypted_utxos.try_into().unwrap(),
+            merkle_root_index: inputs_des.root_index,
         };
+        let mut verifier_state_vec = Vec::new();
+        Psp4In4OutAppStorageVerifierState::serialize(&verifier_state_data, &mut verifier_state_vec)
+            .unwrap();
+        verifier_state.verifier_state_data = [verifier_state_vec, vec![0u8; 1024 - 848]]
+            .concat()
+            .try_into()
+            .unwrap();
 
-        ctx.accounts.verifier_state.set_inner(state);
-        ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
+        verifier_state.checked_public_inputs[0] = program_id_hash;
+        verifier_state.checked_public_inputs[1] = inputs_des.transaction_hash;
 
         Ok(())
     }
@@ -87,10 +79,11 @@ pub mod {{rust-name}} {
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        let mut verifier_state = ctx.accounts.verifier_state.load_mut()?;
         inputs.chunks(32).enumerate().for_each(|(i, input)| {
             let mut arr = [0u8; 32];
             arr.copy_from_slice(input);
-            ctx.accounts.verifier_state.checked_public_inputs[2 + i] = arr
+            verifier_state.checked_public_inputs[2 + i] = arr
         });
         Ok(())
     }
@@ -108,9 +101,11 @@ pub mod {{rust-name}} {
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        let verifier_state = ctx.accounts.verifier_state.load_mut()?;
+
         msg!(
             "checked inputs {:?}",
-            ctx.accounts.verifier_state.checked_public_inputs[2]
+            verifier_state.checked_public_inputs[2]
         );
         verify_program_proof(&ctx, &inputs)?;
         cpi_system_verifier(&ctx, &inputs)

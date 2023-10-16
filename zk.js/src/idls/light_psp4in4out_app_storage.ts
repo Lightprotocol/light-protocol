@@ -142,11 +142,88 @@ export type LightPsp4in4outAppStorage = {
               32
             ]
           }
+        },
+        {
+          "name": "startOffset",
+          "type": {
+            "defined": "usize"
+          }
         }
       ]
     }
   ],
   "accounts": [
+    {
+      "name": "psp4In4OutAppStorageVerifierState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nullifiers",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                4
+              ]
+            }
+          },
+          {
+            "name": "leaves",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                4
+              ]
+            }
+          },
+          {
+            "name": "publicAmountSpl",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "publicAmountSol",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "relayerFee",
+            "type": "u64"
+          },
+          {
+            "name": "encryptedUtxos",
+            "type": {
+              "array": [
+                "u8",
+                512
+              ]
+            }
+          },
+          {
+            "name": "merkleRootIndex",
+            "type": "u64"
+          }
+        ]
+      }
+    },
     {
       "name": "zKtransactionApp4MainProofInputs",
       "type": {
@@ -704,11 +781,88 @@ export const IDL: LightPsp4in4outAppStorage = {
               32
             ]
           }
+        },
+        {
+          "name": "startOffset",
+          "type": {
+            "defined": "usize"
+          }
         }
       ]
     }
   ],
   "accounts": [
+    {
+      "name": "psp4In4OutAppStorageVerifierState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nullifiers",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                4
+              ]
+            }
+          },
+          {
+            "name": "leaves",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                4
+              ]
+            }
+          },
+          {
+            "name": "publicAmountSpl",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "publicAmountSol",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "relayerFee",
+            "type": "u64"
+          },
+          {
+            "name": "encryptedUtxos",
+            "type": {
+              "array": [
+                "u8",
+                512
+              ]
+            }
+          },
+          {
+            "name": "merkleRootIndex",
+            "type": "u64"
+          }
+        ]
+      }
+    },
     {
       "name": "zKtransactionApp4MainProofInputs",
       "type": {

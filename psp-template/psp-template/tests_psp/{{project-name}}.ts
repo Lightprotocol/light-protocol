@@ -104,7 +104,8 @@ describe("Test {{project-name}}", () => {
       inputs: {
         x: inputUtxo.appData.x,
         y: inputUtxo.appData.y,
-        publicZ: inputUtxo.appData.x.add(inputUtxo.appData.y)
+        publicZ: inputUtxo.appData.x.add(inputUtxo.appData.y),
+        isInAppUtxoInUtxo: ["1", "0", "0", "0"]
       },
       verifierIdl: IDL,
       path: circuitPath,
