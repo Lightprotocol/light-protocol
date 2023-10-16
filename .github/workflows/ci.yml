@@ -16,7 +16,7 @@ jobs:
     permissions:
       contents: 'read'
       actions: 'read'
-    uses: nrwl/ci/.github/workflows/nx-cloud-main.yml@v0.13.0
+    uses: ./.github/workflows/nx-main.yml
     with:
       # NOTE: Here we are using the special `nx-cloud record` command to ensure that any commands we run that do not go through the cloud task runner natively
       # (i.e. anything that starts with `nx run`/`nx run-many`/`nx affected --target`), are still captured in the Nx Cloud UI and Github App comment for
@@ -30,7 +30,7 @@ jobs:
 
   agents:
     name: Nx Cloud - Agents
-    uses: nrwl/ci/.github/workflows/nx-cloud-agents.yml@v0.13.0
+    uses: ./.github/workflows/nx-agents.yml
     with:
       number-of-agents: 3
       install-commands: |
