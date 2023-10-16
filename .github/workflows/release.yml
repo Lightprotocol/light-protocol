@@ -1,4 +1,4 @@
-name: Relase programs
+name: Release programs
 
 on:
   push:
