@@ -45,7 +45,7 @@ arkworks-gadgets = "0.3.14"
 #spl-noop = { version = "0.1.3", features = ["no-entrypoint"] }
 
 # Light dependencies
-light-macros = "0.1.0"
+light-macros = { version = "0.3.0", path = "../../macros" }
 light-merkle-tree = { version = "0.1.1", features = ["solana"] }
 
 [dev-dependencies]
