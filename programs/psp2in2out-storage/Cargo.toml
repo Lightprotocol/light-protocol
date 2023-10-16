@@ -22,6 +22,6 @@ anchor-spl = "0.28.0"
 
 # Light deps
 groth16-solana = "0.0.2"
-light-macros = { path = "../../macros" }
-light-merkle-tree-program = { path = "../merkle-tree", features = ["cpi"] }
-light-verifier-sdk = { path = "../../verifier-sdk" }
+light-macros = { version = "0.3.0", path = "../../macros" }
+light-merkle-tree-program = { version = "0.3.0", path = "../merkle-tree", features = ["cpi"] }
+light-verifier-sdk = { version = "0.3.0", path = "../../verifier-sdk" }
