@@ -233,7 +233,7 @@ jobs:
             fi
           elif [ "${{ steps.package_manager.outputs.name == 'pnpm' }}" == "true" ]; then
             echo "Running pnpm install --frozen-lockfile"
-            pnpm install --frozen-lockfile
+            pnpm install --frozen-lockfile --recursive
           else
             echo "Running npm ci"
             npm ci
