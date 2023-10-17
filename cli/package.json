@@ -127,5 +127,14 @@
   "keywords": [
     "oclif"
   ],
-  "types": "dist/index.d.ts"
+  "types": "dist/index.d.ts",
+  "nx": {
+    "targets": {
+      "build": {
+        "dependsOn": [
+          { "projects": ["@lightprotocol/programs"], "target" : "build" }
+        ]
+      }
+    }
+  }
 }
