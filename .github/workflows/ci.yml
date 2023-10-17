@@ -31,4 +31,4 @@ jobs:
     with:
       working-directory: "."
       pnpm-version: "8.8.0"
-      number-of-agents: 3
+      number-of-agents: 1
