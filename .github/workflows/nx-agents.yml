@@ -239,10 +239,10 @@ jobs:
             npm ci
           fi
 
-#      - name: Install rust, anchor, circom, redis
-#        uses: ./.github/actions/setup-and-build
-#        with:
-#          enable_redis: "true"
+      - name: Install rust, anchor, circom, redis
+        uses: ./.github/actions/setup-and-build
+        with:
+          enable_redis: "true"
 
       - name: Start Nx Agent ${{ matrix.agent }}
         run: npx nx-cloud start-agent

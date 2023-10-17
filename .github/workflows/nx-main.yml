@@ -263,11 +263,6 @@ jobs:
             npm ci
           fi
 
-      - name: Install rust, anchor, circom, redis
-        uses: ./.github/actions/setup-and-build
-        with:
-          enable_redis: "true"
-
       # An unfortunate side-effect of the way reusable workflows work is that by the time they are pulled into the "caller"
       # repo, they are effectively completely embedded in that context. This means that we cannot reference any files which
       # are local to this repo which defines the workflow, and we therefore need to work around this by embedding the contents
