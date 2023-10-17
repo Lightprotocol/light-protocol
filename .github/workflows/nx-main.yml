@@ -80,6 +80,9 @@ jobs:
     # The name of the job which will invoke this one is expected to be "Nx Cloud - Main Job", and whatever we call this will be appended
     # to that one after a forward slash, so we keep this one intentionally short to produce "Nx Cloud - Main Job / Run" in the Github UI
     name: Run
+    permissions:
+      contents: 'read'
+      actions: 'read'
     # GitHub's default timeout is 360 minutes
     timeout-minutes: ${{ inputs.timeout || 360 }}
     defaults:
