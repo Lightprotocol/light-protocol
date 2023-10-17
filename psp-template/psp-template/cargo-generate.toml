@@ -24,6 +24,10 @@ type = "string"
 prompt = "Repo type (psp, circom, psp-circom)"
 default = "psp"
 
+[placeholders.circuit-lib-circom-version]
+type = "string"
+prompt = "circuit-lib.circom version"
+
 [placeholders.prover-js-version]
 type = "string"
 prompt = "Prover js version"
