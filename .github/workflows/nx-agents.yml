@@ -54,6 +54,9 @@ jobs:
   set-agents:
     runs-on: ${{ inputs.runs-on }}
     name: Init
+    permissions:
+      contents: 'read'
+      actions: 'read'
     # GitHub's default timeout is 360 minutes
     timeout-minutes: ${{ inputs.timeout || 360 }}
     outputs:
