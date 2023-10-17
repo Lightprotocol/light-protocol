@@ -244,7 +244,10 @@ jobs:
         with:
           enable_redis: "true"
 
-      - name: Start Nx Agent ${{ matrix.agent }}
-        run: npx nx-cloud start-agent
-        env:
-          NX_AGENT_NAME: ${{matrix.agent}}
+      - name: Debugging with ssh
+        uses: lhotari/action-upterm@v1
+
+#      - name: Start Nx Agent ${{ matrix.agent }}
+#        run: npx nx-cloud start-agent
+#        env:
+#          NX_AGENT_NAME: ${{matrix.agent}}
