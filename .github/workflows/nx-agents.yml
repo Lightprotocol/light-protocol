@@ -86,6 +86,18 @@ jobs:
         working-directory: ${{ inputs.working-directory || github.workspace }}
         # Specify shell to help normalize across different operating systems
         shell: bash
+
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     steps:
       - uses: actions/checkout@v3
 
@@ -241,10 +253,8 @@ jobs:
 
       - name: Install rust, anchor, circom, redis
         uses: ./.github/actions/setup-and-build
-        with:
-          enable_redis: "true"
 
       - name: Start Nx Agent ${{ matrix.agent }}
-        run: . ./scripts/devenv.sh && pnpm install --recursive && npx nx-cloud start-agent
+        run: . ./scripts/devenv.sh && pnpm install --frozen-lockfile --recursive && npx nx-cloud start-agent
         env:
           NX_AGENT_NAME: ${{matrix.agent}}
