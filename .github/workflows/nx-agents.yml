@@ -251,8 +251,18 @@ jobs:
             npm ci
           fi
 
-      - name: Install rust, anchor, circom, redis
-        uses: ./.github/actions/setup-and-build
+      - name: Install Solana & Anchor
+        shell: bash
+        run: |
+          ./scripts/install.sh
+          . ./scripts/devenv.sh
+          mkdir -p /home/runner/.config/solana/
+          solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+
+      - name: Add .local/bin to PATH
+        shell: bash
+        run: |
+          echo ".local/bin" >> $GITHUB_PATH
 
       - name: Start Nx Agent ${{ matrix.agent }}
         run: . ./scripts/devenv.sh && pnpm install --frozen-lockfile --recursive && npx nx-cloud start-agent

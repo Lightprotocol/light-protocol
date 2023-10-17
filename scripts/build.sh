@@ -8,4 +8,4 @@ command -v npx >/dev/null 2>&1 || { echo >&2 "npx is not installed.  Aborting.";
 set -eux
 
 pnpm install
-npx nx run-many --target=build --all
+NX_CLOUD_DISTRIBUTED_EXECUTION=false npx nx affected --target=build
