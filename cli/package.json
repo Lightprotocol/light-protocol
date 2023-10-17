@@ -132,7 +132,7 @@
     "targets": {
       "build": {
         "dependsOn": [
-          { "projects": ["@lightprotocol/programs"], "target" : "build" }
+          { "projects": ["@lightprotocol/programs", "@lightprotocol/zk.js"], "target" : "build" }
         ]
       }
     }
