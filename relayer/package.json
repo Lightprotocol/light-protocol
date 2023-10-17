@@ -9,9 +9,9 @@
     "test": "pnpm run test-user && pnpm run test-cli",
     "start": "pnpm run ts-node lib/index.js",
     "start-local": "sh runScript.sh",
-    "build": "rimraf lib && pnpm tsc",
+    "build": "rimraf lib && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
-    "format:check": "yarn prettier \"src/**/*{ts,js}\"  \"tests/**/*.{ts,js}\" --check",
+    "format:check": "pnpm prettier \"src/**/*{ts,js}\"  \"tests/**/*.{ts,js}\" --check",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --fix",
     "preinstall": "npx only-allow pnpm"
