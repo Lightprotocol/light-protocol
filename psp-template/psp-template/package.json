@@ -10,6 +10,7 @@
     "@project-serum/anchor": "^0.26.0",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",
+    "@lightprotocol/circuit-lib.circom": "{{circuit-lib-circom-version}}",
     "@lightprotocol/zk.js": "{{zk-js-version}}",
     "@lightprotocol/prover.js": "{{prover-js-version}}"
   },
