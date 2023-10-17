@@ -10,10 +10,10 @@ use anchor_lang::{
     },
 };
 use anchor_spl::token::Transfer;
-use ark_bn254::{Fr, FrParameters};
+use ark_bn254::FrParameters;
 use ark_ff::{
     bytes::{FromBytes, ToBytes},
-    BigInteger, BigInteger256, Fp256, FpParameters, PrimeField,
+    BigInteger, BigInteger256, FpParameters,
 };
 use ark_std::vec::Vec;
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
@@ -35,7 +35,7 @@ use crate::{
     },
     errors::VerifierSdkError,
     state::TransactionIndexerEvent,
-    utils::{change_endianness, close_account::close_account},
+    utils::{change_endianness, close_account::close_account, truncate_to_circuit},
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
@@ -448,12 +448,7 @@ impl<
         // msg!("integrity_hash inputs.len(): {}", input.len());
         // msg!("encrypted_utxos: {:?}", self.encrypted_utxos);
 
-        let hash = Fr::from_be_bytes_mod_order(&tx_integrity_hash.to_bytes());
-        let mut bytes = [0u8; 32];
-        <Fp256<FrParameters> as ToBytes>::write(&hash, &mut bytes[..]).unwrap();
-        self.tx_integrity_hash = change_endianness(&bytes);
-        // msg!("tx_integrity_hash be: {:?}", self.tx_integrity_hash);
-        // msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", hash);
+        self.tx_integrity_hash = truncate_to_circuit(&tx_integrity_hash.to_bytes());
         self.computed_tx_integrity_hash = true;
         Ok(())
     }

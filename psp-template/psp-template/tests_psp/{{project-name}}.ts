@@ -68,7 +68,7 @@ describe("Test {{project-name}}", () => {
     const outputUtxoSol = new Utxo({
       poseidon: POSEIDON,
       assets: [SystemProgram.programId],
-      account: user.account,
+      publicKey: user.account.pubkey,
       amounts: [new BN(1_000_000)],
       appData: { x: new BN(1), y: new BN(1) },
       appDataIdl: IDL,
