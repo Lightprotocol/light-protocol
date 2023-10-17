@@ -256,7 +256,7 @@ jobs:
               yarn install --immutable
             fi
           elif [ "${{ steps.package_manager.outputs.name == 'pnpm' }}" == "true" ]; then
-            echo "Running pnpm install --frozen-lockfile"
+            echo "Running pnpm install --frozen-lockfile --recursive"
             pnpm install --frozen-lockfile --recursive
           else
             echo "Running npm ci"
