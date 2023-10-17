@@ -1,5 +1,5 @@
 export type LightPsp2in2outStorage = {
-  "version": "0.1.0",
+  "version": "0.3.0",
   "name": "light_psp2in2out_storage",
   "constants": [
     {
@@ -683,7 +683,7 @@ export type LightPsp2in2outStorage = {
 };
 
 export const IDL: LightPsp2in2outStorage = {
-  "version": "0.1.0",
+  "version": "0.3.0",
   "name": "light_psp2in2out_storage",
   "constants": [
     {
