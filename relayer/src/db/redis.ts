@@ -95,7 +95,7 @@ export const relayWorker = new Worker(
       });
       // this is not yet returned
     } catch (e) {
-      console.log(e);
+      console.log("error in worker: ", e);
       throw e;
     }
     return true;

@@ -125,14 +125,17 @@ async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
         return res
           .status(400)
           .json({ status: "error", message: newJob!.data.response.error });
-      } else {
+      } else if (state === "completed") {
         console.log(`/awaitJobCompletion success - id: ${job.id}`);
+
         return res.status(200).json({
           data: {
             transactionStatus: "confirmed",
             response: job.data.response,
           },
         });
+      } else {
+        console.log("state:", state);
       }
     } else i++;
   }
