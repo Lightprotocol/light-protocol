@@ -139,42 +139,42 @@ jobs:
         id: pnpm-cache-dir-path
         run: echo "dir=$(pnpm store path)" >> $GITHUB_OUTPUT
 
-#      - name: Use the node_modules cache if available [pnpm]
-#        if: steps.package_manager.outputs.name == 'pnpm'
-#        uses: actions/cache@v3
-#        with:
-#          path: ${{ steps.pnpm-cache-dir-path.outputs.dir }}
-#          key: ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-#          restore-keys: |
-#            ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-
+      - name: Use the node_modules cache if available [pnpm]
+        if: steps.package_manager.outputs.name == 'pnpm'
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-
 
-#      - name: Get yarn cache directory path [yarn 1.x]
-#        if: steps.package_manager.outputs.name == 'yarn' && startsWith(steps.versions.outputs.yarn_version, '1.')
-#        id: yarn-cache-dir-path
-#        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-#
-#      - name: Use the node_modules cache if available [yarn 1.x]
-#        if: steps.package_manager.outputs.name == 'yarn' && startsWith(steps.versions.outputs.yarn_version, '1.')
-#        uses: actions/cache@v3
-#        with:
-#          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-#          key: ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-yarn-${{ hashFiles('**/yarn.lock') }}
-#          restore-keys: |
-#            ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-yarn-
-#
-#      - name: Get yarn cache directory path [yarn berry]
-#        if: steps.package_manager.outputs.name == 'yarn' && !startsWith(steps.versions.outputs.yarn_version, '1.')
-#        id: yarn-berry-cache-dir-path
-#        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
-#
-#      - name: Use the node_modules cache if available [yarn berry]
-#        if: steps.package_manager.outputs.name == 'yarn' && !startsWith(steps.versions.outputs.yarn_version, '1.')
-#        uses: actions/cache@v3
-#        with:
-#          path: ${{ steps.yarn-berry-cache-dir-path.outputs.dir }}
-#          key: ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-yarn-berry-${{ hashFiles('**/yarn.lock') }}
-#          restore-keys: |
-#            ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-yarn-berry-
+      - name: Get yarn cache directory path [yarn 1.x]
+        if: steps.package_manager.outputs.name == 'yarn' && startsWith(steps.versions.outputs.yarn_version, '1.')
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+      - name: Use the node_modules cache if available [yarn 1.x]
+        if: steps.package_manager.outputs.name == 'yarn' && startsWith(steps.versions.outputs.yarn_version, '1.')
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-yarn-
+
+      - name: Get yarn cache directory path [yarn berry]
+        if: steps.package_manager.outputs.name == 'yarn' && !startsWith(steps.versions.outputs.yarn_version, '1.')
+        id: yarn-berry-cache-dir-path
+        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+
+      - name: Use the node_modules cache if available [yarn berry]
+        if: steps.package_manager.outputs.name == 'yarn' && !startsWith(steps.versions.outputs.yarn_version, '1.')
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.yarn-berry-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-yarn-berry-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ steps.versions.outputs.node_version }}-yarn-berry-
 
       - name: Process environment-variables
         if: ${{ inputs.environment-variables != '' }}
@@ -244,10 +244,10 @@ jobs:
         with:
           enable_redis: "true"
 
+      - name: Start Nx Agent ${{ matrix.agent }}
+        run: . ./scripts/devenv.sh && pnpm install --recursive && npx nx-cloud start-agent
+        env:
+          NX_AGENT_NAME: ${{matrix.agent}}
+
       - name: Debugging with ssh
         uses: lhotari/action-upterm@v1
-
-#      - name: Start Nx Agent ${{ matrix.agent }}
-#        run: npx nx-cloud start-agent
-#        env:
-#          NX_AGENT_NAME: ${{matrix.agent}}
