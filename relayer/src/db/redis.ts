@@ -68,37 +68,39 @@ console.log("Queues activated");
 
 export const relayWorker = new Worker(
   "relay",
-  async (job) => {
-    console.log(`/relayWorker relay start - id: ${job.id}`);
-    const { instructions } = job.data;
-    const parsedInstructions = await parseReqParams(instructions);
-    try {
-      const provider = await getLightProvider();
-      const response = await sendVersionedTransactions(
-        parsedInstructions,
-        provider.provider!.connection,
-        provider.lookUpTables.versionedTransactionLookupTable!,
-        provider.wallet,
-      );
-      console.log("RELAY  JOB WORKER SENT TX, RESPONSE: ", response);
-      if (response.error) {
+  (job) => {
+    console.log("@relayWorker");
+    return new Promise(async (resolve, reject) => {
+      console.log(`/relayWorker relay start - id: ${job.id}`);
+      const { instructions } = job.data;
+      const parsedInstructions = await parseReqParams(instructions);
+      try {
+        const provider = await getLightProvider();
+        const response = await sendVersionedTransactions(
+          parsedInstructions,
+          provider.provider!.connection,
+          provider.lookUpTables.versionedTransactionLookupTable!,
+          provider.wallet,
+        );
+        console.log("RELAY  JOB WORKER SENT TX, RESPONSE: ", response);
+        if (response.error) {
+          await job.updateData({
+            ...job.data,
+            response: { error: response.error.message },
+          });
+          // fetch newes job data and print
+          reject(new Error(response.error.message));
+        }
         await job.updateData({
           ...job.data,
-          response: { error: response.error.message },
+          response,
         });
-        // fetch newes job data and print
-        throw new Error(response.error.message);
+        resolve(true);
+      } catch (e) {
+        console.log("error in worker: ", e);
+        reject(e);
       }
-      await job.updateData({
-        ...job.data,
-        response,
-      });
-      // this is not yet returned
-    } catch (e) {
-      console.log("error in worker: ", e);
-      throw e;
-    }
-    return true;
+    });
   },
   { connection: redisConnection, concurrency: CONCURRENT_RELAY_WORKERS },
 );

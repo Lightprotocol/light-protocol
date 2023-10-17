@@ -113,8 +113,10 @@ async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
   const maxSteps = MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION;
   const sleepTime = 1 * SECONDS;
   while (i < maxSteps) {
+    const latestJob = await relayQueue.getJob(job.id!);
     await sleep(sleepTime);
-    state = await job.getState();
+    state = await latestJob!.getState();
+    console.log("state:", state);
     if (state === "completed" || state === "failed" || state === "unknown") {
       i = maxSteps;
       if (state === "failed") {
@@ -131,11 +133,9 @@ async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
         return res.status(200).json({
           data: {
             transactionStatus: "confirmed",
-            response: job.data.response,
+            response: latestJob!.data.response,
           },
         });
-      } else {
-        console.log("state:", state);
       }
     } else i++;
   }
