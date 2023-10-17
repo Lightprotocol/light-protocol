@@ -23,6 +23,7 @@ jobs:
       # easier troubleshooting. See more here: https://nx.dev/nx-cloud/set-up/record-commands#recording-non-nx-commands
       #  parallel-commands: |
       #    npx nx-cloud record -- npx nx format:check
+      working-directory: "."
       parallel-commands-on-agents: |
         npx nx affected --target=lint --parallel=3
         npx nx affected --target=build --parallel=3
@@ -32,4 +33,5 @@ jobs:
     name: Nx Cloud - Agents
     uses: ./.github/workflows/nx-agents.yml
     with:
+      working-directory: "."
       number-of-agents: 3
