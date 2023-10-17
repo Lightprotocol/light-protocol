@@ -24,6 +24,7 @@ jobs:
       #  parallel-commands: |
       #    npx nx-cloud record -- npx nx format:check
       working-directory: "."
+      pnpm-version: "8.8.0"
       parallel-commands-on-agents: |
         npx nx affected --target=lint --parallel=3
         npx nx affected --target=build --parallel=3
@@ -34,4 +35,5 @@ jobs:
     uses: ./.github/workflows/nx-agents.yml
     with:
       working-directory: "."
+      pnpm-version: "8.8.0"
       number-of-agents: 3
