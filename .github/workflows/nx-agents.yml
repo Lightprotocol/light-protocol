@@ -248,6 +248,3 @@ jobs:
         run: . ./scripts/devenv.sh && pnpm install --recursive && npx nx-cloud start-agent
         env:
           NX_AGENT_NAME: ${{matrix.agent}}
-
-      - name: Debugging with ssh
-        uses: lhotari/action-upterm@v1
