@@ -1,8 +1,10 @@
 {
+  "extends": "./tsconfig",
   "compilerOptions": {
     "esModuleInterop": true,
-    "noEmit": true
+    "noEmit": true,
+    "rootDirs": ["src", "test"]
   },
-  "extends": "./tsconfig",
+
   "include": ["./src/**/*", "./test/**/*"]
 }
