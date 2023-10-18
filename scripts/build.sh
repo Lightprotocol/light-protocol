@@ -8,3 +8,6 @@ command -v npx >/dev/null 2>&1 || { echo >&2 "npx is not installed.  Aborting.";
 set -eux
 
 pnpm install || { echo >&2 "Failed to install dependencies. Aborting."; exit 1; }
+
+npx nx run-many --target=build --all
+
