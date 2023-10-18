@@ -204,13 +204,11 @@ describe("API tests", () => {
       testInputs,
     });
     await userTestAssertHelper.fetchAndSaveState();
-    console.log("shielding");
     await user.shield({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
       confirmOptions: ConfirmOptions.spendable,
     });
-    console.log("waiting for balance update");
 
     await waitForBalanceUpdate(userTestAssertHelper, user);
     await userTestAssertHelper.checkSolShielded();

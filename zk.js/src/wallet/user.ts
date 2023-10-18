@@ -1033,13 +1033,10 @@ export class User {
       relayerMerkleTreeUpdateResponse = "pinged relayer";
     }
 
-    console.log("@debug zkjs, user, transactwithparams() txhash:", txHash);
-
     if (confirmOptions === ConfirmOptions.spendable) {
       await this.provider.relayer.updateMerkleTree(this.provider);
       relayerMerkleTreeUpdateResponse = "success";
     }
-    console.log("@debug zkjs updated merkletree");
 
     await this.getBalance();
 

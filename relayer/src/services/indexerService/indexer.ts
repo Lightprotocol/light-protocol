@@ -42,7 +42,8 @@ export async function indexTransactions({
     /// fillBackward is true when the indexer is started for the first time
     /// we continue to fill backward until searchBackward returns no more transactions,
     /// after which fillBackward never becomes true again.
-    if (fillBackward) {
+    /// we fill backward until at least 1 tx is found.
+    if (fillBackward || job.data.transactions.length === 0) {
       const result = await searchBackward(job, connection);
       olderTransactions = result.olderTransactions;
       oldestFetchedSignature = result.oldestFetchedSignature;
@@ -70,7 +71,7 @@ export async function indexTransactions({
     await job.updateData({
       transactions: filteredByDeploymentVersion,
       lastFetched: Date.now(),
-      oldestFetchedSignature: fillBackward
+      oldestFetchedSignature: oldestFetchedSignature
         ? oldestFetchedSignature
         : job.data.oldestFetchedSignature,
     });
