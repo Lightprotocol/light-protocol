@@ -22,8 +22,6 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-        with:
-          enable_redis: "true"
 
       - name: Set execute permissions
         run: |
