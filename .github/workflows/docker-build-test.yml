@@ -25,11 +25,5 @@ jobs:
         with:
           enable_redis: "true"
 
-      - name: Set execute permissions
-        run: |
-          chmod +x ./scripts/testDockerRelayer.sh
-          chmod +x ./scripts/buildDockerRelayer.sh
-          chmod +x ./scripts/build.sh
-          chmod +x ./scripts/devenv.sh
       - name: Run Docker build test
         run: ./scripts/testDockerRelayer.sh
