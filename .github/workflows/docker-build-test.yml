@@ -21,7 +21,10 @@ jobs:
         with:
           fetch-depth: 0
       - uses: nrwl/nx-set-shas@v3
-      - run: npm ci
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
