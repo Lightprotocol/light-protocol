@@ -65,7 +65,6 @@ console.log("Queues activated");
 export const relayWorker = new Worker(
   "relay",
   async (job: Job) => {
-    console.log("@relayWorker");
     console.log(`/relayWorker relay start - id: ${job.id}`);
     const { instructions } = job.data;
     const parsedInstructions = await parseReqParams(instructions);
@@ -158,10 +157,3 @@ export const getTransactions = async (version = 0) => {
     return { transactions: [], job: newJob };
   }
 };
-
-(async () => {
-  console.log(
-    "redis inited, relayQueue WORKERS: ",
-    await relayQueue.getWorkers(),
-  );
-})();

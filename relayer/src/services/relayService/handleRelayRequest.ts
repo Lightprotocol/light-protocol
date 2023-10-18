@@ -33,10 +33,6 @@ async function addRelayJob({
     },
     { jobId: uid },
   );
-  console.log("relayqueue getWorkers", relayQueue.getWorkers());
-  console.log("metrics completed: ", relayQueue.getMetrics("completed"));
-  console.log("metrics failed: ", relayQueue.getMetrics("failed"));
-  console.log("job added to queue", JSON.stringify(job, null, 2));
 
   return job;
 }
@@ -155,10 +151,9 @@ export async function handleRelayRequest(req: any, res: any) {
     );
 
     const job = await addRelayJob({ instructions });
-    // get job state
-    const state = await job.getState();
+
     console.log(
-      `/handleRelayRequest - added relay job to queue - id: ${job.id} state: ${state}`,
+      `/handleRelayRequest - added relay job to queue - id: ${job.id}`,
     );
     await awaitJobCompletion({ job, res });
     return;
