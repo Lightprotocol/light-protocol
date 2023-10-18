@@ -38,7 +38,7 @@ if (_LOCAL_TEST_ENVIRONMENT !== "true" && _LOCAL_TEST_ENVIRONMENT !== "false")
 
 export const LOCAL_TEST_ENVIRONMENT = _LOCAL_TEST_ENVIRONMENT === "true";
 
-export const WORKER_RETRIES_PER_JOB = 2;
+export const WORKER_RETRIES_PER_JOB = 1;
 export const MIN_INDEXER_SLOT = 1693523214000; //arbitrary, based on "deployment version". is actually unix timestamp
 export const relayerFee = RELAYER_FEE;
 export const port = Number(process.env.PORT) || 3332;
