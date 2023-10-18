@@ -1,5 +1,5 @@
 import "dotenv/config.js";
-import { Queue, Worker } from "bullmq";
+import { Queue, Worker, Job } from "bullmq";
 import IORedis from "ioredis";
 import {
   WORKER_RETRIES_PER_JOB,
@@ -53,13 +53,9 @@ export const relayQueue = new Queue("relay", {
   connection: redisConnection,
   defaultJobOptions: {
     attempts: WORKER_RETRIES_PER_JOB,
-    backoff: {
-      type: "exponential",
-      delay: 2000,
-    },
   },
 });
-// TODO: extract into a separate db system for optimizing performance at scale
+// TODO: move to a separate db system for optimizing performance at scale
 export const indexQueue = new Queue("index", {
   connection: redisConnection,
 });
@@ -68,50 +64,65 @@ console.log("Queues activated");
 
 export const relayWorker = new Worker(
   "relay",
-  (job) => {
+  async (job: Job) => {
     console.log("@relayWorker");
-    return new Promise(async (resolve, reject) => {
-      console.log(`/relayWorker relay start - id: ${job.id}`);
-      const { instructions } = job.data;
-      const parsedInstructions = await parseReqParams(instructions);
-      try {
-        const provider = await getLightProvider();
-        const response = await sendVersionedTransactions(
-          parsedInstructions,
-          provider.provider!.connection,
-          provider.lookUpTables.versionedTransactionLookupTable!,
-          provider.wallet,
-        );
-        console.log("RELAY  JOB WORKER SENT TX, RESPONSE: ", response);
-        if (response.error) {
-          await job.updateData({
-            ...job.data,
-            response: { error: response.error.message },
-          });
-          // fetch newes job data and print
-          reject(new Error(response.error.message));
-        }
+    console.log(`/relayWorker relay start - id: ${job.id}`);
+    const { instructions } = job.data;
+    const parsedInstructions = await parseReqParams(instructions);
+    try {
+      const provider = await getLightProvider();
+      const response = await sendVersionedTransactions(
+        parsedInstructions,
+        provider.provider!.connection,
+        provider.lookUpTables.versionedTransactionLookupTable!,
+        provider.wallet,
+      );
+      console.log("RELAY  JOB WORKER SENT TX, RESPONSE: ", response);
+      if (response.error) {
         await job.updateData({
           ...job.data,
-          response,
+          response: { error: response.error.message },
         });
-        resolve(true);
-      } catch (e) {
-        console.log("error in worker: ", e);
-        reject(e);
+        throw new Error(response.error.message);
       }
-    });
+      await job.updateData({
+        ...job.data,
+        response,
+      });
+    } catch (e) {
+      console.log("error in worker: ", e);
+      throw e;
+    }
   },
   { connection: redisConnection, concurrency: CONCURRENT_RELAY_WORKERS },
 );
 
-relayWorker.on("completed", async (job) => {
+relayQueue.on("error", (err) => {
+  console.log("relayQueue error:", err);
+});
+relayQueue.on("waiting", async (job: Job) => {
+  console.log(`relay: ${job.id} waiting!`);
+});
+
+process.on("uncaughtException", function (err) {
+  console.error(err, "Uncaught exception");
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error({ promise, reason }, "Unhandled Rejection at: Promise");
+});
+
+relayWorker.on("active", async (job: Job) => {
+  console.log(`relay: ${job.id} active!`);
+});
+
+relayWorker.on("completed", async (job: Job) => {
   const duration = Date.now() - job.timestamp;
   const message = `relay: ${job.id} completed! duration: ${duration / 1000}s`;
   console.log(message);
 });
 
 relayWorker.on("failed", async (job, err) => {
+  console.log("relayWorker failed", err);
   if (job) {
     if (job.attemptsMade < WORKER_RETRIES_PER_JOB) {
       console.log(
@@ -147,3 +158,10 @@ export const getTransactions = async (version = 0) => {
     return { transactions: [], job: newJob };
   }
 };
+
+(async () => {
+  console.log(
+    "redis inited, relayQueue WORKERS: ",
+    await relayQueue.getWorkers(),
+  );
+})();
