@@ -61,7 +61,7 @@ cleanup() {
 
 
     echo "Rebuilding workspace..."
-    bash $(dirname $0)/build.sh
+    # bash $(dirname $0)/build.sh
 
 }
 
@@ -98,5 +98,5 @@ cd ..
 docker buildx create --name mybuilder
 docker buildx use mybuilder
 docker run --privileged --rm tonistiigi/binfmt --install all
-docker buildx build --platform linux/amd64 -t relayer-app:latest . --load
+docker buildx build --platform linux/amd64,linux/arm64 -t relayer-app:latest . --load
 docker tag relayer-app:latest registry.digitalocean.com/v3-relayer/relayer-app:latest
