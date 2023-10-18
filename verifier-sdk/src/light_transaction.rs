@@ -61,7 +61,6 @@ pub struct Transaction<
     pub input: TransactionInput<'a, 'b, 'c, 'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, A>,
     // State of transaction.
     pub merkle_root: [u8; 32],
-    pub event_hash: [u8; 32],
     pub tx_integrity_hash: [u8; 32],
     pub mint_pubkey: [u8; 32],
     pub transferred_funds: bool,
@@ -150,7 +149,6 @@ impl<
         Transaction {
             input,
             merkle_root: [0u8; 32],
-            event_hash: [0u8; 32],
             tx_integrity_hash: [0u8; 32],
             mint_pubkey: [0u8; 32],
             transferred_funds: false,
@@ -166,8 +164,7 @@ impl<
     /// Transact is a wrapper function which computes the integrity hash, checks the root,
     /// verifies the zero knowledge proof, inserts leaves, inserts nullifiers, transfers funds and fees.
     pub fn transact(&mut self) -> Result<()> {
-        self.compute_event_hash();
-        self.insert_event_leaves()?;
+        self.emit_indexer_transaction_event()?;
         self.compute_tx_integrity_hash()?;
         self.fetch_root()?;
         self.fetch_mint()?;
@@ -175,7 +172,6 @@ impl<
         self.check_remaining_accounts()?;
         self.insert_leaves()?;
         self.insert_nullifiers()?;
-        self.emit_indexer_transaction_event()?;
         self.transfer_user_funds()?;
         self.transfer_fee()?;
         self.check_completion()
@@ -188,14 +184,13 @@ impl<
         let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
         let merkle_tree = merkle_tree.load_mut()?;
 
-        let mut first_leaf_index = merkle_tree.next_queued_index;
+        let first_leaf_index = merkle_tree.next_queued_index;
 
         for (_i, leaves) in self.input.leaves.iter().enumerate() {
             let leaf_left = change_endianness(&leaves[0]);
             let leaf_right = change_endianness(&leaves[1]);
             leaves_vec.push(leaf_left);
             leaves_vec.push(leaf_right);
-            first_leaf_index -= 2
         }
 
         let message = match &self.input.message {
@@ -222,6 +217,84 @@ impl<
                 .accounts
                 .get_transaction_merkle_tree()
                 .to_account_info(),
+        )?;
+
+        let event_hash = self.compute_event_hash(first_leaf_index);
+        self.insert_event_leaves(event_hash)?;
+
+        Ok(())
+    }
+
+    fn compute_event_hash(&mut self, first_leaf_index: u64) -> [u8; 32] {
+        let nullifiers_hash = hashv(
+            self.input
+                .nullifiers
+                .iter()
+                .map(|arr| arr.as_slice())
+                .collect::<Vec<_>>()
+                .as_slice(),
+        );
+
+        let leaves_hash = hashv(
+            self.input
+                .leaves
+                .iter()
+                .flat_map(|two_d| two_d.iter())
+                .map(|one_d| &one_d[..])
+                .collect::<Vec<_>>()
+                .as_slice(),
+        );
+
+        let message_hash = match self.input.message {
+            Some(message) => message.hash,
+            None => [0u8; 32],
+        };
+        let encrypted_utxos_hash = hash(self.input.encrypted_utxos.as_slice());
+
+        let event_hash = hashv(&[
+            leaves_hash.to_bytes().as_slice(),
+            self.input.public_amount.spl.as_slice(),
+            self.input.public_amount.sol.as_slice(),
+            self.input.relayer_fee.to_le_bytes().as_slice(),
+            encrypted_utxos_hash.to_bytes().as_slice(),
+            nullifiers_hash.to_bytes().as_slice(),
+            first_leaf_index.to_le_bytes().as_slice(),
+            message_hash.as_slice(),
+        ]);
+
+        event_hash.to_bytes()
+    }
+
+    /// Calls the Merkle tree program via CPI to insert event leaves.
+    fn insert_event_leaves(&mut self, event_hash: [u8; 32]) -> Result<()> {
+        let event_merkle_tree = self.input.ctx.accounts.get_event_merkle_tree();
+        if event_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 {
+            return err!(VerifierSdkError::EventMerkleTreeInvalidHashFunction);
+        }
+        insert_two_leaves_event_cpi(
+            self.input.ctx.program_id,
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_program_merkle_tree()
+                .to_account_info(),
+            &self.input.ctx.accounts.get_authority().to_account_info(),
+            &event_merkle_tree.to_account_info(),
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_system_program()
+                .to_account_info(),
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_registered_verifier_pda()
+                .to_account_info(),
+            &event_hash,
+            &[0; 32],
         )?;
 
         Ok(())
@@ -312,95 +385,20 @@ impl<
         }
     }
 
-    pub fn compute_event_hash(&mut self) {
-        let nullifiers_hash = hashv(
-            self.input
-                .nullifiers
-                .iter()
-                .map(|arr| arr.as_slice())
-                .collect::<Vec<_>>()
-                .as_slice(),
-        );
-
-        let leaves_hash = hashv(
-            self.input
-                .leaves
-                .iter()
-                .flat_map(|two_d| two_d.iter())
-                .map(|one_d| &one_d[..])
-                .collect::<Vec<_>>()
-                .as_slice(),
-        );
-
-        let message_hash = match self.input.message {
-            Some(message) => message.hash,
-            None => [0u8; 32],
-        };
-        let encrypted_utxos_hash = hash(self.input.encrypted_utxos.as_slice());
-
-        let amount_hash = hashv(&[
-            &self.input.public_amount.sol,
-            &self.input.public_amount.spl,
-            &self.input.relayer_fee.to_le_bytes(),
-        ]);
-
-        let event_hash = hashv(&[
-            nullifiers_hash.to_bytes().as_slice(),
-            leaves_hash.to_bytes().as_slice(),
-            message_hash.as_slice(),
-            encrypted_utxos_hash.to_bytes().as_slice(),
-            amount_hash.to_bytes().as_slice(),
-        ]);
-
-        self.event_hash = event_hash.to_bytes();
-        msg!("event_hash: {:?}", event_hash.to_bytes());
-    }
-
-    /// Calls the Merkle tree program via CPI to insert event leaves.
-    pub fn insert_event_leaves(&mut self) -> Result<()> {
-        let event_merkle_tree = self.input.ctx.accounts.get_event_merkle_tree();
-        if event_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 {
-            return err!(VerifierSdkError::EventMerkleTreeInvalidHashFunction);
-        }
-        insert_two_leaves_event_cpi(
-            self.input.ctx.program_id,
-            &self
-                .input
-                .ctx
-                .accounts
-                .get_program_merkle_tree()
-                .to_account_info(),
-            &self.input.ctx.accounts.get_authority().to_account_info(),
-            &event_merkle_tree.to_account_info(),
-            &self
-                .input
-                .ctx
-                .accounts
-                .get_system_program()
-                .to_account_info(),
-            &self
-                .input
-                .ctx
-                .accounts
-                .get_registered_verifier_pda()
-                .to_account_info(),
-            &self.event_hash,
-            &[0; 32],
-        )?;
-
-        Ok(())
-    }
-
     /// Computes the integrity hash of the transaction. This hash is an input to the ZKP, and
     /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
     /// H(recipient_spl||recipient_sol||signer||relayer_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
+        let message_hash = match self.input.message {
+            Some(message) => message.hash,
+            None => [0u8; 32],
+        };
         let recipient_spl = match self.input.ctx.accounts.get_recipient_spl().as_ref() {
             Some(recipient_spl) => recipient_spl.key().to_bytes(),
             None => [0u8; 32],
         };
         let tx_integrity_hash = hashv(&[
-            &self.event_hash,
+            &message_hash,
             &recipient_spl,
             &self
                 .input
