@@ -1103,61 +1103,9 @@ export class TransactionParameters implements transactionParameters {
         this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
       );
 
-      const nullifiersHasher = sha256.create();
-      this.inputUtxos.forEach((x) => {
-        let _account = this.account;
-        if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
-          _account = Account.fromPrivkey(
-            poseidon,
-            bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
-            bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
-            bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
-          );
-        }
-        const nullifier = x.getNullifier({
-          poseidon: poseidon,
-          account: _account,
-        });
-        if (nullifier) {
-          const nullifierBytes = new anchor.BN(nullifier).toArray("be", 32);
-          nullifiersHasher.update(new Uint8Array(nullifierBytes));
-        }
-      });
-      const nullifiersHash = nullifiersHasher.digest();
-
-      const leavesHasher = sha256.create();
-      this.outputUtxos.forEach((x) => {
-        const commitment = new anchor.BN(x.getCommitment(poseidon)).toArray(
-          "be",
-          32,
-        );
-        leavesHasher.update(new Uint8Array(commitment));
-      });
-      const leavesHash = leavesHasher.digest();
-
       const messageHash = this.message
         ? sha256(this.message)
         : new Uint8Array(32);
-      const encryptedUtxosHash = sha256
-        .create()
-        .update(this.encryptedUtxos)
-        .digest();
-
-      const amountHash = sha256
-        .create()
-        .update(new Uint8Array(this.publicAmountSol.toArray("be", 32)))
-        .update(new Uint8Array(this.publicAmountSpl.toArray("be", 32)))
-        .update(relayerFee)
-        .digest();
-
-      const eventHash = sha256
-        .create()
-        .update(nullifiersHash)
-        .update(leavesHash)
-        .update(messageHash)
-        .update(encryptedUtxosHash)
-        .update(amountHash)
-        .digest();
 
       // TODO(vadorovsky): Try to get rid of this hack during Verifier class
       // refactoring / removal
@@ -1171,7 +1119,7 @@ export class TransactionParameters implements transactionParameters {
 
       const hash = sha256
         .create()
-        .update(eventHash)
+        .update(messageHash)
         .update(recipientSpl)
         .update(this.accounts.recipientSol.toBytes())
         .update(this.relayer.accounts.relayerPubkey.toBytes())
