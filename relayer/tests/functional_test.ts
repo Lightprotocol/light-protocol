@@ -196,6 +196,7 @@ describe("API tests", () => {
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,
     };
+
     const userTestAssertHelper = new UserTestAssertHelper({
       userSender: user,
       userRecipient: user,
@@ -203,12 +204,13 @@ describe("API tests", () => {
       testInputs,
     });
     await userTestAssertHelper.fetchAndSaveState();
-
+    console.log("shielding");
     await user.shield({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
       confirmOptions: ConfirmOptions.spendable,
     });
+    console.log("waiting for balance update");
 
     await waitForBalanceUpdate(userTestAssertHelper, user);
     await userTestAssertHelper.checkSolShielded();
