@@ -183,27 +183,38 @@ cargo install cargo-expand
 
 rustup component add rustfmt
 
-echo "📥 Downloading Node.js"
-download_and_extract \
-    "node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz" \
-    "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz" \
-    z \
-    "${PREFIX}" \
-    1
+
+if ! command -v node &>/dev/null
+then
+  echo "📥 Downloading Node.js"
+  download_and_extract \
+      "node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz" \
+      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz" \
+      z \
+      "${PREFIX}" \
+      1
+else
+    echo "Node.js is already installed"
+fi
 
 NPM_DIR="${PREFIX}/npm-global"
 mkdir -p "${NPM_DIR}"
 export PATH="${PREFIX}/bin:${NPM_DIR}/bin:${PATH}"
 export NPM_CONFIG_PREFIX="${NPM_DIR}"
 
-echo "📥 Downloading pnpm"
-download_file_github \
-    pnpm \
-    pnpm \
-    "v${PNPM_VERSION}" \
-    "pnpm-${ARCH_SUFFIX_PNPM}" \
-    pnpm \
-    "${PREFIX}/bin"
+if ! command -v pnpm &>/dev/null
+then
+  echo "📥 Downloading pnpm"
+  download_file_github \
+      pnpm \
+      pnpm \
+      "v${PNPM_VERSION}" \
+      "pnpm-${ARCH_SUFFIX_PNPM}" \
+      pnpm \
+      "${PREFIX}/bin"
+else
+    echo "pnpm is already installed"
+fi
 
 echo "📥 Downloading Solana toolchain"
 download_and_extract_github \

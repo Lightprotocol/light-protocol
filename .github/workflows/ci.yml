@@ -34,7 +34,11 @@ jobs:
         with:
           fetch-depth: 0
       - uses: nrwl/nx-set-shas@v3
-      
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
       - name: Install dependencies
         shell: bash
         run: ./scripts/install.sh
