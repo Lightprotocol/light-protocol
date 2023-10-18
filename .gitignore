@@ -65,3 +65,5 @@ qodana.yaml
 node_modules
 
 **/target/
+
+**/.pnpm-store/
