@@ -34,8 +34,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: nrwl/nx-set-shas@v3
-      - run: npm ci
-
+      
       - name: Install dependencies
         shell: bash
         run: ./scripts/install.sh
