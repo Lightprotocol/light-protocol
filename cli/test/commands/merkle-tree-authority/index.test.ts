@@ -3,7 +3,7 @@ import { initTestEnv, killTestValidator } from "../../../src/utils/initTestEnv";
 
 describe("Merkle Tree Authority", () => {
   before(async () => {
-    await initTestEnv({ skip_system_accounts: true });
+    await initTestEnv({ skipSystemAccounts: true });
   });
   // Other tests require a validator with system accounts. Kill the current one
   // which doesn't have them.

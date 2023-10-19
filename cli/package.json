@@ -85,7 +85,8 @@
     "lint:fix": "eslint . --fix",
     "postpack": "shx rm -f oclif.manifest.json",
     "prepack": "pnpm build && oclif manifest && oclif readme",
-    "test-utils": "mocha ./test/utils/psp-utils/index.test.ts -t 10000000 --exit",
+    "test-utils": "mocha ./test/utils/index.test.ts -t 10000000 --exit",
+    "test-psp-utils": "mocha ./test/utils/psp-utils/index.test.ts -t 10000000 --exit",
     "test-account": "mocha ./test/commands/account/index.test.ts -t 10000000 --exit",
     "test-config": "mocha ./test/commands/config/index.test.ts -t 10000000 --exit",
     "test-airdrop": "mocha ./test/commands/airdrop/index.test.ts -t 10000000 --exit",
@@ -116,7 +117,7 @@
     "test-circom-test": "cd ../tmp-test-circom && ./../cli/test_bin/run circom:test tmp-test-circom Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS && cd ../cli",
     "clean-test-circom": "rm -r ../tmp-test-circom || true",
     "test-circom": "pnpm test-circom-init && pnpm test-circom-build && pnpm test-circom-test && pnpm test-circom-add-circuit",
-    "test": "pnpm kill && pnpm test-cli && pnpm test-psp && pnpm test-circom",
+    "test": "pnpm kill && pnpm test-cli && pnpm test-psp && pnpm test-circom && pnpm test-utils",
     "install-local": "pnpm build && pnpm global remove @lightprotocol/cli || true && pnpm global add $PWD",
     "version": "oclif readme && git add README.md",
     "preinstall": "npx only-allow pnpm"

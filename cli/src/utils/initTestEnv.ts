@@ -12,18 +12,30 @@ import {
   setRelayerRecipient,
 } from "./utils";
 import { Keypair } from "@solana/web3.js";
-import { downloadBinIfNotExists, executeCommand } from "../psp-utils";
+import {
+  LIGHT_MERKLE_TREE_PROGRAM_TAG,
+  LIGHT_PSP10IN2OUT_TAG,
+  LIGHT_PSP2IN2OUT_STORAGE_TAG,
+  LIGHT_PSP2IN2OUT_TAG,
+  LIGHT_PSP4IN4OUT_APP_STORAGE_TAG,
+  LIGHT_USER_REGISTRY_TAG,
+  SPL_NOOP_PROGRAM_TAG,
+  downloadBinIfNotExists,
+  executeCommand,
+} from "../psp-utils";
 import path from "path";
-import { PROGRAM_TAG } from "../psp-utils";
 const find = require("find-process");
 
+const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
+const BASE_PATH = "../../bin/";
+
 export async function initTestEnv({
-  additonalPrograms,
-  skip_system_accounts,
+  additionalPrograms,
+  skipSystemAccounts,
   background = true,
 }: {
-  additonalPrograms?: { address: string; path: string }[];
-  skip_system_accounts?: boolean;
+  additionalPrograms?: { address: string; path: string }[];
+  skipSystemAccounts?: boolean;
   background?: boolean;
 }) {
   console.log("Performing setup tasks...\n");
@@ -54,19 +66,19 @@ export async function initTestEnv({
   };
   initAccounts();
   if (!background) {
-    await start_test_validator({ additonalPrograms, skip_system_accounts });
+    await startTestValidator({ additionalPrograms, skipSystemAccounts });
   } else {
-    start_test_validator({ additonalPrograms, skip_system_accounts });
+    startTestValidator({ additionalPrograms, skipSystemAccounts });
     await sleep(15000);
   }
 }
 
 export async function initTestEnvIfNeeded({
-  additonalPrograms,
-  skip_system_accounts,
+  additionalPrograms,
+  skipSystemAccounts,
 }: {
-  additonalPrograms?: { address: string; path: string }[];
-  skip_system_accounts?: boolean;
+  additionalPrograms?: { address: string; path: string }[];
+  skipSystemAccounts?: boolean;
 } = {}) {
   try {
     const anchorProvider = await setAnchorProvider();
@@ -75,57 +87,102 @@ export async function initTestEnvIfNeeded({
   } catch (error) {
     // launch local test validator and initialize test environment
     await initTestEnv({
-      additonalPrograms,
-      skip_system_accounts,
+      additionalPrograms,
+      skipSystemAccounts,
       background: true,
     });
   }
 }
 
-export async function start_test_validator({
-  additonalPrograms,
-  skip_system_accounts,
+/*
+ * Determines a path to which Light Protocol programs should be downloaded.
+ *
+ * If the `LIGHT_PROTOCOL_PROGRAMS_DIR` environment variable is set, the path
+ * provided in it is used.
+ *
+ * Otherwise, the `bin` directory in the CLI internals is used.
+ *
+ * @returns {string} Directory path for Light Protocol programs.
+ */
+function programsDirPath(): string {
+  return (
+    process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV] ||
+    path.resolve(__dirname, BASE_PATH)
+  );
+}
+
+/*
+ * Determines a patch to which the given program should be downloaded.
+ *
+ * If the `LIGHT_PROTOCOL_PROGRAMS_DIR` environment variable is set, the path
+ * provided in it is used as a parent
+ *
+ * Otherwise, the `bin` directory in the CLI internals is used.
+ *
+ * @returns {string} Path for the given program.
+ */
+function programFilePath(programName: string): string {
+  const programsDir = process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV];
+  if (programsDir) {
+    return path.join(programsDir, programName);
+  }
+
+  return path.resolve(__dirname, path.join(BASE_PATH, programName));
+}
+
+export async function getSolanaArgs({
+  additionalPrograms,
+  skipSystemAccounts,
 }: {
-  additonalPrograms?: { address: string; path: string }[];
-  skip_system_accounts?: boolean;
-}) {
-  const command = "solana-test-validator";
+  additionalPrograms?: { address: string; path: string }[];
+  skipSystemAccounts?: boolean;
+}): Promise<Array<string>> {
   const LIMIT_LEDGER_SIZE = "500000000";
-  const BASE_PATH = "../../bin/";
-  type Program = { id: string; name?: string; path?: string };
+
+  type Program = { id: string; name?: string; tag?: string; path?: string };
   const programs: Program[] = [
-    { id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV", name: "spl_noop.so" },
+    {
+      id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+      name: "spl_noop.so",
+      tag: SPL_NOOP_PROGRAM_TAG,
+    },
     {
       id: "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6",
       name: "light_merkle_tree_program.so",
+      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {
       id: "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i",
       name: "light_psp2in2out.so",
+      tag: LIGHT_PSP2IN2OUT_TAG,
     },
     {
       id: "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj",
       name: "light_psp2in2out_storage.so",
-    },
-    {
-      id: "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc",
-      name: "light_psp10in2out.so",
+      tag: LIGHT_PSP2IN2OUT_STORAGE_TAG,
     },
     {
       id: "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86",
       name: "light_psp4in4out_app_storage.so",
+      tag: LIGHT_PSP4IN4OUT_APP_STORAGE_TAG,
+    },
+    {
+      id: "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc",
+      name: "light_psp10in2out.so",
+      tag: LIGHT_PSP10IN2OUT_TAG,
     },
     {
       id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
       name: "light_user_registry.so",
+      tag: LIGHT_USER_REGISTRY_TAG,
     },
   ];
-  if (additonalPrograms)
-    additonalPrograms.forEach((program) => {
+  if (additionalPrograms)
+    additionalPrograms.forEach((program) => {
       programs.push({ id: program.address, path: program.path });
     });
 
-  const dirPath = path.resolve(__dirname, BASE_PATH);
+  const dirPath = programsDirPath();
 
   const solanaArgs = [
     "--reset",
@@ -134,28 +191,42 @@ export async function start_test_validator({
   ];
 
   for (const program of programs) {
-    const filePathString = BASE_PATH + program.name;
-    const localFilePath = path.resolve(__dirname, filePathString);
-    if (!program.path) {
-      // TODO: add tag
+    if (program.path) {
+      solanaArgs.push("--bpf-program", program.id, program.path);
+    } else {
+      const localFilePath = programFilePath(program.name!);
       await downloadBinIfNotExists({
         localFilePath,
         dirPath,
         owner: "Lightprotocol",
         repoName: "light-protocol",
         remoteFileName: program.name!,
-        tag: PROGRAM_TAG,
+        tag: program.tag,
       });
+      solanaArgs.push("--bpf-program", program.id, localFilePath);
     }
-
-    const path1 = program.path ? program.path : `${localFilePath}`;
-    solanaArgs.push("--bpf-program", program.id, path1);
   }
   const dirPathString = "../../accounts/";
   const localFilePath = path.resolve(__dirname, dirPathString);
-  if (!skip_system_accounts) {
+  if (!skipSystemAccounts) {
     solanaArgs.push("--account-dir", localFilePath);
   }
+
+  return solanaArgs;
+}
+
+export async function startTestValidator({
+  additionalPrograms,
+  skipSystemAccounts,
+}: {
+  additionalPrograms?: { address: string; path: string }[];
+  skipSystemAccounts?: boolean;
+}) {
+  const command = "solana-test-validator";
+  const solanaArgs = await getSolanaArgs({
+    additionalPrograms,
+    skipSystemAccounts,
+  });
 
   await killTestValidator();
 

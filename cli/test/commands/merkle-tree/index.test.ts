@@ -3,7 +3,7 @@ import { initTestEnv } from "../../../src/utils/initTestEnv";
 
 describe("merkle-tree", () => {
   before(async () => {
-    await initTestEnv({ skip_system_accounts: true });
+    await initTestEnv({ skipSystemAccounts: true });
   });
   // TODO(vadorovsky): Teach `initTestEnv` to initialize only some accounts,
   // then we will be able to not initialize the Merkle Tree Authority this
