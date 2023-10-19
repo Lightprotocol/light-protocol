@@ -37,9 +37,9 @@ jobs:
       matrix:
         include:
           - test: system-programs-tests-transaction-user-verifiers-merkle-tree-provider
-            sub-tests: '["functional", "user", "verifiers", "merkle-tree", "provider"]'
+            sub-tests: '["sp-functional", "sp-user", "sp-verifiers", "sp-merkle-tree", "sp-provider"]'
           - test: system-programs-tests-user-merge
-            sub-tests: '["user-merge"]'
+            sub-tests: '["sp-user-merge", "zk.js"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -53,5 +53,5 @@ jobs:
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            npx nx test-sp-$subtest "@lightprotocol/zk.js"
+            npx nx test-$subtest "@lightprotocol/zk.js"
           done

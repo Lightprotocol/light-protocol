@@ -25,16 +25,15 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: sdk-tests-light-zk-relayer-cli
+          - name: sdk-tests-light-relayer-cli
             sub-tests: '[
-            "@lightprotocol/zk.js", 
-            "@lightprotocol/relayer", 
             "@lightprotocol/cli", 
             "@lightprotocol/prover.js"]'
           - name: circuit-tests
             sub-tests: '[
             "@lightprotocol/circuit-lib.js",
-            "@lightprotocol/circuit-lib.circom"
+            "@lightprotocol/circuit-lib.circom",
+            "@lightprotocol/relayer"
           ]'
     services:
       redis:
