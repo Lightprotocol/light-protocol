@@ -39,6 +39,7 @@ export const buildMerkleTree = async (_req: any, res: any) => {
 
 export const updateMerkleTree = async (_req: any, res: any) => {
   try {
+    console.log("/updateMerkleTree");
     const provider = await getLightProvider();
     await updateMerkleTreeForTest(getKeyPairFromEnv("KEY_PAIR"), provider.url!);
     return res.status(200).json({ status: "ok" });

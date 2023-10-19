@@ -29,15 +29,27 @@ function mergeAndSortTransactions(
 export async function indexTransactions({
   job,
   connection,
+  fillBackward,
 }: {
   job: Job;
   connection: Connection;
-}) {
+  fillBackward: boolean;
+}): Promise<{ continueBackwardFill: boolean }> {
   try {
-    const { olderTransactions, oldestFetchedSignature } = await searchBackward(
-      job,
-      connection,
-    );
+    let olderTransactions: IndexedTransaction[] = [];
+    let oldestFetchedSignature: string | null = null;
+    let continueBackwardFill = false;
+    /// fillBackward is true when the indexer is started for the first time
+    /// we continue to fill backward until searchBackward returns no more transactions,
+    /// after which fillBackward never becomes true again.
+    /// we fill backward until at least 1 tx is found.
+    if (fillBackward || job.data.transactions.length === 0) {
+      const result = await searchBackward(job, connection);
+      olderTransactions = result.olderTransactions;
+      oldestFetchedSignature = result.oldestFetchedSignature;
+
+      if (olderTransactions.length > 0) continueBackwardFill = true;
+    }
 
     const newerTransactions: IndexedTransaction[] = await searchForward(
       job,
@@ -56,14 +68,17 @@ export async function indexTransactions({
       dedupedTransactions,
       MIN_INDEXER_SLOT,
     );
-
     await job.updateData({
       transactions: filteredByDeploymentVersion,
       lastFetched: Date.now(),
-      oldestFetchedSignature,
+      oldestFetchedSignature: oldestFetchedSignature
+        ? oldestFetchedSignature
+        : job.data.oldestFetchedSignature,
     });
+    return { continueBackwardFill };
   } catch (e) {
     console.log("restarting indexer -- crash reason:", e);
+    return { continueBackwardFill: true };
   }
 }
 

@@ -52,7 +52,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      - name: ${{ matrix.test.name }}
+      - name: ${{ matrix.name }}
         run: |
           source ./scripts/devenv.sh
 
@@ -64,3 +64,7 @@ jobs:
               npx nx test-build-light-circuits $subtest
             fi
           done
+
+      - name: Run Relayer Docker build test
+        if: matrix.name == 'circuit-tests'
+        run: ./scripts/testDockerRelayer.sh

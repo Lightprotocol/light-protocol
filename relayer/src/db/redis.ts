@@ -1,5 +1,5 @@
 import "dotenv/config.js";
-import { Queue, Worker } from "bullmq";
+import { Queue, Worker, Job } from "bullmq";
 import IORedis from "ioredis";
 import {
   WORKER_RETRIES_PER_JOB,
@@ -53,13 +53,9 @@ export const relayQueue = new Queue("relay", {
   connection: redisConnection,
   defaultJobOptions: {
     attempts: WORKER_RETRIES_PER_JOB,
-    backoff: {
-      type: "exponential",
-      delay: 2000,
-    },
   },
 });
-// TODO: extract into a separate db system for optimizing performance at scale
+// TODO: move to a separate db system for optimizing performance at scale
 export const indexQueue = new Queue("index", {
   connection: redisConnection,
 });
@@ -68,7 +64,7 @@ console.log("Queues activated");
 
 export const relayWorker = new Worker(
   "relay",
-  async (job) => {
+  async (job: Job) => {
     console.log(`/relayWorker relay start - id: ${job.id}`);
     const { instructions } = job.data;
     const parsedInstructions = await parseReqParams(instructions);
@@ -86,30 +82,46 @@ export const relayWorker = new Worker(
           ...job.data,
           response: { error: response.error.message },
         });
-        // fetch newes job data and print
         throw new Error(response.error.message);
       }
       await job.updateData({
         ...job.data,
         response,
       });
-      // this is not yet returned
     } catch (e) {
-      console.log(e);
+      console.log("error in worker: ", e);
       throw e;
     }
-    return true;
   },
   { connection: redisConnection, concurrency: CONCURRENT_RELAY_WORKERS },
 );
 
-relayWorker.on("completed", async (job) => {
+relayQueue.on("error", (err) => {
+  console.log("relayQueue error:", err);
+});
+relayQueue.on("waiting", async (job: Job) => {
+  console.log(`relay: ${job.id} waiting!`);
+});
+
+process.on("uncaughtException", function (err) {
+  console.error(err, "Uncaught exception");
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error({ promise, reason }, "Unhandled Rejection at: Promise");
+});
+
+relayWorker.on("active", async (job: Job) => {
+  console.log(`relay: ${job.id} active!`);
+});
+
+relayWorker.on("completed", async (job: Job) => {
   const duration = Date.now() - job.timestamp;
   const message = `relay: ${job.id} completed! duration: ${duration / 1000}s`;
   console.log(message);
 });
 
 relayWorker.on("failed", async (job, err) => {
+  console.log("relayWorker failed", err);
   if (job) {
     if (job.attemptsMade < WORKER_RETRIES_PER_JOB) {
       console.log(

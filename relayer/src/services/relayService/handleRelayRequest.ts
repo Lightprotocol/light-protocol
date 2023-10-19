@@ -33,6 +33,7 @@ async function addRelayJob({
     },
     { jobId: uid },
   );
+
   return job;
 }
 
@@ -113,8 +114,10 @@ async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
   const maxSteps = MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION;
   const sleepTime = 1 * SECONDS;
   while (i < maxSteps) {
+    const latestJob = await relayQueue.getJob(job.id!);
     await sleep(sleepTime);
-    state = await job.getState();
+    state = await latestJob!.getState();
+    console.log("state:", state);
     if (state === "completed" || state === "failed" || state === "unknown") {
       i = maxSteps;
       if (state === "failed") {
@@ -125,12 +128,13 @@ async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
         return res
           .status(400)
           .json({ status: "error", message: newJob!.data.response.error });
-      } else {
+      } else if (state === "completed") {
         console.log(`/awaitJobCompletion success - id: ${job.id}`);
+
         return res.status(200).json({
           data: {
             transactionStatus: "confirmed",
-            response: job.data.response,
+            response: latestJob!.data.response,
           },
         });
       }
@@ -147,8 +151,10 @@ export async function handleRelayRequest(req: any, res: any) {
     );
 
     const job = await addRelayJob({ instructions });
-    console.log(`/handleRelayRequest - added relay job to queue`);
 
+    console.log(
+      `/handleRelayRequest - added relay job to queue - id: ${job.id}`,
+    );
     await awaitJobCompletion({ job, res });
     return;
   } catch (error) {
