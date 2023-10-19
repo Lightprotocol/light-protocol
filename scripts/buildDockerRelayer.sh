@@ -15,7 +15,7 @@ generate_temp_package_json() {
     while [ $# -gt 0 ]; do
         dep=$1
         path=$2
-        json=$(echo "$json" | jq --arg dep "$dep" --arg path "$path" 'if .dependencies[$dep] then .dependencies[$dep] = $path else . end | if .devDependencies[$dep] then .devDependencies[$dep] = $path else . end')
+        json=$(echo "$json" | jq --arg dep "$dep" --arg path "$path" 'if .dependencies[$dep] then .dependencies[$dep] = $path else . end | if .devDependencies[$dep] then .devDependencies[$dep] = $path else . end | del(.scripts.preinstall)')
         shift 2
     done
     echo "$json" > $dir/temp.package.json
@@ -24,10 +24,7 @@ generate_temp_package_json() {
 }
 
 
-
-cd ./zk.js && pnpm pack
-zkjs_tgz=$(ls *.tgz)
-cd ../circuit-lib/circuit-lib.js && pnpm pack
+cd ./circuit-lib/circuit-lib.js && pnpm pack
 circuit_lib_tgz=$(ls *.tgz)
 cd ../../prover.js && pnpm pack
 prover_tgz=$(ls *.tgz)
@@ -51,13 +48,15 @@ cleanup() {
     fi
 
     echo "Deleting node_modules, cached files, and lock files..."
+
     rm -rf $(dirname $0)/../zk.js/node_modules
     rm -rf $(dirname $0)/../relayer/node_modules
     rm -f $(dirname $0)/../pnpm-lock.yaml
 
-    echo "Rebuilding workspace..."
-    $(dirname $0)/build.sh
-
+    echo "Deleting NPM artifacts..."
+    rm -rf $(dirname $0)/../zk.js/package-lock.json
+    rm -rf $(dirname $0)/../relayer/package-lock.json
+    rm -f $(dirname $0)/../pnpm-lock.yaml
 }
 
 trap cleanup EXIT
@@ -77,13 +76,15 @@ zkjs_tgz=$(ls *.tgz)
 cd ..
 
 # build relayer with altered zk.js
-generate_temp_package_json ./relayer "@lightprotocol/zk.js" "file:../zk.js/$zkjs_tgz"
+generate_temp_package_json ./relayer "@lightprotocol/zk.js" "file:../zk.js/$zkjs_tgz"  "@lightprotocol/circuit-lib.js" "file:../circuit-lib/circuit-lib.js/$circuit_lib_tgz"
 
 mv ./relayer/package.json ./relayer/package.json.bak
 mv ./relayer/temp.package.json ./relayer/package.json
 
 cd ./relayer
-pnpm install --no-frozen-lockfile
+# remove node_modules to ensure we're using the local zk.js
+rm -rf node_modules
+npm install
 cd ..
 
 

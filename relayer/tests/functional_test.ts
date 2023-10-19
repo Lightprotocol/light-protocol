@@ -196,6 +196,7 @@ describe("API tests", () => {
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,
     };
+
     const userTestAssertHelper = new UserTestAssertHelper({
       userSender: user,
       userRecipient: user,
@@ -203,7 +204,6 @@ describe("API tests", () => {
       testInputs,
     });
     await userTestAssertHelper.fetchAndSaveState();
-
     await user.shield({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,

@@ -40,7 +40,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      - name: ${{ matrix.test.name }}
+      - name: ${{ matrix.name }}
         run: |
           source ./scripts/devenv.sh
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
