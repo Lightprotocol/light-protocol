@@ -21,7 +21,8 @@ anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
 anchor-spl = "0.28.0"
 
 # Light deps
+aligned-sized = { path = "../../macros/aligned-sized" }
 groth16-solana = "0.0.2"
-light-macros = { version = "0.3.0", path = "../../macros" }
+light-macros = { version = "0.3.0", path = "../../macros/light" }
 light-merkle-tree-program = { version = "0.3.0", path = "../merkle-tree", features = ["cpi"] }
 light-verifier-sdk = { version = "0.3.0", path = "../../verifier-sdk" }

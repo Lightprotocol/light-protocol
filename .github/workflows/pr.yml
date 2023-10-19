@@ -33,3 +33,6 @@ jobs:
             cli
             relayer
             scripts
+            macros
+            light-macros
+            aligned-sized

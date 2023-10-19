@@ -15,13 +15,6 @@ export type LightPsp2in2outStorage = {
       "value": "1024"
     },
     {
-      "name": "VERIFIER_STATE_INITIAL_SIZE",
-      "type": {
-        "defined": "usize"
-      },
-      "value": "MESSAGE_PER_CALL_SIZE + 8"
-    },
-    {
       "name": "MESSAGE_MAX_SIZE",
       "type": {
         "defined": "usize"
@@ -697,13 +690,6 @@ export const IDL: LightPsp2in2outStorage = {
         "defined": "usize"
       },
       "value": "1024"
-    },
-    {
-      "name": "VERIFIER_STATE_INITIAL_SIZE",
-      "type": {
-        "defined": "usize"
-      },
-      "value": "MESSAGE_PER_CALL_SIZE + 8"
     },
     {
       "name": "MESSAGE_MAX_SIZE",

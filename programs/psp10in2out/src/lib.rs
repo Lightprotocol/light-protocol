@@ -42,7 +42,7 @@ pub mod light_psp10in2out {
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the verification and
     /// protocol logicin the second transaction.
     pub fn shielded_transfer_first<'info>(
-        ctx: Context<'_, '_, '_, 'info, LightInstructionFirst<'info, 0>>,
+        ctx: Context<'_, '_, '_, 'info, LightInstructionFirst<'info, 0, 1, 10>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferFirst =
@@ -82,7 +82,7 @@ pub mod light_psp10in2out {
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
     pub fn shielded_transfer_second<'info>(
-        ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info, 0>>,
+        ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info, 0, 1, 10>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferSecond =
@@ -131,13 +131,14 @@ pub mod light_psp10in2out {
             checked_public_inputs: &[],
             verifyingkey: &VERIFYINGKEY_TRANSACTION_MASP10_MAIN,
         };
-        let mut tx = Transaction::<0, 1, 10, 17, LightInstructionSecond<'info, 0>>::new(input);
+        let mut tx =
+            Transaction::<0, 1, 10, 17, LightInstructionSecond<'info, 0, 1, 10>>::new(input);
         tx.transact()
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
     pub fn close_verifier_state<'info>(
-        _ctx: Context<'_, '_, '_, 'info, CloseVerifierState<'info, 0>>,
+        _ctx: Context<'_, '_, '_, 'info, CloseVerifierState<'info, 0, 1, 10>>,
     ) -> Result<()> {
         Ok(())
     }
@@ -145,7 +146,12 @@ pub mod light_psp10in2out {
 
 /// Send and stores data.
 #[derive(Accounts)]
-pub struct LightInstructionFirst<'info, const NR_CHECKED_INPUTS: usize> {
+pub struct LightInstructionFirst<
+    'info,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_LEAVES: usize,
+    const NR_NULLIFIERS: usize,
+> {
     /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
@@ -157,10 +163,13 @@ pub struct LightInstructionFirst<'info, const NR_CHECKED_INPUTS: usize> {
             VERIFIER_STATE_SEED
         ],
         bump,
-        space = 3000 /*8 + 32 * 6 + 10 * 32 + 2 * 32 + 512 + 16 + 128*/,
+        space = VerifierState10Ins::<NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, TransactionConfig>::LEN,
         payer = signing_address
     )]
-    pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionConfig>>,
+    pub verifier_state: Account<
+        'info,
+        VerifierState10Ins<NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, TransactionConfig>,
+    >,
 }
 
 #[derive(Debug)]
@@ -182,7 +191,12 @@ pub struct InstructionDataShieldedTransferFirst {
     signing_address=verifier_state.signer
 )]
 #[derive(Accounts)]
-pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
+pub struct LightInstructionSecond<
+    'info,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_LEAVES: usize,
+    const NR_NULLIFIERS: usize,
+> {
     #[account(
         mut,
         seeds = [
@@ -192,7 +206,10 @@ pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
         bump,
         close=signing_address
     )]
-    pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionConfig>>,
+    pub verifier_state: Account<
+        'info,
+        VerifierState10Ins<NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, TransactionConfig>,
+    >,
 }
 
 #[derive(Debug)]
@@ -204,9 +221,17 @@ pub struct InstructionDataShieldedTransferSecond {
 }
 
 #[derive(Accounts)]
-pub struct CloseVerifierState<'info, const NR_CHECKED_INPUTS: usize> {
+pub struct CloseVerifierState<
+    'info,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_LEAVES: usize,
+    const NR_NULLIFIERS: usize,
+> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierState10Ins<NR_CHECKED_INPUTS, TransactionConfig>>,
+    pub verifier_state: Account<
+        'info,
+        VerifierState10Ins<NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, TransactionConfig>,
+    >,
 }

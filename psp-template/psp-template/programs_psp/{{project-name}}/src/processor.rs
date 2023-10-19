@@ -16,8 +16,22 @@ impl Config for TransactionsConfig {
     const ID: Pubkey = pubkey!("{{program-id}}");
 }
 
-pub fn cpi_system_verifier<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
+pub fn cpi_system_verifier<
+    'a,
+    'b,
+    'c,
+    'info,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_LEAVES: usize,
+    const NR_NULLIFIERS: usize,
+>(
+    ctx: &'a Context<
+        'a,
+        'b,
+        'c,
+        'info,
+        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
+    >,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let proof_verifier = Proof {
@@ -80,8 +94,22 @@ pub fn cpi_system_verifier<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
     )
 }
 
-pub fn verify_program_proof<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
+pub fn verify_program_proof<
+    'a,
+    'b,
+    'c,
+    'info,
+    const NR_CHECKED_INPUTS: usize,
+    const NR_LEAVES: usize,
+    const NR_NULLIFIERS: usize,
+>(
+    ctx: &'a Context<
+        'a,
+        'b,
+        'c,
+        'info,
+        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
+    >,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let proof_app = Proof {

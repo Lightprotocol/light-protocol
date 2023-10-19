@@ -30,7 +30,13 @@ pub mod {{rust-name}} {
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn light_instruction_first<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }>>,
+        ctx: Context<
+            'a,
+            'b,
+            'c,
+            'info,
+            LightInstructionFirst<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }, 4, 4>,
+        >,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs_des: InstructionDataLightInstructionFirst =
@@ -72,7 +78,13 @@ pub mod {{rust-name}} {
     }
 
     pub fn light_instruction_second<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }>>,
+        ctx: Context<
+            'a,
+            'b,
+            'c,
+            'info,
+            LightInstructionSecond<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }, 4, 4>
+        >,
         inputs: Vec<u8>,
     ) -> Result<()> {
         inputs.chunks(32).enumerate().for_each(|(i, input)| {
@@ -87,7 +99,13 @@ pub mod {{rust-name}} {
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
     pub fn light_instruction_third<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }>>,
+        ctx: Context<
+            'a,
+            'b,
+            'c,
+            'info,
+            LightInstructionThird<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }, 4, 4>,
+        >,
         inputs: Vec<u8>,
     ) -> Result<()> {
         msg!(
@@ -100,7 +118,13 @@ pub mod {{rust-name}} {
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
     pub fn close_verifier_state<'a, 'b, 'c, 'info>(
-        _ctx: Context<'a, 'b, 'c, 'info, CloseVerifierState<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }>>,
+        _ctx: Context<
+            'a,
+            'b,
+            'c,
+            'info,
+            CloseVerifierState<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }, 4, 4>,
+        >,
     ) -> Result<()> {
         Ok(())
     }

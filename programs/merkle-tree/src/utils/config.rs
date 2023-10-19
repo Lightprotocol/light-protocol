@@ -3,9 +3,6 @@ use anchor_lang::constant;
 #[constant]
 pub const ENCRYPTED_UTXOS_LENGTH: usize = 174;
 #[constant]
-pub const MERKLE_TREE_TMP_PDA_SIZE: usize = 2048;
-
-#[constant]
 pub const MERKLE_TREE_HISTORY_SIZE: u64 = 256;
 
 #[constant]
