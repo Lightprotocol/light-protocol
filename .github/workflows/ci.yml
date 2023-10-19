@@ -74,4 +74,13 @@ jobs:
         run: source ./scripts/devenv.sh && ./scripts/lint.sh
         
       - run: npx nx affected -t build --parallel=3
+
+      - name: Set start time
+        run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
+
       - run: npx nx affected -t test --parallel=3
+
+      - name: Finish date
+        if: always()
+        run: |
+          echo "github_ci_tests_execution_time $(expr $(date +%s) - ${START_TIME})" | curl --data-binary @- ${{ secrets.PUSHGATEWAY_URL }}/metrics/job/github_ci_tests
