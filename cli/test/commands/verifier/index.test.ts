@@ -9,7 +9,7 @@ import {
 
 describe("Without preloaded accounts", () => {
   before(async () => {
-    await initTestEnv({ skip_system_accounts: true });
+    await initTestEnv({ skipSystemAccounts: true });
   });
   after(async () => {
     await killTestValidator();

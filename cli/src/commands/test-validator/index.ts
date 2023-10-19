@@ -44,7 +44,7 @@ class SetupCommand extends Command {
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
     await initTestEnv({
-      skip_system_accounts: flags.skip_system_accounts,
+      skipSystemAccounts: flags.skip_system_accounts,
       background: flags.background,
     });
 
