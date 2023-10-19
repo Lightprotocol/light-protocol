@@ -1,0 +1,37 @@
+{
+  "name": "web-wallet",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@chakra-ui/icons": "^2.1.1",
+    "@chakra-ui/next-js": "^2.1.5",
+    "@chakra-ui/react": "^2.8.1",
+    "@coral-xyz/anchor": "0.28.1-beta.2",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@lightprotocol/zk.js": "workspace:*",
+    "@tanstack/react-query": "^4.35.7",
+    "framer-motion": "^10.16.4",
+    "jotai": "^2.4.3",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@chakra-ui/storybook-addon": "^5.0.1",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/styled-jsx": "^3.4.4",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "styled-jsx": "^5.1.2",
+    "typescript": "latest"
+  }
+}
