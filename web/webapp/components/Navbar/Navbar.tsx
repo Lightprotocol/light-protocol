@@ -1,24 +1,7 @@
 "use client";
 import React, { useCallback, useState } from "react";
-import {
-  Box,
-  Image,
-  ModalOverlay,
-  Switch,
-  useDisclosure,
-} from "@chakra-ui/react";
+
 import { sleep } from "@lightprotocol/zk.js";
-import { useTransactions } from "@/state/hooks/useTransactions";
-
-import { FormControl, FormLabel, Input, Select } from "@chakra-ui/react";
-
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-} from "@chakra-ui/react";
 
 const Button = ({
   primary,
