@@ -64,7 +64,7 @@ jobs:
               npx nx test-build-light-circuits $subtest
             fi
           done
-
-      - name: Run Relayer Docker build test
-        if: matrix.test.name == 'circuit-tests'
-        run: ./scripts/testDockerRelayer.sh
+          
+          if [[ "${{ matrix.test.name }}" == "circuit-tests" ]]; then
+            ./scripts/testDockerRelayer.sh
+          fi
