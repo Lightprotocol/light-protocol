@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Cache .local directory
-        uses: buildjet/cache@v3
+        uses: actions/cache@v3
         with:
           path: .local
           key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
