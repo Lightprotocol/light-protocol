@@ -24,7 +24,6 @@ generate_temp_package_json() {
 }
 
 
-
 cd ./circuit-lib/circuit-lib.js && pnpm pack
 circuit_lib_tgz=$(ls *.tgz)
 cd ../../prover.js && pnpm pack
@@ -58,11 +57,6 @@ cleanup() {
     rm -rf $(dirname $0)/../zk.js/package-lock.json
     rm -rf $(dirname $0)/../relayer/package-lock.json
     rm -f $(dirname $0)/../pnpm-lock.yaml
-
-
-    echo "Rebuilding workspace..."
-    bash $(dirname $0)/build.sh
-
 }
 
 trap cleanup EXIT
