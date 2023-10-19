@@ -4,8 +4,8 @@ import { MantineProvider, ColorSchemeScript } from "@mantine/core";
 import { theme } from "../styles/theme";
 
 export const metadata = {
-  title: "Mantine Next.js template",
-  description: "I am using Mantine with Next.js!",
+  title: "Light UI",
+  description: "a web wallet for Solana's ZK layer",
 };
 
 export default function RootLayout({ children }: { children: any }) {

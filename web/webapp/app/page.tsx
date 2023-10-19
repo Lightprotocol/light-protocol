@@ -14,7 +14,7 @@ export default function Shell() {
       <AppShell.Header>
         <Group h="100%" px="md">
           <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-          Logo
+          Light Logo
         </Group>
       </AppShell.Header>
       <AppShell.Navbar p="md">
