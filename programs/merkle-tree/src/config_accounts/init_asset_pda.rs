@@ -1,3 +1,4 @@
+use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
@@ -9,6 +10,7 @@ use crate::{
 /// Nullfier pdas are derived from the nullifier
 /// existence of a nullifier is the check to prevent double spends.
 #[account]
+#[aligned_sized(anchor)]
 pub struct RegisteredAssetPool {
     pub asset_pool_pubkey: Pubkey,
     pub pool_type: [u8; 32],
@@ -17,6 +19,7 @@ pub struct RegisteredAssetPool {
 
 /// Pool type
 #[account]
+#[aligned_sized(anchor)]
 pub struct RegisteredPoolType {
     pub pool_type: [u8; 32],
 }
@@ -29,7 +32,7 @@ pub struct RegisterPoolType<'info> {
         payer = authority,
         seeds = [&pool_type, POOL_TYPE_SEED],
         bump,
-        space = 8 + 32
+        space = RegisteredPoolType::LEN,
     )]
     pub registered_pool_type_pda: Account<'info, RegisteredPoolType>,
     /// CHECK:` Signer is checked according to authority pda in instruction
@@ -48,7 +51,7 @@ pub struct RegisterSplPool<'info> {
         payer = authority,
         seeds = [&mint.key().to_bytes(), &registered_pool_type_pda.pool_type, POOL_CONFIG_SEED],
         bump,
-        space = 8 + 32 + 32 + 8
+        space = RegisteredAssetPool::LEN,
     )]
     pub registered_asset_pool_pda: Account<'info, RegisteredAssetPool>,
     #[account(init,
@@ -92,7 +95,7 @@ pub struct RegisterSolPool<'info> {
         payer = authority,
         seeds = [&[0u8;32], &registered_pool_type_pda.pool_type, POOL_CONFIG_SEED],
         bump,
-        space = 8 + 32 + 32 + 8
+        space = RegisteredAssetPool::LEN,
     )]
     pub registered_asset_pool_pda: Account<'info, RegisteredAssetPool>,
     /// CHECK:` Signer is checked according to authority pda in instruction

@@ -13,10 +13,14 @@
 /**/.DS_store
 /cli/bin
 
+# Yarn
 **/.yarn
 **/.pnpm
 **/.node_modules
 **/.pnpm-lock.yaml
+
+# Rust
+**/target/
 
 # relayer
 /relayer/node_modules/

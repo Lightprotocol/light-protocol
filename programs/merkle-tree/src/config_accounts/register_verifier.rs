@@ -1,9 +1,11 @@
+use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 
 use crate::{errors::ErrorCode, MerkleTreeAuthority};
 
 ///
 #[account]
+#[aligned_sized(anchor)]
 pub struct RegisteredVerifier {
     pub pubkey: Pubkey,
 }
@@ -16,7 +18,7 @@ pub struct RegisterVerifier<'info> {
         payer = authority,
         seeds = [&verifier_pubkey.to_bytes()],
         bump,
-        space = 8 + 32
+        space = RegisteredVerifier::LEN,
     )]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     /// CHECK:` Signer is checked according to authority pda in instruction

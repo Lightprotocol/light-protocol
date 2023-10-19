@@ -1,5 +1,6 @@
 use std::cell::RefMut;
 
+use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_merkle_tree::{
@@ -20,6 +21,7 @@ impl MerkleTreeConfig for EventMerkleTreeConfig {
 }
 
 #[account(zero_copy)]
+#[aligned_sized(anchor)]
 pub struct EventMerkleTree {
     pub merkle_tree_nr: u64,
     pub newest: u8,

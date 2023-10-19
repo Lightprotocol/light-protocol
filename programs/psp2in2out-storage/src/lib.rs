@@ -1,3 +1,4 @@
+use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_macros::light_verifier_accounts;
 use light_verifier_sdk::light_transaction::{
@@ -14,8 +15,6 @@ pub const PROGRAM_ID: &str = "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj";
 
 /// Size of the transaction message (per one method call).
 pub const MESSAGE_PER_CALL_SIZE: usize = 1024;
-/// Initial size of the verifier state account (message + discriminator).
-pub const VERIFIER_STATE_INITIAL_SIZE: usize = MESSAGE_PER_CALL_SIZE + 8;
 /// Maximum size of the transaction message to which we can reallocate.
 pub const MESSAGE_MAX_SIZE: usize = 2048;
 /// Maximum size of the verifier state account to which we can reallocate
@@ -119,7 +118,9 @@ pub mod light_psp2in2out_storage {
 }
 
 #[account]
+#[aligned_sized(anchor)]
 pub struct VerifierState {
+    #[size = MESSAGE_PER_CALL_SIZE]
     pub msg: Vec<u8>,
 }
 
@@ -132,7 +133,7 @@ pub struct LightInstructionFirst<'info> {
         init_if_needed,
         seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED],
         bump,
-        space = VERIFIER_STATE_INITIAL_SIZE,
+        space = VerifierState::LEN,
         payer = signing_address
     )]
     pub verifier_state: Account<'info, VerifierState>,

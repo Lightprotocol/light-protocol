@@ -102,6 +102,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
 
 [[package]]
+name = "aligned-sized"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2 1.0.68",
+ "quote 1.0.33",
+ "syn 2.0.38",
+]
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2444,6 +2453,7 @@ dependencies = [
 name = "light-merkle-tree-program"
 version = "0.3.0"
 dependencies = [
+ "aligned-sized",
  "anchor-lang",
  "anchor-spl",
  "ark-bn254 0.3.0",
@@ -2501,6 +2511,7 @@ dependencies = [
 name = "light-psp2in2out-storage"
 version = "0.3.0"
 dependencies = [
+ "aligned-sized",
  "anchor-lang",
  "anchor-spl",
  "groth16-solana",
@@ -2526,6 +2537,7 @@ dependencies = [
 name = "light-user-registry"
 version = "0.3.0"
 dependencies = [
+ "aligned-sized",
  "anchor-lang",
  "bytemuck",
 ]
@@ -2534,6 +2546,7 @@ dependencies = [
 name = "light-verifier-sdk"
 version = "0.3.0"
 dependencies = [
+ "aligned-sized",
  "anchor-lang",
  "anchor-spl",
  "ark-bn254 0.3.0",

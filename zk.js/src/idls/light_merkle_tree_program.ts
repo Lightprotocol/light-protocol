@@ -10,13 +10,6 @@ export type LightMerkleTreeProgram = {
       "value": "174"
     },
     {
-      "name": "MERKLE_TREE_TMP_PDA_SIZE",
-      "type": {
-        "defined": "usize"
-      },
-      "value": "2048"
-    },
-    {
       "name": "MERKLE_TREE_HISTORY_SIZE",
       "type": "u64",
       "value": "256"
@@ -1508,13 +1501,6 @@ export const IDL: LightMerkleTreeProgram = {
         "defined": "usize"
       },
       "value": "174"
-    },
-    {
-      "name": "MERKLE_TREE_TMP_PDA_SIZE",
-      "type": {
-        "defined": "usize"
-      },
-      "value": "2048"
     },
     {
       "name": "MERKLE_TREE_HISTORY_SIZE",

@@ -1,8 +1,10 @@
+use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 
 use crate::utils::config::MERKLE_TREE_HEIGHT;
 
 #[account(zero_copy)]
+#[aligned_sized(anchor)]
 #[derive(Debug)]
 #[repr(C)]
 pub struct MerkleTreeUpdateState {

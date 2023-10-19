@@ -1,3 +1,4 @@
+use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 
 declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
@@ -23,6 +24,7 @@ pub mod user_registry {
 }
 
 #[account]
+#[aligned_sized(anchor)]
 pub struct UserEntry {
     pub solana_pubkey: [u8; 32],
     pub light_pubkey: [u8; 32],
@@ -36,7 +38,7 @@ pub struct InitializeUserEntry<'info> {
     pub system_program: Program<'info, System>,
     #[account(
         init,
-        space = 8 + 32 + 32 + 32,
+        space = UserEntry::LEN,
         seeds = [USER_ENTRY_SEED, signer.key().to_bytes().as_ref()],
         bump,
         payer = signer,

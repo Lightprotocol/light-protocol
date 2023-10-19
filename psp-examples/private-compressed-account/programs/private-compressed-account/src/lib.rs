@@ -34,7 +34,12 @@ pub mod private_compressed_account {
             'b,
             'c,
             'info,
-            LightInstructionFirst<'info, { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs }>,
+            LightInstructionFirst<
+                'info,
+                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },
+                4,
+                4,
+            >,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
@@ -84,7 +89,12 @@ pub mod private_compressed_account {
             'b,
             'c,
             'info,
-            LightInstructionSecond<'info, { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs }>,
+            LightInstructionSecond<
+                'info,
+                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },
+                4,
+                4,
+            >,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
@@ -105,7 +115,12 @@ pub mod private_compressed_account {
             'b,
             'c,
             'info,
-            LightInstructionThird<'info, { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs }>,
+            LightInstructionThird<
+                'info,
+                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },
+                4,
+                4,
+            >,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
@@ -150,7 +165,12 @@ pub mod private_compressed_account {
             'b,
             'c,
             'info,
-            CloseVerifierState<'info, { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs }>,
+            CloseVerifierState<
+                'info,
+                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },
+                4,
+                4,
+            >,
         >,
     ) -> Result<()> {
         Ok(())

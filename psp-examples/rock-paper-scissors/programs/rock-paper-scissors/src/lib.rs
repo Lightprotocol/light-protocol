@@ -1,7 +1,7 @@
-use std::marker::PhantomData;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::hash::hash;
 use light_verifier_sdk::state::VerifierState10Ins;
+use std::marker::PhantomData;
 pub mod psp_accounts;
 pub use psp_accounts::*;
 pub mod auto_generated_accounts;
@@ -26,7 +26,13 @@ pub mod rock_paper_scissors {
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn light_instruction_first<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs } >>,
+        ctx: Context<
+            'a,
+            'b,
+            'c,
+            'info,
+            LightInstructionFirst<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }, 4, 4>,
+        >,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs_des: InstructionDataLightInstructionFirst =
@@ -37,7 +43,8 @@ pub mod rock_paper_scissors {
         let mut program_id_hash = hash(&ctx.program_id.to_bytes()).to_bytes();
         program_id_hash[0] = 0;
 
-        let mut checked_public_inputs: [[u8; 32]; VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs] = [[0u8; 32]; VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs];
+        let mut checked_public_inputs: [[u8; 32]; VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs] =
+            [[0u8; 32]; VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs];
         checked_public_inputs[0] = program_id_hash;
         checked_public_inputs[1] = inputs_des.transaction_hash;
 
@@ -68,7 +75,13 @@ pub mod rock_paper_scissors {
     }
 
     pub fn light_instruction_second<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }>>,
+        ctx: Context<
+            'a,
+            'b,
+            'c,
+            'info,
+            LightInstructionSecond<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }, 4, 4>,
+        >,
         inputs: Vec<u8>,
     ) -> Result<()> {
         inputs.chunks(32).enumerate().for_each(|(i, input)| {
@@ -83,7 +96,13 @@ pub mod rock_paper_scissors {
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
     pub fn light_instruction_third<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }>>,
+        ctx: Context<
+            'a,
+            'b,
+            'c,
+            'info,
+            LightInstructionThird<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }, 4, 4>,
+        >,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let mut reversed_public_inputs = ctx.accounts.verifier_state.checked_public_inputs[2];
@@ -148,7 +167,13 @@ pub mod rock_paper_scissors {
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
     pub fn close_verifier_state<'a, 'b, 'c, 'info>(
-        _ctx: Context<'a, 'b, 'c, 'info, CloseVerifierState<'info,  { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }>>,
+        _ctx: Context<
+            'a,
+            'b,
+            'c,
+            'info,
+            CloseVerifierState<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }, 4, 4>,
+        >,
     ) -> Result<()> {
         Ok(())
     }

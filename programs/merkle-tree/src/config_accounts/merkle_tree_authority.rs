@@ -1,3 +1,4 @@
+use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 
 use crate::{
@@ -17,6 +18,7 @@ use crate::{
 /// - set permissions for new asset pool creation
 /// - keeps current highest index for assets and merkle trees to enable lookups of these
 #[account]
+#[aligned_sized(anchor)]
 pub struct MerkleTreeAuthority {
     pub pubkey: Pubkey,
     pub transaction_merkle_tree_index: u64,
@@ -33,7 +35,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
         payer = authority,
         seeds = [MERKLE_TREE_AUTHORITY_SEED],
         bump,
-        space = 8 + 32 + 8 + 8 + 8 + 8
+        space = MerkleTreeAuthority::LEN,
     )]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     #[account(
@@ -44,7 +46,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
         ],
         bump,
         payer = authority,
-        space = 8880
+        space = TransactionMerkleTree::LEN,
     )]
     pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     #[account(
@@ -55,12 +57,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
         ],
         bump,
         payer=authority,
-        // discriminator + height (u64) + filled subtrees ([[u8; 32]; 18]) +
-        // roots ([[u8; 32]; 20]) + next_index (u64) + current_root_index (u64)
-        // + hash_function (enum) + merkle_tree_nr (u64) + newest (u8) +
-        // padding (7 * u8)
-        // 8 + 8 + 18 * 32 + 20 * 32 + 8 + 8 + 8 + 8 + 8 + 1 + 7 = 1280
-        space = 1280,
+        space = EventMerkleTree::LEN,
     )]
     pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
     /// CHECK:` Signer is merkle tree init authority.
