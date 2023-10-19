@@ -61,7 +61,7 @@ cleanup() {
 
 
     echo "Rebuilding workspace..."
-    # bash $(dirname $0)/build.sh
+    bash $(dirname $0)/build.sh
 
 }
 
