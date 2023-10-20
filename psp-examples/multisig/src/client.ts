@@ -212,8 +212,6 @@ export class MultiSigClient {
         appDataIdl: IDL,
         verifierAddress: verifierProgramId,
         assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          this.provider.lookUpTables.verifierProgramLookupTable,
       });
     } else if (solAmount) {
       return new Utxo({
@@ -225,8 +223,6 @@ export class MultiSigClient {
         appDataIdl: IDL,
         verifierAddress: verifierProgramId,
         assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          this.provider.lookUpTables.verifierProgramLookupTable,
       });
     } else {
       throw new Error("Provided invalid params to create multisig createUtxo");

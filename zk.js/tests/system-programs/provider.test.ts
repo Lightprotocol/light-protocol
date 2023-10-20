@@ -130,14 +130,10 @@ describe("verifier_program", () => {
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: KEYPAIR.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     const shieldUtxo2 = new Utxo({
       poseidon: POSEIDON,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: KEYPAIR.pubkey,
     });
 

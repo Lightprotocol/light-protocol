@@ -121,8 +121,6 @@ describe("Verifier Zero and One Tests", () => {
         amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
         publicKey: ACCOUNT.pubkey,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
       const txParams = new TransactionParameters({
@@ -165,8 +163,6 @@ describe("Verifier Zero and One Tests", () => {
         amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
         publicKey: ACCOUNT.pubkey,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
       const txParams1 = new TransactionParameters({

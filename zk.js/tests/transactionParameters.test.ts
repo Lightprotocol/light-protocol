@@ -69,8 +69,6 @@ describe("Transaction Parameters Functional", () => {
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -87,8 +85,6 @@ describe("Transaction Parameters Functional", () => {
       ],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const j = 0;
@@ -117,8 +113,6 @@ describe("Transaction Parameters Functional", () => {
       bytes,
       verifierIdl: VERIFIER_IDLS[j],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     assert.equal(params.action.toString(), Action.TRANSFER.toString());
     assert.equal(params.publicAmountSpl.toString(), "0");
@@ -216,8 +210,6 @@ describe("Transaction Parameters Functional", () => {
       ],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (const j in VERIFIER_IDLS) {
@@ -532,15 +524,11 @@ describe("Test TransactionParameters Methods", () => {
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
         publicKey: account.pubkey,
       }),
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
         publicKey: account.pubkey,
       }),
     ];
@@ -550,15 +538,11 @@ describe("Test TransactionParameters Methods", () => {
         amounts: [BN_2, new BN(4)],
         assets: [SystemProgram.programId, MINT],
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
         publicKey: new Account({ poseidon }).pubkey,
       }),
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
         publicKey: new Account({ poseidon }).pubkey,
       }),
     ];
@@ -592,15 +576,11 @@ describe("Test TransactionParameters Methods", () => {
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
         publicKey: new Account({ poseidon }).pubkey,
       }),
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
         publicKey: new Account({ poseidon }).pubkey,
       }),
     ];
@@ -610,15 +590,11 @@ describe("Test TransactionParameters Methods", () => {
         amounts: [BN_2, new BN(4)],
         assets: [SystemProgram.programId, MINT],
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
         publicKey: new Account({ poseidon }).pubkey,
       }),
       new Utxo({
         poseidon,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
         publicKey: new Account({ poseidon }).pubkey,
       }),
     ];
@@ -648,8 +624,6 @@ describe("Test TransactionParameters Methods", () => {
       amounts: [new BN(3), new BN(5)],
       assets: [SystemProgram.programId, MINT],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: new Account({ poseidon }).pubkey,
     });
     const publicAmountSpl2Outputs = TransactionParameters.getExternalAmount(
@@ -692,8 +666,6 @@ describe("Test General TransactionParameters Errors", () => {
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -806,8 +778,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     outputUtxo = new Utxo({
@@ -819,8 +789,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
       ],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -853,8 +821,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
       amounts: [new BN(shieldFeeAmount).sub(relayer.getRelayerFee()), BN_0],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (const verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -885,8 +851,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
       amounts: [BN_0, new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (const verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -1030,8 +994,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -1110,8 +1072,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
       amounts: [new BN("18446744073709551615"), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     const utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
@@ -1119,8 +1079,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
       amounts: [new BN("18446744073709551615"), BN_0],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (const verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -1151,8 +1109,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
       amounts: [BN_0, new BN("18446744073709551615")],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const utxo_spl_amount_no_u642 = new Utxo({
@@ -1161,8 +1117,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
       amounts: [BN_0, new BN("1")],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (const verifier in VERIFIER_IDLS) {
@@ -1242,8 +1196,6 @@ describe("Test TransactionParameters Deposit Errors", () => {
       amounts: [new BN("18446744073709551615"), BN_0],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (const verifier in VERIFIER_IDLS) {
       // senderSpl fee always needs to be defined because we use it as the signer
@@ -1334,8 +1286,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -1393,8 +1343,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       amounts: [new BN("18446744073709551615"), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const utxo_sol_amount_no_u642 = new Utxo({
@@ -1403,8 +1351,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       amounts: [new BN("18446744073709551615"), BN_0],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (const verifier in VERIFIER_IDLS) {
@@ -1437,8 +1383,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       amounts: [BN_0, new BN("18446744073709551615")],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const utxo_spl_amount_no_u642 = new Utxo({
@@ -1447,8 +1391,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       amounts: [BN_0, new BN("1")],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     for (const verifier in VERIFIER_IDLS) {
       expect(() => {
@@ -1530,8 +1472,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       amounts: [new BN("18446744073709551615"), BN_0],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (const verifier in VERIFIER_IDLS) {
@@ -1557,8 +1497,6 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       amounts: [BN_0, new BN("18446744073709551615")],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     for (const verifier in VERIFIER_IDLS) {
