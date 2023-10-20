@@ -211,8 +211,6 @@ export class User {
           merkleTreePdaPublicKey,
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         });
         await decryptAddUtxoToBalance({
@@ -231,8 +229,6 @@ export class User {
           merkleTreePdaPublicKey,
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         });
       }
@@ -454,8 +450,6 @@ export class User {
           includeAppData: appUtxo?.includeAppData,
           appData: appUtxo?.appData,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
         }),
       );
       utxos = [];
@@ -1370,8 +1364,6 @@ export class User {
           encryptionPublicKey: recipientAccount
             ? recipientAccount.encryptionKeypair.publicKey
             : undefined,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         });
       } else if (stringUtxo) {
@@ -1379,7 +1371,6 @@ export class User {
           stringUtxo,
           this.provider.poseidon,
           this.provider.lookUpTables.assetLookupTable,
-          this.provider.lookUpTables.verifierProgramLookupTable,
         );
       } else {
         throw new UserError(
@@ -1562,7 +1553,6 @@ export class User {
     const decryptIndexStorage = async (
       indexedTransactions: ParsedIndexedTransaction[],
       assetLookupTable: string[],
-      verifierProgramLookupTable: string[],
     ) => {
       const decryptedStorageUtxos: Utxo[] = [];
       const spentUtxos: Utxo[] = [];
@@ -1581,7 +1571,6 @@ export class User {
               commitment: Uint8Array.from(leaf),
               merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
               compressed: false,
-              verifierProgramLookupTable,
               assetLookupTable,
             });
             if (decryptedUtxo.value) {
@@ -1620,7 +1609,6 @@ export class User {
     const { decryptedStorageUtxos, spentUtxos } = await decryptIndexStorage(
       indexedStorageVerifierTransactionsFiltered,
       this.provider.lookUpTables.assetLookupTable,
-      this.provider.lookUpTables.verifierProgramLookupTable,
     );
 
     for (const utxo of decryptedStorageUtxos) {

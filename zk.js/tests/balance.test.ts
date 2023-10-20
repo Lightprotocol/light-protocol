@@ -48,8 +48,6 @@ describe("Utxo Functional", () => {
       publicKey: keypair.pubkey,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -134,8 +132,6 @@ describe("Utxo Functional", () => {
           publicKey: account.pubkey,
           index: index,
           assetLookupTable: provider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            provider.lookUpTables.verifierProgramLookupTable,
           blinding: new BN(1),
         });
         utxos.push(utxo);
@@ -180,7 +176,6 @@ describe("Utxo Functional", () => {
             aes: true,
             merkleTreePdaPublicKey:
               MerkleTreeConfig.getTransactionMerkleTreePda(),
-            verifierProgramLookupTable,
             assetLookupTable,
           });
           assert(decryptedUtxo.error === null, "Can't decrypt utxo");
@@ -206,7 +201,6 @@ describe("Utxo Functional", () => {
             aes: true,
             merkleTreePdaPublicKey:
               MerkleTreeConfig.getTransactionMerkleTreePda(),
-            verifierProgramLookupTable,
             assetLookupTable,
           });
           assert(decryptedUtxo.error === null, "Can't decrypt utxo");

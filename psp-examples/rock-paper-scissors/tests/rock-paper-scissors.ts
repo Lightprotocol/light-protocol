@@ -116,8 +116,6 @@ class Game {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     let seed = gameParameters.gameCommitmentHash.toArray("le", 32);
@@ -161,8 +159,6 @@ class Game {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     let seed = gameCommitmentHash.toArray("le", 32);
@@ -419,8 +415,6 @@ class Player {
         "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
       ),
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.user.provider.lookUpTables.verifierProgramLookupTable,
       blinding: gamePdaAccountInfo.game.playerTwoProgramUtxo.blinding,
     });
     Utxo.equal(
@@ -474,8 +468,6 @@ class Player {
       publicKey: this.user.account.pubkey,
       amounts: [amounts[0]],
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.user.provider.lookUpTables.verifierProgramLookupTable,
     });
     const player2OutUtxo = new Utxo({
       poseidon: this.user.provider.poseidon,
@@ -486,8 +478,6 @@ class Player {
       ),
       amounts: [amounts[1]],
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.user.provider.lookUpTables.verifierProgramLookupTable,
       blinding: gameParametersPlayer2.userPubkey
         .add(gameParametersPlayer2.userPubkey)
         .mod(FIELD_SIZE),

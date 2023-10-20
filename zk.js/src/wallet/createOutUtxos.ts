@@ -95,7 +95,6 @@ export function createOutUtxos({
   appUtxo,
   numberMaxOutUtxos,
   assetLookupTable,
-  verifierProgramLookupTable,
   separateSolUtxo = false,
 }: {
   inUtxos?: Utxo[];
@@ -319,7 +318,6 @@ export function createOutUtxos({
       includeAppData: appUtxo?.includeAppData,
       verifierAddress: appUtxo?.verifierAddress,
       assetLookupTable,
-      verifierProgramLookupTable,
     });
     outputUtxos.push(solChangeUtxo);
   }
@@ -349,7 +347,6 @@ export function createOutUtxos({
       includeAppData: appUtxo?.includeAppData,
       verifierAddress: appUtxo?.verifierAddress,
       assetLookupTable,
-      verifierProgramLookupTable,
     });
 
     outputUtxos.push(changeUtxo);
@@ -378,7 +375,6 @@ export function createRecipientUtxos({
   recipients,
   poseidon,
   assetLookupTable,
-  verifierProgramLookupTable,
 }: {
   recipients: Recipient[];
   poseidon: any;
@@ -414,7 +410,6 @@ export function createRecipientUtxos({
       appDataHash: recipients[j].appUtxo?.appDataHash,
       verifierAddress: recipients[j].appUtxo?.verifierAddress,
       assetLookupTable,
-      verifierProgramLookupTable,
     });
 
     outputUtxos.push(recipientUtxo);

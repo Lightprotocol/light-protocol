@@ -8,6 +8,7 @@ import {
   Action,
   TransactionParameters,
   IDL_LIGHT_PSP2IN2OUT,
+  lightPsp2in2outId,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
@@ -32,8 +33,7 @@ export async function functionalCircuitTest(
     amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
     publicKey: account.pubkey,
     assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-    verifierProgramLookupTable:
-      lightProvider.lookUpTables.verifierProgramLookupTable,
+    verifierAddress: lightPsp2in2outId,
   });
   const mockPubkey = SolanaKeypair.generate().publicKey;
 

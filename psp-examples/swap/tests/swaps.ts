@@ -105,8 +105,6 @@ class Swap {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     let seed = swapParameters.swapMakerCommitmentHash.toArray("le", 32);
@@ -150,8 +148,6 @@ class Swap {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     let seed = swapCommitmentHash.toArray("le", 32);
@@ -362,8 +358,6 @@ class Participant {
         "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
       ),
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.user.provider.lookUpTables.verifierProgramLookupTable,
       blinding: swapPdaAccountInfo.swap.swapTakerProgramUtxo.blinding,
     });
     Utxo.equal(
@@ -414,8 +408,6 @@ class Participant {
       publicKey: this.user.account.pubkey,
       amounts: [this.swap.swapParameters.amountTo],
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.user.provider.lookUpTables.verifierProgramLookupTable,
     });
     const takerOutUtxo = new Utxo({
       poseidon: this.user.provider.poseidon,
@@ -426,8 +418,6 @@ class Participant {
       ),
       amounts: [this.swap.swapParameters.amountFrom],
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.user.provider.lookUpTables.verifierProgramLookupTable,
       blinding: swapTakeParameters.userPubkey
         .add(swapTakeParameters.userPubkey)
         .mod(FIELD_SIZE),

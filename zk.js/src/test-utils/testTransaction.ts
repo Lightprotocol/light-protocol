@@ -314,8 +314,6 @@ export class TestTransaction {
               ? Buffer.from(leavesAccountData.nodeLeft)
               : Buffer.from(leavesAccountData.nodeRight),
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
         });
         if (decryptedUtxo1.value) {
           Utxo.equal(

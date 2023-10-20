@@ -55,12 +55,7 @@ describe("Utxo Functional", () => {
         publicKey: utxo4Account.pubkey,
         appDataHash: new BN(lightPsp4in4outAppStorageId.toBuffer()),
         includeAppData: false,
-        verifierAddress: new PublicKey(
-          lightProvider.lookUpTables.verifierProgramLookupTable[1],
-        ),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
       // toBytesProvider
@@ -72,8 +67,6 @@ describe("Utxo Functional", () => {
         bytes: bytes4,
         index: 0,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
       Utxo.equal(poseidon, utxo4, utxo40);
 
@@ -87,8 +80,6 @@ describe("Utxo Functional", () => {
         bytes: bytes4Compressed,
         index: 0,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
       Utxo.equal(poseidon, utxo4, utxo40Compressed);
 
@@ -119,8 +110,6 @@ describe("Utxo Functional", () => {
           32,
         ),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
       if (utxo41.value) {
@@ -139,8 +128,6 @@ describe("Utxo Functional", () => {
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         commitment: new BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
 
       if (utxo41u.value !== null) {
@@ -176,15 +163,12 @@ describe("Utxo Functional", () => {
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     const string = await utxo0.toString();
     const utxo1 = Utxo.fromString(
       string,
       poseidon,
       lightProvider.lookUpTables.assetLookupTable,
-      lightProvider.lookUpTables.verifierProgramLookupTable,
     );
     // cannot compute nullifier in utxo1 because no privkey is serialized with toString()
     Utxo.equal(poseidon, utxo0, utxo1, true);
@@ -214,8 +198,6 @@ describe("Utxo Functional", () => {
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     // functional
@@ -260,8 +242,6 @@ describe("Utxo Functional", () => {
       bytes,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     Utxo.equal(poseidon, utxo0, utxo1);
 
@@ -286,8 +266,6 @@ describe("Utxo Functional", () => {
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     if (utxo3.value) {
       Utxo.equal(poseidon, utxo0, utxo3.value);
@@ -307,8 +285,6 @@ describe("Utxo Functional", () => {
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     // encrypt
@@ -331,8 +307,6 @@ describe("Utxo Functional", () => {
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     if (receivingUtxo1Unchecked.value !== null) {
       Utxo.equal(poseidon, receivingUtxo, receivingUtxo1Unchecked.value, true);
@@ -350,8 +324,6 @@ describe("Utxo Functional", () => {
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     // encrypt
@@ -373,8 +345,6 @@ describe("Utxo Functional", () => {
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     if (receivingUtxo1NoAes.error) {
       throw new Error("decrypt checked failed " + receivingUtxo1NoAes.error);
@@ -400,8 +370,6 @@ describe("Utxo Functional", () => {
       verifierAddress: verifierProgramId,
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     const bytes = await outputUtxo.toBytes();
 
@@ -412,10 +380,12 @@ describe("Utxo Functional", () => {
       account,
       appDataIdl: TEST_PSP_IDL,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     Utxo.equal(poseidon, outputUtxo, utxo1);
+    assert.equal(
+      utxo1.verifierAddress.toBase58(),
+      "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+    );
   });
   it("Pick app data from utxo data", () => {
     const data = createAccountObject(
@@ -474,8 +444,6 @@ describe("Utxo Errors", () => {
       amounts: [BN_1],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     expect(() => {
@@ -498,8 +466,6 @@ describe("Utxo Errors", () => {
       publicKey: account.pubkey,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     expect(() => {
@@ -522,8 +488,6 @@ describe("Utxo Errors", () => {
         publicKey: inputs.keypair.pubkey,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
     })
       .to.throw(UtxoError)
@@ -542,8 +506,6 @@ describe("Utxo Errors", () => {
         publicKey: inputs.keypair.pubkey,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
     })
       .to.throw(UtxoError)
@@ -562,8 +524,6 @@ describe("Utxo Errors", () => {
         publicKey: inputs.keypair.pubkey,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
     })
       .to.throw(UtxoError)
@@ -583,8 +543,6 @@ describe("Utxo Errors", () => {
         blinding: inputs.blinding,
         appData: new Array(32).fill(1),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
     })
       .to.throw(UtxoError)
@@ -603,8 +561,6 @@ describe("Utxo Errors", () => {
         publicKey: inputs.keypair.pubkey,
         blinding: inputs.blinding,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
     })
       .to.throw(UtxoError)
@@ -623,8 +579,6 @@ describe("Utxo Errors", () => {
         publicKey: inputs.keypair.pubkey,
         blinding: new BN(FIELD_SIZE),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
     })
       .to.throw(UtxoError)
@@ -646,8 +600,6 @@ describe("Utxo Errors", () => {
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     // encrypt
@@ -669,8 +621,6 @@ describe("Utxo Errors", () => {
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     if (receivingUtxo1.value) {
@@ -698,8 +648,6 @@ describe("Utxo Benchmark", () => {
         lightProvider.lookUpTables.verifierProgramLookupTable[1],
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     const encBytesVecs: Uint8Array[] = [];
@@ -726,8 +674,6 @@ describe("Utxo Benchmark", () => {
         merkleTreePdaPublicKey: transactionMerkleTreePda,
         commitment: new BN(testUtxo.getCommitment(poseidon)).toBuffer("le", 32),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          lightProvider.lookUpTables.verifierProgramLookupTable,
       });
       if (
         resultUtxo.error &&
