@@ -28,7 +28,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "dist/types/**/*.ts"
-  ],
+, "components/TokenPicker"  ],
 
   "types": ["styled-jsx" /* other types... */],
   "exclude": ["node_modules"]
