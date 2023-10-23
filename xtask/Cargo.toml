@@ -1,0 +1,12 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4", features = ["derive"] }
+light-merkle-tree = { path = "../merkle-tree", version = "0.1.1" }
+quote = "1.0"
+sha2 = "0.10"

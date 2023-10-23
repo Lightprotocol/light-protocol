@@ -2,8 +2,10 @@
 members = [
     "macros/aligned-sized",
     "macros/light",
+    "merkle-tree",
     "programs/*",
     "verifier-sdk",
+    "xtask",
 ]
 
 [patch.crates-io]
