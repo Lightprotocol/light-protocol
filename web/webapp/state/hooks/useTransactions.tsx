@@ -2,11 +2,7 @@
 import { atom, useAtom } from "jotai";
 import { userState } from "./useUser";
 import { UserIndexedTransaction } from "@lightprotocol/zk.js";
-import {
-  syncErrorState,
-  syncLoadingState,
-  syncedState,
-} from "../atoms/syncState";
+import { useSync } from "./useSync";
 
 export const transactionHistoryState = atom<
   UserIndexedTransaction[] | undefined
@@ -14,15 +10,10 @@ export const transactionHistoryState = atom<
 
 export function useTransactions() {
   const [transactions] = useAtom(transactionHistoryState);
-
-  const [, sync] = useAtom(syncedState);
-  const [isSyncing] = useAtom(syncLoadingState);
-  const [syncError] = useAtom(syncErrorState);
+  const syncState = useSync();
 
   return {
+    ...syncState,
     transactions,
-    sync,
-    isSyncing,
-    syncError,
   };
 }

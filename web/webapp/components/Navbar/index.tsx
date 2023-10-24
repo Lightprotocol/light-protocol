@@ -13,10 +13,10 @@ import { useMediaQuery } from "@mantine/hooks";
 
 const PAGES = [
   /// Label | Path | Enabled | Icon
-  ["My assets", "", true, <IconChartPie2 />],
-  ["Learn", "trade", false, <IconBrain />],
-  ["Explore PSPs", "explore", false, <IconPlanet />],
-  ["Developers", "developers", false, <IconBook />],
+  ["My assets", "", true, <IconChartPie2 key={0} />],
+  ["Learn", "trade", false, <IconBrain key={1} />],
+  ["Explore PSPs", "explore", false, <IconPlanet key={2} />],
+  ["Developers", "developers", false, <IconBook key={3} />],
 ] as const;
 
 const LightLogo = ({ router }: { router: any }) => (

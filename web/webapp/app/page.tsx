@@ -1,152 +1,55 @@
 "use client";
 import { useDisclosure } from "@mantine/hooks";
-import {
-  AppShell,
-  Burger,
-  Button,
-  Group,
-  Paper,
-  Modal,
-  Stack,
-  SegmentedControl,
-  Box,
-  TextInput,
-  Text,
-  Title,
-} from "@mantine/core";
-import { NativeSelect, rem } from "@mantine/core";
-
-import { useForm } from "@mantine/form";
+import { AppShell, Burger, Group, Stack, Title } from "@mantine/core";
 import { usePathname, useRouter } from "next/navigation";
 import { Navbar } from "../components/Navbar";
-import { useState } from "react";
-import { TokenPicker } from "../components/TokenPicker";
-import { IconArrowRight } from "@tabler/icons-react";
-
-import { useFocusTrap } from "@mantine/hooks";
-
-export function TokenInput({ form }: { form: any }) {
-  const focusTrapRef = useFocusTrap();
-
-  const select = <TokenPicker form={form} />;
-
-  return (
-    <>
-      <Stack py={"md"} gap={0}>
-        <Group px={"md"} justify="flex-start" align="center">
-          <Paper withBorder shadow="xs" radius={"xl"} px={"xs"}>
-            <Text c="grey">MAX</Text>
-          </Paper>
-          {/* <Paper radius={"md"} px="xs">
-            <u>0.00</u>
-          </Paper> */}
-        </Group>
-        <TextInput
-          ref={focusTrapRef}
-          {...form.getInputProps("amount")}
-          px={"md"}
-          pb={"md"}
-          variant="unstyled"
-          size="xl"
-          type="number"
-          placeholder="0.00"
-          rightSection={select}
-          rightSectionWidth={"45%"}
-          autoFocus={true}
-          styles={{
-            input: {
-              fontSize: "40px",
-            },
-          }}
-        />
-      </Stack>
-    </>
-  );
-}
-export const ShieldForm = () => {
-  const form = useForm({ initialValues: { amount: "", token: "SOL" } });
-
-  return (
-    <Box w={"100%"} mx="auto">
-      <form onSubmit={form.onSubmit((values) => console.log(values))}>
-        <TokenInput form={form} />
-        <Stack mt="md" gap={28}>
-          {form.values.amount && (
-            <Stack mt="xl" gap={8}>
-              <Group w="100%" px="20px" justify="space-between">
-                <Text size="sm">To</Text>
-                <Text size="sm">My account</Text>
-              </Group>
-              <Group w="100%" px="20px" justify="space-between">
-                <Text size="sm">Network fee</Text>
-                <Text size="sm">0.001 SOL</Text>
-              </Group>
-              <Group w="100%" px="20px" justify="space-between">
-                <Text size="sm">Shield time</Text>
-                <Text size="sm">~3s</Text>
-              </Group>
-            </Stack>
-          )}
-          <Button
-            justify="space-between"
-            fullWidth
-            size="lg"
-            radius="xl"
-            type="submit"
-            rightSection={<IconArrowRight />}
-          >
-            Shield now
-          </Button>
-        </Stack>
-      </form>
-    </Box>
-  );
-};
-export const SendForm = () => {};
-
-export const ShieldSendModal = () => {
-  const [opened, { open, close }] = useDisclosure(true);
-  const [value, setValue] = useState("shield");
-  return (
-    <>
-      <Modal
-        opened={opened}
-        onClose={close}
-        withCloseButton={false}
-        overlayProps={{ backgroundOpacity: 0.2 }}
-        size="sm"
-        radius={"lg"}
-        keepMounted={false}
-      >
-        <Stack>
-          <Box px={"md"}>
-            <SegmentedControl
-              value={value}
-              fullWidth
-              color="#0066FF"
-              onChange={setValue}
-              radius={"xl"}
-              data={[
-                { label: "Shield", value: "shield" },
-                { label: "Send", value: "send" },
-              ]}
-            />
-          </Box>
-          {value === "shield" ? <ShieldForm /> : <SendForm />}
-        </Stack>
-      </Modal>
-
-      <Button radius={"xl"} onClick={open}>
-        Shield & Send
-      </Button>
-    </>
-  );
-};
+import { ShieldSendModal } from "../components/Modal";
+import { useEffect, useState } from "react";
+import { ADMIN_AUTH_KEYPAIR, useWallet } from "@lightprotocol/zk.js";
+import { useUser } from "../state/hooks/useUser";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { Transactions } from "../components/Transactions";
+import { Assets } from "../components/Assets";
 
 export default function Shell() {
+  console.log("Shell component rendered");
+
+  const wallet = useWallet(
+    ADMIN_AUTH_KEYPAIR,
+    "https://api.devnet.solana.com",
+    false
+  );
+
   const [opened, { toggle }] = useDisclosure();
   const router = useRouter();
   const path = usePathname();
+  const { user, initUser, isLoading, error } = useUser();
+  const { connection } = useConnection();
+
+  const [balance, setBalance] = useState(0);
+  // TODO: replace with login action.
+  // wallet must be available state, but kept separate from login
+  useEffect(() => {
+    console.log("user", user);
+    console.log("isLoading", isLoading);
+    console.log("error", error);
+    if (wallet && !user && !isLoading && !error) {
+      initUser({ connection, wallet });
+    }
+    (async () => {
+      let balance = await connection.getBalance(wallet.publicKey);
+      setBalance(balance);
+    })();
+  }, []);
+
+  if (isLoading) {
+    return <div>Loggin in...</div>;
+  }
+
+  if (!user) {
+    return <div>Please log in</div>;
+  }
+
   return (
     <AppShell
       layout="alt"
@@ -165,7 +68,14 @@ export default function Shell() {
           </Group>
         </Group>
       </AppShell.Header>
-      <AppShell.Main>Main</AppShell.Main>
+      {/* <AppShell.Main bg={theme.colors?.blue![1]}> */}
+      <AppShell.Main bg={"#f3f6f9"}>
+        <Stack align="center">
+          Public Balance: {balance}
+          <Assets />
+          <Transactions />
+        </Stack>
+      </AppShell.Main>
     </AppShell>
   );
 }

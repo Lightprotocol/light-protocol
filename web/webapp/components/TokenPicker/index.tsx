@@ -22,7 +22,7 @@ export function TokenPicker({ form }: { form: any }) {
   const items = TOKENS.map((item) => (
     <Menu.Item
       leftSection={
-        <Image src={item.image} width={18} height={18} radius={"xl"} />
+        <Image src={item.image} alt="" width={18} height={18} radius={"xl"} />
       }
       onClick={() => {
         setSelected(item);
@@ -48,7 +48,13 @@ export function TokenPicker({ form }: { form: any }) {
           data-expanded={opened || undefined}
         >
           <Group gap="xs">
-            <Image src={selected.image} width={22} height={22} radius={"xl"} />
+            <Image
+              alt=""
+              src={selected.image}
+              width={22}
+              height={22}
+              radius={"xl"}
+            />
             <span className={classes.label}>{selected.label}</span>
           </Group>
           <IconChevronDown size="1rem" className={classes.icon} stroke={1.5} />

@@ -1,6 +1,8 @@
 "use client";
 import { atom, useAtom } from "jotai";
 import { userState } from "./useUser";
+import { AppUtxoConfig, ConfirmOptions } from "@lightprotocol/zk.js";
+import { PublicKey } from "@solana/web3.js";
 
 export const transferState = atom(
   null,
@@ -39,11 +41,20 @@ export const shieldState = atom(
     set,
     {
       token,
-      recipient,
-      publicAmountSpl,
-      publicAmountSol,
-      appUtxo,
-      confirmOptions,
+      recipient = undefined,
+      publicAmountSpl = undefined,
+      publicAmountSol = undefined,
+      appUtxo = undefined,
+      confirmOptions = undefined,
+      senderTokenAccount = undefined,
+    }: {
+      token: string;
+      recipient?: string | undefined;
+      publicAmountSol?: string | undefined;
+      publicAmountSpl?: string | undefined;
+      appUtxo?: AppUtxoConfig | undefined;
+      confirmOptions?: ConfirmOptions | undefined;
+      senderTokenAccount?: PublicKey | undefined;
     }
   ) => {
     const user = get(userState);
@@ -53,12 +64,13 @@ export const shieldState = atom(
 
     try {
       await user.shield({
-        token,
-        recipient,
-        publicAmountSpl,
-        publicAmountSol,
-        appUtxo,
+        token: "SOL",
+        recipient: undefined,
+        publicAmountSpl: undefined,
+        publicAmountSol: "0.001",
+        appUtxo: undefined,
         confirmOptions,
+        senderTokenAccount: undefined,
       });
 
       set(userState, user);

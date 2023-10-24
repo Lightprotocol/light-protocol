@@ -1,11 +1,7 @@
 "use client";
 import { atom, useAtom } from "jotai";
-import {
-  syncedState,
-  syncLoadingState,
-  syncErrorState,
-} from "../atoms/syncState";
 import { userState } from "./useUser";
+import { useSync } from "./useSync";
 
 export const utxosState = atom((get) => get(userState)?.getUtxoInbox);
 export const balanceState = atom(
@@ -14,15 +10,10 @@ export const balanceState = atom(
 export function useBalance() {
   const [inboxBalance] = useAtom(utxosState);
   const [balance] = useAtom(balanceState);
-
-  const [, sync] = useAtom(syncedState);
-  const [isSyncing] = useAtom(syncLoadingState);
-  const [syncError] = useAtom(syncErrorState);
+  const syncState = useSync();
 
   return {
-    sync,
-    isSyncing,
-    syncError,
+    ...syncState,
     inboxBalance,
     balance,
   };

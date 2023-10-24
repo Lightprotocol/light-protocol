@@ -1,14 +1,24 @@
+"use client";
+// import dynamic from "next/dynamic";
 import "@mantine/core/styles.css";
-import React from "react";
+import React, { ReactNode, useMemo } from "react";
 import { MantineProvider, ColorSchemeScript } from "@mantine/core";
+import { ModalsProvider } from "@mantine/modals";
+import { Provider } from "jotai";
+import { ConnectionProvider } from "@solana/wallet-adapter-react";
+
 import { theme } from "../styles/theme";
 
-export const metadata = {
-  title: "Light UI",
-  description: "a web wallet for Solana's ZK layer",
-};
+// This is a dynamic import that will only be loaded on the client-side
+// const DynamicChildren = dynamic(
+//   () =>
+//     Promise.resolve(({ children }: { children: ReactNode }) => <>{children}</>),
+//   { ssr: false }
+// );
 
-export default function RootLayout({ children }: { children: any }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
+  const endpoint = useMemo(() => process.env.NEXT_PUBLIC_RPC!, []);
+
   return (
     <html lang="en">
       <head>
@@ -20,7 +30,16 @@ export default function RootLayout({ children }: { children: any }) {
         />
       </head>
       <body>
-        <MantineProvider theme={theme}>{children}</MantineProvider>
+        <Provider>
+          <ConnectionProvider endpoint={endpoint}>
+            <MantineProvider theme={theme}>
+              <ModalsProvider>
+                {/* <DynamicChildren>{children}</DynamicChildren> */}
+                {children}
+              </ModalsProvider>
+            </MantineProvider>
+          </ConnectionProvider>
+        </Provider>
       </body>
     </html>
   );
