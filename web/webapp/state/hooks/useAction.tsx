@@ -1,7 +1,11 @@
 "use client";
 import { atom, useAtom } from "jotai";
 import { userState } from "./useUser";
-import { AppUtxoConfig, ConfirmOptions } from "@lightprotocol/zk.js";
+import {
+  AppUtxoConfig,
+  ConfirmOptions,
+  confirmConfig,
+} from "@lightprotocol/zk.js";
 import { PublicKey } from "@solana/web3.js";
 
 export const transferState = atom(
@@ -9,7 +13,21 @@ export const transferState = atom(
   async (
     get,
     set,
-    { token, recipient, amountSpl, amountSol, appUtxo, confirmOptions }
+    {
+      token,
+      recipient,
+      amountSpl,
+      amountSol,
+      appUtxo,
+      confirmOptions,
+    }: {
+      token?: string;
+      recipient?: string;
+      amountSpl?: string;
+      amountSol?: string;
+      appUtxo?: AppUtxoConfig | undefined;
+      confirmOptions?: any;
+    }
   ) => {
     const user = get(userState);
     if (!user) {
@@ -18,17 +36,17 @@ export const transferState = atom(
 
     try {
       await user.transfer({
-        token,
-        recipient,
-        amountSpl,
-        amountSol,
-        appUtxo,
-        confirmOptions,
+        token: "SOL",
+        recipient: user.account.getPublicKey(),
+        amountSpl: undefined,
+        amountSol: "0.001",
+        appUtxo: undefined,
+        confirmOptions: undefined,
       });
 
       set(userState, user);
     } catch (e: any) {
-      console.error(e);
+      console.error("transferState error:", e);
       throw e;
     }
   }

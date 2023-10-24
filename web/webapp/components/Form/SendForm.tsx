@@ -3,6 +3,8 @@ import { useForm, UseFormReturnType } from "@mantine/form";
 import { IconArrowRight } from "@tabler/icons-react";
 import { TokenInput, SendRecipientInput } from "../Input";
 import { FormValues } from ".";
+import { useAction } from "../../state/hooks/useAction";
+import { ConfirmOptions, confirmConfig } from "@lightprotocol/zk.js";
 // TODO: add global jotai state to synchronize the form values to add "select recipient" page
 
 export interface SendFormValues extends FormValues {
@@ -13,12 +15,20 @@ export function SendForm() {
   const form: UseFormReturnType<SendFormValues> = useForm({
     initialValues: { amount: "", token: "SOL", recipient: "" },
   });
+  const { transfer } = useAction();
 
   return (
     <Box w={"100%"} mx="auto">
       <form
         onSubmit={form.onSubmit((values) => {
           console.log(values);
+          console.log("transfer");
+          (async () => {
+            await transfer({
+              confirmOptions: {},
+            });
+            console.log("sent");
+          })();
         })}
       >
         <TokenInput form={form} />
