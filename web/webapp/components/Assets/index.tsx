@@ -43,7 +43,7 @@ export const Assets = () => {
     });
 
   return (
-    <Paper radius="md" withBorder w="400px">
+    <Paper radius="md" withBorder w="400px" role="region">
       <Table highlightOnHover>
         <Table.Thead>
           <Table.Tr>

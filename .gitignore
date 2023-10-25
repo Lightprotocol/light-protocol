@@ -21,7 +21,7 @@
 
 # Rust
 **/target/
-
+**/public/build-circuits/
 /**/dist/
 # relayer
 /relayer/node_modules/

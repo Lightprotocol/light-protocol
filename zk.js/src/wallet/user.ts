@@ -653,6 +653,7 @@ export class User {
       ? Account.fromPubkey(recipient, this.provider.poseidon)
       : undefined;
 
+    console.log("this.provider.poseidon", this.provider.poseidon);
     const txParams = await this.createShieldTransactionParameters({
       token,
       publicAmountSpl,

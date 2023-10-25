@@ -47,7 +47,7 @@ export const Navbar = ({ router, path }: { router: any; path: any }) => {
   return (
     <AppShell.Navbar p="lg">
       <LightLogo router={router} />
-      <Paper pt={"lg"}>
+      <Paper pt={"lg"} role="navigation">
         {PAGES.map((page, index) => (
           <Button
             key={index}

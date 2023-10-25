@@ -77,7 +77,7 @@ export const Transactions = () => {
 
   return (
     <>
-      <Paper p="md" radius="xs" withBorder>
+      <Paper p="md" radius="xs" withBorder role="region">
         <Stack align="center" justify="center" gap="md">
           {currentPageTransactions.map(
             (transaction: UserIndexedTransaction, index: number) => (
