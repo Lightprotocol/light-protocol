@@ -8,13 +8,14 @@ import {
   User,
   airdropSol,
 } from "@lightprotocol/zk.js";
+import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
+
 import { Keypair } from "@solana/web3.js";
 
-import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/private_compressed_account";
 import { PoseidonCompressedAccount } from "../sdk";
-let POSEIDON: any;
+let HASHER: Hasher;
 const RPC_URL = "http://127.0.0.1:8899";
 const log = console.log;
 
@@ -31,26 +32,26 @@ describe("Test private-compressed-account", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    HASHER = await WasmHasher.getInstance();
   });
 
   it.skip("Merkle Tree Update Circuits, 100 rounds", async () => {
-    const compressedAccount = new PoseidonCompressedAccount(POSEIDON, IDL, 0);
+    const compressedAccount = new PoseidonCompressedAccount(HASHER, IDL, 0);
     let insertValue = "12";
-    let leafHash = POSEIDON.F.toString(POSEIDON([insertValue]));
+    let leafHash = HASHER.poseidonHashString([insertValue]);
     await compressedAccount.generateUpdateProof({ leafHash });
     for (let i = 0; i < 100; i++) {
       log(`i ${i}`);
       let insertValue1 = (i + 1).toString();
-      let leafHash = POSEIDON.F.toString(POSEIDON([insertValue1]));
+      let leafHash = HASHER.poseidonHashString([insertValue1]);
       console.time("fullProveAndParse");
       await compressedAccount.generateUpdateProof({ leafHash });
       console.timeEnd("fullProveAndParse");
     }
   });
   it("Inclusion Gt Circuit should succeed", async () => {
-    compressedAccount = new PoseidonCompressedAccount(POSEIDON, IDL, 0);
-    let leafHash = POSEIDON.F.toString(POSEIDON([insertValue]));
+    compressedAccount = new PoseidonCompressedAccount(HASHER, IDL, 0);
+    let leafHash = HASHER.poseidonHashString([insertValue]);
     await compressedAccount.generateUpdateProof({ leafHash });
 
     log("insertValue 12, refValue 12");
@@ -110,7 +111,7 @@ describe("Test private-compressed-account", () => {
     await user.shield({ token: "SOL", publicAmountSol: "1" });
 
     const compressedAccount = new PoseidonCompressedAccount(
-      POSEIDON,
+      HASHER,
       IDL,
       0,
       user,

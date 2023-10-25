@@ -19,9 +19,8 @@ import {
   User,
   Utxo,
 } from "@lightprotocol/zk.js";
+import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
-
-import { buildPoseidonOpt } from "circomlibjs";
 import { IDL, RockPaperScissors } from "../target/types/rock_paper_scissors";
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
 
@@ -31,7 +30,7 @@ const verifierProgramId = new PublicKey(
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
 
-let POSEIDON: any, RELAYER: TestRelayer;
+let HASHER: Hasher, RELAYER: TestRelayer;
 const RPC_URL = "http://127.0.0.1:8899";
 const GAME_AMOUNT = new BN(1e9);
 
@@ -76,14 +75,12 @@ class Game {
     gameParameters: GameParameters,
   ) {
     return new BN(
-      provider.poseidon.F.toString(
-        provider.poseidon([
-          gameParameters.choice,
-          gameParameters.slot,
-          gameParameters.player2CommitmentHash,
-          gameParameters.gameAmount,
-        ]),
-      ),
+      provider.hasher.poseidonHashString([
+        new BN(gameParameters.choice),
+        gameParameters.slot,
+        gameParameters.player2CommitmentHash,
+        gameParameters.gameAmount,
+      ]),
     );
   }
 
@@ -105,7 +102,7 @@ class Game {
       gameParameters,
     );
     const programUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       assets: [SystemProgram.programId],
       amounts: [gameParameters.gameAmount],
@@ -148,7 +145,7 @@ class Game {
     );
 
     const programUtxo = new Utxo({
-      poseidon: lightProvider.poseidon,
+      hasher: lightProvider.hasher,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       amounts: [gameAmount],
@@ -402,7 +399,7 @@ class Player {
       userPubkey: gamePdaAccountInfo.game.playerTwoProgramUtxo.userPubkey,
     };
     const player2ProgramUtxo = new Utxo({
-      poseidon: this.user.provider.poseidon,
+      hasher: this.user.provider.hasher,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       amounts: [gamePdaAccountInfo.game.playerTwoProgramUtxo.amounts[0]],
@@ -418,7 +415,7 @@ class Player {
       blinding: gamePdaAccountInfo.game.playerTwoProgramUtxo.blinding,
     });
     Utxo.equal(
-      this.user.provider.poseidon,
+      this.user.provider.hasher,
       player2ProgramUtxo,
       testProgramUtxo,
       false,
@@ -432,10 +429,10 @@ class Player {
     await this.user.getBalance();
     const merkleTree = this.user.provider.solMerkleTree.merkleTree;
     this.game.programUtxo.index = merkleTree.indexOf(
-      this.game.programUtxo.getCommitment(this.user.provider.poseidon),
+      this.game.programUtxo.getCommitment(this.user.provider.hasher),
     );
     player2ProgramUtxo.index = merkleTree.indexOf(
-      player2ProgramUtxo.getCommitment(this.user.provider.poseidon),
+      player2ProgramUtxo.getCommitment(this.user.provider.hasher),
     );
 
     const programParameters: ProgramParameters = {
@@ -465,14 +462,14 @@ class Player {
     };
     const amounts = this.getAmounts(winner.winner);
     const player1OutUtxo = new Utxo({
-      poseidon: this.user.provider.poseidon,
+      hasher: this.user.provider.hasher,
       assets: [SystemProgram.programId],
       publicKey: this.user.account.pubkey,
       amounts: [amounts[0]],
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
     });
     const player2OutUtxo = new Utxo({
-      poseidon: this.user.provider.poseidon,
+      hasher: this.user.provider.hasher,
       assets: [SystemProgram.programId],
       publicKey: gameParametersPlayer2.userPubkey,
       encryptionPublicKey: new Uint8Array(
@@ -524,7 +521,7 @@ describe("Test rock-paper-scissors", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    HASHER = await WasmHasher.getInstance();
 
     const relayerWallet = Keypair.generate();
     await airdropSol({

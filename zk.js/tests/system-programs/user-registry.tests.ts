@@ -15,6 +15,7 @@ import {
   TestRelayer,
   RELAYER_FEE,
 } from "../../src";
+import { WasmHasher } from "@lightprotocol/account.rs";
 import {
   Keypair as SolanaKeypair,
   PublicKey,
@@ -22,7 +23,6 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { assert } from "chai";
-const circomlibjs = require("circomlibjs");
 
 let KEYPAIR: Account, RELAYER: TestRelayer;
 
@@ -44,10 +44,10 @@ describe("User registry", () => {
   before("Create user", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    const poseidon = await circomlibjs.buildPoseidonOpt();
+    const hasher = await WasmHasher.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     KEYPAIR = new Account({
-      poseidon: poseidon,
+      hasher,
       seed,
     });
 

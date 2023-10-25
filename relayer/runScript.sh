@@ -23,7 +23,7 @@ fi
 mkdir -p .logs
 
 echo "starting redis server"
-./../.local/bin/redis-server > .logs/redis-logs.txt &
+redis-server > .logs/redis-logs.txt &
 PID_redis="${!}"
 sleep 15
 trap "kill ${PID_redis}" EXIT

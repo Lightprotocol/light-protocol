@@ -14,7 +14,7 @@
     "cypress:run": "cypress run"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.29.0",
+    "@coral-xyz/anchor": "0.28.0",
     "@emotion/react": "^11.11.1",
     "@lightprotocol/zk.js": "workspace:*",
     "@mantine/core": "^7.1.5",
@@ -35,13 +35,13 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.6",
-    "@types/node": "latest",
+    "@types/node": "^20.10.2",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/styled-jsx": "^3.4.4",
     "@vitejs/plugin-react": "^4.1.0",
     "cypress": "^13.3.3",
-    "eslint": "latest",
+    "eslint": "^8.50.0",
     "eslint-config-next": "latest",
     "esm": "^3.2.25",
     "jest": "^29.7.0",
@@ -50,7 +50,7 @@
     "sinon": "^15.2.0",
     "styled-jsx": "^5.1.2",
     "ts-jest": "^29.1.1",
-    "typescript": "latest",
+    "typescript": "5.3.2",
     "vitest": "^0.34.6"
   }
 }

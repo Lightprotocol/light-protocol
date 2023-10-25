@@ -37,6 +37,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/zk.js": "workspace:*",
+    "@lightprotocol/account.rs": "workspace:*",
     "@oclif/core": "^2.15",
     "@oclif/plugin-help": "^5.2.15",
     "@oclif/plugin-plugins": "^3.8.4",
@@ -44,7 +45,7 @@
     "@sqds/sdk": "^2.0.4",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",
-    "ffjavascript": "^0.2.60",
+    "ffjavascript": "^0.2.62",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
@@ -52,8 +53,8 @@
     "@lightprotocol/cli": "workspace:*",
     "@oclif/test": "2.3.33",
     "@types/bn.js": "^5.1.1",
-    "@types/chai": "^4.3.6",
-    "@types/mocha": "^10.0.2",
+    "@types/chai": "^4.3.9",
+    "@types/mocha": "^10.0.3",
     "chai": "^4.3.10",
     "mocha": "^10.2.0",
     "oclif": "^3.17.2",

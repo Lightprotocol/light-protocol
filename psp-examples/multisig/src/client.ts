@@ -29,7 +29,7 @@ import { IDL, Multisig as MultisigProgram } from "./types/multisig";
 
 import { verifierProgramId, MAX_SIGNERS } from "./constants";
 import { QueuedTransaction, Approval } from "./transaction";
-import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
+import { Hasher } from "@lightprotocol/account.rs";
 
 /**
  * Data:
@@ -44,6 +44,7 @@ import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
 export class MultiSigClient {
   signer: Account;
   multiSigParams: MultisigParams;
+  hasher: Hasher;
   poseidon: any;
   eddsa: any;
   queuedTransactions: QueuedTransaction[];
@@ -52,6 +53,7 @@ export class MultiSigClient {
   constructor({
     multiSigParams,
     signer,
+    hasher,
     poseidon,
     queuedTransactions,
     eddsa,
@@ -59,6 +61,7 @@ export class MultiSigClient {
   }: {
     multiSigParams: MultisigParams;
     signer: Account;
+    hasher: Hasher;
     poseidon: any;
     queuedTransactions?: QueuedTransaction[];
     eddsa: any;
@@ -66,7 +69,7 @@ export class MultiSigClient {
   }) {
     this.multiSigParams = multiSigParams;
     this.signer = signer;
-    this.poseidon = poseidon;
+    this.hasher = hasher;
     this.eddsa = eddsa;
     if (queuedTransactions) {
       this.queuedTransactions = queuedTransactions;
@@ -96,16 +99,16 @@ export class MultiSigClient {
     // await tx.compile();
 
     this.provider.solMerkleTree!.getMerkleProofs(
-      this.poseidon,
+      this.hasher,
       this.queuedTransactions[index].transactionParams.inputUtxos,
     );
     const integrityHash = await this.queuedTransactions[
       index
-    ].transactionParams.getTxIntegrityHash(this.poseidon);
+    ].transactionParams.getTxIntegrityHash(this.hasher);
 
     const connectingHash = this.queuedTransactions[
       index
-    ].transactionParams.getTransactionHash(this.poseidon);
+    ].transactionParams.getTransactionHash(this.hasher);
 
     const publicKey = await this.signer.getEddsaPublicKey();
     const signature = await this.signer.signEddsa(
@@ -160,18 +163,20 @@ export class MultiSigClient {
     threshold: number,
     signer: Account,
     signers: Account[],
+    hasher: Hasher,
     poseidon: any | undefined,
     eddsa: any | undefined,
     provider: Provider,
   ) {
     const multisig = await MultisigParams.createNewMultiSig({
-      poseidon,
+      hasher,
       signers,
       threshold,
     });
     return new MultiSigClient({
       multiSigParams: multisig,
       signer,
+      hasher,
       poseidon,
       provider,
       eddsa,
@@ -204,7 +209,7 @@ export class MultiSigClient {
         realSolAmount = solAmount;
       }
       return new Utxo({
-        poseidon: this.poseidon,
+        hasher: this.hasher,
         assets: [SystemProgram.programId, splAsset],
         publicKey: this.multiSigParams.account.pubkey,
         amounts: [realSolAmount, splAmount],
@@ -215,7 +220,7 @@ export class MultiSigClient {
       });
     } else if (solAmount) {
       return new Utxo({
-        poseidon: this.poseidon,
+        hasher: this.hasher,
         assets: [SystemProgram.programId],
         publicKey: this.multiSigParams.account.pubkey,
         amounts: [solAmount],
@@ -263,7 +268,7 @@ export class MultiSigClient {
       recipientSol,
       recipientSpl,
       action,
-      poseidon: this.poseidon,
+      hasher: this.hasher,
       relayer,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       encryptedUtxos: new Uint8Array([
@@ -282,7 +287,7 @@ export class MultiSigClient {
 
   async createAppParams(index: number) {
     const keypairDummy = new Account({
-      poseidon: this.poseidon,
+      hasher: this.hasher,
       seed: new Uint8Array(32).fill(3).toString(),
       eddsa: this.eddsa,
     });

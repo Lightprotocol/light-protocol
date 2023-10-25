@@ -6,8 +6,6 @@ chai.use(chaiAsPromised);
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
-const circomlibjs = require("circomlibjs");
-const { buildPoseidonOpt } = circomlibjs;
 
 import {
   Account,
@@ -26,6 +24,7 @@ import {
   BN_0,
   BN_1,
 } from "../src";
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { IDL } from "./testData/tmp_test_psp";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -37,7 +36,7 @@ process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 let account: Account,
   shieldUtxo1: Utxo,
   mockPubkey,
-  poseidon,
+  hasher: Hasher,
   lightProvider: LightProvider,
   txParamsApp: TransactionParameters,
   txParamsPoolType: TransactionParameters,
@@ -54,30 +53,26 @@ const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 describe("Masp circuit tests", () => {
   before(async () => {
     lightProvider = await LightProvider.loadMock();
-    poseidon = await buildPoseidonOpt();
-    account = new Account({ poseidon: poseidon, seed: seed32 });
+    hasher = await WasmHasher.getInstance();
+    account = new Account({ hasher, seed: seed32 });
     await account.getEddsaPublicKey();
     const shieldAmount = 20_000;
     const shieldFeeAmount = 10_000;
     shieldUtxo1 = new Utxo({
       index: 0,
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     const shieldUtxoSol = new Utxo({
       index: 0,
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), BN_0],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     const mockPubkey2 = SolanaKeypair.generate().publicKey;
@@ -90,7 +85,7 @@ describe("Masp circuit tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       action: Action.SHIELD,
-      poseidon,
+      hasher,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
@@ -102,19 +97,19 @@ describe("Masp circuit tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       action: Action.SHIELD,
-      poseidon,
+      hasher,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
-    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
-      shieldUtxo1.getCommitment(poseidon),
+    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, hasher, [
+      shieldUtxo1.getCommitment(hasher),
       // random invalid other commitment
-      poseidon.F.toString(poseidon(["123124"])),
+      hasher.poseidonHashString(["123124"]),
     ]);
 
     assert.equal(
       lightProvider.solMerkleTree?.merkleTree.indexOf(
-        shieldUtxo1.getCommitment(poseidon),
+        shieldUtxo1.getCommitment(hasher),
       ),
       0,
     );
@@ -123,7 +118,7 @@ describe("Masp circuit tests", () => {
       inputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
-      poseidon,
+      hasher,
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet.publicKey,
       action: Action.UNSHIELD,
@@ -136,12 +131,10 @@ describe("Masp circuit tests", () => {
       inputUtxos: [
         new Utxo({
           index: 0,
-          poseidon,
+          hasher,
           appData,
           appDataIdl: IDL,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],
@@ -150,7 +143,7 @@ describe("Masp circuit tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       action: Action.UNSHIELD,
-      poseidon,
+      hasher,
       relayer,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account,
@@ -159,11 +152,9 @@ describe("Masp circuit tests", () => {
       inputUtxos: [
         new Utxo({
           index: 0,
-          poseidon,
+          hasher,
           poolType: new BN("12312"),
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],
@@ -172,7 +163,7 @@ describe("Masp circuit tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       action: Action.UNSHIELD,
-      poseidon,
+      hasher,
       relayer,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
@@ -180,11 +171,9 @@ describe("Masp circuit tests", () => {
     txParamsPoolTypeOut = new TransactionParameters({
       outputUtxos: [
         new Utxo({
-          poseidon,
+          hasher,
           poolType: new BN("12312"),
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],
@@ -193,7 +182,7 @@ describe("Masp circuit tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       action: Action.UNSHIELD,
-      poseidon,
+      hasher,
       relayer,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
@@ -201,12 +190,10 @@ describe("Masp circuit tests", () => {
     txParamsOutApp = new TransactionParameters({
       outputUtxos: [
         new Utxo({
-          poseidon,
+          hasher,
           appData,
           appDataIdl: IDL,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],
@@ -215,7 +202,7 @@ describe("Masp circuit tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       action: Action.SHIELD,
-      poseidon,
+      hasher,
       // automatic encryption for app utxos is not implemented
       encryptedUtxos: new Uint8Array(256).fill(1),
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
@@ -230,7 +217,7 @@ describe("Masp circuit tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.root = new BN("123").toString();
 
     await tx.getProof(account);
@@ -242,7 +229,7 @@ describe("Masp circuit tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.root = new BN("123").toString();
     await chai.assert.isRejected(
       tx.getProof(account),
@@ -256,7 +243,7 @@ describe("Masp circuit tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
 
     tx.proofInput.txIntegrityHash = new BN("123").toString();
 
@@ -272,7 +259,7 @@ describe("Masp circuit tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
@@ -288,7 +275,7 @@ describe("Masp circuit tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
@@ -305,7 +292,7 @@ describe("Masp circuit tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: txParamsSol,
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
@@ -318,7 +305,7 @@ describe("Masp circuit tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
 
     tx.proofInput.inPathElements[0] =
       lightProvider.solMerkleTree?.merkleTree.path(1).pathElements;
@@ -334,7 +321,7 @@ describe("Masp circuit tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsUnshield,
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
 
     tx.proofInput.inPathIndices[0] = 1;
     await chai.assert.isRejected(
@@ -350,10 +337,10 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     // tx.proofInput.inPrivateKey[0] = new BN("123").toString();
     await chai.assert.isRejected(
-      tx.getProof(new Account({ poseidon })),
+      tx.getProof(new Account({ hasher })),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
     );
   });
@@ -365,7 +352,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.publicAmountSpl = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -381,7 +368,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.publicAmountSol = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -397,7 +384,7 @@ describe("Masp circuit tests", () => {
       params: txParamsSol,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.publicAmountSpl = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -413,7 +400,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     console.log();
 
     tx.proofInput.outputCommitment[0] = new BN("123").toString();
@@ -431,7 +418,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.inAmount[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -447,7 +434,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.outAmount[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -463,7 +450,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.inBlinding[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -479,7 +466,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.outBlinding[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -495,7 +482,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.outPubkey[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -511,7 +498,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     for (let i = 0; i < 3; i++) {
       tx.proofInput.assetPubkeys[i] = hashAndTruncateToCircuit(
         SolanaKeypair.generate().publicKey.toBytes(),
@@ -533,7 +520,7 @@ describe("Masp circuit tests", () => {
       appParams: { mock: "1231", verifierIdl: IDL_LIGHT_PSP2IN2OUT },
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -548,7 +535,7 @@ describe("Masp circuit tests", () => {
       params: txParamsOutApp,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     await tx.getProof(account);
   });
 
@@ -560,7 +547,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.outAppDataHash[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -576,7 +563,7 @@ describe("Masp circuit tests", () => {
       params: txParamsPoolType,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -590,7 +577,7 @@ describe("Masp circuit tests", () => {
       params: txParamsPoolTypeOut,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     await chai.assert.isRejected(
       tx.getProof(account),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -604,7 +591,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.inPoolType[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -620,7 +607,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.outPoolType[0] = new BN("123").toString();
 
     await chai.assert.isRejected(
@@ -636,7 +623,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
 
     tx.proofInput.inIndices[0][0][0] = new BN("123").toString();
 
@@ -653,7 +640,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     chai.assert.notEqual(tx.proofInput.outIndices[1][1][1].toString(), "1");
     tx.proofInput.inIndices[1][1][1] = "1";
 
@@ -670,7 +657,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
 
     tx.proofInput.outIndices[0][0][0] = new BN("123").toString();
 
@@ -687,7 +674,7 @@ describe("Masp circuit tests", () => {
       params: paramsUnshield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     chai.assert.notEqual(tx.proofInput.outIndices[1][1][1].toString(), "1");
     tx.proofInput.outIndices[1][1][1] = "1";
 
@@ -703,19 +690,17 @@ describe("App system circuit tests", () => {
   let lightProvider: LightProvider;
   before(async () => {
     lightProvider = await LightProvider.loadMock();
-    poseidon = await buildPoseidonOpt();
-    account = new Account({ poseidon: poseidon, seed: seed32 });
+    hasher = await WasmHasher.getInstance();
+    account = new Account({ hasher, seed: seed32 });
     await account.getEddsaPublicKey();
     const shieldAmount = 20_000;
     const shieldFeeAmount = 10_000;
     shieldUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     const relayerPubkey = SolanaKeypair.generate().publicKey;
@@ -728,7 +713,7 @@ describe("App system circuit tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       action: Action.SHIELD,
-      poseidon,
+      hasher,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account,
     });
@@ -737,12 +722,10 @@ describe("App system circuit tests", () => {
     txParamsApp = new TransactionParameters({
       inputUtxos: [
         new Utxo({
-          poseidon,
+          hasher,
           appData,
           appDataIdl: IDL,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],
@@ -751,7 +734,7 @@ describe("App system circuit tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       action: Action.UNSHIELD,
-      poseidon,
+      hasher,
       relayer,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account,
@@ -765,7 +748,7 @@ describe("App system circuit tests", () => {
       params: txParams,
       appParams: { mock: "123", verifierIdl: IDL_LIGHT_PSP2IN2OUT },
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
 
     tx.proofInput.transactionHash = new BN("123").toString();
     await chai.assert.isRejected(
@@ -781,7 +764,7 @@ describe("App system circuit tests", () => {
       params: txParamsApp,
       appParams: { mock: "123", verifierIdl: IDL_LIGHT_PSP2IN2OUT },
     });
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
     tx.proofInput.publicAppVerifier = new BN("123").toString();
     await chai.assert.isRejected(
       tx.getProof(account),

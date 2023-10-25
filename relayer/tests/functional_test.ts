@@ -32,12 +32,11 @@ import {
 } from "@lightprotocol/zk.js";
 
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
-const circomlibjs = require("circomlibjs");
-const { buildPoseidonOpt } = circomlibjs;
 import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RELAYER_URL } from "../src/config";
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
@@ -45,7 +44,7 @@ const expect = chai.expect;
 const server = RELAYER_URL;
 
 describe("API tests", () => {
-  let poseidon: any;
+  let hasher: Hasher;
   let shieldAmount = 20_000;
   let shieldFeeAmount = 10_000;
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
@@ -68,7 +67,7 @@ describe("API tests", () => {
       "http://127.0.0.1:8899",
       confirmConfig,
     );
-    poseidon = await buildPoseidonOpt();
+    hasher = await WasmHasher.getInstance();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 9e8,
@@ -129,15 +128,15 @@ describe("API tests", () => {
 
         const merkleTree = new MerkleTree(
           MERKLE_TREE_HEIGHT,
-          poseidon,
+          hasher,
           fetchedMerkleTree._layers[0],
         );
         let lookUpTable = [FEE_ASSET.toBase58(), MINT.toBase58()];
         const shieldUtxo1 = new Utxo({
-          poseidon: poseidon,
+          hasher,
           assets: [FEE_ASSET, MINT],
           amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
-          publicKey: new Account({ poseidon: poseidon, seed: seed32 }).pubkey,
+          publicKey: new Account({ hasher, seed: seed32 }).pubkey,
           blinding: new BN(new Array(31).fill(1)),
           assetLookupTable: lookUpTable,
         });
@@ -152,10 +151,7 @@ describe("API tests", () => {
         assert.equal(merkleTree.root().toString(), previousMerkleRoot);
         assert.equal(merkleTree._layers[0].length, 0);
         assert.equal(merkleTree.zeroElement, DEFAULT_ZERO);
-        assert.equal(
-          merkleTree.indexOf(shieldUtxo1.getCommitment(poseidon)),
-          -1,
-        );
+        assert.equal(merkleTree.indexOf(shieldUtxo1.getCommitment(hasher)), -1);
 
         done();
       });
@@ -394,7 +390,7 @@ describe("API tests", () => {
     };
 
     const recipientAccount = new Account({
-      poseidon,
+      hasher,
       seed: testInputs.recipientSeed,
     });
 

@@ -2,12 +2,12 @@ import { Prover } from "../src";
 import * as circomlibjs from "circomlibjs";
 import { IDL } from "./circuits/idl";
 import { describe, it, expect, afterAll } from "vitest";
+import { WasmHasher } from "@lightprotocol/account.rs";
 
 describe("Prover Functionality Tests", () => {
   it("Valid proof test", async () => {
-    const poseidon = await circomlibjs.buildPoseidon();
-    const hash = poseidon.F.toString(poseidon(["123"]));
-
+    const hasher = await WasmHasher.getInstance();
+    const hash = hasher.poseidonHashString(["123"]);
     const circuitsPath: string = "./tests/circuits/build-circuits";
     const proofInputs: any = {
       x: "123",
@@ -24,8 +24,8 @@ describe("Prover Functionality Tests", () => {
   });
 
   it("Testing invalid proof", async () => {
-    const poseidon = await circomlibjs.buildPoseidon();
-    const hash = poseidon.F.toString(poseidon([123]));
+    const hasher = await WasmHasher.getInstance();
+    const hash = hasher.poseidonHashString(["123"]);
 
     const circuitsPath: string = "./tests/circuits/build-circuits";
     const proofInputs: any = {

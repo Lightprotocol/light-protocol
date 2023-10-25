@@ -33,19 +33,20 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.28.0",
+    "@coral-xyz/anchor": "0.28.0",
     "circomlibjs": "^0.1.7",
     "ffjavascript": "^0.2.62",
     "snarkjs": "^0.7.2"
   },
   "devDependencies": {
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+    "@lightprotocol/account.rs": "workspace:*",
     "@lightprotocol/tsconfig": "workspace:*",
     "@rollup/plugin-typescript": "^11.1.5",
     "@solana/web3.js": "^1.87.6",
-    "@types/chai": "^4.3.6",
+    "@types/chai": "^4.3.9",
     "@types/chai-as-promised": "^7.1.6",
-    "@types/mocha": "^10.0.2",
+    "@types/mocha": "^10.0.3",
     "@types/node": "^20.10.2",
     "@typescript-eslint/eslint-plugin": "^6.7.3",
     "@vitest/browser": "^0.34.6",

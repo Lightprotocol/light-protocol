@@ -182,7 +182,7 @@ export CARGO_HOME="${PREFIX}/cargo"
 curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
     --no-modify-path # We want to control the PATH ourselves.
 . "${CARGO_HOME}/env"
-cargo install cargo-expand
+cargo install cargo-expand wasm-pack
 
 rustup component add rustfmt
 

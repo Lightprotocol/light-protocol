@@ -1,42 +1,41 @@
 import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import {
-  PublicKey,
-  Keypair as SolanaKeypair,
-  Connection,
-  ConfirmOptions,
-  Keypair,
-  SystemProgram,
   AddressLookupTableAccount,
+  ConfirmOptions,
+  Connection,
+  Keypair,
+  Keypair as SolanaKeypair,
+  PublicKey,
+  SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
 import { initLookUpTable } from "../utils";
 import {
+  ADMIN_AUTH_KEYPAIR,
+  BN_0,
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
+  MerkleTreeConfig,
+  merkleTreeProgramId,
+  MINIMUM_LAMPORTS,
+  MINT,
+  ParsedIndexedTransaction,
   ProviderError,
   ProviderErrorCode,
-  useWallet,
   Relayer,
-  ADMIN_AUTH_KEYPAIR,
-  SolMerkleTree,
-  RELAYER_RECIPIENT_KEYPAIR,
-  MINT,
-  MINIMUM_LAMPORTS,
-  ParsedIndexedTransaction,
-  MerkleTreeConfig,
   RELAYER_FEE,
-  TOKEN_ACCOUNT_FEE,
-  BN_0,
-  SolMerkleTreeErrorCode,
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
-  merkleTreeProgramId,
-  TransactionErrorCode,
-  TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
-  SendVersionedTransactionsResult,
+  RELAYER_RECIPIENT_KEYPAIR,
   RelayerSendTransactionsResponse,
   sendVersionedTransactions,
+  SendVersionedTransactionsResult,
+  SolMerkleTree,
+  SolMerkleTreeErrorCode,
+  TOKEN_ACCOUNT_FEE,
+  TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
+  TransactionErrorCode,
+  useWallet,
 } from "../index";
-
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 const axios = require("axios");
-const circomlibjs = require("circomlibjs");
 
 /**
  * use: signMessage, signTransaction, sendAndConfirmTransaction, publicKey from the useWallet() hook in solana/wallet-adapter and {connection} from useConnection()
@@ -58,7 +57,7 @@ export class Provider {
   connection?: Connection;
   wallet: Wallet;
   confirmConfig: ConfirmOptions;
-  poseidon: any;
+  hasher: Hasher;
   solMerkleTree?: SolMerkleTree;
   provider: AnchorProvider;
   url?: string;
@@ -85,7 +84,7 @@ export class Provider {
     assetLookupTable,
     versionedTransactionLookupTable,
     anchorProvider,
-    poseidon,
+    hasher,
   }: {
     wallet: Wallet;
     confirmConfig?: ConfirmOptions;
@@ -97,7 +96,7 @@ export class Provider {
     assetLookupTable?: PublicKey[];
     versionedTransactionLookupTable: PublicKey;
     anchorProvider: AnchorProvider;
-    poseidon: any;
+    hasher: Hasher;
   }) {
     if (!wallet)
       throw new ProviderError(
@@ -141,25 +140,25 @@ export class Provider {
       ],
       versionedTransactionLookupTable,
     };
-    this.poseidon = poseidon;
+    this.hasher = hasher;
     this.solMerkleTree = new SolMerkleTree({
       pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      poseidon: this.poseidon,
+      hasher: this.hasher,
     });
   }
 
   static async loadMock(): Promise<Provider> {
-    const poseidon = await circomlibjs.buildPoseidonOpt();
+    const hasher = await WasmHasher.getInstance();
     // @ts-ignore: @ananas-block ignoring errors to not pass anchorProvider
     const mockProvider = new Provider({
       wallet: useWallet(ADMIN_AUTH_KEYPAIR),
       url: "mock",
       versionedTransactionLookupTable: PublicKey.default,
-      poseidon,
+      hasher,
     });
 
     mockProvider.solMerkleTree = new SolMerkleTree({
-      poseidon: mockProvider.poseidon,
+      hasher: mockProvider.hasher,
       pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
 
@@ -189,6 +188,7 @@ export class Provider {
         "confirmed",
       );
       if (!merkletreeIsInited) {
+        // FIXME: throw of exception caught locally
         throw new ProviderError(
           ProviderErrorCode.MERKLE_TREE_NOT_INITIALIZED,
           "fetchMerkleTree",
@@ -203,7 +203,7 @@ export class Provider {
 
       const mt = await SolMerkleTree.build({
         pubkey: merkleTreePubkey,
-        poseidon: this.poseidon,
+        hasher: this.hasher,
         indexedTransactions,
         provider: this.provider,
       });
@@ -353,7 +353,6 @@ export class Provider {
     assetLookupTable,
     verifierProgramLookupTable,
     versionedTransactionLookupTable,
-    poseidon,
   }: {
     wallet: Wallet | SolanaKeypair | Keypair;
     connection?: Connection;
@@ -363,7 +362,6 @@ export class Provider {
     assetLookupTable?: PublicKey[];
     verifierProgramLookupTable?: PublicKey[];
     versionedTransactionLookupTable?: PublicKey;
-    poseidon?: any;
   }): Promise<Provider> {
     if (!wallet) {
       throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
@@ -425,10 +423,8 @@ export class Provider {
         "Initializing lookup table in node.js or fetching it from relayer in browser failed",
       );
 
-    if (!poseidon) {
-      poseidon = await circomlibjs.buildPoseidonOpt();
-    }
-    const provider = new Provider({
+    const hasher = await WasmHasher.getInstance();
+    return new Provider({
       wallet,
       confirmConfig,
       connection,
@@ -438,10 +434,8 @@ export class Provider {
       verifierProgramLookupTable,
       versionedTransactionLookupTable,
       anchorProvider,
-      poseidon,
+      hasher,
     });
-
-    return provider;
   }
 
   addVerifierProgramPublickeyToLookUpTable(address: PublicKey) {

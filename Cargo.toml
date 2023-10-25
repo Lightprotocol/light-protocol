@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "account.rs/src/wasm",
     "macro-circom",
     "macros/aligned-sized",
     "macros/light",
