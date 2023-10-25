@@ -1,0 +1,27 @@
+{
+  "name": "@lightprotocol/zk-rs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "wasm-pack build --target nodejs",
+    "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/wasm.test.ts --exit",
+    "test-wasm": "cargo test -- --nocapture"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@lightprotocol/tsconfig": "workspace:*",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {  
+    "@types/chai": "^4.3.9",
+    "@types/mocha": "^10.0.3",
+    "chai": "^4.3.10",
+    "chai-as-promised": "^7.1.1",
+    "mocha": "^10.2.0",
+    "ts-mocha": "^10.0.0"
+  }
+}

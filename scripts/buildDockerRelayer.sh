@@ -4,9 +4,7 @@
 # 2. builds relayer with local zk.js instead of workspace dependency
 # 3. builds docker image (consumed in deployRelayer.sh)
 
-
 set -eux
-
 
 generate_temp_package_json() {
     dir=$1

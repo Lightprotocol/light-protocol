@@ -4,7 +4,8 @@ members = [
     "macros/light",
     "programs/*",
     "verifier-sdk",
-    "macro-circom"
+    "macro-circom",
+    "zk-rs"
 ]
 
 [patch.crates-io]

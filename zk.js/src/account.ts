@@ -1,33 +1,38 @@
+import {featureFlags} from "./featureFlags";
+
 const nacl = require("tweetnacl");
-import { box } from "tweetnacl";
-const { encrypt, decrypt } = require("ethereum-cryptography/aes");
-import { sign } from "tweetnacl";
-import { BN, utils } from "@coral-xyz/anchor";
+import {box, sign} from "tweetnacl";
+import {BN, utils} from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
-  TransactionParametersErrorCode,
-  UtxoErrorCode,
   BN_0,
-  setEnvironment,
   CONSTANT_SECRET_AUTHKEY,
+  setEnvironment,
+  SIGN_MESSAGE,
+  STANDARD_SHIELDED_PRIVATE_KEY,
+  STANDARD_SHIELDED_PUBLIC_KEY,
   TransactionErrorCode,
   TransactionParameters,
+  TransactionParametersErrorCode, truncateToCircuit,
   Utxo,
-  SIGN_MESSAGE,
+  UtxoErrorCode,
   Wallet,
-  STANDARD_SHIELDED_PUBLIC_KEY,
-  STANDARD_SHIELDED_PRIVATE_KEY,
 } from "./index";
 
+import {blake2, blake2str, poseidon as wasmPoseidon } from "light-wasm";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
+
+import {Keypair, PublicKey} from "@solana/web3.js";
+import {bs58} from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import {Result} from "./types";
+import {Prover} from "@lightprotocol/prover.js";
+
+const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 const ffjavascript = require("ffjavascript");
 const buildEddsa = require("circomlibjs").buildEddsa;
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Result } from "./types/result";
-import { Prover } from "@lightprotocol/prover.js";
+
 // TODO: add fromPubkeyString()
 export class Account {
   /**
@@ -50,15 +55,8 @@ export class Account {
   hashingSecret?: Uint8Array;
   solanaPublicKey?: PublicKey;
 
-  /**
-   *
-   * @param poseidon required
-   * @param seed
-   * @param burner
-   * @param privateKey
-   * @param publicKey
-   * @param encryptionPublicKey required for transfers to other users
-   */
+  static readonly hashLength = 32;
+
   constructor({
     poseidon,
     seed = bs58.encode(nacl.randomBytes(32)),
@@ -84,7 +82,7 @@ export class Account {
     aesSecret?: Uint8Array;
     solanaPublicKey?: PublicKey;
   }) {
-    if (!poseidon) {
+    if (!featureFlags.wasmPoseidon && !poseidon) {
       throw new AccountError(
         TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
         "constructor",
@@ -111,16 +109,17 @@ export class Account {
           "seed is required to create a burner account",
         );
       }
-      if (bs58.decode(seed).length < 32) {
+      let decoded_seed = bs58.decode(seed);
+      if (decoded_seed.length !== 32) {
         throw new AccountError(
           AccountErrorCode.INVALID_SEED_SIZE,
           "constructor",
-          "seed too short length less than 32",
+          "Seed length assertion failed. Expected 32, got ${decoded_seed.length}.",
         );
       }
       // burnerSeed can be shared since hash cannot be inverted - only share this for app utxos
-      // sharing the burnerSeed saves 32 bytes in onchain data if it is require to share both
-      // the encryption and private key of a utxo
+      // sharing the burnerSeed saves 32 bytes in on-chain data if it is required to share both
+      // the encryption and private key of an utxo
       this.burnerSeed = new BN(bs58.decode(seed)).toArrayLike(Buffer, "be", 32);
       this.privkey = Account.generateShieldedPrivateKey(seed, poseidon);
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
@@ -129,12 +128,12 @@ export class Account {
         this.burnerSeed.toString(),
       );
       this.aesSecret = Account.generateSecret(
-        b2params.dkLen,
+          b2params.dkLen,
         this.burnerSeed.toString(),
         "aes",
       );
       this.hashingSecret = Account.generateSecret(
-        b2params.dkLen,
+          b2params.dkLen,
         this.burnerSeed.toString(),
         "hashing",
       );
@@ -181,7 +180,7 @@ export class Account {
         throw new AccountError(
           AccountErrorCode.INVALID_SEED_SIZE,
           "constructor",
-          "seed too short length less than 32",
+            "Seed length is less than 32"
         );
       }
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
@@ -190,7 +189,7 @@ export class Account {
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(seed);
       this.aesSecret = Account.generateSecret(b2params.dkLen, seed, "aes");
       this.hashingSecret = Account.generateSecret(
-        b2params.dkLen,
+          b2params.dkLen,
         seed,
         "hashing",
       );
@@ -228,11 +227,11 @@ export class Account {
     return this.poseidonEddsaKeypair.publicKey;
   }
 
-  static getEddsaPrivateKey(seed: string) {
+  static getEddsaPrivateKey(seed: string, useWasmBlake: boolean = featureFlags.wasmBlake) {
     const privkeySeed = seed + "poseidonEddsaKeypair";
     return {
       publicKey: undefined,
-      privateKey: blake2b.create(b2params).update(privkeySeed).digest(),
+      privateKey: useWasmBlake ? blake2str(privkeySeed, Account.hashLength) : blake2b.create(b2params).update(privkeySeed).digest()
     };
   }
 
@@ -276,33 +275,23 @@ export class Account {
     }
   }
 
-  /**
-   * Sign a message using keypair private key
-   *
-   * @param {string|number|BigNumber} commitment a hex string with commitment
-   * @param {string|number|BigNumber} merklePath a hex string with merkle path
-   * @returns {BigNumber} a hex string with signature
-   */
-  sign(poseidon: any, commitment: any, merklePath: any) {
-    return poseidon.F.toString(
-      poseidon([this.privkey.toString(), commitment.toString(), merklePath]),
-    );
+  sign(poseidon: any, commitment: string, merklePath: number) {
+    if (featureFlags.wasmPoseidon) {
+      return new BN(wasmPoseidon([this.privkey.toString(), commitment.toString(), merklePath.toString()]));
+    }
+    else {
+      return poseidon.F.toString(
+          poseidon([this.privkey.toString(), commitment.toString(), merklePath]),
+      );
+    }
   }
 
-  /**
-   * @description gets domain separated aes secret to execlude the possibility of nonce reuse
-   * @note we derive an aes key for every utxo of every merkle tree
-   *
-   * @param {PublicKey} merkleTreePdaPublicKey
-   * @param {number} index the xth transaction for the respective merkle tree
-   * @returns {Uint8Array} the blake2b hash of the aesSecret + merkleTreePdaPublicKey.toBase58() + index.toString()
-   */
   getAesUtxoViewingKey(
     merkleTreePdaPublicKey: PublicKey,
     salt: string,
   ): Uint8Array {
     return Account.generateSecret(
-      b2params.dkLen,
+        b2params.dkLen,
       this.aesSecret?.toString(),
       merkleTreePdaPublicKey.toBase58() + salt,
     );
@@ -310,35 +299,37 @@ export class Account {
 
   getUtxoPrefixViewingKey(salt: string): Uint8Array {
     return Account.generateSecret(
-      b2params.dkLen,
+        b2params.dkLen,
       this.hashingSecret?.toString(),
       salt,
     );
   }
 
-  generateUtxoPrefixHash(commitmentHash: Uint8Array, dkLen: number) {
+  generateUtxoPrefixHash(commitmentHash: Uint8Array, prefixLength: number, useWasmBlake: boolean = featureFlags.wasmBlake) {
     const input = Uint8Array.from([
       ...this.getUtxoPrefixViewingKey("hashing"),
       ...commitmentHash,
     ]);
 
-    return blake2b.create({ dkLen }).update(input).digest();
+    return useWasmBlake ? blake2(input, prefixLength) : blake2b.create({ "dkLen": prefixLength }).update(input).digest();
   }
 
-  static createBurner(poseidon: any, seed: string, index: BN): Account {
-    if (seed.length < 32) {
+  static createBurner(poseidon: any, seed: string, index: BN, useWasmBlake: boolean  = featureFlags.wasmBlake): Account {
+    if (bs58.decode(seed).length !== 32) {
       throw new AccountError(
         AccountErrorCode.INVALID_SEED_SIZE,
         "constructor",
         "seed too short length less than 32",
       );
     }
-    const burnerSeed = blake2b
-      .create(b2params)
-      .update(seed + "burnerSeed" + index.toString())
-      .digest();
+    const input = seed + "burnerSeed" + index.toString();
+    const burnerSeed = useWasmBlake
+        ? blake2str(input, Account.hashLength)
+        : blake2b
+          .create(b2params)
+          .update(input)
+          .digest();
     const burnerSeedString = bs58.encode(burnerSeed);
-
     return new Account({ poseidon, seed: burnerSeedString, burner: true });
   }
 
@@ -404,7 +395,9 @@ export class Account {
       throw new AccountError(
         AccountErrorCode.INVALID_PUBLIC_KEY_SIZE,
         "fromPubkey",
-        `Expected publickey size 64 bytes as bs58 encoded string, the first 32 bytes are the shielded publickey the second 32 bytes are the encryption publickey provided length ${decoded} string ${publicKey}`,
+          `Invalid length: ${decoded.length} bytes. Expected 64 bytes for publicKey, 
+          where the first 32 are the shielded key and the second 32 are the encryption key.`,
+
       );
 
     const pubKey = new BN(decoded.subarray(0, 32), undefined, "be");
@@ -423,48 +416,52 @@ export class Account {
     return bs58.encode(concatPublicKey);
   }
 
-  static getEncryptionKeyPair(seed: string): nacl.BoxKeyPair {
+  static getEncryptionKeyPair(seed: string, useWasmBlake: boolean = featureFlags.wasmBlake): nacl.BoxKeyPair {
     const encSeed = seed + "encryption";
-    const encryptionPrivateKey = blake2b
-      .create(b2params)
-      .update(encSeed)
-      .digest();
-    return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
+    const encryptionPrivateKey = useWasmBlake
+        ? blake2str(encSeed, Account.hashLength)
+        : blake2b
+          .create(b2params)
+          .update(encSeed)
+          .digest();
+      return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
   }
 
-  static generateShieldedPrivateKey(seed: string, poseidon: any): BN {
+  static generateShieldedPrivateKey(seed: string, poseidon: any, useWasmBlake: boolean = featureFlags.wasmBlake): BN {
     const privkeySeed = seed + "shielded";
-    const privateKey = new BN(
-      poseidon.F.toString(
-        poseidon([
-          new BN(blake2b.create(b2params).update(privkeySeed).digest()),
-        ]),
-      ),
-    );
+    const blakeHash: Uint8Array = useWasmBlake ? blake2str(privkeySeed, Account.hashLength) : blake2b.create(b2params).update(privkeySeed).digest();
+    const blakeHash31 = truncateToCircuit(blakeHash);
+    const blakeHashBN = new BN(blakeHash31);
+    let privateKey: BN;
+    if (featureFlags.wasmPoseidon) {
+      privateKey = new BN(wasmPoseidon([blakeHashBN.toString()]));
+    } else {
+      privateKey = new BN(poseidon.F.toString(poseidon([blakeHashBN])));
+    }
     return privateKey;
   }
 
   static generateSecret(
-    dkLen: number,
+      dkLen: number,
     seed?: string,
     domain?: string,
+    useWasmBlake: boolean = featureFlags.wasmBlake
   ): Uint8Array {
-    return Uint8Array.from(
-      blake2b.create({ dkLen }).update(`${seed}${domain}`).digest(),
-    );
+    const input: string = `${seed}${domain}`;
+    return useWasmBlake
+        ? blake2str(input, Account.hashLength)
+        : Uint8Array.from(blake2b.create({ dkLen }).update(`${seed}${domain}`).digest())
   }
 
   static generateShieldedPublicKey(privateKey: BN, poseidon: any): BN {
-    return new BN(poseidon.F.toString(poseidon([privateKey])));
+    if (featureFlags.wasmPoseidon) {
+      return new BN(wasmPoseidon([privateKey.toString()]));
+    }
+    else {
+      return new BN(poseidon.F.toString(poseidon([privateKey])));
+    }
   }
 
-  /**
-   * Encrypts UTXO bytes with UTXO viewing key and iv from commitment.
-   * @param messageBytes - The bytes message to be encrypted.
-   * @param merkleTreePdaPublicKey - The public key used in encryption.
-   * @param commitment - The commitment used as the Initialization Vector (iv).
-   * @returns A promise that resolves to the encrypted Uint8Array.
-   */
   async encryptAesUtxo(
     messageBytes: Uint8Array,
     merkleTreePdaPublicKey: PublicKey,
@@ -482,12 +479,6 @@ export class Account {
     );
   }
 
-  /**
-   * Encrypts bytes with aes secret key.
-   * @param messageBytes - The bytes to be encrypted.
-   * @param iv16 - Optional Initialization Vector (iv), 16 random bytes by default.
-   * @returns A Uint8Array of encrypted bytes with the iv as the first 16 bytes of the cipher text.
-   */
   async encryptAes(
     messageBytes: Uint8Array,
     iv16: Uint8Array = nacl.randomBytes(16),
@@ -502,14 +493,6 @@ export class Account {
     return new Uint8Array([...iv16, ...ciphertext]);
   }
 
-  /**
-   * Private aes encryption method.
-   * @private
-   * @param messageBytes - The messageBytes to be encrypted.
-   * @param secretKey - The secret key to be used for encryption.
-   * @param iv16 - The Initialization Vector (iv) to be used for encryption.
-   * @returns A promise that resolves to the encrypted Uint8Array.
-   */
   private async _encryptAes(
     messageBytes: Uint8Array,
     secretKey: Uint8Array,
@@ -525,13 +508,6 @@ export class Account {
     return await encrypt(messageBytes, secretKey, iv16, "aes-256-cbc", true);
   }
 
-  /**
-   * Decrypts encrypted UTXO bytes with UTXO viewing key and iv from commitment.
-   * @param encryptedBytes - The encrypted bytes to be decrypted.
-   * @param merkleTreePdaPublicKey - The public key used in decryption.
-   * @param commitment - The commitment used as the Initialization Vector (iv).
-   * @returns A promise that resolves to a Result object containing the decrypted Uint8Array or an error if the decryption fails.
-   */
   async decryptAesUtxo(
     encryptedBytes: Uint8Array,
     merkleTreePdaPublicKey: PublicKey,
@@ -556,29 +532,17 @@ export class Account {
     );
   }
 
-  /**
-   * Decrypts AES encrypted bytes, the iv is expected to be the first 16 bytes.
-   * @param encryptedBytes - The AES encrypted bytes to be decrypted.
-   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
-   * @throws Will throw an error if the aesSecret is undefined.
-   */
   async decryptAes(
     encryptedBytes: Uint8Array,
   ): Promise<Result<Uint8Array | null, Error>> {
     if (!this.aesSecret) {
       throw new AccountError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decryptAes");
     }
+
     const iv16 = encryptedBytes.slice(0, 16);
     return this._decryptAes(encryptedBytes.slice(16), this.aesSecret, iv16);
   }
-  /**
-   * Private aes decryption method.
-   * @private
-   * @param encryptedBytes - The AES encrypted bytes to be decrypted.
-   * @param secretKey - The secret key to be used for decryption.
-   * @param iv16 - The Initialization Vector (iv) to be used for decryption.
-   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
-   */
+
   private async _decryptAes(
     encryptedBytes: Uint8Array,
     secretKey: Uint8Array,
@@ -593,14 +557,6 @@ export class Account {
     }
   }
 
-  /**
-   * Encrypts utxo bytes to public key using a nonce and a standardized secret for hmac.
-   * @static
-   * @param publicKey - The public key to encrypt to.
-   * @param bytes_message - The message to be encrypted.
-   * @param commitment - The commitment used to generate the nonce.
-   * @returns The encrypted Uint8Array.
-   */
   static encryptNaclUtxo(
     publicKey: Uint8Array,
     messageBytes: Uint8Array,
@@ -621,17 +577,6 @@ export class Account {
     );
   }
 
-  /**
-   * Encrypts bytes to a public key.
-   * @static
-   * @param publicKey - The public key to encrypt to.
-   * @param messageBytes - The message to be encrypted.
-   * @param signerSecretKey - Optional signing secret key.
-   * @param returnWithoutSigner - Optional flag to return without signer.
-   * @param nonce - Optional nonce, generates random if undefined.
-   * @param returnWithoutNonce - Optional flag to return without nonce.
-   * @returns The encrypted Uint8Array.
-   */
   static encryptNacl(
     publicKey: Uint8Array,
     messageBytes: Uint8Array,
@@ -661,12 +606,6 @@ export class Account {
     ]);
   }
 
-  /**
-   * Decrypts encrypted UTXO bytes.
-   * @param ciphertext - The encrypted bytes to be decrypted.
-   * @param commitment - The commitment used to generate the nonce.
-   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
-   */
   async decryptNaclUtxo(
     ciphertext: Uint8Array,
     commitment: Uint8Array,
@@ -679,50 +618,32 @@ export class Account {
     );
   }
 
-  /**
-   * Decrypts encrypted bytes.
-   * If nonce is not provided, it expects the first 24 bytes to be the nonce.
-   * If signerPublicKey is not provided, expects the subsequent 32 bytes (after the nonce) to be the signer public key.
-   * @param ciphertext - The encrypted bytes to be decrypted.
-   * @param nonce - Optional nonce, if not provided, it is extracted from the ciphertext.
-   * @param signerpublicKey - Optional signer public key, if not provided, it is extracted from the ciphertext.
-   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
-   */
   async decryptNacl(
     ciphertext: Uint8Array,
     nonce?: Uint8Array,
-    signerpublicKey?: Uint8Array,
+    signerPublicKey?: Uint8Array,
   ): Promise<Result<Uint8Array | null, Error>> {
     if (!nonce) {
       nonce = ciphertext.slice(0, 24);
       ciphertext = ciphertext.slice(24);
     }
-    if (!signerpublicKey) {
-      signerpublicKey = ciphertext.slice(0, 32);
+    if (!signerPublicKey) {
+      signerPublicKey = ciphertext.slice(0, 32);
       ciphertext = ciphertext.slice(32);
     }
-
-    return this._decryptNacl(ciphertext, nonce, signerpublicKey);
+    return this._decryptNacl(ciphertext, nonce, signerPublicKey);
   }
 
-  /**
-   * Private nacl decryption method.
-   * @private
-   * @param ciphertext - The encrypted bytes to be decrypted.
-   * @param nonce - The nonce to be used for decryption.
-   * @param signerpublicKey - Optional signer public key.
-   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
-   */
   private async _decryptNacl(
     ciphertext: Uint8Array,
     nonce: Uint8Array,
-    signerpublicKey?: Uint8Array,
+    signerPublicKey?: Uint8Array,
   ): Promise<Result<Uint8Array | null, Error>> {
     return Result.Ok(
       nacl.box.open(
         ciphertext,
         nonce,
-        signerpublicKey,
+        signerPublicKey,
         this.encryptionKeypair.secretKey,
       ),
     );

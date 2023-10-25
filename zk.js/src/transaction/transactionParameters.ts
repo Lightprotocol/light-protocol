@@ -5,8 +5,6 @@ import { BN, BorshAccountsCoder, Program, Idl } from "@coral-xyz/anchor";
 import {
   AUTHORITY,
   N_ASSET_PUBKEYS,
-  STANDARD_SHIELDED_PRIVATE_KEY,
-  STANDARD_SHIELDED_PUBLIC_KEY,
   lightPsp2in2outStorageId,
 } from "../constants";
 import { Utxo } from "../utxo";
@@ -40,7 +38,8 @@ import {
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import nacl from "tweetnacl";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import {featureFlags} from "../featureFlags";
+import {poseidon as wasmPoseidon} from "light-wasm";
 
 type VerifierConfig = {
   in: number;
@@ -1206,15 +1205,24 @@ export class TransactionParameters implements transactionParameters {
         TransactionErrorCode.TX_INTEGRITY_HASH_UNDEFINED,
         "getTransactionHash",
       );
-    const inputHasher = poseidon.F.toString(
-      poseidon(this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
-    );
-    const outputHasher = poseidon.F.toString(
-      poseidon(this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
-    );
-    const transactionHash = poseidon.F.toString(
-      poseidon([inputHasher, outputHasher, this.txIntegrityHash.toString()]),
-    );
-    return transactionHash;
+
+    if (featureFlags.wasmPoseidon) {
+      const inputHasher = wasmPoseidon(this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))).toString();
+      const outputHasher = wasmPoseidon(this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon))).toString();
+      const transactionHash = wasmPoseidon(poseidon([inputHasher, outputHasher, this.txIntegrityHash.toString()])).toString();
+      return transactionHash;
+    }
+    else {
+      const inputHasher = poseidon.F.toString(
+          poseidon(this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
+      );
+      const outputHasher = poseidon.F.toString(
+          poseidon(this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
+      );
+      const transactionHash = poseidon.F.toString(
+          poseidon([inputHasher, outputHasher, this.txIntegrityHash.toString()]),
+      );
+      return transactionHash;
+    }
   }
 }

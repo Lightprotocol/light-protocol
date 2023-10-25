@@ -1,0 +1,11 @@
+{
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "compilerOptions": {
+      "outDir": "./lib",
+      "rootDirs": ["src", "generated"],
+      "baseUrl": "src",
+      "esModuleInterop": true
+    },
+    "extends": "@lightprotocol/tsconfig/base.json",
+    "include": ["src"]
+  }
