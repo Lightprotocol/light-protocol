@@ -2088,6 +2088,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d77f7ec81a6d05a3abb01ab6eb7590f6083d08449fe5a1c8b1e620283546ccb7"
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "histogram"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2479,6 +2485,17 @@ dependencies = [
  "solana-sdk",
  "solana-security-txt",
  "spl-token",
+]
+
+[[package]]
+name = "light-poseidon"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "949bdd22e4ed93481d45e9a6badb34b99132bcad0c8a8d4f05c42f7dcc7b90bc"
+dependencies = [
+ "ark-bn254 0.4.0",
+ "ark-ff 0.4.2",
+ "thiserror",
 ]
 
 [[package]]
@@ -6089,6 +6106,18 @@ dependencies = [
  "proc-macro2 1.0.68",
  "quote 1.0.33",
  "syn 2.0.38",
+]
+
+[[package]]
+name = "zk-rs"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254 0.4.0",
+ "ark-ff 0.4.2",
+ "hex",
+ "js-sys",
+ "light-poseidon",
+ "wasm-bindgen",
 ]
 
 [[package]]

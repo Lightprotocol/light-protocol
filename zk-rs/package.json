@@ -1,0 +1,13 @@
+{
+  "name": "zk-rs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "wasm-pack build --target web",
+    "start": "devserver"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

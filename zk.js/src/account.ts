@@ -283,7 +283,7 @@ export class Account {
    * @param {string|number|BigNumber} merklePath a hex string with merkle path
    * @returns {BigNumber} a hex string with signature
    */
-  sign(poseidon: any, commitment: any, merklePath: any) {
+  sign(poseidon: any, commitment: string, merklePath: number) {
     return poseidon.F.toString(
       poseidon([this.privkey.toString(), commitment.toString(), merklePath]),
     );
