@@ -6,7 +6,8 @@
   "scripts": {
     "start-test-validator": "./../cli/test_bin/run test-validator -b",
     "test": "pnpm test-system-programs && pnpm test-zk.js",
-    "test-zk.js": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts --exit",
+    "test-zk.js": "ts-mocha --resolveJsonModule ./tsconfig.json -t 10000000000 tests/**.ts --exit",
+    "test-wasm": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/wasm.test.ts --exit",
     "test-tx-params": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/transactionParameters.test.ts --exit",
     "test-utxo": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/utxo.test.ts --exit",
     "test-verifiers": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/verifiers.test.ts --exit",
@@ -58,6 +59,7 @@
     "@coral-xyz/borsh": "^0.28.0",
     "@lightprotocol/circuit-lib.js": "workspace:*",
     "@lightprotocol/prover.js": "workspace:*",
+    "light-wasm": "workspace:*",
     "@noble/hashes": "^1.1.5",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",

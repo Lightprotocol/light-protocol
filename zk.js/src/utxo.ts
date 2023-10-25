@@ -35,6 +35,8 @@ const anchor = require("@coral-xyz/anchor");
 
 const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
+import {poseidon as wasmPoseidon} from "light-wasm";
+import {featureFlags} from "./featureFlags";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const randomPrefixBytes = () => nacl.randomBytes(UTXO_PREFIX_LENGTH);
@@ -358,14 +360,20 @@ export class Utxo {
           "appData length exceeds 16",
         );
       }
-      this.appDataHash = new BN(
-        leInt2Buff(
-          unstringifyBigInts(poseidon.F.toString(poseidon(hashArray))),
-          32,
-        ),
-        undefined,
-        "le",
-      );
+      if (featureFlags.wasmPoseidon) {
+        this.appDataHash = new BN(leInt2Buff(unstringifyBigInts(wasmPoseidon(hashArray).toString()), 32), undefined, "le");
+      }
+      else {
+        this.appDataHash = new BN(
+            leInt2Buff(
+                unstringifyBigInts(poseidon.F.toString(poseidon(hashArray))),
+                32,
+            ),
+            undefined,
+            "le",
+        );
+      }
+
       if (appDataHash && appDataHash.toString() !== this.appDataHash.toString())
         throw new UtxoError(
           UtxoErrorCode.INVALID_APP_DATA,
