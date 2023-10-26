@@ -1,13 +1,18 @@
-import { Paper, Text, Group, Stack, NavLink, Divider } from "@mantine/core";
+import {
+  Paper,
+  Text,
+  Group,
+  Stack,
+  NavLink,
+  Divider,
+  Anchor,
+} from "@mantine/core";
 import {
   IconArrowDown,
   IconArrowUp,
   IconArrowRight,
 } from "@tabler/icons-react";
-import {
-  IndexedTransaction,
-  UserIndexedTransaction,
-} from "@lightprotocol/zk.js";
+import { UserIndexedTransaction } from "@lightprotocol/zk.js";
 import { useTransactions } from "../../state/hooks/useTransactions";
 import { Pagination } from "@mantine/core";
 const parseTxAmount = (tx: UserIndexedTransaction) => {
@@ -38,9 +43,6 @@ function TransactionCard({
           {typeIcons[type]}
           <Text size="md">{type.toLowerCase()}</Text>
         </Group>
-        {/* <NavLink color="blue" href={`https://explorer.solana.com/${signature}`}>
-        {signature.slice(0, 6) + "..." + signature.slice(-6)}
-      </NavLink> */}
         <Stack gap={0}>
           <Group align="baseline" justify="flex-end">
             <Text size="sm">{parseTxAmount(transaction).toString()}</Text>
@@ -51,6 +53,14 @@ function TransactionCard({
           </Text>
         </Stack>
       </Group>
+      <Anchor
+        size="xs"
+        c="blue"
+        href={`https://explorer.solana.com/tx/${signature}?cluster=devnet`}
+        target="_blank"
+      >
+        {signature.slice(0, 6) + "..." + signature.slice(-6)}
+      </Anchor>
       <Divider my="xs" color="#f3f6f9" />
     </Stack>
   );

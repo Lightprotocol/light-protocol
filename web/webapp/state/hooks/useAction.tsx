@@ -1,11 +1,7 @@
 "use client";
 import { atom, useAtom } from "jotai";
 import { userState } from "./useUser";
-import {
-  AppUtxoConfig,
-  ConfirmOptions,
-  confirmConfig,
-} from "@lightprotocol/zk.js";
+import { AppUtxoConfig, ConfirmOptions } from "@lightprotocol/zk.js";
 import { PublicKey } from "@solana/web3.js";
 
 export const transferState = atom(
@@ -21,8 +17,8 @@ export const transferState = atom(
       appUtxo,
       confirmOptions,
     }: {
-      token?: string;
-      recipient?: string;
+      token: string;
+      recipient: string;
       amountSpl?: string;
       amountSol?: string;
       appUtxo?: AppUtxoConfig | undefined;
@@ -36,12 +32,12 @@ export const transferState = atom(
 
     try {
       await user.transfer({
-        token: "SOL",
-        recipient: user.account.getPublicKey(),
-        amountSpl: undefined,
-        amountSol: "0.001",
-        appUtxo: undefined,
-        confirmOptions: undefined,
+        token,
+        recipient,
+        amountSpl,
+        amountSol,
+        appUtxo,
+        confirmOptions,
       });
 
       set(userState, user);
@@ -82,13 +78,13 @@ export const shieldState = atom(
 
     try {
       await user.shield({
-        token: "SOL",
-        recipient: undefined,
-        publicAmountSpl: undefined,
-        publicAmountSol: "0.001",
-        appUtxo: undefined,
+        token,
+        recipient,
+        publicAmountSpl,
+        publicAmountSol,
+        appUtxo,
         confirmOptions,
-        senderTokenAccount: undefined,
+        senderTokenAccount,
       });
 
       set(userState, user);
@@ -104,7 +100,19 @@ export const unshieldState = atom(
   async (
     get,
     set,
-    { token, recipient, publicAmountSol, publicAmountSpl, confirmOptions }
+    {
+      token,
+      recipient,
+      publicAmountSpl = undefined,
+      publicAmountSol = undefined,
+      confirmOptions = undefined,
+    }: {
+      token: string;
+      recipient: PublicKey;
+      publicAmountSol?: string | undefined;
+      publicAmountSpl?: string | undefined;
+      confirmOptions?: ConfirmOptions | undefined;
+    }
   ) => {
     const user = get(userState);
     if (!user) {

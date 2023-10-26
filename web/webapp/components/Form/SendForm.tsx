@@ -4,30 +4,69 @@ import { IconArrowRight } from "@tabler/icons-react";
 import { TokenInput, SendRecipientInput } from "../Input";
 import { FormValues } from ".";
 import { useAction } from "../../state/hooks/useAction";
-import { ConfirmOptions, confirmConfig } from "@lightprotocol/zk.js";
-// TODO: add global jotai state to synchronize the form values to add "select recipient" page
+import { useEffect, useState } from "react";
+import { PublicKey } from "@solana/web3.js";
 
 export interface SendFormValues extends FormValues {
   recipient: string;
 }
 
+const isSolanaPublicKey = (string: string): boolean => {
+  try {
+    if (PublicKey.isOnCurve(string)) {
+      new PublicKey(string);
+      return true;
+    }
+    console.log("!isOnCurve");
+    return false;
+  } catch (err) {
+    console.log("!Pubkey");
+    return false;
+  }
+};
+
 export function SendForm() {
+  const [isUnshield, setIsUnshield] = useState(false);
+
   const form: UseFormReturnType<SendFormValues> = useForm({
     initialValues: { amount: "", token: "SOL", recipient: "" },
   });
-  const { transfer } = useAction();
+
+  useEffect(() => {
+    if (form.values.recipient) {
+      setIsUnshield(isSolanaPublicKey(form.values.recipient));
+    }
+  }, [form.values.recipient]);
+
+  const { transfer, unshield } = useAction();
 
   return (
     <Box w={"100%"} mx="auto">
       <form
         onSubmit={form.onSubmit((values) => {
           console.log(values);
-          console.log("transfer");
           (async () => {
-            await transfer({
-              confirmOptions: {},
-            });
-            console.log("sent");
+            if (isUnshield) {
+              console.log("unshielding");
+              await unshield({
+                token: values.token,
+                recipient: new PublicKey(values.recipient),
+                publicAmountSol:
+                  values.token === "SOL" ? values.amount : undefined,
+                publicAmountSpl:
+                  values.token !== "SOL" ? values.amount : undefined,
+              });
+            } else {
+              console.log("transferring");
+
+              await transfer({
+                token: values.token,
+                recipient: values.recipient,
+                amountSol: values.token === "SOL" ? values.amount : undefined,
+                amountSpl: values.token === "SOL" ? undefined : values.amount,
+              });
+            }
+            console.log("done");
           })();
         })}
       >

@@ -30,9 +30,10 @@ export default function Shell() {
   // TODO: replace with login action.
   // wallet must be available state, but kept separate from login
   useEffect(() => {
-    console.log("user", user);
+    console.log("user", user?.account.getPublicKey());
     console.log("isLoading", isLoading);
     console.log("error", error);
+    console.log("walletpubkey", wallet.publicKey.toBase58());
     if (wallet && !user && !isLoading && !error) {
       initUser({ connection, wallet });
     }
