@@ -30,8 +30,8 @@ pub enum VerifierSdkError {
     InvalidUtxoSize,
     #[msg("CloseAccountFailed")]
     CloseAccountFailed,
-    #[msg("InvalidSenderorRecipient")]
-    InvalidSenderorRecipient,
+    #[msg("Invalid sender or recipient")]
+    InvalidSenderOrRecipient,
     #[msg("Proof not verified")]
     ProofNotVerified,
     #[msg("Message was provided without event Merkle tree account")]

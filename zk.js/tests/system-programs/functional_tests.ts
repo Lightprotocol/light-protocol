@@ -38,9 +38,11 @@ import {
   RELAYER_FEE,
   BN_0,
   lightPsp2in2outId,
+  airdropSplToAssociatedTokenAccount,
 } from "../../src";
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 let POSEIDON: any;
 let RELAYER: TestRelayer;
@@ -84,7 +86,6 @@ describe("verifier_program", () => {
     await performShield({
       delegate: AUTHORITY_ONE,
       spl: true,
-      senderSpl: userTokenAccount,
       shuffleEnabled: true,
       verifierIdl: IDL_LIGHT_PSP10IN2OUT,
     });
@@ -95,7 +96,6 @@ describe("verifier_program", () => {
       delegate: AUTHORITY,
       spl: false,
       message: Buffer.alloc(900).fill(1),
-      senderSpl: null,
       shuffleEnabled: false,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
     });
@@ -105,7 +105,6 @@ describe("verifier_program", () => {
     await performShield({
       delegate: AUTHORITY,
       spl: true,
-      senderSpl: userTokenAccount,
       shuffleEnabled: true,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       updateMerkleTree: true,
@@ -167,7 +166,6 @@ describe("verifier_program", () => {
     delegate,
     spl = false,
     message,
-    senderSpl,
     shuffleEnabled = true,
     verifierIdl,
     updateMerkleTree = false,
@@ -175,7 +173,6 @@ describe("verifier_program", () => {
     delegate: anchor.web3.PublicKey;
     spl: boolean;
     message?: Buffer;
-    senderSpl: anchor.web3.PublicKey;
     shuffleEnabled: boolean;
     verifierIdl: Idl;
     updateMerkleTree?: boolean;
@@ -187,15 +184,23 @@ describe("verifier_program", () => {
     const shieldAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
     const shieldFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
+    await airdropSplToAssociatedTokenAccount(provider.connection, 10e9, ADMIN_AUTH_KEYPAIR.publicKey);
+    const tokenAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      ADMIN_AUTH_KEYPAIR,
+      MINT,
+      ADMIN_AUTH_KEYPAIR.publicKey,
+    );
     await token.approve(
       provider.connection,
       ADMIN_AUTH_KEYPAIR,
-      userTokenAccount,
+      tokenAccount.address,
       delegate, // delegate
-      USER_TOKEN_ACCOUNT, // owner
+      ADMIN_AUTH_KEYPAIR.publicKey, // owner
       shieldAmount * 2,
-      [USER_TOKEN_ACCOUNT],
+      [ADMIN_AUTH_KEYPAIR],
     );
+    const senderSpl = tokenAccount.address;
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
