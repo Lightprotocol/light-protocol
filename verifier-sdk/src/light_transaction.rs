@@ -716,66 +716,7 @@ impl<
 
             // is a token shield or unshield
             if self.is_shield_spl() {
-                self.check_spl_pool_account_derivation(
-                    &self
-                        .input
-                        .ctx
-                        .accounts
-                        .get_recipient_spl()
-                        .as_ref()
-                        .unwrap()
-                        .key(),
-                    &recipient_spl.mint,
-                )?;
-
-                let seed = light_merkle_tree_program::ID.to_bytes();
-                let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
-                    &[seed.as_ref()],
-                    self.input.ctx.program_id,
-                );
-                let bump = &[bump];
-                let seeds = &[&[seed.as_slice(), bump][..]];
-
-                let accounts = Transfer {
-                    from: self
-                        .input
-                        .ctx
-                        .accounts
-                        .get_sender_spl()
-                        .as_ref()
-                        .unwrap()
-                        .to_account_info()
-                        .clone(),
-                    to: self
-                        .input
-                        .ctx
-                        .accounts
-                        .get_recipient_spl()
-                        .as_ref()
-                        .unwrap()
-                        .to_account_info()
-                        .clone(),
-                    authority: self
-                        .input
-                        .ctx
-                        .accounts
-                        .get_authority()
-                        .to_account_info()
-                        .clone(),
-                };
-
-                let cpi_ctx = CpiContext::new_with_signer(
-                    self.input
-                        .ctx
-                        .accounts
-                        .get_token_program()
-                        .unwrap()
-                        .to_account_info()
-                        .clone(),
-                    accounts,
-                    seeds,
-                );
-                anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
+                self.shield_spl(pub_amount_checked, sender_spl, recipient_spl)?;
             } else {
                 self.check_spl_pool_account_derivation(
                     &self
@@ -982,25 +923,27 @@ impl<
             *recipient_sol.data.try_borrow().unwrap(),
         )?;
 
+        let signing_address = self
+            .input
+            .ctx
+            .accounts
+            .get_signing_address()
+            .to_account_info();
+        let sender_sol = self
+            .input
+            .ctx
+            .accounts
+            .get_sender_sol()
+            .unwrap()
+            .to_account_info();
+
         msg!("is shield");
         let rent = <Rent as sysvar::Sysvar>::get()?;
 
         create_and_check_pda(
             self.input.ctx.program_id,
-            &self
-                .input
-                .ctx
-                .accounts
-                .get_signing_address()
-                .to_account_info(),
-            &self
-                .input
-                .ctx
-                .accounts
-                .get_sender_sol()
-                .as_ref()
-                .unwrap()
-                .to_account_info(),
+            &signing_address,
+            &sender_sol,
             &self
                 .input
                 .ctx
@@ -1025,6 +968,92 @@ impl<
                 .to_account_info(),
             recipient_sol,
         )
+    }
+
+    fn shield_spl(
+        &self,
+        pub_amount_checked: u64,
+        sender_spl: spl_token::state::Account,
+        recipient_spl: spl_token::state::Account,
+    ) -> Result<()> {
+        self.check_spl_pool_account_derivation(
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_recipient_spl()
+                .as_ref()
+                .unwrap()
+                .key(),
+            &recipient_spl.mint,
+        )?;
+
+        let signing_address = self
+            .input
+            .ctx
+            .accounts
+            .get_signing_address()
+            .to_account_info();
+
+        if sender_spl.owner.as_ref() != signing_address.key().as_ref() {
+            msg!(
+                "sender_spl owned by: {}, expected signer: {}",
+                sender_spl.owner,
+                signing_address.key()
+            );
+            return err!(VerifierSdkError::InvalidSenderOrRecipient);
+        }
+
+        let seed = light_merkle_tree_program::ID.to_bytes();
+        let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
+            &[seed.as_ref()],
+            self.input.ctx.program_id,
+        );
+        let bump = &[bump];
+        let seeds = &[&[seed.as_slice(), bump][..]];
+
+        let accounts = Transfer {
+            from: self
+                .input
+                .ctx
+                .accounts
+                .get_sender_spl()
+                .as_ref()
+                .unwrap()
+                .to_account_info()
+                .clone(),
+            to: self
+                .input
+                .ctx
+                .accounts
+                .get_recipient_spl()
+                .as_ref()
+                .unwrap()
+                .to_account_info()
+                .clone(),
+            authority: self
+                .input
+                .ctx
+                .accounts
+                .get_authority()
+                .to_account_info()
+                .clone(),
+        };
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.input
+                .ctx
+                .accounts
+                .get_token_program()
+                .unwrap()
+                .to_account_info()
+                .clone(),
+            accounts,
+            seeds,
+        );
+        anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
+
+        Ok(())
     }
 
     /// Checks whether a transaction is a shield by inspecting the public amount.
@@ -1056,7 +1085,7 @@ impl<
         light_merkle_tree_program::RegisteredAssetPool::try_deserialize(&mut cloned_data)?;
 
         if derived_pubkey.0 != *pubkey {
-            return err!(VerifierSdkError::InvalidSenderorRecipient);
+            return err!(VerifierSdkError::InvalidSenderOrRecipient);
         }
         Ok(())
     }
@@ -1068,7 +1097,7 @@ impl<
         );
 
         if derived_pubkey.0 != *pubkey {
-            return err!(VerifierSdkError::InvalidSenderorRecipient);
+            return err!(VerifierSdkError::InvalidSenderOrRecipient);
         }
         Ok(())
     }

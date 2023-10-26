@@ -39,14 +39,16 @@ import {
   BN_0,
   closeVerifierState,
   Provider,
+  airdropSol,
 } from "../../src";
+import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 let POSEIDON, ACCOUNT, RELAYER, shieldUtxo1;
 let SLEEP_BUFFER = 0;
 const system = getSystem();
 if (system === System.MacOsArm64) SLEEP_BUFFER = 400;
 
-const transactions: Transaction[] = [];
+const transactions: { transaction: Transaction, verifier: string }[] = [];
 console.log = () => {};
 describe("Verifier Zero and One Tests", () => {
   // Configure the client to use the local cluster.
@@ -94,20 +96,27 @@ describe("Verifier Zero and One Tests", () => {
     for (const verifier in VERIFIER_IDLS) {
       console.log("verifier ", verifier.toString());
 
+      const tokenAccount = await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        ADMIN_AUTH_KEYPAIR,
+        MINT,
+        ADMIN_AUTH_KEYPAIR.publicKey,
+      );
       await token.approve(
         provider.connection,
         ADMIN_AUTH_KEYPAIR,
-        userTokenAccount,
+        tokenAccount.address,
         Transaction.getSignerAuthorityPda(
           merkleTreeProgramId,
           new PublicKey(
             VERIFIER_IDLS[verifier].constants[0].value.slice(1, -1),
           ),
         ), //delegate
-        USER_TOKEN_ACCOUNT, // owner
+        ADMIN_AUTH_KEYPAIR.publicKey, // owner
         shieldAmount * 10,
-        [USER_TOKEN_ACCOUNT],
+        [ADMIN_AUTH_KEYPAIR],
       );
+      const senderSpl = tokenAccount.address;
 
       lightProvider = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
@@ -128,7 +137,7 @@ describe("Verifier Zero and One Tests", () => {
         eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
         transactionMerkleTreePubkey:
           MerkleTreeConfig.getTransactionMerkleTreePda(),
-        senderSpl: userTokenAccount,
+        senderSpl,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         poseidon: POSEIDON,
         action: Action.SHIELD,
@@ -170,7 +179,7 @@ describe("Verifier Zero and One Tests", () => {
         eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
         transactionMerkleTreePubkey:
           MerkleTreeConfig.getTransactionMerkleTreePda(),
-        senderSpl: userTokenAccount,
+        senderSpl,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         poseidon: POSEIDON,
         action: Action.SHIELD,
@@ -187,7 +196,7 @@ describe("Verifier Zero and One Tests", () => {
         params: txParams1,
       });
       await transaction1.compileAndProve(POSEIDON, ACCOUNT);
-      transactions.push(transaction1);
+      transactions.push({ transaction: transaction1, verifier });
 
       // Unshield
       const tokenRecipient = recipientTokenAccount;
@@ -236,7 +245,7 @@ describe("Verifier Zero and One Tests", () => {
       });
 
       await tx.compileAndProve(POSEIDON, ACCOUNT);
-      transactions.push(tx);
+      transactions.push({ transaction: tx, verifier });
     }
   });
 
@@ -284,11 +293,11 @@ describe("Verifier Zero and One Tests", () => {
   }
 
   it("Wrong amount", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
 
       const wrongAmount = new anchor.BN("123213").toArray();
-      tmp_tx.transactionInputs.publicInputs.publicAmountSpl = Array.from([
+      tmp_tx.transactionInputs.publicInputs!.publicAmountSpl = Array.from([
         ...new Array(29).fill(0),
         ...wrongAmount,
       ]);
@@ -299,10 +308,10 @@ describe("Verifier Zero and One Tests", () => {
   });
 
   it("Wrong publicAmountSol", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       const wrongFeeAmount = new anchor.BN("123213").toArray();
-      tmp_tx.transactionInputs.publicInputs.publicAmountSol = Array.from([
+      tmp_tx.transactionInputs.publicInputs!.publicAmountSol = Array.from([
         ...new Array(29).fill(0),
         ...wrongFeeAmount,
       ]);
@@ -311,8 +320,8 @@ describe("Verifier Zero and One Tests", () => {
   });
 
   it("Wrong Mint", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       const relayer = SolanaKeypair.generate();
       const newMintKeypair = SolanaKeypair.generate();
       await createMintWrapper({
@@ -332,26 +341,26 @@ describe("Verifier Zero and One Tests", () => {
   });
 
   it("Wrong encryptedUtxos", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       tmp_tx.params.encryptedUtxos = new Uint8Array(174).fill(2);
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
   });
 
   it("Wrong relayerFee", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       tmp_tx.params.relayer.relayerFee = new anchor.BN("9000");
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
   });
 
   it("Wrong nullifier", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      for (const i in tmp_tx.transactionInputs.publicInputs.inputNullifier) {
-        tmp_tx.transactionInputs.publicInputs.inputNullifier[i] = new Array(
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
+      for (const i in tmp_tx.transactionInputs.publicInputs!.inputNullifier) {
+        tmp_tx.transactionInputs.publicInputs!.inputNullifier[i] = new Array(
           32,
         ).fill(2);
         await sleep(SLEEP_BUFFER);
@@ -361,10 +370,10 @@ describe("Verifier Zero and One Tests", () => {
   });
 
   it("Wrong leaves", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      for (const i in tmp_tx.transactionInputs.publicInputs.outputCommitment) {
-        tmp_tx.transactionInputs.publicInputs.outputCommitment[i] = new Array(
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
+      for (const i in tmp_tx.transactionInputs.publicInputs!.outputCommitment) {
+        tmp_tx.transactionInputs.publicInputs!.outputCommitment[i] = new Array(
           32,
         ).fill(2);
         await sleep(SLEEP_BUFFER);
@@ -375,8 +384,8 @@ describe("Verifier Zero and One Tests", () => {
 
   // doesn't work sig verify error
   it.skip("Wrong signer", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       const wrongSinger = SolanaKeypair.generate();
       await provider.connection.confirmTransaction(
         await provider.connection.requestAirdrop(
@@ -392,24 +401,58 @@ describe("Verifier Zero and One Tests", () => {
   });
 
   it("Wrong recipientSol", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       tmp_tx.params.accounts.recipientSol = SolanaKeypair.generate().publicKey;
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
   });
 
+  it("Wrong senderSpl", async () => {
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
+      const keypair = SolanaKeypair.generate();
+      await airdropSol({
+        connection: provider.connection,
+        lamports: 10e9,
+        recipientPublicKey: keypair.publicKey,
+      });
+      const tokenAccount = await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        keypair,
+        MINT,
+        keypair.publicKey,
+      );
+      await token.approve(
+        provider.connection,
+        keypair,
+        tokenAccount.address,
+        Transaction.getSignerAuthorityPda(
+          merkleTreeProgramId,
+          new PublicKey(
+            VERIFIER_IDLS[tx.verifier].constants[0].value.slice(1, -1),
+          ),
+        ), // delegate
+        keypair.publicKey, // owner
+        shieldAmount * 10,
+        [keypair],
+      );
+      tmp_tx.params.accounts.senderSpl = tokenAccount.address;
+      await sendTestTx(tmp_tx, "InvalidSenderOrRecipient");
+    }
+  });
+
   it("Wrong recipientSpl", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       tmp_tx.params.accounts.recipientSpl = SolanaKeypair.generate().publicKey;
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
   });
 
   it("Wrong registeredVerifierPda", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       if (
         tmp_tx.params.accounts.registeredVerifierPda.toBase58() ==
         REGISTERED_VERIFIER_ONE_PDA.toBase58()
@@ -424,8 +467,8 @@ describe("Verifier Zero and One Tests", () => {
   });
 
   it("Wrong authority", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       tmp_tx.params.accounts.authority = Transaction.getSignerAuthorityPda(
         merkleTreeProgramId,
         SolanaKeypair.generate().publicKey,
@@ -435,17 +478,17 @@ describe("Verifier Zero and One Tests", () => {
   });
 
   it("Wrong nullifier accounts", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       tmp_tx.getPdaAddresses();
       for (
         let i = 0;
-        i < tmp_tx.remainingAccounts.nullifierPdaPubkeys.length;
+        i < tmp_tx.remainingAccounts!.nullifierPdaPubkeys!.length;
         i++
       ) {
-        tmp_tx.remainingAccounts.nullifierPdaPubkeys[i] =
-          tmp_tx.remainingAccounts.nullifierPdaPubkeys[
-            (i + 1) % tmp_tx.remainingAccounts.nullifierPdaPubkeys.length
+        tmp_tx.remainingAccounts!.nullifierPdaPubkeys![i] =
+          tmp_tx.remainingAccounts!.nullifierPdaPubkeys![
+            (i + 1) % tmp_tx.remainingAccounts!.nullifierPdaPubkeys!.length
           ];
         await sleep(SLEEP_BUFFER);
 
@@ -459,15 +502,15 @@ describe("Verifier Zero and One Tests", () => {
   });
 
   it("Wrong leavesPdaPubkeys accounts", async () => {
-    for (const tx in transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+    for (const tx of transactions) {
+      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
       tmp_tx.getPdaAddresses();
       for (
         let i = 0;
-        i < tmp_tx.remainingAccounts.leavesPdaPubkeys.length;
+        i < tmp_tx.remainingAccounts!.leavesPdaPubkeys!.length;
         i++
       ) {
-        tmp_tx.remainingAccounts.leavesPdaPubkeys[i] = {
+        tmp_tx.remainingAccounts!.leavesPdaPubkeys![i] = {
           isSigner: false,
           isWritable: true,
           pubkey: SolanaKeypair.generate().publicKey,
