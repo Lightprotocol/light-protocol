@@ -1,11 +1,14 @@
 import { Stack, Box, SegmentedControl, Button } from "@mantine/core";
 import { modals } from "@mantine/modals";
-import { useState } from "react";
+import { useState, SetStateAction } from "react";
 import { ShieldForm, SendForm } from "../Form";
 
-const ModalContent = () => {
-  const [value, setValue] = useState("shield");
-
+export const ModalContent = ({
+  initValue = "shield",
+}: {
+  initValue?: string; // TODO: enforce strict type checking
+}) => {
+  const [value, setValue] = useState(initValue);
   return (
     <Stack>
       <Box px={"md"}>
@@ -37,8 +40,7 @@ export const ShieldSendModal = () => {
             overlayProps: { backgroundOpacity: 0.2 },
             size: "sm",
             radius: "lg",
-            children: <ModalContent />,
-            keepMounted: true,
+            children: <ModalContent initValue="shield" />,
           });
         }}
       >

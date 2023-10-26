@@ -1,25 +1,12 @@
-import {
-  Paper,
-  Text,
-  Group,
-  Stack,
-  NavLink,
-  Divider,
-  Anchor,
-} from "@mantine/core";
+import { Paper, Text, Group, Stack, Divider, Anchor } from "@mantine/core";
 import {
   IconArrowDown,
   IconArrowUp,
   IconArrowRight,
 } from "@tabler/icons-react";
-import { UserIndexedTransaction } from "@lightprotocol/zk.js";
+import { TOKEN_REGISTRY, UserIndexedTransaction } from "@lightprotocol/zk.js";
 import { useTransactions } from "../../state/hooks/useTransactions";
 import { Pagination } from "@mantine/core";
-const parseTxAmount = (tx: UserIndexedTransaction) => {
-  // TODO: consider decimals of actual mint
-  //   console.log("tx", tx.publicAmountSpl, tx.publicAmountSol);
-  return tx.publicAmountSpl ? tx.publicAmountSpl : tx.publicAmountSol;
-};
 
 function TransactionCard({
   transaction,
@@ -32,6 +19,11 @@ function TransactionCard({
     UNSHIELD: <IconArrowUp color="red" />,
     TRANSFER: <IconArrowRight color="blue" />,
   };
+  // Get the token context for SOL
+  const tokenCtx = TOKEN_REGISTRY.get("SOL")!;
+
+  // Parse the relayerFee
+  const parsedRelayerFee = parseAmount(relayerFee, tokenCtx);
 
   return (
     <Stack mt={"xl"} gap="xs" w={300}>
@@ -44,12 +36,13 @@ function TransactionCard({
           <Text size="md">{type.toLowerCase()}</Text>
         </Group>
         <Stack gap={0}>
-          <Group align="baseline" justify="flex-end">
-            <Text size="sm">{parseTxAmount(transaction).toString()}</Text>
+          <Group align="baseline" gap={4} justify="flex-end">
+            <Text size="sm">{parseTxAmount(transaction)}</Text>
+            {/* TODO: replace with actual MINT */}
             <Text size="sm">SOL</Text>
           </Group>
           <Text size="sm" c="gray">
-            Fees paid: {relayerFee.toString()} SOL
+            Fees paid: {parsedRelayerFee} SOL
           </Text>
         </Stack>
       </Group>
@@ -68,6 +61,7 @@ function TransactionCard({
 
 import { format } from "date-fns";
 import { useState } from "react";
+import { parseAmount, parseTxAmount } from "../../utils/parser";
 
 export const Transactions = () => {
   const { transactions } = useTransactions();
@@ -83,6 +77,13 @@ export const Transactions = () => {
   const currentPageTransactions = sortedTransactions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
+  );
+
+  console.log(
+    "TXS",
+    currentPageTransactions?.map(
+      (tx) => `${tx.publicAmountSol} and spl ${tx.publicAmountSpl}`
+    )
   );
 
   return (

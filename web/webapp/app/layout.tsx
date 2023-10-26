@@ -1,5 +1,4 @@
 "use client";
-// import dynamic from "next/dynamic";
 import "@mantine/core/styles.css";
 import React, { ReactNode, useMemo } from "react";
 import { MantineProvider, ColorSchemeScript } from "@mantine/core";
@@ -8,13 +7,6 @@ import { Provider } from "jotai";
 import { ConnectionProvider } from "@solana/wallet-adapter-react";
 
 import { theme } from "../styles/theme";
-
-// This is a dynamic import that will only be loaded on the client-side
-// const DynamicChildren = dynamic(
-//   () =>
-//     Promise.resolve(({ children }: { children: ReactNode }) => <>{children}</>),
-//   { ssr: false }
-// );
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const endpoint = useMemo(() => process.env.NEXT_PUBLIC_RPC!, []);
@@ -33,10 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Provider>
           <ConnectionProvider endpoint={endpoint}>
             <MantineProvider theme={theme}>
-              <ModalsProvider>
-                {/* <DynamicChildren>{children}</DynamicChildren> */}
-                {children}
-              </ModalsProvider>
+              <ModalsProvider>{children}</ModalsProvider>
             </MantineProvider>
           </ConnectionProvider>
         </Provider>

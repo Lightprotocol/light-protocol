@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { useDisclosure } from "@mantine/hooks";
 import { AppShell, Burger, Group, Stack, Title } from "@mantine/core";
 import { usePathname, useRouter } from "next/navigation";
@@ -69,7 +70,6 @@ export default function Shell() {
           </Group>
         </Group>
       </AppShell.Header>
-      {/* <AppShell.Main bg={theme.colors?.blue![1]}> */}
       <AppShell.Main bg={"#f3f6f9"}>
         <Stack align="center">
           Public Balance: {balance}

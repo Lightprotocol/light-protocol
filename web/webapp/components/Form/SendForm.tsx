@@ -6,7 +6,7 @@ import { FormValues } from ".";
 import { useAction } from "../../state/hooks/useAction";
 import { useEffect, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
-
+import React from "react";
 export interface SendFormValues extends FormValues {
   recipient: string;
 }

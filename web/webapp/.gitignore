@@ -12,6 +12,8 @@
 /.next/
 /out/
 
+*.swc/
+
 # production
 /build
 */**/dist
