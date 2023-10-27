@@ -1,9 +1,12 @@
+import React, { useState } from "react";
 import { Box, Stack, Group, Button, Text } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
 import { IconArrowRight } from "@tabler/icons-react";
 import { TokenInput } from "../Input";
 import { FormValues } from ".";
 import { useAction } from "../../state/hooks/useAction";
+import { notifications } from "@mantine/notifications";
+import { modals } from "@mantine/modals";
 
 export interface ShieldFormValues extends FormValues {}
 
@@ -13,14 +16,24 @@ export const ShieldForm = () => {
   });
 
   const { shield } = useAction();
+  const [loading, setLoading] = useState(false);
 
   return (
     <Box w={"100%"} mx="auto">
       <form
-        onSubmit={form.onSubmit((values) => {
+        onSubmit={form.onSubmit(async (values) => {
           console.log(values);
+          setLoading(true);
           console.log("shielding");
-          (async () => {
+          notifications.show({
+            title: "Sending transaction",
+            message: "",
+            color: "blue",
+            autoClose: 4000,
+          });
+
+          //TODO: adapt such that we can build and send and confirm separately for notifs.
+          try {
             await shield({
               token: values.token,
               publicAmountSol:
@@ -29,7 +42,23 @@ export const ShieldForm = () => {
                 values.token !== "SOL" ? values.amount : undefined,
             });
             console.log("shielded");
-          })();
+            notifications.show({
+              title: "Transaction successful",
+              message: "",
+              color: "green",
+              autoClose: 3000,
+            });
+            window.setTimeout(() => {
+              modals.closeAll(); // this is quite optimistic
+            }, 1500);
+          } catch (e) {
+            console.error(e);
+            throw e;
+          } finally {
+            window.setTimeout(() => {
+              setLoading(false);
+            }, 1500);
+          }
         })}
       >
         <TokenInput form={form} />
@@ -52,6 +81,7 @@ export const ShieldForm = () => {
           )}
           <Button
             justify="space-between"
+            loading={loading}
             fullWidth
             size="lg"
             radius="xl"

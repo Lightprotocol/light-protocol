@@ -1,10 +1,13 @@
 "use client";
 import "@mantine/core/styles.css";
+import "@mantine/notifications/styles.css";
+
 import React, { ReactNode, useMemo } from "react";
 import { MantineProvider, ColorSchemeScript } from "@mantine/core";
 import { ModalsProvider } from "@mantine/modals";
 import { Provider } from "jotai";
 import { ConnectionProvider } from "@solana/wallet-adapter-react";
+import { Notifications } from "@mantine/notifications";
 
 import { theme } from "../styles/theme";
 
@@ -25,7 +28,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Provider>
           <ConnectionProvider endpoint={endpoint}>
             <MantineProvider theme={theme}>
-              <ModalsProvider>{children}</ModalsProvider>
+              <ModalsProvider>
+                <Notifications />
+                {children}
+              </ModalsProvider>
             </MantineProvider>
           </ConnectionProvider>
         </Provider>
