@@ -8,7 +8,6 @@
     color: var(--mantine-color-blue-7);
   }
   &[data-variant="secondary"]:disabled {
-    /* background-color: var(--mantine-color-grey-3); */
     color: var(--mantine-color-grey-5);
   }
 }

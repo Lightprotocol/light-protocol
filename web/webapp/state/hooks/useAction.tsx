@@ -4,6 +4,10 @@ import { userState } from "./useUser";
 import { AppUtxoConfig, ConfirmOptions, User } from "@lightprotocol/zk.js";
 import { PublicKey } from "@solana/web3.js";
 
+export const transferLoadingState = atom(false);
+export const shieldLoadingState = atom(false);
+export const unshieldLoadingState = atom(false);
+
 export const transferState = atom(
   null,
   async (
@@ -25,6 +29,8 @@ export const transferState = atom(
       confirmOptions?: any;
     }
   ) => {
+    set(transferLoadingState, true);
+
     const { user } = get(userState);
     if (!user) {
       throw new Error("User is not initialized");
@@ -44,6 +50,8 @@ export const transferState = atom(
     } catch (e: any) {
       console.error("transferState error:", e);
       throw e;
+    } finally {
+      set(transferLoadingState, false);
     }
   }
 );
@@ -71,6 +79,7 @@ export const shieldState = atom(
       senderTokenAccount?: PublicKey | undefined;
     }
   ) => {
+    set(shieldLoadingState, true);
     const { user } = get(userState);
     if (!user) {
       throw new Error("User is not initialized");
@@ -89,11 +98,12 @@ export const shieldState = atom(
 
       // FIX: the user class doesnt shallow update after shields, therefore we have to "force update" the user here
       // fix this by removing the user class and managing balance/history state manually. this makes it more predictable.
-
       set(userState, { user, timestamp: Date.now() });
     } catch (e: any) {
       console.error(e);
       throw e;
+    } finally {
+      set(shieldLoadingState, false);
     }
   }
 );
@@ -117,6 +127,7 @@ export const unshieldState = atom(
       confirmOptions?: ConfirmOptions | undefined;
     }
   ) => {
+    set(unshieldLoadingState, true);
     const { user } = get(userState);
     if (!user) {
       throw new Error("User is not initialized");
@@ -135,6 +146,8 @@ export const unshieldState = atom(
     } catch (e: any) {
       console.error(e);
       throw e;
+    } finally {
+      set(unshieldLoadingState, false);
     }
   }
 );
@@ -143,10 +156,16 @@ export function useAction() {
   const [, transfer] = useAtom(transferState);
   const [, shield] = useAtom(shieldState);
   const [, unshield] = useAtom(unshieldState);
+  const [transferLoading] = useAtom(transferLoadingState);
+  const [shieldLoading] = useAtom(shieldLoadingState);
+  const [unshieldLoading] = useAtom(unshieldLoadingState);
+
+  const loading = transferLoading || shieldLoading || unshieldLoading;
 
   return {
     transfer,
     shield,
     unshield,
+    loading,
   };
 }

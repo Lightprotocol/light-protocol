@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useCallback } from "react";
 import { Box, Stack, Group, Button, Text } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
 import { IconArrowRight } from "@tabler/icons-react";
@@ -14,54 +14,47 @@ export const ShieldForm = () => {
   const form: UseFormReturnType<ShieldFormValues> = useForm({
     initialValues: { amount: "", token: "SOL" },
   });
+  const { shield, loading } = useAction();
 
-  const { shield } = useAction();
-  const [loading, setLoading] = useState(false);
+  const handleSubmit = useCallback(
+    async (values: ShieldFormValues) => {
+      try {
+        await shield({
+          token: values.token,
+          publicAmountSol: values.token === "SOL" ? values.amount : undefined,
+          publicAmountSpl: values.token !== "SOL" ? values.amount : undefined,
+        });
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    },
+    [shield]
+  );
+
+  useEffect(() => {
+    if (loading) {
+      notifications.show({
+        title: `Shielding ${form.values.token}`,
+        message: "",
+        color: "blue",
+        autoClose: 5000,
+      });
+    } else {
+      notifications.show({
+        title: "Shield successful",
+        message: "",
+        color: "green",
+        autoClose: 3000,
+      });
+      modals.closeAll();
+    }
+  }, [loading]);
 
   return (
     <Box w={"100%"} mx="auto">
-      <form
-        onSubmit={form.onSubmit(async (values) => {
-          console.log(values);
-          setLoading(true);
-          console.log("shielding");
-          notifications.show({
-            title: "Sending transaction",
-            message: "",
-            color: "blue",
-            autoClose: 4000,
-          });
-
-          //TODO: adapt such that we can build and send and confirm separately for notifs.
-          try {
-            await shield({
-              token: values.token,
-              publicAmountSol:
-                values.token === "SOL" ? values.amount : undefined,
-              publicAmountSpl:
-                values.token !== "SOL" ? values.amount : undefined,
-            });
-            console.log("shielded");
-            notifications.show({
-              title: "Transaction successful",
-              message: "",
-              color: "green",
-              autoClose: 3000,
-            });
-            window.setTimeout(() => {
-              modals.closeAll(); // this is quite optimistic
-            }, 1500);
-          } catch (e) {
-            console.error(e);
-            throw e;
-          } finally {
-            window.setTimeout(() => {
-              setLoading(false);
-            }, 1500);
-          }
-        })}
-      >
-        <TokenInput form={form} />
+      <form aria-disabled={loading} onSubmit={form.onSubmit(handleSubmit)}>
+        <TokenInput form={form} disabled={loading} />
         <Stack mt="md" gap={28}>
           {form.values.amount && (
             <Stack mt="xl" gap={8}>

@@ -6,8 +6,10 @@ import { FormValues } from "../Form";
 
 export function TokenInput<T extends FormValues>({
   form,
+  disabled,
 }: {
   form: UseFormReturnType<T>;
+  disabled: boolean;
 }) {
   const focusTrapRef = useFocusTrap();
 
@@ -38,6 +40,7 @@ export function TokenInput<T extends FormValues>({
               fontSize: "40px",
             },
           }}
+          disabled={disabled}
         />
       </Stack>
     </>

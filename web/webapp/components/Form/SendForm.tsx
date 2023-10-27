@@ -1,77 +1,57 @@
+import React, { useCallback, useEffect } from "react";
 import { Box, Stack, Group, Button, Text } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
 import { IconArrowRight } from "@tabler/icons-react";
 import { TokenInput, SendRecipientInput } from "../Input";
 import { FormValues } from ".";
 import { useAction } from "../../state/hooks/useAction";
-import { useEffect, useState } from "react";
-import { PublicKey } from "@solana/web3.js";
-import React from "react";
+import { notifications } from "@mantine/notifications";
+import { modals } from "@mantine/modals";
+import { useSend } from "../../state/hooks/useSend";
+import { useSendType } from "../../state/hooks/useSendType";
+
 export interface SendFormValues extends FormValues {
   recipient: string;
 }
 
-const isSolanaPublicKey = (string: string): boolean => {
-  try {
-    if (PublicKey.isOnCurve(string)) {
-      new PublicKey(string);
-      return true;
-    }
-    console.log("!isOnCurve");
-    return false;
-  } catch (err) {
-    console.log("!Pubkey");
-    return false;
-  }
-};
-
 export function SendForm() {
-  const [isUnshield, setIsUnshield] = useState(false);
-
   const form: UseFormReturnType<SendFormValues> = useForm({
     initialValues: { amount: "", token: "SOL", recipient: "" },
   });
+  const isUnshield = useSendType(form.values.recipient);
+  const { transfer, unshield, loading } = useAction();
+  const send = useSend();
+
+  const handleSubmit = useCallback(
+    async (values: SendFormValues) => {
+      await send(values, isUnshield);
+    },
+    [unshield, transfer]
+  );
 
   useEffect(() => {
-    if (form.values.recipient) {
-      setIsUnshield(isSolanaPublicKey(form.values.recipient));
+    if (loading) {
+      notifications.show({
+        title: `Sending ${form.values.token}`,
+        message: "",
+        color: "blue",
+        autoClose: 5000,
+      });
+    } else {
+      notifications.show({
+        title: "Transfer successful",
+        message: "",
+        color: "green",
+        autoClose: 3000,
+      });
+      modals.closeAll();
     }
-  }, [form.values.recipient]);
-
-  const { transfer, unshield } = useAction();
+  }, [loading]);
 
   return (
     <Box w={"100%"} mx="auto">
-      <form
-        onSubmit={form.onSubmit((values) => {
-          console.log(values);
-          (async () => {
-            if (isUnshield) {
-              console.log("unshielding");
-              await unshield({
-                token: values.token,
-                recipient: new PublicKey(values.recipient),
-                publicAmountSol:
-                  values.token === "SOL" ? values.amount : undefined,
-                publicAmountSpl:
-                  values.token !== "SOL" ? values.amount : undefined,
-              });
-            } else {
-              console.log("transferring");
-
-              await transfer({
-                token: values.token,
-                recipient: values.recipient,
-                amountSol: values.token === "SOL" ? values.amount : undefined,
-                amountSpl: values.token === "SOL" ? undefined : values.amount,
-              });
-            }
-            console.log("done");
-          })();
-        })}
-      >
-        <TokenInput form={form} />
-
+      <form aria-disabled={loading} onSubmit={form.onSubmit(handleSubmit)}>
+        <TokenInput form={form} disabled={loading} />
         <SendRecipientInput form={form} />
         <Stack mt="md" gap={28}>
           {form.values.amount && form.values.recipient && (
@@ -90,6 +70,7 @@ export function SendForm() {
             justify="space-between"
             fullWidth
             size="lg"
+            loading={loading}
             radius="xl"
             type="submit"
             rightSection={<IconArrowRight />}

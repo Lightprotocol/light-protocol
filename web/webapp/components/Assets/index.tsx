@@ -14,7 +14,8 @@ import { IconDotsVertical } from "@tabler/icons-react";
 import { parseShieldedBalance } from "../../utils/parser";
 import { useState } from "react";
 import { ModalContent } from "../Modal";
-export const Assets = () => {
+
+export function Assets() {
   const { balance } = useBalance();
   const [opened, setOpened] = useState(false);
   const rows =
@@ -101,4 +102,4 @@ export const Assets = () => {
       </Table>
     </Paper>
   );
-};
+}
