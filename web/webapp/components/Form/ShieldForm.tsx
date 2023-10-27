@@ -1,12 +1,10 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useCallback } from "react";
 import { Box, Stack, Group, Button, Text } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
 import { IconArrowRight } from "@tabler/icons-react";
 import { TokenInput } from "../Input";
 import { FormValues } from ".";
 import { useAction } from "../../state/hooks/useAction";
-import { notifications } from "@mantine/notifications";
-import { modals } from "@mantine/modals";
 
 export interface ShieldFormValues extends FormValues {}
 
@@ -31,25 +29,6 @@ export const ShieldForm = () => {
     },
     [shield]
   );
-
-  useEffect(() => {
-    if (loading) {
-      notifications.show({
-        title: `Shielding ${form.values.token}`,
-        message: "",
-        color: "blue",
-        autoClose: 5000,
-      });
-    } else {
-      notifications.show({
-        title: "Shield successful",
-        message: "",
-        color: "green",
-        autoClose: 3000,
-      });
-      modals.closeAll();
-    }
-  }, [loading]);
 
   return (
     <Box w={"100%"} mx="auto">

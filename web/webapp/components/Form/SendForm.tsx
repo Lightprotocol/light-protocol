@@ -1,14 +1,13 @@
-import React, { useCallback, useEffect } from "react";
-import { Box, Stack, Group, Button, Text } from "@mantine/core";
+import React, { useCallback } from "react";
+import { Box, Stack, Group, Button, Text, Paper, rem } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
-import { IconArrowRight } from "@tabler/icons-react";
+import { IconArrowRight, IconShieldDown } from "@tabler/icons-react";
 import { TokenInput, SendRecipientInput } from "../Input";
 import { FormValues } from ".";
 import { useAction } from "../../state/hooks/useAction";
-import { notifications } from "@mantine/notifications";
-import { modals } from "@mantine/modals";
 import { useSend } from "../../state/hooks/useSend";
 import { useSendType } from "../../state/hooks/useSendType";
+import { Chip } from "@mantine/core";
 
 export interface SendFormValues extends FormValues {
   recipient: string;
@@ -29,25 +28,6 @@ export function SendForm() {
     [unshield, transfer]
   );
 
-  useEffect(() => {
-    if (loading) {
-      notifications.show({
-        title: `Sending ${form.values.token}`,
-        message: "",
-        color: "blue",
-        autoClose: 5000,
-      });
-    } else {
-      notifications.show({
-        title: "Transfer successful",
-        message: "",
-        color: "green",
-        autoClose: 3000,
-      });
-      modals.closeAll();
-    }
-  }, [loading]);
-
   return (
     <Box w={"100%"} mx="auto">
       <form aria-disabled={loading} onSubmit={form.onSubmit(handleSubmit)}>
@@ -56,6 +36,19 @@ export function SendForm() {
         <Stack mt="md" gap={28}>
           {form.values.amount && form.values.recipient && (
             <Stack mt="xl" gap={8}>
+              {isUnshield && (
+                <Chip
+                  icon={
+                    <IconShieldDown
+                      style={{ width: rem(16), height: rem(16) }}
+                    />
+                  }
+                  variant="light"
+                  size="xs"
+                >
+                  Unshield
+                </Chip>
+              )}
               <Group w="100%" px="20px" justify="space-between">
                 <Text size="sm">Network fee</Text>
                 <Text size="sm">0.001 SOL</Text>
