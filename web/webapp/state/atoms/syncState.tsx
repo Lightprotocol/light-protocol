@@ -9,7 +9,7 @@ export const syncErrorState = atom<Error | null>(null);
 export const syncedState = atom(
   (get) => get(userState),
   async (get, set) => {
-    const user = get(userState);
+    const { user } = get(userState);
     if (!user) {
       throw new Error("User is not initialized");
     }
@@ -30,7 +30,7 @@ export const syncedState = atom(
         MerkleTreeConfig.getTransactionMerkleTreePda()
       );
 
-      set(userState, user);
+      set(userState, { user, timestamp: Date.now() });
       set(syncLoadingState, false);
     } catch (e: any) {
       set(syncErrorState, e);

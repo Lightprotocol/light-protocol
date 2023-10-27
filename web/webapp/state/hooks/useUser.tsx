@@ -9,7 +9,10 @@ import {
 import { Connection, PublicKey } from "@solana/web3.js";
 import { atom, useAtom } from "jotai";
 
-export const userState = atom<User | null>(null);
+export const userState = atom<{ user: User | null; timestamp: number }>({
+  user: null,
+  timestamp: Date.now(),
+});
 export const loadingState = atom<boolean>(false);
 export const errorState = atom<Error | null>(null);
 
@@ -48,11 +51,8 @@ export const initializedUser = atom(
       const balance = await user.getBalance(false);
       const utxos = user.getAllUtxos();
 
-      // console.log("history", history);
-      // console.log("balance", balance);
-      // console.log("utxos", utxos);
+      set(userState, { user, timestamp: Date.now() });
 
-      set(userState, user);
       set(loadingState, false);
     } catch (e: any) {
       console.error(e);
@@ -63,7 +63,7 @@ export const initializedUser = atom(
 );
 
 export function useUser() {
-  const [user] = useAtom(userState);
+  const [{ user }] = useAtom(userState);
   const [, initUser] = useAtom(initializedUser);
   const [isLoading, setIniting] = useAtom(loadingState);
   const [error] = useAtom(errorState);

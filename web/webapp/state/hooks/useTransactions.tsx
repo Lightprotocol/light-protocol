@@ -6,7 +6,7 @@ import { useSync } from "./useSync";
 
 export const transactionHistoryState = atom<
   UserIndexedTransaction[] | undefined
->((get) => get(userState)?.transactionHistory);
+>((get) => get(userState)?.user?.transactionHistory);
 
 export function useTransactions() {
   const [transactions] = useAtom(transactionHistoryState);

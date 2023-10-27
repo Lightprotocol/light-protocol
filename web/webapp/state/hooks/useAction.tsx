@@ -1,7 +1,7 @@
 "use client";
 import { atom, useAtom } from "jotai";
 import { userState } from "./useUser";
-import { AppUtxoConfig, ConfirmOptions } from "@lightprotocol/zk.js";
+import { AppUtxoConfig, ConfirmOptions, User } from "@lightprotocol/zk.js";
 import { PublicKey } from "@solana/web3.js";
 
 export const transferState = atom(
@@ -25,7 +25,7 @@ export const transferState = atom(
       confirmOptions?: any;
     }
   ) => {
-    const user = get(userState);
+    const { user } = get(userState);
     if (!user) {
       throw new Error("User is not initialized");
     }
@@ -40,7 +40,7 @@ export const transferState = atom(
         confirmOptions,
       });
 
-      set(userState, user);
+      set(userState, { user, timestamp: Date.now() });
     } catch (e: any) {
       console.error("transferState error:", e);
       throw e;
@@ -71,7 +71,7 @@ export const shieldState = atom(
       senderTokenAccount?: PublicKey | undefined;
     }
   ) => {
-    const user = get(userState);
+    const { user } = get(userState);
     if (!user) {
       throw new Error("User is not initialized");
     }
@@ -87,7 +87,10 @@ export const shieldState = atom(
         senderTokenAccount,
       });
 
-      set(userState, user);
+      // FIX: the user class doesnt shallow update after shields, therefore we have to "force update" the user here
+      // fix this by removing the user class and managing balance/history state manually. this makes it more predictable.
+
+      set(userState, { user, timestamp: Date.now() });
     } catch (e: any) {
       console.error(e);
       throw e;
@@ -114,7 +117,7 @@ export const unshieldState = atom(
       confirmOptions?: ConfirmOptions | undefined;
     }
   ) => {
-    const user = get(userState);
+    const { user } = get(userState);
     if (!user) {
       throw new Error("User is not initialized");
     }
@@ -128,7 +131,7 @@ export const unshieldState = atom(
         confirmOptions,
       });
 
-      set(userState, user);
+      set(userState, { user, timestamp: Date.now() });
     } catch (e: any) {
       console.error(e);
       throw e;
