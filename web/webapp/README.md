@@ -1,4 +1,4 @@
-Reference implementation. Web interface for viewing and managing shielded assets.
+Reference implementation. Web interface for viewing and managing shielded assets on Solana Devnet.
 
 ### Run 
 
@@ -12,3 +12,4 @@ Open:
 - [ ] compatibility with zk-enabled wallets (account.rs)
 - [ ] permissionless SPL/NFTs
 - [ ] caching
+- [ ] migrate to use releases, localne
