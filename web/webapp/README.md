@@ -12,4 +12,4 @@ Open:
 - [ ] compatibility with zk-enabled wallets (account.rs)
 - [ ] permissionless SPL/NFTs
 - [ ] caching
-- [ ] migrate to use releases, localne
+- [ ] migrate to use releases, localnet
