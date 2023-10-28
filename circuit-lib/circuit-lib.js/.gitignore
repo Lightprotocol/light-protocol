@@ -5,3 +5,4 @@ ptau15
 tests/*.js
 *.js
 lib
+build

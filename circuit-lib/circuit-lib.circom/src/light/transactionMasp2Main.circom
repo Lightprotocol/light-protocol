@@ -1,4 +1,5 @@
 pragma circom 2.0.0;
+
 include "./transaction_masp.circom";
 
 // 2 in 2 out 3 assets (min to do a swap)
