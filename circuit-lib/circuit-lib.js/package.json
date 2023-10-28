@@ -4,19 +4,29 @@
   "description": "",
   "license": "GPL-3.0",
   "scripts": {
-    "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts --exit",
+    "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**/*.ts --exit",
     "format": "prettier --write \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\"",
     "lint": "pnpm prettier \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\" --check",
     "build": "pnpm tsc",
     "preinstall": "npx only-allow pnpm"
   },
   "author": "",
+  "dependencies": {
+    "@noble/curves": "^1.2.0",
+    "@noble/hashes": "^1.2.0",
+    "ffjavascript": "^0.2.48",
+    "maci-crypto": "1.1.1"
+  },
   "devDependencies": {
     "@solana/web3.js": "^1.78.5",
     "@types/chai": "^4.3.0",
-    "@types/mocha": "^10.0.1",
+    "@types/chai-as-promised": "^7.1.6",
+    "@types/mocha": "^10.0.2",
     "@types/node-fetch": "^2.6.2",
     "chai": "^4.3.7",
+    "chai-as-promised": "^7.1.1",
+    "circom_tester": "^0.0.19",
+    "cli-progress": "^3.12.0",
     "mocha": "^10.2.0",
     "prettier": "^2.6.2",
     "ts-mocha": "^10.0.0",

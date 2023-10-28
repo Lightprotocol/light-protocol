@@ -1,4 +1,5 @@
 pragma circom 2.0.0;
+
 include "./transaction_masp.circom";
 
 component main {
