@@ -97,7 +97,7 @@ pub fn instantiate_utxo(
         name: name.to_string(),
         type_struct: None,
         type_name: fields.0.to_string(),
-        is_in_utxo: is_in_utxo,
+        is_in_utxo,
         instruction_name: fields.1,
         no_utxos: fields.2.to_string(),
         checks: fields.3,
@@ -409,33 +409,15 @@ for (var i = 0; i < {{is_ins}}; i++) {
             }
         }
         let mut comparisons_utxo_data = Vec::<handlebars::JsonValue>::new();
-        match self.utxo_data_checks.as_ref() {
-            Some(utxo_data_checks) => {
-                for utxo_data_check in utxo_data_checks {
-                    comparisons_utxo_data.push(serde_json::json!({
-                        "component": format!("UtxoData{}", utxo_data_check.0.to_upper_camel_case()),
-                        "input": utxo_data_check.0,
-                        "comparison": utxo_data_check.2,
-                    }));
-                }
+        if let Some(utxo_data_checks) = self.utxo_data_checks.as_ref() {
+            for utxo_data_check in utxo_data_checks {
+                comparisons_utxo_data.push(serde_json::json!({
+                    "component": format!("UtxoData{}", utxo_data_check.0.to_upper_camel_case()),
+                    "input": utxo_data_check.0,
+                    "comparison": utxo_data_check.2,
+                }));
             }
-            None => {}
         }
-
-        // for utxo_data_check in self.utxo_data_checks.as_ref().unwrap() {
-        //     if utxo_data_check.1.is_some() || utxo_data_check.2.is_some() {
-        //         all_utxo_data.push(serde_json::json!({
-        //             "component": format!("UtxoData{}", utxo_data_check.0.to_upper_camel_case()),
-        //             "input": utxo_data_check.0,
-        //             "comparison": utxo_data_check.2.as_ref().unwrap(),
-        //         }));
-        //     } else if utxo_data_check.1.is_none() && utxo_data_check.2.is_none() {
-        //         all_utxo_data.push(serde_json::json!({
-        //             "component": format!("UtxoData{}", utxo_data_check.0.to_upper_camel_case()),
-        //             "input": utxo_data_check.0,
-        //         }));
-        //     }
-        // }
 
         let handlebars = handlebars::Handlebars::new();
 

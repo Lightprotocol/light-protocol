@@ -86,10 +86,7 @@ mod auto_generated_accounts_tests {
     use std::{fs::File, io::prelude::*};
 
     use super::*;
-    use crate::{
-        code_gen::check_utxo_code::{Comparator, UtxoChecks},
-        utils::assert_syn_eq,
-    };
+    use crate::utils::assert_syn_eq;
     #[test]
     fn test_functional() {
         let file_path = "./test-files/test-data/auto_generated_accounts.rs";

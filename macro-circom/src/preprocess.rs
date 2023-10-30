@@ -118,11 +118,11 @@ pub struct UnclosedCommentError {
 
 impl UnclosedCommentError {
     pub fn produce_report(error: Self) -> Report {
-        let mut report = Report::error(format!("unterminated /* */"), ReportCode::ParseFail);
+        let mut report = Report::error("unterminated /* */".to_string(), ReportCode::ParseFail);
         report.add_primary(
             error.location,
             error.file_id,
-            format!("Comment starts here"),
+            "Comment starts here".to_string(),
         );
         report
     }

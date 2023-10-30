@@ -6,4 +6,4 @@ npx nx run-many --target=format:check --all
 
 npx nx run-many --target=lint --all
 
-cd programs && cargo fmt --all -- --check && cargo clippy --all -- -A clippy::result_large_err -D warnings && cd -;
+cargo fmt --all -- --check && cargo clippy --workspace --exclude macro-circom --all -- -A clippy::result_large_err -D warnings
