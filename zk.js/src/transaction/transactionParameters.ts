@@ -1157,12 +1157,14 @@ export class TransactionParameters implements transactionParameters {
           this.outputUtxos[utxo].appDataHash.toString() !== "0" &&
           this.outputUtxos[utxo].includeAppData
         )
-          console.log("Warning encrypting utxos with app data as normal utxo without app data. App data will not be encrypted.");
-          // throw new TransactionError(
-          //   TransactionErrorCode.UNIMPLEMENTED,
-          //   "encryptUtxos",
-          //   "Automatic encryption for utxos with application data is not implemented.",
-          // );
+          console.log(
+            "Warning encrypting utxos with app data as normal utxo without app data. App data will not be encrypted.",
+          );
+        // throw new TransactionError(
+        //   TransactionErrorCode.UNIMPLEMENTED,
+        //   "encryptUtxos",
+        //   "Automatic encryption for utxos with application data is not implemented.",
+        // );
         encryptedOutputs.push(
           await this.outputUtxos[utxo].encrypt({
             poseidon,

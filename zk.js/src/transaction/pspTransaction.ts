@@ -126,12 +126,13 @@ export const createPspProofInputs = (
     inUtxosInputs[`isInAppUtxo${upperCamelCase(utxoName)}`] = isAppUtxo;
     inUtxosInputs[`${camelCase(utxoName)}Blinding`] = utxo.blinding;
     inUtxosInputs[`${camelCase(utxoName)}AmountSol`] = utxo.amounts[0];
-    inUtxosInputs[`${camelCase(utxoName)}AmountSpl`] = utxo.amounts.length === 2 ? utxo.amounts[1] : BN_0;
+    inUtxosInputs[`${camelCase(utxoName)}AmountSpl`] =
+      utxo.amounts.length === 2 ? utxo.amounts[1] : BN_0;
     inUtxosInputs[`${camelCase(utxoName)}AssetSpl`] = utxo.assetsCircuit[1];
     inUtxosInputs[`${camelCase(utxoName)}PublicKey`] = utxo.publicKey;
-    inUtxosInputs[`${camelCase(utxoName)}PoolType`] =
-      utxo.poolType;
-    inUtxosInputs[`${camelCase(utxoName)}PspOwner`] = utxo.verifierAddressCircuit;
+    inUtxosInputs[`${camelCase(utxoName)}PoolType`] = utxo.poolType;
+    inUtxosInputs[`${camelCase(utxoName)}PspOwner`] =
+      utxo.verifierAddressCircuit;
     inUtxosInputs[`${camelCase(utxoName)}TxVersion`] = BN_0;
     // utxo data hash is calculated in the circuit
   });
@@ -155,17 +156,18 @@ export const createPspProofInputs = (
         isAppUtxoIndices;
       inUtxosInputs[`${camelCase(utxoName)}Blinding`] = utxo.blinding;
       inUtxosInputs[`${camelCase(utxoName)}AmountSol`] = utxo.amounts[0];
-      inUtxosInputs[`${camelCase(utxoName)}AmountSpl`] = utxo.amounts.length === 2 ? utxo.amounts[1] : BN_0;
+      inUtxosInputs[`${camelCase(utxoName)}AmountSpl`] =
+        utxo.amounts.length === 2 ? utxo.amounts[1] : BN_0;
       inUtxosInputs[`${camelCase(utxoName)}AssetSpl`] = utxo.assetsCircuit[1];
       inUtxosInputs[`${camelCase(utxoName)}PublicKey`] = utxo.publicKey;
-      inUtxosInputs[`${camelCase(utxoName)}PoolType`] =
-        utxo.poolType;
-      inUtxosInputs[`${camelCase(utxoName)}PspOwner`] = utxo.verifierAddressCircuit;
+      inUtxosInputs[`${camelCase(utxoName)}PoolType`] = utxo.poolType;
+      inUtxosInputs[`${camelCase(utxoName)}PspOwner`] =
+        utxo.verifierAddressCircuit;
       inUtxosInputs[`${camelCase(utxoName)}TxVersion`] = BN_0;
     },
   );
 
-  let publicAppVerifier = hashAndTruncateToCircuit(
+  const publicAppVerifier = hashAndTruncateToCircuit(
     TransactionParameters.getVerifierProgramId(
       pspTransaction.verifierIdl,
     ).toBuffer(),
@@ -319,7 +321,7 @@ export function createProofInputs({
   poseidon: any;
   account: Account;
 }): compiledProofInputs {
-  let systemProofInputs = createSystemProofInputs({
+  const systemProofInputs = createSystemProofInputs({
     transaction,
     solMerkleTree,
     poseidon,

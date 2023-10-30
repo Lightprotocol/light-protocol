@@ -189,7 +189,10 @@ describe("Streaming Payments tests", () => {
       relayer: relayer,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account: lightUser.account,
-      verifierState: getVerifierStatePda(verifierProgramId, relayer.accounts.relayerPubkey),
+      verifierState: getVerifierStatePda(
+        verifierProgramId,
+        relayer.accounts.relayerPubkey,
+      ),
     });
 
     await txParams.getTxIntegrityHash(POSEIDON);
@@ -230,8 +233,7 @@ describe("Streaming Payments tests", () => {
     const res = await sendAndConfirmShieldedTransaction({
       solanaTransactionInputs,
       provider: lightProvider,
-    }
-    );
+    });
     console.log("tx Hash : ", res.txHash);
   }
 

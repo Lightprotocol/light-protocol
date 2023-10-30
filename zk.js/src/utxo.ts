@@ -370,7 +370,9 @@ export class Utxo {
         throw new UtxoError(
           UtxoErrorCode.INVALID_APP_DATA,
           "constructor",
-          `appDataHash and appData are inconsistent, appData produced a different hash than appDataHash appData: ${JSON.stringify(appData)}`,
+          `appDataHash and appData are inconsistent, appData produced a different hash than appDataHash appData: ${JSON.stringify(
+            appData,
+          )}`,
         );
       this.appData = appData;
       this.appDataIdl = appDataIdl;

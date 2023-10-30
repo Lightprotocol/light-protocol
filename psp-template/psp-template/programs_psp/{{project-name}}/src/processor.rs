@@ -15,26 +15,23 @@ impl Config for TransactionsConfig {
     /// ProgramId.
     const ID: Pubkey = pubkey!("{{program-id}}");
 }
-
+#[inline(never)]
 pub fn cpi_system_verifier<
     'a,
     'b,
     'c,
     'info,
     const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
 >(
     ctx: &'a Context<
         'a,
         'b,
         'c,
         'info,
-        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
+        LightInstructionThird<'info, NR_CHECKED_INPUTS>,
     >,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
-    let verifier_state = ctx.accounts.verifier_state.load()?;
     let proof_verifier = Proof {
         a: inputs[256..256 + 64].try_into().unwrap(),
         b: inputs[256 + 64..256 + 192].try_into().unwrap(),
@@ -82,6 +79,7 @@ pub fn cpi_system_verifier<
         &final_seed[..],
     );
     cpi_ctx = cpi_ctx.with_remaining_accounts(ctx.remaining_accounts.to_vec());
+    let verifier_state = ctx.accounts.verifier_state.load()?;
 
     light_psp4in4out_app_storage::cpi::shielded_transfer_inputs(
         cpi_ctx,
@@ -95,22 +93,20 @@ pub fn cpi_system_verifier<
         memoffset::offset_of!(crate::psp_accounts::VerifierState, verifier_state_data),
     )
 }
-
+#[inline(never)]
 pub fn verify_program_proof<
     'a,
     'b,
     'c,
     'info,
     const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
->(
+    >(
     ctx: &'a Context<
         'a,
         'b,
         'c,
         'info,
-        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
+        LightInstructionThird<'info, NR_CHECKED_INPUTS>,
     >,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {

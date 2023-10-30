@@ -10,7 +10,7 @@ where
 {
     let target = "[entrypoint]".chars().collect::<Vec<_>>();
     let local_chars = chars.clone();
-    for (c, lc) in target.iter().zip(local_chars){
+    for (c, lc) in target.iter().zip(local_chars) {
         if *c != lc {
             return false;
         }
@@ -28,10 +28,9 @@ pub fn preprocess(expr: &str, file_id: FileID, filter_macros: bool) -> Result<St
     while let Some(c0) = it.next() {
         loc += 1;
         match (state, c0) {
-            (0,'#') => {
+            (0, '#') => {
                 if !filter_macros {
                     pp.push(c0);
-
                 } else {
                     let res = match_entrypoint(&mut it);
                     if !res {
@@ -42,12 +41,10 @@ pub fn preprocess(expr: &str, file_id: FileID, filter_macros: bool) -> Result<St
                         }
                     }
                 }
-                
             }
             (0, '/') => {
                 loc += 1;
                 match it.next() {
-                    
                     Some('/') => {
                         state = 1;
                         pp.push(' ');

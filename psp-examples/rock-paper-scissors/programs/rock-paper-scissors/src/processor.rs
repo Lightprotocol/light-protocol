@@ -13,22 +13,8 @@ impl Config for TransactionsConfig {
     const ID: Pubkey = pubkey!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 }
 
-pub fn cpi_verifier_two<
-    'a,
-    'b,
-    'c,
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
->(
-    ctx: &'a Context<
-        'a,
-        'b,
-        'c,
-        'info,
-        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
-    >,
+pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
+    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let verifier_state = ctx.accounts.verifier_state.load()?;
@@ -91,22 +77,8 @@ pub fn cpi_verifier_two<
     )
 }
 
-pub fn verify_program_proof<
-    'a,
-    'b,
-    'c,
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
->(
-    ctx: &'a Context<
-        'a,
-        'b,
-        'c,
-        'info,
-        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
-    >,
+pub fn verify_program_proof<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
+    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let proof_app = Proof {

@@ -32,7 +32,7 @@ pub mod {{rust-name}} {
             'b,
             'c,
             'info,
-            LightInstructionFirst<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }, 4, 4>,
+            LightInstructionFirst<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }>,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
@@ -75,7 +75,7 @@ pub mod {{rust-name}} {
             'b,
             'c,
             'info,
-            LightInstructionSecond<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }, 4, 4>
+            LightInstructionSecond<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }>
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
@@ -97,16 +97,10 @@ pub mod {{rust-name}} {
             'b,
             'c,
             'info,
-            LightInstructionThird<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }, 4, 4>,
+            LightInstructionThird<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }>,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let verifier_state = ctx.accounts.verifier_state.load_mut()?;
-
-        msg!(
-            "checked inputs {:?}",
-            verifier_state.checked_public_inputs[2]
-        );
         verify_program_proof(&ctx, &inputs)?;
         cpi_system_verifier(&ctx, &inputs)
     }
@@ -118,7 +112,7 @@ pub mod {{rust-name}} {
             'b,
             'c,
             'info,
-            CloseVerifierState<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }, 4, 4>,
+            CloseVerifierState<'info, { VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }>,
         >,
     ) -> Result<()> {
         Ok(())

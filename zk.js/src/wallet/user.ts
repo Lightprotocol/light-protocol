@@ -1552,7 +1552,6 @@ export class User {
     const decryptIndexStorage = async (
       indexedTransactions: ParsedIndexedTransaction[],
       assetLookupTable: string[],
-      verifierProgramLookupTable: string[],
       aes: boolean,
     ) => {
       const decryptedStorageUtxos: Utxo[] = [];
@@ -1571,9 +1570,9 @@ export class User {
                 aes: true,
                 index: index,
                 commitment: Uint8Array.from(leaf),
-                merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+                merkleTreePdaPublicKey:
+                  MerkleTreeConfig.getTransactionMerkleTreePda(),
                 compressed: false,
-                verifierProgramLookupTable,
                 assetLookupTable,
               });
             } else {
@@ -1585,9 +1584,9 @@ export class User {
                 aes: false,
                 index: index,
                 commitment: Uint8Array.from(leaf),
-                merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+                merkleTreePdaPublicKey:
+                  MerkleTreeConfig.getTransactionMerkleTreePda(),
                 compressed: false,
-                verifierProgramLookupTable,
                 assetLookupTable,
               });
             }
@@ -1628,8 +1627,7 @@ export class User {
     const { decryptedStorageUtxos, spentUtxos } = await decryptIndexStorage(
       indexedStorageVerifierTransactionsFiltered,
       this.provider.lookUpTables.assetLookupTable,
-      this.provider.lookUpTables.verifierProgramLookupTable,
-      aes
+      aes,
     );
 
     for (const utxo of decryptedStorageUtxos) {

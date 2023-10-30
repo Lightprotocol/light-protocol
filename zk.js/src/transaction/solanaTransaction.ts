@@ -53,7 +53,7 @@ export function getSolanaRemainingAccounts(
   },
 ) {
   const nullifiers = systemProofPublicInputs.inputNullifier;
-  let remainingAccounts: SolanaRemainingAccounts = {
+  const remainingAccounts: SolanaRemainingAccounts = {
     ...remainingMerkleTreeAccounts,
   };
   remainingAccounts["nullifierPdaPubkeys"] = [];
@@ -317,12 +317,16 @@ export async function sendAndConfirmShieldTransaction({
   confirmOptions?: ConfirmOptions;
 }): Promise<any> {
   if (solanaTransactionInputs.transaction.action !== Action.SHIELD) {
-    throw new SolanaTransactionError(SolanaTransactionErrorCode.INVALID_ACTION, "sendAndConfirmShieldTransaction", `Action ${solanaTransactionInputs.transaction.action} is not SHIELD use sendAndConfirmShieldedTransaction.`)
+    throw new SolanaTransactionError(
+      SolanaTransactionErrorCode.INVALID_ACTION,
+      "sendAndConfirmShieldTransaction",
+      `Action ${solanaTransactionInputs.transaction.action} is not SHIELD use sendAndConfirmShieldedTransaction.`,
+    );
   }
   const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
     await provider.getRootIndex();
 
-  let remainingSolanaAccounts = getSolanaRemainingAccounts(
+  const remainingSolanaAccounts = getSolanaRemainingAccounts(
     solanaTransactionInputs.systemProof.parsedPublicInputsObject,
     remainingMerkleTreeAccounts,
   );
@@ -340,7 +344,7 @@ export async function sendAndConfirmShieldTransaction({
     solanaTransactionInputs.pspProof,
   );
 
-  let txHash = await provider.sendAndConfirmTransaction(instructions);
+  const txHash = await provider.sendAndConfirmTransaction(instructions);
   let relayerMerkleTreeUpdateResponse = "notPinged";
 
   if (confirmOptions === ConfirmOptions.finalized) {
@@ -359,7 +363,6 @@ export async function sendAndConfirmShieldTransaction({
   return { txHash, response: relayerMerkleTreeUpdateResponse };
 }
 
-
 // pspProof, systemProof,pspTransactionInput, txParams
 export async function sendAndConfirmShieldedTransaction({
   provider,
@@ -371,12 +374,16 @@ export async function sendAndConfirmShieldedTransaction({
   confirmOptions?: ConfirmOptions;
 }): Promise<any> {
   if (solanaTransactionInputs.transaction.action === Action.SHIELD) {
-    throw new SolanaTransactionError(SolanaTransactionErrorCode.INVALID_ACTION, "sendAndConfirmShieldedTransaction", `Action ${solanaTransactionInputs.transaction.action} is SHIELD use sendAndConfirmShieldTransaction.`)
+    throw new SolanaTransactionError(
+      SolanaTransactionErrorCode.INVALID_ACTION,
+      "sendAndConfirmShieldedTransaction",
+      `Action ${solanaTransactionInputs.transaction.action} is SHIELD use sendAndConfirmShieldTransaction.`,
+    );
   }
   const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
     await provider.getRootIndex();
 
-  let remainingSolanaAccounts = getSolanaRemainingAccounts(
+  const remainingSolanaAccounts = getSolanaRemainingAccounts(
     solanaTransactionInputs.systemProof.parsedPublicInputsObject,
     remainingMerkleTreeAccounts,
   );
@@ -394,7 +401,7 @@ export async function sendAndConfirmShieldedTransaction({
     solanaTransactionInputs.pspProof,
   );
 
-  let txHash = await provider.sendAndConfirmShieldedTransaction(instructions);
+  const txHash = await provider.sendAndConfirmShieldedTransaction(instructions);
   let relayerMerkleTreeUpdateResponse = "notPinged";
 
   if (confirmOptions === ConfirmOptions.finalized) {

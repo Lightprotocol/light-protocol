@@ -1,8 +1,7 @@
 use anchor_lang::prelude::*;
 use light_macros::light_verifier_accounts;
 use light_psp4in4out_app_storage::{self, program::LightPsp4in4outAppStorage};
-use light_verifier_sdk::{light_transaction::VERIFIER_STATE_SEED};
-use crate::verifying_key_{{circom-name}}::VERIFYINGKEY_{{VERIFYING_KEY_NAME}};
+use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 
 // Send and stores data.
 #[derive(Accounts)]
@@ -74,5 +73,8 @@ pub struct CloseVerifierState<'info, const NR_CHECKED_INPUTS: usize> {
 pub struct VerifierState {
     pub signer: Pubkey,
     pub verifier_state_data: [u8; 1024], //VerifierState,
-    pub checked_public_inputs: [[u8; 32]; VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs],
+    // 2 + PublicZ (VerifierAddress, TransactionHash, PublicZ)
+    // Verifier address, and transaction hash are mandatory psp public inputs
+    // Verifier address is hashed and truncated to fit the field size of the circuit
+    pub checked_public_inputs: [[u8; 32]; 3],
 }
