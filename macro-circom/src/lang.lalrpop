@@ -80,10 +80,10 @@ InstanceFields: Instance = {
     <template_constants:TemplateConstantsProperty>
     <public_inputs:PublicInputsProperty>
     => Instance {
-            name: name,
+            name,
             template_name: None, 
-            template_constants: template_constants,
-            public_inputs: public_inputs,
+            template_constants,
+            public_inputs,
         }
 };
 
@@ -200,8 +200,8 @@ COMPARATOR: Comparator = {
 
 UtxoTypeDefinition: UtxoType = {
     "utxoType" <name: IDENTIFIER> "{" <fields:UtxoTypeFields> "}" => UtxoType {
-        name: name,
-        fields: fields,
+        name,
+        fields,
         code: String::new()
     },
 };

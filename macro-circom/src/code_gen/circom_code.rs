@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub fn generate_psp_circom_code(
-    input: &String,
+    input: &str,
     checked_utxos: &Vec<Utxo>,
     instance: &mut Instance,
     utxo_types: &Vec<utxo_type::UtxoType>,
@@ -36,14 +36,14 @@ pub fn generate_psp_circom_code(
         }
 
         if skip_closign_brackets > 0 {
-            if line.starts_with("}") {
+            if line.starts_with('}') {
                 skip_closign_brackets -= 1;
             }
             continue;
         }
 
         if line.starts_with("#[entrypoint]") {
-            if found_instance == true {
+            if found_instance {
                 panic!("A light transaction can only have one #[entrypoint].");
             };
             found_instance = true;
@@ -55,7 +55,7 @@ pub fn generate_psp_circom_code(
 
         if found_bracket_once {
             if let Some(index) = checked_utxos.iter().position(|utxo| {
-                line.starts_with(&format!("utxo")) && line.contains(&format!("{}", utxo.name))
+                line.starts_with(&"utxo".to_string()) && line.contains(&utxo.name.to_string())
             }) {
                 if checked_utxos[index].is_declared {
                     panic!("A utxo can only be declared once.");
@@ -85,16 +85,13 @@ pub fn generate_psp_circom_code(
         if !found_bracket {
             remaining_lines.push(line.to_string());
         }
-        if found_bracket {
-            if line.starts_with("template") {
-                instance.template_name = extract_template_name(line);
-                let to_insert = &format!("{} levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets", if instance.template_constants.is_none() || instance.template_constants.as_ref().unwrap().is_empty() { "" } else { "," });
-                remaining_lines.push(insert_string_before_parenthesis(line, to_insert));
-                remaining_lines.push(
-                    connecting_hash_circom_template::CONNECTING_HASH_VERIFIER_TWO.to_string(),
-                );
-                found_bracket = false;
-            }
+        if found_bracket && line.starts_with("template") {
+            instance.template_name = extract_template_name(line);
+            let to_insert = &format!("{} levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets", if instance.template_constants.is_none() || instance.template_constants.as_ref().unwrap().is_empty() { "" } else { "," });
+            remaining_lines.push(insert_string_before_parenthesis(line, to_insert));
+            remaining_lines
+                .push(connecting_hash_circom_template::CONNECTING_HASH_VERIFIER_TWO.to_string());
+            found_bracket = false;
         }
     }
 
@@ -163,12 +160,12 @@ pub fn format_custom_data(input: &str) -> String {
 
     for line in input.lines() {
         let trimmed = line.trim();
-        if trimmed.contains("{") {
+        if trimmed.contains('{') {
             result.push_str(&"\t".repeat(indent_level));
             result.push_str(trimmed);
             result.push('\n');
             indent_level += 1;
-        } else if trimmed.contains("}") {
+        } else if trimmed.contains('}') {
             indent_level -= 1;
             result.push_str(&"\t".repeat(indent_level));
             result.push_str(trimmed);

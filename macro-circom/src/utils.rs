@@ -150,7 +150,7 @@ pub fn remove_formatting(input: &str) -> String {
 
 pub fn build_value(value: String, add: Option<String>) -> String {
     match add {
-        Some(add) => vec![value, add].join("."),
+        Some(add) => [value, add].join("."),
         None => value.to_string(),
     }
 }
