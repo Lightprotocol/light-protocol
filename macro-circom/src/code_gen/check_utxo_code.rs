@@ -185,8 +185,6 @@ impl Utxo {
         {{../../utxoName}}UtxoCheckHasher.inputs[5] <== {{../../utxoName}}.utxoDataHash;
         {{../../utxoName}}UtxoCheckHasher.inputs[6] <== 0;
         {{../../utxoName}}UtxoCheckHasher.inputs[7] <== {{../../utxoName}}.pspOwner;
-
-
 "#;
         // TODO: make direct part of transaction hash
         // - put check at the end of the transaction
@@ -211,7 +209,6 @@ impl Utxo {
             "publicKey",
             "blinding",
             "pspOwner",
-            // "utxoDataHash",
             "amountSol",
             "amountSpl",
             "assetSpl",
@@ -225,14 +222,7 @@ impl Utxo {
                 "InputField": utxo_field.to_upper_camel_case(),
             }));
         }
-        // native_utxo_fields_vec.push(serde_json::json!({
-        //     "inputField": "utxoDataHash",
-        //     "InputField": "UtxoDataHash",
-        // }));
-        // all_utxo_data.push(serde_json::json!({
-        //     "input": utxo_field,
-        //     "Input": utxo_field.to_upper_camel_case(),
-        // }));
+
         let instruction = match &self.instruction_name {
             Some(intruction) => intruction.clone(),
             None => String::from("1"),
@@ -253,7 +243,6 @@ impl Utxo {
         });
         let handlebars = handlebars::Handlebars::new();
 
-        // let res = handlebars.render_template(template, &data).unwrap();
         match handlebars.render_template(template, &data) {
             Ok(res) => {
                 self.declare_code = res;

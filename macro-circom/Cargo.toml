@@ -5,9 +5,6 @@ edition = "2021"
 description = "Circom DSL providing macros used in Light Protocol"
 license = "Apache-2.0"
 
-[build]
-rustflags = ["-A", "clippy::all"]
-
 [dependencies]
 anyhow = "1.0.71"
 heck = "0.4.1"

@@ -108,17 +108,6 @@ describe("Test {{project-name}}", () => {
 
     const circuitPath = path.join("build-circuit");
 
-    // const programParameters: ProgramParameters = {
-    //   inputs: {
-    //     x: inputUtxo.appData.x,
-    //     y: inputUtxo.appData.y,
-    //     publicZ: inputUtxo.appData.x.add(inputUtxo.appData.y),
-    //     isInAppUtxoInUtxo: ["1", "0", "0", "0"]
-    //   },
-    //   verifierIdl: IDL,
-    //   path: circuitPath,
-    //   circuitName: "{{circom-name-camel-case}}",
-    // };
     const pspTransactionInput: PspTransactionInput = {
       proofInputs: {
         publicZ: inputUtxo.appData.x.add(inputUtxo.appData.y),
@@ -192,11 +181,7 @@ describe("Test {{project-name}}", () => {
       provider: user.provider,
       confirmOptions: ConfirmOptions.spendable,
     });
-    // let { txHash } = await user.executeAppUtxo({
-    //   appUtxos: [inputUtxo],
-    //   programParameters,
-    //   action: Action.TRANSFER,
-    // });
+
     console.log("transaction hash ", txHash);
     const utxoSpent = await user.getUtxo(inputUtxo.getCommitment(POSEIDON), true, IDL);
     assert.equal(utxoSpent.status, "spent");

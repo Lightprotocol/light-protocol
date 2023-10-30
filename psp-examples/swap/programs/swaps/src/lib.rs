@@ -99,62 +99,6 @@ pub mod swaps {
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        // let mut reversed_public_inputs = ctx.accounts.verifier_state.checked_public_inputs[2];
-        // reversed_public_inputs.reverse();
-        // if reversed_public_inputs
-        //     != ctx
-        //     .accounts
-        //     .swap_pda
-        //     .swap
-        //     .swap_maker_program_utxo
-        //     .swapCommitmentHash
-        //     .x
-        // {
-        //     for (idx, val) in ctx
-        //         .accounts
-        //         .verifier_state
-        //         .checked_public_inputs
-        //         .iter()
-        //         .enumerate()
-        //     {
-        //         msg!("Public input {}={:?}", idx, val);
-        //     }
-
-        //     msg!("{:?}", ctx.accounts.verifier_state.checked_public_inputs);
-        //     msg!(
-        //         "{:?}",
-        //         ctx.accounts
-        //             .swap_pda
-        //             .swap
-        //             .swap_maker_program_utxo
-        //             .swapCommitmentHash
-        //     );
-        //     panic!("player_one_program_utxo does not match");
-        // }
-        // let mut reversed_public_inputs = ctx.accounts.verifier_state.checked_public_inputs[3];
-        // reversed_public_inputs.reverse();
-        // if reversed_public_inputs
-        //     != ctx
-        //     .accounts
-        //     .swap_pda
-        //     .swap
-        //     .swap_taker_program_utxo
-        //     .unwrap()
-        //     .swapCommitmentHash
-        //     .x
-        // {
-        //     msg!("{:?}", ctx.accounts.verifier_state.checked_public_inputs);
-        //     msg!(
-        //         "{:?}",
-        //         ctx.accounts
-        //             .swap_pda
-        //             .swap
-        //             .swap_taker_program_utxo
-        //             .unwrap()
-        //             .swapCommitmentHash
-        //     );
-        //     panic!("swap_maker_program_utxo does not match");
-        // }
         verify_program_proof(&ctx, &inputs)?;
         cpi_verifier_two(&ctx, &inputs)
     }

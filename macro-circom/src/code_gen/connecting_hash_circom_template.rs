@@ -91,18 +91,6 @@ pub const CONNECTING_HASH_VERIFIER_TWO: &str = "
         inCommitmentHasher[tx].inputs[5] <== inAppDataHash[tx];
         inCommitmentHasher[tx].inputs[6] <== inPoolType[tx];
         inCommitmentHasher[tx].inputs[7] <== inVerifierPubkey[tx];
-
-
-
-
-        // for (var i = 0; i < nInAssets; i++) {
-        //     for (var j = 0; j < nAssets; j++) {
-        //         sumIn[tx][i][j] = AND();
-        //         sumIn[tx][i][j].a <== inAmount[tx][i];
-        //         sumIn[tx][i][j].b <== inIndices[tx][i][j];
-        //         sumIns[j] += sumIn[tx][i][j].out;
-        //     }
-        // }
     }
 
     component outGetAsset[nOuts][nOutAssets][nAssets];
@@ -114,13 +102,13 @@ pub const CONNECTING_HASH_VERIFIER_TWO: &str = "
 
     var sumOuts[nAssets];
     for (var i = 0; i < nAssets; i++) {
-    sumOuts[i] = 0;
+        sumOuts[i] = 0;
     }
 
     var assetsOuts[nOuts][nOutAssets];
     for (var i = 0; i < nOuts; i++) {
         for (var j = 0; j < nOutAssets; j++) {
-        assetsOuts[i][j] = 0;
+            assetsOuts[i][j] = 0;
         }
     }
 

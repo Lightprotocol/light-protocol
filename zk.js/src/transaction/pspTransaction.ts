@@ -201,9 +201,6 @@ export async function getSystemProof({
     true,
   );
 }
-// shuffleUtxos(params.inputUtxos);
-// shuffleUtxos(params.outputUtxos);
-// await transaction.getTxIntegrityHash(poseidon);
 
 /**
  * @description Prepares proof inputs.

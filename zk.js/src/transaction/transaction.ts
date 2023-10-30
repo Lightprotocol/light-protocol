@@ -572,18 +572,6 @@ export class Transaction {
         )[0],
       });
     }
-
-    // if (this.appParams) {
-    //   this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
-    //     [signer.toBytes(), utils.bytes.utf8.encode("VERIFIER_STATE")],
-    //     TransactionParameters.getVerifierProgramId(this.appParams.verifierIdl),
-    //   )[0];
-    // } else {
-    //   this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
-    //     [signer.toBytes(), utils.bytes.utf8.encode("VERIFIER_STATE")],
-    //     this.params.verifierProgramId,
-    //   )[0];
-    // }
   }
 
   static getNullifierPdaPublicKey(
