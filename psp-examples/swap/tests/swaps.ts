@@ -23,12 +23,7 @@ import {
   ConfirmOptions,
 } from "@lightprotocol/zk.js";
 
-import {
-  SystemProgram,
-  PublicKey,
-  Keypair,
-  Connection,
-} from "@solana/web3.js";
+import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
 
 import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@coral-xyz/anchor";
@@ -38,7 +33,7 @@ const path = require("path");
 const verifierProgramId = new PublicKey(
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
-import {assert} from "chai";
+import { assert } from "chai";
 
 let POSEIDON: any, RELAYER: TestRelayer;
 const RPC_URL = "http://127.0.0.1:8899";
@@ -107,7 +102,10 @@ describe("Test swaps", () => {
      */
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
     const buyerUser: User = await createTestUser(provider.connection, 110e9, 5);
-    console.log("new BN(sellerUser.account.encryptionKeypair.publicKey) ", new BN(sellerUser.account.encryptionKeypair.publicKey));
+    console.log(
+      "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
+      new BN(sellerUser.account.encryptionKeypair.publicKey),
+    );
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
     let offerUtxo = new Utxo({
@@ -121,14 +119,14 @@ describe("Test swaps", () => {
         priceSpl: new BN(0),
         splAsset: new BN(0),
         recipient: sellerUser.account.pubkey,
-        recipientEncryptionPublicKey: new BN(sellerUser.account.encryptionKeypair.publicKey),
+        recipientEncryptionPublicKey: new BN(
+          sellerUser.account.encryptionKeypair.publicKey,
+        ),
         // blinding: new BN(0),
       },
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        sellerUser.provider.lookUpTables.verifierProgramLookupTable,
     });
 
     let txHashMakeOffer = await sellerUser.storeAppUtxo({
@@ -140,13 +138,20 @@ describe("Test swaps", () => {
     let syncedStorage = await buyerUser.syncStorage(IDL, false);
     await buyerUser.provider.latestMerkleTree();
     //TODO: refactor to only have one program utxo layer then an utxo array
-    let fetchedOfferUtxo = Array.from(syncedStorage.get(verifierProgramId.toBase58()).tokenBalances.get(SystemProgram.programId.toBase58()).utxos.values())[0];
+    let fetchedOfferUtxo = Array.from(
+      syncedStorage
+        .get(verifierProgramId.toBase58())
+        .tokenBalances.get(SystemProgram.programId.toBase58())
+        .utxos.values(),
+    )[0];
     // TODO: I need a standard public key flag
     fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     offerUtxo.index = fetchedOfferUtxo.index;
     Utxo.equal(POSEIDON, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
 
-    console.log(`Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`);
+    console.log(
+      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
+    );
     const circuitPath = path.join("build-circuit");
 
     const shieldUtxo = buyerUser.getAllUtxos()[0];
@@ -155,22 +160,27 @@ describe("Test swaps", () => {
     const offerRewardUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: fetchedOfferUtxo.appData.recipient,
-      encryptionPublicKey: Uint8Array.from(fetchedOfferUtxo.appData.recipientEncryptionPublicKey.toArray()),
+      encryptionPublicKey: Uint8Array.from(
+        fetchedOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
+      ),
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        buyerUser.provider.lookUpTables.verifierProgramLookupTable,
       amounts: [new BN(2e9)],
       assets: [SystemProgram.programId],
       blinding: fetchedOfferUtxo.blinding,
     });
-    console.log("fetchedOfferUtxo blinding: ", fetchedOfferUtxo.blinding.toString())
-    console.log("offerRewardUtxo blinding: ", offerRewardUtxo.blinding.toString())
+    console.log(
+      "fetchedOfferUtxo blinding: ",
+      fetchedOfferUtxo.blinding.toString(),
+    );
+    console.log(
+      "offerRewardUtxo blinding: ",
+      offerRewardUtxo.blinding.toString(),
+    );
     const tradeOutputUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        buyerUser.provider.lookUpTables.verifierProgramLookupTable,
+
       amounts: [new BN(1e9)],
       assets: [SystemProgram.programId],
     });
@@ -184,8 +194,6 @@ describe("Test swaps", () => {
       poseidon: POSEIDON,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        buyerUser.provider.lookUpTables.verifierProgramLookupTable,
       amounts: [changeAmountSol],
       assets: [SystemProgram.programId],
     });
@@ -247,7 +255,6 @@ describe("Test swaps", () => {
       systemProofInputs: proofInputs,
     });
 
-    
     /**
      * Proves PSP logic
      * returns proof and it's public inputs
@@ -271,7 +278,7 @@ describe("Test swaps", () => {
      * - systemProof: 256 bytes,
      * - pspProof: 256 bytes,
      * - systemProofPublicInputs:
-     * - 
+     * -
      */
     const solanaTransactionInputs: SolanaTransactionInputs = {
       systemProof,
@@ -290,10 +297,15 @@ describe("Test swaps", () => {
     await buyerUser.getBalance();
     // check that the utxos are part of the users balance now
     assert(buyerUser.getUtxo(changeUtxo.getCommitment(POSEIDON)) !== undefined);
-    assert(buyerUser.getUtxo(tradeOutputUtxo.getCommitment(POSEIDON))!== undefined);
+    assert(
+      buyerUser.getUtxo(tradeOutputUtxo.getCommitment(POSEIDON)) !== undefined,
+    );
     let sellerUtxoInbox = await sellerUser.getUtxoInbox();
     console.log("seller utxo inbox ", sellerUtxoInbox);
-    assert.equal(sellerUtxoInbox.totalSolBalance.toNumber(), offerUtxo.appData.priceSol.toNumber());
+    assert.equal(
+      sellerUtxoInbox.totalSolBalance.toNumber(),
+      offerUtxo.appData.priceSol.toNumber(),
+    );
   });
 
   it("Swap Counter Offer functional", async () => {
@@ -313,7 +325,10 @@ describe("Test swaps", () => {
      */
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
     const buyerUser: User = await createTestUser(provider.connection, 110e9, 5);
-    console.log("new BN(sellerUser.account.encryptionKeypair.publicKey) ", new BN(sellerUser.account.encryptionKeypair.publicKey));
+    console.log(
+      "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
+      new BN(sellerUser.account.encryptionKeypair.publicKey),
+    );
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
     let offerUtxo = new Utxo({
@@ -327,14 +342,14 @@ describe("Test swaps", () => {
         priceSpl: new BN(0),
         splAsset: new BN(0),
         recipient: sellerUser.account.pubkey,
-        recipientEncryptionPublicKey: new BN(sellerUser.account.encryptionKeypair.publicKey),
+        recipientEncryptionPublicKey: new BN(
+          sellerUser.account.encryptionKeypair.publicKey,
+        ),
         // blinding: new BN(0),
       },
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        sellerUser.provider.lookUpTables.verifierProgramLookupTable,
     });
 
     let txHashMakeOffer = await sellerUser.storeAppUtxo({
@@ -346,18 +361,25 @@ describe("Test swaps", () => {
     let syncedStorage = await buyerUser.syncStorage(IDL, false);
     await buyerUser.provider.latestMerkleTree();
     //TODO: refactor to only have one program utxo layer then an utxo array
-    let fetchedOfferUtxo = Array.from(syncedStorage.get(verifierProgramId.toBase58()).tokenBalances.get(SystemProgram.programId.toBase58()).utxos.values())[0];
+    let fetchedOfferUtxo = Array.from(
+      syncedStorage
+        .get(verifierProgramId.toBase58())
+        .tokenBalances.get(SystemProgram.programId.toBase58())
+        .utxos.values(),
+    )[0];
     // TODO: I need a standard public key flag
     fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     offerUtxo.index = fetchedOfferUtxo.index;
     Utxo.equal(POSEIDON, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
 
-    console.log(`Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`);
+    console.log(
+      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
+    );
     /**
      * Offer trade 1 sol for 2 sol
      * Counter offer trade 1 sol for 1.5 sol
      */
-    
+
     let counterOfferUtxo = new Utxo({
       poseidon: POSEIDON,
       assets: [SystemProgram.programId],
@@ -369,13 +391,13 @@ describe("Test swaps", () => {
         priceSpl: new BN(0),
         splAsset: new BN(0),
         recipient: buyerUser.account.pubkey,
-        recipientEncryptionPublicKey: new BN(buyerUser.account.encryptionKeypair.publicKey),
+        recipientEncryptionPublicKey: new BN(
+          buyerUser.account.encryptionKeypair.publicKey,
+        ),
       },
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        sellerUser.provider.lookUpTables.verifierProgramLookupTable,
     });
 
     let txHashMakeCounterOffer = await buyerUser.storeAppUtxo({
@@ -387,12 +409,19 @@ describe("Test swaps", () => {
     let syncedSellerStorage = await sellerUser.syncStorage(IDL, false);
     await sellerUser.provider.latestMerkleTree();
     //TODO: refactor to only have one program utxo layer then an utxo array
-    let fetchedCounterOfferUtxo = Array.from(syncedSellerStorage.get(verifierProgramId.toBase58()).tokenBalances.get(SystemProgram.programId.toBase58()).utxos.values())[0];
+    let fetchedCounterOfferUtxo = Array.from(
+      syncedSellerStorage
+        .get(verifierProgramId.toBase58())
+        .tokenBalances.get(SystemProgram.programId.toBase58())
+        .utxos.values(),
+    )[0];
     // TODO: I need a standard public key flag
     fetchedCounterOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     counterOfferUtxo.index = fetchedCounterOfferUtxo.index;
     Utxo.equal(POSEIDON, counterOfferUtxo, fetchedCounterOfferUtxo);
-    console.log(`Successfully fetched and decrypted counter offer: priceSol ${fetchedCounterOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedCounterOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedCounterOfferUtxo.appData.recipient.toString()}`);
+    console.log(
+      `Successfully fetched and decrypted counter offer: priceSol ${fetchedCounterOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedCounterOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedCounterOfferUtxo.appData.recipient.toString()}`,
+    );
 
     const circuitPath = path.join("build-circuit");
 
@@ -402,23 +431,31 @@ describe("Test swaps", () => {
     const counterOfferRewardUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: fetchedCounterOfferUtxo.appData.recipient,
-      encryptionPublicKey: Uint8Array.from(fetchedCounterOfferUtxo.appData.recipientEncryptionPublicKey.toArray()),
+      encryptionPublicKey: Uint8Array.from(
+        fetchedCounterOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
+      ),
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        sellerUser.provider.lookUpTables.verifierProgramLookupTable,
       amounts: [offerUtxo.amounts[0]],
       assets: [SystemProgram.programId],
       blinding: fetchedCounterOfferUtxo.blinding,
     });
-    console.log("fetchedOfferUtxo blinding: ", fetchedCounterOfferUtxo.blinding.toString())
-    console.log("offerRewardUtxo blinding: ", counterOfferRewardUtxo.blinding.toString())
+    console.log(
+      "fetchedOfferUtxo blinding: ",
+      fetchedCounterOfferUtxo.blinding.toString(),
+    );
+    console.log(
+      "offerRewardUtxo blinding: ",
+      counterOfferRewardUtxo.blinding.toString(),
+    );
     const tradeOutputUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: sellerUser.account.pubkey,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        sellerUser.provider.lookUpTables.verifierProgramLookupTable,
-      amounts: [fetchedCounterOfferUtxo.amounts[0].sub(sellerUser.provider.relayer.relayerFee)],
+      amounts: [
+        fetchedCounterOfferUtxo.amounts[0].sub(
+          sellerUser.provider.relayer.relayerFee,
+        ),
+      ],
       assets: [SystemProgram.programId],
     });
 
@@ -446,8 +483,13 @@ describe("Test swaps", () => {
       path: circuitPath,
       verifierIdl: IDL,
       circuitName: "swaps",
-      checkedInUtxos: [{ utxoName: "offerUtxo", utxo: offerUtxo }, { utxoName: "counterOfferUtxo", utxo: fetchedCounterOfferUtxo }],
-      checkedOutUtxos: [{ utxoName: "counterOfferRewardUtxo", utxo: counterOfferRewardUtxo }],
+      checkedInUtxos: [
+        { utxoName: "offerUtxo", utxo: offerUtxo },
+        { utxoName: "counterOfferUtxo", utxo: fetchedCounterOfferUtxo },
+      ],
+      checkedOutUtxos: [
+        { utxoName: "counterOfferRewardUtxo", utxo: counterOfferRewardUtxo },
+      ],
       outUtxos: [tradeOutputUtxo],
     };
 
@@ -493,7 +535,6 @@ describe("Test swaps", () => {
       systemProofInputs: proofInputs,
     });
 
-    
     /**
      * Proves PSP logic
      * returns proof and it's public inputs
@@ -517,7 +558,7 @@ describe("Test swaps", () => {
      * - systemProof: 256 bytes,
      * - pspProof: 256 bytes,
      * - systemProofPublicInputs:
-     * - 
+     * -
      */
     const solanaTransactionInputs: SolanaTransactionInputs = {
       systemProof,
@@ -535,12 +576,22 @@ describe("Test swaps", () => {
 
     let sellerBalance = await sellerUser.getBalance();
     // check that the utxos are part of the users balance now
-    assert(sellerUser.getUtxo(tradeOutputUtxo.getCommitment(POSEIDON))!== undefined);
-    assert.equal(sellerBalance.totalSolBalance.toNumber(), counterOfferUtxo.amounts[0].sub(sellerUser.provider.relayer.relayerFee).toNumber());
+    assert(
+      sellerUser.getUtxo(tradeOutputUtxo.getCommitment(POSEIDON)) !== undefined,
+    );
+    assert.equal(
+      sellerBalance.totalSolBalance.toNumber(),
+      counterOfferUtxo.amounts[0]
+        .sub(sellerUser.provider.relayer.relayerFee)
+        .toNumber(),
+    );
 
     let buyerUtxoInbox = await buyerUser.getUtxoInbox();
     console.log("buyer utxo inbox ", buyerUtxoInbox);
-    assert.equal(buyerUtxoInbox.totalSolBalance.toNumber(), offerUtxo.amounts[0].toNumber());
+    assert.equal(
+      buyerUtxoInbox.totalSolBalance.toNumber(),
+      offerUtxo.amounts[0].toNumber(),
+    );
   });
   it("Swap Cancel functional", async () => {
     /**
@@ -553,7 +604,10 @@ describe("Test swaps", () => {
      * 4. seller cancels the offer
      */
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
-    console.log("new BN(sellerUser.account.encryptionKeypair.publicKey) ", new BN(sellerUser.account.encryptionKeypair.publicKey));
+    console.log(
+      "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
+      new BN(sellerUser.account.encryptionKeypair.publicKey),
+    );
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
     let offerUtxo = new Utxo({
@@ -567,13 +621,13 @@ describe("Test swaps", () => {
         priceSpl: new BN(0),
         splAsset: new BN(0),
         recipient: sellerUser.account.pubkey,
-        recipientEncryptionPublicKey: new BN(sellerUser.account.encryptionKeypair.publicKey),
+        recipientEncryptionPublicKey: new BN(
+          sellerUser.account.encryptionKeypair.publicKey,
+        ),
       },
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        sellerUser.provider.lookUpTables.verifierProgramLookupTable,
     });
 
     let txHashMakeOffer = await sellerUser.storeAppUtxo({
@@ -585,23 +639,29 @@ describe("Test swaps", () => {
     let syncedStorage = await sellerUser.syncStorage(IDL, false);
     await sellerUser.provider.latestMerkleTree();
     //TODO: refactor to only have one program utxo layer then an utxo array
-    let fetchedOfferUtxo = Array.from(syncedStorage.get(verifierProgramId.toBase58()).tokenBalances.get(SystemProgram.programId.toBase58()).utxos.values())[0];
+    let fetchedOfferUtxo = Array.from(
+      syncedStorage
+        .get(verifierProgramId.toBase58())
+        .tokenBalances.get(SystemProgram.programId.toBase58())
+        .utxos.values(),
+    )[0];
     // TODO: I need a standard public key flag
     fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     offerUtxo.index = fetchedOfferUtxo.index;
     Utxo.equal(POSEIDON, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
 
-    console.log(`Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`);
+    console.log(
+      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
+    );
     const circuitPath = path.join("build-circuit");
-
 
     const cancelOutputUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-      sellerUser.provider.lookUpTables.verifierProgramLookupTable,
-      amounts: [offerUtxo.amounts[0].sub(sellerUser.provider.relayer.relayerFee)],
+      amounts: [
+        offerUtxo.amounts[0].sub(sellerUser.provider.relayer.relayerFee),
+      ],
       assets: [SystemProgram.programId],
     });
 
@@ -609,8 +669,6 @@ describe("Test swaps", () => {
       poseidon: POSEIDON,
       publicKey: sellerUser.account.pubkey,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-      sellerUser.provider.lookUpTables.verifierProgramLookupTable,
       amounts: [BN_0],
       assets: [SystemProgram.programId],
     });
@@ -624,7 +682,10 @@ describe("Test swaps", () => {
       path: circuitPath,
       verifierIdl: IDL,
       circuitName: "swaps",
-      checkedInUtxos: [{ utxoName: "offerUtxo", utxo: fetchedOfferUtxo }, {utxoName: "cancelSignerUtxo", utxo: emptySignerUtxo}],
+      checkedInUtxos: [
+        { utxoName: "offerUtxo", utxo: fetchedOfferUtxo },
+        { utxoName: "cancelSignerUtxo", utxo: emptySignerUtxo },
+      ],
       outUtxos: [cancelOutputUtxo],
     };
 
@@ -670,7 +731,6 @@ describe("Test swaps", () => {
       systemProofInputs: proofInputs,
     });
 
-    
     /**
      * Proves PSP logic
      * returns proof and it's public inputs
@@ -694,7 +754,7 @@ describe("Test swaps", () => {
      * - systemProof: 256 bytes,
      * - pspProof: 256 bytes,
      * - systemProofPublicInputs:
-     * - 
+     * -
      */
     const solanaTransactionInputs: SolanaTransactionInputs = {
       systemProof,
@@ -712,7 +772,13 @@ describe("Test swaps", () => {
 
     const balance = await sellerUser.getBalance();
     // check that the utxos are part of the users balance now
-    assert(sellerUser.getUtxo(cancelOutputUtxo.getCommitment(POSEIDON))!== undefined);
-    assert.equal(balance.totalSolBalance.toNumber(), cancelOutputUtxo.amounts[0].toNumber());
+    assert(
+      sellerUser.getUtxo(cancelOutputUtxo.getCommitment(POSEIDON)) !==
+        undefined,
+    );
+    assert.equal(
+      balance.totalSolBalance.toNumber(),
+      cancelOutputUtxo.amounts[0].toNumber(),
+    );
   });
 });

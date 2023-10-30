@@ -255,4 +255,3 @@ export class ProgramUtxoBalanceError extends MetaError {}
 export class SolMerkleTreeError extends MetaError {}
 
 export class SolanaTransactionError extends MetaError {}
-

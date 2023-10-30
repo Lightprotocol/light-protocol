@@ -1,6 +1,10 @@
 import { assert, expect } from "chai";
 
-import { SystemProgram, Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import {
+  SystemProgram,
+  Keypair as SolanaKeypair,
+  PublicKey,
+} from "@solana/web3.js";
 import { BN, utils } from "@coral-xyz/anchor";
 import { it } from "mocha";
 
@@ -147,7 +151,7 @@ describe("Transaction Parameters Functional", () => {
         utils.bytes.utf8.encode("VERIFIER_STATE"),
       ],
       TransactionParameters.getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT),
-    )[0]
+    )[0];
     assert.equal(params.accounts.verifierState, verifierState);
     assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
     assert.equal(
@@ -268,8 +272,11 @@ describe("Transaction Parameters Functional", () => {
           utils.bytes.utf8.encode("VERIFIER_STATE"),
         ],
         TransactionParameters.getVerifierProgramId(VERIFIER_IDLS[j]),
-      )[0]
-      assert.equal(params.accounts.verifierState?.toBase58(), verifierState.toBase58());
+      )[0];
+      assert.equal(
+        params.accounts.verifierState?.toBase58(),
+        verifierState.toBase58(),
+      );
       assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
       assert.equal(
         params.accounts.signingAddress,
@@ -380,8 +387,11 @@ describe("Transaction Parameters Functional", () => {
           utils.bytes.utf8.encode("VERIFIER_STATE"),
         ],
         TransactionParameters.getVerifierProgramId(VERIFIER_IDLS[j]),
-      )[0]
-      assert.equal(params.accounts.verifierState?.toBase58(), verifierState.toBase58());
+      )[0];
+      assert.equal(
+        params.accounts.verifierState?.toBase58(),
+        verifierState.toBase58(),
+      );
       assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
       assert.equal(params.accounts.signingAddress, mockPubkey1);
       assert.equal(
@@ -486,8 +496,11 @@ describe("Transaction Parameters Functional", () => {
           utils.bytes.utf8.encode("VERIFIER_STATE"),
         ],
         TransactionParameters.getVerifierProgramId(VERIFIER_IDLS[j]),
-      )[0]
-      assert.equal(params.accounts.verifierState?.toBase58(), verifierState.toBase58());
+      )[0];
+      assert.equal(
+        params.accounts.verifierState?.toBase58(),
+        verifierState.toBase58(),
+      );
       assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
       assert.equal(
         params.accounts.signingAddress,
