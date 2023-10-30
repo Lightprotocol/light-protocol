@@ -54,7 +54,6 @@ pub mod light_psp4in4out_app_storage {
             c: proof_c,
         };
         // + 8 to account for the discriminator
-        let start_offset = start_offset;
         let end_offset =
             start_offset + 8 + std::mem::size_of::<Psp4In4OutAppStorageVerifierState>();
 

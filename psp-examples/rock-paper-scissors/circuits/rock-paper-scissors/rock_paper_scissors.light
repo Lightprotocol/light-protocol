@@ -112,37 +112,6 @@ template rock_paper_scissors() {
     checkLossDrawEqual1.in[1] <== 1;
     checkLossDrawEqual1.enabled <== isLoss + isDraw;
 
-    // component gameCommitmentHasher0 = Poseidon(4);
-    // gameCommitmentHasher0.inputs[0] <== playerOne.choice;
-    // gameCommitmentHasher0.inputs[1] <== slot[0];
-    // gameCommitmentHasher0.inputs[2] <== 0;
-    // gameCommitmentHasher0.inputs[3] <== gameAmount;
-
-    // component gameCommitmentHasher1 = Poseidon(4);
-    // gameCommitmentHasher1.inputs[0] <== playerTwo.choice;
-    // gameCommitmentHasher1.inputs[1] <== slot[1];
-    // gameCommitmentHasher1.inputs[2] <== gameCommitmentHasher0.out;
-    // gameCommitmentHasher1.inputs[3] <== gameAmount;
-
-    // gameCommitmentHasher0.out === publicGameCommitment0;
-    // gameCommitmentHasher1.out === publicGameCommitment1;
-
-    // TODO check that this works
-    // component checkCommitmentHashOrder = LessThan(64);
-    // checkCommitmentHashOrder.a <== slot[0];
-    // checkCommitmentHashOrder.b <== slot[1];
-
-    // check if the amount in the escrow utxos is correct
-    // component checkCommittedAmount[2][nIns];
-    // for (var playerIndex =0; playerIndex < 2; playerIndex++) {
-    //   for(var inUtxoIndex = 0; inUtxoIndex < nIns; inUtxoIndex++) {
-    //     checkCommittedAmount[playerIndex][inUtxoIndex] = ForceEqualIfEnabled();
-    //     checkCommittedAmount[playerIndex][inUtxoIndex].in[0] <== inAmount[inUtxoIndex][0];
-    //     checkCommittedAmount[playerIndex][inUtxoIndex].in[1] <== gameAmount;
-    //     checkCommittedAmount[playerIndex][inUtxoIndex].enabled <== isAppInUtxo[playerIndex][inUtxoIndex];
-    //   }
-    // }
-
 
     /*  rock = 0, paper = 1, scissors = 2
         0 = 2nd player loses, 1 = draw, 2 = 2nd player wins
@@ -176,8 +145,6 @@ template rock_paper_scissors() {
     caseWin3.choice <== [playerOne.choice, playerTwo.choice];
     caseWin3.isWin <== isWin[2];
     caseWin3.refChoice <== [2, 1];
-
-
     
     // check utxos for case draw
     // the locked amounts should go back to each player
@@ -186,25 +153,6 @@ template rock_paper_scissors() {
     winPlayerTwo.check();
 }
 
-// template get_publickey(nIns) {
-//   signal input isAppInUtxo[nIns];
-//   signal input inPublicKey[nIns];
-//   signal input opponentPubkey;
-//   signal input inAppDataHash[nIns];
-//   signal input actualAppDataHash;
-//   component getPublickey[nIns];
-//   component checkAppDataHash[nIns];
-//   for (var inUtxo = 0; inUtxo < nIns; inUtxo++) {
-//     getPublickey[inUtxo] = ForceEqualIfEnabled();
-//     getPublickey[inUtxo].in[0] <== inPublicKey[inUtxo];
-//     getPublickey[inUtxo].in[1] <== opponentPubkey;
-//     getPublickey[inUtxo].enabled <== isAppInUtxo[inUtxo];
-//     checkAppDataHash[inUtxo] = ForceEqualIfEnabled();
-//     checkAppDataHash[inUtxo].in[0] <== inAppDataHash[inUtxo];
-//     checkAppDataHash[inUtxo].in[1] <== actualAppDataHash;
-//     checkAppDataHash[inUtxo].enabled <== isAppInUtxo[inUtxo];
-//   }
-// }
 template game_logic() {
   signal input choice[2];
   signal input isWin;

@@ -209,7 +209,6 @@ export async function createSolanaInstructions(
   if (pspTransactionInput) {
     inputObject = {
       ...inputObject,
-      // ...pspTransactionInput.inputs,
       ...instructionInputs.proofBytesApp,
       ...instructionInputs.publicInputsApp,
     };

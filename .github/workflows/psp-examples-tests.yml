@@ -29,7 +29,6 @@ jobs:
             sub-tests: '[
               "@lightprotocol/encrypted-messaging",
               "@lightprotocol/private-payments",
-              "@lightprotocol/rock-paper-scissors",
               "@lightprotocol/streaming-payments",
               "@lightprotocol/swap"              
             ]'

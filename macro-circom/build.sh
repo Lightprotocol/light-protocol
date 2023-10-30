@@ -13,7 +13,7 @@ destination_dir="../cli/bin"
 mkdir -p $destination_dir
 
 # Get the path to the binary
-binary_path=target/release/$pkg_name
+binary_path=../target/release/$pkg_name
 
 # Copy the binary
 cp $binary_path $destination_dir
