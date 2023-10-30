@@ -5,25 +5,25 @@ pub const CONNECTING_HASH_VERIFIER_TWO: &str = "
     assert( nOutAssets <= nAssets);
 
     signal input txIntegrityHash;
-    signal input  inAmount[nIns][nInAssets];
-    signal input  inPublicKey[nIns];
-    signal input  inBlinding[nIns];
-    signal input  inAppDataHash[nIns];
-    signal  input inPoolType[nIns];
-    signal  input inVerifierPubkey[nIns];
-    signal  input inIndices[nIns][nInAssets][nAssets];
+    signal input inAmount[nIns][nInAssets];
+    signal input inPublicKey[nIns];
+    signal input inBlinding[nIns];
+    signal input inAppDataHash[nIns];
+    signal input inPoolType[nIns];
+    signal input inVerifierPubkey[nIns];
+    signal input inIndices[nIns][nInAssets][nAssets];
 
     // data for transaction outputsAccount
-    signal  input outputCommitment[nOuts];
-    signal  input outAmount[nOuts][nOutAssets];
-    signal  input outPubkey[nOuts];
-    signal  input outBlinding[nOuts];
-    signal  input outAppDataHash[nOuts];
-    signal  input outIndices[nOuts][nOutAssets][nAssets];
-    signal  input outPoolType[nOuts];
-    signal  input outVerifierPubkey[nOuts];
+    signal input outputCommitment[nOuts];
+    signal input outAmount[nOuts][nOutAssets];
+    signal input outPubkey[nOuts];
+    signal input outBlinding[nOuts];
+    signal input outAppDataHash[nOuts];
+    signal input outIndices[nOuts][nOutAssets][nAssets];
+    signal input outPoolType[nOuts];
+    signal input outVerifierPubkey[nOuts];
 
-    signal  input assetPubkeys[nAssets];
+    signal input assetPubkeys[nAssets];
     signal input transactionVersion;
 
     component inGetAsset[nIns][nInAssets][nAssets];
