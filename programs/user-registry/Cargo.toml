@@ -17,6 +17,6 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-aligned-sized = { path = "../../macros/aligned-sized" }
+aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
 anchor-lang = "0.28.0"
 bytemuck = "1.14"
