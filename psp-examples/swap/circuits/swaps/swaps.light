@@ -6,12 +6,23 @@ include "keypair.circom";
 include "gates.circom";
 include "comparators.circom";
 
-// will create a new instance of the circuit
+/**
+* Declares the instance of the swaps circuit.
+*/
 #[instance]
 {
     name: swaps,
 }
 
+/**
+* Declares the utxo type SwapUtxo.
+* A swap utxo holds the following data:
+* - priceSol: the price in sol (0 if the price is not denominated in sol)
+* - priceSpl: the price in spl (0 if the price is denominated in sol)
+* - splAsset: the spl token used for the price (0 if the price is denominated in sol)
+* - recipient: the recipient shielded public key of the swap proceeds (the maker)
+* - recipientEncryptionPublicKey: the recipients encryption public key proceeds utxo to the recipient
+*/
 utxoType SwapUtxo {
     priceSol,
     priceSpl,
@@ -20,10 +31,18 @@ utxoType SwapUtxo {
     recipientEncryptionPublicKey,
 }
 
+/**
+* Declares the input utxo offer utxo of type SwapUtxo.
+*/
 inUtxo offerUtxo {
   type: SwapUtxo,
 }
 
+/**
+ * Declares the native output UTXO for an offer utxo.
+ * - Validates the output UTXO if takeOfferInstruction is not zero.
+ * - Ensures output UTXO exists, and matches price, asset, and recipient of offer UTXO.
+ */
 outUtxo offerRewardUtxo {
   type: native,
   enabled: takeOfferInstruction,
@@ -36,12 +55,34 @@ outUtxo offerRewardUtxo {
   },
 }
 
-// in case someone makes a counter offer and maker accepts it
+/*
+* Declares a native input utxo which checks the signer,
+* so that only the maker can cancel the swap.
+* The signer utxo does not need to hold any value,
+* it can be a filling utxo.
+*/
+inUtxo cancelSignerUtxo {
+  type: native,
+  enabled: cancelInstruction,
+  checks: {
+    publicKey == offerUtxo.recipient,
+  },
+}
+
+/*
+* Declares the input utxo counter offer utxo of type SwapUtxo.
+* A counter offer can set an alternative price and recipient.
+*/
 inUtxo counterOfferUtxo {
   type: SwapUtxo,
   enabled: takeCounterOfferInstruction,
 }
 
+/*
+* Declares the native output UTXO for a counter offer utxo.
+* - Validates the output UTXO if takeOfferInstruction is not zero.
+* - Ensures output UTXO exists, and matches price, asset, and recipient of offer UTXO.
+*/
 outUtxo counterOfferRewardUtxo {
   type: native,
   enabled: takeCounterOfferInstruction,
@@ -54,39 +95,89 @@ outUtxo counterOfferRewardUtxo {
   },
 }
 
-inUtxo cancelSignerUtxo {
+/*
+* Declares a native input utxo which checks the signer,
+* so that only the maker can accept a counter offer.
+* The signer utxo does not need to hold any value,
+* it can be a filling utxo.
+*/
+inUtxo counterOfferSignerUtxo {
   type: native,
-  enabled: cancelInstruction,
+  enabled: takeCounterOfferInstruction,
   checks: {
     publicKey == offerUtxo.recipient,
   },
 }
 
-// TODO: add partial fill, requires encryption of amount to maker, and config of min fill amount
-// TODO: add expiry slot
-
-// TODO: add instruction primitive which checks that only one instruction is 1 all others are zero
+/*
+* Implements the swaps template as entrypoint for the PSP circuit.
+* The swaps template implements the following instructions:
+* - take offer instruction
+* - take counter offer instruction
+* - cancel instruction
+*/
 #[entrypoint]
 template swaps() {
-  signal input takeOfferInstruction;
+
+  /*
+  * The offer utxo is initialized and checked for validity.
+  * This is equal for all instructions.
+  */ 
   utxo offerUtxo;
   offerUtxo.check();
+
+  /*
+  * Take offer instruction:
+  *   - Combinination of offerUtxo and offerRewardUtxo.
+  *   - Take offer instruction signal is initialized,
+  *     it is required to be 0 or 1 (see the end of the template).
+  *     If takeOfferInstruction is zero offer reward utxo is not checked.
+  *   - offerRewardUtxo is initialized and checked for validity.
+  *     - the check ensures that the offer taker executes the trade
+  *        at the price, asset and with the recipient specified in the offer utxo.
+  */
+  signal input takeOfferInstruction;
 
   utxo offerRewardUtxo;
   offerRewardUtxo.check();
 
-  signal input takeCounterOfferInstruction;
 
-  utxo counterOfferUtxo;
-  counterOfferUtxo.check();
-  
-  utxo counterOfferRewardUtxo;
-  counterOfferRewardUtxo.check();
-
+  /*
+  * The cancel instruction spends the offer utxo,
+  * without creating a reward utxo.
+  * It is not necessary to check the reward utxo,
+  * because only the maker can execute this instruction.
+  */
   signal input cancelInstruction;
 
   utxo cancelSignerUtxo;
   cancelSignerUtxo.check();
+
+  /*
+  * Take counter offer instruction:
+  *   - Combinination of offerUtxo, counterOfferUtxo, counterOfferRewardUtxo, and a signer utxo.
+  *   - Take counter offer instruction signal is initialized,
+      - counterOfferUtxo is initialized and checked for validity.
+        - This utxo introduces a new price, asset, and recipient.
+      - counterOfferRewardUtxo is initialized and checked for validity.
+        - This check ensures that the counter offer taker (original maker) executes the trade
+          at the price, asset and with the recipient specified in the counter offer utxo.
+      - counterOfferSignerUtxo is initialized and checked for validity.
+        - ensures that only the original maker can execute the counter offer,
+          since the counter offer utxo introduces a different price, asset, and recipien
+          than the offer utxo.
+      - the offer reward utxo is not checked, since the maker is the signer.
+  */
+  signal input takeCounterOfferInstruction;
+
+  utxo counterOfferUtxo;
+  counterOfferUtxo.check();
+
+  utxo counterOfferRewardUtxo;
+  counterOfferRewardUtxo.check();
+
+  utxo counterOfferSignerUtxo;
+  counterOfferSignerUtxo.check();
 
   // all instructions are 0 or 1
   var instructionIsSet = 0;
