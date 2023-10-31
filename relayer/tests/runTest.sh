@@ -24,6 +24,7 @@ trap "kill ${PID_VALIDATOR}" EXIT
 
 sleep 15
 
+source .env
 
 echo "starting relayer server"
 kill $(lsof -ti :3332) > /dev/null  || true

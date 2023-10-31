@@ -25,12 +25,16 @@ export function SendForm() {
     async (values: SendFormValues) => {
       await send(values, isUnshield);
     },
-    [unshield, transfer]
+    [unshield, transfer, isUnshield]
   );
 
   return (
     <Box w={"100%"} mx="auto">
-      <form aria-disabled={loading} onSubmit={form.onSubmit(handleSubmit)}>
+      <form
+        aria-disabled={loading}
+        onSubmit={form.onSubmit(handleSubmit)}
+        data-testid="send-form"
+      >
         <TokenInput form={form} disabled={loading} />
         <SendRecipientInput form={form} />
         <Stack mt="md" gap={28}>

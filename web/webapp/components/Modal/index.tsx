@@ -13,6 +13,7 @@ export const ModalContent = ({
     <Stack data-testid="shield-send-modal">
       <Box px={"md"}>
         <SegmentedControl
+          data-testid="shield-send-control"
           value={value}
           fullWidth
           color="#0066FF"

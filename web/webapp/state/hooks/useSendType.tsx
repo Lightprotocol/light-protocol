@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { PublicKey } from "@solana/web3.js";
 
 const isSolanaPublicKey = (string: string): boolean => {
+  console.log(string);
   try {
     if (PublicKey.isOnCurve(string)) {
       new PublicKey(string);

@@ -9,7 +9,9 @@
     "lint": "next lint",
     "serve": "pnpm run build && npx serve@latest dist",
     "test": "jest --watch",
-    "cypress:open": "cypress open"
+    "cypress:open": "cypress open",
+    "test:e2e": "sh testSetup.sh",
+    "cypress:run": "cypress run"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",

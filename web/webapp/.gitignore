@@ -13,7 +13,9 @@
 /out/
 
 *.swc/
-
+*/test-ledger/
+/test-ledger
+/cypress/screenshots
 *.logs
 # production
 /build

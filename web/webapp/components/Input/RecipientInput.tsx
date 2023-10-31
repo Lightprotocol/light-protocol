@@ -6,6 +6,7 @@ export function SendRecipientInput({ form }: { form: any }) {
       {...form.getInputProps("recipient")}
       px={"md"}
       pb={"md"}
+      data-testid="recipient-input"
       variant="unstyled"
       size="lg"
       type="string"

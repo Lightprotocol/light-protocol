@@ -30,4 +30,7 @@ trap "kill ${PID_redis}" EXIT
 # redis specific export
 export REDIS_ENVIRONMENT=LOCAL
 
+
+source .env
+
 pnpm ts-node lib/index.js
