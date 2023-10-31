@@ -26,27 +26,40 @@ jobs:
           CRATE_NAME=$(echo $TAG_NAME | rev | cut -d'-' -f2- | rev)
 
           if [ "$CRATE_NAME" == *"light-merkle-tree-program"* ]; then
-            SO_FILE="light_merkle_tree_program.so"
+            ARTIFACT="light_merkle_tree_program.so"
           elif [ "$CRATE_NAME" == *"light-psp2in2out"* ]; then
-            SO_FILE="light_psp2in2out.so"
+            ARTIFACT="light_psp2in2out.so"
           elif [ "$CRATE_NAME" == *"light-psp10in2out"* ]; then
-            SO_FILE="light_psp10in2out.so"
+            ARTIFACT="light_psp10in2out.so"
           elif [ "$CRATE_NAME" == *"light-psp4in4out-app-storage"* ]; then
-            SO_FILE="light_psp4in4out_app_storage.so"
+            ARTIFACT="light_psp4in4out_app_storage.so"
           elif [ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]; then
-            SO_FILE="light_psp2in2out_storage.so"
+            ARTIFACT="light_psp2in2out_storage.so"
+          elif [ "$CRATE_NAME" == *"macro-circom"* ]; then
+            ARTIFACT="macro-circom"
           fi
           echo "crate=$CRATE_NAME" >> $GITHUB_OUTPUT
-          echo "so-file=$SO_FILE" >> $GITHUB_OUTPUT
+          echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
+
+      - name: Build macro-circom
+        if: steps.extract-crate.outputs.crate == 'macro-circom'
+        run: |
+          cargo build --release -p macro-circom
+          cp target/release/macro-circom .
 
       - name: Prepare artifacts
         run: |
-          cp target/deploy/light_merkle_tree_program.so .
-          cp target/deploy/light_psp2in2out.so .
-          cp target/deploy/light_psp10in2out.so .
-          cp target/deploy/light_psp4in4out_app_storage.so .
-          cp target/deploy/light_psp2in2out_storage.so .
-          cp third-party/solana-program-library/spl_noop.so .
+          if [ "$CRATE_NAME" == *"light-merkle-tree-program"* ]; then
+            cp target/deploy/light_merkle_tree_program.so .
+          elif [ "$CRATE_NAME" == *"light-psp2in2out"* ]; then
+            cp target/deploy/light_psp2in2out.so .
+          elif [ "$CRATE_NAME" == *"light-psp10in2out"* ]; then
+            cp target/deploy/light_psp10in2out.so .
+          elif [ "$CRATE_NAME" == *"light-psp4in4out-app-storage"* ]; then
+            cp target/deploy/light_psp4in4out_app_storage.so .
+          elif [ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]; then
+            cp target/deploy/light_psp2in2out_storage.so .
+          fi
 
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -54,9 +67,11 @@ jobs:
         with:
           token: ${{ secrets.PAT_TOKEN }}
           files: |
-            ${{ steps.extract-crate.outputs.so-file }}
+            ${{ steps.extract-crate.outputs.artifact }}
 
       - name: Run cargo publish
+        # Skip macro-circom, it has a git dependency preventing it from publishing.
+        if: steps.extract-crate.outputs.crate != 'macro-circom'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |

@@ -19,7 +19,9 @@ jobs:
             CHANGED_FILES=$(git --no-pager show @ --name-only)
             PACKAGE_NAME=""
 
-            if [[ "$CHANGED_FILES" == *"macros"* ]]; then
+            if [[ "$CHANGED_FILES" == *"macros/aligned-sized"* ]]; then
+              PACKAGE_NAME="aligned-sized"
+            elif [[ "$CHANGED_FILES" == *"macros/light"* ]]; then
               PACKAGE_NAME="light-macros"
             elif [[ "$CHANGED_FILES" == *"programs/merkle-tree"* ]]; then
               PACKAGE_NAME="light-merkle-tree-program"
@@ -33,6 +35,8 @@ jobs:
               PACKAGE_NAME="light-psp2in2out-storage"
             elif [[ "$CHANGED_FILES" == *"verifier-sdk"* ]]; then
               PACKAGE_NAME="light-verifier-sdk"
+            elif [[ "$CHANGED_FILES" == *"macro-circom"* ]]; then
+              PACKAGE_NAME="macro-circom"
             fi
 
             if [[ -n "$PACKAGE_NAME" ]]; then
