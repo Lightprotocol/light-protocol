@@ -1,6 +1,6 @@
 [package]
 name = "light-verifier-sdk"
-version = "0.3.0"
+version = "0.3.1"
 description = "SDK for Private Solana Programs"
 license = "GPL-3.0"
 edition = "2021"
@@ -13,9 +13,9 @@ name = "light_verifier_sdk"
 [dependencies]
 anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"
-light-merkle-tree-program = { version = "0.3.0", path = "../programs/merkle-tree", features = ["cpi"] }
+light-merkle-tree-program = { version = "0.3.1", path = "../programs/merkle-tree", features = ["cpi"] }
 
-aligned-sized = { path = "../macros/aligned-sized" }
+aligned-sized = { version = "0.1.0", path = "../macros/aligned-sized" }
 ark-ff = { version = "^0.3.0", default-features = false }
 ark-ec = { version = "0.3.0" }
 ark-bn254 = "0.3.0"
