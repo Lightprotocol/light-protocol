@@ -16,3 +16,5 @@ done
 
 cp third-party/solana-program-library/spl_noop.so $out_dir/spl_noop.so
 cd -
+cargo build --release -p macro-circom
+cp ../target/release/macro-circom $out_dir/macro-circom

@@ -89,6 +89,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal  input inVerifierPubkey[nIns];
     signal input transactionVersion;
 
+    transactionVersion === 0;
     // enforce pooltypes of 0
     // add public input to distinguish between pool types
     inPoolType[0] === 0;

@@ -81,7 +81,7 @@ export async function setUpMerkleTree(
   }
 
   // TODO: do verifier registry in constants
-  let verifierArray;
+  const verifierArray: anchor.Program<any>[] = [];
 
   verifierArray.push(
     new anchor.Program(IDL_LIGHT_PSP2IN2OUT, lightPsp2in2outId),

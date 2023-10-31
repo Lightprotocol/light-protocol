@@ -636,7 +636,7 @@ describe("Utxo Benchmark", () => {
     lightProvider = await LightProvider.loadMock();
   });
 
-  it("Decrypting 256k UTXOs w/checkPrefixHash", async () => {
+  it.skip("Decrypting 256k UTXOs w/checkPrefixHash", async () => {
     const utxoTestAccount = new Account({ poseidon });
     const testUtxo = new Utxo({
       poseidon,

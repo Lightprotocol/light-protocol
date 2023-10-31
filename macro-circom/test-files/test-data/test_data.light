@@ -1,0 +1,65 @@
+pragma circom 2.1.4;
+include "poseidon.circom";
+include "merkleProof.circom";
+include "keypair.circom";
+include "gates.circom";
+include "comparators.circom";
+
+// will create a new instance of the circuit
+
+#[instance]
+{
+    name: testData,
+    publicInputs: [publicZ],
+}
+
+utxoType checkedProgramUtxoType {
+    x,
+    y,
+}
+
+// TODO: add checkedProgramUtxo::check(); statements to place program utxo checks into the light transaction template
+// TODO: throw error when no check is placed
+inUtxo checkedProgramUtxo {   
+    type:  checkedProgramUtxoType,
+    checks: {
+        amountSol == publicZ,
+    },
+}
+
+#[entrypoint]
+template TestData() {
+    // Defines the data which is saved in the utxo
+    // utxoData variables need to be lowerCamelCase
+    signal input defaultInstruction;
+    signal input publicZ;
+
+    utxo checkedProgramUtxo;
+    checkedProgramUtxo.check();
+    publicZ === checkedProgramUtxo.x + checkedProgramUtxo.y;
+
+}
+
+template otherTemplate() {
+    // Defines the data which is saved in the utxo
+    // utxoData variables need to be lowerCamelCase 
+    signal input a;
+    signal input b;
+    a === b;
+}
+
+template CheckIndices(n) {
+    signal input indices[n];    
+    signal input threshold;
+    signal input enabled;
+    var varSumIndices = 0;
+    for (var j = 0; j < n; j++) {
+        varSumIndices += indices[j];
+        // all indices are 0 or 1
+        indices[j] * (1 - indices[j]) === 0;
+    }
+    component checkIfEnabled = ForceEqualIfEnabled();
+    checkIfEnabled.in[0] <== threshold;
+    checkIfEnabled.in[1] <== varSumIndices;
+    checkIfEnabled.enabled <== enabled;
+}

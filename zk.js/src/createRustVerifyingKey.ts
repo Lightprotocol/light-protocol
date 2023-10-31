@@ -77,8 +77,8 @@ async function getProofInputsFromSymFile(
       dimension === 0
         ? [0]
         : (name.match(/\[(.*?)\]/g) || [])
-            .map((m) => m.replace(/\[|\]/g, ""))
-            .map((n) => parseInt(n) + 1);
+            .map((m: any) => m.replace(/\[|\]/g, ""))
+            .map((n: any) => parseInt(n) + 1);
 
     arr.push({ inputName, dimension, size });
   });

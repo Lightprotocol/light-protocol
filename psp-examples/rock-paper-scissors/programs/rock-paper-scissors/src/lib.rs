@@ -1,7 +1,5 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::hash::hash;
-use light_verifier_sdk::state::VerifierState10Ins;
-use std::marker::PhantomData;
 pub mod psp_accounts;
 pub use psp_accounts::*;
 pub mod auto_generated_accounts;
@@ -9,8 +7,8 @@ pub use auto_generated_accounts::*;
 pub mod processor;
 pub use processor::*;
 pub mod verifying_key_rock_paper_scissors;
+use light_psp4in4out_app_storage::Psp4In4OutAppStorageVerifierState;
 pub use verifying_key_rock_paper_scissors::*;
-
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[constant]
@@ -31,7 +29,7 @@ pub mod rock_paper_scissors {
             'b,
             'c,
             'info,
-            LightInstructionFirst<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }, 4, 4>,
+            LightInstructionFirst<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }>,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
@@ -43,33 +41,27 @@ pub mod rock_paper_scissors {
         let mut program_id_hash = hash(&ctx.program_id.to_bytes()).to_bytes();
         program_id_hash[0] = 0;
 
-        let mut checked_public_inputs: [[u8; 32]; VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs] =
-            [[0u8; 32]; VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs];
-        checked_public_inputs[0] = program_id_hash;
-        checked_public_inputs[1] = inputs_des.transaction_hash;
-
-        let state = VerifierState10Ins {
-            merkle_root_index: inputs_des.root_index,
-            signer: Pubkey::from([0u8; 32]),
-            nullifiers: inputs_des.input_nullifier.to_vec(),
-            leaves: inputs_des.output_commitment.to_vec(),
+        let mut verifier_state = ctx.accounts.verifier_state.load_init()?;
+        verifier_state.signer = *ctx.accounts.signing_address.key;
+        let verifier_state_data = Psp4In4OutAppStorageVerifierState {
+            nullifiers: inputs_des.input_nullifier,
+            leaves: inputs_des.output_commitment.try_into().unwrap(),
             public_amount_spl: inputs_des.public_amount_spl,
             public_amount_sol: inputs_des.public_amount_sol,
-            mint_pubkey: [0u8; 32],
-            merkle_root: [0u8; 32],
-            tx_integrity_hash: [0u8; 32],
             relayer_fee: inputs_des.relayer_fee,
-            encrypted_utxos: inputs_des.encrypted_utxos,
-            checked_public_inputs,
-            proof_a: [0u8; 64],
-            proof_b: [0u8; 128],
-            proof_c: [0u8; 64],
-            transaction_hash: [0u8; 32],
-            e_phantom: PhantomData,
+            encrypted_utxos: inputs_des.encrypted_utxos.try_into().unwrap(),
+            merkle_root_index: inputs_des.root_index,
         };
+        let mut verifier_state_vec = Vec::new();
+        Psp4In4OutAppStorageVerifierState::serialize(&verifier_state_data, &mut verifier_state_vec)
+            .unwrap();
+        verifier_state.verifier_state_data = [verifier_state_vec, vec![0u8; 1024 - 848]]
+            .concat()
+            .try_into()
+            .unwrap();
 
-        ctx.accounts.verifier_state.set_inner(state);
-        ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
+        verifier_state.checked_public_inputs[0] = program_id_hash;
+        verifier_state.checked_public_inputs[1] = inputs_des.transaction_hash;
 
         Ok(())
     }
@@ -80,14 +72,15 @@ pub mod rock_paper_scissors {
             'b,
             'c,
             'info,
-            LightInstructionSecond<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }, 4, 4>,
+            LightInstructionSecond<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }>,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        let mut verifier_state = ctx.accounts.verifier_state.load_mut()?;
         inputs.chunks(32).enumerate().for_each(|(i, input)| {
             let mut arr = [0u8; 32];
             arr.copy_from_slice(input);
-            ctx.accounts.verifier_state.checked_public_inputs[2 + i] = arr
+            verifier_state.checked_public_inputs[2 + i] = arr
         });
         Ok(())
     }
@@ -101,11 +94,12 @@ pub mod rock_paper_scissors {
             'b,
             'c,
             'info,
-            LightInstructionThird<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }, 4, 4>,
+            LightInstructionThird<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }>,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let mut reversed_public_inputs = ctx.accounts.verifier_state.checked_public_inputs[2];
+        let verifier_state = ctx.accounts.verifier_state.load()?;
+        let mut reversed_public_inputs = verifier_state.checked_public_inputs[2];
         reversed_public_inputs.reverse();
         if reversed_public_inputs
             != ctx
@@ -116,17 +110,11 @@ pub mod rock_paper_scissors {
                 .gameCommitmentHash
                 .x
         {
-            for (idx, val) in ctx
-                .accounts
-                .verifier_state
-                .checked_public_inputs
-                .iter()
-                .enumerate()
-            {
+            for (idx, val) in verifier_state.checked_public_inputs.iter().enumerate() {
                 msg!("Public input {}={:?}", idx, val);
             }
 
-            msg!("{:?}", ctx.accounts.verifier_state.checked_public_inputs);
+            msg!("{:?}", verifier_state.checked_public_inputs);
             msg!(
                 "{:?}",
                 ctx.accounts
@@ -137,7 +125,7 @@ pub mod rock_paper_scissors {
             );
             panic!("player_one_program_utxo does not match");
         }
-        let mut reversed_public_inputs = ctx.accounts.verifier_state.checked_public_inputs[3];
+        let mut reversed_public_inputs = verifier_state.checked_public_inputs[3];
         reversed_public_inputs.reverse();
         if reversed_public_inputs
             != ctx
@@ -149,7 +137,7 @@ pub mod rock_paper_scissors {
                 .gameCommitmentHash
                 .x
         {
-            msg!("{:?}", ctx.accounts.verifier_state.checked_public_inputs);
+            msg!("{:?}", verifier_state.checked_public_inputs);
             msg!(
                 "{:?}",
                 ctx.accounts
@@ -172,7 +160,7 @@ pub mod rock_paper_scissors {
             'b,
             'c,
             'info,
-            CloseVerifierState<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }, 4, 4>,
+            CloseVerifierState<'info, { VERIFYINGKEY_ROCK_PAPER_SCISSORS.nr_pubinputs }>,
         >,
     ) -> Result<()> {
         Ok(())

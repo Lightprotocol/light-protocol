@@ -113,16 +113,19 @@ export class Prover<
     });
 
     const inputsObject: { [key: string]: any } = {};
-
+    const missingInputs: string[] = [];
     inputKeys.forEach((key) => {
       inputsObject[key] = proofInputs[key];
-      if (!inputsObject[key])
-        throw new Error(
-          `Missing input --> ${key.toString()} in circuit ==> ${
-            this.circuitName
-          }`,
-        );
+      if (!inputsObject[key]) missingInputs.push(key);
     });
+    if (missingInputs.length > 0) {
+      let errorString = "";
+      for (const key of missingInputs) {
+        errorString += `Missing input: ${key.toString()} \n`;
+      }
+      errorString += `Circuit: ${this.circuitName}`;
+      throw new Error(errorString);
+    }
     this.proofInputs = inputsObject as ProofInputs<VerifierIdl, CircuitName>;
   }
 

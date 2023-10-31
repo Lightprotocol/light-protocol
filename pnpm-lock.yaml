@@ -636,6 +636,9 @@ importers:
       '@lightprotocol/zk.js':
         specifier: workspace:*
         version: link:../../zk.js
+      case-anything:
+        specifier: ^2.1.13
+        version: 2.1.13
       circomlib:
         specifier: ^2.0.5
         version: 2.0.5
@@ -872,6 +875,9 @@ importers:
       axios:
         specifier: ^1.3.4
         version: 1.5.0
+      case-anything:
+        specifier: ^2.1.13
+        version: 2.1.13
       circomlib:
         specifier: ^2.0.5
         version: 2.0.5
@@ -3994,6 +4000,11 @@ packages:
     dependencies:
       ansicolors: 0.3.2
       redeyed: 2.1.1
+
+  /case-anything@2.1.13:
+    resolution: {integrity: sha512-zlOQ80VrQ2Ue+ymH5OuM/DlDq64mEm+B9UTdHULv5osUMD6HalNTblf2b1u/m6QecjsnOkBpqVZ+XPwIVsy7Ng==}
+    engines: {node: '>=12.13'}
+    dev: false
 
   /caseless@0.12.0:
     resolution: {integrity: sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==}

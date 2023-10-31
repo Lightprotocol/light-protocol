@@ -12,22 +12,8 @@ impl Config for TransactionsConfig {
     const ID: Pubkey = pubkey!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 }
 
-pub fn cpi_verifier_two<
-    'a,
-    'b,
-    'c,
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
->(
-    ctx: &'a Context<
-        'a,
-        'b,
-        'c,
-        'info,
-        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
-    >,
+pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
+    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let proof_verifier = Proof {
@@ -77,35 +63,20 @@ pub fn cpi_verifier_two<
         &final_seed[..],
     );
     cpi_ctx = cpi_ctx.with_remaining_accounts(ctx.remaining_accounts.to_vec());
-
+    let verifier_state = ctx.accounts.verifier_state.load()?;
     light_psp4in4out_app_storage::cpi::shielded_transfer_inputs(
         cpi_ctx,
         proof_verifier.a,
         proof_verifier.b,
         proof_verifier.c,
-        <Vec<u8> as TryInto<[u8; 32]>>::try_into(
-            ctx.accounts.verifier_state.checked_public_inputs[1].to_vec(),
-        )
-        .unwrap(),
+        <Vec<u8> as TryInto<[u8; 32]>>::try_into(verifier_state.checked_public_inputs[1].to_vec())
+            .unwrap(),
+        memoffset::offset_of!(crate::psp_accounts::VerifierState, verifier_state_data),
     )
 }
 
-pub fn verify_program_proof<
-    'a,
-    'b,
-    'c,
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
->(
-    ctx: &'a Context<
-        'a,
-        'b,
-        'c,
-        'info,
-        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
-    >,
+pub fn verify_program_proof<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
+    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let proof_app = Proof {
@@ -113,9 +84,11 @@ pub fn verify_program_proof<
         b: inputs[64..192].try_into().unwrap(),
         c: inputs[192..256].try_into().unwrap(),
     };
+    let verifier_state = ctx.accounts.verifier_state.load()?;
+    const NR_CHECKED_INPUTS: usize = VERIFYINGKEY_SWAPS.nr_pubinputs;
     let mut app_verifier = AppTransaction::<NR_CHECKED_INPUTS, TransactionsConfig>::new(
         &proof_app,
-        &ctx.accounts.verifier_state.checked_public_inputs,
+        &verifier_state.checked_public_inputs,
         &VERIFYINGKEY_SWAPS,
     );
 

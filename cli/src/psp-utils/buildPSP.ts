@@ -1,5 +1,5 @@
 import { executeAnchor, executeMacroCircom } from "./toolchain";
-import { extractFilename, findFile } from "./utils";
+import { findFile } from "./utils";
 import { generateCircuit } from "./buildCircom";
 import { Flags } from "@oclif/core";
 import { isCamelCase } from "@lightprotocol/zk.js";
@@ -43,27 +43,19 @@ export async function buildPSP({
         directory: circuitDir,
         extension: ".light",
       });
-      for (const { filename, fullPath } of circuits) {
+      for (const { fullPath } of circuits) {
         console.log("📜 Generating circom files");
-        const stdout = await executeMacroCircom({
+        await executeMacroCircom({
           args: [fullPath, programName],
         });
         console.log("✅ Circom files generated successfully");
-        const circuitMainFileName = extractFilename(stdout.toString().trim());
-        console.log("🛠️️  Building circuit", circuitMainFileName);
-        if (!circuitMainFileName)
-          throw new Error("Could not extract circuit main file name");
-        // not necessary because we are finding all Main.circom files later
-        foundCircuitNames.push(circuitMainFileName.slice(0, -suffix.length));
       }
     }
     const circuits = findFile({
       directory: circuitDir,
       extension: "Main.circom",
     });
-    for (const { filename, fullPath, light } of circuits) {
-      // skip main files from macro circom generated main circom files
-      if (light) continue;
+    for (const { filename } of circuits) {
       foundCircuitNames.push(filename.slice(0, -suffix.length));
     }
   }
@@ -83,8 +75,6 @@ export async function buildPSP({
   }
   // TODO: enable multiple programs
   // TODO: add add-psp command which adds a second psp
-  // TODO: add add-circom-circuit command which inits a new circom circuit of name circuitName
-  // TODO: add add-circuit command which inits a new .light file of name circuitName
   if (foundCircuitNames.length > 0) {
     for (const foundCircuitName of foundCircuitNames) {
       // if circuitName is provided skip circuits which have not been provided in the circuitName flag

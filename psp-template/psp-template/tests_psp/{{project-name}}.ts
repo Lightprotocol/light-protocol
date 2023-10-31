@@ -10,7 +10,15 @@ import {
   User,
   ProgramUtxoBalance,
   airdropSol,
-  ProgramParameters
+  PspTransactionInput,
+  ConfirmOptions,
+  getSystemProof,
+  MerkleTreeConfig,
+  getVerifierStatePda,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+  createProofInputs,
+  SolanaTransactionInputs,
+  sendAndConfirmShieldedTransaction
 } from "@lightprotocol/zk.js";
 import {
   SystemProgram,
@@ -100,22 +108,80 @@ describe("Test {{project-name}}", () => {
 
     const circuitPath = path.join("build-circuit");
 
-    const programParameters: ProgramParameters = {
-      inputs: {
-        x: inputUtxo.appData.x,
-        y: inputUtxo.appData.y,
-        publicZ: inputUtxo.appData.x.add(inputUtxo.appData.y)
+    const pspTransactionInput: PspTransactionInput = {
+      proofInputs: {
+        publicZ: inputUtxo.appData.x.add(inputUtxo.appData.y),
       },
-      verifierIdl: IDL,
       path: circuitPath,
+      verifierIdl: IDL,
       circuitName: "{{circom-name-camel-case}}",
+      checkedInUtxos: [{ utxoName: "inputUtxo", utxo: inputUtxo }],
+    };
+    const changeAmountSol = inputUtxo.amounts[0]
+      .sub(relayer.relayerFee);
+    const changeUtxo = new Utxo({
+      poseidon: POSEIDON,
+      publicKey: inputUtxo.publicKey,
+      assetLookupTable: user.provider.lookUpTables.assetLookupTable,
+      amounts: [changeAmountSol],
+      assets: [SystemProgram.programId],
+    });
+    const inputUtxos = [inputUtxo];
+    const outputUtxos = [changeUtxo];
+
+    const txParams = new TransactionParameters({
+      inputUtxos,
+      outputUtxos,
+      transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
+        new BN(0),
+      ),
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
+      action: Action.TRANSFER,
+      poseidon: POSEIDON,
+      relayer,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      account: user.account,
+      verifierState: getVerifierStatePda(
+        verifierProgramId,
+        relayer.accounts.relayerPubkey,
+      ),
+    });
+
+    await txParams.getTxIntegrityHash(POSEIDON);
+
+    const proofInputs = createProofInputs({
+      poseidon: POSEIDON,
+      transaction: txParams,
+      pspTransaction: pspTransactionInput,
+      account: user.account,
+      solMerkleTree: user.provider.solMerkleTree,
+    });
+
+    const systemProof = await getSystemProof({
+      account: user.account,
+      transaction: txParams,
+      systemProofInputs: proofInputs,
+    });
+
+    const pspProof = await user.account.getProofInternal(
+      pspTransactionInput.path,
+      pspTransactionInput,
+      proofInputs,
+      false,
+    );
+    const solanaTransactionInputs: SolanaTransactionInputs = {
+      systemProof,
+      pspProof,
+      transaction: txParams,
+      pspTransactionInput,
     };
 
-    let { txHash } = await user.executeAppUtxo({
-      appUtxos: [inputUtxo],
-      programParameters,
-      action: Action.TRANSFER,
+    const {txHash} = await sendAndConfirmShieldedTransaction({
+      solanaTransactionInputs,
+      provider: user.provider,
+      confirmOptions: ConfirmOptions.spendable,
     });
+
     console.log("transaction hash ", txHash);
     const utxoSpent = await user.getUtxo(inputUtxo.getCommitment(POSEIDON), true, IDL);
     assert.equal(utxoSpent.status, "spent");

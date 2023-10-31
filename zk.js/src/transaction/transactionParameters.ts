@@ -84,6 +84,7 @@ export class TransactionParameters implements transactionParameters {
     ataCreationFee,
     verifierIdl,
     account,
+    verifierState,
   }: {
     message?: Buffer;
     eventMerkleTreePubkey: PublicKey;
@@ -102,6 +103,7 @@ export class TransactionParameters implements transactionParameters {
     ataCreationFee?: boolean;
     verifierIdl: Idl;
     account: Account;
+    verifierState?: PublicKey;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactionParametersError(
@@ -451,6 +453,17 @@ export class TransactionParameters implements transactionParameters {
     this.assignAccounts();
     // @ts-ignore:
     this.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
+    if (!verifierState) {
+      this.accounts.verifierState = PublicKey.findProgramAddressSync(
+        [
+          this.accounts.signingAddress.toBytes(),
+          anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
+        ],
+        this.verifierProgramId,
+      )[0];
+    } else {
+      this.accounts.verifierState = verifierState;
+    }
   }
 
   async toBytes(): Promise<Buffer> {
@@ -1144,11 +1157,14 @@ export class TransactionParameters implements transactionParameters {
           this.outputUtxos[utxo].appDataHash.toString() !== "0" &&
           this.outputUtxos[utxo].includeAppData
         )
-          throw new TransactionError(
-            TransactionErrorCode.UNIMPLEMENTED,
-            "encryptUtxos",
-            "Automatic encryption for utxos with application data is not implemented.",
+          console.log(
+            "Warning encrypting utxos with app data as normal utxo without app data. App data will not be encrypted.",
           );
+        // throw new TransactionError(
+        //   TransactionErrorCode.UNIMPLEMENTED,
+        //   "encryptUtxos",
+        //   "Automatic encryption for utxos with application data is not implemented.",
+        // );
         encryptedOutputs.push(
           await this.outputUtxos[utxo].encrypt({
             poseidon,
