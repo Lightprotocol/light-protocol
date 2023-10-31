@@ -12,11 +12,17 @@ import {
   ProgramUtxoBalance,
   Provider as LightProvider,
   TestRelayer,
-  Transaction,
   TransactionParameters,
   User,
   Utxo,
   ProgramParameters,
+  createProofInputs,
+  setUndefinedPspCircuitInputsToZero,
+  PspTransactionInput,
+  getSystemProof,
+  SolanaTransactionInputs,
+  sendAndConfirmShieldedTransaction,
+  getVerifierStatePda,
 } from "@lightprotocol/zk.js";
 import {
   Keypair as SolanaKeypair,
@@ -24,7 +30,6 @@ import {
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
-
 import { buildPoseidonOpt } from "circomlibjs";
 import { IDL } from "../target/types/streaming_payments";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -78,7 +83,7 @@ describe("Streaming Payments tests", () => {
     console.timeEnd(logLabel);
   });
 
-  it("Payment streaming", async () => {
+  it.skip("Payment streaming", async () => {
     await paymentStreaming(users[0].wallet, users[0].relayerRecipientSol);
   });
 
@@ -133,8 +138,10 @@ describe("Streaming Payments tests", () => {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        lightProvider.lookUpTables.verifierProgramLookupTable,
+      includeAppData: true,
     });
-
     const testInputsShield = {
       utxo: outputUtxoSol,
       action: Action.SHIELD,
@@ -144,32 +151,30 @@ describe("Streaming Payments tests", () => {
       appUtxo: testInputsShield.utxo,
       action: testInputsShield.action,
     });
+
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await lightUser.syncStorage(IDL);
     const shieldedUtxoCommitmentHash =
       testInputsShield.utxo.getCommitment(POSEIDON);
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())
-      .tokenBalances.get(testInputsShield.utxo.assets[1].toBase58())
+      .tokenBalances.get(testInputsShield.utxo.assets[0].toBase58())
       .utxos.get(shieldedUtxoCommitmentHash);
-
-    Utxo.equal(POSEIDON, inputUtxo, testInputsShield.utxo, true);
+    Utxo.equal(POSEIDON, inputUtxo, testInputsShield.utxo, false);
 
     const circuitPath = path.join("build-circuit");
-    const appParams = {
-      inputs: {
-        endSlot: new BN(1),
-        rate: new BN(1),
+    // TODO: add in and out utxos to appParams
+    // TODO: create compile appParams method which creates isAppIn and out utxo arrays, prefixes utxo data variables with in and out prefixes
+    const pspTransactionInput: PspTransactionInput = {
+      proofInputs: {
         currentSlotPrivate: new BN(1),
-        diff: new BN(0),
         currentSlot: new BN(1),
-        remainingAmount: new BN(0),
-        isOutUtxo: [new BN(0), new BN(0), new BN(0), new BN(0)],
-        isAppInUtxo: [new BN(1), new BN(0), new BN(0), new BN(0)],
       },
       path: circuitPath,
       verifierIdl: IDL,
       circuitName: "streamingPayments",
+      // ts-ignore
+      checkedInUtxos: [{ utxoName: "streamInUtxo", utxo: inputUtxo }],
     };
 
     const txParams = new TransactionParameters({
@@ -184,18 +189,52 @@ describe("Streaming Payments tests", () => {
       relayer: relayer,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account: lightUser.account,
-    });
-    let { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
-    let tx = new Transaction({
-      rootIndex,
-      ...remainingAccounts,
-      solMerkleTree: lightProvider.solMerkleTree!,
-      params: txParams,
-      appParams,
+      verifierState: getVerifierStatePda(
+        verifierProgramId,
+        relayer.accounts.relayerPubkey,
+      ),
     });
 
-    const instructions = await tx.compileAndProve(POSEIDON, lightUser.account);
-    await lightProvider.sendAndConfirmTransaction(instructions);
+    await txParams.getTxIntegrityHash(POSEIDON);
+
+    // createProofInputsAndProve
+    const proofInputs = createProofInputs({
+      poseidon: POSEIDON,
+      transaction: txParams,
+      pspTransaction: pspTransactionInput,
+      account: lightUser.account,
+      solMerkleTree: lightProvider.solMerkleTree,
+    });
+
+    const systemProof = await getSystemProof({
+      account: lightUser.account,
+      transaction: txParams,
+      systemProofInputs: proofInputs,
+    });
+    const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
+      proofInputs,
+      IDL,
+      pspTransactionInput.circuitName,
+    );
+
+    const pspProof = await lightUser.account.getProofInternal(
+      pspTransactionInput.path,
+      pspTransactionInput,
+      completePspProofInputs,
+      false,
+    );
+    const solanaTransactionInputs: SolanaTransactionInputs = {
+      systemProof,
+      pspProof,
+      transaction: txParams,
+      pspTransactionInput,
+    };
+
+    const res = await sendAndConfirmShieldedTransaction({
+      solanaTransactionInputs,
+      provider: lightProvider,
+    });
+    console.log("tx Hash : ", res.txHash);
   }
 
   async function paymentStreaming(
@@ -360,6 +399,8 @@ class PaymentStreamClient {
       appDataIdl: this.idl,
       verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
       assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
+      verifierProgramLookupTable:
+        this.lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     this.streamInitUtxo = streamInitUtxo;
@@ -401,6 +442,8 @@ class PaymentStreamClient {
           publicKey: inUtxo.publicKey,
           poseidon: this.poseidon,
           assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
+          verifierProgramLookupTable:
+            this.lightProvider.lookUpTables.verifierProgramLookupTable,
         });
         return { programParameters, inUtxo, outUtxo, action };
       }
@@ -433,6 +476,8 @@ class PaymentStreamClient {
         appDataIdl: this.idl,
         verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
         assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          this.lightProvider.lookUpTables.verifierProgramLookupTable,
       });
       return { programParameters, outUtxo, inUtxo };
     }

@@ -9,13 +9,40 @@ include "comparators.circom";
 // will create a new instance of the circuit
 #[instance]
 {
-    fileName: streaming_payments,
-    config(),
-    nrAppUtoxs: 1,
-    publicInputs: [currentSlot]
+    name: streaming_payments,
+    publicInputs: [currentSlot],
 }
 
-#[lightTransaction(verifierTwo)]
+
+/**
+* Generates environment components: isAppInUtxoInEscrowUtxo[4], instructionHasherEscrowInUtxo
+*
+*/
+
+utxoType streamUtxo {
+    endSlot,
+    rate,
+}
+
+inUtxo streamInUtxo {
+    type: streamUtxo,
+}
+
+outUtxo remaingStreamUtxo {
+    type: streamUtxo,
+    enabled: remainingAmount,
+    checks: {
+        amountSol == remainingAmount,
+        utxoDataHash == streamInUtxo.utxoDataHash,
+        pspOwner == publicAppVerifier,
+    },
+    dataChecks: {
+        endSlot == streamInUtxo.endSlot,
+        rate == streamInUtxo.rate,
+    },
+}
+
+#[entrypoint]
 template streaming_payments() {
     /**
     * -------------------------- Application starts here --------------------------
@@ -27,16 +54,12 @@ template streaming_payments() {
     // is outside instruction
     // could add signal inputs automatically for these
     // are private inputs
-    #[utxoData]
-    {
-        endSlot,
-        rate
-    }
     signal input currentSlotPrivate;
     signal input currentSlot;
     signal input diff;
     signal input remainingAmount;
-    signal input isOutUtxo[nOuts];
+
+    utxo streamInUtxo;
 
     // check that diff is a 64bit value to prevent an overflow during additon
     component rangeCheckDiff = Num2Bits(64);
@@ -50,12 +73,12 @@ template streaming_payments() {
     // onchain in the solana program to be <= the actual current slot during execution
     currentSlotPrivate + diff === currentSlot;
 
-    // calculate remaining amount of payment stream
-    (endSlot - currentSlotPrivate) * rate === remainingAmount;
+    // calculate remaining amount of the payment stream
+    (streamInUtxo.endSlot - currentSlotPrivate) * streamInUtxo.rate === remainingAmount;
 
-    // check that endSlot - currentSlotPrivate >= 0
+    // check that streamInUtxo.endSlot - currentSlotPrivate >= 0
     component greaterThanZero = GreaterEqThan(64);
-    greaterThanZero.in[0] <== endSlot - currentSlotPrivate;
+    greaterThanZero.in[0] <== streamInUtxo.endSlot - currentSlotPrivate;
     greaterThanZero.in[1] <== 0;
     greaterThanZero.out === 1;
 
@@ -64,54 +87,8 @@ template streaming_payments() {
     // - standardProgramUtxoPubkey
     // - remainingAmount as sol amount in index 0
     // - instructionHasher.out
-    var standardProgramUtxoPubkey = 0; //Poseidon(0);
-    component checkRemainingAmount[nOuts][nOuts];
-    component checkOutInstructionHash[nOuts][nOuts];
-    component checkPublicAppVerifier[nOuts][nOuts];
-
-    for(var i=0; i < nOuts; i++) {
-        for(var j = 0 ; j < nOuts; j++) {
-            checkRemainingAmount[i][j] = ForceEqualIfEnabled();
-            checkRemainingAmount[i][j].in[0] <== remainingAmount;
-            checkRemainingAmount[i][j].in[1] <== outAmount[i][0];
-            checkRemainingAmount[i][j].enabled <== isOutUtxo[j];
-
-            checkOutInstructionHash[i][j] = ForceEqualIfEnabled();
-            checkOutInstructionHash[i][j].in[0] <== instructionHasher[0].out;
-            checkOutInstructionHash[i][j].in[1] <== outAppDataHash[i];
-            checkOutInstructionHash[i][j].enabled <== isOutUtxo[j];
-
-            checkPublicAppVerifier[i][j] = ForceEqualIfEnabled();
-            checkPublicAppVerifier[i][j].in[0] <== publicAppVerifier;
-            checkPublicAppVerifier[i][j].in[1] <== outVerifierPubkey[i];
-            checkPublicAppVerifier[i][j].enabled <== isOutUtxo[j];
-        }
-    }
-
-    // check that all isOutUtxo are either one or zero
-    // and that there is exactly one one in the array
-    component checkIndices = CheckIndices(nOuts);
-    checkIndices.indices <== isOutUtxo;
-    checkIndices.threshold <== 1;
-    checkIndices.enabled <== remainingAmount;
-}
-
-// checks one dim indices array that every index is 0 or 1
-// and that threshold of indices are 1
-template CheckIndices(n) {
-    signal input indices[n];    
-    signal input threshold;
-    signal input enabled;
-    var varSumIndices = 0;
-    for (var j = 0; j < n; j++) {
-        varSumIndices += indices[j];
-        // all indices are 0 or 1
-        indices[j] * (1 - indices[j]) === 0;
-    }
-    component checkIfEnabled = ForceEqualIfEnabled();
-    checkIfEnabled.in[0] <== threshold;
-    checkIfEnabled.in[1] <== varSumIndices;
-    checkIfEnabled.enabled <== enabled;
+    utxo remaingStreamUtxo;
+    remaingStreamUtxo.check();
 }
 
 /*

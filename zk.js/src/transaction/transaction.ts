@@ -34,7 +34,7 @@ export enum Action {
   UNSHIELD = "UNSHIELD",
 }
 
-type PublicInputs = {
+export type PublicInputs = {
   root: Array<number>;
   publicAmountSpl: Array<number>;
   txIntegrityHash: Array<number>;
@@ -571,18 +571,6 @@ export class Transaction {
           merkleTreeProgramId,
         )[0],
       });
-    }
-
-    if (this.appParams) {
-      this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
-        [signer.toBytes(), utils.bytes.utf8.encode("VERIFIER_STATE")],
-        TransactionParameters.getVerifierProgramId(this.appParams.verifierIdl),
-      )[0];
-    } else {
-      this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
-        [signer.toBytes(), utils.bytes.utf8.encode("VERIFIER_STATE")],
-        this.params.verifierProgramId,
-      )[0];
     }
   }
 

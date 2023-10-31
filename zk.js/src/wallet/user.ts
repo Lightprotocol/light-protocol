@@ -52,8 +52,8 @@ import {
   Utxo,
   UtxoError,
   UtxoErrorCode,
+  Result,
 } from "../index";
-import { Result } from "types/result";
 
 const circomlibjs = require("circomlibjs");
 
@@ -1406,7 +1406,7 @@ export class User {
     const message = Buffer.from(
       await appUtxo.encrypt({
         poseidon: this.provider.poseidon,
-        merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
+        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         compressed: false,
         account: this.account,
       }),
@@ -1516,7 +1516,6 @@ export class User {
    * - add custom description strategies for arbitrary data
    */
   async syncStorage(idl: anchor.Idl, aes: boolean = true) {
-    if (!aes) return undefined;
     // TODO: move to relayer
     // TODO: implement the following
     /**
@@ -1553,6 +1552,7 @@ export class User {
     const decryptIndexStorage = async (
       indexedTransactions: ParsedIndexedTransaction[],
       assetLookupTable: string[],
+      aes: boolean,
     ) => {
       const decryptedStorageUtxos: Utxo[] = [];
       const spentUtxos: Utxo[] = [];
@@ -1561,18 +1561,36 @@ export class User {
         let index = data.firstLeafIndex.toNumber();
         for (const [, leaf] of data.leaves.entries()) {
           try {
-            decryptedUtxo = await Utxo.decrypt({
-              poseidon: this.provider.poseidon,
-              account: this.account,
-              encBytes: Uint8Array.from(data.message),
-              appDataIdl: idl,
-              aes: true,
-              index: index,
-              commitment: Uint8Array.from(leaf),
-              merkleTreePdaPublicKey: MerkleTreeConfig.getEventMerkleTreePda(),
-              compressed: false,
-              assetLookupTable,
-            });
+            if (aes) {
+              decryptedUtxo = await Utxo.decrypt({
+                poseidon: this.provider.poseidon,
+                account: this.account,
+                encBytes: Uint8Array.from(data.message),
+                appDataIdl: idl,
+                aes: true,
+                index: index,
+                commitment: Uint8Array.from(leaf),
+                merkleTreePdaPublicKey:
+                  MerkleTreeConfig.getTransactionMerkleTreePda(),
+                compressed: false,
+                assetLookupTable,
+              });
+            } else {
+              decryptedUtxo = await Utxo.decryptUnchecked({
+                poseidon: this.provider.poseidon,
+                account: this.account,
+                encBytes: Uint8Array.from(data.message),
+                appDataIdl: idl,
+                aes: false,
+                index: index,
+                commitment: Uint8Array.from(leaf),
+                merkleTreePdaPublicKey:
+                  MerkleTreeConfig.getTransactionMerkleTreePda(),
+                compressed: false,
+                assetLookupTable,
+              });
+            }
+
             if (decryptedUtxo.value) {
               const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
@@ -1609,6 +1627,7 @@ export class User {
     const { decryptedStorageUtxos, spentUtxos } = await decryptIndexStorage(
       indexedStorageVerifierTransactionsFiltered,
       this.provider.lookUpTables.assetLookupTable,
+      aes,
     );
 
     for (const utxo of decryptedStorageUtxos) {

@@ -7,443 +7,64 @@ import {
   TestRelayer,
   User,
   airdropSol,
-  ProgramParameters,
-  FIELD_SIZE,
-  Relayer,
-  Account,
-  sendVersionedTransactions,
   STANDARD_SHIELDED_PUBLIC_KEY,
   BN_0,
-  BN_1,
+  PspTransactionInput,
+  TransactionParameters,
+  MerkleTreeConfig,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+  getVerifierStatePda,
+  createProofInputs,
+  getSystemProof,
+  setUndefinedPspCircuitInputsToZero,
+  SolanaTransactionInputs,
+  Provider,
+  sendAndConfirmShieldedTransaction,
+  ConfirmOptions,
 } from "@lightprotocol/zk.js";
-import {
-  SystemProgram,
-  PublicKey,
-  Keypair,
-  LAMPORTS_PER_SOL,
-} from "@solana/web3.js";
+
+import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
 
 import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@coral-xyz/anchor";
-import { IDL, Swaps } from "../target/types/swaps";
-import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
+import { IDL } from "../target/types/swaps";
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
+import { assert } from "chai";
 
 let POSEIDON: any, RELAYER: TestRelayer;
 const RPC_URL = "http://127.0.0.1:8899";
 
-type SwapParameters = {
-  swapMakerCommitmentHash?: BN;
-  slot: BN;
-  swapTakerCommitmentHash: BN;
-  amountFrom: BN;
-  amountTo: BN;
-  userPubkey: BN;
+const createTestUser = async (
+  connection: Connection,
+  lamports: number,
+  shieldedSol?: number,
+): Promise<User> => {
+  let sellerWallet = Keypair.generate();
+  await airdropSol({
+    connection,
+    lamports,
+    recipientPublicKey: sellerWallet.publicKey,
+  });
+  const lightProvider: Provider = await LightProvider.init({
+    wallet: sellerWallet,
+    url: RPC_URL,
+    relayer: RELAYER,
+    confirmConfig,
+  });
+  let user: User = await User.init({ provider: lightProvider });
+  if (shieldedSol) {
+    // TODO: return utxo commitment hash
+    await user.shield({
+      token: "SOL",
+      publicAmountSol: shieldedSol,
+    });
+  }
+  return user;
 };
-
-class Swap {
-  swapParameters: SwapParameters;
-  programUtxo: Utxo;
-  pda: PublicKey;
-
-  constructor(
-    swapParameters: SwapParameters,
-    programUtxo: Utxo,
-    pda: PublicKey,
-  ) {
-    this.swapParameters = swapParameters;
-    this.programUtxo = programUtxo;
-    this.pda = pda;
-  }
-
-  static generateCommitmentHash(
-    provider: LightProvider,
-    swapParameters: SwapParameters,
-  ) {
-    return new BN(
-      provider.poseidon.F.toString(
-        provider.poseidon([
-          swapParameters.slot,
-          swapParameters.swapTakerCommitmentHash,
-          swapParameters.amountFrom,
-          swapParameters.amountTo,
-        ]),
-      ),
-    );
-  }
-
-  static async create(
-    amountFrom: BN,
-    amountTo: BN,
-    lightProvider: LightProvider,
-  ) {
-    const slot = await lightProvider.connection.getSlot();
-    const swapParameters: SwapParameters = {
-      slot: new BN(slot),
-      amountFrom,
-      amountTo,
-      swapTakerCommitmentHash: BN_0,
-      userPubkey: BN_0,
-    };
-    swapParameters.swapMakerCommitmentHash = Swap.generateCommitmentHash(
-      lightProvider,
-      swapParameters,
-    );
-    const programUtxo = new Utxo({
-      poseidon: POSEIDON,
-      assets: [SystemProgram.programId],
-      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
-      amounts: [swapParameters.amountFrom],
-      appData: {
-        swapCommitmentHash: swapParameters.swapMakerCommitmentHash,
-        userPubkey: swapParameters.userPubkey,
-      },
-      appDataIdl: IDL,
-      verifierAddress: verifierProgramId,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-    });
-
-    let seed = swapParameters.swapMakerCommitmentHash.toArray("le", 32);
-    const pda = findProgramAddressSync(
-      [Buffer.from(seed)],
-      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
-    )[0];
-
-    return new Swap(swapParameters, programUtxo, pda);
-  }
-
-  static async join(
-    swapCommitmentHash: BN,
-    amountFrom: BN,
-    amountTo: BN,
-    lightProvider: LightProvider,
-    account: Account,
-  ) {
-    const slot = await lightProvider.connection.getSlot();
-    const swapParameters: SwapParameters = {
-      slot: new BN(slot),
-      amountFrom,
-      amountTo,
-      swapTakerCommitmentHash: swapCommitmentHash,
-      userPubkey: account.pubkey,
-    };
-    swapParameters.swapMakerCommitmentHash = Swap.generateCommitmentHash(
-      lightProvider,
-      swapParameters,
-    );
-
-    const programUtxo = new Utxo({
-      poseidon: lightProvider.poseidon,
-      assets: [SystemProgram.programId],
-      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
-      amounts: [swapParameters.amountTo],
-      appData: {
-        swapCommitmentHash: swapParameters.swapMakerCommitmentHash,
-        userPubkey: account.pubkey,
-      },
-      appDataIdl: IDL,
-      verifierAddress: verifierProgramId,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-    });
-
-    let seed = swapCommitmentHash.toArray("le", 32);
-    const pda = findProgramAddressSync(
-      [Buffer.from(seed)],
-      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
-    )[0];
-    return new Swap(swapParameters, programUtxo, pda);
-  }
-}
-
-class Participant {
-  user: User;
-  swap?: Swap;
-  pspInstance: anchor.Program<Swaps>;
-
-  constructor(user: User) {
-    this.user = user;
-    this.pspInstance = new anchor.Program(
-      IDL,
-      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
-      user.provider.provider,
-    );
-  }
-
-  static async init(
-    provider: anchor.AnchorProvider,
-    relayer: TestRelayer | Relayer,
-  ) {
-    const wallet = Keypair.generate();
-    await airdropSol({
-      connection: provider.connection,
-      lamports: 1e11,
-      recipientPublicKey: wallet.publicKey,
-    });
-
-    // The light provider is a connection and wallet abstraction.
-    // The wallet is used to derive the seed for your shielded keypair with a signature.
-    let lightProvider = await LightProvider.init({
-      wallet,
-      url: RPC_URL,
-      relayer,
-      confirmConfig,
-    });
-    // lightProvider.addVerifierProgramPublickeyToLookUpTable(TransactionParameters.getVerifierProgramId(IDL));
-    return new Participant(await User.init({ provider: lightProvider }));
-  }
-
-  async closeOffer() {
-    if (!this.swap) {
-      throw new Error("Swap is already closed.");
-    }
-    let tx = await this.pspInstance.methods
-      .closeSwap()
-      .accounts({
-        swapPda: this.swap.pda,
-        signer: this.user.provider.wallet.publicKey,
-      })
-      .instruction();
-
-    await sendVersionedTransactions(
-      [tx],
-      this.user.provider.connection,
-      this.user.provider.lookUpTables.versionedTransactionLookupTable,
-      this.user.provider.wallet,
-    );
-  }
-  async createSwap(
-    amountFrom: BN,
-    amountTo: BN,
-    action: Action = Action.SHIELD,
-  ) {
-    if (this.swap) {
-      throw new Error("A swap is already in progress.");
-    }
-    this.swap = await Swap.create(amountFrom, amountTo, this.user.provider);
-
-    const txHash = await this.user.storeAppUtxo({
-      appUtxo: this.swap.programUtxo,
-      action,
-    });
-
-    const borshCoder = new anchor.BorshAccountsCoder(IDL);
-    const serializationObject = {
-      ...this.swap.programUtxo,
-      ...this.swap.programUtxo.appData,
-      accountEncryptionPublicKey: this.swap.programUtxo.encryptionPublicKey,
-      accountShieldedPublicKey: this.swap.programUtxo.publicKey,
-    };
-    const utxoBytes = (
-      await borshCoder.encode("utxo", serializationObject)
-    ).subarray(8);
-
-    let tx = await this.pspInstance.methods
-      .createSwap(utxoBytes)
-      .accounts({
-        swapPda: this.swap.pda,
-        signer: this.user.provider.wallet.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .instruction();
-
-    let txHash2 = await sendVersionedTransactions(
-      [tx],
-      this.user.provider.connection,
-      this.user.provider.lookUpTables.versionedTransactionLookupTable,
-      this.user.provider.wallet,
-    );
-
-    return {
-      swap: this.swap,
-      txHashStoreAppUtxo: txHash,
-      txHashCreateSwap: txHash2,
-    };
-  }
-
-  async takeOffer(
-    swapCommitmentHash: BN,
-    amountFrom: BN,
-    amountTo: BN,
-    action: Action = Action.SHIELD,
-  ) {
-    if (this.swap) {
-      throw new Error("A swap is already in progress.");
-    }
-    this.swap = await Swap.join(
-      swapCommitmentHash,
-      amountFrom,
-      amountTo,
-      this.user.provider,
-      this.user.account,
-    );
-    const txHash = await this.user.storeAppUtxo({
-      appUtxo: this.swap.programUtxo,
-      action,
-    });
-    const swapPdaAccountInfo = await this.pspInstance.account.swapPda.fetch(
-      this.swap.pda,
-    );
-    // @ts-ignore anchor type is not represented correctly
-    if (swapPdaAccountInfo.isJoinable === false) {
-      throw new Error("Swap is not joinable");
-    }
-
-    const borshCoder = new anchor.BorshAccountsCoder(IDL);
-    const serializationObject = {
-      ...this.swap.programUtxo,
-      ...this.swap.programUtxo.appData,
-      accountEncryptionPublicKey: this.swap.programUtxo.encryptionPublicKey,
-      accountShieldedPublicKey: this.swap.programUtxo.publicKey,
-    };
-    const utxoBytes = (
-      await borshCoder.encode("utxo", serializationObject)
-    ).subarray(8);
-
-    const tx = await this.pspInstance.methods
-      .joinSwap(utxoBytes, this.swap.swapParameters.slot)
-      .accounts({
-        swapPda: this.swap.pda,
-        signer: this.user.provider.wallet.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .instruction();
-    let txHash2 = await sendVersionedTransactions(
-      [tx],
-      this.user.provider.connection,
-      this.user.provider.lookUpTables.versionedTransactionLookupTable,
-      this.user.provider.wallet,
-    );
-
-    return {
-      swap: this.swap,
-      txHashStoreAppUtxo: txHash,
-      txHashCreateSwap: txHash2,
-    };
-  }
-
-  async execute(programUtxo?: Utxo) {
-    const swapPdaAccountInfo = await this.pspInstance.account.swapPda.fetch(
-      this.swap.pda,
-    );
-    // @ts-ignore anchor type is not represented correctly
-    if (swapPdaAccountInfo.isJoinable === true) {
-      throw new Error("Swap is joinable not executable");
-    }
-    // @ts-ignore anchor type is not represented correctly
-    const swapTakeParameters = {
-      // @ts-ignore anchor type is not represented correctly
-      swapCommitmentHash:
-        swapPdaAccountInfo.swap.swapTakerProgramUtxo.swapCommitmentHash,
-      // @ts-ignore anchor type is not represented correctly
-      slot: swapPdaAccountInfo.swap.slot,
-      // @ts-ignore anchor type is not represented correctly
-      userPubkey: swapPdaAccountInfo.swap.swapTakerProgramUtxo.userPubkey,
-    };
-    const takerProgramUtxo = new Utxo({
-      poseidon: this.user.provider.poseidon,
-      assets: [SystemProgram.programId],
-      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
-      // @ts-ignore anchor type is not represented correctly
-      amounts: [swapPdaAccountInfo.swap.swapTakerProgramUtxo.amounts[0]],
-      appData: {
-        swapCommitmentHash: swapTakeParameters.swapCommitmentHash,
-        userPubkey: swapTakeParameters.userPubkey,
-      },
-      appDataIdl: IDL,
-      verifierAddress: new PublicKey(
-        "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
-      ),
-      assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
-      blinding: swapPdaAccountInfo.swap.swapTakerProgramUtxo.blinding,
-    });
-    Utxo.equal(
-      this.user.provider.poseidon,
-      takerProgramUtxo,
-      programUtxo,
-      false,
-    );
-    const circuitPath = path.join("build-circuit");
-    // We use getBalance to sync the current merkle tree
-    await this.user.getBalance();
-    const merkleTree = this.user.provider.solMerkleTree.merkleTree;
-    this.swap.programUtxo.index = merkleTree.indexOf(
-      this.swap.programUtxo.getCommitment(this.user.provider.poseidon),
-    );
-    takerProgramUtxo.index = merkleTree.indexOf(
-      takerProgramUtxo.getCommitment(this.user.provider.poseidon),
-    );
-
-    const programParameters: ProgramParameters = {
-      inputs: {
-        publicSwapCommitment0: this.swap.swapParameters.swapMakerCommitmentHash,
-        publicSwapCommitment1: takerProgramUtxo.appData.swapCommitmentHash,
-        swapCommitmentHash: [
-          this.swap.swapParameters.swapMakerCommitmentHash,
-          swapTakeParameters.swapCommitmentHash,
-        ],
-        slot: [this.swap.swapParameters.slot, swapTakeParameters.slot],
-        amountFrom: this.swap.swapParameters.amountFrom,
-        amountTo: this.swap.swapParameters.amountTo,
-        userPubkey: [
-          this.swap.swapParameters.userPubkey,
-          takerProgramUtxo.appData.userPubkey,
-        ],
-        isTakerOutUtxo: [[BN_0, BN_1, BN_0, BN_0]],
-      },
-      verifierIdl: IDL,
-      path: circuitPath,
-      accounts: {
-        swapPda: this.swap.pda,
-      },
-      circuitName: "swaps",
-    };
-
-    const makerOutUtxo = new Utxo({
-      poseidon: this.user.provider.poseidon,
-      assets: [SystemProgram.programId],
-      publicKey: this.user.account.pubkey,
-      amounts: [this.swap.swapParameters.amountTo],
-      assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
-    });
-    const takerOutUtxo = new Utxo({
-      poseidon: this.user.provider.poseidon,
-      assets: [SystemProgram.programId],
-      publicKey: swapTakeParameters.userPubkey,
-      encryptionPublicKey: new Uint8Array(
-        swapPdaAccountInfo.swap.swapTakerProgramUtxo.accountEncryptionPublicKey,
-      ),
-      amounts: [this.swap.swapParameters.amountFrom],
-      assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
-      blinding: swapTakeParameters.userPubkey
-        .add(swapTakeParameters.userPubkey)
-        .mod(FIELD_SIZE),
-    });
-
-    let payerUtxo = this.user.getAllUtxos();
-
-    console.log(
-      "maker balance before swap execution: " +
-        (await this.user.getBalance()).totalSolBalance.toNumber() /
-          LAMPORTS_PER_SOL,
-    );
-
-    let { txHash } = await this.user.executeAppUtxo({
-      appUtxos: [this.swap.programUtxo, takerProgramUtxo],
-      inUtxos: [payerUtxo[0]],
-      outUtxos: [makerOutUtxo, takerOutUtxo],
-      programParameters,
-      action: Action.TRANSFER,
-      addOutUtxos: true,
-      shuffleEnabled: false,
-    });
-
-    return { txHash };
-  }
-}
 
 describe("Test swaps", () => {
   process.env.ANCHOR_PROVIDER_URL = RPC_URL;
@@ -469,58 +90,695 @@ describe("Test swaps", () => {
     });
   });
 
-  it("Swap test", async () => {
-    const swapMaker = await Participant.init(provider, RELAYER);
-    await swapMaker.user.shield({
-      publicAmountSol: 10,
-      token: "SOL",
+  it("Swap Take functional", async () => {
+    /**
+     * 1. Create seller and buyer Users
+     * 2. seller user creates offer
+     *    - creates utxo
+     *    - encrypts it to the buyer
+     *    - stores the encrypted utxo onchain in a compressed account
+     * 3. recipient decrypts offer
+     * 4. recipient generates
+     */
+    const sellerUser: User = await createTestUser(provider.connection, 10e9);
+    const buyerUser: User = await createTestUser(provider.connection, 110e9, 5);
+    console.log(
+      "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
+      new BN(sellerUser.account.encryptionKeypair.publicKey),
+    );
+    // TODO: add sorting to compute utxo data hash consistently
+    // TODO: remove include appdata
+    let offerUtxo = new Utxo({
+      poseidon: POSEIDON,
+      assets: [SystemProgram.programId],
+      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
+      encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
+      amounts: [new BN(1e9)],
+      appData: {
+        priceSol: new BN(2e9),
+        priceSpl: new BN(0),
+        splAsset: new BN(0),
+        recipient: sellerUser.account.pubkey,
+        recipientEncryptionPublicKey: new BN(
+          sellerUser.account.encryptionKeypair.publicKey,
+        ),
+        // blinding: new BN(0),
+      },
+      appDataIdl: IDL,
+      verifierAddress: verifierProgramId,
+      assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
     });
 
+    let txHashMakeOffer = await sellerUser.storeAppUtxo({
+      appUtxo: offerUtxo,
+      action: Action.SHIELD,
+    });
+    console.log("made offer: ", txHashMakeOffer);
+
+    let syncedStorage = await buyerUser.syncStorage(IDL, false);
+    await buyerUser.provider.latestMerkleTree();
+    //TODO: refactor to only have one program utxo layer then an utxo array
+    let fetchedOfferUtxo = Array.from(
+      syncedStorage
+        .get(verifierProgramId.toBase58())
+        .tokenBalances.get(SystemProgram.programId.toBase58())
+        .utxos.values(),
+    )[0];
+    // TODO: I need a standard public key flag
+    fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
+    offerUtxo.index = fetchedOfferUtxo.index;
+    Utxo.equal(POSEIDON, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
+
     console.log(
-      "maker balance: " +
-        (await swapMaker.user.getBalance()).totalSolBalance.toNumber() /
-          LAMPORTS_PER_SOL,
+      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
     );
+    const circuitPath = path.join("build-circuit");
 
-    let res = await swapMaker.createSwap(
-      new BN(0.5 * LAMPORTS_PER_SOL),
-      new BN(0.25 * LAMPORTS_PER_SOL),
+    const shieldUtxo = buyerUser.getAllUtxos()[0];
+
+    // TODO: throw error if the pubkey is not mine and there is no encryption key specified
+    const offerRewardUtxo = new Utxo({
+      poseidon: POSEIDON,
+      publicKey: fetchedOfferUtxo.appData.recipient,
+      encryptionPublicKey: Uint8Array.from(
+        fetchedOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
+      ),
+      assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
+      amounts: [new BN(2e9)],
+      assets: [SystemProgram.programId],
+      blinding: fetchedOfferUtxo.blinding,
+    });
+    console.log(
+      "fetchedOfferUtxo blinding: ",
+      fetchedOfferUtxo.blinding.toString(),
     );
-    console.log("Swap offer created");
+    console.log(
+      "offerRewardUtxo blinding: ",
+      offerRewardUtxo.blinding.toString(),
+    );
+    const tradeOutputUtxo = new Utxo({
+      poseidon: POSEIDON,
+      publicKey: fetchedOfferUtxo.appData.recipient,
+      assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
 
-    const swapTaker = await Participant.init(provider, RELAYER);
-    await swapTaker.user.shield({
-      publicAmountSol: 10,
-      token: "SOL",
+      amounts: [new BN(1e9)],
+      assets: [SystemProgram.programId],
     });
 
+    const changeAmountSol = shieldUtxo.amounts[0]
+      .sub(offerRewardUtxo.amounts[0])
+      .sub(RELAYER.relayerFee);
+
+    // TODO: add function to create change utxo
+    const changeUtxo = new Utxo({
+      poseidon: POSEIDON,
+      publicKey: fetchedOfferUtxo.appData.recipient,
+      assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
+      amounts: [changeAmountSol],
+      assets: [SystemProgram.programId],
+    });
+
+    // should I bundle it here or go through this step by step?
+    // TODO: abstraction that unifies Transaction creation
+    const pspTransactionInput: PspTransactionInput = {
+      proofInputs: {
+        takeOfferInstruction: new BN(1),
+      },
+      path: circuitPath,
+      verifierIdl: IDL,
+      circuitName: "swaps",
+      checkedInUtxos: [{ utxoName: "offerUtxo", utxo: fetchedOfferUtxo }],
+      checkedOutUtxos: [{ utxoName: "offerRewardUtxo", utxo: offerRewardUtxo }],
+      inUtxos: [shieldUtxo],
+      outUtxos: [changeUtxo, tradeOutputUtxo],
+    };
+
+    const inputUtxos = [fetchedOfferUtxo, shieldUtxo];
+    const outputUtxos = [changeUtxo, tradeOutputUtxo, offerRewardUtxo];
+
+    const txParams = new TransactionParameters({
+      inputUtxos,
+      outputUtxos,
+      transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
+        new BN(0),
+      ),
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
+      action: Action.TRANSFER,
+      poseidon: POSEIDON,
+      relayer: RELAYER,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      account: buyerUser.account,
+      verifierState: getVerifierStatePda(
+        verifierProgramId,
+        RELAYER.accounts.relayerPubkey,
+      ),
+    });
+
+    await txParams.getTxIntegrityHash(POSEIDON);
+
+    /**
+     * Proves PSP logic
+     * returns proof and it's public inputs
+     */
+
+    const proofInputs = createProofInputs({
+      poseidon: POSEIDON,
+      transaction: txParams,
+      pspTransaction: pspTransactionInput,
+      account: buyerUser.account,
+      solMerkleTree: buyerUser.provider.solMerkleTree,
+    });
+
+    const systemProof = await getSystemProof({
+      account: buyerUser.account,
+      transaction: txParams,
+      systemProofInputs: proofInputs,
+    });
+
+    /**
+     * Proves PSP logic
+     * returns proof and it's public inputs
+     */
+
+    const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
+      proofInputs,
+      IDL,
+      pspTransactionInput.circuitName,
+    );
+    const pspProof = await buyerUser.account.getProofInternal(
+      pspTransactionInput.path,
+      pspTransactionInput,
+      completePspProofInputs,
+      false,
+    );
+    /**
+     * Create solana transactions.
+     * We send 3 transactions because it is too much data for one solana transaction (max 1232 bytes).
+     * Data:
+     * - systemProof: 256 bytes,
+     * - pspProof: 256 bytes,
+     * - systemProofPublicInputs:
+     * -
+     */
+    const solanaTransactionInputs: SolanaTransactionInputs = {
+      systemProof,
+      pspProof,
+      transaction: txParams,
+      pspTransactionInput,
+    };
+
+    const res = await sendAndConfirmShieldedTransaction({
+      solanaTransactionInputs,
+      provider: buyerUser.provider,
+      confirmOptions: ConfirmOptions.spendable,
+    });
+    console.log("tx Hash : ", res.txHash);
+
+    await buyerUser.getBalance();
+    // check that the utxos are part of the users balance now
+    assert(buyerUser.getUtxo(changeUtxo.getCommitment(POSEIDON)) !== undefined);
+    assert(
+      buyerUser.getUtxo(tradeOutputUtxo.getCommitment(POSEIDON)) !== undefined,
+    );
+    let sellerUtxoInbox = await sellerUser.getUtxoInbox();
+    console.log("seller utxo inbox ", sellerUtxoInbox);
+    assert.equal(
+      sellerUtxoInbox.totalSolBalance.toNumber(),
+      offerUtxo.appData.priceSol.toNumber(),
+    );
+  });
+
+  it("Swap Counter Offer functional", async () => {
+    /**
+     * 1. Create seller and buyer Users
+     * 2. seller user creates offer
+     *    - creates utxo
+     *    - encrypts it to the buyer
+     *    - stores the encrypted utxo onchain in a compressed account
+     * 3. recipient decrypts offer
+     * 4. recipient generates counter offer
+     *    - creates utxo
+     *    - encrypts it to the seller
+     *    - stores the encrypted utxo onchain in a compressed account
+     * 5. seller decrypts counter offer
+     * 6. seller generates swap proof and settles the swap
+     */
+    const sellerUser: User = await createTestUser(provider.connection, 10e9);
+    const buyerUser: User = await createTestUser(provider.connection, 110e9, 5);
     console.log(
-      "taker balance: " +
-        (await swapTaker.user.getBalance()).totalSolBalance.toNumber() /
-          LAMPORTS_PER_SOL,
+      "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
+      new BN(sellerUser.account.encryptionKeypair.publicKey),
+    );
+    // TODO: add sorting to compute utxo data hash consistently
+    // TODO: remove include appdata
+    let offerUtxo = new Utxo({
+      poseidon: POSEIDON,
+      assets: [SystemProgram.programId],
+      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
+      encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
+      amounts: [new BN(1e9)],
+      appData: {
+        priceSol: new BN(2e9),
+        priceSpl: new BN(0),
+        splAsset: new BN(0),
+        recipient: sellerUser.account.pubkey,
+        recipientEncryptionPublicKey: new BN(
+          sellerUser.account.encryptionKeypair.publicKey,
+        ),
+        // blinding: new BN(0),
+      },
+      appDataIdl: IDL,
+      verifierAddress: verifierProgramId,
+      assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
+    });
+
+    let txHashMakeOffer = await sellerUser.storeAppUtxo({
+      appUtxo: offerUtxo,
+      action: Action.SHIELD,
+    });
+    console.log("made offer: ", txHashMakeOffer);
+
+    let syncedStorage = await buyerUser.syncStorage(IDL, false);
+    await buyerUser.provider.latestMerkleTree();
+    //TODO: refactor to only have one program utxo layer then an utxo array
+    let fetchedOfferUtxo = Array.from(
+      syncedStorage
+        .get(verifierProgramId.toBase58())
+        .tokenBalances.get(SystemProgram.programId.toBase58())
+        .utxos.values(),
+    )[0];
+    // TODO: I need a standard public key flag
+    fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
+    offerUtxo.index = fetchedOfferUtxo.index;
+    Utxo.equal(POSEIDON, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
+
+    console.log(
+      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
+    );
+    /**
+     * Offer trade 1 sol for 2 sol
+     * Counter offer trade 1 sol for 1.5 sol
+     */
+
+    let counterOfferUtxo = new Utxo({
+      poseidon: POSEIDON,
+      assets: [SystemProgram.programId],
+      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
+      encryptionPublicKey: sellerUser.account.encryptionKeypair.publicKey,
+      amounts: [new BN(15e8)],
+      appData: {
+        priceSol: new BN(1e9),
+        priceSpl: new BN(0),
+        splAsset: new BN(0),
+        recipient: buyerUser.account.pubkey,
+        recipientEncryptionPublicKey: new BN(
+          buyerUser.account.encryptionKeypair.publicKey,
+        ),
+      },
+      appDataIdl: IDL,
+      verifierAddress: verifierProgramId,
+      assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
+    });
+
+    let txHashMakeCounterOffer = await buyerUser.storeAppUtxo({
+      appUtxo: counterOfferUtxo,
+      action: Action.TRANSFER,
+    });
+    console.log("made counter offer: ", txHashMakeCounterOffer);
+
+    let syncedSellerStorage = await sellerUser.syncStorage(IDL, false);
+    await sellerUser.provider.latestMerkleTree();
+    //TODO: refactor to only have one program utxo layer then an utxo array
+    let fetchedCounterOfferUtxo = Array.from(
+      syncedSellerStorage
+        .get(verifierProgramId.toBase58())
+        .tokenBalances.get(SystemProgram.programId.toBase58())
+        .utxos.values(),
+    )[0];
+    // TODO: I need a standard public key flag
+    fetchedCounterOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
+    counterOfferUtxo.index = fetchedCounterOfferUtxo.index;
+    Utxo.equal(POSEIDON, counterOfferUtxo, fetchedCounterOfferUtxo);
+    console.log(
+      `Successfully fetched and decrypted counter offer: priceSol ${fetchedCounterOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedCounterOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedCounterOfferUtxo.appData.recipient.toString()}`,
     );
 
-    await swapTaker.takeOffer(
-      res.swap.swapParameters.swapMakerCommitmentHash,
-      new BN(0.5 * LAMPORTS_PER_SOL),
-      new BN(0.25 * LAMPORTS_PER_SOL),
+    const circuitPath = path.join("build-circuit");
+
+    // const shieldUtxo = sellerUser.getAllUtxos()[0];
+
+    // TODO: throw error if the pubkey is not mine and there is no encryption key specified
+    const counterOfferRewardUtxo = new Utxo({
+      poseidon: POSEIDON,
+      publicKey: fetchedCounterOfferUtxo.appData.recipient,
+      encryptionPublicKey: Uint8Array.from(
+        fetchedCounterOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
+      ),
+      assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
+      amounts: [offerUtxo.amounts[0]],
+      assets: [SystemProgram.programId],
+      blinding: fetchedCounterOfferUtxo.blinding,
+    });
+    console.log(
+      "fetchedOfferUtxo blinding: ",
+      fetchedCounterOfferUtxo.blinding.toString(),
+    );
+    console.log(
+      "offerRewardUtxo blinding: ",
+      counterOfferRewardUtxo.blinding.toString(),
+    );
+    const tradeOutputUtxo = new Utxo({
+      poseidon: POSEIDON,
+      publicKey: sellerUser.account.pubkey,
+      assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
+      amounts: [
+        fetchedCounterOfferUtxo.amounts[0].sub(
+          sellerUser.provider.relayer.relayerFee,
+        ),
+      ],
+      assets: [SystemProgram.programId],
+    });
+
+    // const changeAmountSol = tradeOutputUtxo.amounts[0]
+    //   .sub(counterOfferRewardUtxo.amounts[0])
+    //   .sub(RELAYER.relayerFee);
+
+    // // TODO: add function to create change utxo
+    // const changeUtxo = new Utxo({
+    //   poseidon: POSEIDON,
+    //   publicKey: fetchedOfferUtxo.appData.recipient,
+    //   assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
+    //   verifierProgramLookupTable:
+    //     sellerUser.provider.lookUpTables.verifierProgramLookupTable,
+    //   amounts: [changeAmountSol],
+    //   assets: [SystemProgram.programId],
+    // });
+
+    // should I bundle it here or go through this step by step?
+    // TODO: abstraction that unifies Transaction creation
+    const pspTransactionInput: PspTransactionInput = {
+      proofInputs: {
+        takeCounterOfferInstruction: new BN(1),
+      },
+      path: circuitPath,
+      verifierIdl: IDL,
+      circuitName: "swaps",
+      checkedInUtxos: [
+        { utxoName: "offerUtxo", utxo: offerUtxo },
+        { utxoName: "counterOfferUtxo", utxo: fetchedCounterOfferUtxo },
+      ],
+      checkedOutUtxos: [
+        { utxoName: "counterOfferRewardUtxo", utxo: counterOfferRewardUtxo },
+      ],
+      outUtxos: [tradeOutputUtxo],
+    };
+
+    const inputUtxos = [offerUtxo, fetchedCounterOfferUtxo];
+    const outputUtxos = [tradeOutputUtxo, counterOfferRewardUtxo];
+
+    const txParams = new TransactionParameters({
+      inputUtxos,
+      outputUtxos,
+      transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
+        new BN(0),
+      ),
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
+      action: Action.TRANSFER,
+      poseidon: POSEIDON,
+      relayer: RELAYER,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      account: sellerUser.account,
+      verifierState: getVerifierStatePda(
+        verifierProgramId,
+        RELAYER.accounts.relayerPubkey,
+      ),
+    });
+
+    await txParams.getTxIntegrityHash(POSEIDON);
+
+    /**
+     * Proves PSP logic
+     * returns proof and it's public inputs
+     */
+
+    const proofInputs = createProofInputs({
+      poseidon: POSEIDON,
+      transaction: txParams,
+      pspTransaction: pspTransactionInput,
+      account: sellerUser.account,
+      solMerkleTree: sellerUser.provider.solMerkleTree,
+    });
+
+    const systemProof = await getSystemProof({
+      account: sellerUser.account,
+      transaction: txParams,
+      systemProofInputs: proofInputs,
+    });
+
+    /**
+     * Proves PSP logic
+     * returns proof and it's public inputs
+     */
+
+    const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
+      proofInputs,
+      IDL,
+      pspTransactionInput.circuitName,
+    );
+    const pspProof = await sellerUser.account.getProofInternal(
+      pspTransactionInput.path,
+      pspTransactionInput,
+      completePspProofInputs,
+      false,
+    );
+    /**
+     * Create solana transactions.
+     * We send 3 transactions because it is too much data for one solana transaction (max 1232 bytes).
+     * Data:
+     * - systemProof: 256 bytes,
+     * - pspProof: 256 bytes,
+     * - systemProofPublicInputs:
+     * -
+     */
+    const solanaTransactionInputs: SolanaTransactionInputs = {
+      systemProof,
+      pspProof,
+      transaction: txParams,
+      pspTransactionInput,
+    };
+
+    const res = await sendAndConfirmShieldedTransaction({
+      solanaTransactionInputs,
+      provider: sellerUser.provider,
+      confirmOptions: ConfirmOptions.spendable,
+    });
+    console.log("tx Hash : ", res.txHash);
+
+    let sellerBalance = await sellerUser.getBalance();
+    // check that the utxos are part of the users balance now
+    assert(
+      sellerUser.getUtxo(tradeOutputUtxo.getCommitment(POSEIDON)) !== undefined,
+    );
+    assert.equal(
+      sellerBalance.totalSolBalance.toNumber(),
+      counterOfferUtxo.amounts[0]
+        .sub(sellerUser.provider.relayer.relayerFee)
+        .toNumber(),
     );
 
-    console.log("Token shielded and offer taken");
-    let offerRes = await swapMaker.execute(swapTaker.swap.programUtxo);
-    console.log("Swap tx hash: ", offerRes.txHash);
-    await swapMaker.closeOffer();
-
-    console.log(
-      "maker balance after swap: " +
-        (await swapMaker.user.getBalance()).totalSolBalance.toNumber() /
-          LAMPORTS_PER_SOL,
+    let buyerUtxoInbox = await buyerUser.getUtxoInbox();
+    console.log("buyer utxo inbox ", buyerUtxoInbox);
+    assert.equal(
+      buyerUtxoInbox.totalSolBalance.toNumber(),
+      offerUtxo.amounts[0].toNumber(),
     );
+  });
+  it("Swap Cancel functional", async () => {
+    /**
+     * 1. Create seller and buyer Users
+     * 2. seller user creates offer
+     *    - creates utxo
+     *    - encrypts it to herself (since this is just a test)
+     *    - stores the encrypted utxo onchain in a compressed account
+     * 3. seller generates cancel proof
+     * 4. seller cancels the offer
+     */
+    const sellerUser: User = await createTestUser(provider.connection, 10e9);
+    console.log(
+      "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
+      new BN(sellerUser.account.encryptionKeypair.publicKey),
+    );
+    // TODO: add sorting to compute utxo data hash consistently
+    // TODO: remove include appdata
+    let offerUtxo = new Utxo({
+      poseidon: POSEIDON,
+      assets: [SystemProgram.programId],
+      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
+      encryptionPublicKey: sellerUser.account.encryptionKeypair.publicKey,
+      amounts: [new BN(1e9)],
+      appData: {
+        priceSol: new BN(2e9),
+        priceSpl: new BN(0),
+        splAsset: new BN(0),
+        recipient: sellerUser.account.pubkey,
+        recipientEncryptionPublicKey: new BN(
+          sellerUser.account.encryptionKeypair.publicKey,
+        ),
+      },
+      appDataIdl: IDL,
+      verifierAddress: verifierProgramId,
+      assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
+    });
+
+    let txHashMakeOffer = await sellerUser.storeAppUtxo({
+      appUtxo: offerUtxo,
+      action: Action.SHIELD,
+    });
+    console.log("made offer: ", txHashMakeOffer);
+
+    let syncedStorage = await sellerUser.syncStorage(IDL, false);
+    await sellerUser.provider.latestMerkleTree();
+    //TODO: refactor to only have one program utxo layer then an utxo array
+    let fetchedOfferUtxo = Array.from(
+      syncedStorage
+        .get(verifierProgramId.toBase58())
+        .tokenBalances.get(SystemProgram.programId.toBase58())
+        .utxos.values(),
+    )[0];
+    // TODO: I need a standard public key flag
+    fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
+    offerUtxo.index = fetchedOfferUtxo.index;
+    Utxo.equal(POSEIDON, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
 
     console.log(
-      "taker balance after swap: " +
-        (await swapTaker.user.getBalance()).totalSolBalance.toNumber() /
-          LAMPORTS_PER_SOL,
+      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
+    );
+    const circuitPath = path.join("build-circuit");
+
+    const cancelOutputUtxo = new Utxo({
+      poseidon: POSEIDON,
+      publicKey: fetchedOfferUtxo.appData.recipient,
+      assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
+      amounts: [
+        offerUtxo.amounts[0].sub(sellerUser.provider.relayer.relayerFee),
+      ],
+      assets: [SystemProgram.programId],
+    });
+
+    const emptySignerUtxo = new Utxo({
+      poseidon: POSEIDON,
+      publicKey: sellerUser.account.pubkey,
+      assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
+      amounts: [BN_0],
+      assets: [SystemProgram.programId],
+    });
+
+    // should I bundle it here or go through this step by step?
+    // TODO: abstraction that unifies Transaction creation
+    const pspTransactionInput: PspTransactionInput = {
+      proofInputs: {
+        cancelInstruction: new BN(1),
+      },
+      path: circuitPath,
+      verifierIdl: IDL,
+      circuitName: "swaps",
+      checkedInUtxos: [
+        { utxoName: "offerUtxo", utxo: fetchedOfferUtxo },
+        { utxoName: "cancelSignerUtxo", utxo: emptySignerUtxo },
+      ],
+      outUtxos: [cancelOutputUtxo],
+    };
+
+    const inputUtxos = [fetchedOfferUtxo, emptySignerUtxo];
+    const outputUtxos = [cancelOutputUtxo];
+
+    const txParams = new TransactionParameters({
+      inputUtxos,
+      outputUtxos,
+      transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
+        new BN(0),
+      ),
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
+      action: Action.TRANSFER,
+      poseidon: POSEIDON,
+      relayer: RELAYER,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      account: sellerUser.account,
+      verifierState: getVerifierStatePda(
+        verifierProgramId,
+        RELAYER.accounts.relayerPubkey,
+      ),
+    });
+
+    await txParams.getTxIntegrityHash(POSEIDON);
+
+    /**
+     * Proves PSP logic
+     * returns proof and it's public inputs
+     */
+
+    const proofInputs = createProofInputs({
+      poseidon: POSEIDON,
+      transaction: txParams,
+      pspTransaction: pspTransactionInput,
+      account: sellerUser.account,
+      solMerkleTree: sellerUser.provider.solMerkleTree,
+    });
+
+    const systemProof = await getSystemProof({
+      account: sellerUser.account,
+      transaction: txParams,
+      systemProofInputs: proofInputs,
+    });
+
+    /**
+     * Proves PSP logic
+     * returns proof and it's public inputs
+     */
+
+    const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
+      proofInputs,
+      IDL,
+      pspTransactionInput.circuitName,
+    );
+    const pspProof = await sellerUser.account.getProofInternal(
+      pspTransactionInput.path,
+      pspTransactionInput,
+      completePspProofInputs,
+      false,
+    );
+    /**
+     * Create solana transactions.
+     * We send 3 transactions because it is too much data for one solana transaction (max 1232 bytes).
+     * Data:
+     * - systemProof: 256 bytes,
+     * - pspProof: 256 bytes,
+     * - systemProofPublicInputs:
+     * -
+     */
+    const solanaTransactionInputs: SolanaTransactionInputs = {
+      systemProof,
+      pspProof,
+      transaction: txParams,
+      pspTransactionInput,
+    };
+
+    const res = await sendAndConfirmShieldedTransaction({
+      solanaTransactionInputs,
+      provider: sellerUser.provider,
+      confirmOptions: ConfirmOptions.spendable,
+    });
+    console.log("tx Hash : ", res.txHash);
+
+    const balance = await sellerUser.getBalance();
+    // check that the utxos are part of the users balance now
+    assert(
+      sellerUser.getUtxo(cancelOutputUtxo.getCommitment(POSEIDON)) !==
+        undefined,
+    );
+    assert.equal(
+      balance.totalSolBalance.toNumber(),
+      cancelOutputUtxo.amounts[0].toNumber(),
     );
   });
 });

@@ -26,3 +26,4 @@ solana-security-txt = "1.1.0"
 groth16-solana = "0.0.2"
 light-macros = { version = "0.3.0", path = "../../macros/light" }
 light-verifier-sdk = { version = "0.3.0", path = "../../verifier-sdk" }
+bytemuck = "1.14.0"

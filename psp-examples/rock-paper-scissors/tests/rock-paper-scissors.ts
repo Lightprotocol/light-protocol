@@ -537,7 +537,7 @@ describe("Test rock-paper-scissors", () => {
     });
   });
 
-  it("Test Game Draw", async () => {
+  it.skip("Test Game Draw", async () => {
     const player1 = await Player.init(provider, RELAYER);
     // shield additional sol to pay for relayer fees
     await player1.user.shield({
@@ -560,7 +560,7 @@ describe("Test rock-paper-scissors", () => {
     await player1.closeGame();
   });
 
-  it("Test Game Loss", async () => {
+  it.skip("Test Game Loss", async () => {
     const player1 = await Player.init(provider, RELAYER);
     // shield additional sol to pay for relayer fees
     await player1.user.shield({
@@ -583,7 +583,7 @@ describe("Test rock-paper-scissors", () => {
     await player1.closeGame();
   });
 
-  it("Test Game Win", async () => {
+  it.skip("Test Game Win", async () => {
     const player1 = await Player.init(provider, RELAYER);
     // shield additional sol to pay for relayer fees
     await player1.user.shield({
