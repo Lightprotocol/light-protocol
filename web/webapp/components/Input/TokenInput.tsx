@@ -24,6 +24,7 @@ export function TokenInput<T extends FormValues>({
           </Paper>
         </Group>
         <TextInput
+          data-testid="amount-input"
           ref={focusTrapRef}
           {...form.getInputProps("amount")}
           px={"md"}

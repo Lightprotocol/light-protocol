@@ -28,7 +28,7 @@ export const initializedUser = atom(
     try {
       console.log("init relayer from url");
       const relayer = await Relayer.initFromUrl(
-        "https://v3-devnet-relayer-7x44q.ondigitalocean.app"
+        process.env.NEXT_PUBLIC_RELAYER_URL!
       );
 
       console.log("relayer", relayer);
@@ -40,7 +40,7 @@ export const initializedUser = atom(
         confirmConfig,
         url: connection.rpcEndpoint,
         versionedTransactionLookupTable: new PublicKey(
-          "GF2TtYjrWsH9g12kHmm5KiDqt4MFqpzf7zoQoJGfVgfW"
+          process.env.NEXT_PUBLIC_LOOK_UP_TABLE!
         ),
       });
       console.log("user.init");

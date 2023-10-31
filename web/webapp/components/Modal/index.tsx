@@ -10,7 +10,7 @@ export const ModalContent = ({
 }) => {
   const [value, setValue] = useState(initValue);
   return (
-    <Stack>
+    <Stack data-testid="shield-send-modal">
       <Box px={"md"}>
         <SegmentedControl
           value={value}

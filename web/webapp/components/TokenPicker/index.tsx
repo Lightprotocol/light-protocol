@@ -21,6 +21,7 @@ export function TokenPicker({ form }: { form: any }) {
   const [selected, setSelected] = useState(TOKENS[0]);
   const items = TOKENS.map((item) => (
     <Menu.Item
+      data-testid={`token-option-${item.label}`}
       leftSection={
         <Image src={item.image} alt="" width={18} height={18} radius={"xl"} />
       }
@@ -45,6 +46,7 @@ export function TokenPicker({ form }: { form: any }) {
       <Menu.Target>
         <UnstyledButton
           className={classes.control}
+          data-testid="token-dropdown"
           data-expanded={opened || undefined}
         >
           <Group gap="xs">

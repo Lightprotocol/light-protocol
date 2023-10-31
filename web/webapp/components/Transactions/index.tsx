@@ -26,7 +26,7 @@ function TransactionCard({
   const parsedRelayerFee = parseAmount(relayerFee, tokenCtx);
 
   return (
-    <Stack mt={"xl"} gap="xs" w={300}>
+    <Stack mt={"xl"} gap="xs" w={300} data-testid="TransactionCard">
       <Text size="xs" c="gray">
         {format(new Date(blockTime), "do MMM yyyy, HH:mm")}
       </Text>
