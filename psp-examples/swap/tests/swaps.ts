@@ -21,6 +21,10 @@ import {
   Provider,
   sendAndConfirmShieldedTransaction,
   ConfirmOptions,
+  airdropSplToAssociatedTokenAccount,
+  MINT,
+  hashAndTruncateToCircuit,
+  createTestAccounts,
 } from "@lightprotocol/zk.js";
 
 import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
@@ -40,24 +44,25 @@ const RPC_URL = "http://127.0.0.1:8899";
 
 /**
  * Creates a test user with airdropped lamports.
- * @param connection 
- * @param lamports 
- * @param shieldedSol 
- * @returns 
+ * @param connection
+ * @param lamports
+ * @param shieldedSol
+ * @returns
  */
 const createTestUser = async (
   connection: Connection,
   lamports: number,
   shieldedSol?: number,
 ): Promise<User> => {
-  let sellerWallet = Keypair.generate();
+  let wallet = Keypair.generate();
   await airdropSol({
     connection,
     lamports,
-    recipientPublicKey: sellerWallet.publicKey,
+    recipientPublicKey: wallet.publicKey,
   });
+
   const lightProvider: Provider = await LightProvider.init({
-    wallet: sellerWallet,
+    wallet,
     url: RPC_URL,
     relayer: RELAYER,
     confirmConfig,
@@ -95,6 +100,8 @@ describe("Test swaps", () => {
       relayerFee: new BN(100000),
       payer: relayerWallet,
     });
+    // Creates test accounts, among others the token MINT
+    await createTestAccounts(provider.connection);
   });
 
   /**
@@ -112,10 +119,39 @@ describe("Test swaps", () => {
      * ---------------------------------------------------
      */
 
+    /**
+     * Creates the seller and buyer users with random keypairs and 100 airdropped sol.
+     */
     const sellerUser: User = await createTestUser(provider.connection, 100e9);
-    const buyerUser: User = await createTestUser(provider.connection, 110e9, 5);
+    const buyerUser: User = await createTestUser(provider.connection, 100e9);
 
-    await sellerUser.shield({token: "SOL", publicAmountSol: 10});
+    /**
+     * Seller shields 10 sol to fund her shielded account.
+     */
+    await sellerUser.shield({
+      token: "SOL",
+      publicAmountSol: 10,
+      confirmOptions: ConfirmOptions.finalized,
+    });
+
+    /**
+     * Airdrop 400 usdc to the buyer.
+     */
+    const usdcDecimals = 1e2;
+    await airdropSplToAssociatedTokenAccount(
+      provider.connection,
+      400 * usdcDecimals,
+      buyerUser.account.solanaPublicKey!,
+    );
+
+    /**
+     * Buyer shields 6 sol and 400 USDC to fund his shielded account.
+     */
+    await buyerUser.shield({
+      token: "USDC",
+      publicAmountSpl: 400,
+      publicAmountSol: 6,
+    });
 
     /**
      * Step 2: Create offer utxo, to swap 1 sol for 2 sol.
@@ -123,12 +159,12 @@ describe("Test swaps", () => {
      */
 
     /**
-     * Create offer utxo, to swap 1 sol for 2 sol.
+     * Create offer utxo, to swap 10 sol for 300 USDC.
      * The amount to be traded is store in the utxos amounts field.
      * The utxo data determines the trade parameters:
-     * - priceSol: 2 sol
-     * - priceSpl: 0 (Is zero since price is in sol)
-     * - splAsset: 0 (Is zero since price is in sol)
+     * - priceSol: 0 sol (Is zero since price is in USDC)
+     * - priceSpl: 300
+     * - splAsset: USDC (the hashed and truncated mint address, so that it is smaller than the circuit field size)
      * - recipient: is the maker (seller user public key)
      */
     let offerUtxo = new Utxo({
@@ -136,11 +172,11 @@ describe("Test swaps", () => {
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
-      amounts: [new BN(1e9)],
+      amounts: [new BN(1e10)],
       appData: {
-        priceSol: new BN(2e9),
-        priceSpl: new BN(0),
-        splAsset: new BN(0),
+        priceSol: new BN(0),
+        priceSpl: new BN(400 * usdcDecimals),
+        splAsset: hashAndTruncateToCircuit(MINT.toBytes()),
         recipient: sellerUser.account.pubkey,
         recipientEncryptionPublicKey: new BN(
           sellerUser.account.encryptionKeypair.publicKey,
@@ -157,10 +193,9 @@ describe("Test swaps", () => {
      */
     let txHashMakeOffer = await sellerUser.storeAppUtxo({
       appUtxo: offerUtxo,
-      action: Action.TRANSFER,
+      action: Action.SHIELD,
     });
     console.log("Made encrypted offer signature: ", txHashMakeOffer);
-
 
     /**
      * Step 3: Buyer fetch and decrypt offer.
@@ -170,7 +205,7 @@ describe("Test swaps", () => {
     /**
      * Fetch the encrypted offer utxo from the compressed account.
      * Decrypt the offer utxo.
-     * syncStorage syncs 
+     * syncStorage syncs
      */
     let syncedStorage = await buyerUser.syncStorage(IDL, false);
     await buyerUser.provider.latestMerkleTree();
@@ -190,18 +225,11 @@ describe("Test swaps", () => {
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}\n`,
     );
 
-
     /**
      * Step 4: Create utxos.
      * ---------------------------------------------------
      */
 
-
-    const circuitPath = path.join("build-circuit");
-
-    const shieldUtxo = buyerUser.getAllUtxos()[0];
-
-    // TODO: throw error if the pubkey is not mine and there is no encryption key specified
     const offerRewardUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: fetchedOfferUtxo.appData.recipient,
@@ -209,32 +237,66 @@ describe("Test swaps", () => {
         fetchedOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
       ),
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
-      amounts: [new BN(2e9)],
-      assets: [SystemProgram.programId],
+      amounts: [new BN(0), offerUtxo.appData.priceSpl],
+      assets: [SystemProgram.programId, MINT],
       blinding: fetchedOfferUtxo.blinding,
     });
 
+    /**
+     * tradeOutputUtxo is a native utxo which holds sol and is owned by the buyer.
+     */
     const tradeOutputUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
-
-      amounts: [new BN(1e9)],
+      amounts: [fetchedOfferUtxo.amounts[0]],
       assets: [SystemProgram.programId],
     });
 
-    const changeAmountSol = shieldUtxo.amounts[0]
-      .sub(offerRewardUtxo.amounts[0])
-      .sub(RELAYER.relayerFee);
+    /**
+     * feeUtxo is a native utxo which holds sol.
+     * It is used to pay for the trade result the relayer fee.
+     */
+    const feeUtxo = buyerUser.getAllUtxos()[0];
+
+    /**
+     * changeUtxo is a native utxo which holds sol, and USDC.
+     * It is used to return the change amounts to the buyer.
+     * The change amounts are the difference between the offer amount and the trade amount.
+     */
+    const changeAmountSol = feeUtxo.amounts[0].sub(RELAYER.relayerFee);
+    const changeAmountSpl = feeUtxo.amounts[1].sub(
+      fetchedOfferUtxo.appData.priceSpl,
+    );
 
     const changeUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
-      amounts: [changeAmountSol],
-      assets: [SystemProgram.programId],
+      amounts: [changeAmountSol, changeAmountSpl],
+      assets: [SystemProgram.programId, MINT],
     });
 
+    /**
+     * Path to the compiled circuit.
+     * build-circuit is the default path.
+     */
+    const circuitPath = path.join("build-circuit");
+
+    /**
+     * pspTransactionInput bundles transaction inputs for the PSP transaction.
+     * - we want to execute the takeOfferInstruction, thus we set:
+     *   - takeOfferInstruction to 1
+     *   - other proof inputs are either taken from the utxos defined
+     *     or set as zero with setUndefinedPspCircuitInputsToZero
+     *   - checkedInUtxos defines the offer utxo and
+     * Input Utxos:
+     * - the fee utxo adds the funds the buyer uses to pay for the trade
+     * - the offer utxo is the utxo the buyer wants to take
+     * Output Utxos:
+     * - the trade output utxo holds the trade proceeds of the seller
+     * - the change utxo holds the change amounts not required in the trade or to pay the relayer
+     */
     const pspTransactionInput: PspTransactionInput = {
       proofInputs: {
         takeOfferInstruction: new BN(1),
@@ -244,11 +306,11 @@ describe("Test swaps", () => {
       circuitName: "swaps",
       checkedInUtxos: [{ utxoName: "offerUtxo", utxo: fetchedOfferUtxo }],
       checkedOutUtxos: [{ utxoName: "offerRewardUtxo", utxo: offerRewardUtxo }],
-      inUtxos: [shieldUtxo],
+      inUtxos: [feeUtxo],
       outUtxos: [changeUtxo, tradeOutputUtxo],
     };
 
-    const inputUtxos = [fetchedOfferUtxo, shieldUtxo];
+    const inputUtxos = [fetchedOfferUtxo, feeUtxo];
     const outputUtxos = [changeUtxo, tradeOutputUtxo, offerRewardUtxo];
 
     const txParams = new TransactionParameters({
@@ -272,10 +334,8 @@ describe("Test swaps", () => {
     await txParams.getTxIntegrityHash(POSEIDON);
 
     /**
-     * Proves PSP logic
-     * returns proof and it's public inputs
+     * Creates the proof inputs for the PSP and system proofs of the PSP transaction.
      */
-
     const proofInputs = createProofInputs({
       poseidon: POSEIDON,
       transaction: txParams,
@@ -284,6 +344,12 @@ describe("Test swaps", () => {
       solMerkleTree: buyerUser.provider.solMerkleTree,
     });
 
+    /**
+     * Generates the system proof.
+     * The system proof proves the correct spending of input and creation of output utxos.
+     * Input utxos have to exists in the protocol state.
+     * Output utxos' asset amounts have to match the sums and assets of the input utxos.
+     */
     const systemProof = await getSystemProof({
       account: buyerUser.account,
       transaction: txParams,
@@ -291,10 +357,11 @@ describe("Test swaps", () => {
     });
 
     /**
-     * Proves PSP logic
-     * returns proof and it's public inputs
+     * Generates the PSP proof.
+     * The PSP proof proves the PSP logic.
+     * In this case it enforces the constraints that an offer utxo
+     * can only be spent if a reward utxo exists for which the offer utxo data matches.
      */
-
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
       proofInputs,
       IDL,
@@ -306,21 +373,17 @@ describe("Test swaps", () => {
       completePspProofInputs,
       false,
     );
-    
+
     /**
      * Step 5:
      * Create solana transactions.
+     * ---------------------------------------------------
      */
 
-    
     /**
      * Create solana transactions.
-     * We send 3 transactions because it is too much data for one solana transaction (max 1232 bytes).
-     * Data:
-     * - systemProof: 256 bytes,
-     * - pspProof: 256 bytes,
-     * - systemProofPublicInputs:
-     * -
+     * We send 3 transactions because it is too much data for one solana transaction
+     * (max 1232 bytes per solana tx).
      */
     const solanaTransactionInputs: SolanaTransactionInputs = {
       systemProof,
@@ -329,42 +392,56 @@ describe("Test swaps", () => {
       pspTransactionInput,
     };
 
-    const res = await sendAndConfirmShieldedTransaction({
-      solanaTransactionInputs,
-      provider: buyerUser.provider,
-      confirmOptions: ConfirmOptions.spendable,
-    });
-    console.log("tx Hash : ", res.txHash);
+    const shieldedTransactionConfirmation =
+      await sendAndConfirmShieldedTransaction({
+        solanaTransactionInputs,
+        provider: buyerUser.provider,
+        confirmOptions: ConfirmOptions.spendable,
+      });
+    console.log(
+      "Take offer tx Hash : ",
+      shieldedTransactionConfirmation.txHash,
+    );
 
+    /**
+     * Get the balance of the buyer.
+     * The balance should contain:
+     * - trade output utxo
+     * - change utxo.
+     */
     await buyerUser.getBalance();
-    // check that the utxos are part of the users balance now
     assert(buyerUser.getUtxo(changeUtxo.getCommitment(POSEIDON)) !== undefined);
     assert(
       buyerUser.getUtxo(tradeOutputUtxo.getCommitment(POSEIDON)) !== undefined,
     );
+
+    /**
+     * Get the balance of the seller.
+     * The inbox balance should contain:
+     * - offer reward utxo
+     *
+     * We need to check the inbox balance because the utxo was encrypted asymetrically to the seller.
+     * To make the utxo part of the spendable balance the seller needs to accept the utxo.
+     */
     let sellerUtxoInbox = await sellerUser.getUtxoInbox();
-    console.log("seller utxo inbox ", sellerUtxoInbox);
+    console.log("Seller utxo inbox ", sellerUtxoInbox);
     assert.equal(
       sellerUtxoInbox.totalSolBalance.toNumber(),
       offerUtxo.appData.priceSol.toNumber(),
     );
   });
 
+  /**
+   * 1. Create seller and buyer Users
+   * 2. seller user creates offer
+   *    - creates utxo
+   *    - encrypts it to herself (since this is just a test)
+   *    - stores the encrypted utxo onchain in a compressed account
+   * 3. seller generates cancel proof
+   * 4. seller cancels the offer
+   */
   it("Swap Cancel functional", async () => {
-    /**
-     * 1. Create seller and buyer Users
-     * 2. seller user creates offer
-     *    - creates utxo
-     *    - encrypts it to herself (since this is just a test)
-     *    - stores the encrypted utxo onchain in a compressed account
-     * 3. seller generates cancel proof
-     * 4. seller cancels the offer
-     */
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
-    console.log(
-      "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
-      new BN(sellerUser.account.encryptionKeypair.publicKey),
-    );
 
     let offerUtxo = new Utxo({
       poseidon: POSEIDON,
@@ -524,7 +601,6 @@ describe("Test swaps", () => {
     });
     console.log("tx Hash : ", res.txHash);
 
-
     // check that the utxos are part of the users balance now
     const balance = await sellerUser.getBalance();
     assert(
@@ -537,28 +613,23 @@ describe("Test swaps", () => {
     );
   });
 
+  /**
+   * 1. Create seller and buyer Users
+   * 2. seller user creates offer
+   *    - creates utxo
+   *    - encrypts it to the buyer
+   *    - stores the encrypted utxo onchain in a compressed account
+   * 3. recipient decrypts offer
+   * 4. recipient generates counter offer
+   *    - creates utxo
+   *    - encrypts it to the seller
+   *    - stores the encrypted utxo onchain in a compressed account
+   * 5. seller decrypts counter offer
+   * 6. seller generates swap proof and settles the swap
+   */
   it("Swap Counter Offer functional", async () => {
-    /**
-     * 1. Create seller and buyer Users
-     * 2. seller user creates offer
-     *    - creates utxo
-     *    - encrypts it to the buyer
-     *    - stores the encrypted utxo onchain in a compressed account
-     * 3. recipient decrypts offer
-     * 4. recipient generates counter offer
-     *    - creates utxo
-     *    - encrypts it to the seller
-     *    - stores the encrypted utxo onchain in a compressed account
-     * 5. seller decrypts counter offer
-     * 6. seller generates swap proof and settles the swap
-     */
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
     const buyerUser: User = await createTestUser(provider.connection, 110e9, 5);
-    console.log(
-      "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
-      new BN(sellerUser.account.encryptionKeypair.publicKey),
-    );
-
 
     let offerUtxo = new Utxo({
       poseidon: POSEIDON,
@@ -808,5 +879,4 @@ describe("Test swaps", () => {
       offerUtxo.amounts[0].toNumber(),
     );
   });
-
 });

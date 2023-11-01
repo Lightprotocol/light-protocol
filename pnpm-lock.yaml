@@ -688,6 +688,9 @@ importers:
       '@project-serum/anchor':
         specifier: ^0.26.0
         version: 0.26.0
+      '@solana/spl-token':
+        specifier: ^0.3.8
+        version: 0.3.8(@solana/web3.js@1.78.5)
       circomlib:
         specifier: ^2.0.5
         version: 2.0.5
@@ -2559,6 +2562,22 @@ packages:
 
   /@solana/spl-token@0.3.7(@solana/web3.js@1.78.5):
     resolution: {integrity: sha512-bKGxWTtIw6VDdCBngjtsGlKGLSmiu/8ghSt/IOYJV24BsymRbgq7r12GToeetpxmPaZYLddKwAz7+EwprLfkfg==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      '@solana/web3.js': ^1.47.4
+    dependencies:
+      '@solana/buffer-layout': 4.0.1
+      '@solana/buffer-layout-utils': 0.2.0
+      '@solana/web3.js': 1.78.5
+      buffer: 6.0.3
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - utf-8-validate
+    dev: false
+
+  /@solana/spl-token@0.3.8(@solana/web3.js@1.78.5):
+    resolution: {integrity: sha512-ogwGDcunP9Lkj+9CODOWMiVJEdRtqHAtX2rWF62KxnnSWtMZtV9rDhTrZFshiyJmxDnRL/1nKE1yJHg4jjs3gg==}
     engines: {node: '>=16'}
     peerDependencies:
       '@solana/web3.js': ^1.47.4

@@ -136,6 +136,11 @@ export async function airdropSplToAssociatedTokenAccount(
   lamports: number,
   recipient: PublicKey,
 ) {
+  await airdropSol({
+    connection,
+    lamports: 1e9,
+    recipientPublicKey: ADMIN_AUTH_KEYPAIR.publicKey,
+  });
   const tokenAccount = await getOrCreateAssociatedTokenAccount(
     connection,
     ADMIN_AUTH_KEYPAIR,
