@@ -27,7 +27,7 @@ jobs:
       id-token: write
       pull-requests: write
       contents: write
-    runs-on: ubuntu-latest
+    runs-on: buildjet-16vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v3
 
