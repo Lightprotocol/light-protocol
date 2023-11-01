@@ -1,5 +1,5 @@
 export type LightPsp4in4outAppStorage = {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "name": "light_psp4in4out_app_storage",
   "constants": [
     {
@@ -638,7 +638,7 @@ export type LightPsp4in4outAppStorage = {
 };
 
 export const IDL: LightPsp4in4outAppStorage = {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "name": "light_psp4in4out_app_storage",
   "constants": [
     {

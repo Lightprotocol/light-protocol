@@ -129,6 +129,7 @@ pub(crate) fn aligned_sized(args: AlignedSizedArgs, strct: ItemStruct) -> Result
         semi_token: strct.semi_token,
     };
 
+    #[allow(clippy::redundant_clone)]
     let impl_generics = strct.generics.clone();
     // Generics listed after struct ident need to contain only idents, bounds
     // and const generic types are not expected anymore. Sadly, there seems to
