@@ -41,12 +41,6 @@ jobs:
           echo "crate=$CRATE_NAME" >> $GITHUB_OUTPUT
           echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
 
-      - name: Build macro-circom
-        if: steps.extract-crate.outputs.crate == 'macro-circom'
-        run: |
-          cargo build --release -p macro-circom
-          cp target/release/macro-circom .
-
       - name: Prepare artifacts
         run: |
           if [ "$CRATE_NAME" == *"light-merkle-tree-program"* ]; then
