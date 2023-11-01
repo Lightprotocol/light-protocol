@@ -15,6 +15,7 @@ pub fn pubkey(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn light_verifier_accounts(attr: TokenStream, item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr as expand::LightVerifierAccountsArgs);
+    #[allow(clippy::redundant_clone)]
     let item_strct = item.clone();
     let strct = parse_macro_input!(item_strct as ItemStruct);
 
