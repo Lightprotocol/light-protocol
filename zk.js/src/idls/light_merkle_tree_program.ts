@@ -1,5 +1,5 @@
 export type LightMerkleTreeProgram = {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "name": "light_merkle_tree_program",
   "constants": [
     {
@@ -1492,7 +1492,7 @@ export type LightMerkleTreeProgram = {
 };
 
 export const IDL: LightMerkleTreeProgram = {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "name": "light_merkle_tree_program",
   "constants": [
     {

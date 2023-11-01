@@ -1,5 +1,5 @@
 export type LightPsp10in2out = {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "name": "light_psp10in2out",
   "constants": [
     {
@@ -645,7 +645,7 @@ export type LightPsp10in2out = {
 };
 
 export const IDL: LightPsp10in2out = {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "name": "light_psp10in2out",
   "constants": [
     {
