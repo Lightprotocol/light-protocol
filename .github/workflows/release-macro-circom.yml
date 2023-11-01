@@ -14,7 +14,7 @@ env:
 jobs:
   release-linux:
     name: Release (Linux)
-    runs-on: ubuntu-latest
+    runs-on:  buildjet-16vcpu-ubuntu-2204
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

@@ -21,7 +21,7 @@ jobs:
   lint:
     name: lint
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: buildjet-16vcpu-ubuntu-2204
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
