@@ -144,11 +144,8 @@ importers:
       '@coral-xyz/anchor':
         specifier: 0.28.0
         version: 0.28.0
-      '@lightprotocol/cli':
-        specifier: link:/home/ananas/test_light/light-protocol-onchain/cli
-        version: 'link:'
       '@lightprotocol/zk.js':
-        specifier: 0.3.2-alpha.16
+        specifier: workspace:*
         version: link:../zk.js
       '@oclif/core':
         specifier: ^2.15

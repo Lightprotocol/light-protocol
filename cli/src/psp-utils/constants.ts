@@ -14,8 +14,7 @@ export const LIGHT_USER_REGISTRY_TAG = "light-user-registry-v0.3.0";
 export const MACRO_CIRCOM_TAG = "macro-circom-v0.1.1";
 export const ZK_JS_VERSION = "0.3.2-alpha.16";
 export const PROVER_JS_VERSION = "0.1.0-alpha.3";
-export const CIRCUIT_LIB_CIRCOM_VERSION =
-  "0.1.0-alpha.1";
+export const CIRCUIT_LIB_CIRCOM_VERSION = "0.1.0-alpha.1";
 export const PSP_DEFAULT_PROGRAM_ID =
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 
