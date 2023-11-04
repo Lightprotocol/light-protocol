@@ -19,18 +19,17 @@ pub fn cpi_verifier_two<
     'c,
     'info,
     const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
 >(
     ctx: &'a Context<
         'a,
         'b,
         'c,
         'info,
-        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
+        LightInstructionThird<'info, NR_CHECKED_INPUTS>,
     >,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
+    let verifier_state = ctx.accounts.verifier_state.load()?;
     let proof_verifier = Proof {
         a: inputs[256..256 + 64].try_into().unwrap(),
         b: inputs[256 + 64..256 + 192].try_into().unwrap(),
@@ -84,9 +83,7 @@ pub fn cpi_verifier_two<
         proof_verifier.a,
         proof_verifier.b,
         proof_verifier.c,
-        <Vec<u8> as TryInto<[u8; 32]>>::try_into(
-            ctx.accounts.verifier_state.checked_public_inputs[1].to_vec(),
-        )
+        <Vec<u8> as TryInto<[u8; 32]>>::try_into(verifier_state.checked_public_inputs[1].to_vec())
         .unwrap(),
         memoffset::offset_of!(crate::psp_accounts::VerifierState, verifier_state_data),
     )
@@ -97,16 +94,14 @@ pub fn verify_program_proof<
     'b,
     'c,
     'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
+    const NR_CHECKED_INPUTS: usize
 >(
     ctx: &'a Context<
         'a,
         'b,
         'c,
         'info,
-        LightInstructionThird<'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS>,
+        LightInstructionThird<'info, NR_CHECKED_INPUTS>,
     >,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
@@ -115,9 +110,11 @@ pub fn verify_program_proof<
         b: inputs[64..192].try_into().unwrap(),
         c: inputs[192..256].try_into().unwrap(),
     };
+    let verifier_state = ctx.accounts.verifier_state.load()?;
+    const NR_CHECKED_INPUTS: usize = VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs;
     let mut app_verifier = AppTransaction::<NR_CHECKED_INPUTS, TransactionsConfig>::new(
         &proof_app,
-        &ctx.accounts.verifier_state.checked_public_inputs,
+        &verifier_state.checked_public_inputs,
         &VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE,
     );
 

@@ -1,17 +1,14 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::hash::hash;
-use light_verifier_sdk::state::VerifierState10Ins;
-use std::marker::PhantomData;
 pub mod psp_accounts;
 pub use psp_accounts::*;
-// pub mod auto_generated_accounts;
-// pub use auto_generated_accounts::*;
 pub mod processor;
 pub use processor::*;
 pub mod verifying_key_compressed_account_update;
 pub use verifying_key_compressed_account_update::*;
 pub mod verifying_key_inclusion_proof;
 pub use verifying_key_inclusion_proof::*;
+use light_psp4in4out_app_storage::Psp4In4OutAppStorageVerifierState;
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[constant]
@@ -36,9 +33,7 @@ pub mod private_compressed_account {
             'info,
             LightInstructionFirst<
                 'info,
-                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },
-                4,
-                4,
+                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },                
             >,
         >,
         inputs: Vec<u8>,
@@ -51,34 +46,27 @@ pub mod private_compressed_account {
         let mut program_id_hash = hash(&ctx.program_id.to_bytes()).to_bytes();
         program_id_hash[0] = 0;
 
-        let mut checked_public_inputs: [[u8; 32];
-            VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs] =
-            [[0u8; 32]; VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs];
-        checked_public_inputs[0] = program_id_hash;
-        checked_public_inputs[1] = inputs_des.transaction_hash;
-
-        let state = VerifierState10Ins {
-            merkle_root_index: inputs_des.root_index,
-            signer: Pubkey::from([0u8; 32]),
-            nullifiers: inputs_des.input_nullifier.to_vec(),
-            leaves: inputs_des.output_commitment.to_vec(),
+        let mut verifier_state = ctx.accounts.verifier_state.load_init()?;
+        verifier_state.signer = *ctx.accounts.signing_address.key;
+        let verifier_state_data = Psp4In4OutAppStorageVerifierState {
+            nullifiers: inputs_des.input_nullifier,
+            leaves: inputs_des.output_commitment.try_into().unwrap(),
             public_amount_spl: inputs_des.public_amount_spl,
             public_amount_sol: inputs_des.public_amount_sol,
-            mint_pubkey: [0u8; 32],
-            merkle_root: [0u8; 32],
-            tx_integrity_hash: [0u8; 32],
             relayer_fee: inputs_des.relayer_fee,
-            encrypted_utxos: inputs_des.encrypted_utxos,
-            checked_public_inputs,
-            proof_a: [0u8; 64],
-            proof_b: [0u8; 128],
-            proof_c: [0u8; 64],
-            transaction_hash: [0u8; 32],
-            e_phantom: PhantomData,
+            encrypted_utxos: inputs_des.encrypted_utxos.try_into().unwrap(),
+            merkle_root_index: inputs_des.root_index,
         };
+        let mut verifier_state_vec = Vec::new();
+        Psp4In4OutAppStorageVerifierState::serialize(&verifier_state_data, &mut verifier_state_vec)
+            .unwrap();
+        verifier_state.verifier_state_data = [verifier_state_vec, vec![0u8; 1024 - 848]]
+            .concat()
+            .try_into()
+            .unwrap();
 
-        ctx.accounts.verifier_state.set_inner(state);
-        ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
+        verifier_state.checked_public_inputs[0] = program_id_hash;
+        verifier_state.checked_public_inputs[1] = inputs_des.transaction_hash;
 
         Ok(())
     }
@@ -92,16 +80,15 @@ pub mod private_compressed_account {
             LightInstructionSecond<
                 'info,
                 { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },
-                4,
-                4,
             >,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        let mut verifier_state = ctx.accounts.verifier_state.load_mut()?;
         inputs.chunks(32).enumerate().for_each(|(i, input)| {
             let mut arr = [0u8; 32];
             arr.copy_from_slice(input);
-            ctx.accounts.verifier_state.checked_public_inputs[i] = arr
+            verifier_state.checked_public_inputs[i] = arr
         });
         Ok(())
     }
@@ -117,23 +104,22 @@ pub mod private_compressed_account {
             'info,
             LightInstructionThird<
                 'info,
-                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },
-                4,
-                4,
+                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },                
             >,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        let verifier_state = ctx.accounts.verifier_state.load()?;
         let mut compressed_account_merkle_tree =
             ctx.accounts.compressed_account_merkle_tree.load_mut()?;
 
         if compressed_account_merkle_tree.sub_tree_hash
-            != ctx.accounts.verifier_state.checked_public_inputs[2]
+            != verifier_state.checked_public_inputs[2]
         {
             // return Err(ErrorCode::InvalidSubTreeHash.into());
             msg!(
                 "checked inputs {:?}",
-                ctx.accounts.verifier_state.checked_public_inputs
+                verifier_state.checked_public_inputs
             );
             msg!(
                 "sub tree hash {:?}",
@@ -141,18 +127,18 @@ pub mod private_compressed_account {
             );
             panic!("InvalidSubTreeHash");
         }
-        ctx.accounts.verifier_state.checked_public_inputs[2] =
-            compressed_account_merkle_tree.sub_tree_hash;
+        let mut checked_public_inputs = verifier_state.checked_public_inputs[2];
+        checked_public_inputs = compressed_account_merkle_tree.sub_tree_hash;
         verify_program_proof(&ctx, &inputs)?;
         cpi_verifier_two(&ctx, &inputs)?;
         let current_root_index = compressed_account_merkle_tree.current_root_index;
         compressed_account_merkle_tree.next_leaf_index += 1;
         // inserting new root
         compressed_account_merkle_tree.root_history[current_root_index as usize] =
-            ctx.accounts.verifier_state.checked_public_inputs[0];
+        verifier_state.checked_public_inputs[0];
         // inserting new sub tree hash
         compressed_account_merkle_tree.sub_tree_hash =
-            ctx.accounts.verifier_state.checked_public_inputs[3];
+        verifier_state.checked_public_inputs[3];
         compressed_account_merkle_tree.current_root_index =
             (compressed_account_merkle_tree.current_root_index + 1) % ROOT_HISTORY_SIZE as u64;
         Ok(())
@@ -167,9 +153,7 @@ pub mod private_compressed_account {
             'info,
             CloseVerifierState<
                 'info,
-                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },
-                4,
-                4,
+                { VERIFYINGKEY_COMPRESSED_ACCOUNT_UPDATE.nr_pubinputs },                
             >,
         >,
     ) -> Result<()> {
