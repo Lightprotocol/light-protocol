@@ -8,7 +8,6 @@
     "start": "next start",
     "lint": "next lint",
     "serve": "pnpm run build && npx serve@latest dist",
-    "test": "jest --watch",
     "cypress:open": "cypress open",
     "test:e2e": "sh testSetup.sh",
     "cypress:run": "cypress run"
@@ -31,15 +30,11 @@
     "web-worker": "^1.2.0"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.1.4",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/user-event": "^14.5.1",
     "@types/jest": "^29.5.6",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/styled-jsx": "^3.4.4",
-    "@types/testing-library__jest-dom": "^6.0.0",
     "@vitejs/plugin-react": "^4.1.0",
     "cypress": "^13.3.3",
     "eslint": "latest",

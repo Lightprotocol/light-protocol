@@ -110,7 +110,7 @@ export const shieldState = atom(
         senderTokenAccount,
       });
 
-      await sleep(5000);
+      await sleep(8000);
 
       // FIX: the user class doesnt shallow update after shields, therefore we have to "force update" the user here
       // fix this by removing the user class and managing balance/history state manually. this makes it more predictable.
@@ -162,7 +162,7 @@ export const unshieldState = atom(
         confirmOptions,
       });
 
-      await sleep(5000);
+      await sleep(8000);
 
       set(userState, { user, timestamp: Date.now() });
       actionNotification(`Unshield successful`, NotifType.success, 3000);

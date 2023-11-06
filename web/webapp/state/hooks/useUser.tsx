@@ -47,9 +47,7 @@ export const initializedUser = atom(
       const user = await User.init({ provider, skipFetchBalance: true });
 
       console.log("user", user.account.getPublicKey());
-      const history = await user.getTransactionHistory(true);
-      const balance = await user.getBalance(false);
-      const utxos = user.getAllUtxos();
+      await user.getTransactionHistory(true);
 
       set(userState, { user, timestamp: Date.now() });
 

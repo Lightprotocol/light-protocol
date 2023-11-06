@@ -6,7 +6,7 @@ import {
 
 import { BN } from "@coral-xyz/anchor";
 // New function to parse amount
-export function parseAmount(amount, tokenCtx, decimals = 4) {
+export function parseAmount(amount: BN, tokenCtx: any, decimals = 4) {
   let { div: quotient, mod: remainder } = amount.divmod(tokenCtx.decimals);
 
   // Converts remainder to a decimal
@@ -15,21 +15,16 @@ export function parseAmount(amount, tokenCtx, decimals = 4) {
     .mul(new BN(10).pow(new BN(decimals)))
     .div(tokenCtx.decimals);
 
-  // Round to specified decimal places
-  let remainderString = remainderDecimal.toString(10);
-  let roundedRemainder = remainderString.slice(0, decimals);
-
-  // Remove trailing zeros
-  let finalRemainder = parseFloat(`0.${roundedRemainder}`).toString().slice(2);
+  // Convert to string and pad with zeros if necessary
+  let remainderString = remainderDecimal.toString(10).padStart(decimals, "0");
 
   // If the first decimals place is a trailing zero just return the integer
-  if (finalRemainder === "") {
+  if (remainderString === "0".repeat(decimals)) {
     return `${quotient.toString()}`;
   } else {
-    return `${quotient.toString()}.${finalRemainder}`;
+    return `${quotient.toString()}.${remainderString}`;
   }
 }
-
 // Updated parseTxAmount function
 export const parseTxAmount = (tx: UserIndexedTransaction) => {
   const amountSpl = tx.publicAmountSpl;

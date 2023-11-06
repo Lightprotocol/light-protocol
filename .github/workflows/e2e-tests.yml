@@ -1,0 +1,54 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "web/webapp/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "web/webapp/**"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: e2e-tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-tests:
+    name: End-to-end tests
+    if: github.event.pull_request.draft == false
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      # - name: Install dependencies
+      #   run: |
+      #     cd web/webapp
+      #     pnpm install
+
+      - name: Run end-to-end tests
+        run: |
+          cd web/webapp
+          pnpm run test:e2e

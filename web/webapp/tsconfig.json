@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "baseUrl": "./",
     "skipLibCheck": true,
@@ -24,9 +20,7 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"]
     }
   },
   "include": [
@@ -37,12 +31,6 @@
     "dist/types/**/*.ts",
     "components/TokenPicker"
   ],
-  "types": [
-    "styled-jsx",
-    "jest",
-    "node"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "types": ["styled-jsx", "node"],
+  "exclude": ["node_modules"]
 }
