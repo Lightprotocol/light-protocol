@@ -1,6 +1,6 @@
 import { RELAYER_FEE, TOKEN_ACCOUNT_FEE } from "@lightprotocol/zk.js";
 
-export const PSP_TEMPLATE_TAG = "v0.1.2";
+export const PSP_TEMPLATE_TAG = "v0.1.3";
 
 export const SPL_NOOP_PROGRAM_TAG = "spl-noop-v0.2.0";
 export const LIGHT_MERKLE_TREE_PROGRAM_TAG = "light-merkle-tree-program-v0.3.1";
@@ -12,10 +12,9 @@ export const LIGHT_PSP10IN2OUT_TAG = "light-psp10in2out-v0.3.1";
 export const LIGHT_USER_REGISTRY_TAG = "light-user-registry-v0.3.0";
 
 export const MACRO_CIRCOM_TAG = "macro-circom-v0.1.1";
-export const ZK_JS_VERSION = "0.3.2-alpha.15";
-export const PROVER_JS_VERSION = "0.1.0-alpha.2";
-export const CIRCUIT_LIB_CIRCOM_VERSION =
-  "file:../circuit-lib/circuit-lib.circom";
+export const ZK_JS_VERSION = "0.3.2-alpha.16";
+export const PROVER_JS_VERSION = "0.1.0-alpha.3";
+export const CIRCUIT_LIB_CIRCOM_VERSION = "0.1.0-alpha.1";
 export const PSP_DEFAULT_PROGRAM_ID =
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 
