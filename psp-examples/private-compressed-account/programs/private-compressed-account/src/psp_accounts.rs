@@ -173,3 +173,10 @@ pub struct ProveInclusionInstruction<'info> {
     pub compressed_account_merkle_tree: AccountLoader<'info, CompressedAccountMerkleTree>,
     pub signer: Signer<'info>,
 }
+
+#[account(zero_copy)]
+pub struct VerifierState {
+    pub signer: Pubkey,
+    pub verifier_state_data: [u8; 1024],
+    pub checked_public_inputs: [[u8; 32]; 3],
+}

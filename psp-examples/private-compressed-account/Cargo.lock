@@ -1850,6 +1850,7 @@ dependencies = [
  "light-merkle-tree-program",
  "light-psp4in4out-app-storage",
  "light-verifier-sdk",
+ "memoffset",
  "solana-program",
 ]
 

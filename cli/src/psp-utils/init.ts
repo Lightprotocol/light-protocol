@@ -9,6 +9,7 @@ import {
   LIGHT_VERIFIER_SDK_VERSION,
   PROVER_JS_VERSION,
   PSP_DEFAULT_PROGRAM_ID,
+  PSP_TEMPLATE_TAG,
   ZK_JS_VERSION,
 } from "./constants";
 import { renameFolder } from "./utils";
@@ -38,13 +39,13 @@ export const initRepo = async (name: string, type: ProjectType, flags: any) => {
           ? ["--tag", flags.tag]
           : flags.branch
           ? ["--branch", flags.branch]
-          : ["--branch", "main"],
+          : ["--tag", PSP_TEMPLATE_TAG],
       ];
-  console.log(templateSource);
+
   await executeCargoGenerate({
     args: [
       "generate",
-      ...templateSource,
+      ...templateSource.flat(),
       "psp-template",
       "--name",
       name,

@@ -26,3 +26,4 @@ solana-program = "1.16.4"
 groth16-solana = "0.0.2"
 
 bytemuck = "1.13"
+memoffset = "0.9.0"
