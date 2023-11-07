@@ -85,6 +85,7 @@ pub fn unshield_spl_cpi<'a, 'b>(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(unused_variables)]
 pub fn insert_two_leaves_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
@@ -101,15 +102,21 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
+    #[cfg(feature = "atomic-transactions")]
+    let two_leaves_pda = None;
+    #[cfg(not(feature = "atomic-transactions"))]
+    let two_leaves_pda = Some(two_leaves_pda.clone());
+
     let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeaves {
         authority: authority.clone(),
-        two_leaves_pda: two_leaves_pda.clone(),
+        two_leaves_pda,
         system_program: system_program.clone(),
         transaction_merkle_tree: transaction_merkle_tree_account.clone(),
         registered_verifier_pda: registered_verifier_pda.clone(),
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+
     light_merkle_tree_program::cpi::insert_two_leaves(
         cpi_ctx,
         leaf_left,
@@ -121,7 +128,9 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         .concat()
         .try_into()
         .unwrap(),
-    )
+    )?;
+
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -178,11 +187,12 @@ pub fn invoke_indexer_transaction_event<'info>(
     {
         return err!(VerifierSdkError::InvalidNoopPubkey);
     }
-    let instruction = Instruction {
-        program_id: noop_program.key(),
-        accounts: vec![],
-        data: event.try_to_vec()?,
-    };
+    let instruction =
+        Instruction {
+            program_id: noop_program.key(),
+            accounts: vec![],
+            data: event.try_to_vec()?,
+        };
     invoke(
         &instruction,
         &[noop_program.to_account_info(), signer.to_account_info()],

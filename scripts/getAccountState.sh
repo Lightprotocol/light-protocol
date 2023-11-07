@@ -4,7 +4,6 @@ keys=(
     "LOOK_UP_TABLE"
     "merkleTreeAuthorityPda"
     "eventMerkleTreePubkey"
-    "transactionMerkleTreePubkey"
     "registered spl pool token pda"
     "registered spl pool pda"
     "REGISTERED_POOL_PDA_SOL"
@@ -23,7 +22,6 @@ values=(
     "DyZnme4h32E66deCvsAV6pVceVw8s6ucRhNcwoofVCem"
     "5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y"
     "6x8FxrUqokbXCvnPT84Qvi5QcXVdQNv74Z5ZmS6znWAc"
-    "DDx9XekF4emf7p7QyUYcCqZcPJtmzUYmYir54tQBbVBv"
     "2mobV36eNyFGaMTKCHW1Jeoq64tUGuXqA4zGtY8SbxKh"
     "2q4tXrgpsDffibmjfTGHU1gWCjYUfhwFnMyLX6dAhhr4"
     "Eti4Rjkx7ow88XkaFbxRStmwadTp8p9J2nSv7NhtuqDU"
@@ -38,18 +36,67 @@ values=(
     "2mNCqdntwtm9cTLjgfdS85JTF92mgNerqA9TgGnxFzLt"
 )
 
-top_dir=`git rev-parse --show-toplevel`
+function rebuild_programs {
+    npx nx run @lightprotocol/programs:build --skip-nx-cache
+    npx nx run @lightprotocol/cli:build --skip-nx-cache
+}
 
-export LIGHT_PROTOCOL_CONFIG_FILE="${top_dir}/cli/config.json"
+function start_validator {
+    ./cli/test_bin/run test-validator -bs
+}
 
-./cli/test_bin/run test-validator -s
+function airdrop {
+    solana airdrop 50000
+    solana airdrop 50000 $(./cli/test_bin/run config --get | awk '/user/{print $NF;}')
+    solana airdrop 50000 KitaXMAzb8GPZcc6NW6mE7P6gV2fY3Bp8NqZWfeUwqM
+}
 
-./cli/test_bin/run merkle-tree-authority:initialize
-./cli/test_bin/run asset-pool:register-sol
-./cli/test_bin/run asset-pool:register-spl
+function initialize_merkle_tree_authority {
+    ./cli/test_bin/run merkle-tree-authority:initialize
+}
+
+export LIGHT_PROTOCOL_CONFIG="`git rev-parse --show-toplevel`/cli/config.json"
+
+# Generate accounts with atomic transactions enabled.
+
+export LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS="true"
+
+rebuild_programs
+start_validator
+airdrop
+initialize_merkle_tree_authority
+
+./cli/test_bin/run verifier:register J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i
+./cli/test_bin/run verifier:register J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc
+./cli/test_bin/run verifier:register 2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86
+./cli/test_bin/run verifier:register DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj
+
+./cli/test_bin/run pool-type:register 0
+
+./cli/test_bin/run asset-pool:register-sol 0
+./cli/test_bin/run asset-pool:register-spl 0 ycrF6Bw3doNPMSDmZM1rxNHimD2bwq1UFmifMCzbjAe
 
 for i in "${!keys[@]}"; do
     key=${keys[$i]}
     value=${values[$i]}
-    solana account $value --output-file "cli/accounts/${key}.json" --output "json"
+    solana account $value --output-file "cli/accounts/misc/${key}.json" --output "json"
 done
+
+solana \
+    account "DDx9XekF4emf7p7QyUYcCqZcPJtmzUYmYir54tQBbVBv" \
+    --output-file "cli/accounts/transaction-merkle-tree/transaction-merkle-tree.json" \
+    --output "json"
+
+# Generate Transaction Merkle Tree account with atomic transactions disabled.
+
+export LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS="false"
+
+rebuild_programs
+start_validtator
+airdrop
+initialize_merkle_tree_authority
+
+solana \
+    account "DDx9XekF4emf7p7QyUYcCqZcPJtmzUYmYir54tQBbVBv" \
+    --output-file "cli/accounts/transaction-merkle-tree-no-atomic-tx/transaction-merkle-tree-no-atomic-tx.json" \
+    --output "json"

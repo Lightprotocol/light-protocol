@@ -1,9 +1,6 @@
 use std::cell::RefMut;
 
-use anchor_lang::{
-    prelude::*,
-    solana_program::{msg, pubkey::Pubkey},
-};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use crate::{transaction_merkle_tree::state::TransactionMerkleTree, MerkleTreeAuthority};
 
@@ -17,25 +14,52 @@ pub struct PreInsertedLeavesIndex {
     pub next_index: u64,
 }
 
-pub fn process_initialize_new_merkle_tree_18(
+#[cfg(feature = "atomic-transactions")]
+pub fn process_initialize_new_merkle_tree(
     merkle_tree: &mut RefMut<'_, TransactionMerkleTree>,
     merkle_tree_authority: &mut Account<'_, MerkleTreeAuthority>,
     height: usize,
-    zero_bytes: Vec<[u8; 32]>,
-) {
+) -> Result<()> {
+    use light_merkle_tree::HashFunction;
+
+    merkle_tree.newest = 1;
+    merkle_tree
+        .merkle_tree
+        .init(height, HashFunction::Poseidon)?;
+    merkle_tree_authority.transaction_merkle_tree_index += 1;
+
+    Ok(())
+}
+
+#[cfg(not(feature = "atomic-transactions"))]
+pub fn process_initialize_new_merkle_tree(
+    merkle_tree: &mut RefMut<'_, TransactionMerkleTree>,
+    merkle_tree_authority: &mut Account<'_, MerkleTreeAuthority>,
+    height: usize,
+) -> Result<()> {
+    use light_merkle_tree::constants::poseidon::ZERO_BYTES;
+
     merkle_tree.newest = 1;
 
-    merkle_tree.filled_subtrees[..height].copy_from_slice(&zero_bytes[..height]);
+    merkle_tree.merkle_tree.filled_subtrees[..height].copy_from_slice(&ZERO_BYTES[..height]);
 
-    merkle_tree.height = merkle_tree.filled_subtrees.len().try_into().unwrap();
+    merkle_tree.merkle_tree.height =
+        merkle_tree
+            .merkle_tree
+            .filled_subtrees
+            .len()
+            .try_into()
+            .unwrap();
     merkle_tree.merkle_tree_nr = merkle_tree_authority.transaction_merkle_tree_index;
-    merkle_tree.roots[0] = zero_bytes[height];
+    merkle_tree.merkle_tree.roots[0] = ZERO_BYTES[height];
     msg!(
         "merkle_tree_state_data.roots[0]: {:?}",
-        merkle_tree.roots[0]
+        merkle_tree.merkle_tree.roots[0]
     );
 
     merkle_tree_authority.transaction_merkle_tree_index += 1;
+
+    Ok(())
 }
 
 #[cfg(test)]

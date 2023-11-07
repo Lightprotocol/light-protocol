@@ -646,7 +646,8 @@ export type LightMerkleTreeProgram = {
         {
           "name": "twoLeavesPda",
           "isMut": true,
-          "isSigner": false
+          "isSigner": false,
+          "isOptional": true
         },
         {
           "name": "transactionMerkleTree",
@@ -1096,7 +1097,7 @@ export type LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                18
+                32
               ]
             }
           },
@@ -1169,39 +1170,9 @@ export type LightMerkleTreeProgram = {
         "kind": "struct",
         "fields": [
           {
-            "name": "filledSubtrees",
+            "name": "merkleTree",
             "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                18
-              ]
-            }
-          },
-          {
-            "name": "currentRootIndex",
-            "type": "u64"
-          },
-          {
-            "name": "nextIndex",
-            "type": "u64"
-          },
-          {
-            "name": "roots",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                256
-              ]
+              "defined": "MerkleTree"
             }
           },
           {
@@ -1210,10 +1181,6 @@ export type LightMerkleTreeProgram = {
           },
           {
             "name": "timeLocked",
-            "type": "u64"
-          },
-          {
-            "name": "height",
             "type": "u64"
           },
           {
@@ -1314,7 +1281,7 @@ export type LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                18
+                32
               ]
             }
           },
@@ -1332,7 +1299,7 @@ export type LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                20
+                256
               ]
             }
           },
@@ -1355,9 +1322,7 @@ export type LightMerkleTreeProgram = {
             "docs": [
               "Hash implementation used on the Merkle tree."
             ],
-            "type": {
-              "defined": "HashFunction"
-            }
+            "type": "u64"
           }
         ]
       }
@@ -1372,6 +1337,50 @@ export type LightMerkleTreeProgram = {
           },
           {
             "name": "Poseidon"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MerkleTreeError",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "HeightZero"
+          },
+          {
+            "name": "HeightHigherThanMax"
+          },
+          {
+            "name": "PoseidonInvalidNumberOfInputs"
+          },
+          {
+            "name": "PoseidonEmptyInput"
+          },
+          {
+            "name": "PoseidonInvalidInputLength"
+          },
+          {
+            "name": "PoseidonBytesToPrimeFieldElement"
+          },
+          {
+            "name": "PoseidonInputLargerThanModulus"
+          },
+          {
+            "name": "PoseidonVecToArray"
+          },
+          {
+            "name": "PoseidonU64Tou8"
+          },
+          {
+            "name": "PoseidonBytesToBigInt"
+          },
+          {
+            "name": "PoseidonInvalidWidthCircom"
+          },
+          {
+            "name": "PoseidonUnknown"
           }
         ]
       }
@@ -1487,6 +1496,21 @@ export type LightMerkleTreeProgram = {
       "code": 6021,
       "name": "NotNewestOldMerkleTree",
       "msg": "Provided old Merkle tree is not the newest one."
+    },
+    {
+      "code": 6022,
+      "name": "AtomicTransactionsEnabled",
+      "msg": "This instruction is not umplemented for Light Protocol with atomic transactions support"
+    },
+    {
+      "code": 6023,
+      "name": "ExpectedTwoLeavesPda",
+      "msg": "Expected two leaves PDA as a remaining account."
+    },
+    {
+      "code": 6024,
+      "name": "InvalidTwoLeavesPda",
+      "msg": "Invalid two leaves PDA."
     }
   ]
 };
@@ -2139,7 +2163,8 @@ export const IDL: LightMerkleTreeProgram = {
         {
           "name": "twoLeavesPda",
           "isMut": true,
-          "isSigner": false
+          "isSigner": false,
+          "isOptional": true
         },
         {
           "name": "transactionMerkleTree",
@@ -2589,7 +2614,7 @@ export const IDL: LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                18
+                32
               ]
             }
           },
@@ -2662,39 +2687,9 @@ export const IDL: LightMerkleTreeProgram = {
         "kind": "struct",
         "fields": [
           {
-            "name": "filledSubtrees",
+            "name": "merkleTree",
             "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                18
-              ]
-            }
-          },
-          {
-            "name": "currentRootIndex",
-            "type": "u64"
-          },
-          {
-            "name": "nextIndex",
-            "type": "u64"
-          },
-          {
-            "name": "roots",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                256
-              ]
+              "defined": "MerkleTree"
             }
           },
           {
@@ -2703,10 +2698,6 @@ export const IDL: LightMerkleTreeProgram = {
           },
           {
             "name": "timeLocked",
-            "type": "u64"
-          },
-          {
-            "name": "height",
             "type": "u64"
           },
           {
@@ -2807,7 +2798,7 @@ export const IDL: LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                18
+                32
               ]
             }
           },
@@ -2825,7 +2816,7 @@ export const IDL: LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                20
+                256
               ]
             }
           },
@@ -2848,9 +2839,7 @@ export const IDL: LightMerkleTreeProgram = {
             "docs": [
               "Hash implementation used on the Merkle tree."
             ],
-            "type": {
-              "defined": "HashFunction"
-            }
+            "type": "u64"
           }
         ]
       }
@@ -2865,6 +2854,50 @@ export const IDL: LightMerkleTreeProgram = {
           },
           {
             "name": "Poseidon"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MerkleTreeError",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "HeightZero"
+          },
+          {
+            "name": "HeightHigherThanMax"
+          },
+          {
+            "name": "PoseidonInvalidNumberOfInputs"
+          },
+          {
+            "name": "PoseidonEmptyInput"
+          },
+          {
+            "name": "PoseidonInvalidInputLength"
+          },
+          {
+            "name": "PoseidonBytesToPrimeFieldElement"
+          },
+          {
+            "name": "PoseidonInputLargerThanModulus"
+          },
+          {
+            "name": "PoseidonVecToArray"
+          },
+          {
+            "name": "PoseidonU64Tou8"
+          },
+          {
+            "name": "PoseidonBytesToBigInt"
+          },
+          {
+            "name": "PoseidonInvalidWidthCircom"
+          },
+          {
+            "name": "PoseidonUnknown"
           }
         ]
       }
@@ -2980,6 +3013,21 @@ export const IDL: LightMerkleTreeProgram = {
       "code": 6021,
       "name": "NotNewestOldMerkleTree",
       "msg": "Provided old Merkle tree is not the newest one."
+    },
+    {
+      "code": 6022,
+      "name": "AtomicTransactionsEnabled",
+      "msg": "This instruction is not umplemented for Light Protocol with atomic transactions support"
+    },
+    {
+      "code": 6023,
+      "name": "ExpectedTwoLeavesPda",
+      "msg": "Expected two leaves PDA as a remaining account."
+    },
+    {
+      "code": 6024,
+      "name": "InvalidTwoLeavesPda",
+      "msg": "Invalid two leaves PDA."
     }
   ]
 };

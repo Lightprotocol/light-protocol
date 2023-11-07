@@ -132,8 +132,15 @@ export class MerkleTreeConfig {
       transactionMerkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
     );
-    assert(transactionMerkleTreeAccountInfo.lockDuration.eq(new anchor.BN(50)));
-    assert(transactionMerkleTreeAccountInfo.newest == 1);
+    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+      assert(
+        transactionMerkleTreeAccountInfo.lockDuration.eq(new anchor.BN(50)),
+      );
+    }
+    assert(
+      transactionMerkleTreeAccountInfo.newest == 1,
+      "new Merkle Tree is not marked as the newest",
+    );
   }
 
   async checkEventMerkleTreeIsInitialized(eventMerkleTreePubkey: PublicKey) {
@@ -144,7 +151,10 @@ export class MerkleTreeConfig {
       merkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
     );
-    assert(merkleTreeAccountInfo.newest == 1);
+    assert(
+      merkleTreeAccountInfo.newest == 1,
+      "new Merkle Tree is not marked as the newest",
+    );
   }
 
   async printMerkleTree() {
@@ -449,8 +459,9 @@ export class MerkleTreeConfig {
     )[0];
 
     if (!registeredVerifierPda) {
-      registeredVerifierPda =
-        await this.getRegisteredVerifierPda(verifierPubkey);
+      registeredVerifierPda = await this.getRegisteredVerifierPda(
+        verifierPubkey,
+      );
     }
 
     const tx = await this.merkleTreeProgram.methods

@@ -14,6 +14,7 @@ const provider = anchor.AnchorProvider.local(
   "http://127.0.0.1:8899",
   confirmConfig,
 );
+process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
 const log = console.log;
 

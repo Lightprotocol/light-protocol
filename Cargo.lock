@@ -2698,8 +2698,11 @@ name = "light-merkle-tree"
 version = "0.1.1"
 dependencies = [
  "anchor-lang",
+ "ark-bn254 0.4.0",
  "bytemuck",
+ "light-poseidon",
  "sha2 0.10.8",
+ "thiserror",
 ]
 
 [[package]]
@@ -2727,11 +2730,24 @@ dependencies = [
  "getrandom 0.2.10",
  "light-macros",
  "light-merkle-tree",
+ "light-utils",
  "serde_json",
  "solana-program-test",
  "solana-sdk",
  "solana-security-txt",
  "spl-token",
+]
+
+[[package]]
+name = "light-poseidon"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c9a85a9752c549ceb7578064b4ed891179d20acd85f27318573b64d2d7ee7ee"
+dependencies = [
+ "ark-bn254 0.4.0",
+ "ark-ff 0.4.2",
+ "num-bigint 0.4.4",
+ "thiserror",
 ]
 
 [[package]]
@@ -2797,6 +2813,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
 name = "light-verifier-sdk"
 version = "0.3.1"
 dependencies = [
@@ -2811,6 +2834,7 @@ dependencies = [
  "groth16-solana",
  "light-merkle-tree",
  "light-merkle-tree-program",
+ "light-utils",
  "spl-token",
 ]
 
@@ -2875,6 +2899,7 @@ dependencies = [
  "heck 0.4.1",
  "lalrpop",
  "lalrpop-util",
+ "light-utils",
  "num-bigint-dig",
  "num-traits",
  "program_structure",
@@ -6521,6 +6546,7 @@ dependencies = [
  "anyhow",
  "clap 4.4.6",
  "light-merkle-tree",
+ "light-utils",
  "quote 1.0.33",
  "sha2 0.10.8",
 ]

@@ -49,7 +49,7 @@ class AirdropCommand extends Command {
     const { token } = flags;
 
     const loader = new CustomLoader(
-      `Requesting airdrop of ${amount} ${token}...`,
+      `Requesting airdrop of ${amount} ${token}...`
     );
     loader.start();
 
@@ -68,7 +68,7 @@ class AirdropCommand extends Command {
         transactionSignature = await airdropSplToAssociatedTokenAccount(
           provider.connection,
           parseInt(amount) * 100,
-          recipient_address,
+          recipient_address
         );
       }
 
@@ -77,7 +77,7 @@ class AirdropCommand extends Command {
       if (token.toLowerCase() !== "SOL")
         this.log(`\x1b[1mMint:\x1b[0m      ${MINT}`);
       this.log(
-        generateSolanaTransactionURL("tx", transactionSignature!, "custom"),
+        generateSolanaTransactionURL("tx", transactionSignature!, "custom")
       );
       this.log("\nAirdrop Successful \x1b[32m✔\x1b[0m");
 

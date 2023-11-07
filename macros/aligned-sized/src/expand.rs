@@ -92,14 +92,15 @@ pub(crate) fn aligned_sized(args: AlignedSizedArgs, strct: ItemStruct) -> Result
         let ty = field.clone().ty;
         field_size_getters.push(quote! { ::core::mem::size_of::<#ty>() });
 
-        let field = Field {
-            attrs,
-            vis: field.vis.clone(),
-            mutability: field.mutability.clone(),
-            ident: field.ident.clone(),
-            colon_token: field.colon_token,
-            ty: field.ty.clone(),
-        };
+        let field =
+            Field {
+                attrs,
+                vis: field.vis.clone(),
+                mutability: field.mutability.clone(),
+                ident: field.ident.clone(),
+                colon_token: field.colon_token,
+                ty: field.ty.clone(),
+            };
         fields.push(field);
     }
 
@@ -134,31 +135,32 @@ pub(crate) fn aligned_sized(args: AlignedSizedArgs, strct: ItemStruct) -> Result
     // Generics listed after struct ident need to contain only idents, bounds
     // and const generic types are not expected anymore. Sadly, there seems to
     // be no quick way to do that cleanup in non-manual way.
-    let strct_generics: Punctuated<GenericParam, Token![,]> = strct
-        .generics
-        .params
-        .clone()
-        .into_iter()
-        .map(|param: GenericParam| match param {
-            GenericParam::Const(ConstParam { ident, .. })
-            | GenericParam::Type(TypeParam { ident, .. }) => GenericParam::Type(TypeParam {
-                attrs: vec![],
-                ident,
-                colon_token: None,
-                bounds: Default::default(),
-                eq_token: None,
-                default: None,
-            }),
-            GenericParam::Lifetime(LifetimeParam { lifetime, .. }) => {
-                GenericParam::Lifetime(LifetimeParam {
+    let strct_generics: Punctuated<GenericParam, Token![,]> =
+        strct
+            .generics
+            .params
+            .clone()
+            .into_iter()
+            .map(|param: GenericParam| match param {
+                GenericParam::Const(ConstParam { ident, .. })
+                | GenericParam::Type(TypeParam { ident, .. }) => GenericParam::Type(TypeParam {
                     attrs: vec![],
-                    lifetime,
+                    ident,
                     colon_token: None,
                     bounds: Default::default(),
-                })
-            }
-        })
-        .collect();
+                    eq_token: None,
+                    default: None,
+                }),
+                GenericParam::Lifetime(LifetimeParam { lifetime, .. }) => {
+                    GenericParam::Lifetime(LifetimeParam {
+                        attrs: vec![],
+                        lifetime,
+                        colon_token: None,
+                        bounds: Default::default(),
+                    })
+                }
+            })
+            .collect();
 
     // Define a constant with the size of the struct (sum of all fields).
     Ok(quote! {

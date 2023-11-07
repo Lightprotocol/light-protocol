@@ -37,6 +37,6 @@ pub fn process_insert_two_leaves_event(
     leaf_right: [u8; 32],
 ) -> Result<()> {
     let mut merkle_tree = ctx.accounts.event_merkle_tree.load_mut()?;
-    merkle_tree.merkle_tree.insert(leaf_left, leaf_right);
+    merkle_tree.merkle_tree.insert(leaf_left, leaf_right)?;
     Ok(())
 }

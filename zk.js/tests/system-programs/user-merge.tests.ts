@@ -33,6 +33,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const anchorProvider = AnchorProvider.local(
     "http://127.0.0.1:8899",
@@ -45,8 +46,9 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
-    environmentConfig.lookUpTable =
-      await initLookUpTableFromFile(anchorProvider);
+    environmentConfig.lookUpTable = await initLookUpTableFromFile(
+      anchorProvider,
+    );
 
     environmentConfig.poseidon = await circomlibjs.buildPoseidonOpt();
     // this keypair is used to derive the shielded account seed from the light message signature

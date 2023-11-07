@@ -48,7 +48,9 @@ export async function setUpMerkleTree(
 
   if (
     (await provider.connection.getAccountInfo(
-      (await merkleTreeConfig.getPoolTypePda(POOL_TYPE)).poolPda,
+      (
+        await merkleTreeConfig.getPoolTypePda(POOL_TYPE)
+      ).poolPda,
     )) == null
   ) {
     await merkleTreeConfig.registerPoolType(POOL_TYPE);
@@ -58,7 +60,9 @@ export async function setUpMerkleTree(
 
   if (
     (await provider.connection.getAccountInfo(
-      (await merkleTreeConfig.getSplPoolPda(MINT, POOL_TYPE)).pda,
+      (
+        await merkleTreeConfig.getSplPoolPda(MINT, POOL_TYPE)
+      ).pda,
     )) == null
   ) {
     await merkleTreeConfig.registerSplPool(POOL_TYPE, MINT);

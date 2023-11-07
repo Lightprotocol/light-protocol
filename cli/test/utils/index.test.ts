@@ -30,7 +30,7 @@ describe("Init test env utils", () => {
 
     const merkleTreeProgramPath = path.join(
       tempdir,
-      "light_merkle_tree_program.so",
+      "light_merkle_tree_program.so"
     );
     expect(solanaArgs).to.contain(merkleTreeProgramPath);
     assert.isTrue(fs.existsSync(merkleTreeProgramPath));
@@ -41,14 +41,14 @@ describe("Init test env utils", () => {
 
     const lightPsp2in2outStoragePath = path.join(
       tempdir,
-      "light_psp2in2out_storage.so",
+      "light_psp2in2out_storage.so"
     );
     expect(solanaArgs).to.contain(lightPsp2in2outStoragePath);
     assert.isTrue(fs.existsSync(lightPsp2in2outStoragePath));
 
     const lightPsp4in4outAppStoragePath = path.join(
       tempdir,
-      "light_psp4in4out_app_storage.so",
+      "light_psp4in4out_app_storage.so"
     );
     expect(solanaArgs).to.contain(lightPsp4in4outAppStoragePath);
     assert.isTrue(fs.existsSync(lightPsp4in4outAppStoragePath));

@@ -87,7 +87,7 @@ export async function compileCircuit({
   });
 
   const randomContributionBytes = utils.bytes.hex.encode(
-    Buffer.from(randomBytes(128)),
+    Buffer.from(randomBytes(128))
   );
   try {
     fs.unlinkSync(`${sdkBuildCircuitDir}/${circuitName}.zkey`);
@@ -148,7 +148,7 @@ export async function compileCircuit({
     vKeyRsPath,
     circuitName,
     artifactPath,
-    "Main",
+    "Main"
   );
   console.log("created rust verifying key");
   const sleep = (ms: number) => {
@@ -159,7 +159,7 @@ export async function compileCircuit({
   }
 
   fs.unlinkSync(
-    path.join(sdkBuildCircuitDir, `verifyingkey${circuitName}.json`),
+    path.join(sdkBuildCircuitDir, `verifyingkey${circuitName}.json`)
   );
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}_tmp.zkey`));
   fs.unlinkSync(path.join(sdkBuildCircuitDir, `${circuitName}Main.r1cs`));

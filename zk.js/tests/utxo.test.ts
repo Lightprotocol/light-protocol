@@ -34,8 +34,10 @@ const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
+
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
 describe("Utxo Functional", () => {
   let poseidon: any, lightProvider: LightProvider;
@@ -106,7 +108,7 @@ describe("Utxo Functional", () => {
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         commitment: new BN(utxo4.getCommitment(poseidon)).toArrayLike(
           Buffer,
-          "le",
+          "be",
           32,
         ),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -126,7 +128,7 @@ describe("Utxo Functional", () => {
         aes: true,
         index: 0,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-        commitment: new BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
+        commitment: new BN(utxo4.getCommitment(poseidon)).toBuffer("be", 32),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       });
 
@@ -262,7 +264,7 @@ describe("Utxo Functional", () => {
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       commitment: new BN(utxo1.getCommitment(poseidon)).toArrayLike(
         Buffer,
-        "le",
+        "be",
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -303,7 +305,7 @@ describe("Utxo Functional", () => {
       aes: false,
       commitment: new BN(receivingUtxo.getCommitment(poseidon)).toArrayLike(
         Buffer,
-        "le",
+        "be",
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -341,7 +343,7 @@ describe("Utxo Functional", () => {
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       aes: false,
       commitment: new BN(receivingUtxoNoAes.getCommitment(poseidon)).toBuffer(
-        "le",
+        "be",
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -617,7 +619,7 @@ describe("Utxo Errors", () => {
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       aes: false,
       commitment: new BN(receivingUtxo.getCommitment(poseidon)).toBuffer(
-        "le",
+        "be",
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -672,7 +674,7 @@ describe("Utxo Benchmark", () => {
         aes: true,
         index: 0,
         merkleTreePdaPublicKey: transactionMerkleTreePda,
-        commitment: new BN(testUtxo.getCommitment(poseidon)).toBuffer("le", 32),
+        commitment: new BN(testUtxo.getCommitment(poseidon)).toBuffer("be", 32),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       });
       if (

@@ -21,21 +21,12 @@ pub use transaction_merkle_tree::*;
 pub mod verifier_invoked_instructions;
 pub use verifier_invoked_instructions::*;
 pub mod errors;
-pub use errors::*;
 pub mod utils;
 
 pub mod config_accounts;
 pub use config_accounts::*;
 
-use crate::{
-    errors::ErrorCode,
-    transaction_merkle_tree::state::TransactionMerkleTree,
-    utils::{
-        accounts::deserialize_and_update_old_merkle_tree,
-        config::{self, MERKLE_TREE_HEIGHT, ZERO_BYTES_MERKLE_TREE_18},
-        constants::{EVENT_MERKLE_TREE_SEED, TRANSACTION_MERKLE_TREE_SEED},
-    },
-};
+use crate::utils::config;
 
 #[program]
 pub mod light_merkle_tree_program {
@@ -47,78 +38,20 @@ pub mod light_merkle_tree_program {
         ctx: Context<InitializeNewMerkleTrees>,
         lock_duration: u64,
     ) -> Result<()> {
-        if !ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .enable_permissionless_merkle_tree_registration
-            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
-        {
-            return err!(ErrorCode::InvalidAuthority);
-        }
-
-        if ctx.remaining_accounts.len() != 2 {
-            return err!(ErrorCode::ExpectedOldMerkleTrees);
-        }
-
-        let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
-
-        // Transaction Merkle Tree
-        deserialize_and_update_old_merkle_tree::<TransactionMerkleTree>(
-            &ctx.remaining_accounts[0],
-            TRANSACTION_MERKLE_TREE_SEED,
-            ctx.program_id,
-        )?;
-        let new_transaction_merkle_tree =
-            &mut ctx.accounts.new_transaction_merkle_tree.load_init()?;
-        process_initialize_new_merkle_tree_18(
-            new_transaction_merkle_tree,
-            merkle_tree_authority,
-            MERKLE_TREE_HEIGHT,
-            ZERO_BYTES_MERKLE_TREE_18.to_vec(),
-        );
-        new_transaction_merkle_tree.lock_duration = lock_duration;
-
-        // Event Merkle Tree
-        deserialize_and_update_old_merkle_tree::<event_merkle_tree::EventMerkleTree>(
-            &ctx.remaining_accounts[1],
-            EVENT_MERKLE_TREE_SEED,
-            ctx.program_id,
-        )?;
-        let new_event_merkle_tree = &mut ctx.accounts.new_event_merkle_tree.load_init()?;
-        process_initialize_new_event_merkle_tree(new_event_merkle_tree, merkle_tree_authority);
-
-        Ok(())
+        process_initialize_new_merkle_trees(ctx, lock_duration)
     }
 
     /// Initializes a new merkle tree authority which can register new verifiers and configure
     /// permissions to create new pools.
     pub fn initialize_merkle_tree_authority(
-        ctx: Context<InitializeMerkleTreeAuthority>,
+        mut ctx: Context<InitializeMerkleTreeAuthority>,
     ) -> Result<()> {
-        ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.authority.key();
-
-        let merkle_tree = &mut ctx.accounts.transaction_merkle_tree.load_init()?;
-        let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
-        process_initialize_new_merkle_tree_18(
-            merkle_tree,
-            merkle_tree_authority,
-            MERKLE_TREE_HEIGHT,
-            ZERO_BYTES_MERKLE_TREE_18.to_vec(),
-        );
-
-        let event_merkle_tree = &mut ctx.accounts.event_merkle_tree.load_init()?;
-        let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
-
-        process_initialize_new_event_merkle_tree(event_merkle_tree, merkle_tree_authority);
-
-        Ok(())
+        process_initialize_merkle_tree_authority(&mut ctx)
     }
 
     /// Updates the merkle tree authority to a new authority.
     pub fn update_merkle_tree_authority(ctx: Context<UpdateMerkleTreeAuthority>) -> Result<()> {
-        // account is checked in ctx struct
-        ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.new_authority.key();
-        Ok(())
+        process_update_merkle_tree_authority(ctx)
     }
 
     /// Updates the lock duration for a specific merkle tree.
@@ -126,11 +59,10 @@ pub mod light_merkle_tree_program {
         ctx: Context<UpdateLockDuration>,
         lock_duration: u64,
     ) -> Result<()> {
-        ctx.accounts
-            .transaction_merkle_tree
-            .load_mut()?
-            .lock_duration = lock_duration;
-        Ok(())
+        process_update_lock_duration(
+            &mut ctx.accounts.transaction_merkle_tree.load_mut()?,
+            lock_duration,
+        )
     }
 
     /// Enables anyone to create token pools.
@@ -138,10 +70,7 @@ pub mod light_merkle_tree_program {
         ctx: Context<UpdateMerkleTreeAuthorityConfig>,
         enable_permissionless: bool,
     ) -> Result<()> {
-        ctx.accounts
-            .merkle_tree_authority_pda
-            .enable_permissionless_spl_tokens = enable_permissionless;
-        Ok(())
+        process_enable_permissionless_spl_tokens(ctx, enable_permissionless)
     }
 
     // Unactivated feature listed for completeness.
@@ -156,81 +85,22 @@ pub mod light_merkle_tree_program {
         ctx: Context<RegisterVerifier>,
         verifier_pubkey: Pubkey,
     ) -> Result<()> {
-        if !ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .enable_permissionless_merkle_tree_registration
-            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
-        {
-            return err!(ErrorCode::InvalidAuthority);
-        }
-        ctx.accounts.registered_verifier_pda.pubkey = verifier_pubkey;
-        Ok(())
+        process_register_verifier(ctx, verifier_pubkey)
     }
 
     /// Registers a new pooltype.
     pub fn register_pool_type(ctx: Context<RegisterPoolType>, pool_type: [u8; 32]) -> Result<()> {
-        if !ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .enable_permissionless_spl_tokens
-            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
-        {
-            return err!(ErrorCode::InvalidAuthority);
-        }
-        ctx.accounts.registered_pool_type_pda.pool_type = pool_type;
-        Ok(())
+        process_register_pool_type(ctx, pool_type)
     }
 
     /// Creates a new spl token pool which can be used by any registered verifier.
     pub fn register_spl_pool(ctx: Context<RegisterSplPool>) -> Result<()> {
-        // any token enabled
-        if !ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .enable_permissionless_spl_tokens
-            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
-        {
-            return err!(ErrorCode::InvalidAuthority);
-        }
-
-        ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =
-            ctx.accounts.merkle_tree_pda_token.key();
-        ctx.accounts.registered_asset_pool_pda.pool_type =
-            ctx.accounts.registered_pool_type_pda.pool_type;
-        ctx.accounts.registered_asset_pool_pda.index = ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .registered_asset_index;
-        ctx.accounts
-            .merkle_tree_authority_pda
-            .registered_asset_index += 1;
-        Ok(())
+        process_register_spl_pool(ctx)
     }
 
     /// Creates a new sol pool which can be used by any registered verifier.
     pub fn register_sol_pool(ctx: Context<RegisterSolPool>) -> Result<()> {
-        if !ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .enable_permissionless_spl_tokens
-            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
-        {
-            return err!(ErrorCode::InvalidAuthority);
-        }
-
-        ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =
-            ctx.accounts.registered_asset_pool_pda.key();
-        ctx.accounts.registered_asset_pool_pda.pool_type =
-            ctx.accounts.registered_pool_type_pda.pool_type;
-        ctx.accounts.registered_asset_pool_pda.index = ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .registered_asset_index;
-        ctx.accounts
-            .merkle_tree_authority_pda
-            .registered_asset_index += 1;
-        Ok(())
+        process_register_sol_pool(ctx)
     }
 
     /// Initializes a merkle tree update state pda. This pda stores the leaves to be inserted

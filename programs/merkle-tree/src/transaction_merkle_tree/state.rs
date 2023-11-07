@@ -1,10 +1,22 @@
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
-
-use crate::{
-    impl_indexed_merkle_tree,
-    utils::config::{MERKLE_TREE_HEIGHT, MERKLE_TREE_HISTORY_SIZE},
+use light_macros::pubkey;
+use light_merkle_tree::{
+    config::MerkleTreeConfig,
+    constants::{poseidon::ZERO_BYTES, ZeroBytes},
+    hasher::Poseidon,
+    MerkleTree,
 };
+
+use crate::impl_indexed_merkle_tree;
+
+#[derive(Clone, Copy)]
+pub struct TransactionMerkleTreeConfig {}
+
+impl MerkleTreeConfig for TransactionMerkleTreeConfig {
+    const ZERO_BYTES: ZeroBytes = ZERO_BYTES;
+    const PROGRAM_ID: Pubkey = pubkey!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
+}
 
 // NOTE(vadorovsky): This implementation of Merkle tree exists only for
 // transactions and handling Poseidon in multiple rounds. Once Poseidon syscall
@@ -12,15 +24,10 @@ use crate::{
 // light-merkle-tree crate.
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
-#[derive(Eq, PartialEq, Debug)]
 pub struct TransactionMerkleTree {
-    pub filled_subtrees: [[u8; 32]; MERKLE_TREE_HEIGHT],
-    pub current_root_index: u64,
-    pub next_index: u64,
-    pub roots: [[u8; 32]; MERKLE_TREE_HISTORY_SIZE as usize],
+    pub merkle_tree: MerkleTree<Poseidon, TransactionMerkleTreeConfig>,
     pub pubkey_locked: Pubkey,
     pub time_locked: u64,
-    pub height: u64,
     pub merkle_tree_nr: u64,
     pub lock_duration: u64,
     pub next_queued_index: u64,
@@ -31,6 +38,7 @@ pub struct TransactionMerkleTree {
 impl_indexed_merkle_tree!(TransactionMerkleTree);
 
 #[account]
+#[aligned_sized(anchor)]
 #[derive(Eq, PartialEq, Debug)]
 pub struct TwoLeavesBytesPda {
     pub node_left: [u8; 32],

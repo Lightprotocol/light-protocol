@@ -17,7 +17,7 @@ class VerifierListCommand extends Command {
     const merkleTreeProgram = new Program(
       IDL_LIGHT_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
-      anchorProvider,
+      anchorProvider
     );
     const verifierAccounts =
       await merkleTreeProgram.account.registeredVerifier.all();

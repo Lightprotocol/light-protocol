@@ -102,8 +102,8 @@ class ShieldCommand extends Command {
         generateSolanaTransactionURL(
           "tx",
           `${response.txHash.signatures}`,
-          "custom",
-        ),
+          "custom"
+        )
       );
 
       if (!amountSol || !amountSpl) {
@@ -111,12 +111,12 @@ class ShieldCommand extends Command {
           `\nSuccessfully shielded ${
             token === "SOL" ? amountSol : amountSpl
           } ${token}`,
-          "\x1b[32m✔\x1b[0m",
+          "\x1b[32m✔\x1b[0m"
         );
       } else {
         this.log(
           `\nSuccessfully shielded ${amountSol} SOL & ${amountSpl} ${token}`,
-          "\x1b[32m✔\x1b[0m",
+          "\x1b[32m✔\x1b[0m"
         );
       }
       loader.stop();

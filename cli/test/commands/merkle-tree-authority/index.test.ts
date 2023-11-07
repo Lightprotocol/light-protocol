@@ -23,7 +23,7 @@ describe("Merkle Tree Authority", () => {
     .command(["merkle-tree-authority:initialize"])
     .it("Initialize Merkle Tree Authority", ({ stdout }) => {
       expect(stdout).to.contain(
-        "Merkle Tree Authority initialized successfully",
+        "Merkle Tree Authority initialized successfully"
       );
     });
   // Second call, Merkle Tree Authority was already initialized.
@@ -39,18 +39,20 @@ describe("Merkle Tree Authority", () => {
     .it("Get Merkle Tree Authority", ({ stdout }) => {
       expect(stdout).to.contain("1");
     });
-  test
-    .stdout()
-    .command(["merkle-tree-authority:lock", "100"])
-    .it("Update lock", ({ stdout }) => {
-      expect(stdout).to.contain("Lock updated successfully");
-    });
+  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+    test
+      .stdout()
+      .command(["merkle-tree-authority:lock", "100"])
+      .it("Update lock", ({ stdout }) => {
+        expect(stdout).to.contain("Lock updated successfully");
+      });
+  }
   test
     .stdout()
     .command(["merkle-tree-authority:spl-enable", "true"])
     .it("Enable SPL", ({ stdout }) => {
       expect(stdout).to.contain(
-        "Permissionless SPL tokens enabled successfully",
+        "Permissionless SPL tokens enabled successfully"
       );
     });
   test
@@ -58,7 +60,7 @@ describe("Merkle Tree Authority", () => {
     .command(["merkle-tree-authority:spl-disable", "false"])
     .it("Disable SPL", ({ stdout }) => {
       expect(stdout).to.contain(
-        "Permissionless SPL tokens disabled successfully",
+        "Permissionless SPL tokens disabled successfully"
       );
     });
 });

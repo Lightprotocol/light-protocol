@@ -23,7 +23,7 @@ class LockCommand extends Command {
     const { duration } = args;
 
     const loader = new CustomLoader(
-      "Updating lock duration of Transaction Merkle Trees",
+      "Updating lock duration of Transaction Merkle Trees"
     );
     loader.start();
 

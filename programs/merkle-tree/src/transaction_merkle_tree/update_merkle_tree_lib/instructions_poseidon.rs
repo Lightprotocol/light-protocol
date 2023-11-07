@@ -233,16 +233,17 @@ pub fn permute_custom_split(
             state[0] = PoseidonCircomRounds3::SBOX.apply_sbox(state[0]).unwrap();
         }
 
-        state = state
-            .iter()
-            .enumerate()
-            .map(|(i, _)| {
-                state.iter().enumerate().fold(Fq::zero(), |acc, (j, a)| {
-                    let m = params.mds_matrix[i][j];
-                    acc.add(m.mul(*a))
+        state =
+            state
+                .iter()
+                .enumerate()
+                .map(|(i, _)| {
+                    state.iter().enumerate().fold(Fq::zero(), |acc, (j, a)| {
+                        let m = params.mds_matrix[i][j];
+                        acc.add(m.mul(*a))
+                    })
                 })
-            })
-            .collect();
+                .collect();
     }
     Ok(state)
 }

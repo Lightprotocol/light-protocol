@@ -373,10 +373,12 @@ const checkSolBalanceGtRelayerFee = async (
   tokenMint: PublicKey,
 ) => {
   const balance = await user.getBalance();
-  const solBalance = balance.tokenBalances.get(tokenMint.toBase58())
-    ?.totalBalanceSol;
-  const splBalance = balance.tokenBalances.get(tokenMint.toBase58())
-    ?.totalBalanceSpl;
+  const solBalance = balance.tokenBalances.get(
+    tokenMint.toBase58(),
+  )?.totalBalanceSol;
+  const splBalance = balance.tokenBalances.get(
+    tokenMint.toBase58(),
+  )?.totalBalanceSpl;
   if (
     tokenMint.toBase58() !== PublicKey.default.toBase58() &&
     (!splBalance || splBalance.eq(BN_0))
@@ -413,6 +415,7 @@ describe("Test User", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const anchorProvider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",

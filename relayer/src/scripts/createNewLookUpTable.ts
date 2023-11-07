@@ -18,8 +18,9 @@ import { getAnchorProvider, getKeyPairFromEnv } from "utils/provider";
     console.log("network: ", rpc);
     const lookUpTable = await initLookUpTable(wallet, anchorProvider);
 
-    const lookUpTableInfoInit =
-      await anchorProvider.connection.getAccountInfo(lookUpTable);
+    const lookUpTableInfoInit = await anchorProvider.connection.getAccountInfo(
+      lookUpTable,
+    );
     AddressLookupTableAccount.deserialize(lookUpTableInfoInit!.data);
 
     console.log(

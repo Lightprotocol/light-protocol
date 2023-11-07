@@ -14,7 +14,8 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = []
+default = ["atomic-transactions"]
+atomic-transactions = ["light-verifier-sdk/atomic-transactions"]
 
 [dependencies]
 anchor-lang = "0.28.0"

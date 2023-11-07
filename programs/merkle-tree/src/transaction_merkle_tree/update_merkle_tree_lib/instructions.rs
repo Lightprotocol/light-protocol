@@ -1,6 +1,7 @@
 use std::cell::RefMut;
 
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
+use light_utils::change_endianness;
 
 use crate::{
     transaction_merkle_tree::{
@@ -14,8 +15,9 @@ pub fn insert_0_double(
     merkle_tree_account: &mut RefMut<'_, TransactionMerkleTree>,
     update_state_data: &mut MerkleTreeUpdateState,
 ) -> Result<(), ProgramError> {
-    update_state_data.current_index =
-        (merkle_tree_account.next_index + update_state_data.insert_leaves_index as u64 * 2) / 2;
+    update_state_data.current_index = (merkle_tree_account.merkle_tree.next_index
+        + update_state_data.insert_leaves_index as u64 * 2)
+        / 2;
 
     if update_state_data.current_index == 262144 {
         msg!("Merkle tree full");
@@ -79,15 +81,23 @@ pub fn insert_last_double(
     merkle_tree_account: &mut RefMut<'_, TransactionMerkleTree>,
     update_state_data: &mut RefMut<'_, MerkleTreeUpdateState>,
 ) -> Result<(), ProgramError> {
-    merkle_tree_account.current_root_index = (merkle_tree_account.current_root_index + 1)
-        % u64::try_from(merkle_tree_account.roots.len()).unwrap();
+    merkle_tree_account.merkle_tree.current_root_index = (merkle_tree_account
+        .merkle_tree
+        .current_root_index
+        + 1)
+        % u64::try_from(merkle_tree_account.merkle_tree.roots.len()).unwrap();
 
-    merkle_tree_account.next_index = update_state_data.tmp_leaves_index;
-    let index: usize = merkle_tree_account.current_root_index.try_into().unwrap();
+    merkle_tree_account.merkle_tree.next_index = update_state_data.tmp_leaves_index;
+    let index: usize = merkle_tree_account
+        .merkle_tree
+        .current_root_index
+        .try_into()
+        .unwrap();
 
-    merkle_tree_account.roots[index] = update_state_data.state[0..32].try_into().unwrap();
+    merkle_tree_account.merkle_tree.roots[index] =
+        change_endianness(update_state_data.state[0..32].try_into().unwrap());
 
-    merkle_tree_account.filled_subtrees = update_state_data.filled_subtrees;
+    merkle_tree_account.merkle_tree.filled_subtrees = update_state_data.filled_subtrees;
 
     Ok(())
 }

@@ -34,10 +34,11 @@ pub fn process_spl_transfer<'info>(
         to: ctx.accounts.recipient.to_account_info(),
         authority: ctx.accounts.token_authority.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.token_program.to_account_info(),
-        accounts,
-        seeds,
-    );
+    let cpi_ctx =
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            accounts,
+            seeds,
+        );
     anchor_spl::token::transfer(cpi_ctx, amount)
 }

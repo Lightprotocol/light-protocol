@@ -76,9 +76,7 @@ export function getSolanaRemainingAccounts(
       isWritable: true,
       pubkey: PublicKey.findProgramAddressSync(
         [
-          Buffer.from(
-            Array.from(systemProofPublicInputs.outputCommitment[j]).reverse(),
-          ),
+          Buffer.from(Array.from(systemProofPublicInputs.outputCommitment[j])),
           utils.bytes.utf8.encode("leaves"),
         ],
         merkleTreeProgramId,

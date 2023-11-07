@@ -21,7 +21,7 @@ class SplDisableCommand extends Command {
 
     loader.stop(false);
     this.log(
-      "Permissionless SPL tokens disabled successfully \x1b[32m✔\x1b[0m",
+      "Permissionless SPL tokens disabled successfully \x1b[32m✔\x1b[0m"
     );
   }
 }

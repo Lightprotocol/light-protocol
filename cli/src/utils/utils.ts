@@ -35,7 +35,7 @@ export const createNewWallet = () => {
 };
 
 export const getWalletConfig = async (
-  anchorProvider: anchor.AnchorProvider,
+  anchorProvider: anchor.AnchorProvider
 ): Promise<MerkleTreeConfig> => {
   try {
     const merkleTreeConfig = new MerkleTreeConfig({
@@ -70,7 +70,7 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   const anchorProvider = new anchor.AnchorProvider(
     connection,
     new anchor.Wallet(getPayer()),
-    confirmConfig,
+    confirmConfig
   );
 
   anchor.setProvider(anchorProvider);
@@ -127,7 +127,7 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
         new solana.PublicKey(config.relayerRecipient),
         new BN(config.relayerFee),
         new BN(config.highRelayerFee),
-        config.relayerUrl,
+        config.relayerUrl
       );
     }
   }
@@ -228,7 +228,7 @@ function getConfigPath(): string {
       throw new Error(
         `Config file not found at ${envConfigPath}, this path is configured with the environment variable LIGHT_PROTOCOL_CONFIG, the default path is ${
           process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME
-        }, to use the default path, remove the environment variable LIGHT_PROTOCOL_CONFIG`,
+        }, to use the default path, remove the environment variable LIGHT_PROTOCOL_CONFIG`
       );
     }
     return envConfigPath;
@@ -287,7 +287,7 @@ export const setConfig = (config: Partial<Config>, filePath?: string): void => {
 export function generateSolanaTransactionURL(
   transactionType: "tx" | "address",
   transactionHash: string,
-  cluster: string,
+  cluster: string
 ): string {
   const url = `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
   return url;
@@ -312,7 +312,7 @@ export class CustomLoader {
     process.stdout.write(
       `\n${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
         this.message
-      }\n`,
+      }\n`
     );
     this.logInterval = setInterval(() => {}, this.logInterval);
   }

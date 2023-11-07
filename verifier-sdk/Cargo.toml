@@ -9,7 +9,9 @@ edition = "2021"
 crate-type = ["cdylib", "lib"]
 name = "light_verifier_sdk"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+atomic-transactions = ["light-merkle-tree-program/atomic-transactions"]
+
 [dependencies]
 anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"
@@ -23,4 +25,5 @@ ark-std = { version = "^0.3.0", default-features = false }
 spl-token = "3.3.0"
 borsh = "0.9.3"
 groth16-solana = "0.0.2"
+light-utils = { path = "../utils", version = "0.1.0" }
 light-merkle-tree = { path = "../merkle-tree", version = "0.1.1" }

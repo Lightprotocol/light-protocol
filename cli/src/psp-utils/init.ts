@@ -88,23 +88,23 @@ export const initRepo = async (name: string, type: ProjectType, flags: any) => {
   type = type === ProjectType.PSP_CIRCOM ? ProjectType.CIRCOM : type;
   renameFolder(
     `${process.cwd()}/${name}/circuits/program_name/circuit_${type}`,
-    `${process.cwd()}/${name}/circuits/program_name/${name}`,
+    `${process.cwd()}/${name}/circuits/program_name/${name}`
   );
   renameFolder(
     `${process.cwd()}/${name}/circuits/program_name`,
-    `${process.cwd()}/${name}/circuits/${name}`,
+    `${process.cwd()}/${name}/circuits/${name}`
   );
   renameFolder(
     `${process.cwd()}/${name}/tests_${programsType}`,
-    `${process.cwd()}/${name}/tests`,
+    `${process.cwd()}/${name}/tests`
   );
   renameFolder(
     `${process.cwd()}/${name}/programs_${programsType}`,
-    `${process.cwd()}/${name}/programs`,
+    `${process.cwd()}/${name}/programs`
   );
   renameFolder(
     `${process.cwd()}/${name}/programs/program_name`,
-    `${process.cwd()}/${name}/programs/${name}`,
+    `${process.cwd()}/${name}/programs/${name}`
   );
 
   await executeCommandInDir("pnpm", ["install", "--no-lockfile"], name);

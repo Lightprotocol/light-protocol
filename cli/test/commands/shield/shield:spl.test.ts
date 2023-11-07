@@ -17,7 +17,7 @@ describe("shield:spl sub-cli", () => {
       "airdrop 1000 USDC to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
       (ctx: any) => {
         expect(ctx.stdout).to.contain("Airdrop Successful ✔");
-      },
+      }
     );
 
   test

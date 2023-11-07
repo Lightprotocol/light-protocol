@@ -17,7 +17,7 @@ import {
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 const anchor = require("@coral-xyz/anchor");
 const ffjavascript = require("ffjavascript");
-const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
+const { unstringifyBigInts, beInt2Buff, leInt2Buff } = ffjavascript.utils;
 export type QueuedLeavesPda = {
   leftLeafIndex: BN;
   encryptedUtxos: Array<number>;
@@ -55,7 +55,7 @@ export class SolMerkleTree {
         merkleTreePubkey,
         "processed",
       );
-    const merkleTreeIndex = mtFetched.nextIndex;
+    const merkleTreeIndex = mtFetched.merkleTree.nextIndex;
     // ProgramAccount<MerkleTreeProgram["accounts"][7]>
     const leavesAccounts: Array<any> =
       await merkleTreeProgram.account.twoLeavesBytesPda.all();
@@ -89,7 +89,8 @@ export class SolMerkleTree {
         new BN(a.firstLeafIndex).toNumber() -
         new BN(b.firstLeafIndex).toNumber(),
     );
-    const merkleTreeIndex = mtFetched.nextIndex;
+
+    const merkleTreeIndex = mtFetched.merkleTree.nextIndex;
     const leaves: string[] = [];
     if (indexedTransactions.length > 0) {
       for (let i: number = 0; i < indexedTransactions.length; i++) {
@@ -98,26 +99,24 @@ export class SolMerkleTree {
           merkleTreeIndex.toNumber()
         ) {
           for (const iterator of indexedTransactions[i].leaves) {
-            leaves.push(new anchor.BN(iterator, undefined, "le").toString());
+            leaves.push(new anchor.BN(iterator, undefined, "be").toString());
           }
         }
       }
     }
 
-    const fetchedMerkleTree = new MerkleTree(
+    const builtMerkleTree = new MerkleTree(
       MERKLE_TREE_HEIGHT,
       poseidon,
       leaves,
     );
 
-    // @ts-ignore: unknown type error
-    let index = mtFetched.roots.findIndex((root) => {
-      return (
-        Array.from(
-          leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
-          // @ts-ignore: unknown type error
-        ).toString() === root.toString()
-      );
+    const builtMerkleTreeRoot = beInt2Buff(
+      unstringifyBigInts(builtMerkleTree.root()),
+      32,
+    );
+    let index = mtFetched.merkleTree.roots.findIndex((root) => {
+      return Array.from(builtMerkleTreeRoot).toString() === root.toString();
     });
     let retries = 3;
     while (index < 0 && retries > 0) {
@@ -128,25 +127,20 @@ export class SolMerkleTree {
         "processed",
       );
       // @ts-ignore: unknown type error
-      index = mtFetched.roots.findIndex((root) => {
-        return (
-          Array.from(
-            leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
-            // @ts-ignore: unknown type error
-          ).toString() === root.toString()
-        );
+      index = mtFetched.merkleTree.roots.findIndex((root) => {
+        return Array.from(builtMerkleTreeRoot).toString() === root.toString();
       });
     }
 
     if (index < 0) {
       throw new Error(
         `building merkle tree from chain failed: root local ${Array.from(
-          leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
+          builtMerkleTreeRoot,
         ).toString()} is not present in roots fetched`,
       );
     }
 
-    return new SolMerkleTree({ merkleTree: fetchedMerkleTree, pubkey });
+    return new SolMerkleTree({ merkleTree: builtMerkleTree, pubkey });
   }
 
   static async getUninsertedLeaves(

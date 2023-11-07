@@ -26,7 +26,7 @@
     "test-sp-user-random": "pnpm run start-test-validator && ts-mocha -t 2000000000 tests/system-programs/user-random.tests.ts --exit",
     "test-sp-user-merge": "pnpm run start-test-validator && ts-mocha -t 2000000 tests/system-programs/user-merge.tests.ts --exit",
     "test-sp-verifiers": "pnpm run start-test-validator && ts-mocha -t 2000000 tests/system-programs/verifier_tests.ts --exit",
-    "test-sp-merkle-tree": "./../cli/test_bin/run test-validator -b -s && ts-mocha -t 2000000 tests/system-programs/merkle_tree_tests.ts --exit",
+    "test-sp-merkle-tree-legacy": "./../cli/test_bin/run test-validator -b -s && ts-mocha -t 2000000 tests/system-programs/merkle_tree_tests.ts --exit",
     "test-sp-provider": "pnpm run start-test-validator && ts-mocha -t 2000000 tests/system-programs/provider.test.ts --exit",
     "test-sp-user-registry": "pnpm run start-test-validator && ts-mocha -t 2000000 tests/system-programs/user-registry.tests.ts --exit",
     "build": "rimraf lib && pnpm tsc",

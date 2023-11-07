@@ -4,8 +4,9 @@ use anchor_lang::{prelude::*, solana_program::msg};
 use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_std::marker::PhantomData;
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
+use light_utils::change_endianness;
 
-use crate::{errors::VerifierSdkError, light_transaction::Proof, utils::change_endianness};
+use crate::{errors::VerifierSdkError, light_transaction::Proof};
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 use crate::light_transaction::Config;

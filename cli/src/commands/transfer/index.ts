@@ -45,7 +45,7 @@ class TransferCommand extends Command {
     const { token } = flags;
 
     const loader = new CustomLoader(
-      `Performing shielded ${token} transfer...\n`,
+      `Performing shielded ${token} transfer...\n`
     );
     loader.start();
 
@@ -70,14 +70,14 @@ class TransferCommand extends Command {
         generateSolanaTransactionURL(
           "tx",
           `${response.txHash.signatures}`,
-          "custom",
-        ),
+          "custom"
+        )
       );
       this.log(
         `\nSuccessfully transferred ${
           token === "SOL" ? amountSol : amountSpl
         } ${token}`,
-        "\x1b[32m✔\x1b[0m",
+        "\x1b[32m✔\x1b[0m"
       );
       loader.stop();
     } catch (error) {

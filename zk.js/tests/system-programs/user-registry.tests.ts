@@ -30,6 +30,7 @@ describe("User registry", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const provider = AnchorProvider.local("http://127.0.0.1:8899", confirmConfig);
   anchor.setProvider(provider);
@@ -94,8 +95,9 @@ describe("User registry", () => {
       confirmConfig,
     );
 
-    const accountInfo =
-      await userRegistryProgram.account.userEntry.fetch(userEntryPubkey);
+    const accountInfo = await userRegistryProgram.account.userEntry.fetch(
+      userEntryPubkey,
+    );
     assert.deepEqual(accountInfo.lightPubkey, KEYPAIR.pubkey.toArray());
     assert.deepEqual(accountInfo.lightEncryptionPubkey, [
       ...KEYPAIR.encryptionKeypair.publicKey,

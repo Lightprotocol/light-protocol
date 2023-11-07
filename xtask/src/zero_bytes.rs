@@ -1,21 +1,17 @@
-use std::{
-    env,
-    fs::File,
-    io::{self, prelude::*},
-    path::PathBuf,
-    process::{Command, Stdio},
-    thread::spawn,
-};
+use std::{fs::File, io::prelude::*, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
+use light_merkle_tree::{
+    constants::MAX_HEIGHT,
+    hasher::{Hasher, Poseidon, Sha256},
+};
+use light_utils::rustfmt;
 use quote::quote;
-use sha2::{Digest, Sha256};
-
-use light_merkle_tree::HASH_LEN;
 
 #[derive(Debug, Clone, ValueEnum)]
 enum Hash {
     Sha256,
+    Poseidon,
 }
 
 #[derive(Debug, Parser)]
@@ -26,53 +22,25 @@ pub struct Options {
     path: Option<PathBuf>,
 }
 
-fn rustfmt(code: String) -> Result<Vec<u8>, anyhow::Error> {
-    let mut cmd = match env::var_os("RUSTFMT") {
-        Some(r) => Command::new(r),
-        None => Command::new("rustfmt"),
-    };
-
-    let mut cmd = cmd
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-
-    let mut stdin = cmd.stdin.take().unwrap();
-    let mut stdout = cmd.stdout.take().unwrap();
-
-    let stdin_handle = spawn(move || {
-        stdin.write_all(code.as_bytes()).unwrap();
-    });
-
-    let mut formatted_code = vec![];
-    io::copy(&mut stdout, &mut formatted_code)?;
-
-    let _ = cmd.wait();
-    stdin_handle.join().unwrap();
-
-    Ok(formatted_code)
+pub fn generate_zero_bytes(opts: Options) -> anyhow::Result<()> {
+    match opts.hash {
+        Hash::Sha256 => generate_zero_bytes_for_hasher::<Sha256>(opts),
+        Hash::Poseidon => generate_zero_bytes_for_hasher::<Poseidon>(opts),
+    }
 }
 
-pub fn generate_zero_bytes(opts: Options) -> Result<(), anyhow::Error> {
-    let mut hasher = match opts.hash {
-        Hash::Sha256 => Sha256::new(),
-    };
-
-    let mut zero_bytes = [[0u8; 32]; 19];
+fn generate_zero_bytes_for_hasher<H>(opts: Options) -> anyhow::Result<()>
+where
+    H: Hasher,
+{
+    let mut zero_bytes = [[0u8; 32]; MAX_HEIGHT + 1];
     let mut zero_bytes_tokens = vec![];
 
-    hasher.update([1u8; 32]);
-    hasher.update([1u8; 32]);
+    let mut prev_hash = H::hashv(&[&[1u8; 32], &[1u8; 32]]).unwrap();
 
-    let mut prev_hash = <[u8; HASH_LEN]>::try_from(hasher.finalize_reset().to_vec()).unwrap();
-
-    for i in 0..19 {
-        hasher.update(prev_hash);
-        hasher.update(prev_hash);
-
-        let cur_hash = <[u8; HASH_LEN]>::try_from(hasher.finalize_reset().to_vec()).unwrap();
-        zero_bytes[i] = cur_hash;
+    for zero_bytes_element in zero_bytes.iter_mut() {
+        let cur_hash = H::hashv(&[&prev_hash, &prev_hash]).unwrap();
+        zero_bytes_element.copy_from_slice(&cur_hash);
 
         let cur_hash_iter = cur_hash.iter();
         zero_bytes_tokens.push(quote! {

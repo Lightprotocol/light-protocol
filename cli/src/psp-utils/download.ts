@@ -13,11 +13,11 @@ const fileExists = promisify(fs.exists);
 async function latestRelease(owner: string, repo: string) {
   const github = "https://api.github.com";
   console.log(
-    `🔍 Checking the latest release of ${github}/repos/${owner}/${repo}/releases/latest`,
+    `🔍 Checking the latest release of ${github}/repos/${owner}/${repo}/releases/latest`
   );
 
   const response = await axios.get(
-    `${github}/repos/${owner}/${repo}/releases/latest`,
+    `${github}/repos/${owner}/${repo}/releases/latest`
   );
   const tag_name = response.data.tag_name;
 
@@ -163,7 +163,7 @@ export async function downloadFile({
       const totalLength = headers["content-length"];
       const progressBar = new cliProgress.SingleBar(
         {},
-        cliProgress.Presets.shades_classic,
+        cliProgress.Presets.shades_classic
       );
       progressBar.start(totalLength, 0);
 

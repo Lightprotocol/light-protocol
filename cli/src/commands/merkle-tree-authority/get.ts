@@ -48,7 +48,7 @@ class GetCommand extends Command {
         enablePermissionlessMerkleTreeRegistration: {
           header: "Enable permissionless Merkle Tree registration",
         },
-      },
+      }
     );
   }
 }
