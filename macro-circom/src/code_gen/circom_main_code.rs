@@ -38,16 +38,9 @@ DISCLAIMER_STRING,template_name, inputs_str, template_name, config_str, if confi
 }
 
 pub fn generate_circom_main_file(instance: Instance, path_to_parent_dir: &str) {
-    let mut output_file = fs::File::create(
-        [
-            path_to_parent_dir,
-            "/",
-            instance.name.as_str().clone(),
-            ".circom",
-        ]
-        .concat(),
-    )
-    .unwrap();
+    let mut output_file =
+        fs::File::create([path_to_parent_dir, "/", instance.name.as_str(), ".circom"].concat())
+            .unwrap();
     let code = generate_circom_main_code(&instance).unwrap();
     // println!(
     //     "sucessfully created main {}.circom and {}.circom",
