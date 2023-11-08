@@ -25,7 +25,9 @@ trap "kill ${PID_VALIDATOR}" EXIT
 sleep 15
 echo "Current directory: $(pwd)"
 ls -la
-
+echo "perms:"
+ls -l .env
+chmod +r .env
 . .env
 
 echo "starting relayer server"

@@ -29,6 +29,9 @@ sleep 1
 # Load the environment variables from the relayer's .env file
 echo "Current directory: $(pwd)"
 ls -la
+echo "perms:"
+ls -l ./../../relayer/.env.example
+chmod +r ./../../relayer/.env.example
 . ./../../relayer/.env.example
 
 node ./../../relayer/lib/index.js > .logs/relayer-logs.txt &
