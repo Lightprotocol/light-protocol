@@ -47,7 +47,7 @@ describe("Test private-compressed-account", () => {
       console.timeEnd("fullProveAndParse");
     }
   });
-  it.skip("Inclusion Gt Circuit should succeed", async () => {
+  it("Inclusion Gt Circuit should succeed", async () => {
     compressedAccount = new PoseidonCompressedAccount(POSEIDON, IDL, 0);
     let leafHash = POSEIDON.F.toString(POSEIDON([insertValue]));
     await compressedAccount.generateUpdateProof({ leafHash });
@@ -63,7 +63,7 @@ describe("Test private-compressed-account", () => {
       referenceValue: new BN("11"),
     });
   });
-  it.skip("Inclusion Gt Circuit should fail with Lt value", async () => {
+  it("Inclusion Gt Circuit should fail with Lt value", async () => {
     let throwed = false;
     try {
       log("insertValue 12, refValue 13");
