@@ -43,12 +43,8 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      # - name: Install dependencies
-      #   run: |
-      #     cd web/webapp
-      #     pnpm install
-
       - name: Run end-to-end tests
         run: |
+          source ./scripts/devenv.sh
           cd web/webapp
           pnpm run test:e2e
