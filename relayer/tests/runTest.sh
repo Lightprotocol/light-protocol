@@ -23,6 +23,8 @@ PID_VALIDATOR="${!}"
 trap "kill ${PID_VALIDATOR}" EXIT
 
 sleep 15
+echo "Current directory: $(pwd)"
+ls -la
 
 . .env
 

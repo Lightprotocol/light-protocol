@@ -27,6 +27,8 @@ kill $(lsof -ti :3332) > /dev/null  || true
 sleep 1
 
 # Load the environment variables from the relayer's .env file
+echo "Current directory: $(pwd)"
+ls -la
 . ./../../relayer/.env.example
 
 node ./../../relayer/lib/index.js > .logs/relayer-logs.txt &
