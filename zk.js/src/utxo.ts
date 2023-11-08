@@ -361,7 +361,7 @@ export class Utxo {
         );
       }
       if (featureFlags.wasmPoseidon) {
-        this.appDataHash = new BN(leInt2Buff(unstringifyBigInts(wasmPoseidon(hashArray).toString()), 32), undefined, "le");
+        this.appDataHash = new BN(wasmPoseidon(hashArray), undefined, "be");
       }
       else {
         this.appDataHash = new BN(
