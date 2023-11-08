@@ -11,12 +11,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
+  "devDependencies": {
+    "tweetnacl": "^1.0.3",
     "@coral-xyz/anchor": "^0.29.0",
     "@lightprotocol/tsconfig": "workspace:*",
-    "tweetnacl": "^1.0.3"
-  },
-  "devDependencies": {  
     "@types/chai": "^4.3.9",
     "@types/mocha": "^10.0.3",
     "chai": "^4.3.10",
