@@ -26,7 +26,6 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 const seed32 = (): string => {
-  // tVojvhToWjQ8Xvo4UPx2Xz9eRy7auyYMmZBjc2XfN
   return bs58.encode(new Uint8Array(32).fill(1));
 }
 const seed32_2 = (): string => {
