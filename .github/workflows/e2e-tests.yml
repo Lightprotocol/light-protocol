@@ -43,6 +43,26 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
+      - name: Build relayer
+        run: |
+          (cd relayer && pnpm install && pnpm build)
+
+      - name: Build webapp
+        run: |
+          (cd web/webapp && pnpm install && pnpm build)
+
+      - name: Cache Cypress
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            cypress-
+
+      - name: Install Cypress
+        run: |
+          (cd web/webapp && npx cypress install)
+
       - name: Run end-to-end tests
         run: |
           source ./scripts/devenv.sh
