@@ -948,17 +948,13 @@ importers:
   tsconfig: {}
 
   zk-rs:
-    dependencies:
+    devDependencies:
       '@coral-xyz/anchor':
         specifier: ^0.29.0
         version: 0.29.0
       '@lightprotocol/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
-      tweetnacl:
-        specifier: ^1.0.3
-        version: 1.0.3
-    devDependencies:
       '@types/chai':
         specifier: ^4.3.9
         version: 4.3.9
@@ -977,6 +973,9 @@ importers:
       ts-mocha:
         specifier: ^10.0.0
         version: 10.0.0(mocha@10.2.0)
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
 
   zk-rs/pkg: {}
 
@@ -1215,7 +1214,7 @@ packages:
       - bufferutil
       - encoding
       - utf-8-validate
-    dev: false
+    dev: true
 
   /@coral-xyz/borsh@0.26.0(@solana/web3.js@1.78.5):
     resolution: {integrity: sha512-uCZ0xus0CszQPHYfWAqKS5swS1UxvePu83oOF+TWpUkedsNlg6p2p4azxZNSSqwXb9uXMFgxhuMBX9r3Xoi0vQ==}
@@ -1269,7 +1268,7 @@ packages:
       '@solana/web3.js': 1.78.5
       bn.js: 5.2.1
       buffer-layout: 1.2.2
-    dev: false
+    dev: true
 
   /@cspotcode/source-map-support@0.8.1:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
