@@ -27,7 +27,7 @@ kill $(lsof -ti :3332) > /dev/null  || true
 sleep 1
 
 # Load the environment variables from the relayer's .env file
-source ./../../relayer/.env.example
+. ./../../relayer/.env.example
 
 node ./../../relayer/lib/index.js > .logs/relayer-logs.txt &
 PID_RELAYER="${!}"
