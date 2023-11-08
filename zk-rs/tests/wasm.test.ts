@@ -6,7 +6,7 @@ const circomlibjs = require("circomlibjs");
 chai.use(chaiAsPromised);
 
 import { it } from "mocha";
-import {blake2, poseidon} from "../pkg";
+import {blake2str, poseidon} from "../pkg";
 import {BN} from "@coral-xyz/anchor";
 const { blake2b } = require("@noble/hashes/blake2b");
 
@@ -17,7 +17,7 @@ describe("Test Account Functional", () => {
         circomPoseidon = await circomlibjs.buildPoseidonOpt();
     });
 
-    it.only("Test poseidon216", () => {
+    it("Test poseidon216", () => {
         const input = new BN([
             216, 137,  85, 159, 239, 194, 107, 138,
             254,  68,  21,  16, 165,  41,  64, 148,
@@ -37,7 +37,7 @@ describe("Test Account Functional", () => {
     it("Test blake2-simd", () => {
         const input = "foobar";
         const tsBlake = blake2b.create({ dkLen: 32 }).update(input).digest().toString()
-        const wasmBlake = blake2(input, 32).toString();
+        const wasmBlake = blake2str(input, 32).toString();
         assert.equal(tsBlake, wasmBlake);
     })
 
@@ -57,7 +57,7 @@ describe("Test Account Functional", () => {
 
         console.time("blake_rs");
         for (let i = 0; i < 10e6; i++) {
-            const rsBlake = blake2(i.toString(), 32);
+            const rsBlake = blake2str(i.toString(), 32);
         }
         console.timeEnd("blake_rs");
     });
