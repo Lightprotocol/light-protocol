@@ -36,3 +36,4 @@ jobs:
             macros
             light-macros
             aligned-sized
+            macro-circom
