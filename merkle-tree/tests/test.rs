@@ -1,7 +1,5 @@
-#[cfg(feature = "solana")]
 use core::mem;
 
-#[cfg(feature = "solana")]
 use light_merkle_tree::HashFunction;
 use light_merkle_tree::{
     config,
@@ -10,7 +8,6 @@ use light_merkle_tree::{
     MerkleTree,
 };
 
-#[cfg(feature = "solana")]
 mod test_config {
     use anchor_lang::prelude::*;
 
@@ -26,15 +23,12 @@ mod test_config {
 
 #[test]
 fn test_sha256() {
-    #[cfg(feature = "solana")]
     let mut merkle_tree = {
         let mut merkle_tree: MerkleTree<Sha256, test_config::Sha256MerkleTreeConfig> =
             unsafe { mem::zeroed() };
         merkle_tree.init(3, HashFunction::Sha256);
         merkle_tree
     };
-    #[cfg(not(feature = "solana"))]
-    let mut merkle_tree = MerkleTree::<Sha256, config::Sha256MerkleTreeConfig>::new(3);
 
     let h = merkle_tree.hash([1; 32], [1; 32]);
     let h = merkle_tree.hash(h, h);
@@ -43,15 +37,12 @@ fn test_sha256() {
 
 #[test]
 fn test_merkle_tree_insert() {
-    #[cfg(feature = "solana")]
     let mut merkle_tree = {
         let mut merkle_tree: MerkleTree<Sha256, test_config::Sha256MerkleTreeConfig> =
             unsafe { mem::zeroed() };
         merkle_tree.init(3, HashFunction::Sha256);
         merkle_tree
     };
-    #[cfg(not(feature = "solana"))]
-    let mut merkle_tree = MerkleTree::<Sha256, config::Sha256MerkleTreeConfig>::new(3);
 
     let h1 = merkle_tree.hash([1; 32], [2; 32]);
     let h2 = merkle_tree.hash(h1, constants::sha256::ZERO_BYTES[1]);

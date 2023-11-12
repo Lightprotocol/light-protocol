@@ -11,6 +11,3 @@ bytemuck = "1.13.1"
 
 [dev-dependencies]
 sha2 = "0.10"
-
-[features]
-solana = []

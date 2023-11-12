@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-#[cfg(feature = "solana")]
 use anchor_lang::prelude::*;
 
 use bytemuck::{Pod, Zeroable};
@@ -16,7 +15,6 @@ pub const HASH_LEN: usize = 32;
 pub const MAX_HEIGHT: usize = 18;
 pub const MERKLE_TREE_HISTORY_SIZE: usize = 20;
 
-#[cfg(feature = "solana")]
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum HashFunction {
     Sha256,
@@ -25,8 +23,7 @@ pub enum HashFunction {
 
 // TODO(vadorovsky): Teach Anchor to accept `usize`, constants and const
 // generics when generating IDL.
-#[cfg_attr(feature = "solana", derive(AnchorSerialize, AnchorDeserialize))]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug, Clone, Copy)]
 #[repr(C)]
 pub struct MerkleTree<H, C>
 where
@@ -46,7 +43,6 @@ where
     pub current_root_index: u64,
 
     /// Hash implementation used on the Merkle tree.
-    #[cfg(feature = "solana")]
     pub hash_function: HashFunction,
 
     hasher: PhantomData<H>,
@@ -80,30 +76,8 @@ where
         roots
     }
 
-    /// Create a new Merkle tree with the given height.
-    #[cfg(not(feature = "solana"))]
-    pub fn new(height: usize, #[cfg(feature = "solana")] hash_function: HashFunction) -> Self {
-        Self::check_height(height);
-
-        let filled_subtrees = Self::new_filled_subtrees(height);
-        let roots = Self::new_roots(height);
-
-        MerkleTree {
-            height: height as u64,
-            filled_subtrees,
-            roots,
-            next_index: 0,
-            current_root_index: 0,
-            #[cfg(feature = "solana")]
-            hash_function,
-            hasher: PhantomData,
-            config: PhantomData,
-        }
-    }
-
     /// Initialize the Merkle tree with subtrees and roots based on the given
     /// height.
-    #[cfg(feature = "solana")]
     pub fn init(&mut self, height: usize, hash_function: HashFunction) {
         Self::check_height(height);
 
@@ -190,7 +164,6 @@ where
 {
 }
 
-#[cfg(feature = "solana")]
 impl<H, C> Owner for MerkleTree<H, C>
 where
     H: Hasher,
