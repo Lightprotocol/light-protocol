@@ -39,6 +39,7 @@ describe("light web-app", () => {
     cy.get("form", { timeout: 0 }).should("not.exist");
   });
 
+  
   it("should fill form and shield", () => {
     // Open modal
     cy.get('button:contains("Shield & Send")').click();

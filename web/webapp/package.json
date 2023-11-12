@@ -13,6 +13,7 @@
     "cypress:run": "cypress run"
   },
   "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
     "@emotion/react": "^11.11.1",
     "@lightprotocol/zk.js": "workspace:*",
     "@mantine/core": "^7.1.5",
@@ -21,8 +22,10 @@
     "@mantine/modals": "^7.1.5",
     "@mantine/notifications": "^7.1.5",
     "@solana/wallet-adapter-react": "^0.15.35",
+    "@solana/web3.js": "^1.87.6",
     "@tabler/icons-react": "^2.39.0",
     "@tanstack/react-query": "^4.35.7",
+    "date-fns": "^2.30.0",
     "jotai": "^2.4.3",
     "postcss-preset-mantine": "^1.9.0",
     "react": "latest",
