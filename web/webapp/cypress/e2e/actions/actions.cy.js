@@ -9,7 +9,8 @@ Cypress.on("uncaught:exception", (err, runnable) => {
 
 describe("light web-app", () => {
   beforeEach(() => {
-    cy.visit("http://localhost:3000/");
+    cy.wait(15000);
+    cy.visit("http://127.0.0.1:5000/");
     // wait for login
     cy.contains("My assets", { timeout: 10000 }).should("be.visible");
   });
@@ -39,7 +40,6 @@ describe("light web-app", () => {
     cy.get("form", { timeout: 0 }).should("not.exist");
   });
 
-  
   it("should fill form and shield", () => {
     // Open modal
     cy.get('button:contains("Shield & Send")').click();
