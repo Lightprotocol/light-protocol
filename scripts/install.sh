@@ -31,14 +31,17 @@ download_file() {
     echo "📥 Downloading ${dest_name}"
 
     for i in {0..$MAX_RETRIES}; do
-        curl --retry "${MAX_RETRIES}" --retry-delay 10 -L -o "${dest}/${dest_name}" "${url}"
-        
+        curl --fail --retry "${MAX_RETRIES}" --retry-delay 10 -L -o "${dest}/${dest_name}" "${url}"
         # Check if the file exists
         if [ -f "${dest}/${dest_name}" ]; then
             chmod +x "${dest}/${dest_name}"
             break
-        else
+     else
             echo "Failed to download ${dest_name}. Retrying ($i of $MAX_RETRIES)..."
+            if [ $i -eq $MAX_RETRIES ]; then
+                echo "Failed to download ${dest_name} after $MAX_RETRIES attempts."
+                exit 1
+            fi
         fi
     done
 }
