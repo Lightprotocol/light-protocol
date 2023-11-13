@@ -24,7 +24,7 @@
 
 import * as crypto from "crypto";
 import assert from "assert";
-const { eddsa } = require("./eddsa");
+const eddsa = require("./eddsa");
 const ff = require("ffjavascript");
 const createBlakeHash = require("blake-hash");
 
