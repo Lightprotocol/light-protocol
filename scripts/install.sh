@@ -36,7 +36,7 @@ download_file() {
         if [ -f "${dest}/${dest_name}" ]; then
             chmod +x "${dest}/${dest_name}"
             break
-     else
+        else
             echo "Failed to download ${dest_name}. Retrying ($i of $MAX_RETRIES)..."
             if [ $i -eq $MAX_RETRIES ]; then
                 echo "Failed to download ${dest_name} after $MAX_RETRIES attempts."

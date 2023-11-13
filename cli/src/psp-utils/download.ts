@@ -149,50 +149,65 @@ export async function downloadFile({
   url: string;
 }) {
   console.log(`📥 Downloading ${url}...`);
-  const { data, headers } = await axios({
-    url,
-    method: "GET",
-    responseType: "stream",
-  });
 
-  const totalLength = headers["content-length"];
-  const progressBar = new cliProgress.SingleBar(
-    {},
-    cliProgress.Presets.shades_classic
-  );
-  progressBar.start(totalLength, 0);
-
-  data.on("data", (chunk: any) => {
-    progressBar.increment(chunk.length);
-  });
-
-  data.on("end", () => {
-    progressBar.stop();
-  });
-
-  // If the file is a tar.gz file, decompress it while it's being written.
-  if (url.endsWith(".tar.gz")) {
-    console.log(`📦 Extracting ${url}...`);
-    const decompressor = zlib.createGunzip();
-    return handleTarFile({
-      decompressor,
-      data,
-      localFilePath,
-      dirPath,
-    });
-  } else {
-    if (!localFilePath) throw new Error("localFilePath is undefined");
-    const writeStream = fs.createWriteStream(localFilePath);
-    data.pipe(writeStream);
-
-    return new Promise<void>((resolve, reject) => {
-      writeStream.on("finish", () => {
-        // Make the file executable after it has been written.
-        makeExecutable(localFilePath);
-        resolve();
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      const { data, headers } = await axios({
+        url,
+        method: "GET",
+        responseType: "stream",
       });
-      writeStream.on("error", reject);
-    });
+
+      const totalLength = headers["content-length"];
+      const progressBar = new cliProgress.SingleBar(
+        {},
+        cliProgress.Presets.shades_classic
+      );
+      progressBar.start(totalLength, 0);
+
+      data.on("data", (chunk: any) => {
+        progressBar.increment(chunk.length);
+      });
+
+      data.on("end", () => {
+        progressBar.stop();
+      });
+
+      // If the file is a tar.gz file, decompress it while it's being written.
+      if (url.endsWith(".tar.gz")) {
+        console.log(`📦 Extracting ${url}...`);
+        const decompressor = zlib.createGunzip();
+        await handleTarFile({
+          decompressor,
+          data,
+          localFilePath,
+          dirPath,
+        });
+      } else {
+        if (!localFilePath) throw new Error("localFilePath is undefined");
+        const writeStream = fs.createWriteStream(localFilePath);
+        data.pipe(writeStream);
+
+        return new Promise<void>((resolve, reject) => {
+          writeStream.on("finish", () => {
+            // Make the file executable after it has been written.
+            makeExecutable(localFilePath);
+            resolve();
+          });
+          writeStream.on("error", reject);
+        });
+      }
+
+      break;
+    } catch (error) {
+      retries--;
+      console.error(`Failed to download ${url}. Retries left: ${retries}`);
+      if (retries <= 0) {
+        throw new Error(`Failed to download ${url} after multiple attempts.`);
+      }
+      await sleep(1000);
+    }
   }
 }
 
