@@ -1,5 +1,6 @@
 import { executeCargoGenerate } from "./toolchain";
-import { PSP_DEFAULT_PROGRAM_ID, PSP_TEMPLATE_TAG } from "./constants";
+import { PSP_DEFAULT_PROGRAM_ID } from "./constants";
+import { kebabCase } from "case-anything";
 import {
   camelToScreamingSnake,
   toCamelCase,
@@ -8,29 +9,32 @@ import {
 
 export const addCircuit = async ({
   name,
-  circom,
+  flags,
 }: {
   name: string;
-  circom?: boolean;
+  flags: any;
 }) => {
   const circomName = toSnakeCase(name);
   const rustName = toSnakeCase(name);
-  const circuit_template = circom
-    ? "psp-template/circuits/circuit_circom"
-    : "psp-template/circuits/circuit_psp";
+  const circuit_template = flags.circom
+    ? "psp-template/circuits/program_name/circuit_circom"
+    : "psp-template/circuits/program_name/circuit_psp";
+  const templateSource = flags.path
+    ? ["--path", flags.path]
+    : [
+        ["--git", flags.git],
+        flags.tag
+          ? ["--tag", flags.tag]
+          : flags.branch
+          ? ["--branch", flags.branch]
+          : ["--branch", "main"],
+      ];
+  const baseDir = findDirectoryAnchorBaseDirectory(process.cwd());
 
   await executeCargoGenerate({
     args: [
       "generate",
-      "--git",
-      "https://github.com/Lightprotocol/psp-template",
-      // TODO(vadorovsky): Switch back to tag when
-      // https://github.com/Lightprotocol/psp-template/pull/12
-      // is merged and released.
-      "--branch",
-      "main",
-      // "--tag",
-      // PSP_TEMPLATE_TAG,
+      ...templateSource.flat(),
       circuit_template,
       "--name",
       name,
@@ -47,8 +51,52 @@ export const addCircuit = async ({
       "--vcs",
       "none",
       "--destination",
-      `${process.cwd()}/circuits`,
+      `${baseDir}/circuits/${kebabCase(flags.programName)}`,
       "--force",
     ],
   });
 };
+
+import * as fs from "fs";
+import * as path from "path";
+
+export function findDirectoryAnchorBaseDirectory(startPath: string): string {
+  let currentDir = startPath;
+
+  // Check if Anchor.toml exists in the current directory
+  while (currentDir !== path.parse(currentDir).root) {
+    // Check until we reach the root
+    if (fs.existsSync(path.join(currentDir, "Anchor.toml"))) {
+      return currentDir;
+    }
+    currentDir = path.resolve(currentDir, ".."); // Move to the parent directory
+  }
+
+  throw new Error(
+    `Could not find Anchor.toml in the current directory or any parent directory: ${startPath}`
+  );
+}
+
+export function getSubdirectories(baseDir: string): string[] {
+  // Check if 'programs' subdirectory exists
+  const programsPath = path.join(baseDir, "programs");
+  if (
+    !fs.existsSync(programsPath) ||
+    !fs.statSync(programsPath).isDirectory()
+  ) {
+    throw new Error(
+      `The "programs" directory does not exist in the anchor project: ${baseDir}`
+    );
+  }
+
+  // Read the 'programs' directory and filter out non-directory files.
+  return fs
+    .readdirSync(programsPath, { withFileTypes: true })
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => dirent.name);
+}
+
+export function findAnchorPrograms(): { programs: string[]; baseDir: string } {
+  const baseDir = findDirectoryAnchorBaseDirectory(process.cwd());
+  return { programs: getSubdirectories(baseDir), baseDir };
+}

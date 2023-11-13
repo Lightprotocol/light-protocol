@@ -22,4 +22,4 @@ default = "PSP"
 ignore = [ "circuit_circom" ]
 
 [conditional.'type == "circom"']
-ignore = [ "circuit" ]
+ignore = [ "circuit_psp" ]

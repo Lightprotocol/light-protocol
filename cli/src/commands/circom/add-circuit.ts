@@ -1,6 +1,6 @@
-import { Args, Command } from "@oclif/core";
+import { Args, Command, Flags } from "@oclif/core";
 import { addCircuit } from "../../psp-utils/addCircuit";
-
+import { initFlags } from "../../psp-utils/init";
 export default class InitCommand extends Command {
   static description =
     "Add a circom circuit to your anchor circom or PSP project.";
@@ -12,13 +12,19 @@ export default class InitCommand extends Command {
       required: true,
     }),
   };
-
+  static flags = {
+    programName: Flags.string({
+      description: "The program the circuit will be verified in.",
+      required: true,
+    }),
+    ...initFlags,
+  };
   async run() {
-    const { args } = await this.parse(InitCommand);
+    const { args, flags } = await this.parse(InitCommand);
     const { name } = args;
 
     this.log("🚀 Adding a circuit...");
-    await addCircuit({ name, circom: true });
+    await addCircuit({ name, flags: { ...flags, circom: true } });
     this.log("✅ Project initialized successfully");
   }
 }

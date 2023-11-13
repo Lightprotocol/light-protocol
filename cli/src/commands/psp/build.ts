@@ -18,7 +18,7 @@ export default class BuildCommand extends Command {
     name: Args.string({
       name: "NAME",
       description: "The name of the PSP project.",
-      required: true,
+      required: false,
     }),
   };
   async run() {
@@ -26,6 +26,6 @@ export default class BuildCommand extends Command {
     const { name } = args;
     this.log("building PSP...");
 
-    await buildPSP({ ...flags, programName: name! });
+    await buildPSP({ ...flags, programName: name });
   }
 }

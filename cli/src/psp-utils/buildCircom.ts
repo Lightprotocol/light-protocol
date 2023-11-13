@@ -15,12 +15,12 @@ import { toSnakeCase, createVerifyingkeyRsFile } from "@lightprotocol/zk.js";
  * @param circuitName - The name of the circuit to be generated.
  * @returns {Promise<void>}
  */
-export async function generateCircuit({
+export async function compileCircuit({
   circuitName,
   ptau,
-  programName,
-  circuitPath = "./circuits",
   linkedCircuitLibraries = [],
+  programName,
+  circuitPath = "./circuits/" + programName + "/",
 }: {
   circuitName: string;
   ptau: number;
@@ -31,7 +31,15 @@ export async function generateCircuit({
   const POWERS_OF_TAU = ptau;
   const ptauFileName = `ptau${POWERS_OF_TAU}`;
   const buildDir = "./target";
-  const sdkBuildCircuitDir = "./build-circuit";
+  const sdkBuildCircuitDir =
+    "./build-circuit/" + programName + "/" + circuitName;
+  const ptauFilePath = buildDir + "/" + ptauFileName;
+  const vKeyJsonPath = sdkBuildCircuitDir + `/verifyingkey${circuitName}.json`;
+  const vKeyRsPath =
+    "./programs/" +
+    programName +
+    `/src/verifying_key_${toSnakeCase(circuitName)}.rs`;
+  const artifactPath = sdkBuildCircuitDir + "/" + circuitName;
 
   if (!fs.existsSync(buildDir)) {
     fs.mkdirSync(buildDir, { recursive: true });
@@ -41,7 +49,6 @@ export async function generateCircuit({
     fs.mkdirSync(sdkBuildCircuitDir, { recursive: true });
   }
 
-  const ptauFilePath = buildDir + "/" + ptauFileName;
   if (!fs.existsSync(ptauFilePath)) {
     console.log("Downloading powers of tau file");
     await downloadFile({
@@ -111,12 +118,6 @@ export async function generateCircuit({
     ],
   });
 
-  const vKeyJsonPath = sdkBuildCircuitDir + `/verifyingkey${circuitName}.json`;
-  const vKeyRsPath =
-    "./programs/" +
-    programName +
-    `/src/verifying_key_${toSnakeCase(circuitName)}.rs`;
-  const artifactPath = sdkBuildCircuitDir + "/" + circuitName;
   try {
     fs.unlinkSync(vKeyJsonPath);
   } catch (_) {

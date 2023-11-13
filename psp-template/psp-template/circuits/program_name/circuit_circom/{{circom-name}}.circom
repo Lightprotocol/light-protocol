@@ -1,5 +1,5 @@
 pragma circom 2.1.4;
-include "../../node_modules/circomlib/circuits/poseidon.circom";
+include "poseidon.circom";
 
 template {{circom-name}}() {
     signal input x;

@@ -21,13 +21,13 @@ describe("Test {{project-name}}", () => {
     const poseidon = await circomlibjs.buildPoseidon();
     const hash = poseidon.F.toString(poseidon([123]));
 
-    const circuitsPath: string = "build-circuit";
+    const circuitPath: string = `build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`;
     const proofInputs: any = {
       x: 123,
       hash: hash,
     };
 
-    const prover = new Prover(IDL, circuitsPath, "{{circom-name-camel-case}}");
+    const prover = new Prover(IDL, circuitPath, "{{circom-name-camel-case}}");
 
     await prover.addProofInputs(proofInputs);
     await prover.fullProve();

@@ -1,6 +1,6 @@
 [template]
 cargo_generate_version = ">=0.18.2"
-ignore = [ "circuits/cargo-generate.toml" ]
+ignore = [ "circuits/program_name/cargo-generate.toml", "programs_psp/program_name/cargo-generate.toml" ]
 
 [placeholders.circom-name]
 type = "string"
