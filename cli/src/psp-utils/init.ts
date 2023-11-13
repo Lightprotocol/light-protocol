@@ -95,7 +95,7 @@ export const initRepo = async (name: string, type: ProjectType, flags: any) => {
     `${process.cwd()}/${name}/programs`
   );
 
-  await executeCommandInDir("pnpm", ["install", "--no-frozen-lockfile"], name);
+  await executeCommandInDir("pnpm", ["install"], name);
 };
 
 export const cliFlags = {
