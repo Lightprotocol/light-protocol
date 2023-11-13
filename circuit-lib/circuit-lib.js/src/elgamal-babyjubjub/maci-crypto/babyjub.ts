@@ -1,6 +1,7 @@
 //@ts-nocheck
 /**
- * Ported from circomlib/babyjub such that we don't have to use maci-crypto
+ * This is a custom port with select functions of circomlib under GPL-3.0 license.
+ * See: https://github.com/weijiekoh/circomlib/blob/24ed08eee0bb613b8c0135d66c1013bd9f78d50a/src/babyjub.js
  */
 const F1Field = require("ffjavascript").F1Field;
 const Scalar = require("ffjavascript").Scalar;

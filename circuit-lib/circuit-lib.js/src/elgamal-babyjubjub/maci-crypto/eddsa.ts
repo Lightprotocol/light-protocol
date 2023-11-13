@@ -1,7 +1,9 @@
 //@ts-nocheck
 /**
- * Ported from circomlib/eddsa so that we don't have to use maci-crypto
+ * This is a custom port with select functions of circomlib under GPL-3.0 license.
+ * See: https://github.com/weijiekoh/circomlib/blob/24ed08eee0bb613b8c0135d66c1013bd9f78d50a/src/eddsa.js
  */
+
 const createBlakeHash = require("blake-hash");
 const babyJub = require("./babyjub");
 

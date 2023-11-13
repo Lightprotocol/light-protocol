@@ -1,9 +1,29 @@
 /**
- * Ported from maci-crypto, so we don't have to inherit their dependency issues
+ * MIT License
+ * Copyright (c) 2020 Barry WhiteHat, Kendrick Tan, Kobi Gurkan, Kirill Goncharov
+ * Cory Dickson, Han Jian, Chih-Cheng Liang, and Koh Wei Jie
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * This is a custom port of the maci-crypto library.
+ * See: https://github.com/privacy-scaling-explorations/maci/blob/aa4ba27f7e415c9d068da7346dff6105cb602fd7/crypto/ts/index.ts
+ *
  */
 
 import * as crypto from "crypto";
-import * as assert from "assert";
+import assert from "assert";
 const { eddsa } = require("./eddsa");
 const ff = require("ffjavascript");
 const createBlakeHash = require("blake-hash");
@@ -50,6 +70,7 @@ const genRandomBabyJubValue = (): BigInt => {
   }
 
   const privKey: PrivKey = rand % SNARK_FIELD_SIZE;
+  //@ts-ignore
   assert(privKey < SNARK_FIELD_SIZE);
 
   return privKey;
@@ -62,6 +83,7 @@ const genRandomBabyJubValue = (): BigInt => {
 const genPubKey = (privKey: PrivKey): PubKey => {
   // Check whether privKey is a field element
   privKey = BigInt(privKey.toString());
+  //@ts-ignore
   assert(privKey < SNARK_FIELD_SIZE);
   return eddsa.prv2pub(bigInt2Buffer(privKey));
 };
