@@ -1,4 +1,4 @@
 export const featureFlags = {
-    wasmBlake: true,
-    wasmPoseidon: true,
+  wasmBlake: true,
+  wasmPoseidon: true,
 };

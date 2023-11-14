@@ -62,5 +62,4 @@ mod tests {
 
         assert!(hash.is_err());
     }
-    
 }

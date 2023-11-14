@@ -35,8 +35,8 @@ const anchor = require("@coral-xyz/anchor");
 
 const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
-import {poseidon as wasmPoseidon} from "light-wasm";
-import {featureFlags} from "./featureFlags";
+import { poseidon as wasmPoseidon } from "light-wasm";
+import { featureFlags } from "./featureFlags";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const randomPrefixBytes = () => nacl.randomBytes(UTXO_PREFIX_LENGTH);
@@ -362,15 +362,14 @@ export class Utxo {
       }
       if (featureFlags.wasmPoseidon) {
         this.appDataHash = new BN(wasmPoseidon(hashArray), undefined, "be");
-      }
-      else {
+      } else {
         this.appDataHash = new BN(
-            leInt2Buff(
-                unstringifyBigInts(poseidon.F.toString(poseidon(hashArray))),
-                32,
-            ),
-            undefined,
-            "le",
+          leInt2Buff(
+            unstringifyBigInts(poseidon.F.toString(poseidon(hashArray))),
+            32,
+          ),
+          undefined,
+          "le",
         );
       }
 
