@@ -3,11 +3,9 @@ use js_sys::{Array, Uint8Array};
 use light_poseidon::{Poseidon, PoseidonBytesHasher};
 use num_bigint::BigUint;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
-// use web_sys::console;
 
 #[wasm_bindgen]
 pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {
-    // console::log_1(&"[wasm] enter poseidon".into());
     let len = inputs.length();
     let mut inputs_vec: Vec<Vec<u8>> = Vec::new();
     for index in 0..len {
@@ -22,9 +20,7 @@ pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {
             ));
         }
     }
-    // console::log_1(&format!("[wasm] input bytes = {:?}", inputs_vec).into());
     let hash_bytes = poseidon_hash(inputs_vec);
-    // console::log_1(&format!("[wasm] hash bytes = {:?}", hash_bytes).into());
     let js_arr = Uint8Array::from(&hash_bytes[..]);
     Ok(js_arr)
 }
@@ -52,7 +48,6 @@ mod tests {
         let input_of_1 = [vec![0u8; 31], vec![1u8]].concat();
         let inputs = vec![input_of_1];
         let hash = poseidon_hash(inputs);
-        // println!("{:?}", hash);
         assert_eq!(hash, hash_of_1);
     }
 
