@@ -6,20 +6,29 @@
   "scripts": {
     "build": "wasm-pack build --target nodejs",
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/wasm.test.ts --exit",
-    "test-wasm": "cargo test -- --nocapture"
+    "test-wasm": "cargo test -- --nocapture",
+    "bench-blake": "tsx ./benches/blake.test.ts",
+    "bench-poseidon": "tsx ./benches/poseidon.test.ts",
+    "bench": "pnpm run bench-blake && pnpm run bench-poseidon"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "module",
   "devDependencies": {
-    "tweetnacl": "^1.0.3",
     "@coral-xyz/anchor": "^0.29.0",
     "@lightprotocol/tsconfig": "workspace:*",
+    "@noble/hashes": "^1.3.2",
     "@types/chai": "^4.3.9",
     "@types/mocha": "^10.0.3",
     "chai": "^4.3.10",
     "chai-as-promised": "^7.1.1",
+    "circomlibjs": "^0.1.7",
     "mocha": "^10.2.0",
-    "ts-mocha": "^10.0.0"
+    "tinybench": "^2.5.1",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1",
+    "tsx": "^4.1.2",
+    "tweetnacl": "^1.0.3"
   }
 }
