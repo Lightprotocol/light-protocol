@@ -1,8 +1,8 @@
-import {featureFlags} from "./featureFlags";
+import { featureFlags } from "./featureFlags";
 
 const nacl = require("tweetnacl");
-import {box, sign} from "tweetnacl";
-import {BN, utils} from "@coral-xyz/anchor";
+import { box, sign } from "tweetnacl";
+import { BN, utils } from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
@@ -14,20 +14,21 @@ import {
   STANDARD_SHIELDED_PUBLIC_KEY,
   TransactionErrorCode,
   TransactionParameters,
-  TransactionParametersErrorCode, truncateToCircuit,
+  TransactionParametersErrorCode,
+  truncateToCircuit,
   Utxo,
   UtxoErrorCode,
   Wallet,
 } from "./index";
 
-import {blake2, blake2str, poseidon as wasmPoseidon } from "light-wasm";
+import { blake2, blake2str, poseidon as wasmPoseidon } from "light-wasm";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 
-import {Keypair, PublicKey} from "@solana/web3.js";
-import {bs58} from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import {Result} from "./types";
-import {Prover} from "@lightprotocol/prover.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Result } from "./types";
+import { Prover } from "@lightprotocol/prover.js";
 
 const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 const ffjavascript = require("ffjavascript");
@@ -109,7 +110,7 @@ export class Account {
           "seed is required to create a burner account",
         );
       }
-      let decoded_seed = bs58.decode(seed);
+      const decoded_seed = bs58.decode(seed);
       if (decoded_seed.length !== 32) {
         throw new AccountError(
           AccountErrorCode.INVALID_SEED_SIZE,
@@ -128,12 +129,12 @@ export class Account {
         this.burnerSeed.toString(),
       );
       this.aesSecret = Account.generateSecret(
-          b2params.dkLen,
+        b2params.dkLen,
         this.burnerSeed.toString(),
         "aes",
       );
       this.hashingSecret = Account.generateSecret(
-          b2params.dkLen,
+        b2params.dkLen,
         this.burnerSeed.toString(),
         "hashing",
       );
@@ -180,7 +181,7 @@ export class Account {
         throw new AccountError(
           AccountErrorCode.INVALID_SEED_SIZE,
           "constructor",
-            "Seed length is less than 32"
+          "Seed length is less than 32",
         );
       }
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
@@ -189,7 +190,7 @@ export class Account {
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(seed);
       this.aesSecret = Account.generateSecret(b2params.dkLen, seed, "aes");
       this.hashingSecret = Account.generateSecret(
-          b2params.dkLen,
+        b2params.dkLen,
         seed,
         "hashing",
       );
@@ -227,11 +228,16 @@ export class Account {
     return this.poseidonEddsaKeypair.publicKey;
   }
 
-  static getEddsaPrivateKey(seed: string, useWasmBlake: boolean = featureFlags.wasmBlake) {
+  static getEddsaPrivateKey(
+    seed: string,
+    useWasmBlake: boolean = featureFlags.wasmBlake,
+  ) {
     const privkeySeed = seed + "poseidonEddsaKeypair";
     return {
       publicKey: undefined,
-      privateKey: useWasmBlake ? blake2str(privkeySeed, Account.hashLength) : blake2b.create(b2params).update(privkeySeed).digest()
+      privateKey: useWasmBlake
+        ? blake2str(privkeySeed, Account.hashLength)
+        : blake2b.create(b2params).update(privkeySeed).digest(),
     };
   }
 
@@ -277,11 +283,16 @@ export class Account {
 
   sign(poseidon: any, commitment: string, merklePath: number) {
     if (featureFlags.wasmPoseidon) {
-      return new BN(wasmPoseidon([this.privkey.toString(), commitment.toString(), merklePath.toString()]));
-    }
-    else {
+      return new BN(
+        wasmPoseidon([
+          this.privkey.toString(),
+          commitment.toString(),
+          merklePath.toString(),
+        ]),
+      );
+    } else {
       return poseidon.F.toString(
-          poseidon([this.privkey.toString(), commitment.toString(), merklePath]),
+        poseidon([this.privkey.toString(), commitment.toString(), merklePath]),
       );
     }
   }
@@ -291,7 +302,7 @@ export class Account {
     salt: string,
   ): Uint8Array {
     return Account.generateSecret(
-        b2params.dkLen,
+      b2params.dkLen,
       this.aesSecret?.toString(),
       merkleTreePdaPublicKey.toBase58() + salt,
     );
@@ -299,22 +310,33 @@ export class Account {
 
   getUtxoPrefixViewingKey(salt: string): Uint8Array {
     return Account.generateSecret(
-        b2params.dkLen,
+      b2params.dkLen,
       this.hashingSecret?.toString(),
       salt,
     );
   }
 
-  generateUtxoPrefixHash(commitmentHash: Uint8Array, prefixLength: number, useWasmBlake: boolean = featureFlags.wasmBlake) {
+  generateUtxoPrefixHash(
+    commitmentHash: Uint8Array,
+    prefixLength: number,
+    useWasmBlake: boolean = featureFlags.wasmBlake,
+  ) {
     const input = Uint8Array.from([
       ...this.getUtxoPrefixViewingKey("hashing"),
       ...commitmentHash,
     ]);
 
-    return useWasmBlake ? blake2(input, prefixLength) : blake2b.create({ "dkLen": prefixLength }).update(input).digest();
+    return useWasmBlake
+      ? blake2(input, prefixLength)
+      : blake2b.create({ dkLen: prefixLength }).update(input).digest();
   }
 
-  static createBurner(poseidon: any, seed: string, index: BN, useWasmBlake: boolean  = featureFlags.wasmBlake): Account {
+  static createBurner(
+    poseidon: any,
+    seed: string,
+    index: BN,
+    useWasmBlake: boolean = featureFlags.wasmBlake,
+  ): Account {
     if (bs58.decode(seed).length !== 32) {
       throw new AccountError(
         AccountErrorCode.INVALID_SEED_SIZE,
@@ -324,11 +346,8 @@ export class Account {
     }
     const input = seed + "burnerSeed" + index.toString();
     const burnerSeed = useWasmBlake
-        ? blake2str(input, Account.hashLength)
-        : blake2b
-          .create(b2params)
-          .update(input)
-          .digest();
+      ? blake2str(input, Account.hashLength)
+      : blake2b.create(b2params).update(input).digest();
     const burnerSeedString = bs58.encode(burnerSeed);
     return new Account({ poseidon, seed: burnerSeedString, burner: true });
   }
@@ -395,9 +414,8 @@ export class Account {
       throw new AccountError(
         AccountErrorCode.INVALID_PUBLIC_KEY_SIZE,
         "fromPubkey",
-          `Invalid length: ${decoded.length} bytes. Expected 64 bytes for publicKey, 
+        `Invalid length: ${decoded.length} bytes. Expected 64 bytes for publicKey, 
           where the first 32 are the shielded key and the second 32 are the encryption key.`,
-
       );
 
     const pubKey = new BN(decoded.subarray(0, 32), undefined, "be");
@@ -416,20 +434,26 @@ export class Account {
     return bs58.encode(concatPublicKey);
   }
 
-  static getEncryptionKeyPair(seed: string, useWasmBlake: boolean = featureFlags.wasmBlake): nacl.BoxKeyPair {
+  static getEncryptionKeyPair(
+    seed: string,
+    useWasmBlake: boolean = featureFlags.wasmBlake,
+  ): nacl.BoxKeyPair {
     const encSeed = seed + "encryption";
     const encryptionPrivateKey = useWasmBlake
-        ? blake2str(encSeed, Account.hashLength)
-        : blake2b
-          .create(b2params)
-          .update(encSeed)
-          .digest();
-      return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
+      ? blake2str(encSeed, Account.hashLength)
+      : blake2b.create(b2params).update(encSeed).digest();
+    return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
   }
 
-  static generateShieldedPrivateKey(seed: string, poseidon: any, useWasmBlake: boolean = featureFlags.wasmBlake): BN {
+  static generateShieldedPrivateKey(
+    seed: string,
+    poseidon: any,
+    useWasmBlake: boolean = featureFlags.wasmBlake,
+  ): BN {
     const privkeySeed = seed + "shielded";
-    const blakeHash: Uint8Array = useWasmBlake ? blake2str(privkeySeed, Account.hashLength) : blake2b.create(b2params).update(privkeySeed).digest();
+    const blakeHash: Uint8Array = useWasmBlake
+      ? blake2str(privkeySeed, Account.hashLength)
+      : blake2b.create(b2params).update(privkeySeed).digest();
     const blakeHash31 = truncateToCircuit(blakeHash);
     const blakeHashBN = new BN(blakeHash31);
     let privateKey: BN;
@@ -442,22 +466,23 @@ export class Account {
   }
 
   static generateSecret(
-      dkLen: number,
+    dkLen: number,
     seed?: string,
     domain?: string,
-    useWasmBlake: boolean = featureFlags.wasmBlake
+    useWasmBlake: boolean = featureFlags.wasmBlake,
   ): Uint8Array {
     const input: string = `${seed}${domain}`;
     return useWasmBlake
-        ? blake2str(input, Account.hashLength)
-        : Uint8Array.from(blake2b.create({ dkLen }).update(`${seed}${domain}`).digest())
+      ? blake2str(input, Account.hashLength)
+      : Uint8Array.from(
+          blake2b.create({ dkLen }).update(`${seed}${domain}`).digest(),
+        );
   }
 
   static generateShieldedPublicKey(privateKey: BN, poseidon: any): BN {
     if (featureFlags.wasmPoseidon) {
       return new BN(wasmPoseidon([privateKey.toString()]));
-    }
-    else {
+    } else {
       return new BN(poseidon.F.toString(poseidon([privateKey])));
     }
   }

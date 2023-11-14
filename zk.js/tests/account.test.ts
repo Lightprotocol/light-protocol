@@ -10,7 +10,7 @@ const circomlibjs = require("circomlibjs");
 const { buildBabyjub, buildEddsa } = circomlibjs;
 const ffjavascript = require("ffjavascript");
 const { Scalar } = ffjavascript;
-import {blake2str, poseidon as wasmPoseidon} from "light-wasm";
+import { blake2str, poseidon as wasmPoseidon } from "light-wasm";
 import {
   Account,
   AccountError,
@@ -21,21 +21,24 @@ import {
   useWallet,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import {featureFlags} from "../src/featureFlags";
+import { featureFlags } from "../src/featureFlags";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 const seed32 = (): string => {
   return bs58.encode(new Uint8Array(32).fill(1));
-}
+};
 const seed32_2 = (): string => {
   return bs58.encode(new Uint8Array(32).fill(2));
-}
+};
 
 const keypairReferenceAccount = {
-  encryptionPublicKey: "187,15,119,127,223,162,69,232,129,87,132,195,89,178,128,174,220,77,191,34,63,115,138,98,193,57,4,92,247,18,190,114",
-  privkey: "7314374631704302594235695652925685842509708564100145210880269088513605645300",
-  pubkey: "6391168142226478154718281169178137802178553836996014555114884736358424922672",
+  encryptionPublicKey:
+    "187,15,119,127,223,162,69,232,129,87,132,195,89,178,128,174,220,77,191,34,63,115,138,98,193,57,4,92,247,18,190,114",
+  privkey:
+    "7314374631704302594235695652925685842509708564100145210880269088513605645300",
+  pubkey:
+    "6391168142226478154718281169178137802178553836996014555114884736358424922672",
   eddsaSignature:
     "149,4,55,200,119,181,112,89,28,114,19,62,250,125,9,166,167,0,255,21,231,177,123,126,100,125,212,10,93,27,186,172,107,200,130,11,182,98,146,73,73,248,205,73,73,217,201,196,85,249,115,198,152,225,175,160,254,131,131,146,148,73,211,1",
 };
@@ -100,15 +103,17 @@ describe("Test Account Functional", () => {
     y = new Array(31).fill(2);
     y[30] = 1;
 
-    const hash1 =wasmPoseidon([new BN(x).toString(), new BN(y).toString()]);
+    const hash1 = wasmPoseidon([new BN(x).toString(), new BN(y).toString()]);
     assert.notEqual(hash, hash1);
   });
-
 
   it("Test Poseidon Eddsa Keypair", async () => {
     const k0 = new Account({ poseidon, seed: seed32(), eddsa });
 
-    const prvKey = blake2str(seed32() + "poseidonEddsaKeypair", Account.hashLength);
+    const prvKey = blake2str(
+      seed32() + "poseidonEddsaKeypair",
+      Account.hashLength,
+    );
     const pubKey = eddsa.prv2pub(prvKey);
     await k0.getEddsaPublicKey();
     if (k0.poseidonEddsaKeypair && k0.poseidonEddsaKeypair.publicKey) {
@@ -365,7 +370,10 @@ describe("Test Account Functional", () => {
     const commitmentHash = new Uint8Array(32).fill(1);
     const prefixLength = 4;
     const expectedOutput: Uint8Array = new Uint8Array([55, 154, 4, 63]);
-    const currentOutput = k0.generateUtxoPrefixHash(commitmentHash, prefixLength);
+    const currentOutput = k0.generateUtxoPrefixHash(
+      commitmentHash,
+      prefixLength,
+    );
     return expect(currentOutput).to.eql(expectedOutput);
   });
 

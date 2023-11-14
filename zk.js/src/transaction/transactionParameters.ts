@@ -38,8 +38,8 @@ import {
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import nacl from "tweetnacl";
-import {featureFlags} from "../featureFlags";
-import {poseidon as wasmPoseidon} from "light-wasm";
+import { featureFlags } from "../featureFlags";
+import { poseidon as wasmPoseidon } from "light-wasm";
 
 type VerifierConfig = {
   in: number;
@@ -1207,20 +1207,27 @@ export class TransactionParameters implements transactionParameters {
       );
 
     if (featureFlags.wasmPoseidon) {
-      const inputHasher = wasmPoseidon(this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))).toString();
-      const outputHasher = wasmPoseidon(this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon))).toString();
-      const transactionHash = wasmPoseidon(poseidon([inputHasher, outputHasher, this.txIntegrityHash.toString()])).toString();
+      const inputHasher = wasmPoseidon(
+        this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+      ).toString();
+      const outputHasher = wasmPoseidon(
+        this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+      ).toString();
+      const transactionHash = wasmPoseidon(
+        poseidon([inputHasher, outputHasher, this.txIntegrityHash.toString()]),
+      ).toString();
       return transactionHash;
-    }
-    else {
+    } else {
       const inputHasher = poseidon.F.toString(
-          poseidon(this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
+        poseidon(this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
       );
       const outputHasher = poseidon.F.toString(
-          poseidon(this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
+        poseidon(
+          this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+        ),
       );
       const transactionHash = poseidon.F.toString(
-          poseidon([inputHasher, outputHasher, this.txIntegrityHash.toString()]),
+        poseidon([inputHasher, outputHasher, this.txIntegrityHash.toString()]),
       );
       return transactionHash;
     }
