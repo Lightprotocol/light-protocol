@@ -47,35 +47,4 @@ describe("Test Account Functional", () => {
         const rsHash = Array.from(poseidon([inputs]));
         assert.equal(tsHash.toString(), rsHash.toString());
     });
-
-    it.skip("Performance blake", () => {
-        console.time("blake_ts");
-        for (let i = 0; i < 10e6; i++) {
-            const tsBlake = blake2b.create({ dkLen: 32 }).update(i.toString()).digest();
-        }
-        console.timeEnd("blake_ts");
-
-        console.time("blake_rs");
-        for (let i = 0; i < 10e6; i++) {
-            const rsBlake = blake2str(i.toString(), 32);
-        }
-        console.timeEnd("blake_rs");
-    });
-
-    it.skip("Performance poseidon", () => {
-        console.time("poseidon_ts");
-        for (let i = 0; i < 10e5; i++) {
-            const inputs = new BN(i).toString();
-            const tsPoseidonResult = circomPoseidon.F.toString(circomPoseidon([inputs]));
-        }
-        console.timeEnd("poseidon_ts");
-
-        console.time("poseidon_rs");
-        for (let i = 0; i < 10e5; i++) {
-            const inputs = new BN(i).toString();
-            const rsHash = poseidon([inputs]);
-        }
-        console.timeEnd("poseidon_rs");
-    });
-
 });
