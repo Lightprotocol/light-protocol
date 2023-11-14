@@ -352,7 +352,9 @@ export async function downloadCargoGenerateIfNotExists({
   localFilePath: string;
   dirPath: string;
 }) {
-  const tag = await latestRelease("cargo-generate", "cargo-generate");
+  // Fixed version because 11/11/23 release (v0.18.5) fails
+  // TODO: investigate why latest cargo-generate fails
+  const tag = "v0.18.4";
   let remoteFileName: string;
   switch (getSystem()) {
     case System.LinuxAmd64:
@@ -375,5 +377,6 @@ export async function downloadCargoGenerateIfNotExists({
     owner: "cargo-generate",
     repoName: "cargo-generate",
     remoteFileName,
+    tag,
   });
 }
