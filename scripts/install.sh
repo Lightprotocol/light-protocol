@@ -108,7 +108,7 @@ check_flag() {
     echo false
 }
 
-NODE_VERSION="16.20.1"
+NODE_VERSION="20.9.0"
 PNPM_VERSION="8.8.0"
 SOLANA_VERSION="1.16.13"
 ANCHOR_VERSION=`latest_release Lightprotocol anchor`
