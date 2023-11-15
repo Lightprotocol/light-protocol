@@ -7,13 +7,12 @@ import {
   Relayer,
   TOKEN_ACCOUNT_FEE,
   useWallet,
+  Poseidon
 } from "@lightprotocol/zk.js";
 import {
   EnvironmentVariableError,
   EnvironmentVariableErrorCode,
 } from "../errors";
-const circomlibjs = require("circomlibjs");
-
 require("dotenv").config();
 
 let provider: Provider;
@@ -51,7 +50,7 @@ export const getLightProvider = async () => {
 
     try {
       const anchorProvider = await getAnchorProvider();
-      const poseidon = await circomlibjs.buildPoseidonOpt();
+      const poseidon: Poseidon = await Poseidon.getInstance();
 
       provider = new Provider({
         wallet: useWallet(getKeyPairFromEnv("KEY_PAIR")),

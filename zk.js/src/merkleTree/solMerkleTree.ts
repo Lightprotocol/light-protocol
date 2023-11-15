@@ -8,7 +8,7 @@ import {
   SolMerkleTreeErrorCode,
   SolMerkleTreeError,
   Utxo,
-  BN_0,
+  BN_0, Poseidon,
 } from "../index";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
@@ -69,7 +69,7 @@ export class SolMerkleTree {
     provider,
   }: {
     pubkey: PublicKey;
-    poseidon: any;
+    poseidon: Poseidon;
     indexedTransactions: ParsedIndexedTransaction[];
     provider?: Provider;
   }) {
@@ -198,7 +198,7 @@ export class SolMerkleTree {
    * @description For input utxos with amounts == 0 it returns merkle paths with all elements = 0.
    */
   getMerkleProofs(
-    poseidon: any,
+    poseidon: Poseidon,
     inputUtxos: Utxo[],
   ): {
     inputMerklePathIndices: Array<string>;

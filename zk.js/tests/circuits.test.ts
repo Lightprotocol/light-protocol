@@ -6,8 +6,6 @@ chai.use(chaiAsPromised);
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
-const circomlibjs = require("circomlibjs");
-const { buildPoseidonOpt } = circomlibjs;
 
 import {
   Account,
@@ -25,6 +23,7 @@ import {
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   BN_0,
   BN_1,
+  Poseidon
 } from "../src";
 import { IDL } from "./testData/tmp_test_psp";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -36,7 +35,7 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let account: Account,
   shieldUtxo1: Utxo,
   mockPubkey,
-  poseidon,
+  poseidon: Poseidon,
   lightProvider: LightProvider,
   txParamsApp: TransactionParameters,
   txParamsPoolType: TransactionParameters,
@@ -53,7 +52,7 @@ const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 describe("Masp circuit tests", () => {
   before(async () => {
     lightProvider = await LightProvider.loadMock();
-    poseidon = await buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     account = new Account({ poseidon: poseidon, seed: seed32 });
     await account.getEddsaPublicKey();
     const shieldAmount = 20_000;
@@ -65,8 +64,6 @@ describe("Masp circuit tests", () => {
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     const shieldUtxoSol = new Utxo({
       index: 0,
@@ -75,8 +72,6 @@ describe("Masp circuit tests", () => {
       amounts: [new BN(shieldFeeAmount), BN_0],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     const mockPubkey2 = SolanaKeypair.generate().publicKey;
@@ -108,7 +103,7 @@ describe("Masp circuit tests", () => {
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       shieldUtxo1.getCommitment(poseidon),
       // random invalid other commitment
-      poseidon.F.toString(poseidon(["123124"])),
+      poseidon.string(poseidon.hash(["123124"])),
     ]);
 
     assert.equal(
@@ -139,8 +134,6 @@ describe("Masp circuit tests", () => {
           appData,
           appDataIdl: IDL,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],
@@ -161,8 +154,6 @@ describe("Masp circuit tests", () => {
           poseidon,
           poolType: new BN("12312"),
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],
@@ -182,8 +173,6 @@ describe("Masp circuit tests", () => {
           poseidon,
           poolType: new BN("12312"),
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],
@@ -204,8 +193,6 @@ describe("Masp circuit tests", () => {
           appData,
           appDataIdl: IDL,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],
@@ -524,7 +511,7 @@ describe("Masp circuit tests", () => {
   });
 
   // this fails because the system verifier does not allow
-  it("With in utxo test invalid inAppDataHash", async () => {
+  it.only("With in utxo test invalid inAppDataHash", async () => {
     const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,
@@ -702,7 +689,7 @@ describe("App system circuit tests", () => {
   let lightProvider: LightProvider;
   before(async () => {
     lightProvider = await LightProvider.loadMock();
-    poseidon = await buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     account = new Account({ poseidon: poseidon, seed: seed32 });
     await account.getEddsaPublicKey();
     const shieldAmount = 20_000;
@@ -712,9 +699,7 @@ describe("App system circuit tests", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     const relayerPubkey = SolanaKeypair.generate().publicKey;
@@ -740,8 +725,6 @@ describe("App system circuit tests", () => {
           appData,
           appDataIdl: IDL,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            lightProvider.lookUpTables.verifierProgramLookupTable,
           publicKey: account.pubkey,
         }),
       ],

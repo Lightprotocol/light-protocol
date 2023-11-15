@@ -6,7 +6,7 @@ const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-const circomlibjs = require("circomlibjs");
+
 import {
   ADMIN_AUTH_KEYPAIR,
   Provider,
@@ -29,12 +29,13 @@ import {
   useWallet,
   RELAYER_FEE,
   BN_1,
+  Poseidon
 } from "../../src";
 
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { expect } from "chai";
 
-let POSEIDON: any, RELAYER: TestRelayer, provider: Provider, user: User;
+let POSEIDON: Poseidon, RELAYER: TestRelayer, provider: Provider, user: User;
 
 describe("Test User", () => {
   // Configure the client to use the local cluster.
@@ -50,7 +51,7 @@ describe("Test User", () => {
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    POSEIDON = await Poseidon.getInstance();
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     await anchorProvider.connection.requestAirdrop(
@@ -134,9 +135,9 @@ describe("Test User", () => {
       provider: providerInternalSeed,
     });
 
-    const externalKey = await userExternal.account.getPublicKey();
-    const externalKey2 = await userExternal2.account.getPublicKey();
-    const internalKey = await userInternal.account.getPublicKey();
+    const externalKey = userExternal.account.getPublicKey();
+    const externalKey2 = userExternal2.account.getPublicKey();
+    const internalKey = userInternal.account.getPublicKey();
 
     expect(externalKey).to.deep.equal(internalKey);
     expect(externalKey2).to.not.deep.equal(internalKey);
@@ -435,7 +436,7 @@ describe("Test User Errors", () => {
       await createTestAccounts(providerAnchor.connection);
     }
 
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    POSEIDON = await Poseidon.getInstance();
     amount = 20;
     token = "USDC";
 

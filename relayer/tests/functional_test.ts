@@ -27,12 +27,10 @@ import {
   MerkleTreeConfig,
   Relayer,
   RELAYER_FEE,
-  TOKEN_ACCOUNT_FEE,
+  TOKEN_ACCOUNT_FEE, Poseidon,
 } from "@lightprotocol/zk.js";
 
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
-const circomlibjs = require("circomlibjs");
-const { buildPoseidonOpt } = circomlibjs;
 import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
@@ -44,7 +42,7 @@ const expect = chai.expect;
 const server = RELAYER_URL;
 
 describe("API tests", () => {
-  let poseidon: any;
+  let poseidon: Poseidon;
   let shieldAmount = 20_000;
   let shieldFeeAmount = 10_000;
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
@@ -63,7 +61,7 @@ describe("API tests", () => {
       "http://127.0.0.1:8899",
       confirmConfig,
     );
-    poseidon = await buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 9e8,

@@ -24,12 +24,11 @@ import {
   UtxoErrorCode,
   lightPsp4in4outAppStorageId,
   CreateUtxoErrorCode,
+  Poseidon
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { randomBytes } from "tweetnacl";
 
-const circomlibjs = require("circomlibjs");
-const { buildPoseidonOpt } = circomlibjs;
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
@@ -38,9 +37,9 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Utxo Functional", () => {
-  let poseidon: any, lightProvider: LightProvider;
+  let poseidon: Poseidon, lightProvider: LightProvider;
   before(async () => {
-    poseidon = await buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     // TODO: make fee mandatory
     lightProvider = await LightProvider.loadMock();
   });
@@ -415,7 +414,7 @@ describe("Utxo Functional", () => {
 describe("Utxo Errors", () => {
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
-  let poseidon: any, inputs: any, keypair: Account;
+  let poseidon: Poseidon, inputs: any, keypair: Account;
 
   const amountFee = "1";
   const amountToken = "2";
@@ -423,7 +422,7 @@ describe("Utxo Errors", () => {
   let lightProvider: LightProvider;
   before(async () => {
     lightProvider = await LightProvider.loadMock();
-    poseidon = await buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     inputs = {
       keypair: new Account({ poseidon, seed: seed32 }),
@@ -630,9 +629,9 @@ describe("Utxo Errors", () => {
 });
 
 describe("Utxo Benchmark", () => {
-  let poseidon: any, lightProvider: LightProvider;
+  let poseidon: Poseidon, lightProvider: LightProvider;
   before(async () => {
-    poseidon = await buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     lightProvider = await LightProvider.loadMock();
   });
 

@@ -12,8 +12,6 @@ import {
 } from "@solana/web3.js";
 import { it } from "mocha";
 
-const circomlibjs = require("circomlibjs");
-
 import {
   Action,
   TransactionParametersErrorCode,
@@ -33,6 +31,7 @@ import {
   BN_0,
   BN_1,
   BN_2,
+  Poseidon
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const numberMaxOutUtxos = 2;
@@ -42,7 +41,7 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test createOutUtxos Functional", () => {
-  let poseidon: any, k0: Account;
+  let poseidon: Poseidon, k0: Account;
 
   let splAmount: BN,
     solAmount: BN,
@@ -55,7 +54,7 @@ describe("Test createOutUtxos Functional", () => {
     lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     k0 = new Account({ poseidon, seed: seed32 });
     splAmount = new BN(3);
     solAmount = new BN(1e6);
@@ -69,8 +68,6 @@ describe("Test createOutUtxos Functional", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: k0.pubkey,
     });
     utxoSol = new Utxo({
@@ -78,8 +75,6 @@ describe("Test createOutUtxos Functional", () => {
       assets: [SystemProgram.programId],
       amounts: [new BN(1e6)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: k0.pubkey,
     });
     relayerFee = RELAYER_FEE;
@@ -550,7 +545,7 @@ describe("createRecipientUtxos", () => {
   let lightProvider: Provider;
   it("should create output UTXOs for each recipient", async () => {
     lightProvider = await Provider.loadMock();
-    const poseidon = await circomlibjs.buildPoseidonOpt();
+    const poseidon = await Poseidon.getInstance();
 
     const mint = MINT;
     const account1 = new Account({ poseidon, seed: seed32 });
@@ -598,13 +593,13 @@ describe("createRecipientUtxos", () => {
 });
 
 describe("validateUtxoAmounts", () => {
-  let poseidon: any,
+  let poseidon: Poseidon,
     assetPubkey: PublicKey,
     inUtxos: [Utxo, Utxo],
     lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     assetPubkey = new PublicKey(0);
     inUtxos = [
       createUtxo(poseidon, [new BN(5)], [assetPubkey]),
@@ -612,16 +607,14 @@ describe("validateUtxoAmounts", () => {
     ];
   });
   // Helper function to create a UTXO with specific amounts and assets
-  function createUtxo(poseidon: any, amounts: BN[], assets: PublicKey[]): Utxo {
+  function createUtxo(poseidon: Poseidon, amounts: BN[], assets: PublicKey[]): Utxo {
     return new Utxo({
       poseidon,
       amounts,
       assets,
       blinding: BN_0,
       publicKey: new Account({ poseidon }).pubkey,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
   }
 
@@ -651,7 +644,7 @@ describe("validateUtxoAmounts", () => {
 });
 
 describe("Test createOutUtxos Errors", () => {
-  let poseidon: any, k0: Account;
+  let poseidon: Poseidon, k0: Account;
 
   let splAmount: BN,
     token,
@@ -661,7 +654,7 @@ describe("Test createOutUtxos Errors", () => {
     lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     k0 = new Account({ poseidon, seed: seed32 });
     splAmount = new BN(3);
     token = "USDC";
@@ -674,8 +667,6 @@ describe("Test createOutUtxos Errors", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: k0.pubkey,
     });
     utxoSol = new Utxo({
@@ -683,8 +674,6 @@ describe("Test createOutUtxos Errors", () => {
       assets: [SystemProgram.programId],
       amounts: [new BN(1e6)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: k0.pubkey,
     });
 
@@ -737,15 +726,11 @@ describe("Test createOutUtxos Errors", () => {
           new Utxo({
             poseidon,
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-            verifierProgramLookupTable:
-              lightProvider.lookUpTables.verifierProgramLookupTable,
             publicKey: k0.pubkey,
           }),
           new Utxo({
             poseidon,
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-            verifierProgramLookupTable:
-              lightProvider.lookUpTables.verifierProgramLookupTable,
             publicKey: k0.pubkey,
           }),
         ],
@@ -783,8 +768,6 @@ describe("Test createOutUtxos Errors", () => {
               ...lightProvider.lookUpTables.assetLookupTable,
               ...[invalidMint.toBase58()],
             ],
-            verifierProgramLookupTable:
-              lightProvider.lookUpTables.verifierProgramLookupTable,
             publicKey: k0.pubkey,
           }),
         ],
@@ -814,8 +797,6 @@ describe("Test createOutUtxos Errors", () => {
             assets: [SystemProgram.programId, utxo1.assets[1]],
             amounts: [BN_0, new BN(1e12)],
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-            verifierProgramLookupTable:
-              lightProvider.lookUpTables.verifierProgramLookupTable,
             publicKey: k0.pubkey,
           }),
         ],
@@ -900,8 +881,6 @@ describe("Test createOutUtxos Errors", () => {
         ...lightProvider.lookUpTables.assetLookupTable,
         ...[invalidMint.toBase58()],
       ],
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: k0.pubkey,
     });
 
@@ -923,8 +902,6 @@ describe("Test createOutUtxos Errors", () => {
               ...lightProvider.lookUpTables.assetLookupTable,
               ...[invalidMint.toBase58()],
             ],
-            verifierProgramLookupTable:
-              lightProvider.lookUpTables.verifierProgramLookupTable,
             publicKey: k0.pubkey,
           }),
         ],

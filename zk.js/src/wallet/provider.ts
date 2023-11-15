@@ -1,42 +1,42 @@
-import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
+import {AnchorProvider, BN, Program} from "@coral-xyz/anchor";
 import {
-  PublicKey,
-  Keypair as SolanaKeypair,
-  Connection,
-  ConfirmOptions,
-  Keypair,
-  SystemProgram,
   AddressLookupTableAccount,
+  ConfirmOptions,
+  Connection,
+  Keypair,
+  Keypair as SolanaKeypair,
+  PublicKey,
+  SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { initLookUpTable } from "../utils";
+import {initLookUpTable} from "../utils";
 import {
+  ADMIN_AUTH_KEYPAIR,
+  BN_0,
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
+  MerkleTreeConfig,
+  merkleTreeProgramId,
+  MINIMUM_LAMPORTS,
+  MINT,
+  ParsedIndexedTransaction,
+  Poseidon,
   ProviderError,
   ProviderErrorCode,
-  useWallet,
   Relayer,
-  ADMIN_AUTH_KEYPAIR,
-  SolMerkleTree,
-  RELAYER_RECIPIENT_KEYPAIR,
-  MINT,
-  MINIMUM_LAMPORTS,
-  ParsedIndexedTransaction,
-  MerkleTreeConfig,
   RELAYER_FEE,
-  TOKEN_ACCOUNT_FEE,
-  BN_0,
-  SolMerkleTreeErrorCode,
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
-  merkleTreeProgramId,
-  TransactionErrorCode,
-  TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
-  SendVersionedTransactionsResult,
+  RELAYER_RECIPIENT_KEYPAIR,
   RelayerSendTransactionsResponse,
   sendVersionedTransactions,
+  SendVersionedTransactionsResult,
+  SolMerkleTree,
+  SolMerkleTreeErrorCode,
+  TOKEN_ACCOUNT_FEE,
+  TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
+  TransactionErrorCode,
+  useWallet
 } from "../index";
 
 const axios = require("axios");
-const circomlibjs = require("circomlibjs");
 
 /**
  * use: signMessage, signTransaction, sendAndConfirmTransaction, publicKey from the useWallet() hook in solana/wallet-adapter and {connection} from useConnection()
@@ -58,7 +58,7 @@ export class Provider {
   connection?: Connection;
   wallet: Wallet;
   confirmConfig: ConfirmOptions;
-  poseidon: any;
+  poseidon: Poseidon;
   solMerkleTree?: SolMerkleTree;
   provider: AnchorProvider;
   url?: string;
@@ -97,7 +97,7 @@ export class Provider {
     assetLookupTable?: PublicKey[];
     versionedTransactionLookupTable: PublicKey;
     anchorProvider: AnchorProvider;
-    poseidon: any;
+    poseidon: Poseidon;
   }) {
     if (!wallet)
       throw new ProviderError(
@@ -149,7 +149,7 @@ export class Provider {
   }
 
   static async loadMock(): Promise<Provider> {
-    const poseidon = await circomlibjs.buildPoseidonOpt();
+    const poseidon = await Poseidon.getInstance();
     // @ts-ignore: @ananas-block ignoring errors to not pass anchorProvider
     const mockProvider = new Provider({
       wallet: useWallet(ADMIN_AUTH_KEYPAIR),
@@ -426,9 +426,9 @@ export class Provider {
       );
 
     if (!poseidon) {
-      poseidon = await circomlibjs.buildPoseidonOpt();
+      poseidon = await Poseidon.getInstance();
     }
-    const provider = new Provider({
+    return new Provider({
       wallet,
       confirmConfig,
       connection,
@@ -440,8 +440,6 @@ export class Provider {
       anchorProvider,
       poseidon,
     });
-
-    return provider;
   }
 
   addVerifierProgramPublickeyToLookUpTable(address: PublicKey) {

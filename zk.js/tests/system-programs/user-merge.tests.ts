@@ -1,5 +1,4 @@
 import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
-const circomlibjs = require("circomlibjs");
 
 import {
   initLookUpTableFromFile,
@@ -15,6 +14,7 @@ import {
   airdropShieldedMINTSpl,
   RELAYER_FEE,
   airdropSol,
+  Poseidon
 } from "../../src";
 
 import {
@@ -49,7 +49,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       anchorProvider,
     );
 
-    environmentConfig.poseidon = await circomlibjs.buildPoseidonOpt();
+    environmentConfig.poseidon = await Poseidon.getInstance();
     // this keypair is used to derive the shielded account seed from the light message signature
     environmentConfig.providerSolanaKeypair = ADMIN_AUTH_KEYPAIR;
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;

@@ -8,9 +8,6 @@ import {
 import { BN, utils } from "@coral-xyz/anchor";
 import { it } from "mocha";
 
-const circomlibjs = require("circomlibjs");
-const { buildPoseidonOpt } = circomlibjs;
-
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
@@ -34,6 +31,7 @@ import {
   MerkleTreeConfig,
   BN_0,
   BN_2,
+  Poseidon
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -55,13 +53,13 @@ describe("Transaction Parameters Functional", () => {
   const mockPubkey1 = SolanaKeypair.generate().publicKey;
   const mockPubkey2 = SolanaKeypair.generate().publicKey;
   const mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
+  let poseidon: Poseidon,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     relayer: Relayer,
     account: Account;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     lightProvider = await LightProvider.loadMock();
 
     // TODO: make fee mandatory
@@ -559,7 +557,7 @@ describe("Test TransactionParameters Methods", () => {
   let lightProvider: LightProvider;
   it("Test getAssetPubkeys", async () => {
     lightProvider = await LightProvider.loadMock();
-    const poseidon = await buildPoseidonOpt();
+    const poseidon = await Poseidon.getInstance();
     const account = new Account({ poseidon });
     const inputUtxos = [
       new Utxo({
@@ -612,7 +610,7 @@ describe("Test TransactionParameters Methods", () => {
   });
 
   it("Test getExtAmount", async () => {
-    const poseidon = await buildPoseidonOpt();
+    const poseidon = await Poseidon.getInstance();
     const inputUtxos = [
       new Utxo({
         poseidon,
@@ -691,13 +689,13 @@ describe("Test General TransactionParameters Errors", () => {
   const shieldFeeAmount = 10_000;
 
   const mockPubkey = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
+  let poseidon: Poseidon,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     account: Account;
 
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     // TODO: make fee mandatory
     account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
@@ -802,13 +800,13 @@ describe("Test TransactionParameters Transfer Errors", () => {
   const shieldFeeAmount = 10_000;
   const mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
-  let poseidon: any,
+  let poseidon: Poseidon,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     outputUtxo: Utxo,
     relayer: Relayer;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
     account = new Account({ poseidon: poseidon, seed: seed32 });
@@ -1019,12 +1017,12 @@ describe("Test TransactionParameters Deposit Errors", () => {
   const mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
 
-  let poseidon: any,
+  let poseidon: Poseidon,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     relayer: Relayer;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
     account = new Account({ poseidon: poseidon, seed: seed32 });
@@ -1310,13 +1308,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   const mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
 
-  let poseidon: any,
+  let poseidon: Poseidon,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     relayer: Relayer;
 
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
     account = new Account({ poseidon: poseidon, seed: seed32 });

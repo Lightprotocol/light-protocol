@@ -13,7 +13,7 @@ import {
   MINIMUM_LAMPORTS,
   BN_0,
   BN_1,
-  BN_2,
+  BN_2, Poseidon,
 } from "../index";
 
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
@@ -102,7 +102,7 @@ export function createOutUtxos({
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
   relayerFee?: BN;
-  poseidon: any;
+  poseidon: Poseidon;
   changeUtxoAccount: Account;
   outUtxos?: Utxo[];
   action: Action;
@@ -377,7 +377,7 @@ export function createRecipientUtxos({
   assetLookupTable,
 }: {
   recipients: Recipient[];
-  poseidon: any;
+  poseidon: Poseidon;
   assetLookupTable: string[];
   verifierProgramLookupTable: string[];
 }): Utxo[] {

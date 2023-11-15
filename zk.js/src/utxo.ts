@@ -1,9 +1,10 @@
 import nacl from "tweetnacl";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
+import {PublicKey, SystemProgram} from "@solana/web3.js";
+import {BN, BorshAccountsCoder, Idl} from "@coral-xyz/anchor";
 import {
   Account,
   BN_0,
+  BN_1,
   COMPRESSED_UTXO_BYTES_LENGTH,
   createAccountObject,
   CreateUtxoErrorCode,
@@ -15,28 +16,21 @@ import {
   IDL_LIGHT_PSP2IN2OUT,
   N_ASSETS,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  UTXO_PREFIX_LENGTH,
-  UNCOMPRESSED_UTXO_BYTES_LENGTH,
-  UtxoError,
-  UtxoErrorCode,
+  Poseidon,
   TransactionParameters,
-  BN_1,
-  lightPsp2in2outId,
+  UNCOMPRESSED_UTXO_BYTES_LENGTH,
+  UTXO_PREFIX_LENGTH,
+  UtxoError,
+  UtxoErrorCode
 } from "./index";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Result } from "./types/result";
+import {bs58} from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import {Result} from "./types";
 
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
 const { sha3_256 } = require("@noble/hashes/sha3");
-
 const anchor = require("@coral-xyz/anchor");
-
-const ffjavascript = require("ffjavascript");
-const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
-import { poseidon as wasmPoseidon } from "light-wasm";
-import { featureFlags } from "./featureFlags";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const randomPrefixBytes = () => nacl.randomBytes(UTXO_PREFIX_LENGTH);
@@ -115,7 +109,7 @@ export class Utxo {
     isFillingUtxo = false,
     encryptionPublicKey,
   }: {
-    poseidon: any;
+    poseidon: Poseidon;
     assets?: PublicKey[];
     amounts?: BN[];
     publicKey: BN;
@@ -362,18 +356,7 @@ export class Utxo {
           "appData length exceeds 16",
         );
       }
-      if (featureFlags.wasmPoseidon) {
-        this.appDataHash = new BN(wasmPoseidon(hashArray), undefined, "be");
-      } else {
-        this.appDataHash = new BN(
-          leInt2Buff(
-            unstringifyBigInts(poseidon.F.toString(poseidon(hashArray))),
-            32,
-          ),
-          undefined,
-          "le",
-        );
-      }
+      this.appDataHash = new BN(poseidon.hash(hashArray), undefined, "be");
 
       if (appDataHash && appDataHash.toString() !== this.appDataHash.toString())
         throw new UtxoError(
@@ -452,7 +435,7 @@ export class Utxo {
     appDataIdl,
     assetLookupTable,
   }: {
-    poseidon: any;
+    poseidon: Poseidon;
     bytes: Buffer;
     account?: Account;
     includeAppData?: boolean;
@@ -529,16 +512,16 @@ export class Utxo {
     });
   }
 
+
+
   /**
    * @description Returns commitment for this utxo
    * @description PoseidonHash(amountHash, shieldedPubkey, blinding, assetHash, appDataHash, poolType, verifierAddressCircuit)
    * @returns {string}
    */
-  getCommitment(poseidon: any): string {
-    const amountHash = poseidon.F.toString(poseidon(this.amounts));
-    const assetHash = poseidon.F.toString(
-      poseidon(this.assetsCircuit.map((x) => x.toString())),
-    );
+  getCommitment(poseidon: Poseidon): string {
+    const amountHash = poseidon.string(poseidon.hash(this.amounts));
+    const assetHash = poseidon.string(poseidon.hash(this.assetsCircuit.map((x) => x.toString())),);
 
     if (!this.publicKey) {
       throw new UtxoError(
@@ -555,19 +538,18 @@ export class Utxo {
     // console.log("assetHash ", assetHash.toString());
     // console.log("this.appDataHash ", this.appDataHash.toString());
     // console.log("this.poolType ", this.poolType.toString());
-    const commitment: string = poseidon.F.toString(
-      poseidon([
-        this.transactionVersion,
-        amountHash,
-        this.publicKey.toString(),
-        this.blinding.toString(),
-        assetHash.toString(),
-        this.appDataHash.toString(),
-        this.poolType,
-        this.verifierAddressCircuit,
-      ]),
+    this._commitment = poseidon.string(
+        poseidon.hash([
+          this.transactionVersion,
+          amountHash,
+          this.publicKey.toString(),
+          this.blinding.toString(),
+          assetHash.toString(),
+          this.appDataHash.toString(),
+          this.poolType.toString(),
+          this.verifierAddressCircuit.toString(),
+        ]),
     );
-    this._commitment = commitment;
     return this._commitment;
   }
 
@@ -585,7 +567,7 @@ export class Utxo {
     account,
     index,
   }: {
-    poseidon: any;
+    poseidon: Poseidon;
     account: Account;
     index?: number | undefined;
   }): string {
@@ -613,9 +595,9 @@ export class Utxo {
       poseidon,
       this.getCommitment(poseidon),
       this.index || 0,
-    );
-    this._nullifier = poseidon.F.toString(
-      poseidon([this.getCommitment(poseidon), this.index || 0, signature]),
+    ).toString();
+    this._nullifier = poseidon.string(
+      poseidon.hash([this.getCommitment(poseidon), this.index.toString() || "0", signature]),
     );
 
     return this._nullifier!;
@@ -633,7 +615,7 @@ export class Utxo {
     merkleTreePdaPublicKey,
     compressed = true,
   }: {
-    poseidon: any;
+    poseidon: Poseidon;
     account?: Account;
     merkleTreePdaPublicKey?: PublicKey;
     compressed?: boolean;
@@ -743,7 +725,7 @@ export class Utxo {
     compressed = true,
     assetLookupTable,
   }: {
-    poseidon: any;
+    poseidon: Poseidon;
     encBytes: Uint8Array;
     account: Account;
     index: number;
@@ -817,7 +799,7 @@ export class Utxo {
     compressed = true,
     assetLookupTable,
   }: {
-    poseidon: any;
+    poseidon: Poseidon;
     encBytes: Uint8Array;
     account: Account;
     index: number;
@@ -874,7 +856,7 @@ export class Utxo {
    */
   static fromString(
     string: string,
-    poseidon: any,
+    poseidon: Poseidon,
     assetLookupTable: string[],
   ): Utxo {
     return Utxo.fromBytes({
@@ -900,7 +882,7 @@ export class Utxo {
    * @param {Utxo} utxo1
    */
   static equal(
-    poseidon: any,
+    poseidon: Poseidon,
     utxo0: Utxo,
     utxo1: Utxo,
     skipNullifier: boolean = false,
@@ -988,14 +970,11 @@ export class Utxo {
     if (!skipNullifier) {
       if (utxo0.index || utxo1.index) {
         if (account0 && account1) {
-          if (
-            utxo0.getNullifier({ poseidon, account: account0 })?.toString() !==
-            utxo1.getNullifier({ poseidon, account: account1 })?.toString()
-          ) {
+          const utxo0nullifier = utxo0.getNullifier({ poseidon, account: account0 })?.toString();
+          const utxo1nullifier = utxo1.getNullifier({ poseidon, account: account1 })?.toString();
+          if (utxo0nullifier !== utxo1nullifier) {
             throw new Error(
-              `nullifier not equal: ${utxo0
-                .getNullifier(poseidon)
-                ?.toString()} vs ${utxo1.getNullifier(poseidon)?.toString()}`,
+              `nullifier not equal: ${utxo0nullifier} vs ${utxo1nullifier}`,
             );
           }
           throw new Error("Account0 or Account1 not defined");

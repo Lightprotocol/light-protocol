@@ -54,8 +54,7 @@ import {
   UtxoErrorCode,
   Result,
 } from "../index";
-
-const circomlibjs = require("circomlibjs");
+import {Poseidon} from "../poseidon";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -1075,7 +1074,7 @@ export class User {
   }): Promise<User> {
     try {
       if (!provider.poseidon) {
-        provider.poseidon = await circomlibjs.buildPoseidonOpt();
+        provider.poseidon = await Poseidon.getInstance();
       }
       if (seed && account)
         throw new UserError(

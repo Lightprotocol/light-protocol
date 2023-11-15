@@ -38,10 +38,9 @@ import {
   TOKEN_REGISTRY,
   sleep,
   confirmTransaction,
-  BN_0,
+  BN_0, Poseidon,
 } from "../index";
 import { Program } from "@coral-xyz/anchor";
-const circomlibjs = require("circomlibjs");
 
 // TODO: check whether we need all of these functions
 
@@ -182,12 +181,11 @@ export async function createMintWrapper({
   nft?: boolean;
   decimals?: number;
   connection: Connection;
-}) {
-  if (nft == true) {
+}): Promise<PublicKey> {
+  if (nft) {
     decimals = 0;
   }
 
-  try {
     const space = MINT_SIZE;
 
     const txCreateAccount = new solana.Transaction().add(
@@ -227,9 +225,6 @@ export async function createMintWrapper({
     }
 
     return mintKeypair.publicKey;
-  } catch (e) {
-    console.log(e);
-  }
 }
 
 export async function createTestAccounts(
@@ -345,7 +340,7 @@ export async function createTestAccounts(
     /* empty */
   }
 
-  const POSEIDON = await circomlibjs.buildPoseidonOpt();
+  const POSEIDON = await Poseidon.getInstance();
   const KEYPAIR = new Account({
     poseidon: POSEIDON,
     seed: KEYPAIR_PRIVKEY.toString(),

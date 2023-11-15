@@ -2,7 +2,7 @@ import { assert, expect } from "chai";
 import { it } from "mocha";
 import { Prover } from "@lightprotocol/prover.js";
 import * as anchor from "@coral-xyz/anchor";
-const circomlibjs = require("circomlibjs");
+
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 const ffjavascript = require("ffjavascript");
 const utils = ffjavascript.utils;
@@ -21,6 +21,7 @@ import {
   Utxo,
   Account,
   IDL_LIGHT_PSP2IN2OUT,
+  Poseidon
 } from "../../zk.js/src";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
@@ -38,9 +39,10 @@ describe("Prover Functionality Tests", () => {
   let paramsShield: TransactionParameters;
   let shieldUtxo: Utxo;
   let account: Account;
-  let poseidon: any;
+  let poseidon: Poseidon;
+
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     lightProvider = await LightProvider.loadMock();
     account = new Account({ poseidon });
 
@@ -51,8 +53,6 @@ describe("Prover Functionality Tests", () => {
       publicKey: account.pubkey,
       blinding: new anchor.BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     paramsShield = new TransactionParameters({

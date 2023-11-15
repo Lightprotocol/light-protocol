@@ -1,5 +1,4 @@
 import { assert, expect } from "chai";
-const circomlibjs = require("circomlibjs");
 import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
@@ -26,6 +25,7 @@ import {
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
   BN_1,
+  Poseidon
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -41,14 +41,14 @@ describe("Transaction Error Tests", () => {
 
   const mockPubkey = SolanaKeypair.generate().publicKey;
   const mockPubkey2 = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
+  let poseidon: Poseidon,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     account: Account,
     params: TransactionParameters,
     rootIndex: BN;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     // TODO: make fee mandatory
     account = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
@@ -193,7 +193,7 @@ describe("Transaction Functional Tests", () => {
   const mockPubkey = SolanaKeypair.generate().publicKey;
   const mockPubkey2 = SolanaKeypair.generate().publicKey;
   const mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
+  let poseidon: Poseidon,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     relayer: Relayer,
@@ -201,7 +201,7 @@ describe("Transaction Functional Tests", () => {
     paramsShield: TransactionParameters,
     paramsUnshield: TransactionParameters;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
     account = new Account({ poseidon: poseidon, seed: seed32 });

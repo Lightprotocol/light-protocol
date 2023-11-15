@@ -2,8 +2,7 @@ import { assert } from "chai";
 import { SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
-const circomlibjs = require("circomlibjs");
-const { buildPoseidonOpt } = circomlibjs;
+
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
@@ -22,6 +21,7 @@ import {
   MerkleTreeConfig,
   BN_0,
   UTXO_PREFIX_LENGTH,
+  Poseidon
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -33,12 +33,12 @@ describe("Utxo Functional", () => {
   const shieldAmount = 20_000;
   const shieldFeeAmount = 10_000;
 
-  let poseidon: any,
+  let poseidon: Poseidon,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     keypair: Account;
   before(async () => {
-    poseidon = await buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({

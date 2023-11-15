@@ -1,4 +1,4 @@
-extern crate core;
+mod utils;
 mod blake2;
 mod poseidon;
 

@@ -1,47 +1,46 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import {Keypair as SolanaKeypair, PublicKey} from "@solana/web3.js";
 import _ from "lodash";
-import { assert } from "chai";
-const token = require("@solana/spl-token");
-const circomlibjs = require("circomlibjs");
-
+import {assert} from "chai";
 import {
-  Transaction,
   Account,
-  Utxo,
-  createMintWrapper,
-  merkleTreeProgramId,
-  ADMIN_AUTH_KEYPAIR,
-  MINT,
-  KEYPAIR_PRIVKEY,
-  REGISTERED_VERIFIER_PDA,
-  REGISTERED_VERIFIER_ONE_PDA,
-  USER_TOKEN_ACCOUNT,
-  createTestAccounts,
-  userTokenAccount,
-  recipientTokenAccount,
-  FEE_ASSET,
-  confirmConfig,
-  TransactionParameters,
-  Provider as LightProvider,
-  newAccountWithTokens,
   Action,
-  useWallet,
-  TestRelayer,
-  IDL_LIGHT_PSP2IN2OUT,
-  IDL_LIGHT_PSP10IN2OUT,
-  MerkleTreeConfig,
-  User,
-  sleep,
-  getSystem,
-  System,
-  RELAYER_FEE,
+  ADMIN_AUTH_KEYPAIR,
+  airdropSol,
   BN_0,
   closeVerifierState,
+  confirmConfig,
+  createMintWrapper,
+  createTestAccounts,
+  FEE_ASSET,
+  getSystem,
+  IDL_LIGHT_PSP10IN2OUT,
+  IDL_LIGHT_PSP2IN2OUT,
+  KEYPAIR_PRIVKEY,
+  MerkleTreeConfig,
+  merkleTreeProgramId,
+  MINT,
+  newAccountWithTokens,
+  Poseidon,
+  Provider as LightProvider,
   Provider,
-  airdropSol,
+  recipientTokenAccount,
+  REGISTERED_VERIFIER_ONE_PDA,
+  REGISTERED_VERIFIER_PDA,
+  RELAYER_FEE,
+  sleep,
+  System,
+  TestRelayer,
+  Transaction,
+  TransactionParameters,
+  User,
+  userTokenAccount,
+  useWallet,
+  Utxo
 } from "../../src";
-import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import {getOrCreateAssociatedTokenAccount} from "@solana/spl-token";
+
+const token = require("@solana/spl-token");
 
 let POSEIDON, ACCOUNT, RELAYER, shieldUtxo1;
 let SLEEP_BUFFER = 0;
@@ -67,7 +66,7 @@ describe("Verifier Zero and One Tests", () => {
   before(async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    POSEIDON = await Poseidon.getInstance();
 
     ACCOUNT = new Account({
       poseidon: POSEIDON,
@@ -217,7 +216,7 @@ describe("Verifier Zero and One Tests", () => {
         account: ACCOUNT,
       });
       const inputUtxos: Utxo[] = [
-        user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
+        user.balance.tokenBalances.get(MINT.toBase58())?.utxos.values().next()
           .value,
       ];
 
@@ -252,11 +251,10 @@ describe("Verifier Zero and One Tests", () => {
   async function sendTestTx(tx: Transaction, type: string, account?: string) {
     const instructions = await tx.getInstructions(tx.params);
     console.log("aftere instructions");
-    const provider = anchor.AnchorProvider.local(
-      "http://127.0.0.1:8899",
-      confirmConfig,
+    lightProvider.provider = anchor.AnchorProvider.local(
+        "http://127.0.0.1:8899",
+        confirmConfig,
     );
-    lightProvider.provider = provider;
     let e;
     try {
       e = await lightProvider.sendAndConfirmTransaction(instructions);
@@ -287,7 +285,7 @@ describe("Verifier Zero and One Tests", () => {
       await closeVerifierState(
         lightProvider,
         tx.params.verifierIdl,
-        tx.params.accounts.verifierState,
+        tx.params.accounts.verifierState!,
       );
     }
   }
