@@ -75,7 +75,7 @@ describe("Browser tests", () => {
     provider = await Provider.init({
       relayer: RELAYER,
       wallet: walletMock,
-      confirmConfig
+      confirmConfig,
     });
 
     user = await User.init({

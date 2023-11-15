@@ -35,7 +35,7 @@ import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RELAYER_URL } from "../src/config";
-import {Poseidon} from "@lightprotocol/account.rs";
+import { Poseidon } from "@lightprotocol/account.rs";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);

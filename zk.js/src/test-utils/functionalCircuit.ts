@@ -8,7 +8,7 @@ import {
   Action,
   TransactionParameters,
   IDL_LIGHT_PSP2IN2OUT,
-  lightPsp2in2outId
+  lightPsp2in2outId,
 } from "../index";
 import { Poseidon } from "@lightprotocol/account.rs";
 import * as anchor from "@coral-xyz/anchor";
