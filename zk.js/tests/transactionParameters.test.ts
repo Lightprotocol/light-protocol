@@ -30,7 +30,7 @@ import {
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   MerkleTreeConfig,
   BN_0,
-  BN_2
+  BN_2,
 } from "../src";
 import { Poseidon } from "@lightprotocol/account.rs";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";

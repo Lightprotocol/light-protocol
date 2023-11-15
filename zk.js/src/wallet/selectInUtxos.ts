@@ -10,7 +10,7 @@ import {
   getUtxoArrayAmount,
   Utxo,
   TOKEN_REGISTRY,
-  BN_0
+  BN_0,
 } from "../index";
 import { Poseidon } from "@lightprotocol/account.rs";
 // TODO: turn these into static user.class methods

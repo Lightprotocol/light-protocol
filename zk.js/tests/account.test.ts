@@ -106,10 +106,7 @@ describe("Test Account Functional", () => {
   it("Test Poseidon Eddsa Keypair", async () => {
     const k0 = new Account({ poseidon, seed: seed32(), eddsa });
 
-    const prvKey = blake(
-      seed32() + "poseidonEddsaKeypair",
-      Account.hashLength,
-    );
+    const prvKey = blake(seed32() + "poseidonEddsaKeypair", Account.hashLength);
     const pubKey = eddsa.prv2pub(prvKey);
     await k0.getEddsaPublicKey();
     if (k0.poseidonEddsaKeypair && k0.poseidonEddsaKeypair.publicKey) {

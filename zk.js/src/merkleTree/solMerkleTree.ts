@@ -8,7 +8,7 @@ import {
   SolMerkleTreeErrorCode,
   SolMerkleTreeError,
   Utxo,
-  BN_0
+  BN_0,
 } from "../index";
 import { Poseidon } from "@lightprotocol/account.rs";
 import {
@@ -153,7 +153,7 @@ export class SolMerkleTree {
       pubkey,
       poseidon: poseidon,
       merkleTree: fetchedMerkleTree,
-       });
+    });
   }
 
   static async getUninsertedLeaves(

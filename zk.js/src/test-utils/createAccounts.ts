@@ -38,7 +38,7 @@ import {
   TOKEN_REGISTRY,
   sleep,
   confirmTransaction,
-  BN_0
+  BN_0,
 } from "../index";
 import { Poseidon } from "@lightprotocol/account.rs";
 import { Program } from "@coral-xyz/anchor";

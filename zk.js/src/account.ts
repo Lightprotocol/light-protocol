@@ -10,7 +10,8 @@ import {
   STANDARD_SHIELDED_PRIVATE_KEY,
   STANDARD_SHIELDED_PUBLIC_KEY,
   TransactionErrorCode,
-  TransactionParameters, truncateToCircuit,
+  TransactionParameters,
+  truncateToCircuit,
   Utxo,
   UtxoErrorCode,
   Wallet,
@@ -213,7 +214,7 @@ export class Account {
     const privkeySeed = seed + "poseidonEddsaKeypair";
     return {
       publicKey: undefined,
-      privateKey: blake(privkeySeed, Account.hashLength)
+      privateKey: blake(privkeySeed, Account.hashLength),
     };
   }
 
@@ -271,7 +272,10 @@ export class Account {
     merkleTreePdaPublicKey: PublicKey,
     salt: string,
   ): Uint8Array {
-    return Account.generateSecret(this.aesSecret?.toString(), merkleTreePdaPublicKey.toBase58() + salt);
+    return Account.generateSecret(
+      this.aesSecret?.toString(),
+      merkleTreePdaPublicKey.toBase58() + salt,
+    );
   }
 
   getUtxoPrefixViewingKey(salt: string): Uint8Array {
@@ -287,11 +291,7 @@ export class Account {
     return blake(input, prefixLength);
   }
 
-  static createBurner(
-    poseidon: Poseidon,
-    seed: string,
-    index: BN
-  ): Account {
+  static createBurner(poseidon: Poseidon, seed: string, index: BN): Account {
     if (bs58.decode(seed).length !== 32) {
       throw new AccountError(
         AccountErrorCode.INVALID_SEED_SIZE,
@@ -387,18 +387,13 @@ export class Account {
     return bs58.encode(concatPublicKey);
   }
 
-  static getEncryptionKeyPair(
-    seed: string
-  ): nacl.BoxKeyPair {
+  static getEncryptionKeyPair(seed: string): nacl.BoxKeyPair {
     const encSeed = seed + "encryption";
     const encryptionPrivateKey = blake(encSeed, Account.hashLength);
     return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
   }
 
-  static generateShieldedPrivateKey(
-    seed: string,
-    poseidon: Poseidon
-  ): BN {
+  static generateShieldedPrivateKey(seed: string, poseidon: Poseidon): BN {
     const privateKeySeed = seed + "shielded";
     const blakeHash: Uint8Array = blake(privateKeySeed, Account.hashLength);
     const blakeHash31 = truncateToCircuit(blakeHash);
@@ -406,10 +401,7 @@ export class Account {
     return new BN(poseidon.hash([blakeHashBN.toString()]));
   }
 
-  static generateSecret(
-    seed?: string,
-    domain?: string
-  ): Uint8Array {
+  static generateSecret(seed?: string, domain?: string): Uint8Array {
     const input: string = `${seed}${domain}`;
     return blake(input, Account.hashLength);
   }

@@ -351,7 +351,7 @@ export class Provider {
     relayer,
     assetLookupTable,
     verifierProgramLookupTable,
-    versionedTransactionLookupTable
+    versionedTransactionLookupTable,
   }: {
     wallet: Wallet | SolanaKeypair | Keypair;
     connection?: Connection;
@@ -379,7 +379,6 @@ export class Provider {
     } else {
       wallet = wallet as Wallet;
     }
-
 
     const anchorProvider = new AnchorProvider(
       connection,

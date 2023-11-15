@@ -20,7 +20,7 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   MerkleTreeConfig,
   BN_0,
-  UTXO_PREFIX_LENGTH
+  UTXO_PREFIX_LENGTH,
 } from "../src";
 import { Poseidon } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";

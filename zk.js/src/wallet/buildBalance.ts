@@ -17,7 +17,7 @@ import {
   ProgramUtxoBalanceErrorCode,
   TOKEN_PUBKEY_SYMBOL,
   UserErrorCode,
-  BN_0
+  BN_0,
 } from "../index";
 import { Poseidon } from "@lightprotocol/account.rs";
 // mint | programAddress for programUtxos

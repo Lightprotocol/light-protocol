@@ -14,7 +14,7 @@ import {
   TransactionError,
   TransactionErrorCode,
   hashAndTruncateToCircuit,
-  Utxo
+  Utxo,
 } from "../index";
 import { Poseidon } from "@lightprotocol/account.rs";
 import { getIndices3D } from "@lightprotocol/circuit-lib.js";
