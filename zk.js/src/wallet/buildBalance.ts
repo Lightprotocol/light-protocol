@@ -17,7 +17,7 @@ import {
   ProgramUtxoBalanceErrorCode,
   TOKEN_PUBKEY_SYMBOL,
   UserErrorCode,
-  BN_0,
+  BN_0, Poseidon,
 } from "../index";
 
 // mint | programAddress for programUtxos
@@ -189,7 +189,7 @@ export async function decryptAddUtxoToBalance({
   commitment: Uint8Array;
   account: Account;
   merkleTreePdaPublicKey: PublicKey;
-  poseidon: any;
+  poseidon: Poseidon;
   connection: Connection;
   balance: Balance;
   leftLeaf: Uint8Array;

@@ -10,7 +10,7 @@ import {
   getUtxoArrayAmount,
   Utxo,
   TOKEN_REGISTRY,
-  BN_0,
+  BN_0, Poseidon,
 } from "../index";
 
 // TODO: turn these into static user.class methods
@@ -129,7 +129,7 @@ export function selectInUtxos({
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
-  poseidon: any;
+  poseidon: Poseidon;
   relayerFee?: BN;
   utxos?: Utxo[];
   inUtxos?: Utxo[];
@@ -211,7 +211,7 @@ export function selectInUtxos({
   }
 
   // if mint is provided filter for only utxos that contain the mint
-  let filteredUtxos: Utxo[] = [];
+  let filteredUtxos: Utxo[];
   let sumOutSpl = publicAmountSpl ? publicAmountSpl : BN_0;
   let sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
   if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);

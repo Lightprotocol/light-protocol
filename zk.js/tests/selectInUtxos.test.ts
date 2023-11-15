@@ -9,8 +9,6 @@ import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 
-const circomlibjs = require("circomlibjs");
-
 import {
   TransactionErrorCode,
   Action,
@@ -27,6 +25,7 @@ import {
   RELAYER_FEE,
   BN_0,
   BN_1,
+  Poseidon
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -38,7 +37,7 @@ const numberMaxOutUtxos = 2;
 // TODO: add more tests with different numbers of utxos
 // TODO: add a randomized test
 describe("Test selectInUtxos Functional", () => {
-  let poseidon: any;
+  let poseidon: Poseidon;
 
   let splAmount,
     token,
@@ -52,7 +51,8 @@ describe("Test selectInUtxos Functional", () => {
   let lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
-    poseidon = await circomlibjs.buildPoseidonOpt();
+
+    poseidon = await Poseidon.getInstance();
     utxo1Burner = new Account({ poseidon, seed: seed32 });
     utxo2Burner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
     utxoSolBurner = Account.createBurner(poseidon, seed32, new anchor.BN("1"));
@@ -69,8 +69,6 @@ describe("Test selectInUtxos Functional", () => {
       index: 0,
       publicKey: utxo1Burner.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     utxo2 = new Utxo({
       poseidon,
@@ -79,8 +77,6 @@ describe("Test selectInUtxos Functional", () => {
       index: 0,
       publicKey: utxo2Burner.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
     utxoSol = new Utxo({
       poseidon,
@@ -89,8 +85,6 @@ describe("Test selectInUtxos Functional", () => {
       index: 1,
       publicKey: utxoSolBurner.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
   });
 
@@ -320,7 +314,7 @@ describe("Test selectInUtxos Functional", () => {
 });
 
 describe("Test selectInUtxos Errors", () => {
-  let poseidon: any;
+  let poseidon: Poseidon;
   let splAmount,
     token,
     tokenCtx,
@@ -332,7 +326,7 @@ describe("Test selectInUtxos Errors", () => {
 
   before(async () => {
     lightProvider = await Provider.loadMock();
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     splAmount = new BN(3);
     token = "USDC";
     tokenCtx = TOKEN_REGISTRY.get(token);
@@ -345,8 +339,6 @@ describe("Test selectInUtxos Errors", () => {
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: account.pubkey,
     });
     utxo2 = new Utxo({
@@ -355,8 +347,6 @@ describe("Test selectInUtxos Errors", () => {
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: account.pubkey,
     });
     utxoSol = new Utxo({
@@ -365,8 +355,6 @@ describe("Test selectInUtxos Errors", () => {
       amounts: [new BN(1e8)],
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       publicKey: account.pubkey,
     });
   });

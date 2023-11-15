@@ -14,6 +14,7 @@ import {
   Provider,
   TestRelayer,
   RELAYER_FEE,
+  Poseidon
 } from "../../src";
 import {
   Keypair as SolanaKeypair,
@@ -22,7 +23,6 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { assert } from "chai";
-const circomlibjs = require("circomlibjs");
 
 let KEYPAIR: Account, RELAYER: TestRelayer;
 
@@ -43,10 +43,10 @@ describe("User registry", () => {
   before("Create user", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    const poseidon = await circomlibjs.buildPoseidonOpt();
+    const poseidon = await Poseidon.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     KEYPAIR = new Account({
-      poseidon: poseidon,
+      poseidon,
       seed,
     });
 

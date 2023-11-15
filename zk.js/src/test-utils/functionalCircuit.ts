@@ -8,13 +8,12 @@ import {
   Action,
   TransactionParameters,
   IDL_LIGHT_PSP2IN2OUT,
-  lightPsp2in2outId,
+  lightPsp2in2outId, Poseidon,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest(
   app: boolean = false,
@@ -22,7 +21,7 @@ export async function functionalCircuitTest(
 ) {
   const lightProvider = await LightProvider.loadMock();
 
-  const poseidon = await circomlibjs.buildPoseidonOpt();
+  const poseidon = await Poseidon.getInstance();
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
   const account = new Account({ poseidon: poseidon, seed: seed32 });
   const shieldAmount = 20_000;
@@ -49,7 +48,7 @@ export async function functionalCircuitTest(
     account,
   });
 
-  let tx;
+  let tx: Transaction;
   const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
   // successful proof generation
   if (app) {

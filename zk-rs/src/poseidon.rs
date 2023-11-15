@@ -1,11 +1,13 @@
 use ark_bn254::Fr;
 use js_sys::{Array, Uint8Array};
-use light_poseidon::{Poseidon, PoseidonBytesHasher};
+use light_poseidon::{Poseidon, PoseidonBytesHasher, PoseidonError};
 use num_bigint::BigUint;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use crate::utils::set_panic_hook;
 
 #[wasm_bindgen]
 pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {
+    set_panic_hook();
     let len = inputs.length();
     let mut inputs_vec: Vec<Vec<u8>> = Vec::new();
     for index in 0..len {
@@ -21,17 +23,27 @@ pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {
         }
     }
     let hash_bytes = poseidon_hash(inputs_vec);
-    let js_arr = Uint8Array::from(&hash_bytes[..]);
-    Ok(js_arr)
+    match hash_bytes {
+        Ok(hash) => {
+            let js_arr = Uint8Array::from(&hash[..]);
+            Ok(js_arr)
+        }
+        Err(err) => {
+            Err(JsValue::from_str(
+                &err.to_string()
+            ))
+        }
+    }
+
 }
 
-pub fn poseidon_hash(input: Vec<Vec<u8>>) -> Vec<u8> {
+pub fn poseidon_hash(input: Vec<Vec<u8>>) -> Result<Vec<u8>, PoseidonError> {
     let temp: Vec<&[u8]> = input.iter().map(AsRef::as_ref).collect();
     let input_slice = temp.as_slice();
 
-    let mut hasher = Poseidon::<Fr>::new_circom(input.len()).unwrap();
-    let hash = hasher.hash_bytes_be(input_slice).unwrap();
-    hash.to_vec()
+    let hasher = Poseidon::<Fr>::new_circom(input.len());
+    let hash = hasher?.hash_bytes_be(input_slice);
+    Ok(hash?.to_vec())
 }
 
 #[cfg(test)]
@@ -40,15 +52,15 @@ mod tests {
 
     #[test]
     fn poseidon_1() {
-        let hash_of_1 = [
+        let hash_of_1: [u8; 32] = [
             41, 23, 97, 0, 234, 169, 98, 189, 193, 254, 108, 101, 77, 106, 60, 19, 14, 150, 164,
             209, 22, 139, 51, 132, 139, 137, 125, 197, 2, 130, 1, 51,
         ];
 
         let input_of_1 = [vec![0u8; 31], vec![1u8]].concat();
         let inputs = vec![input_of_1];
-        let hash = poseidon_hash(inputs);
-        assert_eq!(hash, hash_of_1);
+        let hash = poseidon_hash(inputs)?;
+        assert_eq!(hash, hash_of_1.to_vec());
     }
 
     #[test]

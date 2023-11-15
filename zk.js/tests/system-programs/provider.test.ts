@@ -18,8 +18,6 @@ import {
   RELAYER_FEE,
 } from "../../src";
 
-const circomlibjs = require("circomlibjs");
-
 // TODO: add and use  namespaces in SDK
 import {
   Utxo,
@@ -30,11 +28,12 @@ import {
   confirmConfig,
   DEFAULT_ZERO,
   TestRelayer,
+  Poseidon
 } from "../../src";
 
 import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
 
-let POSEIDON: any, KEYPAIR: Account;
+let POSEIDON: Poseidon, KEYPAIR: Account;
 let RELAYER: TestRelayer;
 
 // TODO: remove deprecated function calls
@@ -51,7 +50,7 @@ describe("verifier_program", () => {
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(provider.connection);
 
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    POSEIDON = await Poseidon.getInstance();
     KEYPAIR = new Account({
       poseidon: POSEIDON,
       seed: KEYPAIR_PRIVKEY.toString(),

@@ -2799,6 +2799,7 @@ dependencies = [
  "ark-ff 0.4.2",
  "blake2b_simd",
  "bs58 0.5.0",
+ "console_error_panic_hook",
  "crypto_box",
  "hex",
  "js-sys",

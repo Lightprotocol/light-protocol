@@ -7,12 +7,13 @@ import {
   User,
   TestInputs,
   confirmConfig,
+  Poseidon
 } from "../../src";
 
 export type EnvironmentConfig = {
   relayer?: TestRelayer;
   providerSolanaKeypair?: Keypair;
-  poseidon?: any;
+  poseidon?: Poseidon;
   lookUpTable?: PublicKey;
 };
 

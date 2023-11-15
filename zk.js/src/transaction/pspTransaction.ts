@@ -14,7 +14,7 @@ import {
   TransactionError,
   TransactionErrorCode,
   hashAndTruncateToCircuit,
-  Utxo,
+  Utxo, Poseidon,
 } from "../index";
 import { getIndices3D } from "@lightprotocol/circuit-lib.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -89,7 +89,7 @@ type compiledProofInputs = {
 // 4. compile app parameters
 // 5. compile and prove etc.
 export const createUtxoIndices = (
-  poseidon: any,
+  poseidon: Poseidon,
   utxos: Utxo[],
   commitHashUtxo: string,
 ) => {
@@ -103,7 +103,7 @@ export const createUtxoIndices = (
 };
 
 export const createPspProofInputs = (
-  poseidon: any,
+  poseidon: Poseidon,
   pspTransaction: PspTransactionInput,
   inputUtxos: Utxo[],
   outputUtxos: Utxo[],
@@ -213,7 +213,7 @@ export function createSystemProofInputs({
 }: {
   transaction: TransactionParameters;
   solMerkleTree: SolMerkleTree;
-  poseidon: any;
+  poseidon: Poseidon;
   account: Account;
 }) {
   if (!solMerkleTree)
@@ -315,7 +315,7 @@ export function createProofInputs({
   pspTransaction: PspTransactionInput;
   transaction: TransactionParameters;
   solMerkleTree: SolMerkleTree;
-  poseidon: any;
+  poseidon: Poseidon;
   account: Account;
 }): compiledProofInputs {
   const systemProofInputs = createSystemProofInputs({

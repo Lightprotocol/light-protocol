@@ -6,7 +6,6 @@ import {
 } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 const token = require("@solana/spl-token");
-const circomlibjs = require("circomlibjs");
 
 // TODO: add and use namespaces in SDK
 import {
@@ -18,7 +17,6 @@ import {
   MINT,
   Provider,
   AUTHORITY_ONE,
-  USER_TOKEN_ACCOUNT,
   createTestAccounts,
   userTokenAccount,
   recipientTokenAccount,
@@ -38,13 +36,14 @@ import {
   RELAYER_FEE,
   BN_0,
   lightPsp2in2outId,
+  Poseidon,
   airdropSplToAssociatedTokenAccount,
 } from "../../src";
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
-let POSEIDON: any;
+let POSEIDON: Poseidon;
 let RELAYER: TestRelayer;
 let KEYPAIR: Account;
 
@@ -63,7 +62,7 @@ describe("verifier_program", () => {
   before("init test setup Merkle tree lookup table etc", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    POSEIDON = await Poseidon.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     KEYPAIR = new Account({
       poseidon: POSEIDON,
@@ -142,7 +141,7 @@ describe("verifier_program", () => {
       account: KEYPAIR,
     });
     const inputUtxos: Utxo[] = [
-      user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
+      user.balance.tokenBalances.get(MINT.toBase58())?.utxos.values().next()
         .value,
     ];
     await performUnshield({
@@ -312,10 +311,7 @@ describe("verifier_program", () => {
 
     const txParams = new TransactionParameters({
       inputUtxos: [
-        user.balance.tokenBalances
-          .get(tokenProgram.toBase58())
-          .utxos.values()
-          .next().value,
+        user.balance.tokenBalances.get(tokenProgram.toBase58())?.utxos.values().next().value,
       ],
       outputUtxos,
       message,

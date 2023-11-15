@@ -1,3 +1,5 @@
+import {Poseidon} from "../../../../zk.js";
+
 export const DEFAULT_ZERO =
   "14522046728041339886521211779101644712859239303505368468566383402165481390632";
 
@@ -21,13 +23,13 @@ export class MerkleTree {
   levels: number;
   capacity: number;
   zeroElement;
-  _hash;
+  _hash: Poseidon;
   _zeros: string[];
   _layers: string[][];
 
   constructor(
     levels: number,
-    poseidonHash2: any,
+    poseidonHash2: Poseidon,
     elements: string[] = [],
     { zeroElement = DEFAULT_ZERO } = {},
   ) {
@@ -44,8 +46,8 @@ export class MerkleTree {
     this._zeros[0] = this.zeroElement;
 
     for (let i = 1; i <= levels; i++) {
-      this._zeros[i] = this._hash.F.toString(
-        this._hash([this._zeros[i - 1], this._zeros[i - 1]]),
+      this._zeros[i] = this._hash.string(
+        this._hash.hash([this._zeros[i - 1], this._zeros[i - 1]]),
       );
     }
     this._rebuild();
@@ -55,8 +57,8 @@ export class MerkleTree {
     for (let level = 1; level <= this.levels; level++) {
       this._layers[level] = [];
       for (let i = 0; i < Math.ceil(this._layers[level - 1].length / 2); i++) {
-        this._layers[level][i] = this._hash.F.toString(
-          this._hash([
+        this._layers[level][i] = this._hash.string(
+          this._hash.hash([
             this._layers[level - 1][i * 2],
             i * 2 + 1 < this._layers[level - 1].length
               ? this._layers[level - 1][i * 2 + 1]
@@ -120,12 +122,12 @@ export class MerkleTree {
     this._layers[0][index] = element;
     for (let level = 1; level <= this.levels; level++) {
       index >>= 1;
-      this._layers[level][index] = this._hash(
+      this._layers[level][index] = this._hash.string(this._hash.hash([
         this._layers[level - 1][index * 2],
         index * 2 + 1 < this._layers[level - 1].length
           ? this._layers[level - 1][index * 2 + 1]
-          : this._zeros[level - 1],
-      );
+          : this._zeros[level - 1]]
+      ));
     }
   }
 

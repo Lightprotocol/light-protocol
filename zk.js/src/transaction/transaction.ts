@@ -19,7 +19,7 @@ import {
   Account,
   SolMerkleTree,
   STANDARD_SHIELDED_PUBLIC_KEY,
-  STANDARD_SHIELDED_PRIVATE_KEY,
+  STANDARD_SHIELDED_PRIVATE_KEY, Poseidon,
 } from "../index";
 import { remainingAccount } from "../types";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
@@ -138,7 +138,7 @@ export class Transaction {
     this.solMerkleTree = solMerkleTree;
   }
 
-  async compileAndProve(poseidon: any, account: Account) {
+  async compileAndProve(poseidon: Poseidon, account: Account) {
     await this.compile(poseidon, account);
     if (!this.params)
       throw new TransactionError(
@@ -155,7 +155,7 @@ export class Transaction {
   /**
    * @description Prepares proof inputs.
    */
-  async compile(poseidon: any, account: Account) {
+  async compile(poseidon: Poseidon, account: Account) {
     this.firstPath = path.resolve(__dirname, "../../build-circuits/");
 
     this.shuffleUtxos(this.params.inputUtxos);

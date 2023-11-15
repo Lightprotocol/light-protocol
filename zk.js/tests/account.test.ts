@@ -1,35 +1,32 @@
-import { assert, expect } from "chai";
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
-import { BN } from "@coral-xyz/anchor";
-import { it } from "mocha";
-const circomlibjs = require("circomlibjs");
-const { buildBabyjub, buildEddsa } = circomlibjs;
-const ffjavascript = require("ffjavascript");
-const { Scalar } = ffjavascript;
-import { blake2str, poseidon as wasmPoseidon } from "light-wasm";
+import {assert, expect} from "chai";
+import {BN} from "@coral-xyz/anchor";
+import {it} from "mocha";
+import {blake2str} from "light-wasm";
 import {
   Account,
   AccountError,
   AccountErrorCode,
   ADMIN_AUTH_KEYPAIR,
   newNonce,
-  TransactionParametersErrorCode,
-  useWallet,
+  Poseidon,
+  useWallet
 } from "../src";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { featureFlags } from "../src/featureFlags";
+import {bs58} from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+
+const chai = require("chai");
+const chaiAsPromised = require("chai-as-promised");
+
+// Load chai-as-promised support
+chai.use(chaiAsPromised);
+const circomlibjs = require("circomlibjs");
+const { buildBabyjub, buildEddsa } = circomlibjs;
+const ffjavascript = require("ffjavascript");
+const { Scalar } = ffjavascript;
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 const seed32 = (): string => {
   return bs58.encode(new Uint8Array(32).fill(1));
-};
-const seed32_2 = (): string => {
-  return bs58.encode(new Uint8Array(32).fill(2));
 };
 
 const keypairReferenceAccount = {
@@ -44,7 +41,7 @@ const keypairReferenceAccount = {
 };
 
 describe("Test Account Functional", () => {
-  let poseidon: any,
+  let poseidon: Poseidon,
     eddsa: any,
     babyJub,
     F: any,
@@ -53,7 +50,7 @@ describe("Test Account Functional", () => {
     kBurner: Account;
 
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     eddsa = await buildEddsa();
     babyJub = await buildBabyjub();
     F = babyJub.F;
@@ -78,32 +75,31 @@ describe("Test Account Functional", () => {
   it("Test poseidon", async () => {
     let x = new Array(30).fill(1);
     let y = new Array(30).fill(2);
-
-    const hash = poseidon.F.toString(
-      poseidon([new BN(x).toString(), new BN(y).toString()]),
-    );
+    const poseidon = await Poseidon.getInstance();
+    const hash = poseidon.string(poseidon.hash([new BN(x).toString(), new BN(y).toString()]));
+    // const hash = poseidon.F.toString(...);
 
     x = new Array(29).fill(1);
     y = new Array(31).fill(2);
     y[30] = 1;
 
-    const hash1 = poseidon.F.toString(
-      poseidon([new BN(x).toString(), new BN(y).toString()]),
+    const hash1 = poseidon.string(
+      poseidon.hash([new BN(x).toString(), new BN(y).toString()]),
     );
     assert.notEqual(hash, hash1);
   });
 
   it("Test wasm poseidon", async () => {
+    const poseidon = await Poseidon.getInstance();
     let x = new Array(30).fill(1);
     let y = new Array(30).fill(2);
 
-    const hash = wasmPoseidon([new BN(x).toString(), new BN(y).toString()]);
-
+    const hash = poseidon.hash([new BN(x).toString(), new BN(y).toString()]);
     x = new Array(29).fill(1);
     y = new Array(31).fill(2);
     y[30] = 1;
 
-    const hash1 = wasmPoseidon([new BN(x).toString(), new BN(y).toString()]);
+    const hash1 = poseidon.hash([new BN(x).toString(), new BN(y).toString()]);
     assert.notEqual(hash, hash1);
   });
 
@@ -221,11 +217,9 @@ describe("Test Account Functional", () => {
   });
 
   it("createFromSolanaKeypair Functional", async () => {
-    const keypair = ADMIN_AUTH_KEYPAIR;
-
     const solanaKeypairAccount = Account.createFromSolanaKeypair(
       poseidon,
-      keypair,
+      ADMIN_AUTH_KEYPAIR,
       eddsa,
     );
     await compareAccountToReference(
@@ -390,9 +384,9 @@ describe("Test Account Functional", () => {
 });
 
 describe("Test Account Errors", () => {
-  let poseidon: any, k0: Account;
+  let poseidon: Poseidon, k0: Account;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
     k0 = new Account({ poseidon, seed: seed32() });
   });
 
@@ -414,20 +408,6 @@ describe("Test Account Errors", () => {
       .to.throw(AccountError)
       .includes({
         code: AccountErrorCode.INVALID_SEED_SIZE,
-        functionName: "constructor",
-      });
-  });
-
-  it("NO_POSEIDON_HASHER_PROVIDED", async () => {
-    if (featureFlags.wasmPoseidon) {
-      return;
-    }
-    expect(() => {
-      new Account({ seed: "123" });
-    })
-      .to.throw(AccountError)
-      .includes({
-        code: TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
         functionName: "constructor",
       });
   });
