@@ -21,7 +21,6 @@ import {
   merkleTreeProgramId,
   MINT,
   newAccountWithTokens,
-  Poseidon,
   Provider as LightProvider,
   Provider,
   recipientTokenAccount,
@@ -38,11 +37,12 @@ import {
   useWallet,
   Utxo,
 } from "../../src";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 const token = require("@solana/spl-token");
 
-let POSEIDON, ACCOUNT, RELAYER, shieldUtxo1;
+let POSEIDON: Poseidon, ACCOUNT, RELAYER, shieldUtxo1;
 let SLEEP_BUFFER = 0;
 const system = getSystem();
 if (system === System.MacOsArm64) SLEEP_BUFFER = 400;

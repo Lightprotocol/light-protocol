@@ -24,6 +24,57 @@ importers:
         specifier: ^5.2.2
         version: 5.2.2
 
+  account.rs:
+    dependencies:
+      light-wasm:
+        specifier: file:./zk-rs/pkg
+        version: file:account.rs/zk-rs/pkg
+    devDependencies:
+      '@coral-xyz/anchor':
+        specifier: ^0.29.0
+        version: 0.29.0
+      '@lightprotocol/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@noble/hashes':
+        specifier: ^1.3.2
+        version: 1.3.2
+      '@types/chai':
+        specifier: ^4.3.9
+        version: 4.3.9
+      '@types/mocha':
+        specifier: ^10.0.3
+        version: 10.0.3
+      chai:
+        specifier: ^4.3.10
+        version: 4.3.10
+      chai-as-promised:
+        specifier: ^7.1.1
+        version: 7.1.1(chai@4.3.10)
+      circomlibjs:
+        specifier: ^0.1.7
+        version: 0.1.7
+      mocha:
+        specifier: ^10.2.0
+        version: 10.2.0
+      tinybench:
+        specifier: ^2.5.1
+        version: 2.5.1
+      ts-mocha:
+        specifier: ^10.0.0
+        version: 10.0.0(mocha@10.2.0)
+      ts-node:
+        specifier: ^10.9.1
+        version: 10.9.1(@types/node@20.8.0)(typescript@5.2.2)
+      tsx:
+        specifier: ^4.1.2
+        version: 4.1.2
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
+
+  account.rs/zk-rs/pkg: {}
+
   circuit-lib/circuit-lib.circom:
     devDependencies:
       '@coral-xyz/anchor':
@@ -83,6 +134,9 @@ importers:
 
   circuit-lib/circuit-lib.js:
     dependencies:
+      '@lightprotocol/account.rs':
+        specifier: workspace:*
+        version: link:../../account.rs
       '@noble/curves':
         specifier: ^1.2.0
         version: 1.2.0
@@ -298,6 +352,9 @@ importers:
         specifier: ^0.7.0
         version: 0.7.1
     devDependencies:
+      '@lightprotocol/account.rs':
+        specifier: workspace:*
+        version: link:../account.rs
       '@lightprotocol/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -343,9 +400,6 @@ importers:
       eslint-plugin-promise:
         specifier: ^6.0.0
         version: 6.1.1(eslint@8.50.0)
-      light-wasm:
-        specifier: workspace:*
-        version: link:../zk-rs/pkg
       mocha:
         specifier: ^10.2.0
         version: 10.2.0
@@ -737,6 +791,9 @@ importers:
       '@coral-xyz/borsh':
         specifier: ^0.28.0
         version: 0.28.0(@solana/web3.js@1.73.3)
+      '@lightprotocol/account.rs':
+        specifier: workspace:*
+        version: link:../account.rs
       '@lightprotocol/zk.js':
         specifier: workspace:*
         version: link:../zk.js
@@ -852,53 +909,6 @@ importers:
 
   tsconfig: {}
 
-  zk-rs:
-    devDependencies:
-      '@coral-xyz/anchor':
-        specifier: ^0.29.0
-        version: 0.29.0
-      '@lightprotocol/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@noble/hashes':
-        specifier: ^1.3.2
-        version: 1.3.2
-      '@types/chai':
-        specifier: ^4.3.9
-        version: 4.3.9
-      '@types/mocha':
-        specifier: ^10.0.3
-        version: 10.0.3
-      chai:
-        specifier: ^4.3.10
-        version: 4.3.10
-      chai-as-promised:
-        specifier: ^7.1.1
-        version: 7.1.1(chai@4.3.10)
-      circomlibjs:
-        specifier: ^0.1.7
-        version: 0.1.7
-      mocha:
-        specifier: ^10.2.0
-        version: 10.2.0
-      tinybench:
-        specifier: ^2.5.1
-        version: 2.5.1
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@10.2.0)
-      ts-node:
-        specifier: ^10.9.1
-        version: 10.9.1(@types/node@20.8.0)(typescript@5.2.2)
-      tsx:
-        specifier: ^4.1.2
-        version: 4.1.2
-      tweetnacl:
-        specifier: ^1.0.3
-        version: 1.0.3
-
-  zk-rs/pkg: {}
-
   zk.js:
     dependencies:
       '@coral-xyz/anchor':
@@ -907,6 +917,9 @@ importers:
       '@coral-xyz/borsh':
         specifier: ^0.28.0
         version: 0.28.0(@solana/web3.js@1.76.0)
+      '@lightprotocol/account.rs':
+        specifier: workspace:*
+        version: link:../account.rs
       '@lightprotocol/circuit-lib.js':
         specifier: workspace:*
         version: link:../circuit-lib/circuit-lib.js
@@ -952,9 +965,6 @@ importers:
       global:
         specifier: ^4.4.0
         version: 4.4.0
-      light-wasm:
-        specifier: workspace:*
-        version: link:../zk-rs/pkg
       snarkjs:
         specifier: ^0.7.0
         version: 0.7.1
@@ -2987,7 +2997,7 @@ packages:
   /@types/chai-as-promised@7.1.6:
     resolution: {integrity: sha512-cQLhk8fFarRVZAXUQV1xEnZgMoPxqKojBvRkqPCKPQCzEhpbbSKl1Uu75kDng7k5Ln6LQLUmNBjLlFthCgm1NA==}
     dependencies:
-      '@types/chai': 4.3.6
+      '@types/chai': 4.3.9
     dev: true
 
   /@types/chai@4.3.6:
@@ -12296,6 +12306,11 @@ packages:
   /zlib@1.0.5:
     resolution: {integrity: sha512-40fpE2II+Cd3k8HWTWONfeKE2jL+P42iWJ1zzps5W51qcTsOUKM5Q5m2PFb0CLxlmFAaUuUdJGc3OfZy947v0w==}
     engines: {node: '>=0.2.0'}
+    dev: false
+
+  file:account.rs/zk-rs/pkg:
+    resolution: {directory: account.rs/zk-rs/pkg, type: directory}
+    name: light-wasm
     dev: false
 
   github.com/weijiekoh/circomlib/24ed08eee0bb613b8c0135d66c1013bd9f78d50a:

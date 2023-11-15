@@ -24,9 +24,9 @@ import {
   Provider,
   RELAYER_FEE,
   BN_0,
-  BN_1,
-  Poseidon,
+  BN_1
 } from "../src";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";

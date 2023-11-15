@@ -19,7 +19,6 @@ import {
   Account,
   ConfirmOptions,
 } from "@lightprotocol/zk.js";
-
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RPC_URL } from "../src/config";
@@ -76,7 +75,7 @@ describe("Browser tests", () => {
     provider = await Provider.init({
       relayer: RELAYER,
       wallet: walletMock,
-      confirmConfig,
+      confirmConfig
     });
 
     user = await User.init({

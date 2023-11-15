@@ -1,4 +1,4 @@
-import { Poseidon } from "../../../../zk.js";
+import { Poseidon } from "@lightprotocol/account.rs";
 
 export const DEFAULT_ZERO =
   "14522046728041339886521211779101644712859239303505368468566383402165481390632";

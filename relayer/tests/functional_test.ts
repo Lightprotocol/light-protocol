@@ -28,7 +28,6 @@ import {
   Relayer,
   RELAYER_FEE,
   TOKEN_ACCOUNT_FEE,
-  Poseidon,
 } from "@lightprotocol/zk.js";
 
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -36,6 +35,7 @@ import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RELAYER_URL } from "../src/config";
+import {Poseidon} from "@lightprotocol/account.rs";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);

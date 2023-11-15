@@ -24,8 +24,8 @@ import {
   UtxoErrorCode,
   lightPsp4in4outAppStorageId,
   CreateUtxoErrorCode,
-  Poseidon,
 } from "../src";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { randomBytes } from "tweetnacl";
 

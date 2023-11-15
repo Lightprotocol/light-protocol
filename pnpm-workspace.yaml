@@ -4,7 +4,7 @@ packages:
   - "prover.js/**"
   - "circuit-lib/**"
   - "zk.js/**"
-  - "zk-rs/**"
+  - "account.rs/**"
   - "zk-rs/pkg/**"
   - "cli/**"
   - "relayer/**"

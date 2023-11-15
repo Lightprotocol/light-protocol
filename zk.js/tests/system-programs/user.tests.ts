@@ -29,9 +29,8 @@ import {
   useWallet,
   RELAYER_FEE,
   BN_1,
-  Poseidon,
 } from "../../src";
-
+import { Poseidon } from "@lightprotocol/account.rs";
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { expect } from "chai";
 

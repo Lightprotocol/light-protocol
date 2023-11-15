@@ -20,9 +20,9 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   MerkleTreeConfig,
   BN_0,
-  UTXO_PREFIX_LENGTH,
-  Poseidon,
+  UTXO_PREFIX_LENGTH
 } from "../src";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";

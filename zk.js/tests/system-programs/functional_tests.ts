@@ -36,10 +36,9 @@ import {
   RELAYER_FEE,
   BN_0,
   lightPsp2in2outId,
-  Poseidon,
   airdropSplToAssociatedTokenAccount,
 } from "../../src";
-
+import { Poseidon } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 

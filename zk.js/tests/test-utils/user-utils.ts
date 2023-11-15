@@ -7,9 +7,8 @@ import {
   User,
   TestInputs,
   confirmConfig,
-  Poseidon,
 } from "../../src";
-
+import { Poseidon } from "@lightprotocol/account.rs";
 export type EnvironmentConfig = {
   relayer?: TestRelayer;
   providerSolanaKeypair?: Keypair;

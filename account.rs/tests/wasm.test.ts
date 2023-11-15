@@ -6,7 +6,7 @@ const circomlibjs = require("circomlibjs");
 chai.use(chaiAsPromised);
 
 import { it } from "mocha";
-import {blake2str, poseidon} from "../pkg";
+import {blake2str, poseidon} from "light-wasm";
 import {BN} from "@coral-xyz/anchor";
 const { blake2b } = require("@noble/hashes/blake2b");
 

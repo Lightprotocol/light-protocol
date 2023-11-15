@@ -10,7 +10,6 @@ import { assert } from "chai";
 const token = require("@solana/spl-token");
 
 import {
-  Poseidon,
   Transaction,
   Utxo,
   createMintWrapper,
@@ -46,6 +45,7 @@ import {
   BN_2,
   closeMerkleTreeUpdateState,
 } from "../../src";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Address } from "@coral-xyz/anchor";

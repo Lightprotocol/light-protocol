@@ -28,9 +28,8 @@ import {
   confirmConfig,
   DEFAULT_ZERO,
   TestRelayer,
-  Poseidon,
 } from "../../src";
-
+import { Poseidon } from "@lightprotocol/account.rs";
 import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
 
 let POSEIDON: Poseidon, KEYPAIR: Account;

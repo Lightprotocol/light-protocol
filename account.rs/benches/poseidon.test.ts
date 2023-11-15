@@ -1,4 +1,4 @@
-import {blake2str, poseidon} from "../pkg/light_wasm";
+import {blake2str, poseidon} from "light-wasm";
 import {BN} from "@coral-xyz/anchor";
 import { blake2b } from "@noble/hashes/blake2b";
 import * as circomlibjs from "circomlibjs";

@@ -16,13 +16,13 @@ import {
   IDL_LIGHT_PSP2IN2OUT,
   N_ASSETS,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  Poseidon,
   TransactionParameters,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
   UTXO_PREFIX_LENGTH,
   UtxoError,
   UtxoErrorCode,
 } from "./index";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
 

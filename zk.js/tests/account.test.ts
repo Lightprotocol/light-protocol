@@ -1,17 +1,16 @@
 import { assert, expect } from "chai";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { blake2str } from "light-wasm";
 import {
   Account,
   AccountError,
   AccountErrorCode,
   ADMIN_AUTH_KEYPAIR,
   newNonce,
-  Poseidon,
   useWallet,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Poseidon, blake } from "@lightprotocol/account.rs";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -61,11 +60,11 @@ describe("Test Account Functional", () => {
 
   it("Test blake2 Domain separation", () => {
     const seed = bs58.encode([1, 2, 3]);
-    const seedHash = blake2str(seed, Account.hashLength);
+    const seedHash = blake(seed, Account.hashLength);
     const encSeed = seedHash + "encryption";
     const privkeySeed = seedHash + "privkey";
-    const privkeyHash = blake2str(privkeySeed, Account.hashLength);
-    const encHash = blake2str(encSeed, Account.hashLength);
+    const privkeyHash = blake(privkeySeed, Account.hashLength);
+    const encHash = blake(encSeed, Account.hashLength);
 
     assert.notEqual(encHash, seedHash);
     assert.notEqual(privkeyHash, seedHash);
@@ -79,7 +78,6 @@ describe("Test Account Functional", () => {
     const hash = poseidon.string(
       poseidon.hash([new BN(x).toString(), new BN(y).toString()]),
     );
-    // const hash = poseidon.F.toString(...);
 
     x = new Array(29).fill(1);
     y = new Array(31).fill(2);
@@ -108,7 +106,7 @@ describe("Test Account Functional", () => {
   it("Test Poseidon Eddsa Keypair", async () => {
     const k0 = new Account({ poseidon, seed: seed32(), eddsa });
 
-    const prvKey = blake2str(
+    const prvKey = blake(
       seed32() + "poseidonEddsaKeypair",
       Account.hashLength,
     );

@@ -2,12 +2,12 @@
     "$schema": "https://json.schemastore.org/tsconfig",
     "compilerOptions": {
       "outDir": "./lib",
-      "rootDirs": ["src", "generated"],
+      "rootDirs": ["src", "benches"],
       "baseUrl": "src",
       "esModuleInterop": true,
       "target": "ESNext",
-      "module": "ESNext",
+      "module": "ESNext"
     },
-    "extends": "tsconfig.json",
+    "extends": "account.rs/zk-rs/tsconfig.json",
     "include": ["benches"]
-  }
+}

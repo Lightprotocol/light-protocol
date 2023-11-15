@@ -8,9 +8,9 @@ import {
   SolMerkleTreeErrorCode,
   SolMerkleTreeError,
   Utxo,
-  BN_0,
-  Poseidon,
+  BN_0
 } from "../index";
+import { Poseidon } from "@lightprotocol/account.rs";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   LightMerkleTreeProgram,
@@ -31,18 +31,20 @@ export type QueuedLeavesPda = {
 export class SolMerkleTree {
   merkleTree: MerkleTree;
   pubkey: PublicKey;
+  poseidon: Poseidon;
 
   constructor({
     pubkey,
     poseidon,
     merkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, poseidon),
   }: {
-    poseidon?: any;
+    poseidon: Poseidon;
     merkleTree?: MerkleTree;
     pubkey: PublicKey;
   }) {
     this.pubkey = pubkey;
     this.merkleTree = merkleTree;
+    this.poseidon = poseidon;
   }
 
   static async getLeaves(merkleTreePubkey: PublicKey, provider?: Provider) {
@@ -147,7 +149,11 @@ export class SolMerkleTree {
       );
     }
 
-    return new SolMerkleTree({ merkleTree: fetchedMerkleTree, pubkey });
+    return new SolMerkleTree({
+      pubkey,
+      poseidon: poseidon,
+      merkleTree: fetchedMerkleTree,
+       });
   }
 
   static async getUninsertedLeaves(

@@ -40,7 +40,7 @@ export async function airdropShieldedSol({
     provider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: relayer,
-      confirmConfig,
+      confirmConfig
     });
   }
   const userKeypair = Keypair.generate();
@@ -103,7 +103,7 @@ export async function airdropShieldedMINTSpl({
     provider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: relayer,
-      confirmConfig,
+      confirmConfig
     });
   }
 

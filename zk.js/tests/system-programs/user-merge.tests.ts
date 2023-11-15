@@ -14,9 +14,8 @@ import {
   airdropShieldedMINTSpl,
   RELAYER_FEE,
   airdropSol,
-  Poseidon,
 } from "../../src";
-
+import { Poseidon } from "@lightprotocol/account.rs";
 import {
   performShielding,
   EnvironmentConfig,
