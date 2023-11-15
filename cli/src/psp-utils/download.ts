@@ -6,6 +6,7 @@ import * as path from "path";
 import * as tar from "tar";
 import * as zlib from "zlib";
 import { sleep, getSystem, System } from "@lightprotocol/zk.js";
+import { CARGO_EXPAND_TAG } from "./constants";
 
 const fileExists = promisify(fs.exists);
 
@@ -191,7 +192,6 @@ export async function downloadFile({
 
         return new Promise<void>((resolve, reject) => {
           writeStream.on("finish", () => {
-            // Make the file executable after it has been written.
             makeExecutable(localFilePath);
             resolve();
           });
@@ -352,10 +352,8 @@ export async function downloadCargoGenerateIfNotExists({
   localFilePath: string;
   dirPath: string;
 }) {
-  // Fixed version because 11/11/23 release (v0.18.5) fails
-  // TODO: investigate why latest cargo-generate fails
-  const tag = "v0.18.4";
   let remoteFileName: string;
+  const tag = CARGO_EXPAND_TAG;
   switch (getSystem()) {
     case System.LinuxAmd64:
       remoteFileName = `cargo-generate-${tag}-x86_64-unknown-linux-musl.tar.gz`;
@@ -369,6 +367,8 @@ export async function downloadCargoGenerateIfNotExists({
     case System.MacOsArm64:
       remoteFileName = `cargo-generate-${tag}-aarch64-apple-darwin.tar.gz`;
       break;
+    default:
+      throw new Error(`Unsupported system: ${getSystem()}`);
   }
 
   await downloadBinIfNotExists({

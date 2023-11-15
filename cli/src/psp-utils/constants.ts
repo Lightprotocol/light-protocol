@@ -37,3 +37,7 @@ export const DEFAULT_CONFIG = {
   relayerFee: RELAYER_FEE,
   highRelayerFee: TOKEN_ACCOUNT_FEE,
 };
+
+// TODO: investigate why latest cargo-generate fails
+// Fixed version because 11/11/23 release (v0.18.5) fails
+export const CARGO_EXPAND_TAG = "v0.18.4";
