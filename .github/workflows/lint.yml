@@ -57,7 +57,6 @@ jobs:
 
       - name: Run linters
         run: |
-          npx nx build @lightprotocol/account.rs
           pnpm install
           source ./scripts/devenv.sh
           ./scripts/lint.sh
