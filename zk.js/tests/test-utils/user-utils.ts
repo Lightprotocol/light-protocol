@@ -7,7 +7,7 @@ import {
   User,
   TestInputs,
   confirmConfig,
-  Poseidon
+  Poseidon,
 } from "../../src";
 
 export type EnvironmentConfig = {

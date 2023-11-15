@@ -47,10 +47,8 @@ import {
   closeMerkleTreeUpdateState,
 } from "../../src";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
-import {
-  getOrCreateAssociatedTokenAccount,
-} from "@solana/spl-token";
-import {Address} from "@coral-xyz/anchor";
+import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { Address } from "@coral-xyz/anchor";
 
 let POSEIDON: Poseidon, RELAYER, KEYPAIR, deposit_utxo1;
 
@@ -272,7 +270,8 @@ describe("Merkle Tree Tests", () => {
 
     const pda = merkleTreeConfig.merkleTreeAuthorityPda;
     assert.isDefined(pda);
-    let merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(pda as Address);
+    let merkleTreeAuthority =
+      await merkleTreeProgram.account.merkleTreeAuthority.fetch(pda as Address);
 
     // update lock duration with invalid signer
 

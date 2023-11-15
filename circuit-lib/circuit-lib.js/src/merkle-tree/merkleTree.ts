@@ -1,4 +1,4 @@
-import {Poseidon} from "../../../../zk.js";
+import { Poseidon } from "../../../../zk.js";
 
 export const DEFAULT_ZERO =
   "14522046728041339886521211779101644712859239303505368468566383402165481390632";
@@ -122,12 +122,14 @@ export class MerkleTree {
     this._layers[0][index] = element;
     for (let level = 1; level <= this.levels; level++) {
       index >>= 1;
-      this._layers[level][index] = this._hash.string(this._hash.hash([
-        this._layers[level - 1][index * 2],
-        index * 2 + 1 < this._layers[level - 1].length
-          ? this._layers[level - 1][index * 2 + 1]
-          : this._zeros[level - 1]]
-      ));
+      this._layers[level][index] = this._hash.string(
+        this._hash.hash([
+          this._layers[level - 1][index * 2],
+          index * 2 + 1 < this._layers[level - 1].length
+            ? this._layers[level - 1][index * 2 + 1]
+            : this._zeros[level - 1],
+        ]),
+      );
     }
   }
 

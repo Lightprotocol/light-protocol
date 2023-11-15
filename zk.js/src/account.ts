@@ -1,6 +1,6 @@
-import {featureFlags} from "./featureFlags";
-import {box, sign} from "tweetnacl";
-import {BN, utils} from "@coral-xyz/anchor";
+import { featureFlags } from "./featureFlags";
+import { box, sign } from "tweetnacl";
+import { BN, utils } from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
@@ -17,14 +17,14 @@ import {
   truncateToCircuit,
   Utxo,
   UtxoErrorCode,
-  Wallet
+  Wallet,
 } from "./index";
 
-import {blake2, blake2str} from "light-wasm";
-import {Keypair, PublicKey} from "@solana/web3.js";
-import {bs58} from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import {Result} from "./types";
-import {Prover} from "@lightprotocol/prover.js";
+import { blake2, blake2str } from "light-wasm";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Result } from "./types";
+import { Prover } from "@lightprotocol/prover.js";
 
 const nacl = require("tweetnacl");
 const { blake2b } = require("@noble/hashes/blake2b");
@@ -282,11 +282,13 @@ export class Account {
   }
 
   sign(poseidon: Poseidon, commitment: string, merklePath: number): BN {
-    return new BN(poseidon.hash([
-      this.privkey.toString(),
-      commitment.toString(),
-      merklePath.toString(),
-    ]))
+    return new BN(
+      poseidon.hash([
+        this.privkey.toString(),
+        commitment.toString(),
+        merklePath.toString(),
+      ]),
+    );
   }
 
   getAesUtxoViewingKey(
@@ -733,7 +735,11 @@ export class Account {
     return { parsedProof, parsedPublicInputsObject };
   }
 
-  static createFromSeed(poseidon: Poseidon, seed: string, eddsa?: any): Account {
+  static createFromSeed(
+    poseidon: Poseidon,
+    seed: string,
+    eddsa?: any,
+  ): Account {
     return new Account({ poseidon, seed, eddsa });
   }
 

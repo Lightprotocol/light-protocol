@@ -13,7 +13,8 @@ import {
   MINIMUM_LAMPORTS,
   BN_0,
   BN_1,
-  BN_2, Poseidon,
+  BN_2,
+  Poseidon,
 } from "../index";
 
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };

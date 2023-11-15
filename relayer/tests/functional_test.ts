@@ -27,7 +27,8 @@ import {
   MerkleTreeConfig,
   Relayer,
   RELAYER_FEE,
-  TOKEN_ACCOUNT_FEE, Poseidon,
+  TOKEN_ACCOUNT_FEE,
+  Poseidon,
 } from "@lightprotocol/zk.js";
 
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";

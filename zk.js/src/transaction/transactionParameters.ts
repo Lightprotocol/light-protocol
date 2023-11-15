@@ -1,10 +1,14 @@
-import {PublicKey, SystemProgram} from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
-import {BN, BorshAccountsCoder, Idl, Program} from "@coral-xyz/anchor";
-import {TOKEN_PROGRAM_ID} from "@solana/spl-token";
-import {AUTHORITY, lightPsp2in2outStorageId, N_ASSET_PUBKEYS,} from "../constants";
-import {Utxo} from "../utxo";
-import {MerkleTreeConfig} from "../merkleTree";
+import { BN, BorshAccountsCoder, Idl, Program } from "@coral-xyz/anchor";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import {
+  AUTHORITY,
+  lightPsp2in2outStorageId,
+  N_ASSET_PUBKEYS,
+} from "../constants";
+import { Utxo } from "../utxo";
+import { MerkleTreeConfig } from "../merkleTree";
 import {
   Account,
   Action,
@@ -32,8 +36,8 @@ import {
   truncateToCircuit,
   UserErrorCode,
 } from "../index";
-import {sha256} from "@noble/hashes/sha256";
-import {SPL_NOOP_PROGRAM_ID} from "@solana/spl-account-compression";
+import { sha256 } from "@noble/hashes/sha256";
+import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import nacl from "tweetnacl";
 
 type VerifierConfig = {
@@ -1201,9 +1205,23 @@ export class TransactionParameters implements transactionParameters {
         "getTransactionHash",
       );
 
-      const inputHasher = poseidon.string(poseidon.hash(this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))));
-      const outputHasher = poseidon.string(poseidon.hash(this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon))));
+    const inputHasher = poseidon.string(
+      poseidon.hash(
+        this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+      ),
+    );
+    const outputHasher = poseidon.string(
+      poseidon.hash(
+        this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+      ),
+    );
 
-      return poseidon.string(poseidon.hash([inputHasher, outputHasher, this.txIntegrityHash.toString()]));
+    return poseidon.string(
+      poseidon.hash([
+        inputHasher,
+        outputHasher,
+        this.txIntegrityHash.toString(),
+      ]),
+    );
   }
 }

@@ -14,7 +14,7 @@ import {
   airdropShieldedMINTSpl,
   RELAYER_FEE,
   airdropSol,
-  Poseidon
+  Poseidon,
 } from "../../src";
 
 import {

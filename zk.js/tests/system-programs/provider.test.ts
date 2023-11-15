@@ -28,7 +28,7 @@ import {
   confirmConfig,
   DEFAULT_ZERO,
   TestRelayer,
-  Poseidon
+  Poseidon,
 } from "../../src";
 
 import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";

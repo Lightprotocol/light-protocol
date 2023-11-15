@@ -25,7 +25,7 @@ import {
   RELAYER_FEE,
   BN_0,
   BN_1,
-  Poseidon
+  Poseidon,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 

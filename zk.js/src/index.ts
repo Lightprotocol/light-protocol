@@ -13,6 +13,6 @@ export * from "./transaction";
 export * from "./convertCase";
 export * from "./closeVerifierState";
 export * from "./createRustVerifyingKey";
-export  * from "./poseidon";
+export * from "./poseidon";
 
 export * as circuitlibjs from "@lightprotocol/circuit-lib.js";

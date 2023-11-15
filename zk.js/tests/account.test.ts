@@ -1,7 +1,7 @@
-import {assert, expect} from "chai";
-import {BN} from "@coral-xyz/anchor";
-import {it} from "mocha";
-import {blake2str} from "light-wasm";
+import { assert, expect } from "chai";
+import { BN } from "@coral-xyz/anchor";
+import { it } from "mocha";
+import { blake2str } from "light-wasm";
 import {
   Account,
   AccountError,
@@ -9,9 +9,9 @@ import {
   ADMIN_AUTH_KEYPAIR,
   newNonce,
   Poseidon,
-  useWallet
+  useWallet,
 } from "../src";
-import {bs58} from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -76,7 +76,9 @@ describe("Test Account Functional", () => {
     let x = new Array(30).fill(1);
     let y = new Array(30).fill(2);
     const poseidon = await Poseidon.getInstance();
-    const hash = poseidon.string(poseidon.hash([new BN(x).toString(), new BN(y).toString()]));
+    const hash = poseidon.string(
+      poseidon.hash([new BN(x).toString(), new BN(y).toString()]),
+    );
     // const hash = poseidon.F.toString(...);
 
     x = new Array(29).fill(1);

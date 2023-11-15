@@ -38,7 +38,8 @@ import {
   TOKEN_REGISTRY,
   sleep,
   confirmTransaction,
-  BN_0, Poseidon,
+  BN_0,
+  Poseidon,
 } from "../index";
 import { Program } from "@coral-xyz/anchor";
 
@@ -186,45 +187,45 @@ export async function createMintWrapper({
     decimals = 0;
   }
 
-    const space = MINT_SIZE;
+  const space = MINT_SIZE;
 
-    const txCreateAccount = new solana.Transaction().add(
-      SystemProgram.createAccount({
-        fromPubkey: authorityKeypair.publicKey,
-        lamports: connection.getMinimumBalanceForRentExemption(space),
-        newAccountPubkey: mintKeypair.publicKey,
-        programId: TOKEN_PROGRAM_ID,
-        space: space,
-      }),
-    );
+  const txCreateAccount = new solana.Transaction().add(
+    SystemProgram.createAccount({
+      fromPubkey: authorityKeypair.publicKey,
+      lamports: connection.getMinimumBalanceForRentExemption(space),
+      newAccountPubkey: mintKeypair.publicKey,
+      programId: TOKEN_PROGRAM_ID,
+      space: space,
+    }),
+  );
 
-    const res = await sendAndConfirmTransaction(
-      connection,
-      txCreateAccount,
-      [authorityKeypair, mintKeypair],
-      confirmConfig,
-    );
-    const transactionResult = await connection.getTransaction(res, {
-      commitment: "confirmed",
-    });
-    if (transactionResult === null) {
-      throw new Error("create mint account failed");
-    }
+  const res = await sendAndConfirmTransaction(
+    connection,
+    txCreateAccount,
+    [authorityKeypair, mintKeypair],
+    confirmConfig,
+  );
+  const transactionResult = await connection.getTransaction(res, {
+    commitment: "confirmed",
+  });
+  if (transactionResult === null) {
+    throw new Error("create mint account failed");
+  }
 
-    const mint = await createMint(
-      connection,
-      authorityKeypair,
-      authorityKeypair.publicKey,
-      null, // freez auth
-      decimals, //2,
-      mintKeypair,
-    );
-    const accountInfo = await connection.getAccountInfo(mint);
-    if (accountInfo === null) {
-      throw new Error("create mint failed");
-    }
+  const mint = await createMint(
+    connection,
+    authorityKeypair,
+    authorityKeypair.publicKey,
+    null, // freez auth
+    decimals, //2,
+    mintKeypair,
+  );
+  const accountInfo = await connection.getAccountInfo(mint);
+  if (accountInfo === null) {
+    throw new Error("create mint failed");
+  }
 
-    return mintKeypair.publicKey;
+  return mintKeypair.publicKey;
 }
 
 export async function createTestAccounts(

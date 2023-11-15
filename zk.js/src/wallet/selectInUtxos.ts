@@ -10,7 +10,8 @@ import {
   getUtxoArrayAmount,
   Utxo,
   TOKEN_REGISTRY,
-  BN_0, Poseidon,
+  BN_0,
+  Poseidon,
 } from "../index";
 
 // TODO: turn these into static user.class methods

@@ -3,6 +3,7 @@ use js_sys::{Array, Uint8Array};
 use light_poseidon::{Poseidon, PoseidonBytesHasher, PoseidonError};
 use num_bigint::BigUint;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+
 use crate::utils::set_panic_hook;
 
 #[wasm_bindgen]
@@ -28,13 +29,8 @@ pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {
             let js_arr = Uint8Array::from(&hash[..]);
             Ok(js_arr)
         }
-        Err(err) => {
-            Err(JsValue::from_str(
-                &err.to_string()
-            ))
-        }
+        Err(err) => Err(JsValue::from_str(&err.to_string())),
     }
-
 }
 
 pub fn poseidon_hash(input: Vec<Vec<u8>>) -> Result<Vec<u8>, PoseidonError> {

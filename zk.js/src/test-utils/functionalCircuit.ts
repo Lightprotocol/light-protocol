@@ -8,7 +8,8 @@ import {
   Action,
   TransactionParameters,
   IDL_LIGHT_PSP2IN2OUT,
-  lightPsp2in2outId, Poseidon,
+  lightPsp2in2outId,
+  Poseidon,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";

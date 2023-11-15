@@ -311,7 +311,10 @@ describe("verifier_program", () => {
 
     const txParams = new TransactionParameters({
       inputUtxos: [
-        user.balance.tokenBalances.get(tokenProgram.toBase58())?.utxos.values().next().value,
+        user.balance.tokenBalances
+          .get(tokenProgram.toBase58())
+          ?.utxos.values()
+          .next().value,
       ],
       outputUtxos,
       message,

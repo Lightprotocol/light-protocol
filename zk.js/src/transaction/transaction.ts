@@ -19,7 +19,8 @@ import {
   Account,
   SolMerkleTree,
   STANDARD_SHIELDED_PUBLIC_KEY,
-  STANDARD_SHIELDED_PRIVATE_KEY, Poseidon,
+  STANDARD_SHIELDED_PRIVATE_KEY,
+  Poseidon,
 } from "../index";
 import { remainingAccount } from "../types";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
