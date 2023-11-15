@@ -43,8 +43,28 @@ trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${
 echo "starting web application"
 pnpm serve > .logs/webapp-logs.txt &
 PID_WEBAPP="${!}"
-sleep 10
+
+# Wait for server to start
+echo "waiting for server to start"
+for i in {1..6}; do
+  if netstat -tuln | grep 3000; then
+    break
+  fi
+  echo "server not yet started, waiting..."
+  sleep 5
+done
+
 trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${PID_VALIDATOR} > /dev/null; then kill ${PID_VALIDATOR}; fi; if ps -p ${PID_RELAYER} > /dev/null; then kill ${PID_RELAYER}; fi; if ps -p ${PID_WEBAPP} > /dev/null; then kill ${PID_WEBAPP}; fi' EXIT
+
+# Check server logs
+echo "server logs:"
+cat .logs/webapp-logs.txt
+
+# Check server response
+echo "server response:"
+curl http://localhost:3000
+
+
 
 # Run Cypress tests
 echo "running Cypress tests"
