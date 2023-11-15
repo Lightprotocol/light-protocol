@@ -43,14 +43,6 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      # - name: Build relayer
-      #   run: |
-      #     (cd relayer && pnpm install && pnpm build)
-
-      # - name: Build webapp
-      #   run: |
-      #     (cd web/webapp && pnpm install && pnpm build)
-
       - name: Cache Cypress
         uses: actions/cache@v2
         with:
@@ -62,6 +54,14 @@ jobs:
       - name: Install Cypress
         run: |
           (cd web/webapp && npx cypress install)
+
+      - name: Build relayer
+        run: |
+          (cd relayer && pnpm install && pnpm build)
+
+      - name: Build webapp
+        run: |
+          (cd web/webapp && pnpm install && pnpm build)
 
       - name: Run end-to-end tests
         run: |
