@@ -14,8 +14,8 @@ import {
   Provider,
   TestRelayer,
   RELAYER_FEE,
-  Poseidon,
 } from "../../src";
+import { Poseidon } from "@lightprotocol/account.rs";
 import {
   Keypair as SolanaKeypair,
   PublicKey,

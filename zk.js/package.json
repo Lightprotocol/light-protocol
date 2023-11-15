@@ -58,7 +58,7 @@
     "@coral-xyz/borsh": "^0.28.0",
     "@lightprotocol/circuit-lib.js": "workspace:*",
     "@lightprotocol/prover.js": "workspace:*",
-    "light-wasm": "workspace:*",
+    "@lightprotocol/account.rs": "workspace:*",
     "@noble/hashes": "^1.1.5",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",

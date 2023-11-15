@@ -19,7 +19,6 @@ import {
   MINIMUM_LAMPORTS,
   MINT,
   ParsedIndexedTransaction,
-  Poseidon,
   ProviderError,
   ProviderErrorCode,
   Relayer,
@@ -35,7 +34,7 @@ import {
   TransactionErrorCode,
   useWallet,
 } from "../index";
-
+import { Poseidon } from "@lightprotocol/account.rs";
 const axios = require("axios");
 
 /**
@@ -352,8 +351,7 @@ export class Provider {
     relayer,
     assetLookupTable,
     verifierProgramLookupTable,
-    versionedTransactionLookupTable,
-    poseidon,
+    versionedTransactionLookupTable
   }: {
     wallet: Wallet | SolanaKeypair | Keypair;
     connection?: Connection;
@@ -363,7 +361,6 @@ export class Provider {
     assetLookupTable?: PublicKey[];
     verifierProgramLookupTable?: PublicKey[];
     versionedTransactionLookupTable?: PublicKey;
-    poseidon?: any;
   }): Promise<Provider> {
     if (!wallet) {
       throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
@@ -382,6 +379,7 @@ export class Provider {
     } else {
       wallet = wallet as Wallet;
     }
+
 
     const anchorProvider = new AnchorProvider(
       connection,
@@ -425,9 +423,7 @@ export class Provider {
         "Initializing lookup table in node.js or fetching it from relayer in browser failed",
       );
 
-    if (!poseidon) {
-      poseidon = await Poseidon.getInstance();
-    }
+    const poseidon = await Poseidon.getInstance();
     return new Provider({
       wallet,
       confirmConfig,

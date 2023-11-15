@@ -22,9 +22,9 @@ import {
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   BN_0,
-  BN_1,
-  Poseidon,
+  BN_1
 } from "../src";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { IDL } from "./testData/tmp_test_psp";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";

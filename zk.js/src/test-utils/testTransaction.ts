@@ -19,7 +19,6 @@ import {
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
 const assert = require("assert");
-
 export class TestTransaction {
   testValues?: {
     recipientBalancePriorTx?: BN;

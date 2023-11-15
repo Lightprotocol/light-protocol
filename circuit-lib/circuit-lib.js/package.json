@@ -11,6 +11,7 @@
   },
   "author": "",
   "dependencies": {
+    "@lightprotocol/account.rs": "workspace:*",
     "@noble/curves": "^1.2.0",
     "@noble/hashes": "^1.2.0",
     "blake-hash": "^2.0.0",

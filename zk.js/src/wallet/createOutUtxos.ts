@@ -13,10 +13,9 @@ import {
   MINIMUM_LAMPORTS,
   BN_0,
   BN_1,
-  BN_2,
-  Poseidon,
+  BN_2
 } from "../index";
-
+import { Poseidon } from "@lightprotocol/account.rs";
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
 
 export type Recipient = {

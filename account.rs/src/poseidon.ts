@@ -1,5 +1,5 @@
 import { poseidon as wasmPoseidon } from "light-wasm";
-import { featureFlags } from "./featureFlags";
+import { featureFlags } from "./config";
 import { BN } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
 

@@ -19,6 +19,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0",
     "@coral-xyz/borsh": "^0.28.0",
+    "@lightprotocol/account.rs": "workspace:*",
     "@lightprotocol/zk.js": "workspace:*",
     "@noble/hashes": "^1.3.2",
     "@solana/spl-account-compression": "^0.1.8",

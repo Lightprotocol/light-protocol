@@ -21,8 +21,8 @@ import {
   Utxo,
   Account,
   IDL_LIGHT_PSP2IN2OUT,
-  Poseidon,
 } from "../../zk.js/src";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";

@@ -38,9 +38,9 @@ import {
   TOKEN_REGISTRY,
   sleep,
   confirmTransaction,
-  BN_0,
-  Poseidon,
+  BN_0
 } from "../index";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { Program } from "@coral-xyz/anchor";
 
 // TODO: check whether we need all of these functions

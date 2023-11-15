@@ -1,20 +1,23 @@
 {
-  "name": "@lightprotocol/zk-rs",
+  "name": "@lightprotocol/account.rs",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "lib/index",
+  "typings": "lib/index",
   "scripts": {
-    "build": "wasm-pack build --target nodejs",
-    "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/wasm.test.ts --exit",
-    "test-wasm": "cargo test -- --nocapture",
-    "bench-blake": "tsx ./benches/blake.test.ts",
-    "bench-poseidon": "tsx ./benches/poseidon.test.ts",
+    "build": "cd zk-rs && wasm-pack build --target nodejs && pnpm tsc -p tsconfig.json",
+    "test": "node_modules/.bin/ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/wasm.test.ts --exit",
+    "test-wasm": "cd zk-rs && cargo test -- --nocapture",
+    "bench-blake": "node_modules/.bin/tsx ./benches/blake.test.ts",
+    "bench-poseidon": "node_modules/.bin/tsx ./benches/poseidon.test.ts",
     "bench": "pnpm run bench-blake && pnpm run bench-poseidon"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
+  "dependencies": {
+    "light-wasm": "file:./zk-rs/pkg"
+  },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.29.0",
     "@lightprotocol/tsconfig": "workspace:*",

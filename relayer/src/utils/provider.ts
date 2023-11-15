@@ -7,8 +7,8 @@ import {
   Relayer,
   TOKEN_ACCOUNT_FEE,
   useWallet,
-  Poseidon,
 } from "@lightprotocol/zk.js";
+import { Poseidon } from "@lightprotocol/account.rs";
 import {
   EnvironmentVariableError,
   EnvironmentVariableErrorCode,

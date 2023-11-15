@@ -10,10 +10,9 @@ import {
   getUtxoArrayAmount,
   Utxo,
   TOKEN_REGISTRY,
-  BN_0,
-  Poseidon,
+  BN_0
 } from "../index";
-
+import { Poseidon } from "@lightprotocol/account.rs";
 // TODO: turn these into static user.class methods
 export const getAmount = (u: Utxo, asset: PublicKey) => {
   return u.amounts[u.assets.indexOf(asset)];

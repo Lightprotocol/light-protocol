@@ -54,7 +54,7 @@ import {
   UtxoErrorCode,
   Result,
 } from "../index";
-import { Poseidon } from "../poseidon";
+import { Poseidon } from "@lightprotocol/account.rs";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -278,11 +278,6 @@ export class User {
       throw new UserError(
         UserErrorCode.USER_ACCOUNT_NOT_INITIALIZED,
         "Provider not initialized",
-      );
-    if (!this.provider.poseidon)
-      throw new UserError(
-        TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
-        "Poseidon not initialized",
       );
     if (!this.provider.solMerkleTree)
       throw new UserError(
@@ -1073,9 +1068,6 @@ export class User {
     skipFetchBalance?: boolean;
   }): Promise<User> {
     try {
-      if (!provider.poseidon) {
-        provider.poseidon = await Poseidon.getInstance();
-      }
       if (seed && account)
         throw new UserError(
           UserErrorCode.ACCOUNT_AND_SEED_PROVIDED,

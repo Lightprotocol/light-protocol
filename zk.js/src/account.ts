@@ -1,4 +1,3 @@
-import { featureFlags } from "./featureFlags";
 import { box, sign } from "tweetnacl";
 import { BN, utils } from "@coral-xyz/anchor";
 import {
@@ -6,29 +5,23 @@ import {
   AccountErrorCode,
   BN_0,
   CONSTANT_SECRET_AUTHKEY,
-  Poseidon,
   setEnvironment,
   SIGN_MESSAGE,
   STANDARD_SHIELDED_PRIVATE_KEY,
   STANDARD_SHIELDED_PUBLIC_KEY,
   TransactionErrorCode,
-  TransactionParameters,
-  TransactionParametersErrorCode,
-  truncateToCircuit,
+  TransactionParameters, truncateToCircuit,
   Utxo,
   UtxoErrorCode,
   Wallet,
 } from "./index";
-
-import { blake2, blake2str } from "light-wasm";
+import { Poseidon, blake } from "@lightprotocol/account.rs";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
 import { Prover } from "@lightprotocol/prover.js";
 
 const nacl = require("tweetnacl");
-const { blake2b } = require("@noble/hashes/blake2b");
-const b2params = { dkLen: 32 };
 
 const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 const ffjavascript = require("ffjavascript");
@@ -83,12 +76,6 @@ export class Account {
     aesSecret?: Uint8Array;
     solanaPublicKey?: PublicKey;
   }) {
-    if (!featureFlags.wasmPoseidon && !poseidon) {
-      throw new AccountError(
-        TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
-        "constructor",
-      );
-    }
     this.solanaPublicKey = solanaPublicKey;
     this.burnerSeed = new Uint8Array();
     if (aesSecret && !privateKey) {
@@ -129,12 +116,10 @@ export class Account {
         this.burnerSeed.toString(),
       );
       this.aesSecret = Account.generateSecret(
-        b2params.dkLen,
         this.burnerSeed.toString(),
         "aes",
       );
       this.hashingSecret = Account.generateSecret(
-        b2params.dkLen,
         this.burnerSeed.toString(),
         "hashing",
       );
@@ -188,12 +173,8 @@ export class Account {
       this.privkey = Account.generateShieldedPrivateKey(seed, poseidon);
       this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(seed);
-      this.aesSecret = Account.generateSecret(b2params.dkLen, seed, "aes");
-      this.hashingSecret = Account.generateSecret(
-        b2params.dkLen,
-        seed,
-        "hashing",
-      );
+      this.aesSecret = Account.generateSecret(seed, "aes");
+      this.hashingSecret = Account.generateSecret(seed, "hashing");
     }
     this.eddsa = eddsa;
   }
@@ -228,16 +209,11 @@ export class Account {
     return this.poseidonEddsaKeypair.publicKey;
   }
 
-  static getEddsaPrivateKey(
-    seed: string,
-    useWasmBlake: boolean = featureFlags.wasmBlake,
-  ) {
+  static getEddsaPrivateKey(seed: string) {
     const privkeySeed = seed + "poseidonEddsaKeypair";
     return {
       publicKey: undefined,
-      privateKey: useWasmBlake
-        ? blake2str(privkeySeed, Account.hashLength)
-        : blake2b.create(b2params).update(privkeySeed).digest(),
+      privateKey: blake(privkeySeed, Account.hashLength)
     };
   }
 
@@ -295,41 +271,26 @@ export class Account {
     merkleTreePdaPublicKey: PublicKey,
     salt: string,
   ): Uint8Array {
-    return Account.generateSecret(
-      b2params.dkLen,
-      this.aesSecret?.toString(),
-      merkleTreePdaPublicKey.toBase58() + salt,
-    );
+    return Account.generateSecret(this.aesSecret?.toString(), merkleTreePdaPublicKey.toBase58() + salt);
   }
 
   getUtxoPrefixViewingKey(salt: string): Uint8Array {
-    return Account.generateSecret(
-      b2params.dkLen,
-      this.hashingSecret?.toString(),
-      salt,
-    );
+    return Account.generateSecret(this.hashingSecret?.toString(), salt);
   }
 
-  generateUtxoPrefixHash(
-    commitmentHash: Uint8Array,
-    prefixLength: number,
-    useWasmBlake: boolean = featureFlags.wasmBlake,
-  ) {
+  generateUtxoPrefixHash(commitmentHash: Uint8Array, prefixLength: number) {
     const input = Uint8Array.from([
       ...this.getUtxoPrefixViewingKey("hashing"),
       ...commitmentHash,
     ]);
 
-    return useWasmBlake
-      ? blake2(input, prefixLength)
-      : blake2b.create({ dkLen: prefixLength }).update(input).digest();
+    return blake(input, prefixLength);
   }
 
   static createBurner(
     poseidon: Poseidon,
     seed: string,
-    index: BN,
-    useWasmBlake: boolean = featureFlags.wasmBlake,
+    index: BN
   ): Account {
     if (bs58.decode(seed).length !== 32) {
       throw new AccountError(
@@ -339,9 +300,7 @@ export class Account {
       );
     }
     const input = seed + "burnerSeed" + index.toString();
-    const burnerSeed = useWasmBlake
-      ? blake2str(input, Account.hashLength)
-      : blake2b.create(b2params).update(input).digest();
+    const burnerSeed = blake(input, Account.hashLength);
     const burnerSeedString = bs58.encode(burnerSeed);
     return new Account({ poseidon, seed: burnerSeedString, burner: true });
   }
@@ -429,42 +388,30 @@ export class Account {
   }
 
   static getEncryptionKeyPair(
-    seed: string,
-    useWasmBlake: boolean = featureFlags.wasmBlake,
+    seed: string
   ): nacl.BoxKeyPair {
     const encSeed = seed + "encryption";
-    const encryptionPrivateKey = useWasmBlake
-      ? blake2str(encSeed, Account.hashLength)
-      : blake2b.create(b2params).update(encSeed).digest();
+    const encryptionPrivateKey = blake(encSeed, Account.hashLength);
     return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
   }
 
   static generateShieldedPrivateKey(
     seed: string,
-    poseidon: Poseidon,
-    useWasmBlake: boolean = featureFlags.wasmBlake,
+    poseidon: Poseidon
   ): BN {
     const privateKeySeed = seed + "shielded";
-    const blakeHash: Uint8Array = useWasmBlake
-      ? blake2str(privateKeySeed, Account.hashLength)
-      : blake2b.create(b2params).update(privateKeySeed).digest();
+    const blakeHash: Uint8Array = blake(privateKeySeed, Account.hashLength);
     const blakeHash31 = truncateToCircuit(blakeHash);
     const blakeHashBN = new BN(blakeHash31);
     return new BN(poseidon.hash([blakeHashBN.toString()]));
   }
 
   static generateSecret(
-    dkLen: number,
     seed?: string,
-    domain?: string,
-    useWasmBlake: boolean = featureFlags.wasmBlake,
+    domain?: string
   ): Uint8Array {
     const input: string = `${seed}${domain}`;
-    return useWasmBlake
-      ? blake2str(input, Account.hashLength)
-      : Uint8Array.from(
-          blake2b.create({ dkLen }).update(`${seed}${domain}`).digest(),
-        );
+    return blake(input, Account.hashLength);
   }
 
   static generateShieldedPublicKey(privateKey: BN, poseidon: Poseidon): BN {

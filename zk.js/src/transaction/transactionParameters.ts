@@ -21,7 +21,6 @@ import {
   IDL_LIGHT_PSP2IN2OUT,
   lightAccounts,
   merkleTreeProgramId,
-  Poseidon,
   Provider,
   Relayer,
   RelayerErrorCode,
@@ -36,6 +35,7 @@ import {
   truncateToCircuit,
   UserErrorCode,
 } from "../index";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import nacl from "tweetnacl";
