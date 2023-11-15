@@ -2,12 +2,13 @@ import { AffinePoint } from "@noble/curves/abstract/curve";
 import { ExtPointType } from "@noble/curves/abstract/edwards";
 import { babyjubjub } from "./babyjubjubConfig";
 import { encode } from "./pointEncoding";
+
 import {
   genPubKey as generatePublicKey,
   genPrivKey as generateSecretKey,
   formatPrivKeyForBabyJub as formatSecretKey,
   genRandomSalt,
-} from "maci-crypto";
+} from "./maci-crypto/maci-crypto-utils";
 
 const ff = require("ffjavascript");
 
