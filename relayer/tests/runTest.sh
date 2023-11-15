@@ -6,6 +6,9 @@ then
 fi
 mkdir -p .logs
 
+# Ensure redis-server is executable
+chmod +x ./../.local/bin/redis-server
+
 echo "starting redis server"
 redis-server > .logs/redis-logs.txt &
 PID_redis="${!}"
@@ -26,9 +29,14 @@ sleep 15
 echo "Current directory: $(pwd)"
 ls -la
 echo "perms:"
-ls -l .env
-chmod +r .env
-. .env
+ls -l .env.example
+chmod +r .env.example
+echo "Current directory: $(pwd)"
+. .env.example
+
+echo "building relayer"
+pnpm install
+pnpm build
 
 echo "starting relayer server"
 kill $(lsof -ti :3332) > /dev/null  || true
