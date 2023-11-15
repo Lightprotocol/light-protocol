@@ -353,6 +353,8 @@ export class Utxo {
         hashArray.push(appData[attribute]);
       }
       hashArray = hashArray.flat();
+      hashArray = hashArray.map((val) => val.toString());
+
       if (hashArray.length > 16) {
         throw new UtxoError(
           UtxoErrorCode.INVALID_APP_DATA,
