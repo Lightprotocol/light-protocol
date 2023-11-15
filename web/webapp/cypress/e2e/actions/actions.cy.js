@@ -10,7 +10,7 @@ Cypress.on("uncaught:exception", (err, runnable) => {
 describe("light web-app", () => {
   beforeEach(() => {
     cy.wait(15000);
-    cy.visit("http://127.0.0.1:5000/");
+    cy.visit("http://127.0.0.1:3000/");
     // wait for login
     cy.contains("My assets", { timeout: 10000 }).should("be.visible");
   });

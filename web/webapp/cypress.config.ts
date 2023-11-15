@@ -2,7 +2,7 @@ import { defineConfig } from "cypress";
 
 export default defineConfig({
   e2e: {
-    baseUrl: "http://127.0.0.1:5000",
+    baseUrl: "http://127.0.0.1:3000",
     setupNodeEvents(on, config) {
       // implement node event listeners here
       on("before:browser:launch", (browser, launchOptions) => {
