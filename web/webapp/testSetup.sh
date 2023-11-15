@@ -61,14 +61,15 @@ PID_WEBAPP="${!}"
 
 # Wait for server to start
 echo "waiting for server to start"
-for i in {1..15}; do
-  if netstat -tuln | grep 3000; then
-    echo "serve is on!"
-    break
-  fi
-  echo "server not yet started, waiting... round: ${i}"
-  sleep 10
-done
+# for i in {1..15}; do
+#   if netstat -tuln | grep 3000; then
+#     echo "serve is on!"
+#     break
+#   fi
+#   echo "server not yet started, waiting... round: ${i}"
+#   sleep 10
+# done
+sleep 90
 
 trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${PID_VALIDATOR} > /dev/null; then kill ${PID_VALIDATOR}; fi; if ps -p ${PID_RELAYER} > /dev/null; then kill ${PID_RELAYER}; fi; if ps -p ${PID_WEBAPP} > /dev/null; then kill ${PID_WEBAPP}; fi' EXIT
 
@@ -77,16 +78,17 @@ echo ">>>>>>> server logs:"
 cat .logs/webapp-logs.txt
 echo "<<<<<<< server logs end"
 
-echo "waiting for server to start"
-for i in {1..15}; do
-  if curl --silent --head http://localhost:3000 | grep "200 OK"; then
-    echo "Server is responding!"
-    break
-  fi
-  echo "server not yet responding, waiting..."
-  sleep 10
-  echo "ping waiting round ${i}"
-done
+# echo "waiting for server to start"
+# for i in {1..15}; do
+#   if curl --silent --head http://localhost:3000 | grep "200 OK"; then
+#     echo "Server is responding!"
+#     break
+#   fi
+#   echo "server not yet responding, waiting..."
+#   sleep 10
+#   echo "ping waiting round ${i}"
+# done
+
 
 # Check server response
 echo "server response:"
