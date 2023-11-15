@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 set -eux
-if [ ! -f "$.env" ]
+if [ ! -f ".env" ]
 then
     cp .env.example .env
 fi

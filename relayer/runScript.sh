@@ -15,7 +15,7 @@ MOCK_VERIFIER_PROGRAM_ID="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 solana config set --url http://localhost:8899
 ./../cli/test_bin/run test-validator -b
 
-if [ ! -f "$.env" ]
+if [ ! -f ".env" ]
 then
     cp .env.example .env
 fi

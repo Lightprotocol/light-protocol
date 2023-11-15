@@ -1,17 +1,21 @@
 #!/usr/bin/env sh
 set -eux
-if [ ! -f "$.env" ]
+if [ ! -f ".env" ]
 then
     cp .env.local.example .env
 fi
 
 mkdir -p .logs
 
+
+
 echo "starting redis server"
 redis-server > .logs/redis-logs.txt &
 PID_redis="${!}"
 sleep 15
 trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi' EXIT
+
+
 
 echo "starting solana-test-validator"
 solana config set --url http://localhost:8899
@@ -21,11 +25,13 @@ PID_VALIDATOR="${!}"
 sleep 15
 trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${PID_VALIDATOR} > /dev/null; then kill ${PID_VALIDATOR}; fi' EXIT
 
-echo "starting relayer server"
-kill $(lsof -ti :3332) > /dev/null  || true
-sleep 1
+
+
 
 # Load the environment variables from the relayer's .env file
+echo "building and starting relayer server"
+kill $(lsof -ti :3332) > /dev/null  || true
+sleep 1
 echo "Current directory: $(pwd)"
 ls -la
 echo "perms:"
@@ -33,11 +39,20 @@ ls -l ./../../relayer/.env.example
 chmod +r ./../../relayer/.env.example
 . ./../../relayer/.env.example
 
-node ./../../relayer/lib/index.js > .logs/relayer-logs.txt &
+# build the relayer
+cd ./../../relayer
+pnpm install
+pnpm build
+
+node ./lib/index.js > ../web/webapp/.logs/relayer-logs.txt &
+cd ../web/webapp
 PID_RELAYER="${!}"
 sleep 15
 echo "running"
 trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${PID_VALIDATOR} > /dev/null; then kill ${PID_VALIDATOR}; fi; if ps -p ${PID_RELAYER} > /dev/null; then kill ${PID_RELAYER}; fi' EXIT
+
+
+
 
 # Start your web application on port 3000
 echo "starting web application"
