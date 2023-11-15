@@ -54,7 +54,7 @@ import {
   UtxoErrorCode,
   Result,
 } from "../index";
-import {Poseidon} from "../poseidon";
+import { Poseidon } from "../poseidon";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {

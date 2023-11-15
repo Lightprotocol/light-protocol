@@ -31,7 +31,7 @@ import {
   MerkleTreeConfig,
   BN_0,
   BN_2,
-  Poseidon
+  Poseidon,
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";

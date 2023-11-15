@@ -14,7 +14,7 @@ import {
   Provider,
   TestRelayer,
   RELAYER_FEE,
-  Poseidon
+  Poseidon,
 } from "../../src";
 import {
   Keypair as SolanaKeypair,

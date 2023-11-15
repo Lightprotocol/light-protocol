@@ -21,7 +21,7 @@ import {
   Utxo,
   Account,
   IDL_LIGHT_PSP2IN2OUT,
-  Poseidon
+  Poseidon,
 } from "../../zk.js/src";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 

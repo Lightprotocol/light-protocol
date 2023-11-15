@@ -21,7 +21,7 @@ import {
   MerkleTreeConfig,
   BN_0,
   UTXO_PREFIX_LENGTH,
-  Poseidon
+  Poseidon,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 

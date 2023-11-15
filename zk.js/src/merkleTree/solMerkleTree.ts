@@ -8,7 +8,8 @@ import {
   SolMerkleTreeErrorCode,
   SolMerkleTreeError,
   Utxo,
-  BN_0, Poseidon,
+  BN_0,
+  Poseidon,
 } from "../index";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,

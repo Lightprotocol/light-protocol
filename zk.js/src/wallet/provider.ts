@@ -1,4 +1,4 @@
-import {AnchorProvider, BN, Program} from "@coral-xyz/anchor";
+import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import {
   AddressLookupTableAccount,
   ConfirmOptions,
@@ -9,7 +9,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import {initLookUpTable} from "../utils";
+import { initLookUpTable } from "../utils";
 import {
   ADMIN_AUTH_KEYPAIR,
   BN_0,
@@ -33,7 +33,7 @@ import {
   TOKEN_ACCOUNT_FEE,
   TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
   TransactionErrorCode,
-  useWallet
+  useWallet,
 } from "../index";
 
 const axios = require("axios");

@@ -31,7 +31,7 @@ import {
   BN_0,
   BN_1,
   BN_2,
-  Poseidon
+  Poseidon,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const numberMaxOutUtxos = 2;
@@ -607,14 +607,18 @@ describe("validateUtxoAmounts", () => {
     ];
   });
   // Helper function to create a UTXO with specific amounts and assets
-  function createUtxo(poseidon: Poseidon, amounts: BN[], assets: PublicKey[]): Utxo {
+  function createUtxo(
+    poseidon: Poseidon,
+    amounts: BN[],
+    assets: PublicKey[],
+  ): Utxo {
     return new Utxo({
       poseidon,
       amounts,
       assets,
       blinding: BN_0,
       publicKey: new Account({ poseidon }).pubkey,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
   }
 

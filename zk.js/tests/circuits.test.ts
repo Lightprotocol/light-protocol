@@ -23,7 +23,7 @@ import {
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   BN_0,
   BN_1,
-  Poseidon
+  Poseidon,
 } from "../src";
 import { IDL } from "./testData/tmp_test_psp";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -699,7 +699,7 @@ describe("App system circuit tests", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     const relayerPubkey = SolanaKeypair.generate().publicKey;

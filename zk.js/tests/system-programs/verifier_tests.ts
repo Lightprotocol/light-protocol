@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
-import {Keypair as SolanaKeypair, PublicKey} from "@solana/web3.js";
+import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
 import _ from "lodash";
-import {assert} from "chai";
+import { assert } from "chai";
 import {
   Account,
   Action,
@@ -36,9 +36,9 @@ import {
   User,
   userTokenAccount,
   useWallet,
-  Utxo
+  Utxo,
 } from "../../src";
-import {getOrCreateAssociatedTokenAccount} from "@solana/spl-token";
+import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 const token = require("@solana/spl-token");
 
@@ -252,8 +252,8 @@ describe("Verifier Zero and One Tests", () => {
     const instructions = await tx.getInstructions(tx.params);
     console.log("aftere instructions");
     lightProvider.provider = anchor.AnchorProvider.local(
-        "http://127.0.0.1:8899",
-        confirmConfig,
+      "http://127.0.0.1:8899",
+      confirmConfig,
     );
     let e;
     try {

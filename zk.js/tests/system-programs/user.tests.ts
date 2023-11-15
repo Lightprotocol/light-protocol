@@ -29,7 +29,7 @@ import {
   useWallet,
   RELAYER_FEE,
   BN_1,
-  Poseidon
+  Poseidon,
 } from "../../src";
 
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
