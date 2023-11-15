@@ -5,7 +5,9 @@
       "rootDirs": ["src", "generated"],
       "baseUrl": "src",
       "esModuleInterop": true,
+      "target": "ESNext",
+      "module": "ESNext",
     },
-    "extends": "@lightprotocol/tsconfig/base.json",
-    "include": ["src"]
+    "extends": "tsconfig.json",
+    "include": ["benches"]
   }
