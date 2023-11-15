@@ -6,7 +6,7 @@ import * as path from "path";
 import * as tar from "tar";
 import * as zlib from "zlib";
 import { sleep, getSystem, System } from "@lightprotocol/zk.js";
-import { CARGO_EXPAND_TAG } from "./constants";
+import { CARGO_GENERATE_TAG } from "./constants";
 
 const fileExists = promisify(fs.exists);
 
@@ -353,7 +353,7 @@ export async function downloadCargoGenerateIfNotExists({
   dirPath: string;
 }) {
   let remoteFileName: string;
-  const tag = CARGO_EXPAND_TAG;
+  const tag = CARGO_GENERATE_TAG;
   switch (getSystem()) {
     case System.LinuxAmd64:
       remoteFileName = `cargo-generate-${tag}-x86_64-unknown-linux-musl.tar.gz`;
