@@ -1,25 +1,25 @@
-# on:
-#   push:
-#     branches:
-#       - main
-#     paths:
-#       - "zk.js/**"
-#       - "programs/**"
-#       - "light-circuits/**"
-#       - ".github/workflows/system-programs-tests.yml"
-#   pull_request:
-#     branches:
-#       - main
-#     paths:
-#       - "zk.js/**"
-#       - "programs/**"
-#       - "light-circuits/**"
-#       - ".github/workflows/system-programs-tests.yml"
-#     types:
-#       - opened
-#       - synchronize
-#       - reopened
-#       - ready_for_review
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "zk.js/**"
+      - "programs/**"
+      - "light-circuits/**"
+      - ".github/workflows/system-programs-tests.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "zk.js/**"
+      - "programs/**"
+      - "light-circuits/**"
+      - ".github/workflows/system-programs-tests.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 name: system-programs-tests
 
