@@ -55,14 +55,6 @@ jobs:
         run: |
           (cd web/webapp && npx cypress install)
 
-      # - name: Build relayer
-      #   run: |
-      #     (cd relayer && pnpm install && pnpm build)
-
-      # - name: Build webapp
-      #   run: |
-      #     (cd web/webapp && pnpm install && pnpm build)
-
       - name: Run end-to-end tests
         run: |
           source ./scripts/devenv.sh
