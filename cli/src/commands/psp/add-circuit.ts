@@ -1,5 +1,6 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { addCircuit } from "../../psp-utils/addCircuit";
+import { initFlags } from "../../psp-utils/init";
 
 export default class InitCommand extends Command {
   static description = "Initialize a PSP project.";
@@ -18,6 +19,11 @@ export default class InitCommand extends Command {
       default: false,
       required: false,
     }),
+    programName: Flags.string({
+      description: "The program the circuit will be verified in.",
+      required: true,
+    }),
+    ...initFlags,
   };
 
   async run() {
@@ -26,7 +32,7 @@ export default class InitCommand extends Command {
 
     this.log("🚀 Initializing PSP project...");
 
-    addCircuit({ name, ...flags });
+    addCircuit({ name, flags });
     this.log("✅ Project initialized successfully");
   }
 }

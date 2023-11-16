@@ -1,19 +1,18 @@
 import { executeAnchor, executeMacroCircom } from "./toolchain";
 import { findFile } from "./utils";
-import { generateCircuit } from "./buildCircom";
+import { compileCircuit } from "./buildCircom";
 import { Flags } from "@oclif/core";
 import { isCamelCase } from "@lightprotocol/zk.js";
+import { findAnchorPrograms } from "./addCircuit";
 
 const suffix = "Main.circom";
 
 /**
  * Builds a Private Solana Program (PSP) given a circuit directory.
  * Creates circom files, builds the circom circuit, and compiles the anchor program.
- * @param circuitDir - The directory containing the circuit files.
  * @returns {Promise<void>}
  */
 export async function buildPSP({
-  circuitDir,
   ptau,
   programName,
   skipAnchor,
@@ -24,9 +23,8 @@ export async function buildPSP({
   skipLinkCircuitlib,
   skipLinkCircomlib,
 }: {
-  circuitDir: string;
   ptau: number;
-  programName: string;
+  programName?: string;
   skipAnchor?: boolean;
   skipCircuit?: boolean;
   skipMacroCircom?: boolean;
@@ -35,63 +33,81 @@ export async function buildPSP({
   skipLinkCircuitlib?: boolean;
   skipLinkCircomlib?: boolean;
 }) {
-  // TODO: add support to compile only selected circuits
-  let foundCircuitNames: string[] = [];
-  if (!skipCircuit) {
-    if (!skipMacroCircom) {
-      const circuits = findFile({
-        directory: circuitDir,
-        extension: ".light",
-      });
-      for (const { fullPath } of circuits) {
-        console.log("📜 Generating circom files");
-        await executeMacroCircom({
-          args: [fullPath, programName],
+  const compileProgramCircuits = async (
+    baseDir: string,
+    programName: string
+  ) => {
+    const baseDirCircuit = `circuits/${programName}`;
+    baseDir = `circuits/`;
+    let foundCircuitNames: string[] = [];
+    if (!skipCircuit) {
+      if (!skipMacroCircom) {
+        const circuits = findFile({
+          directory: baseDirCircuit,
+          extension: ".light",
         });
-        console.log("✅ Circom files generated successfully");
+        for (const { fullPath } of circuits) {
+          console.log("📜 Generating circom files");
+          console.log("fullPath ", fullPath);
+          await executeMacroCircom({
+            args: [fullPath, programName],
+          });
+          console.log("✅ Circom files generated successfully");
+        }
+      }
+      const circuits = findFile({
+        directory: baseDirCircuit,
+        extension: "Main.circom",
+      });
+      for (const { filename } of circuits) {
+        foundCircuitNames.push(filename.slice(0, -suffix.length));
       }
     }
-    const circuits = findFile({
-      directory: circuitDir,
-      extension: "Main.circom",
-    });
-    for (const { filename } of circuits) {
-      foundCircuitNames.push(filename.slice(0, -suffix.length));
-    }
-  }
-  foundCircuitNames = [...new Set(foundCircuitNames)];
-  console.log("foundCircuitNames ", foundCircuitNames);
+    foundCircuitNames = [...new Set(foundCircuitNames)];
+    console.log("foundCircuitNames ", foundCircuitNames);
 
-  if (!skipLinkCircomlib) {
-    linkedCircuitLibraries.push("node_modules/circomlib/circuits/");
-  }
-  if (!skipLinkCircuitlib) {
-    linkedCircuitLibraries.push(
-      `node_modules/@lightprotocol/circuit-lib.circom/src/light-utils`
-    );
-    linkedCircuitLibraries.push(
-      `node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree`
-    );
-  }
-  // TODO: enable multiple programs
-  // TODO: add add-psp command which adds a second psp
-  if (foundCircuitNames.length > 0) {
-    for (const foundCircuitName of foundCircuitNames) {
-      // if circuitName is provided skip circuits which have not been provided in the circuitName flag
-      if (circuitName && circuitName.indexOf(foundCircuitName) === -1) continue;
-
-      console.log("🔑 Generating circuit ", foundCircuitName);
-      await generateCircuit({
-        circuitName: foundCircuitName,
-        ptau,
-        programName,
-        linkedCircuitLibraries,
-      });
-      console.log(`✅ Circuit ${foundCircuitName} generated successfully`);
+    if (!skipLinkCircomlib) {
+      linkedCircuitLibraries.push("node_modules/circomlib/circuits/");
     }
+    if (!skipLinkCircuitlib) {
+      linkedCircuitLibraries.push(
+        `node_modules/@lightprotocol/circuit-lib.circom/src/light-utils`
+      );
+      linkedCircuitLibraries.push(
+        `node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree`
+      );
+    }
+
+    if (foundCircuitNames.length > 0) {
+      for (const foundCircuitName of foundCircuitNames) {
+        // if circuitName is provided skip circuits which have not been provided in the circuitName flag
+        if (circuitName && circuitName.indexOf(foundCircuitName) === -1)
+          continue;
+
+        console.log("🔑 Compiling circuit ", foundCircuitName);
+        await compileCircuit({
+          circuitName: foundCircuitName,
+          ptau,
+          linkedCircuitLibraries,
+          programName,
+        });
+        console.log(`✅ Circuit ${foundCircuitName} generated successfully`);
+      }
+    } else {
+      throw new Error("No circuit found");
+    }
+  };
+  if (programName) {
+    await compileProgramCircuits(`./programs/${programName}`, programName);
   } else {
-    throw new Error("No circuit found");
+    const { baseDir, programs } = findAnchorPrograms();
+
+    for (const program of programs) {
+      const circuitDir = `${baseDir}/circuits/${program}`;
+      await compileProgramCircuits(circuitDir, program);
+    }
   }
+
   if (skipAnchor) return;
   console.log("🛠  Building on-chain program");
   await executeAnchor({ args: ["build"] });
@@ -101,10 +117,6 @@ export async function buildPSP({
 export const buildFlags = {
   name: Flags.string({ description: "Name of the project." }),
   ptau: Flags.integer({ description: "Ptau value.", default: 15 }),
-  circuitDir: Flags.string({
-    description: "Directory of the circuit.",
-    default: "circuits",
-  }),
   skipAnchor: Flags.boolean({
     description: "Directory of the circuit.",
     default: false,

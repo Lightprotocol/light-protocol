@@ -152,7 +152,7 @@ describe("Test swaps", () => {
     console.log(
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
     );
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join("build-circuit/swaps/swaps");
 
     const shieldUtxo = buyerUser.getAllUtxos()[0];
 
@@ -423,7 +423,7 @@ describe("Test swaps", () => {
       `Successfully fetched and decrypted counter offer: priceSol ${fetchedCounterOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedCounterOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedCounterOfferUtxo.appData.recipient.toString()}`,
     );
 
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join("build-circuit/swaps/swaps");
 
     // const shieldUtxo = sellerUser.getAllUtxos()[0];
 
@@ -653,7 +653,7 @@ describe("Test swaps", () => {
     console.log(
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
     );
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join("build-circuit/swaps/swaps");
 
     const cancelOutputUtxo = new Utxo({
       poseidon: POSEIDON,

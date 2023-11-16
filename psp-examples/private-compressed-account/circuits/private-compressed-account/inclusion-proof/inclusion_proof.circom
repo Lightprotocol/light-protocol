@@ -1,7 +1,7 @@
 pragma circom 2.1.4;
-include "../../node_modules/circomlib/circuits/poseidon.circom";
-include "../../node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree/merkleProof.circom";
-include "../../node_modules/circomlib/circuits/comparators.circom";
+include "../../../node_modules/circomlib/circuits/poseidon.circom";
+include "../../../node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree/merkleProof.circom";
+include "../../../node_modules/circomlib/circuits/comparators.circom";
 
 /**
 * Proves the inclusion of a leaf in a Merkle Tree
