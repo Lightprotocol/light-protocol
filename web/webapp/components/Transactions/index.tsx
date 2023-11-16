@@ -19,10 +19,7 @@ function TransactionCard({
     UNSHIELD: <IconArrowUp color="red" />,
     TRANSFER: <IconArrowRight color="blue" />,
   };
-  // Get the token context for SOL
   const tokenCtx = TOKEN_REGISTRY.get("SOL")!;
-
-  // Parse the relayerFee
   const parsedRelayerFee = parseAmount(relayerFee, tokenCtx);
 
   return (
@@ -68,12 +65,10 @@ export const Transactions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
-  // Sort the transactions
   const sortedTransactions = transactions!.sort(
     (a, b) => new Date(b.blockTime).getTime() - new Date(a.blockTime).getTime()
   );
 
-  // Get the transactions for the current page
   const currentPageTransactions = sortedTransactions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage

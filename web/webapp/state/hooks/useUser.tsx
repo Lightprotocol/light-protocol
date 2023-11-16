@@ -26,14 +26,10 @@ export const initializedUser = atom(
     set(loadingState, true);
 
     try {
-      console.log("init relayer from url");
       const relayer = await Relayer.initFromUrl(
         process.env.NEXT_PUBLIC_RELAYER_URL!
       );
 
-      console.log("relayer", relayer);
-      console.log("conn", connection.rpcEndpoint);
-      console.log("init provider");
       const provider = await Provider.init({
         relayer,
         wallet,
@@ -43,10 +39,8 @@ export const initializedUser = atom(
           process.env.NEXT_PUBLIC_LOOK_UP_TABLE!
         ),
       });
-      console.log("user.init");
       const user = await User.init({ provider, skipFetchBalance: true });
 
-      console.log("user", user.account.getPublicKey());
       await user.getTransactionHistory(true);
 
       set(userState, { user, timestamp: Date.now() });

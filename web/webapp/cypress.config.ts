@@ -4,7 +4,6 @@ export default defineConfig({
   e2e: {
     baseUrl: "http://127.0.0.1:3000",
     setupNodeEvents(on, config) {
-      // implement node event listeners here
       on("before:browser:launch", (browser, launchOptions) => {
         if (browser.family === "firefox") {
           // launchOptions.preferences is a map of preference names to values

@@ -32,8 +32,7 @@ const grey: MantineColorsTuple = [
 export const theme = createTheme({
   focusRing: "never",
   colors: {
-    // default primary
-    blue,
+    blue, // default primary
     grey,
   },
   defaultRadius: "sm",

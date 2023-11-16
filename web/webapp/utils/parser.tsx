@@ -5,11 +5,10 @@ import {
 } from "@lightprotocol/zk.js";
 
 import { BN } from "@coral-xyz/anchor";
-// New function to parse amount
+
 export function parseAmount(amount: BN, tokenCtx: any, decimals = 4) {
   let { div: quotient, mod: remainder } = amount.divmod(tokenCtx.decimals);
 
-  // Converts remainder to a decimal
   // We're using BN to prevent overflowing Number.MAX_SAFE_INTEGER
   let remainderDecimal = remainder
     .mul(new BN(10).pow(new BN(decimals)))
@@ -25,7 +24,7 @@ export function parseAmount(amount: BN, tokenCtx: any, decimals = 4) {
     return `${quotient.toString()}.${remainderString}`;
   }
 }
-// Updated parseTxAmount function
+
 export const parseTxAmount = (tx: UserIndexedTransaction) => {
   const amountSpl = tx.publicAmountSpl;
   const amountSol = tx.publicAmountSol;
@@ -44,7 +43,6 @@ export const parseTxAmount = (tx: UserIndexedTransaction) => {
   return val;
 };
 
-// Updated parseBalance function
 export function parseShieldedBalance(tokenBalance: TokenUtxoBalance) {
   let _token = tokenBalance.tokenData.symbol;
   let tokenCtx = TOKEN_REGISTRY.get(_token)!;
