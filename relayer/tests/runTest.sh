@@ -7,7 +7,7 @@ fi
 mkdir -p .logs
 
 # Ensure redis-server is executable
-chmod +x ./../.local/bin/redis-server
+# chmod +x ./../.local/bin/redis-server
 
 echo "starting redis server"
 redis-server > .logs/redis-logs.txt &
@@ -32,7 +32,7 @@ echo "perms:"
 ls -l .env.example
 chmod +r .env.example
 echo "Current directory: $(pwd)"
-. .env.example
+# . .env.example
 
 echo "building relayer"
 pnpm install

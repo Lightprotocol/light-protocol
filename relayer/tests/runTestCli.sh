@@ -23,7 +23,7 @@ trap "kill ${PID}" EXIT
 sleep 8
 
 echo "starting relayer server"
-source .env
+# source .env
 kill $(lsof -ti :3332) > /dev/null  || true
 sleep 1
 node lib/index.js > .logs/relayer-logs.txt &
