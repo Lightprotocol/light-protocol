@@ -27,7 +27,7 @@ jobs:
         include:
           - name: sdk-tests-light-relayer-cli
             sub-tests: '[
-            "@lightprotocol/cli", 
+            "@lightprotocol/cli",
             "@lightprotocol/prover.js"]'
           - name: circuit-tests
             sub-tests: '[

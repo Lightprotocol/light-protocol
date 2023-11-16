@@ -22,6 +22,7 @@
 # Rust
 **/target/
 
+/**/dist/
 # relayer
 /relayer/node_modules/
 /relayer/dist/

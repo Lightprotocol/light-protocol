@@ -1,0 +1,13 @@
+.root {
+  &[data-variant="secondary"] {
+    background-color: transparent;
+    color: var(--mantine-color-grey-9);
+  }
+  &[data-variant="secondary-active"] {
+    background-color: var(--mantine-color-blue-1);
+    color: var(--mantine-color-blue-7);
+  }
+  &[data-variant="secondary"]:disabled {
+    color: var(--mantine-color-grey-5);
+  }
+}

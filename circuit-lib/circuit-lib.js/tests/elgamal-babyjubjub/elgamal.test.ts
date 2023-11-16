@@ -13,8 +13,8 @@ import {
   encode,
   decode,
   split64BigInt,
-  precompute,
 } from "../../src/elgamal-babyjubjub/pointEncoding";
+import { precompute } from "../../src/elgamal-babyjubjub/precompute";
 
 const fs = require("fs");
 
