@@ -53,6 +53,22 @@ trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${
 
 
 
+# copy build-circuits from zkjs into webapp/public
+SOURCE="./node_modules/@lightprotocol/zk.js/build-circuits/"
+DESTINATION="./public/build-circuits/"
+
+mkdir -p "$DESTINATION"
+cp -R "$SOURCE" "$DESTINATION"
+
+echo "Copied circuit files to $DESTINATION"
+
+sleep 5
+
+echo "Listing all folders/files in ./public:"
+ls -la ./public
+ls -la ./public/build-circuits || true # debug purpose
+
+
 
 # Start your web application on port 3000
 echo "starting web application"
@@ -76,12 +92,6 @@ echo "<<<<<<< server logs end"
 echo "server response:"
 curl http://localhost:3000
 
-
-
-echo "Listing all folders/files in ./public:"
-ls -la ./public
-echo "Listing all folders/files in root:"
-ls -la /
 
 export TERM=xterm
 
