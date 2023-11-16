@@ -23,7 +23,7 @@ trap "kill ${PID}" EXIT
 sleep 8
 
 echo "starting relayer server"
-# source .env
+
 kill $(lsof -ti :3332) > /dev/null  || true
 sleep 1
 node lib/index.js > .logs/relayer-logs.txt &
@@ -32,7 +32,6 @@ trap "kill ${PID_RELAYER} > /dev/null || true" EXIT
 sleep 15
 echo "executing cli tests"
 cd ../cli
-# export LIGHT_PROTOCOL_CONFIG=$PWD/config.json
 # set invalid relayerRecipient
 ./test_bin/run config --relayerRecipient=AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrz66666
 # sync valid relayer stats again

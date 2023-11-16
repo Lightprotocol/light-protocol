@@ -27,7 +27,7 @@ echo "starting redis server"
 PID_redis="${!}"
 sleep 15
 trap "kill ${PID_redis}" EXIT
-# redis specific export
+
 export REDIS_ENVIRONMENT=LOCAL
 
 

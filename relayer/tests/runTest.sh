@@ -6,16 +6,13 @@ then
 fi
 mkdir -p .logs
 
-# Ensure redis-server is executable
-# chmod +x ./../.local/bin/redis-server
-
 echo "starting redis server"
 redis-server > .logs/redis-logs.txt &
 PID_redis="${!}"
 sleep 15
 trap "kill ${PID_redis}" EXIT
 
-# redis specific export
+
 export REDIS_ENVIRONMENT=LOCAL
 
 echo "starting solana-test-validator"
@@ -32,7 +29,7 @@ echo "perms:"
 ls -l .env.example
 chmod +r .env.example
 echo "Current directory: $(pwd)"
-# . .env.example
+
 
 echo "building relayer"
 pnpm install
