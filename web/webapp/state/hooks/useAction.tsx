@@ -110,6 +110,8 @@ export const shieldState = atom(
         senderTokenAccount,
       });
 
+      /// FIX: in indexer, should use webhook to stream new txs in real time.
+      /// sleep prevents fetching non-up2date txs state
       await sleep(8000);
 
       // FIX: the user class doesnt shallow update after shields, therefore we have to "force update" the user here
@@ -162,6 +164,8 @@ export const unshieldState = atom(
         confirmOptions,
       });
 
+      /// FIX: in indexer, should use webhook to stream new txs in real time.
+      /// sleep prevents fetching non-up2date txs state
       await sleep(8000);
 
       set(userState, { user, timestamp: Date.now() });

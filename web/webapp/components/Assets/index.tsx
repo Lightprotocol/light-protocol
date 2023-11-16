@@ -85,7 +85,7 @@ export function Assets() {
   return (
     <Paper radius="md" withBorder w="400px" role="region">
       <Paper style={{ width: "100%", padding: "20px" }}>
-        <Title size="xs"> My Shielded Assets</Title>
+        <Title size="xs">My Shielded Assets</Title>
       </Paper>
       <Divider></Divider>
       <Table highlightOnHover>

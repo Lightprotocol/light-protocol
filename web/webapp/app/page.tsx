@@ -45,7 +45,7 @@ export default function Shell() {
   }, []);
 
   if (isLoading) {
-    return <div>Loggin in...</div>;
+    return <div>Logging in...</div>;
   }
 
   if (!user) {
