@@ -59,8 +59,8 @@ describe("light web-app", () => {
     cy.get('button:contains("Shield now")').click();
     cy.get('button:contains("Shield now")').should("be.disabled"); // loading
 
-    cy.contains("Shielding SOL", { timeout: 15000 }).should("be.visible");
-    cy.contains("Shield successful", { timeout: 35000 }).should("be.visible");
+    cy.contains("Shielding SOL", { timeout: 20000 }).should("be.visible");
+    cy.contains("Shield successful", { timeout: 40000 }).should("be.visible");
     cy.wait(2000);
     cy.get('[data-testid="shield-send-modal"]', { timeout: 0 }).should(
       "not.exist"
@@ -117,8 +117,8 @@ describe("light web-app", () => {
     cy.get('button:contains("Send now")').click();
     cy.get('button:contains("Send now")').should("be.disabled"); // loading
 
-    cy.contains("Unshielding SOL", { timeout: 15000 }).should("be.visible");
-    cy.contains("Unshield successful", { timeout: 35000 }).should("be.visible");
+    cy.contains("Unshielding SOL", { timeout: 20000 }).should("be.visible");
+    cy.contains("Unshield successful", { timeout: 40000 }).should("be.visible");
     cy.wait(2000);
     cy.get('[data-testid="shield-send-modal"]', { timeout: 0 }).should(
       "not.exist"

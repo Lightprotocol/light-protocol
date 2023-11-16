@@ -60,3 +60,10 @@ jobs:
           source ./scripts/devenv.sh
           cd web/webapp
           pnpm run test:e2e
+
+      - name: Upload Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: cypress-screenshots
+          path: web/webapp/cypress/screenshots/
