@@ -1,5 +1,4 @@
 import * as anchor from "@coral-xyz/anchor";
-import { assert } from "chai";
 import {
   Utxo,
   TransactionParameters,
@@ -154,7 +153,7 @@ describe("Test private-voting", () => {
       poseidon: POSEIDON,
     });
     const currentSlot = new BN(10);
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join("build-circuit/private-voting/privateVoting");
 
     const noZeroNonce = generateRandomSalt();
     const { ephemeralKey: zeroNoEmphemeralKey, ciphertext: zeroNoCiphertext } =

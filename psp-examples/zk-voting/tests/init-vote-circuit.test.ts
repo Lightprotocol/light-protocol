@@ -115,7 +115,7 @@ describe("Test private-voting", () => {
   it(" test init vote circuit ", async () => {
     const voteAdminElGamalSecretKey = generateKeypair();
 
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join("build-circuit/private-voting/initVote");
 
     const initVoteTransactionInput: InitVoteTransactionInput = {
       idl: IDL,
