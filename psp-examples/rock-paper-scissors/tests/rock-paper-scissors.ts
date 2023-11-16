@@ -423,7 +423,9 @@ class Player {
       testProgramUtxo,
       false
     );
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join(
+      "build-circuit/rock-paper-scissors/rockPaperScissors"
+    );
     const winner = this.game.getWinner(gamePdaAccountInfo.game.playerTwoChoice);
 
     // We use getBalance to sync the current merkle tree

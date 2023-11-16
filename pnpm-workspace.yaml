@@ -7,4 +7,6 @@ packages:
   - "cli/**"
   - "relayer/**"
   - "psp-examples/**"
+  - "tmp-test-psp/**"
   - "web/webapp/**"
+

@@ -162,7 +162,9 @@ describe("Streaming Payments tests", () => {
       .utxos.get(shieldedUtxoCommitmentHash);
     Utxo.equal(POSEIDON, inputUtxo, testInputsShield.utxo, false);
 
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join(
+      "build-circuit/streaming-payments/streamingPayments",
+    );
     // TODO: add in and out utxos to appParams
     // TODO: create compile appParams method which creates isAppIn and out utxo arrays, prefixes utxo data variables with in and out prefixes
     const pspTransactionInput: PspTransactionInput = {

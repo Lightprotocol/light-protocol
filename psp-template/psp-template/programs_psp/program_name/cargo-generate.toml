@@ -1,0 +1,34 @@
+[template]
+cargo_generate_version = ">=0.18.2"
+ignore = [ "circuits/program_name/cargo-generate.toml" ]
+
+[placeholders.rust-name]
+type = "string"
+prompt = "Name of the Rust crate (snake_case)"
+
+[placeholders.program-id]
+type = "string"
+prompt = "Solana program ID"
+default = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+
+[placeholders.type]
+type = "string"
+prompt = "Repo type (psp, circom, psp-circom)"
+default = "psp"
+
+[placeholders.light-merkle-tree-program-version]
+type = "string"
+prompt = "Merkle tree program version"
+
+[placeholders.light-system-program-version]
+type = "string"
+prompt = "Native PSP version"
+
+[placeholders.light-system-program]
+type = "string"
+prompt = "Native PSP"
+
+[placeholders.type-prefix]
+type = "string"
+prompt = "Sub cli type (psp, circom)"
+default = "psp"

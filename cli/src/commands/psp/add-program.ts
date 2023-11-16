@@ -1,10 +1,6 @@
 import { Args, Command, Flags } from "@oclif/core";
-import {
-  ProjectType,
-  initRepo,
-  cliFlags,
-  initFlags,
-} from "../../psp-utils/init";
+import { cliFlags, initFlags } from "../../psp-utils/init";
+import { addProgram } from "../../psp-utils/addProgram";
 
 export default class InitCommand extends Command {
   static description = "Initialize a PSP project.";
@@ -32,10 +28,9 @@ export default class InitCommand extends Command {
     const { args, flags } = await this.parse(InitCommand);
     const { name } = args;
 
-    this.log("🚀 Initializing PSP project...");
-    const type = flags.circom ? ProjectType.PSP_CIRCOM : ProjectType.PSP;
-    await initRepo(name, type, flags);
+    this.log("Adding Program...");
+    await addProgram({ name, flags });
 
-    this.log("✅ Project initialized successfully");
+    this.log("✅ Program initialized successfully");
   }
 }
