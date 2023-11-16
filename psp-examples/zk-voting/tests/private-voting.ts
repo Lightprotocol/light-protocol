@@ -259,7 +259,7 @@ describe("Test private-voting", () => {
     const initVoteTransactionInput = {
       idl: IDL,
       elGamalPublicKey: proposerElGamalKeypair.publicKey,
-      circuitPath: path.join("build-circuit"),
+      circuitPath: path.join("build-circuit/private-voting/initVote"),
     };
     const { proof, publicInputs } = await createInitVoteProof(
       initVoteTransactionInput
@@ -392,7 +392,7 @@ describe("Test private-voting", () => {
 
     console.log(`\n\n ----------------  Casting yes vote - vote weight ${voteWeightUtxo.appData.voteWeight} ---------------- \n\n`)
 
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join("build-circuit/private-voting/privateVoting");
 
     const currentSlot = new BN(await provider.connection.getSlot());
 
@@ -518,7 +518,7 @@ describe("Test private-voting", () => {
 
   it("test publish decrypted tally: ", async () => {
     const fetchedVotePda = await fetchAndConvertVotePda(voteProgram, votePda);
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join("build-circuit/private-voting/publishDecryptedTally");
 
     const createPublishDecryptedTallyTransactionInput: PublishDecryptedTallyTransactionInput =
       {
