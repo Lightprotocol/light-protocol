@@ -8,3 +8,5 @@ packages:
   - "relayer/**"
   - "psp-examples/**"
   - "tmp-test-psp/**"
+  - "web/webapp/**"
+
