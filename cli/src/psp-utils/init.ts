@@ -17,6 +17,7 @@ import {
   toSnakeCase,
   toCamelCase,
   camelToScreamingSnake,
+  sleep,
 } from "@lightprotocol/zk.js";
 
 export enum ProjectType {
@@ -81,18 +82,29 @@ export const initRepo = async (name: string, type: ProjectType, flags: any) => {
       `light-verifier-sdk-version=${flags.lightVerifierSdkVersion}`,
     ],
   });
+  await sleep(1000);
+
+  // sleep to make sure the folders exist
   type = type === ProjectType.PSP_CIRCOM ? ProjectType.CIRCOM : type;
-  await renameFolder(
-    `${process.cwd()}/${name}/circuits/circuit_${type}`,
+  renameFolder(
+    `${process.cwd()}/${name}/circuits/program_name/circuit_${type}`,
+    `${process.cwd()}/${name}/circuits/program_name/${name}`
+  );
+  renameFolder(
+    `${process.cwd()}/${name}/circuits/program_name`,
     `${process.cwd()}/${name}/circuits/${name}`
   );
-  await renameFolder(
+  renameFolder(
     `${process.cwd()}/${name}/tests_${programsType}`,
     `${process.cwd()}/${name}/tests`
   );
-  await renameFolder(
+  renameFolder(
     `${process.cwd()}/${name}/programs_${programsType}`,
     `${process.cwd()}/${name}/programs`
+  );
+  renameFolder(
+    `${process.cwd()}/${name}/programs/program_name`,
+    `${process.cwd()}/${name}/programs/${name}`
   );
 
   await executeCommandInDir("pnpm", ["install"], name);
@@ -154,7 +166,9 @@ export const cliFlags = {
     default: LIGHT_VERIFIER_SDK_VERSION,
     required: false,
   }),
+};
 
+export const initFlags = {
   path: Flags.string({
     aliases: ["p"],
     description: "Path of the template repo.",

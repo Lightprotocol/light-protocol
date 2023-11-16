@@ -1,3 +1,4 @@
+import { sleep } from "@lightprotocol/zk.js";
 import * as fs from "fs";
 
 /**
@@ -67,13 +68,6 @@ function recursiveSearch(
 
 import { resolve as resolvePath } from "path";
 
-export async function renameFolder(
-  oldPath: string,
-  newPath: string
-): Promise<void> {
-  fs.rename(resolvePath(oldPath), resolvePath(newPath), (err) => {
-    if (err) {
-      throw err;
-    }
-  });
+export function renameFolder(oldPath: string, newPath: string) {
+  fs.renameSync(resolvePath(oldPath), resolvePath(newPath));
 }

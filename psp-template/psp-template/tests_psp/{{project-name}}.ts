@@ -106,7 +106,7 @@ describe("Test {{project-name}}", () => {
 
     Utxo.equal(POSEIDON, inputUtxo, testInputsShield.utxo, true);
 
-    const circuitPath = path.join("build-circuit");
+    const circuitPath = path.join(`build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`);
 
     const pspTransactionInput: PspTransactionInput = {
       proofInputs: {

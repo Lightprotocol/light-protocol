@@ -3,7 +3,7 @@
     "lint:fix": "yarn prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "yarn prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "test": "light {{type-prefix}}:test {{project-name}} {{program-id}}",
-    "build": "light {{type-prefix}}:build {{project-name}}"
+    "build": "light {{type-prefix}}:build"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0",
