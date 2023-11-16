@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "chmod +x ./copy-circuits.sh && sh ./copy-circuits.sh",
-    "build": "pnpm prebuild && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "serve": "pnpm run build && npx serve@latest dist",
