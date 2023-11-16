@@ -78,6 +78,12 @@ curl http://localhost:3000
 
 
 
-# Run Cypress tests
+echo "Listing all folders/files in ./public:"
+ls -la ./public
+echo "Listing all folders/files in root:"
+ls -la /
+
+export TERM=xterm
+
 echo "running Cypress tests"
 pnpm run cypress:run

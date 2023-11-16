@@ -42,4 +42,3 @@ next-env.d.ts
 
 # dupe circuits
 **/public/build-circuits/
-*/public/build-circuits/
