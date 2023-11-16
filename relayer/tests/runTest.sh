@@ -41,7 +41,7 @@ pnpm build
 echo "starting relayer server"
 kill $(lsof -ti :3332) > /dev/null  || true
 sleep 1
-node lib/index.js
+node lib/index.js > .logs/relayer-logs.txt &
 PID_RELAYER="${!}"
 trap "kill ${PID_RELAYER} > /dev/null || true" EXIT
 sleep 15

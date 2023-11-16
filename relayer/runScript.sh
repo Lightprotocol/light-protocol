@@ -31,6 +31,4 @@ trap "kill ${PID_redis}" EXIT
 export REDIS_ENVIRONMENT=LOCAL
 
 
-source .env
-
 pnpm ts-node lib/index.js
