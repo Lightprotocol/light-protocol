@@ -54,7 +54,7 @@ trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${
 
 
 # copy build-circuits from zkjs into webapp/public
-SOURCE="./node_modules/@lightprotocol/zk.js/build-circuits/"
+SOURCE="./node_modules/@lightprotocol/zk.js/build-circuits/*"
 DESTINATION="./public/build-circuits/"
 
 mkdir -p "$DESTINATION"
