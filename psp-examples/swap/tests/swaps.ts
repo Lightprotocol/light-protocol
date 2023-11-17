@@ -20,7 +20,7 @@ import {
   SolanaTransactionInputs,
   Provider,
   sendAndConfirmShieldedTransaction,
-  ConfirmOptions,
+  ConfirmOptions, hashAndTruncateToCircuit,
 } from "@lightprotocol/zk.js";
 
 import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
@@ -118,8 +118,7 @@ describe("Test swaps", () => {
         priceSpl: new BN(0),
         splAsset: new BN(0),
         recipient: sellerUser.account.pubkey,
-        recipientEncryptionPublicKey: new BN(
-          sellerUser.account.encryptionKeypair.publicKey,
+        recipientEncryptionPublicKey: hashAndTruncateToCircuit((sellerUser.account.encryptionKeypair.publicKey),
         ),
         // blinding: new BN(0),
       },
