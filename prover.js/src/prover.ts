@@ -81,8 +81,10 @@ export class Prover<
 
   async addProofInputs(proofInputs: any) {
     // Filter accounts that contain zK and either PublicInputs or ProofInputs
-
     // After Retrieving circuitName ==> build wasm and zkey paths for the circuit
+
+    // TODO(sergey): validate the inputs, they should be less than modulus of the prime field, if they are larger => throw an error
+
     this.wasmPath =
       this.firstPath +
       `/${Prover.removeSuffix(
