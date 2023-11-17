@@ -75,17 +75,13 @@ describe("Test Account Functional", () => {
     let x = new Array(30).fill(1);
     let y = new Array(30).fill(2);
     const poseidon = await Poseidon.getInstance();
-    const hash = poseidon.string(
-      poseidon.hash([new BN(x).toString(), new BN(y).toString()]),
-    );
+    const hash = poseidon.hashString([new BN(x).toString(), new BN(y).toString()]);
 
     x = new Array(29).fill(1);
     y = new Array(31).fill(2);
     y[30] = 1;
 
-    const hash1 = poseidon.string(
-      poseidon.hash([new BN(x).toString(), new BN(y).toString()]),
-    );
+    const hash1 = poseidon.hashString([new BN(x).toString(), new BN(y).toString()]);
     assert.notEqual(hash, hash1);
   });
 

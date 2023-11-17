@@ -5,7 +5,8 @@ const circomlibjs = require("circomlibjs");
 
 export interface IHasher {
   hash(input: string[] | BN[]): Uint8Array;
-  string(hash: Uint8Array): string;
+  hashString(input: string[] | BN[]): string;
+  hashBN(input: string[] | BN[]): BN;
 }
 
 export class Poseidon implements IHasher {
@@ -23,14 +24,6 @@ export class Poseidon implements IHasher {
     }
     return Poseidon.instance;
   }
-
-  private stringify(input: string[] | BN[]): string[] {
-    if (input.length > 0 && input[0] instanceof BN) {
-      return (input as BN[]).map((item) => item.toString(10));
-    } else {
-      return input as string[];
-    }
-  }
   public hash(input: string[] | BN[]): Uint8Array {
     if (featureFlags.wasmPoseidon) {
       return wasmPoseidon(this.stringify(input));
@@ -39,7 +32,22 @@ export class Poseidon implements IHasher {
     }
   }
 
-  public string(hash: Uint8Array): string {
+  public hashBN(input: string[] | BN[]): BN {
+    return new BN(this.hash(input));
+  }
+
+  public hashString(input: string[] | BN[]): string {
+    return this.string(this.hash(input));
+  }
+
+  private stringify(input: string[] | BN[]): string[] {
+    if (input.length > 0 && input[0] instanceof BN) {
+      return (input as BN[]).map((item) => item.toString(10));
+    } else {
+      return input as string[];
+    }
+  }
+  private string(hash: Uint8Array): string {
     if (featureFlags.wasmPoseidon) {
       const bn = new BN(hash);
       return bn.toString();
