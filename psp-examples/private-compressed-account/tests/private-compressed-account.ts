@@ -8,13 +8,16 @@ import {
   User,
   airdropSol,
 } from "@lightprotocol/zk.js";
+import {
+  Poseidon
+} from "@lightprotocol/account.rs";
+
 import { Keypair } from "@solana/web3.js";
 
-import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/private_compressed_account";
 import { PoseidonCompressedAccount } from "../sdk";
-let POSEIDON: any;
+let POSEIDON: Poseidon;
 const RPC_URL = "http://127.0.0.1:8899";
 const log = console.log;
 
@@ -30,7 +33,7 @@ describe("Test private-compressed-account", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    POSEIDON = await Poseidon.getInstance();
   });
 
   it.skip("Merkle Tree Update Circuits, 100 rounds", async () => {

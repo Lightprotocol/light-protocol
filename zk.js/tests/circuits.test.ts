@@ -511,7 +511,7 @@ describe("Masp circuit tests", () => {
   });
 
   // this fails because the system verifier does not allow
-  it.only("With in utxo test invalid inAppDataHash", async () => {
+  it("With in utxo test invalid inAppDataHash", async () => {
     const tx: Transaction = new Transaction({
       ...(await lightProvider.getRootIndex()),
       solMerkleTree: lightProvider.solMerkleTree!,

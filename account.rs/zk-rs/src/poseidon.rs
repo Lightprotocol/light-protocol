@@ -9,27 +9,26 @@ use crate::utils::set_panic_hook;
 #[wasm_bindgen]
 pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {
     set_panic_hook();
-    let len = inputs.length();
-    let mut inputs_vec: Vec<Vec<u8>> = Vec::new();
-    for index in 0..len {
-        if let Some(val) = inputs.get(index).as_string() {
-            let big_int = BigUint::parse_bytes(val.as_bytes(), 10)
+
+    let inputs_res: Result<Vec<Vec<u8>>, JsValue> = inputs.iter().map(|val| {
+        if let Some(str_val) = val.as_string() {
+            let big_int = BigUint::parse_bytes(str_val.as_bytes(), 10)
                 .ok_or_else(|| JsValue::from_str("Error parsing string to BigUint"))?;
-            let val_as_bytes = big_int.to_bytes_be();
-            inputs_vec.push(val_as_bytes);
+            Ok(big_int.to_bytes_be())
         } else {
-            return Err(JsValue::from_str(
+            Err(JsValue::from_str(
                 "All elements in the array should be strings representable as numbers",
-            ));
+            ))
         }
-    }
-    let hash_bytes = poseidon_hash(inputs_vec);
-    match hash_bytes {
-        Ok(hash) => {
-            let js_arr = Uint8Array::from(&hash[..]);
+    }).collect();
+
+    let hash_res = poseidon_hash(inputs_res?);
+    match hash_res {
+        Ok(val) => {
+            let js_arr = Uint8Array::from(&val[..]);
             Ok(js_arr)
-        }
-        Err(err) => Err(JsValue::from_str(&err.to_string())),
+        },
+        Err(e) => Err(JsValue::from_str(&e.to_string())),
     }
 }
 
@@ -55,8 +54,8 @@ mod tests {
 
         let input_of_1 = [vec![0u8; 31], vec![1u8]].concat();
         let inputs = vec![input_of_1];
-        let hash = poseidon_hash(inputs)?;
-        assert_eq!(hash, hash_of_1.to_vec());
+        let hash = poseidon_hash(inputs);
+        assert_eq!(hash?, hash_of_1.to_vec());
     }
 
     #[test]

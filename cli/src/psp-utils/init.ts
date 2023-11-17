@@ -2,6 +2,7 @@ import { executeCommandInDir } from "./process";
 import { executeCargoGenerate } from "./toolchain";
 import { Flags } from "@oclif/core";
 import {
+  ACCOUNT_RS_VERSION,
   CIRCUIT_LIB_CIRCOM_VERSION,
   LIGHT_MACROS_VERSION,
   LIGHT_SYSTEM_PROGRAM,
@@ -69,6 +70,8 @@ export const initRepo = async (name: string, type: ProjectType, flags: any) => {
       "--define",
       `prover-js-version=${flags.proverJsVersion}`,
       "--define",
+      `account-rs-version=${flags.accountRsVersion}`,
+      "--define",
       `circuit-lib-circom-version=${flags.circuitLibCircomVersion}`,
       "--define",
       `light-merkle-tree-program-version=${flags.lightMerkleTreeProgramVersion}`,
@@ -122,6 +125,13 @@ export const cliFlags = {
     aliases: ["pjs"],
     description: "Prover JS version",
     default: PROVER_JS_VERSION,
+    required: false,
+  }),
+
+  accountRsVersion: Flags.string({
+    aliases: ["ars"],
+    description: "Account RS version",
+    default: ACCOUNT_RS_VERSION,
     required: false,
   }),
 

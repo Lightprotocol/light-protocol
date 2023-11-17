@@ -11,6 +11,7 @@
         "@coral-xyz/anchor": "^0.28.0",
         "@lightprotocol/circuit-lib.circom": "workspace:*",
         "@lightprotocol/circuit-lib.js": "workspace:*",
+        "@lightprotocol/account.rs": "workspace:*",
         "@lightprotocol/zk.js": "workspace:*",
         "case-anything": "^2.1.13",
         "circomlib": "^2.0.5",
