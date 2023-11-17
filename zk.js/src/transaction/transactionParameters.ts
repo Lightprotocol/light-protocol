@@ -1206,17 +1206,16 @@ export class TransactionParameters implements transactionParameters {
       );
 
     const inputHasher = poseidon.hashString(
-        this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+      this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
     );
     const outputHasher = poseidon.hashString(
-        this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+      this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
     );
 
     return poseidon.hashString([
-        inputHasher,
-        outputHasher,
-        this.txIntegrityHash.toString(),
-      ]
-    );
+      inputHasher,
+      outputHasher,
+      this.txIntegrityHash.toString(),
+    ]);
   }
 }

@@ -519,7 +519,8 @@ export class Utxo {
    */
   getCommitment(poseidon: Poseidon): string {
     const amountHash = poseidon.hashString(this.amounts);
-    const assetHash = poseidon.hashString(this.assetsCircuit.map((x) => x.toString()),
+    const assetHash = poseidon.hashString(
+      this.assetsCircuit.map((x) => x.toString()),
     );
 
     if (!this.publicKey) {
@@ -538,14 +539,14 @@ export class Utxo {
     // console.log("this.appDataHash ", this.appDataHash.toString());
     // console.log("this.poolType ", this.poolType.toString());
     this._commitment = poseidon.hashString([
-        this.transactionVersion,
-        amountHash,
-        this.publicKey.toString(),
-        this.blinding.toString(),
-        assetHash.toString(),
-        this.appDataHash.toString(),
-        this.poolType.toString(),
-        this.verifierAddressCircuit.toString(),
+      this.transactionVersion,
+      amountHash,
+      this.publicKey.toString(),
+      this.blinding.toString(),
+      assetHash.toString(),
+      this.appDataHash.toString(),
+      this.poolType.toString(),
+      this.verifierAddressCircuit.toString(),
     ]);
     return this._commitment;
   }
@@ -592,11 +593,10 @@ export class Utxo {
       .sign(poseidon, this.getCommitment(poseidon), this.index || 0)
       .toString();
     this._nullifier = poseidon.hashString([
-        this.getCommitment(poseidon),
-        this.index.toString() || "0",
-        signature,
-      ],
-    );
+      this.getCommitment(poseidon),
+      this.index.toString() || "0",
+      signature,
+    ]);
 
     return this._nullifier!;
   }
