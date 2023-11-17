@@ -9,7 +9,7 @@ chai.use(chaiAsPromised);
 describe("Prover Functionality Tests", () => {
   it("Valid proof test", async () => {
     const poseidon = await Poseidon.getInstance();
-    const hash = poseidon.string(poseidon.hash(["123"]));
+    const hash = poseidon.hashString(["123"]);
     const circuitsPath: string = "./tests/circuits/build-circuits";
     const proofInputs: any = {
       x: "123",
@@ -27,7 +27,7 @@ describe("Prover Functionality Tests", () => {
 
   it("Testing invalid proof", async () => {
     const poseidon = await Poseidon.getInstance();
-    const hash = poseidon.string(poseidon.hash(["123"]));
+    const hash = poseidon.hashString(["123"]);
 
     const circuitsPath: string = "./tests/circuits/build-circuits";
     const proofInputs: any = {

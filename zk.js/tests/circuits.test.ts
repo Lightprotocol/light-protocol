@@ -103,7 +103,7 @@ describe("Masp circuit tests", () => {
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       shieldUtxo1.getCommitment(poseidon),
       // random invalid other commitment
-      poseidon.string(poseidon.hash(["123124"])),
+      poseidon.hashString(["123124"]),
     ]);
 
     assert.equal(

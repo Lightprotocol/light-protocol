@@ -75,14 +75,12 @@ class Game {
     gameParameters: GameParameters
   ) {
     return new BN(
-      provider.poseidon.string(
-        provider.poseidon.hash([
+      provider.poseidon.hashString([
           new BN(gameParameters.choice),
           gameParameters.slot,
           gameParameters.player2CommitmentHash,
           gameParameters.gameAmount,
         ])
-      )
     );
   }
 
