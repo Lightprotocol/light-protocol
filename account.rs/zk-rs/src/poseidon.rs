@@ -10,24 +10,27 @@ use crate::utils::set_panic_hook;
 pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {
     set_panic_hook();
 
-    let inputs_res: Result<Vec<Vec<u8>>, JsValue> = inputs.iter().map(|val| {
-        if let Some(str_val) = val.as_string() {
-            let big_int = BigUint::parse_bytes(str_val.as_bytes(), 10)
-                .ok_or_else(|| JsValue::from_str("Error parsing string to BigUint"))?;
-            Ok(big_int.to_bytes_be())
-        } else {
-            Err(JsValue::from_str(
-                "All elements in the array should be strings representable as numbers",
-            ))
-        }
-    }).collect();
+    let inputs_res: Result<Vec<Vec<u8>>, JsValue> = inputs
+        .iter()
+        .map(|val| {
+            if let Some(str_val) = val.as_string() {
+                let big_int = BigUint::parse_bytes(str_val.as_bytes(), 10)
+                    .ok_or_else(|| JsValue::from_str("Error parsing string to BigUint"))?;
+                Ok(big_int.to_bytes_be())
+            } else {
+                Err(JsValue::from_str(
+                    "All elements in the array should be strings representable as numbers",
+                ))
+            }
+        })
+        .collect();
 
     let hash_res = poseidon_hash(inputs_res?);
     match hash_res {
         Ok(val) => {
             let js_arr = Uint8Array::from(&val[..]);
             Ok(js_arr)
-        },
+        }
         Err(e) => Err(JsValue::from_str(&e.to_string())),
     }
 }
