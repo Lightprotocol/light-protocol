@@ -19,7 +19,7 @@ import {
   User,
   Utxo,
 } from "@lightprotocol/zk.js";
-import {Poseidon} from "@lightprotocol/account.rs";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { IDL, RockPaperScissors } from "../target/types/rock_paper_scissors";
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";

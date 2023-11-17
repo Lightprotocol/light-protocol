@@ -398,7 +398,7 @@ class PaymentStreamClient {
       appData: appData,
       appDataIdl: this.idl,
       verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
-      assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
     });
 
     this.streamInitUtxo = streamInitUtxo;
@@ -439,7 +439,7 @@ class PaymentStreamClient {
           amounts: [inUtxo.amounts[0].sub(new BN(100_000)), inUtxo.amounts[1]],
           publicKey: inUtxo.publicKey,
           poseidon: this.poseidon,
-          assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable
+          assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
         });
         return { programParameters, inUtxo, outUtxo, action };
       }
@@ -471,7 +471,7 @@ class PaymentStreamClient {
         appData: this.streamInitUtxo.appData,
         appDataIdl: this.idl,
         verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
-        assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable
+        assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
       });
       return { programParameters, outUtxo, inUtxo };
     }

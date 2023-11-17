@@ -437,8 +437,6 @@ export class Account {
     );
   }
 
-
-
   /**
    * Encrypts bytes with aes secret key.
    * @param messageBytes - The bytes to be encrypted.
@@ -458,8 +456,6 @@ export class Account {
     );
     return new Uint8Array([...iv16, ...ciphertext]);
   }
-
-
 
   /**
    * Private aes encryption method.
@@ -483,8 +479,6 @@ export class Account {
 
     return await encrypt(messageBytes, secretKey, iv16, "aes-256-cbc", true);
   }
-
-
 
   /**
    * Decrypts encrypted UTXO bytes with UTXO viewing key and iv from commitment.
@@ -583,9 +577,6 @@ export class Account {
       true,
     );
   }
-
-
-
 
   /**
    * Encrypts bytes to a public key.

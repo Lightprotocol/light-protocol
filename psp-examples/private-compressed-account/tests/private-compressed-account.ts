@@ -8,9 +8,7 @@ import {
   User,
   airdropSol,
 } from "@lightprotocol/zk.js";
-import {
-  Poseidon
-} from "@lightprotocol/account.rs";
+import { Poseidon } from "@lightprotocol/account.rs";
 
 import { Keypair } from "@solana/web3.js";
 
