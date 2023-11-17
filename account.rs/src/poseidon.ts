@@ -5,6 +5,7 @@ const circomlibjs = require("circomlibjs");
 
 export interface IHasher {
   hash(input: string[] | BN[]): Uint8Array;
+  string(hash: Uint8Array): string;
 }
 
 export class Poseidon implements IHasher {
