@@ -19,6 +19,7 @@
     "light-wasm": "file:./zk-rs/pkg"
   },
   "devDependencies": {
+    "ffjavascript": "^0.2.54",
     "@coral-xyz/anchor": "^0.29.0",
     "@lightprotocol/tsconfig": "workspace:*",
     "@noble/hashes": "^1.3.2",

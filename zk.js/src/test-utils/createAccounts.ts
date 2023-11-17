@@ -240,9 +240,9 @@ export async function createTestAccounts(
     const signature = await connection.requestAirdrop(ADMIN_AUTH_KEY, amount);
     await confirmTransaction(connection, signature);
 
-    const Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
+    const newBalance = await connection.getBalance(ADMIN_AUTH_KEY);
 
-    if (Newbalance !== balance + amount) {
+    if (newBalance !== balance + amount) {
       throw new Error("airdrop failed");
     }
 

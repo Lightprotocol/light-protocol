@@ -24,13 +24,13 @@ import {
   sendAndConfirmShieldedTransaction,
   getVerifierStatePda,
 } from "@lightprotocol/zk.js";
+import { Poseidon } from "@lightprotocol/account.rs";
 import {
   Keypair as SolanaKeypair,
   Keypair,
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
-import { buildPoseidonOpt } from "circomlibjs";
 import { IDL } from "../target/types/streaming_payments";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
@@ -39,7 +39,7 @@ const path = require("path");
 const verifierProgramId = new PublicKey(
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
-let POSEIDON;
+let POSEIDON: Poseidon;
 
 const RPC_URL = "http://127.0.0.1:8899";
 const USERS_COUNT = 3;
@@ -60,7 +60,7 @@ describe("Streaming Payments tests", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    POSEIDON = await Poseidon.getInstance();
   });
 
   it("Create and Spend Program Utxo for one user", async () => {
@@ -138,8 +138,6 @@ describe("Streaming Payments tests", () => {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       includeAppData: true,
     });
     const testInputsShield = {
@@ -400,9 +398,7 @@ class PaymentStreamClient {
       appData: appData,
       appDataIdl: this.idl,
       verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
-      assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.lightProvider.lookUpTables.verifierProgramLookupTable,
+      assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable
     });
 
     this.streamInitUtxo = streamInitUtxo;
@@ -443,9 +439,7 @@ class PaymentStreamClient {
           amounts: [inUtxo.amounts[0].sub(new BN(100_000)), inUtxo.amounts[1]],
           publicKey: inUtxo.publicKey,
           poseidon: this.poseidon,
-          assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            this.lightProvider.lookUpTables.verifierProgramLookupTable,
+          assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable
         });
         return { programParameters, inUtxo, outUtxo, action };
       }
@@ -477,9 +471,7 @@ class PaymentStreamClient {
         appData: this.streamInitUtxo.appData,
         appDataIdl: this.idl,
         verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
-        assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          this.lightProvider.lookUpTables.verifierProgramLookupTable,
+        assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable
       });
       return { programParameters, outUtxo, inUtxo };
     }

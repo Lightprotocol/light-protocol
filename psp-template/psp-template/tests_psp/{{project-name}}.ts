@@ -20,13 +20,14 @@ import {
   SolanaTransactionInputs,
   sendAndConfirmShieldedTransaction
 } from "@lightprotocol/zk.js";
+import { Poseidon } from "@lightprotocol/account.rs";
 import {
   SystemProgram,
   PublicKey,
   Keypair,
 } from "@solana/web3.js";
 
-import { buildPoseidonOpt } from "circomlibjs";
+
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/{{rust-name}}";
 const path = require("path");
@@ -34,7 +35,7 @@ const path = require("path");
 const verifierProgramId = new PublicKey(
   "{{program-id}}",
 );
-var POSEIDON;
+let POSEIDON;
 
 const RPC_URL = "http://127.0.0.1:8899";
 
@@ -47,7 +48,7 @@ describe("Test {{project-name}}", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    POSEIDON = await Poseidon.getInstance();
   });
 
 

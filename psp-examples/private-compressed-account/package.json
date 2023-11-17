@@ -15,6 +15,7 @@
     "circomlibjs": "^0.1.7",
     "@lightprotocol/prover.js": "workspace:*",
     "@lightprotocol/zk.js": "workspace:*",
+    "@lightprotocol/account.rs": "workspace:*",
     "@lightprotocol/circuit-lib.js": "workspace:*"
   },
   "devDependencies": {

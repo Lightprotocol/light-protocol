@@ -19,9 +19,8 @@ import {
   User,
   Utxo,
 } from "@lightprotocol/zk.js";
+import {Poseidon} from "@lightprotocol/account.rs";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
-
-import { buildPoseidonOpt } from "circomlibjs";
 import { IDL, RockPaperScissors } from "../target/types/rock_paper_scissors";
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
 
@@ -76,9 +75,9 @@ class Game {
     gameParameters: GameParameters
   ) {
     return new BN(
-      provider.poseidon.F.toString(
-        provider.poseidon([
-          gameParameters.choice,
+      provider.poseidon.string(
+        provider.poseidon.hash([
+          new BN(gameParameters.choice),
           gameParameters.slot,
           gameParameters.player2CommitmentHash,
           gameParameters.gameAmount,
@@ -523,7 +522,7 @@ describe("Test rock-paper-scissors", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    POSEIDON = Poseidon.getInstance();
 
     const relayerWallet = Keypair.generate();
     await airdropSol({

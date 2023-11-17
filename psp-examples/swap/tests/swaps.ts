@@ -24,8 +24,7 @@ import {
 } from "@lightprotocol/zk.js";
 
 import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
-
-import { buildPoseidonOpt } from "circomlibjs";
+import { Poseidon } from "@lightprotocol/account.rs";
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/swaps";
 const path = require("path");
@@ -35,7 +34,7 @@ const verifierProgramId = new PublicKey(
 );
 import { assert } from "chai";
 
-let POSEIDON: any, RELAYER: TestRelayer;
+let POSEIDON: Poseidon, RELAYER: TestRelayer;
 const RPC_URL = "http://127.0.0.1:8899";
 
 const createTestUser = async (
@@ -75,7 +74,7 @@ describe("Test swaps", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    POSEIDON = await Poseidon.getInstance();
     const relayerWallet = Keypair.generate();
     await airdropSol({
       connection: provider.connection,

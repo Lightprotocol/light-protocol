@@ -1,5 +1,5 @@
 import { expect, test } from "@oclif/test";
-import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
+import { initTestEnvIfNeeded } from "../../../src";
 
 describe("account", () => {
   before(async () => {
@@ -11,7 +11,7 @@ describe("account", () => {
     .exit(0)
     .it("runs account cmd", ({ stdout }) => {
       expect(stdout).to.contain(
-        "DVTtJhghZU1hBEbCci4RDpRP1K1eEHZXyYognZ4BNiCBaM8WenG3o6v8CNcKTRD7fVUsSTtae8hU5To1ogrGQDw"
+        "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q"
       );
     });
 });

@@ -396,6 +396,9 @@ export class Account {
   static generateShieldedPrivateKey(seed: string, poseidon: Poseidon): BN {
     const privateKeySeed = seed + "shielded";
     const blakeHash: Uint8Array = blake(privateKeySeed, Account.hashLength);
+
+    // TODO(sergey): unify next 2 lines by setting blake hash length to 31 bytes
+    // example: const blakeHash: Uint8Array = blake(privateKeySeed,31);
     const blakeHash31 = truncateToCircuit(blakeHash);
     const blakeHashBN = new BN(blakeHash31);
     return new BN(poseidon.hash([blakeHashBN.toString()]));
@@ -410,6 +413,13 @@ export class Account {
     return new BN(poseidon.hash([privateKey.toString()]));
   }
 
+  /**
+   * Encrypts UTXO bytes with UTXO viewing key and iv from commitment.
+   * @param messageBytes - The bytes message to be encrypted.
+   * @param merkleTreePdaPublicKey - The public key used in encryption.
+   * @param commitment - The commitment used as the Initialization Vector (iv).
+   * @returns A promise that resolves to the encrypted Uint8Array.
+   */
   async encryptAesUtxo(
     messageBytes: Uint8Array,
     merkleTreePdaPublicKey: PublicKey,
@@ -427,6 +437,14 @@ export class Account {
     );
   }
 
+
+
+  /**
+   * Encrypts bytes with aes secret key.
+   * @param messageBytes - The bytes to be encrypted.
+   * @param iv16 - Optional Initialization Vector (iv), 16 random bytes by default.
+   * @returns A Uint8Array of encrypted bytes with the iv as the first 16 bytes of the cipher text.
+   */
   async encryptAes(
     messageBytes: Uint8Array,
     iv16: Uint8Array = nacl.randomBytes(16),
@@ -441,6 +459,16 @@ export class Account {
     return new Uint8Array([...iv16, ...ciphertext]);
   }
 
+
+
+  /**
+   * Private aes encryption method.
+   * @private
+   * @param messageBytes - The messageBytes to be encrypted.
+   * @param secretKey - The secret key to be used for encryption.
+   * @param iv16 - The Initialization Vector (iv) to be used for encryption.
+   * @returns A promise that resolves to the encrypted Uint8Array.
+   */
   private async _encryptAes(
     messageBytes: Uint8Array,
     secretKey: Uint8Array,
@@ -456,6 +484,15 @@ export class Account {
     return await encrypt(messageBytes, secretKey, iv16, "aes-256-cbc", true);
   }
 
+
+
+  /**
+   * Decrypts encrypted UTXO bytes with UTXO viewing key and iv from commitment.
+   * @param encryptedBytes - The encrypted bytes to be decrypted.
+   * @param merkleTreePdaPublicKey - The public key used in decryption.
+   * @param commitment - The commitment used as the Initialization Vector (iv).
+   * @returns A promise that resolves to a Result object containing the decrypted Uint8Array or an error if the decryption fails.
+   */
   async decryptAesUtxo(
     encryptedBytes: Uint8Array,
     merkleTreePdaPublicKey: PublicKey,
@@ -480,6 +517,12 @@ export class Account {
     );
   }
 
+  /**
+   * Decrypts AES encrypted bytes, the iv is expected to be the first 16 bytes.
+   * @param encryptedBytes - The AES encrypted bytes to be decrypted.
+   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
+   * @throws Will throw an error if the aesSecret is undefined.
+   */
   async decryptAes(
     encryptedBytes: Uint8Array,
   ): Promise<Result<Uint8Array | null, Error>> {
@@ -491,6 +534,14 @@ export class Account {
     return this._decryptAes(encryptedBytes.slice(16), this.aesSecret, iv16);
   }
 
+  /**
+   * Private aes decryption method.
+   * @private
+   * @param encryptedBytes - The AES encrypted bytes to be decrypted.
+   * @param secretKey - The secret key to be used for decryption.
+   * @param iv16 - The Initialization Vector (iv) to be used for decryption.
+   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
+   */
   private async _decryptAes(
     encryptedBytes: Uint8Array,
     secretKey: Uint8Array,
@@ -505,6 +556,14 @@ export class Account {
     }
   }
 
+  /**
+   * Encrypts utxo bytes to public key using a nonce and a standardized secret for hmac.
+   * @static
+   * @param publicKey - The public key to encrypt to.
+   * @param bytes_message - The message to be encrypted.
+   * @param commitment - The commitment used to generate the nonce.
+   * @returns The encrypted Uint8Array.
+   */
   static encryptNaclUtxo(
     publicKey: Uint8Array,
     messageBytes: Uint8Array,
@@ -525,6 +584,20 @@ export class Account {
     );
   }
 
+
+
+
+  /**
+   * Encrypts bytes to a public key.
+   * @static
+   * @param publicKey - The public key to encrypt to.
+   * @param messageBytes - The message to be encrypted.
+   * @param signerSecretKey - Optional signing secret key.
+   * @param returnWithoutSigner - Optional flag to return without signer.
+   * @param nonce - Optional nonce, generates random if undefined.
+   * @param returnWithoutNonce - Optional flag to return without nonce.
+   * @returns The encrypted Uint8Array.
+   */
   static encryptNacl(
     publicKey: Uint8Array,
     messageBytes: Uint8Array,
@@ -554,6 +627,12 @@ export class Account {
     ]);
   }
 
+  /**
+   * Decrypts encrypted UTXO bytes.
+   * @param ciphertext - The encrypted bytes to be decrypted.
+   * @param commitment - The commitment used to generate the nonce.
+   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
+   */
   async decryptNaclUtxo(
     ciphertext: Uint8Array,
     commitment: Uint8Array,
@@ -566,6 +645,15 @@ export class Account {
     );
   }
 
+  /**
+   * Decrypts encrypted bytes.
+   * If nonce is not provided, it expects the first 24 bytes to be the nonce.
+   * If signerPublicKey is not provided, expects the subsequent 32 bytes (after the nonce) to be the signer public key.
+   * @param ciphertext - The encrypted bytes to be decrypted.
+   * @param nonce - Optional nonce, if not provided, it is extracted from the ciphertext.
+   * @param signerpublicKey - Optional signer public key, if not provided, it is extracted from the ciphertext.
+   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
+   */
   async decryptNacl(
     ciphertext: Uint8Array,
     nonce?: Uint8Array,
