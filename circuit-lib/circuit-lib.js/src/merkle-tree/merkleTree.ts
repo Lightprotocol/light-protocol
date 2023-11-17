@@ -1,4 +1,4 @@
-import { Poseidon } from "@lightprotocol/account.rs";
+import { IHasher } from "@lightprotocol/account.rs";
 
 export const DEFAULT_ZERO =
   "14522046728041339886521211779101644712859239303505368468566383402165481390632";
@@ -23,13 +23,13 @@ export class MerkleTree {
   levels: number;
   capacity: number;
   zeroElement;
-  _hash: Poseidon;
+  _hash: IHasher;
   _zeros: string[];
   _layers: string[][];
 
   constructor(
     levels: number,
-    poseidonHash2: Poseidon,
+    poseidonHash2: IHasher,
     elements: string[] = [],
     { zeroElement = DEFAULT_ZERO } = {},
   ) {
