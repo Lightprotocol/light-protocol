@@ -3,16 +3,23 @@ import { featureFlags } from "./config";
 import { BN } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
 
-export class Poseidon {
-  private static instance: Poseidon | null = null;
-  private circomPoseidon?: any;
+export interface IHasher {
+  hash(input: string[] | BN[]): Uint8Array;
+}
+
+export class Poseidon implements IHasher {
+  private static instance: Poseidon;
+
+  private circomPoseidon: any | undefined;
   private constructor() {}
 
   public static async getInstance(): Promise<Poseidon> {
     if (!Poseidon.instance) {
       Poseidon.instance = new Poseidon();
     }
-
+    if (!featureFlags.wasmPoseidon) {
+      Poseidon.instance.circomPoseidon = await circomlibjs.buildPoseidonOpt();
+    }
     return Poseidon.instance;
   }
 
