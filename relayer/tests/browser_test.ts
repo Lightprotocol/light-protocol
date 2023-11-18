@@ -23,21 +23,20 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RPC_URL } from "../src/config";
 import { getRelayer } from "../src/utils/provider";
-
-const circomlibjs = require("circomlibjs");
+import {Poseidon} from "@lightprotocol/account.rs";
 
 chai.use(chaiHttp);
 
 describe("Browser tests", () => {
   let RELAYER: Relayer;
-  let poseidon: any;
+  let poseidon: Poseidon;
   let provider: Provider;
   let user: User;
   const walletMock = useWallet(ADMIN_AUTH_KEYPAIR, RPC_URL);
   const connection = new Connection(RPC_URL, "confirmed");
 
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    poseidon = await Poseidon.getInstance();
 
     await createTestAccounts(connection);
 
