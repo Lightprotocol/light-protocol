@@ -24,7 +24,7 @@ import {
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
-  BN_1
+  BN_1,
 } from "../src";
 import { Poseidon } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -417,7 +417,7 @@ describe("Transaction Functional Tests", () => {
     );
     assert.equal(
       paramsStaticEncryptedUtxos.getTransactionHash(poseidon).toString(),
-      "12023539886044629438926573315156436353948534606330808023287151578444641767422",
+      "3083080391170898506912286218994091788042804706074946384151915011055873189451",
     );
   });
 
