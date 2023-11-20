@@ -101,7 +101,7 @@ describe("Test swaps", () => {
      * 4. recipient generates
      */
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
-    const buyerUser: User = await createTestUser(provider.connection, 110e9, 5);
+    const buyerUser: User = await createTestUser(provider.connection, 10e9, 5);
     console.log(
       "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
       new BN(sellerUser.account.encryptionKeypair.publicKey),
@@ -160,9 +160,11 @@ describe("Test swaps", () => {
     const offerRewardUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: fetchedOfferUtxo.appData.recipient,
-      encryptionPublicKey: Uint8Array.from(
-        fetchedOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
-      ),
+      encryptionPublicKey: sellerUser.account.encryptionKeypair.publicKey,
+      // TODO: Make this utxo works with:
+      // Uint8Array.from(
+      //   fetchedOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
+      // ),
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
       amounts: [new BN(2e9)],
       assets: [SystemProgram.programId],
@@ -180,7 +182,6 @@ describe("Test swaps", () => {
       poseidon: POSEIDON,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
-
       amounts: [new BN(1e9)],
       assets: [SystemProgram.programId],
     });
@@ -314,13 +315,13 @@ describe("Test swaps", () => {
      * 2. seller user creates offer
      *    - creates utxo
      *    - encrypts it to the buyer
-     *    - stores the encrypted utxo onchain in a compressed account
+     *    - stores the encrypted utxo on-chain in a compressed account
      * 3. recipient decrypts offer
-     * 4. recipient generates counter offer
+     * 4. recipient generates counter-offer
      *    - creates utxo
      *    - encrypts it to the seller
-     *    - stores the encrypted utxo onchain in a compressed account
-     * 5. seller decrypts counter offer
+     *    - stores the encrypted utxo on-chain in a compressed account
+     * 5. seller decrypts counter-offer
      * 6. seller generates swap proof and settles the swap
      */
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
@@ -431,9 +432,11 @@ describe("Test swaps", () => {
     const counterOfferRewardUtxo = new Utxo({
       poseidon: POSEIDON,
       publicKey: fetchedCounterOfferUtxo.appData.recipient,
-      encryptionPublicKey: Uint8Array.from(
-        fetchedCounterOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
-      ),
+      encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
+      // TODO: Make this utxo works with:
+      //     Uint8Array.from(
+      //   fetchedCounterOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
+      // ),
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [offerUtxo.amounts[0]],
       assets: [SystemProgram.programId],
