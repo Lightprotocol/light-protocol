@@ -42,3 +42,7 @@ next-env.d.ts
 
 # dupe circuits
 **/public/build-circuits/
+
+# Witness artifacts copied from zk.js
+public/*_js
+public/*.zkey
