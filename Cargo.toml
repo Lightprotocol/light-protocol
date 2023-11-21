@@ -2,6 +2,7 @@
 members = [
     "macros/aligned-sized",
     "macros/light",
+    "nullifier-merkle-tree",
     "programs/*",
     "verifier-sdk",
     "macro-circom"

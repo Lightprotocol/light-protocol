@@ -2642,6 +2642,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-nullifier-merkle-tree"
+version = "0.1.0"
+dependencies = [
+ "ark-ff 0.4.2",
+ "thiserror",
+]
+
+[[package]]
 name = "light-psp10in2out"
 version = "0.3.1"
 dependencies = [
