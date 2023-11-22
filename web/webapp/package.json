@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "chmod +x ./copy-circuits.sh && sh ./copy-circuits.sh",
+    "prebuild": "sh ./copy-circuits.sh && sh ./copy-env.sh",
     "build": "pnpm prebuild && next build",
     "start": "next start",
     "lint": "next lint",
