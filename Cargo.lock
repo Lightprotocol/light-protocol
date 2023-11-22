@@ -13,6 +13,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "accountwasm"
+version = "0.0.1"
+dependencies = [
+ "aes-gcm-siv",
+ "ark-bn254 0.4.0",
+ "ark-ff 0.4.2",
+ "blake2b_simd",
+ "bs58 0.5.0",
+ "console_error_panic_hook",
+ "crypto_box",
+ "hex",
+ "js-sys",
+ "light-poseidon",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "web-sys",
+ "zeroize",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

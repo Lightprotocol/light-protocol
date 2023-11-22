@@ -11,4 +11,5 @@ packages:
   - "psp-examples/**"
   - "tmp-test-psp/**"
   - "web/webapp/**"
+  - "accountwasm/**"
 

@@ -5,7 +5,8 @@ members = [
     "programs/*",
     "verifier-sdk",
     "macro-circom",
-    "account.rs/wasm"
+    "account.rs/wasm",
+    "accountwasm/wasm"
 ]
 
 [patch.crates-io]

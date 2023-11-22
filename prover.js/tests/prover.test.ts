@@ -2,6 +2,8 @@ import { it } from "mocha";
 import { Prover } from "../src";
 import { IDL } from "./circuits/idl";
 import { Poseidon } from "@lightprotocol/account.rs";
+import { isBoolean, blake } from "@lightprotocol/accountwasm";
+
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
@@ -23,6 +25,17 @@ describe("Prover Functionality Tests", () => {
     console.time("Proof generation + Parsing");
     await prover.fullProveAndParse();
     console.timeEnd("Proof generation + Parsing");
+  });
+
+  it.only("accountwasm", async () => {
+
+    await initWasm();
+    
+    const x = 1;
+    console.log("isBoolean", isBoolean(x));
+
+    const blakeX = blake(x);
+    console.log("blake: ", blakeX);
   });
 
   it("Testing invalid proof", async () => {
