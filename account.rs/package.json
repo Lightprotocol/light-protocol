@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "rm -rf dist/ && pnpm run build:wasm && pnpm run build:bundle",
-    "build:wasm": "wasm-pack build -t web --out-dir ../src/wasm wasm",
+    "build:wasm": "wasm-pack build --out-dir ../src/wasm wasm",
     "build:bundle": "rollup -c --bundleConfigAsCjs",
     "test": "node_modules/.bin/ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/wasm.test.ts --exit",
     "test-wasm": "cd wasm && cargo test -- --nocapture",

@@ -23,6 +23,7 @@ export default {
       include: [
         "src/**/*.js",
         "src/**/*.ts",
+        "src/**/*.wasm",
         "node_modules/**"
       ]
     }),

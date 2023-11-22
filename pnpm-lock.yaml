@@ -25,10 +25,6 @@ importers:
         version: 5.2.2
 
   account.rs:
-    dependencies:
-      light-wasm:
-        specifier: file:./zk-rs/pkg
-        version: file:account.rs/zk-rs/pkg
     devDependencies:
       '@coral-xyz/anchor':
         specifier: ^0.29.0
@@ -60,6 +56,9 @@ importers:
       '@types/mocha':
         specifier: ^10.0.3
         version: 10.0.3
+      '@wasm-tool/rollup-plugin-rust':
+        specifier: ^2.4.5
+        version: 2.4.5(rollup@4.5.1)
       chai:
         specifier: ^4.3.10
         version: 4.3.10
@@ -93,6 +92,10 @@ importers:
       tweetnacl:
         specifier: ^1.0.3
         version: 1.0.3
+
+  account.rs/src/main/wasm: {}
+
+  account.rs/src/wasm: {}
 
   account.rs/zk-rs/pkg: {}
 
@@ -3716,6 +3719,10 @@ packages:
     resolution: {integrity: sha512-dvuCeX5fC9dXgJn9t+X5atfmgQAzUOWqS1254Gh0m6i8wKd10ebXkfNKiRK+1GWi/yTvvLDHpoxLr0xxxeslWw==}
     dev: true
 
+  /@iarna/toml@2.2.5:
+    resolution: {integrity: sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==}
+    dev: true
+
   /@iden3/bigarray@0.0.2:
     resolution: {integrity: sha512-Xzdyxqm1bOFF6pdIsiHLLl3HkSLjbhqJHVyqaTxXt3RqXBEnmsUmEW47H7VOi/ak7TdkRpNkxjyK5Zbkm+y52g==}
 
@@ -6832,6 +6839,22 @@ packages:
       '@wallet-standard/base': 1.0.1
     dev: false
 
+  /@wasm-tool/rollup-plugin-rust@2.4.5(rollup@4.5.1):
+    resolution: {integrity: sha512-rrgaHm/TmiOCKkt9mz8LMQMzigyn2xLHNZDtJAAv8HDrQt9QbksUkf+mYmsnQDF7gFmWtOEEJE5/7lfYuL0fEQ==}
+    dependencies:
+      '@iarna/toml': 2.2.5
+      '@rollup/pluginutils': 5.0.5(rollup@4.5.1)
+      binaryen: 111.0.0
+      chalk: 4.1.2
+      glob: 10.3.10
+      node-fetch: 2.7.0
+      rimraf: 5.0.5
+      tar: 6.2.0
+    transitivePeerDependencies:
+      - encoding
+      - rollup
+    dev: true
+
   /@yarnpkg/lockfile@1.1.0:
     resolution: {integrity: sha512-GpSwvyXOcOOlV70vbnzjj4fW5xW/FdUF6nQEt1ENy7m4ZCczi1+/buVUPAqmGfqznsORNFzUMjctTIp8a9tuCQ==}
     dev: true
@@ -7510,6 +7533,11 @@ packages:
   /binary-extensions@2.2.0:
     resolution: {integrity: sha512-jDctJ/IVQbZoJykoeHbhXpOlNBqGNcwXJKJog42E5HDPUwQTSdjCHdihjj0DlnheQ7blbT6dHOafNAiS8ooQKA==}
     engines: {node: '>=8'}
+
+  /binaryen@111.0.0:
+    resolution: {integrity: sha512-PEXOSHFO85aj1aP4t+KGzvxQ00qXbjCysWlsDjlGkP1e9owNiYdpEkLej21Ax8LDD7xJ01rEmJDqZ/JPoW2GXw==}
+    hasBin: true
+    dev: true
 
   /binaryextensions@4.18.0:
     resolution: {integrity: sha512-PQu3Kyv9dM4FnwB7XGj1+HucW+ShvJzJqjuw1JkKVs1mWdwOKVcRjOi+pV9X52A0tNvrPCsPkbFFQb+wE1EAXw==}
@@ -17961,9 +17989,4 @@ packages:
   /zlib@1.0.5:
     resolution: {integrity: sha512-40fpE2II+Cd3k8HWTWONfeKE2jL+P42iWJ1zzps5W51qcTsOUKM5Q5m2PFb0CLxlmFAaUuUdJGc3OfZy947v0w==}
     engines: {node: '>=0.2.0'}
-    dev: false
-
-  file:account.rs/zk-rs/pkg:
-    resolution: {directory: account.rs/zk-rs/pkg, type: directory}
-    name: light-wasm
     dev: false
