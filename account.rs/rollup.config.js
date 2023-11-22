@@ -10,7 +10,7 @@ import rust from "@wasm-tool/rollup-plugin-rust";
 export default {
   input: ["src/index.ts"],
   output: {
-    sourcemap: false,
+    sourcemap: true,
     format: "cjs",
     name: pkg.name,
     file: "dist/bundle.cjs.js",
@@ -22,6 +22,7 @@ export default {
     commonjs({
       include: [
         "src/**/*.js",
+        "src/**/*.mjs",
         "src/**/*.ts",
         "src/**/*.wasm",
         "node_modules/**"

@@ -97,8 +97,6 @@ importers:
 
   account.rs/src/wasm: {}
 
-  account.rs/zk-rs/pkg: {}
-
   circuit-lib/circuit-lib.circom:
     devDependencies:
       '@coral-xyz/anchor':
