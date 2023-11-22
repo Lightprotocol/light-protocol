@@ -1,4 +1,4 @@
-import { poseidon as wasmPoseidon } from "light-wasm";
+import { poseidon as wasmPoseidon } from "./wasm/light_wasm";
 import { featureFlags } from "./config";
 import { BN } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
