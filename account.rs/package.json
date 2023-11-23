@@ -4,6 +4,18 @@
   "description": "",
   "main": "lib/index",
   "typings": "lib/index",
+  "browser": {
+    "index.js": "lib/index.web.js"
+  },
+  "files": [
+    "lib/*"
+  ],
+  "directories": {
+    "lib": "lib"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "scripts": {
     "build": "cd zk-rs && wasm-pack build --target nodejs && pnpm install && pnpm tsc -p tsconfig.json",
     "test": "node_modules/.bin/ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/wasm.test.ts --exit",
@@ -15,10 +27,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "light-wasm": "file:./zk-rs/pkg"
-  },
   "devDependencies": {
+    "rollup": "^4.5",
+    "@wasm-tool/wasm-pack-plugin": "1.7.0",
     "ffjavascript": "^0.2.54",
     "@coral-xyz/anchor": "^0.29.0",
     "@lightprotocol/tsconfig": "workspace:*",

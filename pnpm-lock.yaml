@@ -25,10 +25,6 @@ importers:
         version: 5.2.2
 
   account.rs:
-    dependencies:
-      light-wasm:
-        specifier: file:./zk-rs/pkg
-        version: file:account.rs/zk-rs/pkg
     devDependencies:
       '@coral-xyz/anchor':
         specifier: ^0.29.0
@@ -45,6 +41,9 @@ importers:
       '@types/mocha':
         specifier: ^10.0.3
         version: 10.0.3
+      '@wasm-tool/wasm-pack-plugin':
+        specifier: 1.7.0
+        version: 1.7.0
       chai:
         specifier: ^4.3.10
         version: 4.3.10
@@ -60,6 +59,9 @@ importers:
       mocha:
         specifier: ^10.2.0
         version: 10.2.0
+      rollup:
+        specifier: ^4.5
+        version: 4.5.1
       tinybench:
         specifier: ^2.5.1
         version: 2.5.1
@@ -68,7 +70,7 @@ importers:
         version: 10.0.0(mocha@10.2.0)
       ts-node:
         specifier: ^10.9.1
-        version: 10.9.1(@types/node@20.9.1)(typescript@5.2.2)
+        version: 10.9.1(@types/node@20.9.4)(typescript@5.3.2)
       tsx:
         specifier: ^4.1.2
         version: 4.1.2
@@ -76,7 +78,7 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
 
-  account.rs/zk-rs/pkg: {}
+  account.rs/zk-rs/lib: {}
 
   circuit-lib/circuit-lib.circom:
     devDependencies:
@@ -472,13 +474,13 @@ importers:
         version: link:../../zk.js
       '@oclif/core':
         specifier: ^2
-        version: 2.15.0(@types/node@20.9.1)(typescript@5.2.2)
+        version: 2.15.0(@types/node@20.9.4)(typescript@5.2.2)
       '@oclif/plugin-help':
         specifier: ^5
-        version: 5.2.19(@types/node@20.9.1)(typescript@5.2.2)
+        version: 5.2.19(@types/node@20.9.4)(typescript@5.2.2)
       '@oclif/plugin-plugins':
         specifier: ^3.8.4
-        version: 3.9.1(@types/node@20.9.1)(typescript@5.2.2)
+        version: 3.9.1(@types/node@20.9.4)(typescript@5.2.2)
       '@project-serum/anchor':
         specifier: 0.26.0
         version: 0.26.0
@@ -506,7 +508,7 @@ importers:
         version: link:../../cli
       '@oclif/test':
         specifier: 2.3.33
-        version: 2.3.33(@types/node@20.9.1)(typescript@5.2.2)
+        version: 2.3.33(@types/node@20.9.4)(typescript@5.2.2)
       '@types/bn.js':
         specifier: ^5.1.0
         version: 5.1.2
@@ -524,7 +526,7 @@ importers:
         version: 10.2.0
       oclif:
         specifier: ^3.17.2
-        version: 3.17.2(@types/node@20.9.1)(typescript@5.2.2)
+        version: 3.17.2(@types/node@20.9.4)(typescript@5.2.2)
       prettier:
         specifier: ^3.0.3
         version: 3.0.3
@@ -536,7 +538,7 @@ importers:
         version: 10.0.0(mocha@10.2.0)
       ts-node:
         specifier: ^10.9.1
-        version: 10.9.1(@types/node@20.9.1)(typescript@5.2.2)
+        version: 10.9.1(@types/node@20.9.4)(typescript@5.2.2)
       tslib:
         specifier: ^2.6.2
         version: 2.6.2
@@ -637,7 +639,7 @@ importers:
         version: 10.0.0(mocha@10.2.0)
       ts-node:
         specifier: ^10.9.1
-        version: 10.9.1(@types/node@20.9.1)(typescript@5.2.2)
+        version: 10.9.1(@types/node@20.9.4)(typescript@5.2.2)
       typescript:
         specifier: ^5.2.2
         version: 5.2.2
@@ -800,110 +802,6 @@ importers:
       typescript:
         specifier: ^5.2.2
         version: 5.2.2
-
-  psp-examples/tmp-test-circom:
-    dependencies:
-      '@coral-xyz/anchor':
-        specifier: ^0.28.0
-        version: 0.28.0
-      '@lightprotocol/account.rs':
-        specifier: workspace:*
-        version: link:../../account.rs
-      '@lightprotocol/circuit-lib.circom':
-        specifier: 0.1.0-alpha.1
-        version: link:../../circuit-lib/circuit-lib.circom
-      '@lightprotocol/prover.js':
-        specifier: 0.1.0-alpha.3
-        version: link:../../prover.js
-      '@lightprotocol/zk.js':
-        specifier: 0.3.2-alpha.16
-        version: link:../../zk.js
-      '@project-serum/anchor':
-        specifier: ^0.26.0
-        version: 0.26.0
-      circomlib:
-        specifier: ^2.0.5
-        version: 2.0.5
-      circomlibjs:
-        specifier: ^0.1.7
-        version: 0.1.7
-    devDependencies:
-      '@types/bn.js':
-        specifier: ^5.1.0
-        version: 5.1.2
-      '@types/chai':
-        specifier: ^4.3.0
-        version: 4.3.9
-      '@types/mocha':
-        specifier: ^9.0.0
-        version: 9.1.1
-      chai:
-        specifier: ^4.3.4
-        version: 4.3.10
-      mocha:
-        specifier: ^9.0.3
-        version: 9.2.2
-      prettier:
-        specifier: ^2.6.2
-        version: 2.8.8
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@9.2.2)
-      typescript:
-        specifier: ^4.3.5
-        version: 4.9.5
-
-  psp-examples/tmp-test-psp:
-    dependencies:
-      '@coral-xyz/anchor':
-        specifier: ^0.28.0
-        version: 0.28.0
-      '@lightprotocol/account.rs':
-        specifier: workspace:*
-        version: link:../../account.rs
-      '@lightprotocol/circuit-lib.circom':
-        specifier: workspace:*
-        version: link:../../circuit-lib/circuit-lib.circom
-      '@lightprotocol/prover.js':
-        specifier: workspace:*
-        version: link:../../prover.js
-      '@lightprotocol/zk.js':
-        specifier: workspace:*
-        version: link:../../zk.js
-      '@project-serum/anchor':
-        specifier: ^0.26.0
-        version: 0.26.0
-      circomlib:
-        specifier: ^2.0.5
-        version: 2.0.5
-      circomlibjs:
-        specifier: ^0.1.7
-        version: 0.1.7
-    devDependencies:
-      '@types/bn.js':
-        specifier: ^5.1.0
-        version: 5.1.2
-      '@types/chai':
-        specifier: ^4.3.0
-        version: 4.3.9
-      '@types/mocha':
-        specifier: ^9.0.0
-        version: 9.1.1
-      chai:
-        specifier: ^4.3.4
-        version: 4.3.10
-      mocha:
-        specifier: ^9.0.3
-        version: 9.2.2
-      prettier:
-        specifier: ^2.6.2
-        version: 2.8.8
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@9.2.2)
-      typescript:
-        specifier: ^4.3.5
-        version: 4.9.5
 
   relayer:
     dependencies:
@@ -4059,7 +3957,7 @@ packages:
     dependencies:
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 20.9.1
+      '@types/node': 20.9.4
       '@types/yargs': 15.0.18
       chalk: 4.1.2
     dev: false
@@ -4070,7 +3968,7 @@ packages:
     dependencies:
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 20.9.1
+      '@types/node': 20.9.4
       '@types/yargs': 16.0.8
       chalk: 4.1.2
     dev: false
@@ -4106,7 +4004,7 @@ packages:
     resolution: {integrity: sha512-UTYAUj/wviwdsMfzoSJspJxbkH5o1snzwX0//0ENX1u/55kkZZkcTZP6u9bwKGkv+dkk9at4m1Cpt0uY80kcpQ==}
     dependencies:
       '@jridgewell/gen-mapping': 0.3.3
-      '@jridgewell/trace-mapping': 0.3.9
+      '@jridgewell/trace-mapping': 0.3.20
     dev: false
 
   /@jridgewell/sourcemap-codec@1.4.15:
@@ -4768,7 +4666,7 @@ packages:
       - '@types/node'
       - typescript
 
-  /@oclif/core@2.15.0(@types/node@20.9.1)(typescript@5.2.2):
+  /@oclif/core@2.15.0(@types/node@20.9.4)(typescript@5.2.2):
     resolution: {integrity: sha512-fNEMG5DzJHhYmI3MgpByTvltBOMyFcnRIUMxbiz2ai8rhaYgaTHMG3Q38HcosfIvtw9nCjxpcQtC8MN8QtVCcA==}
     engines: {node: '>=14.0.0'}
     dependencies:
@@ -4795,7 +4693,7 @@ packages:
       strip-ansi: 6.0.1
       supports-color: 8.1.1
       supports-hyperlinks: 2.3.0
-      ts-node: 10.9.1(@types/node@20.9.1)(typescript@5.2.2)
+      ts-node: 10.9.1(@types/node@20.9.4)(typescript@5.2.2)
       tslib: 2.6.2
       widest-line: 3.1.0
       wordwrap: 1.0.0
@@ -4832,11 +4730,11 @@ packages:
       - '@types/node'
       - typescript
 
-  /@oclif/plugin-help@5.2.19(@types/node@20.9.1)(typescript@5.2.2):
+  /@oclif/plugin-help@5.2.19(@types/node@20.9.4)(typescript@5.2.2):
     resolution: {integrity: sha512-gf6/dFtzMJ8RA4ovlBCBGJsZsd4jPXhYWJho+Gh6KmA+Ev9LupoExbE0qT+a2uHJyHEvIg4uX/MBW3qdERD/8g==}
     engines: {node: '>=12.0.0'}
     dependencies:
-      '@oclif/core': 2.15.0(@types/node@20.9.1)(typescript@5.2.2)
+      '@oclif/core': 2.15.0(@types/node@20.9.4)(typescript@5.2.2)
     transitivePeerDependencies:
       - '@swc/core'
       - '@swc/wasm'
@@ -4856,11 +4754,11 @@ packages:
       - '@types/node'
       - typescript
 
-  /@oclif/plugin-not-found@2.4.1(@types/node@20.9.1)(typescript@5.2.2):
+  /@oclif/plugin-not-found@2.4.1(@types/node@20.9.4)(typescript@5.2.2):
     resolution: {integrity: sha512-LqW7qpw5Q8ploRiup2jEIMQJXcxHP1tpwj45GApKQMe7GRdGdRdjBT9Tu+U2tdEgMqgMplAIhOsYCx2nc2nMSw==}
     engines: {node: '>=12.0.0'}
     dependencies:
-      '@oclif/core': 2.15.0(@types/node@20.9.1)(typescript@5.2.2)
+      '@oclif/core': 2.15.0(@types/node@20.9.4)(typescript@5.2.2)
       chalk: 4.1.2
       fast-levenshtein: 3.0.0
     transitivePeerDependencies:
@@ -4894,11 +4792,11 @@ packages:
       - typescript
     dev: false
 
-  /@oclif/plugin-plugins@3.9.1(@types/node@20.9.1)(typescript@5.2.2):
+  /@oclif/plugin-plugins@3.9.1(@types/node@20.9.4)(typescript@5.2.2):
     resolution: {integrity: sha512-86155GW6fQ8ZsmscffIOuvjjCCnXfuUJ/3dA+s6vqVgyGu8VshsHxnA9LCVja/Gz53j9TeaEog08IMcMDsmS7g==}
     engines: {node: '>=16'}
     dependencies:
-      '@oclif/core': 2.15.0(@types/node@20.9.1)(typescript@5.2.2)
+      '@oclif/core': 2.15.0(@types/node@20.9.4)(typescript@5.2.2)
       chalk: 4.1.2
       debug: 4.3.4(supports-color@8.1.1)
       http-call: 5.3.0
@@ -4936,11 +4834,11 @@ packages:
       - typescript
     dev: true
 
-  /@oclif/plugin-warn-if-update-available@2.1.0(@types/node@20.9.1)(typescript@5.2.2):
+  /@oclif/plugin-warn-if-update-available@2.1.0(@types/node@20.9.4)(typescript@5.2.2):
     resolution: {integrity: sha512-liTWd/qSIqALsikr88CAB9o2xGFt0LdT5REbhxtrx16/trRmkxQ+0RHK1FieGZAzEENx/4D3YcC/Y67a0uyO0g==}
     engines: {node: '>=12.0.0'}
     dependencies:
-      '@oclif/core': 2.15.0(@types/node@20.9.1)(typescript@5.2.2)
+      '@oclif/core': 2.15.0(@types/node@20.9.4)(typescript@5.2.2)
       chalk: 4.1.2
       debug: 4.3.4(supports-color@8.1.1)
       http-call: 5.3.0
@@ -4968,11 +4866,11 @@ packages:
       - typescript
     dev: true
 
-  /@oclif/test@2.3.33(@types/node@20.9.1)(typescript@5.2.2):
+  /@oclif/test@2.3.33(@types/node@20.9.4)(typescript@5.2.2):
     resolution: {integrity: sha512-AmhsxZRDDqJHTk1mDQ+Rl3mNUvb7GIXNcNdP7G7r5l3fRYBUsbzflSy3M760WZfAW4r85rnB+SNG5OBvmajWow==}
     engines: {node: '>=12.0.0'}
     dependencies:
-      '@oclif/core': 2.15.0(@types/node@20.9.1)(typescript@5.2.2)
+      '@oclif/core': 2.15.0(@types/node@20.9.4)(typescript@5.2.2)
       fancy-test: 2.0.42
     transitivePeerDependencies:
       - '@swc/core'
@@ -5366,96 +5264,96 @@ packages:
       react-native: 0.72.7(@babel/core@7.23.3)(@babel/preset-env@7.23.3)(react@18.2.0)
     dev: false
 
-  /@rollup/rollup-android-arm-eabi@4.4.1:
-    resolution: {integrity: sha512-Ss4suS/sd+6xLRu+MLCkED2mUrAyqHmmvZB+zpzZ9Znn9S8wCkTQCJaQ8P8aHofnvG5L16u9MVnJjCqioPErwQ==}
+  /@rollup/rollup-android-arm-eabi@4.5.1:
+    resolution: {integrity: sha512-YaN43wTyEBaMqLDYeze+gQ4ZrW5RbTEGtT5o1GVDkhpdNcsLTnLRcLccvwy3E9wiDKWg9RIhuoy3JQKDRBfaZA==}
     cpu: [arm]
     os: [android]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-android-arm64@4.4.1:
-    resolution: {integrity: sha512-sRSkGTvGsARwWd7TzC8LKRf8FiPn7257vd/edzmvG4RIr9x68KBN0/Ek48CkuUJ5Pj/Dp9vKWv6PEupjKWjTYA==}
+  /@rollup/rollup-android-arm64@4.5.1:
+    resolution: {integrity: sha512-n1bX+LCGlQVuPlCofO0zOKe1b2XkFozAVRoczT+yxWZPGnkEAKTTYVOGZz8N4sKuBnKMxDbfhUsB1uwYdup/sw==}
     cpu: [arm64]
     os: [android]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-darwin-arm64@4.4.1:
-    resolution: {integrity: sha512-nz0AiGrrXyaWpsmBXUGOBiRDU0wyfSXbFuF98pPvIO8O6auQsPG6riWsfQqmCCC5FNd8zKQ4JhgugRNAkBJ8mQ==}
+  /@rollup/rollup-darwin-arm64@4.5.1:
+    resolution: {integrity: sha512-QqJBumdvfBqBBmyGHlKxje+iowZwrHna7pokj/Go3dV1PJekSKfmjKrjKQ/e6ESTGhkfPNLq3VXdYLAc+UtAQw==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-darwin-x64@4.4.1:
-    resolution: {integrity: sha512-Ogqvf4/Ve/faMaiPRvzsJEqajbqs00LO+8vtrPBVvLgdw4wBg6ZDXdkDAZO+4MLnrc8mhGV6VJAzYScZdPLtJg==}
+  /@rollup/rollup-darwin-x64@4.5.1:
+    resolution: {integrity: sha512-RrkDNkR/P5AEQSPkxQPmd2ri8WTjSl0RYmuFOiEABkEY/FSg0a4riihWQGKDJ4LnV9gigWZlTMx2DtFGzUrYQw==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-linux-arm-gnueabihf@4.4.1:
-    resolution: {integrity: sha512-9zc2tqlr6HfO+hx9+wktUlWTRdje7Ub15iJqKcqg5uJZ+iKqmd2CMxlgPpXi7+bU7bjfDIuvCvnGk7wewFEhCg==}
+  /@rollup/rollup-linux-arm-gnueabihf@4.5.1:
+    resolution: {integrity: sha512-ZFPxvUZmE+fkB/8D9y/SWl/XaDzNSaxd1TJUSE27XAKlRpQ2VNce/86bGd9mEUgL3qrvjJ9XTGwoX0BrJkYK/A==}
     cpu: [arm]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-linux-arm64-gnu@4.4.1:
-    resolution: {integrity: sha512-phLb1fN3rq2o1j1v+nKxXUTSJnAhzhU0hLrl7Qzb0fLpwkGMHDem+o6d+ZI8+/BlTXfMU4kVWGvy6g9k/B8L6Q==}
+  /@rollup/rollup-linux-arm64-gnu@4.5.1:
+    resolution: {integrity: sha512-FEuAjzVIld5WVhu+M2OewLmjmbXWd3q7Zcx+Rwy4QObQCqfblriDMMS7p7+pwgjZoo9BLkP3wa9uglQXzsB9ww==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-linux-arm64-musl@4.4.1:
-    resolution: {integrity: sha512-M2sDtw4tf57VPSjbTAN/lz1doWUqO2CbQuX3L9K6GWIR5uw9j+ROKCvvUNBY8WUbMxwaoc8mH9HmmBKsLht7+w==}
+  /@rollup/rollup-linux-arm64-musl@4.5.1:
+    resolution: {integrity: sha512-f5Gs8WQixqGRtI0Iq/cMqvFYmgFzMinuJO24KRfnv7Ohi/HQclwrBCYkzQu1XfLEEt3DZyvveq9HWo4bLJf1Lw==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-linux-x64-gnu@4.4.1:
-    resolution: {integrity: sha512-mHIlRLX+hx+30cD6c4BaBOsSqdnCE4ok7/KDvjHYAHoSuveoMMxIisZFvcLhUnyZcPBXDGZTuBoalcuh43UfQQ==}
+  /@rollup/rollup-linux-x64-gnu@4.5.1:
+    resolution: {integrity: sha512-CWPkPGrFfN2vj3mw+S7A/4ZaU3rTV7AkXUr08W9lNP+UzOvKLVf34tWCqrKrfwQ0NTk5GFqUr2XGpeR2p6R4gw==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-linux-x64-musl@4.4.1:
-    resolution: {integrity: sha512-tB+RZuDi3zxFx7vDrjTNGVLu2KNyzYv+UY8jz7e4TMEoAj7iEt8Qk6xVu6mo3pgjnsHj6jnq3uuRsHp97DLwOA==}
+  /@rollup/rollup-linux-x64-musl@4.5.1:
+    resolution: {integrity: sha512-ZRETMFA0uVukUC9u31Ed1nx++29073goCxZtmZARwk5aF/ltuENaeTtRVsSQzFlzdd4J6L3qUm+EW8cbGt0CKQ==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-win32-arm64-msvc@4.4.1:
-    resolution: {integrity: sha512-Hdn39PzOQowK/HZzYpCuZdJC91PE6EaGbTe2VCA9oq2u18evkisQfws0Smh9QQGNNRa/T7MOuGNQoLeXhhE3PQ==}
+  /@rollup/rollup-win32-arm64-msvc@4.5.1:
+    resolution: {integrity: sha512-ihqfNJNb2XtoZMSCPeoo0cYMgU04ksyFIoOw5S0JUVbOhafLot+KD82vpKXOurE2+9o/awrqIxku9MRR9hozHQ==}
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-win32-ia32-msvc@4.4.1:
-    resolution: {integrity: sha512-tLpKb1Elm9fM8c5w3nl4N1eLTP4bCqTYw9tqUBxX8/hsxqHO3dxc2qPbZ9PNkdK4tg4iLEYn0pOUnVByRd2CbA==}
+  /@rollup/rollup-win32-ia32-msvc@4.5.1:
+    resolution: {integrity: sha512-zK9MRpC8946lQ9ypFn4gLpdwr5a01aQ/odiIJeL9EbgZDMgbZjjT/XzTqJvDfTmnE1kHdbG20sAeNlpc91/wbg==}
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /@rollup/rollup-win32-x64-msvc@4.4.1:
-    resolution: {integrity: sha512-eAhItDX9yQtZVM3yvXS/VR3qPqcnXvnLyx1pLXl4JzyNMBNO3KC986t/iAg2zcMzpAp9JSvxB5VZGnBiNoA98w==}
+  /@rollup/rollup-win32-x64-msvc@4.5.1:
+    resolution: {integrity: sha512-5I3Nz4Sb9TYOtkRwlH0ow+BhMH2vnh38tZ4J4mggE48M/YyJyp/0sPSxhw1UeS1+oBgQ8q7maFtSeKpeRJu41Q==}
     cpu: [x64]
     os: [win32]
     requiresBuild: true
@@ -6205,6 +6103,11 @@ packages:
     dependencies:
       undici-types: 5.26.5
 
+  /@types/node@20.9.4:
+    resolution: {integrity: sha512-wmyg8HUhcn6ACjsn8oKYjkN/zUzQeNtMy44weTJSM6p4MMzEOuKbA3OjJ267uPCOW7Xex9dyrNTful8XTQYoDA==}
+    dependencies:
+      undici-types: 5.26.5
+
   /@types/normalize-package-data@2.4.2:
     resolution: {integrity: sha512-lqa4UEhhv/2sjjIQgjX8B+RBjj47eo0mzGasklVJ78UKGQY1r0VpB9XHDaZZO9qzEFDdy4MrXLuEaSmPrPSe/A==}
     dev: true
@@ -6699,6 +6602,15 @@ packages:
     dependencies:
       '@wallet-standard/base': 1.0.1
     dev: false
+
+  /@wasm-tool/wasm-pack-plugin@1.7.0:
+    resolution: {integrity: sha512-WikzYsw7nTd5CZxH75h7NxM/FLJAgqfWt+/gk3EL3wYKxiIlpMIYPja+sHQl3ARiicIYy4BDfxkbAVjRYlouTA==}
+    dependencies:
+      chalk: 2.4.2
+      command-exists: 1.2.9
+      watchpack: 2.4.0
+      which: 2.0.2
+    dev: true
 
   /@yarnpkg/lockfile@1.1.0:
     resolution: {integrity: sha512-GpSwvyXOcOOlV70vbnzjj4fW5xW/FdUF6nQEt1ENy7m4ZCczi1+/buVUPAqmGfqznsORNFzUMjctTIp8a9tuCQ==}
@@ -8168,7 +8080,6 @@ packages:
 
   /command-exists@1.2.9:
     resolution: {integrity: sha512-LTQ/SGc+s0Xc0Fu5WaKnR0YiygZkm9eKFvyS+fRsU7/ZWFF8ykFM6Pc9aCVf1+xasOOZpO3BAVgVrKvsqKHV7w==}
-    dev: false
 
   /commander@2.13.0:
     resolution: {integrity: sha512-MVuS359B+YzaWqjCL/c+22gfryv+mCBPHAv3zyVI2GN8EY6IRP8VwtasXn8jyyhvvq84R4ImN1OKRtcbIasjYA==}
@@ -11828,7 +11739,7 @@ packages:
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
     dependencies:
       '@jest/types': 27.5.1
-      '@types/node': 20.9.1
+      '@types/node': 20.9.4
       chalk: 4.1.2
       ci-info: 3.8.0
       graceful-fs: 4.2.11
@@ -11875,7 +11786,7 @@ packages:
     resolution: {integrity: sha512-7vuh85V5cdDofPyxn58nrPjBktZo0u9x1g8WtjQol+jZDaE+fhN+cIvTj11GndBnMnyfrUOG1sZQxCdjKh+DKg==}
     engines: {node: '>= 10.13.0'}
     dependencies:
-      '@types/node': 20.9.1
+      '@types/node': 20.9.4
       merge-stream: 2.0.0
       supports-color: 8.1.1
     dev: false
@@ -12770,7 +12681,7 @@ packages:
     resolution: {integrity: sha512-XKahvB+iuYJSCr3QqCpROli4B4zASAYpkK+j3a0CJmokxCDNbgyI4Fp88uIL6rNaZfN0Mv35S0b99SdFXIfHjg==}
     engines: {node: '>=16'}
     dependencies:
-      '@babel/runtime': 7.22.15
+      '@babel/runtime': 7.23.2
       react-refresh: 0.4.3
     dev: false
 
@@ -14017,15 +13928,15 @@ packages:
       - typescript
     dev: true
 
-  /oclif@3.17.2(@types/node@20.9.1)(typescript@5.2.2):
+  /oclif@3.17.2(@types/node@20.9.4)(typescript@5.2.2):
     resolution: {integrity: sha512-+vFXxgmR7dGGz+g6YiqSZu2LXVkBMaS9/rhtsLGkYw45e53CW/3kBgPRnOvxcTDM3Td9JPeBD2JWxXnPKGQW3A==}
     engines: {node: '>=12.0.0'}
     hasBin: true
     dependencies:
-      '@oclif/core': 2.15.0(@types/node@20.9.1)(typescript@5.2.2)
-      '@oclif/plugin-help': 5.2.19(@types/node@20.9.1)(typescript@5.2.2)
-      '@oclif/plugin-not-found': 2.4.1(@types/node@20.9.1)(typescript@5.2.2)
-      '@oclif/plugin-warn-if-update-available': 2.1.0(@types/node@20.9.1)(typescript@5.2.2)
+      '@oclif/core': 2.15.0(@types/node@20.9.4)(typescript@5.2.2)
+      '@oclif/plugin-help': 5.2.19(@types/node@20.9.4)(typescript@5.2.2)
+      '@oclif/plugin-not-found': 2.4.1(@types/node@20.9.4)(typescript@5.2.2)
+      '@oclif/plugin-warn-if-update-available': 2.1.0(@types/node@20.9.4)(typescript@5.2.2)
       async-retry: 1.3.3
       aws-sdk: 2.1463.0
       concurrently: 7.6.0
@@ -15131,7 +15042,7 @@ packages:
   /regenerator-transform@0.15.2:
     resolution: {integrity: sha512-hfMp2BoF0qOk3uc5V20ALGDS2ddjQaLrdl7xrGXvAIow7qeWRM2VA2HuCHkUKk9slq3VwEwLNK3DFBqDfPGYtg==}
     dependencies:
-      '@babel/runtime': 7.22.15
+      '@babel/runtime': 7.23.2
     dev: false
 
   /regexp-tree@0.1.27:
@@ -15309,23 +15220,23 @@ packages:
       glob: 10.3.10
     dev: true
 
-  /rollup@4.4.1:
-    resolution: {integrity: sha512-idZzrUpWSblPJX66i+GzrpjKE3vbYrlWirUHteoAbjKReZwa0cohAErOYA5efoMmNCdvG9yrJS+w9Kl6csaH4w==}
+  /rollup@4.5.1:
+    resolution: {integrity: sha512-0EQribZoPKpb5z1NW/QYm3XSR//Xr8BeEXU49Lc/mQmpmVVG5jPUVrpc2iptup/0WMrY9mzas0fxH+TjYvG2CA==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
     optionalDependencies:
-      '@rollup/rollup-android-arm-eabi': 4.4.1
-      '@rollup/rollup-android-arm64': 4.4.1
-      '@rollup/rollup-darwin-arm64': 4.4.1
-      '@rollup/rollup-darwin-x64': 4.4.1
-      '@rollup/rollup-linux-arm-gnueabihf': 4.4.1
-      '@rollup/rollup-linux-arm64-gnu': 4.4.1
-      '@rollup/rollup-linux-arm64-musl': 4.4.1
-      '@rollup/rollup-linux-x64-gnu': 4.4.1
-      '@rollup/rollup-linux-x64-musl': 4.4.1
-      '@rollup/rollup-win32-arm64-msvc': 4.4.1
-      '@rollup/rollup-win32-ia32-msvc': 4.4.1
-      '@rollup/rollup-win32-x64-msvc': 4.4.1
+      '@rollup/rollup-android-arm-eabi': 4.5.1
+      '@rollup/rollup-android-arm64': 4.5.1
+      '@rollup/rollup-darwin-arm64': 4.5.1
+      '@rollup/rollup-darwin-x64': 4.5.1
+      '@rollup/rollup-linux-arm-gnueabihf': 4.5.1
+      '@rollup/rollup-linux-arm64-gnu': 4.5.1
+      '@rollup/rollup-linux-arm64-musl': 4.5.1
+      '@rollup/rollup-linux-x64-gnu': 4.5.1
+      '@rollup/rollup-linux-x64-musl': 4.5.1
+      '@rollup/rollup-win32-arm64-msvc': 4.5.1
+      '@rollup/rollup-win32-ia32-msvc': 4.5.1
+      '@rollup/rollup-win32-x64-msvc': 4.5.1
       fsevents: 2.3.3
     dev: true
 
@@ -16549,7 +16460,7 @@ packages:
       yn: 3.1.1
     dev: true
 
-  /ts-node@10.9.1(@types/node@20.9.1)(typescript@5.2.2):
+  /ts-node@10.9.1(@types/node@20.9.4)(typescript@5.2.2):
     resolution: {integrity: sha512-NtVysVPkxxrwFGUUxGYhfux8k78pQB3JqYBXlLRZgdGUqTO5wU/UyHop5p70iEbGhB7q5KmiZiU0Y3KlJrScEw==}
     hasBin: true
     peerDependencies:
@@ -16568,7 +16479,7 @@ packages:
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 20.9.1
+      '@types/node': 20.9.4
       acorn: 8.10.0
       acorn-walk: 8.2.0
       arg: 4.1.3
@@ -16578,6 +16489,37 @@ packages:
       typescript: 5.2.2
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
+
+  /ts-node@10.9.1(@types/node@20.9.4)(typescript@5.3.2):
+    resolution: {integrity: sha512-NtVysVPkxxrwFGUUxGYhfux8k78pQB3JqYBXlLRZgdGUqTO5wU/UyHop5p70iEbGhB7q5KmiZiU0Y3KlJrScEw==}
+    hasBin: true
+    peerDependencies:
+      '@swc/core': '>=1.2.50'
+      '@swc/wasm': '>=1.2.50'
+      '@types/node': '*'
+      typescript: '>=2.7'
+    peerDependenciesMeta:
+      '@swc/core':
+        optional: true
+      '@swc/wasm':
+        optional: true
+    dependencies:
+      '@cspotcode/source-map-support': 0.8.1
+      '@tsconfig/node10': 1.0.9
+      '@tsconfig/node12': 1.0.11
+      '@tsconfig/node14': 1.0.3
+      '@tsconfig/node16': 1.0.4
+      '@types/node': 20.9.4
+      acorn: 8.10.0
+      acorn-walk: 8.2.0
+      arg: 4.1.3
+      create-require: 1.1.1
+      diff: 4.0.2
+      make-error: 1.3.6
+      typescript: 5.3.2
+      v8-compile-cache-lib: 3.0.1
+      yn: 3.1.1
+    dev: true
 
   /ts-node@7.0.1:
     resolution: {integrity: sha512-BVwVbPJRspzNh2yfslyT1PSbl5uIk03EZlb493RKHN4qej/D06n1cEhjlOJG69oFsE7OT8XjpTUcYf6pKTLMhw==}
@@ -16756,6 +16698,12 @@ packages:
     resolution: {integrity: sha512-mI4WrpHsbCIcwT9cF4FZvr80QUeKvsUsUvKDoR+X/7XHQH98xYD8YHZg7ANtz2GtZt/CBq2QJ0thkGJMHfqc1w==}
     engines: {node: '>=14.17'}
     hasBin: true
+
+  /typescript@5.3.2:
+    resolution: {integrity: sha512-6l+RyNy7oAHDfxC4FzSJcz9vnjTKxrLpDG5M2Vu4SHRVNg6xzqZp6LYSR9zjqQTu8DU/f5xwxUdADOkbrIX2gQ==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+    dev: true
 
   /ufo@1.3.2:
     resolution: {integrity: sha512-o+ORpgGwaYQXgqGDwd+hkS4PuZ3QnmqMMxRuajK/a38L6fTpcE5GPIfrf+L/KemFzfUpeUQc1rRS1iDBozvnFA==}
@@ -17150,7 +17098,7 @@ packages:
       '@types/node': 20.9.1
       esbuild: 0.19.5
       postcss: 8.4.31
-      rollup: 4.4.1
+      rollup: 4.5.1
     optionalDependencies:
       fsevents: 2.3.3
     dev: true
@@ -17750,9 +17698,4 @@ packages:
   /zlib@1.0.5:
     resolution: {integrity: sha512-40fpE2II+Cd3k8HWTWONfeKE2jL+P42iWJ1zzps5W51qcTsOUKM5Q5m2PFb0CLxlmFAaUuUdJGc3OfZy947v0w==}
     engines: {node: '>=0.2.0'}
-    dev: false
-
-  file:account.rs/zk-rs/pkg:
-    resolution: {directory: account.rs/zk-rs/pkg, type: directory}
-    name: light-wasm
     dev: false
