@@ -6,12 +6,12 @@
   "typings": "lib/index",
   "scripts": {
     "build": "pnpm install && pnpm tsc -p tsconfig.json",
-    "build-zk-rs": "(cd zk-rs && ./scripts/build.sh)",
+    "build:wasm": "(cd zk-rs && ./scripts/build.sh)",
     "test": "node_modules/.bin/ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/wasm.test.ts --exit",
-    "test-wasm": "cd zk-rs && cargo test -- --nocapture",
-    "bench-blake": "node_modules/.bin/tsx ./benches/blake.test.ts",
-    "bench-poseidon": "node_modules/.bin/tsx ./benches/poseidon.test.ts",
-    "bench": "pnpm run bench-blake && pnpm run bench-poseidon"
+    "test:wasm": "cd zk-rs && cargo test -- --nocapture",
+    "bench": "pnpm run bench-blake && pnpm run bench-poseidon",
+    "bench:blake": "node_modules/.bin/tsx ./benches/blake.test.ts",
+    "bench:poseidon": "node_modules/.bin/tsx ./benches/poseidon.test.ts"
   },
   "keywords": [],
   "author": "",

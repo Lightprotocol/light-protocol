@@ -13,7 +13,7 @@
       "bundler/light_wasm.d.ts"
     ],
     "main": "node/light_wasm.js",
-    "module": "bundler/light_wasm.js",
-    "types": "bundler/light_wasm.d.ts",
-    "sideEffects": false
+    "browser": "bundler/light_wasm.js",
+    "module": "node/light_wasm.js",
+    "types": "node/light_wasm.d.ts"    
   }

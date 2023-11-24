@@ -6,8 +6,9 @@
   "main": "lib/index",
   "typings": "lib/index",
   "scripts": {
+    "test": "pnpm test-prepare-circom && pnpm test:mocha",
     "test-prepare-circom": "./scripts/build_test_circuit.sh",
-    "test": "pnpm test-prepare-circom && ts-mocha --timeout 500000 tests/*.test.ts",
+    "test:mocha": "ts-mocha --timeout 500000 tests/*.test.ts",
     "build": "pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
     "format:check": "prettier \"src/**/*{ts,js}\" --check",
