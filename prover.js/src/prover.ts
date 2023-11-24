@@ -7,7 +7,7 @@ import {
 } from "./generics";
 import { VerifierError, VerifierErrorCode } from "./errors";
 
-const snarkjs = require("snarkjs");
+import * as snarkjs from "snarkjs";
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff } =
   require("ffjavascript").utils;
 

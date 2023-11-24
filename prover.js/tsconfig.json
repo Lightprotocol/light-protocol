@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "./lib",
     "rootDirs": ["src"],
-    "esModuleInterop": true
+    "esModuleInterop": true,
   },
   "extends": "@lightprotocol/tsconfig/base.json",
   "include": ["src"]

@@ -1,0 +1,19 @@
+{
+    "name": "light-wasm",
+    "description": "Light Protocol Rust client",
+    "version": "0.0.1",
+    "license": "GPL-3.0",
+    "type": "module",
+    "files": [
+      "node/light_wasm_bg.wasm",
+      "node/light_wasm.js",
+      "node/light_wasm.d.ts",
+      "bundler/light_wasm_bg.wasm",
+      "bundler/light_wasm.js",
+      "bundler/light_wasm.d.ts"
+    ],
+    "main": "node/light_wasm.js",
+    "module": "bundler/light_wasm.js",
+    "types": "bundler/light_wasm.d.ts",
+    "sideEffects": false
+  }

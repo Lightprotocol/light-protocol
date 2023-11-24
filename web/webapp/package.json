@@ -16,6 +16,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.29.0",
     "@emotion/react": "^11.11.1",
+    "@lightprotocol/account.rs": "workspace:*",
     "@lightprotocol/zk.js": "workspace:*",
     "@mantine/core": "^7.1.5",
     "@mantine/form": "^7.1.5",
@@ -40,6 +41,7 @@
     "@types/react-dom": "latest",
     "@types/styled-jsx": "^3.4.4",
     "@vitejs/plugin-react": "^4.1.0",
+    "copy-webpack-plugin": "^11.0.0",
     "cypress": "^13.3.3",
     "eslint": "latest",
     "eslint-config-next": "latest",

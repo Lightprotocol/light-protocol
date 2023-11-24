@@ -5,7 +5,8 @@
   "main": "lib/index",
   "typings": "lib/index",
   "scripts": {
-    "build": "cd zk-rs && wasm-pack build --target nodejs && pnpm install && pnpm tsc -p tsconfig.json",
+    "build": "pnpm install && pnpm tsc -p tsconfig.json",
+    "build-zk-rs": "(cd zk-rs && ./scripts/build.sh)",
     "test": "node_modules/.bin/ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/wasm.test.ts --exit",
     "test-wasm": "cd zk-rs && cargo test -- --nocapture",
     "bench-blake": "node_modules/.bin/tsx ./benches/blake.test.ts",
