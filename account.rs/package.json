@@ -17,7 +17,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "light-wasm": "file:./zk-rs/pkg"
+    "light-wasm": "file:./zk-rs/pkg/bundler"
   },
   "devDependencies": {
     "ffjavascript": "^0.2.54",

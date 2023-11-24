@@ -27,8 +27,8 @@ importers:
   account.rs:
     dependencies:
       light-wasm:
-        specifier: file:./zk-rs/pkg
-        version: file:account.rs/zk-rs/pkg
+        specifier: file:./zk-rs/pkg/bundler
+        version: file:account.rs/zk-rs/pkg/bundler
     devDependencies:
       '@coral-xyz/anchor':
         specifier: ^0.29.0
@@ -18031,7 +18031,7 @@ packages:
     engines: {node: '>=0.2.0'}
     dev: false
 
-  file:account.rs/zk-rs/pkg:
-    resolution: {directory: account.rs/zk-rs/pkg, type: directory}
+  file:account.rs/zk-rs/pkg/bundler:
+    resolution: {directory: account.rs/zk-rs/pkg/bundler, type: directory}
     name: light-wasm
     dev: false
