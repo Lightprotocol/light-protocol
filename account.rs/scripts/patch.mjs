@@ -1,12 +1,18 @@
 import { readFile, writeFile } from "node:fs/promises";
 
-const name = "light_wasm";
+const cargoTomlContent = await readFile("./wasm/Cargo.toml", "utf8");
+const cargoPackageName = /\[package\]\nname = "(.*?)"/.exec(cargoTomlContent)[1]
+const name = cargoPackageName.replace(/-/g, '_')
 
-const content = await readFile(`src/wasm/${name}.js`, "utf8");
+const content = await readFile(`./src/wasm/${name}.js`, "utf8");
 
 const patched = content
   // use global TextDecoder TextEncoder
   .replace("require(`util`)", "globalThis")
+  // attach to `imports` instead of module.exports
+  .replace("= module.exports", "= imports")
+  .replace(/\nmodule\.exports\.(.*?)\s+/g, "\nexport const $1 = imports.$1 ")
+  .replace(/$/, 'export default imports')
   // inline bytes Uint8Array
   .replace(
     /\nconst path.*\nconst bytes.*\n/,
@@ -28,21 +34,9 @@ var __toBinary = /* @__PURE__ */ (() => {
   };
 })();
 
-const bytes = __toBinary(${JSON.stringify(await readFile(`src/wasm/${name}_bg.wasm`, "base64"))
+const bytes = __toBinary(${JSON.stringify(await readFile(`./src/wasm/${name}_bg.wasm`, "base64"))
     });
 `,
   );
 
-
-// deal with `imports['__wbindgen_placeholder__']`
-// TODO: optimize with `__wbg_get_imports`
-const wrapped = `export default (function() {
-  const module = { exports: {} };
-
-  ${patched}
-
-  return module.exports;
-})()
-`;
-
-await writeFile(`src/wasm/${name}.mjs`, wrapped);
+await writeFile(`./src/wasm/${name}.mjs`, patched);

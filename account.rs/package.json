@@ -27,6 +27,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "light-wasm": "file:./src/wasm"
+  },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.29.0",
     "@lightprotocol/tsconfig": "workspace:*",

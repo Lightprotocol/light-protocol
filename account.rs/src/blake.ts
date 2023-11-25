@@ -1,4 +1,4 @@
-import {blake2, blake2str} from "./wasm/light_wasm";
+import {blake2, blake2str} from "light-wasm";
 import { featureFlags } from "./config";
 import {blake2b} from "@noble/hashes/blake2b";
 
