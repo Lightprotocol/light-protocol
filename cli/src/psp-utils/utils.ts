@@ -1,5 +1,6 @@
 import { sleep } from "@lightprotocol/zk.js";
-import * as fs from "fs";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 /**
  * Extracts the circuit filename from the input string using a regex pattern.
@@ -11,8 +12,6 @@ export function extractFilename(input: string): string | null {
   const match = input.match(regex);
   return match ? match[1] : null;
 }
-
-import path from "path";
 
 /**
  * Recursively searches for a file with the @param extension in a specified directory.

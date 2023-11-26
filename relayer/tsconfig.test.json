@@ -1,7 +1,7 @@
 {
-  "compilerOptions": {
+  "compilerOptions": {  
     "esModuleInterop": true,
   },
   "extends": "./tsconfig",
-  "include": ["./src/**/*", "./tests/**/*", "setup.jsdom.ts"]
+  "include": ["./tests/**/*", "setup.jsdom.ts"]
 }

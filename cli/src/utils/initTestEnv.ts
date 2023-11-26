@@ -23,7 +23,7 @@ import {
   downloadBinIfNotExists,
   executeCommand,
 } from "../psp-utils";
-import path from "path";
+import * as path from "node:path";
 const find = require("find-process");
 
 const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";

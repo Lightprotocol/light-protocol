@@ -1,9 +1,8 @@
-import * as fs from "fs";
-import * as os from "os";
-import path from "path";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { assert, expect } from "chai";
 import "mocha";
-
 import { getSolanaArgs } from "../../src/utils";
 
 describe("Init test env utils", () => {

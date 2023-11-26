@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
     "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "baseUrl": "./",
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-    "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "node",
     "resolveJsonModule": true,
@@ -20,8 +23,11 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "esModuleInterop": true
   },
   "include": [
     "next-env.d.ts",
@@ -31,6 +37,11 @@
     "dist/types/**/*.ts",
     "components/TokenPicker"
   ],
-  "types": ["styled-jsx", "node"],
-  "exclude": ["node_modules"]
+  "types": [
+    "styled-jsx",
+    "node"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

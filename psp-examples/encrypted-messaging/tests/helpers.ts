@@ -5,7 +5,7 @@ import {
   SendVersionedTransactionsResult,
   User,
 } from "@lightprotocol/zk.js";
-import nacl from "tweetnacl";
+import * as nacl from "tweetnacl";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 

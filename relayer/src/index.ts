@@ -1,7 +1,7 @@
-import express from "express";
+import * as express from "express";
 import { DB_VERSION, LOCAL_TEST_ENVIRONMENT, port } from "./config";
 import { addCorsHeaders } from "./middleware";
-import bodyParser from "body-parser";
+import * as bodyParser from "body-parser";
 import {
   getIndexedTransactions,
   buildMerkleTree,

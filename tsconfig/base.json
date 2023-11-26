@@ -10,7 +10,6 @@
     "isolatedModules": true,
     "moduleResolution": "node",
     "module": "CommonJS",
-    "esModuleInterop": true,
     "noFallthroughCasesInSwitch": true,
     "preserveWatchOutput": true,
     "noUnusedLocals": false,

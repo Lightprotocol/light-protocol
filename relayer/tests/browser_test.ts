@@ -1,7 +1,8 @@
 //@ts-check
 import { AnchorProvider, utils } from "@coral-xyz/anchor";
 import { Connection, Keypair as SolanaKeypair, Keypair } from "@solana/web3.js";
-import chai, { expect } from "chai";
+import * as chai from "chai";
+import { expect } from "chai";
 import chaiHttp from "chai-http";
 import { sign } from "tweetnacl";
 

@@ -4,7 +4,6 @@
     "typeRoots": ["./node_modules/@types"],
     "lib": ["ES2019"],
     "module": "commonjs",
-    "target": "es6",
-    "esModuleInterop": true
+    "target": "es6"
   }
 }

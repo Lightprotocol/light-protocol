@@ -865,15 +865,6 @@ importers:
       ioredis:
         specifier: ^5.3.2
         version: 5.3.2
-      mocha:
-        specifier: ^10.2.0
-        version: 10.2.0
-      supertest:
-        specifier: ^6.3.3
-        version: 6.3.3
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@10.2.0)
     devDependencies:
       '@lightprotocol/circuit-lib.js':
         specifier: workspace:*
@@ -909,13 +900,13 @@ importers:
         specifier: ^6.7.3
         version: 6.7.4(eslint@8.50.0)(typescript@4.9.5)
       chai:
-        specifier: ^4.3.7
-        version: 4.3.8
+        specifier: ^4.3.10
+        version: 4.3.10
       chai-as-promised:
         specifier: ^7.1.1
-        version: 7.1.1(chai@4.3.8)
+        version: 7.1.1(chai@4.3.10)
       chai-http:
-        specifier: ^4.3.0
+        specifier: ^4.4.0
         version: 4.4.0
       eslint:
         specifier: ^8.50.0
@@ -926,6 +917,9 @@ importers:
       jsdom-global:
         specifier: ^3.0.2
         version: 3.0.2(jsdom@22.1.0)
+      mocha:
+        specifier: ^10.2.0
+        version: 10.2.0
       prettier:
         specifier: ^2.8.8
         version: 2.8.8
@@ -935,6 +929,12 @@ importers:
       sinon:
         specifier: ^15.2.0
         version: 15.2.0
+      supertest:
+        specifier: ^6.3.3
+        version: 6.3.3
+      ts-mocha:
+        specifier: ^10.0.0
+        version: 10.0.0(mocha@10.2.0)
       ts-node:
         specifier: ^10.9.1
         version: 10.9.1(@types/node@18.18.3)(typescript@4.9.5)
@@ -1068,11 +1068,11 @@ importers:
         specifier: ^0.28.0
         version: 0.28.0(@solana/web3.js@1.76.0)
       '@lightprotocol/circuit-lib.js':
-        specifier: workspace:*
-        version: link:../circuit-lib/circuit-lib.js
+        specifier: file:../circuit-lib/circuit-lib.js/lightprotocol-circuit-lib.js-0.1.0-alpha.1.tgz
+        version: file:circuit-lib/circuit-lib.js/lightprotocol-circuit-lib.js-0.1.0-alpha.1.tgz
       '@lightprotocol/prover.js':
-        specifier: workspace:*
-        version: link:../prover.js
+        specifier: file:../prover.js/lightprotocol-prover.js-0.1.0-alpha.3.tgz
+        version: file:prover.js/lightprotocol-prover.js-0.1.0-alpha.3.tgz
       '@noble/hashes':
         specifier: ^1.1.5
         version: 1.3.2
@@ -7565,6 +7565,15 @@ packages:
     resolution: {integrity: sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==}
     dev: true
 
+  /chai-as-promised@7.1.1(chai@4.3.10):
+    resolution: {integrity: sha512-azL6xMoi+uxu6z4rhWQ1jbdUhOMhis2PvscD/xjLqNMkv3BPPp2JyyuTHOrf9BOosGpNQ11v6BKv/g57RXbiaA==}
+    peerDependencies:
+      chai: '>= 2.1.2 < 5'
+    dependencies:
+      chai: 4.3.10
+      check-error: 1.0.3
+    dev: true
+
   /chai-as-promised@7.1.1(chai@4.3.8):
     resolution: {integrity: sha512-azL6xMoi+uxu6z4rhWQ1jbdUhOMhis2PvscD/xjLqNMkv3BPPp2JyyuTHOrf9BOosGpNQ11v6BKv/g57RXbiaA==}
     peerDependencies:
@@ -7984,6 +7993,7 @@ packages:
 
   /component-emitter@1.3.0:
     resolution: {integrity: sha512-Rd3se6QB+sO1TwqZjscQrurpEPIfO0/yYnSin6Q/rD3mOutHvUrCAhJub3r90uNb+SESBuE0QYoB90YdfatsRg==}
+    dev: true
 
   /compressible@2.0.18:
     resolution: {integrity: sha512-AF3r7P5dWxL8MxyITRMlORQNaOA2IkAFaTr4k7BUumjPtRpGDTZpl0Pb1XCO6JeDCBdp126Cgs9sMxqSjgYyRg==}
@@ -8075,6 +8085,7 @@ packages:
 
   /cookiejar@2.1.4:
     resolution: {integrity: sha512-LDx6oHrK+PhzLKJU9j5S7/Y3jM/mUHvD/DeI1WQmJn652iPC5Y4TBzC9l+5OMOXlyTTA+SmVUPm0HQUwpD5Jqw==}
+    dev: true
 
   /core-js-compat@3.33.3:
     resolution: {integrity: sha512-cNzGqFsh3Ot+529GIXacjTJ7kegdt5fPXxCBVS1G0iaZpuo/tBz399ymceLJveQhFFZ8qThHiP3fzuoQjKN2ow==}
@@ -8462,6 +8473,7 @@ packages:
     dependencies:
       asap: 2.0.6
       wrappy: 1.0.2
+    dev: true
 
   /diff-sequences@29.6.3:
     resolution: {integrity: sha512-EjePK1srD3P08o2j4f0ExnylqRs5B9tJjcp9t1krH2qRi8CCdsYfwe9JgSLurFBWwq4uOlipzfk5fHNvwFKr8Q==}
@@ -9739,6 +9751,7 @@ packages:
 
   /fast-safe-stringify@2.1.1:
     resolution: {integrity: sha512-W+KJc2dmILlPplD/H4K9l9LcAHAfPtP6BY84uVLXQ6Evcz9Lcg33Y2z1IVblT6xdY54PXYVHEv+0Wpq8Io6zkA==}
+    dev: true
 
   /fast-stable-stringify@1.0.0:
     resolution: {integrity: sha512-wpYMUmFu5f00Sm0cj2pfivpmawLZ0NKdviQ4w9zJeR8JVtOpOxHmLaJuj0vxvGqMJQWyP/COUkF75/57OKyRag==}
@@ -10004,6 +10017,7 @@ packages:
       hexoid: 1.0.0
       once: 1.4.0
       qs: 6.11.2
+    dev: true
 
   /forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
@@ -10446,6 +10460,7 @@ packages:
   /hexoid@1.0.0:
     resolution: {integrity: sha512-QFLV0taWQOZtvIRIAdBChesmogZrtuXvVWsFHZTk2SU+anspqZ2vMnoLg7IE1+Uk16N19APic1BuF8bC8c2m5g==}
     engines: {node: '>=8'}
+    dev: true
 
   /hmac-drbg@1.0.1:
     resolution: {integrity: sha512-Tti3gMqLdZfhOQY1Mzf/AanLiqh1WTiJgEj26ZuYQ9fbkLomzGchCws4FyrSd4VkpBfiNhaE1On+lOz894jvXg==}
@@ -14439,6 +14454,7 @@ packages:
     engines: {node: '>=0.6'}
     dependencies:
       side-channel: 1.0.4
+    dev: true
 
   /querystring@0.2.0:
     resolution: {integrity: sha512-X/xY82scca2tau62i9mDyU9K+I+djTMUsvwf7xnUX5GLvVzgJybOJf4Y6o9Zx3oJK/LSXg5tTZBjwzqVPaPO2g==}
@@ -15833,6 +15849,7 @@ packages:
       semver: 7.5.4
     transitivePeerDependencies:
       - supports-color
+    dev: true
 
   /superstruct@0.14.2:
     resolution: {integrity: sha512-nPewA6m9mR3d6k7WkZ8N8zpTWfenFH3q9pA2PkuiZxINr9DKB2+40wEQf0ixn8VaGuJ78AB6iWOtStI+/4FKZQ==}
@@ -15848,7 +15865,7 @@ packages:
       superagent: 8.1.2
     transitivePeerDependencies:
       - supports-color
-    dev: false
+    dev: true
 
   /supports-color@5.5.0:
     resolution: {integrity: sha512-QjVjwdXIt408MIiAqCX4oUKsgU2EqAGzs2Ppkm4aQYbjm+ZEWEcW4SfFNTr4uMNZma0ey4f5lgLrkB0aX0QMow==}
@@ -17504,4 +17521,31 @@ packages:
   /zlib@1.0.5:
     resolution: {integrity: sha512-40fpE2II+Cd3k8HWTWONfeKE2jL+P42iWJ1zzps5W51qcTsOUKM5Q5m2PFb0CLxlmFAaUuUdJGc3OfZy947v0w==}
     engines: {node: '>=0.2.0'}
+    dev: false
+
+  file:circuit-lib/circuit-lib.js/lightprotocol-circuit-lib.js-0.1.0-alpha.1.tgz:
+    resolution: {integrity: sha512-ks/6CJCJsnQB6TPbq2Og0yk6PUW1Iy9UEE9q26JQYHY5CAbKs58N5AV2bEHMCqv/sESfGpV/86jSsF7jCN6XsA==, tarball: file:circuit-lib/circuit-lib.js/lightprotocol-circuit-lib.js-0.1.0-alpha.1.tgz}
+    name: '@lightprotocol/circuit-lib.js'
+    version: 0.1.0-alpha.1
+    requiresBuild: true
+    dependencies:
+      '@noble/curves': 1.2.0
+      '@noble/hashes': 1.3.2
+      blake-hash: 2.0.0
+      ffjavascript: 0.2.60
+    dev: false
+
+  file:prover.js/lightprotocol-prover.js-0.1.0-alpha.3.tgz:
+    resolution: {integrity: sha512-zz6fLl/dsnq/TfYYZ9M86cihIk/jkee4fbq/qE6tlvM3d6Oc7PxAOTYFHHIrlqeL8YhHeXXYIsKnHwh5JmYa0A==, tarball: file:prover.js/lightprotocol-prover.js-0.1.0-alpha.3.tgz}
+    name: '@lightprotocol/prover.js'
+    version: 0.1.0-alpha.3
+    dependencies:
+      '@coral-xyz/anchor': 0.28.0
+      circomlibjs: 0.1.7
+      ffjavascript: 0.2.60
+      snarkjs: 0.7.1
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - utf-8-validate
     dev: false

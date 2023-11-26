@@ -1,5 +1,5 @@
 import { spawn, SpawnOptionsWithoutStdio } from "child_process";
-import path from "path";
+import * as path from "node:path";
 
 /**
  * Executes a command and logs the output to the console.

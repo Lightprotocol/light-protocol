@@ -39,7 +39,7 @@ import {
 } from "../index";
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
-import nacl from "tweetnacl";
+import * as nacl from "tweetnacl";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 type VerifierConfig = {

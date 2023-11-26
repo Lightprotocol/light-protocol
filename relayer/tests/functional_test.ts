@@ -6,7 +6,8 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import chai, { assert } from "chai";
+import chai from "chai";
+import { assert } from "chai";
 import chaiHttp from "chai-http";
 
 import {

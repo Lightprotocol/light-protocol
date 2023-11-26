@@ -1,4 +1,4 @@
-import nacl from "tweetnacl";
+import * as nacl from "tweetnacl";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import {

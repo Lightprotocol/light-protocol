@@ -23,7 +23,7 @@
  */
 
 import * as crypto from "crypto";
-import assert from "assert";
+import * as assert from 'node:assert';
 const eddsa = require("./eddsa");
 const ff = require("ffjavascript");
 const createBlakeHash = require("blake-hash");

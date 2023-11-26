@@ -1,7 +1,7 @@
 import { BN, BorshAccountsCoder, utils } from "@coral-xyz/anchor";
 import { IDL } from "./types/multisig";
 import { Account } from "@lightprotocol/zk.js";
-import nacl from "tweetnacl";
+import * as nacl from "tweetnacl";
 import { MAX_SIGNERS } from "./constants";
 import { assert } from "chai";
 const bs58 = require("bs58");

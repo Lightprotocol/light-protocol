@@ -1,5 +1,5 @@
 import { Account, CONSTANT_SECRET_AUTHKEY } from "@lightprotocol/zk.js";
-import nacl from "tweetnacl";
+import * as nacl from "tweetnacl";
 const { blake2b } = require("@noble/hashes/blake2b");
 const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 const b2params24 = { dkLen: 24 };

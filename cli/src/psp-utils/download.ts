@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as fs from "fs";
 import { promisify } from "util";
-import cliProgress from "cli-progress";
+import * as cliProgress from "cli-progress";
 import * as path from "path";
 import * as tar from "tar";
 import * as zlib from "zlib";

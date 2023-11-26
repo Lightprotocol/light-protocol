@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
-import _ from "lodash";
+import * as _ from "lodash";
 import { assert } from "chai";
 const token = require("@solana/spl-token");
 const circomlibjs = require("circomlibjs");
