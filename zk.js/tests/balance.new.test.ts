@@ -3,8 +3,6 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { expect } from "chai";
-const lodash = require("lodash");
-
 const circomlibjs = require("circomlibjs");
 const { buildPoseidonOpt } = circomlibjs;
 const chai = require("chai");
