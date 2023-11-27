@@ -3,6 +3,8 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { expect } from "chai";
+const lodash = require("lodash");
+
 const circomlibjs = require("circomlibjs");
 const { buildPoseidonOpt } = circomlibjs;
 const chai = require("chai");
@@ -28,8 +30,10 @@ import {
   serializeBalance,
   deserializeBalance,
   spendUtxo,
+  TokenBalance_new,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { serializeTokenBalance } from "../src/balance/balance";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -45,7 +49,7 @@ describe("Balance", () => {
     solTestUtxo1: Utxo,
     solTestUtxo2: Utxo,
     keypair: Account;
-  before(async () => {
+  beforeEach(async () => {
     poseidon = await buildPoseidonOpt();
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
@@ -103,16 +107,28 @@ describe("Balance", () => {
         SystemProgram.programId,
         TOKEN_REGISTRY,
       );
-      const utxos: Utxo[] = [shieldUtxo1];
+      const utxos: Utxo[] = [solTestUtxo1];
 
       const tokenBalance = initTokenBalance(tokenData, utxos);
 
-      assert.equal(tokenBalance.amount, BN_0);
-      assert.equal(tokenBalance.lamports, BN_0);
+      assert(tokenBalance.amount.eq(BN_0)); // is sol utxo
+      assert(tokenBalance.lamports.eq(utxos[0].amounts[0]));
       assert.deepEqual(tokenBalance.data, tokenData);
       assert.deepEqual(tokenBalance.utxos, utxos);
     });
-    it("should throw an error if the mint does not match", () => {
+
+    it("should throw an error if the mint does not match tokendata", () => {
+      const tokenData = getTokenDataByMint(
+        SystemProgram.programId,
+        TOKEN_REGISTRY,
+      );
+      const utxos: Utxo[] = [shieldUtxo1]; // diff mints
+
+      expect(() => {
+        initTokenBalance(tokenData, utxos);
+      }).to.throw();
+    });
+    it("should throw an error if two diff mint UTXOs", () => {
       const tokenData = getTokenDataByMint(
         SystemProgram.programId,
         TOKEN_REGISTRY,
@@ -137,6 +153,7 @@ describe("Balance", () => {
       assert.deepEqual(tokenBalance.utxos, []);
     });
   });
+
   describe("isSPLUtxo", () => {
     it("should return true if the utxo is an SPL utxo", () => {
       const result = isSPLUtxo(shieldUtxo1);
@@ -170,7 +187,7 @@ describe("Balance", () => {
       const utxo: Utxo = shieldUtxo1;
 
       // fresh tokenbalance,
-      const result = addUtxoToBalance(utxo, balance);
+      const result = addUtxoToBalance(utxo, balance, poseidon);
 
       assert.equal(result, true);
       assert.deepEqual(
@@ -185,8 +202,7 @@ describe("Balance", () => {
 
     it("should update the SOL token balance with another UTXO correctly", () => {
       const utxo: Utxo = solTestUtxo2; // solTestUtxo2 = sol, but different
-
-      const result = addUtxoToBalance(utxo, balance);
+      const result = addUtxoToBalance(utxo, balance, poseidon);
 
       assert.equal(result, true);
       assert.deepEqual(
@@ -201,7 +217,7 @@ describe("Balance", () => {
   });
 
   describe("updateTokenBalanceWithUtxo", () => {
-    let tokenBalance: TokenBalance;
+    let tokenBalance: TokenBalance_new;
 
     before(() => {
       const tokenData = getTokenDataByMint(
@@ -214,7 +230,7 @@ describe("Balance", () => {
     it("should update the token balance with a new UTXO correctly", () => {
       const utxo: Utxo = solTestUtxo2;
 
-      const result = updateTokenBalanceWithUtxo(utxo, tokenBalance);
+      const result = updateTokenBalanceWithUtxo(utxo, tokenBalance, poseidon);
 
       assert.equal(result, true);
       assert.deepEqual(tokenBalance.utxos[1], utxo);
@@ -228,7 +244,9 @@ describe("Balance", () => {
     it("should not update the token balance with the same UTXO", () => {
       const utxo: Utxo = solTestUtxo2;
 
-      const result = updateTokenBalanceWithUtxo(utxo, tokenBalance);
+      updateTokenBalanceWithUtxo(utxo, tokenBalance, poseidon);
+
+      const result = updateTokenBalanceWithUtxo(utxo, tokenBalance, poseidon);
 
       assert.equal(result, false);
     });
@@ -250,19 +268,23 @@ describe("Balance", () => {
 
       // Serialize
       const serializedBalance = await serializeBalance(balance);
-      assert.typeOf(serializedBalance, "string");
 
       // Deserialize
-      const deserializedBalance: Balance_new = await deserializeBalance(
+      const deserializedBalance: Balance_new = deserializeBalance(
         serializedBalance,
+        TOKEN_REGISTRY,
         lightProvider,
       );
 
       // Check that the deserialized balance matches the original balance
-      const deserializedTokenBalance = deserializedBalance.tokenBalances.get(
-        tokenBalance.data.mint.toBase58(),
+      assert(
+        customDeepEqual(
+          deserializedBalance.tokenBalances.get(
+            tokenBalance.data.mint.toBase58(),
+          ),
+          tokenBalance,
+        ),
       );
-      assert.deepEqual(deserializedTokenBalance, tokenBalance);
     });
   });
 
@@ -272,14 +294,15 @@ describe("Balance", () => {
         SystemProgram.programId,
         TOKEN_REGISTRY,
       );
-      const tokenBalance = initTokenBalance(tokenData, [shieldUtxo1]);
+      const utxo = solTestUtxo1;
+      const tokenBalance = initTokenBalance(tokenData, [utxo]);
       const balance: Balance_new = {
         tokenBalances: new Map([
           [tokenBalance.data.mint.toBase58(), tokenBalance],
         ]),
       };
 
-      const commitment = shieldUtxo1.getCommitment(poseidon);
+      const commitment = utxo.getCommitment(poseidon);
       const result = spendUtxo([balance], commitment);
       assert.equal(result, true);
 
@@ -296,7 +319,7 @@ describe("Balance", () => {
         SystemProgram.programId,
         TOKEN_REGISTRY,
       );
-      const tokenBalance = initTokenBalance(tokenData, [shieldUtxo1]);
+      const tokenBalance = initTokenBalance(tokenData, [solTestUtxo1]);
       const balance: Balance_new = {
         tokenBalances: new Map([
           [tokenBalance.data.mint.toBase58(), tokenBalance],
@@ -310,3 +333,34 @@ describe("Balance", () => {
     });
   });
 });
+
+/// compare BNs and PublicKeys by value
+function customDeepEqual(a, b) {
+  if (
+    (BN.isBN(a) && BN.isBN(b) && a.eq(b)) ||
+    (a instanceof PublicKey && b instanceof PublicKey && a.equals(b))
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return (
+      a.length === b.length &&
+      a.every((val, index) => customDeepEqual(val, b[index]))
+    );
+  }
+
+  if (
+    typeof a === "object" &&
+    typeof b === "object" &&
+    a !== null &&
+    b !== null
+  ) {
+    return (
+      Object.keys(a).length === Object.keys(b).length &&
+      Object.keys(a).every((key) => customDeepEqual(a[key], b[key]))
+    );
+  }
+
+  return a === b;
+}

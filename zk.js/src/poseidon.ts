@@ -1,5 +1,5 @@
 /// load once globally.
-import circomlibjs from "circomlibjs";
+const circomlibjs = require("circomlibjs");
 
 let poseidonPromise = circomlibjs.buildPoseidonOpt();
 

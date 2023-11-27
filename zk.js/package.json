@@ -19,6 +19,7 @@
     "test-provider": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/provider.test.ts --exit",
     "test-selectInUtxos": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/selectInUtxos.test.ts --exit",
     "test-balance": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/balance.test.ts --exit",
+    "test-balance-new": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/balance.new.test.ts --exit",
     "test-convertDecimals": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/convertDecimals.test.ts --exit",
     "test-system-programs": "pnpm run test-sp-functional && pnpm run test-sp-user && pnpm run test-sp-provider && pnpm test-sp-user-merge && pnpm run test-sp-verifiers && pnpm run test-sp-user-registry",
     "test-sp-functional": "pnpm run start-test-validator && ts-mocha -t 2000000 tests/system-programs/functional_tests.ts --exit",
