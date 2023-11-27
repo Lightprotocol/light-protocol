@@ -15,6 +15,12 @@ export const isSPLUtxo = (utxo: Utxo): boolean => {
   return !utxo.amounts[UTXO_ASSET_SPL_INDEX].eqn(0);
 };
 
+/**
+ *
+ * @param mintToFind mint
+ * @param tokenRegistry TOKEN_REGISTRY
+ * @returns TokenData of the mint. Throws an error if mint not registered.
+ */
 export function getTokenDataByMint(
   mintToFind: PublicKey,
   tokenRegistry: Map<string, TokenData>,
@@ -27,6 +33,16 @@ export function getTokenDataByMint(
   throw new Error(`Token with mint ${mintToFind} not found in token registry.`);
 }
 
+/**
+ *
+ * initializes TokenBalance for mint of TokenData and Utxos
+ * Throws if Utxos do not match TokenData
+ * If Utxos are not provided, initializes empty TokenBalance for the mint specified in TokenData
+ * @param tokenData TokenData of the mint
+ * @param utxos Utxos to initialize TokenBalance with
+ * @returns TokenBalance
+ *
+ */
 export function initTokenBalance(
   tokenData: TokenData,
   utxos?: Utxo[],
@@ -52,6 +68,15 @@ export function initTokenBalance(
   };
 }
 
+/**
+ * Updates TokenBalance with Utxo
+ * Throws if Utxo does not match TokenBalance
+ * Returns false if Utxo already part of TokenBalance.
+ * @param utxo utxo to add to tokenBalance
+ * @param tokenBalance tokenBalance to add utxo to
+ * @param poseidon poseidon instance
+ * @returns boolean indicating if the utxo was added to the tokenBalance
+ */
 export function updateTokenBalanceWithUtxo(
   utxo: Utxo,
   tokenBalance: TokenBalance,
@@ -78,6 +103,16 @@ export function updateTokenBalanceWithUtxo(
   return true;
 }
 
+/**
+ *
+ * Given a balance and a utxo, adds the utxo to the balance.
+ * skips if utxo already exists in balance.
+ * initializes a new TokenBalance if the utxo is the first of its mint.
+ * @param utxo utxo to add to balance
+ * @param balance balance to add utxo to
+ * @param poseidon poseidon instance
+ * @returns
+ */
 export function addUtxoToBalance(
   utxo: Utxo,
   balance: Balance,
@@ -105,6 +140,12 @@ export function addUtxoToBalance(
 }
 
 /// TODO: after we implement history, extend this function to move the spentUtxo to history
+/**
+ * removes the specified utxo from balance
+ * @param balance balance to remove utxo from
+ * @param commitment commitment of the utxo to be removed
+ * @returns boolean indicating if the utxo was removed from the balance
+ */
 export function spendUtxo(balance: Balance[], commitment: string): boolean {
   for (let i = 0; i < balance.length; i++) {
     for (const [_assetKey, tokenBalance] of balance[i].tokenBalances) {
@@ -126,6 +167,12 @@ export function spendUtxo(balance: Balance[], commitment: string): boolean {
   return false;
 }
 
+/**
+ * serializes TokenBalance into a SerializedTokenBalance
+ * @param tokenBalance
+ * @returns serializedTokenBalance
+ */
+/// keeping track of index separately because it's not part of the UTXO IDL
 async function serializeTokenBalance(
   tokenBalance: TokenBalance,
 ): Promise<SerializedTokenBalance> {
@@ -144,6 +191,13 @@ async function serializeTokenBalance(
   return serializedTokenBalance;
 }
 
+/**
+ * deserializes SerializedTokenBalance into a TokenBalance
+ * @param serializedTokenBalance
+ * @param tokenRegistry
+ * @param provider lightProvider
+ * @returns tokenBalance
+ */
 function deserializeTokenBalance(
   serializedTokenBalance: SerializedTokenBalance,
   tokenRegistry: Map<string, TokenData>,
@@ -169,6 +223,11 @@ function deserializeTokenBalance(
   return initTokenBalance(tokenData, utxos);
 }
 
+/**
+ * serializes Balance into a stringified array of SerializedTokenBalances
+ * @param balance balance
+ * @returns serializedBalance
+ */
 export async function serializeBalance(balance: Balance): Promise<string> {
   const serializedBalance: SerializedTokenBalance[] = [];
 
@@ -179,6 +238,13 @@ export async function serializeBalance(balance: Balance): Promise<string> {
   return JSON.stringify(serializedBalance);
 }
 
+/**
+ * deserializes stringified array of SerializedTokenBalances and reconstructs into a Balance
+ * @param serializedBalance serializedBalance
+ * @param tokenRegistry
+ * @param provider lightProvider
+ * @returns balance
+ */
 export function deserializeBalance(
   serializedBalance: string,
   tokenRegistry: Map<string, TokenData>,
