@@ -8,7 +8,7 @@ import {
   UserError,
   UserErrorCode,
 } from "@lightprotocol/zk.js";
-import { CustomLoader, getUser, standardFlags } from "../../utils/index";
+import { CustomLoader, getUser, standardFlags } from "../../utils";
 import { PublicKey } from "@solana/web3.js";
 
 class BalanceCommand extends Command {
@@ -124,8 +124,13 @@ class BalanceCommand extends Command {
     const PURPLE = "\x1b[35m%s\x1b[0m";
     if (_inbox) this.log(PURPLE, "\n--- Inbox Balances ---\n");
     else this.log(PURPLE, "\n--- Main Balances ---\n");
+    type TableData = {
+        token: string;
+        balance: string;
+        utxos: number;
+    }
 
-    const tableData = [];
+    const tableData: TableData[] = [];
     for (const tokenBalance of balances.tokenBalances) {
       const _token = tokenBalance[1].tokenData.symbol;
       const balance =

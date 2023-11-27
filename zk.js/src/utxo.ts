@@ -20,8 +20,7 @@ import {
   UtxoError,
   UtxoErrorCode,
   TransactionParameters,
-  BN_1,
-  lightPsp2in2outId,
+  BN_1
 } from "./index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types/result";

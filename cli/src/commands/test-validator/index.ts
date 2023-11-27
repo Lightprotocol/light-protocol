@@ -1,9 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { sleep } from "@lightprotocol/zk.js";
-import { initTestEnv } from "../../utils/initTestEnv";
-import { executeCommand } from "../../psp-utils/process";
-import { CustomLoader } from "../../utils/index";
-
+import { initTestEnv, CustomLoader } from "../../utils";
 class SetupCommand extends Command {
   static description = "Perform setup tasks";
 
@@ -16,7 +12,7 @@ class SetupCommand extends Command {
     // bpf_program: Flags.string({
     //   aliases: ["bp"],
     //   description:
-    //     "Solana bpf program whill be deployed on local test validator <ADDRESS_OR_KEYPAIR> <SBF_PROGRAM.SO>",
+    //     "Solana bpf program will be deployed on local test validator <ADDRESS_OR_KEYPAIR> <SBF_PROGRAM.SO>",
     // }),
     // TODO: add this flag
     // kill: Flags.boolean({

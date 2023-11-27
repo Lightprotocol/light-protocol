@@ -535,8 +535,7 @@ export class Transaction {
       );
 
     const nullifiers = this.transactionInputs.publicInputs.inputNullifier;
-    const signer = this.params.relayer.accounts.relayerPubkey;
-
+    
     this.remainingAccounts.nullifierPdaPubkeys = [];
     for (const i in nullifiers) {
       this.remainingAccounts.nullifierPdaPubkeys.push({

@@ -1,4 +1,4 @@
-import { Command, Flags, ux } from "@oclif/core";
+import { Command, ux } from "@oclif/core";
 import { BN } from "@coral-xyz/anchor";
 import {
   ParsedIndexedTransaction,

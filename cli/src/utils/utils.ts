@@ -308,7 +308,6 @@ export class CustomLoader {
 
   start() {
     this.startTime = Date.now();
-    const elapsedTime = ((Date.now() - this.startTime) / 1000).toFixed(2);
     process.stdout.write(
       `\n${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
         this.message

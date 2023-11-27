@@ -12,9 +12,6 @@ export const addProgram = async ({
 }) => {
   const circomName = toSnakeCase(name);
   const rustName = toSnakeCase(name);
-  const circuit_template = flags.circom
-    ? "psp-template/circuits/program_name/circuit_circom"
-    : "psp-template/circuits/program_name/circuit_psp";
   const templateSource = flags.path
     ? ["--path", flags.path]
     : [

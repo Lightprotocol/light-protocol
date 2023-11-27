@@ -1,7 +1,8 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig",
   "compilerOptions": {
     "esModuleInterop": true,
   },
-  "extends": "./tsconfig",
   "include": ["./src/**/*", "./tests/**/*", "setup.jsdom.ts"]
 }

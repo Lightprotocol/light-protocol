@@ -52,12 +52,6 @@ type ExtractPrefix<T extends string> = T extends
 // Extract unique circuit names from VerifierIdls Union Type
 export type CircuitNames = ExtractPrefix<ZKAccounts["name"]>;
 
-// Optional type: circuit proof inputs object by selecting full zk account name from the idl
-type ZKProofInputsObjectFullName<
-  Idl extends zkIdl,
-  AccountName extends ZKAccounts["name"],
-> = CircuitInputsObject<MapObjectKeys<SelectZKAccount<Idl, AccountName>>>;
-
 export type ProofInputs<
   Idl extends zkIdl,
   CircuitName extends CircuitNames,
@@ -102,25 +96,6 @@ type ZKAccounts = FetchZKAccounts<Accounts<zkIdl>>;
 // Filter circuit zk accounts
 type FetchZKAccounts<T> = T extends Accounts<zkIdl>
   ? T["name"] extends `zK${infer _}`
-    ? T
-    : never
-  : never;
-
-type ZKProofAccounts = FetchProofAccounts<ZKAccounts>;
-type FetchProofAccounts<T> = T extends ZKAccounts
-  ? T["name"] extends `${infer _}Proof${infer _}`
-    ? T
-    : never
-  : never;
-
-type SelectZKPubInAccount<
-  Idl extends zkIdl,
-  CircuitName extends CircuitNames,
-> = SelectZKAccount<Idl, `zK${CircuitName}PublicInputs`>;
-
-type ZKPublicInAccounts = FetchPublicInAccounts<ZKAccounts>;
-type FetchPublicInAccounts<T> = T extends ZKAccounts
-  ? T["name"] extends `${infer _}Public${infer _}`
     ? T
     : never
   : never;

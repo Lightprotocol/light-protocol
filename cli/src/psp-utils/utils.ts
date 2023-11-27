@@ -1,4 +1,3 @@
-import { sleep } from "@lightprotocol/zk.js";
 import * as fs from "fs";
 
 /**

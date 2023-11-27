@@ -1,46 +1,39 @@
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import {PublicKey, SystemProgram} from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { BN, BorshAccountsCoder, Program, Idl } from "@coral-xyz/anchor";
+import {BN, BorshAccountsCoder, Idl, Program} from "@coral-xyz/anchor";
+import {TOKEN_PROGRAM_ID} from "@solana/spl-token";
+import {AUTHORITY, lightPsp2in2outStorageId, N_ASSET_PUBKEYS,} from "../constants";
+import {Utxo} from "../utxo";
+import {MerkleTreeConfig} from "../merkleTree";
 import {
-  AUTHORITY,
-  N_ASSET_PUBKEYS,
-  STANDARD_SHIELDED_PRIVATE_KEY,
-  STANDARD_SHIELDED_PUBLIC_KEY,
-  lightPsp2in2outStorageId,
-} from "../constants";
-import { Utxo } from "../utxo";
-import { MerkleTreeConfig } from "../merkleTree";
-import {
+  Account,
+  Action,
+  AppUtxoConfig,
+  BN_0,
+  createOutUtxos,
+  CreateUtxoErrorCode,
   FIELD_SIZE,
   hashAndTruncateToCircuit,
-  Account,
-  merkleTreeProgramId,
-  Relayer,
-  TransactionErrorCode,
-  TransactionError,
-  TransactionParametersErrorCode,
-  Provider,
-  TransactionParametersError,
-  UserErrorCode,
-  RelayerErrorCode,
-  CreateUtxoErrorCode,
-  selectInUtxos,
-  Transaction,
-  Action,
-  TokenData,
-  transactionParameters,
-  lightAccounts,
   IDL_LIGHT_PSP2IN2OUT,
-  AppUtxoConfig,
-  createOutUtxos,
-  BN_0,
+  lightAccounts,
+  merkleTreeProgramId,
+  Provider,
+  Relayer,
+  RelayerErrorCode,
+  selectInUtxos,
+  TokenData,
+  Transaction,
+  TransactionError,
+  TransactionErrorCode,
+  transactionParameters,
+  TransactionParametersError,
+  TransactionParametersErrorCode,
   truncateToCircuit,
+  UserErrorCode,
 } from "../index";
-import { sha256 } from "@noble/hashes/sha256";
-import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
+import {sha256} from "@noble/hashes/sha256";
+import {SPL_NOOP_PROGRAM_ID} from "@solana/spl-account-compression";
 import nacl from "tweetnacl";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 type VerifierConfig = {
   in: number;
@@ -512,7 +505,7 @@ export class TransactionParameters implements transactionParameters {
     const programIdObj = verifierIdl.constants!.find(
       (constant) => constant.name === "PROGRAM_ID",
     );
-    if (!programIdObj || typeof programIdObj.value !== "string") {
+    if (!programIdObj) {
       throw new TransactionParametersError(
         TransactionParametersErrorCode.PROGRAM_ID_CONSTANT_UNDEFINED,
         'PROGRAM_ID constant not found in idl. Example: pub const PROGRAM_ID: &str = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";',
@@ -529,8 +522,7 @@ export class TransactionParameters implements transactionParameters {
     anchorProvider: anchor.AnchorProvider,
   ): Program<Idl> {
     const programId = TransactionParameters.getVerifierProgramId(verifierIdl);
-    const verifierProgram = new Program(verifierIdl, programId, anchorProvider);
-    return verifierProgram;
+    return new Program(verifierIdl, programId, anchorProvider);
   }
 
   static getVerifierConfig(verifierIdl: Idl): VerifierConfig {
@@ -909,7 +901,7 @@ export class TransactionParameters implements transactionParameters {
       throw new TransactionParametersError(
         TransactionErrorCode.INVALID_ACTION,
         "assignAccounts",
-        "Invalid action, supported actions are 'shield', 'unsield' and 'transfer'.",
+        "Invalid action, supported actions are 'shield', 'unshield' and 'transfer'.",
       );
     }
   }
@@ -1147,11 +1139,9 @@ export class TransactionParameters implements transactionParameters {
     }
   }
 
-  async encryptOutUtxos(poseidon: any, encryptedUtxos?: Uint8Array) {
+  async encryptOutUtxos(poseidon: any) {
     let encryptedOutputs = new Array<any>();
-    if (encryptedUtxos) {
-      encryptedOutputs = Array.from(encryptedUtxos);
-    } else if (this && this.outputUtxos) {
+    if (this && this.outputUtxos) {
       for (const utxo in this.outputUtxos) {
         if (
           this.outputUtxos[utxo].appDataHash.toString() !== "0" &&
@@ -1212,9 +1202,8 @@ export class TransactionParameters implements transactionParameters {
     const outputHasher = poseidon.F.toString(
       poseidon(this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
     );
-    const transactionHash = poseidon.F.toString(
-      poseidon([inputHasher, outputHasher, this.txIntegrityHash.toString()]),
+    return poseidon.F.toString(
+        poseidon([inputHasher, outputHasher, this.txIntegrityHash.toString()]),
     );
-    return transactionHash;
   }
 }

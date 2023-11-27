@@ -1,5 +1,4 @@
 import { Command, Flags, ux } from "@oclif/core";
-import * as fs from "fs";
 import {
   CustomLoader,
   getConfig,
@@ -8,9 +7,8 @@ import {
   isValidURL,
   readWalletFromFile,
   setConfig,
-} from "../../utils/utils";
+} from "../../utils";
 import { PublicKey } from "@solana/web3.js";
-import { CONFIG_FILE_NAME, CONFIG_PATH } from "../../psp-utils";
 import { Relayer } from "@lightprotocol/zk.js";
 
 class ConfigCommand extends Command {
