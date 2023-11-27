@@ -172,6 +172,13 @@ export const MAX_MESSAGE_SIZE = 800;
 
 export const SOL_DECIMALS = new anchor.BN(1e9);
 
+/**
+ * the SOL asset is always the 0th index in the UTXO
+ * the SPL asset is an optional 1st index in the UTXO
+ */
+export const UTXO_ASSET_SPL_INDEX = 1;
+export const UTXO_ASSET_SOL_INDEX = 0;
+
 export const TOKEN_REGISTRY: Map<string, TokenData> = new Map([
   [
     "SOL",

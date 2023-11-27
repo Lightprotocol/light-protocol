@@ -1,15 +1,14 @@
 import { BN } from "@coral-xyz/anchor";
 import { Utxo } from "../utxo";
 import { PublicKey } from "@solana/web3.js";
-import { BN_0, TOKEN_REGISTRY } from "../constants";
+import {
+  BN_0,
+  TOKEN_REGISTRY,
+  UTXO_ASSET_SOL_INDEX,
+  UTXO_ASSET_SPL_INDEX,
+} from "../constants";
 import { Provider } from "../wallet";
 import { Poseidon } from "../types/poseidon";
-/**
- * the SOL asset is always the 0th index in the UTXO
- * the SPL asset is an optional 1st index in the UTXO
- */
-const UTXO_ASSET_SPL_INDEX = 1;
-const UTXO_ASSET_SOL_INDEX = 0;
 
 // TODO: add history (spentutxos)
 
