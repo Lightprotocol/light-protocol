@@ -3,7 +3,7 @@ import { AnchorProvider, utils } from "@coral-xyz/anchor";
 import { Connection, Keypair as SolanaKeypair, Keypair } from "@solana/web3.js";
 import * as chai from "chai";
 import { expect } from "chai";
-import chaiHttp from "chai-http";
+const chaiHttp = require("chai-http");
 import { sign } from "tweetnacl";
 
 import {

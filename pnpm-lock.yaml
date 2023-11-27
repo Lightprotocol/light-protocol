@@ -876,8 +876,8 @@ importers:
         specifier: ^1.19.3
         version: 1.19.3
       '@types/chai':
-        specifier: ^4.3.5
-        version: 4.3.6
+        specifier: ^4.3.11
+        version: 4.3.11
       '@types/express':
         specifier: ^4.17.17
         version: 4.17.18
@@ -5803,7 +5803,11 @@ packages:
   /@types/chai-subset@1.3.5:
     resolution: {integrity: sha512-c2mPnw+xHtXDoHmdtcCXGwyLMiauiAyxWMzhGpqHC4nqI/Y5G2XhTampslK2rb59kpcuHon03UH8W6iYUzw88A==}
     dependencies:
-      '@types/chai': 4.3.6
+      '@types/chai': 4.3.11
+    dev: true
+
+  /@types/chai@4.3.11:
+    resolution: {integrity: sha512-qQR1dr2rGIHYlJulmr8Ioq3De0Le9E4MJ5AiaeAETJJpndT1uUNHsGFK3L/UIu+rbkQSdj8J/w2bCsBZc/Y5fQ==}
     dev: true
 
   /@types/chai@4.3.6:
@@ -7599,7 +7603,7 @@ packages:
     resolution: {integrity: sha512-uswN3rZpawlRaa5NiDUHcDZ3v2dw5QgLyAwnQ2tnVNuP7CwIsOFuYJ0xR1WiR7ymD4roBnJIzOUep7w9jQMFJA==}
     engines: {node: '>=10'}
     dependencies:
-      '@types/chai': 4.3.6
+      '@types/chai': 4.3.11
       '@types/superagent': 4.1.13
       charset: 1.0.1
       cookiejar: 2.1.4
@@ -9723,7 +9727,7 @@ packages:
     resolution: {integrity: sha512-TX8YTALYAmExny+f+G24MFxWry3Pk09+9uykwRjfwjibRxJ9ZjJzrnHYVBZK46XQdyli7d+rQc5U/KK7V6uLsw==}
     engines: {node: '>=12.0.0'}
     dependencies:
-      '@types/chai': 4.3.6
+      '@types/chai': 4.3.11
       '@types/lodash': 4.14.199
       '@types/node': 20.10.0
       '@types/sinon': 10.0.16

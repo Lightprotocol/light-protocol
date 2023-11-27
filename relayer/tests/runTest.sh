@@ -30,7 +30,6 @@ ls -l .env.example
 chmod +r .env.example
 echo "Current directory: $(pwd)"
 
-
 echo "building relayer"
 pnpm install
 pnpm build
@@ -44,11 +43,10 @@ trap "kill ${PID_RELAYER} > /dev/null || true" EXIT
 sleep 15
 echo "executing functional tests"
 
-
 ##
 npx ts-mocha -p ./tsconfig.test.json -t 1000000 tests/functional_test.ts --exit;
 
 echo "executing browser env tests"
 sleep 3
 
-npx mocha -r ts-node/register -r jsdom-global/register -r ./setup.jsdom.ts tests/browser_test.ts --timeout 1000000 --exit;
+npx mocha --package ./package.json -r ts-node/register -r jsdom-global/register -r ./setup.jsdom.ts tests/browser_test.ts --timeout 1000000 --exit;
