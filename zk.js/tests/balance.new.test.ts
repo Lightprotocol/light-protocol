@@ -23,13 +23,14 @@ import {
   initTokenBalance,
   isSPLUtxo,
   addUtxoToBalance,
-  Balance_new,
   updateTokenBalanceWithUtxo,
   serializeBalance,
   deserializeBalance,
   spendUtxo,
-  TokenBalance_new,
 } from "../src";
+
+import { Balance, TokenBalance } from "../src/types/balance";
+
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -164,7 +165,7 @@ describe("Balance", () => {
   });
 
   describe("addUtxoToBalance", () => {
-    let balance: Balance_new;
+    let balance: Balance;
 
     before(() => {
       // set up initial balance with 1 SOL tokenbalance
@@ -214,7 +215,7 @@ describe("Balance", () => {
   });
 
   describe("updateTokenBalanceWithUtxo", () => {
-    let tokenBalance: TokenBalance_new;
+    let tokenBalance: TokenBalance;
 
     before(() => {
       const tokenData = getTokenDataByMint(
@@ -257,7 +258,7 @@ describe("Balance", () => {
         TOKEN_REGISTRY,
       );
       const tokenBalance = initTokenBalance(tokenData, [solTestUtxo1]);
-      const balance: Balance_new = {
+      const balance: Balance = {
         tokenBalances: new Map([
           [tokenBalance.data.mint.toBase58(), tokenBalance],
         ]),
@@ -267,7 +268,7 @@ describe("Balance", () => {
       const serializedBalance = await serializeBalance(balance);
 
       // Deserialize
-      const deserializedBalance: Balance_new = deserializeBalance(
+      const deserializedBalance: Balance = deserializeBalance(
         serializedBalance,
         TOKEN_REGISTRY,
         lightProvider,
@@ -293,7 +294,7 @@ describe("Balance", () => {
       );
       const utxo = solTestUtxo1;
       const tokenBalance = initTokenBalance(tokenData, [utxo]);
-      const balance: Balance_new = {
+      const balance: Balance = {
         tokenBalances: new Map([
           [tokenBalance.data.mint.toBase58(), tokenBalance],
         ]),
@@ -317,7 +318,7 @@ describe("Balance", () => {
         TOKEN_REGISTRY,
       );
       const tokenBalance = initTokenBalance(tokenData, [solTestUtxo1]);
-      const balance: Balance_new = {
+      const balance: Balance = {
         tokenBalances: new Map([
           [tokenBalance.data.mint.toBase58(), tokenBalance],
         ]),

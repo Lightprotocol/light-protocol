@@ -8,8 +8,12 @@ import {
 } from "../constants";
 import { Provider } from "../wallet";
 import { Poseidon } from "../types/poseidon";
-import { TokenData, SerializedTokenBalance } from "../types";
-import { Balance, TokenBalance } from "../types/balance";
+import {
+  Balance,
+  TokenBalance,
+  TokenData,
+  SerializedTokenBalance,
+} from "../types/balance";
 
 export const isSPLUtxo = (utxo: Utxo): boolean => {
   return !utxo.amounts[UTXO_ASSET_SPL_INDEX].eqn(0);
