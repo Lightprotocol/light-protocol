@@ -2,7 +2,7 @@ import { BN } from "@coral-xyz/anchor";
 import { Utxo } from "../utxo";
 import { PublicKey } from "@solana/web3.js";
 import { BN_0, TOKEN_REGISTRY } from "../constants";
-import { getPoseidon } from "poseidon";
+import { Provider } from "../wallet";
 /**
  * the SOL asset is always the 0th index in the UTXO
  * the SPL asset is an optional 1st index in the UTXO
@@ -43,7 +43,7 @@ export type SerializedTokenBalance = Omit<TokenBalance, "utxos"> & {
   utxos: string[];
 };
 
-function getTokenDataByMint(
+export function getTokenDataByMint(
   mintToFind: PublicKey,
   tokenRegistry: Map<string, TokenData>,
 ): TokenData {
@@ -55,16 +55,36 @@ function getTokenDataByMint(
   throw new Error(`Token with mint ${mintToFind} not found in token registry.`);
 }
 
-function initTokenBalance(tokenData: TokenData, utxos?: Utxo[]): TokenBalance {
+export function initTokenBalance(
+  tokenData: TokenData,
+  utxos?: Utxo[],
+): TokenBalance {
+  let amount = BN_0;
+  let lamports = BN_0;
+
+  if (utxos) {
+    utxos.forEach((utxo) => {
+      if (!utxo.assets[UTXO_ASSET_SPL_INDEX].equals(tokenData.mint)) {
+        throw new Error(`UTXO does not match mint ${tokenData.mint}`);
+      }
+      amount = amount.add(utxo.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0);
+      lamports = lamports.add(utxo.amounts[UTXO_ASSET_SOL_INDEX]);
+    });
+  }
+
   return {
-    amount: BN_0,
-    lamports: BN_0,
+    amount: amount,
+    lamports: lamports,
     data: tokenData,
     utxos: utxos || [],
   };
 }
 
-function updateTokenBalanceWithUtxo(
+export function isSPLUtxo(utxo: Utxo): boolean {
+  return !utxo.amounts[UTXO_ASSET_SPL_INDEX].eqn(0);
+}
+
+export function updateTokenBalanceWithUtxo(
   utxo: Utxo,
   tokenBalance: TokenBalance,
 ): boolean {
@@ -83,10 +103,6 @@ function updateTokenBalanceWithUtxo(
   );
 
   return true;
-}
-
-function isSPLUtxo(utxo: Utxo): boolean {
-  return !utxo.amounts[UTXO_ASSET_SPL_INDEX].eqn(0);
 }
 
 export function addUtxoToBalance(utxo: Utxo, balance: Balance): boolean {
@@ -162,12 +178,12 @@ export async function serializeBalance(balance: Balance): Promise<string> {
   return JSON.stringify(serializedBalance);
 }
 
+// ideally we would not pass provider, but poseidon and assetLookupTable separately
+// TODO: consider passing params explicitly, after we dealt we the provider class
 export async function deserializeBalance(
   serializedBalance: string,
-  assetLookupTable: string[], // provider.lookuptables.assetlookuptable
+  provider: Provider,
 ): Promise<Balance> {
-  const poseidon = await getPoseidon();
-
   const parsedBalance: {
     tokenBalances: Map<string, SerializedTokenBalance>;
   } = JSON.parse(serializedBalance);
@@ -182,8 +198,8 @@ export async function deserializeBalance(
       // Assuming Utxo has a static method fromString to convert a string back into a Utxo object
       utxos[i] = Utxo.fromString(
         serializedTokenBalance.utxos[i],
-        poseidon,
-        assetLookupTable,
+        provider.poseidon,
+        provider.lookUpTables.assetLookupTable,
       );
     }
     const tokenBalance: TokenBalance = {
@@ -196,4 +212,30 @@ export async function deserializeBalance(
   return balance;
 }
 
-// sync balance with chain/indexer
+// export async function syncBalance(balance: Balance) {
+//   // identify spent utxos
+//   for (const [, tokenBalance] of balance.tokenBalances) {
+//     for (const [key, utxo] of tokenBalance.utxos) {
+//       const nullifierAccountInfo = await fetchNullifierAccountInfo(
+//         utxo.getNullifier({
+//           poseidon: this.provider.poseidon,
+//           account: this.account,
+//         })!,
+//         this.provider.provider.connection,
+//       );
+//       if (nullifierAccountInfo !== null) {
+//         // tokenBalance.utxos.delete(key)
+//         tokenBalance.moveToSpentUtxos(key);
+//       }
+//     }
+//   }
+// }
+
+// const lastSyncedBlock = 0;
+// const accountCreationBlock = 0;
+
+// export type SyncConfig = {
+//   lastSyncedBlock: number;
+//   accountCreationBlock: number;
+//   shouldLazyFetchInbox: boolean;
+// };
