@@ -3,7 +3,7 @@ import { Utxo } from "../utxo";
 import { PublicKey } from "@solana/web3.js";
 import { BN_0, TOKEN_REGISTRY } from "../constants";
 import { Provider } from "../wallet";
-import { getPoseidon } from "../poseidon";
+import { Poseidon } from "../types/poseidon";
 /**
  * the SOL asset is always the 0th index in the UTXO
  * the SPL asset is an optional 1st index in the UTXO
@@ -41,24 +41,13 @@ export type TokenData = {
   mint: PublicKey;
 };
 
-type SimpleSerializedTokenBalance = {
+export type SerializedTokenBalance = {
   mint: string;
   utxos: { utxo: string; index?: number }[];
 };
-export type SerializedTokenBalance = Omit<
-  TokenBalance,
-  "utxos" | "amount" | "lamports" | "data"
-> & {
-  utxos: string[];
-  amount: string;
-  lamports: string;
-  data: {
-    symbol: string;
-    isNft: boolean;
-    isNative: boolean;
-    mint: string; // convert to pubkey
-    decimals: string; // Convert decimals to string
-  };
+
+export const isSPLUtxo = (utxo: Utxo): boolean => {
+  return !utxo.amounts[UTXO_ASSET_SPL_INDEX].eqn(0);
 };
 
 export function getTokenDataByMint(
@@ -98,18 +87,12 @@ export function initTokenBalance(
   };
 }
 
-export function isSPLUtxo(utxo: Utxo): boolean {
-  return !utxo.amounts[UTXO_ASSET_SPL_INDEX].eqn(0);
-}
-
-export type Poseidon = any;
-
 export function updateTokenBalanceWithUtxo(
   utxo: Utxo,
   tokenBalance: TokenBalance,
   poseidon: Poseidon,
 ): boolean {
-  // TODO: check asigning commitments here is the right move.
+  // TODO: check if assigning commitments here is the right move.
   // note that getPoseidon will be loaded in memory once, so this is not a performance issue.
   // but if we need commitments for other purposes, we should consider moving it out.
   const utxoExists = tokenBalance.utxos.some(
@@ -156,14 +139,13 @@ export function addUtxoToBalance(
   return updateTokenBalanceWithUtxo(utxo, tokenBalance, poseidon);
 }
 
+/// TODO: after we implement history, extend this function to move the spentUtxo to history
 export function spendUtxo(balance: Balance[], commitment: string): boolean {
   for (let i = 0; i < balance.length; i++) {
     for (const [_assetKey, tokenBalance] of balance[i].tokenBalances) {
-      // Find the utxo with the given commitment
       const utxoIndex = tokenBalance.utxos.findIndex(
         (utxo) => utxo._commitment === commitment,
       );
-      // If found, remove it from the utxos array
       if (utxoIndex !== -1) {
         const [spentUtxo] = tokenBalance.utxos.splice(utxoIndex, 1);
         tokenBalance.lamports = tokenBalance.lamports.sub(
@@ -179,17 +161,9 @@ export function spendUtxo(balance: Balance[], commitment: string): boolean {
   return false;
 }
 
-/**
- *
- * @param balance
- * @returns
- * TODO: we can consider using a more efficient serialization format.
- * however, this won't be a bottleneck since the balance will consist of a
- * few dozen UTXOs at most.
- */
-export async function serializeTokenBalance(
+async function serializeTokenBalance(
   tokenBalance: TokenBalance,
-): Promise<SimpleSerializedTokenBalance> {
+): Promise<SerializedTokenBalance> {
   const utxos = await Promise.all(
     tokenBalance.utxos.map(async (utxo) => ({
       utxo: await utxo.toString(),
@@ -197,7 +171,7 @@ export async function serializeTokenBalance(
     })),
   );
 
-  const serializedTokenBalance: SimpleSerializedTokenBalance = {
+  const serializedTokenBalance: SerializedTokenBalance = {
     mint: tokenBalance.data.mint.toString(),
     utxos: utxos,
   };
@@ -205,8 +179,8 @@ export async function serializeTokenBalance(
   return serializedTokenBalance;
 }
 
-export function deserializeTokenBalance(
-  serializedTokenBalance: SimpleSerializedTokenBalance,
+function deserializeTokenBalance(
+  serializedTokenBalance: SerializedTokenBalance,
   tokenRegistry: Map<string, TokenData>,
   provider: Provider,
 ): TokenBalance {
@@ -221,7 +195,7 @@ export function deserializeTokenBalance(
       provider.poseidon,
       provider.lookUpTables.assetLookupTable,
     );
-    // Recover the index from the serialized UTXO
+
     const index = serializedUtxo.index;
     utxo.index = index;
     return utxo;
@@ -229,8 +203,9 @@ export function deserializeTokenBalance(
 
   return initTokenBalance(tokenData, utxos);
 }
+
 export async function serializeBalance(balance: Balance): Promise<string> {
-  const serializedBalance: SimpleSerializedTokenBalance[] = [];
+  const serializedBalance: SerializedTokenBalance[] = [];
 
   for (const tokenBalance of balance.tokenBalances.values()) {
     serializedBalance.push(await serializeTokenBalance(tokenBalance));
@@ -248,7 +223,7 @@ export function deserializeBalance(
     tokenBalances: new Map<string, TokenBalance>(),
   };
 
-  const serializedTokenBalances: SimpleSerializedTokenBalance[] =
+  const serializedTokenBalances: SerializedTokenBalance[] =
     JSON.parse(serializedBalance);
 
   for (const serializedTokenBalance of serializedTokenBalances) {
