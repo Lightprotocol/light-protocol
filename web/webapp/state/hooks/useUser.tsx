@@ -1,10 +1,10 @@
 "use client";
-import { Wallet } from "@coral-xyz/anchor";
 import {
   Provider,
   Relayer,
   User,
   confirmConfig,
+  Wallet,
 } from "@lightprotocol/zk.js";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { atom, useAtom } from "jotai";

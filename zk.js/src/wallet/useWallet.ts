@@ -2,14 +2,23 @@ import {
   Commitment,
   Connection,
   Keypair,
-  sendAndConfirmTransaction,
+  sendAndConfirmTransaction, VersionedTransaction,
 } from "@solana/web3.js";
 import { PublicKey, Transaction } from "@solana/web3.js";
 import { sign } from "tweetnacl";
 
+interface IWallet {
+  signTransaction<T extends Transaction | VersionedTransaction>(
+      tx: T
+  ): Promise<T>;
+  signAllTransactions<T extends Transaction | VersionedTransaction>(
+      txs: T[]
+  ): Promise<T[]>;
+  publicKey: PublicKey;
+}
 // Mock Solana web3 library
-class Wallet {
-  _publicKey: PublicKey;
+class Wallet implements IWallet {
+  publicKey: PublicKey;
   _keypair: Keypair;
   _connection: Connection;
   _url: string;
@@ -17,7 +26,7 @@ class Wallet {
   _payer: Keypair;
 
   constructor(keypair: Keypair, url: string, commitment: Commitment) {
-    this._publicKey = keypair.publicKey;
+    this.publicKey = keypair.publicKey;
     this._keypair = keypair;
     this._connection = new Connection(url);
     this._url = url;
@@ -31,8 +40,8 @@ class Wallet {
   };
 
   signAllTransactions = async (
-    transactions: Transaction[],
-  ): Promise<Transaction[]> => {
+    transactions: any[],
+  ): Promise<any[]> => {
     const signedTxs = await Promise.all(
       transactions.map(async (tx) => {
         return await this.signTransaction(tx);
@@ -71,7 +80,7 @@ export const useWallet = (
   url = url !== "mock" ? url : "http://127.0.0.1:8899";
   const wallet = new Wallet(keypair, url, commitment);
   return {
-    publicKey: wallet._publicKey,
+    publicKey: wallet.publicKey,
     sendAndConfirmTransaction: wallet.sendAndConfirmTransaction,
     signMessage: wallet.signMessage,
     signTransaction: wallet.signTransaction,
