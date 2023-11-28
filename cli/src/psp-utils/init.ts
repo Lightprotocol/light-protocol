@@ -107,7 +107,7 @@ export const initRepo = async (name: string, type: ProjectType, flags: any) => {
     `${process.cwd()}/${name}/programs/${name}`
   );
 
-  await executeCommandInDir("pnpm", ["install"], name);
+  await executeCommandInDir("pnpm", ["install", "--no-lockfile"], name);
 };
 
 export const cliFlags = {
