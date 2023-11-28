@@ -121,8 +121,7 @@
     "test-circom": "pnpm test-circom-init && pnpm test-circom-build && pnpm test-circom-test && pnpm test-circom-add-circuit",
     "test": "pnpm kill && pnpm test-cli && pnpm test-psp && pnpm test-circom && pnpm test-utils",
     "install-local": "pnpm build && pnpm global remove @lightprotocol/cli || true && pnpm global add $PWD",
-    "version": "oclif readme && git add README.md",
-    "preinstall": "npx only-allow pnpm"
+    "version": "oclif readme && git add README.md"
   },
   "engines": {
     "node": ">=12.0.0"
