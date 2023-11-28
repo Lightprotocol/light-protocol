@@ -29,7 +29,7 @@ export function getTokenDataByMint(
   mintToFind: PublicKey,
   tokenRegistry: Map<string, TokenData>,
 ): TokenData {
-  for (let value of tokenRegistry.values()) {
+  for (const value of tokenRegistry.values()) {
     if (value.mint.equals(mintToFind)) {
       return value;
     }
@@ -272,31 +272,3 @@ export function deserializeBalance(
 
   return balance;
 }
-
-// export async function syncBalance(balance: Balance) {
-//   // identify spent utxos
-//   for (const [, tokenBalance] of balance.tokenBalances) {
-//     for (const [key, utxo] of tokenBalance.utxos) {
-//       const nullifierAccountInfo = await fetchNullifierAccountInfo(
-//         utxo.getNullifier({
-//           poseidon: this.provider.poseidon,
-//           account: this.account,
-//         })!,
-//         this.provider.provider.connection,
-//       );
-//       if (nullifierAccountInfo !== null) {
-//         // tokenBalance.utxos.delete(key)
-//         tokenBalance.moveToSpentUtxos(key);
-//       }
-//     }
-//   }
-// }
-
-// const lastSyncedBlock = 0;
-// const accountCreationBlock = 0;
-
-// export type SyncConfig = {
-//   lastSyncedBlock: number;
-//   accountCreationBlock: number;
-//   shouldLazyFetchInbox: boolean;
-// };
