@@ -5,11 +5,11 @@
   "license": "GPL-3.0",
   "main": "./dist/cjs/prover.js.cjs",
   "module": "./dist/prover.js.legacy-esm.js",
-  "types": "./dist/prover.js.d.mts",
+  "types": "./dist/cjs/prover.js.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "types": "./dist/prover.js.d.mts",
+      "types": "./dist/cjs/prover.js.d.ts",
       "import": "./dist/prover.js.mjs",
       "default": "./dist/cjs/prover.js.cjs"
     }

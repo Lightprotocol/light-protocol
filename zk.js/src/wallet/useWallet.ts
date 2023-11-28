@@ -14,6 +14,7 @@ class Wallet {
   _connection: Connection;
   _url: string;
   _commitment: Commitment;
+  _payer: Keypair;
 
   constructor(keypair: Keypair, url: string, commitment: Commitment) {
     this._publicKey = keypair.publicKey;
@@ -21,6 +22,7 @@ class Wallet {
     this._connection = new Connection(url);
     this._url = url;
     this._commitment = commitment;
+    this._payer = keypair;
   }
 
   signTransaction = async (tx: any): Promise<any> => {
@@ -74,6 +76,7 @@ export const useWallet = (
     signMessage: wallet.signMessage,
     signTransaction: wallet.signTransaction,
     signAllTransactions: wallet.signAllTransactions,
+    payer: wallet._payer,
     isNodeWallet,
   };
 };

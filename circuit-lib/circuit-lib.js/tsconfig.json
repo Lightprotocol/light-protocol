@@ -3,7 +3,6 @@
     "target": "es2020",
     "module": "commonjs",
     "declaration": true,
-    "outDir": "./lib",
     "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
@@ -16,7 +15,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src", "__tests__", "tests", "src/index.ts"],
+  "include": ["src"],
   "exclude": ["node_modules", "**/tests/*"],
   "dry": false,
   "debug": false

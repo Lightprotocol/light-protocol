@@ -28,7 +28,6 @@ export default defineConfig(options => {
             ...commonOptions,
             format: ['esm'],
             outExtension: () => ({ js: '.mjs' }),
-            dts: true,
             clean: true
         },
         // // Support Webpack 4 by pointing `"module"` to a file with a `.js` extension
@@ -59,6 +58,7 @@ export default defineConfig(options => {
             ...commonOptions,
             format: 'cjs',
             outDir: './dist/cjs/',
+            dts: true,
             outExtension: () => ({ js: '.cjs' })
         }
     ]

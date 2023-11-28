@@ -1,9 +1,9 @@
 "use client";
+import { Wallet } from "@coral-xyz/anchor";
 import {
   Provider,
   Relayer,
   User,
-  Wallet,
   confirmConfig,
 } from "@lightprotocol/zk.js";
 import { Connection, PublicKey } from "@solana/web3.js";

@@ -15,8 +15,7 @@ export default defineConfig(options => {
             ...commonOptions,
             format: ['esm'],
             outExtension: () => ({ js: '.mjs' }),
-            clean: true,
-            dts: true
+            clean: true
         },
 
         // Browser-ready ESM, production + minified
@@ -36,6 +35,7 @@ export default defineConfig(options => {
             ...commonOptions,
             format: 'cjs',
             outDir: './dist/cjs/',
+            dts: true,
             outExtension: () => ({ js: '.cjs' })
         }
     ]

@@ -848,7 +848,7 @@ export class Utxo {
         new UtxoError(
           UtxoErrorCode.PREFIX_COLLISION,
           "constructor",
-          "Prefix collision when decrypting utxo. " + utxoResult.error ?? "",
+          "Prefix collision when decrypting utxo. " + utxoResult.error,
         ),
       );
     }

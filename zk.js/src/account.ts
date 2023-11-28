@@ -1,4 +1,4 @@
-const nacl = require("tweetnacl");
+import nacl from "tweetnacl";
 import { box } from "tweetnacl";
 const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 import { sign } from "tweetnacl";
@@ -26,7 +26,7 @@ const ffjavascript = require("ffjavascript");
 const buildEddsa = require("circomlibjs").buildEddsa;
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Result } from "./types/result";
+import { Result } from "./types";
 import { Prover } from "@lightprotocol/prover.js";
 // TODO: add fromPubkeyString()
 export class Account {
@@ -641,10 +641,10 @@ export class Account {
     returnWithoutNonce?: boolean,
   ): Uint8Array {
     if (!nonce) {
-      nonce = nacl.randomBytes(nacl.nonceLength);
+      nonce = nacl.randomBytes(nacl.box.nonceLength);
     }
     if (!signerSecretKey) {
-      signerSecretKey = nacl.box.keyPair.generate().secretKey;
+      signerSecretKey = nacl.box.keyPair().secretKey;
     }
     const ciphertext = box(messageBytes, nonce!, publicKey, signerSecretKey!);
 
@@ -716,7 +716,7 @@ export class Account {
   private async _decryptNacl(
     ciphertext: Uint8Array,
     nonce: Uint8Array,
-    signerpublicKey?: Uint8Array,
+    signerpublicKey: Uint8Array,
   ): Promise<Result<Uint8Array | null, Error>> {
     return Result.Ok(
       nacl.box.open(

@@ -4,11 +4,11 @@
   "description": "",
   "license": "GPL-3.0",
   "main": "./dist/cjs/circuit-lib.js.cjs",
-  "types": "./dist/circuit-lib.js.d.mts",
+  "types": "./dist/cjs/circuit-lib.js.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "types": "./dist/circuit-lib.js.d.mts",
+      "types": "./dist/cjs/circuit-lib.js.d.ts",
       "import": "./dist/circuit-lib.js.mjs",
       "default": "./dist/cjs/circuit-lib.js.cjs"
     }

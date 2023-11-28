@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
+  transpilePackages: ["@coral-xyz/anchor"],
   output: "export",
   distDir: "dist",
   webpack: (config, { isServer }) => {

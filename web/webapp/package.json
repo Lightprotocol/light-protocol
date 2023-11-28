@@ -22,6 +22,7 @@
     "@mantine/hooks": "^7.1.5",
     "@mantine/modals": "^7.1.5",
     "@mantine/notifications": "^7.1.5",
+    "@solana/wallet-adapter-base": "^0.9.23",
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/web3.js": "^1.87.6",
     "@tabler/icons-react": "^2.39.0",

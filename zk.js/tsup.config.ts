@@ -1,24 +1,14 @@
 import { defineConfig, Options } from 'tsup';
-import fs from 'fs';
-import sh from 'shelljs';
-import type { ExecOptions } from 'shelljs';
-
-function execAsync(cmd: string, opts: ExecOptions = {}) {
-    return new Promise(function (resolve, reject) {
-        // Execute the command, reject if we exit non-zero (i.e. error)
-        sh.exec(cmd, opts, function (code, stdout, stderr) {
-            if (code !== 0) return reject(new Error(stderr))
-            return resolve(stdout)
-        })
-    })
-}
 
 export default defineConfig(options => {
     const commonOptions: Partial<Options> = {
         entry: {
             'zk.js': 'src/index.ts'
         },
+        // external: ['@coral-xyz/anchor'],
+        // noExternal: ['@coral-xyz/anchor', 'zlib'],
         sourcemap: true,
+        minify: false,
         ...options
     }
 
@@ -28,20 +18,21 @@ export default defineConfig(options => {
             ...commonOptions,
             format: ['esm'],
             outExtension: () => ({ js: '.mjs' }),
+            // experimentalDts: true,
             dts: true,
             clean: true
         },
-        // // Support Webpack 4 by pointing `"module"` to a file with a `.js` extension
-        // // and optional chaining compiled away
-        // {
-        //     ...commonOptions,
-        //     entry: {
-        //         'zk.js.legacy-esm': 'src/index.ts'
-        //     },
-        //     format: ['esm'],
-        //     outExtension: () => ({ js: '.js' }),
-        //     target: 'es2017'
-        // },
+        // Support Webpack 4 by pointing `"module"` to a file with a `.js` extension
+        // and optional chaining compiled away
+        {
+            ...commonOptions,
+            entry: {
+                'zk.js.legacy-esm': 'src/index.ts'
+            },
+            format: ['esm'],
+            outExtension: () => ({ js: '.js' }),
+            target: 'es2017'
+        },
         // Browser-ready ESM, production + minified
         {
             ...commonOptions,
@@ -53,7 +44,7 @@ export default defineConfig(options => {
             },
             format: ['esm'],
             outExtension: () => ({ js: '.mjs' }),
-            minify: true
+            // experimentalDts: true,
         },
         {
             ...commonOptions,
