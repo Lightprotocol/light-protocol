@@ -16,4 +16,3 @@ export * from "./createRustVerifyingKey";
 
 import * as circuitlibjs from "@lightprotocol/circuit-lib.js";
 export { circuitlibjs };
-

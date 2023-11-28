@@ -2,17 +2,18 @@ import {
   Commitment,
   Connection,
   Keypair,
-  sendAndConfirmTransaction, VersionedTransaction,
+  sendAndConfirmTransaction,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import { PublicKey, Transaction } from "@solana/web3.js";
 import { sign } from "tweetnacl";
 
 interface IWallet {
   signTransaction<T extends Transaction | VersionedTransaction>(
-      tx: T
+    tx: T,
   ): Promise<T>;
   signAllTransactions<T extends Transaction | VersionedTransaction>(
-      txs: T[]
+    txs: T[],
   ): Promise<T[]>;
   publicKey: PublicKey;
 }
@@ -39,9 +40,7 @@ class Wallet implements IWallet {
     return tx;
   };
 
-  signAllTransactions = async (
-    transactions: any[],
-  ): Promise<any[]> => {
+  signAllTransactions = async (transactions: any[]): Promise<any[]> => {
     const signedTxs = await Promise.all(
       transactions.map(async (tx) => {
         return await this.signTransaction(tx);
