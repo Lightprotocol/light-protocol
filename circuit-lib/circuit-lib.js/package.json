@@ -3,11 +3,27 @@
   "version": "0.1.0-alpha.1",
   "description": "",
   "license": "GPL-3.0",
+  "main": "./dist/cjs/circuit-lib.js.cjs",
+  "types": "./dist/circuit-lib.js.d.mts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/circuit-lib.js.d.mts",
+      "import": "./dist/circuit-lib.js.mjs",
+      "default": "./dist/cjs/circuit-lib.js.cjs"
+    }
+  },
+  "files": [
+    "src",
+    "dist",
+    "circuits"
+  ],
+  "sideEffects": false,
   "scripts": {
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**/*.ts --exit",
     "format": "prettier --write \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\"",
     "lint": "pnpm prettier \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\" --check",
-    "build": "pnpm tsc",
+    "build": "tsup",
     "preinstall": "npx only-allow pnpm"
   },
   "author": "",
@@ -23,19 +39,17 @@
     "@types/chai-as-promised": "^7.1.6",
     "@types/mocha": "^10.0.2",
     "@types/node-fetch": "^2.6.2",
+    "@types/shelljs": "^0.8.15",
     "chai": "^4.3.7",
     "chai-as-promised": "^7.1.1",
     "circom_tester": "^0.0.19",
     "cli-progress": "^3.12.0",
     "mocha": "^10.2.0",
     "prettier": "^2.6.2",
+    "shelljs": "^0.8.5",
     "ts-mocha": "^10.0.0",
+    "tsup": "^8.0.1",
     "typescript": "^4.3.5",
     "typescript-collections": "^1.3.3"
-  },
-  "main": "lib/index.js",
-  "files": [
-    "lib/**/*",
-    "circuits/**/*"
-  ]
+  }
 }
