@@ -2,3 +2,4 @@ node_modules
 lib
 tests/circuits
 scripts
+tsup.config.ts
