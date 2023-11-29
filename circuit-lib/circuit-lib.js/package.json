@@ -7,8 +7,7 @@
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**/*.ts --exit",
     "format": "prettier --write \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\"",
     "lint": "pnpm prettier \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\" --check",
-    "build": "pnpm tsc",
-    "preinstall": "npx only-allow pnpm"
+    "build": "pnpm tsc"
   },
   "author": "",
   "dependencies": {
