@@ -8,7 +8,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "rootDirs": ["src", "generated"],
+    "rootDirs": ["src"],
     "baseUrl": "src",
     "useUnknownInCatchVariables": false,
     "sourceMap": true,

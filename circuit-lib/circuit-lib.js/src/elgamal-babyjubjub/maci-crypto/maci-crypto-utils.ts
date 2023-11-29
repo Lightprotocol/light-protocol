@@ -104,10 +104,6 @@ const genPrivKey = (): PrivKey => {
  */
 const formatPrivKeyForBabyJub = (privKey: PrivKey) => {
   const sBuff = eddsa.pruneBuffer(
-    // createBlakeHash("blake512")
-    //   .update(bigInt2Buffer(privKey))
-    //   .digest()
-    //   .slice(0, 32),
     blake2b
     .create(b2params)
     .update(privKey)

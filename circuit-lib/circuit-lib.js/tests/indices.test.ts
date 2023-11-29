@@ -8,16 +8,6 @@ const { blake2b } = require("@noble/hashes/blake2b");
 
 //TODO: separate 3 dim indices template from light circuits in circuit-lib.circom and add similar test
 describe("Utxo Functional", () => {
-  
-  it("noble/blake vs blake-hash", async () => {
-    const b2params = { dkLen: 32 };
-    const input = "000";
-    const a = new Uint8Array(createBlakeHash("blake512").update(input).digest().slice(0, 32));
-    const b = blake2b.create(b2params).update(input).digest();
-
-    assert.equal(a.length, b.length);
-    assert.equal(a, b);
-  });
 
   it("getIndices", async () => {
     let dimension2 = 2;
