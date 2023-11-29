@@ -33,8 +33,7 @@
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
     "format:check": "prettier \"src/**/*{ts,js}\" --check",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "preinstall": "npx only-allow pnpm"
+    "lint:fix": "eslint . --fix"
   },
   "format-staged": {
     "**/*.{js,jsx}": [
