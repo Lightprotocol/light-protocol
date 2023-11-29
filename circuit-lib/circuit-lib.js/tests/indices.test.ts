@@ -8,7 +8,6 @@ const { blake2b } = require("@noble/hashes/blake2b");
 
 //TODO: separate 3 dim indices template from light circuits in circuit-lib.circom and add similar test
 describe("Utxo Functional", () => {
-
   it("getIndices", async () => {
     let dimension2 = 2;
     let dimension3 = 3;
