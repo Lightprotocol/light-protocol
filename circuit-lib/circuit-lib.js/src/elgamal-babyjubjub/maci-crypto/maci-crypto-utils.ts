@@ -26,7 +26,9 @@ import * as crypto from "crypto";
 import assert from "assert";
 const eddsa = require("./eddsa");
 const ff = require("ffjavascript");
-const createBlakeHash = require("blake-hash");
+// const createBlakeHash = require("blake-hash");
+const { blake2b } = require("@noble/hashes/blake2b");
+const b2params = { dkLen: 32 };
 
 type PrivKey = BigInt;
 type PubKey = BigInt[];
@@ -102,10 +104,14 @@ const genPrivKey = (): PrivKey => {
  */
 const formatPrivKeyForBabyJub = (privKey: PrivKey) => {
   const sBuff = eddsa.pruneBuffer(
-    createBlakeHash("blake512")
-      .update(bigInt2Buffer(privKey))
-      .digest()
-      .slice(0, 32),
+    // createBlakeHash("blake512")
+    //   .update(bigInt2Buffer(privKey))
+    //   .digest()
+    //   .slice(0, 32),
+    blake2b
+    .create(b2params)
+    .update(privKey)
+    .digest()
   );
   const s = ff.utils.leBuff2int(sBuff);
   return ff.Scalar.shr(s, 3);

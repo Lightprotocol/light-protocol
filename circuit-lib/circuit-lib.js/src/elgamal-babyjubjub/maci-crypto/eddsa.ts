@@ -4,9 +4,10 @@
  * See: https://github.com/weijiekoh/circomlib/blob/24ed08eee0bb613b8c0135d66c1013bd9f78d50a/src/eddsa.js
  */
 
-const createBlakeHash = require("blake-hash");
 const babyJub = require("./babyjub");
 const ff = require("ffjavascript");
+const { blake2b } = require("@noble/hashes/blake2b");
+const b2params = { dkLen: 32 };
 
 function pruneBuffer(_buff) {
   const buff = Buffer.from(_buff);
@@ -17,9 +18,8 @@ function pruneBuffer(_buff) {
 }
 
 function prv2pub(prv) {
-  const sBuff = pruneBuffer(
-    createBlakeHash("blake512").update(prv).digest().slice(0, 32),
-  );
+  const blakeHash = blake2b.create(b2params).update(prv).digest();
+  const sBuff = pruneBuffer(blakeHash);
   let s = ff.utils.leBuff2int(sBuff);
   const A = babyJub.mulPointEscalar(babyJub.Base8, ff.Scalar.shr(s, 3));
   return A;
