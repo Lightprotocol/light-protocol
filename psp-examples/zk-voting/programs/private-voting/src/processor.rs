@@ -1,5 +1,6 @@
 use crate::verifying_key_private_voting::VERIFYINGKEY_PRIVATE_VOTING;
 use crate::LightInstructionThird;
+use crate::VerifyCreateVoteWeightInstructionThird;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::hash::hash;
 use light_macros::pubkey;
@@ -271,4 +272,68 @@ pub fn be_u64_from_public_input(input: &[u8; 32]) -> u64 {
     let mut arr = [0u8; 8];
     arr.copy_from_slice(&input[24..32]);
     u64::from_be_bytes(arr)
+}
+
+#[inline(never)]
+pub fn cpi_verifier_two_create_vote_utxo<'a, 'b, 'c, 'info>(
+    ctx: &'a Context<'a, 'b, 'c, 'info, VerifyCreateVoteWeightInstructionThird<'info>>,
+    inputs: &'a Vec<u8>,
+) -> Result<()> {
+    let proof_verifier = Proof {
+        a: inputs[256..256 + 64].try_into().unwrap(),
+        b: inputs[256 + 64..256 + 192].try_into().unwrap(),
+        c: inputs[256 + 192..256 + 256].try_into().unwrap(),
+    };
+
+    let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
+        &[
+            ctx.accounts.signing_address.key().to_bytes().as_ref(),
+            VERIFIER_STATE_SEED.as_ref(),
+        ],
+        ctx.program_id,
+    );
+
+    let bump = &[bump];
+    let seed = &ctx.accounts.signing_address.key().to_bytes();
+    let domain_separation_seed = VERIFIER_STATE_SEED;
+    let cpi_seed = &[seed, domain_separation_seed, &bump[..]];
+    let final_seed = &[&cpi_seed[..]];
+
+    let accounts: light_psp4in4out_app_storage::cpi::accounts::LightInstruction<'info> =
+        light_psp4in4out_app_storage::cpi::accounts::LightInstruction {
+            verifier_state: ctx.accounts.verifier_state.to_account_info(),
+            signing_address: ctx.accounts.signing_address.to_account_info(),
+            authority: ctx.accounts.authority.to_account_info(),
+            system_program: ctx.accounts.system_program.to_account_info(),
+            registered_verifier_pda: ctx.accounts.registered_verifier_pda.to_account_info(),
+            program_merkle_tree: ctx.accounts.program_merkle_tree.to_account_info(),
+            transaction_merkle_tree: ctx.accounts.transaction_merkle_tree.to_account_info(),
+            token_program: ctx.accounts.token_program.to_account_info(),
+            sender_spl: ctx.accounts.sender_spl.to_account_info(),
+            recipient_spl: ctx.accounts.recipient_spl.to_account_info(),
+            sender_sol: ctx.accounts.sender_sol.to_account_info(),
+            recipient_sol: ctx.accounts.recipient_sol.to_account_info(),
+            // relayer recipient and escrow will never be used in the same transaction
+            relayer_recipient_sol: ctx.accounts.relayer_recipient_sol.to_account_info(),
+            token_authority: ctx.accounts.token_authority.to_account_info(),
+            log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
+            event_merkle_tree: ctx.accounts.event_merkle_tree.to_account_info(),
+        };
+
+    let mut cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.verifier_program.to_account_info(),
+        accounts,
+        &final_seed[..],
+    );
+    let verifier_state = ctx.accounts.verifier_state.load()?;
+    cpi_ctx = cpi_ctx.with_remaining_accounts(ctx.remaining_accounts.to_vec());
+    light_psp4in4out_app_storage::cpi::shielded_transfer_inputs(
+        cpi_ctx,
+        proof_verifier.a,
+        proof_verifier.b,
+        proof_verifier.c,
+        <Vec<u8> as TryInto<[u8; 32]>>::try_into(verifier_state.checked_public_inputs[1].to_vec())
+            .unwrap(),
+        memoffset::offset_of!(crate::psp_accounts::VerifierState, verifier_state_data),
+    )
 }

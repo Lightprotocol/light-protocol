@@ -32,7 +32,7 @@ pub struct InstructionDataLightInstructionFirst {
 #[derive(Accounts)]
 pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
     /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
-    #[account(mut)]
+    #[account(mut, address=verifier_state.load().unwrap().signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
@@ -253,4 +253,115 @@ pub struct VerifierState {
     pub signer: Pubkey,
     pub verifier_state_data: [u8; 1024], //VerifierState,
     pub checked_public_inputs: [[u8; 32]; 26],
+}
+
+#[derive(Debug)]
+#[account(zero_copy)]
+pub struct VerifierStateCreateVoteWeightUtxo {
+    pub signer: Pubkey,
+    pub verifier_state_data: [u8; 1024], //VerifierState,
+    pub checked_public_inputs: [[u8; 32]; 20],
+}
+
+#[derive(Accounts)]
+pub struct VerifyCreateVoteWeightInstructionFirst<'info> {
+    /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
+    #[account(mut)]
+    pub signing_address: Signer<'info>,
+    pub system_program: Program<'info, System>,
+    #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 2000, payer = signing_address )]
+    pub verifier_state: AccountLoader<'info, VerifierStateCreateVoteWeightUtxo>,
+}
+
+#[derive(Accounts)]
+pub struct VerifyCreateVoteWeightInstructionSecond<'info> {
+    /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
+    #[account(mut, address=verifier_state.load().unwrap().signer)]
+    pub signing_address: Signer<'info>,
+    #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump)]
+    pub verifier_state: AccountLoader<'info, VerifierStateCreateVoteWeightUtxo>,
+}
+
+/// Executes light transaction with state created in the first instruction.
+#[derive(Accounts)]
+pub struct VerifyCreateVoteWeightInstructionThird<'info> {
+    #[account(mut, address=verifier_state.load().unwrap().signer)]
+    pub signing_address: Signer<'info>,
+    #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
+    pub verifier_state: AccountLoader<'info, VerifierStateCreateVoteWeightUtxo>,
+    pub system_program: Program<'info, System>,
+    pub program_merkle_tree: Program<'info, LightMerkleTreeProgram>,
+    /// CHECK: Is the same as in integrity hash.
+    #[account(mut)]
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
+    /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
+    #[account(mut, seeds= [LightMerkleTreeProgram::id().to_bytes().as_ref()], bump, seeds::program= LightPsp4in4outAppStorage::id())]
+    pub authority: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    #[account(mut)]
+    pub sender_spl: UncheckedAccount<'info>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    #[account(mut)]
+    pub recipient_spl: UncheckedAccount<'info>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    #[account(mut)]
+    pub sender_sol: UncheckedAccount<'info>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    #[account(mut)]
+    pub recipient_sol: UncheckedAccount<'info>,
+    /// CHECK:` Is not checked the relayer has complete freedom.
+    #[account(mut)]
+    pub relayer_recipient_sol: UncheckedAccount<'info>,
+    /// CHECK:` Is not checked the relayer has complete freedom.
+    #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= LightMerkleTreeProgram::id())]
+    pub token_authority: UncheckedAccount<'info>,
+    /// CHECK: Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
+    #[account(mut, seeds= [LightPsp4in4outAppStorage::id().to_bytes().as_ref()], bump, seeds::program= LightMerkleTreeProgram::id())]
+    pub registered_verifier_pda: UncheckedAccount<'info>, //Account<'info, RegisteredVerifier>,
+    pub verifier_program: Program<'info, LightPsp4in4outAppStorage>,
+    /// CHECK:` It get checked inside the event_call
+    pub log_wrapper: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
+    /// CHECK:` It get checked inside the vote weight psp
+    #[account(constraint= vote_weight_program.key == vote_weight_config.owner)]
+    pub vote_weight_program: AccountInfo<'info>,
+    /// CHECK:` It get checked inside the vote weight psp
+    pub vote_weight_config: AccountInfo<'info>,
+}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataCreateVoteWeightInstructionFirst {
+    pub public_amount_spl: [u8; 32],
+    pub input_nullifier: [[u8; 32]; 4],
+    pub output_commitment: [[u8; 32]; 4],
+    pub public_amount_sol: [u8; 32],
+    pub transaction_hash: [u8; 32],
+    pub root_index: u64,
+    pub relayer_fee: u64,
+    pub encrypted_utxos: Vec<u8>,
+}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataCreateVoteWeightInstructionThird {
+    pub proof_a_app: [u8; 64],
+    pub proof_b_app: [u8; 128],
+    pub proof_c_app: [u8; 64],
+    pub proof_a: [u8; 64],
+    pub proof_b: [u8; 128],
+    pub proof_c: [u8; 64],
+}
+
+#[allow(non_snake_case)]
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataCreateVoteWeightInstructionSecond {
+    pub publicPspAddress: [u8; 32],
+    pub publicCurrentSlot: [u8; 32],
+    pub publicMaxLockTime: [u8; 32],
+    pub publicGoverningTokenMint: [u8; 32],
+    pub publicVoteUtxoNumber: [u8; 32],
 }

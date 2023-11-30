@@ -105,6 +105,7 @@ export async function createSolanaInstructions(
   systemProof: { parsedProof: any; parsedPublicInputsObject: any },
   remainingSolanaAccounts: SolanaRemainingAccounts,
   txParams: TransactionParameters,
+  prefix: string,
   pspIdl: Idl,
   pspTransactionInput?: PspTransactionInput,
   pspProof?: { parsedProof: any; parsedPublicInputsObject: any },
@@ -150,39 +151,6 @@ export async function createSolanaInstructions(
       TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
       "getInstructions",
     );
-
-  const getOrderedInstructionNames = (verifierIdl: Idl) => {
-    const orderedInstructionNames = verifierIdl.instructions
-      .filter((instruction) =>
-        /First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth/.test(
-          instruction.name,
-        ),
-      )
-      .sort((a, b) => {
-        const suffixes = [
-          "First",
-          "Second",
-          "Third",
-          "Fourth",
-          "Fifth",
-          "Sixth",
-          "Seventh",
-          "Eighth",
-          "Ninth",
-        ];
-        const aIndex = suffixes.findIndex((suffix) => a.name.endsWith(suffix));
-        const bIndex = suffixes.findIndex((suffix) => b.name.endsWith(suffix));
-
-        if (aIndex === 7 || bIndex === 7) {
-          throw new Error("Found an instruction with the 'Eighth' suffix.");
-        }
-
-        return aIndex - bIndex;
-      })
-      .map((instruction) => instruction.name);
-
-    return orderedInstructionNames;
-  };
 
   if (
     instructionInputs.verifierConfig.out == 2 &&
@@ -243,7 +211,7 @@ export async function createSolanaInstructions(
     instructions.push(ix);
   }
 
-  const instructionNames = getOrderedInstructionNames(pspIdl);
+  const instructionNames = getInstructionNamesByPrefix(pspIdl, prefix);
   for (let i = 0; i < instructionNames.length; i++) {
     const instruction = instructionNames[i];
     const coder = new BorshAccountsCoder(pspIdl);
@@ -299,6 +267,7 @@ export async function createSolanaInstructions(
 }
 
 export type SolanaTransactionInputs = {
+  prefix: string;
   transaction: TransactionParameters;
   systemProof: { parsedProof: any; parsedPublicInputsObject: any };
   pspTransactionInput?: PspTransactionInput;
@@ -336,6 +305,7 @@ export async function sendAndConfirmShieldTransaction({
     solanaTransactionInputs.systemProof,
     remainingSolanaAccounts,
     solanaTransactionInputs.transaction,
+    solanaTransactionInputs.prefix,
     solanaTransactionInputs.pspTransactionInput
       ? solanaTransactionInputs.pspTransactionInput.verifierIdl
       : solanaTransactionInputs.transaction.verifierIdl,
@@ -393,6 +363,7 @@ export async function sendAndConfirmShieldedTransaction({
     solanaTransactionInputs.systemProof,
     remainingSolanaAccounts,
     solanaTransactionInputs.transaction,
+    solanaTransactionInputs.prefix,
     solanaTransactionInputs.pspTransactionInput
       ? solanaTransactionInputs.pspTransactionInput.verifierIdl
       : solanaTransactionInputs.transaction.verifierIdl,
@@ -417,4 +388,44 @@ export async function sendAndConfirmShieldedTransaction({
     relayerMerkleTreeUpdateResponse = "success";
   }
   return { txHash, response: relayerMerkleTreeUpdateResponse };
+}
+
+export const orderInstructionNames = (instructionNames: { name: string }[]) => {
+  const orderedInstructionNames = instructionNames
+    .filter((instruction) =>
+      /First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth/.test(
+        instruction.name,
+      ),
+    )
+    .sort((a, b) => {
+      const suffixes = [
+        "First",
+        "Second",
+        "Third",
+        "Fourth",
+        "Fifth",
+        "Sixth",
+        "Seventh",
+        "Eighth",
+        "Ninth",
+      ];
+      const aIndex = suffixes.findIndex((suffix) => a.name.endsWith(suffix));
+      const bIndex = suffixes.findIndex((suffix) => b.name.endsWith(suffix));
+
+      if (aIndex === 7 || bIndex === 7) {
+        throw new Error("Found an instruction with the 'Eighth' suffix.");
+      }
+
+      return aIndex - bIndex;
+    })
+    .map((instruction) => instruction.name);
+
+  return orderedInstructionNames;
+};
+
+export function getInstructionNamesByPrefix(verifierIdl: Idl, prefix: string) {
+  const instructions = verifierIdl.instructions
+    .filter((instruction) => instruction.name.startsWith(prefix))
+    .map((instruction) => instruction);
+  return orderInstructionNames(instructions);
 }

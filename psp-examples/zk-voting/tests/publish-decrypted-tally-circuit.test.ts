@@ -105,7 +105,9 @@ describe("Test private-voting", () => {
     const noCiphertextString = pointToStringArray(noCiphertext);
     const noEmphemeralKeyString = pointToStringArray(noEmphemeralKey);
 
-    const circuitPath = path.join("build-circuit/private-voting/publishDecryptedTally");
+    const circuitPath = path.join(
+      "build-circuit/private-voting/publishDecryptedTally"
+    );
 
     const initVoteTransactionInput: PublishDecryptedTallyTransactionInput = {
       idl: IDL,

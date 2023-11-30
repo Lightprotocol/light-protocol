@@ -138,8 +138,6 @@ describe("Streaming Payments tests", () => {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       includeAppData: true,
     });
     const testInputsShield = {
@@ -230,6 +228,7 @@ describe("Streaming Payments tests", () => {
       pspProof,
       transaction: txParams,
       pspTransactionInput,
+      prefix: "light",
     };
 
     const res = await sendAndConfirmShieldedTransaction({
@@ -401,8 +400,6 @@ class PaymentStreamClient {
       appDataIdl: this.idl,
       verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
       assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     this.streamInitUtxo = streamInitUtxo;
@@ -444,8 +441,6 @@ class PaymentStreamClient {
           publicKey: inUtxo.publicKey,
           poseidon: this.poseidon,
           assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            this.lightProvider.lookUpTables.verifierProgramLookupTable,
         });
         return { programParameters, inUtxo, outUtxo, action };
       }
@@ -478,8 +473,6 @@ class PaymentStreamClient {
         appDataIdl: this.idl,
         verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
         assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          this.lightProvider.lookUpTables.verifierProgramLookupTable,
       });
       return { programParameters, outUtxo, inUtxo };
     }
