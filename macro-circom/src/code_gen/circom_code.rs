@@ -66,15 +66,20 @@ pub fn generate_psp_circom_code(
             }
 
             if let Some(index) = checked_utxos.iter().position(|utxo| {
-                line.contains(&format!("{}.check();", utxo.name)) && utxo.checks.is_some()
+                line.contains(&format!("{}.check();", utxo.name))
+                    && (utxo.checks.is_some() || utxo.utxo_data_checks.is_some())
             }) {
                 if !checked_utxos[index].is_declared {
-                    panic!("A utxo needs to be declared before it can be checked.");
+                    panic!("A utxo needs to be declared before it can be checked. {} was not declared.", checked_utxos[index].name);
                 }
                 if checked_utxos[index].is_checked {
-                    panic!("A utxo can only be checked once.");
+                    panic!(
+                        "A utxo can only be checked once. {} was checked twice.",
+                        checked_utxos[index].name
+                    );
                 }
                 remaining_lines.push(checked_utxos[index].check_code.clone());
+                println!("CHECK CODE: {}", checked_utxos[index].check_code);
                 checked_utxos[index].is_checked = true;
                 continue;
             }
@@ -107,10 +112,12 @@ pub fn generate_psp_circom_code(
         if !utxo.is_declared {
             return Err(MacroCircomError::CheckUtxoNotDeclared(utxo.name.clone()));
         }
-        if !utxo.is_checked && utxo.checks.is_some() {
+        if !utxo.is_checked && (utxo.checks.is_some() || utxo.utxo_data_checks.is_some()) {
             return Err(MacroCircomError::CheckUtxoNotChecked(utxo.name.clone()));
         }
     }
+    println!("CHECKED UTXOS: {:?}", checked_utxos);
+
     let remaining_lines = squash_empty_lines(&remaining_lines.join("\n"));
     let remaining_lines = format_custom_data(&remaining_lines);
 

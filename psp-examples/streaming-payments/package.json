@@ -1,30 +1,30 @@
-{        
-  "name": "@lightprotocol/streaming-payments",
-  "version": "0.0.1",
-  "scripts": {
-    "format": "prettier --write \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier \"tests/**/*{ts,js}\" --check",
-    "test": "../../cli/test_bin/run psp:test streaming-payments Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
-    "build": "../../cli/test_bin/run psp:build streaming-payments --ptau=15"
-  },
-  "dependencies": {
-    "@coral-xyz/anchor": "^0.28.0",
-    "@lightprotocol/circuit-lib.circom": "workspace:*",
-    "@lightprotocol/circuit-lib.js": "workspace:*",
-    "@lightprotocol/zk.js": "workspace:*",
-    "case-anything": "^2.1.13",
-    "circomlib": "^2.0.5",
-    "circomlibjs": "^0.1.7"
-  },
-  "devDependencies": {
-    "@lightprotocol/cli": "workspace:*",
-    "@types/bn.js": "^5.1.1",
-    "@types/chai": "^4.3.6",
-    "@types/mocha": "^10.0.2",
-    "chai": "^4.3.10",
-    "mocha": "^10.2.0",
-    "prettier": "^3.0.3",
-    "ts-mocha": "^10.0.0",
-    "typescript": "5.3.2"
-  }
+{
+    "name": "@lightprotocol/streaming-payments",
+    "version": "0.0.1",
+    "scripts": {
+        "format": "prettier --write \"tests/**/*.{ts,js}\" -w",
+        "lint": "prettier \"tests/**/*{ts,js}\" --check",
+        "test": "../../cli/test_bin/run psp:test streaming-payments",
+        "build": "../../cli/test_bin/run psp:build streaming-payments --ptau=15"
+    },
+    "dependencies": {
+        "@coral-xyz/anchor": "^0.28.0",
+        "@lightprotocol/circuit-lib.circom": "workspace:*",
+        "@lightprotocol/circuit-lib.js": "workspace:*",
+        "@lightprotocol/zk.js": "workspace:*",
+        "case-anything": "^2.1.13",
+        "circomlib": "^2.0.5",
+        "circomlibjs": "^0.1.7"
+    },
+    "devDependencies": {
+        "@lightprotocol/cli": "workspace:*",
+        "@types/bn.js": "^5.1.1",
+        "@types/chai": "^4.3.6",
+        "@types/mocha": "^10.0.1",
+        "chai": "^4.3.8",
+        "mocha": "^10.2.0",
+        "prettier": "^3.0.3",
+        "ts-mocha": "^10.0.0",
+        "typescript": "^5.2.2"
+    }
 }

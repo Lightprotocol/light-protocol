@@ -870,7 +870,3 @@ Version : Version = {
         (version, subversion, subsubversion)
     }
 };
-
-DoubleColon : String = {
-    r"::" => String::from(<>)
-};

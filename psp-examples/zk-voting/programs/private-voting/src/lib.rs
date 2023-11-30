@@ -13,10 +13,11 @@ pub mod verifying_key_publish_decrypted_tally;
 use light_psp4in4out_app_storage::Psp4In4OutAppStorageVerifierState;
 use light_verifier_sdk::light_app_transaction::AppTransaction;
 use light_verifier_sdk::light_transaction::Proof;
+use serde::{Deserialize, Serialize};
+use solana_program::program::invoke;
 use verifying_key_init_vote::VERIFYINGKEY_INIT_VOTE;
 pub use verifying_key_private_voting::*;
 use verifying_key_publish_decrypted_tally::VERIFYINGKEY_PUBLISH_DECRYPTED_TALLY;
-
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[constant]
@@ -282,6 +283,137 @@ pub mod private_voting {
     // ) -> Result<()> {
     //     Ok(())
     // }
+
+    // TODO: check whether we need this instruction at all
+    pub fn create_vote_weight_instruction_first<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, VerifyCreateVoteWeightInstructionFirst<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        let inputs_des: InstructionDataLightInstructionFirst =
+            InstructionDataLightInstructionFirst::try_deserialize_unchecked(
+                &mut [vec![0u8; 8], inputs].concat().as_slice(),
+            )?;
+
+        let mut program_id_hash = hash(&ctx.program_id.to_bytes()).to_bytes();
+        program_id_hash[0] = 0;
+
+        let mut verifier_state = ctx.accounts.verifier_state.load_init()?;
+        verifier_state.signer = *ctx.accounts.signing_address.key;
+        let verifier_state_data = Psp4In4OutAppStorageVerifierState {
+            nullifiers: inputs_des.input_nullifier,
+            leaves: inputs_des.output_commitment.try_into().unwrap(),
+            public_amount_spl: inputs_des.public_amount_spl,
+            public_amount_sol: inputs_des.public_amount_sol,
+            relayer_fee: inputs_des.relayer_fee,
+            encrypted_utxos: inputs_des.encrypted_utxos.try_into().unwrap(),
+            merkle_root_index: inputs_des.root_index,
+        };
+        let mut verifier_state_vec = Vec::new();
+        Psp4In4OutAppStorageVerifierState::serialize(&verifier_state_data, &mut verifier_state_vec)
+            .unwrap();
+        verifier_state.verifier_state_data = [verifier_state_vec, vec![0u8; 1024 - 848]]
+            .concat()
+            .try_into()
+            .unwrap();
+
+        verifier_state.checked_public_inputs[0] = program_id_hash;
+        verifier_state.checked_public_inputs[1] = inputs_des.transaction_hash;
+
+        Ok(())
+    }
+
+    // check whether we need this instruction at all
+    pub fn create_vote_weight_instruction_second<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, VerifyCreateVoteWeightInstructionSecond<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        let mut verifier_state = ctx.accounts.verifier_state.load_mut()?;
+        inputs.chunks(32).enumerate().for_each(|(i, input)| {
+            let mut arr = [0u8; 32];
+            arr.copy_from_slice(input);
+            verifier_state.checked_public_inputs[2 + i] = arr
+        });
+        Ok(())
+    }
+
+    /// This instruction is the third step of a shielded transaction.
+    /// The proof is verified with the parameters saved in the first transaction.
+    /// At successful verification protocol logic is executed.
+    pub fn create_vote_weight_instruction_third<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, VerifyCreateVoteWeightInstructionThird<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        // should only be called via cpi from the vote program and only verify the program proof
+        // the system proof is verified via cpi directly from the vote program
+        verify_create_vote_weight_cpi(&ctx, &inputs)?;
+
+        cpi_verifier_two_create_vote_utxo(&ctx, &inputs)
+    }
+
+    // /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
+    // pub fn close_verifier_state<'a, 'b, 'c, 'info>(
+    //     _ctx: Context<
+    //         'a,
+    //         'b,
+    //         'c,
+    //         'info,
+    //         CloseVerifierState<'info, { VERIFYINGKEY_PRIVATE_VOTING.nr_pubinputs }>,
+    //     >,
+    // ) -> Result<()> {
+    //     Ok(())
+    // }
+}
+
+fn verify_create_vote_weight_cpi<'a, 'b, 'c, 'info>(
+    ctx: &'a Context<'a, 'b, 'c, 'info, VerifyCreateVoteWeightInstructionThird<'info>>,
+    inputs: &'a Vec<u8>,
+) -> Result<()> {
+    let verifier_state_id = ctx.accounts.verifier_state.key().clone();
+    let verifier_state_account_info = ctx.accounts.verifier_state.to_account_info().clone();
+
+    let instruction_data = {
+        let mut checked_public_inputs = ctx
+            .accounts
+            .verifier_state
+            .load()?
+            .checked_public_inputs
+            .clone();
+        let mut program_id_hash = hash(&ctx.accounts.vote_weight_program.key.to_bytes()).to_bytes();
+        program_id_hash[0] = 0;
+        checked_public_inputs[2] = program_id_hash;
+        msg!("checked_public_inputs {:?}", checked_public_inputs);
+        // instruction discriminator
+        let mut instruction_data = vec![101, 200, 46, 73, 4, 61, 156, 75];
+        // proof
+        instruction_data.extend_from_slice(&inputs[0..256]);
+        // public inputs
+        instruction_data.extend(checked_public_inputs.into_iter().flat_map(|x| x));
+        instruction_data
+    };
+
+    let account_meta: AccountMeta = AccountMeta {
+        pubkey: *ctx.accounts.vote_weight_config.key,
+        is_signer: false,
+        is_writable: false,
+    };
+    let instruction = solana_program::instruction::Instruction {
+        program_id: *ctx.accounts.vote_weight_program.key,
+        data: instruction_data,
+        accounts: vec![account_meta],
+    };
+
+    invoke(
+        &instruction,                               // vote program
+        &[ctx.accounts.vote_weight_config.clone()], // acounts to pass to the cpi
+    )?;
+    Ok(())
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct VerifyCreateVoteWeightCpi {
+    pub discriminator: [u8; 8],
+    pub proof: Vec<u8>,
+    pub public_inputs: [[u8; 32]; 20],
 }
 
 #[inline(never)]

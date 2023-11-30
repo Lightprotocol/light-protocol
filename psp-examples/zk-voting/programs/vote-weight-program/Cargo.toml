@@ -1,0 +1,28 @@
+[package]
+name = "vote_weight_program"
+version = "0.1.0"
+description = "Created with Light Protocol"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "vote_weight_program"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
+light-merkle-tree-program = { path = '../../../../programs/merkle-tree', features = ['cpi'] }
+light-psp4in4out-app-storage = { path = '../../../../programs/psp4in4out-app-storage', features = ['cpi'] }
+light-macros = { path = '../../../../macros/light' }
+light-verifier-sdk = { path = '../../../../verifier-sdk'}
+solana-program = "1.16.4"
+groth16-solana = "0.0.2"
+bytemuck = "1.14.0"
+memoffset = "0.9.0"

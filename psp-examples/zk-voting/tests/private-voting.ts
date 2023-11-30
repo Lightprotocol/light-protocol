@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { assert } from "chai";
 import {
   createAndProveVoteTransaction,
+  createPspTransaction,
   VoteParameters,
   VoteTransactionInput,
   VoteWeightUtxoData,
@@ -20,6 +21,14 @@ import {
   ProgramUtxoBalance,
   ConfirmOptions,
   sendAndConfirmShieldedTransaction,
+  createProofInputs,
+  getSystemProof,
+  Account,
+  PspTransactionInput,
+  Relayer,
+  SolMerkleTree,
+  BN_0,
+  TransactionParameters,
 } from "@lightprotocol/zk.js";
 
 import {
@@ -33,6 +42,11 @@ import {
 import { buildPoseidonOpt } from "circomlibjs";
 import { BN, utils } from "@coral-xyz/anchor";
 import { IDL, PrivateVoting } from "../target/types/private_voting";
+import {
+  IDL as VOTE_WEIGHT_IDL,
+  VoteWeightProgram,
+} from "../target/types/vote_weight_program";
+
 import { createInitVoteProof } from "./init-vote-circuit.test";
 import {
   createPublishDecryptedTallyProof,
@@ -47,6 +61,11 @@ import {
   generateKeypair,
   generateRandomSalt,
 } from "@lightprotocol/circuit-lib.js";
+import {
+  claimVoteWeightUtxoTransactionInput,
+  createAndProveCreateVoteUtxoTransaction,
+  createVoteWeightUtxoTransactionInput,
+} from "./create-vote-weight-circuit.test";
 const path = require("path");
 const { coordinatesToExtPoint, pointToStringArray } = ElGamalUtils;
 
@@ -67,7 +86,7 @@ const RPC_URL = "http://127.0.0.1:8899";
 describe("Test private-voting", () => {
   process.env.ANCHOR_PROVIDER_URL = RPC_URL;
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-
+  let voteWeightConfig, voteWeightConfigPda: PublicKey;
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.local(RPC_URL, confirmConfig);
   anchor.setProvider(provider);
@@ -137,7 +156,9 @@ describe("Test private-voting", () => {
   });
 
   it("create proposal: ", async () => {
-    console.log(`\n\n ----------------  Creating mock proposal ---------------- \n\n`)
+    console.log(
+      `\n\n ----------------  Creating mock proposal ---------------- \n\n`
+    );
 
     voteParameters = {
       governingTokenMint: SystemProgram.programId,
@@ -216,7 +237,9 @@ describe("Test private-voting", () => {
         verifierProgramId.toBytes()
       ),
     };
-    console.log(`\n\n ----------------  Creating vote weight utxo: vote weight ${voteWeightUtxoData.voteWeight} ---------------- \n\n`)
+    console.log(
+      `\n\n ----------------  Creating vote weight utxo: vote weight ${voteWeightUtxoData.voteWeight} ---------------- \n\n`
+    );
 
     voteWeightUtxo = new Utxo({
       poseidon: POSEIDON,
@@ -248,13 +271,227 @@ describe("Test private-voting", () => {
     Utxo.equal(POSEIDON, inputUtxo, voteWeightUtxo, true);
   });
 
-  it("init vote: ", async () => {
+  /**
+   * 1. Set up pda with vote weight utxo parameters
+   * 2. Create vote weight utxo
+   */
 
+  it.only("create vote weight config ", async () => {
+    voteWeightConfig = {
+      governingTokenMint: SystemProgram.programId,
+      voteUtxoNumber: new BN(0),
+      publicMaxLockTime: new BN(101),
+    };
+    const voteWeightConfigAuthority = Keypair.generate();
+    await airdropSol({
+      connection: provider.connection,
+      lamports: 1e10,
+      recipientPublicKey: voteWeightConfigAuthority.publicKey,
+    });
+
+    const programId =
+      TransactionParameters.getVerifierProgramId(VOTE_WEIGHT_IDL);
+
+    console.log(
+      `\n\n ----------------  Creating vote weight config ---------------- \n\n`
+    );
+
+    // TODO: add pda derivation function to anchor
+    voteWeightConfigPda = PublicKey.findProgramAddressSync(
+      [voteWeightConfig.governingTokenMint.toBuffer()],
+      programId
+    )[0];
+    const voteWeightProgram = new anchor.Program(VOTE_WEIGHT_IDL, programId);
+    const instruction = await voteWeightProgram.methods
+      .initVoteWeightConfig(voteWeightConfig.publicMaxLockTime)
+      .accounts({
+        signingAddress: voteWeightConfigAuthority.publicKey,
+        voteWeightConfig: voteWeightConfigPda,
+        systemProgram: SystemProgram.programId,
+        governanceTokenMint: voteWeightConfig.governingTokenMint,
+      })
+      .signers([voteWeightConfigAuthority])
+      .instruction();
+
+    const initVoteWeightConfigTxHash = await sendAndConfirmTransaction(
+      provider.connection,
+      new anchor.web3.Transaction().add(instruction),
+      [voteWeightConfigAuthority],
+      {
+        commitment: "confirmed",
+      }
+    );
+    console.log(
+      "Init Vote Weight Config Tx Hash: ",
+      initVoteWeightConfigTxHash
+    );
+
+    const voteWeightConfigAccountInfo =
+      await voteWeightProgram.account.voteWeightConfig.fetch(
+        voteWeightConfigPda
+      );
+    assert.equal(
+      voteWeightConfigAccountInfo.governanceTokenMint.toBase58(),
+      voteWeightConfig.governingTokenMint.toBase58()
+    );
+    assert.equal(
+      voteWeightConfigAccountInfo.currentVoteWeightNumber.toString(),
+      "0"
+    );
+    assert.equal(
+      voteWeightConfigAccountInfo.maxLockTime.toString(),
+      voteWeightConfig.publicMaxLockTime.toString()
+    );
+    assert.equal(
+      voteWeightConfigAccountInfo.authority.toBase58(),
+      voteWeightConfigAuthority.publicKey.toBase58()
+    );
+    // const instructionPrint = await  voteWeightProgram.methods.verifyCreateVoteWeightProofInstruction(Buffer.alloc(256).fill(1),[new Array(32)]).accounts({
+    //   voteWeightConfig: voteWeightConfigPda,
+    // }).instruction();
+
+    // console.log("instruction discriminator ", Array.from(instructionPrint.data.slice(0, 8)).toString());
+  });
+
+  it.only("create vote weight utxo ", async () => {
+    await voter.shield({ token: "SOL", publicAmountSol: 3 });
+
+    await voter.getBalance();
+    let inUtxo = voter.getAllUtxos()[0];
+    const circuitPath = path.join(
+      "build-circuit/vote-weight-program/createVoteUtxo"
+    );
+
+    const createVoteWeightUtxoTransactionInput: createVoteWeightUtxoTransactionInput =
+      {
+        inUtxos: [inUtxo],
+        // feeUtxo,
+        idl: VOTE_WEIGHT_IDL,
+        lookUpTables: lightProvider.lookUpTables,
+        voter: voter.account,
+        circuitPath,
+        relayer: localTestRelayer,
+        solMerkleTree: lightProvider.solMerkleTree,
+        startSlot: BN_0,
+        timeLocked: new BN(100),
+        voteUtxoNumber: BN_0,
+        voteWeightCreationParamatersPda: {
+          governingTokenMint: BN_0,
+          voteUtxoNumber: BN_0,
+          publicMaxLockTime: new BN(101),
+        },
+        publicCurrentSlot: new BN(await provider.connection.getSlot()),
+        voteWeightAmount: new BN(1e9),
+        verifierProgramId,
+        voteWeightConfig: voteWeightConfigPda,
+        voteWeightProgramId:
+          TransactionParameters.getVerifierProgramId(VOTE_WEIGHT_IDL),
+      };
+    let { systemProof, pspProof, pspTransactionInput, transaction } =
+      await createAndProveCreateVoteUtxoTransaction(
+        createVoteWeightUtxoTransactionInput,
+        voter.provider.poseidon
+      );
+
+    pspTransactionInput.verifierIdl = IDL;
+    const solanaTransactionInputs: SolanaTransactionInputs = {
+      systemProof,
+      pspProof,
+      transaction,
+      pspTransactionInput,
+      prefix: "createVoteWeight",
+    };
+
+    const voteTxHashes = await sendAndConfirmShieldedTransaction({
+      solanaTransactionInputs,
+      provider: voter.provider,
+      confirmOptions: ConfirmOptions.spendable,
+    });
+    console.log("Vote Tx Hashes: ", voteTxHashes);
+
+    // const programUtxoBalance: Map<string, ProgramUtxoBalance> =
+    //   await voter.syncStorage(IDL);
+    // const shieldedUtxoCommitmentHash = voteWeightUtxo.getCommitment(POSEIDON);
+    // const inputUtxo = programUtxoBalance
+    //   .get(verifierProgramId.toBase58())
+    //   .tokenBalances.get(voteWeightUtxo.assets[1].toBase58())
+    //   .utxos.get(shieldedUtxoCommitmentHash);
+    // Utxo.equal(POSEIDON, inputUtxo, voteWeightUtxo, true);
+  });
+
+  it.only("claim vote weight utxo ", async () => {
+    await voter.getBalance();
+    let feeUtxo = voter.getAllUtxos()[0];
+    const circuitPath = path.join(
+      "build-circuit/vote-weight-program/createVoteUtxo"
+    );
+
+    const createVoteWeightUtxoTransactionInput: claimVoteWeightUtxoTransactionInput =
+      {
+        voteWeightUtxo: inUtxo,
+        feeUtxo,
+        idl: VOTE_WEIGHT_IDL,
+        lookUpTables: lightProvider.lookUpTables,
+        voter: voter.account,
+        circuitPath,
+        relayer: localTestRelayer,
+        solMerkleTree: lightProvider.solMerkleTree,
+        voteWeightCreationParamatersPda: {
+          governingTokenMint: BN_0,
+          voteUtxoNumber: BN_0,
+          publicMaxLockTime: new BN(101),
+        },
+        publicCurrentSlot: new BN(await provider.connection.getSlot()),
+        verifierProgramId,
+        voteWeightConfig: voteWeightConfigPda,
+        voteWeightProgramId:
+          TransactionParameters.getVerifierProgramId(VOTE_WEIGHT_IDL),
+      };
+    let { systemProof, pspProof, pspTransactionInput, transaction } =
+      await createAndProveCreateVoteUtxoTransaction(
+        createVoteWeightUtxoTransactionInput,
+        voter.provider.poseidon
+      );
+
+    //TODO: extend zk.js to support multiple shielded transaction instructions, right now these are assumed to be called light_instruction_ first, second, third
+    // - add an additional input instructionName
+    // - expect for the instruction name that instructions first, second and third exist
+    // - provide option to pass in an array of full instruction names
+
+    pspTransactionInput.verifierIdl = IDL;
+    const solanaTransactionInputs: SolanaTransactionInputs = {
+      systemProof,
+      pspProof,
+      transaction,
+      pspTransactionInput,
+      prefix: "createVoteWeight",
+    };
+
+    const voteTxHashes = await sendAndConfirmShieldedTransaction({
+      solanaTransactionInputs,
+      provider: voter.provider,
+      confirmOptions: ConfirmOptions.spendable,
+    });
+    console.log("Vote Tx Hashes: ", voteTxHashes);
+
+    // const programUtxoBalance: Map<string, ProgramUtxoBalance> =
+    //   await voter.syncStorage(IDL);
+    // const shieldedUtxoCommitmentHash = voteWeightUtxo.getCommitment(POSEIDON);
+    // const inputUtxo = programUtxoBalance
+    //   .get(verifierProgramId.toBase58())
+    //   .tokenBalances.get(voteWeightUtxo.assets[1].toBase58())
+    //   .utxos.get(shieldedUtxoCommitmentHash);
+    // Utxo.equal(POSEIDON, inputUtxo, voteWeightUtxo, true);
+  });
+
+  it("init vote: ", async () => {
     votePda = PublicKey.findProgramAddressSync(
       [proposalPda.toBuffer(), utils.bytes.utf8.encode("VOTE")],
       verifierProgramId
     )[0];
-    console.log(`\n\n ----------------  Creating vote pda ${votePda.toBase58()} ---------------- \n\n`)
+    console.log(
+      `\n\n ----------------  Creating vote pda ${votePda.toBase58()} ---------------- \n\n`
+    );
 
     const initVoteTransactionInput = {
       idl: IDL,
@@ -384,13 +621,15 @@ describe("Test private-voting", () => {
      * out utxos
      * 1. locked vote weight utxo, 2. change fee utxo
      */
-    console.log(`\n\n ----------------  Shielding 1 sol ---------------- \n\n`)
+    console.log(`\n\n ----------------  Shielding 1 sol ---------------- \n\n`);
 
     // create fee utxo
     await voter.shield({ token: "SOL", publicAmountSol: 1 });
     const feeUtxo = voter.getAllUtxos()[0];
 
-    console.log(`\n\n ----------------  Casting yes vote - vote weight ${voteWeightUtxo.appData.voteWeight} ---------------- \n\n`)
+    console.log(
+      `\n\n ----------------  Casting yes vote - vote weight ${voteWeightUtxo.appData.voteWeight} ---------------- \n\n`
+    );
 
     const circuitPath = path.join("build-circuit/private-voting/privateVoting");
 
@@ -455,7 +694,10 @@ describe("Test private-voting", () => {
     };
 
     let { systemProof, pspProof, transaction, pspTransactionInput } =
-      await createAndProveVoteTransaction(voteTransactionInput);
+      await createAndProveVoteTransaction(
+        voteTransactionInput,
+        voter.provider.poseidon
+      );
     // TODO: change once I have separated accounts from proof generation
     const nullifierPda = PublicKey.findProgramAddressSync(
       [pspTransactionInput.proofInputs.voteWeightNullifier.toBuffer("be", 32)],
@@ -468,6 +710,7 @@ describe("Test private-voting", () => {
       pspProof,
       transaction,
       pspTransactionInput,
+      prefix: "light",
     };
 
     const voteTxHashes = await sendAndConfirmShieldedTransaction({
@@ -518,7 +761,9 @@ describe("Test private-voting", () => {
 
   it("test publish decrypted tally: ", async () => {
     const fetchedVotePda = await fetchAndConvertVotePda(voteProgram, votePda);
-    const circuitPath = path.join("build-circuit/private-voting/publishDecryptedTally");
+    const circuitPath = path.join(
+      "build-circuit/private-voting/publishDecryptedTally"
+    );
 
     const createPublishDecryptedTallyTransactionInput: PublishDecryptedTallyTransactionInput =
       {
@@ -580,8 +825,14 @@ describe("Test private-voting", () => {
       new BN(0).toString()
     );
     console.log("\n\n---------- fetched decrypted tally ----------\n\n");
-    console.log("decrypted yes vote weight: ", voteAccountInfo.decryptedYesVoteWeight.toString());
-    console.log("decrypted no vote weight: ", voteAccountInfo.decryptedNoVoteWeight.toString());
+    console.log(
+      "decrypted yes vote weight: ",
+      voteAccountInfo.decryptedYesVoteWeight.toString()
+    );
+    console.log(
+      "decrypted no vote weight: ",
+      voteAccountInfo.decryptedNoVoteWeight.toString()
+    );
   });
 });
 

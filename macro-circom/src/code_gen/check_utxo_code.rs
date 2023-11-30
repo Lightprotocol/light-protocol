@@ -129,7 +129,7 @@ impl Comparator {
 }
 
 impl Utxo {
-    fn generate_delare_code(&mut self) -> Result<(), MacroCircomError> {
+    fn generate_declare_code(&mut self) -> Result<(), MacroCircomError> {
         let template = r#"
         signal input is{{is_In}}AppUtxo{{UtxoName}}[{{is_ins}}];
         var sumIs{{is_In}}AppUtxo{{UtxoName}} = 0;
@@ -265,8 +265,9 @@ component check{{this.component}}{{../../UtxoName}}[{{../../is_ins}}];
 {{#each comparisons}}{{#with this}}
 component check{{this.component}}{{../../UtxoName}}[{{../../is_ins}}];
 {{/with}}{{/each}}
+{{/if}}
 for (var i = 0; i < {{is_ins}}; i++) {
-
+{{#if comparisons}}
 {{#with this}} {{#each comparisons}}
 
     check{{is_In}}{{this.component}}{{../../UtxoName}}[i] = ForceEqualIfEnabled();
@@ -275,7 +276,7 @@ for (var i = 0; i < {{is_ins}}; i++) {
     check{{is_In}}{{this.component}}{{../../UtxoName}}[i].enabled <== is{{../../is_In}}AppUtxo{{../../UtxoName}}[i] * {{../../instruction}};
 
 {{/each}}{{/with}}
-
+{{/if}}
 
 {{#if comparisonsUtxoData}}
 {{#each comparisonsUtxoData}}{{#with this}}
@@ -288,7 +289,7 @@ for (var i = 0; i < {{is_ins}}; i++) {
 {{/with}}{{/each}}
 {{/if}}
 }
-{{/if}}
+
 "#;
         let mut comparisons = vec![];
         if self.type_name == "native" {
@@ -455,7 +456,7 @@ pub fn generate_check_utxo_code(checked_utxo: &mut Vec<Utxo>) -> Result<(), Macr
         } else if utxo.no_utxos.parse::<u64>().unwrap() > 1 {
             unimplemented!("Multiple utxos not supported yet.");
         }
-        utxo.generate_delare_code()?;
+        utxo.generate_declare_code()?;
         utxo.generate_check_code()?;
     }
 
@@ -543,7 +544,7 @@ mod tests_utxo {
             )]),
         };
 
-        check_utxo.generate_delare_code()?;
+        check_utxo.generate_declare_code()?;
 
         let expected_output = r#"
     signal input isInAppUtxoUtxoName[nIns];

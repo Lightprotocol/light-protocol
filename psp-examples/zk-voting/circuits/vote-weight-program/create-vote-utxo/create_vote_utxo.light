@@ -1,0 +1,165 @@
+pragma circom 2.1.4;
+
+include "poseidon.circom";
+include "merkleProof.circom";
+include "keypair.circom";
+include "gates.circom";
+include "comparators.circom";
+
+// will create a new instance of the circuit
+#[instance]
+{
+    name: create_vote_utxo,
+    publicInputs: [
+        publicPspAddress,
+        publicCurrentSlot,
+        publicMaxLockTime,
+        publicGoverningTokenMint,
+        publicVoteUtxoNumber        
+    ],
+}
+// TODO: add a sol_slot primitive which generates the code to pass in the current slot and generates check rust code for the PSP
+// would be interesting to have a primitive that accesses data from a pda
+
+/**
+* Generates environment components: isAppInUtxoInEscrowUtxo[4], instructionHasherEscrowInUtxo
+*
+*/
+
+// utxoType streamUtxo {
+//     releaseSlot,
+//     rate,
+// }
+utxoType voteUtxo {
+    // vote weight this utxo can vote with
+    voteWeight,
+    // slot when vote weight utxo was created
+    startSlot,
+    // slot when the tokens will be released, should the vote utxo still be usable once publicCurrentSlot >= releaseSlot?
+    releaseSlot,
+    // rate at which the tokens will be released, rate multiplied by passed time releaseSlot - publicCurrentSlot
+    rate,
+    // ensures that no tokens can be withdrawn before the vote is over
+    voteLock,
+    // id to identify the vote weight utxo, is used to expose a nullifier
+    // voteUtxoNumber is an external input to ensure uniqueness of the voteUtxoId
+    voteUtxoNumber,
+    // is a random nonce, the nonce needs to remain secret so that the vote nullifier cannot be brute forced
+    voteUtxoIdNonce,
+    voteWeightPspAddress,
+}
+
+outUtxo createdVoteWeightUtxo {
+    type: voteUtxo,
+    enabled: create,
+    checks: {
+        assetSpl == publicGoverningTokenMint,
+        amountSol == checkedAmountSol, // TODO: swith to spl
+    },
+    dataChecks: {
+        voteWeight == calculatedVoteWeight,
+        startSlot == publicCurrentSlot,
+        // releaseSlot < publicCurrentSlot + publicMaxLockTime,
+        voteLock == initialVoteLock,
+        // voteUtxoId == voteUtxoId,
+        voteWeightPspAddress == publicPspAddress,
+        voteUtxoNumber == publicVoteUtxoNumber,
+    },
+}
+
+inUtxo claimVoteWeightInUtxo {
+    type: voteUtxo,
+    enabled: claim,
+    dataChecks: {
+        voteWeightPspAddress == publicPspAddress,
+    },
+}
+
+// outUtxo claimVoteWeightOutUtxo {
+//     type: voteUtxo,
+//     enabled: claim,
+//     checks: {
+//         amountSol == remainingAmount,
+//         utxoDataHash == claimVoteWeightInUtxo.utxoDataHash,
+//         pspOwner == publicAppVerifier,
+//     },
+//     dataChecks: {
+//         releaseSlot == claimVoteWeightInUtxo.releaseSlot,
+//         rate == claimVoteWeightInUtxo.rate,
+//     },
+// }
+
+/**
+* Instructions:
+* 1. create vote weight utxo
+* 2. claim funds from vote weight utxo (closing the utxo when possible)
+*/
+
+#[entrypoint]
+template vote_weight_circuit() {
+
+    signal input create;
+    signal input publicPspAddress;
+    signal input publicCurrentSlot;
+    signal input publicMaxLockTime;
+    signal input publicGoverningTokenMint;
+    signal input publicVoteUtxoNumber;
+
+
+    utxo createdVoteWeightUtxo;
+
+    var checkedAmountSol = createdVoteWeightUtxo.rate * (createdVoteWeightUtxo.releaseSlot - createdVoteWeightUtxo.startSlot);
+
+    var lockUpTime = createdVoteWeightUtxo.releaseSlot - createdVoteWeightUtxo.startSlot;
+    var calculatedVoteWeight = createdVoteWeightUtxo.amountSol * lockUpTime;
+    // TODO: allow numbers to be used for check comparisons
+    var initialVoteLock = 0;
+
+    var actualMaxLockSlot =  publicCurrentSlot + publicMaxLockTime;
+    component checkMaxLockTime = LessThan(64);
+    checkMaxLockTime.in[0] <== createdVoteWeightUtxo.releaseSlot * create;
+    checkMaxLockTime.in[1] <== actualMaxLockSlot * create;
+    checkMaxLockTime.out === 1 * create;
+
+    createdVoteWeightUtxo.check();
+
+    // a utxo can be claimed if the current slot is greater than the release slot
+    signal input claim;
+    
+    utxo claimVoteWeightInUtxo;
+    claimVoteWeightInUtxo.check();
+    // check that current slot is expired
+    component checkPublicSlot = LessThan(64);
+    checkPublicSlot.in[0] <== publicCurrentSlot * claim;
+    checkPublicSlot.in[1] <== claimVoteWeightInUtxo.releaseSlot * claim;
+    checkPublicSlot.out === 1 * claim;
+
+    // // check that diff is a 64bit value to prevent an overflow during additon
+    // component rangeCheckDiff = Num2Bits(64);
+    // rangeCheckDiff.in <== diff;
+    // // check that currentSlotPrivate is a 64bit value to prevent an overflow during additon
+    // component rangeCheckSlotPrivate = Num2Bits(64);
+    // rangeCheckSlotPrivate.in <== currentSlotPrivate;
+
+    // // check that publicCurrentSlot is the sum of currentSlotPrivate + diff
+    // // there is no need for a range check of publicCurrentSlot since it is checked
+    // // onchain in the solana program to be <= the actual current slot during execution
+    // currentSlotPrivate + diff === publicCurrentSlot;
+
+    // // calculate remaining amount of the payment stream
+    // (claimVoteWeightInUtxo.releaseSlot - currentSlotPrivate) * claimVoteWeightInUtxo.rate === remainingAmount;
+
+    // // check that claimVoteWeightInUtxo.releaseSlot - currentSlotPrivate >= 0
+    // component greaterThanZero = GreaterEqThan(64);
+    // greaterThanZero.in[0] <== claimVoteWeightInUtxo.releaseSlot - currentSlotPrivate;
+    // greaterThanZero.in[1] <== 0;
+    // greaterThanZero.out === 1;
+
+    // // check that one out utxo conforms to the requirements of the correct
+    // // it is the same as the input utxo except the amount
+    // // - standardProgramUtxoPubkey
+    // // - remainingAmount as sol amount in index 0
+    // // - instructionHasher.out
+    // utxo claimVoteWeightOutUtxo;
+    // claimVoteWeightOutUtxo.check();
+}

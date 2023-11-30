@@ -2,7 +2,7 @@
   "scripts": {
     "lint:fix": "yarn prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "yarn prettier */*.js \"*/**/*{.js,.ts}\" --check",
-    "test": "light {{type-prefix}}:test {{project-name}} {{program-id}}",
+    "test": "light {{type-prefix}}:test {{project-name}}",
     "build": "light {{type-prefix}}:build"
   },
   "dependencies": {

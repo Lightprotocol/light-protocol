@@ -174,6 +174,7 @@ describe("Test {{project-name}}", () => {
       pspProof,
       transaction: txParams,
       pspTransactionInput,
+      prefix: "light",
     };
 
     const {txHash} = await sendAndConfirmShieldedTransaction({
