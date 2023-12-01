@@ -23,6 +23,7 @@ import {
   Connection,
 } from "@solana/web3.js";
 import { buildEddsa, buildPoseidonOpt } from "circomlibjs";
+import {WasmHash} from "@lightprotocol/account.rs";
 
 export class Multisig {
   client: MultiSigClient;
@@ -40,6 +41,7 @@ export class Multisig {
     const provider = anchor.AnchorProvider.local(RPC_URL, confirmConfig);
     anchor.setProvider(provider);
     const poseidon = await buildPoseidonOpt();
+    const hasher = (await WasmHash.loadModule()).create();
     let eddsa = await buildEddsa();
 
     const wallet = Keypair.generate();
@@ -68,7 +70,7 @@ export class Multisig {
     const user: User = await User.init({ provider: lightProvider });
 
     const keypair = new Account({
-      poseidon,
+      hasher,
       seed: new Uint8Array(32).fill(1).toString(),
       eddsa,
     });
@@ -79,6 +81,7 @@ export class Multisig {
       2,
       user.account,
       signers,
+      hasher,
       poseidon,
       eddsa,
       lightProvider,

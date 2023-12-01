@@ -5,7 +5,6 @@ packages:
   - "circuit-lib/**"
   - "zk.js/**"
   - "account.rs/**"
-  - "zk-rs/pkg/**"
   - "cli/**"
   - "relayer/**"
   - "psp-examples/**"

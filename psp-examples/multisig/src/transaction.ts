@@ -126,7 +126,7 @@ export class QueuedTransaction {
     });
 
     const connectingHash = this.transactionParams.getTransactionHash(
-      provider.poseidon,
+      provider.hasher,
     );
 
     console.log(`-------------- Shielded Transaction Hash --------------\n`);

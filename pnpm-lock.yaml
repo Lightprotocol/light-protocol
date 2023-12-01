@@ -486,6 +486,9 @@ importers:
       '@coral-xyz/anchor':
         specifier: 0.28.0
         version: 0.28.0
+      '@lightprotocol/account.rs':
+        specifier: workspace:*
+        version: link:../../account.rs
       '@lightprotocol/zk.js':
         specifier: workspace:*
         version: link:../../zk.js
