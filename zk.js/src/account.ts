@@ -16,7 +16,7 @@ import {
   UtxoErrorCode,
   Wallet,
 } from "./index";
-import { AccountHash, IHash } from "@lightprotocol/account.rs";
+import { IHash } from "@lightprotocol/account.rs";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
