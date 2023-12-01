@@ -17,74 +17,82 @@ generate_temp_package_json() {
         shift 2
     done
     echo "$json" > $dir/temp.package.json
-    echo "Generated temp.package.json for $dir:"
-    cat $dir/temp.package.json
 }
 
+top_dir=`git rev-parse --show-toplevel`
 
-cd ./circuit-lib/circuit-lib.js && pnpm pack
-circuit_lib_tgz=$(ls *.tgz)
-cd ../../prover.js && pnpm pack
-prover_tgz=$(ls *.tgz)
-cd ..
+(cd $top_dir/account.rs && pnpm pack)
+account_rs_tgz=$(ls $top_dir/account.rs/*.tgz)
+
+#(cd $top_dir/circuit-lib/circuit-lib.js && pnpm pack)
+#circuit_lib_tgz=$(ls $top_dir/circuit-lib/circuit-lib.js/*.tgz)
+
+(cd $top_dir/prover.js && pnpm pack)
+prover_tgz=$(ls $top_dir/prover.js/*.tgz)
 
 cleanup() {
     echo "Deleting .tgz files..."
-    rm -f $(dirname $0)/../zk.js/$zkjs_tgz
-    rm -f $(dirname $0)/../circuit-lib/circuit-lib.js/$circuit_lib_tgz
-    rm -f $(dirname $0)/../prover.js/$prover_tgz
+    rm -f $top_dir/zk.js/*.tgz
+    rm -f $top_dir/circuit-lib/circuit-lib.js/*.tgz
+    rm -f $top_dir/prover.js/*.tgz
+    rm -f $top_dir/account.rs/*.tgz
+
     echo "Restoring original package.json files..."
 
-    if [ -f $(dirname $0)/../zk.js/package.json.bak ]; then
-        rm -f $(dirname $0)/../zk.js/package.json
-        mv -f $(dirname $0)/../zk.js/package.json.bak $(dirname $0)/../zk.js/package.json
+    if [ -f $top_dir/zk.js/package.json.bak ]; then
+      mv -f $top_dir/zk.js/package.json.bak $top_dir/zk.js/package.json
     fi
 
-    if [ -f $(dirname $0)/../relayer/package.json.bak ]; then
-        rm -f $(dirname $0)/../relayer/package.json
-        mv -f $(dirname $0)/../relayer/package.json.bak $(dirname $0)/../relayer/package.json
+    if [ -f $top_dir/relayer/package.json.bak ]; then
+      mv -f $top_dir/relayer/package.json.bak $top_dir/relayer/package.json
+    fi
+
+    if [ -f $top_dir/account.rs/package.json.bak ]; then
+      mv -f $top_dir/account.rs/package.json.bak $top_dir/account.rs/package.json
+    fi
+
+    if [ -f $top_dir/circuit-lib/circuit-lib.js/package.json.bak ]; then
+      mv -f $top_dir/circuit-lib/circuit-lib.js/package.json.bak $top_dir/circuit-lib/circuit-lib.js/package.json
     fi
 
     echo "Deleting node_modules, cached files, and lock files..."
 
-    rm -rf $(dirname $0)/../zk.js/node_modules
-    rm -rf $(dirname $0)/../relayer/node_modules
-    rm -f $(dirname $0)/../pnpm-lock.yaml
+    rm -rf $top_dir/zk.js/node_modules
+    rm -rf $top_dir/relayer/node_modules
+    rm -rf $top_dir/account.rs/node_modules
+    rm -rf $top_dir/circuit-lib/circuit-lib.js/node_modules
+    rm -f $top_dir/pnpm-lock.yaml
 
     echo "Deleting NPM artifacts..."
-    rm -rf $(dirname $0)/../zk.js/package-lock.json
-    rm -rf $(dirname $0)/../relayer/package-lock.json
-    rm -f $(dirname $0)/../pnpm-lock.yaml
+    rm -rf $top_dir/zk.js/package-lock.json
+    rm -rf $top_dir/relayer/package-lock.json
+    rm -rf $top_dir/account.rs/package-lock.json
+    rm -rf $top_dir/circuit-lib/circuit-lib.js/package-lock.json
+    rm -rf $top_dir/pnpm-lock.yaml
 }
 
 trap cleanup EXIT
 
+generate_temp_package_json $top_dir/circuit-lib/circuit-lib.js "@lightprotocol/account.rs" "file:$account_rs_tgz"
+mv $top_dir/circuit-lib/circuit-lib.js/package.json $top_dir/circuit-lib/circuit-lib.js/package.json.bak
+mv $top_dir/circuit-lib/circuit-lib.js/temp.package.json $top_dir/circuit-lib/circuit-lib.js/package.json
+(cd $top_dir/circuit-lib/circuit-lib.js && pnpm install --no-frozen-lockfile && pnpm build && pnpm pack)
+circuit_lib_tgz=$(ls $top_dir/circuit-lib/circuit-lib.js/*.tgz)
 
 # alter zk.js package.json to use local .tgz files instead of workspace dependencies
-generate_temp_package_json ./zk.js "@lightprotocol/circuit-lib.js" "file:../circuit-lib/circuit-lib.js/$circuit_lib_tgz" "@lightprotocol/prover.js" "file:../prover.js/$prover_tgz"
-mv ./zk.js/package.json ./zk.js/package.json.bak
-mv ./zk.js/temp.package.json ./zk.js/package.json
-cd ./zk.js
-pnpm install --no-frozen-lockfile
-pnpm build
-cd ..
-
-cd ./zk.js && pnpm pack
-zkjs_tgz=$(ls *.tgz)
-cd ..
+generate_temp_package_json $top_dir/zk.js "@lightprotocol/circuit-lib.js" "file:$circuit_lib_tgz" "@lightprotocol/prover.js" "file:$prover_tgz" "@lightprotocol/account.rs" "file:$account_rs_tgz"
+mv $top_dir/zk.js/package.json $top_dir/zk.js/package.json.bak
+mv $top_dir/zk.js/temp.package.json $top_dir/zk.js/package.json
+(cd $top_dir/zk.js && pnpm install --no-frozen-lockfile && pnpm build && pnpm pack)
+zkjs_tgz=$(ls $top_dir/zk.js/*.tgz)
 
 # build relayer with altered zk.js
-generate_temp_package_json ./relayer "@lightprotocol/zk.js" "file:../zk.js/$zkjs_tgz"  "@lightprotocol/circuit-lib.js" "file:../circuit-lib/circuit-lib.js/$circuit_lib_tgz"
+generate_temp_package_json $top_dir/relayer "@lightprotocol/zk.js" "file:$zkjs_tgz"  "@lightprotocol/circuit-lib.js" "file:$circuit_lib_tgz" "@lightprotocol/account.rs" "file:$account_rs_tgz"
 
-mv ./relayer/package.json ./relayer/package.json.bak
-mv ./relayer/temp.package.json ./relayer/package.json
+mv $top_dir/relayer/package.json $top_dir/relayer/package.json.bak
+mv $top_dir/relayer/temp.package.json $top_dir/relayer/package.json
 
-cd ./relayer
-# remove node_modules to ensure we're using the local zk.js
-rm -rf node_modules
-npm install
-cd ..
-
+cd $top_dir/relayer && rm -rf node_modules && npm install
 
 # build docker image
 docker buildx create --name mybuilder
