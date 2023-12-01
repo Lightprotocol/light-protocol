@@ -12,7 +12,7 @@ import {
   TOKEN_REGISTRY,
   BN_0,
 } from "../index";
-import {IHash} from "@lightprotocol/account.rs";
+import { IHash } from "@lightprotocol/account.rs";
 // TODO: turn these into static user.class methods
 export const getAmount = (u: Utxo, asset: PublicKey) => {
   return u.amounts[u.assets.indexOf(asset)];

@@ -29,7 +29,7 @@ import { IDL, Multisig as MultisigProgram } from "./types/multisig";
 
 import { verifierProgramId, MAX_SIGNERS } from "./constants";
 import { QueuedTransaction, Approval } from "./transaction";
-import {IHash} from "@lightprotocol/account.rs";
+import { IHash } from "@lightprotocol/account.rs";
 
 /**
  * Data:
@@ -54,7 +54,7 @@ export class MultiSigClient {
     multiSigParams,
     signer,
     hasher,
-      poseidon,
+    poseidon,
     queuedTransactions,
     eddsa,
     provider,

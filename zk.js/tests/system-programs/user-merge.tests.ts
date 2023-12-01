@@ -15,7 +15,7 @@ import {
   RELAYER_FEE,
   airdropSol,
 } from "../../src";
-import {WasmHash, IHash} from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import {
   performShielding,
   EnvironmentConfig,

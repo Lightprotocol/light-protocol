@@ -45,7 +45,7 @@ import {
   BN_2,
   closeMerkleTreeUpdateState,
 } from "../../src";
-import {WasmHash, IHash} from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Address } from "@coral-xyz/anchor";

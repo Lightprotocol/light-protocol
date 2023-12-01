@@ -26,7 +26,7 @@ import {
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
   BN_1,
 } from "../src";
-import {WasmHash, IHash } from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 import { STANDARD_SHIELDED_PUBLIC_KEY } from "../src";
@@ -322,7 +322,8 @@ describe("Transaction Functional Tests", () => {
       message: Buffer.alloc(928).fill(1),
       inputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
-      transactionMerkleTreePubkey: mockPubkey2, hasher,
+      transactionMerkleTreePubkey: mockPubkey2,
+      hasher,
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
@@ -407,7 +408,7 @@ describe("Transaction Functional Tests", () => {
     });
 
     const txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(
-        hasher,
+      hasher,
     );
 
     assert.equal(

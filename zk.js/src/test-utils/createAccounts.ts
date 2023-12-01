@@ -341,7 +341,6 @@ export async function createTestAccounts(
     /* empty */
   }
 
-
   const HASHER = (await WasmHash.loadModule()).create();
   const KEYPAIR = new Account({
     hasher: HASHER,

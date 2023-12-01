@@ -29,7 +29,7 @@ import {
   DEFAULT_ZERO,
   TestRelayer,
 } from "../../src";
-import {WasmHash, IHash} from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
 
 let HASHER: IHash, KEYPAIR: Account;

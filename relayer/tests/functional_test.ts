@@ -35,7 +35,7 @@ import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RELAYER_URL } from "../src/config";
-import {WasmHash, IHash } from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
@@ -146,10 +146,7 @@ describe("API tests", () => {
         assert.equal(merkleTree.root().toString(), previousMerkleRoot);
         assert.equal(merkleTree._layers[0].length, 0);
         assert.equal(merkleTree.zeroElement, DEFAULT_ZERO);
-        assert.equal(
-          merkleTree.indexOf(shieldUtxo1.getCommitment(hasher)),
-          -1,
-        );
+        assert.equal(merkleTree.indexOf(shieldUtxo1.getCommitment(hasher)), -1);
 
         done();
       });

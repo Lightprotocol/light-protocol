@@ -1,7 +1,7 @@
 import { it } from "mocha";
 import { Prover } from "../src";
 import { IDL } from "./circuits/idl";
-import {WasmHash } from "@lightprotocol/account.rs";
+import { WasmHash } from "@lightprotocol/account.rs";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);

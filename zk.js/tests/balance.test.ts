@@ -22,7 +22,7 @@ import {
   BN_0,
   UTXO_PREFIX_LENGTH,
 } from "../src";
-import {WasmHash, IHash} from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";

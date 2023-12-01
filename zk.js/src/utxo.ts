@@ -356,7 +356,11 @@ export class Utxo {
           "appData length exceeds 16",
         );
       }
-      this.appDataHash = new BN(hasher.poseidonHash(hashArray), undefined, "be");
+      this.appDataHash = new BN(
+        hasher.poseidonHash(hashArray),
+        undefined,
+        "be",
+      );
 
       if (appDataHash && appDataHash.toString() !== this.appDataHash.toString())
         throw new UtxoError(
@@ -646,7 +650,7 @@ export class Utxo {
         bytes_message,
         merkleTreePdaPublicKey,
         commitment,
-          hasher
+        hasher,
       );
 
       // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
@@ -684,17 +688,17 @@ export class Utxo {
     account,
     commitment,
     prefixBytes,
-      hasher
+    hasher,
   }: {
     account: Account;
     commitment: Uint8Array;
     prefixBytes: Uint8Array;
-    hasher: IHash
+    hasher: IHash;
   }): boolean {
     const generatedPrefixHash = account.generateUtxoPrefixHash(
       commitment,
       UTXO_PREFIX_LENGTH,
-        hasher
+      hasher,
     );
     return (
       generatedPrefixHash.length === prefixBytes.length &&
@@ -760,7 +764,7 @@ export class Utxo {
           encBytes,
           merkleTreePdaPublicKey,
           commitment,
-            hasher
+          hasher,
         )
       : await account.decryptNaclUtxo(encBytes, commitment);
 
@@ -818,7 +822,10 @@ export class Utxo {
 
     // If AES is enabled and the prefix of the commitment matches the account and prefixBytes,
     // try to decrypt the UTXO
-    if (aes && this.checkPrefixHash({ account, commitment, prefixBytes, hasher })) {
+    if (
+      aes &&
+      this.checkPrefixHash({ account, commitment, prefixBytes, hasher })
+    ) {
       const utxoResult = await Utxo.decryptUnchecked({
         hasher,
         encBytes,

@@ -37,7 +37,7 @@ import {
   useWallet,
   Utxo,
 } from "../../src";
-import { IHash, WasmHash} from "@lightprotocol/account.rs";
+import { IHash, WasmHash } from "@lightprotocol/account.rs";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 const token = require("@solana/spl-token");

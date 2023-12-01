@@ -86,7 +86,7 @@ describe("Test createOutUtxos Functional", () => {
 
     recipientAccount = Account.fromPubkey(
       recipientAccountRoot.getPublicKey(),
-        hasher,
+      hasher,
     );
   });
 
@@ -607,11 +607,7 @@ describe("validateUtxoAmounts", () => {
     ];
   });
   // Helper function to create a UTXO with specific amounts and assets
-  function createUtxo(
-    hasher: IHash,
-    amounts: BN[],
-    assets: PublicKey[],
-  ): Utxo {
+  function createUtxo(hasher: IHash, amounts: BN[], assets: PublicKey[]): Utxo {
     return new Utxo({
       hasher,
       amounts,

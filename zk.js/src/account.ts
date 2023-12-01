@@ -21,7 +21,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
 import { Prover } from "@lightprotocol/prover.js";
-import {has} from "typescript-collections/dist/lib/util";
+import { has } from "typescript-collections/dist/lib/util";
 
 const nacl = require("tweetnacl");
 
@@ -114,9 +114,20 @@ export class Account {
       this.privkey = Account.generateShieldedPrivateKey(seed, hasher);
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed, hasher);
       this.pubkey = Account.generateShieldedPublicKey(this.privkey, hasher);
-      this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(this.burnerSeed.toString(), hasher);
-      this.aesSecret = Account.generateSecret(hasher, this.burnerSeed.toString(), "aes");
-      this.hashingSecret = Account.generateSecret(hasher, this.burnerSeed.toString(), "hashing");
+      this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(
+        this.burnerSeed.toString(),
+        hasher,
+      );
+      this.aesSecret = Account.generateSecret(
+        hasher,
+        this.burnerSeed.toString(),
+        "aes",
+      );
+      this.hashingSecret = Account.generateSecret(
+        hasher,
+        this.burnerSeed.toString(),
+        "hashing",
+      );
     } else if (privateKey) {
       if (!encryptionPrivateKey) {
         throw new AccountError(
@@ -253,7 +264,7 @@ export class Account {
 
   sign(hasher: IHash, commitment: string, merklePath: number): BN {
     return new BN(
-        hasher.poseidonHash([
+      hasher.poseidonHash([
         this.privkey.toString(),
         commitment.toString(),
         merklePath.toString(),
@@ -264,16 +275,24 @@ export class Account {
   getAesUtxoViewingKey(
     merkleTreePdaPublicKey: PublicKey,
     salt: string,
-    hasher: IHash
+    hasher: IHash,
   ): Uint8Array {
-    return Account.generateSecret(hasher, this.aesSecret?.toString(), merkleTreePdaPublicKey.toBase58() + salt);
+    return Account.generateSecret(
+      hasher,
+      this.aesSecret?.toString(),
+      merkleTreePdaPublicKey.toBase58() + salt,
+    );
   }
 
   getUtxoPrefixViewingKey(salt: string, hasher: IHash): Uint8Array {
     return Account.generateSecret(hasher, this.hashingSecret?.toString(), salt);
   }
 
-  generateUtxoPrefixHash(commitmentHash: Uint8Array, prefixLength: number, hasher: IHash) {
+  generateUtxoPrefixHash(
+    commitmentHash: Uint8Array,
+    prefixLength: number,
+    hasher: IHash,
+  ) {
     const input = Uint8Array.from([
       ...this.getUtxoPrefixViewingKey("hashing", hasher),
       ...commitmentHash,
@@ -386,7 +405,10 @@ export class Account {
 
   static generateShieldedPrivateKey(seed: string, hasher: IHash): BN {
     const privateKeySeed = seed + "shielded";
-    const blakeHash: Uint8Array = hasher.blakeHash(privateKeySeed, Account.hashLength);
+    const blakeHash: Uint8Array = hasher.blakeHash(
+      privateKeySeed,
+      Account.hashLength,
+    );
 
     // TODO(sergey): unify next 2 lines by setting blake hash length to 31 bytes
     // example: const blakeHash: Uint8Array = blake(privateKeySeed,31);
@@ -395,7 +417,11 @@ export class Account {
     return hasher.poseidonHashBN([blakeHashBN.toString()]);
   }
 
-  static generateSecret(hasher: IHash, seed?: string, domain?: string): Uint8Array {
+  static generateSecret(
+    hasher: IHash,
+    seed?: string,
+    domain?: string,
+  ): Uint8Array {
     const input: string = `${seed}${domain}`;
     return hasher.blakeHash(input, Account.hashLength);
   }
@@ -415,13 +441,17 @@ export class Account {
     messageBytes: Uint8Array,
     merkleTreePdaPublicKey: PublicKey,
     commitment: Uint8Array,
-    hasher: IHash
+    hasher: IHash,
   ): Promise<Uint8Array> {
     setEnvironment();
     const iv16 = commitment.subarray(0, 16);
     return this._encryptAes(
       messageBytes,
-      this.getAesUtxoViewingKey(merkleTreePdaPublicKey, bs58.encode(commitment), hasher),
+      this.getAesUtxoViewingKey(
+        merkleTreePdaPublicKey,
+        bs58.encode(commitment),
+        hasher,
+      ),
       iv16,
     );
   }
@@ -480,7 +510,7 @@ export class Account {
     encryptedBytes: Uint8Array,
     merkleTreePdaPublicKey: PublicKey,
     commitment: Uint8Array,
-    hasher: IHash
+    hasher: IHash,
   ) {
     // Check if account secret key is available for decrypting using AES
     if (!this.aesSecret) {
@@ -493,7 +523,11 @@ export class Account {
     const iv16 = commitment.slice(0, 16);
     return this._decryptAes(
       encryptedBytes,
-      this.getAesUtxoViewingKey(merkleTreePdaPublicKey, bs58.encode(commitment), hasher),
+      this.getAesUtxoViewingKey(
+        merkleTreePdaPublicKey,
+        bs58.encode(commitment),
+        hasher,
+      ),
       iv16,
     );
   }
@@ -740,11 +774,7 @@ export class Account {
     return { parsedProof, parsedPublicInputsObject };
   }
 
-  static createFromSeed(
-    hasher: IHash,
-    seed: string,
-    eddsa?: any,
-  ): Account {
+  static createFromSeed(hasher: IHash, seed: string, eddsa?: any): Account {
     return new Account({ hasher, seed, eddsa });
   }
 

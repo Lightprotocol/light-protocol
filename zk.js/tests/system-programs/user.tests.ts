@@ -30,7 +30,7 @@ import {
   RELAYER_FEE,
   BN_1,
 } from "../../src";
-import {WasmHash, IHash} from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { expect } from "chai";
 

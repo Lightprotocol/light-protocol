@@ -24,7 +24,7 @@ import {
   BN_0,
   BN_1,
 } from "../src";
-import {WasmHash, IHash } from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import { IDL } from "./testData/tmp_test_psp";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";

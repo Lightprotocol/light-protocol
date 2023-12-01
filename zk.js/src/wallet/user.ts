@@ -1642,11 +1642,7 @@ export class User {
       }
       this.balance.programBalances
         .get(verifierAddress)!
-        .addUtxo(
-          utxo.getCommitment(this.provider.hasher),
-          utxo,
-          "spentUtxos",
-        );
+        .addUtxo(utxo.getCommitment(this.provider.hasher), utxo, "spentUtxos");
     }
     for (const [, programBalance] of this.balance.programBalances) {
       for (const [, tokenBalance] of programBalance.tokenBalances) {

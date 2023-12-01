@@ -10,7 +10,7 @@ import {
   IDL_LIGHT_PSP2IN2OUT,
   lightPsp2in2outId,
 } from "../index";
-import {WasmHash } from "@lightprotocol/account.rs";
+import { WasmHash } from "@lightprotocol/account.rs";
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";

@@ -8,7 +8,7 @@ import {
   TOKEN_ACCOUNT_FEE,
   useWallet,
 } from "@lightprotocol/zk.js";
-import {WasmHash, IHash } from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import {
   EnvironmentVariableError,
   EnvironmentVariableErrorCode,

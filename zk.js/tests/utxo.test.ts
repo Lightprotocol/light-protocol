@@ -25,7 +25,7 @@ import {
   lightPsp4in4outAppStorageId,
   CreateUtxoErrorCode,
 } from "../src";
-import {WasmHash, IHash } from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { randomBytes } from "tweetnacl";
 

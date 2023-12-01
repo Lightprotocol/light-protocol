@@ -37,7 +37,7 @@ import {
   BN_0,
   airdropSplToAssociatedTokenAccount,
 } from "../../src";
-import {WasmHash, IHash} from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 

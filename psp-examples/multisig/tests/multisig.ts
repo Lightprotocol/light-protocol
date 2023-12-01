@@ -15,7 +15,7 @@ import { Keypair } from "@solana/web3.js";
 import { IDL } from "../target/types/multisig";
 import { buildEddsa, buildPoseidonOpt } from "circomlibjs";
 import { MultiSigClient, printUtxo } from "../src";
-import { WasmHash, IHash } from "@lightprotocol/account.rs";;
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 
 // let circomlibjs = require("circomlibjs");
 // const path = require("path");
@@ -77,7 +77,7 @@ describe("Test multisig", () => {
       2,
       user.account,
       signers,
-        hasher,
+      hasher,
       poseidon,
       eddsa,
       lightProvider,

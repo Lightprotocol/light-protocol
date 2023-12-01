@@ -24,7 +24,7 @@ import {
   sendAndConfirmShieldedTransaction,
   getVerifierStatePda,
 } from "@lightprotocol/zk.js";
-import {IHash, WasmHash} from "@lightprotocol/account.rs";
+import { IHash, WasmHash } from "@lightprotocol/account.rs";
 import {
   Keypair as SolanaKeypair,
   Keypair,
@@ -273,7 +273,7 @@ describe("Streaming Payments tests", () => {
 
     let client: PaymentStreamClient = new PaymentStreamClient(
       IDL,
-        HASHER,
+      HASHER,
       circuitPath,
       lightProvider,
     );
@@ -298,9 +298,7 @@ describe("Streaming Payments tests", () => {
       action: testInputsSol1.action,
     });
     await lightUser.syncStorage(IDL);
-    const commitment = testInputsSol1.utxo.getCommitment(
-      testInputsSol1.hasher,
-    );
+    const commitment = testInputsSol1.utxo.getCommitment(testInputsSol1.hasher);
 
     const utxo = (await lightUser.getUtxo(commitment))!;
     assert.equal(utxo.status, "ready");

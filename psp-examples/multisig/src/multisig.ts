@@ -23,7 +23,7 @@ import {
   Connection,
 } from "@solana/web3.js";
 import { buildEddsa, buildPoseidonOpt } from "circomlibjs";
-import {WasmHash} from "@lightprotocol/account.rs";
+import { WasmHash } from "@lightprotocol/account.rs";
 
 export class Multisig {
   client: MultiSigClient;

@@ -10,7 +10,7 @@ import {
   useWallet,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import {IHash, WasmHash} from "@lightprotocol/account.rs";
+import { IHash, WasmHash } from "@lightprotocol/account.rs";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -96,19 +96,28 @@ describe("Test Account Functional", () => {
     let x = new Array(30).fill(1);
     let y = new Array(30).fill(2);
 
-    const hash = hasher.poseidonHash([new BN(x).toString(), new BN(y).toString()]);
+    const hash = hasher.poseidonHash([
+      new BN(x).toString(),
+      new BN(y).toString(),
+    ]);
     x = new Array(29).fill(1);
     y = new Array(31).fill(2);
     y[30] = 1;
 
-    const hash1 = hasher.poseidonHash([new BN(x).toString(), new BN(y).toString()]);
+    const hash1 = hasher.poseidonHash([
+      new BN(x).toString(),
+      new BN(y).toString(),
+    ]);
     assert.notEqual(hash, hash1);
   });
 
   it("Test Poseidon Eddsa Keypair", async () => {
     const k0 = new Account({ hasher, seed: seed32(), eddsa });
 
-    const prvKey = hasher.blakeHash(seed32() + "poseidonEddsaKeypair", Account.hashLength);
+    const prvKey = hasher.blakeHash(
+      seed32() + "poseidonEddsaKeypair",
+      Account.hashLength,
+    );
     const pubKey = eddsa.prv2pub(prvKey);
     await k0.getEddsaPublicKey();
     if (k0.poseidonEddsaKeypair && k0.poseidonEddsaKeypair.publicKey) {
@@ -235,7 +244,8 @@ describe("Test Account Functional", () => {
   it("createFromBrowserWallet Functional", async () => {
     const wallet = useWallet(ADMIN_AUTH_KEYPAIR);
 
-    const solanaWalletAccount = await Account.createFromBrowserWallet(hasher,
+    const solanaWalletAccount = await Account.createFromBrowserWallet(
+      hasher,
       wallet,
       eddsa,
     );
@@ -295,7 +305,7 @@ describe("Test Account Functional", () => {
     if (!k0.aesSecret) throw new Error("Aes key is undefined");
     const { privateKey, aesSecret, encryptionPrivateKey } = k0.getPrivateKeys();
     const k0Privkey = Account.fromPrivkey(
-        hasher,
+      hasher,
       privateKey,
       encryptionPrivateKey,
       aesSecret,
@@ -365,7 +375,7 @@ describe("Test Account Functional", () => {
     const currentOutput = k0.generateUtxoPrefixHash(
       commitmentHash,
       prefixLength,
-        hasher
+      hasher,
     );
     return expect(currentOutput).to.eql(expectedOutput);
   });
@@ -377,7 +387,7 @@ describe("Test Account Functional", () => {
     const currentOutput = k0.generateUtxoPrefixHash(
       commitmentHash,
       prefix_length,
-        hasher
+      hasher,
     );
     return expect(currentOutput).to.not.eql(incorrectExpectedOutput);
   });
@@ -416,7 +426,7 @@ describe("Test Account Errors", () => {
     expect(() => {
       // @ts-ignore
       Account.fromPrivkey(
-          hasher,
+        hasher,
         bs58.encode(k0.privkey.toArrayLike(Buffer, "be", 32)),
       );
     })

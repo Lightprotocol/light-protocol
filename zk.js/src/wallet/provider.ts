@@ -34,7 +34,7 @@ import {
   TransactionErrorCode,
   useWallet,
 } from "../index";
-import {WasmHash, IHash} from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 const axios = require("axios");
 
 /**
@@ -422,7 +422,7 @@ export class Provider {
         "Initializing lookup table in node.js or fetching it from relayer in browser failed",
       );
 
-    const hasher= (await WasmHash.loadModule()).create();
+    const hasher = (await WasmHash.loadModule()).create();
     return new Provider({
       wallet,
       confirmConfig,
@@ -433,7 +433,7 @@ export class Provider {
       verifierProgramLookupTable,
       versionedTransactionLookupTable,
       anchorProvider,
-        hasher,
+      hasher,
     });
   }
 

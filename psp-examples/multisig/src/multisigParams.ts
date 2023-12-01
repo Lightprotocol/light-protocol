@@ -28,7 +28,7 @@ export class MultisigParams {
   priorMultiSigSeed: Uint8Array;
 
   constructor({
-                hasher,
+    hasher,
     threshold,
     nrSigners,
     publicKeyX,
@@ -73,7 +73,7 @@ export class MultisigParams {
   }
 
   static async createNewMultiSig({
-                                   hasher,
+    hasher,
     signers,
     threshold,
     randomSeed = nacl.randomBytes(32),

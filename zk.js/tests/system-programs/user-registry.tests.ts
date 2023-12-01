@@ -15,7 +15,7 @@ import {
   TestRelayer,
   RELAYER_FEE,
 } from "../../src";
-import {WasmHash, IHash} from "@lightprotocol/account.rs";
+import { WasmHash, IHash } from "@lightprotocol/account.rs";
 import {
   Keypair as SolanaKeypair,
   PublicKey,

@@ -236,8 +236,7 @@ export class Transaction {
     };
 
     if (this.appParams) {
-      this.proofInput.transactionHash =
-        this.params.getTransactionHash(hasher);
+      this.proofInput.transactionHash = this.params.getTransactionHash(hasher);
 
       this.proofInput.publicAppVerifier = hashAndTruncateToCircuit(
         TransactionParameters.getVerifierProgramId(
