@@ -776,8 +776,7 @@ describe("Test swaps", () => {
     const balance = await sellerUser.getBalance();
     // check that the utxos are part of the users balance now
     assert(
-      sellerUser.getUtxo(cancelOutputUtxo.getCommitment(HASHER)) !==
-        undefined,
+      sellerUser.getUtxo(cancelOutputUtxo.getCommitment(HASHER)) !== undefined,
     );
     assert.equal(
       balance.totalSolBalance.toNumber(),
