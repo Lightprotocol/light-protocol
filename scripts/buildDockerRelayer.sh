@@ -92,10 +92,8 @@ generate_temp_package_json $top_dir/relayer "@lightprotocol/zk.js" "file:$zkjs_t
 mv $top_dir/relayer/package.json $top_dir/relayer/package.json.bak
 mv $top_dir/relayer/temp.package.json $top_dir/relayer/package.json
 
-cd $top_dir/relayer && rm -rf node_modules && npm install
+(cd $top_dir/relayer && rm -rf node_modules && npm install)
 
-# build docker image
-docker buildx create --name mybuilder
 docker buildx use mybuilder
 docker run --privileged --rm tonistiigi/binfmt --install all
 docker buildx build --platform linux/amd64 -t relayer-app:latest . --load
