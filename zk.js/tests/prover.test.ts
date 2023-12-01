@@ -22,7 +22,7 @@ import {
   Account,
   IDL_LIGHT_PSP2IN2OUT,
 } from "../../zk.js/src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash} from "@lightprotocol/account.rs";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -39,15 +39,15 @@ describe("Prover Functionality Tests", () => {
   let paramsShield: TransactionParameters;
   let shieldUtxo: Utxo;
   let account: Account;
-  let poseidon: Poseidon;
+  let hasher: IHash;
 
   before(async () => {
-    poseidon = await Poseidon.getInstance();
+    hasher = (await WasmHash.loadModule()).create();
     lightProvider = await LightProvider.loadMock();
-    account = new Account({ poseidon });
+    account = new Account({ hasher });
 
     shieldUtxo = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -59,7 +59,7 @@ describe("Prover Functionality Tests", () => {
       outputUtxos: [shieldUtxo],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
-      poseidon,
+      hasher,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
@@ -67,13 +67,13 @@ describe("Prover Functionality Tests", () => {
       account,
     });
 
-    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
-      shieldUtxo.getCommitment(poseidon),
+    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, hasher, [
+      shieldUtxo.getCommitment(hasher),
     ]);
 
     assert.equal(
       lightProvider.solMerkleTree?.merkleTree.indexOf(
-        shieldUtxo.getCommitment(poseidon),
+        shieldUtxo.getCommitment(hasher),
       ),
       0,
     );
@@ -91,7 +91,7 @@ describe("Prover Functionality Tests", () => {
       params: paramsShield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
 
     const genericProver = new Prover(tx.params.verifierIdl, tx.firstPath);
     tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
@@ -130,7 +130,7 @@ describe("Prover Functionality Tests", () => {
       params: paramsShield,
     });
 
-    await tx.compile(lightProvider.poseidon, account);
+    await tx.compile(lightProvider.hasher, account);
 
     const prover1 = new Prover(tx.params.verifierIdl, tx.firstPath);
     tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);

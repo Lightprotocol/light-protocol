@@ -19,7 +19,7 @@ import {
   UserErrorCode,
   BN_0,
 } from "../index";
-import { Poseidon } from "@lightprotocol/account.rs";
+import { IHash } from "@lightprotocol/account.rs";
 // mint | programAddress for programUtxos
 export type Balance = {
   tokenBalances: Map<string, TokenUtxoBalance>;
@@ -176,7 +176,7 @@ export async function decryptAddUtxoToBalance({
   encBytes,
   index,
   commitment,
-  poseidon,
+  hasher,
   connection,
   balance,
   merkleTreePdaPublicKey,
@@ -189,7 +189,7 @@ export async function decryptAddUtxoToBalance({
   commitment: Uint8Array;
   account: Account;
   merkleTreePdaPublicKey: PublicKey;
-  poseidon: Poseidon;
+  hasher: IHash;
   connection: Connection;
   balance: Balance;
   leftLeaf: Uint8Array;
@@ -198,7 +198,7 @@ export async function decryptAddUtxoToBalance({
 }): Promise<void> {
   const decryptedUtxo = aes
     ? await Utxo.decrypt({
-        poseidon,
+        hasher,
         encBytes: encBytes,
         account: account,
         index: index,
@@ -208,7 +208,7 @@ export async function decryptAddUtxoToBalance({
         assetLookupTable,
       })
     : await Utxo.decryptUnchecked({
-        poseidon,
+        hasher,
         encBytes: encBytes,
         account: account,
         index: index,
@@ -221,7 +221,7 @@ export async function decryptAddUtxoToBalance({
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo.value || decryptedUtxo.error) return;
   const utxo = decryptedUtxo.value;
-  const nullifier = utxo.getNullifier({ poseidon, account });
+  const nullifier = utxo.getNullifier({ hasher, account });
   if (!nullifier) return;
 
   const nullifierExists = await fetchNullifierAccountInfo(
@@ -267,6 +267,6 @@ export async function decryptAddUtxoToBalance({
 
     balance.tokenBalances
       .get(assetKey)
-      ?.addUtxo(utxo.getCommitment(poseidon), utxo, utxoType);
+      ?.addUtxo(utxo.getCommitment(hasher), utxo, utxoType);
   }
 }

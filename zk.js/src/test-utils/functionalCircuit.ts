@@ -10,7 +10,7 @@ import {
   IDL_LIGHT_PSP2IN2OUT,
   lightPsp2in2outId,
 } from "../index";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash } from "@lightprotocol/account.rs";
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
@@ -22,13 +22,13 @@ export async function functionalCircuitTest(
 ) {
   const lightProvider = await LightProvider.loadMock();
 
-  const poseidon = await Poseidon.getInstance();
+  const hasher = (await WasmHash.loadModule()).create();
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  const account = new Account({ poseidon: poseidon, seed: seed32 });
+  const account = new Account({ hasher, seed: seed32 });
   const shieldAmount = 20_000;
   const shieldFeeAmount = 10_000;
   const shieldUtxo1 = new Utxo({
-    poseidon: poseidon,
+    hasher: hasher,
     assets: [FEE_ASSET, MINT],
     amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
     publicKey: account.pubkey,
@@ -44,7 +44,7 @@ export async function functionalCircuitTest(
     senderSpl: mockPubkey,
     senderSol: lightProvider.wallet!.publicKey,
     action: Action.SHIELD,
-    poseidon,
+    hasher,
     verifierIdl: verifierIdl,
     account,
   });
@@ -73,7 +73,7 @@ export async function functionalCircuitTest(
       params: txParams,
     });
   }
-  await tx.compile(lightProvider.poseidon, account);
+  await tx.compile(lightProvider.hasher, account);
 
   await tx.getProof(account);
   // unsuccessful proof generation

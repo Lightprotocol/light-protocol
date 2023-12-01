@@ -8,7 +8,7 @@ import {
   TOKEN_ACCOUNT_FEE,
   useWallet,
 } from "@lightprotocol/zk.js";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash } from "@lightprotocol/account.rs";
 import {
   EnvironmentVariableError,
   EnvironmentVariableErrorCode,
@@ -50,7 +50,7 @@ export const getLightProvider = async () => {
 
     try {
       const anchorProvider = await getAnchorProvider();
-      const poseidon: Poseidon = await Poseidon.getInstance();
+      const hasher: IHash = (await WasmHash.loadModule()).create();
 
       provider = new Provider({
         wallet: useWallet(getKeyPairFromEnv("KEY_PAIR")),
@@ -59,7 +59,7 @@ export const getLightProvider = async () => {
         url: process.env.RPC_URL!,
         versionedTransactionLookupTable: RELAYER_LOOK_UP_TABLE,
         anchorProvider,
-        poseidon,
+        hasher,
       });
     } catch (e) {
       if (e.message.includes("LOOK_UP_TABLE_NOT_INITIALIZED")) {

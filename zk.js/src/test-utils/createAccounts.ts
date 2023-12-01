@@ -40,7 +40,7 @@ import {
   confirmTransaction,
   BN_0,
 } from "../index";
-import { Poseidon } from "@lightprotocol/account.rs";
+import { WasmHash } from "@lightprotocol/account.rs";
 import { Program } from "@coral-xyz/anchor";
 
 // TODO: check whether we need all of these functions
@@ -341,14 +341,15 @@ export async function createTestAccounts(
     /* empty */
   }
 
-  const POSEIDON = await Poseidon.getInstance();
+
+  const HASHER = (await WasmHash.loadModule()).create();
   const KEYPAIR = new Account({
-    poseidon: POSEIDON,
+    hasher: HASHER,
     seed: KEYPAIR_PRIVKEY.toString(),
   });
   const RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
   return {
-    POSEIDON,
+    HASHER,
     KEYPAIR,
     RELAYER_RECIPIENT,
   };

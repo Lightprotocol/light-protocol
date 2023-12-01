@@ -10,7 +10,7 @@ import {
   useWallet,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Poseidon, blake } from "@lightprotocol/account.rs";
+import {IHash, WasmHash} from "@lightprotocol/account.rs";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -40,7 +40,7 @@ const keypairReferenceAccount = {
 };
 
 describe("Test Account Functional", () => {
-  let poseidon: Poseidon,
+  let hasher: IHash,
     eddsa: any,
     babyJub,
     F: any,
@@ -49,22 +49,22 @@ describe("Test Account Functional", () => {
     kBurner: Account;
 
   before(async () => {
-    poseidon = await Poseidon.getInstance();
+    hasher = (await WasmHash.loadModule()).create();
     eddsa = await buildEddsa();
     babyJub = await buildBabyjub();
     F = babyJub.F;
-    k0 = new Account({ poseidon, seed: seed32() });
-    k00 = new Account({ poseidon, seed: seed32() });
-    kBurner = Account.createBurner(poseidon, seed32(), new BN("0"));
+    k0 = new Account({ hasher, seed: seed32() });
+    k00 = new Account({ hasher, seed: seed32() });
+    kBurner = Account.createBurner(hasher, seed32(), new BN("0"));
   });
 
   it("Test blake2 Domain separation", () => {
     const seed = bs58.encode([1, 2, 3]);
-    const seedHash = blake(seed, Account.hashLength);
+    const seedHash = hasher.blakeHash(seed, Account.hashLength);
     const encSeed = seedHash + "encryption";
     const privkeySeed = seedHash + "privkey";
-    const privkeyHash = blake(privkeySeed, Account.hashLength);
-    const encHash = blake(encSeed, Account.hashLength);
+    const privkeyHash = hasher.blakeHash(privkeySeed, Account.hashLength);
+    const encHash = hasher.blakeHash(encSeed, Account.hashLength);
 
     assert.notEqual(encHash, seedHash);
     assert.notEqual(privkeyHash, seedHash);
@@ -74,8 +74,8 @@ describe("Test Account Functional", () => {
   it("Test poseidon", async () => {
     let x = new Array(30).fill(1);
     let y = new Array(30).fill(2);
-    const poseidon = await Poseidon.getInstance();
-    const hash = poseidon.hashString([
+    const hasher = (await WasmHash.loadModule()).create();
+    const hash = hasher.poseidonHashString([
       new BN(x).toString(),
       new BN(y).toString(),
     ]);
@@ -84,7 +84,7 @@ describe("Test Account Functional", () => {
     y = new Array(31).fill(2);
     y[30] = 1;
 
-    const hash1 = poseidon.hashString([
+    const hash1 = hasher.poseidonHashString([
       new BN(x).toString(),
       new BN(y).toString(),
     ]);
@@ -92,23 +92,23 @@ describe("Test Account Functional", () => {
   });
 
   it("Test wasm poseidon", async () => {
-    const poseidon = await Poseidon.getInstance();
+    const hasher = (await WasmHash.loadModule()).create();
     let x = new Array(30).fill(1);
     let y = new Array(30).fill(2);
 
-    const hash = poseidon.hash([new BN(x).toString(), new BN(y).toString()]);
+    const hash = hasher.poseidonHash([new BN(x).toString(), new BN(y).toString()]);
     x = new Array(29).fill(1);
     y = new Array(31).fill(2);
     y[30] = 1;
 
-    const hash1 = poseidon.hash([new BN(x).toString(), new BN(y).toString()]);
+    const hash1 = hasher.poseidonHash([new BN(x).toString(), new BN(y).toString()]);
     assert.notEqual(hash, hash1);
   });
 
   it("Test Poseidon Eddsa Keypair", async () => {
-    const k0 = new Account({ poseidon, seed: seed32(), eddsa });
+    const k0 = new Account({ hasher, seed: seed32(), eddsa });
 
-    const prvKey = blake(seed32() + "poseidonEddsaKeypair", Account.hashLength);
+    const prvKey = hasher.blakeHash(seed32() + "poseidonEddsaKeypair", Account.hashLength);
     const pubKey = eddsa.prv2pub(prvKey);
     await k0.getEddsaPublicKey();
     if (k0.poseidonEddsaKeypair && k0.poseidonEddsaKeypair.publicKey) {
@@ -207,17 +207,17 @@ describe("Test Account Functional", () => {
     await compareAccountToReference(k0, referenceAccount);
 
     const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    const k1 = new Account({ poseidon, seed: seedDiff32 });
+    const k1 = new Account({ hasher, seed: seedDiff32 });
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(k0, k1);
 
-    const k2 = Account.createFromSeed(poseidon, seed32());
+    const k2 = Account.createFromSeed(hasher, seed32());
     compareKeypairsEqual(k0, k2);
   });
 
   it("createFromSolanaKeypair Functional", async () => {
     const solanaKeypairAccount = Account.createFromSolanaKeypair(
-      poseidon,
+      hasher,
       ADMIN_AUTH_KEYPAIR,
       eddsa,
     );
@@ -227,7 +227,7 @@ describe("Test Account Functional", () => {
     );
 
     const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    const k1 = new Account({ poseidon, seed: seedDiff32 });
+    const k1 = new Account({ hasher, seed: seedDiff32 });
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(solanaKeypairAccount, k1);
   });
@@ -235,8 +235,7 @@ describe("Test Account Functional", () => {
   it("createFromBrowserWallet Functional", async () => {
     const wallet = useWallet(ADMIN_AUTH_KEYPAIR);
 
-    const solanaWalletAccount = await Account.createFromBrowserWallet(
-      poseidon,
+    const solanaWalletAccount = await Account.createFromBrowserWallet(hasher,
       wallet,
       eddsa,
     );
@@ -246,7 +245,7 @@ describe("Test Account Functional", () => {
     );
 
     const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    const k1 = new Account({ poseidon, seed: seedDiff32 });
+    const k1 = new Account({ hasher, seed: seedDiff32 });
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(solanaWalletAccount, k1);
   });
@@ -270,7 +269,7 @@ describe("Test Account Functional", () => {
     compareKeypairsNotEqual(k0, kBurner, true);
 
     const kBurner2 = Account.fromBurnerSeed(
-      poseidon,
+      hasher,
       bs58.encode(kBurner.burnerSeed),
     );
     compareKeypairsEqual(kBurner2, kBurner);
@@ -278,16 +277,16 @@ describe("Test Account Functional", () => {
   });
 
   it("Burner same index & keypair eq", () => {
-    const kBurner0 = Account.createBurner(poseidon, seed32(), new BN("0"));
+    const kBurner0 = Account.createBurner(hasher, seed32(), new BN("0"));
     // burners with the same index from the same seed are the equal
     compareKeypairsEqual(kBurner0, kBurner);
   });
 
   it("Burner diff index & keypair neq", () => {
-    const kBurner0 = Account.createBurner(poseidon, seed32(), new BN("0"));
+    const kBurner0 = Account.createBurner(hasher, seed32(), new BN("0"));
     // burners with the same index from the same seed are the equal
     compareKeypairsEqual(kBurner0, kBurner);
-    const kBurner1 = Account.createBurner(poseidon, seed32(), new BN("1"));
+    const kBurner1 = Account.createBurner(hasher, seed32(), new BN("1"));
     // burners with incrementing index are not equal
     compareKeypairsNotEqual(kBurner1, kBurner0, true);
   });
@@ -296,7 +295,7 @@ describe("Test Account Functional", () => {
     if (!k0.aesSecret) throw new Error("Aes key is undefined");
     const { privateKey, aesSecret, encryptionPrivateKey } = k0.getPrivateKeys();
     const k0Privkey = Account.fromPrivkey(
-      poseidon,
+        hasher,
       privateKey,
       encryptionPrivateKey,
       aesSecret,
@@ -306,7 +305,7 @@ describe("Test Account Functional", () => {
 
   it("fromPubkey", () => {
     const pubKey = k0.getPublicKey();
-    const k0Pubkey = Account.fromPubkey(pubKey, poseidon);
+    const k0Pubkey = Account.fromPubkey(pubKey, hasher);
     assert.equal(k0Pubkey.pubkey.toString(), k0.pubkey.toString());
     assert.notEqual(k0Pubkey.privkey, k0.privkey);
   });
@@ -344,7 +343,7 @@ describe("Test Account Functional", () => {
       147, 52, 212, 35, 226, 126, 246, 241, 98, 248, 163, 63, 9, 66, 56, 170,
       178,
     ]);
-    const currentOutput = k0.getUtxoPrefixViewingKey(salt);
+    const currentOutput = k0.getUtxoPrefixViewingKey(salt, hasher);
     return expect(currentOutput).to.eql(expectedOutput);
   });
 
@@ -355,7 +354,7 @@ describe("Test Account Functional", () => {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0,
     ]);
-    const currentOutput = k0.getUtxoPrefixViewingKey(salt);
+    const currentOutput = k0.getUtxoPrefixViewingKey(salt, hasher);
     return expect(currentOutput).to.not.eql(expectedOutput);
   });
 
@@ -366,6 +365,7 @@ describe("Test Account Functional", () => {
     const currentOutput = k0.generateUtxoPrefixHash(
       commitmentHash,
       prefixLength,
+        hasher
     );
     return expect(currentOutput).to.eql(expectedOutput);
   });
@@ -377,21 +377,22 @@ describe("Test Account Functional", () => {
     const currentOutput = k0.generateUtxoPrefixHash(
       commitmentHash,
       prefix_length,
+        hasher
     );
     return expect(currentOutput).to.not.eql(incorrectExpectedOutput);
   });
 });
 
 describe("Test Account Errors", () => {
-  let poseidon: Poseidon, k0: Account;
+  let hasher: IHash, k0: Account;
   before(async () => {
-    poseidon = await Poseidon.getInstance();
-    k0 = new Account({ poseidon, seed: seed32() });
+    hasher = (await WasmHash.loadModule()).create();
+    k0 = new Account({ hasher, seed: seed32() });
   });
 
   it("INVALID_SEED_SIZE", async () => {
     expect(() => {
-      new Account({ poseidon, seed: bs58.encode([1, 2, 3]) });
+      new Account({ hasher, seed: bs58.encode([1, 2, 3]) });
     })
       .to.throw(AccountError)
       .includes({
@@ -402,7 +403,7 @@ describe("Test Account Errors", () => {
 
   it("INVALID_SEED_SIZE burner", async () => {
     expect(() => {
-      new Account({ poseidon, seed: "123", burner: true });
+      new Account({ hasher, seed: "123", burner: true });
     })
       .to.throw(AccountError)
       .includes({
@@ -415,7 +416,7 @@ describe("Test Account Errors", () => {
     expect(() => {
       // @ts-ignore
       Account.fromPrivkey(
-        poseidon,
+          hasher,
         bs58.encode(k0.privkey.toArrayLike(Buffer, "be", 32)),
       );
     })
@@ -431,7 +432,7 @@ describe("Test Account Errors", () => {
 
     expect(() => {
       // @ts-ignore
-      Account.fromPrivkey(poseidon, privateKey, encryptionPrivateKey);
+      Account.fromPrivkey(hasher, privateKey, encryptionPrivateKey);
     })
       .to.throw(AccountError)
       .includes({
@@ -443,7 +444,7 @@ describe("Test Account Errors", () => {
   it("POSEIDON_EDDSA_KEYPAIR_UNDEFINED getEddsaPublicKey", async () => {
     const pubKey = k0.getPublicKey();
 
-    const account = Account.fromPubkey(pubKey, poseidon);
+    const account = Account.fromPubkey(pubKey, hasher);
     await chai.assert.isRejected(
       account.getEddsaPublicKey(),
       AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,
@@ -453,7 +454,7 @@ describe("Test Account Errors", () => {
   it("POSEIDON_EDDSA_KEYPAIR_UNDEFINED signEddsa", async () => {
     const pubKey = k0.getPublicKey();
 
-    const account = Account.fromPubkey(pubKey, poseidon);
+    const account = Account.fromPubkey(pubKey, hasher);
     await chai.assert.isRejected(
       account.signEddsa("123123"),
       AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,

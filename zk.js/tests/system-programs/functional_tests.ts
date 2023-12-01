@@ -35,14 +35,13 @@ import {
   MerkleTreeConfig,
   RELAYER_FEE,
   BN_0,
-  lightPsp2in2outId,
   airdropSplToAssociatedTokenAccount,
 } from "../../src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash} from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
-let POSEIDON: Poseidon;
+let HASHER: IHash;
 let RELAYER: TestRelayer;
 let KEYPAIR: Account;
 
@@ -61,10 +60,10 @@ describe("verifier_program", () => {
   before("init test setup Merkle tree lookup table etc", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    POSEIDON = await Poseidon.getInstance();
+    HASHER = (await WasmHash.loadModule()).create();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     KEYPAIR = new Account({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       seed,
     });
 
@@ -146,7 +145,7 @@ describe("verifier_program", () => {
     await performUnshield({
       outputUtxos: [
         new Utxo({
-          poseidon: POSEIDON,
+          hasher: HASHER,
           publicKey: inputUtxos[0].publicKey,
           assets: inputUtxos[0].assets,
           amounts: [BN_0, inputUtxos[0].amounts[1]],
@@ -211,7 +210,7 @@ describe("verifier_program", () => {
 
     const shieldUtxo1 = spl
       ? new Utxo({
-          poseidon: POSEIDON,
+          hasher: HASHER,
           assets: [FEE_ASSET, MINT],
           amounts: [
             new anchor.BN(shieldFeeAmount),
@@ -221,7 +220,7 @@ describe("verifier_program", () => {
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         })
       : new Utxo({
-          poseidon: POSEIDON,
+          hasher: HASHER,
           amounts: [new anchor.BN(shieldFeeAmount)],
           publicKey: KEYPAIR.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -236,7 +235,7 @@ describe("verifier_program", () => {
       senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       verifierIdl: verifierIdl,
       account: KEYPAIR,
     });
@@ -254,7 +253,7 @@ describe("verifier_program", () => {
       shuffleEnabled,
     });
     const instructions = await tx.compileAndProve(
-      lightProvider.poseidon,
+      lightProvider.hasher,
       KEYPAIR,
     );
 
@@ -324,7 +323,7 @@ describe("verifier_program", () => {
       recipientSol: origin.publicKey,
       relayer: RELAYER,
       action: Action.UNSHIELD,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       verifierIdl: verifierIdl,
       account: KEYPAIR,
     });
@@ -345,7 +344,7 @@ describe("verifier_program", () => {
     });
 
     const instructions = await tx.compileAndProve(
-      lightProvider.poseidon,
+      lightProvider.hasher,
       KEYPAIR,
     );
 

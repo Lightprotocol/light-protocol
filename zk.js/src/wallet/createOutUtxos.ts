@@ -15,7 +15,7 @@ import {
   BN_1,
   BN_2,
 } from "../index";
-import { Poseidon } from "@lightprotocol/account.rs";
+import { IHash } from "@lightprotocol/account.rs";
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
 
 export type Recipient = {
@@ -83,7 +83,7 @@ export const getRecipientsAmount = (
 // --------------------------------------------------------------------------
 
 export function createOutUtxos({
-  poseidon,
+  hasher,
   inUtxos,
   outUtxos = [],
   publicMint,
@@ -102,7 +102,7 @@ export function createOutUtxos({
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
   relayerFee?: BN;
-  poseidon: Poseidon;
+  hasher: IHash;
   changeUtxoAccount: Account;
   outUtxos?: Utxo[];
   action: Action;
@@ -112,7 +112,7 @@ export function createOutUtxos({
   verifierProgramLookupTable: string[];
   separateSolUtxo?: boolean;
 }) {
-  if (!poseidon)
+  if (!hasher)
     throw new CreateUtxoError(
       TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
       "createOutUtxos",
@@ -309,7 +309,7 @@ export function createOutUtxos({
     assets[publicSolAssetIndex].sumIn =
       assets[publicSolAssetIndex].sumIn.sub(solAmount);
     const solChangeUtxo = new Utxo({
-      poseidon,
+      hasher,
       assets: [SystemProgram.programId],
       amounts: [solAmount],
       publicKey: changeUtxoAccount.pubkey,
@@ -338,7 +338,7 @@ export function createOutUtxos({
     if (solAmount.isZero() && splAmount.isZero()) continue;
 
     const changeUtxo = new Utxo({
-      poseidon,
+      hasher,
       assets: [SystemProgram.programId, splAsset],
       amounts: [solAmount, splAmount],
       publicKey: changeUtxoAccount.pubkey,
@@ -373,11 +373,11 @@ export function createOutUtxos({
  */
 export function createRecipientUtxos({
   recipients,
-  poseidon,
+  hasher,
   assetLookupTable,
 }: {
   recipients: Recipient[];
-  poseidon: Poseidon;
+  hasher: IHash;
   assetLookupTable: string[];
   verifierProgramLookupTable: string[];
 }): Utxo[] {
@@ -400,7 +400,7 @@ export function createRecipientUtxos({
       : SystemProgram.programId;
 
     const recipientUtxo = new Utxo({
-      poseidon,
+      hasher,
       assets: [SystemProgram.programId, splMint],
       amounts: [solAmount, splAmount],
       publicKey: recipients[j].account.pubkey,

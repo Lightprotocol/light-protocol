@@ -15,7 +15,7 @@ import {
   RELAYER_FEE,
   airdropSol,
 } from "../../src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash} from "@lightprotocol/account.rs";
 import {
   performShielding,
   EnvironmentConfig,
@@ -48,7 +48,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       anchorProvider,
     );
 
-    environmentConfig.poseidon = await Poseidon.getInstance();
+    environmentConfig.hasher = (await WasmHash.loadModule()).create();
     // this keypair is used to derive the shielded account seed from the light message signature
     environmentConfig.providerSolanaKeypair = ADMIN_AUTH_KEYPAIR;
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;

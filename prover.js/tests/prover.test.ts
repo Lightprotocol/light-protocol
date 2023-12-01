@@ -1,15 +1,15 @@
 import { it } from "mocha";
 import { Prover } from "../src";
 import { IDL } from "./circuits/idl";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash } from "@lightprotocol/account.rs";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 
 describe("Prover Functionality Tests", () => {
   it("Valid proof test", async () => {
-    const poseidon = await Poseidon.getInstance();
-    const hash = poseidon.hashString(["123"]);
+    const hasher = (await WasmHash.loadModule()).create();
+    const hash = hasher.poseidonHashString(["123"]);
     const circuitsPath: string = "./tests/circuits/build-circuits";
     const proofInputs: any = {
       x: "123",
@@ -26,8 +26,8 @@ describe("Prover Functionality Tests", () => {
   });
 
   it("Testing invalid proof", async () => {
-    const poseidon = await Poseidon.getInstance();
-    const hash = poseidon.hashString(["123"]);
+    const hasher = (await WasmHash.loadModule()).create();
+    const hash = hasher.poseidonHashString(["123"]);
 
     const circuitsPath: string = "./tests/circuits/build-circuits";
     const proofInputs: any = {

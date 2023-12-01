@@ -15,7 +15,7 @@ import {
   TestRelayer,
   RELAYER_FEE,
 } from "../../src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash} from "@lightprotocol/account.rs";
 import {
   Keypair as SolanaKeypair,
   PublicKey,
@@ -43,10 +43,10 @@ describe("User registry", () => {
   before("Create user", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    const poseidon = await Poseidon.getInstance();
+    const hasher = (await WasmHash.loadModule()).create();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     KEYPAIR = new Account({
-      poseidon,
+      hasher,
       seed,
     });
 

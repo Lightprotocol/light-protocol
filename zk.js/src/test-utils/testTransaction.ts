@@ -302,7 +302,7 @@ export class TestTransaction {
 
       for (let j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
         const decryptedUtxo1 = await Utxo.decrypt({
-          poseidon: this.provider.poseidon,
+          hasher: this.provider.hasher,
           encBytes: this.params!.encryptedUtxos,
           account: account!, //? account : this.params!.outputUtxos![0].publicKey,
           aes: true,
@@ -316,7 +316,7 @@ export class TestTransaction {
         });
         if (decryptedUtxo1.value) {
           Utxo.equal(
-            this.provider.poseidon,
+            this.provider.hasher,
             decryptedUtxo1.value,
             this.params.outputUtxos[0],
             true,

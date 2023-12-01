@@ -37,12 +37,12 @@ import {
   useWallet,
   Utxo,
 } from "../../src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import { IHash, WasmHash} from "@lightprotocol/account.rs";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 const token = require("@solana/spl-token");
 
-let POSEIDON: Poseidon, ACCOUNT, RELAYER, shieldUtxo1;
+let HASHER: IHash, ACCOUNT, RELAYER, shieldUtxo1;
 let SLEEP_BUFFER = 0;
 const system = getSystem();
 if (system === System.MacOsArm64) SLEEP_BUFFER = 400;
@@ -66,10 +66,10 @@ describe("Verifier Zero and One Tests", () => {
   before(async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    POSEIDON = await Poseidon.getInstance();
+    HASHER = (await WasmHash.loadModule()).create();
 
     ACCOUNT = new Account({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
@@ -124,7 +124,7 @@ describe("Verifier Zero and One Tests", () => {
       });
 
       shieldUtxo1 = new Utxo({
-        poseidon: POSEIDON,
+        hasher: HASHER,
         assets: [FEE_ASSET, MINT],
         amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
         publicKey: ACCOUNT.pubkey,
@@ -138,7 +138,7 @@ describe("Verifier Zero and One Tests", () => {
           MerkleTreeConfig.getTransactionMerkleTreePda(),
         senderSpl,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-        poseidon: POSEIDON,
+        hasher: HASHER,
         action: Action.SHIELD,
         verifierIdl: VERIFIER_IDLS[verifier],
         account: ACCOUNT,
@@ -152,7 +152,7 @@ describe("Verifier Zero and One Tests", () => {
         params: txParams,
       });
 
-      const instructions = await transaction.compileAndProve(POSEIDON, ACCOUNT);
+      const instructions = await transaction.compileAndProve(HASHER, ACCOUNT);
       await lightProvider.provider.connection.confirmTransaction(
         await lightProvider.provider.connection.requestAirdrop(
           transaction.params.accounts.authority,
@@ -166,7 +166,7 @@ describe("Verifier Zero and One Tests", () => {
 
       // Shield
       const shieldUtxo2 = new Utxo({
-        poseidon: POSEIDON,
+        hasher: HASHER,
         assets: [FEE_ASSET, MINT],
         amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
         publicKey: ACCOUNT.pubkey,
@@ -180,7 +180,7 @@ describe("Verifier Zero and One Tests", () => {
           MerkleTreeConfig.getTransactionMerkleTreePda(),
         senderSpl,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-        poseidon: POSEIDON,
+        hasher: HASHER,
         action: Action.SHIELD,
         verifierIdl: VERIFIER_IDLS[verifier],
         account: ACCOUNT,
@@ -194,7 +194,7 @@ describe("Verifier Zero and One Tests", () => {
         solMerkleTree: lightProvider.solMerkleTree!,
         params: txParams1,
       });
-      await transaction1.compileAndProve(POSEIDON, ACCOUNT);
+      await transaction1.compileAndProve(HASHER, ACCOUNT);
       transactions.push({ transaction: transaction1, verifier });
 
       // Unshield
@@ -228,7 +228,7 @@ describe("Verifier Zero and One Tests", () => {
         recipientSpl: tokenRecipient,
         recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
         relayer: RELAYER,
-        poseidon: POSEIDON,
+        hasher: HASHER,
         action: Action.UNSHIELD,
         verifierIdl: VERIFIER_IDLS[verifier],
         account: ACCOUNT,
@@ -243,7 +243,7 @@ describe("Verifier Zero and One Tests", () => {
         params: txParams2,
       });
 
-      await tx.compileAndProve(POSEIDON, ACCOUNT);
+      await tx.compileAndProve(HASHER, ACCOUNT);
       transactions.push({ transaction: tx, verifier });
     }
   });

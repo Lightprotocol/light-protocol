@@ -35,7 +35,7 @@ import {
   truncateToCircuit,
   UserErrorCode,
 } from "../index";
-import { Poseidon } from "@lightprotocol/account.rs";
+import { IHash } from "@lightprotocol/account.rs";
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import nacl from "tweetnacl";
@@ -52,7 +52,7 @@ export class TransactionParameters implements transactionParameters {
   accounts: lightAccounts;
   relayer!: Relayer;
   encryptedUtxos?: Uint8Array;
-  poseidon: Poseidon;
+  hasher: IHash;
   publicAmountSpl: BN;
   publicAmountSol: BN;
   assetPubkeys: PublicKey[];
@@ -77,7 +77,7 @@ export class TransactionParameters implements transactionParameters {
     outputUtxos,
     relayer,
     encryptedUtxos,
-    poseidon,
+    hasher,
     action,
     ataCreationFee,
     verifierIdl,
@@ -95,7 +95,7 @@ export class TransactionParameters implements transactionParameters {
     outputUtxos?: Utxo[];
     relayer?: Relayer;
     encryptedUtxos?: Uint8Array;
-    poseidon: Poseidon;
+    hasher: IHash;
     action: Action;
     provider?: Provider;
     ataCreationFee?: boolean;
@@ -119,7 +119,7 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
-    if (!poseidon) {
+    if (!hasher) {
       throw new TransactionParametersError(
         TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
         "constructor",
@@ -140,7 +140,7 @@ export class TransactionParameters implements transactionParameters {
     this.verifierConfig = TransactionParameters.getVerifierConfig(verifierIdl);
     this.message = message;
     this.verifierIdl = verifierIdl;
-    this.poseidon = poseidon;
+    this.hasher = hasher;
     this.ataCreationFee = ataCreationFee;
     this.encryptedUtxos = encryptedUtxos;
     this.action = action;
@@ -573,14 +573,14 @@ export class TransactionParameters implements transactionParameters {
   }
 
   static async fromBytes({
-    poseidon,
+    hasher,
     utxoIdls,
     bytes,
     relayer,
     verifierIdl,
     assetLookupTable,
   }: {
-    poseidon: Poseidon;
+    hasher: IHash;
     utxoIdls?: anchor.Idl[];
     bytes: Buffer;
     relayer: Relayer;
@@ -616,7 +616,7 @@ export class TransactionParameters implements transactionParameters {
         }
         utxos.push(
           Utxo.fromBytes({
-            poseidon,
+            hasher,
             bytes: utxoBytes,
             appDataIdl,
             assetLookupTable,
@@ -658,7 +658,7 @@ export class TransactionParameters implements transactionParameters {
       decoded.recipientSpl = undefined;
     }
     return new TransactionParameters({
-      poseidon,
+      hasher,
       inputUtxos,
       outputUtxos,
       relayer,
@@ -752,7 +752,7 @@ export class TransactionParameters implements transactionParameters {
         publicMint: tokenCtx.mint,
         publicAmountSpl,
         publicAmountSol,
-        poseidon: provider.poseidon,
+        hasher: provider.hasher,
         inUtxos,
         outUtxos,
         utxos,
@@ -770,7 +770,7 @@ export class TransactionParameters implements transactionParameters {
         publicAmountSpl,
         inUtxos: inputUtxos,
         publicAmountSol, // TODO: add support for extra sol for unshield & transfer
-        poseidon: provider.poseidon,
+        hasher: provider.hasher,
         relayerFee: relayer?.getRelayerFee(ataCreationFee),
         changeUtxoAccount: account,
         outUtxos,
@@ -794,7 +794,7 @@ export class TransactionParameters implements transactionParameters {
         action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
       recipientSpl: recipientSplAddress,
       recipientSol,
-      poseidon: provider.poseidon,
+      hasher: provider.hasher,
       action,
       relayer: relayer,
       ataCreationFee,
@@ -819,7 +819,7 @@ export class TransactionParameters implements transactionParameters {
     while (utxos.length < len) {
       utxos.push(
         new Utxo({
-          poseidon: this.poseidon,
+          hasher: this.hasher,
           publicKey: this.account.pubkey,
           assetLookupTable: [SystemProgram.programId.toBase58()],
           isFillingUtxo: true,
@@ -1064,7 +1064,7 @@ export class TransactionParameters implements transactionParameters {
    * @example
    * const integrityHash = await getTxIntegrityHash(poseidonInstance);
    */
-  async getTxIntegrityHash(poseidon: Poseidon): Promise<BN> {
+  async getTxIntegrityHash(hasher: IHash): Promise<BN> {
     if (!this.relayer)
       throw new TransactionError(
         TransactionErrorCode.RELAYER_UNDEFINED,
@@ -1102,7 +1102,7 @@ export class TransactionParameters implements transactionParameters {
       );
 
     if (!this.encryptedUtxos) {
-      this.encryptedUtxos = await this.encryptOutUtxos(poseidon);
+      this.encryptedUtxos = await this.encryptOutUtxos(hasher);
     }
 
     if (this.encryptedUtxos) {
@@ -1145,7 +1145,7 @@ export class TransactionParameters implements transactionParameters {
     }
   }
 
-  async encryptOutUtxos(poseidon: Poseidon, encryptedUtxos?: Uint8Array) {
+  async encryptOutUtxos(hasher: IHash, encryptedUtxos?: Uint8Array) {
     let encryptedOutputs = new Array<any>();
     if (encryptedUtxos) {
       encryptedOutputs = Array.from(encryptedUtxos);
@@ -1165,7 +1165,7 @@ export class TransactionParameters implements transactionParameters {
         // );
         encryptedOutputs.push(
           await this.outputUtxos[utxo].encrypt({
-            poseidon,
+            hasher,
             account: this.account,
             merkleTreePdaPublicKey: this.accounts.transactionMerkleTree,
           }),
@@ -1198,21 +1198,21 @@ export class TransactionParameters implements transactionParameters {
     }
   }
 
-  getTransactionHash(poseidon: Poseidon): string {
+  getTransactionHash(hasher: IHash): string {
     if (!this.txIntegrityHash)
       throw new TransactionError(
         TransactionErrorCode.TX_INTEGRITY_HASH_UNDEFINED,
         "getTransactionHash",
       );
 
-    const inputHasher = poseidon.hashString(
-      this?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+    const inputHasher = hasher.poseidonHashString(
+      this?.inputUtxos?.map((utxo) => utxo.getCommitment(hasher)),
     );
-    const outputHasher = poseidon.hashString(
-      this?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+    const outputHasher = hasher.poseidonHashString(
+      this?.outputUtxos?.map((utxo) => utxo.getCommitment(hasher)),
     );
 
-    return poseidon.hashString([
+    return hasher.poseidonHashString([
       inputHasher,
       outputHasher,
       this.txIntegrityHash.toString(),

@@ -408,20 +408,20 @@ export class UserTestAssertHelper {
       for (const [, utxo] of tokenBalance.utxos.entries()) {
         assert.notDeepEqual(
           user.provider.solMerkleTree?.merkleTree.indexOf(
-            utxo.getCommitment(this.provider.poseidon),
+            utxo.getCommitment(this.provider.hasher),
           ),
           -1,
         );
         if (
           !utxo.getNullifier({
-            poseidon: this.provider.poseidon,
+            hasher: this.provider.hasher,
             account: user.account,
           })
         )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         await this.assertNullifierAccountDoesNotExist(
           utxo.getNullifier({
-            poseidon: user.provider.poseidon,
+            hasher: user.provider.hasher,
             account: user.account,
           })!,
         );
@@ -431,20 +431,20 @@ export class UserTestAssertHelper {
       for (const utxo of tokenBalance.committedUtxos.values()) {
         assert.deepEqual(
           user.provider.solMerkleTree?.merkleTree.indexOf(
-            utxo.getCommitment(this.provider.poseidon),
+            utxo.getCommitment(this.provider.hasher),
           ),
           -1,
         );
         if (
           !utxo.getNullifier({
-            poseidon: this.provider.poseidon,
+            hasher: this.provider.hasher,
             account: user.account,
           })
         )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountDoesNotExist(
           utxo.getNullifier({
-            poseidon: user.provider.poseidon,
+            hasher: user.provider.hasher,
             account: user.account,
           })!,
         );
@@ -454,14 +454,14 @@ export class UserTestAssertHelper {
       for (const utxo of tokenBalance.spentUtxos.values()) {
         if (
           !utxo.getNullifier({
-            poseidon: this.provider.poseidon,
+            hasher: this.provider.hasher,
             account: user.account,
           })
         )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountExists(
           utxo.getNullifier({
-            poseidon: this.provider.poseidon,
+            hasher: this.provider.hasher,
             account: user.account,
           })!,
         );
@@ -478,7 +478,7 @@ export class UserTestAssertHelper {
       for (const utxo of tokenBalance.utxos.values()) {
         assert.notDeepEqual(
           user.provider.solMerkleTree?.merkleTree.indexOf(
-            utxo.getCommitment(this.provider.poseidon),
+            utxo.getCommitment(this.provider.hasher),
           ),
           -1,
         );
@@ -487,7 +487,7 @@ export class UserTestAssertHelper {
       for (const utxo of tokenBalance.committedUtxos.values()) {
         assert.deepEqual(
           user.provider.solMerkleTree?.merkleTree.indexOf(
-            utxo.getCommitment(this.provider.poseidon),
+            utxo.getCommitment(this.provider.hasher),
           ),
           -1,
         );
@@ -496,14 +496,14 @@ export class UserTestAssertHelper {
       for (const utxo of tokenBalance.spentUtxos.values()) {
         if (
           !utxo.getNullifier({
-            poseidon: this.provider.poseidon,
+            hasher: this.provider.hasher,
             account: user.account,
           })
         )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountExists(
           utxo.getNullifier({
-            poseidon: this.provider.poseidon,
+            hasher: this.provider.hasher,
             account: user.account,
           })!,
         );
@@ -525,7 +525,7 @@ export class UserTestAssertHelper {
         if (
           await fetchNullifierAccountInfo(
             utxo.getNullifier({
-              poseidon: this.provider.poseidon,
+              hasher: this.provider.hasher,
               account: this.sender.user.account,
             })!,
             this.provider.provider?.connection,
@@ -798,7 +798,7 @@ export class UserTestAssertHelper {
         ?.utxos.values()
         .next()!
         .value.getNullifier({
-          poseidon: this.provider.poseidon,
+          hasher: this.provider.hasher,
           account: this.recipient.user.account,
         }),
     );

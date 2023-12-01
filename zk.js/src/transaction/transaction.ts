@@ -21,7 +21,7 @@ import {
   STANDARD_SHIELDED_PUBLIC_KEY,
   STANDARD_SHIELDED_PRIVATE_KEY,
 } from "../index";
-import { Poseidon } from "@lightprotocol/account.rs";
+import { IHash } from "@lightprotocol/account.rs";
 import { remainingAccount } from "../types";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 import { getIndices3D } from "@lightprotocol/circuit-lib.js";
@@ -139,8 +139,8 @@ export class Transaction {
     this.solMerkleTree = solMerkleTree;
   }
 
-  async compileAndProve(poseidon: Poseidon, account: Account) {
-    await this.compile(poseidon, account);
+  async compileAndProve(hasher: IHash, account: Account) {
+    await this.compile(hasher, account);
     if (!this.params)
       throw new TransactionError(
         TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
@@ -156,7 +156,7 @@ export class Transaction {
   /**
    * @description Prepares proof inputs.
    */
-  async compile(poseidon: Poseidon, account: Account) {
+  async compile(hasher: IHash, account: Account) {
     this.firstPath = path.resolve(__dirname, "../../build-circuits/");
 
     this.shuffleUtxos(this.params.inputUtxos);
@@ -167,7 +167,7 @@ export class Transaction {
         ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
         "getProofInput",
       );
-    await this.params.getTxIntegrityHash(poseidon);
+    await this.params.getTxIntegrityHash(hasher);
     if (!this.params.txIntegrityHash)
       throw new TransactionError(
         TransactionErrorCode.TX_INTEGRITY_HASH_UNDEFINED,
@@ -175,19 +175,19 @@ export class Transaction {
       );
 
     const { inputMerklePathIndices, inputMerklePathElements } =
-      this.solMerkleTree.getMerkleProofs(poseidon, this.params.inputUtxos);
+      this.solMerkleTree.getMerkleProofs(hasher, this.params.inputUtxos);
     const inputNullifier = this.params.inputUtxos.map((x) => {
       let _account = account;
       if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
         _account = Account.fromPrivkey(
-          poseidon,
+          hasher,
           bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
           bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
           bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
         );
       }
       return x.getNullifier({
-        poseidon: poseidon,
+        hasher: hasher,
         account: _account,
       });
     });
@@ -203,7 +203,7 @@ export class Transaction {
       transactionVersion: "0",
       txIntegrityHash: this.params.txIntegrityHash.toString(),
       outputCommitment: this.params.outputUtxos.map((x) =>
-        x.getCommitment(poseidon),
+        x.getCommitment(hasher),
       ),
       inAmount: this.params.inputUtxos?.map((x) => x.amounts),
       inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
@@ -237,7 +237,7 @@ export class Transaction {
 
     if (this.appParams) {
       this.proofInput.transactionHash =
-        this.params.getTransactionHash(poseidon);
+        this.params.getTransactionHash(hasher);
 
       this.proofInput.publicAppVerifier = hashAndTruncateToCircuit(
         TransactionParameters.getVerifierProgramId(

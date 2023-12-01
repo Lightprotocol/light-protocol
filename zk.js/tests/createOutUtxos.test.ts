@@ -32,7 +32,7 @@ import {
   BN_1,
   BN_2,
 } from "../src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import { IHash, WasmHash } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const numberMaxOutUtxos = 2;
 
@@ -41,7 +41,7 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test createOutUtxos Functional", () => {
-  let poseidon: Poseidon, k0: Account;
+  let hasher: IHash, k0: Account;
 
   let splAmount: BN,
     solAmount: BN,
@@ -54,8 +54,8 @@ describe("Test createOutUtxos Functional", () => {
     lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
-    poseidon = await Poseidon.getInstance();
-    k0 = new Account({ poseidon, seed: seed32 });
+    hasher = (await WasmHash.loadModule()).create();
+    k0 = new Account({ hasher, seed: seed32 });
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
@@ -64,14 +64,14 @@ describe("Test createOutUtxos Functional", () => {
     tokenCtx = tmpTokenCtx as TokenData;
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = new Utxo({
-      poseidon,
+      hasher,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       publicKey: k0.pubkey,
     });
     utxoSol = new Utxo({
-      poseidon,
+      hasher,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e6)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -80,13 +80,13 @@ describe("Test createOutUtxos Functional", () => {
     relayerFee = RELAYER_FEE;
 
     const recipientAccountRoot = new Account({
-      poseidon,
+      hasher,
       seed: bs58.encode(new Uint8Array(32).fill(3)),
     });
 
     recipientAccount = Account.fromPubkey(
       recipientAccountRoot.getPublicKey(),
-      poseidon,
+        hasher,
     );
   });
 
@@ -95,7 +95,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
-      poseidon,
+      hasher,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
       numberMaxOutUtxos,
@@ -124,7 +124,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: new BN(10),
       publicAmountSol: BN_0,
-      poseidon,
+      hasher,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
       numberMaxOutUtxos,
@@ -154,7 +154,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
-      poseidon,
+      hasher,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
       numberMaxOutUtxos,
@@ -184,7 +184,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: new BN(10),
       publicAmountSol: solAmount,
-      poseidon,
+      hasher,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
       numberMaxOutUtxos,
@@ -213,7 +213,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: new BN(10),
       publicAmountSol: solAmount,
-      poseidon,
+      hasher,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
       numberMaxOutUtxos,
@@ -243,7 +243,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       publicAmountSol: BN_0,
-      poseidon,
+      hasher,
       relayerFee: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -274,7 +274,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       publicAmountSol: BN_0,
-      poseidon,
+      hasher,
       relayerFee,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -305,7 +305,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
-      poseidon,
+      hasher,
       relayerFee: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -336,7 +336,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
-      poseidon,
+      hasher,
       relayerFee,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -367,7 +367,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       publicAmountSol: solAmount,
-      poseidon,
+      hasher,
       relayerFee: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -398,7 +398,7 @@ describe("Test createOutUtxos Functional", () => {
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       publicAmountSol: solAmount,
-      poseidon,
+      hasher,
       relayerFee,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -429,7 +429,7 @@ describe("Test createOutUtxos Functional", () => {
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxoSol],
       publicAmountSol: BN_0,
-      poseidon,
+      hasher,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -460,7 +460,7 @@ describe("Test createOutUtxos Functional", () => {
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxo1],
       publicAmountSol: BN_0,
-      poseidon,
+      hasher,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -495,7 +495,7 @@ describe("Test createOutUtxos Functional", () => {
     ];
     let outUtxos = createRecipientUtxos({
       recipients,
-      poseidon,
+      hasher,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -508,7 +508,7 @@ describe("Test createOutUtxos Functional", () => {
       outUtxos,
       relayerFee,
       publicAmountSol: BN_0,
-      poseidon,
+      hasher,
       changeUtxoAccount: k0,
       action: Action.TRANSFER,
       numberMaxOutUtxos,
@@ -545,12 +545,12 @@ describe("createRecipientUtxos", () => {
   let lightProvider: Provider;
   it("should create output UTXOs for each recipient", async () => {
     lightProvider = await Provider.loadMock();
-    const poseidon = await Poseidon.getInstance();
+    const hasher = (await WasmHash.loadModule()).create();
 
     const mint = MINT;
-    const account1 = new Account({ poseidon, seed: seed32 });
+    const account1 = new Account({ hasher, seed: seed32 });
     const account2 = new Account({
-      poseidon,
+      hasher,
       seed: new Uint8Array(32).fill(4).toString(),
     });
 
@@ -571,7 +571,7 @@ describe("createRecipientUtxos", () => {
 
     const outputUtxos = createRecipientUtxos({
       recipients,
-      poseidon,
+      hasher,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
@@ -593,37 +593,37 @@ describe("createRecipientUtxos", () => {
 });
 
 describe("validateUtxoAmounts", () => {
-  let poseidon: Poseidon,
+  let hasher: IHash,
     assetPubkey: PublicKey,
     inUtxos: [Utxo, Utxo],
     lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
-    poseidon = await Poseidon.getInstance();
+    hasher = (await WasmHash.loadModule()).create();
     assetPubkey = new PublicKey(0);
     inUtxos = [
-      createUtxo(poseidon, [new BN(5)], [assetPubkey]),
-      createUtxo(poseidon, [new BN(3)], [assetPubkey]),
+      createUtxo(hasher, [new BN(5)], [assetPubkey]),
+      createUtxo(hasher, [new BN(3)], [assetPubkey]),
     ];
   });
   // Helper function to create a UTXO with specific amounts and assets
   function createUtxo(
-    poseidon: Poseidon,
+    hasher: IHash,
     amounts: BN[],
     assets: PublicKey[],
   ): Utxo {
     return new Utxo({
-      poseidon,
+      hasher,
       amounts,
       assets,
       blinding: BN_0,
-      publicKey: new Account({ poseidon }).pubkey,
+      publicKey: new Account({ hasher }).pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
   }
 
   it("should not throw an error if input UTXOs sum is equal to output UTXOs sum", () => {
-    const outUtxos = [createUtxo(poseidon, [new BN(8)], [assetPubkey])];
+    const outUtxos = [createUtxo(hasher, [new BN(8)], [assetPubkey])];
 
     expect(() =>
       validateUtxoAmounts({ assetPubkeys: [assetPubkey], inUtxos, outUtxos }),
@@ -631,7 +631,7 @@ describe("validateUtxoAmounts", () => {
   });
 
   it("should not throw an error if input UTXOs sum is greater than output UTXOs sum", () => {
-    const outUtxos = [createUtxo(poseidon, [new BN(7)], [assetPubkey])];
+    const outUtxos = [createUtxo(hasher, [new BN(7)], [assetPubkey])];
 
     expect(() =>
       validateUtxoAmounts({ assetPubkeys: [assetPubkey], inUtxos, outUtxos }),
@@ -639,7 +639,7 @@ describe("validateUtxoAmounts", () => {
   });
 
   it("should throw an error if input UTXOs sum is less than output UTXOs sum", () => {
-    const outUtxos = [createUtxo(poseidon, [new BN(9)], [assetPubkey])];
+    const outUtxos = [createUtxo(hasher, [new BN(9)], [assetPubkey])];
 
     expect(() =>
       validateUtxoAmounts({ assetPubkeys: [assetPubkey], inUtxos, outUtxos }),
@@ -648,7 +648,7 @@ describe("validateUtxoAmounts", () => {
 });
 
 describe("Test createOutUtxos Errors", () => {
-  let poseidon: Poseidon, k0: Account;
+  let hasher: IHash, k0: Account;
 
   let splAmount: BN,
     token,
@@ -658,8 +658,8 @@ describe("Test createOutUtxos Errors", () => {
     lightProvider: Provider;
   before(async () => {
     lightProvider = await Provider.loadMock();
-    poseidon = await Poseidon.getInstance();
-    k0 = new Account({ poseidon, seed: seed32 });
+    hasher = (await WasmHash.loadModule()).create();
+    k0 = new Account({ hasher, seed: seed32 });
     splAmount = new BN(3);
     token = "USDC";
     const tmpTokenCtx = TOKEN_REGISTRY.get(token);
@@ -667,14 +667,14 @@ describe("Test createOutUtxos Errors", () => {
     tokenCtx = tmpTokenCtx as TokenData;
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = new Utxo({
-      poseidon,
+      hasher,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       publicKey: k0.pubkey,
     });
     utxoSol = new Utxo({
-      poseidon,
+      hasher,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e6)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -688,7 +688,7 @@ describe("Test createOutUtxos Errors", () => {
       publicAmountSol: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
-      poseidon,
+      hasher,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -723,17 +723,17 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
         publicAmountSol: BN_0,
-        poseidon,
+        hasher,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [
           new Utxo({
-            poseidon,
+            hasher,
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
             publicKey: k0.pubkey,
           }),
           new Utxo({
-            poseidon,
+            hasher,
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
             publicKey: k0.pubkey,
           }),
@@ -760,12 +760,12 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
         publicAmountSol: BN_0,
-        poseidon,
+        hasher,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [
           new Utxo({
-            poseidon,
+            hasher,
             assets: [SystemProgram.programId, invalidMint],
             amounts: [BN_0, BN_1],
             assetLookupTable: [
@@ -792,12 +792,12 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
         publicAmountSol: BN_0,
-        poseidon,
+        hasher,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [
           new Utxo({
-            poseidon,
+            hasher,
             assets: [SystemProgram.programId, utxo1.assets[1]],
             amounts: [BN_0, new BN(1e12)],
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -821,7 +821,7 @@ describe("Test createOutUtxos Errors", () => {
         // publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
         // publicAmountSol: BN_0,
-        poseidon,
+        hasher,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
       });
@@ -841,7 +841,7 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
         // publicAmountSol: BN_0,
-        poseidon,
+        hasher,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         relayerFee: BN_1,
@@ -878,7 +878,7 @@ describe("Test createOutUtxos Errors", () => {
     const invalidMint = SolanaKeypair.generate().publicKey;
 
     const utxoSol0 = new Utxo({
-      poseidon,
+      hasher,
       assets: [SystemProgram.programId, invalidMint],
       amounts: [new BN(1e6), new BN(1e6)],
       assetLookupTable: [
@@ -894,12 +894,12 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol0],
         publicAmountSol: BN_0,
-        poseidon,
+        hasher,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [
           new Utxo({
-            poseidon,
+            hasher,
             assets: [SystemProgram.programId, utxo1.assets[1]],
             amounts: [BN_0, BN_1],
             assetLookupTable: [

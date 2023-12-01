@@ -45,12 +45,12 @@ import {
   BN_2,
   closeMerkleTreeUpdateState,
 } from "../../src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash} from "@lightprotocol/account.rs";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Address } from "@coral-xyz/anchor";
 
-let POSEIDON: Poseidon, RELAYER, KEYPAIR, deposit_utxo1;
+let HASHER: IHash, RELAYER, KEYPAIR, deposit_utxo1;
 
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
@@ -544,10 +544,10 @@ describe("Merkle Tree Tests", () => {
   });
 
   it("deposit ", async () => {
-    POSEIDON = await Poseidon.getInstance();
+    HASHER = (await WasmHash.loadModule()).create();
 
     KEYPAIR = new Account({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
@@ -588,7 +588,7 @@ describe("Merkle Tree Tests", () => {
     });
 
     deposit_utxo1 = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       publicKey: KEYPAIR.pubkey,
@@ -603,7 +603,7 @@ describe("Merkle Tree Tests", () => {
       senderSpl: tokenAccount.address,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account: KEYPAIR,
     });
@@ -615,7 +615,7 @@ describe("Merkle Tree Tests", () => {
       params: txParams,
     });
     const instructions = await transaction.compileAndProve(
-      lightProvider.poseidon,
+      lightProvider.hasher,
       KEYPAIR,
     );
     console.log(transaction.params.accounts);
@@ -1090,7 +1090,7 @@ describe("Merkle Tree Tests", () => {
 
     const merkleTree = await SolMerkleTree.build({
       pubkey: transactionMerkleTreePubkey,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       indexedTransactions,
       provider: provider,
     });
@@ -1166,7 +1166,7 @@ describe("Merkle Tree Tests", () => {
     });
 
     const shieldUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [FEE_ASSET, MINT],
       amounts: [shieldFeeAmount, shieldAmount],
       publicKey: KEYPAIR.pubkey,
@@ -1186,7 +1186,7 @@ describe("Merkle Tree Tests", () => {
       senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account: KEYPAIR,
     });
@@ -1210,7 +1210,7 @@ describe("Merkle Tree Tests", () => {
     };
 
     const instructions = await transaction.compileAndProve(
-      lightProvider.poseidon,
+      lightProvider.hasher,
       KEYPAIR,
     );
     await lightProvider.sendAndConfirmTransaction(instructions);

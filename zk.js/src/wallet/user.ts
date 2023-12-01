@@ -45,7 +45,6 @@ import {
   Transaction,
   TransactionErrorCode,
   TransactionParameters,
-  TransactionParametersErrorCode,
   UserError,
   UserErrorCode,
   UserIndexedTransaction,
@@ -54,7 +53,6 @@ import {
   UtxoErrorCode,
   Result,
 } from "../index";
-import { Poseidon } from "@lightprotocol/account.rs";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -102,7 +100,7 @@ export class User {
         "No wallet provided",
       );
 
-    if (!provider.lookUpTables.verifierProgramLookupTable || !provider.poseidon)
+    if (!provider.lookUpTables.verifierProgramLookupTable || !provider.hasher)
       throw new UserError(
         UserErrorCode.PROVIDER_NOT_INITIALIZED,
         "constructor",
@@ -159,7 +157,7 @@ export class User {
       for (const [key, utxo] of tokenBalance.utxos) {
         const nullifierAccountInfo = await fetchNullifierAccountInfo(
           utxo.getNullifier({
-            poseidon: this.provider.poseidon,
+            hasher: this.provider.hasher,
             account: this.account,
           })!,
           this.provider.provider.connection,
@@ -204,7 +202,7 @@ export class User {
           index: leftLeafIndex,
           commitment: Buffer.from([...leafLeft]),
           account: this.account,
-          poseidon: this.provider.poseidon,
+          hasher: this.provider.hasher,
           connection: this.provider.provider.connection,
           balance,
           merkleTreePdaPublicKey,
@@ -222,7 +220,7 @@ export class User {
           index: leftLeafIndex + 1,
           commitment: Buffer.from([...leafRight]),
           account: this.account,
-          poseidon: this.provider.poseidon,
+          hasher: this.provider.hasher,
           connection: this.provider.provider.connection,
           balance,
           merkleTreePdaPublicKey,
@@ -434,7 +432,7 @@ export class User {
         : [SystemProgram.programId];
       outUtxos.push(
         new Utxo({
-          poseidon: this.provider.poseidon,
+          hasher: this.provider.hasher,
           assets,
           amounts,
           publicKey: recipient.pubkey,
@@ -493,7 +491,7 @@ export class User {
     });
 
     this.recentInstructions = await tx.compileAndProve(
-      this.provider.poseidon,
+      this.provider.hasher,
       this.account,
     );
     return this.recentInstructions;
@@ -644,7 +642,7 @@ export class User {
     confirmOptions?: ConfirmOptions;
   }) {
     const recipientAccount = recipient
-      ? Account.fromPubkey(recipient, this.provider.poseidon)
+      ? Account.fromPubkey(recipient, this.provider.hasher)
       : undefined;
 
     const txParams = await this.createShieldTransactionParameters({
@@ -829,7 +827,7 @@ export class User {
       );
     const recipientAccount = Account.fromPubkey(
       recipient,
-      this.provider.poseidon,
+      this.provider.hasher,
     );
 
     const txParams = await this.createTransferTransactionParameters({
@@ -935,7 +933,7 @@ export class User {
             appUtxo,
           },
         ],
-        poseidon: this.provider.poseidon,
+        hasher: this.provider.hasher,
         assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           this.provider.lookUpTables.verifierProgramLookupTable,
@@ -1076,11 +1074,11 @@ export class User {
         );
       if (!seed && !account && provider.wallet) {
         account = await Account.createFromBrowserWallet(
-          provider.poseidon,
+          provider.hasher,
           provider.wallet,
         );
       } else if (!account && seed) {
-        account = Account.createFromSeed(provider.poseidon, seed);
+        account = Account.createFromSeed(provider.hasher, seed);
       } else if (!account) {
         throw new UserError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
@@ -1342,10 +1340,10 @@ export class User {
             "createStoreAppUtxoTransactionParameters",
           );
         const recipientAccount = recipientPublicKey
-          ? Account.fromPubkey(recipientPublicKey!, this.provider.poseidon)
+          ? Account.fromPubkey(recipientPublicKey!, this.provider.hasher)
           : undefined;
         appUtxo = new Utxo({
-          poseidon: this.provider.poseidon,
+          hasher: this.provider.hasher,
           amounts: [amountSol, amountSpl],
           assets: [SystemProgram.programId, tokenCtx.mint],
           ...appUtxoConfig,
@@ -1360,7 +1358,7 @@ export class User {
       } else if (stringUtxo) {
         appUtxo = Utxo.fromString(
           stringUtxo,
-          this.provider.poseidon,
+          this.provider.hasher,
           this.provider.lookUpTables.assetLookupTable,
         );
       } else {
@@ -1396,7 +1394,7 @@ export class User {
 
     const message = Buffer.from(
       await appUtxo.encrypt({
-        poseidon: this.provider.poseidon,
+        hasher: this.provider.hasher,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         compressed: false,
         account: this.account,
@@ -1439,7 +1437,7 @@ export class User {
         verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
         token,
         recipient: recipientPublicKey
-          ? Account.fromPubkey(recipientPublicKey, this.provider.poseidon)
+          ? Account.fromPubkey(recipientPublicKey, this.provider.hasher)
           : !appUtxo
           ? this.account
           : undefined,
@@ -1554,7 +1552,7 @@ export class User {
           try {
             if (aes) {
               decryptedUtxo = await Utxo.decrypt({
-                poseidon: this.provider.poseidon,
+                hasher: this.provider.hasher,
                 account: this.account,
                 encBytes: Uint8Array.from(data.message),
                 appDataIdl: idl,
@@ -1568,7 +1566,7 @@ export class User {
               });
             } else {
               decryptedUtxo = await Utxo.decryptUnchecked({
-                poseidon: this.provider.poseidon,
+                hasher: this.provider.hasher,
                 account: this.account,
                 encBytes: Uint8Array.from(data.message),
                 appDataIdl: idl,
@@ -1586,7 +1584,7 @@ export class User {
               const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
                 utxo.getNullifier({
-                  poseidon: this.provider.poseidon,
+                  hasher: this.provider.hasher,
                   account: this.account,
                 })!,
                 this.provider.provider?.connection,
@@ -1631,7 +1629,7 @@ export class User {
       }
       this.balance.programBalances
         .get(verifierAddress)!
-        .addUtxo(utxo.getCommitment(this.provider.poseidon), utxo, "utxos");
+        .addUtxo(utxo.getCommitment(this.provider.hasher), utxo, "utxos");
     }
 
     for (const utxo of spentUtxos) {
@@ -1645,7 +1643,7 @@ export class User {
       this.balance.programBalances
         .get(verifierAddress)!
         .addUtxo(
-          utxo.getCommitment(this.provider.poseidon),
+          utxo.getCommitment(this.provider.hasher),
           utxo,
           "spentUtxos",
         );
@@ -1655,7 +1653,7 @@ export class User {
         for (const [key, utxo] of tokenBalance.utxos) {
           const nullifierAccountInfo = await fetchNullifierAccountInfo(
             utxo.getNullifier({
-              poseidon: this.provider.poseidon,
+              hasher: this.provider.hasher,
               account: this.account,
             })!,
             this.provider.provider!.connection,

@@ -34,7 +34,7 @@ import {
   TransactionErrorCode,
   useWallet,
 } from "../index";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash} from "@lightprotocol/account.rs";
 const axios = require("axios");
 
 /**
@@ -57,7 +57,7 @@ export class Provider {
   connection?: Connection;
   wallet: Wallet;
   confirmConfig: ConfirmOptions;
-  poseidon: Poseidon;
+  hasher: IHash;
   solMerkleTree?: SolMerkleTree;
   provider: AnchorProvider;
   url?: string;
@@ -84,7 +84,7 @@ export class Provider {
     assetLookupTable,
     versionedTransactionLookupTable,
     anchorProvider,
-    poseidon,
+    hasher,
   }: {
     wallet: Wallet;
     confirmConfig?: ConfirmOptions;
@@ -96,7 +96,7 @@ export class Provider {
     assetLookupTable?: PublicKey[];
     versionedTransactionLookupTable: PublicKey;
     anchorProvider: AnchorProvider;
-    poseidon: Poseidon;
+    hasher: IHash;
   }) {
     if (!wallet)
       throw new ProviderError(
@@ -140,25 +140,25 @@ export class Provider {
       ],
       versionedTransactionLookupTable,
     };
-    this.poseidon = poseidon;
+    this.hasher = hasher;
     this.solMerkleTree = new SolMerkleTree({
       pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      poseidon: this.poseidon,
+      hasher: this.hasher,
     });
   }
 
   static async loadMock(): Promise<Provider> {
-    const poseidon = await Poseidon.getInstance();
+    const hasher = (await WasmHash.loadModule()).create();
     // @ts-ignore: @ananas-block ignoring errors to not pass anchorProvider
     const mockProvider = new Provider({
       wallet: useWallet(ADMIN_AUTH_KEYPAIR),
       url: "mock",
       versionedTransactionLookupTable: PublicKey.default,
-      poseidon,
+      hasher,
     });
 
     mockProvider.solMerkleTree = new SolMerkleTree({
-      poseidon: mockProvider.poseidon,
+      hasher: mockProvider.hasher,
       pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
 
@@ -202,7 +202,7 @@ export class Provider {
 
       const mt = await SolMerkleTree.build({
         pubkey: merkleTreePubkey,
-        poseidon: this.poseidon,
+        hasher: this.hasher,
         indexedTransactions,
         provider: this.provider,
       });
@@ -422,7 +422,7 @@ export class Provider {
         "Initializing lookup table in node.js or fetching it from relayer in browser failed",
       );
 
-    const poseidon = await Poseidon.getInstance();
+    const hasher= (await WasmHash.loadModule()).create();
     return new Provider({
       wallet,
       confirmConfig,
@@ -433,7 +433,7 @@ export class Provider {
       verifierProgramLookupTable,
       versionedTransactionLookupTable,
       anchorProvider,
-      poseidon,
+        hasher,
     });
   }
 

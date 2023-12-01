@@ -30,11 +30,11 @@ import {
   RELAYER_FEE,
   BN_1,
 } from "../../src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash} from "@lightprotocol/account.rs";
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { expect } from "chai";
 
-let POSEIDON: Poseidon, RELAYER: TestRelayer, provider: Provider, user: User;
+let HASHER: IHash, RELAYER: TestRelayer, provider: Provider, user: User;
 
 describe("Test User", () => {
   // Configure the client to use the local cluster.
@@ -50,7 +50,7 @@ describe("Test User", () => {
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
-    POSEIDON = await Poseidon.getInstance();
+    HASHER = (await WasmHash.loadModule()).create();
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     await anchorProvider.connection.requestAirdrop(
@@ -329,7 +329,7 @@ describe("Test User", () => {
     };
 
     const recipientAccount = new Account({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       seed: testInputs.recipientSeed,
     });
 
@@ -435,7 +435,7 @@ describe("Test User Errors", () => {
       await createTestAccounts(providerAnchor.connection);
     }
 
-    POSEIDON = await Poseidon.getInstance();
+    HASHER = (await WasmHash.loadModule()).create();
     amount = 20;
     token = "USDC";
 
@@ -559,7 +559,7 @@ describe("Test User Errors", () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({
-        recipient: new Account({ poseidon: POSEIDON }).getPublicKey(),
+        recipient: new Account({ hasher: HASHER }).getPublicKey(),
         amountSol: BN_1,
         token: "SPL",
       }),
@@ -579,7 +579,7 @@ describe("Test User Errors", () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({
-        recipient: new Account({ poseidon: POSEIDON }).getPublicKey(),
+        recipient: new Account({ hasher: HASHER }).getPublicKey(),
       }),
       UserErrorCode.NO_AMOUNTS_PROVIDED,
     );

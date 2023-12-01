@@ -12,7 +12,7 @@ import {
   TOKEN_REGISTRY,
   BN_0,
 } from "../index";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {IHash} from "@lightprotocol/account.rs";
 // TODO: turn these into static user.class methods
 export const getAmount = (u: Utxo, asset: PublicKey) => {
   return u.amounts[u.assets.indexOf(asset)];
@@ -118,7 +118,7 @@ export function selectInUtxos({
   publicMint,
   publicAmountSpl,
   publicAmountSol,
-  poseidon,
+  hasher,
   relayerFee,
   inUtxos,
   outUtxos = [],
@@ -129,7 +129,7 @@ export function selectInUtxos({
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
-  poseidon: Poseidon;
+  hasher: IHash;
   relayerFee?: BN;
   utxos?: Utxo[];
   inUtxos?: Utxo[];
@@ -260,8 +260,8 @@ export function selectInUtxos({
         // exclude the utxo which is already selected and utxos which hold other assets than only sol
         const reFilteredUtxos = utxos.filter(
           (utxo) =>
-            utxo.getCommitment(poseidon) !=
-              selectedUtxosR[0].getCommitment(poseidon) &&
+            utxo.getCommitment(hasher) !=
+              selectedUtxosR[0].getCommitment(hasher) &&
             utxo.assets[1].toBase58() === SystemProgram.programId.toBase58(),
         );
 

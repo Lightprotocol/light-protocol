@@ -29,10 +29,10 @@ import {
   DEFAULT_ZERO,
   TestRelayer,
 } from "../../src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash} from "@lightprotocol/account.rs";
 import { BN, AnchorProvider, setProvider } from "@coral-xyz/anchor";
 
-let POSEIDON: Poseidon, KEYPAIR: Account;
+let HASHER: IHash, KEYPAIR: Account;
 let RELAYER: TestRelayer;
 
 // TODO: remove deprecated function calls
@@ -49,9 +49,9 @@ describe("verifier_program", () => {
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(provider.connection);
 
-    POSEIDON = await Poseidon.getInstance();
+    HASHER = (await WasmHash.loadModule()).create();
     KEYPAIR = new Account({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
@@ -96,7 +96,7 @@ describe("verifier_program", () => {
       mockKeypair.publicKey.toBase58(),
     );
     assert.equal(lightProviderMock.url, "http://127.0.0.1:8899");
-    assert(lightProviderMock.poseidon);
+    assert(lightProviderMock.hasher);
     assert.equal(
       lightProviderMock.solMerkleTree?.pubkey.toBase58(),
       MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
@@ -123,14 +123,14 @@ describe("verifier_program", () => {
     const shieldAmount = 0;
 
     const shieldUtxo1 = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [SystemProgram.programId, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: KEYPAIR.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     const shieldUtxo2 = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       publicKey: KEYPAIR.pubkey,
     });
@@ -142,7 +142,7 @@ describe("verifier_program", () => {
         MerkleTreeConfig.getTransactionMerkleTreePda(),
       senderSpl: userTokenAccount,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       action: Action.SHIELD,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account: KEYPAIR,
@@ -156,7 +156,7 @@ describe("verifier_program", () => {
       params: txParams,
     });
     const instructions = await tx.compileAndProve(
-      lightProvider.poseidon,
+      lightProvider.hasher,
       KEYPAIR,
     );
 
@@ -183,13 +183,13 @@ describe("verifier_program", () => {
     }
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        shieldUtxo1.getCommitment(POSEIDON),
+        shieldUtxo1.getCommitment(HASHER),
       ),
       -1,
     );
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        shieldUtxo2.getCommitment(POSEIDON),
+        shieldUtxo2.getCommitment(HASHER),
       ),
       -1,
     );
@@ -197,13 +197,13 @@ describe("verifier_program", () => {
     await lightProvider.latestMerkleTree();
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        shieldUtxo1.getCommitment(POSEIDON),
+        shieldUtxo1.getCommitment(HASHER),
       ),
       0,
     );
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        shieldUtxo2.getCommitment(POSEIDON),
+        shieldUtxo2.getCommitment(HASHER),
       ),
       1,
     );

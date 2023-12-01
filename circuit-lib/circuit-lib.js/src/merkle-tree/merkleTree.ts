@@ -1,5 +1,4 @@
-import { IHasher } from "@lightprotocol/account.rs";
-
+import { IHash } from "@lightprotocol/account.rs";
 export const DEFAULT_ZERO =
   "14522046728041339886521211779101644712859239303505368468566383402165481390632";
 
@@ -23,13 +22,13 @@ export class MerkleTree {
   levels: number;
   capacity: number;
   zeroElement;
-  _hash: IHasher;
+  _hash: IHash;
   _zeros: string[];
   _layers: string[][];
 
   constructor(
     levels: number,
-    poseidonHash2: IHasher,
+    poseidonHash2: IHash,
     elements: string[] = [],
     { zeroElement = DEFAULT_ZERO } = {},
   ) {
@@ -46,7 +45,7 @@ export class MerkleTree {
     this._zeros[0] = this.zeroElement;
 
     for (let i = 1; i <= levels; i++) {
-      this._zeros[i] = this._hash.hashString([
+      this._zeros[i] = this._hash.poseidonHashString([
         this._zeros[i - 1],
         this._zeros[i - 1],
       ]);
@@ -58,7 +57,7 @@ export class MerkleTree {
     for (let level = 1; level <= this.levels; level++) {
       this._layers[level] = [];
       for (let i = 0; i < Math.ceil(this._layers[level - 1].length / 2); i++) {
-        this._layers[level][i] = this._hash.hashString([
+        this._layers[level][i] = this._hash.poseidonHashString([
           this._layers[level - 1][i * 2],
           i * 2 + 1 < this._layers[level - 1].length
             ? this._layers[level - 1][i * 2 + 1]
@@ -121,7 +120,7 @@ export class MerkleTree {
     this._layers[0][index] = element;
     for (let level = 1; level <= this.levels; level++) {
       index >>= 1;
-      this._layers[level][index] = this._hash.hashString([
+      this._layers[level][index] = this._hash.poseidonHashString([
         this._layers[level - 1][index * 2],
         index * 2 + 1 < this._layers[level - 1].length
           ? this._layers[level - 1][index * 2 + 1]

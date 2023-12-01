@@ -22,7 +22,7 @@ import {
   BN_0,
   UTXO_PREFIX_LENGTH,
 } from "../src";
-import { Poseidon } from "@lightprotocol/account.rs";
+import {WasmHash, IHash} from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -33,16 +33,16 @@ describe("Utxo Functional", () => {
   const shieldAmount = 20_000;
   const shieldFeeAmount = 10_000;
 
-  let poseidon: Poseidon,
+  let hasher: IHash,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     keypair: Account;
   before(async () => {
-    poseidon = await Poseidon.getInstance();
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    hasher = (await WasmHash.loadModule()).create();
+    keypair = new Account({ hasher, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: keypair.pubkey,
@@ -68,12 +68,12 @@ describe("Utxo Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.addUtxo(shieldUtxo1.getCommitment(poseidon), shieldUtxo1, "utxos");
+      ?.addUtxo(shieldUtxo1.getCommitment(hasher), shieldUtxo1, "utxos");
 
     const utxo = balance.tokenBalances
       .get(MINT.toBase58())
-      ?.utxos.get(shieldUtxo1.getCommitment(poseidon));
-    Utxo.equal(poseidon, utxo!, shieldUtxo1);
+      ?.utxos.get(shieldUtxo1.getCommitment(hasher));
+    Utxo.equal(hasher, utxo!, shieldUtxo1);
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       shieldUtxo1.amounts[0].toString(),
@@ -90,7 +90,7 @@ describe("Utxo Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.moveToSpentUtxos(shieldUtxo1.getCommitment(poseidon));
+      ?.moveToSpentUtxos(shieldUtxo1.getCommitment(hasher));
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       "0",
@@ -108,8 +108,8 @@ describe("Utxo Functional", () => {
 
     const _shieldUtxo1 = balance.tokenBalances
       .get(MINT.toBase58())
-      ?.spentUtxos.get(shieldUtxo1.getCommitment(poseidon));
-    Utxo.equal(poseidon, _shieldUtxo1!, shieldUtxo1);
+      ?.spentUtxos.get(shieldUtxo1.getCommitment(hasher));
+    Utxo.equal(hasher, _shieldUtxo1!, shieldUtxo1);
   });
 
   // this test is mock of the syncState function
@@ -118,7 +118,7 @@ describe("Utxo Functional", () => {
     const verifierProgramLookupTable =
       provider.lookUpTables.verifierProgramLookupTable;
     const assetLookupTable = provider.lookUpTables.assetLookupTable;
-    const account = new Account({ poseidon: poseidon, seed: seed32 });
+    const account = new Account({ hasher, seed: seed32 });
     for (let j = 2; j < 4; j += 2) {
       const utxos: Utxo[] = [];
       let encryptedUtxos: any[] = [];
@@ -126,7 +126,7 @@ describe("Utxo Functional", () => {
         const shieldAmount = index;
         const shieldFeeAmount = index;
         const utxo = new Utxo({
-          poseidon: poseidon,
+          hasher,
           assets: [FEE_ASSET, MINT],
           amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
           publicKey: account.pubkey,
@@ -136,7 +136,7 @@ describe("Utxo Functional", () => {
         });
         utxos.push(utxo);
         const encryptedUtxo = await utxo.encrypt({
-          poseidon,
+          hasher,
           account,
           merkleTreePdaPublicKey:
             MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -147,7 +147,7 @@ describe("Utxo Functional", () => {
       const indexedTransactions = [
         {
           leaves: utxos.map((utxo) =>
-            new BN(utxo.getCommitment(poseidon)).toBuffer("le", 32),
+            new BN(utxo.getCommitment(hasher)).toBuffer("le", 32),
           ),
           firstLeafIndex: "0",
           encryptedUtxos,
@@ -168,7 +168,7 @@ describe("Utxo Functional", () => {
             ),
           );
           let decryptedUtxo = await Utxo.decrypt({
-            poseidon,
+            hasher,
             encBytes,
             account,
             index: leftLeafIndex + index,
@@ -193,7 +193,7 @@ describe("Utxo Functional", () => {
             ),
           );
           decryptedUtxo = await Utxo.decrypt({
-            poseidon,
+            hasher,
             encBytes,
             account,
             index: leftLeafIndex + index + 1,
@@ -210,7 +210,7 @@ describe("Utxo Functional", () => {
         }
       }
       utxos.map((utxo, index) => {
-        Utxo.equal(poseidon, utxo, decryptedUtxos[index]!);
+        Utxo.equal(hasher, utxo, decryptedUtxos[index]!);
       });
     }
   });
