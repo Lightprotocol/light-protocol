@@ -13,11 +13,37 @@ import {
   TokenBalance,
   TokenData,
   SerializedTokenBalance,
+  SerializedBalance,
 } from "../types/balance";
+import {
+  ProgramUtxoBalanceError,
+  ProgramUtxoBalanceErrorCode,
+} from "../errors";
 
 export const isSPLUtxo = (utxo: Utxo): boolean => {
   return !utxo.amounts[UTXO_ASSET_SPL_INDEX].eqn(0);
 };
+
+/**
+ * Sorts biggest to smallest by amount of the mint.
+ * Worst-case: O(n log n) complexity, which is fine for small n.
+ * for 1000 utxos = 10k operations = roughly .01ms
+ * If we eventually need to optimize, we can use a heap to get O(log n).
+ * @param utxos
+ * @returns sorted utxos
+ */
+function sortUtxos(utxos: Utxo[]): Utxo[] {
+  return utxos.sort((a, b) => {
+    const aAmount = a.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0;
+    const bAmount = b.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0;
+    if (aAmount.isZero() && bAmount.isZero()) {
+      return b.amounts[UTXO_ASSET_SOL_INDEX].cmp(
+        a.amounts[UTXO_ASSET_SOL_INDEX],
+      );
+    }
+    return bAmount.cmp(aAmount);
+  });
+}
 
 /**
  *
@@ -34,7 +60,11 @@ export function getTokenDataByMint(
       return value;
     }
   }
-  throw new Error(`Token with mint ${mintToFind} not found in token registry.`);
+  throw new ProgramUtxoBalanceError(
+    ProgramUtxoBalanceErrorCode.TOKEN_DATA_NOT_FOUND,
+    "getTokenDataByMint",
+    `Tokendata not found when trying to get tokenData for mint ${mintToFind.toBase58()}`,
+  );
 }
 
 /**
@@ -51,24 +81,28 @@ export function initTokenBalance(
   tokenData: TokenData,
   utxos?: Utxo[],
 ): TokenBalance {
-  let amount = BN_0;
+  let splAmount = BN_0;
   let lamports = BN_0;
 
   if (utxos) {
     utxos.forEach((utxo) => {
       if (!utxo.assets[UTXO_ASSET_SPL_INDEX].equals(tokenData.mint)) {
-        throw new Error(`UTXO does not match mint ${tokenData.mint}`);
+        throw new ProgramUtxoBalanceError(
+          ProgramUtxoBalanceErrorCode.INVALID_UTXO_MINT,
+          "initTokenBalance",
+          `UTXO mint does not match provided Tokendata ${tokenData.mint}`,
+        );
       }
-      amount = amount.add(utxo.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0);
+      splAmount = splAmount.add(utxo.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0);
       lamports = lamports.add(utxo.amounts[UTXO_ASSET_SOL_INDEX]);
     });
   }
 
   return {
-    amount: amount,
-    lamports: lamports,
-    data: tokenData,
-    utxos: utxos || [],
+    splAmount,
+    lamports,
+    tokenData,
+    utxos: utxos ? sortUtxos(utxos) : [],
   };
 }
 
@@ -96,11 +130,13 @@ export function updateTokenBalanceWithUtxo(
   if (utxoExists) return false;
 
   tokenBalance.utxos.push(utxo);
+  tokenBalance.utxos = sortUtxos(tokenBalance.utxos);
+
   tokenBalance.lamports = tokenBalance.lamports.add(
     utxo.amounts[UTXO_ASSET_SOL_INDEX],
   );
 
-  tokenBalance.amount = tokenBalance.amount.add(
+  tokenBalance.splAmount = tokenBalance.splAmount.add(
     utxo.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0,
   );
 
@@ -161,7 +197,7 @@ export function spendUtxo(balance: Balance[], commitment: string): boolean {
         tokenBalance.lamports = tokenBalance.lamports.sub(
           spentUtxo.amounts[UTXO_ASSET_SOL_INDEX],
         );
-        tokenBalance.amount = tokenBalance.amount.sub(
+        tokenBalance.splAmount = tokenBalance.splAmount.sub(
           spentUtxo.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0,
         );
         return true;
@@ -188,7 +224,7 @@ async function serializeTokenBalance(
   );
 
   const serializedTokenBalance: SerializedTokenBalance = {
-    mint: tokenBalance.data.mint.toString(),
+    mint: tokenBalance.tokenData.mint.toString(),
     utxos: utxos,
   };
 
@@ -212,17 +248,19 @@ function deserializeTokenBalance(
     tokenRegistry,
   );
 
-  const utxos = serializedTokenBalance.utxos.map((serializedUtxo) => {
-    const utxo = Utxo.fromString(
-      serializedUtxo.utxo,
-      provider.poseidon,
-      provider.lookUpTables.assetLookupTable,
-    );
+  const utxos = sortUtxos(
+    serializedTokenBalance.utxos.map((serializedUtxo) => {
+      const utxo = Utxo.fromString(
+        serializedUtxo.utxo,
+        provider.poseidon,
+        provider.lookUpTables.assetLookupTable,
+      );
 
-    const index = serializedUtxo.index;
-    utxo.index = index;
-    return utxo;
-  });
+      const index = serializedUtxo.index;
+      utxo.index = index;
+      return utxo;
+    }),
+  );
 
   return initTokenBalance(tokenData, utxos);
 }
@@ -233,10 +271,15 @@ function deserializeTokenBalance(
  * @returns serializedBalance
  */
 export async function serializeBalance(balance: Balance): Promise<string> {
-  const serializedBalance: SerializedTokenBalance[] = [];
+  const serializedBalance: SerializedBalance = {
+    tokenBalances: [],
+    lastSyncedSlot: balance.lastSyncedSlot,
+  };
 
   for (const tokenBalance of balance.tokenBalances.values()) {
-    serializedBalance.push(await serializeTokenBalance(tokenBalance));
+    serializedBalance.tokenBalances.push(
+      await serializeTokenBalance(tokenBalance),
+    );
   }
 
   return JSON.stringify(serializedBalance);
@@ -254,14 +297,13 @@ export function deserializeBalance(
   tokenRegistry: Map<string, TokenData>,
   provider: Provider,
 ): Balance {
+  const cachedBalance: SerializedBalance = JSON.parse(serializedBalance);
   const balance: Balance = {
     tokenBalances: new Map<string, TokenBalance>(),
+    lastSyncedSlot: cachedBalance.lastSyncedSlot,
   };
 
-  const serializedTokenBalances: SerializedTokenBalance[] =
-    JSON.parse(serializedBalance);
-
-  for (const serializedTokenBalance of serializedTokenBalances) {
+  for (const serializedTokenBalance of cachedBalance.tokenBalances) {
     const tokenBalance = deserializeTokenBalance(
       serializedTokenBalance,
       tokenRegistry,
@@ -272,3 +314,5 @@ export function deserializeBalance(
 
   return balance;
 }
+
+// export function syncBalance()

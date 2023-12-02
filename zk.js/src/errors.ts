@@ -208,6 +208,7 @@ export enum UtilsErrorCode {
 export enum ProgramUtxoBalanceErrorCode {
   INVALID_PROGRAM_ADDRESS = "INVALID_PROGRAM_ADDRESS",
   TOKEN_DATA_NOT_FOUND = "TOKEN_DATA_NOT_FOUND",
+  INVALID_UTXO_MINT = "INVALID_UTXO_MINT",
 }
 
 export enum SolanaTransactionErrorCode {

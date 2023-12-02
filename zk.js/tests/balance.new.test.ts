@@ -62,7 +62,7 @@ describe("Balance", () => {
     solTestUtxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, SystemProgram.programId],
-      amounts: [new BN(shieldAmount), new BN(0)],
+      amounts: [new BN(shieldAmount - 10), new BN(0)],
       publicKey: keypair.pubkey,
       index: 3,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -70,7 +70,7 @@ describe("Balance", () => {
     solTestUtxo2 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, SystemProgram.programId],
-      amounts: [new BN(shieldAmount * 1.5), new BN(0)],
+      amounts: [new BN(shieldAmount * 0.8), new BN(0)], // maintaining order
       publicKey: keypair.pubkey,
       index: 5,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -109,9 +109,9 @@ describe("Balance", () => {
 
       const tokenBalance = initTokenBalance(tokenData, utxos);
 
-      assert(tokenBalance.amount.eq(BN_0)); // is sol utxo
+      assert(tokenBalance.splAmount.eq(BN_0)); // is sol utxo
       assert(tokenBalance.lamports.eq(utxos[0].amounts[0]));
-      assert.deepEqual(tokenBalance.data, tokenData);
+      assert.deepEqual(tokenBalance.tokenData, tokenData);
       assert.deepEqual(tokenBalance.utxos, utxos);
     });
 
@@ -145,9 +145,9 @@ describe("Balance", () => {
       );
       const tokenBalance = initTokenBalance(tokenData);
 
-      assert.equal(tokenBalance.amount, BN_0);
+      assert.equal(tokenBalance.splAmount, BN_0);
       assert.equal(tokenBalance.lamports, BN_0);
-      assert.deepEqual(tokenBalance.data, tokenData);
+      assert.deepEqual(tokenBalance.tokenData, tokenData);
       assert.deepEqual(tokenBalance.utxos, []);
     });
   });
@@ -176,8 +176,9 @@ describe("Balance", () => {
       const tokenBalance = initTokenBalance(tokenData, [solTestUtxo1]);
       balance = {
         tokenBalances: new Map([
-          [tokenBalance.data.mint.toBase58(), tokenBalance],
+          [tokenBalance.tokenData.mint.toBase58(), tokenBalance],
         ]),
+        lastSyncedSlot: 0,
       };
     });
 
@@ -193,7 +194,7 @@ describe("Balance", () => {
         utxo,
       );
       assert.deepEqual(
-        balance.tokenBalances.get(utxo.assets[1].toString())!.amount,
+        balance.tokenBalances.get(utxo.assets[1].toString())!.splAmount,
         utxo.amounts[1],
       );
     });
@@ -236,7 +237,7 @@ describe("Balance", () => {
         tokenBalance.lamports,
         utxo.amounts[0].add(solTestUtxo1.amounts[0]),
       );
-      assert.deepEqual(tokenBalance.amount, utxo.amounts[1] ?? BN_0);
+      assert.deepEqual(tokenBalance.splAmount, utxo.amounts[1] ?? BN_0);
     });
 
     it("should not update the token balance with the same UTXO", () => {
@@ -260,8 +261,9 @@ describe("Balance", () => {
       const tokenBalance = initTokenBalance(tokenData, [solTestUtxo1]);
       const balance: Balance = {
         tokenBalances: new Map([
-          [tokenBalance.data.mint.toBase58(), tokenBalance],
+          [tokenBalance.tokenData.mint.toBase58(), tokenBalance],
         ]),
+        lastSyncedSlot: 0,
       };
 
       // Serialize
@@ -278,7 +280,7 @@ describe("Balance", () => {
       assert(
         customDeepEqual(
           deserializedBalance.tokenBalances.get(
-            tokenBalance.data.mint.toBase58(),
+            tokenBalance.tokenData.mint.toBase58(),
           ),
           tokenBalance,
         ),
@@ -296,8 +298,9 @@ describe("Balance", () => {
       const tokenBalance = initTokenBalance(tokenData, [utxo]);
       const balance: Balance = {
         tokenBalances: new Map([
-          [tokenBalance.data.mint.toBase58(), tokenBalance],
+          [tokenBalance.tokenData.mint.toBase58(), tokenBalance],
         ]),
+        lastSyncedSlot: 0,
       };
 
       const commitment = utxo.getCommitment(poseidon);
@@ -305,11 +308,11 @@ describe("Balance", () => {
       assert.equal(result, true);
 
       const updatedTokenBalance = balance.tokenBalances.get(
-        tokenBalance.data.mint.toBase58(),
+        tokenBalance.tokenData.mint.toBase58(),
       )!;
       assert.equal(updatedTokenBalance.utxos.length, 0);
       assert.equal(updatedTokenBalance.lamports.toString(), "0");
-      assert.equal(updatedTokenBalance.amount.toString(), "0");
+      assert.equal(updatedTokenBalance.splAmount.toString(), "0");
     });
 
     it("should return false when trying to spend a UTXO that has already been spent", () => {
@@ -320,8 +323,9 @@ describe("Balance", () => {
       const tokenBalance = initTokenBalance(tokenData, [solTestUtxo1]);
       const balance: Balance = {
         tokenBalances: new Map([
-          [tokenBalance.data.mint.toBase58(), tokenBalance],
+          [tokenBalance.tokenData.mint.toBase58(), tokenBalance],
         ]),
+        lastSyncedSlot: 0,
       };
 
       const commitment = shieldUtxo1.getCommitment(poseidon);
