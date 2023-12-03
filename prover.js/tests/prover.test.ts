@@ -1,10 +1,7 @@
-import { it } from "mocha";
 import { Prover } from "../src";
-const circomlibjs = require("circomlibjs");
+import * as circomlibjs from "circomlibjs";
 import { IDL } from "./circuits/idl";
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-chai.use(chaiAsPromised);
+import { describe, it, expect, afterAll } from "vitest";
 
 describe("Prover Functionality Tests", () => {
   it("Valid proof test", async () => {
@@ -41,11 +38,11 @@ describe("Prover Functionality Tests", () => {
     await prover.addProofInputs(proofInputs);
 
     console.time("Proof generation + Parsing");
-    await chai.assert.isRejected(prover.fullProveAndParse(), Error);
+    await expect(prover.fullProveAndParse()).rejects.toThrow(Error);
     console.timeEnd("Proof generation + Parsing");
   });
 
-  after(async () => {
+  afterAll(async () => {
     // @ts-ignore
     if (globalThis.curve_bn128 !== null) {
       // @ts-ignore

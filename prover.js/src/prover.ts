@@ -7,9 +7,12 @@ import {
 } from "./generics";
 import { VerifierError, VerifierErrorCode } from "./errors";
 
-const snarkjs = require("snarkjs");
-const { unstringifyBigInts, stringifyBigInts, leInt2Buff } =
-  require("ffjavascript").utils;
+import * as snarkjs from "snarkjs";
+import { utils } from "ffjavascript";
+
+const unstringifyBigInts = utils.unstringifyBigInts;
+const stringifyBigInts = utils.stringifyBigInts;
+const leInt2Buff = utils.leInt2Buff;
 
 export type proofData = {
   pi_a: string[];
