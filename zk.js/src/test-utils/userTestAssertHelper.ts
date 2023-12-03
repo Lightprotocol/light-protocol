@@ -1,5 +1,5 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import assert = require("assert");
+import assert from "assert";
 
 import {
   fetchNullifierAccountInfo,

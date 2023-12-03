@@ -1,23 +1,16 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@lightprotocol/tsconfig/base.json",
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "declaration": true,
-    "outDir": "./lib",
-    "strict": true,
+    "target": "ES2022",
+    "noEmit": true,
+    "module": "ES2022",
     "esModuleInterop": true,
-    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationDir": "dist/types",
+    "strict": true,
     "moduleResolution": "node",
-    "rootDirs": ["src", "generated"],
-    "baseUrl": "src",
-    "useUnknownInCatchVariables": false,
-    "sourceMap": true,
-    "skipLibCheck": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "skipLibCheck": true
   },
-  "include": ["src", "__tests__", "tests", "src/index.ts"],
-  "exclude": ["node_modules", "**/tests/*"],
-  "dry": false,
-  "debug": false
+  "include": ["src", "tests"]
 }

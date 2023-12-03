@@ -3,24 +3,18 @@
  * This is a custom port with select functions of circomlib under GPL-3.0 license.
  * See: https://github.com/weijiekoh/circomlib/blob/24ed08eee0bb613b8c0135d66c1013bd9f78d50a/src/babyjub.js
  */
-const F1Field = require("ffjavascript").F1Field;
-const Scalar = require("ffjavascript").Scalar;
-const utils = require("ffjavascript").utils;
 
-exports.addPoint = addPoint;
-exports.mulPointEscalar = mulPointEscalar;
-exports.inCurve = inCurve;
-exports.inSubgroup = inSubgroup;
-exports.packPoint = packPoint;
-exports.unpackPoint = unpackPoint;
+import * as ffjavascript from "ffjavascript";
+const F1Field = ffjavascript.F1Field;
+const Scalar = ffjavascript.Scalar;
+const utils = ffjavascript.utils;
 
-exports.p = Scalar.fromString(
+const p = Scalar.fromString(
   "21888242871839275222246405745257275088548364400416034343698204186575808495617",
 );
-const F = new F1Field(exports.p);
-exports.F = F;
+export const F = new F1Field(p);
 
-exports.Generator = [
+export const Generator = [
   F.e(
     "995203441582195749578291179787384436505546430278305826713579947235728471134",
   ),
@@ -28,7 +22,7 @@ exports.Generator = [
     "5472060717959818805561601436314318772137091100104008585924551046643952123905",
   ),
 ];
-exports.Base8 = [
+export const Base8 = [
   F.e(
     "5299619240641551281634865583518297030282874472190772894086521144482721001553",
   ),
@@ -36,14 +30,14 @@ exports.Base8 = [
     "16950150798460657717958625567821834550301663161624707787222815936182638968203",
   ),
 ];
-exports.order = Scalar.fromString(
+export const order = Scalar.fromString(
   "21888242871839275222246405745257275088614511777268538073601725287587578984328",
 );
-exports.subOrder = Scalar.shiftRight(exports.order, 3);
-exports.A = F.e("168700");
-exports.D = F.e("168696");
+export const subOrder = Scalar.shiftRight(order, 3);
+export const A = F.e("168700");
+export const D = F.e("168696");
 
-function addPoint(a, b) {
+export function addPoint(a, b) {
   const res = [];
 
   /* does the equivalent of:
@@ -67,7 +61,7 @@ function addPoint(a, b) {
   return res;
 }
 
-function mulPointEscalar(base, e) {
+export function mulPointEscalar(base, e) {
   let res = [F.e("0"), F.e("1")];
   let rem = e;
   let exp = base;
@@ -83,13 +77,13 @@ function mulPointEscalar(base, e) {
   return res;
 }
 
-function inSubgroup(P) {
+export function inSubgroup(P) {
   if (!inCurve(P)) return false;
   const res = mulPointEscalar(P, exports.subOrder);
   return F.isZero(res[0]) && F.eq(res[1], F.one);
 }
 
-function inCurve(P) {
+export function inCurve(P) {
   const x2 = F.square(P[0]);
   const y2 = F.square(P[1]);
 
@@ -104,7 +98,7 @@ function inCurve(P) {
   return true;
 }
 
-function packPoint(P) {
+export function packPoint(P) {
   const buff = utils.leInt2Buff(P[1], 32);
   if (F.lt(P[0], F.zero)) {
     buff[31] = buff[31] | 0x80;
@@ -112,7 +106,7 @@ function packPoint(P) {
   return buff;
 }
 
-function unpackPoint(_buff) {
+export function unpackPoint(_buff) {
   const buff = Buffer.from(_buff);
   let sign = false;
   const P = new Array(2);
