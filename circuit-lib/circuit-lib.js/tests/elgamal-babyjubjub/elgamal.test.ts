@@ -1,4 +1,4 @@
-import { assert, expect } from "chai";
+import { describe, it, expect, beforeAll, assert } from "vitest";
 import {
   babyjubjubExt,
   generateKeypair,
@@ -149,7 +149,7 @@ describe("Testing Encoding/Decoding for ElGamal Scheme", async () => {
   let lookupTable: any;
   let directoryPath = "./build";
   const lookupTable19Path = directoryPath + `/lookupTableBBJub19.json`;
-  before(() => {
+  beforeAll(() => {
     if (!fs.existsSync(directoryPath)) {
       fs.mkdirSync(directoryPath, { recursive: true });
       console.log(`Directory created: ${directoryPath}`);
@@ -165,7 +165,7 @@ describe("Testing Encoding/Decoding for ElGamal Scheme", async () => {
     const plaintext = 4294967297n;
     let expected = Error;
     const exercise = () => encode(plaintext);
-    assert.throws(exercise, expected);
+    expect(exercise).toThrowError(expected);
   });
 
   it("Check encoded value is a valid Baby Jubjub point", () => {

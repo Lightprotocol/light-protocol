@@ -1,4 +1,4 @@
-import { babyjubjubExt } from "./elgamal";
+import { babyjubjubExt } from "./babyjubjubConfig";
 import { ExtPointType } from "@noble/curves/abstract/edwards";
 
 export type LookupTable = { [key: string]: string };

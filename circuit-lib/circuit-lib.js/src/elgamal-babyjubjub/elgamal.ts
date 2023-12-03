@@ -1,6 +1,6 @@
 import { AffinePoint } from "@noble/curves/abstract/curve";
 import { ExtPointType } from "@noble/curves/abstract/edwards";
-import { babyjubjub } from "./babyjubjubConfig";
+import { babyjubjubExt } from "./babyjubjubConfig";
 import { encode } from "./pointEncoding";
 
 import {
@@ -24,7 +24,6 @@ const generateRandomSalt = (): bigint => {
   return genRandomSalt() as bigint;
 };
 
-const babyjubjubExt = babyjubjub.ExtendedPoint;
 
 const generateKeypair = (): Keypair => {
   const secretKey = generateSecretKey() as bigint;
@@ -177,7 +176,7 @@ export {
   decrypt,
   rerandomize,
   babyjubjubExt,
-  PublicKey,
-  Keypair,
   ElGamalUtils,
 };
+
+export type { SecretKey, PublicKey, Keypair };
