@@ -106,7 +106,6 @@ const anchorPath = createPathFunction({
   downloadParams: { repoName: "anchor", remoteFileName: "light-anchor" },
 });
 
-
 /**
  * Look up for the path to the Solana toolchain.
  * @returns {Promise<string>}

@@ -1,9 +1,5 @@
 import { Command } from "@oclif/core";
-import {
-  CustomLoader,
-  getWalletConfig,
-  setAnchorProvider,
-} from "../../utils";
+import { CustomLoader, getWalletConfig, setAnchorProvider } from "../../utils";
 
 class SplEnableCommand extends Command {
   static description = "Enable permissionless SPL tokens.";

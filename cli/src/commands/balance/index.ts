@@ -125,10 +125,10 @@ class BalanceCommand extends Command {
     if (_inbox) this.log(PURPLE, "\n--- Inbox Balances ---\n");
     else this.log(PURPLE, "\n--- Main Balances ---\n");
     type TableData = {
-        token: string;
-        balance: string;
-        utxos: number;
-    }
+      token: string;
+      balance: string;
+      utxos: number;
+    };
 
     const tableData: TableData[] = [];
     for (const tokenBalance of balances.tokenBalances) {

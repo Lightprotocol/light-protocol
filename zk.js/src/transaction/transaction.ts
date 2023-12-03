@@ -535,7 +535,7 @@ export class Transaction {
       );
 
     const nullifiers = this.transactionInputs.publicInputs.inputNullifier;
-    
+
     this.remainingAccounts.nullifierPdaPubkeys = [];
     for (const i in nullifiers) {
       this.remainingAccounts.nullifierPdaPubkeys.push({
