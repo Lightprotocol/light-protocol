@@ -10,7 +10,7 @@
     "declarationDir": "dist/types",
     "strict": true,
     "moduleResolution": "node",
-    "skipLibCheck": true,
+    "skipLibCheck": true
   },
   "include": ["src", "tests"]
 }
