@@ -8,12 +8,12 @@ import { Utxo } from "../utxo";
  * because we need to keep Balance up2date at
  * any time, and syncing spent UTXOs is expensive.
  */
+// TODO: add programBalance to Balance
 export type Balance = {
   // key is token
   // includes only unspent UTXOs
   tokenBalances: Map<string, TokenBalance>;
   lastSyncedSlot: number;
-  // TODO: add programBalances
 };
 
 export type TokenBalance = {

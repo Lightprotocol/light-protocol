@@ -2,11 +2,13 @@ import { Utxo } from "../utxo";
 import { PublicKey } from "@solana/web3.js";
 import {
   BN_0,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   TOKEN_REGISTRY,
   UTXO_ASSET_SOL_INDEX,
   UTXO_ASSET_SPL_INDEX,
+  UTXO_PREFIX_LENGTH,
 } from "../constants";
-import { Provider } from "../wallet";
+import { Provider, decryptAddUtxoToBalance } from "../wallet";
 import { Poseidon } from "../types/poseidon";
 import {
   Balance,
@@ -19,6 +21,9 @@ import {
   ProgramUtxoBalanceError,
   ProgramUtxoBalanceErrorCode,
 } from "../errors";
+import { fetchNullifierAccountInfo } from "../utils";
+import { Account, IndexedTransaction } from "../index";
+import { BN } from "@coral-xyz/anchor";
 
 export const isSPLUtxo = (utxo: Utxo): boolean => {
   return !utxo.amounts[UTXO_ASSET_SPL_INDEX].eqn(0);
@@ -186,22 +191,20 @@ export function addUtxoToBalance(
  * @param commitment commitment of the utxo to be removed
  * @returns boolean indicating if the utxo was removed from the balance
  */
-export function spendUtxo(balance: Balance[], commitment: string): boolean {
-  for (let i = 0; i < balance.length; i++) {
-    for (const [_assetKey, tokenBalance] of balance[i].tokenBalances) {
-      const utxoIndex = tokenBalance.utxos.findIndex(
-        (utxo) => utxo._commitment === commitment,
+export function spendUtxo(balance: Balance, commitment: string): boolean {
+  for (const [_assetKey, tokenBalance] of balance.tokenBalances) {
+    const utxoIndex = tokenBalance.utxos.findIndex(
+      (utxo) => utxo._commitment === commitment,
+    );
+    if (utxoIndex !== -1) {
+      const [spentUtxo] = tokenBalance.utxos.splice(utxoIndex, 1);
+      tokenBalance.lamports = tokenBalance.lamports.sub(
+        spentUtxo.amounts[UTXO_ASSET_SOL_INDEX],
       );
-      if (utxoIndex !== -1) {
-        const [spentUtxo] = tokenBalance.utxos.splice(utxoIndex, 1);
-        tokenBalance.lamports = tokenBalance.lamports.sub(
-          spentUtxo.amounts[UTXO_ASSET_SOL_INDEX],
-        );
-        tokenBalance.splAmount = tokenBalance.splAmount.sub(
-          spentUtxo.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0,
-        );
-        return true;
-      }
+      tokenBalance.splAmount = tokenBalance.splAmount.sub(
+        spentUtxo.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0,
+      );
+      return true;
     }
   }
   return false;
@@ -315,4 +318,125 @@ export function deserializeBalance(
   return balance;
 }
 
-// export function syncBalance()
+/**
+ *
+ * @param balance
+ * @param until
+ */
+// fetch all events from indexer provided prefixes (or not),
+// until is either empty, accountcreationslot, or lastsyncedslot
+// later: make it a prefix/signature?
+
+export async function syncBalance(
+  balance: Balance,
+  provider,
+  account,
+  until?: number,
+) {
+  // loops backwards in time starting at most recent event
+  // TODO: until 'until' is reached
+  const _balance = await findSpentUtxos(balance, provider, account);
+
+  const indexedTransactions = await provider.relayer.getIndexedTransactions(
+    provider.provider!.connection,
+  );
+
+  await provider.latestMerkleTree(indexedTransactions);
+
+  const __balance = await tryDecryptNewUtxos(
+    _balance,
+    indexedTransactions,
+    provider,
+    account,
+  );
+
+  // 
+}
+
+/// Ideally we'd want to reduce these types of calls as much as possible. This should only be needed if we actually append new utxos.
+/// Are we not refetching all of em anyways? => if we use until sig/slot we can just fetch the new ones and then this would make sense
+/// and also maybe only if we DO find new utxos (else the old ones wouldnt be spent)
+/// the "updating balance" is specific to action to done so we should allow filtering by token/program as well.  to reduce latency.
+// We should also have a client sidef subscription that runs in the background, to these such that the "lastsyncedslot" is as fresh as possible.
+/// there should be fns that allows latency control and those that ensure safety for devs. (one that ensures full balance up2date).
+/// will change once we refactor indexing by prefixes. so keep it easy for now.
+async function findSpentUtxos(
+  balance: Balance,
+  provider: Provider,
+  account: Account,
+) {
+  const tokenBalancesPromises = Array.from(balance.tokenBalances.values()).map(
+    async (tokenBalance) => {
+      const utxoPromises = tokenBalance.utxos.map(async (utxo) => {
+        const nullifierAccountInfo = await fetchNullifierAccountInfo(
+          utxo.getNullifier({
+            poseidon: provider.poseidon,
+            account: account,
+          })!,
+          provider.provider.connection,
+        );
+        if (nullifierAccountInfo)
+          spendUtxo(balance, utxo.getCommitment(provider.poseidon));
+      });
+      await Promise.all(utxoPromises);
+    },
+  );
+  await Promise.all(tokenBalancesPromises);
+  return balance;
+}
+
+async function tryDecryptNewUtxos(
+  balance: Balance,
+  indexedTransactions: IndexedTransaction[],
+  provider: Provider,
+  account: Account,
+) {
+  for (const trx of indexedTransactions) {
+    const leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
+
+    for (let index = 0; index < trx.leaves.length; index += 2) {
+      const leafLeft = trx.leaves[index];
+      const leafRight = trx.leaves[index + 1];
+
+      const encUtxoSize =
+        NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
+      // transaction nonce is the same for all utxos in one transaction
+      await decryptAddUtxoToBalance({
+        encBytes: Buffer.from(
+          trx.encryptedUtxos.slice(
+            index * encUtxoSize,
+            index * encUtxoSize + encUtxoSize,
+          ),
+        ),
+        index: leftLeafIndex,
+        commitment: Buffer.from([...leafLeft]),
+        account: account,
+        poseidon: provider.poseidon,
+        connection: provider.provider.connection,
+        balance,
+        merkleTreePdaPublicKey,
+        leftLeaf: Uint8Array.from([...leafLeft]),
+        aes,
+        assetLookupTable: provider.lookUpTables.assetLookupTable,
+      });
+      await decryptAddUtxoToBalance({
+        encBytes: Buffer.from(
+          trx.encryptedUtxos.slice(
+            index * encUtxoSize + encUtxoSize,
+            index * encUtxoSize + encUtxoSize * 2,
+          ),
+        ),
+        index: leftLeafIndex + 1,
+        commitment: Buffer.from([...leafRight]),
+        account: account,
+        poseidon: provider.poseidon,
+        connection: provider.provider.connection,
+        balance,
+        merkleTreePdaPublicKey,
+        leftLeaf: Uint8Array.from([...leafLeft]),
+        aes,
+        assetLookupTable: provider.lookUpTables.assetLookupTable,
+      });
+    }
+  }
+}
