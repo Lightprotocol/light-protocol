@@ -59,6 +59,10 @@ runs:
       shell: bash
       run: pnpm install
 
+    - name: Install Playwright Browsers
+      shell: bash
+      run: npx playwright install --with-deps
+
     - name: Build and prepare for tests
       shell: bash
       run: |
