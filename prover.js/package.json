@@ -3,12 +3,30 @@
   "version": "0.1.0-alpha.3",
   "description": "Circom generic prover sdk offering precompile errors for proofInputs as well as parsed publicInputs & proof for private solana programs",
   "license": "GPL-3.0",
-  "main": "lib/index",
-  "typings": "lib/index",
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/umd/index.js",
+  "module": "./dist/es/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/main/index.d.ts",
+      "import": "./dist/es/index.js",
+      "default": "./dist/cjs/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/types/main/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test-prepare-circom": "./scripts/build_test_circuit.sh",
-    "test": "pnpm test-prepare-circom && ts-mocha --timeout 500000 tests/*.test.ts",
-    "build": "pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json",
+    "test:nodejs": "vitest run",
+    "test:browser": "vitest run --browser.name=firefox --browser.provider=playwright --browser.headless",
+    "test": "pnpm test-prepare-circom && pnpm test:nodejs && pnpm test:browser",
+    "test:types": "tsc",
+    "build": "rm -rf dist && pnpm build:bundle",
+    "build:bundle": "rollup -c --bundleConfigAsCjs",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
     "format:check": "prettier \"src/**/*{ts,js}\" --check",
     "lint": "eslint .",
@@ -17,28 +35,35 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0",
     "circomlibjs": "^0.1.7",
-    "ffjavascript": "^0.2.60",
-    "snarkjs": "^0.7.0"
+    "ffjavascript": "^0.2.62",
+    "snarkjs": "^0.7.2"
   },
   "devDependencies": {
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@lightprotocol/tsconfig": "workspace:*",
+    "@rollup/plugin-typescript": "^11.1.5",
     "@solana/web3.js": "^1.78.4",
     "@types/chai": "^4.3.5",
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.4.10",
     "@typescript-eslint/eslint-plugin": "^6.4.0",
+    "@vitest/browser": "^0.34.6",
     "chai": "^4.3.7",
     "chai-as-promised": "^7.1.1",
+    "circomlib": "2.0.5",
     "eslint": "^8.0.1",
     "eslint-config-standard-with-typescript": "^39.1.0",
     "eslint-plugin-import": "^2.25.2",
     "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
     "eslint-plugin-promise": "^6.0.0",
     "mocha": "^10.2.0",
+    "playwright": "^1.40.1",
+    "rollup": "^4.6.1",
+    "rollup-plugin-polyfill-node": "^0.13.0",
     "ts-mocha": "^10.0.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.1.6",
-    "circomlib": "2.0.5"
+    "vitest": "^0.34.6"
   }
 }
