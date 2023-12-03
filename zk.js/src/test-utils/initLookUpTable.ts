@@ -51,9 +51,8 @@ export async function initLookUpTableFromFile(
   );
   try {
     const lookUpTableRead = new PublicKey(readFileSync(path, "utf8"));
-    const lookUpTableInfoInit = await provider.connection.getAccountInfo(
-      lookUpTableRead,
-    );
+    const lookUpTableInfoInit =
+      await provider.connection.getAccountInfo(lookUpTableRead);
     if (lookUpTableInfoInit) {
       lookUpTable = lookUpTableRead;
     }
@@ -84,9 +83,8 @@ export async function initLookUpTableTest(
 ): Promise<PublicKey> {
   let lookUpTableInfoInit: AccountInfo<Buffer> | null = null;
   if (lookupTableAddress != undefined) {
-    lookUpTableInfoInit = await provider.connection.getAccountInfo(
-      lookupTableAddress,
-    );
+    lookUpTableInfoInit =
+      await provider.connection.getAccountInfo(lookupTableAddress);
   }
 
   if (lookUpTableInfoInit == null) {
@@ -156,9 +154,8 @@ export async function initLookUpTableTest(
 
     transaction.add(extendInstruction);
     transaction.add(ix0);
-    const recentBlockhash = await provider.connection.getLatestBlockhash(
-      "confirmed",
-    );
+    const recentBlockhash =
+      await provider.connection.getLatestBlockhash("confirmed");
     transaction.feePayer = payerPubkey;
     transaction.recentBlockhash = recentBlockhash.blockhash;
 

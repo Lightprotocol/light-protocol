@@ -97,7 +97,7 @@ class BalanceCommand extends Command {
           throw new UserError(
             UserErrorCode.TOKEN_NOT_FOUND,
             "shield",
-            "Token not supported!"
+            "Token not supported!",
           );
         this.logTokenBalance(balances, inboxBalances, token!);
 
@@ -151,7 +151,7 @@ class BalanceCommand extends Command {
   private logUtxos(
     balances: Balance | InboxBalance,
     _inbox = false,
-    filter?: "SOL" | "all"
+    filter?: "SOL" | "all",
   ) {
     const BLUE = "\x1b[34m%s\x1b[0m";
     let logHeader = "";
@@ -182,7 +182,7 @@ class BalanceCommand extends Command {
             { prop: "Utxo No", value: i },
             { prop: "Token", value: `\x1b[32m${symbol}\x1b[0m` },
             { prop: "Amount LAMPORTS", value: amountSol },
-            { prop: "Commitment Hash", value: commitmentHash }
+            { prop: "Commitment Hash", value: commitmentHash },
           );
         }
         if (tableData.length === 0) {
@@ -216,7 +216,7 @@ class BalanceCommand extends Command {
             { prop: "Amount SPL", value: amountSpl },
             { prop: "Amount LAMPORTS", value: amountSol },
             { prop: "Mint", value: mint },
-            { prop: "Commitment Hash", value: commitmentHash }
+            { prop: "Commitment Hash", value: commitmentHash },
           );
         }
         ux.table(tableData, {
@@ -230,12 +230,12 @@ class BalanceCommand extends Command {
   private logTokenBalance(
     balances: Balance,
     inboxBalances: InboxBalance,
-    token: string
+    token: string,
   ) {
     function fetchTokenBalance(
       balances: Balance | InboxBalance,
       token: string,
-      inbox = false
+      inbox = false,
     ) {
       for (const tokenBalance of balances.tokenBalances) {
         const _token = tokenBalance[1].tokenData.symbol;
@@ -297,7 +297,7 @@ class BalanceCommand extends Command {
           { prop: "Amount LAMPORTS", value: amountSol },
           { prop: "Amount SPL", value: amountSpl },
           { prop: "Mint", value: mint },
-          { prop: "Commitment Hash", value: commitmentHash }
+          { prop: "Commitment Hash", value: commitmentHash },
         );
       }
       ux.table(tableData, {

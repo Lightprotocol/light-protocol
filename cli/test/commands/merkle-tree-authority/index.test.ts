@@ -23,7 +23,7 @@ describe("Merkle Tree Authority", () => {
     .command(["merkle-tree-authority:initialize"])
     .it("Initialize Merkle Tree Authority", ({ stdout }) => {
       expect(stdout).to.contain(
-        "Merkle Tree Authority initialized successfully"
+        "Merkle Tree Authority initialized successfully",
       );
     });
   // Second call, Merkle Tree Authority was already initialized.
@@ -50,7 +50,7 @@ describe("Merkle Tree Authority", () => {
     .command(["merkle-tree-authority:spl-enable", "true"])
     .it("Enable SPL", ({ stdout }) => {
       expect(stdout).to.contain(
-        "Permissionless SPL tokens enabled successfully"
+        "Permissionless SPL tokens enabled successfully",
       );
     });
   test
@@ -58,7 +58,7 @@ describe("Merkle Tree Authority", () => {
     .command(["merkle-tree-authority:spl-disable", "false"])
     .it("Disable SPL", ({ stdout }) => {
       expect(stdout).to.contain(
-        "Permissionless SPL tokens disabled successfully"
+        "Permissionless SPL tokens disabled successfully",
       );
     });
 });

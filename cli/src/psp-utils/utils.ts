@@ -32,7 +32,7 @@ export function findFile({
 
 function recursiveSearch(
   directory: string,
-  extension: string
+  extension: string,
 ): { filename: string; fullPath: string; light?: boolean }[] {
   const entries = fs.readdirSync(directory);
   const matchingFiles: {

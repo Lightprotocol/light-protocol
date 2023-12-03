@@ -73,7 +73,7 @@ export function findDirectoryAnchorBaseDirectory(startPath: string): string {
   }
 
   throw new Error(
-    `Could not find Anchor.toml in the current directory or any parent directory: ${startPath}`
+    `Could not find Anchor.toml in the current directory or any parent directory: ${startPath}`,
   );
 }
 
@@ -85,7 +85,7 @@ export function getSubdirectories(baseDir: string): string[] {
     !fs.statSync(programsPath).isDirectory()
   ) {
     throw new Error(
-      `The "programs" directory does not exist in the anchor project: ${baseDir}`
+      `The "programs" directory does not exist in the anchor project: ${baseDir}`,
     );
   }
 

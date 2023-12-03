@@ -15,12 +15,10 @@ export async function fundRelayer() {
   const relayerRecipient = relayer.accounts.relayerRecipientSol;
   relayer.relayerFee = RELAYER_FEE;
 
-  const keyPairBalance = await anchorProvider.connection.getBalance(
-    relayerPubkey,
-  );
-  const relayerBalance = await anchorProvider.connection.getBalance(
-    relayerRecipient,
-  );
+  const keyPairBalance =
+    await anchorProvider.connection.getBalance(relayerPubkey);
+  const relayerBalance =
+    await anchorProvider.connection.getBalance(relayerRecipient);
 
   // print balances
   console.log(

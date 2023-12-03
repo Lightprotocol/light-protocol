@@ -28,7 +28,7 @@ import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pub
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
 
 let POSEIDON: any, RELAYER: TestRelayer;
@@ -64,7 +64,7 @@ class Game {
   constructor(
     gameParameters: GameParameters,
     programUtxo: Utxo,
-    pda: PublicKey
+    pda: PublicKey,
   ) {
     this.gameParameters = gameParameters;
     this.programUtxo = programUtxo;
@@ -73,7 +73,7 @@ class Game {
 
   static generateGameCommitmentHash(
     provider: LightProvider,
-    gameParameters: GameParameters
+    gameParameters: GameParameters,
   ) {
     return new BN(
       provider.poseidon.F.toString(
@@ -82,15 +82,15 @@ class Game {
           gameParameters.slot,
           gameParameters.player2CommitmentHash,
           gameParameters.gameAmount,
-        ])
-      )
+        ]),
+      ),
     );
   }
 
   static async create(
     choice: Choice,
     gameAmount: BN,
-    lightProvider: LightProvider
+    lightProvider: LightProvider,
   ) {
     const slot = await lightProvider.connection.getSlot();
     const gameParameters: GameParameters = {
@@ -102,7 +102,7 @@ class Game {
     };
     gameParameters.gameCommitmentHash = Game.generateGameCommitmentHash(
       lightProvider,
-      gameParameters
+      gameParameters,
     );
     const programUtxo = new Utxo({
       poseidon: POSEIDON,
@@ -121,7 +121,7 @@ class Game {
     let seed = gameParameters.gameCommitmentHash.toArray("le", 32);
     const pda = findProgramAddressSync(
       [Buffer.from(seed)],
-      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
+      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
     )[0];
 
     return new Game(gameParameters, programUtxo, pda);
@@ -132,7 +132,7 @@ class Game {
     choice: Choice,
     gameAmount: BN,
     lightProvider: LightProvider,
-    account: Account
+    account: Account,
   ) {
     const slot = await lightProvider.connection.getSlot();
     const gameParameters: GameParameters = {
@@ -144,7 +144,7 @@ class Game {
     };
     gameParameters.gameCommitmentHash = Game.generateGameCommitmentHash(
       lightProvider,
-      gameParameters
+      gameParameters,
     );
 
     const programUtxo = new Utxo({
@@ -164,7 +164,7 @@ class Game {
     let seed = gameCommitmentHash.toArray("le", 32);
     const pda = findProgramAddressSync(
       [Buffer.from(seed)],
-      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
+      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
     )[0];
     return new Game(gameParameters, programUtxo, pda);
   }
@@ -227,13 +227,13 @@ class Player {
     this.pspInstance = new anchor.Program(
       IDL,
       new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
-      user.provider.provider
+      user.provider.provider,
     );
   }
 
   static async init(
     provider: anchor.AnchorProvider,
-    relayer: TestRelayer | Relayer
+    relayer: TestRelayer | Relayer,
   ) {
     const wallet = Keypair.generate();
     await airdropSol({
@@ -270,13 +270,13 @@ class Player {
       [tx],
       this.user.provider.connection,
       this.user.provider.lookUpTables.versionedTransactionLookupTable,
-      this.user.provider.wallet
+      this.user.provider.wallet,
     );
   }
   async createGame(
     choice: Choice,
     gameAmount: BN,
-    action: Action = Action.SHIELD
+    action: Action = Action.SHIELD,
   ) {
     if (this.game) {
       throw new Error("A game is already in progress.");
@@ -312,7 +312,7 @@ class Player {
       [tx],
       this.user.provider.connection,
       this.user.provider.lookUpTables.versionedTransactionLookupTable,
-      this.user.provider.wallet
+      this.user.provider.wallet,
     );
 
     return {
@@ -326,7 +326,7 @@ class Player {
     gameCommitmentHash: BN,
     choice: Choice,
     gameAmount: BN,
-    action: Action = Action.SHIELD
+    action: Action = Action.SHIELD,
   ) {
     if (this.game) {
       throw new Error("A game is already in progress.");
@@ -336,14 +336,14 @@ class Player {
       choice,
       gameAmount,
       this.user.provider,
-      this.user.account
+      this.user.account,
     );
     const txHash = await this.user.storeAppUtxo({
       appUtxo: this.game.programUtxo,
       action,
     });
     const gamePdaAccountInfo = await this.pspInstance.account.gamePda.fetch(
-      this.game.pda
+      this.game.pda,
     );
     // @ts-ignore anchor type is not represented correctly
     if (gamePdaAccountInfo.game.isJoinable === false) {
@@ -365,7 +365,7 @@ class Player {
       .joinGame(
         utxoBytes,
         this.game.gameParameters.choice,
-        this.game.gameParameters.slot
+        this.game.gameParameters.slot,
       )
       .accounts({
         gamePda: this.game.pda,
@@ -377,7 +377,7 @@ class Player {
       [tx],
       this.user.provider.connection,
       this.user.provider.lookUpTables.versionedTransactionLookupTable,
-      this.user.provider.wallet
+      this.user.provider.wallet,
     );
 
     return {
@@ -389,7 +389,7 @@ class Player {
 
   async execute(testProgramUtxo?: Utxo) {
     const gamePdaAccountInfo = await this.pspInstance.account.gamePda.fetch(
-      this.game.pda
+      this.game.pda,
     );
     if (gamePdaAccountInfo.game.isJoinable === true) {
       throw new Error("Game is joinable not executable");
@@ -412,7 +412,7 @@ class Player {
       },
       appDataIdl: IDL,
       verifierAddress: new PublicKey(
-        "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+        "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
       ),
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
       blinding: gamePdaAccountInfo.game.playerTwoProgramUtxo.blinding,
@@ -421,10 +421,10 @@ class Player {
       this.user.provider.poseidon,
       player2ProgramUtxo,
       testProgramUtxo,
-      false
+      false,
     );
     const circuitPath = path.join(
-      "build-circuit/rock-paper-scissors/rockPaperScissors"
+      "build-circuit/rock-paper-scissors/rockPaperScissors",
     );
     const winner = this.game.getWinner(gamePdaAccountInfo.game.playerTwoChoice);
 
@@ -432,10 +432,10 @@ class Player {
     await this.user.getBalance();
     const merkleTree = this.user.provider.solMerkleTree.merkleTree;
     this.game.programUtxo.index = merkleTree.indexOf(
-      this.game.programUtxo.getCommitment(this.user.provider.poseidon)
+      this.game.programUtxo.getCommitment(this.user.provider.poseidon),
     );
     player2ProgramUtxo.index = merkleTree.indexOf(
-      player2ProgramUtxo.getCommitment(this.user.provider.poseidon)
+      player2ProgramUtxo.getCommitment(this.user.provider.poseidon),
     );
 
     const programParameters: ProgramParameters = {
@@ -476,7 +476,7 @@ class Player {
       assets: [SystemProgram.programId],
       publicKey: gameParametersPlayer2.userPubkey,
       encryptionPublicKey: new Uint8Array(
-        gamePdaAccountInfo.game.playerTwoProgramUtxo.accountEncryptionPublicKey
+        gamePdaAccountInfo.game.playerTwoProgramUtxo.accountEncryptionPublicKey,
       ),
       amounts: [amounts[1]],
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
@@ -553,7 +553,7 @@ describe("Test rock-paper-scissors", () => {
     await player2.join(
       res.game.gameParameters.gameCommitmentHash,
       Choice.ROCK,
-      GAME_AMOUNT
+      GAME_AMOUNT,
     );
     console.log("Player 2 joined game");
     let gameRes = await player1.execute(player2.game.programUtxo);
@@ -576,7 +576,7 @@ describe("Test rock-paper-scissors", () => {
     await player2.join(
       res.game.gameParameters.gameCommitmentHash,
       Choice.ROCK,
-      GAME_AMOUNT
+      GAME_AMOUNT,
     );
     console.log("Player 2 joined game");
     let gameRes = await player1.execute(player2.game.programUtxo);
@@ -599,7 +599,7 @@ describe("Test rock-paper-scissors", () => {
     await player2.join(
       res.game.gameParameters.gameCommitmentHash,
       Choice.ROCK,
-      GAME_AMOUNT
+      GAME_AMOUNT,
     );
     console.log("Player 2 joined game");
     let gameRes = await player1.execute(player2.game.programUtxo);

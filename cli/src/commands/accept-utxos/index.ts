@@ -60,33 +60,35 @@ class MergeUtxosCommand extends Command {
         response = await user.mergeAllUtxos(
           tokenCtx!.mint!,
           ConfirmOptions.spendable,
-          latest
+          latest,
         );
       } else {
         if (!commitments)
           throw new Error(
-            "Please provide commitment hashes to merge or use --all flag"
+            "Please provide commitment hashes to merge or use --all flag",
           );
         response = await user.mergeUtxos(
           commitments,
           tokenCtx!.mint!,
           ConfirmOptions.spendable,
-          latest
+          latest,
         );
       }
       this.log(
         `\nTransaction signatures: ${response.txHash.signatures![0]} \n ${
           response.txHash.signatures![1]
-        }`
+        }`,
       );
       this.log(
         generateSolanaTransactionURL(
           "tx",
           `${response.txHash.signatures![1]}`,
-          "custom"
-        )
+          "custom",
+        ),
       );
-      this.log(`\nAccepted ${token} inbox utxos successfully \x1b[32m✔\x1b[0m`);
+      this.log(
+        `\nAccepted ${token} inbox utxos successfully \x1b[32m✔\x1b[0m`,
+      );
       loader.stop();
     } catch (error) {
       this.error(`\nFailed to accept ${token} inbox utxos!\n${error}`);
