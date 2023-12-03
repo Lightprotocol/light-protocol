@@ -27,14 +27,13 @@ jobs:
         include:
           - name: sdk-tests-light-relayer-cli
             sub-tests: '[
-            "@lightprotocol/cli",
-            "@lightprotocol/prover.js"]'
+              "@lightprotocol/cli",
+              "@lightprotocol/prover.js"]'
           - name: circuit-tests
             sub-tests: '[
-            "@lightprotocol/circuit-lib.js",
-            "@lightprotocol/circuit-lib.circom",
-            "@lightprotocol/relayer"
-          ]'
+              "@lightprotocol/circuit-lib.js",
+              "@lightprotocol/circuit-lib.circom",
+              "@lightprotocol/relayer"]'
     services:
       redis:
         image: redis
