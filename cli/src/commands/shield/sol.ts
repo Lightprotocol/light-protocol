@@ -60,8 +60,8 @@ class ShieldSolCommand extends Command {
         generateSolanaTransactionURL(
           "tx",
           `${response.txHash.signatures}`,
-          "custom"
-        )
+          "custom",
+        ),
       );
       const amount = skipDecimalConversions
         ? Number(amountSol) / 1_000_000_000

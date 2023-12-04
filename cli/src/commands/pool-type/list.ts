@@ -19,7 +19,7 @@ class PoolTypeListCommand extends Command {
     const merkleTreeProgram = new Program(
       IDL_LIGHT_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
-      provider
+      provider,
     );
 
     const poolTypes = await merkleTreeProgram.account.registeredPoolType.all();

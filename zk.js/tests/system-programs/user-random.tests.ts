@@ -373,12 +373,10 @@ const checkSolBalanceGtRelayerFee = async (
   tokenMint: PublicKey,
 ) => {
   const balance = await user.getBalance();
-  const solBalance = balance.tokenBalances.get(
-    tokenMint.toBase58(),
-  )?.totalBalanceSol;
-  const splBalance = balance.tokenBalances.get(
-    tokenMint.toBase58(),
-  )?.totalBalanceSpl;
+  const solBalance = balance.tokenBalances.get(tokenMint.toBase58())
+    ?.totalBalanceSol;
+  const splBalance = balance.tokenBalances.get(tokenMint.toBase58())
+    ?.totalBalanceSpl;
   if (
     tokenMint.toBase58() !== PublicKey.default.toBase58() &&
     (!splBalance || splBalance.eq(BN_0))

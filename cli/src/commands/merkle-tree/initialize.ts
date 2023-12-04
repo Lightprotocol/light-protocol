@@ -25,13 +25,13 @@ class InitializeCommand extends Command {
       merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex;
     const newTransactionMerkleTree =
       MerkleTreeConfig.getTransactionMerkleTreePda(
-        newTransactionMerkleTreeIndex
+        newTransactionMerkleTreeIndex,
       );
 
     const newEventMerkleTreeIndex =
       merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex;
     const newEventMerkleTree = MerkleTreeConfig.getEventMerkleTreePda(
-      newEventMerkleTreeIndex
+      newEventMerkleTreeIndex,
     );
 
     await merkleTreeConfig.initializeNewMerkleTrees();
@@ -59,7 +59,7 @@ class InitializeCommand extends Command {
         publicKey: {
           header: "Public key",
         },
-      }
+      },
     );
     loader.stop(false);
   }

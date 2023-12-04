@@ -18,14 +18,14 @@ class InitializeCommand extends Command {
     const merkleTreeConfig = await getWalletConfig(anchorProvider);
 
     const accountInfo = await anchorProvider.connection.getAccountInfo(
-      merkleTreeConfig.getMerkleTreeAuthorityPda()
+      merkleTreeConfig.getMerkleTreeAuthorityPda(),
     );
     if (accountInfo && accountInfo.data.length > 0) {
       this.log("Merkle Tree Authority already initialized");
     } else {
       await merkleTreeConfig.initMerkleTreeAuthority();
       this.log(
-        "Merkle Tree Authority initialized successfully \x1b[32m✔\x1b[0m"
+        "Merkle Tree Authority initialized successfully \x1b[32m✔\x1b[0m",
       );
     }
     loader.stop(false);

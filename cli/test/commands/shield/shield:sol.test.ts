@@ -12,7 +12,7 @@ describe("shield:sol sub-cli", () => {
       "airdrop 50 SOL to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
       (ctx: any) => {
         expect(ctx.stdout).to.contain("Airdrop Successful ✔");
-      }
+      },
     );
   test
     .stdout()

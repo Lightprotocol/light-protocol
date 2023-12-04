@@ -35,7 +35,7 @@ export async function buildPSP({
 }) {
   const compileProgramCircuits = async (
     baseDir: string,
-    programName: string
+    programName: string,
   ) => {
     const baseDirCircuit = `circuits/${programName}`;
     baseDir = `circuits/`;
@@ -71,10 +71,10 @@ export async function buildPSP({
     }
     if (!skipLinkCircuitlib) {
       linkedCircuitLibraries.push(
-        `node_modules/@lightprotocol/circuit-lib.circom/src/light-utils`
+        `node_modules/@lightprotocol/circuit-lib.circom/src/light-utils`,
       );
       linkedCircuitLibraries.push(
-        `node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree`
+        `node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree`,
       );
     }
 
@@ -139,7 +139,7 @@ export const buildFlags = {
     parse: async (circuitName: string) => {
       if (!isCamelCase(circuitName))
         throw new Error(
-          `Circuit name must be camel case. ${circuitName} is not valid.`
+          `Circuit name must be camel case. ${circuitName} is not valid.`,
         );
       return circuitName;
     },
