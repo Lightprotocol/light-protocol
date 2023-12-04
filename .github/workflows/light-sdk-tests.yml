@@ -27,14 +27,13 @@ jobs:
         include:
           - name: sdk-tests-light-relayer-cli
             sub-tests: '[
-            "@lightprotocol/cli",
-            "@lightprotocol/prover.js"]'
+              "@lightprotocol/cli",
+              "@lightprotocol/prover.js"]'
           - name: circuit-tests
             sub-tests: '[
-            "@lightprotocol/circuit-lib.js",
-            "@lightprotocol/circuit-lib.circom",
-            "@lightprotocol/relayer"
-          ]'
+              "@lightprotocol/circuit-lib.js",
+              "@lightprotocol/circuit-lib.circom",
+              "@lightprotocol/relayer"]'
     services:
       redis:
         image: redis
@@ -47,10 +46,14 @@ jobs:
           - 6379:6379
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+
+      - name: Install Playwright Browsers
+        shell: bash
+        run: npx playwright install --with-deps
 
       - name: ${{ matrix.name }}
         run: |
