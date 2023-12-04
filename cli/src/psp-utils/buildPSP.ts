@@ -38,6 +38,7 @@ export async function buildPSP({
     programName: string,
   ) => {
     const baseDirCircuit = `circuits/${programName}`;
+    baseDir = `circuits/`;
     let foundCircuitNames: string[] = [];
     if (!skipCircuit) {
       if (!skipMacroCircom) {
@@ -97,11 +98,13 @@ export async function buildPSP({
     }
   };
   if (programName) {
-    await compileProgramCircuits(programName);
+    await compileProgramCircuits(`./programs/${programName}`, programName);
   } else {
-    const { programs } = findAnchorPrograms();
+    const { baseDir, programs } = findAnchorPrograms();
+
     for (const program of programs) {
-      await compileProgramCircuits(program);
+      const circuitDir = `${baseDir}/circuits/${program}`;
+      await compileProgramCircuits(circuitDir, program);
     }
   }
 
