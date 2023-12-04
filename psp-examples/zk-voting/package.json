@@ -1,14 +1,15 @@
 {
   "scripts": {
-    "lint:fix": "yarn prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "yarn prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "lint:fix": "yarn prettier \"*/**/*{.js,.ts}\" -w",
+    "lint": "yarn prettier \"*/**/*{.js,.ts}\" --check",
     "test": "../../cli/test_bin/run psp:test private-voting",
-    "test-circuit": "ts-mocha tests/vote-circuit.test.ts -t 1000000 --exit",
+    "test-vote-circuit": "ts-mocha tests/vote-circuit.test.ts -t 1000000 --exit",
     "test-init-vote-circuit": "ts-mocha tests/init-vote-circuit.test.ts -t 1000000 --exit",
     "test-publish-decrypted-tally-circuit": "ts-mocha tests/publish-decrypted-tally-circuit.test.ts -t 1000000 --exit",
     "build": "../../cli/test_bin/run psp:build private-voting -l \"node_modules/@lightprotocol/circuit-lib.circom/src/elgamal-babyjubjub\"",
     "build-create": "../../cli/test_bin/run psp:build --circuitName createVoteUtxo -l \"node_modules/@lightprotocol/circuit-lib.circom/src/elgamal-babyjubjub\"",
-    "test-create-circuit": "ts-mocha tests/create-vote-weight-circuit.test.ts -t 1000000 --exit"
+    "test-create-vote-utxo-circuit": "ts-mocha tests/create-vote-weight-circuit.test.ts -t 1000000 --exit",
+    "test-circuits": "pnpm test-vote-circuit && pnpm test-init-vote-circuit && pnpm test-create-vote-utxo-circuit && pnpm test-publish-decrypted-tally-circuit"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0",

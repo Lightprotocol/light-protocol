@@ -57,18 +57,23 @@ Fourth iter:
 - add output utxos message storage
 */
 
-
+// TODO: enforce maxVoteWeight, how is it enforce anyway, is it a cap so that higher vote weight is truncated?
 utxoType voteUtxo {
     // vote weight this utxo can vote with
     voteWeight,
-    // slot when the tokens will be released, should the vote utxo still be usable once currentSlot >= releaseSlot?
+    // slot when vote weight utxo was created
+    startSlot,
+    // slot when the tokens will be released, should the vote utxo still be usable once publicCurrentSlot >= releaseSlot?
     releaseSlot,
-    // rate at which the tokens will be released
+    // rate at which the tokens will be released, rate multiplied by passed time releaseSlot - publicCurrentSlot
     rate,
     // ensures that no tokens can be withdrawn before the vote is over
     voteLock,
     // id to identify the vote weight utxo, is used to expose a nullifier
-    voteUtxoId,
+    // voteUtxoNumber is an external input to ensure uniqueness of the voteUtxoId
+    voteUtxoNumber,
+    // is a random nonce, the nonce needs to remain secret so that the vote nullifier cannot be brute forced
+    voteUtxoIdNonce,
     voteWeightPspAddress,
 }
 
@@ -166,7 +171,7 @@ template private_voting() {
     * generate vote weight nullifier
     */
     component voteWeightNullifierHasher = Poseidon(2);
-    voteWeightNullifierHasher.inputs[0] <== voteWeightUtxo.voteUtxoId;
+    voteWeightNullifierHasher.inputs[0] <== voteWeightUtxo.voteUtxoNumber;
     voteWeightNullifierHasher.inputs[1] <== publicVoteId;
     voteWeightNullifier === voteWeightNullifierHasher.out;
 

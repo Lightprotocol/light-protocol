@@ -64,9 +64,17 @@ pub mod vote_weight_program {
         checked_public_inputs[3] = instruction_checked_public_inputs[3];
         // publicMaxLockTime
         checked_public_inputs[4] = be_u64_to_public_input(&vote_weight_config.max_lock_time);
+        let hashed_governing_token_mint: [u8; 32] = [
+            vec![0u8],
+            hash(&vote_weight_config.governance_token_mint.key().to_bytes()).try_to_vec()?[1..]
+                .to_vec(),
+        ]
+        .concat()
+        .try_into()
+        .unwrap();
         // publicGoverningTokenMint
-        checked_public_inputs[5] = vote_weight_config.governance_token_mint.key().to_bytes();
-        // publicVoteUtxoNumber
+        checked_public_inputs[5] = hashed_governing_token_mint; //vote_weight_config.governance_token_mint.key().to_bytes();
+                                                                // publicVoteUtxoNumber
         checked_public_inputs[6] =
             be_u64_to_public_input(&vote_weight_config.current_vote_weight_number);
 

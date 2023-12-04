@@ -53,7 +53,7 @@ outUtxo createdVoteWeightUtxo {
     type: voteUtxo,
     enabled: create,
     checks: {
-        assetSpl == publicGoverningTokenMint,
+        // assetSpl == publicGoverningTokenMint,
         amountSol == checkedAmountSol, // TODO: swith to spl
     },
     dataChecks: {
@@ -130,8 +130,8 @@ template vote_weight_circuit() {
     claimVoteWeightInUtxo.check();
     // check that current slot is expired
     component checkPublicSlot = LessThan(64);
-    checkPublicSlot.in[0] <== publicCurrentSlot * claim;
-    checkPublicSlot.in[1] <== claimVoteWeightInUtxo.releaseSlot * claim;
+    checkPublicSlot.in[0] <== claimVoteWeightInUtxo.releaseSlot * claim;
+    checkPublicSlot.in[1] <== publicCurrentSlot * claim;
     checkPublicSlot.out === 1 * claim;
 
     // // check that diff is a 64bit value to prevent an overflow during additon

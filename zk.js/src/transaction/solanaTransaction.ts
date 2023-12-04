@@ -92,10 +92,14 @@ export function getVerifierStatePda(
   verifierProgramId: PublicKey,
   signerPublicKey: PublicKey,
 ) {
-  return PublicKey.findProgramAddressSync(
+  console.log("signerPublicKey", signerPublicKey.toBase58())
+  console.log("verifierProgramId", verifierProgramId.toBase58())
+  let res = PublicKey.findProgramAddressSync(
     [signerPublicKey.toBytes(), utils.bytes.utf8.encode("VERIFIER_STATE")],
     verifierProgramId,
-  )[0];
+  )[0]
+  console.log("getVerifierStatePda res", res.toBase58());
+  return res;
 }
 
 // TODO: create solanaInstructions.ts file, to separate all solana logic from other logic

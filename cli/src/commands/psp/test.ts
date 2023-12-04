@@ -1,7 +1,7 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { sleep, toSnakeCase } from "@lightprotocol/zk.js";
+import { sleep } from "@lightprotocol/zk.js";
 import { startTestValidator } from "../../utils";
-import { executeCommand, PSP_DEFAULT_PROGRAM_ID } from "../../psp-utils";
+import { executeCommand} from "../../psp-utils";
 import { findAnchorPrograms } from "../../psp-utils/addCircuit";
 
 export default class TestCommand extends Command {
@@ -13,12 +13,6 @@ export default class TestCommand extends Command {
       description: "The name of the test located in tests/${name}.ts",
       required: true,
     }),
-    // address: Args.string({
-    //   name: "ADDRESS",
-    //   description: "The address of the PSP.",
-    //   required: false,
-    //   default: PSP_DEFAULT_PROGRAM_ID,
-    // }),
   };
 
   static flags = {

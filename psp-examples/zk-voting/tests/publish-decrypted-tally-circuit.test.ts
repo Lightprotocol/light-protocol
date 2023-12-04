@@ -1,22 +1,12 @@
 import * as anchor from "@coral-xyz/anchor";
-import { assert } from "chai";
-import {
-  TestRelayer,
-  Provider,
-  circuitlibjs,
-  Account,
-} from "@lightprotocol/zk.js";
-import { Prover } from "@lightprotocol/prover.js";
-const { MerkleTree, ElGamalUtils } = circuitlibjs;
-const { pointToStringArray, coordinatesToExtPoint } = ElGamalUtils;
+import { TestRelayer, Provider, circuitlibjs } from "@lightprotocol/zk.js";
+const { ElGamalUtils } = circuitlibjs;
+const { pointToStringArray } = ElGamalUtils;
 import { PublicKey, Keypair } from "@solana/web3.js";
 import {
   encrypt,
-  PublicKey as ElGamalPublicKey,
   generateKeypair,
   generateRandomSalt,
-  decrypt,
-  decode,
   formatSecretKey,
 } from "@lightprotocol/circuit-lib.js";
 
@@ -24,12 +14,15 @@ import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@coral-xyz/anchor";
 import { IDL, PrivateVoting } from "../target/types/private_voting";
 import { utils } from "@project-serum/anchor";
+import {
+  createPublishDecryptedTallyProof,
+  PublishDecryptedTallyTransactionInput,
+} from "../sdk";
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 );
-var POSEIDON;
 
 const RPC_URL = "http://127.0.0.1:8899";
 
@@ -39,7 +32,7 @@ const RPC_URL = "http://127.0.0.1:8899";
  * 3. init vote
  * 4. vote
  */
-describe("Test private-voting", () => {
+describe("Test Decrypt Tally Circuit", () => {
   process.env.ANCHOR_PROVIDER_URL = RPC_URL;
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
@@ -49,7 +42,7 @@ describe("Test private-voting", () => {
     voteProgram: anchor.Program<PrivateVoting> = anchor.workspace.PrivateVoting;
   let proposalPda: PublicKey;
   let lightProvider: Provider, localTestRelayer: TestRelayer;
-
+  let POSEIDON: any;
   before(async () => {
     POSEIDON = await buildPoseidonOpt();
     proposerKeypair = Keypair.generate();
@@ -127,76 +120,3 @@ describe("Test private-voting", () => {
     await createPublishDecryptedTallyProof(initVoteTransactionInput);
   });
 });
-
-export type PublishDecryptedTallyTransactionInput = {
-  idl: anchor.Idl;
-  proofInputs: {
-    publicVoteWeightNoEmphemeralKeyX: BN;
-    publicVoteWeightNoEmphemeralKeyY: BN;
-    publicVoteWeightYesEmphemeralKeyX: BN;
-    publicVoteWeightYesEmphemeralKeyY: BN;
-    publicVoteWeightNoX: BN;
-    publicVoteWeightNoY: BN;
-    publicVoteWeightYesX: BN;
-    publicVoteWeightYesY: BN;
-  };
-  circuitPath: string;
-  secretKey: bigint;
-};
-
-export const createPublishDecryptedTallyProof = async (
-  voteTransactionInput: PublishDecryptedTallyTransactionInput
-) => {
-  let directoryPath = "../../circuit-lib/circuit-lib.js/build";
-  const fs = require("fs");
-  const lookupTable19Path = directoryPath + `/lookupTableBBJub19.json`;
-  const lookupTable = JSON.parse(fs.readFileSync(lookupTable19Path));
-
-  const { idl, circuitPath, proofInputs, secretKey } = voteTransactionInput;
-  const extPointYesEmphemeralKey = coordinatesToExtPoint<BigInt>(
-    BigInt(proofInputs.publicVoteWeightYesEmphemeralKeyX.toString()),
-    BigInt(proofInputs.publicVoteWeightYesEmphemeralKeyY.toString())
-  );
-  const extPointNoEmphemeralKey = coordinatesToExtPoint<BigInt>(
-    BigInt(proofInputs.publicVoteWeightNoEmphemeralKeyX.toString()),
-    BigInt(proofInputs.publicVoteWeightNoEmphemeralKeyY.toString())
-  );
-  const extPointYesCiphertext = coordinatesToExtPoint<BigInt>(
-    BigInt(proofInputs.publicVoteWeightYesX.toString()),
-    BigInt(proofInputs.publicVoteWeightYesY.toString())
-  );
-  const extPointNoCiphertext = coordinatesToExtPoint<BigInt>(
-    BigInt(proofInputs.publicVoteWeightNoX.toString()),
-    BigInt(proofInputs.publicVoteWeightNoY.toString())
-  );
-  const decryptedYes = decrypt(
-    secretKey,
-    extPointYesEmphemeralKey,
-    extPointYesCiphertext
-  );
-
-  const decodedYes = decode(decryptedYes, 19, lookupTable);
-  const decryptedNo = decrypt(
-    secretKey,
-    extPointNoEmphemeralKey,
-    extPointNoCiphertext
-  );
-
-  const decodedNo = decode(decryptedNo, 19, lookupTable);
-  const completeProofInputs = {
-    ...proofInputs,
-    xhiYes: new BN(decodedYes.xhi.toString()),
-    xloYes: new BN(decodedYes.xlo.toString()),
-    xhiNo: new BN(decodedNo.xhi.toString()),
-    xloNo: new BN(decodedNo.xlo.toString()),
-    publicNoResult: new BN(decodedNo.value.toString()),
-    publicYesResult: new BN(decodedYes.value.toString()),
-    secretKey: new BN(formatSecretKey(secretKey)),
-  };
-  const prover = new Prover(idl, circuitPath, "publishDecryptedTally");
-  await prover.addProofInputs(completeProofInputs);
-  console.time("Publish decrypted tally proof: ");
-  const { parsedProof, parsedPublicInputs } = await prover.fullProveAndParse();
-  console.timeEnd("Publish decrypted tally proof: ");
-  return { proof: parsedProof, publicInputs: parsedPublicInputs };
-};

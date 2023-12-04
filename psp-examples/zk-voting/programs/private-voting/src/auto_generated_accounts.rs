@@ -57,10 +57,12 @@ pub struct Utxo {
     pub account_shielded_public_key: u256,
     pub account_encryption_public_key: [u8; 32],
     pub voteWeight: u256,
+    pub startSlot: u256,
     pub releaseSlot: u256,
     pub rate: u256,
     pub voteLock: u256,
-    pub voteUtxoId: u256,
+    pub voteUtxoNumber: u256,
+    pub voteUtxoIdNonce: u256,
     pub voteWeightPspAddress: u256,
 }
 
@@ -69,9 +71,11 @@ pub struct Utxo {
 #[derive(Debug, Copy, PartialEq)]
 pub struct UtxoAppData {
     pub voteWeight: u256,
+    pub startSlot: u256,
     pub releaseSlot: u256,
     pub rate: u256,
     pub voteLock: u256,
-    pub voteUtxoId: u256,
+    pub voteUtxoNumber: u256,
+    pub voteUtxoIdNonce: u256,
     pub voteWeightPspAddress: u256,
 }
