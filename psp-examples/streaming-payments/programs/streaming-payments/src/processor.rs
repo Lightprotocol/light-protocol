@@ -1,5 +1,5 @@
 use crate::verifying_key_streaming_payments::VERIFYINGKEY_STREAMING_PAYMENTS;
-use crate::LightInstructionThird;
+use crate::LightInstructionFourth;
 use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::light_transaction::Proof;
@@ -13,7 +13,7 @@ impl Config for TransactionsConfig {
 }
 
 pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
+    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionFourth<'info, NR_CHECKED_INPUTS>>,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let proof_verifier = Proof {
@@ -75,7 +75,7 @@ pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
 }
 
 pub fn verify_program_proof<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
+    ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionFourth<'info, NR_CHECKED_INPUTS>>,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let verifier_state = ctx.accounts.verifier_state.load()?;

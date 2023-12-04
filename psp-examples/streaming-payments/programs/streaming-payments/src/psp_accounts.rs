@@ -39,9 +39,18 @@ pub struct LightInstructionSecond<'info, const NR_CHECKED_INPUTS: usize> {
     pub verifier_state: AccountLoader<'info, VerifierState>,
 }
 
-/// Executes light transaction with state created in the first instruction.
 #[derive(Accounts)]
 pub struct LightInstructionThird<'info, const NR_CHECKED_INPUTS: usize> {
+    /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
+    #[account(mut)]
+    pub signing_address: Signer<'info>,
+    #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump)]
+    pub verifier_state: AccountLoader<'info, VerifierState>,
+}
+
+/// Executes light transaction with state created in the first instruction.
+#[derive(Accounts)]
+pub struct LightInstructionFourth<'info, const NR_CHECKED_INPUTS: usize> {
     #[account(mut, address=verifier_state.load().unwrap().signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
@@ -86,6 +95,12 @@ pub struct LightInstructionThird<'info, const NR_CHECKED_INPUTS: usize> {
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataLightInstructionThird {
+    pub message: [u8; 1024],
+}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataLightInstructionFourth {
     pub proof_a_app: [u8; 64],
     pub proof_b_app: [u8; 128],
     pub proof_c_app: [u8; 64],
@@ -101,9 +116,16 @@ pub struct CloseVerifierState<'info, const NR_CHECKED_INPUTS: usize> {
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
 }
+
+// TODO: add check in sdk to check message size, possibly emit warning if message size is far too big
+#[constant]
+pub const MSG_SIZE: usize = 1024;
+
 #[account(zero_copy)]
 pub struct VerifierState {
     pub signer: Pubkey,
     pub verifier_state_data: [u8; 1024],
     pub checked_public_inputs: [[u8; 32]; 3],
+    pub message: [u8; MSG_SIZE],
+    pub message_write_offset: u64,
 }

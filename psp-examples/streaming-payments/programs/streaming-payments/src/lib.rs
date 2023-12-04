@@ -14,10 +14,16 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[constant]
 pub const PROGRAM_ID: &str = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
-
+#[error_code]
+pub enum VerifierError {
+    // TODO: add argument with current message offset and msg size
+    #[msg("Message too large.")]
+    MessageTooLarge,
+}
 #[program]
 pub mod streaming_payments {
     use super::*;
+    use crate::psp_accounts::MSG_SIZE;
     use solana_program::sysvar;
     /// This instruction is the first step of a shielded transaction.
     /// It creates and initializes a verifier state account to save state of a verification during
@@ -86,16 +92,69 @@ pub mod streaming_payments {
         Ok(())
     }
 
-    /// This instruction is the third step of a shielded transaction.
-    /// The proof is verified with the parameters saved in the first transaction.
-    /// At successful verification protocol logic is executed.
-    pub fn light_instruction_third<'a, 'b, 'c, 'info>(
+    // TODO: add better suffix handling, and instruction distinction
+    // #[light_instruction("third")]
+    // #[light_instruction(name="transfer", number="third", repeat=2)]
+    // under the hood we could just generate a constant with the name including the suffix and use that in the sdk for ordering
+    // it should work independently from light
+    // maybe it would be more the anchor way to add it to the anchor object
+    pub fn shielded_transfer_storage_third<'a, 'b, 'c, 'info>(
         ctx: Context<
             'a,
             'b,
             'c,
             'info,
             LightInstructionThird<'info, { VERIFYINGKEY_STREAMING_PAYMENTS.nr_pubinputs }>,
+        >,
+        message: [u8; 1024],
+    ) -> Result<()> {
+        let mut state = ctx.accounts.verifier_state.load_mut()?;
+
+        // if state.message_len.len() > MSG_SIZE {
+        //     return Err(VerifierError::MessageTooLarge.into());
+        // }
+        // // Reallocate space.
+        // let cur_acc_size = state.to_account_info().data_len();
+        // let new_needed_size = cur_acc_size + message.len();
+        // if new_needed_size > cur_acc_size {
+        //     let new_acc_size = cur_acc_size + MESSAGE_PER_CALL_SIZE;
+        //     if new_acc_size > VERIFIER_STATE_MAX_SIZE {
+        //         return Err(VerifierError::VerifierStateNoSpace.into());
+        //     }
+        //     state.to_account_info().realloc(new_acc_size, false)?;
+        //     state.reload()?;
+        // }
+
+        // state.msg.extend_from_slice(&message);
+        let off_set = state.message_write_offset as usize;
+        if off_set + message.len() > MSG_SIZE {
+            return Err(VerifierError::MessageTooLarge.into());
+        }
+        state.message[off_set..message.len()].copy_from_slice(&message);
+        state.message_write_offset += message.len() as u64;
+
+        // let inputs: InstructionDataShieldedTransferFirst =
+        //     InstructionDataShieldedTransferFirst::try_deserialize_unchecked(
+        //         &mut [vec![0u8; 8], inputs].concat().as_slice(),
+        //     )?;
+        // let message = inputs.message;
+        // if message.len() > MESSAGE_PER_CALL_SIZE {
+        //     return Err(VerifierError::MessageTooLarge.into());
+        // }
+
+        Ok(())
+    }
+
+    /// This instruction is the third step of a shielded transaction.
+    /// The proof is verified with the parameters saved in the first transaction.
+    /// At successful verification protocol logic is executed.
+    pub fn light_instruction_fourth<'a, 'b, 'c, 'info>(
+        ctx: Context<
+            'a,
+            'b,
+            'c,
+            'info,
+            LightInstructionFourth<'info, { VERIFYINGKEY_STREAMING_PAYMENTS.nr_pubinputs }>,
         >,
         inputs: Vec<u8>,
     ) -> Result<()> {
