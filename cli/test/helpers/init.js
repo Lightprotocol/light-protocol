@@ -12,7 +12,7 @@ function isLocalnet() {
     ".config",
     "solana",
     "cli",
-    "config.yml"
+    "config.yml",
   );
   const configFile = fs.readFileSync(configPath, "utf8");
   const config = yaml.load(configFile);

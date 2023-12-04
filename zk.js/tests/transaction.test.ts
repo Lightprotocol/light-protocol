@@ -408,9 +408,8 @@ describe("Transaction Functional Tests", () => {
       account,
     });
 
-    const txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(
-      poseidon,
-    );
+    const txIntegrityHash =
+      await paramsStaticEncryptedUtxos.getTxIntegrityHash(poseidon);
 
     assert.equal(
       txIntegrityHash.toString(),

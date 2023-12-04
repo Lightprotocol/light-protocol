@@ -34,7 +34,7 @@ class RegisterSplCommand extends Command {
     try {
       await merkleTreeConfig.registerSplPool(
         [...poolType.toArrayLike(Buffer, "be", 32)],
-        mint
+        mint,
       );
     } catch (e) {
       console.log(e);

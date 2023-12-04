@@ -73,8 +73,8 @@ class ShieldSplCommand extends Command {
         generateSolanaTransactionURL(
           "tx",
           `${response.txHash.signatures}`,
-          "custom"
-        )
+          "custom",
+        ),
       );
       const amount = skipDecimalConversions
         ? Number(amountSpl) / decimals!
@@ -82,7 +82,7 @@ class ShieldSplCommand extends Command {
 
       this.log(
         `\nSuccessfully shielded ${amount} ${token}`,
-        "\x1b[32m✔\x1b[0m"
+        "\x1b[32m✔\x1b[0m",
       );
       loader.stop();
     } catch (error) {

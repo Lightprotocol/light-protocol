@@ -95,9 +95,8 @@ describe("User registry", () => {
       confirmConfig,
     );
 
-    const accountInfo = await userRegistryProgram.account.userEntry.fetch(
-      userEntryPubkey,
-    );
+    const accountInfo =
+      await userRegistryProgram.account.userEntry.fetch(userEntryPubkey);
     assert.deepEqual(accountInfo.lightPubkey, KEYPAIR.pubkey.toArray());
     assert.deepEqual(accountInfo.lightEncryptionPubkey, [
       ...KEYPAIR.encryptionKeypair.publicKey,

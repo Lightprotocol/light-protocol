@@ -72,20 +72,20 @@ class UnshieldCommand extends Command {
           `\nSuccessfully unshielded ${
             token === "SOL" ? amountSol : amountSpl
           } ${token}`,
-          "\x1b[32m✔\x1b[0m"
+          "\x1b[32m✔\x1b[0m",
         );
       } else {
         this.log(
           `\nSuccessfully unshielded ${amountSol} SOL & ${amountSpl} ${token}`,
-          "\x1b[32m✔\x1b[0m"
+          "\x1b[32m✔\x1b[0m",
         );
       }
       this.log(
         generateSolanaTransactionURL(
           "tx",
           `${response.txHash.signatures}`,
-          "custom"
-        )
+          "custom",
+        ),
       );
       loader.stop();
     } catch (error) {

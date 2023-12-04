@@ -61,7 +61,7 @@ export async function initTestEnv({
 
     await anchorProvider.connection.requestAirdrop(
       relayerRecipientSol,
-      2_000_000_000
+      2_000_000_000,
     );
   };
   initAccounts();

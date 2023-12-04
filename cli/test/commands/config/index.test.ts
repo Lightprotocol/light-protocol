@@ -12,7 +12,7 @@ describe("config", () => {
     .command(["config", "--relayerUrl=http://localhost:3332"])
     .it("runs relayer url update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
-        "Configuration values updated successfully"
+        "Configuration values updated successfully",
       );
     });
 
@@ -24,7 +24,7 @@ describe("config", () => {
     ])
     .it("runs user update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
-        "Configuration values updated successfully"
+        "Configuration values updated successfully",
       );
     });
 
@@ -33,7 +33,7 @@ describe("config", () => {
     .command(["config", "--rpcUrl=http://127.0.0.1:8899"])
     .it("runs rpc url update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
-        "Configuration values updated successfully"
+        "Configuration values updated successfully",
       );
     });
 });
@@ -58,7 +58,7 @@ describe("config with env variable", () => {
     .command(["config", "--rpcUrl=http://127.0.0.1:8899"])
     .it("runs rpc url update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
-        `reading config from custom path ${filePath}`
+        `reading config from custom path ${filePath}`,
       );
     });
 });

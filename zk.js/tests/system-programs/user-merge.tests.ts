@@ -46,9 +46,8 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
-    environmentConfig.lookUpTable = await initLookUpTableFromFile(
-      anchorProvider,
-    );
+    environmentConfig.lookUpTable =
+      await initLookUpTableFromFile(anchorProvider);
 
     environmentConfig.poseidon = await circomlibjs.buildPoseidonOpt();
     // this keypair is used to derive the shielded account seed from the light message signature

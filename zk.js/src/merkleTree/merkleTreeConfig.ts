@@ -459,9 +459,8 @@ export class MerkleTreeConfig {
     )[0];
 
     if (!registeredVerifierPda) {
-      registeredVerifierPda = await this.getRegisteredVerifierPda(
-        verifierPubkey,
-      );
+      registeredVerifierPda =
+        await this.getRegisteredVerifierPda(verifierPubkey);
     }
 
     const tx = await this.merkleTreeProgram.methods

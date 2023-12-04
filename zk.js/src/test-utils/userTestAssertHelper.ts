@@ -622,9 +622,8 @@ export class UserTestAssertHelper {
     preSolBalance: number,
     recipient: PublicKey,
   ) {
-    const postSolBalance = await this.provider.provider!.connection.getBalance(
-      recipient,
-    );
+    const postSolBalance =
+      await this.provider.provider!.connection.getBalance(recipient);
 
     assert.equal(
       postSolBalance,
