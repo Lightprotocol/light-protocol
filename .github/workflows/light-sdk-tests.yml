@@ -46,10 +46,14 @@ jobs:
           - 6379:6379
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+
+      - name: Install Playwright Browsers
+        shell: bash
+        run: npx playwright install --with-deps
 
       - name: ${{ matrix.name }}
         run: |
