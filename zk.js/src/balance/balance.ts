@@ -1,5 +1,5 @@
 import { Utxo } from "../utxo";
-import { PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import {
   BN_0,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
@@ -21,7 +21,10 @@ import {
   ProgramUtxoBalanceError,
   ProgramUtxoBalanceErrorCode,
 } from "../errors";
-import { fetchNullifierAccountInfo } from "../utils";
+import {
+  fetchNullifierAccountInfo,
+  fetchQueuedLeavesAccountInfo,
+} from "../utils";
 import { Account, IndexedTransaction } from "../index";
 import { BN } from "@coral-xyz/anchor";
 
@@ -349,8 +352,6 @@ export async function syncBalance(
     provider,
     account,
   );
-
-  // 
 }
 
 /// Ideally we'd want to reduce these types of calls as much as possible. This should only be needed if we actually append new utxos.
@@ -385,11 +386,14 @@ async function findSpentUtxos(
   return balance;
 }
 
+/// TODO: adapt to work with wallet-adapter, batched decryption calls.
 async function tryDecryptNewUtxos(
   balance: Balance,
   indexedTransactions: IndexedTransaction[],
   provider: Provider,
   account: Account,
+  aes: any,
+  merkleTreePdaPublicKey: PublicKey,
 ) {
   for (const trx of indexedTransactions) {
     const leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
@@ -401,7 +405,7 @@ async function tryDecryptNewUtxos(
       const encUtxoSize =
         NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
       // transaction nonce is the same for all utxos in one transaction
-      await decryptAddUtxoToBalance({
+      await decryptAddUtxoToBalance_new({
         encBytes: Buffer.from(
           trx.encryptedUtxos.slice(
             index * encUtxoSize,
@@ -419,7 +423,7 @@ async function tryDecryptNewUtxos(
         aes,
         assetLookupTable: provider.lookUpTables.assetLookupTable,
       });
-      await decryptAddUtxoToBalance({
+      await decryptAddUtxoToBalance_new({
         encBytes: Buffer.from(
           trx.encryptedUtxos.slice(
             index * encUtxoSize + encUtxoSize,
@@ -438,5 +442,106 @@ async function tryDecryptNewUtxos(
         assetLookupTable: provider.lookUpTables.assetLookupTable,
       });
     }
+  }
+}
+
+/// This is temporary. adapt after indexer refactor.
+export async function decryptAddUtxoToBalance_new({
+  account,
+  encBytes,
+  index,
+  commitment,
+  poseidon,
+  connection,
+  balance,
+  merkleTreePdaPublicKey,
+  leftLeaf,
+  aes,
+  assetLookupTable,
+}: {
+  encBytes: Uint8Array;
+  index: number;
+  commitment: Uint8Array;
+  account: Account;
+  merkleTreePdaPublicKey: PublicKey;
+  poseidon: any;
+  connection: Connection;
+  balance: Balance;
+  leftLeaf: Uint8Array;
+  aes: boolean;
+  assetLookupTable: string[];
+}): Promise<void> {
+  const decryptedUtxo = aes
+    ? await Utxo.decrypt({
+        poseidon,
+        encBytes: encBytes,
+        account: account,
+        index: index,
+        commitment,
+        aes,
+        merkleTreePdaPublicKey,
+        assetLookupTable,
+      })
+    : await Utxo.decryptUnchecked({
+        poseidon,
+        encBytes: encBytes,
+        account: account,
+        index: index,
+        commitment,
+        aes,
+        merkleTreePdaPublicKey,
+        assetLookupTable,
+      });
+
+  // null if utxo did not decrypt -> return nothing and continue
+  if (!decryptedUtxo.value || decryptedUtxo.error) return;
+  const utxo = decryptedUtxo.value;
+  const nullifier = utxo.getNullifier({ poseidon, account });
+  if (!nullifier) return;
+
+  const nullifierExists = await fetchNullifierAccountInfo(
+    nullifier,
+    connection,
+  );
+  const queuedLeavesPdaExists = await fetchQueuedLeavesAccountInfo(
+    leftLeaf,
+    connection,
+  );
+
+  const amountsValid =
+    utxo.amounts[1].toString() !== "0" || utxo.amounts[0].toString() !== "0";
+  const assetIndex = utxo.amounts[1].toString() !== "0" ? 1 : 0;
+
+  // valid amounts and is not app utxo
+  if (
+    amountsValid &&
+    utxo.verifierAddress.toBase58() === new PublicKey(0).toBase58() &&
+    utxo.appDataHash.toString() === "0"
+  ) {
+    // TODO: add is native to utxo
+    // if !asset try to add asset and then push
+    if (
+      assetIndex &&
+      !balance.tokenBalances.get(utxo.assets[assetIndex].toBase58())
+    ) {
+      // TODO: several maps or unify somehow
+      const tokenBalanceUsdc = new TokenUtxoBalance(
+        TOKEN_REGISTRY.get("USDC")!,
+      );
+      balance.tokenBalances.set(
+        tokenBalanceUsdc.tokenData.mint.toBase58(),
+        tokenBalanceUsdc,
+      );
+    }
+    const assetKey = utxo.assets[assetIndex].toBase58();
+    const utxoType = queuedLeavesPdaExists
+      ? "committedUtxos"
+      : nullifierExists
+      ? "spentUtxos"
+      : "utxos";
+
+    balance.tokenBalances
+      .get(assetKey)
+      ?.addUtxo(utxo.getCommitment(poseidon), utxo, utxoType);
   }
 }
