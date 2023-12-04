@@ -101,7 +101,7 @@ describe("Test private-compressed-account", () => {
       confirmConfig,
     });
     lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      TransactionParameters.getVerifierProgramId(IDL)
+      TransactionParameters.getVerifierProgramId(IDL),
     );
 
     const user: User = await User.init({ provider: lightProvider });
@@ -112,7 +112,7 @@ describe("Test private-compressed-account", () => {
       POSEIDON,
       IDL,
       0,
-      user
+      user,
     );
 
     try {

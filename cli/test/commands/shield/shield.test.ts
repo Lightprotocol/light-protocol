@@ -13,7 +13,7 @@ describe("shield SOL & SPL separately with the main command", () => {
       "airdrop 50 SOL to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
       (ctx: any) => {
         expect(ctx.stdout).to.contain("Airdrop Successful ✔");
-      }
+      },
     );
 
   test
@@ -28,7 +28,7 @@ describe("shield SOL & SPL separately with the main command", () => {
       "airdrop 1000 USDC to ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
       (ctx: any) => {
         expect(ctx.stdout).to.contain("Airdrop Successful ✔");
-      }
+      },
     );
 
   test
@@ -101,8 +101,10 @@ describe("shield SOL & SPL at the same time with the main command", () => {
     .it(
       "Shielding 5 SOL & 1 SPL:USDC at the same time with the main cli",
       async (ctx) => {
-        expect(ctx.stdout).to.contain("Successfully shielded 5 SOL & 1 USDC ✔");
-      }
+        expect(ctx.stdout).to.contain(
+          "Successfully shielded 5 SOL & 1 USDC ✔",
+        );
+      },
     );
 
   test

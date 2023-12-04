@@ -20,7 +20,9 @@ class SplEnableCommand extends Command {
     await merkleTreeConfig.enablePermissionlessSplTokens(true);
 
     loader.stop(false);
-    this.log("Permissionless SPL tokens enabled successfully \x1b[32m✔\x1b[0m");
+    this.log(
+      "Permissionless SPL tokens enabled successfully \x1b[32m✔\x1b[0m",
+    );
   }
 }
 

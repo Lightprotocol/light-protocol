@@ -84,9 +84,9 @@ describe("unshield SOL & SPL at the same time with the main command", () => {
       "Unshielding 0.2 SOL and 0.5 SPL:USDC at the same time with the main cli",
       async (ctx) => {
         expect(ctx.stdout).to.contain(
-          "Successfully unshielded 0.2 SOL & 0.5 USDC ✔"
+          "Successfully unshielded 0.2 SOL & 0.5 USDC ✔",
         );
-      }
+      },
     );
 
   test

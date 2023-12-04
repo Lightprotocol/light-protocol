@@ -52,18 +52,18 @@ class TransactionHistoryCommand extends Command {
           Type: `\x1b[32m${transaction.type}\x1b[0m`,
           PublicAmountSOL: convertAndComputeDecimals(
             transaction.publicAmountSol,
-            SOL_DECIMALS
+            SOL_DECIMALS,
           ).toNumber(),
           PublicAmountSPL: convertAndComputeDecimals(
             transaction.publicAmountSpl,
-            splDecimals
+            splDecimals,
           ).toNumber(),
           From: transaction.from.toString(),
           To: transaction.to.toString(),
           RelayerRecipientSOL: transaction.relayerRecipientSol.toString(),
           RelayerFeeSOL: convertAndComputeDecimals(
             transaction.relayerFee,
-            SOL_DECIMALS
+            SOL_DECIMALS,
           ).toNumber(),
           Signer: transaction.signer.toString(),
           Signature: transaction.signature,
@@ -107,7 +107,7 @@ class TransactionHistoryCommand extends Command {
 
   private logTransaction(
     transaction: TransactionHistory,
-    ignoreKeys: string[] = []
+    ignoreKeys: string[] = [],
   ): void {
     const tableData: any[] = [];
     const actionCheck =

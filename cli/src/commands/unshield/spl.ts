@@ -69,12 +69,12 @@ class UnshieldCommand extends Command {
         generateSolanaTransactionURL(
           "tx",
           `${response.txHash.signatures?.slice(-1)}`,
-          "custom"
-        )
+          "custom",
+        ),
       );
       this.log(
         `\nSuccessfully unshielded ${amountSpl} ${token}`,
-        "\x1b[32m✔\x1b[0m"
+        "\x1b[32m✔\x1b[0m",
       );
       loader.stop();
     } catch (error) {

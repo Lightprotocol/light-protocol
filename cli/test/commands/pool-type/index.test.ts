@@ -19,7 +19,7 @@ describe("Without preloaded accounts", () => {
     .command(["merkle-tree-authority:initialize"])
     .it("Initialize Merkle Tree Authority", ({ stdout }) => {
       expect(stdout).to.contain(
-        "Merkle Tree Authority initialized successfully"
+        "Merkle Tree Authority initialized successfully",
       );
     });
 

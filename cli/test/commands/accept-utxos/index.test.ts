@@ -49,6 +49,8 @@ describe("accept-utxos", () => {
     .stdout({ print: true })
     .command(["accept-utxos", "--token=USDC", "--all", "--localTestRelayer"])
     .it("accept all USDC inbox utxos", (ctx: any) => {
-      expect(ctx.stdout).to.contain("Accepted USDC inbox utxos successfully ✔");
+      expect(ctx.stdout).to.contain(
+        "Accepted USDC inbox utxos successfully ✔",
+      );
     });
 });
