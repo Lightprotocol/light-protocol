@@ -1,7 +1,7 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { sleep } from "@lightprotocol/zk.js";
 import { startTestValidator } from "../../utils";
-import { executeCommand} from "../../psp-utils";
+import { executeCommand } from "../../psp-utils";
 import { findAnchorPrograms } from "../../psp-utils/addCircuit";
 
 export default class TestCommand extends Command {
@@ -62,7 +62,7 @@ function parseIdlFiles(dir: string): AdditionalProgram[] {
     if (fullPath.endsWith(".json")) {
       const jsonData = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
       const programId = jsonData.constants?.find(
-        (constant: any) => constant.name === "PROGRAM_ID"
+        (constant: any) => constant.name === "PROGRAM_ID",
       )?.value;
 
       if (programId) {
@@ -70,7 +70,7 @@ function parseIdlFiles(dir: string): AdditionalProgram[] {
           address: programId.split('"')[1],
           path: path.join(
             dir.split("idl")[0],
-            `deploy/${file.split(".")[0]}.so`
+            `deploy/${file.split(".")[0]}.so`,
           ),
         });
       } else {
