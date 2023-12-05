@@ -172,10 +172,11 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     );
   }
 
-  const merkle_tree_prior_leaves_index = merkleTreeAccountPrior.nextIndex;
+  const merkle_tree_prior_leaves_index =
+    merkleTreeAccountPrior.merkleTree.nextIndex;
   const merkle_tree_prior_current_root_index =
-    merkleTreeAccountPrior.currentRootIndex;
-  const current_root_index = merkleTreeAccount.currentRootIndex;
+    merkleTreeAccountPrior.merkleTree.currentRootIndex;
+  const current_root_index = merkleTreeAccount.merkleTree.currentRootIndex;
 
   if (
     !merkle_tree_prior_current_root_index
@@ -189,12 +190,12 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   if (
     !merkle_tree_prior_leaves_index
       .add(new anchor.BN(numberOfLeaves))
-      .eq(merkleTreeAccount.nextIndex)
+      .eq(merkleTreeAccount.merkleTree.nextIndex)
   ) {
     throw new Error(
       `Expected ${merkle_tree_prior_leaves_index
         .add(new anchor.BN(numberOfLeaves))
-        .toString()}, got ${merkleTreeAccount.nextIndex.toString()}`,
+        .toString()}, got ${merkleTreeAccount.merkleTree.nextIndex.toString()}`,
     );
   }
 }

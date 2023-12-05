@@ -27,6 +27,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
 describe("Utxo Functional", () => {
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
@@ -147,7 +148,7 @@ describe("Utxo Functional", () => {
       const indexedTransactions = [
         {
           leaves: utxos.map((utxo) =>
-            new BN(utxo.getCommitment(poseidon)).toBuffer("le", 32),
+            new BN(utxo.getCommitment(poseidon)).toBuffer("be", 32),
           ),
           firstLeafIndex: "0",
           encryptedUtxos,

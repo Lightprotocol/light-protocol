@@ -1,10 +1,13 @@
 [workspace]
 members = [
+    "macro-circom",
     "macros/aligned-sized",
     "macros/light",
+    "merkle-tree",
     "programs/*",
+    "utils",
     "verifier-sdk",
-    "macro-circom"
+    "xtask",
 ]
 
 [patch.crates-io]

@@ -26,6 +26,7 @@ use light_merkle_tree_program::{
         constants::{POOL_CONFIG_SEED, POOL_SEED, TRANSACTION_MERKLE_TREE_SEED},
     },
 };
+use light_utils::{change_endianness, truncate_to_circuit};
 
 use crate::{
     accounts::LightAccounts,
@@ -35,7 +36,7 @@ use crate::{
     },
     errors::VerifierSdkError,
     state::TransactionIndexerEvent,
-    utils::{change_endianness, close_account::close_account, truncate_to_circuit},
+    utils::close_account::close_account,
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
@@ -187,10 +188,8 @@ impl<
         let first_leaf_index = merkle_tree.next_queued_index;
 
         for (_i, leaves) in self.input.leaves.iter().enumerate() {
-            let leaf_left = change_endianness(&leaves[0]);
-            let leaf_right = change_endianness(&leaves[1]);
-            leaves_vec.push(leaf_left);
-            leaves_vec.push(leaf_right);
+            leaves_vec.push(leaves[0]);
+            leaves_vec.push(leaves[1]);
         }
 
         let message = match &self.input.message {
@@ -268,7 +267,7 @@ impl<
     /// Calls the Merkle tree program via CPI to insert event leaves.
     fn insert_event_leaves(&mut self, event_hash: [u8; 32]) -> Result<()> {
         let event_merkle_tree = self.input.ctx.accounts.get_event_merkle_tree();
-        if event_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 {
+        if event_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 as u64 {
             return err!(VerifierSdkError::EventMerkleTreeInvalidHashFunction);
         }
         insert_two_leaves_event_cpi(
@@ -455,7 +454,7 @@ impl<
     pub fn fetch_root(&mut self) -> Result<()> {
         let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
         let merkle_tree = merkle_tree.load()?;
-        self.merkle_root = change_endianness(&merkle_tree.roots[self.input.merkle_root_index]);
+        self.merkle_root = merkle_tree.merkle_tree.roots[self.input.merkle_root_index];
         self.fetched_root = true;
         Ok(())
     }
@@ -566,8 +565,8 @@ impl<
                     .accounts
                     .get_registered_verifier_pda()
                     .to_account_info(),
-                change_endianness(&leaves[0]),
-                change_endianness(&leaves[1]),
+                leaves[0],
+                leaves[1],
                 msg,
             )?;
         }

@@ -273,80 +273,87 @@ export class TestTransaction {
         connection: this.provider.provider!.connection,
       });
     }
-    let leavesAccountData;
-    // Checking that leaves were inserted
-    for (let i = 0; i < remainingAccounts.leavesPdaPubkeys.length; i += 2) {
-      leavesAccountData =
-        await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-          remainingAccounts.leavesPdaPubkeys[i / 2].pubkey,
-          "processed",
-        );
 
-      assert.equal(
-        leavesAccountData.nodeLeft.toString(),
-        transactionInputs.publicInputs.outputCommitment[i].reverse().toString(),
-        "left leaf not inserted correctly",
-      );
-      assert.equal(
-        leavesAccountData.nodeRight.toString(),
-        transactionInputs.publicInputs.outputCommitment[i + 1]
-          .reverse()
-          .toString(),
-        "right leaf not inserted correctly",
-      );
-      assert.equal(
-        leavesAccountData.merkleTreePubkey.toBase58(),
-        this.provider.solMerkleTree.pubkey.toBase58(),
-        "merkleTreePubkey not inserted correctly",
-      );
-      const lightProvider = await Provider.loadMock();
+    await this.checkMerkleTreeLeaves(transactionInputs);
 
-      for (let j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
-        const decryptedUtxo1 = await Utxo.decrypt({
-          poseidon: this.provider.poseidon,
-          encBytes: this.params!.encryptedUtxos,
-          account: account!, //? account : this.params!.outputUtxos![0].publicKey,
-          aes: true,
-          index: 0, // this is just a placeholder
-          merkleTreePdaPublicKey: this.params!.accounts.transactionMerkleTree,
-          commitment:
-            j === 0
-              ? Buffer.from(leavesAccountData.nodeLeft)
-              : Buffer.from(leavesAccountData.nodeRight),
-          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        });
-        if (decryptedUtxo1.value) {
-          Utxo.equal(
-            this.provider.poseidon,
-            decryptedUtxo1.value,
-            this.params.outputUtxos[0],
-            true,
+    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+      let leavesAccountData;
+      // Checking that leaves were inserted
+      for (let i = 0; i < remainingAccounts.leavesPdaPubkeys.length; i += 2) {
+        leavesAccountData =
+          await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
+            remainingAccounts.leavesPdaPubkeys[i / 2].pubkey,
+            "processed",
           );
+
+        assert.equal(
+          leavesAccountData.nodeLeft.toString(),
+          transactionInputs.publicInputs.outputCommitment[i]
+            .reverse()
+            .toString(),
+          "left leaf not inserted correctly",
+        );
+        assert.equal(
+          leavesAccountData.nodeRight.toString(),
+          transactionInputs.publicInputs.outputCommitment[i + 1]
+            .reverse()
+            .toString(),
+          "right leaf not inserted correctly",
+        );
+        assert.equal(
+          leavesAccountData.merkleTreePubkey.toBase58(),
+          this.provider.solMerkleTree.pubkey.toBase58(),
+          "merkleTreePubkey not inserted correctly",
+        );
+        const lightProvider = await Provider.loadMock();
+
+        for (let j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
+          const decryptedUtxo1 = await Utxo.decrypt({
+            poseidon: this.provider.poseidon,
+            encBytes: this.params!.encryptedUtxos,
+            account: account!, //? account : this.params!.outputUtxos![0].publicKey,
+            aes: true,
+            index: 0, // this is just a placeholder
+            merkleTreePdaPublicKey: this.params!.accounts.transactionMerkleTree,
+            commitment:
+              j === 0
+                ? Buffer.from(leavesAccountData.nodeLeft)
+                : Buffer.from(leavesAccountData.nodeRight),
+            assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          });
+          if (decryptedUtxo1.value) {
+            Utxo.equal(
+              this.provider.poseidon,
+              decryptedUtxo1.value,
+              this.params.outputUtxos[0],
+              true,
+            );
+          }
         }
       }
-    }
 
-    try {
-      const merkleTreeAfterUpdate =
-        await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
-          "confirmed",
+      try {
+        const merkleTreeAfterUpdate =
+          await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
+            MerkleTreeConfig.getTransactionMerkleTreePda(),
+            "confirmed",
+          );
+
+        leavesAccountData =
+          await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
+            remainingAccounts.leavesPdaPubkeys[0].pubkey,
+            "confirmed",
+          );
+
+        assert.equal(
+          Number(merkleTreeAfterUpdate.nextQueuedIndex),
+          Number(leavesAccountData.leftLeafIndex) +
+            remainingAccounts.leavesPdaPubkeys.length * 2,
         );
-
-      leavesAccountData =
-        await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-          remainingAccounts.leavesPdaPubkeys[0].pubkey,
-          "confirmed",
-        );
-
-      assert.equal(
-        Number(merkleTreeAfterUpdate.nextQueuedIndex),
-        Number(leavesAccountData.leftLeafIndex) +
-          remainingAccounts.leavesPdaPubkeys.length * 2,
-      );
-    } catch (e) {
-      console.log("preInsertedLeavesIndex: ", e);
-      throw e;
+      } catch (e) {
+        console.log("preInsertedLeavesIndex: ", e);
+        throw e;
+      }
     }
     let nrInstructions;
     if (this.appParams) {
@@ -524,6 +531,26 @@ export class TestTransaction {
       assert.equal(
         indexedTransactions[0].message.toString(),
         this.params.message.toString(),
+      );
+    }
+  }
+
+  /**
+   * Checks whether the output commitment was actually inserted to the Merkle
+   * tree.
+   */
+  async checkMerkleTreeLeaves(transactionInputs: any) {
+    await this.provider.latestMerkleTree();
+    for (let i = 0; i < 2; i++) {
+      assert.deepEqual(
+        new BN(
+          this.provider.solMerkleTree!.merkleTree.elements()[
+            this.provider.solMerkleTree!.merkleTree.indexOf(
+              this.params.outputUtxos[0].getCommitment(this.provider.poseidon),
+            )
+          ],
+        ).toArray("be", 32),
+        transactionInputs.publicInputs.outputCommitment[0],
       );
     }
   }

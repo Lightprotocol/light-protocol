@@ -249,7 +249,7 @@ export class Provider {
         this.provider,
       );
       const root = new BN(this.solMerkleTree.merkleTree.root()).toArray(
-        "le",
+        "be",
         32,
       );
       const merkle_tree_account_data =
@@ -258,7 +258,7 @@ export class Provider {
           "confirmed",
         );
       // @ts-ignore: unknown type error
-      merkle_tree_account_data.roots.map((x: any, index: any) => {
+      merkle_tree_account_data.merkleTree.roots.map((x: any, index: any) => {
         if (x.toString() === root.toString()) {
           rootIndex = new BN(index.toString());
         }
@@ -273,7 +273,7 @@ export class Provider {
       }
 
       if (
-        merkle_tree_account_data.nextIndex.gte(
+        merkle_tree_account_data.merkleTree.nextIndex.gte(
           TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
         )
       ) {

@@ -15,6 +15,7 @@ import {
 
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 process.env.ANCHOR_PROVIDER_URL = "https://api.testnet.solana.com";
+process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
 const recipient = "CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG";
 

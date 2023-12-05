@@ -40,6 +40,7 @@ describe("Test User", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const anchorProvider = AnchorProvider.local(
     "http://127.0.0.1:8899",
@@ -420,6 +421,7 @@ describe("Test User Errors", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const providerAnchor = AnchorProvider.local(
     "http://127.0.0.1:8899",

@@ -206,10 +206,16 @@ export async function getSolanaArgs({
       solanaArgs.push("--bpf-program", program.id, localFilePath);
     }
   }
-  const dirPathString = "../../accounts/";
-  const localFilePath = path.resolve(__dirname, dirPathString);
+  const accountsRelPath = "../../accounts/";
+  const accountsPath = path.resolve(__dirname, accountsRelPath);
+  const transactionMerkleTreePath =
+    process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS === "true"
+      ? path.join(accountsPath, "transaction-merkle-tree")
+      : path.join(accountsPath, "transaction-merkle-tree-no-atomic-tx");
+  const miscAccountsPath = path.join(accountsPath, "misc");
   if (!skipSystemAccounts) {
-    solanaArgs.push("--account-dir", localFilePath);
+    solanaArgs.push("--account-dir", transactionMerkleTreePath);
+    solanaArgs.push("--account-dir", miscAccountsPath);
   }
 
   return solanaArgs;

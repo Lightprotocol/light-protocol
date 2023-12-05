@@ -15,3 +15,14 @@ pub struct CloseUpdateState<'info> {
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
 }
+
+#[cfg(feature = "atomic-transactions")]
+pub fn process_close_merkle_tree_update_state() -> Result<()> {
+    use crate::errors::ErrorCode;
+    err!(ErrorCode::AtomicTransactionsEnabled)
+}
+
+#[cfg(not(feature = "atomic-transactions"))]
+pub fn process_close_merkle_tree_update_state() -> Result<()> {
+    Ok(())
+}

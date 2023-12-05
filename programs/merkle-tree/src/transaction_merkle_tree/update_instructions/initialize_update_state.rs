@@ -1,13 +1,8 @@
-use anchor_lang::{
-    prelude::*,
-    solana_program::{msg, sysvar},
-};
+use anchor_lang::prelude::*;
 
 use crate::{
-    errors::ErrorCode,
-    transaction_merkle_tree::state::{TransactionMerkleTree, TwoLeavesBytesPda},
-    utils::constants::STORAGE_SEED,
-    MerkleTreeUpdateState,
+    errors::ErrorCode, transaction_merkle_tree::state::TransactionMerkleTree,
+    utils::constants::STORAGE_SEED, MerkleTreeUpdateState,
 };
 
 #[derive(Accounts)]
@@ -29,9 +24,22 @@ pub struct InitializeUpdateState<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
+#[cfg(feature = "atomic-transactions")]
+#[allow(clippy::needless_lifetimes)]
+pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
+    _ctx: Context<'a, 'b, 'c, 'info, InitializeUpdateState<'info>>,
+) -> Result<()> {
+    err!(ErrorCode::AtomicTransactionsEnabled)
+}
+
+#[cfg(not(feature = "atomic-transactions"))]
 pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, InitializeUpdateState<'info>>,
 ) -> Result<()> {
+    use anchor_lang::solana_program::sysvar;
+
+    use crate::transaction_merkle_tree::state::TwoLeavesBytesPda;
+
     msg!("InitializeUpdateState");
     let update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
     update_state_data.relayer = ctx.accounts.authority.key();
@@ -50,7 +58,7 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
 
     let mut merkle_tree_pda_data = ctx.accounts.transaction_merkle_tree.load_mut()?;
 
-    let mut tmp_index = merkle_tree_pda_data.next_index;
+    let mut tmp_index = merkle_tree_pda_data.merkle_tree.next_index;
     msg!("tmp_index: {}", tmp_index);
     // Leaves are passed in as pdas in remaining accounts to allow for flexibility in their
     // number.
@@ -66,7 +74,7 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
         let leaves_pda_data: Account<'info, TwoLeavesBytesPda> = Account::try_from(account)?;
 
         // Checking that leaves are not inserted already.
-        if leaves_pda_data.left_leaf_index < merkle_tree_pda_data.next_index {
+        if leaves_pda_data.left_leaf_index < merkle_tree_pda_data.merkle_tree.next_index {
             msg!(
                 "Leaf pda state with address {:?} is already inserted",
                 *account.key
@@ -121,8 +129,8 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
     }
 
     // Copying Subtrees into update state.
-    update_state_data.filled_subtrees = merkle_tree_pda_data.filled_subtrees;
-    update_state_data.tmp_leaves_index = merkle_tree_pda_data.next_index;
+    update_state_data.filled_subtrees = merkle_tree_pda_data.merkle_tree.filled_subtrees;
+    update_state_data.tmp_leaves_index = merkle_tree_pda_data.merkle_tree.next_index;
 
     Ok(())
 }

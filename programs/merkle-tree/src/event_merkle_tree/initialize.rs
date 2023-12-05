@@ -34,12 +34,14 @@ impl_indexed_merkle_tree!(EventMerkleTree);
 pub fn process_initialize_new_event_merkle_tree(
     merkle_tree: &mut RefMut<'_, EventMerkleTree>,
     merkle_tree_authority: &mut Account<'_, MerkleTreeAuthority>,
-) {
+) -> Result<()> {
     merkle_tree
         .merkle_tree
-        .init(MERKLE_TREE_HEIGHT, HashFunction::Sha256);
+        .init(MERKLE_TREE_HEIGHT, HashFunction::Sha256)?;
     merkle_tree.merkle_tree_nr = merkle_tree_authority.event_merkle_tree_index;
     merkle_tree.newest = 1;
 
     merkle_tree_authority.event_merkle_tree_index += 1;
+
+    Ok(())
 }

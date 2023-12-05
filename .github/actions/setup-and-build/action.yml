@@ -2,10 +2,14 @@ name: Setup and build
 description: Checkout sources, install dependencies, build and prepare for tests
 
 inputs:
-  enable_redis:
+  enable-redis:
     description: "Enable Redis"
     required: false
-    default: "false"
+    default: false
+  atomic-transactions:
+    description: "Build Light Protocol with atomic transaction support"
+    required: false
+    default: true
 
 runs:
   using: "composite"
@@ -61,6 +65,8 @@ runs:
     
     - name: Build and prepare for tests
       shell: bash
+      env:
+        LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS: ${{ inputs.atomic-transactions }}
       run: |
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/

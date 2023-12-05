@@ -1,3 +1,5 @@
+use std::cell::RefMut;
+
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 
@@ -5,9 +7,13 @@ use crate::{
     config,
     errors::ErrorCode,
     event_merkle_tree::EventMerkleTree,
+    process_initialize_new_event_merkle_tree, process_initialize_new_merkle_tree,
     transaction_merkle_tree::state::TransactionMerkleTree,
-    utils::constants::{
-        EVENT_MERKLE_TREE_SEED, MERKLE_TREE_AUTHORITY_SEED, TRANSACTION_MERKLE_TREE_SEED,
+    utils::{
+        config::MERKLE_TREE_HEIGHT,
+        constants::{
+            EVENT_MERKLE_TREE_SEED, MERKLE_TREE_AUTHORITY_SEED, TRANSACTION_MERKLE_TREE_SEED,
+        },
     },
 };
 
@@ -96,4 +102,44 @@ pub struct UpdateLockDuration<'info> {
     pub authority: Signer<'info>,
     #[account(mut)]
     pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
+}
+
+pub fn process_initialize_merkle_tree_authority(
+    ctx: &mut Context<InitializeMerkleTreeAuthority>,
+) -> Result<()> {
+    ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.authority.key();
+
+    let merkle_tree = &mut ctx.accounts.transaction_merkle_tree.load_init()?;
+    let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
+    process_initialize_new_merkle_tree(merkle_tree, merkle_tree_authority, MERKLE_TREE_HEIGHT)?;
+
+    let event_merkle_tree = &mut ctx.accounts.event_merkle_tree.load_init()?;
+    let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
+
+    process_initialize_new_event_merkle_tree(event_merkle_tree, merkle_tree_authority)?;
+
+    Ok(())
+}
+
+pub fn process_update_merkle_tree_authority(ctx: Context<UpdateMerkleTreeAuthority>) -> Result<()> {
+    ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.new_authority.key();
+    Ok(())
+}
+
+pub fn process_update_lock_duration(
+    transaction_merkle_tree: &mut RefMut<'_, TransactionMerkleTree>,
+    lock_duration: u64,
+) -> Result<()> {
+    transaction_merkle_tree.lock_duration = lock_duration;
+    Ok(())
+}
+
+pub fn process_enable_permissionless_spl_tokens(
+    ctx: Context<UpdateMerkleTreeAuthorityConfig>,
+    enable_permissionless: bool,
+) -> Result<()> {
+    ctx.accounts
+        .merkle_tree_authority_pda
+        .enable_permissionless_spl_tokens = enable_permissionless;
+    Ok(())
 }

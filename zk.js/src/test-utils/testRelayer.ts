@@ -111,7 +111,8 @@ export class TestRelayer extends Relayer {
     // if the number is too low it is not going to index all transactions
     // hence the dependency on the merkle tree account index times 260 transactions
     // which is approximately the number of transactions sent to send one shielded transaction and update the merkle tree
-    const limit = 1000 + 260 * merkleTreeAccount.nextIndex.toNumber();
+    const limit =
+      1000 + 260 * merkleTreeAccount.merkleTree.nextIndex.toNumber();
     if (this.indexedTransactions.length === 0) {
       const { transactions: newTransactions } = await fetchRecentTransactions({
         connection,

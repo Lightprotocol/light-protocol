@@ -1164,13 +1164,17 @@ export class UserTestAssertHelper {
       const numberOfUtxos =
         balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size ??
         0;
-      assert.equal(numberOfUtxos, 0);
+      if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS === "true") {
+        assert.equal(numberOfUtxos, 1);
+      } else {
+        assert.equal(numberOfUtxos, 0);
 
-      assert.equal(
-        balance.tokenBalances.get(this.tokenCtx.mint.toBase58())!.committedUtxos
-          .size,
-        1,
-      );
+        assert.equal(
+          balance.tokenBalances.get(this.tokenCtx.mint.toBase58())!
+            .committedUtxos.size,
+          1,
+        );
+      }
     } else {
       const balance = await this.recipient.user.getBalance();
       const numberOfUtxos =

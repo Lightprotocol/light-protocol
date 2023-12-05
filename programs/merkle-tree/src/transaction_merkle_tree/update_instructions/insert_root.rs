@@ -1,16 +1,10 @@
 use std::ops::DerefMut;
 
-use anchor_lang::{
-    prelude::*,
-    solana_program::{clock::Clock, pubkey::Pubkey, sysvar::Sysvar},
-};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use crate::{
     errors::ErrorCode,
-    transaction_merkle_tree::{
-        instructions::insert_last_double,
-        state::{TransactionMerkleTree, TwoLeavesBytesPda},
-    },
+    transaction_merkle_tree::state::TransactionMerkleTree,
     utils::constants::{IX_ORDER, ROOT_INSERT, STORAGE_SEED},
     MerkleTreeUpdateState,
 };
@@ -55,9 +49,24 @@ pub fn close_account(account: &AccountInfo, dest_account: &AccountInfo) -> Resul
     Ok(())
 }
 
+#[cfg(feature = "atomic-transactions")]
+#[allow(clippy::needless_lifetimes)]
+pub fn process_insert_root<'a, 'b, 'c, 'info>(
+    _ctx: &mut Context<'a, 'b, 'c, 'info, InsertRoot<'info>>,
+) -> Result<()> {
+    err!(ErrorCode::AtomicTransactionsEnabled)
+}
+
+#[cfg(not(feature = "atomic-transactions"))]
 pub fn process_insert_root<'a, 'b, 'c, 'info>(
     ctx: &mut Context<'a, 'b, 'c, 'info, InsertRoot<'info>>,
 ) -> Result<()> {
+    use anchor_lang::solana_program::sysvar::Sysvar;
+
+    use crate::transaction_merkle_tree::{
+        instructions::insert_last_double, state::TwoLeavesBytesPda,
+    };
+
     let merkle_tree_update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_mut()?;
     let merkle_tree_pda_data = &mut ctx.accounts.transaction_merkle_tree.load_mut()?;
 
@@ -75,7 +84,7 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
         ctx.accounts.merkle_tree_update_state.key()
     );
 
-    let mut tmp_index = merkle_tree_pda_data.next_index;
+    let mut tmp_index = merkle_tree_pda_data.merkle_tree.next_index;
     msg!("tmp_index: {}", tmp_index);
 
     // insert root into merkle tree
@@ -102,7 +111,7 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
         let leaves_pda_data: Account<'info, TwoLeavesBytesPda> = Account::try_from(account)?;
 
         // Checking that leaves are not inserted already.
-        if leaves_pda_data.left_leaf_index < merkle_tree_pda_data.next_index {
+        if leaves_pda_data.left_leaf_index < merkle_tree_pda_data.merkle_tree.next_index {
             msg!(
                 "Leaf pda state with address {:?} is already inserted",
                 *account.key
