@@ -53,6 +53,10 @@ describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  // Enable atomic transactions if they weren't explicitly disabled.
+  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "false") {
+    process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
+  }
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
@@ -111,7 +115,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Shield (verifier zero)", async () => {
+  it("Unshield (verifier zero)", async () => {
     await performUnshield({
       outputUtxos: [],
       tokenProgram: MINT,
@@ -121,7 +125,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Shield (verifier storage)", async () => {
+  it("Unshield (verifier storage)", async () => {
     await performUnshield({
       outputUtxos: [],
       tokenProgram: SystemProgram.programId,
@@ -131,7 +135,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Shield (verifier one)", async () => {
+  it("Unshield (verifier one)", async () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
@@ -273,7 +277,10 @@ describe("verifier_program", () => {
       KEYPAIR,
     );
 
-    if (updateMerkleTree) {
+    if (
+      process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS != "true" &&
+      updateMerkleTree
+    ) {
       await lightProvider.relayer.updateMerkleTree(lightProvider);
     }
   };

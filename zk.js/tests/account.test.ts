@@ -23,8 +23,11 @@ import {
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
+
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
+
 const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 const seed32_2 = bs58.encode(new Uint8Array(32).fill(2));
 const keypairReferenceAccount = {

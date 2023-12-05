@@ -39,12 +39,14 @@ describe("Merkle Tree Authority", () => {
     .it("Get Merkle Tree Authority", ({ stdout }) => {
       expect(stdout).to.contain("1");
     });
-  test
-    .stdout()
-    .command(["merkle-tree-authority:lock", "100"])
-    .it("Update lock", ({ stdout }) => {
-      expect(stdout).to.contain("Lock updated successfully");
-    });
+  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+    test
+      .stdout()
+      .command(["merkle-tree-authority:lock", "100"])
+      .it("Update lock", ({ stdout }) => {
+        expect(stdout).to.contain("Lock updated successfully");
+      });
+  }
   test
     .stdout()
     .command(["merkle-tree-authority:spl-enable", "true"])

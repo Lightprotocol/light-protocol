@@ -564,7 +564,7 @@ export class Transaction {
             Buffer.from(
               Array.from(
                 this.transactionInputs.publicInputs.outputCommitment[j],
-              ).reverse(),
+              ),
             ),
             utils.bytes.utf8.encode("leaves"),
           ],

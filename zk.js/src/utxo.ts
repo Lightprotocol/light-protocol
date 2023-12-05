@@ -632,7 +632,7 @@ export class Utxo {
     const bytes_message = await this.toBytes(compressed);
     const commitment = new BN(this.getCommitment(poseidon)).toArrayLike(
       Buffer,
-      "le",
+      "be",
       32,
     );
 

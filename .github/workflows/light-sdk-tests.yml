@@ -26,14 +26,20 @@ jobs:
       matrix:
         include:
           - name: sdk-tests-light-relayer-cli
+            atomic-transactions: true
             sub-tests: '[
-              "@lightprotocol/cli",
-              "@lightprotocol/prover.js"]'
+              "@lightprotocol/cli:test",
+              "@lightprotocol/prover.js:test"
+            ]'
+          - name: sdk-tests-cli-no-atomic-tx
+            atomic-transactions: false
+            sub-tests: '["@lightprotocol/cli:test-cli"]'
           - name: circuit-tests
+            atomic-transactions: true
             sub-tests: '[
-              "@lightprotocol/circuit-lib.js",
-              "@lightprotocol/circuit-lib.circom",
-              "@lightprotocol/relayer"]'
+              "@lightprotocol/circuit-lib.js:test",
+              "@lightprotocol/circuit-lib.circom:test",
+              "@lightprotocol/relayer:test"]'
     services:
       redis:
         image: redis
@@ -50,22 +56,23 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+        with:
+          atomic-transactions: ${{ matrix.atomic-transactions }}
 
       - name: Install Playwright Browsers
         shell: bash
         run: npx playwright install --with-deps
 
       - name: ${{ matrix.name }}
+        env:
+          LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS: ${{ matrix.atomic-transactions }}
         run: |
           source ./scripts/devenv.sh
 
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            npx nx test $subtest
-            if [[ "$subtest" == "circuit-lib/circuit-lib.circom" ]]; then
-              npx nx test-build-light-circuits $subtest
-            fi
+            npx nx run $subtest
           done
 
       - name: Log in to Docker Hub

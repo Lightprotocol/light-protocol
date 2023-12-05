@@ -59,6 +59,10 @@ let POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+  // Enable atomic transactions if they weren't explicitly disabled.
+  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "false") {
+    process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
+  }
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",

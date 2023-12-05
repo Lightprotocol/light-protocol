@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::{
+    errors::ErrorCode,
     utils::constants::{POOL_CONFIG_SEED, POOL_SEED, POOL_TYPE_SEED, TOKEN_AUTHORITY_SEED},
     MerkleTreeAuthority,
 };
@@ -111,4 +112,72 @@ pub struct RegisterSolPool<'info> {
     /// CHECK:` Is checked in instruction to account for the case of permissionless pool creations.
     #[account(mut)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
+}
+
+/// Registers a new pooltype.
+pub fn process_register_pool_type(
+    ctx: Context<RegisterPoolType>,
+    pool_type: [u8; 32],
+) -> Result<()> {
+    if !ctx
+        .accounts
+        .merkle_tree_authority_pda
+        .enable_permissionless_spl_tokens
+        && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+    {
+        return err!(ErrorCode::InvalidAuthority);
+    }
+    ctx.accounts.registered_pool_type_pda.pool_type = pool_type;
+    Ok(())
+}
+
+/// Creates a new spl token pool which can be used by any registered verifier.
+pub fn process_register_spl_pool(ctx: Context<RegisterSplPool>) -> Result<()> {
+    // any token enabled
+    if !ctx
+        .accounts
+        .merkle_tree_authority_pda
+        .enable_permissionless_spl_tokens
+        && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+    {
+        return err!(ErrorCode::InvalidAuthority);
+    }
+
+    ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =
+        ctx.accounts.merkle_tree_pda_token.key();
+    ctx.accounts.registered_asset_pool_pda.pool_type =
+        ctx.accounts.registered_pool_type_pda.pool_type;
+    ctx.accounts.registered_asset_pool_pda.index = ctx
+        .accounts
+        .merkle_tree_authority_pda
+        .registered_asset_index;
+    ctx.accounts
+        .merkle_tree_authority_pda
+        .registered_asset_index += 1;
+    Ok(())
+}
+
+/// Creates a new sol pool which can be used by any registered verifier.
+pub fn process_register_sol_pool(ctx: Context<RegisterSolPool>) -> Result<()> {
+    if !ctx
+        .accounts
+        .merkle_tree_authority_pda
+        .enable_permissionless_spl_tokens
+        && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+    {
+        return err!(ErrorCode::InvalidAuthority);
+    }
+
+    ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =
+        ctx.accounts.registered_asset_pool_pda.key();
+    ctx.accounts.registered_asset_pool_pda.pool_type =
+        ctx.accounts.registered_pool_type_pda.pool_type;
+    ctx.accounts.registered_asset_pool_pda.index = ctx
+        .accounts
+        .merkle_tree_authority_pda
+        .registered_asset_index;
+    ctx.accounts
+        .merkle_tree_authority_pda
+        .registered_asset_index += 1;
+    Ok(())
 }

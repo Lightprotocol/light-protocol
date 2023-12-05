@@ -28,3 +28,19 @@ pub struct RegisterVerifier<'info> {
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
+
+pub fn process_register_verifier(
+    ctx: Context<RegisterVerifier>,
+    verifier_pubkey: Pubkey,
+) -> Result<()> {
+    if !ctx
+        .accounts
+        .merkle_tree_authority_pda
+        .enable_permissionless_merkle_tree_registration
+        && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+    {
+        return err!(ErrorCode::InvalidAuthority);
+    }
+    ctx.accounts.registered_verifier_pda.pubkey = verifier_pubkey;
+    Ok(())
+}

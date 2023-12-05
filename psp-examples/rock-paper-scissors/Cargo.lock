@@ -1516,6 +1516,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-byteutils"
+version = "0.1.0"
+
+[[package]]
 name = "light-macros"
 version = "0.3.1"
 dependencies = [
@@ -1528,11 +1532,12 @@ dependencies = [
 [[package]]
 name = "light-merkle-tree"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2333421ea391d2fd1580a534f0ae6d5dee0a46ea7c71d4bf2ad15d254eb8c29"
 dependencies = [
  "anchor-lang",
+ "ark-bn254 0.4.0",
  "bytemuck",
+ "light-poseidon",
+ "thiserror",
 ]
 
 [[package]]
@@ -1556,10 +1561,23 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "getrandom 0.2.10",
+ "light-byteutils",
  "light-macros",
  "light-merkle-tree",
  "solana-security-txt",
  "spl-token",
+]
+
+[[package]]
+name = "light-poseidon"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c9a85a9752c549ceb7578064b4ed891179d20acd85f27318573b64d2d7ee7ee"
+dependencies = [
+ "ark-bn254 0.4.0",
+ "ark-ff 0.4.2",
+ "num-bigint",
+ "thiserror",
 ]
 
 [[package]]
@@ -1589,6 +1607,7 @@ dependencies = [
  "ark-std 0.3.0",
  "borsh 0.9.3",
  "groth16-solana",
+ "light-byteutils",
  "light-merkle-tree",
  "light-merkle-tree-program",
  "spl-token",
@@ -1648,9 +1667,9 @@ dependencies = [
 
 [[package]]
 name = "num-bigint"
-version = "0.4.3"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f93ab6289c7b344a8a9f60f88d80aa20032336fe78da341afc91c8a2341fc75f"
+checksum = "608e7659b5c3d7cba262d894801b9ec9d00de989e8a82bd4bef91d08da45cdc0"
 dependencies = [
  "autocfg",
  "num-integer",

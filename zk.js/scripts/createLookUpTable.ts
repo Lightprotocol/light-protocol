@@ -7,8 +7,10 @@ import * as anchor from "@coral-xyz/anchor";
 import { Connection, Keypair } from "@solana/web3.js";
 
 import { PathOrFileDescriptor, readFileSync } from "fs";
+
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 process.env.ANCHOR_PROVIDER_URL = "https://api.testnet.solana.com";
+process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
 async function main() {
   const privkey = JSON.parse(

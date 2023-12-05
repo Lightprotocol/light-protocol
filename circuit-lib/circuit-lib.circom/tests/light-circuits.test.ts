@@ -11,6 +11,7 @@ import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
 describe("verifier_program", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   before(async () => {
     try {

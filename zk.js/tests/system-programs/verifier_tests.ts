@@ -53,6 +53,7 @@ console.log = () => {};
 describe("Verifier Zero and One Tests", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
@@ -496,31 +497,6 @@ describe("Verifier Zero and One Tests", () => {
           tmp_tx,
           "Includes",
           "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.",
-        );
-      }
-    }
-  });
-
-  it("Wrong leavesPdaPubkeys accounts", async () => {
-    for (const tx of transactions) {
-      const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
-      tmp_tx.getPdaAddresses();
-      for (
-        let i = 0;
-        i < tmp_tx.remainingAccounts!.leavesPdaPubkeys!.length;
-        i++
-      ) {
-        tmp_tx.remainingAccounts!.leavesPdaPubkeys![i] = {
-          isSigner: false,
-          isWritable: true,
-          pubkey: SolanaKeypair.generate().publicKey,
-        };
-        await sleep(SLEEP_BUFFER);
-
-        await sendTestTx(
-          tmp_tx,
-          "Includes",
-          "Program log: AnchorError caused by account: two_leaves_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.",
         );
       }
     }

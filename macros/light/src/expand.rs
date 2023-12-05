@@ -198,9 +198,11 @@ pub(crate) fn light_verifier_accounts(
     };
 
     let signing_address_cond = match args.signing_address {
-        Some(signing_address) => quote! {
-            address = #signing_address
-        },
+        Some(signing_address) => {
+            quote! {
+                address = #signing_address
+            }
+        }
         None => quote! {},
     };
 

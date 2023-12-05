@@ -33,6 +33,7 @@ import { STANDARD_SHIELDED_PUBLIC_KEY } from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
 describe("Transaction Error Tests", () => {
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));

@@ -1,16 +1,8 @@
-use anchor_lang::{
-    prelude::*,
-    solana_program::{msg, pubkey::Pubkey, sysvar},
-};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use crate::{
-    errors::ErrorCode,
-    transaction_merkle_tree::{
-        processor::{compute_updated_merkle_tree, pubkey_check},
-        state::TransactionMerkleTree,
-    },
-    utils::constants::{IX_ORDER, STORAGE_SEED},
-    MerkleTreeUpdateState,
+    errors::ErrorCode, transaction_merkle_tree::state::TransactionMerkleTree,
+    utils::constants::STORAGE_SEED, MerkleTreeUpdateState,
 };
 
 #[derive(Accounts)]
@@ -28,8 +20,21 @@ pub struct UpdateTransactionMerkleTree<'info> {
     pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
 }
 
+#[cfg(feature = "atomic-transactions")]
+pub fn process_update_merkle_tree(_ctx: &mut Context<UpdateTransactionMerkleTree>) -> Result<()> {
+    err!(ErrorCode::AtomicTransactionsEnabled)
+}
+
+#[cfg(not(feature = "atomic-transactions"))]
 #[allow(clippy::comparison_chain)]
 pub fn process_update_merkle_tree(ctx: &mut Context<UpdateTransactionMerkleTree>) -> Result<()> {
+    use anchor_lang::solana_program::sysvar;
+
+    use crate::{
+        transaction_merkle_tree::processor::{compute_updated_merkle_tree, pubkey_check},
+        utils::constants::IX_ORDER,
+    };
+
     let mut merkle_tree_update_state_data = ctx.accounts.merkle_tree_update_state.load_mut()?;
     let mut merkle_tree_pda_data = ctx.accounts.transaction_merkle_tree.load_mut()?;
 
