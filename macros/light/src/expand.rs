@@ -27,16 +27,15 @@ pub(crate) fn pubkey(args: PubkeyArgs) -> Result<TokenStream> {
         .map_err(|_| Error::new(args.pubkey.span(), "Invalid base58 string"))?;
     let v_len = v.len();
 
-    let arr: [u8; PUBKEY_LEN] =
-        v.try_into().map_err(|_| {
-            Error::new(
-                args.pubkey.span(),
-                format!(
-                    "Invalid size of decoded public key, expected 32, got {}",
-                    v_len,
-                ),
-            )
-        })?;
+    let arr: [u8; PUBKEY_LEN] = v.try_into().map_err(|_| {
+        Error::new(
+            args.pubkey.span(),
+            format!(
+                "Invalid size of decoded public key, expected 32, got {}",
+                v_len,
+            ),
+        )
+    })?;
 
     Ok(quote! {
         ::anchor_lang::prelude::Pubkey::new_from_array([ #(#arr),* ])
@@ -207,13 +206,12 @@ pub(crate) fn light_verifier_accounts(
         None => quote! {},
     };
 
-    let authority_seeds_program =
-        match args.verifier_program_id {
-            Some(ref verifier_program_id) => quote! {
-                seeds::program = #verifier_program_id
-            },
-            None => quote! {},
-        };
+    let authority_seeds_program = match args.verifier_program_id {
+        Some(ref verifier_program_id) => quote! {
+            seeds::program = #verifier_program_id
+        },
+        None => quote! {},
+    };
 
     let registered_verifier_pda_seeds = match args.verifier_program_id {
         Some(ref verifier_program_id) => quote! {
@@ -312,32 +310,31 @@ pub(crate) fn light_verifier_accounts(
     // Generics listed after struct ident need to contain only idents, bounds
     // and const generic types are not expected anymore. Sadly, there seems to
     // be no quick way to do that cleanup in non-manual way.
-    let strct_generics: Punctuated<GenericParam, Token![,]> =
-        strct
-            .generics
-            .params
-            .clone()
-            .into_iter()
-            .map(|param: GenericParam| match param {
-                GenericParam::Const(ConstParam { ident, .. })
-                | GenericParam::Type(TypeParam { ident, .. }) => GenericParam::Type(TypeParam {
+    let strct_generics: Punctuated<GenericParam, Token![,]> = strct
+        .generics
+        .params
+        .clone()
+        .into_iter()
+        .map(|param: GenericParam| match param {
+            GenericParam::Const(ConstParam { ident, .. })
+            | GenericParam::Type(TypeParam { ident, .. }) => GenericParam::Type(TypeParam {
+                attrs: vec![],
+                ident,
+                colon_token: None,
+                bounds: Default::default(),
+                eq_token: None,
+                default: None,
+            }),
+            GenericParam::Lifetime(LifetimeDef { lifetime, .. }) => {
+                GenericParam::Lifetime(LifetimeDef {
                     attrs: vec![],
-                    ident,
+                    lifetime,
                     colon_token: None,
                     bounds: Default::default(),
-                    eq_token: None,
-                    default: None,
-                }),
-                GenericParam::Lifetime(LifetimeDef { lifetime, .. }) => {
-                    GenericParam::Lifetime(LifetimeDef {
-                        attrs: vec![],
-                        lifetime,
-                        colon_token: None,
-                        bounds: Default::default(),
-                    })
-                }
-            })
-            .collect();
+                })
+            }
+        })
+        .collect();
 
     let strct = ItemStruct {
         attrs: strct.attrs,
@@ -473,8 +470,9 @@ mod tests {
         .expect("Failed to expand light_verifier_accounts")
         .to_string();
 
-        assert!(res_signing_address
-            .contains("# [account (mut , address = verifier_state . signer)]"));
+        assert!(
+            res_signing_address.contains("# [account (mut , address = verifier_state . signer)]")
+        );
 
         let res_verifier_program_id = light_verifier_accounts(
             parse_quote! { verifier_program_id = LightPsp4in4out::id() },

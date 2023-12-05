@@ -187,12 +187,11 @@ pub fn invoke_indexer_transaction_event<'info>(
     {
         return err!(VerifierSdkError::InvalidNoopPubkey);
     }
-    let instruction =
-        Instruction {
-            program_id: noop_program.key(),
-            accounts: vec![],
-            data: event.try_to_vec()?,
-        };
+    let instruction = Instruction {
+        program_id: noop_program.key(),
+        accounts: vec![],
+        data: event.try_to_vec()?,
+    };
     invoke(
         &instruction,
         &[noop_program.to_account_info(), signer.to_account_info()],

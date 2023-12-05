@@ -196,17 +196,16 @@ impl<
             Some(message) => message.content.clone(),
             None => Vec::<u8>::new(),
         };
-        let transaction_data_event =
-            TransactionIndexerEvent {
-                leaves: leaves_vec.clone(),
-                public_amount_sol: self.input.public_amount.sol,
-                public_amount_spl: self.input.public_amount.spl,
-                relayer_fee: self.input.relayer_fee,
-                encrypted_utxos: self.input.encrypted_utxos.clone(),
-                nullifiers: self.input.nullifiers.to_vec(),
-                first_leaf_index,
-                message,
-            };
+        let transaction_data_event = TransactionIndexerEvent {
+            leaves: leaves_vec.clone(),
+            public_amount_sol: self.input.public_amount.sol,
+            public_amount_spl: self.input.public_amount.spl,
+            relayer_fee: self.input.relayer_fee,
+            encrypted_utxos: self.input.encrypted_utxos.clone(),
+            nullifiers: self.input.nullifiers.to_vec(),
+            first_leaf_index,
+            message,
+        };
 
         invoke_indexer_transaction_event(
             &transaction_data_event,

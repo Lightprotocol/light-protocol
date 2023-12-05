@@ -71,16 +71,15 @@ impl Hasher for Poseidon {
             }
 
             let mut hash_result = [0; HASH_BYTES];
-            let result =
-                unsafe {
-                    crate::syscalls::sol_poseidon(
-                        0, // bn254
-                        0, // big-endian
-                        vals as *const _ as *const u8,
-                        vals.len() as u64,
-                        &mut hash_result as *mut _ as *mut u8,
-                    )
-                };
+            let result = unsafe {
+                crate::syscalls::sol_poseidon(
+                    0, // bn254
+                    0, // big-endian
+                    vals as *const _ as *const u8,
+                    vals.len() as u64,
+                    &mut hash_result as *mut _ as *mut u8,
+                )
+            };
 
             match result {
                 0 => Ok(hash_result),

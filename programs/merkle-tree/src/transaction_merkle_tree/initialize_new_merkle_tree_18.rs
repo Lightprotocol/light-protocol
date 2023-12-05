@@ -43,13 +43,12 @@ pub fn process_initialize_new_merkle_tree(
 
     merkle_tree.merkle_tree.filled_subtrees[..height].copy_from_slice(&ZERO_BYTES[..height]);
 
-    merkle_tree.merkle_tree.height =
-        merkle_tree
-            .merkle_tree
-            .filled_subtrees
-            .len()
-            .try_into()
-            .unwrap();
+    merkle_tree.merkle_tree.height = merkle_tree
+        .merkle_tree
+        .filled_subtrees
+        .len()
+        .try_into()
+        .unwrap();
     merkle_tree.merkle_tree_nr = merkle_tree_authority.transaction_merkle_tree_index;
     merkle_tree.merkle_tree.roots[0] = ZERO_BYTES[height];
     msg!(

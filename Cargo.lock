@@ -2899,7 +2899,6 @@ dependencies = [
  "heck 0.4.1",
  "lalrpop",
  "lalrpop-util",
- "light-utils",
  "num-bigint-dig",
  "num-traits",
  "program_structure",

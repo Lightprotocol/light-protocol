@@ -81,11 +81,9 @@ pub fn insert_last_double(
     merkle_tree_account: &mut RefMut<'_, TransactionMerkleTree>,
     update_state_data: &mut RefMut<'_, MerkleTreeUpdateState>,
 ) -> Result<(), ProgramError> {
-    merkle_tree_account.merkle_tree.current_root_index = (merkle_tree_account
-        .merkle_tree
-        .current_root_index
-        + 1)
-        % u64::try_from(merkle_tree_account.merkle_tree.roots.len()).unwrap();
+    merkle_tree_account.merkle_tree.current_root_index =
+        (merkle_tree_account.merkle_tree.current_root_index + 1)
+            % u64::try_from(merkle_tree_account.merkle_tree.roots.len()).unwrap();
 
     merkle_tree_account.merkle_tree.next_index = update_state_data.tmp_leaves_index;
     let index: usize = merkle_tree_account
