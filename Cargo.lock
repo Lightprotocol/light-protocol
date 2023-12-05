@@ -1425,6 +1425,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "concurrent"
+version = "0.1.0"
+
+[[package]]
 name = "concurrent-queue"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2679,6 +2683,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67abfe149395e3aa1c48a2beb32b068e2334402df8181f818d3aee2b304c4f5d"
 dependencies = [
  "libsecp256k1-core",
+]
+
+[[package]]
+name = "light-indexed-merkle-tree"
+version = "0.1.0"
+dependencies = [
+ "spl-concurrent-merkle-tree",
+ "thiserror",
 ]
 
 [[package]]
@@ -5413,6 +5425,17 @@ dependencies = [
  "solana-program",
  "spl-token",
  "spl-token-2022",
+ "thiserror",
+]
+
+[[package]]
+name = "spl-concurrent-merkle-tree"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "141eaea58588beae81b71d101373a53f096737739873de42d6b1368bc2b8fc30"
+dependencies = [
+ "bytemuck",
+ "solana-program",
  "thiserror",
 ]
 

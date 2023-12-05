@@ -1,0 +1,9 @@
+[package]
+name = "light-indexed-merkle-tree"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1.0"
+light-concurrent-merkle-tree = { path = "../concurrent", version = "0.1.0" }
+light-hasher = { path = "../hasher", version = "0.1.0" }
