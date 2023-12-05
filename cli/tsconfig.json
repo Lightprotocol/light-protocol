@@ -4,9 +4,9 @@
   "compilerOptions": {
     "importHelpers": true,
     "outDir": "dist",
-    "rootDirs": ["src"],
+    "rootDirs": ["src", "test"],
     "resolveJsonModule": true,
     "strict": false
   },
-  "include": ["src/**/*"]
+  "include": ["src", "test"]
 }
