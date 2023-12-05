@@ -273,6 +273,9 @@ export class TestTransaction {
         connection: this.provider.provider!.connection,
       });
     }
+
+    await this.checkMerkleTreeLeaves(transactionInputs);
+
     if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
       let leavesAccountData;
       // Checking that leaves were inserted
@@ -528,6 +531,26 @@ export class TestTransaction {
       assert.equal(
         indexedTransactions[0].message.toString(),
         this.params.message.toString(),
+      );
+    }
+  }
+
+  /**
+   * Checks whether the output commitment was actually inserted to the Merkle
+   * tree.
+   */
+  async checkMerkleTreeLeaves(transactionInputs: any) {
+    await this.provider.latestMerkleTree();
+    for (let i = 0; i < 2; i++) {
+      assert.deepEqual(
+        new BN(
+          this.provider.solMerkleTree!.merkleTree.elements()[
+            this.provider.solMerkleTree!.merkleTree.indexOf(
+              this.params.outputUtxos[0].getCommitment(this.provider.poseidon),
+            )
+          ],
+        ).toArray("be", 32),
+        transactionInputs.publicInputs.outputCommitment[0],
       );
     }
   }
