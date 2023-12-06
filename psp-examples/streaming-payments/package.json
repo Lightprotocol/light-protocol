@@ -4,7 +4,7 @@
   "scripts": {
     "format": "prettier --write \"tests/**/*.{ts,js}\" -w",
     "lint": "prettier \"tests/**/*{ts,js}\" --check",
-    "test": "../../cli/test_bin/run psp:test streaming-payments Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+    "test": "../../cli/test_bin/run psp:test streaming-payments",
     "build": "../../cli/test_bin/run psp:build streaming-payments --ptau=15"
   },
   "dependencies": {

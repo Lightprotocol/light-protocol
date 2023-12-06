@@ -148,6 +148,18 @@ export type LightPsp4in4outAppStorage = {
           "type": {
             "defined": "usize"
           }
+        },
+        {
+          "name": "messageStartOffset",
+          "type": {
+            "defined": "usize"
+          }
+        },
+        {
+          "name": "messageEndOffset",
+          "type": {
+            "defined": "usize"
+          }
         }
       ]
     }
@@ -220,6 +232,18 @@ export type LightPsp4in4outAppStorage = {
           {
             "name": "merkleRootIndex",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "instructionDataShieldedTransferFirst",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "message",
+            "type": "bytes"
           }
         ]
       }
@@ -787,6 +811,18 @@ export const IDL: LightPsp4in4outAppStorage = {
           "type": {
             "defined": "usize"
           }
+        },
+        {
+          "name": "messageStartOffset",
+          "type": {
+            "defined": "usize"
+          }
+        },
+        {
+          "name": "messageEndOffset",
+          "type": {
+            "defined": "usize"
+          }
         }
       ]
     }
@@ -859,6 +895,18 @@ export const IDL: LightPsp4in4outAppStorage = {
           {
             "name": "merkleRootIndex",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "instructionDataShieldedTransferFirst",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "message",
+            "type": "bytes"
           }
         ]
       }

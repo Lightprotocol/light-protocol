@@ -2,7 +2,7 @@ use anchor_lang::{prelude::*, solana_program::hash::hash};
 use bytemuck::{Pod, Zeroable};
 use light_macros::{light_verifier_accounts, pubkey};
 use light_verifier_sdk::light_transaction::{
-    Amounts, Config, Proof, Transaction, TransactionInput,
+    Amounts, Config, Message, Proof, Transaction, TransactionInput,
 };
 
 pub mod verifying_key;
@@ -47,6 +47,8 @@ pub mod light_psp4in4out_app_storage {
         proof_c: [u8; 64],
         connecting_hash: [u8; 32],
         start_offset: usize,
+        message_start_offset: usize,
+        message_end_offset: usize,
     ) -> Result<()> {
         let proof = Proof {
             a: proof_a,
@@ -78,11 +80,23 @@ pub mod light_psp4in4out_app_storage {
             [verifier_state.leaves[2], verifier_state.leaves[3]],
         ];
 
-        let nullifiers: [[u8; 32]; 4] = verifier_state.nullifiers.to_vec().try_into().unwrap();
+        let nullifiers: [[u8; 32]; 4] = verifier_state.nullifiers;
         let pool_type = [0u8; 32];
+        let message_start_offset = message_start_offset + 8;
+        let message_end_offset = message_end_offset + 8;
+        let message_bytes = ctx.accounts.verifier_state.to_account_info().data.borrow()
+            [message_start_offset..message_end_offset]
+            .to_vec();
+        let message = Message::new(&message_bytes);
+        let message: Option<&Message> = if message_start_offset == message_end_offset {
+            None
+        } else {
+            Some(&message)
+        };
+
         let input = TransactionInput {
             ctx: &ctx,
-            message: None,
+            message,
             proof: &proof,
             public_amount: &public_amount,
             checked_public_inputs: &checked_inputs,
@@ -118,3 +132,9 @@ pub struct Psp4In4OutAppStorageVerifierState {
     pub merkle_root_index: u64,
 }
 unsafe impl Pod for Psp4In4OutAppStorageVerifierState {}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataShieldedTransferFirst {
+    message: Vec<u8>,
+}

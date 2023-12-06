@@ -197,7 +197,7 @@ export async function createSolanaInstructions(
     );
   }
   let inputObject = {
-    message: instructionInputs.message,
+    message: txParams.message,
     ...instructionInputs.proofBytes,
     ...instructionInputs.publicInputs,
     rootIndex: instructionInputs.rootIndex,

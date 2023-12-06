@@ -98,7 +98,7 @@ pub mod streaming_payments {
     // under the hood we could just generate a constant with the name including the suffix and use that in the sdk for ordering
     // it should work independently from light
     // maybe it would be more the anchor way to add it to the anchor object
-    pub fn shielded_transfer_storage_third<'a, 'b, 'c, 'info>(
+    pub fn light_instruction_third<'a, 'b, 'c, 'info>(
         ctx: Context<
             'a,
             'b,
@@ -106,42 +106,17 @@ pub mod streaming_payments {
             'info,
             LightInstructionThird<'info, { VERIFYINGKEY_STREAMING_PAYMENTS.nr_pubinputs }>,
         >,
-        message: [u8; 1024],
+        // 999 is the max value anchor ts sdk supports
+        message: [u8; 800],
     ) -> Result<()> {
         let mut state = ctx.accounts.verifier_state.load_mut()?;
 
-        // if state.message_len.len() > MSG_SIZE {
-        //     return Err(VerifierError::MessageTooLarge.into());
-        // }
-        // // Reallocate space.
-        // let cur_acc_size = state.to_account_info().data_len();
-        // let new_needed_size = cur_acc_size + message.len();
-        // if new_needed_size > cur_acc_size {
-        //     let new_acc_size = cur_acc_size + MESSAGE_PER_CALL_SIZE;
-        //     if new_acc_size > VERIFIER_STATE_MAX_SIZE {
-        //         return Err(VerifierError::VerifierStateNoSpace.into());
-        //     }
-        //     state.to_account_info().realloc(new_acc_size, false)?;
-        //     state.reload()?;
-        // }
-
-        // state.msg.extend_from_slice(&message);
         let off_set = state.message_write_offset as usize;
         if off_set + message.len() > MSG_SIZE {
             return Err(VerifierError::MessageTooLarge.into());
         }
         state.message[off_set..message.len()].copy_from_slice(&message);
         state.message_write_offset += message.len() as u64;
-
-        // let inputs: InstructionDataShieldedTransferFirst =
-        //     InstructionDataShieldedTransferFirst::try_deserialize_unchecked(
-        //         &mut [vec![0u8; 8], inputs].concat().as_slice(),
-        //     )?;
-        // let message = inputs.message;
-        // if message.len() > MESSAGE_PER_CALL_SIZE {
-        //     return Err(VerifierError::MessageTooLarge.into());
-        // }
-
         Ok(())
     }
 

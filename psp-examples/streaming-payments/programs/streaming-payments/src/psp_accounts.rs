@@ -125,7 +125,7 @@ pub const MSG_SIZE: usize = 1024;
 pub struct VerifierState {
     pub signer: Pubkey,
     pub verifier_state_data: [u8; 1024],
-    pub checked_public_inputs: [[u8; 32]; 3],
     pub message: [u8; MSG_SIZE],
     pub message_write_offset: u64,
+    pub checked_public_inputs: [[u8; 32]; 3],
 }

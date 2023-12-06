@@ -138,8 +138,6 @@ describe("Streaming Payments tests", () => {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       includeAppData: true,
     });
     const testInputsShield = {
@@ -195,6 +193,7 @@ describe("Streaming Payments tests", () => {
         verifierProgramId,
         relayer.accounts.relayerPubkey,
       ),
+      message: Buffer.alloc(800).fill(2),
     });
 
     await txParams.getTxIntegrityHash(POSEIDON);
@@ -225,11 +224,13 @@ describe("Streaming Payments tests", () => {
       completePspProofInputs,
       false,
     );
+    console.log("systemProof ", systemProof);
     const solanaTransactionInputs: SolanaTransactionInputs = {
       systemProof,
       pspProof,
       transaction: txParams,
       pspTransactionInput,
+      prefix: "lightInstruction"
     };
 
     const res = await sendAndConfirmShieldedTransaction({
@@ -237,6 +238,8 @@ describe("Streaming Payments tests", () => {
       provider: lightProvider,
     });
     console.log("tx Hash : ", res.txHash);
+
+    console.log("get events ", await lightUser.provider.relayer.getIndexedTransactions(lightProvider.provider.connection))
   }
 
   async function paymentStreaming(
@@ -401,8 +404,6 @@ class PaymentStreamClient {
       appDataIdl: this.idl,
       verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
       assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     this.streamInitUtxo = streamInitUtxo;
@@ -444,8 +445,6 @@ class PaymentStreamClient {
           publicKey: inUtxo.publicKey,
           poseidon: this.poseidon,
           assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            this.lightProvider.lookUpTables.verifierProgramLookupTable,
         });
         return { programParameters, inUtxo, outUtxo, action };
       }
@@ -478,8 +477,6 @@ class PaymentStreamClient {
         appDataIdl: this.idl,
         verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
         assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          this.lightProvider.lookUpTables.verifierProgramLookupTable,
       });
       return { programParameters, outUtxo, inUtxo };
     }
