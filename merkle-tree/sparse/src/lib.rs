@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use anchor_lang::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use config::MerkleTreeConfig;
-use hasher::{Hash, Hasher};
+use light_hasher::{Hash, Hasher};
 
 use crate::{
     constants::{DATA_LEN, HASH_LEN, MAX_HEIGHT, MAX_ROOTS},
@@ -13,7 +13,6 @@ use crate::{
 pub mod config;
 pub mod constants;
 pub mod errors;
-pub mod hasher;
 pub mod syscalls;
 
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug, Clone, Copy)]
@@ -68,12 +67,12 @@ where
 
     fn init_filled_subtrees(&mut self, height: usize) {
         for i in 0..height {
-            self.filled_subtrees[i] = C::ZERO_BYTES[i];
+            self.filled_subtrees[i] = H::zero_bytes()[i];
         }
     }
 
     fn init_roots(&mut self, height: usize) {
-        self.roots[0] = C::ZERO_BYTES[height];
+        self.roots[0] = H::zero_bytes()[height];
     }
 
     /// Initialize the Merkle tree with subtrees and roots based on the given
@@ -103,7 +102,7 @@ where
         for i in 1..self.height as usize {
             let (left, right) = if current_index % 2 == 0 {
                 self.filled_subtrees[i] = current_level_hash;
-                (current_level_hash, C::ZERO_BYTES[i])
+                (current_level_hash, H::zero_bytes()[i])
             } else {
                 (self.filled_subtrees[i], current_level_hash)
             };
