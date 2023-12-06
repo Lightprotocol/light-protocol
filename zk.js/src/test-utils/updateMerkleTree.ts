@@ -93,11 +93,11 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
   const transactionMerkleTreePda =
     MerkleTreeConfig.getTransactionMerkleTreePda();
 
-  let leavesPdas: any = undefined;
-  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
-    leavesPdas = await getLeavesPdas(transactionMerkleTreePda, anchorProvider);
-    if (leavesPdas.length === 0) throw new Error("didn't find any leaves");
-  }
+  const leavesPdas = await getLeavesPdas(
+    transactionMerkleTreePda,
+    anchorProvider,
+  );
+  if (leavesPdas.length === 0) throw new Error("didn't find any leaves");
 
   await retryOperation(
     async () => {
@@ -105,8 +105,8 @@ export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
         connection,
         signer: payer,
         merkleTreeProgram,
-        transactionMerkleTree: transactionMerkleTreePda,
         leavesPdas,
+        transactionMerkleTree: transactionMerkleTreePda,
       });
     },
     async () => {
