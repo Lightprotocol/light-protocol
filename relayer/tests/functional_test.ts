@@ -173,22 +173,24 @@ describe("API tests", () => {
       });
   });
 
-  it("Should fail to update Merkle tree with InvalidNumberOfLeaves", (done: any) => {
-    chai
-      .request(server)
-      .post("/updatemerkletree")
-      .end((_err, res) => {
-        expect(res).to.have.status(500);
-        // TODO: fix error propagation
-        // assert.isTrue(
-        // res.body.message.includes("Error Message: InvalidNumberOfLeaves."),
-        // );
-        expect(res.body.status).to.be.equal("error");
-        done();
-      });
-  });
+  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+    it("Should fail to update Merkle tree with InvalidNumberOfLeaves", (done: any) => {
+      chai
+        .request(server)
+        .post("/updatemerkletree")
+        .end((_err, res) => {
+          expect(res).to.have.status(500);
+          // TODO: fix error propagation
+          // assert.isTrue(
+          // res.body.message.includes("Error Message: InvalidNumberOfLeaves."),
+          // );
+          expect(res.body.status).to.be.equal("error");
+          done();
+        });
+    });
+  }
 
-  it("should shield and update merkle tree", async () => {
+  it("should shield", async () => {
     let testInputs = {
       amountSol: 0.3,
       token: "SOL",
@@ -283,8 +285,9 @@ describe("API tests", () => {
     }
     expect(error).to.exist;
   });
+
   // TODO: add a shield... before, add a transfer too tho, => assert job queeing functioning etc
-  it("should unshield SOL and update merkle tree", async () => {
+  it("should unshield SOL", async () => {
     const solRecipient = Keypair.generate();
 
     const testInputs = {
@@ -314,22 +317,25 @@ describe("API tests", () => {
     await waitForBalanceUpdate(userTestAssertHelper, user);
     await userTestAssertHelper.checkSolUnshielded();
   });
-  it("Should fail to update Merkle tree", (done: any) => {
-    chai
-      .request(server)
-      .get("/updatemerkletree")
-      .end((_err, res) => {
-        const error = res.error;
-        assert.isNotFalse(error);
-        if (error !== false) {
-          assert.isTrue(
-            error.message.includes("cannot GET /updatemerkletree (404)"),
-          );
-        }
-        expect(res).to.have.status(404);
-        done();
-      });
-  });
+
+  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+    it("Should fail to update Merkle tree", (done: any) => {
+      chai
+        .request(server)
+        .get("/updatemerkletree")
+        .end((_err, res) => {
+          const error = res.error;
+          assert.isNotFalse(error);
+          if (error !== false) {
+            assert.isTrue(
+              error.message.includes("cannot GET /updatemerkletree (404)"),
+            );
+          }
+          expect(res).to.have.status(404);
+          done();
+        });
+    });
+  }
 
   it("Should return lookup table data", (done: any) => {
     chai
@@ -372,7 +378,7 @@ describe("API tests", () => {
       });
   });
 
-  it("should transfer sol and update merkle tree ", async () => {
+  it("should transfer sol", async () => {
     const testInputs = {
       amountSol: 0.05,
       token: "SOL",

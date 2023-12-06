@@ -33,7 +33,9 @@ app.get("/", async (_req: any, res: any) => {
   }
 });
 
-app.post("/updatemerkletree", updateMerkleTree);
+if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+  app.post("/updatemerkletree", updateMerkleTree);
+}
 
 app.get("/getBuiltMerkletree", buildMerkleTree);
 
