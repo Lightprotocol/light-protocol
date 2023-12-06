@@ -7,13 +7,14 @@ import {
   IconBook,
   IconBrain,
   IconPlanet,
-  IconChartPie2,
+  IconChartPie2, IconCheckbox
 } from "@tabler/icons-react";
 import { useMediaQuery } from "@mantine/hooks";
 
 const PAGES = [
   /// Label | Path | Enabled | Icon
   ["My assets", "", true, <IconChartPie2 key={0} />],
+  ["Vote", "vote", true, <IconCheckbox key={0} />],
   ["Learn", "trade", false, <IconBrain key={1} />],
   ["Explore PSPs", "explore", false, <IconPlanet key={2} />],
   ["Developers", "developers", false, <IconBook key={3} />],
@@ -61,7 +62,7 @@ export const Navbar = ({ router, path }: { router: any; path: any }) => {
             variant={path === `/${page[1]}` ? "secondary-active" : "secondary"}
             justify="flex-start"
             leftSection={page[3]}
-            onClick={() => console.log(`/${page[1]}`)}
+            onClick={() => router.push(`/${page[1]}`)}
           >
             {page[0]}
           </Button>

@@ -1,19 +1,18 @@
-"use client";
-import React from "react";
-import { useDisclosure } from "@mantine/hooks";
+"use client"
+import React, { ReactNode, useEffect, useState } from "react";
 import { AppShell, Burger, Group, Stack, Title } from "@mantine/core";
-import { usePathname, useRouter } from "next/navigation";
-import { Navbar } from "../components/Navbar";
-import { ShieldSendModal } from "../components/Modal";
-import { useEffect, useState } from "react";
 import { ADMIN_AUTH_KEYPAIR, useWallet } from "@lightprotocol/zk.js";
 import { useUser } from "../state/hooks/useUser";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transactions } from "../components/Transactions";
 import { Assets } from "../components/Assets";
+import { useDisclosure } from "@mantine/hooks";
+import { ShieldSendModal } from "../components/Modal";
+import { Navbar } from "../components/Navbar";
+import { usePathname , useRouter} from "next/navigation";
 
-export default function Shell() {
-  console.log("Shell component rendered");
+export default function Page() {
+  console.log("Page component rendered");
 
   const wallet = useWallet(
     ADMIN_AUTH_KEYPAIR,
@@ -21,9 +20,6 @@ export default function Shell() {
     false
   );
 
-  const [opened, { toggle }] = useDisclosure();
-  const router = useRouter();
-  const path = usePathname();
   const { user, initUser, isLoading, error } = useUser();
   const { connection } = useConnection();
 
@@ -53,6 +49,25 @@ export default function Shell() {
   }
 
   return (
+    <Shell>
+
+      <Stack align="center">
+        
+        Public Balance: {balance}
+        <Assets />
+        <Transactions />
+      </Stack>
+    </Shell>
+  );
+}
+
+
+
+function Shell({ children }: { children: ReactNode }){
+  const [opened, { toggle }] = useDisclosure();
+  const router = useRouter();
+  const path = usePathname();
+  return (
     <AppShell
       layout="alt"
       header={{ height: 60 }}
@@ -71,12 +86,8 @@ export default function Shell() {
         </Group>
       </AppShell.Header>
       <AppShell.Main bg={"#f3f6f9"}>
-        <Stack align="center">
-          Public Balance: {balance}
-          <Assets />
-          <Transactions />
-        </Stack>
+        {children}
       </AppShell.Main>
     </AppShell>
-  );
+  )
 }

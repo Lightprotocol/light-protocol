@@ -8,8 +8,8 @@ import { ModalsProvider } from "@mantine/modals";
 import { Provider } from "jotai";
 import { ConnectionProvider } from "@solana/wallet-adapter-react";
 import { Notifications } from "@mantine/notifications";
-
 import { theme } from "../styles/theme";
+
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   console.log("process.env.rpc", process.env.NEXT_PUBLIC_RPC!);
@@ -31,7 +31,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <MantineProvider theme={theme}>
               <ModalsProvider>
                 <Notifications />
-                {children}
+                {/* <Shell> */}
+                  {children}
+                {/* </Shell> */}
               </ModalsProvider>
             </MantineProvider>
           </ConnectionProvider>
