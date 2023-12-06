@@ -84,6 +84,9 @@ export class Relayer {
   }
 
   async updateMerkleTree(_provider: Provider) {
+    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS === "true") {
+      return;
+    }
     try {
       const response = await axios.post(this.url + "/updatemerkletree");
       return response;

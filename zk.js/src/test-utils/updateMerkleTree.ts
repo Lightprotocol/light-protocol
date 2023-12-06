@@ -76,6 +76,11 @@ async function handleUpdateMerkleTreeError(
 }
 
 export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
+  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS === "true") {
+    throw Error(
+      "This function shouldn't be called with atomic transactions enabled",
+    );
+  }
   const connection = new Connection(url, confirmConfig);
 
   const anchorProvider = new anchor.AnchorProvider(
