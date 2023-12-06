@@ -62,16 +62,17 @@ export function getMerkleTreeUpdateStatePda(
 export async function executeUpdateMerkleTreeTransactions({
   signer,
   merkleTreeProgram,
-  leavesPdas,
   transactionMerkleTree,
   connection,
+  leavesPdas,
 }: {
   signer: Keypair;
   merkleTreeProgram: Program<LightMerkleTreeProgram>;
-  leavesPdas: any;
   transactionMerkleTree: PublicKey;
   connection: Connection;
+  leavesPdas?: any;
 }) {
+  // DO THIS BEFORE INSERTING LEAVES
   const merkleTreeAccountPrior =
     await merkleTreeProgram.account.transactionMerkleTree.fetch(
       transactionMerkleTree,
@@ -82,7 +83,7 @@ export async function executeUpdateMerkleTreeTransactions({
     merkleTreeProgram,
   );
   try {
-    const tx1 = await merkleTreeProgram.methods
+    let txBuilder = merkleTreeProgram.methods
       .initializeMerkleTreeUpdateState()
       .accounts({
         authority: signer.publicKey,
@@ -90,8 +91,11 @@ export async function executeUpdateMerkleTreeTransactions({
         systemProgram: SystemProgram.programId,
         rent: DEFAULT_PROGRAMS.rent,
         transactionMerkleTree: transactionMerkleTree,
-      })
-      .remainingAccounts(leavesPdas)
+      });
+    if (leavesPdas) {
+      txBuilder = txBuilder.remainingAccounts(leavesPdas);
+    }
+    const tx1 = await txBuilder
       .preInstructions([
         ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
       ])
