@@ -1,24 +1,15 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use crate::{
-    transaction_merkle_tree::state::{TransactionMerkleTree, TwoLeavesBytesPda},
-    utils::constants::{LEAVES_SEED, TRANSACTION_MERKLE_TREE_SEED},
-    RegisteredVerifier,
+    transaction_merkle_tree::state::TransactionMerkleTree,
+    utils::constants::TRANSACTION_MERKLE_TREE_SEED, RegisteredVerifier,
 };
 
 #[derive(Accounts)]
-#[instruction(
-    leaf_left: [u8;32],
-    leaf_right: [u8;32],
-    encrypted_utxos: [u8;256],
-)]
 pub struct InsertTwoLeaves<'info> {
     /// CHECK: should only be accessed by a registered verifier.
     #[account(mut, seeds=[__program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
-    /// CHECK: Leaves account should be checked by invoking verifier.
-    #[account(init, seeds= [&leaf_left, LEAVES_SEED], bump, payer=authority, space= 8 + 3 * 32 + 256 + 8 + 8)]
-    pub two_leaves_pda: Option<Account<'info, TwoLeavesBytesPda>>,
     #[account(mut, seeds = [
         TRANSACTION_MERKLE_TREE_SEED,
         transaction_merkle_tree.load().unwrap().merkle_tree_nr.to_le_bytes().as_ref()
@@ -30,51 +21,84 @@ pub struct InsertTwoLeaves<'info> {
 }
 
 #[cfg(feature = "atomic-transactions")]
-pub fn process_insert_two_leaves<'info>(
-    ctx: Context<'_, '_, '_, 'info, InsertTwoLeaves<'info>>,
-    leaf_left: [u8; 32],
-    leaf_right: [u8; 32],
-    _encrypted_utxos: [u8; 256],
+pub fn process_insert_two_leaves<'info, 'a>(
+    ctx: Context<'a, '_, '_, 'info, InsertTwoLeaves<'info>>,
+    leaves: &'a Vec<[u8; 32]>,
 ) -> Result<()> {
     let merkle_tree = &mut ctx.accounts.transaction_merkle_tree.load_mut()?;
 
-    merkle_tree.merkle_tree.insert(leaf_left, leaf_right)?;
+    // Iterate over the leaves in pairs
+    for i in (0..leaves.len()).step_by(2) {
+        // Get the left leaf
+        let leaf_left = &leaves[i];
 
-    // Increase next index by 2 because we're inserting 2 leaves at once.
-    merkle_tree.next_queued_index += 2;
+        // Check if there is a right leaf; use a default value if not
+        let leaf_right = if i + 1 < leaves.len() {
+            &leaves[i + 1]
+        } else {
+            return err!(crate::errors::ErrorCode::UnevenNumberOfLeaves);
+        };
+
+        // Insert the pair into the merkle tree
+        merkle_tree.merkle_tree.insert(*leaf_left, *leaf_right)?;
+
+        // Increase next index by 2 because we're inserting 2 leaves at once
+        merkle_tree.next_queued_index += 2;
+    }
 
     Ok(())
 }
 
 #[cfg(not(feature = "atomic-transactions"))]
-pub fn process_insert_two_leaves<'info>(
+pub fn process_insert_two_leaves<'info, 'a>(
     ctx: Context<'_, '_, '_, 'info, InsertTwoLeaves<'info>>,
-    leaf_left: [u8; 32],
-    leaf_right: [u8; 32],
-    encrypted_utxos: [u8; 256],
+    leaves: &'a Vec<[u8; 32]>,
 ) -> Result<()> {
+    use anchor_lang::solana_program::sysvar;
     use light_utils::change_endianness;
 
-    use crate::errors::ErrorCode;
-
-    let leaf_left = change_endianness(&leaf_left);
-    let leaf_right = change_endianness(&leaf_right);
-
-    let two_leaves_pda = match &mut ctx.accounts.two_leaves_pda {
-        Some(two_leaves_pda) => two_leaves_pda,
-        None => return err!(ErrorCode::ExpectedTwoLeavesPda),
+    use crate::{
+        transaction_merkle_tree::state::TwoLeavesBytesPda,
+        utils::{accounts::create_and_check_pda, constants::LEAVES_SEED},
     };
 
-    // Save leaves into PDA.
-    two_leaves_pda.node_left = leaf_left;
-    two_leaves_pda.node_right = leaf_right;
-    let mut merkle_tree = ctx.accounts.transaction_merkle_tree.load_mut()?;
-    two_leaves_pda.left_leaf_index = merkle_tree.next_queued_index;
+    let account_size = 8 + 3 * 32 + 8 + 8;
+    let rent = <Rent as sysvar::Sysvar>::get()?;
+    let mut j = 0;
+    for i in (0..leaves.len()).step_by(2) {
+        create_and_check_pda(
+            ctx.program_id,
+            &ctx.accounts.authority.to_account_info(),
+            &ctx.remaining_accounts[i].to_account_info(),
+            &ctx.accounts.system_program.to_account_info(),
+            &rent,
+            &leaves[i].as_slice(),
+            LEAVES_SEED,
+            account_size, //bytes
+            0,            //lamports
+            true,         //rent_exempt
+        )
+        .unwrap();
+        // Save leaves into PDA.
+        let two_leaves_bytes_struct = TwoLeavesBytesPda {
+            node_left: change_endianness::<32>(&leaves[i]),
+            node_right: change_endianness::<32>(&leaves[i + 1]),
+            left_leaf_index: 0,
+            merkle_tree_pubkey: ctx.accounts.transaction_merkle_tree.key(),
+        };
+        let mut account_data = Vec::with_capacity(account_size as usize);
 
-    two_leaves_pda.merkle_tree_pubkey = ctx.accounts.transaction_merkle_tree.key();
-    two_leaves_pda.encrypted_utxos = encrypted_utxos;
-
-    // Increase next index by 2 because we're inserting 2 leaves at once.
-    merkle_tree.next_queued_index += 2;
+        AccountSerialize::try_serialize(&two_leaves_bytes_struct, &mut account_data)?;
+        for (index, byte) in account_data.iter().enumerate() {
+            ctx.remaining_accounts[j]
+                .to_account_info()
+                .data
+                .borrow_mut()[index] = *byte;
+        }
+        j += 1;
+        let mut merkle_tree = ctx.accounts.transaction_merkle_tree.load_mut()?;
+        // Increase next index by 2 because we're inserting 2 leaves at once.
+        merkle_tree.next_queued_index += 2;
+    }
     Ok(())
 }

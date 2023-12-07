@@ -54,4 +54,6 @@ pub enum ErrorCode {
     ExpectedTwoLeavesPda,
     #[msg("Invalid two leaves PDA.")]
     InvalidTwoLeavesPda,
+    #[msg("Uneven number of leaves.")]
+    UnevenNumberOfLeaves,
 }

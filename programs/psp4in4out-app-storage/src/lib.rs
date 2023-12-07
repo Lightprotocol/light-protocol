@@ -73,10 +73,6 @@ pub mod light_psp4in4out_app_storage {
         let mut owner_hash = hash(&ctx.accounts.verifier_state.owner.to_bytes()).to_bytes();
         owner_hash[0] = 0;
         let checked_inputs = [owner_hash, connecting_hash];
-        let leaves = [
-            [verifier_state.leaves[0], verifier_state.leaves[1]],
-            [verifier_state.leaves[2], verifier_state.leaves[3]],
-        ];
 
         let nullifiers: [[u8; 32]; 4] = verifier_state.nullifiers.to_vec().try_into().unwrap();
         let pool_type = [0u8; 32];
@@ -87,14 +83,14 @@ pub mod light_psp4in4out_app_storage {
             public_amount: &public_amount,
             checked_public_inputs: &checked_inputs,
             nullifiers: &nullifiers,
-            leaves: &leaves,
+            leaves: &verifier_state.leaves,
             encrypted_utxos: &verifier_state.encrypted_utxos.to_vec(),
             relayer_fee: verifier_state.relayer_fee,
             merkle_root_index: verifier_state.merkle_root_index as usize,
             pool_type: &pool_type,
             verifyingkey: &VERIFYINGKEY_TRANSACTION_APP4_MAIN,
         };
-        let mut tx = Transaction::<2, 2, 4, 15, LightInstruction<'info>>::new(input);
+        let mut tx = Transaction::<2, 4, 4, 15, LightInstruction<'info>>::new(input);
 
         tx.transact()
     }

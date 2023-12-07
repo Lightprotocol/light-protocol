@@ -44,6 +44,5 @@ pub struct TwoLeavesBytesPda {
     pub node_left: [u8; 32],
     pub node_right: [u8; 32],
     pub merkle_tree_pubkey: Pubkey,
-    pub encrypted_utxos: [u8; 256],
     pub left_leaf_index: u64,
 }

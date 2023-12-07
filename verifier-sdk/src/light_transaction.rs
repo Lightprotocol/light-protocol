@@ -113,7 +113,7 @@ pub struct TransactionInput<
     pub message: Option<&'a Message<'a>>,
     pub checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
-    pub leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
+    pub leaves: &'a [[u8; 32]; NR_LEAVES],
     pub encrypted_utxos: &'a Vec<u8>,
     pub relayer_fee: u64,
     pub merkle_root_index: usize,
@@ -180,24 +180,18 @@ impl<
 
     pub fn emit_indexer_transaction_event(&mut self) -> Result<()> {
         // Initialize the vector of leaves
-        let mut leaves_vec: Vec<[u8; 32]> = Vec::new();
 
         let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
         let merkle_tree = merkle_tree.load_mut()?;
 
         let first_leaf_index = merkle_tree.next_queued_index;
 
-        for (_i, leaves) in self.input.leaves.iter().enumerate() {
-            leaves_vec.push(leaves[0]);
-            leaves_vec.push(leaves[1]);
-        }
-
         let message = match &self.input.message {
             Some(message) => message.content.clone(),
             None => Vec::<u8>::new(),
         };
         let transaction_data_event = TransactionIndexerEvent {
-            leaves: leaves_vec.clone(),
+            leaves: &self.input.leaves.to_vec(),
             public_amount_sol: self.input.public_amount.sol,
             public_amount_spl: self.input.public_amount.spl,
             relayer_fee: self.input.relayer_fee,
@@ -225,6 +219,7 @@ impl<
     }
 
     fn compute_event_hash(&mut self, first_leaf_index: u64) -> [u8; 32] {
+        // TODO: remove vector
         let nullifiers_hash = hashv(
             self.input
                 .nullifiers
@@ -233,13 +228,12 @@ impl<
                 .collect::<Vec<_>>()
                 .as_slice(),
         );
-
+        // TODO: remove vector
         let leaves_hash = hashv(
             self.input
                 .leaves
                 .iter()
-                .flat_map(|two_d| two_d.iter())
-                .map(|one_d| &one_d[..])
+                .map(|two_d| two_d.as_slice())
                 .collect::<Vec<_>>()
                 .as_slice(),
         );
@@ -315,7 +309,7 @@ impl<
 
         assert_eq!(
             NR_PUBLIC_INPUTS,
-            5 + NR_NULLIFIERS + NR_LEAVES * 2 + NR_CHECKED_INPUTS,
+            5 + NR_NULLIFIERS + NR_LEAVES + NR_CHECKED_INPUTS,
         );
 
         let mut public_inputs: [[u8; 32]; NR_PUBLIC_INPUTS] = [[0u8; 32]; NR_PUBLIC_INPUTS];
@@ -330,13 +324,13 @@ impl<
             public_inputs[5 + i] = *input;
         }
 
-        for (i, input) in self.input.leaves.iter().enumerate() {
+        for (i, input) in self.input.leaves.chunks(2).enumerate() {
             public_inputs[5 + NR_NULLIFIERS + i * 2] = input[0];
             public_inputs[5 + NR_NULLIFIERS + i * 2 + 1] = input[1];
         }
 
         for (i, input) in self.input.checked_public_inputs.iter().enumerate() {
-            public_inputs[5 + NR_NULLIFIERS + NR_LEAVES * 2 + i] = *input;
+            public_inputs[5 + NR_NULLIFIERS + NR_LEAVES + i] = *input;
         }
 
         let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
@@ -358,8 +352,7 @@ impl<
             self.input.verifyingkey,
         )
         .unwrap();
-        // self.verified_proof = true;
-        // Ok(())
+
         match verifier.verify() {
             Ok(_) => {
                 self.verified_proof = true;
@@ -506,7 +499,7 @@ impl<
     /// * Nullifier and leaf accounts (mandatory).
     /// * Merkle tree accounts (optional).
     fn check_remaining_accounts(&self) -> Result<()> {
-        let nr_nullifiers_leaves = NR_NULLIFIERS + NR_LEAVES;
+        let nr_nullifiers_leaves = NR_NULLIFIERS + NR_LEAVES / 2;
         let remaining_accounts_len = self.input.ctx.remaining_accounts.len();
         if remaining_accounts_len != nr_nullifiers_leaves // Only nullifiers and leaves.
             // Nullifiers, leaves and next Merkle trees (transaction, event).
@@ -533,43 +526,39 @@ impl<
 
         let transaction_merkle_tree = self.get_transaction_merkle_tree()?;
 
-        // check merkle tree
-        for (i, leaves) in self.input.leaves.iter().enumerate() {
-            let mut msg = Vec::new();
-
-            if self.input.encrypted_utxos.len() > i * 256 {
-                msg.append(&mut self.input.encrypted_utxos[i * 256..(i + 1) * 256].to_vec());
-            }
-
-            // check account integrities
-            insert_two_leaves_cpi(
-                self.input.ctx.program_id,
-                &self
-                    .input
-                    .ctx
-                    .accounts
-                    .get_program_merkle_tree()
-                    .to_account_info(),
-                &self.input.ctx.accounts.get_authority().to_account_info(),
-                &self.input.ctx.remaining_accounts[NR_NULLIFIERS + i].to_account_info(),
-                &transaction_merkle_tree,
-                &self
-                    .input
-                    .ctx
-                    .accounts
-                    .get_system_program()
-                    .to_account_info(),
-                &self
-                    .input
-                    .ctx
-                    .accounts
-                    .get_registered_verifier_pda()
-                    .to_account_info(),
-                leaves[0],
-                leaves[1],
-                msg,
-            )?;
-        }
+        #[cfg(feature = "atomic-transactions")]
+        let two_leaves_pdas = Vec::new();
+        #[cfg(not(feature = "atomic-transactions"))]
+        let two_leaves_pdas = self.input.ctx.remaining_accounts
+            [NR_NULLIFIERS..NR_NULLIFIERS + (NR_LEAVES / 2)]
+            .to_vec();
+        // check account integrities
+        insert_two_leaves_cpi(
+            self.input.ctx.program_id,
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_program_merkle_tree()
+                .to_account_info(),
+            &self.input.ctx.accounts.get_authority().to_account_info(),
+            two_leaves_pdas,
+            &transaction_merkle_tree,
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_system_program()
+                .to_account_info(),
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_registered_verifier_pda()
+                .to_account_info(),
+            // TODO: remove vector or instantiate once for the whole struct
+            self.input.leaves.to_vec(),
+        )?;
 
         self.inserted_leaves = true;
         Ok(())
@@ -590,7 +579,7 @@ impl<
     ///   Merkle Tree.
     fn get_transaction_merkle_tree(&self) -> Result<AccountInfo<'info>> {
         // Index of a new Transaction Merkle Tree in remaining accounts.
-        let index = NR_NULLIFIERS + self.input.leaves.len();
+        let index = NR_NULLIFIERS + self.input.leaves.len() / 2;
 
         match self.input.ctx.remaining_accounts.get(index) {
             Some(transaction_merkle_tree) => {

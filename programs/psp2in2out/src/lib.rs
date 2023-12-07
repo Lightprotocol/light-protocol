@@ -55,7 +55,7 @@ pub mod light_psp2in2out {
             proof: &proof,
             public_amount: &public_amount,
             nullifiers: &inputs.input_nullifier,
-            leaves: &[inputs.output_commitment; 1],
+            leaves: &inputs.output_commitment,
             encrypted_utxos: &enc_utxos,
             merkle_root_index: inputs.root_index as usize,
             relayer_fee: inputs.relayer_fee,
@@ -63,7 +63,7 @@ pub mod light_psp2in2out {
             pool_type: &[0u8; 32],
             verifyingkey: &VERIFYINGKEY_TRANSACTION_MASP2_MAIN,
         };
-        let mut transaction = Transaction::<0, 1, 2, 9, LightInstruction<'info>>::new(input);
+        let mut transaction = Transaction::<0, 2, 2, 9, LightInstruction<'info>>::new(input);
 
         transaction.transact()
     }
