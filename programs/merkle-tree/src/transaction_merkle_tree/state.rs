@@ -1,12 +1,8 @@
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_macros::pubkey;
-use light_merkle_tree::{
-    config::MerkleTreeConfig,
-    constants::{poseidon::ZERO_BYTES, ZeroBytes},
-    hasher::Poseidon,
-    MerkleTree,
-};
+use light_merkle_tree::{config::MerkleTreeConfig, hasher::Poseidon, MerkleTree};
+use light_zero_bytes::{poseidon::ZERO_BYTES, ZeroBytes};
 
 use crate::impl_indexed_merkle_tree;
 
