@@ -90,13 +90,15 @@ impl<
 }
 
 #[derive(AnchorDeserialize, AnchorSerialize, Clone, Debug)]
-pub struct TransactionIndexerEvent {
+pub struct TransactionIndexerEvent<'a, const NR_NULLIFIERS: usize, const NR_LEAVES: usize> {
+    pub nr_leaves: u64,
+    pub nr_nullifiers: u64,
     pub leaves: Vec<[u8; 32]>,
     pub public_amount_spl: [u8; 32],
     pub public_amount_sol: [u8; 32],
     pub relayer_fee: u64,
-    pub encrypted_utxos: Vec<u8>,
-    pub nullifiers: Vec<[u8; 32]>,
+    pub encrypted_utxos: &'a Vec<u8>,
+    pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
     pub first_leaf_index: u64,
-    pub message: Vec<u8>,
+    pub message: &'a Vec<u8>,
 }

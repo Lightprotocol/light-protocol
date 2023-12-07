@@ -33,16 +33,21 @@ import { Utxo } from "../utxo";
 import { TokenUtxoBalance, Provider } from "../wallet";
 
 export class TransactionIndexerEvent {
-  borshSchema = borsh.struct([
-    borsh.vec(borsh.array(borsh.u8(), 32), "leaves"),
-    borsh.array(borsh.u8(), 32, "publicAmountSpl"),
-    borsh.array(borsh.u8(), 32, "publicAmountSol"),
-    borsh.u64("relayerFee"),
-    borsh.vec(borsh.u8(), "encryptedUtxos"),
-    borsh.vec(borsh.array(borsh.u8(), 32), "nullifiers"),
-    borsh.u64("firstLeafIndex"),
-    borsh.vecU8("message"),
-  ]);
+  private borshSchema: borsh.struct;
+  constructor(nrNullifiers: number, nrLeaves: number) {
+    this.borshSchema = borsh.struct([
+      borsh.u64("nrLeaves"),
+      borsh.u64("nrNullifiers"),
+      borsh.vec(borsh.array(borsh.u8(), 32), "leaves"),
+      borsh.array(borsh.u8(), 32, "publicAmountSpl"),
+      borsh.array(borsh.u8(), 32, "publicAmountSol"),
+      borsh.u64("relayerFee"),
+      borsh.vec(borsh.u8(), "encryptedUtxos"),
+      borsh.array(borsh.array(borsh.u8(), 32),nrNullifiers, "nullifiers"),
+      borsh.u64("firstLeafIndex"),
+      borsh.vecU8("message"),
+    ]);
+  }
 
   deserialize(buffer: Buffer): any | null {
     try {
@@ -306,9 +311,16 @@ const parseTransactionEvents = (
         if (!ixInner.data) return;
 
         const data = bs58.decode(ixInner.data);
+        const bnNrLeaves = new BN(data.subarray(0, 8), "le");
+        const nrLeaves = bnNrLeaves.lt(new BN(100)) ? bnNrLeaves.toNumber() : 0;
+        const bnNrNullifiers = new BN(data.subarray(8, 16), "le");
+        const nrNullifiers = bnNrNullifiers.lt(new BN(100)) ? bnNrNullifiers.toNumber() : 0;
+        if ( nrLeaves === 0 || nrNullifiers === 0) {
+          return;
+        }
+        const decodeData = new TransactionIndexerEvent(nrNullifiers, nrLeaves).deserialize(data);
 
-        const decodeData = new TransactionIndexerEvent().deserialize(data);
-
+        console.log("decodeData ", decodeData);
         if (decodeData) {
           parsedTransactionEvents.push({
             ...decodeData,

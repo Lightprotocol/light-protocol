@@ -197,18 +197,23 @@ impl<
             Some(message) => message.content.clone(),
             None => Vec::<u8>::new(),
         };
-        let transaction_data_event = TransactionIndexerEvent {
-            leaves: leaves_vec.clone(),
+        // msg!("nR_leave: {}", NR_LEAVES);
+        // msg!("leaves_vec: {}", leaves_vec.len());
+        // let nr_leaves: usize = NR_LEAVES * 2;
+        let transaction_data_event = TransactionIndexerEvent::<NR_NULLIFIERS, NR_LEAVES> {
+            nr_leaves: NR_LEAVES as u64 * 2,
+            nr_nullifiers: NR_NULLIFIERS as u64,
+            leaves: leaves_vec,
             public_amount_sol: self.input.public_amount.sol,
             public_amount_spl: self.input.public_amount.spl,
             relayer_fee: self.input.relayer_fee,
-            encrypted_utxos: self.input.encrypted_utxos.clone(),
-            nullifiers: self.input.nullifiers.to_vec(),
+            encrypted_utxos: &self.input.encrypted_utxos,
+            nullifiers: &self.input.nullifiers,
             first_leaf_index,
-            message,
+            message: &message,
         };
 
-        invoke_indexer_transaction_event(
+        invoke_indexer_transaction_event::<NR_NULLIFIERS, NR_LEAVES>(
             &transaction_data_event,
             &self.input.ctx.accounts.get_log_wrapper().to_account_info(),
             &self

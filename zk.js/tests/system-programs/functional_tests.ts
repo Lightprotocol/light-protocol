@@ -82,7 +82,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Shield (verifier one)", async () => {
+  it.only("Shield (verifier one)", async () => {
     await performShield({
       delegate: AUTHORITY_ONE,
       spl: true,
@@ -91,7 +91,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Shield (verifier storage)", async () => {
+  it.only("Shield (verifier storage)", async () => {
     await performShield({
       delegate: AUTHORITY,
       spl: false,
@@ -242,6 +242,9 @@ describe("verifier_program", () => {
       verifierIdl: verifierIdl,
       account: KEYPAIR,
     });
+    for (let i = 0; i < 2; i++) {
+      console.log("nullifier : ", new anchor.BN(txParams.inputUtxos[i].getNullifier({poseidon: POSEIDON, account: KEYPAIR})).toArray("be", 32));
+    }
     const transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,

@@ -168,8 +168,12 @@ pub fn get_seeds<'a>(
     Ok((seed, bump))
 }
 
-pub fn invoke_indexer_transaction_event<'info>(
-    event: &TransactionIndexerEvent,
+pub fn invoke_indexer_transaction_event<
+    'info,
+    const NR_NULLIFIERS: usize,
+    const NR_LEAVES: usize,
+>(
+    event: &TransactionIndexerEvent<NR_NULLIFIERS, NR_LEAVES>,
     noop_program: &AccountInfo<'info>,
     signer: &AccountInfo<'info>,
 ) -> Result<()> {

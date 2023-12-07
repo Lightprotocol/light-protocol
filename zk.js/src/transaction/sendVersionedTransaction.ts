@@ -34,7 +34,8 @@ export const sendVersionedTransaction = async (
   const txMsg = new TransactionMessage({
     payerKey: payer.publicKey,
     instructions: [
-      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }),
+      ComputeBudgetProgram.requestHeapFrame({bytes: 128_000}),
       ix,
     ],
     recentBlockhash: recentBlockhash,
