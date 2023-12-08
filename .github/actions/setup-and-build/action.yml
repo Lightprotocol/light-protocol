@@ -22,13 +22,13 @@ runs:
         path: |
           ~/.cargo
           **/target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-${{ inputs.atomic-transactions }}-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Cache .local directory
       uses: buildjet/cache@v3
       with:
         path: .local
-        key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
+        key: ${{ runner.os }}-local-${{ inputs.atomic-transactions }}-${{ hashFiles('**/install.sh') }}
 
     - name: Install dependencies
       shell: bash
@@ -55,9 +55,9 @@ runs:
       name: Setup pnpm cache
       with:
         path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        key: ${{ runner.os }}-pnpm-store-${{ inputs.atomic-transactions }}-${{ hashFiles('**/pnpm-lock.yaml') }}
         restore-keys: |
-          ${{ runner.os }}-pnpm-store-
+          ${{ runner.os }}-pnpm-store-${{ inputs.atomic-transactions }}-
 
     - name: Install pnpm dependencies
       shell: bash
