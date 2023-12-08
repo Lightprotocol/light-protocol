@@ -3,9 +3,9 @@ use light_macros::light_verifier_accounts;
 use light_verifier_sdk::light_transaction::{
     Amounts, ProofCompressed, Transaction, TransactionInput,
 };
+use verifying_key::VERIFYINGKEY_TRANSACTION_MASP2_MAIN;
 
 pub mod verifying_key;
-use verifying_key::VERIFYINGKEY_TRANSACTION_MASP2_MAIN;
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
@@ -39,6 +39,7 @@ pub mod light_psp2in2out {
             InstructionDataCompressedTransferFirst::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
+
         let len_missing_bytes = 256 - inputs.encrypted_utxos.len();
         let mut enc_utxos = inputs.encrypted_utxos;
         enc_utxos.append(&mut vec![0u8; len_missing_bytes]);
@@ -68,7 +69,17 @@ pub mod light_psp2in2out {
         };
         let mut transaction = Transaction::<0, 2, 2, 9, LightInstruction<'info>>::new(input);
 
-        transaction.transact()
+        transaction.transact()?;
+
+        #[cfg(all(feature = "memory-test", target_os = "solana"))]
+        assert!(
+            light_verifier_sdk::light_transaction::custom_heap::log_total_heap("memory_check")
+                < 6000u64,
+            "memory degression detected {} {}",
+            light_verifier_sdk::light_transaction::custom_heap::log_total_heap("memory_check"),
+            6000u64
+        );
+        Ok(())
     }
 }
 
