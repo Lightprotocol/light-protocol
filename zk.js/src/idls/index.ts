@@ -22,3 +22,11 @@ export {
   type UserRegistry,
   IDL as IDL_USER_REGISTRY,
 } from "./user_registry";
+export {
+  type LightPublicPsp2in2out,
+  IDL as IDL_PUBLIC_LIGHT_PSP2IN2OUT,
+} from "./light_public_psp2in2out";
+export {
+  type LightPublicPsp10in2out,
+  IDL as IDL_PUBLIC_LIGHT_PSP10IN2OUT,
+} from "./light_public_psp10in2out";

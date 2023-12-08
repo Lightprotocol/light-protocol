@@ -154,6 +154,7 @@ impl<
 
     /// Transact is a wrapper function which computes the integrity hash, checks the root,
     /// verifies the zero knowledge proof, inserts leaves, inserts nullifiers, transfers funds and fees.
+    #[inline(never)]
     pub fn transact(&mut self) -> Result<()> {
         self.emit_indexer_transaction_event()?;
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
@@ -186,6 +187,7 @@ impl<
     }
 
     #[heap_neutral]
+    #[inline(never)]
     pub fn emit_indexer_transaction_event(&self) -> Result<()> {
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("pre assemble TransactionIndexerEvent");
@@ -236,6 +238,7 @@ impl<
     }
 
     #[heap_neutral]
+    #[inline(never)]
     fn compute_event_hash(&self, first_leaf_index: u64) -> [u8; 32] {
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("pre compute hash");
@@ -283,6 +286,7 @@ impl<
 
     /// Calls the Merkle tree program via CPI to insert event leaves.
     #[heap_neutral]
+    #[inline(never)]
     fn insert_event_leaves(&self, event_hash: [u8; 32]) -> Result<()> {
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("pre load_event_mt");
@@ -324,33 +328,55 @@ impl<
     }
 
     /// Verifies a Goth16 zero knowledge proof over the bn254 curve.
+
+    #[inline(never)]
     pub fn verify(&self) -> Result<()> {
         #[cfg(all(target_os = "solana", feature = "custom-heap"))]
         let pos = custom_heap::get_heap_pos();
-        assert_eq!(
-            NR_PUBLIC_INPUTS,
-            5 + NR_NULLIFIERS + NR_LEAVES + NR_CHECKED_INPUTS,
-        );
-        let mut public_inputs: [[u8; 32]; NR_PUBLIC_INPUTS] = [[0u8; 32]; NR_PUBLIC_INPUTS];
-
-        public_inputs[0] = self.merkle_root;
-        public_inputs[1] = self.input.public_amount.spl;
-        public_inputs[2] = self.tx_integrity_hash;
-        public_inputs[3] = self.input.public_amount.sol;
-        public_inputs[4] = self.mint_pubkey;
-
-        for (i, input) in self.input.nullifiers.iter().enumerate() {
-            public_inputs[5 + i] = *input;
+        // 4(spl, sol, dataHash, mint) + nullifiers + leaves + nullifier roots + leaves roots
+        // assert_eq!(
+        //     NR_PUBLIC_INPUTS,
+        //     4 + NR_NULLIFIERS + NR_LEAVES + NR_CHECKED_INPUTS + NR_NULLIFIERS + NR_LEAVES,
+        // );
+        // TODO: we should autogenerate this if we go for more rust sdk
+        #[derive(AnchorSerialize, Debug)]
+        pub struct PrivateTransactionPublicInputs<
+            const NR_NULLIFIERS: usize,
+            const NR_LEAVES: usize,
+            const NR_CHECKED_INPUTS: usize,
+        > {
+            pub merkle_root: [[u8; 32]; NR_NULLIFIERS],
+            pub nullifier_root: [[u8; 32]; NR_NULLIFIERS],
+            pub public_amount_spl: [u8; 32],
+            pub tx_integrity_hash: [u8; 32],
+            pub public_amount_sol: [u8; 32],
+            pub mint_pubkey: [u8; 32],
+            pub nullifiers: [[u8; 32]; NR_NULLIFIERS],
+            pub leaves: [[u8; 32]; NR_LEAVES],
+            // pub new_adresses: [[u8; 32]; NR_LEAVES],
+            pub checked_public_inputs: [[u8; 32]; NR_CHECKED_INPUTS],
         }
 
-        for (i, input) in self.input.leaves.chunks(2).enumerate() {
-            public_inputs[5 + NR_NULLIFIERS + i * 2] = input[0];
-            public_inputs[5 + NR_NULLIFIERS + i * 2 + 1] = input[1];
-        }
-
-        for (i, input) in self.input.checked_public_inputs.iter().enumerate() {
-            public_inputs[5 + NR_NULLIFIERS + NR_LEAVES + i] = *input;
-        }
+        let public_inputs_struct = PrivateTransactionPublicInputs {
+            merkle_root: [self.merkle_root; NR_NULLIFIERS],
+            nullifier_root: [[0u8; 32]; NR_NULLIFIERS], // placeholder value replace when we have the nullifier merkle tree
+            public_amount_spl: self.input.public_amount.spl,
+            tx_integrity_hash: self.tx_integrity_hash,
+            public_amount_sol: self.input.public_amount.sol,
+            mint_pubkey: self.mint_pubkey,
+            nullifiers: *self.input.nullifiers,
+            leaves: *self.input.leaves,
+            checked_public_inputs: *self.input.checked_public_inputs,
+        };
+        let public_inputs: Vec<[u8; 32]> = public_inputs_struct
+            .try_to_vec()?
+            .chunks(32)
+            .map(|x| {
+                let y: [u8; 32] = x.try_into().unwrap();
+                y
+            })
+            .collect();
+        let public_inputs: [[u8; 32]; NR_PUBLIC_INPUTS] = public_inputs.try_into().unwrap();
 
         // we negate proof a offchain
         let proof_a = decompress_g1(&self.input.proof.a).unwrap();
@@ -373,18 +399,7 @@ impl<
                 Ok(())
             }
             Err(e) => {
-                msg!("Public Inputs:");
-                msg!("merkle tree root {:?}", self.merkle_root);
-                msg!("public_amount_spl {:?}", self.input.public_amount.spl);
-                msg!("tx_integrity_hash {:?}", self.tx_integrity_hash);
-                msg!("public_amount_sol {:?}", self.input.public_amount.sol);
-                msg!("mint_pubkey {:?}", self.mint_pubkey);
-                msg!("nullifiers {:?}", self.input.nullifiers);
-                msg!("leaves {:?}", self.input.leaves);
-                msg!(
-                    "checked_public_inputs {:?}",
-                    self.input.checked_public_inputs
-                );
+                msg!("Public Inputs: {:?} ", public_inputs);
                 msg!("error {:?}", e);
                 err!(VerifierSdkError::ProofVerificationFailed)
             }
@@ -473,12 +488,8 @@ impl<
     pub fn fetch_mint(&mut self) -> Result<()> {
         match &self.input.ctx.accounts.get_sender_spl() {
             Some(sender_spl) => {
-                // #[cfg(all(feature = "custom-heap"))]
-                //                custom_heap::log_total_heap("pre unpacked_account mint");
                 let unpacked_account =
                     spl_token::state::Account::unpack(sender_spl.data.borrow().as_ref());
-                // #[cfg(all(feature = "custom-heap"))]
-                //                custom_heap::log_total_heap("post unpacked_account mint");
                 match unpacked_account {
                     Ok(sender_spl) => {
                         // Omits the last byte for the mint pubkey bytes to fit into the bn254 field.
@@ -518,6 +529,7 @@ impl<
     /// * Nullifier and leaf accounts (mandatory).
     /// * Merkle tree accounts (optional).
     #[heap_neutral]
+    #[inline(never)]
     fn check_remaining_accounts(&self) -> Result<()> {
         let nr_nullifiers_leaves = NR_NULLIFIERS + NR_LEAVES / 2;
         let remaining_accounts_len = self.input.ctx.remaining_accounts.len();
@@ -539,6 +551,7 @@ impl<
 
     /// Calls the Merkle tree program via cpi to insert transaction leaves.
     #[heap_neutral]
+    #[inline(never)]
     pub fn insert_leaves(&self) -> Result<()> {
         let transaction_merkle_tree = self.get_transaction_merkle_tree()?;
 
@@ -584,6 +597,7 @@ impl<
     ///   Transaction Merkle Tree. Since the old Merkle Tree is almost full we
     ///   need to insert the new utxo commitments into the new Transaction
     ///   Merkle Tree.
+    #[inline(never)]
     fn get_transaction_merkle_tree(&self) -> Result<AccountInfo<'info>> {
         // Index of a new Transaction Merkle Tree in remaining accounts.
         let index = NR_NULLIFIERS + self.input.leaves.len() / 2;
@@ -628,6 +642,7 @@ impl<
 
     /// Calls merkle tree via cpi to insert nullifiers.
     #[heap_neutral]
+    #[inline(never)]
     pub fn insert_nullifiers(&self) -> Result<()> {
         insert_nullifiers_cpi(
             self.input.ctx.program_id,
@@ -659,6 +674,7 @@ impl<
 
     /// Transfers user funds either to or from a merkle tree liquidity pool.
     #[heap_neutral]
+    #[inline(never)]
     pub fn transfer_user_funds(&self) -> Result<()> {
         msg!("transferring user funds");
         // check mintPubkey
@@ -767,13 +783,13 @@ impl<
                     pub_amount_checked,
                 )?;
             }
-            msg!("transferred");
         }
         Ok(())
     }
 
     /// Transfers the rpc fee  to or from a merkle tree liquidity pool.
     #[heap_neutral]
+    #[inline(never)]
     pub fn transfer_fee(&self) -> Result<()> {
         // check that it is the native token pool
         let (fee_amount_checked, rpc_fee) = self.check_amount(

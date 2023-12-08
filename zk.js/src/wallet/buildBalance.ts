@@ -100,20 +100,6 @@ export class ProgramUtxoBalance {
     utxo: ProgramUtxo,
     attribute: VariableType,
   ): boolean {
-    if (!utxo.utxo.verifierAddress) {
-      throw new ProgramUtxoBalanceError(
-        ProgramUtxoBalanceErrorCode.INVALID_PROGRAM_ADDRESS,
-        "addUtxo",
-        `Verifier address in utxo ${utxo.utxo.utxoHash} does not exist in utxo (trying to add utxo to program utxos balance)`,
-      );
-    }
-    if (!utxo.utxo.verifierAddress.equals(this.programAddress)) {
-      throw new ProgramUtxoBalanceError(
-        ProgramUtxoBalanceErrorCode.INVALID_PROGRAM_ADDRESS,
-        "addUtxo",
-        `Verifier address ${utxo.utxo.verifierAddress} does not match the program address (trying to add utxo to program utxos balance)`,
-      );
-    }
     const utxoAsset =
       utxo.utxo.amounts[1].toString() === "0"
         ? new PublicKey(0).toBase58()
@@ -162,15 +148,15 @@ export class ProgramBalance extends TokenUtxoBalance {
     utxo: ProgramUtxo,
     attribute: VariableType,
   ): boolean {
-    if (utxo.utxo.verifierAddress != this.programAddress) {
-      throw new ProgramUtxoBalanceError(
-        ProgramUtxoBalanceErrorCode.INVALID_PROGRAM_ADDRESS,
-        "addProgramUtxo",
-        `Verifier address ${
-          utxo.utxo.verifierAddress
-        } does not match the program address ${this.programAddress.toBase58()} (trying to add utxo to program utxos balance) `,
-      );
-    }
+    // if (utxo.utxo.publicKey != this.programAddress) {
+    //   throw new ProgramUtxoBalanceError(
+    //     ProgramUtxoBalanceErrorCode.INVALID_PROGRAM_ADDRESS,
+    //     "addProgramUtxo",
+    //     `Verifier address ${
+    //       utxo.utxo.verifierAddress
+    //     } does not match the program address ${this.programAddress.toBase58()} (trying to add utxo to program utxos balance) `,
+    //   );
+    // }
 
     const utxoExists = this[attribute].get(commitment) !== undefined;
     this[attribute].set(commitment, utxo.utxo);
@@ -247,11 +233,7 @@ export async function decryptAddUtxoToBalance({
   const assetIndex = utxo.amounts[1].toString() !== "0" ? 1 : 0;
 
   // valid amounts and is not app utxo
-  if (
-    amountsValid &&
-    utxo.verifierAddress.toBase58() === new PublicKey(0).toBase58() &&
-    utxo.utxoDataHash.toString() === "0"
-  ) {
+  if (amountsValid && utxo.utxoDataHash.toString() === "0") {
     // TODO: add is native to utxo
     // if !asset try to add asset and then push
     if (

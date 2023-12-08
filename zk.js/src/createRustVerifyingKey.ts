@@ -297,37 +297,49 @@ export async function createVerifyingkeyRsFileArgv() {
   if (!nrInputs) {
     throw new Error("Circuit nrInputs is not specified!");
   }
-
+  const nrOutputs = process.argv[3];
+  if (!nrOutputs) {
+    throw new Error(`Circuit nrOutputs is not specified! ${process.argv[3]}`);
+  }
+  const isPrivate = process.argv[4] == "private" ? true : false;
+  if (isPrivate == undefined) {
+    throw new Error("Circuit nrOutputs is not specified!");
+  }
   let program: string;
   const paths: string[] = [];
-  let vKeyJsonPath: string;
-  let vKeyRsPath: string;
-  let circuitName: string;
-  let artifactPath: string = "";
-  if (nrInputs == "app") {
-    program = `${process.argv[3]}`;
-    vKeyJsonPath = "./verifyingkey.json";
-    vKeyRsPath = "./programs/" + program + "/src/verifying_key.rs";
-    circuitName = process.argv[4] ? `${process.argv[4]}` : "appTransaction";
+
+  const prefix = isPrivate ? "private" : "public";
+  const programSuffix = process.argv[5] ? process.argv[5] : "";
+  if (nrInputs == "2" && prefix == "private") {
+    program = "psp2in2out";
+    const program_storage = "psp2in2out-storage";
+    const vKeyRsPath_storage =
+      "../../programs/" + program_storage + "/src/verifying_key.rs";
+    paths.push(vKeyRsPath_storage);
+  } else if (nrInputs == "10" && prefix == "private") {
+    program = "psp10in2out";
+  } else if (nrInputs == "4" && prefix == "private") {
+    program = "psp4in4out-app-storage";
+  } else if (nrInputs == "2" && prefix == "public") {
+    program = "public-psp2in2out";
+  } else if (nrInputs == "10" && prefix == "public") {
+    program = "public-psp10in2out";
   } else {
-    if (nrInputs == "2") {
-      program = "verifier_program_zero";
-      const program_storage = "verifier_program_storage";
-      const vKeyRsPath_storage =
-        "../../programs/" + program_storage + "/src/verifying_key.rs";
-      paths.push(vKeyRsPath_storage);
-    } else if (nrInputs == "10") {
-      program = "verifier_program_one";
-    } else if (nrInputs == "4") {
-      program = "verifier_program_two";
-    } else {
-      throw new Error("invalid nr of inputs");
-    }
-    vKeyJsonPath = "./verification_key_mainnet" + nrInputs + ".json";
-    vKeyRsPath = "../../programs/" + program + "/src/verifying_key.rs";
-    circuitName = "transaction" + process.argv[3];
-    artifactPath = "../../zk.js/build-circuits/transaction" + process.argv[3];
+    throw new Error("invalid nr of inputs");
   }
+  const vKeyJsonPath = "./verification_key_mainnet" + nrInputs + ".json";
+  const vKeyRsPath = "../../programs/" + program + "/src/verifying_key.rs";
+  const circuitName =
+    prefix +
+    programSuffix +
+    "Transaction" +
+    nrInputs +
+    "In" +
+    nrOutputs +
+    "Out" +
+    "Main";
+  const artifactPath = "../../zk.js/build-circuits/" + circuitName;
+
   await createVerifyingkeyRsFile(
     program,
     paths,

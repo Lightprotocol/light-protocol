@@ -47,8 +47,8 @@ pub mod {{rust-name}} {
         let mut verifier_state = ctx.accounts.verifier_state.load_init()?;
         verifier_state.signer = *ctx.accounts.signing_address.key;
         let verifier_state_data = Psp4In4OutAppStorageVerifierState {
-            nullifiers: inputs_des.input_nullifier,
-            leaves: inputs_des.output_commitment.try_into().unwrap(),
+            nullifiers: inputs_des.public_nullifier,
+            leaves: inputs_des.public_out_utxo_hash.try_into().unwrap(),
             public_amount_spl: inputs_des.public_amount_spl,
             public_amount_sol: inputs_des.public_amount_sol,
             rpc_fee: inputs_des.rpc_fee,
@@ -64,7 +64,7 @@ pub mod {{rust-name}} {
             .unwrap();
 
         verifier_state.checked_public_inputs[0] = program_id_hash;
-        verifier_state.checked_public_inputs[1] = inputs_des.transaction_hash;
+        verifier_state.checked_public_inputs[1] = inputs_des.public_transaction_hash;
 
         Ok(())
     }
