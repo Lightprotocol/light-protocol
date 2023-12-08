@@ -44,7 +44,7 @@ export const getWalletConfig = async (
       anchorProvider: anchorProvider,
     });
 
-    merkleTreeConfig.getMerkleTreeAuthorityPda();
+    MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     return merkleTreeConfig;
   } catch (error) {

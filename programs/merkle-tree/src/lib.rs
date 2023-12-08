@@ -97,6 +97,13 @@ pub mod light_merkle_tree_program {
         process_insert_two_leaves(ctx, &leaves)
     }
 
+    pub fn insert_two_leaves_parallel<'info>(
+        ctx: Context<'_, '_, '_, 'info, InsertTwoLeavesParallel<'info>>,
+        leaves: Vec<[u8; 32]>,
+    ) -> Result<()> {
+        process_insert_two_leaves_parallel(ctx, &leaves)
+    }
+
     pub fn insert_two_leaves_event<'info>(
         ctx: Context<'_, '_, '_, 'info, InsertTwoLeavesEvent<'info>>,
         leaf_left: [u8; 32],

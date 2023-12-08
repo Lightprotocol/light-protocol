@@ -21,6 +21,8 @@ import {
   programOutUtxoToBytes,
   BN_1,
   programOutUtxoFromBytes,
+  createFillingOutUtxo,
+  STANDARD_COMPRESSION_PUBLIC_KEY,
 } from "../src";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -127,6 +129,29 @@ describe("Utxo Functional", () => {
       compareOutUtxos(decryptedUtxoNacl.value!, asymOutUtxo);
     }
   });
+  it("parsing for hash", async () => {
+    let zeroHash = lightWasm.poseidonHash(["0"]);
+    console.log("zero hash: ", zeroHash);
+    let oneHash = lightWasm.poseidonHash(["1"]);
+    console.log("one hash: ", oneHash);
+    let oneBnHash = lightWasm.poseidonHash([new BN(1).toString()]);
+    console.log("one bn hash: ", oneBnHash);
+  });
+
+  it.only("Filling public utxo is consistent", async () => {
+    let fillingUtxo = createFillingOutUtxo({
+      lightWasm,
+      publicKey: STANDARD_COMPRESSION_PUBLIC_KEY,
+      isPublic: true,
+    })
+    console.log("filling utxo: ", fillingUtxo.utxoHash);
+    const fillingUtxo2 = createFillingOutUtxo({
+      lightWasm,
+      publicKey: STANDARD_COMPRESSION_PUBLIC_KEY,
+      isPublic: true,
+    })
+    assert.equal(fillingUtxo.utxoHash, fillingUtxo2.utxoHash);
+  })
 
   it("encryption", async () => {
     const amountFee = "1";
@@ -144,7 +169,7 @@ describe("Utxo Functional", () => {
       index: 1,
     };
     const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
-
+    console.log("public key: ", inputs.keypair.keypair.publicKey.toArray("be", 32));
     const outUtxo = createOutUtxo({
       publicKey: account.keypair.publicKey,
       amounts: inputs.amounts,
@@ -175,6 +200,7 @@ describe("Utxo Functional", () => {
       outUtxo.utxoHash,
       "17616393199387360834665924012652189736074827681842362183279563807978925296116",
     );
+    console.log("utxo hash: ", new BN(outUtxo.utxoHash).toArray("be", 32));
 
     // toBytes
     const bytes = await outUtxoToBytes(outUtxo, assetLookupTable);
@@ -303,7 +329,6 @@ describe("Utxo Functional", () => {
     const outputUtxo = createProgramOutUtxo({
       lightWasm,
       assets: [SystemProgram.programId],
-      publicKey: account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
       utxoData: { releaseSlot: BN_1 },
       pspIdl: TEST_PSP_IDL,

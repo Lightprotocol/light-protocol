@@ -1,3 +1,5 @@
+use ark_ff::BigInt;
+use solana_program::hash::{self};
 use std::{
     env,
     io::{self, prelude::*},
@@ -5,8 +7,6 @@ use std::{
     process::{Command, Stdio},
     thread::spawn,
 };
-
-use ark_ff::BigInt;
 use thiserror::Error;
 
 const CHUNK_SIZE: usize = 32;
@@ -78,10 +78,15 @@ pub fn le_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
 /// assert_eq!(truncated, [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
 ///                        18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
 /// ```
+// (Jorrit) this is confusing because the value returned is 32 bytes but the actual values is 31 bytes
 pub fn truncate_to_circuit(bytes: &[u8; 32]) -> [u8; 32] {
     let mut truncated = [0; 32];
     truncated[1..].copy_from_slice(&bytes[1..]);
     truncated
+}
+
+pub fn hash_and_truncate_to_circuit(bytes: &[&[u8]]) -> [u8; 32] {
+    truncate_to_circuit(&hash::hashv(bytes).to_bytes())
 }
 
 /// Applies `rustfmt` on the given string containing Rust code. The purpose of

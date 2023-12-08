@@ -64,7 +64,7 @@ export function createProgramOutUtxo({
   checkUtxoData(utxoData, pspIdl, utxoName + "OutUtxo");
 
   const outUtxo = createOutUtxo({
-    publicKey: hashAndTruncateToCircuit(pspId.toBytes()),
+    publicKey: new BN(hashAndTruncateToCircuit([pspId.toBytes()], lightWasm)),
     encryptionPublicKey,
     amounts,
     assets,
@@ -414,7 +414,7 @@ export function createProgramUtxo({
   createUtxoInputs["owner"] = pspId;
   createUtxoInputs["utxoData"] = utxoDataInternal;
   createUtxoInputs["utxoName"] = utxoName;
-  const utxo = createUtxo(lightWasm, account, createUtxoInputs, false);
+  const utxo = createUtxo(lightWasm, createUtxoInputs , false, account);
   const programOutUtxo: ProgramUtxo = {
     utxo,
     pspId,

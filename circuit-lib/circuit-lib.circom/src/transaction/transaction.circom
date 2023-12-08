@@ -32,7 +32,7 @@ template PublicTransaction(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPu
     for (var i = 0; i < nIns; i++) {
         inDataHash[i] = 0;
     }
-    
+
     signal input leafIndex[nIns];
     signal input merkleProof[nIns][levels];
     signal input inIndices[nIns][nInAssets][nAssets];
@@ -142,7 +142,7 @@ template PublicProgramTransaction(levels, nIns, nOuts, feeAsset, indexFeeAsset, 
     signal input inPrivateKey[nIns];
     signal input inBlinding[nIns];
     signal input inDataHash[nIns];
-    
+
     signal input leafIndex[nIns];
     signal input merkleProof[nIns][levels];
     signal input inIndices[nIns][nInAssets][nAssets];
@@ -167,7 +167,7 @@ template PublicProgramTransaction(levels, nIns, nOuts, feeAsset, indexFeeAsset, 
 
     signal input isOutProgramUtxo[nOuts];
 
-    // logic is if there is a public new address there cannot be 
+    // logic is if there is a public new address there cannot be
     // there can only be as many utxos with address and meta data as the lower number of in and out utxos
     component checkAddress = CheckAndSelectAddress(nIns, nOuts,  higherUtxoNumber);
     checkAddress.publicNewAddress <== publicNewAddress;
@@ -298,7 +298,7 @@ template PrivateTransaction(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal input inPrivateKey[nIns];
     signal input inBlinding[nIns];
     signal input inDataHash[nIns];
-    
+
     signal input leafIndex[nIns];
     signal input merkleProof[nIns][levels];
     signal input inIndices[nIns][nInAssets][nAssets];
@@ -326,7 +326,7 @@ template PrivateTransaction(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     transaction.inPrivateKey <== inPrivateKey;
     transaction.inBlinding <== inBlinding;
     transaction.inDataHash <== inDataHash;
-    
+
     transaction.leafIndex <== leafIndex;
     transaction.merkleProof <== merkleProof;
     transaction.inIndices <== inIndices;
@@ -338,7 +338,7 @@ template PrivateTransaction(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     transaction.outBlinding <== outBlinding;
     transaction.outDataHash <== outDataHash;
     transaction.outIndices <== outIndices;
-    
+
     transaction.assetPublicKeys <== assetPublicKeys;
     transaction.inVersion <== 0;
     transaction.outVersion <== 0;
@@ -399,7 +399,7 @@ template PrivateProgramTransaction(levels, nIns, nOuts, feeAsset, indexFeeAsset,
     signal input inPrivateKey[nIns];
     signal input inBlinding[nIns];
     signal input inDataHash[nIns];
-    
+
     signal input leafIndex[nIns];
     signal input merkleProof[nIns][levels];
     signal input inIndices[nIns][nInAssets][nAssets];
@@ -423,9 +423,9 @@ template PrivateProgramTransaction(levels, nIns, nOuts, feeAsset, indexFeeAsset,
     checkAddress.publicNewAddress <== publicNewAddress;
     checkAddress.inAddress <== inAddress;
     checkAddress.isInAddress <== isInAddress;
-    checkAddress.isNewAddress <== isNewAddress;   
+    checkAddress.isNewAddress <== isNewAddress;
 
-    
+
     component transaction = PrivateTransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets, higherUtxoNumber);
     transaction.publicStateRoot <== publicStateRoot;
     transaction.publicNullifierRoot <== publicNullifierRoot;
@@ -480,7 +480,7 @@ template PrivateProgramTransaction(levels, nIns, nOuts, feeAsset, indexFeeAsset,
     checkProgramTransaction.outUtxoHash <== transaction.outUtxoHash;
     checkProgramTransaction.publicDataHash <== publicDataHash;
     checkProgramTransaction.publicTransactionHash <== publicTransactionHash;
-    
+
     component checkOwner[nIns];
     component ownerOrProgram[nIns];
     // Checks that inOwner is either the programId or the owner of the keypair
@@ -544,7 +544,7 @@ Conditions:
 - if theres is a dataHash then we need to check that the owner is equal to the publicProgramId
 - if public metaHash input is 0 then we don't check that it is equal to the metaHash input of the utxo with the same index
 - if public dataHash input is 0 then we don't check that it is equal to the metaHash input of the utxo with the same index
-- 
+-
 */
 
 
@@ -552,15 +552,15 @@ Conditions:
 *
 * pooltype consistency check
 * transaction version consistency
-* 
+*
 * inUtxos
 *     integrity & signer utxo check
 *     inclusion for in utxos
-* 
+*
 * outUtxos
 *     integrity check
 *     utxoHash check vs public outputs
-* 
+*
 * amount_sum check for every asset
 */
 template TransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets, higherUtxoNumber) {
@@ -582,7 +582,7 @@ template TransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPubli
     signal input assetPublicKeys[nAssets];
     signal input inVersion;
     signal input inType;
-    
+
     signal input outVersion;
     signal input outType;
     signal input metaHash[higherUtxoNumber];
@@ -593,7 +593,7 @@ template TransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPubli
     signal input inBlinding[nIns];
     signal input inDataHash[nIns];
     signal input inAddress[nIns];
-    
+
     signal input leafIndex[nIns];
     signal input merkleProof[nIns][levels];
     signal input inIndices[nIns][nInAssets][nAssets];
@@ -625,11 +625,11 @@ template TransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPubli
 
     checkMintPublicKey.enabled <== publicAmountSpl;
 
-    component assetCheck[nAssets];
-    for (var i = 0; i < nAssets; i++) {
-        assetCheck[i] = Num2Bits(248);
-        assetCheck[i].in <== assetPublicKeys[i];
-    }
+    // component assetCheck[nAssets];
+    // for (var i = 0; i < nAssets; i++) {
+    //     assetCheck[i] = Num2Bits(248);
+    //     assetCheck[i].in <== assetPublicKeys[i];
+    // }
 
     // verify correctness of transaction inputs
     component checkInUtxos = CheckUtxoIntegrity(nIns, nAssets, nInAssets);
@@ -684,11 +684,11 @@ template TransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPubli
     component utxoSumIn = UtxoSum(nIns, nInAssets, nAssets);
     utxoSumIn.amount <== inAmount;
     utxoSumIn.indices <== inIndices;
-    
+
     component utxoSumOut = UtxoSum(nOuts, nOutAssets, nAssets);
     utxoSumOut.amount <== outAmount;
     utxoSumOut.indices <== outIndices;
-    
+
     // verify amount invariant
     utxoSumIn.sum[0] + publicAmountSol === utxoSumOut.sum[0];
     utxoSumIn.sum[1] + publicAmountSpl === utxoSumOut.sum[1];
@@ -737,7 +737,7 @@ template PrivateTransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, ind
     signal input inPrivateKey[nIns];
     signal input inBlinding[nIns];
     signal input inDataHash[nIns];
-    
+
     signal input leafIndex[nIns];
     signal input merkleProof[nIns][levels];
     signal input inIndices[nIns][nInAssets][nAssets];
@@ -751,7 +751,7 @@ template PrivateTransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, ind
     signal  input outBlinding[nOuts];
     signal  input outDataHash[nOuts];
     signal  input outIndices[nOuts][nOutAssets][nAssets];
-    
+
 
     signal output inUtxoHash[nIns];
     signal output outUtxoHash[nOuts];
@@ -784,7 +784,7 @@ template PrivateTransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, ind
     transaction.inAmount <== inAmount;
     transaction.inBlinding <== inBlinding;
     transaction.inDataHash <== inDataHash;
-    
+
     transaction.leafIndex <== leafIndex;
     transaction.merkleProof <== merkleProof;
     transaction.inIndices <== inIndices;
@@ -847,7 +847,7 @@ template PublicTransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, inde
     signal input inPrivateKey[nIns];
     signal input inBlinding[nIns];
     signal input inDataHash[nIns];
-    
+
     signal input leafIndex[nIns];
     signal input merkleProof[nIns][levels];
     signal input inIndices[nIns][nInAssets][nAssets];
@@ -895,7 +895,7 @@ template PublicTransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, inde
     transaction.inAmount <== inAmount;
     transaction.inBlinding <== inBlinding;
     transaction.inDataHash <== inDataHash;
-    
+
     transaction.leafIndex <== leafIndex;
     transaction.merkleProof <== merkleProof;
     transaction.inIndices <== inIndices;
@@ -914,7 +914,7 @@ template PublicTransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, inde
     // check that input nullifiers are unique
     component uniquenessNullifiers = UniquenessArray(nIns);
     uniquenessNullifiers.array <== inUtxoHash;
-    
+
 
     // isMetaHashUtxo and isAddressUtxo is either zero or one, if there is a metaHash or address respectively
     for (var i = 0; i < higherUtxoNumber; i++) {

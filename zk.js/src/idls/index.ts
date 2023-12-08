@@ -30,3 +30,7 @@ export {
   type LightPublicPsp10in2out,
   IDL as IDL_PUBLIC_LIGHT_PSP10IN2OUT,
 } from "./light_public_psp10in2out";
+export {
+  type CompressedTokenProgram,
+  IDL as IDL_COMPRESSED_TOKEN_PROGRAM,
+} from "./psp_token_compression";

@@ -60,7 +60,7 @@ export class MerkleTreeConfig {
 
   async initializeNewMerkleTreeSet(merkleTreeSet: Keypair) {
     if (!this.payer) throw new Error("Payer undefined");
-    this.getMerkleTreeAuthorityPda();
+    this.merkleTreeAuthorityPda =  MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     const merkleTreeAuthorityAccountInfo =
       await this.getMerkleTreeAuthorityAccountInfo();
@@ -129,17 +129,45 @@ export class MerkleTreeConfig {
     );
   }
 
-  getMerkleTreeAuthorityPda() {
-    this.merkleTreeAuthorityPda = PublicKey.findProgramAddressSync(
-      [utf8.encode("MERKLE_TREE_AUTHORITY")],
-      this.merkleTreeProgram.programId,
+  async checkEventMerkleTreeIsInitialized(eventMerkleTreePubkey: PublicKey) {
+    const merkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
+      eventMerkleTreePubkey,
+    );
+    const merkleTreeAuthorityAccountInfo =
+      await this.getMerkleTreeAuthorityAccountInfo();
+    assert(
+      merkleTreeAccountInfo != null,
+      "merkleTreeAccountInfo not initialized",
+    );
+    assert(
+      merkleTreeAccountInfo.newest == 1,
+      "new Merkle Tree is not marked as the newest",
+    );
+    assert.equal(
+      merkleTreeAccountInfo.merkleTreeNr.toString(),
+      merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex.sub(BN_1).toString(),
+    );
+  }
+
+  async printMerkleTree() {
+    const merkleTreeAccountInfo =
+      await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      );
+    console.log("merkleTreeAccountInfo ", merkleTreeAccountInfo);
+  }
+
+  static getMerkleTreeAuthorityPda(programId: PublicKey = merkleTreeProgramId) {
+    let merkleTreeAuthorityPda = PublicKey.findProgramAddressSync(
+      [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
+      programId,
     )[0];
-    return this.merkleTreeAuthorityPda;
+    return merkleTreeAuthorityPda;
   }
 
   async getMerkleTreeAuthorityAccountInfo() {
     return await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-      this.getMerkleTreeAuthorityPda(),
+      MerkleTreeConfig.getMerkleTreeAuthorityPda(),
     );
   }
 
@@ -166,7 +194,7 @@ export class MerkleTreeConfig {
       authority = this.payer;
     }
     if (this.merkleTreeAuthorityPda == undefined) {
-      this.getMerkleTreeAuthorityPda();
+      this.merkleTreeAuthorityPda = MerkleTreeConfig.getMerkleTreeAuthorityPda();
     }
 
     // TODO(vadorovsky): Expose account sizes through a WASM shim.
@@ -222,7 +250,7 @@ export class MerkleTreeConfig {
 
   async isMerkleTreeAuthorityInitialized(): Promise<boolean> {
     const accountInfo = await this.connection.getAccountInfo(
-      this.getMerkleTreeAuthorityPda(),
+      MerkleTreeConfig.getMerkleTreeAuthorityPda(),
     );
 
     return accountInfo !== null && accountInfo.data.length >= 0;
@@ -230,7 +258,7 @@ export class MerkleTreeConfig {
 
   async updateMerkleTreeAuthority(newAuthority: PublicKey, test = false) {
     if (!this.merkleTreeAuthorityPda) {
-      this.getMerkleTreeAuthorityPda();
+      this.merkleTreeAuthorityPda = MerkleTreeConfig.getMerkleTreeAuthorityPda();
     }
     if (!this.payer) throw new Error("Payer undefined");
 
@@ -284,7 +312,7 @@ export class MerkleTreeConfig {
   async enablePermissionlessSplTokens(configValue: boolean) {
     if (!this.payer) throw new Error("Payer undefined");
     if (this.merkleTreeAuthorityPda == undefined) {
-      this.getMerkleTreeAuthorityPda();
+      this.merkleTreeAuthorityPda =  MerkleTreeConfig.getMerkleTreeAuthorityPda();
     }
     const tx = await this.merkleTreeProgram.methods
       .enablePermissionlessSplTokens(configValue)
@@ -310,14 +338,18 @@ export class MerkleTreeConfig {
     return txHash;
   }
 
-  async getRegisteredVerifierPda(verifierPubkey: PublicKey) {
+  static getRegisteredVerifierPda(verifierPubkey: PublicKey) {
+    return PublicKey.findProgramAddressSync(
+      [verifierPubkey.toBuffer()],
+      merkleTreeProgramId,
+    )[0];
+  }
+
+  async saveRegisteredVerifierPda(verifierPubkey: PublicKey) {
     // TODO: add check whether already exists
     this.registeredVerifierPdas.push({
-      registeredVerifierPda: PublicKey.findProgramAddressSync(
-        [verifierPubkey.toBuffer()],
-        this.merkleTreeProgram.programId,
-      )[0],
-      verifierPubkey: verifierPubkey,
+      registeredVerifierPda: MerkleTreeConfig.getRegisteredVerifierPda(verifierPubkey),
+      verifierPubkey,
     });
     return this.registeredVerifierPdas[this.registeredVerifierPdas.length - 1];
   }
@@ -333,7 +365,7 @@ export class MerkleTreeConfig {
 
     if (!registeredVerifierPda) {
       registeredVerifierPda =
-        await this.getRegisteredVerifierPda(verifierPubkey);
+        await this.saveRegisteredVerifierPda(verifierPubkey);
     }
 
     const tx = await this.merkleTreeProgram.methods
@@ -341,7 +373,7 @@ export class MerkleTreeConfig {
       .accounts({
         registeredVerifierPda: registeredVerifierPda.registeredVerifierPda,
         authority: this.payer.publicKey,
-        merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
+        merkleTreeAuthorityPda: MerkleTreeConfig.getMerkleTreeAuthorityPda(),
         ...DEFAULT_PROGRAMS,
       })
       .signers([this.payer])
@@ -378,7 +410,14 @@ export class MerkleTreeConfig {
     );
   }
 
-  async getPoolTypePda(poolType: Array<number>) {
+  static getPoolTypePda(poolType: Uint8Array, programId: PublicKey = merkleTreeProgramId): PublicKey {
+    return  PublicKey.findProgramAddressSync(
+      [poolType, anchor.utils.bytes.utf8.encode("pooltype")],
+      programId,
+    )[0];
+  }
+
+  savePoolTypePda(poolType: Uint8Array) {
     if (poolType.length != 32) {
       throw `invalid pooltype length ${poolType.length}`;
     }
@@ -386,11 +425,8 @@ export class MerkleTreeConfig {
 
     this.poolTypes.push({
       tokenPdas: [],
-      poolPda: PublicKey.findProgramAddressSync(
-        [Buffer.from(poolType), utf8.encode("pooltype")],
-        this.merkleTreeProgram.programId,
-      )[0],
-      poolType: poolType,
+      poolPda: MerkleTreeConfig.getPoolTypePda(poolType),
+      poolType: Array.from([...poolType]),
     });
     return this.poolTypes[this.poolTypes.length - 1];
   }
@@ -403,7 +439,7 @@ export class MerkleTreeConfig {
     })[0];
 
     if (!registeredPoolTypePda) {
-      registeredPoolTypePda = await this.getPoolTypePda(poolType);
+      registeredPoolTypePda = this.savePoolTypePda(Uint8Array.from(poolType));
     }
 
     const tx = await this.merkleTreeProgram.methods
@@ -500,7 +536,7 @@ export class MerkleTreeConfig {
     })[0];
 
     if (!registeredPoolTypePda) {
-      registeredPoolTypePda = await this.getPoolTypePda(poolType);
+      registeredPoolTypePda = this.savePoolTypePda(Uint8Array.from(poolType));
     }
     const solPoolPda = MerkleTreeConfig.getSolPoolPda(
       this.merkleTreeProgram.programId,
@@ -535,28 +571,40 @@ export class MerkleTreeConfig {
 
   static getSplPoolPdaToken(
     mint: PublicKey,
-    programId: PublicKey,
-    poolType: Array<number> = new Array(32).fill(0),
+    programId: PublicKey = merkleTreeProgramId,
+    poolType: Uint8Array = new Uint8Array(32).fill(0),
   ) {
     return PublicKey.findProgramAddressSync(
-      [mint.toBytes(), Buffer.from(poolType), utf8.encode("pool")],
+      [
+        mint.toBytes(),
+        poolType,
+        anchor.utils.bytes.utf8.encode("pool"),
+      ],
       programId,
     )[0];
   }
 
-  async getSplPoolPda(
+  static getSplPoolPda(
     mint: PublicKey,
-    poolType: Array<number> = new Array(32).fill(0),
+    programId: PublicKey = merkleTreeProgramId,
+    poolType: Uint8Array = new Uint8Array(32).fill(0),
   ) {
-    this.poolPdas.push({
-      pda: PublicKey.findProgramAddressSync(
+    return PublicKey.findProgramAddressSync(
         [
           mint.toBytes(),
-          new Uint8Array(32).fill(0),
-          utf8.encode("pool-config"),
+          poolType,
+          anchor.utils.bytes.utf8.encode("pool-config"),
         ],
-        this.merkleTreeProgram.programId,
-      )[0],
+        programId,
+      )[0];
+  }
+
+  saveSplPoolPda(
+    mint: PublicKey,
+    poolType:Uint8Array = new Uint8Array(32).fill(0),
+  ) {
+    this.poolPdas.push({
+      pda: MerkleTreeConfig.getSplPoolPda(mint, this.merkleTreeProgram.programId, poolType),
       poolType: poolType,
       token: MerkleTreeConfig.getSplPoolPdaToken(
         mint,
@@ -575,17 +623,17 @@ export class MerkleTreeConfig {
     return this.tokenAuthority;
   }
 
-  async registerSplPool(poolType: Array<number>, mint: PublicKey) {
+  async registerSplPool(poolType: Uint8Array, mint: PublicKey) {
     if (!this.payer) throw new Error("Payer undefined");
     let registeredPoolTypePda = this.poolTypes.filter((item) => {
-      return item.poolType === poolType;
+      return item.poolType === Array.from([...poolType]);
     })[0];
 
     if (!registeredPoolTypePda) {
-      registeredPoolTypePda = await this.getPoolTypePda(poolType);
+      registeredPoolTypePda = await this.savePoolTypePda(poolType);
     }
 
-    const splPoolPda = await this.getSplPoolPda(mint, poolType);
+    const splPoolPda = this.saveSplPoolPda(mint, poolType);
 
     if (!this.tokenAuthority) {
       await this.getTokenAuthorityPda();
@@ -613,7 +661,7 @@ export class MerkleTreeConfig {
       confirmConfig,
     );
 
-    await this.checkPoolRegistered(splPoolPda, poolType, mint);
+    await this.checkPoolRegistered(splPoolPda,Array.from(poolType), mint);
 
     return txHash;
   }

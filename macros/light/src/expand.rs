@@ -395,6 +395,299 @@ pub(crate) fn light_verifier_accounts(
     })
 }
 
+// TODO: use these accounts in private tx as well since the only difference is addition of parallel Merkle trees
+pub(crate) fn light_public_transaction_accounts(
+    args: LightVerifierAccountsArgs,
+    strct: ItemStruct,
+) -> Result<TokenStream> {
+    let (sol_fields, sol_getters) = if args.sol {
+        (
+            quote! {
+                /// CHECK: Is checked in verifier-sdk.
+                #[account(mut)]
+                pub sender_sol: UncheckedAccount<'info>,
+                /// CHECK: Is checked in verifier-sdk.
+                #[account(mut)]
+                pub recipient_sol: UncheckedAccount<'info>,
+            },
+            quote! {
+                fn get_sender_sol(&self) -> Option<&UncheckedAccount<'info>> {
+                    Some(&self.sender_sol)
+                }
+
+                fn get_recipient_sol(&self) -> Option<&UncheckedAccount<'info>> {
+                    Some(&self.recipient_sol)
+                }
+            },
+        )
+    } else {
+        (
+            quote! {},
+            quote! {
+                fn get_sender_sol(&self) -> Option<&UncheckedAccount<'info>> {
+                    None
+                }
+
+                fn get_recipient_sol(&self) -> Option<&UncheckedAccount<'info>> {
+                    None
+                }
+            },
+        )
+    };
+
+    let (spl_fields, spl_getters) = if args.spl {
+        (
+            quote! {
+                pub token_program: Program<'info, ::anchor_spl::token::Token>,
+                /// CHECK: Is checked when it is used during spl decompressions.
+                #[account(
+                    mut,
+                    seeds=[::light_merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED],
+                    bump,
+                    seeds::program=::light_merkle_tree_program::program::LightMerkleTreeProgram::id())]
+                pub token_authority: AccountInfo<'info>,
+                /// CHECK: Is checked in verifier-sdk.
+                #[account(mut)]
+                pub sender_spl: UncheckedAccount<'info>,
+                /// CHECK: Is checked in verifier-sdk.
+                #[account(mut)]
+                pub recipient_spl: UncheckedAccount<'info>,
+            },
+            quote! {
+                fn get_token_program(&self) -> Option<&Program<
+                    'info,
+                    ::anchor_spl::token::Token
+                >> {
+                    Some(&self.token_program)
+                }
+
+                fn get_token_authority(&self) -> Option<&AccountInfo<'info>> {
+                    Some(&self.token_authority)
+                }
+
+                fn get_sender_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                    Some(&self.sender_spl)
+                }
+
+                fn get_recipient_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                    Some(&self.recipient_spl)
+                }
+            },
+        )
+    } else {
+        (
+            quote! {},
+            quote! {
+                fn get_token_program(&self) -> Option<&Program<
+                    'info,
+                    ::anchor_spl::token::Token
+                >> {
+                    None
+                }
+
+                fn get_token_authority(&self) -> Option<&AccountInfo<'info>> {
+                    None
+                }
+
+                fn get_sender_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                    None
+                }
+
+                fn get_recipient_spl(&self) -> Option<&UncheckedAccount<'info>> {
+                    None
+                }
+            },
+        )
+    };
+
+    let signing_address_cond = match args.signing_address {
+        Some(signing_address) => {
+            quote! {
+                address = #signing_address
+            }
+        }
+        None => quote! {},
+    };
+
+    let authority_seeds_program = match args.verifier_program_id {
+        Some(ref verifier_program_id) => quote! {
+            seeds::program = #verifier_program_id
+        },
+        None => quote! {},
+    };
+
+    let registered_verifier_pda_seeds = match args.verifier_program_id {
+        Some(ref verifier_program_id) => quote! {
+            seeds = [#verifier_program_id.to_bytes().as_ref()]
+        },
+        None => quote! {
+            seeds = [__program_id.key().to_bytes().as_ref()]
+        },
+    };
+
+    // This `anchor_syn::AccountsStruct` instance is created only to provide
+    // our own common fields (which we want to append to the original struct
+    // provided as the `item` argument). We define our fields there and then
+    // parse them with `parse_quote!` macro.
+    let common_fields_strct: ItemStruct = parse_quote! {
+        pub struct CommonFields {
+            #[account(
+                mut,
+                #signing_address_cond
+            )]
+            pub signing_address: Signer<'info>,
+            pub system_program: Program<'info, System>,
+            pub program_merkle_tree: Program<'info, ::light_merkle_tree_program::program::LightMerkleTreeProgram>,
+            /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
+            #[account(
+                mut,
+                seeds = [
+                    ::light_merkle_tree_program::program::LightMerkleTreeProgram::id().to_bytes().as_ref()
+                ],
+                bump,
+                #authority_seeds_program
+            )]
+            pub authority: UncheckedAccount<'info>,
+
+            /// CHECK: Is not checked the rpc has complete freedom.
+            #[account(mut)]
+            pub rpc_recipient_sol: UncheckedAccount<'info>,
+
+            #sol_fields
+
+            #spl_fields
+
+            /// Verifier config pda which needs to exist.
+            #[account(
+                mut,
+                #registered_verifier_pda_seeds,
+                bump,
+                seeds::program = ::light_merkle_tree_program::program::LightMerkleTreeProgram::id()
+            )]
+            pub registered_verifier_pda: Account<
+                'info,
+                ::light_merkle_tree_program::config_accounts::register_verifier::RegisteredVerifier
+            >,
+            /// CHECK: It gets checked inside the event_call.
+            pub log_wrapper: UncheckedAccount<'info>,
+        }
+    };
+
+    let mut fields = Punctuated::new();
+
+    for field in common_fields_strct.fields.iter() {
+        let field = Field {
+            attrs: field.attrs.clone(),
+            vis: field.vis.clone(),
+            ident: field.ident.clone(),
+            colon_token: field.colon_token,
+            ty: field.ty.clone(),
+        };
+        fields.push(field);
+    }
+    for field in strct.fields.iter() {
+        let field = Field {
+            attrs: field.attrs.clone(),
+            vis: field.vis.clone(),
+            ident: field.ident.clone(),
+            colon_token: field.colon_token,
+            ty: field.ty.clone(),
+        };
+        fields.push(field);
+    }
+
+    let fields = Fields::Named(FieldsNamed {
+        brace_token: Brace {
+            span: Span::call_site(),
+        },
+        named: fields,
+    });
+
+    let ident = strct.ident.clone();
+    let impl_generics = strct.generics.clone();
+    // Generics listed after struct ident need to contain only idents, bounds
+    // and const generic types are not expected anymore. Sadly, there seems to
+    // be no quick way to do that cleanup in non-manual way.
+    let strct_generics: Punctuated<GenericParam, Token![,]> = strct
+        .generics
+        .params
+        .clone()
+        .into_iter()
+        .map(|param: GenericParam| match param {
+            GenericParam::Const(ConstParam { ident, .. })
+            | GenericParam::Type(TypeParam { ident, .. }) => GenericParam::Type(TypeParam {
+                attrs: vec![],
+                ident,
+                colon_token: None,
+                bounds: Default::default(),
+                eq_token: None,
+                default: None,
+            }),
+            GenericParam::Lifetime(LifetimeDef { lifetime, .. }) => {
+                GenericParam::Lifetime(LifetimeDef {
+                    attrs: vec![],
+                    lifetime,
+                    colon_token: None,
+                    bounds: Default::default(),
+                })
+            }
+        })
+        .collect();
+
+    let strct = ItemStruct {
+        attrs: strct.attrs,
+        vis: strct.vis,
+        struct_token: strct.struct_token,
+        ident: strct.ident,
+        generics: strct.generics,
+        fields,
+        semi_token: strct.semi_token,
+    };
+
+    Ok(quote! {
+        #strct
+
+        impl #impl_generics ::light_verifier_sdk::accounts::LightPublicAccounts<'info> for #ident <#strct_generics> {
+            fn get_signing_address(&self) -> &Signer<'info> {
+                &self.signing_address
+            }
+
+            fn get_system_program(&self) -> &Program<'info, System> {
+                &self.system_program
+            }
+
+            fn get_program_merkle_tree(&self) -> &Program<
+                'info,
+                ::light_merkle_tree_program::program::LightMerkleTreeProgram
+            > {
+                &self.program_merkle_tree
+            }
+
+            fn get_authority(&self) -> &UncheckedAccount<'info> {
+                &self.authority
+            }
+
+            fn get_rpc_recipient_sol(&self) -> &UncheckedAccount<'info> {
+                &self.rpc_recipient_sol
+            }
+
+            #sol_getters
+            #spl_getters
+
+            fn get_registered_verifier_pda(&self) -> &Account<
+                'info,
+                ::light_merkle_tree_program::config_accounts::register_verifier::RegisteredVerifier
+            > {
+                &self.registered_verifier_pda
+            }
+
+            fn get_log_wrapper(&self) -> &UncheckedAccount<'info> {
+                &self.log_wrapper
+            }
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use syn::parse_quote;

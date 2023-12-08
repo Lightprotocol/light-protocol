@@ -5,7 +5,7 @@ use anchor_lang::{
     solana_program::{instruction::Instruction, program::invoke},
 };
 
-use crate::{errors::VerifierSdkError, state::TransactionIndexerEvent};
+use crate::errors::VerifierSdkError;
 
 #[inline(never)]
 pub fn insert_nullifiers_cpi<'a, 'b>(
@@ -93,23 +93,55 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
     merkle_tree_set: &'b AccountInfo<'a>,
-    system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
     leaves: Vec<[u8; 32]>,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
-
     let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeaves {
         authority: authority.to_account_info(),
-        system_program: system_program.to_account_info(),
         merkle_tree_set: merkle_tree_set.to_account_info(),
         registered_verifier_pda: registered_verifier_pda.to_account_info(),
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     light_merkle_tree_program::cpi::insert_two_leaves(cpi_ctx, leaves)?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(unused_variables)]
+#[inline(never)]
+pub fn insert_two_leaves_parallel_cpi<'a, 'b>(
+    program_id: &Pubkey,
+    merkle_tree_program_id: &'b AccountInfo<'a>,
+    authority: &'b AccountInfo<'a>,
+    registered_verifier_pda: &'b AccountInfo<'a>,
+    leaves: Vec<[u8; 32]>,
+    transaction_merkle_tree_accounts: Vec<AccountInfo<'a>>,
+) -> Result<()> {
+    let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
+    let bump = &[bump];
+    let seeds = &[&[seed.as_slice(), bump][..]];
+    msg!("seeds {:?}", seeds);
+    // msg!("authority {:?}", authority);
+    // msg!("registered_verifier_pda {:?}", registered_verifier_pda);
+    // msg!("program_id {:?}", program_id);
+    // msg!("merkle_tree_program_id {:?}", merkle_tree_program_id);
+    msg!(
+        "transaction_merkle_tree_accounts {:?}",
+        transaction_merkle_tree_accounts
+    );
+
+    let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeavesParallel {
+        authority: authority.to_account_info(),
+        registered_verifier_pda: registered_verifier_pda.to_account_info(),
+    };
+
+    let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+    cpi_ctx.remaining_accounts = transaction_merkle_tree_accounts;
+    light_merkle_tree_program::cpi::insert_two_leaves_parallel(cpi_ctx, leaves)?;
     Ok(())
 }
 
@@ -158,11 +190,13 @@ pub fn get_seeds<'a>(
 }
 
 #[inline(never)]
-pub fn invoke_indexer_transaction_event<'info>(
-    event: &TransactionIndexerEvent,
+pub fn invoke_indexer_transaction_event<'info, T>(
+    event: &T,
     noop_program: &AccountInfo<'info>,
-    signer: &AccountInfo<'info>,
-) -> Result<()> {
+) -> Result<()>
+where
+    T: AnchorSerialize,
+{
     if noop_program.key()
         != Pubkey::from_str("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV").unwrap()
     {
@@ -173,9 +207,6 @@ pub fn invoke_indexer_transaction_event<'info>(
         accounts: vec![],
         data: event.try_to_vec()?,
     };
-    invoke(
-        &instruction,
-        &[noop_program.to_account_info(), signer.to_account_info()],
-    )?;
+    invoke(&instruction, &[noop_program.to_account_info()])?;
     Ok(())
 }

@@ -9,6 +9,7 @@ import nacl from "tweetnacl";
 import {
   AUTHORITY,
   BN_0,
+  BN_1,
   FIELD_SIZE,
   MERKLE_TREE_HEIGHT,
   N_ASSET_PUBKEYS,
@@ -191,7 +192,8 @@ export const createPspProofInputs = (
   );
 
   const publicProgramId = hashAndTruncateToCircuit(
-    getVerifierProgramId(pspTransaction.verifierIdl).toBuffer(),
+    [getVerifierProgramId(pspTransaction.verifierIdl).toBuffer()],
+    lightWasm,
   );
 
   const compiledProofInputs = {
@@ -279,11 +281,19 @@ export function createSystemProofInputs({
     return x.nullifier;
   });
 
+  console.log("warning publicTransactionHash & publicProgram are set to 0");
   const publicProgramCircuitInputs = {
+    publicTransactionHash: "0",
+    publicProgramId: "0",
     publicInUtxoDataHash: transaction.private.inputUtxos?.map(
       (x) => x.utxoDataHash,
     ),
-    publicInUtxoHash: transaction.private.inputUtxos.map((x) => x.utxoHash),
+    publicInUtxoHash: transaction.private.inputUtxos.map((x) => {
+      if(x.amounts[0].eq( BN_0) && x.amounts[1].eq(BN_0)) {
+        return BN_0;
+      }
+      return x.utxoHash;
+    }),
     transactionHashIsPublic: "0",
     isMetaHashUtxo: transaction.private.inputUtxos.map((utxo) => {
       if (utxo.metaHash) return new BN(1);
@@ -593,6 +603,8 @@ export function getVerifierConfig(verifierIdl: Idl): VerifierConfig {
 
   const publicNullifierLength = publicNullifierField.type.array[1];
   const publicOutUtxoHash = publicOutUtxoHashField.type.array[1];
+  // TODO: add this field to public transaction verifiers
+  // const isPublic = fields.find((field) => field.name === "public")?.type
 
   return { in: publicNullifierLength, out: publicOutUtxoHash };
 }
@@ -610,12 +622,14 @@ export function addFillingOutUtxos(
   len: number,
   lightWasm: LightWasm,
   publicKey: BN,
+  isPublic?: boolean,
 ): OutUtxo[] {
   while (utxos.length < len) {
     utxos.push(
       createFillingOutUtxo({
         lightWasm,
         publicKey,
+        isPublic,
       }),
     );
   }
@@ -740,11 +754,13 @@ export function getEscrowPda(verifierProgramId: PublicKey): PublicKey {
 
 // pspTransaction
 export function getAssetPubkeys(
+  lightWasm: LightWasm,
   inputUtxos?: Utxo[],
   outputUtxos?: OutUtxo[],
 ): { assetPubkeysCircuit: string[]; assetPubkeys: PublicKey[] } {
   const assetPubkeysCircuit: string[] = [
-    hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
+    // TODO: switch circuits to new truncate scheme
+    hashAndTruncateToCircuit([SystemProgram.programId.toBytes()], lightWasm).toString(),
   ];
 
   const assetPubkeys: PublicKey[] = [SystemProgram.programId];
@@ -888,6 +904,8 @@ export function getTxIntegrityHash(
   verifierConfig: VerifierConfig,
   verifierProgramId: PublicKey,
   message?: Uint8Array,
+  isPublic?: boolean,
+  isCompression?: boolean,
 ): BN {
   if (!rpcFee)
     throw new TransactionError(
@@ -924,20 +942,30 @@ export function getTxIntegrityHash(
   // For example, we could derive which accounts exist in the IDL of the
   // verifier program method.
   const recipientSpl =
-    verifierProgramId.toBase58() === lightPsp2in2outStorageId.toBase58()
+    verifierProgramId.toBase58() === lightPsp2in2outStorageId.toBase58() || !isCompression
       ? new Uint8Array(32)
       : accounts.recipientSpl.toBytes();
+  const recipientSol =
+     !isCompression
+      ? new Uint8Array(32)
+      : accounts.recipientSol.toBytes();
+  console.log("messageHash ", messageHash);
+  console.log("recipientSpl ", recipientSpl);
+  console.log("recipientSol ", recipientSol);
+  console.log("accounts.rpcPublicKey ", accounts.rpcPublicKey.toBytes());
+  console.log("rpcFee ", rpcFee.toArray( "be", 8));
 
   const hash = sha256
     .create()
     .update(messageHash)
     .update(recipientSpl)
-    .update(accounts.recipientSol.toBytes())
+    .update(recipientSol)
     .update(accounts.rpcPublicKey.toBytes())
-    .update(rpcFee.toArrayLike(Buffer, "be", 8)) // TODO: make be
-    .update(encryptedUtxos)
-    .digest();
-  const txIntegrityHash = truncateToCircuit(hash);
+    .update(rpcFee.toArrayLike(Buffer, "be", 8))
+  if(!isPublic) {
+    hash.update(encryptedUtxos);
+  }
+  const txIntegrityHash = truncateToCircuit(hash.digest());
   return txIntegrityHash;
 }
 
@@ -1022,6 +1050,7 @@ export type CompressTransactionInput = {
   pspId?: PublicKey;
   account: Account;
   assetLookUpTable?: string[];
+  isPublic?: boolean;
 };
 
 // add createCompressSolanaTransaction
@@ -1040,6 +1069,7 @@ export async function createCompressTransaction(
     pspId,
     account,
     lightWasm,
+    isPublic,
   } = compressTransactionInput;
   const assetLookUpTable = compressTransactionInput.assetLookUpTable
     ? compressTransactionInput.assetLookUpTable
@@ -1068,6 +1098,7 @@ export async function createCompressTransaction(
     privateVars.outputUtxos,
     privateVars.assetPubkeysCircuit,
   );
+  // TODO: add error if there is no public amount != 0
 
   const accounts = assignAccountsCompress(
     privateVars.assetPubkeys,
@@ -1081,7 +1112,7 @@ export async function createCompressTransaction(
   };
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
-  const encryptedUtxos = await encryptOutUtxos(
+  const encryptedUtxos = isPublic ? new Uint8Array() : await encryptOutUtxos(
     account,
     privateVars.outputUtxos,
     merkleTreeSetPubkey,
@@ -1096,6 +1127,8 @@ export async function createCompressTransaction(
     verifierConfig,
     systemPspId,
     message,
+    isPublic,
+    true,
   );
 
   const transactionHash = getTransactionHash(
@@ -1111,7 +1144,7 @@ export async function createCompressTransaction(
     public: {
       transactionHash,
       publicMintPubkey: mint
-        ? hashAndTruncateToCircuit(mint.toBytes()).toString()
+        ? hashAndTruncateToCircuit([mint.toBytes()], lightWasm).toString()
         : "0",
       txIntegrityHash,
       accounts: {
@@ -1136,12 +1169,14 @@ export function createPrivateTransactionVariables({
   lightWasm,
   account,
   verifierConfig,
+  isPublic,
 }: {
   inputUtxos?: Utxo[];
   outputUtxos?: OutUtxo[];
   lightWasm: LightWasm;
   account: Account;
   verifierConfig: VerifierConfig;
+  isPublic?: boolean;
 }): PrivateTransactionVariables {
   const filledInputUtxos = addFillingUtxos(
     inputUtxos,
@@ -1153,10 +1188,12 @@ export function createPrivateTransactionVariables({
     outputUtxos,
     verifierConfig.out,
     lightWasm,
-    account.keypair.publicKey,
+    isPublic ? STANDARD_COMPRESSION_PUBLIC_KEY: account.keypair.publicKey,
+    isPublic,
   );
 
   const { assetPubkeysCircuit, assetPubkeys } = getAssetPubkeys(
+    lightWasm,
     filledInputUtxos,
     filledOutputUtxos,
   );
@@ -1184,6 +1221,7 @@ export type DecompressTransactionInput = {
   rpcFee: BN;
   ataCreationFee: boolean;
   assetLookUpTable?: string[];
+  isPublic?: boolean;
 };
 
 // add createCompressSolanaTransaction
@@ -1205,6 +1243,7 @@ export async function createDecompressTransaction(
     account,
     rpcFee,
     ataCreationFee,
+    isPublic,
   } = decompressTransactionInput;
   const assetLookUpTable = decompressTransactionInput.assetLookUpTable
     ? decompressTransactionInput.assetLookUpTable
@@ -1249,7 +1288,7 @@ export async function createDecompressTransaction(
   };
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
-  const encryptedUtxos = await encryptOutUtxos(
+  const encryptedUtxos = isPublic ? new Uint8Array() : await encryptOutUtxos(
     account,
     privateVars.outputUtxos,
     merkleTreeSetPubkey,
@@ -1264,6 +1303,8 @@ export async function createDecompressTransaction(
     verifierConfig,
     systemPspId,
     message,
+    isPublic,
+    true,
   );
 
   const transactionHash = getTransactionHash(
@@ -1279,7 +1320,7 @@ export async function createDecompressTransaction(
     public: {
       transactionHash,
       publicMintPubkey: mint
-        ? hashAndTruncateToCircuit(mint.toBytes()).toString()
+        ? hashAndTruncateToCircuit([mint.toBytes()], lightWasm).toString()
         : "0",
       txIntegrityHash,
       accounts: completeAccounts,
@@ -1307,6 +1348,7 @@ export type TransactionInput = {
   account: Account;
   rpcFee: BN;
   assetLookUpTable?: string[];
+  isPublic?: boolean;
 };
 
 export async function createTransaction(
@@ -1323,6 +1365,7 @@ export async function createTransaction(
     systemPspId,
     account,
     rpcFee,
+    isPublic
   } = transactionInput;
   const assetLookUpTable = transactionInput.assetLookUpTable
     ? transactionInput.assetLookUpTable
@@ -1337,9 +1380,16 @@ export async function createTransaction(
     lightWasm,
     account,
     verifierConfig,
+    isPublic,
   });
   const publicAmountSol = getExternalAmount(
     0,
+    privateVars.inputUtxos,
+    privateVars.outputUtxos,
+    privateVars.assetPubkeysCircuit,
+  );
+  const publicAmountSpl = getExternalAmount(
+    1,
     privateVars.inputUtxos,
     privateVars.outputUtxos,
     privateVars.assetPubkeysCircuit,
@@ -1353,7 +1403,7 @@ export async function createTransaction(
   };
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
-  const encryptedUtxos = await encryptOutUtxos(
+  const encryptedUtxos = isPublic ? new Uint8Array() : await encryptOutUtxos(
     account,
     privateVars.outputUtxos,
     merkleTreeSetPubkey,
@@ -1369,8 +1419,10 @@ export async function createTransaction(
     verifierConfig,
     verifierProgramId,
     message,
+    isPublic,
+    false,
   );
-
+  console.log("txIntegrityHash ", txIntegrityHash);
   const transactionHash = getTransactionHash(
     privateVars.inputUtxos,
     privateVars.outputUtxos,
@@ -1382,7 +1434,7 @@ export async function createTransaction(
     private: privateVars,
     public: {
       transactionHash,
-      publicMintPubkey: "0",
+      publicMintPubkey: !publicAmountSpl.eq(BN_0) ? privateVars.assetPubkeysCircuit[1].toString() : "0",
       txIntegrityHash,
       accounts: {
         ...completeAccounts,
@@ -1390,7 +1442,7 @@ export async function createTransaction(
         systemPspId,
         pspId,
       },
-      publicAmountSpl: BN_0,
+      publicAmountSpl,
       publicAmountSol,
       rpcFee,
       ataCreationFee: false,

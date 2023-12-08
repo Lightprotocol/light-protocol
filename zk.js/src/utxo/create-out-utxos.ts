@@ -130,7 +130,7 @@ export function createOutUtxos({
           SystemProgram.programId,
           publicMint ? publicMint : SystemProgram.programId,
         ]
-      : getAssetPubkeys(inUtxos)?.assetPubkeys;
+      : getAssetPubkeys(lightWasm, inUtxos)?.assetPubkeys;
 
   if (!assetPubkeys)
     throw new CreateUtxoError(

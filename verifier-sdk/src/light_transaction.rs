@@ -63,6 +63,7 @@ pub struct Transaction<
     pub mint_pubkey: [u8; 32],
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Message<'a> {
     pub content: &'a Vec<u8>,
     pub hash: [u8; 32],
@@ -74,7 +75,7 @@ impl<'a> Message<'a> {
         Message { hash, content }
     }
 }
-
+#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
 pub struct ProofCompressed {
     pub a: [u8; 32],
     pub b: [u8; 64],
@@ -575,12 +576,6 @@ impl<
                 .ctx
                 .accounts
                 .get_merkle_tree_set()
-                .to_account_info(),
-            &self
-                .input
-                .ctx
-                .accounts
-                .get_system_program()
                 .to_account_info(),
             &self
                 .input

@@ -26,6 +26,18 @@ pub fn light_verifier_accounts(attr: TokenStream, item: TokenStream) -> TokenStr
 }
 
 #[proc_macro_attribute]
+pub fn light_public_transaction(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(attr as expand::LightVerifierAccountsArgs);
+    #[allow(clippy::redundant_clone)]
+    let item_strct = item.clone();
+    let strct = parse_macro_input!(item_strct as ItemStruct);
+
+    expand::light_public_transaction_accounts(args, strct)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+#[proc_macro_attribute]
 pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut function = parse_macro_input!(input as ItemFn);
 

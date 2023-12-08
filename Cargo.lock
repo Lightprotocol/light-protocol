@@ -972,9 +972,9 @@ checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
 name = "base64"
-version = "0.21.4"
+version = "0.21.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ba43ea6f343b788c8764558649e08df62f86c6ef251fdaeb1ffd010a9ae50a2"
+checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
 name = "base64ct"
@@ -1489,6 +1489,25 @@ dependencies = [
  "either",
  "memchr",
  "unreachable",
+]
+
+[[package]]
+name = "compressed-token-program"
+version = "0.3.1"
+dependencies = [
+ "ahash 0.8.6",
+ "anchor-lang",
+ "anchor-spl",
+ "base64 0.21.7",
+ "bs58 0.5.0",
+ "groth16-solana",
+ "light-macros",
+ "light-merkle-tree-program",
+ "light-utils",
+ "light-verifier-sdk",
+ "serde",
+ "serde_json",
+ "solana-security-txt",
 ]
 
 [[package]]
@@ -2976,6 +2995,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ark-ff 0.4.2",
+ "solana-program",
  "thiserror",
 ]
 
@@ -2991,9 +3011,11 @@ dependencies = [
  "ark-ff 0.3.0",
  "ark-std 0.3.0",
  "groth16-solana",
+ "light-hasher",
  "light-macros",
  "light-merkle-tree-program",
  "light-utils",
+ "num-bigint 0.4.4",
  "spl-token",
 ]
 
@@ -4035,7 +4057,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "046cd98826c46c2ac8ddecae268eb5c2e58628688a5fc7a2643704a73faba95b"
 dependencies = [
  "async-compression",
- "base64 0.21.4",
+ "base64 0.21.7",
  "bytes",
  "encoding_rs",
  "futures-core",
@@ -4206,7 +4228,7 @@ version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d3987094b1d07b653b7dfdc3f70ce9a1da9c51ac18c1b06b662e4f9a0e9f4b2"
 dependencies = [
- "base64 0.21.4",
+ "base64 0.21.7",
 ]
 
 [[package]]
@@ -4344,9 +4366,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.188"
+version = "1.0.195"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf9e0fcba69a370eed61bcf2b728575f726b50b55cba78064753d708ddc7549e"
+checksum = "63261df402c67811e9ac6def069e4786148c4563f4b50fd4bf30aa370d626b02"
 dependencies = [
  "serde_derive",
 ]
@@ -4362,9 +4384,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.188"
+version = "1.0.195"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4eca7ac642d82aa35b60049a6eccb4be6be75e599bd2e9adb5f875a737654af2"
+checksum = "46fe8f8603d81ba86327b23a2e9cdf49e1255fb94a4c5f297f6ee0547178ea2c"
 dependencies = [
  "proc-macro2 1.0.76",
  "quote 1.0.35",
@@ -4373,9 +4395,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.107"
+version = "1.0.111"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b420ce6e3d8bd882e9b243c6eed35dbc9a6110c9769e74b584e0d68d1f20c65"
+checksum = "176e46fa42316f18edd598015a5166857fc835ec732f5215eac6b7bdbf0a84f4"
 dependencies = [
  "itoa",
  "ryu",
@@ -4561,7 +4583,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "850d5d9dc8fa6ea42f4e61c78e296bbbce5a3531ff4cb3c58ef36ee31781049c"
 dependencies = [
  "Inflector",
- "base64 0.21.4",
+ "base64 0.21.7",
  "bincode",
  "bs58 0.4.0",
  "bv",
@@ -4932,7 +4954,7 @@ dependencies = [
  "ark-ff 0.4.2",
  "ark-serialize 0.4.2",
  "array-bytes",
- "base64 0.21.4",
+ "base64 0.21.7",
  "bincode",
  "bitflags 1.3.2",
  "blake3",
@@ -4982,7 +5004,7 @@ version = "1.16.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05813d4d2e141ab4449cf684cc5b05512dfaabb7251561c5bb1ccf1e4221b210"
 dependencies = [
- "base64 0.21.4",
+ "base64 0.21.7",
  "bincode",
  "eager",
  "enum-iterator",
@@ -5012,7 +5034,7 @@ checksum = "ff9f8e67fdf7306ae8ff3bb546534ecf064e6ed38e0489fee3579fa1016bd645"
 dependencies = [
  "assert_matches",
  "async-trait",
- "base64 0.21.4",
+ "base64 0.21.7",
  "bincode",
  "chrono-humanize",
  "crossbeam-channel",
@@ -5120,7 +5142,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df04998cef2d0fe1291599b69acafc7f8cd87305d7f1525c8ae10aef1cc5411c"
 dependencies = [
  "async-trait",
- "base64 0.21.4",
+ "base64 0.21.7",
  "bincode",
  "bs58 0.4.0",
  "indicatif",
@@ -5145,7 +5167,7 @@ version = "1.16.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e2912ddbff841fbce1e30b0b9a420993c63b6cc7866e5f0af3740fcd6d85bb8"
 dependencies = [
- "base64 0.21.4",
+ "base64 0.21.7",
  "bs58 0.4.0",
  "jsonrpc-core",
  "reqwest",
@@ -5250,7 +5272,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "621e6973766420162541b26e7974783d32d5471571610da30c5bb0b6263046c9"
 dependencies = [
  "assert_matches",
- "base64 0.21.4",
+ "base64 0.21.7",
  "bincode",
  "bitflags 1.3.2",
  "borsh 0.10.3",
@@ -5440,7 +5462,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8aed485ddb4268b4e4ec64012016cd54ba3a4142377a99706fc3ab7768eb2bea"
 dependencies = [
  "Inflector",
- "base64 0.21.4",
+ "base64 0.21.7",
  "bincode",
  "borsh 0.9.3",
  "bs58 0.4.0",
@@ -5534,7 +5556,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61aabdec9fe1b311dce5d21fa5bd58fbaa985e8003e0d0aedf3795113aacc1ea"
 dependencies = [
  "aes-gcm-siv",
- "base64 0.21.4",
+ "base64 0.21.7",
  "bincode",
  "bytemuck",
  "byteorder",

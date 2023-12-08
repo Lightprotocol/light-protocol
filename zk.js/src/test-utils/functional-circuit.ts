@@ -25,6 +25,8 @@ export async function functionalCircuitTest(
   app: boolean = false,
   verifierIdl: Idl,
   pspId?: PublicKey,
+  isShield?: boolean,
+  solOnly?: boolean,
 ) {
   const lightProvider = await LightProvider.loadMock();
   const mockPubkey = SolanaKeypair.generate().publicKey;
@@ -32,9 +34,9 @@ export async function functionalCircuitTest(
   const lightWasm = await WasmFactory.getInstance();
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
   const account = Account.createFromSeed(lightWasm, seed32);
-  const compressAmount = 20_000;
+  const compressAmount = solOnly ? 0 : 20_000;
   const compressFeeAmount = 10_000;
-  const rpcFee = new BN(5000);
+  const rpcFee = isShield ? BN_0 : new BN(5000);
   let inputUtxo: OutUtxo | Utxo = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
@@ -43,13 +45,13 @@ export async function functionalCircuitTest(
   });
 
   const merkleTree = new MerkleTree(22, lightWasm, [inputUtxo.utxoHash]);
-  inputUtxo = outUtxoToUtxo(
-    inputUtxo,
-    merkleTree.path(0).pathElements,
-    0,
+  inputUtxo = outUtxoToUtxo({
+    outUtxo: inputUtxo,
+    merkleProof: merkleTree.path(0).pathElements,
+    merkleTreeLeafIndex: 0,
     lightWasm,
     account,
-  );
+});
   const outputUtxo1 = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
@@ -58,17 +60,29 @@ export async function functionalCircuitTest(
       new BN(compressAmount / 2),
     ],
     publicKey: account.keypair.publicKey,
+    blinding: isShield ? new BN(0) : undefined,
   });
+  console.log("outputUtxo1", JSON.stringify(outputUtxo1))
+  console.log("outputUtxo1 publicKey ", account.keypair.publicKey.toArray("be", 32));
+  console.log("outputUtxo1 blinding ", outputUtxo1.blinding.toArray("be", 31));
+
 
   const outputUtxo2 = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(compressFeeAmount / 2), new BN(compressAmount / 2)],
     publicKey: account.keypair.publicKey,
+    blinding: isShield ? new BN(0) : undefined,
   });
+  console.log("outputUtxo2", JSON.stringify(outputUtxo2))
+  console.log("outputUtxo2 blinding ", outputUtxo2.blinding.toArray("be", 31));
+  let inputUtxos: Utxo[] = [];
+  if(!isShield) {
+    inputUtxos = [inputUtxo as Utxo];
+  }
 
   const txInput: TransactionInput = {
-    inputUtxos: [inputUtxo],
+    inputUtxos,
     outputUtxos: [outputUtxo1, outputUtxo2],
     merkleTreeSetPubkey: mockPubkey,
     lightWasm,
@@ -80,6 +94,7 @@ export async function functionalCircuitTest(
   };
 
   const transaction = await createTransaction(txInput);
+
   let systemProofInputs = createSystemProofInputs({
     transaction: transaction,
     lightWasm,
@@ -95,20 +110,20 @@ export async function functionalCircuitTest(
   );
   systemProofInputs = {
     ...systemProofInputs,
-    publicProgramId: hashAndTruncateToCircuit(mockPubkey.toBytes()),
+    publicProgramId: hashAndTruncateToCircuit([mockPubkey.toBytes()], lightWasm),
     publicTransactionHash,
     privatePublicDataHash: "0",
     publicDataHash: "0",
   } as any;
 
   // we rely on the fact that the function throws an error if proof generation failed
-  await getSystemProof({
+  let res = await getSystemProof({
     account,
     inputUtxos: transaction.private.inputUtxos,
     verifierIdl,
     systemProofInputs,
   });
-
+  console.log("res", JSON.stringify(res))
   // unsuccessful proof generation
   let x = true;
 

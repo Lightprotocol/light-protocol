@@ -9,6 +9,7 @@ import {
 } from "@solana/web3.js";
 import { Rpc } from "../rpc";
 import { Utxo } from "../utxo";
+import { PublicTransactionIndexerEventBeet } from "transaction";
 
 export type PrioritizationFee = bigint;
 
@@ -113,7 +114,7 @@ export type ParsedIndexedTransaction = {
 
 // Rpc internal type
 export type RpcIndexedTransaction = {
-  transaction: ParsedIndexedTransaction;
+  transaction: ParsedIndexedTransaction | PublicTransactionIndexerEventBeet;
   IDs: string[];
   merkleTreePublicKey: string;
 };
@@ -149,4 +150,5 @@ export type PublicInputs = {
   transactionHash?: Array<number>;
   checkedParams?: Array<Array<number>>;
   publicAppVerifier?: Array<number>;
+  publicInUtxoHash?: Array<Array<number>>;
 };
