@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anchor-lang = "0.28.0"
+light-zero-bytes = { path = "../zero-bytes", version = "0.1.0" }
 thiserror = "1.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]

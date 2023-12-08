@@ -1,3 +1,5 @@
+use light_zero_bytes::{poseidon::ZERO_BYTES, ZeroBytes};
+
 use crate::{errors::HasherError, Hash, Hasher};
 
 #[derive(Clone, Copy)]
@@ -85,5 +87,9 @@ impl Hasher for Poseidon {
                 e => Err(HasherError::from(e)),
             }
         }
+    }
+
+    fn zero_bytes() -> ZeroBytes {
+        ZERO_BYTES
     }
 }
