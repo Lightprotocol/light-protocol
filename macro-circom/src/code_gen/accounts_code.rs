@@ -41,7 +41,7 @@ pub struct UtxoOutUtxo {
     pub spl_asset_index: u64,
     pub verifier_address_index: u64,
     pub blinding: u256,
-    pub app_data_hash: u256,
+    pub data_hash: u256,
     pub account_compression_public_key: u256,
     pub account_encryption_public_key: [u8; 32],
     {{#each utxo_inputs}}

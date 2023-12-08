@@ -159,13 +159,13 @@ export type LightPsp4in4outAppStorage = {
             type: "u8";
           },
           {
-            name: "inputNullifier";
+            name: "publicNullifier";
             type: {
               array: ["u8", 4];
             };
           },
           {
-            name: "outputCommitment";
+            name: "publicOutUtxoHash";
             type: {
               array: ["u8", 4];
             };
@@ -352,13 +352,13 @@ export type LightPsp4in4outAppStorage = {
             type: "u8";
           },
           {
-            name: "inputNullifier";
+            name: "publicNullifier";
             type: {
               array: ["u8", 4];
             };
           },
           {
-            name: "outputCommitment";
+            name: "publicOutUtxoHash";
             type: {
               array: ["u8", 4];
             };
@@ -410,7 +410,7 @@ export type LightPsp4in4outAppStorage = {
             };
           },
           {
-            name: "inputNullifier";
+            name: "publicNullifier";
             type: {
               array: [
                 {
@@ -421,7 +421,7 @@ export type LightPsp4in4outAppStorage = {
             };
           },
           {
-            name: "outputCommitment";
+            name: "publicOutUtxoHash";
             type: {
               array: [
                 {
@@ -618,13 +618,13 @@ export const IDL: LightPsp4in4outAppStorage = {
             type: "u8",
           },
           {
-            name: "inputNullifier",
+            name: "publicNullifier",
             type: {
               array: ["u8", 4],
             },
           },
           {
-            name: "outputCommitment",
+            name: "publicOutUtxoHash",
             type: {
               array: ["u8", 4],
             },
@@ -811,13 +811,13 @@ export const IDL: LightPsp4in4outAppStorage = {
             type: "u8",
           },
           {
-            name: "inputNullifier",
+            name: "publicNullifier",
             type: {
               array: ["u8", 4],
             },
           },
           {
-            name: "outputCommitment",
+            name: "publicOutUtxoHash",
             type: {
               array: ["u8", 4],
             },
@@ -869,7 +869,7 @@ export const IDL: LightPsp4in4outAppStorage = {
             },
           },
           {
-            name: "inputNullifier",
+            name: "publicNullifier",
             type: {
               array: [
                 {
@@ -880,7 +880,7 @@ export const IDL: LightPsp4in4outAppStorage = {
             },
           },
           {
-            name: "outputCommitment",
+            name: "publicOutUtxoHash",
             type: {
               array: [
                 {

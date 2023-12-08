@@ -14,6 +14,8 @@ import {
   IDL_LIGHT_PSP10IN2OUT,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
+  IDL_PUBLIC_LIGHT_PSP2IN2OUT,
+  IDL_PUBLIC_LIGHT_PSP10IN2OUT,
 } from "./idls";
 
 import {
@@ -64,6 +66,12 @@ export const lightPsp4in4outAppStorageId = new PublicKey(
 );
 export const userRegistryProgramId = new PublicKey(
   "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
+);
+export const lightPublicPsp2in2outId = new PublicKey(
+  "9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE",
+);
+export const lightPublicPsp10in2outId = new PublicKey(
+  "49SXdU5npUY5tqajhohVkQNTWYPPaTeMy6HFH4VLmA5V",
 );
 
 export const LOOK_UP_TABLE = new PublicKey(
@@ -232,4 +240,6 @@ export const SYSTEM_PROGRAM_IDLS: Map<string, anchor.Idl> = new Map([
   [lightPsp10in2outId.toBase58(), IDL_LIGHT_PSP10IN2OUT],
   [lightPsp4in4outAppStorageId.toBase58(), IDL_LIGHT_PSP4IN4OUT_APP_STORAGE],
   [lightPsp2in2outStorageId.toBase58(), IDL_LIGHT_PSP2IN2OUT_STORAGE],
+  [lightPublicPsp2in2outId.toBase58(), IDL_PUBLIC_LIGHT_PSP2IN2OUT],
+  [lightPublicPsp10in2outId.toBase58(), IDL_PUBLIC_LIGHT_PSP10IN2OUT],
 ]);

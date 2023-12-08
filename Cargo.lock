@@ -2926,6 +2926,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-public-psp10in2out"
+version = "0.3.1"
+dependencies = [
+ "ahash 0.8.6",
+ "anchor-lang",
+ "anchor-spl",
+ "groth16-solana",
+ "light-macros",
+ "light-merkle-tree-program",
+ "light-verifier-sdk",
+ "solana-security-txt",
+]
+
+[[package]]
+name = "light-public-psp2in2out"
+version = "0.3.1"
+dependencies = [
+ "ahash 0.8.6",
+ "anchor-lang",
+ "anchor-spl",
+ "groth16-solana",
+ "light-macros",
+ "light-merkle-tree-program",
+ "light-verifier-sdk",
+ "solana-security-txt",
+]
+
+[[package]]
 name = "light-sparse-merkle-tree"
 version = "0.1.1"
 dependencies = [
@@ -2966,7 +2994,6 @@ dependencies = [
  "ark-ec 0.3.0",
  "ark-ff 0.3.0",
  "ark-std 0.3.0",
- "borsh 0.9.3",
  "groth16-solana",
  "light-macros",
  "light-merkle-tree-program",

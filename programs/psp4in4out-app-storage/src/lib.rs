@@ -6,7 +6,7 @@ use light_verifier_sdk::light_transaction::{
 };
 
 pub mod verifying_key;
-use verifying_key::VERIFYINGKEY_TRANSACTION_APP4_MAIN;
+use verifying_key::VERIFYINGKEY_PRIVATE_PROGRAM_TRANSACTION4_IN4_OUT_MAIN;
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -88,9 +88,9 @@ pub mod light_psp4in4out_app_storage {
             rpc_fee: verifier_state.rpc_fee,
             merkle_root_index: verifier_state.merkle_root_index as usize,
             pool_type: &pool_type,
-            verifyingkey: &VERIFYINGKEY_TRANSACTION_APP4_MAIN,
+            verifyingkey: &VERIFYINGKEY_PRIVATE_PROGRAM_TRANSACTION4_IN4_OUT_MAIN,
         };
-        let mut tx = Transaction::<2, 4, 4, 15, LightInstruction<'info>>::new(input);
+        let mut tx = Transaction::<2, 4, 4, 22, LightInstruction<'info>>::new(input);
 
         tx.transact()?;
 

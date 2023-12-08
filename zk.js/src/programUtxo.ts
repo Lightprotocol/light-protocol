@@ -19,6 +19,7 @@ import {
   UtxoError,
   UtxoErrorCode,
   Utxo,
+  hashAndTruncateToCircuit,
 } from "./index";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -33,7 +34,6 @@ export type ProgramOutUtxo = {
 };
 
 export function createProgramOutUtxo({
-  publicKey,
   encryptionPublicKey,
   amounts,
   assets,
@@ -44,8 +44,8 @@ export function createProgramOutUtxo({
   includeUtxoData = true,
   utxoData,
   utxoName,
+  utxoDataHash,
 }: {
-  publicKey: BN;
   encryptionPublicKey?: Uint8Array;
   amounts: BN[];
   assets: PublicKey[];
@@ -56,19 +56,20 @@ export function createProgramOutUtxo({
   includeUtxoData?: boolean;
   utxoData: any;
   utxoName: string;
+  utxoDataHash?: BN;
 }): ProgramOutUtxo {
   checkUtxoData(utxoData, pspIdl, utxoName + "OutUtxo");
 
   const outUtxo = createOutUtxo({
-    publicKey,
+    publicKey: hashAndTruncateToCircuit(pspId.toBytes()),
     encryptionPublicKey,
     amounts,
     assets,
     blinding,
     isFillingUtxo: false,
     lightWasm,
-    verifierAddress: pspId,
     utxoData,
+    utxoDataHash,
   });
 
   const programOutUtxo: ProgramOutUtxo = {
@@ -152,6 +153,7 @@ export async function programOutUtxoToBytes(
     ...outUtxo,
     ...outUtxo.outUtxo,
     ...outUtxo.outUtxo.utxoData,
+    dataHash: outUtxo.outUtxo.utxoDataHash,
     accountCompressionPublicKey: new BN(outUtxo.outUtxo.publicKey),
     accountEncryptionPublicKey: outUtxo.outUtxo.encryptionPublicKey
       ? outUtxo.outUtxo.encryptionPublicKey
@@ -228,10 +230,6 @@ export function programOutUtxoFromBytes({
     SystemProgram.programId,
     fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
   ];
-  const publicKey = compressed
-    ? account?.keypair.publicKey
-    : decodedUtxoData.accountCompressionPublicKey;
-
   if (!pspIdl.accounts)
     throw new UtxoError(
       UtxoErrorCode.APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS,
@@ -244,7 +242,6 @@ export function programOutUtxoFromBytes({
   );
 
   const programUtxo = createProgramOutUtxo({
-    publicKey,
     encryptionPublicKey: new BN(decodedUtxoData.accountEncryptionPublicKey).eq(
       BN_0,
     )
@@ -259,6 +256,7 @@ export function programOutUtxoFromBytes({
     includeUtxoData,
     utxoData,
     utxoName,
+    utxoDataHash: decodedUtxoData.dataHash,
   });
   return programUtxo;
 }
@@ -408,12 +406,11 @@ export function createProgramUtxo({
 }): ProgramUtxo {
   const utxoDataInternal = utxoData;
   checkUtxoData(utxoDataInternal, pspIdl, utxoName + "OutUtxo");
-  const utxoDataHash = createUtxoDataHash(utxoDataInternal, lightWasm);
-  createUtxoInputs["utxoDataHash"] = utxoDataHash.toString();
-  createUtxoInputs["verifierAddress"] = pspId;
+  const dataHash = createUtxoDataHash(utxoDataInternal, lightWasm);
+  createUtxoInputs["utxoDataHash"] = dataHash.toString();
+  createUtxoInputs["owner"] = pspId;
   createUtxoInputs["utxoData"] = utxoDataInternal;
   createUtxoInputs["utxoName"] = utxoName;
-
   const utxo = createUtxo(lightWasm, account, createUtxoInputs, false);
   const programOutUtxo: ProgramUtxo = {
     utxo,
@@ -507,6 +504,7 @@ export function programOutUtxoToProgramUtxo(
     assets: programOutUtxo.outUtxo.assets,
     merkleProof,
     merkleTreeLeafIndex,
+    owner: programOutUtxo.pspId,
   };
   return createProgramUtxo({
     createUtxoInputs: inputs,

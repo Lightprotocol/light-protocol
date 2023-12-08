@@ -56,16 +56,6 @@ export function compareOutUtxos(utxo1: OutUtxo, utxo2: OutUtxo): void {
     "transactionVersion does not match",
   );
   assert.strictEqual(
-    utxo1.verifierAddress.toString(),
-    utxo2.verifierAddress.toString(),
-    "verifierAddress does not match",
-  );
-  assert.strictEqual(
-    utxo1.verifierAddressCircuit,
-    utxo2.verifierAddressCircuit,
-    "verifierAddressCircuit does not match",
-  );
-  assert.strictEqual(
     utxo1.isFillingUtxo,
     utxo2.isFillingUtxo,
     "isFillingUtxo does not match",
@@ -146,16 +136,6 @@ export function compareUtxos(utxo1: Utxo, utxo2: Utxo): void {
     utxo1.transactionVersion,
     utxo2.transactionVersion,
     "transactionVersion does not match",
-  );
-  assert.strictEqual(
-    utxo1.verifierAddress.toString(),
-    utxo2.verifierAddress.toString(),
-    "verifierAddress does not match",
-  );
-  assert.strictEqual(
-    utxo1.verifierAddressCircuit,
-    utxo2.verifierAddressCircuit,
-    "verifierAddressCircuit does not match",
   );
   assert.strictEqual(
     utxo1.isFillingUtxo,

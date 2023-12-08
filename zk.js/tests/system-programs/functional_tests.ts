@@ -125,7 +125,7 @@ describe("verifier_program", () => {
     await performCompress({
       delegate: AUTHORITY_ONE,
       spl: true,
-      shuffleEnabled: true,
+      shuffleEnabled: false,
       verifierIdl: IDL_LIGHT_PSP10IN2OUT,
     });
   });

@@ -7,6 +7,7 @@ use anchor_lang::{
 
 use crate::{errors::VerifierSdkError, state::TransactionIndexerEvent};
 
+#[inline(never)]
 pub fn insert_nullifiers_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
@@ -19,6 +20,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
+
     let accounts = light_merkle_tree_program::cpi::accounts::InitializeNullifiers {
         authority: authority.clone(),
         system_program: system_program.clone(),
@@ -86,6 +88,7 @@ pub fn decompress_spl_cpi<'a, 'b>(
 
 #[allow(clippy::too_many_arguments)]
 #[allow(unused_variables)]
+#[inline(never)]
 pub fn insert_two_leaves_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
@@ -100,20 +103,19 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     let seeds = &[&[seed.as_slice(), bump][..]];
 
     let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeaves {
-        authority: authority.clone(),
-        system_program: system_program.clone(),
-        transaction_merkle_tree: transaction_merkle_tree_account.clone(),
-        registered_verifier_pda: registered_verifier_pda.clone(),
+        authority: authority.to_account_info(),
+        system_program: system_program.to_account_info(),
+        transaction_merkle_tree: transaction_merkle_tree_account.to_account_info(),
+        registered_verifier_pda: registered_verifier_pda.to_account_info(),
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-
     light_merkle_tree_program::cpi::insert_two_leaves(cpi_ctx, leaves)?;
-
     Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
+#[inline(never)]
 pub fn insert_two_leaves_event_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
@@ -141,10 +143,9 @@ pub fn insert_two_leaves_event_cpi<'a, 'b>(
         leaf_left.to_owned(),
         leaf_right.to_owned(),
     )?;
-
     Ok(())
 }
-
+#[inline(never)]
 pub fn get_seeds<'a>(
     program_id: &'a Pubkey,
     merkle_tree_program_id: &'a AccountInfo,
@@ -157,6 +158,7 @@ pub fn get_seeds<'a>(
     Ok((seed, bump))
 }
 
+#[inline(never)]
 pub fn invoke_indexer_transaction_event<'info>(
     event: &TransactionIndexerEvent,
     noop_program: &AccountInfo<'info>,
