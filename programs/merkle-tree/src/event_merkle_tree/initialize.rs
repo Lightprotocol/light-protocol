@@ -5,7 +5,6 @@ use anchor_lang::prelude::*;
 use light_hasher::Sha256;
 use light_macros::pubkey;
 use light_merkle_tree::{config::MerkleTreeConfig, HashFunction, MerkleTree};
-use light_zero_bytes::{sha256::ZERO_BYTES, ZeroBytes};
 
 use crate::{impl_indexed_merkle_tree, utils::config::MERKLE_TREE_HEIGHT, MerkleTreeAuthority};
 
@@ -13,7 +12,6 @@ use crate::{impl_indexed_merkle_tree, utils::config::MERKLE_TREE_HEIGHT, MerkleT
 pub struct EventMerkleTreeConfig {}
 
 impl MerkleTreeConfig for EventMerkleTreeConfig {
-    const ZERO_BYTES: ZeroBytes = ZERO_BYTES;
     const PROGRAM_ID: Pubkey = pubkey!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
 }
 
