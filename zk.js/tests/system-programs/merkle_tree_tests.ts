@@ -140,7 +140,8 @@ describe("Merkle Tree Tests", () => {
       merkleTreeProgram.programId,
     )[0];
 
-    merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     let error;
 
@@ -152,7 +153,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
     console.log(error);
 
     assert.isTrue(
@@ -227,7 +229,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
     console.log("updateMerkleTreeAuthority ", error);
 
     assert.isTrue(
@@ -308,7 +311,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     assert.isTrue(
       error.logs.includes(
@@ -327,7 +331,7 @@ describe("Merkle Tree Tests", () => {
     await merkleTreeConfig.enablePermissionlessSplTokens(false);
     merkleTreeAuthority =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        merkleTreeConfig.getMerkleTreeAuthorityPda(),
+        MerkleTreeConfig.getMerkleTreeAuthorityPda(),
       );
     assert.equal(merkleTreeAuthority.enablePermissionlessSplTokens, false);
 
@@ -357,7 +361,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     assert.isTrue(
       error.logs.includes(
@@ -404,7 +409,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
     console.log("error ", error);
 
     assert.isTrue(
@@ -440,7 +446,7 @@ describe("Merkle Tree Tests", () => {
     // update merkle tree with invalid signer
     merkleTreeConfig.payer = INVALID_SIGNER;
     try {
-      await merkleTreeConfig.registerSplPool(new Array(32).fill(0), mint);
+      await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint);
     } catch (e) {
       error = e;
     }
@@ -459,11 +465,12 @@ describe("Merkle Tree Tests", () => {
     // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
     merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA;
     try {
-      await merkleTreeConfig.registerSplPool(new Array(32).fill(0), mint);
+      await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint);
     } catch (e) {
       error = e;
     }
-    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     assert.isTrue(
       error.logs.includes(
@@ -472,7 +479,7 @@ describe("Merkle Tree Tests", () => {
     );
 
     // valid
-    await merkleTreeConfig.registerSplPool(new Array(32).fill(0), mint);
+    await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint);
     console.log(merkleTreeConfig.poolPdas);
 
     let registeredSplPdaAccount =
@@ -505,7 +512,7 @@ describe("Merkle Tree Tests", () => {
     console.log(merkleTreeAuthority1);
     assert.equal(merkleTreeAuthority1.registeredAssetIndex.toString(), "2");
     await merkleTreeConfig.registerVerifier(lightPsp2in2out.programId);
-    await merkleTreeConfig.registerSplPool(POOL_TYPE, MINT);
+    await merkleTreeConfig.registerSplPool(Uint8Array.from(POOL_TYPE), MINT);
   });
 
   it("Switch to a new Merkle tree", async () => {

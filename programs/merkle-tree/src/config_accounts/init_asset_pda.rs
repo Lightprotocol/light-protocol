@@ -40,7 +40,6 @@ pub struct RegisterPoolType<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
     /// CHECK:` Is checked in instruction to account for the case of permissionless pool creations.
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 }
@@ -70,7 +69,6 @@ pub struct RegisterSplPool<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
     /// CHECK:
     #[account(mut)]
     pub mint: Account<'info, Mint>,
@@ -103,7 +101,6 @@ pub struct RegisterSolPool<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
     #[account(
         seeds = [&registered_pool_type_pda.pool_type[..], POOL_TYPE_SEED],
         bump,
@@ -134,14 +131,14 @@ pub fn process_register_pool_type(
 /// Creates a new spl token pool which can be used by any registered verifier.
 pub fn process_register_spl_pool(ctx: Context<RegisterSplPool>) -> Result<()> {
     // any token enabled
-    if !ctx
-        .accounts
-        .merkle_tree_authority_pda
-        .enable_permissionless_spl_tokens
-        && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
-    {
-        return err!(ErrorCode::InvalidAuthority);
-    }
+    // if !ctx
+    //     .accounts
+    //     .merkle_tree_authority_pda
+    //     .enable_permissionless_spl_tokens
+    //     && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+    // {
+    //     return err!(ErrorCode::InvalidAuthority);
+    // }
 
     ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =
         ctx.accounts.merkle_tree_pda_token.key();

@@ -197,11 +197,14 @@ describe("Program Utxo Functional", () => {
     assert.equal(programOutUtxo.assets[1].toBase58(), assetPubkey.toBase58());
     assert.equal(
       programUtxoAssetsCircuitInput[0].toString(),
-      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
+      hashAndTruncateToCircuit(
+        [SystemProgram.programId.toBytes()],
+        lightWasm,
+      ).toString(),
     );
     assert.equal(
       programUtxoAssetsCircuitInput[1].toString(),
-      hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
+      hashAndTruncateToCircuit([assetPubkey.toBytes()], lightWasm).toString(),
     );
     assert.equal(
       programOutUtxo.dataHash.toString(),
@@ -213,8 +216,8 @@ describe("Program Utxo Functional", () => {
       "18586133768512220936620570745912940619677854269274689475585506675881198879027",
     );
     assert.equal(
-      programOutUtxo.hash.toString(),
-      "3900255133601114289945940646375843533526254833348962507171282032513729686383",
+      programOutUtxo.outUtxo.utxoHash,
+      "10728499339752724929638383989191231305214495159689622006819820882299484542287",
     );
 
     // toBytes
@@ -354,11 +357,14 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(
       decryptedUtxoAssetsCircuitInput[0].toString(),
-      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
+      hashAndTruncateToCircuit(
+        [SystemProgram.programId.toBytes()],
+        lightWasm,
+      ).toString(),
     );
     assert.equal(
       decryptedUtxoAssetsCircuitInput[1].toString(),
-      hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
+      hashAndTruncateToCircuit([assetPubkey.toBytes()], lightWasm).toString(),
     );
     assert.equal(
       decryptedUtxo.value?.dataHash.toString(),
@@ -372,8 +378,8 @@ describe("Program Utxo Functional", () => {
     );
 
     assert.equal(
-      decryptedUtxo.value?.nullifier.toString(),
-      "7348232893700449159949977118836554677452891838957421208915931061103447385461",
+      decryptedUtxo.value?.utxo.nullifier,
+      "3671097476682376794240906933200709448048184503525122640395460659992826459312",
     );
     assert.deepEqual(decryptedUtxo.value?.merkleProof, ["1", "2", "3"]);
     assert.equal(decryptedUtxo.value?.merkleTreeLeafIndex, inputs.index);

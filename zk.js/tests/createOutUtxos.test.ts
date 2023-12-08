@@ -69,7 +69,6 @@ describe("Test createOutUtxos Functional", () => {
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = createUtxo(
       lightWasm,
-      k0,
       {
         assets: [SystemProgram.programId, tokenCtx.mint],
         amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
@@ -77,12 +76,13 @@ describe("Test createOutUtxos Functional", () => {
         hash: BN_0,
         blinding: BN_1,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey,
       },
       false,
+      k0,
     );
     utxoSol = createUtxo(
       lightWasm,
-      k0,
       {
         assets: [SystemProgram.programId],
         amounts: [new BN(1e6)],
@@ -90,8 +90,10 @@ describe("Test createOutUtxos Functional", () => {
         hash: BN_0,
         blinding: BN_2,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey,
       },
       false,
+      k0,
     );
     rpcFee = RPC_FEE;
 
@@ -629,7 +631,6 @@ describe("validateUtxoAmounts", () => {
   ): Utxo {
     return createUtxo(
       lightWasm,
-      Account.createFromSeed(lightWasm, seed32),
       {
         amounts,
         assets,
@@ -637,8 +638,10 @@ describe("validateUtxoAmounts", () => {
         hash: BN_0,
         merkleProof: ["1"],
         merkleTreeLeafIndex: 0,
+        owner: Account.createFromSeed(lightWasm, seed32).keypair.publicKey,
       },
       false,
+      Account.createFromSeed(lightWasm, seed32),
     );
   }
   // Helper function to create a UTXO with specific amounts and assets
@@ -708,7 +711,6 @@ describe("Test createOutUtxos Errors", () => {
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = createUtxo(
       lightWasm,
-      k0,
       {
         assets: [SystemProgram.programId, tokenCtx.mint],
         amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
@@ -716,12 +718,13 @@ describe("Test createOutUtxos Errors", () => {
         hash: BN_0,
         blinding: BN_1,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey,
       },
       false,
+      k0,
     );
     utxoSol = createUtxo(
       lightWasm,
-      k0,
       {
         assets: [SystemProgram.programId],
         amounts: [new BN(1e6)],
@@ -729,8 +732,10 @@ describe("Test createOutUtxos Errors", () => {
         hash: BN_0,
         blinding: BN_2,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey,
       },
       false,
+      k0,
     );
 
     createOutUtxos({
@@ -908,7 +913,6 @@ describe("Test createOutUtxos Errors", () => {
 
     const utxoSol0 = createUtxo(
       lightWasm,
-      k0,
       {
         assets: [SystemProgram.programId, invalidMint],
         amounts: [new BN(1e6), new BN(1e6)],
@@ -916,8 +920,10 @@ describe("Test createOutUtxos Errors", () => {
         hash: BN_0,
         blinding: BN_1,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey,
       },
       false,
+      k0,
     );
 
     expect(() => {

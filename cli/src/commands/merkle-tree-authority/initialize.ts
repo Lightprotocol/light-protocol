@@ -8,7 +8,7 @@ import {
   setAnchorProvider,
 } from "../../utils/utils";
 import { CONFIG_PATH } from "../../psp-utils";
-
+import { MerkleTreeConfig } from "@lightprotocol/zk.js";
 class InitializeCommand extends Command {
   static description = "Initialize the Merkle Tree Authority.";
 
@@ -52,7 +52,7 @@ class InitializeCommand extends Command {
     }
 
     const accountInfo = await anchorProvider.connection.getAccountInfo(
-      merkleTreeConfig.getMerkleTreeAuthorityPda(),
+      MerkleTreeConfig.getMerkleTreeAuthorityPda(),
     );
     if (accountInfo && accountInfo.data.length > 0) {
       this.error("Merkle Tree Authority already initialized");
