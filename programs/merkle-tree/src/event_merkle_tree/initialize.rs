@@ -2,9 +2,9 @@ use std::cell::RefMut;
 
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
+use light_hasher::Sha256;
 use light_macros::pubkey;
-
-use light_merkle_tree::{config::MerkleTreeConfig, hasher::Sha256, HashFunction, MerkleTree};
+use light_merkle_tree::{config::MerkleTreeConfig, HashFunction, MerkleTree};
 use light_zero_bytes::{sha256::ZERO_BYTES, ZeroBytes};
 
 use crate::{impl_indexed_merkle_tree, utils::config::MERKLE_TREE_HEIGHT, MerkleTreeAuthority};

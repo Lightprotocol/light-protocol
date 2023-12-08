@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use anchor_lang::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use config::MerkleTreeConfig;
-use hasher::{Hash, Hasher};
+use light_hasher::{Hash, Hasher};
 
 use crate::{
     constants::{DATA_LEN, HASH_LEN, MAX_HEIGHT, MAX_ROOTS},
@@ -13,7 +13,6 @@ use crate::{
 pub mod config;
 pub mod constants;
 pub mod errors;
-pub mod hasher;
 pub mod syscalls;
 
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug, Clone, Copy)]
