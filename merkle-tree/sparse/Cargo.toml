@@ -8,12 +8,9 @@ license = "Apache-2.0"
 [dependencies]
 anchor-lang = "0.28.0"
 bytemuck = "1.13.1"
+light-hasher = { path = "../hasher", version = "0.1.0" }
 light-zero-bytes = { path = "../zero-bytes", version = "0.1.0" }
 thiserror = "1.0"
-
-[target.'cfg(not(target_os = "solana"))'.dependencies]
-ark-bn254 = "0.4.0"
-light-poseidon = "0.2.0"
 
 [dev-dependencies]
 sha2 = "0.10"

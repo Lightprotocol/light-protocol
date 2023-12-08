@@ -1,10 +1,8 @@
 use std::{fs::File, io::prelude::*, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
-use light_merkle_tree::{
-    constants::MAX_HEIGHT,
-    hasher::{Hasher, Poseidon, Sha256},
-};
+use light_hasher::{Hasher, Poseidon, Sha256};
+use light_merkle_tree::constants::MAX_HEIGHT;
 use light_utils::rustfmt;
 use quote::quote;
 

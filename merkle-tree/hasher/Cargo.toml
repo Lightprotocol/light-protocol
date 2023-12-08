@@ -1,0 +1,12 @@
+[package]
+name = "light-hasher"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anchor-lang = "0.28.0"
+thiserror = "1.0"
+
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+ark-bn254 = "0.4.0"
+light-poseidon = "0.2.0"
