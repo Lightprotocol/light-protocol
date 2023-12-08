@@ -299,12 +299,13 @@ describe("verifier_program", () => {
       verifierIdl,
       systemProofInputs,
     });
+
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject as any,
     );
     const accounts = prepareAccounts({
       transactionAccounts: compressTransaction.public.accounts,
-      eventMerkleTreePubkey: MERKLE_TREE_SET,
+      merkleTreeSet: MERKLE_TREE_SET,
     });
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({
@@ -376,7 +377,7 @@ describe("verifier_program", () => {
       index: rootIndex,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [decompressUtxo],
-      merkleTreePublicKey: MERKLE_TREE_SET,
+      merkleTreeSet: MERKLE_TREE_SET,
       rpc: RPC,
     });
     // Running into memory issues with verifier one (10in2out) decompressing spl
@@ -412,7 +413,6 @@ describe("verifier_program", () => {
       verifierIdl,
       systemProofInputs,
     });
-
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject as any,
     );

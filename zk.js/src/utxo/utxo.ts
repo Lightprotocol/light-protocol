@@ -21,6 +21,8 @@ import {
 import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
 import { IDL_LIGHT_PSP2IN2OUT } from "../idls";
 import { hashAndTruncateToCircuit, fetchAssetByIdLookUp } from "../utils";
+import { ParsingUtxoBeet } from "../transaction/fetch-recent-transactions";
+
 import { BN254, createBN254 } from "./bn254";
 import {
   PlaceHolderTData,
@@ -124,9 +126,11 @@ type UtxoHashInputs = {
 export function createFillingOutUtxo({
   lightWasm,
   owner,
+  isPublic = false,
 }: {
   lightWasm: LightWasm;
   owner: CompressionPublicKey;
+  isPublic?: boolean;
 }): OutUtxo {
   return createOutUtxo({
     owner,
@@ -134,6 +138,7 @@ export function createFillingOutUtxo({
     assets: [SystemProgram.programId],
     isFillingUtxo: true,
     lightWasm,
+    blinding: isPublic ? BN_0 : undefined,
   });
 }
 
@@ -260,7 +265,41 @@ export function createOutUtxo({
   };
 }
 
-/** Utxo and ProgramUtxo */
+export function convertParsingUtxoBeetToOutUtxo(
+  parsingUtxoBeet: ParsingUtxoBeet,
+  lightWasm: LightWasm,
+): OutUtxo {
+  return createOutUtxo({
+    publicKey: new BN(parsingUtxoBeet.owner),
+    amounts: parsingUtxoBeet.amounts.map((amount) => new BN(amount)),
+    assets: [SystemProgram.programId, parsingUtxoBeet.splAssetMint],
+    lightWasm,
+    metaHash: parsingUtxoBeet.metaHash
+      ? new BN(parsingUtxoBeet.metaHash)
+      : undefined,
+    address: parsingUtxoBeet.address
+      ? new BN(parsingUtxoBeet.address)
+      : undefined,
+    utxoDataHash: new BN(parsingUtxoBeet.dataHash),
+    utxoData: parsingUtxoBeet.message
+      ? new BN(parsingUtxoBeet.message)
+      : undefined,
+    blinding: new BN(parsingUtxoBeet.blinding),
+  });
+}
+
+type UtxoHashInputs = {
+  publicKey: string;
+  amounts: string[];
+  assetsCircuit: string[];
+  blinding: string;
+  poolType: string;
+  transactionVersion: string;
+  utxoDataHash: string;
+  metaHash: string;
+  address: string;
+};
+
 export function getUtxoHash(
   lightWasm: LightWasm,
   utxoHashInputs: UtxoHashInputs,
@@ -293,6 +332,7 @@ export function getUtxoHash(
     metaHash,
     address,
   ]);
+  return hash;
 }
 
 /**
@@ -626,18 +666,19 @@ export function createFillingUtxo({
 }: {
   lightWasm: LightWasm;
   account: Account;
+  isPublic?: boolean;
 }): Utxo {
   const outFillingUtxo = createFillingOutUtxo({
     lightWasm,
     owner: account.keypair.publicKey,
   });
-  return outUtxoToUtxo(
-    outFillingUtxo,
-    new Array(MERKLE_TREE_HEIGHT).fill("0"),
-    0,
+  return outUtxoToUtxo({
+    outUtxo: outFillingUtxo,
+    merkleProof: new Array(MERKLE_TREE_HEIGHT).fill("0"),
+    merkleTreeLeafIndex: 0,
     lightWasm,
     account,
-  );
+  });
 }
 
 export async function decryptUtxo(
@@ -667,13 +708,13 @@ export async function decryptUtxo(
   }
 
   return Result.Ok(
-    outUtxoToUtxo(
-      decryptedOutUtxo.value,
+    outUtxoToUtxo({
+      outUtxo: decryptedOutUtxo.value,
       merkleProof,
       merkleTreeLeafIndex,
       lightWasm,
       account,
-    ),
+    }),
   );
 }
 
@@ -695,11 +736,12 @@ export function outUtxoToUtxo(
     address: outUtxo.address,
     owner: outUtxo.owner,
   };
-  return createUtxo(lightWasm, account, inputs, outUtxo.isFillingUtxo);
+  return createUtxo(lightWasm, inputs, outUtxo.isFillingUtxo, account);
 }
 
 export function createTestInUtxo({
   account,
+  publicKey,
   encryptionPublicKey,
   amounts,
   assets,
@@ -708,8 +750,10 @@ export function createTestInUtxo({
   lightWasm,
   merkleProof = ["1"],
   merkleTreeLeafIndex = 0,
+  isPublic = false,
 }: {
-  account: Account;
+  account?: Account;
+  publicKey?: BN;
   encryptionPublicKey?: Uint8Array;
   amounts: BN[];
   assets: PublicKey[];
@@ -718,6 +762,7 @@ export function createTestInUtxo({
   lightWasm: LightWasm;
   merkleProof?: string[];
   merkleTreeLeafIndex?: number;
+  isPublic?: boolean;
 }): Utxo {
   const outUtxo = createOutUtxo({
     owner: account.keypair.publicKey,
@@ -728,20 +773,20 @@ export function createTestInUtxo({
     isFillingUtxo,
     lightWasm,
   });
-  return outUtxoToUtxo(
+  return outUtxoToUtxo({
     outUtxo,
     merkleProof,
     merkleTreeLeafIndex,
     lightWasm,
     account,
-  );
+  });
 }
 
 export function createUtxo(
   lightWasm: LightWasm,
-  account: Account,
   createUtxoInputs: CreateUtxoInputs,
   isFillingUtxo: boolean,
+  account?: Account,
 ): Utxo {
   const {
     merkleTreeLeafIndex,

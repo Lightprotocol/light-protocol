@@ -172,6 +172,16 @@ export async function getSolanaArgs({
       name: "light_user_registry.so",
       tag: LIGHT_USER_REGISTRY_TAG,
     },
+    {
+      id: "9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE",
+      name: "psp_compressed_token.so",
+      tag: LIGHT_USER_REGISTRY_TAG,
+    },
+    {
+      id: "DmtCHY9V1vqkYfQ5xYESzvGoMGhePHLja9GQ994GKTTc",
+      name: "psp_account_compression.so",
+      tag: LIGHT_USER_REGISTRY_TAG,
+    },
   ];
   if (additionalPrograms)
     additionalPrograms.forEach((program) => {

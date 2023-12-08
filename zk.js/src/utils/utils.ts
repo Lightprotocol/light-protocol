@@ -46,11 +46,25 @@ import {
   createBN254,
 } from "../utxo";
 import { TokenUtxoBalance } from "../build-balance";
+import { keccak_256 } from "@noble/hashes/sha3";
+
+import { LightWasm } from "@lightprotocol/account.rs";
 
 const crypto = require("@noble/hashes/crypto");
 
-export function hashAndTruncateToCircuit(data: Uint8Array): BN254 {
-  return truncateToCircuit(sha256.create().update(Buffer.from(data)).digest());
+export function hashAndTruncateToCircuit(
+  data: Uint8Array[],
+  lightWasm: LightWasm,
+): BN254 {
+  const hashedAndTruncatedData = data.map((value) =>
+    keccak_256.create().update(Buffer.from(value)).digest(),
+  );
+  const compressedData = keccak_256
+    .create()
+    .update(Buffer.concat(hashedAndTruncatedData))
+    .digest()
+    .slice(0, 30);
+  return createBN254(lightWasm.poseidonHashString([new BN(compressedData, 30, "be")]));
 }
 
 /**
@@ -87,11 +101,11 @@ export async function getAssetLookUpId({
   anchorProvider: AnchorProvider;
   // poolType?: Uint8Array
 }): Promise<any> {
-  const poolType = new Array(32).fill(0);
+  const poolType = new Uint8Array(32).fill(0);
   const mtConf = new MerkleTreeConfig({
     anchorProvider,
   });
-  const pubkey = await mtConf.getSplPoolPda(asset, poolType);
+  const pubkey = await mtConf.saveSplPoolPda(asset, poolType);
 
   const registeredAssets =
     await mtConf.merkleTreeProgram.account.registeredAssetPool.fetch(

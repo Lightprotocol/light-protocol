@@ -22,6 +22,8 @@ cpi = ["no-entrypoint"]
 anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"
 light-merkle-tree-program = { version = "0.3.1", path = "../merkle-tree", features = ["cpi"] }
+psp-account-compression = { version = "0.3.1", path = "../account-compression", features = ["cpi"] }
+
 solana-security-txt = "1.1.0"
 
 # Light Deps

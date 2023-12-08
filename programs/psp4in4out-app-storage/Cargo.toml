@@ -30,6 +30,7 @@ groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branc
 light-macros = { version = "0.3.1", path = "../../macros/light" }
 light-verifier-sdk = { version = "0.3.1", path = "../../verifier-sdk" }
 bytemuck = "1.14.0"
+psp-account-compression = { version = "0.3.1", path = "../account-compression", features = ["cpi"] }
 
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"

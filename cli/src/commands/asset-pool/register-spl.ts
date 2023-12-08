@@ -33,7 +33,7 @@ class RegisterSplCommand extends Command {
 
     try {
       await merkleTreeConfig.registerSplPool(
-        [...poolType.toArrayLike(Buffer, "be", 32)],
+        Uint8Array.from([...poolType.toArrayLike(Buffer, "be", 32)]),
         mint,
       );
     } catch (e) {
