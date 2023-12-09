@@ -1,9 +1,16 @@
 #!/usr/bin/env sh
 set -eux
+
 if [ ! -f ".env" ]
 then
     cp .env.example .env
 fi
+
+if [ -z "${LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS+x}" ] || \
+    [ "$LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS" != "false" ]; then
+    export LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS="true"
+fi
+ 
 mkdir -p .logs
 echo "starting redis server"
 redis-server > .logs/redis-logs.txt &

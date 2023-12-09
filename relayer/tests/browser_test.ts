@@ -38,6 +38,11 @@ describe("Browser tests", () => {
   const connection = new Connection(RPC_URL, "confirmed");
 
   before(async () => {
+    // Enable atomic transactions if they weren't explicitly disabled.
+    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "false") {
+      process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
+    }
+
     poseidon = await circomlibjs.buildPoseidonOpt();
 
     await createTestAccounts(connection);

@@ -1516,10 +1516,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-byteutils"
-version = "0.1.0"
-
-[[package]]
 name = "light-macros"
 version = "0.3.1"
 dependencies = [
@@ -1561,9 +1557,9 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "getrandom 0.2.10",
- "light-byteutils",
  "light-macros",
  "light-merkle-tree",
+ "light-utils",
  "solana-security-txt",
  "spl-token",
 ]
@@ -1595,6 +1591,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
 name = "light-verifier-sdk"
 version = "0.3.1"
 dependencies = [
@@ -1607,9 +1610,9 @@ dependencies = [
  "ark-std 0.3.0",
  "borsh 0.9.3",
  "groth16-solana",
- "light-byteutils",
  "light-merkle-tree",
  "light-merkle-tree-program",
+ "light-utils",
  "spl-token",
 ]
 
