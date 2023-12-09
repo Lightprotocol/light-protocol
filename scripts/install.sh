@@ -246,6 +246,11 @@ download_file_github \
     macro-circom \
     "${PREFIX}/bin"
 
+echo "📦 Installing pnpm dependencies"
+pnpm install
+
+echo "📦 Installing Playwright"
+pnpm exec playwright install
 
 if [ "$ENABLE_REDIS" = true ] ; then
     echo "📥 Downloading Redis"
