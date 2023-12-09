@@ -59,6 +59,10 @@ describe("API tests", () => {
   before(async () => {
     process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
     process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+    // Enable atomic transactions if they weren't explicitly disabled.
+    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "false") {
+      process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
+    }
     anchorProvider = AnchorProvider.local(
       "http://127.0.0.1:8899",
       confirmConfig,
