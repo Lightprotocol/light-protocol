@@ -72,3 +72,4 @@ node_modules
 **/target/
 
 **/.pnpm-store/
+/web/webapp/public/build-circuits
