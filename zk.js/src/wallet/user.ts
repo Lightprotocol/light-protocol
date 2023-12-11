@@ -54,6 +54,10 @@ import {
   UtxoErrorCode,
   Result,
   noAtomicMerkleTreeUpdates,
+  createSystemProofInputs,
+  getSystemProof,
+  createSolanaInstructions,
+  getSolanaRemainingAccounts,
 } from "../index";
 
 const circomlibjs = require("circomlibjs");
@@ -480,7 +484,6 @@ export class User {
   }
 
   async compileAndProveTransaction(
-    appParams?: any,
     shuffleEnabled: boolean = true,
   ): Promise<TransactionInstruction[]> {
     if (!this.recentTransactionParameters)
@@ -489,19 +492,34 @@ export class User {
         "compileAndProveTransaction",
         "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
-    const { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
-    const tx = new Transaction({
-      rootIndex,
-      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
-      solMerkleTree: this.provider.solMerkleTree!,
-      params: this.recentTransactionParameters,
-      appParams,
-      shuffleEnabled,
-    });
 
-    this.recentInstructions = await tx.compileAndProve(
+    await this.recentTransactionParameters.getTxIntegrityHash(
       this.provider.poseidon,
-      this.account,
+    );
+    const systemProofInputs = createSystemProofInputs({
+      transaction: this.recentTransactionParameters,
+      solMerkleTree: this.provider.solMerkleTree!,
+      poseidon: this.provider.poseidon,
+      account: this.account,
+    });
+    const systemProof = await getSystemProof({
+      account: this.account,
+      transaction: this.recentTransactionParameters,
+      systemProofInputs,
+    });
+    const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
+      await this.provider.getRootIndex();
+
+    const remainingSolanaAccounts = getSolanaRemainingAccounts(
+      systemProof.parsedPublicInputsObject,
+      remainingMerkleTreeAccounts,
+    );
+    this.recentInstructions = await createSolanaInstructions(
+      rootIndex,
+      systemProof,
+      remainingSolanaAccounts,
+      this.recentTransactionParameters,
+      this.recentTransactionParameters.verifierIdl,
     );
     return this.recentInstructions;
   }
@@ -995,21 +1013,17 @@ export class User {
 
   async transactWithParameters({
     txParams,
-    appParams,
     confirmOptions,
     shuffleEnabled = true,
   }: {
     txParams: TransactionParameters;
-    appParams?: any;
     confirmOptions?: ConfirmOptions;
     shuffleEnabled?: boolean;
   }) {
     this.recentTransactionParameters = txParams;
 
-    this.recentInstructions = await this.compileAndProveTransaction(
-      appParams,
-      shuffleEnabled,
-    );
+    this.recentInstructions =
+      await this.compileAndProveTransaction(shuffleEnabled);
 
     await this.approve();
     this.approved = true;
@@ -1765,56 +1779,6 @@ export class User {
       txParams: this.recentTransactionParameters!,
       confirmOptions,
     });
-  }
-  async executeAppUtxo({
-    appUtxos = [],
-    inUtxos = [],
-    outUtxos,
-    action,
-    programParameters,
-    confirmOptions,
-    addInUtxos = false,
-    addOutUtxos,
-    shuffleEnabled = false,
-  }: {
-    appUtxos?: Utxo[];
-    outUtxos?: Utxo[];
-    action: Action;
-    programParameters: any;
-    recipient?: Account;
-    confirmOptions?: ConfirmOptions;
-    addInUtxos?: boolean;
-    addOutUtxos?: boolean;
-    inUtxos?: Utxo[];
-    shuffleEnabled?: boolean;
-  }) {
-    if (!programParameters.verifierIdl)
-      throw new UserError(
-        UtxoErrorCode.APP_DATA_IDL_UNDEFINED,
-        "executeAppUtxo",
-        `provided program parameters: ${programParameters}`,
-      );
-
-    const isAppInUtxo = Utxo.getAppInUtxoIndices(appUtxos);
-    programParameters.inputs.isAppInUtxo = isAppInUtxo;
-    if (!addOutUtxos) addOutUtxos = !outUtxos;
-    if (action === Action.TRANSFER) {
-      const txParams = await this.createTransferTransactionParameters({
-        verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
-        inUtxos: [...appUtxos, ...inUtxos],
-        outUtxos,
-        addInUtxos,
-        addOutUtxos,
-      });
-      return this.transactWithParameters({
-        txParams,
-        appParams: programParameters,
-        confirmOptions,
-        shuffleEnabled,
-      });
-    } else {
-      throw new Error("Not implemented");
-    }
   }
 
   async getProgramUtxos({
