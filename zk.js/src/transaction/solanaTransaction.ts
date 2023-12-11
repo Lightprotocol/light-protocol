@@ -133,6 +133,7 @@ export async function createSolanaInstructions(
     verifierConfig: txParams.verifierConfig,
     ataCreationFee: txParams.ataCreationFee,
     action: txParams.action,
+    message: txParams.message,
   };
   const verifierProgram = TransactionParameters.getVerifierProgram(
     pspIdl,

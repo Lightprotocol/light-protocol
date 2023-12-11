@@ -52,8 +52,6 @@ describe("Prover Functionality Tests", () => {
       publicKey: account.pubkey,
       blinding: new anchor.BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     paramsShield = new TransactionParameters({
