@@ -19,6 +19,7 @@ import {
   DEFAULT_MERKLE_TREE_LOCK_DURATION,
   DEFAULT_PROGRAMS,
   merkleTreeProgramId,
+  noAtomicMerkleTreeUpdates,
 } from "../index";
 import { Program } from "@coral-xyz/anchor";
 
@@ -132,7 +133,7 @@ export class MerkleTreeConfig {
       transactionMerkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
     );
-    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+    if (noAtomicMerkleTreeUpdates()) {
       assert(
         transactionMerkleTreeAccountInfo.lockDuration.eq(new anchor.BN(50)),
       );

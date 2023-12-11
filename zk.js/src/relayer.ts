@@ -15,6 +15,7 @@ import {
   SendVersionedTransactionsResult,
   ParsedIndexedTransaction,
   BN_0,
+  noAtomicMerkleTreeUpdates,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -84,7 +85,7 @@ export class Relayer {
   }
 
   async updateMerkleTree(_provider: Provider) {
-    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS === "true") {
+    if (noAtomicMerkleTreeUpdates()) {
       return;
     }
     try {

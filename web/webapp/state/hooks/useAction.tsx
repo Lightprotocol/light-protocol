@@ -93,12 +93,10 @@ export const shieldState = atom(
   ) => {
     set(shieldLoadingState, true);
     actionNotification(`Shielding ${token}`);
-
     const { user } = get(userState);
     if (!user) {
       throw new Error("User is not initialized");
     }
-
     try {
       await user.shield({
         token,

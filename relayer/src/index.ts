@@ -12,7 +12,10 @@ import {
   getRelayerInfo,
 } from "./services";
 import { getTransactions } from "./db/redis";
-import { createTestAccounts } from "@lightprotocol/zk.js";
+import {
+  createTestAccounts,
+  noAtomicMerkleTreeUpdates,
+} from "@lightprotocol/zk.js";
 import { getAnchorProvider } from "./utils/provider";
 
 import { fundRelayer, lookUpTableIsInited } from "./setup";
@@ -33,7 +36,7 @@ app.get("/", async (_req: any, res: any) => {
   }
 });
 
-if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+if (noAtomicMerkleTreeUpdates()) {
   app.post("/updatemerkletree", updateMerkleTree);
 }
 
