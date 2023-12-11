@@ -1483,8 +1483,8 @@ export type LightMerkleTreeProgram = {
     },
     {
       "code": 6025,
-      "name": "UnevenNumberOfLeaves",
-      "msg": "Uneven number of leaves."
+      "name": "OddNumberOfLeaves",
+      "msg": "Odd number of leaves."
     }
   ]
 };
@@ -2974,8 +2974,8 @@ export const IDL: LightMerkleTreeProgram = {
     },
     {
       "code": 6025,
-      "name": "UnevenNumberOfLeaves",
-      "msg": "Uneven number of leaves."
+      "name": "OddNumberOfLeaves",
+      "msg": "Odd number of leaves."
     }
   ]
 };

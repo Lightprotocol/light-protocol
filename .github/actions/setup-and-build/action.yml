@@ -58,7 +58,7 @@ runs:
     - name: Install pnpm dependencies
       shell: bash
       run: pnpm install
-    
+
     - name: Build and prepare for tests
       shell: bash
       run: |

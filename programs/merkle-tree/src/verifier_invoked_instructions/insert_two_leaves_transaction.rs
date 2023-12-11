@@ -32,11 +32,11 @@ pub fn process_insert_two_leaves<'info, 'a>(
         // Get the left leaf
         let leaf_left = &leaves[i];
 
-        // Check if there is a right leaf; use a default value if not
+        // Check whether there is a right leaf; return an error if not
         let leaf_right = if i + 1 < leaves.len() {
             &leaves[i + 1]
         } else {
-            return err!(crate::errors::ErrorCode::UnevenNumberOfLeaves);
+            return err!(crate::errors::ErrorCode::OddNumberOfLeaves);
         };
 
         // Insert the pair into the merkle tree
@@ -62,7 +62,6 @@ pub fn process_insert_two_leaves<'info, 'a>(
         utils::{accounts::create_and_check_pda, constants::LEAVES_SEED},
     };
 
-    let account_size = 8 + 3 * 32 + 8 + 8;
     let rent = <Rent as sysvar::Sysvar>::get()?;
     let mut j = 0;
     for i in (0..leaves.len()).step_by(2) {
@@ -74,9 +73,9 @@ pub fn process_insert_two_leaves<'info, 'a>(
             &rent,
             &leaves[i].as_slice(),
             LEAVES_SEED,
-            account_size, //bytes
-            0,            //lamports
-            true,         //rent_exempt
+            TwoLeavesBytesPda::LEN as u64,
+            0,    //lamports
+            true, //rent_exempt
         )
         .unwrap();
         // Save leaves into PDA.
@@ -86,7 +85,7 @@ pub fn process_insert_two_leaves<'info, 'a>(
             left_leaf_index: 0,
             merkle_tree_pubkey: ctx.accounts.transaction_merkle_tree.key(),
         };
-        let mut account_data = Vec::with_capacity(account_size as usize);
+        let mut account_data = Vec::with_capacity(TwoLeavesBytesPda::LEN);
 
         AccountSerialize::try_serialize(&two_leaves_bytes_struct, &mut account_data)?;
         for (index, byte) in account_data.iter().enumerate() {
