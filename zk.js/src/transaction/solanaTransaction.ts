@@ -20,6 +20,7 @@ import {
   createAccountObject,
   firstLetterToLower,
   firstLetterToUpper,
+  noAtomicMerkleTreeUpdates,
   remainingAccount,
 } from "../index";
 import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
@@ -343,19 +344,20 @@ export async function sendAndConfirmShieldTransaction({
 
   const txHash = await provider.sendAndConfirmTransaction(instructions);
   let relayerMerkleTreeUpdateResponse = "notPinged";
+  if (noAtomicMerkleTreeUpdates()) {
+    if (confirmOptions === ConfirmOptions.finalized) {
+      // Don't add await here, because the utxos have been spent the transaction is final.
+      // We just want to ping the relayer to update the Merkle tree not wait for the update.
+      // This option should be used to speed up transactions when we do not expect a following
+      // transaction which depends on the newly created utxos.
+      provider.relayer.updateMerkleTree(provider);
+      relayerMerkleTreeUpdateResponse = "pinged relayer";
+    }
 
-  if (confirmOptions === ConfirmOptions.finalized) {
-    // Don't add await here, because the utxos have been spent the transaction is final.
-    // We just want to ping the relayer to update the Merkle tree not wait for the update.
-    // This option should be used to speed up transactions when we do not expect a following
-    // transaction which depends on the newly created utxos.
-    provider.relayer.updateMerkleTree(provider);
-    relayerMerkleTreeUpdateResponse = "pinged relayer";
-  }
-
-  if (confirmOptions === ConfirmOptions.spendable) {
-    await provider.relayer.updateMerkleTree(provider);
-    relayerMerkleTreeUpdateResponse = "success";
+    if (confirmOptions === ConfirmOptions.spendable) {
+      await provider.relayer.updateMerkleTree(provider);
+      relayerMerkleTreeUpdateResponse = "success";
+    }
   }
   return { txHash, response: relayerMerkleTreeUpdateResponse };
 }
@@ -401,18 +403,20 @@ export async function sendAndConfirmShieldedTransaction({
   const txHash = await provider.sendAndConfirmShieldedTransaction(instructions);
   let relayerMerkleTreeUpdateResponse = "notPinged";
 
-  if (confirmOptions === ConfirmOptions.finalized) {
-    // Don't add await here, because the utxos have been spent the transaction is final.
-    // We just want to ping the relayer to update the Merkle tree not wait for the update.
-    // This option should be used to speed up transactions when we do not expect a following
-    // transaction which depends on the newly created utxos.
-    provider.relayer.updateMerkleTree(provider);
-    relayerMerkleTreeUpdateResponse = "pinged relayer";
-  }
+  if (noAtomicMerkleTreeUpdates()) {
+    if (confirmOptions === ConfirmOptions.finalized) {
+      // Don't add await here, because the utxos have been spent the transaction is final.
+      // We just want to ping the relayer to update the Merkle tree not wait for the update.
+      // This option should be used to speed up transactions when we do not expect a following
+      // transaction which depends on the newly created utxos.
+      provider.relayer.updateMerkleTree(provider);
+      relayerMerkleTreeUpdateResponse = "pinged relayer";
+    }
 
-  if (confirmOptions === ConfirmOptions.spendable) {
-    await provider.relayer.updateMerkleTree(provider);
-    relayerMerkleTreeUpdateResponse = "success";
+    if (confirmOptions === ConfirmOptions.spendable) {
+      await provider.relayer.updateMerkleTree(provider);
+      relayerMerkleTreeUpdateResponse = "success";
+    }
   }
   return { txHash, response: relayerMerkleTreeUpdateResponse };
 }

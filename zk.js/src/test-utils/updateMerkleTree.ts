@@ -76,7 +76,7 @@ async function handleUpdateMerkleTreeError(
 }
 
 export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
-  if (noAtomicMerkleTreeUpdates()) {
+  if (!noAtomicMerkleTreeUpdates()) {
     throw Error(
       "This function shouldn't be called with atomic transactions enabled",
     );
