@@ -40,6 +40,7 @@ import {
   closeVerifierState,
   Provider,
   airdropSol,
+  noAtomicMerkleTreeUpdates,
 } from "../../src";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
@@ -164,7 +165,9 @@ describe("Verifier Zero and One Tests", () => {
       );
       // does one successful transaction
       await lightProvider.sendAndConfirmTransaction(instructions);
-      await lightProvider.relayer.updateMerkleTree(lightProvider);
+      if (noAtomicMerkleTreeUpdates()) {
+        await lightProvider.relayer.updateMerkleTree(lightProvider);
+      }
 
       // Shield
       const shieldUtxo2 = new Utxo({

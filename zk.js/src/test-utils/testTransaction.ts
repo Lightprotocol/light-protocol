@@ -15,6 +15,7 @@ import {
   merkleTreeProgramId,
   fetchRecentTransactions,
   MerkleTreeConfig,
+  noAtomicMerkleTreeUpdates,
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
@@ -276,7 +277,7 @@ export class TestTransaction {
 
     await this.checkMerkleTreeLeaves(transactionInputs);
 
-    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+    if (noAtomicMerkleTreeUpdates()) {
       let leavesAccountData;
       // Checking that leaves were inserted
       for (let i = 0; i < remainingAccounts.leavesPdaPubkeys.length; i += 2) {

@@ -14,7 +14,7 @@ import {
 } from "../constants";
 import { IDL_LIGHT_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { sleep } from "../index";
+import { noAtomicMerkleTreeUpdates, sleep } from "../index";
 import { LightMerkleTreeProgram } from "../../src";
 
 async function retryOperation(
@@ -76,7 +76,7 @@ async function handleUpdateMerkleTreeError(
 }
 
 export async function updateMerkleTreeForTest(payer: Keypair, url: string) {
-  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS === "true") {
+  if (!noAtomicMerkleTreeUpdates()) {
     throw Error(
       "This function shouldn't be called with atomic transactions enabled",
     );

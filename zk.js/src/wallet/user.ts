@@ -53,6 +53,7 @@ import {
   UtxoError,
   UtxoErrorCode,
   Result,
+  noAtomicMerkleTreeUpdates,
 } from "../index";
 
 const circomlibjs = require("circomlibjs");
@@ -1018,7 +1019,7 @@ export class User {
 
     let relayerMerkleTreeUpdateResponse = "success";
 
-    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS != "true") {
+    if (noAtomicMerkleTreeUpdates()) {
       relayerMerkleTreeUpdateResponse = "notPinged";
 
       if (confirmOptions === ConfirmOptions.finalized) {
