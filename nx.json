@@ -12,7 +12,7 @@
   },
   "targetDefaults": {
     "build": {
-      "inputs": ["noMarkdown", "^noMarkdown"],
+      "inputs": ["noMarkdown", "^noMarkdown", { "env": "LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS"}],
       "dependsOn": ["^build"]
     },
     "test": {
