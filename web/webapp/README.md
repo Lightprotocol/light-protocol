@@ -22,3 +22,9 @@ Open:
 - [ ] permissionless SPL/NFTs
 - [ ] caching
 - [ ] migrate to use releases, localnet
+
+### Debug
+
+```bash
+sh testSetupDebug.sh # runs, redis, local test validator, opens a cypress console which can be used to run the test in a browser
+```

@@ -28,6 +28,7 @@ import {
   Relayer,
   RELAYER_FEE,
   TOKEN_ACCOUNT_FEE,
+  noAtomicMerkleTreeUpdates,
 } from "@lightprotocol/zk.js";
 
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -322,7 +323,7 @@ describe("API tests", () => {
     await userTestAssertHelper.checkSolUnshielded();
   });
 
-  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+  if (noAtomicMerkleTreeUpdates()) {
     it("Should fail to update Merkle tree", (done: any) => {
       chai
         .request(server)

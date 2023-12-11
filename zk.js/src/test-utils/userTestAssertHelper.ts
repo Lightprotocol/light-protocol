@@ -5,6 +5,7 @@ import {
   fetchNullifierAccountInfo,
   sleep,
   convertAndComputeDecimals,
+  noAtomicMerkleTreeUpdates,
 } from "../utils";
 import {
   Action,
@@ -1164,7 +1165,7 @@ export class UserTestAssertHelper {
       const numberOfUtxos =
         balance.tokenBalances.get(this.tokenCtx.mint.toBase58())?.utxos.size ??
         0;
-      if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS === "true") {
+      if (noAtomicMerkleTreeUpdates()) {
         assert.equal(numberOfUtxos, 1);
       } else {
         assert.equal(numberOfUtxos, 0);

@@ -71,7 +71,7 @@ describe("unshield SOL & SPL separately with the main command", () => {
 
 describe("unshield SOL & SPL at the same time with the main command", () => {
   test
-    .stdout()
+    .stdout({ print: true })
     .command([
       "unshield",
       "--amount-sol=0.2",

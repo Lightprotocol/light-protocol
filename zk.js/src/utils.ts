@@ -474,3 +474,13 @@ export function getSystem(): System {
     `Platform ${platform} is not supported.`,
   );
 }
+
+export const noAtomicMerkleTreeUpdates = (): boolean => {
+  return (
+    process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS == "false" ||
+    process.env.NEXT_PUBLIC_LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS == "false" ||
+    process.env.REACT_APP_LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS == "false" ||
+    process.env.VUE_APP_LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS == "false" ||
+    process.env.GATSBY_LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS == "false"
+  );
+};
