@@ -39,6 +39,11 @@ import {
   BN_0,
   lightPsp2in2outId,
   airdropSplToAssociatedTokenAccount,
+  SolanaTransactionInputs,
+  getSystemProof,
+  createSystemProofInputs,
+  createSolanaInstructions,
+  getSolanaRemainingAccounts,
 } from "../../src";
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -46,7 +51,7 @@ import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 let POSEIDON: any;
 let RELAYER: TestRelayer;
-let KEYPAIR: Account;
+let ACCOUNT: Account;
 
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
@@ -69,7 +74,7 @@ describe("verifier_program", () => {
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
-    KEYPAIR = new Account({
+    ACCOUNT = new Account({
       poseidon: POSEIDON,
       seed,
     });
@@ -143,10 +148,10 @@ describe("verifier_program", () => {
     });
     const user: User = await User.init({
       provider: lightProvider,
-      account: KEYPAIR,
+      account: ACCOUNT,
     });
     const inputUtxos: Utxo[] = [
-      user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
+      user.balance.tokenBalances.get(MINT.toBase58())!.utxos.values().next()
         .value,
     ];
     await performUnshield({
@@ -223,13 +228,13 @@ describe("verifier_program", () => {
             new anchor.BN(shieldFeeAmount),
             new anchor.BN(shieldAmount),
           ],
-          publicKey: KEYPAIR.pubkey,
+          publicKey: ACCOUNT.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         })
       : new Utxo({
           poseidon: POSEIDON,
           amounts: [new anchor.BN(shieldFeeAmount)],
-          publicKey: KEYPAIR.pubkey,
+          publicKey: ACCOUNT.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         });
 
@@ -243,38 +248,50 @@ describe("verifier_program", () => {
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
       poseidon: POSEIDON,
-      verifierIdl: verifierIdl,
-      account: KEYPAIR,
+      verifierIdl,
+      account: ACCOUNT,
     });
+    await txParams.getTxIntegrityHash(POSEIDON);
     const transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
-    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
-    const tx = new Transaction({
-      rootIndex,
-      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+
+    const systemProofInputs = createSystemProofInputs({
+      transaction: txParams,
       solMerkleTree: lightProvider.solMerkleTree!,
-      params: txParams,
-      shuffleEnabled,
+      poseidon: POSEIDON,
+      account: ACCOUNT,
     });
-    const instructions = await tx.compileAndProve(
-      lightProvider.poseidon,
-      KEYPAIR,
+    const systemProof = await getSystemProof({
+      account: ACCOUNT,
+      transaction: txParams,
+      systemProofInputs,
+    });
+    const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
+      await lightProvider.getRootIndex();
+
+    const remainingSolanaAccounts = getSolanaRemainingAccounts(
+      systemProof.parsedPublicInputsObject,
+      remainingMerkleTreeAccounts,
     );
 
-    try {
-      const res = await lightProvider.sendAndConfirmTransaction(instructions);
-      console.log(res);
-    } catch (e) {
-      console.log(e);
-    }
+    // createSolanaInstructionsWithAccounts
+    const instructions = await createSolanaInstructions(
+      rootIndex,
+      systemProof,
+      remainingSolanaAccounts,
+      txParams,
+      verifierIdl,
+    );
+    await lightProvider.sendAndConfirmShieldedTransaction(instructions);
+
     await transactionTester.checkBalances(
-      tx.transactionInputs,
-      tx.remainingAccounts,
-      tx.proofInput,
-      KEYPAIR,
+      { publicInputs: systemProof.parsedPublicInputsObject },
+      remainingSolanaAccounts,
+      systemProofInputs,
+      ACCOUNT,
     );
 
     if (
@@ -307,7 +324,7 @@ describe("verifier_program", () => {
     });
     const user = await User.init({
       provider: lightProvider,
-      account: KEYPAIR,
+      account: ACCOUNT,
     });
 
     const origin = Keypair.generate();
@@ -320,7 +337,7 @@ describe("verifier_program", () => {
     const txParams = new TransactionParameters({
       inputUtxos: [
         user.balance.tokenBalances
-          .get(tokenProgram.toBase58())
+          .get(tokenProgram.toBase58())!
           .utxos.values()
           .next().value,
       ],
@@ -335,36 +352,49 @@ describe("verifier_program", () => {
       action: Action.UNSHIELD,
       poseidon: POSEIDON,
       verifierIdl: verifierIdl,
-      account: KEYPAIR,
+      account: ACCOUNT,
     });
-
+    await txParams.getTxIntegrityHash(POSEIDON);
     const transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
 
-    const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
-    const tx = new Transaction({
-      rootIndex,
-      nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
+    const systemProofInputs = createSystemProofInputs({
+      transaction: txParams,
       solMerkleTree: lightProvider.solMerkleTree!,
-      shuffleEnabled,
-      params: txParams,
+      poseidon: POSEIDON,
+      account: ACCOUNT,
     });
+    const systemProof = await getSystemProof({
+      account: ACCOUNT,
+      transaction: txParams,
+      systemProofInputs,
+    });
+    const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
+      await lightProvider.getRootIndex();
 
-    const instructions = await tx.compileAndProve(
-      lightProvider.poseidon,
-      KEYPAIR,
+    const remainingSolanaAccounts = getSolanaRemainingAccounts(
+      systemProof.parsedPublicInputsObject,
+      remainingMerkleTreeAccounts,
     );
 
+    // createSolanaInstructionsWithAccounts
+    const instructions = await createSolanaInstructions(
+      rootIndex,
+      systemProof,
+      remainingSolanaAccounts,
+      txParams,
+      verifierIdl,
+    );
     await lightProvider.sendAndConfirmShieldedTransaction(instructions);
 
     await transactionTester.checkBalances(
-      tx.transactionInputs,
-      tx.remainingAccounts,
-      tx.proofInput,
-      KEYPAIR,
+      { publicInputs: systemProof.parsedPublicInputsObject },
+      remainingSolanaAccounts,
+      systemProofInputs,
+      ACCOUNT,
     );
   };
 });
