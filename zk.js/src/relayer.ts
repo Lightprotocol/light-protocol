@@ -15,7 +15,6 @@ import {
   SendVersionedTransactionsResult,
   ParsedIndexedTransaction,
   BN_0,
-  noAtomicMerkleTreeUpdates,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -82,19 +81,6 @@ export class Relayer {
     this.highRelayerFee = highRelayerFee;
     this.relayerFee = relayerFee;
     this.url = url;
-  }
-
-  async updateMerkleTree(_provider: Provider) {
-    if (noAtomicMerkleTreeUpdates()) {
-      return;
-    }
-    try {
-      const response = await axios.post(this.url + "/updatemerkletree");
-      return response;
-    } catch (err) {
-      console.error({ err });
-      throw err;
-    }
   }
 
   async sendTransactions(

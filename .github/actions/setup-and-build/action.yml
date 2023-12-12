@@ -6,10 +6,6 @@ inputs:
     description: "Enable Redis"
     required: false
     default: false
-  atomic-transactions:
-    description: "Build Light Protocol with atomic transaction support"
-    required: false
-    default: true
 
 runs:
   using: "composite"
@@ -22,13 +18,13 @@ runs:
         path: |
           ~/.cargo
           **/target
-        key: ${{ runner.os }}-cargo-${{ inputs.atomic-transactions }}-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Cache .local directory
       uses: buildjet/cache@v3
       with:
         path: .local
-        key: ${{ runner.os }}-local-${{ inputs.atomic-transactions }}-${{ hashFiles('**/install.sh') }}
+        key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
 
     - name: Install dependencies
       shell: bash
@@ -55,9 +51,9 @@ runs:
       name: Setup pnpm cache
       with:
         path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ inputs.atomic-transactions }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
         restore-keys: |
-          ${{ runner.os }}-pnpm-store-${{ inputs.atomic-transactions }}-
+          ${{ runner.os }}-pnpm-store-
 
     - name: Install pnpm dependencies
       shell: bash
@@ -65,8 +61,6 @@ runs:
     
     - name: Build and prepare for tests
       shell: bash
-      env:
-        LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS: ${{ inputs.atomic-transactions }}
       run: |
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/

@@ -28,7 +28,6 @@ const RPC_URL = "http://127.0.0.1:8899";
 describe("Test multisig", () => {
   process.env.ANCHOR_PROVIDER_URL = RPC_URL;
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const provider = anchor.AnchorProvider.local(RPC_URL, confirmConfig);
   anchor.setProvider(provider);

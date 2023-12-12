@@ -2,13 +2,8 @@ import {
   MerkleTreeConfig,
   Provider,
   SolMerkleTree,
-  updateMerkleTreeForTest,
 } from "@lightprotocol/zk.js";
-import {
-  getLightProvider,
-  getRelayer,
-  getKeyPairFromEnv,
-} from "../utils/provider";
+import { getLightProvider, getRelayer } from "../utils/provider";
 
 export const buildMerkleTree = async (_req: any, res: any) => {
   try {
@@ -31,18 +26,6 @@ export const buildMerkleTree = async (_req: any, res: any) => {
 
     provider.solMerkleTree = mt;
     return res.status(200).json({ data: mt });
-  } catch (e) {
-    console.log(e);
-    return res.status(500).json({ status: "error", message: e.message });
-  }
-};
-
-export const updateMerkleTree = async (_req: any, res: any) => {
-  try {
-    console.log("/updateMerkleTree");
-    const provider = await getLightProvider();
-    await updateMerkleTreeForTest(getKeyPairFromEnv("KEY_PAIR"), provider.url!);
-    return res.status(200).json({ status: "ok" });
   } catch (e) {
     console.log(e);
     return res.status(500).json({ status: "error", message: e.message });

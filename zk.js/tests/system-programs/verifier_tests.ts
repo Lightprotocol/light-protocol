@@ -40,7 +40,6 @@ import {
   closeVerifierState,
   Provider,
   airdropSol,
-  noAtomicMerkleTreeUpdates,
 } from "../../src";
 import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
@@ -55,7 +54,6 @@ console.log = () => {};
 describe("Verifier Zero and One Tests", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
@@ -166,9 +164,6 @@ describe("Verifier Zero and One Tests", () => {
       );
       // does one successful transaction
       await lightProvider.sendAndConfirmTransaction(instructions);
-      if (noAtomicMerkleTreeUpdates()) {
-      await lightProvider.relayer.updateMerkleTree(lightProvider);
-      }
 
       // Shield
       const shieldUtxo2 = new Utxo({
