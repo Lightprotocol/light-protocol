@@ -3,6 +3,6 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
-    "build": "if [ \"$LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS\" = \"false\" ]; then light-anchor build -- --no-default-features; else light-anchor build; fi"
+    "build": "light-anchor build"
   }
 }

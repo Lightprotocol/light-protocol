@@ -5,17 +5,13 @@ import bodyParser from "body-parser";
 import {
   getIndexedTransactions,
   buildMerkleTree,
-  updateMerkleTree,
   handleRelayRequest,
   runIndexer,
   getLookUpTable,
   getRelayerInfo,
 } from "./services";
 import { getTransactions } from "./db/redis";
-import {
-  createTestAccounts,
-  noAtomicMerkleTreeUpdates,
-} from "@lightprotocol/zk.js";
+import { createTestAccounts } from "@lightprotocol/zk.js";
 import { getAnchorProvider } from "./utils/provider";
 
 import { fundRelayer, lookUpTableIsInited } from "./setup";
@@ -35,10 +31,6 @@ app.get("/", async (_req: any, res: any) => {
     return res.status(500).json({ status: "error", message: e.message });
   }
 });
-
-if (noAtomicMerkleTreeUpdates()) {
-  app.post("/updatemerkletree", updateMerkleTree);
-}
 
 app.get("/getBuiltMerkletree", buildMerkleTree);
 

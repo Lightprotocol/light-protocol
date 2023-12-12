@@ -1,7 +1,6 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
-import { updateMerkleTreeForTest } from "./updateMerkleTree";
 import { Provider, useWallet } from "../wallet";
 import {
   fetchRecentTransactions,
@@ -38,36 +37,6 @@ export class TestRelayer extends Relayer {
         `Payer public key ${payer.publicKey.toBase58()} does not match relayer public key ${relayerPubkey.toBase58()}`,
       );
     this.relayerKeypair = payer;
-  }
-
-  async updateMerkleTree(provider: Provider): Promise<any> {
-    if (!provider.provider) throw new Error("Provider.provider is undefined.");
-    if (!provider.url) throw new Error("Provider.provider is undefined.");
-    if (provider.url !== "http://127.0.0.1:8899")
-      throw new Error("Provider url is not http://127.0.0.1:8899");
-
-    const balance = await provider.provider.connection?.getBalance(
-      this.relayerKeypair.publicKey,
-    );
-
-    if (!balance || balance < 1e9) {
-      await airdropSol({
-        connection: provider.provider.connection!,
-        lamports: 1_000_000_000,
-        recipientPublicKey: this.relayerKeypair.publicKey,
-      });
-    }
-
-    try {
-      const response = await updateMerkleTreeForTest(
-        this.relayerKeypair,
-        provider.url,
-      );
-      return response;
-    } catch (e) {
-      console.log(e);
-      // throw e;
-    }
   }
 
   async sendTransactions(

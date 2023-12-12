@@ -55,10 +55,6 @@ describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  // Enable atomic transactions if they weren't explicitly disabled.
-  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "false") {
-    process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
-  }
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
@@ -113,7 +109,6 @@ describe("verifier_program", () => {
       spl: true,
       shuffleEnabled: true,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
-      updateMerkleTree: true,
     });
   });
 
@@ -174,14 +169,12 @@ describe("verifier_program", () => {
     message,
     shuffleEnabled = true,
     verifierIdl,
-    updateMerkleTree = false,
   }: {
     delegate: anchor.web3.PublicKey;
     spl: boolean;
     message?: Buffer;
     shuffleEnabled: boolean;
     verifierIdl: Idl;
-    updateMerkleTree?: boolean;
   }) => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
@@ -290,13 +283,6 @@ describe("verifier_program", () => {
       systemProofInputs,
       ACCOUNT,
     );
-
-    if (
-      process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS != "true" &&
-      updateMerkleTree
-    ) {
-      await lightProvider.relayer.updateMerkleTree(lightProvider);
-    }
   };
 
   const performUnshield = async ({

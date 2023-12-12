@@ -57,10 +57,6 @@ function initialize_merkle_tree_authority {
 
 export LIGHT_PROTOCOL_CONFIG="`git rev-parse --show-toplevel`/cli/config.json"
 
-# Generate accounts with atomic transactions enabled.
-
-export LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS="true"
-
 rebuild_programs
 start_validator
 airdrop
@@ -85,18 +81,4 @@ done
 solana \
     account "DDx9XekF4emf7p7QyUYcCqZcPJtmzUYmYir54tQBbVBv" \
     --output-file "cli/accounts/transaction-merkle-tree/transaction-merkle-tree.json" \
-    --output "json"
-
-# Generate Transaction Merkle Tree account with atomic transactions disabled.
-
-export LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS="false"
-
-rebuild_programs
-start_validtator
-airdrop
-initialize_merkle_tree_authority
-
-solana \
-    account "DDx9XekF4emf7p7QyUYcCqZcPJtmzUYmYir54tQBbVBv" \
-    --output-file "cli/accounts/transaction-merkle-tree-no-atomic-tx/transaction-merkle-tree-no-atomic-tx.json" \
     --output "json"

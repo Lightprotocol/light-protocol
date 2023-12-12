@@ -385,7 +385,6 @@ export class MultiSigClient {
     await this.provider.sendAndConfirmTransaction(instructions);
 
     // await tx.checkBalances();
-    // await updateMerkleTreeForTest(ADMIN_AUTH_KEYPAIR, this.provider.url);
   }
 }
 

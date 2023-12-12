@@ -36,26 +36,17 @@ jobs:
       matrix:
         include:
           - test: system-programs-tests-transaction-user-verifiers-provider
-            atomic-transactions: true
             sub-tests: '["sp-functional", "sp-user", "sp-verifiers", "sp-provider"]'
           - test: system-programs-tests-user-merge
-            atomic-transactions: true
             sub-tests: '["sp-user-merge", "zk.js"]'
-          - test: system-programs-merkle-tree-legacy
-            atomic-transactions: false
-            sub-tests: '["sp-merkle-tree-legacy"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-        with:
-          atomic-transactions: ${{ matrix.atomic-transactions }}
 
       - name: ${{ matrix.test }}
-        env:
-          LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS: ${{ matrix.atomic-transactions }}
         run: |
           source ./scripts/devenv.sh          
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"

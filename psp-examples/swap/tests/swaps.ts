@@ -69,10 +69,6 @@ const createTestUser = async (
 describe("Test swaps", () => {
   process.env.ANCHOR_PROVIDER_URL = RPC_URL;
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  // Enable atomic transactions if they weren't explicitly disabled.
-  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "false") {
-    process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
-  }
 
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.local(RPC_URL, confirmConfig);
