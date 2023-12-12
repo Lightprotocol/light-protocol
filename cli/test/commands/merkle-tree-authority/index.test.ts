@@ -39,7 +39,7 @@ describe("Merkle Tree Authority", () => {
     .it("Get Merkle Tree Authority", ({ stdout }) => {
       expect(stdout).to.contain("1");
     });
-  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+  if (noAtomicMerkleTreeUpdates()) {
     test
       .stdout()
       .command(["merkle-tree-authority:lock", "100"])

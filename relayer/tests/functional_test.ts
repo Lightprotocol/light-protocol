@@ -174,7 +174,7 @@ describe("API tests", () => {
       });
   });
 
-  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
+  if (noAtomicMerkleTreeUpdates()) {
     it("Should fail to update Merkle tree with InvalidNumberOfLeaves", (done: any) => {
       chai
         .request(server)

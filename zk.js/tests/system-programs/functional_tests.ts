@@ -41,6 +41,7 @@ import {
   createSystemProofInputs,
   createSolanaInstructions,
   getSolanaRemainingAccounts,
+  noAtomicMerkleTreeUpdates
 } from "../../src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -291,10 +292,7 @@ describe("verifier_program", () => {
       ACCOUNT,
     );
 
-    if (
-      process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS != "true" &&
-      updateMerkleTree
-    ) {
+    if (noAtomicMerkleTreeUpdates() && updateMerkleTree) {
       await lightProvider.relayer.updateMerkleTree(lightProvider);
     }
   };
