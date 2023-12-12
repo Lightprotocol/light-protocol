@@ -1,5 +1,6 @@
 import { expect, test } from "@oclif/test";
-import { initTestEnv, killTestValidator } from "../../../src/utils/initTestEnv";
+import { initTestEnv, killTestValidator } from "../../../src";
+import { noAtomicMerkleTreeUpdates } from "@lightprotocol/zk.js";
 
 describe("Merkle Tree Authority", () => {
   before(async () => {
