@@ -29,7 +29,6 @@ import {
   useWallet,
   RELAYER_FEE,
   BN_1,
-  noAtomicMerkleTreeUpdates,
 } from "../../src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
@@ -41,7 +40,6 @@ describe("Test User", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const anchorProvider = AnchorProvider.local(
     "http://127.0.0.1:8899",
@@ -197,98 +195,6 @@ describe("Test User", () => {
     await testStateValidator.checkSolShielded();
   });
 
-  if (noAtomicMerkleTreeUpdates()) {
-    it("(user class) confirm options SPL", async () => {
-      const userSeed = bs58.encode(new Uint8Array(32).fill(3));
-      await airdropShieldedSol({ provider, amount: 10, seed: userSeed });
-      const testInputs = {
-        amountSpl: 15,
-        token: "USDC",
-        type: Action.SHIELD,
-        expectedUtxoHistoryLength: 1,
-        recipientSeed: userSeed,
-      };
-      const user: User = await User.init({ provider, seed: userSeed });
-
-      const testStateValidator = new UserTestAssertHelper({
-        userSender: user,
-        userRecipient: user,
-        provider,
-        testInputs,
-      });
-
-      await testStateValidator.fetchAndSaveState();
-
-      await user.shield({
-        publicAmountSpl: testInputs.amountSpl,
-        token: testInputs.token,
-        confirmOptions: ConfirmOptions.finalized,
-      });
-
-      await testStateValidator.checkCommittedBalanceSpl();
-
-      const recipientSeed = bs58.encode(new Uint8Array(32).fill(8));
-      const recipientUser: User = await User.init({
-        provider,
-        seed: recipientSeed,
-      });
-
-      const testInputsTransfer = {
-        amountSpl: 1,
-        token: "USDC",
-        type: Action.TRANSFER,
-        expectedUtxoHistoryLength: 1,
-        expectedRecipientUtxoLength: 1,
-        recipientSeed,
-      };
-
-      const testStateValidatorTransfer = new UserTestAssertHelper({
-        userSender: user,
-        userRecipient: recipientUser,
-        provider,
-        testInputs: testInputsTransfer,
-      });
-      await testStateValidatorTransfer.fetchAndSaveState();
-
-      await user.getBalance();
-      await user.transfer({
-        amountSpl: testInputsTransfer.amountSpl,
-        token: testInputsTransfer.token,
-        confirmOptions: ConfirmOptions.finalized,
-        recipient: recipientUser.account.getPublicKey(),
-      });
-
-      await testStateValidatorTransfer.checkCommittedBalanceSpl();
-
-      const recipient = SolanaKeypair.generate();
-
-      const testInputsUnshield = {
-        amountSpl: 0.5,
-        token: "USDC",
-        type: Action.UNSHIELD,
-        expectedUtxoHistoryLength: 2,
-        recipientSeed: userSeed,
-        recipient: recipient.publicKey,
-      };
-
-      const testStateValidatorUnshield = new UserTestAssertHelper({
-        userSender: user,
-        userRecipient: user,
-        provider,
-        testInputs: testInputsUnshield,
-      });
-      await testStateValidatorUnshield.fetchAndSaveState();
-
-      await user.getBalance();
-      await user.unshield({
-        publicAmountSpl: testInputsUnshield.amountSpl,
-        token: testInputsUnshield.token,
-        confirmOptions: ConfirmOptions.finalized,
-        recipient: recipient.publicKey,
-      });
-      await testStateValidatorUnshield.checkCommittedBalanceSpl();
-    });
-  }
   it("(user class) unshield SPL", async () => {
     const solRecipient = SolanaKeypair.generate();
 
@@ -423,7 +329,6 @@ describe("Test User Errors", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const providerAnchor = AnchorProvider.local(
     "http://127.0.0.1:8899",

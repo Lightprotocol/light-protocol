@@ -19,7 +19,6 @@ import {
   DEFAULT_MERKLE_TREE_LOCK_DURATION,
   DEFAULT_PROGRAMS,
   merkleTreeProgramId,
-  noAtomicMerkleTreeUpdates,
 } from "../index";
 
 const token = require("@solana/spl-token");
@@ -134,11 +133,6 @@ export class MerkleTreeConfig {
       transactionMerkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
     );
-    if (noAtomicMerkleTreeUpdates()) {
-      assert(
-        transactionMerkleTreeAccountInfo.lockDuration.eq(new anchor.BN(50)),
-      );
-    }
     assert(
       transactionMerkleTreeAccountInfo.newest == 1,
       "new Merkle Tree is not marked as the newest",

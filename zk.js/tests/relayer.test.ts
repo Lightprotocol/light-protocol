@@ -15,7 +15,6 @@ import {
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
 const mockKeypair = SolanaKeypair.generate();
 const mockKeypair1 = SolanaKeypair.generate();

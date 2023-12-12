@@ -5,7 +5,6 @@ import {
   createTestAccounts,
   initLookUpTableFromFile,
   sleep,
-  noAtomicMerkleTreeUpdates,
 } from "@lightprotocol/zk.js";
 import {
   setAnchorProvider,
@@ -209,9 +208,10 @@ export async function getSolanaArgs({
   }
   const accountsRelPath = "../../accounts/";
   const accountsPath = path.resolve(__dirname, accountsRelPath);
-  const transactionMerkleTreePath = noAtomicMerkleTreeUpdates()
-    ? path.join(accountsPath, "transaction-merkle-tree")
-    : path.join(accountsPath, "transaction-merkle-tree-no-atomic-tx");
+  const transactionMerkleTreePath = path.join(
+    accountsPath,
+    "transaction-merkle-tree",
+  );
   const miscAccountsPath = path.join(accountsPath, "misc");
   if (!skipSystemAccounts) {
     solanaArgs.push("--account-dir", transactionMerkleTreePath);

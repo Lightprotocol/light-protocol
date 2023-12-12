@@ -28,7 +28,6 @@ import {
   Relayer,
   RELAYER_FEE,
   TOKEN_ACCOUNT_FEE,
-  noAtomicMerkleTreeUpdates,
 } from "@lightprotocol/zk.js";
 
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -59,10 +58,6 @@ describe("API tests", () => {
   before(async () => {
     process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
     process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-    // Enable atomic transactions if they weren't explicitly disabled.
-    if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "false") {
-      process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
-    }
     anchorProvider = AnchorProvider.local(
       "http://127.0.0.1:8899",
       confirmConfig,
@@ -173,23 +168,6 @@ describe("API tests", () => {
         done();
       });
   });
-
-  if (process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS !== "true") {
-    it("Should fail to update Merkle tree with InvalidNumberOfLeaves", (done: any) => {
-      chai
-        .request(server)
-        .post("/updatemerkletree")
-        .end((_err, res) => {
-          expect(res).to.have.status(500);
-          // TODO: fix error propagation
-          // assert.isTrue(
-          // res.body.message.includes("Error Message: InvalidNumberOfLeaves."),
-          // );
-          expect(res.body.status).to.be.equal("error");
-          done();
-        });
-    });
-  }
 
   it("should shield", async () => {
     let testInputs = {
@@ -318,25 +296,6 @@ describe("API tests", () => {
     await waitForBalanceUpdate(userTestAssertHelper, user);
     await userTestAssertHelper.checkSolUnshielded();
   });
-
-  if (noAtomicMerkleTreeUpdates()) {
-    it("Should fail to update Merkle tree", (done: any) => {
-      chai
-        .request(server)
-        .get("/updatemerkletree")
-        .end((_err, res) => {
-          const error = res.error;
-          assert.isNotFalse(error);
-          if (error !== false) {
-            assert.isTrue(
-              error.message.includes("cannot GET /updatemerkletree (404)"),
-            );
-          }
-          expect(res).to.have.status(404);
-          done();
-        });
-    });
-  }
 
   it("Should return lookup table data", (done: any) => {
     chai

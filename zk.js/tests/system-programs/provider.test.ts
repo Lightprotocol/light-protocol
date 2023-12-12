@@ -40,7 +40,6 @@ describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const provider = AnchorProvider.local("http://127.0.0.1:8899", confirmConfig);
   setProvider(provider);
@@ -167,21 +166,7 @@ describe("verifier_program", () => {
     } catch (e) {
       console.log(e);
     }
-    // TODO: add random amount and amount checks
-    try {
-      console.log("updating merkle tree...");
-      const initLog = console.log;
-      console.log = () => {};
-      await lightProvider.relayer.updateMerkleTree(
-        lightProvider,
-        // provider.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
         shieldUtxo1.getCommitment(HASHER),

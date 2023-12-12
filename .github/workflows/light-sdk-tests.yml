@@ -26,16 +26,11 @@ jobs:
       matrix:
         include:
           - name: sdk-tests-light-relayer-cli
-            atomic-transactions: true
             sub-tests: '[
               "@lightprotocol/cli:test",
               "@lightprotocol/prover.js:test"
             ]'
-          - name: sdk-tests-cli-no-atomic-tx
-            atomic-transactions: false
-            sub-tests: '["@lightprotocol/cli:test-cli"]'
           - name: circuit-tests
-            atomic-transactions: true
             sub-tests: '[
               "@lightprotocol/circuit-lib.js:test",
               "@lightprotocol/circuit-lib.circom:test",
@@ -56,16 +51,12 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-        with:
-          atomic-transactions: ${{ matrix.atomic-transactions }}
 
       - name: Install Playwright Browsers
         shell: bash
         run: npx playwright install --with-deps
 
       - name: ${{ matrix.name }}
-        env:
-          LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS: ${{ matrix.atomic-transactions }}
         run: |
           source ./scripts/devenv.sh
 

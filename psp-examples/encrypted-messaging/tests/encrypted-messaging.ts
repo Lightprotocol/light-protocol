@@ -61,7 +61,6 @@ describe("Test foobar", () => {
 function setupAnchor(): anchor.AnchorProvider {
   process.env.ANCHOR_PROVIDER_URL = RPC_URL;
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
 
   const provider = anchor.AnchorProvider.local(RPC_URL, confirmConfig);
   anchor.setProvider(provider);

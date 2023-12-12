@@ -52,7 +52,6 @@ import {
   UtxoError,
   UtxoErrorCode,
   Result,
-  noAtomicMerkleTreeUpdates,
   createSystemProofInputs,
   getSystemProof,
   createSolanaInstructions,
@@ -1023,25 +1022,7 @@ export class User {
     // we send an array of instructions to the relayer and the relayer sends 3 transaction
     const txHash = await this.sendTransaction();
 
-    let relayerMerkleTreeUpdateResponse = "success";
-
-    if (noAtomicMerkleTreeUpdates()) {
-      relayerMerkleTreeUpdateResponse = "notPinged";
-
-      if (confirmOptions === ConfirmOptions.finalized) {
-        // Don't add await here, because the utxos have been spent the transaction is final.
-        // We just want to ping the relayer to update the Merkle tree not wait for the update.
-        // This option should be used to speed up transactions when we do not expect a following
-        // transaction which depends on the newly created utxos.
-        this.provider.relayer.updateMerkleTree(this.provider);
-        relayerMerkleTreeUpdateResponse = "pinged relayer";
-      }
-
-      if (confirmOptions === ConfirmOptions.spendable) {
-        await this.provider.relayer.updateMerkleTree(this.provider);
-        relayerMerkleTreeUpdateResponse = "success";
-      }
-    }
+    const relayerMerkleTreeUpdateResponse = "success";
 
     await this.getBalance();
 

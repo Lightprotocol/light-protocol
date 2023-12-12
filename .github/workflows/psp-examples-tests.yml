@@ -26,28 +26,20 @@ jobs:
       matrix:
         include:
           - name: psp-examples-projects
-            atomic-transactions: true
             sub-tests: '[
               "@lightprotocol/encrypted-messaging:test",
               "@lightprotocol/private-payments:test",
               "@lightprotocol/streaming-payments:test",
               "@lightprotocol/swap:test"
             ]'
-          - name: psp-examples-projects-no-atomic-tx
-            atomic-transactions: false
-            sub-tests: '["@lightprotocol/swap:test"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-        with:
-          atomic-transactions: ${{ matrix.atomic-transactions }}
 
       - name: ${{ matrix.name }}
-        env:
-          LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS: ${{ matrix.atomic-transactions }}
         run: |
           source ./scripts/devenv.sh
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
