@@ -6,7 +6,6 @@ import {
 } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 const token = require("@solana/spl-token");
-const circomlibjs = require("circomlibjs");
 
 // TODO: add and use namespaces in SDK
 import {
@@ -18,7 +17,6 @@ import {
   MINT,
   Provider,
   AUTHORITY_ONE,
-  USER_TOKEN_ACCOUNT,
   createTestAccounts,
   userTokenAccount,
   recipientTokenAccount,
@@ -37,7 +35,6 @@ import {
   MerkleTreeConfig,
   RELAYER_FEE,
   BN_0,
-  lightPsp2in2outId,
   airdropSplToAssociatedTokenAccount,
   SolanaTransactionInputs,
   getSystemProof,
@@ -45,11 +42,11 @@ import {
   createSolanaInstructions,
   getSolanaRemainingAccounts,
 } from "../../src";
-
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
-let POSEIDON: any;
+let HASHER: Hasher;
 let RELAYER: TestRelayer;
 let ACCOUNT: Account;
 
@@ -72,10 +69,10 @@ describe("verifier_program", () => {
   before("init test setup Merkle tree lookup table etc", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    HASHER = await WasmHasher.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     ACCOUNT = new Account({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       seed,
     });
 
@@ -157,7 +154,7 @@ describe("verifier_program", () => {
     await performUnshield({
       outputUtxos: [
         new Utxo({
-          poseidon: POSEIDON,
+          hasher: HASHER,
           publicKey: inputUtxos[0].publicKey,
           assets: inputUtxos[0].assets,
           amounts: [BN_0, inputUtxos[0].amounts[1]],
@@ -222,7 +219,7 @@ describe("verifier_program", () => {
 
     const shieldUtxo1 = spl
       ? new Utxo({
-          poseidon: POSEIDON,
+          hasher: HASHER,
           assets: [FEE_ASSET, MINT],
           amounts: [
             new anchor.BN(shieldFeeAmount),
@@ -232,7 +229,7 @@ describe("verifier_program", () => {
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         })
       : new Utxo({
-          poseidon: POSEIDON,
+          hasher: HASHER,
           amounts: [new anchor.BN(shieldFeeAmount)],
           publicKey: ACCOUNT.pubkey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -247,11 +244,11 @@ describe("verifier_program", () => {
       senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
-      poseidon: POSEIDON,
-      verifierIdl,
+      hasher: HASHER,
+      verifierIdl: verifierIdl,
       account: ACCOUNT,
     });
-    await txParams.getTxIntegrityHash(POSEIDON);
+    await txParams.getTxIntegrityHash(HASHER);
     const transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
@@ -261,7 +258,7 @@ describe("verifier_program", () => {
     const systemProofInputs = createSystemProofInputs({
       transaction: txParams,
       solMerkleTree: lightProvider.solMerkleTree!,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       account: ACCOUNT,
     });
     const systemProof = await getSystemProof({
@@ -350,11 +347,11 @@ describe("verifier_program", () => {
       recipientSol: origin.publicKey,
       relayer: RELAYER,
       action: Action.UNSHIELD,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       verifierIdl: verifierIdl,
       account: ACCOUNT,
     });
-    await txParams.getTxIntegrityHash(POSEIDON);
+    await txParams.getTxIntegrityHash(HASHER);
     const transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
@@ -364,7 +361,7 @@ describe("verifier_program", () => {
     const systemProofInputs = createSystemProofInputs({
       transaction: txParams,
       solMerkleTree: lightProvider.solMerkleTree!,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       account: ACCOUNT,
     });
     const systemProof = await getSystemProof({

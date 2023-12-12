@@ -12,6 +12,7 @@
     "circomlibjs": "^0.1.7",
     "@lightprotocol/circuit-lib.circom": "{{circuit-lib-circom-version}}",
     "@lightprotocol/zk.js": "{{zk-js-version}}",
+    "@lightprotocol/account.rs": "{{account-rs-version}}",
     "@lightprotocol/prover.js": "{{prover-js-version}}",
     "@lightprotocol/circuit-lib.circom": "{{circuit-lib-circom-version}}"
   },

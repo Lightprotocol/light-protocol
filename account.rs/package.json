@@ -1,0 +1,70 @@
+{
+  "name": "@lightprotocol/account.rs",
+  "version": "0.1.0",
+  "description": "",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/browser-fat/umd/index_browser_fat.js",
+  "module": "./dist/browser-fat/es/index_browser_fat.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/main/index_browser_fat.d.ts",
+      "import": "./dist/browser-fat/es/index_browser_fat.js",
+      "default": "./dist/browser-fat/cjs/index_browser_fat.cjs"
+    },
+    "./slim": {
+      "types": "./dist/types/main/index_browser_slim.d.ts",
+      "import": "./dist/browser-slim/es/index_browser_slim.js",
+      "default": "./dist/browser-slim/cjs/index_browser_slim.cjs"
+    },
+    "./sisd.wasm": "./dist/account_wasm_bg.wasm",
+    "./simd.wasm": "./dist/account_wasm_simd_bg.wasm",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/types/main/index_browser_fat.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build:wasm": "wasm-pack build -t web --out-dir ../main/wasm src/wasm",
+    "build:wasm-simd": "RUSTFLAGS='-C target-feature=+simd128' npm run build:wasm-simd-ci",
+    "build:wasm-simd-ci": "wasm-pack build -t web --out-name account_wasm_simd --out-dir ../main/wasm-simd src/wasm",
+    "build:bundle": "rollup -c --bundleConfigAsCjs",
+    "build": "rm -rf dist/ && pnpm build:wasm && pnpm build:wasm-simd && pnpm build:bundle",
+    "test": "pnpm test:native",
+    "test:types": "tsc",
+    "test:native": "vitest run --config vitest.node.config.ts --dir tests",
+    "test:browser": "vitest run --config vitest.config.ts --browser.name=firefox --browser.provider=playwright --browser.headless --dir tests",
+    "test-wasm": "cd zk-rs && cargo test -- --nocapture",
+    "bench-blake": "node_modules/.bin/tsx ./benches/blake.test.ts",
+    "bench-poseidon": "node_modules/.bin/tsx ./benches/poseidon.test.ts",
+    "bench": "pnpm run bench-blake && pnpm run bench-poseidon"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "0.28.0",
+    "@lightprotocol/tsconfig": "workspace:*",
+    "@noble/hashes": "^1.3.2",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@rollup/plugin-wasm": "^6.2.2",
+    "@types/chai": "^4.3.9",
+    "@types/mocha": "^10.0.3",
+    "@vitest/browser": "^0.34.6",
+    "chai": "^4.3.10",
+    "chai-as-promised": "^7.1.1",
+    "circomlibjs": "^0.1.7",
+    "ffjavascript": "^0.2.62",
+    "mocha": "^10.2.0",
+    "playwright": "^1.40.1",
+    "rollup": "^4.6.1",
+    "tinybench": "^2.5.1",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1",
+    "tsx": "^4.1.2",
+    "tweetnacl": "^1.0.3",
+    "vite-plugin-env-compatible": "^1.1.1",
+    "vitest": "^0.34.6"
+  }
+}

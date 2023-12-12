@@ -24,7 +24,7 @@ export const buildMerkleTree = async (_req: any, res: any) => {
 
     const mt = await SolMerkleTree.build({
       pubkey: transactionMerkleTreePda,
-      poseidon: provider.poseidon,
+      hasher: provider.hasher,
       indexedTransactions,
       provider: provider.provider,
     });

@@ -6,7 +6,7 @@ const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-const circomlibjs = require("circomlibjs");
+
 import {
   ADMIN_AUTH_KEYPAIR,
   Provider,
@@ -31,11 +31,11 @@ import {
   BN_1,
   noAtomicMerkleTreeUpdates,
 } from "../../src";
-
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { expect } from "chai";
 
-let POSEIDON: any, RELAYER: TestRelayer, provider: Provider, user: User;
+let HASHER: Hasher, RELAYER: TestRelayer, provider: Provider, user: User;
 
 describe("Test User", () => {
   // Configure the client to use the local cluster.
@@ -52,7 +52,7 @@ describe("Test User", () => {
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    HASHER = await WasmHasher.getInstance();
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     await anchorProvider.connection.requestAirdrop(
@@ -136,9 +136,9 @@ describe("Test User", () => {
       provider: providerInternalSeed,
     });
 
-    const externalKey = await userExternal.account.getPublicKey();
-    const externalKey2 = await userExternal2.account.getPublicKey();
-    const internalKey = await userInternal.account.getPublicKey();
+    const externalKey = userExternal.account.getPublicKey();
+    const externalKey2 = userExternal2.account.getPublicKey();
+    const internalKey = userInternal.account.getPublicKey();
 
     expect(externalKey).to.deep.equal(internalKey);
     expect(externalKey2).to.not.deep.equal(internalKey);
@@ -332,7 +332,7 @@ describe("Test User", () => {
     };
 
     const recipientAccount = new Account({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       seed: testInputs.recipientSeed,
     });
 
@@ -439,7 +439,7 @@ describe("Test User Errors", () => {
       await createTestAccounts(providerAnchor.connection);
     }
 
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    HASHER = await WasmHasher.getInstance();
     amount = 20;
     token = "USDC";
 
@@ -563,7 +563,7 @@ describe("Test User Errors", () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({
-        recipient: new Account({ poseidon: POSEIDON }).getPublicKey(),
+        recipient: new Account({ hasher: HASHER }).getPublicKey(),
         amountSol: BN_1,
         token: "SPL",
       }),
@@ -583,7 +583,7 @@ describe("Test User Errors", () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({
-        recipient: new Account({ poseidon: POSEIDON }).getPublicKey(),
+        recipient: new Account({ hasher: HASHER }).getPublicKey(),
       }),
       UserErrorCode.NO_AMOUNTS_PROVIDED,
     );

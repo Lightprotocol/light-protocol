@@ -1,3 +1,5 @@
+*.tgz
+
 /test-ledger/
 # CLI
 /cli/node_modules/
@@ -68,7 +70,5 @@ psp-examples/tmp-test-circom
 qodana.yaml
 
 node_modules
-
-**/target/
 
 **/.pnpm-store/

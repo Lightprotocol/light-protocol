@@ -32,6 +32,10 @@ prompt = "circuit-lib.circom version"
 type = "string"
 prompt = "Prover js version"
 
+[placeholders.account-rs-version]
+type = "string"
+prompt = "account.rs version"
+
 [placeholders.zk-js-version]
 type = "string"
 prompt = "zk js version"

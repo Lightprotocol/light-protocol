@@ -4,6 +4,7 @@ packages:
   - "prover.js/**"
   - "circuit-lib/**"
   - "zk.js/**"
+  - "account.rs/**"
   - "cli/**"
   - "relayer/**"
   - "psp-examples/**"

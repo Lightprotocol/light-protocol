@@ -29,7 +29,7 @@ describe("Test Provider Functional", () => {
       ADMIN_AUTH_KEYPAIR.publicKey.toBase58(),
     );
     assert.equal(lightProviderMock.url, "mock");
-    assert(lightProviderMock.poseidon);
+    assert(lightProviderMock.hasher);
     assert(lightProviderMock.lookUpTables.versionedTransactionLookupTable);
     assert.equal(
       lightProviderMock.solMerkleTree?.pubkey.toBase58(),

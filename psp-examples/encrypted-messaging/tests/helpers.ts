@@ -6,9 +6,7 @@ import {
   User,
 } from "@lightprotocol/zk.js";
 import nacl from "tweetnacl";
-
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
-
 export class MessageClient {
   constructor(public user: User) {}
 

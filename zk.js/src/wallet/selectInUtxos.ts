@@ -12,7 +12,7 @@ import {
   TOKEN_REGISTRY,
   BN_0,
 } from "../index";
-
+import { Hasher } from "@lightprotocol/account.rs";
 // TODO: turn these into static user.class methods
 export const getAmount = (u: Utxo, asset: PublicKey) => {
   return u.amounts[u.assets.indexOf(asset)];
@@ -118,7 +118,7 @@ export function selectInUtxos({
   publicMint,
   publicAmountSpl,
   publicAmountSol,
-  poseidon,
+  hasher,
   relayerFee,
   inUtxos,
   outUtxos = [],
@@ -129,7 +129,7 @@ export function selectInUtxos({
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
-  poseidon: any;
+  hasher: Hasher;
   relayerFee?: BN;
   utxos?: Utxo[];
   inUtxos?: Utxo[];
@@ -211,7 +211,7 @@ export function selectInUtxos({
   }
 
   // if mint is provided filter for only utxos that contain the mint
-  let filteredUtxos: Utxo[] = [];
+  let filteredUtxos: Utxo[];
   let sumOutSpl = publicAmountSpl ? publicAmountSpl : BN_0;
   let sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
   if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
@@ -260,8 +260,8 @@ export function selectInUtxos({
         // exclude the utxo which is already selected and utxos which hold other assets than only sol
         const reFilteredUtxos = utxos.filter(
           (utxo) =>
-            utxo.getCommitment(poseidon) !=
-              selectedUtxosR[0].getCommitment(poseidon) &&
+            utxo.getCommitment(hasher) !=
+              selectedUtxosR[0].getCommitment(hasher) &&
             utxo.assets[1].toBase58() === SystemProgram.programId.toBase58(),
         );
 
@@ -275,8 +275,8 @@ export function selectInUtxos({
 
         // if a sol utxo was found replace small spl utxo
         if (
-          (selectedUtxo1.length !== 0,
-          selectedUtxosR.length == numberMaxInUtxos)
+          selectedUtxo1.length !== 0 &&
+          selectedUtxosR.length === numberMaxInUtxos
         ) {
           // overwrite existing utxo
           selectedUtxosR[1] = selectedUtxo1[0];

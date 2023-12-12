@@ -21,11 +21,11 @@ import {
   Provider,
   sendAndConfirmShieldedTransaction,
   ConfirmOptions,
+  hashAndTruncateToCircuit,
 } from "@lightprotocol/zk.js";
 
 import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
-
-import { buildPoseidonOpt } from "circomlibjs";
+import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/swaps";
 const path = require("path");
@@ -35,7 +35,7 @@ const verifierProgramId = new PublicKey(
 );
 import { assert } from "chai";
 
-let POSEIDON: any, RELAYER: TestRelayer;
+let HASHER: Hasher, RELAYER: TestRelayer;
 const RPC_URL = "http://127.0.0.1:8899";
 
 const createTestUser = async (
@@ -79,7 +79,7 @@ describe("Test swaps", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    HASHER = await WasmHasher.getInstance();
     const relayerWallet = Keypair.generate();
     await airdropSol({
       connection: provider.connection,
@@ -105,7 +105,7 @@ describe("Test swaps", () => {
      * 4. recipient generates
      */
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
-    const buyerUser: User = await createTestUser(provider.connection, 110e9, 5);
+    const buyerUser: User = await createTestUser(provider.connection, 10e9, 5);
     console.log(
       "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
       new BN(sellerUser.account.encryptionKeypair.publicKey),
@@ -113,7 +113,7 @@ describe("Test swaps", () => {
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
     let offerUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
@@ -123,7 +123,7 @@ describe("Test swaps", () => {
         priceSpl: new BN(0),
         splAsset: new BN(0),
         recipient: sellerUser.account.pubkey,
-        recipientEncryptionPublicKey: new BN(
+        recipientEncryptionPublicKey: hashAndTruncateToCircuit(
           sellerUser.account.encryptionKeypair.publicKey,
         ),
         // blinding: new BN(0),
@@ -151,7 +151,7 @@ describe("Test swaps", () => {
     // TODO: I need a standard public key flag
     fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     offerUtxo.index = fetchedOfferUtxo.index;
-    Utxo.equal(POSEIDON, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
+    Utxo.equal(HASHER, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
 
     console.log(
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
@@ -162,11 +162,13 @@ describe("Test swaps", () => {
 
     // TODO: throw error if the pubkey is not mine and there is no encryption key specified
     const offerRewardUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       publicKey: fetchedOfferUtxo.appData.recipient,
-      encryptionPublicKey: Uint8Array.from(
-        fetchedOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
-      ),
+      encryptionPublicKey: sellerUser.account.encryptionKeypair.publicKey,
+      // TODO: Make this utxo works with:
+      // Uint8Array.from(
+      //   fetchedOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
+      // ),
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
       amounts: [new BN(2e9)],
       assets: [SystemProgram.programId],
@@ -181,10 +183,9 @@ describe("Test swaps", () => {
       offerRewardUtxo.blinding.toString(),
     );
     const tradeOutputUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
-
       amounts: [new BN(1e9)],
       assets: [SystemProgram.programId],
     });
@@ -195,7 +196,7 @@ describe("Test swaps", () => {
 
     // TODO: add function to create change utxo
     const changeUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
       amounts: [changeAmountSol],
@@ -228,7 +229,7 @@ describe("Test swaps", () => {
       ),
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
       action: Action.TRANSFER,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       relayer: RELAYER,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account: buyerUser.account,
@@ -238,7 +239,7 @@ describe("Test swaps", () => {
       ),
     });
 
-    await txParams.getTxIntegrityHash(POSEIDON);
+    await txParams.getTxIntegrityHash(HASHER);
 
     /**
      * Proves PSP logic
@@ -246,7 +247,7 @@ describe("Test swaps", () => {
      */
 
     const proofInputs = createProofInputs({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       transaction: txParams,
       pspTransaction: pspTransactionInput,
       account: buyerUser.account,
@@ -300,9 +301,9 @@ describe("Test swaps", () => {
 
     await buyerUser.getBalance();
     // check that the utxos are part of the users balance now
-    assert(buyerUser.getUtxo(changeUtxo.getCommitment(POSEIDON)) !== undefined);
+    assert(buyerUser.getUtxo(changeUtxo.getCommitment(HASHER)) !== undefined);
     assert(
-      buyerUser.getUtxo(tradeOutputUtxo.getCommitment(POSEIDON)) !== undefined,
+      buyerUser.getUtxo(tradeOutputUtxo.getCommitment(HASHER)) !== undefined,
     );
     let sellerUtxoInbox = await sellerUser.getUtxoInbox();
     console.log("seller utxo inbox ", sellerUtxoInbox);
@@ -318,13 +319,13 @@ describe("Test swaps", () => {
      * 2. seller user creates offer
      *    - creates utxo
      *    - encrypts it to the buyer
-     *    - stores the encrypted utxo onchain in a compressed account
+     *    - stores the encrypted utxo on-chain in a compressed account
      * 3. recipient decrypts offer
-     * 4. recipient generates counter offer
+     * 4. recipient generates counter-offer
      *    - creates utxo
      *    - encrypts it to the seller
-     *    - stores the encrypted utxo onchain in a compressed account
-     * 5. seller decrypts counter offer
+     *    - stores the encrypted utxo on-chain in a compressed account
+     * 5. seller decrypts counter-offer
      * 6. seller generates swap proof and settles the swap
      */
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
@@ -336,7 +337,7 @@ describe("Test swaps", () => {
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
     let offerUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
@@ -346,7 +347,7 @@ describe("Test swaps", () => {
         priceSpl: new BN(0),
         splAsset: new BN(0),
         recipient: sellerUser.account.pubkey,
-        recipientEncryptionPublicKey: new BN(
+        recipientEncryptionPublicKey: hashAndTruncateToCircuit(
           sellerUser.account.encryptionKeypair.publicKey,
         ),
         // blinding: new BN(0),
@@ -374,7 +375,7 @@ describe("Test swaps", () => {
     // TODO: I need a standard public key flag
     fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     offerUtxo.index = fetchedOfferUtxo.index;
-    Utxo.equal(POSEIDON, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
+    Utxo.equal(HASHER, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
 
     console.log(
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
@@ -385,7 +386,7 @@ describe("Test swaps", () => {
      */
 
     let counterOfferUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       encryptionPublicKey: sellerUser.account.encryptionKeypair.publicKey,
@@ -395,7 +396,7 @@ describe("Test swaps", () => {
         priceSpl: new BN(0),
         splAsset: new BN(0),
         recipient: buyerUser.account.pubkey,
-        recipientEncryptionPublicKey: new BN(
+        recipientEncryptionPublicKey: hashAndTruncateToCircuit(
           buyerUser.account.encryptionKeypair.publicKey,
         ),
       },
@@ -422,7 +423,7 @@ describe("Test swaps", () => {
     // TODO: I need a standard public key flag
     fetchedCounterOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     counterOfferUtxo.index = fetchedCounterOfferUtxo.index;
-    Utxo.equal(POSEIDON, counterOfferUtxo, fetchedCounterOfferUtxo);
+    Utxo.equal(HASHER, counterOfferUtxo, fetchedCounterOfferUtxo);
     console.log(
       `Successfully fetched and decrypted counter offer: priceSol ${fetchedCounterOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedCounterOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedCounterOfferUtxo.appData.recipient.toString()}`,
     );
@@ -433,11 +434,13 @@ describe("Test swaps", () => {
 
     // TODO: throw error if the pubkey is not mine and there is no encryption key specified
     const counterOfferRewardUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       publicKey: fetchedCounterOfferUtxo.appData.recipient,
-      encryptionPublicKey: Uint8Array.from(
-        fetchedCounterOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
-      ),
+      encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
+      // TODO: Make this utxo works with:
+      //     Uint8Array.from(
+      //   fetchedCounterOfferUtxo.appData.recipientEncryptionPublicKey.toArray(),
+      // ),
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [offerUtxo.amounts[0]],
       assets: [SystemProgram.programId],
@@ -452,7 +455,7 @@ describe("Test swaps", () => {
       counterOfferRewardUtxo.blinding.toString(),
     );
     const tradeOutputUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       publicKey: sellerUser.account.pubkey,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [
@@ -508,7 +511,7 @@ describe("Test swaps", () => {
       ),
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
       action: Action.TRANSFER,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       relayer: RELAYER,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account: sellerUser.account,
@@ -518,7 +521,7 @@ describe("Test swaps", () => {
       ),
     });
 
-    await txParams.getTxIntegrityHash(POSEIDON);
+    await txParams.getTxIntegrityHash(HASHER);
 
     /**
      * Proves PSP logic
@@ -526,7 +529,7 @@ describe("Test swaps", () => {
      */
 
     const proofInputs = createProofInputs({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       transaction: txParams,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
@@ -581,7 +584,7 @@ describe("Test swaps", () => {
     let sellerBalance = await sellerUser.getBalance();
     // check that the utxos are part of the users balance now
     assert(
-      sellerUser.getUtxo(tradeOutputUtxo.getCommitment(POSEIDON)) !== undefined,
+      sellerUser.getUtxo(tradeOutputUtxo.getCommitment(HASHER)) !== undefined,
     );
     assert.equal(
       sellerBalance.totalSolBalance.toNumber(),
@@ -615,7 +618,7 @@ describe("Test swaps", () => {
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
     let offerUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       encryptionPublicKey: sellerUser.account.encryptionKeypair.publicKey,
@@ -625,7 +628,7 @@ describe("Test swaps", () => {
         priceSpl: new BN(0),
         splAsset: new BN(0),
         recipient: sellerUser.account.pubkey,
-        recipientEncryptionPublicKey: new BN(
+        recipientEncryptionPublicKey: hashAndTruncateToCircuit(
           sellerUser.account.encryptionKeypair.publicKey,
         ),
       },
@@ -652,7 +655,7 @@ describe("Test swaps", () => {
     // TODO: I need a standard public key flag
     fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     offerUtxo.index = fetchedOfferUtxo.index;
-    Utxo.equal(POSEIDON, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
+    Utxo.equal(HASHER, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
 
     console.log(
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
@@ -660,7 +663,7 @@ describe("Test swaps", () => {
     const circuitPath = path.join("build-circuit/swaps/swaps");
 
     const cancelOutputUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [
@@ -670,7 +673,7 @@ describe("Test swaps", () => {
     });
 
     const emptySignerUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       publicKey: sellerUser.account.pubkey,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [BN_0],
@@ -704,7 +707,7 @@ describe("Test swaps", () => {
       ),
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
       action: Action.TRANSFER,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       relayer: RELAYER,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account: sellerUser.account,
@@ -714,7 +717,7 @@ describe("Test swaps", () => {
       ),
     });
 
-    await txParams.getTxIntegrityHash(POSEIDON);
+    await txParams.getTxIntegrityHash(HASHER);
 
     /**
      * Proves PSP logic
@@ -722,7 +725,7 @@ describe("Test swaps", () => {
      */
 
     const proofInputs = createProofInputs({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       transaction: txParams,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
@@ -777,8 +780,7 @@ describe("Test swaps", () => {
     const balance = await sellerUser.getBalance();
     // check that the utxos are part of the users balance now
     assert(
-      sellerUser.getUtxo(cancelOutputUtxo.getCommitment(POSEIDON)) !==
-        undefined,
+      sellerUser.getUtxo(cancelOutputUtxo.getCommitment(HASHER)) !== undefined,
     );
     assert.equal(
       balance.totalSolBalance.toNumber(),

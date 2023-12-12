@@ -8,12 +8,11 @@ import {
   TOKEN_ACCOUNT_FEE,
   useWallet,
 } from "@lightprotocol/zk.js";
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import {
   EnvironmentVariableError,
   EnvironmentVariableErrorCode,
 } from "../errors";
-const circomlibjs = require("circomlibjs");
-
 require("dotenv").config();
 
 let provider: Provider;
@@ -51,7 +50,7 @@ export const getLightProvider = async () => {
 
     try {
       const anchorProvider = await getAnchorProvider();
-      const poseidon = await circomlibjs.buildPoseidonOpt();
+      const hasher: Hasher = await WasmHasher.getInstance();
 
       provider = new Provider({
         wallet: useWallet(getKeyPairFromEnv("KEY_PAIR")),
@@ -60,7 +59,7 @@ export const getLightProvider = async () => {
         url: process.env.RPC_URL!,
         versionedTransactionLookupTable: RELAYER_LOOK_UP_TABLE,
         anchorProvider,
-        poseidon,
+        hasher,
       });
     } catch (e) {
       if (e.message.includes("LOOK_UP_TABLE_NOT_INITIALIZED")) {

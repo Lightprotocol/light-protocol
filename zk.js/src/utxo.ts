@@ -4,6 +4,7 @@ import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import {
   Account,
   BN_0,
+  BN_1,
   COMPRESSED_UTXO_BYTES_LENGTH,
   createAccountObject,
   CreateUtxoErrorCode,
@@ -15,26 +16,21 @@ import {
   IDL_LIGHT_PSP2IN2OUT,
   N_ASSETS,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  UTXO_PREFIX_LENGTH,
+  TransactionParameters,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
+  UTXO_PREFIX_LENGTH,
   UtxoError,
   UtxoErrorCode,
-  TransactionParameters,
-  BN_1,
-  lightPsp2in2outId,
 } from "./index";
+import { Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Result } from "./types/result";
+import { Result } from "./types";
 
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
 const { sha3_256 } = require("@noble/hashes/sha3");
-
 const anchor = require("@coral-xyz/anchor");
-
-const ffjavascript = require("ffjavascript");
-const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const randomPrefixBytes = () => nacl.randomBytes(UTXO_PREFIX_LENGTH);
@@ -96,7 +92,7 @@ export class Utxo {
    * @param {appData} appData array of application data, is used to compute the instructionDataHash.
    */
   constructor({
-    poseidon,
+    hasher,
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
     assets = [SystemProgram.programId],
     amounts = [BN_0],
@@ -113,7 +109,7 @@ export class Utxo {
     isFillingUtxo = false,
     encryptionPublicKey,
   }: {
-    poseidon: any;
+    hasher: Hasher;
     assets?: PublicKey[];
     amounts?: BN[];
     publicKey: BN;
@@ -351,6 +347,8 @@ export class Utxo {
         hashArray.push(appData[attribute]);
       }
       hashArray = hashArray.flat();
+      hashArray = hashArray.map((val) => val.toString());
+
       if (hashArray.length > 16) {
         throw new UtxoError(
           UtxoErrorCode.INVALID_APP_DATA,
@@ -359,13 +357,11 @@ export class Utxo {
         );
       }
       this.appDataHash = new BN(
-        leInt2Buff(
-          unstringifyBigInts(poseidon.F.toString(poseidon(hashArray))),
-          32,
-        ),
+        hasher.poseidonHash(hashArray),
         undefined,
-        "le",
+        "be",
       );
+
       if (appDataHash && appDataHash.toString() !== this.appDataHash.toString())
         throw new UtxoError(
           UtxoErrorCode.INVALID_APP_DATA,
@@ -424,7 +420,7 @@ export class Utxo {
 
   /**
    * @description Parses an utxo from bytes.
-   * @param poseidon poseidon hasher instance
+   * @param hasher hasher instance
    * @param bytes byte array of a serialized utxo
    * @param account account of the utxo
    * @param appDataFromBytesFn function to parse app data from bytes
@@ -435,7 +431,7 @@ export class Utxo {
   // TODO: find a better solution to get the private key in
   // TODO: take array of idls as input and select the idl with the correct verifierIndex
   static fromBytes({
-    poseidon,
+    hasher,
     bytes,
     account,
     includeAppData = true,
@@ -443,7 +439,7 @@ export class Utxo {
     appDataIdl,
     assetLookupTable,
   }: {
-    poseidon: any;
+    hasher: Hasher;
     bytes: Buffer;
     account?: Account;
     includeAppData?: boolean;
@@ -510,7 +506,7 @@ export class Utxo {
         ? undefined
         : new Uint8Array(decodedUtxoData.accountEncryptionPublicKey),
       index,
-      poseidon,
+      hasher,
       appDataIdl,
       includeAppData,
       appData,
@@ -525,10 +521,10 @@ export class Utxo {
    * @description PoseidonHash(amountHash, shieldedPubkey, blinding, assetHash, appDataHash, poolType, verifierAddressCircuit)
    * @returns {string}
    */
-  getCommitment(poseidon: any): string {
-    const amountHash = poseidon.F.toString(poseidon(this.amounts));
-    const assetHash = poseidon.F.toString(
-      poseidon(this.assetsCircuit.map((x) => x.toString())),
+  getCommitment(hasher: Hasher): string {
+    const amountHash = hasher.poseidonHashString(this.amounts);
+    const assetHash = hasher.poseidonHashString(
+      this.assetsCircuit.map((x) => x.toString()),
     );
 
     if (!this.publicKey) {
@@ -546,19 +542,16 @@ export class Utxo {
     // console.log("assetHash ", assetHash.toString());
     // console.log("this.appDataHash ", this.appDataHash.toString());
     // console.log("this.poolType ", this.poolType.toString());
-    const commitment: string = poseidon.F.toString(
-      poseidon([
-        this.transactionVersion,
-        amountHash,
-        this.publicKey.toString(),
-        this.blinding.toString(),
-        assetHash.toString(),
-        this.appDataHash.toString(),
-        this.poolType,
-        this.verifierAddressCircuit,
-      ]),
-    );
-    this._commitment = commitment;
+    this._commitment = hasher.poseidonHashString([
+      this.transactionVersion,
+      amountHash,
+      this.publicKey.toString(),
+      this.blinding.toString(),
+      assetHash.toString(),
+      this.appDataHash.toString(),
+      this.poolType.toString(),
+      this.verifierAddressCircuit.toString(),
+    ]);
     return this._commitment;
   }
 
@@ -572,11 +565,11 @@ export class Utxo {
    * @returns {string}
    */
   getNullifier({
-    poseidon,
+    hasher,
     account,
     index,
   }: {
-    poseidon: any;
+    hasher: Hasher;
     account: Account;
     index?: number | undefined;
   }): string {
@@ -600,14 +593,14 @@ export class Utxo {
         "Account is required to compute the nullifier hash.",
       );
 
-    const signature = account.sign(
-      poseidon,
-      this.getCommitment(poseidon),
-      this.index || 0,
-    );
-    this._nullifier = poseidon.F.toString(
-      poseidon([this.getCommitment(poseidon), this.index || 0, signature]),
-    );
+    const signature = account
+      .sign(hasher, this.getCommitment(hasher), this.index || 0)
+      .toString();
+    this._nullifier = hasher.poseidonHashString([
+      this.getCommitment(hasher),
+      this.index.toString() || "0",
+      signature,
+    ]);
 
     return this._nullifier!;
   }
@@ -619,18 +612,18 @@ export class Utxo {
    * @returns {Uint8Array} with the first 24 bytes being the nonce
    */
   async encrypt({
-    poseidon,
+    hasher,
     account,
     merkleTreePdaPublicKey,
     compressed = true,
   }: {
-    poseidon: any;
+    hasher: Hasher;
     account?: Account;
     merkleTreePdaPublicKey?: PublicKey;
     compressed?: boolean;
   }): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(compressed);
-    const commitment = new BN(this.getCommitment(poseidon)).toArrayLike(
+    const commitment = new BN(this.getCommitment(hasher)).toArrayLike(
       Buffer,
       "be",
       32,
@@ -657,12 +650,13 @@ export class Utxo {
         bytes_message,
         merkleTreePdaPublicKey,
         commitment,
+        hasher,
       );
 
       // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
       // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
       const prefix = !this.isFillingUtxo
-        ? account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH)
+        ? account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH, hasher)
         : randomPrefixBytes();
       if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
       const padding = sha3_256
@@ -694,14 +688,17 @@ export class Utxo {
     account,
     commitment,
     prefixBytes,
+    hasher,
   }: {
     account: Account;
     commitment: Uint8Array;
     prefixBytes: Uint8Array;
+    hasher: Hasher;
   }): boolean {
     const generatedPrefixHash = account.generateUtxoPrefixHash(
       commitment,
       UTXO_PREFIX_LENGTH,
+      hasher,
     );
     return (
       generatedPrefixHash.length === prefixBytes.length &&
@@ -723,7 +720,7 @@ export class Utxo {
    * @returns {Utxo | null}
    */
   static async decryptUnchecked({
-    poseidon,
+    hasher,
     encBytes,
     account,
     index,
@@ -734,7 +731,7 @@ export class Utxo {
     compressed = true,
     assetLookupTable,
   }: {
-    poseidon: any;
+    hasher: Hasher;
     encBytes: Uint8Array;
     account: Account;
     index: number;
@@ -767,6 +764,7 @@ export class Utxo {
           encBytes,
           merkleTreePdaPublicKey,
           commitment,
+          hasher,
         )
       : await account.decryptNaclUtxo(encBytes, commitment);
 
@@ -776,7 +774,7 @@ export class Utxo {
 
     return Result.Ok(
       Utxo.fromBytes({
-        poseidon,
+        hasher,
         bytes,
         account,
         index,
@@ -797,7 +795,7 @@ export class Utxo {
    * @returns {Utxo | boolean }
    */
   static async decrypt({
-    poseidon,
+    hasher,
     encBytes,
     account,
     index,
@@ -808,7 +806,7 @@ export class Utxo {
     compressed = true,
     assetLookupTable,
   }: {
-    poseidon: any;
+    hasher: Hasher;
     encBytes: Uint8Array;
     account: Account;
     index: number;
@@ -824,9 +822,12 @@ export class Utxo {
 
     // If AES is enabled and the prefix of the commitment matches the account and prefixBytes,
     // try to decrypt the UTXO
-    if (aes && this.checkPrefixHash({ account, commitment, prefixBytes })) {
+    if (
+      aes &&
+      this.checkPrefixHash({ account, commitment, prefixBytes, hasher })
+    ) {
       const utxoResult = await Utxo.decryptUnchecked({
-        poseidon,
+        hasher,
         encBytes,
         account,
         index,
@@ -865,12 +866,12 @@ export class Utxo {
    */
   static fromString(
     string: string,
-    poseidon: any,
+    hasher: Hasher,
     assetLookupTable: string[],
   ): Utxo {
     return Utxo.fromBytes({
       bytes: bs58.decode(string),
-      poseidon,
+      hasher,
       assetLookupTable,
     });
   }
@@ -891,7 +892,7 @@ export class Utxo {
    * @param {Utxo} utxo1
    */
   static equal(
-    poseidon: any,
+    hasher: Hasher,
     utxo0: Utxo,
     utxo1: Utxo,
     skipNullifier: boolean = false,
@@ -966,27 +967,28 @@ export class Utxo {
     }
 
     if (
-      utxo0.getCommitment(poseidon)?.toString() !==
-      utxo1.getCommitment(poseidon)?.toString()
+      utxo0.getCommitment(hasher)?.toString() !==
+      utxo1.getCommitment(hasher)?.toString()
     ) {
       throw new Error(
         `commitment not equal: ${utxo0
-          .getCommitment(poseidon)
-          ?.toString()} vs ${utxo1.getCommitment(poseidon)?.toString()}`,
+          .getCommitment(hasher)
+          ?.toString()} vs ${utxo1.getCommitment(hasher)?.toString()}`,
       );
     }
 
     if (!skipNullifier) {
       if (utxo0.index || utxo1.index) {
         if (account0 && account1) {
-          if (
-            utxo0.getNullifier({ poseidon, account: account0 })?.toString() !==
-            utxo1.getNullifier({ poseidon, account: account1 })?.toString()
-          ) {
+          const utxo0nullifier = utxo0
+            .getNullifier({ hasher, account: account0 })
+            ?.toString();
+          const utxo1nullifier = utxo1
+            .getNullifier({ hasher, account: account1 })
+            ?.toString();
+          if (utxo0nullifier !== utxo1nullifier) {
             throw new Error(
-              `nullifier not equal: ${utxo0
-                .getNullifier(poseidon)
-                ?.toString()} vs ${utxo1.getNullifier(poseidon)?.toString()}`,
+              `nullifier not equal: ${utxo0nullifier} vs ${utxo1nullifier}`,
             );
           }
           throw new Error("Account0 or Account1 not defined");

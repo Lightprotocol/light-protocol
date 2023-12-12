@@ -16,6 +16,7 @@ import {
   hashAndTruncateToCircuit,
   Utxo,
 } from "../index";
+import { Hasher } from "@lightprotocol/account.rs";
 import { getIndices3D } from "@lightprotocol/circuit-lib.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -89,13 +90,13 @@ type compiledProofInputs = {
 // 4. compile app parameters
 // 5. compile and prove etc.
 export const createUtxoIndices = (
-  poseidon: any,
+  hasher: Hasher,
   utxos: Utxo[],
   commitHashUtxo: string,
 ) => {
   const isAppInUtxo = new Array(4).fill(new BN(0));
   for (const i in utxos) {
-    if (utxos[i].getCommitment(poseidon) === commitHashUtxo) {
+    if (utxos[i].getCommitment(hasher) === commitHashUtxo) {
       isAppInUtxo[i] = new BN(1);
     }
   }
@@ -103,7 +104,7 @@ export const createUtxoIndices = (
 };
 
 export const createPspProofInputs = (
-  poseidon: any,
+  hasher: Hasher,
   pspTransaction: PspTransactionInput,
   inputUtxos: Utxo[],
   outputUtxos: Utxo[],
@@ -118,9 +119,9 @@ export const createPspProofInputs = (
     }
 
     const isAppUtxo = createUtxoIndices(
-      poseidon,
+      hasher,
       inputUtxos,
-      utxo.getCommitment(poseidon),
+      utxo.getCommitment(hasher),
     );
     // @ts-ignore
     inUtxosInputs[`isInAppUtxo${upperCamelCase(utxoName)}`] = isAppUtxo;
@@ -147,9 +148,9 @@ export const createPspProofInputs = (
       }
 
       const isAppUtxoIndices = createUtxoIndices(
-        poseidon,
+        hasher,
         outputUtxos,
-        utxo.getCommitment(poseidon),
+        utxo.getCommitment(hasher),
       );
       // @ts-ignore
       outUtxosInputs[`isOutAppUtxo${upperCamelCase(utxoName)}`] =
@@ -208,12 +209,12 @@ export async function getSystemProof({
 export function createSystemProofInputs({
   transaction,
   solMerkleTree,
-  poseidon,
+  hasher,
   account,
 }: {
   transaction: TransactionParameters;
   solMerkleTree: SolMerkleTree;
-  poseidon: any;
+  hasher: Hasher;
   account: Account;
 }) {
   if (!solMerkleTree)
@@ -228,19 +229,19 @@ export function createSystemProofInputs({
     );
 
   const { inputMerklePathIndices, inputMerklePathElements } =
-    solMerkleTree.getMerkleProofs(poseidon, transaction.inputUtxos);
+    solMerkleTree.getMerkleProofs(hasher, transaction.inputUtxos);
   const inputNullifier = transaction.inputUtxos.map((x) => {
     let _account = account;
     if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
       _account = Account.fromPrivkey(
-        poseidon,
+        hasher,
         bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
         bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
         bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
       );
     }
     return x.getNullifier({
-      poseidon: poseidon,
+      hasher: hasher,
       account: _account,
     });
   });
@@ -256,7 +257,7 @@ export function createSystemProofInputs({
     transactionVersion: "0",
     txIntegrityHash: transaction.txIntegrityHash.toString(),
     outputCommitment: transaction.outputUtxos.map((x) =>
-      x.getCommitment(poseidon),
+      x.getCommitment(hasher),
     ),
     inAmount: transaction.inputUtxos?.map((x) => x.amounts),
     inBlinding: transaction.inputUtxos?.map((x) => x.blinding),
@@ -308,28 +309,28 @@ export function getTransactionMint(transaction: TransactionParameters) {
 export function createProofInputs({
   transaction,
   solMerkleTree,
-  poseidon,
+  hasher,
   account,
   pspTransaction,
 }: {
   pspTransaction: PspTransactionInput;
   transaction: TransactionParameters;
   solMerkleTree: SolMerkleTree;
-  poseidon: any;
+  hasher: Hasher;
   account: Account;
 }): compiledProofInputs {
   const systemProofInputs = createSystemProofInputs({
     transaction,
     solMerkleTree,
-    poseidon,
+    hasher,
     account,
   });
   const pspProofInputs = createPspProofInputs(
-    poseidon,
+    hasher,
     pspTransaction,
     transaction.inputUtxos,
     transaction.outputUtxos,
-    transaction.getTransactionHash(poseidon).toString(),
+    transaction.getTransactionHash(hasher).toString(),
   );
   return {
     ...systemProofInputs,

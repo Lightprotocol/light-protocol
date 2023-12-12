@@ -19,10 +19,10 @@
   "devDependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/zk.js": "workspace:*",
-    "@types/chai": "^4.3.6",
+    "@types/chai": "^4.3.9",
     "@types/chai-as-promised": "^7.1.6",
-    "@types/mocha": "^10.0.2",
-    "@types/node": "20.10.2",
+    "@types/mocha": "^10.0.3",
+    "@types/node": "^20.10.2",
     "@types/node-fetch": "^2.6.2",
     "chai": "^4.3.10",
     "chai-as-promised": "^7.1.1",

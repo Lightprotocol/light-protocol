@@ -1,14 +1,14 @@
 import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   LightMerkleTreeProgram,
 } from "../idls/index";
 import { assert } from "chai";
-const token = require("@solana/spl-token");
 import {
   Connection,
-  PublicKey,
   Keypair,
+  PublicKey,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 
@@ -21,7 +21,8 @@ import {
   merkleTreeProgramId,
   noAtomicMerkleTreeUpdates,
 } from "../index";
-import { Program } from "@coral-xyz/anchor";
+
+const token = require("@solana/spl-token");
 
 /// NODE ENV ONLY
 export class MerkleTreeConfig {
@@ -189,14 +190,13 @@ export class MerkleTreeConfig {
   static getTransactionMerkleTreePda(
     transactionMerkleTreeIndex: anchor.BN = new anchor.BN(0),
   ) {
-    const transactionMerkleTreePda = PublicKey.findProgramAddressSync(
+    return PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("transaction_merkle_tree"),
         transactionMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
       ],
       merkleTreeProgramId,
     )[0];
-    return transactionMerkleTreePda;
   }
 
   async getTransactionMerkleTreeAccountInfo(
@@ -214,7 +214,7 @@ export class MerkleTreeConfig {
       await this.getTransactionMerkleTreeAccountInfo(
         transactionMerkleTreePubkey,
       );
-    return transactionMerkleTreeAccountInfo.newest == 1 ? true : false;
+    return transactionMerkleTreeAccountInfo.newest == 1;
   }
 
   async getEventMerkleTreeIndex(): Promise<anchor.BN> {
@@ -224,14 +224,13 @@ export class MerkleTreeConfig {
   }
 
   static getEventMerkleTreePda(eventMerkleTreeIndex: anchor.BN = BN_0) {
-    const eventMerkleTreePda = PublicKey.findProgramAddressSync(
+    return PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("event_merkle_tree"),
         eventMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
       ],
       merkleTreeProgramId,
     )[0];
-    return eventMerkleTreePda;
   }
 
   async getEventMerkleTreeAccountInfo(eventMerkleTreePubkey: PublicKey) {
@@ -246,7 +245,7 @@ export class MerkleTreeConfig {
     const eventMerkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
       eventMerkleTreePubkey,
     );
-    return eventMerkleTreeAccountInfo.newest == 1 ? true : false;
+    return eventMerkleTreeAccountInfo.newest == 1;
   }
 
   async initMerkleTreeAuthority(
@@ -265,7 +264,7 @@ export class MerkleTreeConfig {
       eventMerkleTree = MerkleTreeConfig.getEventMerkleTreePda(BN_0);
     }
     if (this.merkleTreeAuthorityPda == undefined) {
-      await this.getMerkleTreeAuthorityPda();
+      this.getMerkleTreeAuthorityPda();
     }
 
     const tx = await this.merkleTreeProgram.methods
@@ -327,7 +326,7 @@ export class MerkleTreeConfig {
     if (!this.payer) throw new Error("Payer undefined");
 
     let merkleTreeAuthorityPrior: any = null;
-    if (test != true) {
+    if (!test) {
       merkleTreeAuthorityPrior =
         await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
           this.merkleTreeAuthorityPda!,
@@ -355,7 +354,7 @@ export class MerkleTreeConfig {
       confirmConfig,
     );
 
-    if (test != true) {
+    if (!test) {
       const merkleTreeAuthority =
         await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
           this.merkleTreeAuthorityPda!,
@@ -545,13 +544,12 @@ export class MerkleTreeConfig {
       .signers([this.payer])
       .transaction();
 
-    const txHash = await sendAndConfirmTransaction(
+    return await sendAndConfirmTransaction(
       this.connection,
       tx,
       [this.payer!],
       confirmConfig,
     );
-    return txHash;
   }
 
   async checkPoolRegistered(
@@ -667,7 +665,7 @@ export class MerkleTreeConfig {
     programId: PublicKey,
     poolType: Array<number> = new Array(32).fill(0),
   ) {
-    const pda = PublicKey.findProgramAddressSync(
+    return PublicKey.findProgramAddressSync(
       [
         mint.toBytes(),
         Buffer.from(poolType),
@@ -675,7 +673,6 @@ export class MerkleTreeConfig {
       ],
       programId,
     )[0];
-    return pda;
   }
 
   async getSplPoolPda(
