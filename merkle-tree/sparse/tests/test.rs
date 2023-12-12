@@ -1,11 +1,7 @@
 use core::mem;
 
-use light_merkle_tree::{
-    config,
-    constants::{self},
-    hasher::{Poseidon, Sha256},
-    HashFunction, MerkleTree,
-};
+use light_hasher::{Hasher, Poseidon, Sha256};
+use light_merkle_tree::{config, HashFunction, MerkleTree};
 
 mod test_config {
     use anchor_lang::prelude::*;
@@ -15,14 +11,12 @@ mod test_config {
     pub(crate) struct Sha256MerkleTreeConfig;
 
     impl config::MerkleTreeConfig for Sha256MerkleTreeConfig {
-        const ZERO_BYTES: constants::ZeroBytes = constants::sha256::ZERO_BYTES;
         const PROGRAM_ID: Pubkey = Pubkey::new_from_array([0u8; 32]);
     }
 
     pub(crate) struct PoseidonMerkleTreeConfig;
 
     impl config::MerkleTreeConfig for PoseidonMerkleTreeConfig {
-        const ZERO_BYTES: constants::ZeroBytes = constants::poseidon::ZERO_BYTES;
         const PROGRAM_ID: Pubkey = Pubkey::new_from_array([0u8; 32]);
     }
 }
@@ -38,7 +32,7 @@ fn test_sha256() {
 
     let h = merkle_tree.hash([1; 32], [1; 32]).unwrap();
     let h = merkle_tree.hash(h, h).unwrap();
-    assert_eq!(h, constants::sha256::ZERO_BYTES[0]);
+    assert_eq!(h, Sha256::zero_bytes()[0]);
 }
 
 #[test]
@@ -51,12 +45,8 @@ fn test_sha256_insert() {
     };
 
     let h1 = merkle_tree.hash([1; 32], [2; 32]).unwrap();
-    let h2 = merkle_tree
-        .hash(h1, constants::sha256::ZERO_BYTES[1])
-        .unwrap();
-    let h3 = merkle_tree
-        .hash(h2, constants::sha256::ZERO_BYTES[2])
-        .unwrap();
+    let h2 = merkle_tree.hash(h1, Sha256::zero_bytes()[1]).unwrap();
+    let h3 = merkle_tree.hash(h2, Sha256::zero_bytes()[2]).unwrap();
 
     merkle_tree.insert([1u8; 32], [2u8; 32]).unwrap();
     assert_eq!(merkle_tree.last_root(), h3);
@@ -91,7 +81,7 @@ fn test_poseidon() {
 
     let h = merkle_tree.hash([1; 32], [1; 32]).unwrap();
     let h = merkle_tree.hash(h, h).unwrap();
-    assert_eq!(h, constants::poseidon::ZERO_BYTES[0]);
+    assert_eq!(h, Poseidon::zero_bytes()[0]);
 }
 
 #[test]
@@ -104,12 +94,8 @@ fn test_poseidon_insert() {
     };
 
     let h1 = merkle_tree.hash([1; 32], [2; 32]).unwrap();
-    let h2 = merkle_tree
-        .hash(h1, constants::poseidon::ZERO_BYTES[1])
-        .unwrap();
-    let h3 = merkle_tree
-        .hash(h2, constants::poseidon::ZERO_BYTES[2])
-        .unwrap();
+    let h2 = merkle_tree.hash(h1, Poseidon::zero_bytes()[1]).unwrap();
+    let h3 = merkle_tree.hash(h2, Poseidon::zero_bytes()[2]).unwrap();
 
     merkle_tree.insert([1u8; 32], [2u8; 32]).unwrap();
     assert_eq!(merkle_tree.last_root(), h3);
