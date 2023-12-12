@@ -1,12 +1,6 @@
 {
   "name": "@lightprotocol/rock-paper-scissors",
   "version": "0.0.1",
-  "scripts": {
-    "format": "prettier --write \"tests/**/*.{ts,js}\" -w",
-    "lint": "prettier \"tests/**/*{ts,js}\" --check",
-    "test": "../../cli/test_bin/run psp:test rock-paper-scissors Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
-    "build": "../../cli/test_bin/run psp:build rock-paper-scissors"
-  },
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/circuit-lib.circom": "workspace:*",
