@@ -27,16 +27,17 @@ import {
 } from "@lightprotocol/zk.js";
 import { Prover } from "@lightprotocol/prover.js";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
+import {Hasher} from "@lightprotocol/account.rs";
 const path = require("path");
 
-const getSubTreeHash = (subTrees: BN[], poseidon: any) => {
-  const subHash0 = poseidon.F.toString(poseidon(subTrees.slice(0, 9)));
-  const subHash1 = poseidon.F.toString(poseidon(subTrees.slice(9, 18)));
-  return poseidon.F.toString(poseidon([subHash0, subHash1]));
+const getSubTreeHash = (subTrees: BN[], hasher: Hasher) => {
+  const subHash0 = hasher.poseidonHashString(subTrees.slice(0, 9));
+  const subHash1 = hasher.poseidonHashString(subTrees.slice(9, 18));
+  return hasher.poseidonHashString([subHash0, subHash1]);
 };
 
 export class PoseidonCompressedAccount {
-  poseidon: any;
+  hasher: any;
   merkleTree: MerkleTreeWithHistory;
   idl: Idl;
   pda_index: number;
@@ -48,19 +49,18 @@ export class PoseidonCompressedAccount {
   user: User;
 
   constructor(
-    poseidon: any,
+    hasher: any,
     idl: Idl,
     pda_index: number,
     user?: User,
     merkleTree?: MerkleTreeWithHistory
   ) {
-    this.poseidon = poseidon;
+    this.hasher = hasher;
     this.idl = idl;
-    pda_index = pda_index;
     this.programId = PoseidonCompressedAccount.findProgramId(idl);
     this.merkleTree = merkleTree
       ? merkleTree
-      : new MerkleTreeWithHistory(18, poseidon);
+      : new MerkleTreeWithHistory(18, hasher);
     this.pdaPublicKey = PoseidonCompressedAccount.getMerkleTreeAccountPublicKey(
       idl,
       pda_index
@@ -146,11 +146,11 @@ export class PoseidonCompressedAccount {
       sibling,
       subTreeHash: getSubTreeHash(
         subTrees.map((x) => new BN(x)),
-        this.poseidon
+        this.hasher
       ),
       newSubTreeHash: getSubTreeHash(
         this.merkleTree.filledSubtrees,
-        this.poseidon
+        this.hasher
       ),
     };
     this.prover.addProofInputs(proofInputs);
@@ -175,8 +175,7 @@ export class PoseidonCompressedAccount {
   }
 
   getProgramParameters(insertValue: string) {
-    let leafHash = this.poseidon.F.toString(this.poseidon([insertValue]));
-
+    let leafHash = this.hasher.poseidonHashString([insertValue]);
     const circuitPath = path.join("build-circuit");
 
     const programParameters: ProgramParameters = {
@@ -205,14 +204,14 @@ export class PoseidonCompressedAccount {
 
   getProofInputsInclusionProofInputs(leafInput: string, referenceValue: BN) {
     this.prover = new Prover(this.idl, "./build-circuit", "inclusionProof");
-    let leafHash = this.poseidon.F.toString(this.poseidon([leafInput]));
+    let leafHash = this.hasher.poseidonHashString([leafInput]);
     let index = this.merkleTree.leaves.findIndex(
       (_leafHash) => _leafHash.toString() === leafHash
     );
     if (index === -1) throw new Error("Leaf not found in the merkle tree");
     let fullMerkleTree = new MerkleTree(
       18,
-      this.poseidon,
+      this.hasher,
       this.merkleTree.leaves.map((x) => x.toString())
     );
     let proofInputs = {

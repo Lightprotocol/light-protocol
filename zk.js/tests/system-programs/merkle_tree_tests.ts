@@ -8,7 +8,6 @@ import {
 const solana = require("@solana/web3.js");
 import { assert } from "chai";
 const token = require("@solana/spl-token");
-const circomlibjs = require("circomlibjs");
 
 import {
   Transaction,
@@ -20,7 +19,6 @@ import {
   ADMIN_AUTH_KEYPAIR,
   MINT,
   KEYPAIR_PRIVKEY,
-  USER_TOKEN_ACCOUNT,
   createTestAccounts,
   userTokenAccount,
   FEE_ASSET,
@@ -46,15 +44,13 @@ import {
   BN_0,
   BN_2,
   closeMerkleTreeUpdateState,
-  AUTHORITY_ONE,
 } from "../../src";
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
-import {
-  TokenAccountNotFoundError,
-  getOrCreateAssociatedTokenAccount,
-} from "@solana/spl-token";
+import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { Address } from "@coral-xyz/anchor";
 
-let POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
+let HASHER: Hasher, RELAYER, KEYPAIR, deposit_utxo1;
 
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
@@ -276,10 +272,10 @@ describe("Merkle Tree Tests", () => {
     merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda = tmp;
     error = undefined;
 
+    const pda = merkleTreeConfig.merkleTreeAuthorityPda;
+    assert.isDefined(pda);
     let merkleTreeAuthority =
-      await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        merkleTreeConfig.merkleTreeAuthorityPda,
-      );
+      await merkleTreeProgram.account.merkleTreeAuthority.fetch(pda as Address);
 
     // update lock duration with invalid signer
 
@@ -354,13 +350,13 @@ describe("Merkle Tree Tests", () => {
 
     merkleTreeAuthority =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        merkleTreeConfig.merkleTreeAuthorityPda,
+        merkleTreeConfig.merkleTreeAuthorityPda as Address,
       );
     assert.equal(merkleTreeAuthority.enablePermissionlessSplTokens, true);
     await merkleTreeConfig.enablePermissionlessSplTokens(false);
     merkleTreeAuthority =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        merkleTreeConfig.merkleTreeAuthorityPda,
+        merkleTreeConfig.getMerkleTreeAuthorityPda(),
       );
     assert.equal(merkleTreeAuthority.enablePermissionlessSplTokens, false);
 
@@ -533,7 +529,7 @@ describe("Merkle Tree Tests", () => {
 
     const merkleTreeAuthority1 =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        merkleTreeConfig.merkleTreeAuthorityPda,
+        merkleTreeConfig.merkleTreeAuthorityPda as Address,
       );
     console.log(merkleTreeAuthority1);
     assert.equal(merkleTreeAuthority1.registeredAssetIndex.toString(), "2");
@@ -552,10 +548,10 @@ describe("Merkle Tree Tests", () => {
   });
 
   it("deposit ", async () => {
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    HASHER = await WasmHasher.getInstance();
 
     KEYPAIR = new Account({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
@@ -596,7 +592,7 @@ describe("Merkle Tree Tests", () => {
     });
 
     deposit_utxo1 = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       publicKey: KEYPAIR.pubkey,
@@ -611,7 +607,7 @@ describe("Merkle Tree Tests", () => {
       senderSpl: tokenAccount.address,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account: KEYPAIR,
     });
@@ -619,11 +615,11 @@ describe("Merkle Tree Tests", () => {
     const transaction = new Transaction({
       rootIndex,
       nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
-      solMerkleTree: lightProvider.solMerkleTree,
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
     });
     const instructions = await transaction.compileAndProve(
-      lightProvider.poseidon,
+      lightProvider.hasher,
       KEYPAIR,
     );
     console.log(transaction.params.accounts);
@@ -672,7 +668,6 @@ describe("Merkle Tree Tests", () => {
       transactionMerkleTreePubkey,
     );
 
-    await circomlibjs.buildPoseidonOpt();
     // build tree from chain
     const merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
       [
@@ -1099,7 +1094,7 @@ describe("Merkle Tree Tests", () => {
 
     const merkleTree = await SolMerkleTree.build({
       pubkey: transactionMerkleTreePubkey,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       indexedTransactions,
       provider: provider,
     });
@@ -1175,7 +1170,7 @@ describe("Merkle Tree Tests", () => {
     });
 
     const shieldUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [FEE_ASSET, MINT],
       amounts: [shieldFeeAmount, shieldAmount],
       publicKey: KEYPAIR.pubkey,
@@ -1195,7 +1190,7 @@ describe("Merkle Tree Tests", () => {
       senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       action: Action.SHIELD,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account: KEYPAIR,
     });
@@ -1204,7 +1199,7 @@ describe("Merkle Tree Tests", () => {
     const transaction = new Transaction({
       rootIndex,
       nextTransactionMerkleTree: remainingAccounts.nextTransactionMerkleTree,
-      solMerkleTree: lightProvider.solMerkleTree,
+      solMerkleTree: lightProvider.solMerkleTree!,
       params: txParams,
     });
     transaction.remainingAccounts!.nextTransactionMerkleTree = {
@@ -1219,7 +1214,7 @@ describe("Merkle Tree Tests", () => {
     };
 
     const instructions = await transaction.compileAndProve(
-      lightProvider.poseidon,
+      lightProvider.hasher,
       KEYPAIR,
     );
     await lightProvider.sendAndConfirmTransaction(instructions);

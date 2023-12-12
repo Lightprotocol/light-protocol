@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "es2022",
     "module": "commonjs",
     "declaration": true,
     "outDir": "./lib",
@@ -16,8 +16,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src", "__tests__", "tests", "src/index.ts"],
-  "exclude": ["node_modules", "**/tests/*"],
+  "include": ["src"],
+  "exclude": ["node_modules"],
   "dry": false,
   "debug": false
 }

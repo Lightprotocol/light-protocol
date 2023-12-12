@@ -20,13 +20,14 @@ import {
   SolanaTransactionInputs,
   sendAndConfirmShieldedTransaction
 } from "@lightprotocol/zk.js";
+import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import {
   SystemProgram,
   PublicKey,
   Keypair,
 } from "@solana/web3.js";
 
-import { buildPoseidonOpt } from "circomlibjs";
+
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/{{rust-name}}";
 const path = require("path");
@@ -34,7 +35,7 @@ const path = require("path");
 const verifierProgramId = new PublicKey(
   "{{program-id}}",
 );
-var POSEIDON;
+let HASHER;
 
 const RPC_URL = "http://127.0.0.1:8899";
 
@@ -47,7 +48,7 @@ describe("Test {{project-name}}", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    HASHER = await WasmHasher.getInstance();
   });
 
 
@@ -74,7 +75,7 @@ describe("Test {{project-name}}", () => {
     const user: User = await User.init({ provider: lightProvider });
 
     const outputUtxoSol = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [SystemProgram.programId],
       publicKey: user.account.pubkey,
       amounts: [new BN(1_000_000)],
@@ -98,13 +99,13 @@ describe("Test {{project-name}}", () => {
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await user.syncStorage(IDL);
     const shieldedUtxoCommitmentHash =
-      testInputsShield.utxo.getCommitment(POSEIDON);
+      testInputsShield.utxo.getCommitment(HASHER);
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())
       .tokenBalances.get(testInputsShield.utxo.assets[1].toBase58())
       .utxos.get(shieldedUtxoCommitmentHash);
 
-    Utxo.equal(POSEIDON, inputUtxo, testInputsShield.utxo, true);
+    Utxo.equal(HASHER, inputUtxo, testInputsShield.utxo, true);
 
     const circuitPath = path.join(`build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`);
 
@@ -120,7 +121,7 @@ describe("Test {{project-name}}", () => {
     const changeAmountSol = inputUtxo.amounts[0]
       .sub(relayer.relayerFee);
     const changeUtxo = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       publicKey: inputUtxo.publicKey,
       assetLookupTable: user.provider.lookUpTables.assetLookupTable,
       amounts: [changeAmountSol],
@@ -137,7 +138,7 @@ describe("Test {{project-name}}", () => {
       ),
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
       action: Action.TRANSFER,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       relayer,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account: user.account,
@@ -147,10 +148,10 @@ describe("Test {{project-name}}", () => {
       ),
     });
 
-    await txParams.getTxIntegrityHash(POSEIDON);
+    await txParams.getTxIntegrityHash(HASHER);
 
     const proofInputs = createProofInputs({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       transaction: txParams,
       pspTransaction: pspTransactionInput,
       account: user.account,
@@ -183,8 +184,8 @@ describe("Test {{project-name}}", () => {
     });
 
     console.log("transaction hash ", txHash);
-    const utxoSpent = await user.getUtxo(inputUtxo.getCommitment(POSEIDON), true, IDL);
+    const utxoSpent = await user.getUtxo(inputUtxo.getCommitment(HASHER), true, IDL);
     assert.equal(utxoSpent.status, "spent");
-    Utxo.equal(POSEIDON, utxoSpent.utxo, inputUtxo, true);
+    Utxo.equal(HASHER, utxoSpent.utxo, inputUtxo, true);
   });
 });

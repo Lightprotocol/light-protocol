@@ -8,9 +8,6 @@ import {
 import { BN, utils } from "@coral-xyz/anchor";
 import { it } from "mocha";
 
-const circomlibjs = require("circomlibjs");
-const { buildPoseidonOpt } = circomlibjs;
-
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
@@ -35,6 +32,7 @@ import {
   BN_0,
   BN_2,
 } from "../src";
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -57,20 +55,20 @@ describe("Transaction Parameters Functional", () => {
   const mockPubkey1 = SolanaKeypair.generate().publicKey;
   const mockPubkey2 = SolanaKeypair.generate().publicKey;
   const mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
+  let hasher: Hasher,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     relayer: Relayer,
     account: Account;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    hasher = await WasmHasher.getInstance();
     lightProvider = await LightProvider.loadMock();
 
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
-    account = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ hasher: hasher, seed: seed32 });
     shieldUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher: hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -83,7 +81,7 @@ describe("Transaction Parameters Functional", () => {
   // that problem properly.
   it.skip("Serialization Transfer Functional", async () => {
     const outputUtxo = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [
         new BN(shieldFeeAmount).sub(relayer.getRelayerFee()),
@@ -103,7 +101,7 @@ describe("Transaction Parameters Functional", () => {
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       transactionMerkleTreePubkey:
         MerkleTreeConfig.getTransactionMerkleTreePda(),
-      poseidon,
+      hasher,
       action: Action.TRANSFER,
       relayer,
       verifierIdl: VERIFIER_IDLS[j],
@@ -113,7 +111,7 @@ describe("Transaction Parameters Functional", () => {
     const bytes = await paramsOriginal.toBytes();
 
     const params = await TransactionParameters.fromBytes({
-      poseidon,
+      hasher,
       utxoIdls: [IDL_LIGHT_PSP2IN2OUT],
       relayer,
       bytes,
@@ -200,22 +198,22 @@ describe("Transaction Parameters Functional", () => {
 
     for (const i in inputUtxos) {
       assert.equal(
-        params.inputUtxos[i].getCommitment(poseidon),
-        inputUtxos[i].getCommitment(poseidon),
+        params.inputUtxos[i].getCommitment(hasher),
+        inputUtxos[i].getCommitment(hasher),
       );
     }
 
     for (const i in outputUtxos) {
       assert.equal(
-        params.outputUtxos[i].getCommitment(poseidon),
-        outputUtxos[i].getCommitment(poseidon),
+        params.outputUtxos[i].getCommitment(hasher),
+        outputUtxos[i].getCommitment(hasher),
       );
     }
   });
 
   it("Transfer Functional", async () => {
     const outputUtxo = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [
         new BN(shieldFeeAmount).sub(relayer.getRelayerFee()),
@@ -234,7 +232,7 @@ describe("Transaction Parameters Functional", () => {
         outputUtxos,
         eventMerkleTreePubkey: mockPubkey2,
         transactionMerkleTreePubkey: mockPubkey2,
-        poseidon,
+        hasher,
         action: Action.TRANSFER,
         relayer,
         verifierIdl: VERIFIER_IDLS[j],
@@ -325,15 +323,15 @@ describe("Transaction Parameters Functional", () => {
 
       for (const i in inputUtxos) {
         assert.equal(
-          params.inputUtxos[i].getCommitment(poseidon),
-          inputUtxos[i].getCommitment(poseidon),
+          params.inputUtxos[i].getCommitment(hasher),
+          inputUtxos[i].getCommitment(hasher),
         );
       }
 
       for (const i in outputUtxos) {
         assert.equal(
-          params.outputUtxos[i].getCommitment(poseidon),
-          outputUtxos[i].getCommitment(poseidon),
+          params.outputUtxos[i].getCommitment(hasher),
+          outputUtxos[i].getCommitment(hasher),
         );
       }
     }
@@ -348,7 +346,7 @@ describe("Transaction Parameters Functional", () => {
         transactionMerkleTreePubkey: mockPubkey2,
         senderSpl: mockPubkey,
         senderSol: mockPubkey1,
-        poseidon,
+        hasher,
         action: Action.SHIELD,
 
         verifierIdl: VERIFIER_IDLS[j],
@@ -438,8 +436,8 @@ describe("Transaction Parameters Functional", () => {
 
       for (const i in outputUtxos) {
         assert.equal(
-          params.outputUtxos[i].getCommitment(poseidon),
-          outputUtxos[i].getCommitment(poseidon),
+          params.outputUtxos[i].getCommitment(hasher),
+          outputUtxos[i].getCommitment(hasher),
         );
       }
     }
@@ -455,7 +453,7 @@ describe("Transaction Parameters Functional", () => {
         transactionMerkleTreePubkey: mockPubkey2,
         recipientSpl: mockPubkey,
         recipientSol: mockPubkey1,
-        poseidon,
+        hasher,
         action: Action.UNSHIELD,
         relayer,
 
@@ -549,8 +547,8 @@ describe("Transaction Parameters Functional", () => {
 
       for (const i in inputUtxos) {
         assert.equal(
-          params.inputUtxos[i].getCommitment(poseidon),
-          inputUtxos[i].getCommitment(poseidon),
+          params.inputUtxos[i].getCommitment(hasher),
+          inputUtxos[i].getCommitment(hasher),
         );
       }
     }
@@ -561,32 +559,32 @@ describe("Test TransactionParameters Methods", () => {
   let lightProvider: LightProvider;
   it("Test getAssetPubkeys", async () => {
     lightProvider = await LightProvider.loadMock();
-    const poseidon = await buildPoseidonOpt();
-    const account = new Account({ poseidon });
+    const hasher = await WasmHasher.getInstance();
+    const account = new Account({ hasher });
     const inputUtxos = [
       new Utxo({
-        poseidon,
+        hasher,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         publicKey: account.pubkey,
       }),
       new Utxo({
-        poseidon,
+        hasher,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         publicKey: account.pubkey,
       }),
     ];
     const outputUtxos = [
       new Utxo({
-        poseidon,
+        hasher,
         amounts: [BN_2, new BN(4)],
         assets: [SystemProgram.programId, MINT],
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        publicKey: new Account({ poseidon }).pubkey,
+        publicKey: new Account({ hasher }).pubkey,
       }),
       new Utxo({
-        poseidon,
+        hasher,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        publicKey: new Account({ poseidon }).pubkey,
+        publicKey: new Account({ hasher }).pubkey,
       }),
     ];
 
@@ -614,31 +612,31 @@ describe("Test TransactionParameters Methods", () => {
   });
 
   it("Test getExtAmount", async () => {
-    const poseidon = await buildPoseidonOpt();
+    const hasher = await WasmHasher.getInstance();
     const inputUtxos = [
       new Utxo({
-        poseidon,
+        hasher,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        publicKey: new Account({ poseidon }).pubkey,
+        publicKey: new Account({ hasher }).pubkey,
       }),
       new Utxo({
-        poseidon,
+        hasher,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        publicKey: new Account({ poseidon }).pubkey,
+        publicKey: new Account({ hasher }).pubkey,
       }),
     ];
     const outputUtxos = [
       new Utxo({
-        poseidon,
+        hasher,
         amounts: [BN_2, new BN(4)],
         assets: [SystemProgram.programId, MINT],
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        publicKey: new Account({ poseidon }).pubkey,
+        publicKey: new Account({ hasher }).pubkey,
       }),
       new Utxo({
-        poseidon,
+        hasher,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        publicKey: new Account({ poseidon }).pubkey,
+        publicKey: new Account({ hasher }).pubkey,
       }),
     ];
     const { assetPubkeysCircuit } = TransactionParameters.getAssetPubkeys(
@@ -663,11 +661,11 @@ describe("Test TransactionParameters Methods", () => {
     assert.equal(publicAmountSpl.toString(), "4");
 
     outputUtxos[1] = new Utxo({
-      poseidon,
+      hasher,
       amounts: [new BN(3), new BN(5)],
       assets: [SystemProgram.programId, MINT],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: new Account({ poseidon }).pubkey,
+      publicKey: new Account({ hasher }).pubkey,
     });
     const publicAmountSpl2Outputs = TransactionParameters.getExternalAmount(
       1,
@@ -693,18 +691,18 @@ describe("Test General TransactionParameters Errors", () => {
   const shieldFeeAmount = 10_000;
 
   const mockPubkey = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
+  let hasher: Hasher,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     account: Account;
 
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    hasher = await WasmHasher.getInstance();
     // TODO: make fee mandatory
-    account = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ hasher, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -720,7 +718,7 @@ describe("Test General TransactionParameters Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -765,7 +763,7 @@ describe("Test General TransactionParameters Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          poseidon,
+          hasher,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
         });
@@ -786,7 +784,7 @@ describe("Test General TransactionParameters Errors", () => {
         transactionMerkleTreePubkey: mockPubkey,
         senderSpl: mockPubkey,
         senderSol: mockPubkey,
-        poseidon,
+        hasher,
         action: Action.SHIELD,
       });
     })
@@ -804,19 +802,19 @@ describe("Test TransactionParameters Transfer Errors", () => {
   const shieldFeeAmount = 10_000;
   const mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
-  let poseidon: any,
+  let hasher: Hasher,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     outputUtxo: Utxo,
     relayer: Relayer;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    hasher = await WasmHasher.getInstance();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
-    account = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ hasher, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -824,7 +822,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     });
 
     outputUtxo = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [
         new BN(shieldFeeAmount).sub(relayer.getRelayerFee()),
@@ -843,7 +841,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.TRANSFER,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -859,7 +857,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
 
   it("PUBLIC_AMOUNT_SPL_NOT_ZERO", () => {
     const localOutputUtxo = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount).sub(relayer.getRelayerFee()), BN_0],
       publicKey: account.pubkey,
@@ -872,7 +870,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           outputUtxos: [localOutputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.TRANSFER,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -889,7 +887,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
 
   it("PUBLIC_AMOUNT_SOL_NOT_ZERO", () => {
     const localOutputUtxo = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -902,7 +900,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           outputUtxos: [localOutputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.TRANSFER,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -925,7 +923,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.TRANSFER,
           recipientSpl: mockPubkey,
           relayer,
@@ -949,7 +947,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.TRANSFER,
           recipientSol: mockPubkey,
           relayer,
@@ -973,7 +971,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.TRANSFER,
           senderSol: mockPubkey,
           relayer,
@@ -997,7 +995,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           outputUtxos: [outputUtxo],
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.TRANSFER,
           senderSpl: mockPubkey,
           relayer,
@@ -1021,18 +1019,18 @@ describe("Test TransactionParameters Deposit Errors", () => {
   const mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
 
-  let poseidon: any,
+  let hasher: Hasher,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     relayer: Relayer;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    hasher = await WasmHasher.getInstance();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
-    account = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ hasher, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -1048,7 +1046,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -1070,7 +1068,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           eventMerkleTreePubkey: mockPubkey,
           transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -1093,7 +1091,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1110,14 +1108,14 @@ describe("Test TransactionParameters Deposit Errors", () => {
 
   it("SOL PUBLIC_AMOUNT_NOT_U64", () => {
     const utxo_sol_amount_no_u641 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), new BN(shieldAmount)],
       publicKey: account.pubkey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     const utxo_sol_amount_no_u642 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
       publicKey: account.pubkey,
@@ -1131,7 +1129,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -1147,7 +1145,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
 
   it("SPL PUBLIC_AMOUNT_NOT_U64", () => {
     const utxo_spl_amount_no_u641 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
       publicKey: account.pubkey,
@@ -1155,7 +1153,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     });
 
     const utxo_spl_amount_no_u642 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("1")],
       publicKey: account.pubkey,
@@ -1170,7 +1168,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -1194,7 +1192,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -1218,7 +1216,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -1234,7 +1232,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
 
   it("No senderSpl spl needed without spl amount", () => {
     const utxo_sol_amount_no_u642 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
       publicKey: account.pubkey,
@@ -1248,7 +1246,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         eventMerkleTreePubkey: mockPubkey,
         transactionMerkleTreePubkey: mockPubkey,
         senderSol: mockPubkey,
-        poseidon,
+        hasher,
         action: Action.SHIELD,
         verifierIdl: VERIFIER_IDLS[verifier],
         account,
@@ -1266,7 +1264,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -1290,7 +1288,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.SHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -1312,19 +1310,19 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   const mockPubkey = SolanaKeypair.generate().publicKey;
   let account: Account;
 
-  let poseidon: any,
+  let hasher: Hasher,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     relayer: Relayer;
 
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    hasher = await WasmHasher.getInstance();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey, mockPubkey, new BN(5000));
-    account = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ hasher, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -1341,7 +1339,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           // senderSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1365,7 +1363,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.UNSHIELD,
           verifierIdl: VERIFIER_IDLS[verifier],
           account,
@@ -1381,7 +1379,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
 
   it("SOL PUBLIC_AMOUNT_NOT_U64", () => {
     const utxo_sol_amount_no_u641 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), new BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -1389,7 +1387,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     });
 
     const utxo_sol_amount_no_u642 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
       publicKey: account.pubkey,
@@ -1404,7 +1402,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1421,7 +1419,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
 
   it("SPL PUBLIC_AMOUNT_NOT_U64", () => {
     const utxo_spl_amount_no_u641 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
       publicKey: account.pubkey,
@@ -1429,7 +1427,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     });
 
     const utxo_spl_amount_no_u642 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("1")],
       publicKey: account.pubkey,
@@ -1443,7 +1441,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1468,7 +1466,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1493,7 +1491,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           senderSpl: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          poseidon,
+          hasher,
           action: Action.UNSHIELD,
           relayer,
           verifierIdl: VERIFIER_IDLS[verifier],
@@ -1510,7 +1508,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
 
   it("no recipientSpl spl should work since no spl amount", () => {
     const utxo_sol_amount_no_u642 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN("18446744073709551615"), BN_0],
       publicKey: account.pubkey,
@@ -1524,7 +1522,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         eventMerkleTreePubkey: mockPubkey,
         transactionMerkleTreePubkey: mockPubkey,
         recipientSol: mockPubkey,
-        poseidon,
+        hasher,
         action: Action.UNSHIELD,
         relayer,
         verifierIdl: VERIFIER_IDLS[verifier],
@@ -1535,7 +1533,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
 
   it("no recipientSpl sol should work since no sol amount", () => {
     const utxo_sol_amount_no_u642 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [BN_0, new BN("18446744073709551615")],
       publicKey: account.pubkey,
@@ -1549,7 +1547,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         eventMerkleTreePubkey: mockPubkey,
         transactionMerkleTreePubkey: mockPubkey,
         recipientSpl: mockPubkey,
-        poseidon,
+        hasher,
         action: Action.UNSHIELD,
         relayer,
         verifierIdl: VERIFIER_IDLS[verifier],

@@ -15,6 +15,8 @@ import { Keypair } from "@solana/web3.js";
 import { IDL } from "../target/types/multisig";
 import { buildEddsa, buildPoseidonOpt } from "circomlibjs";
 import { MultiSigClient, printUtxo } from "../src";
+import { WasmHasher } from "@lightprotocol/account.rs";
+
 // let circomlibjs = require("circomlibjs");
 // const path = require("path");
 // const verifierProgramId = new PublicKey(
@@ -32,6 +34,7 @@ describe("Test multisig", () => {
   anchor.setProvider(provider);
 
   it.skip("Test Withdrawal Multisig", async () => {
+    const hasher = await WasmHasher.getInstance();
     const poseidon = await buildPoseidonOpt();
     let eddsa = await buildEddsa();
 
@@ -64,7 +67,7 @@ describe("Test multisig", () => {
     const user: User = await User.init({ provider: lightProvider });
 
     const keypair = new Account({
-      poseidon,
+      hasher,
       seed: new Uint8Array(32).fill(1).toString(),
       eddsa,
     });
@@ -75,6 +78,7 @@ describe("Test multisig", () => {
       2,
       user.account,
       signers,
+      hasher,
       poseidon,
       eddsa,
       lightProvider,
@@ -113,7 +117,7 @@ describe("Test multisig", () => {
       "During transaction execution input utxos are invalidated, \n while output utxos are inserted into the merkle tree",
     );
     console.log("This is the multisig output utxo");
-    console.log(printUtxo(outputUtxo, poseidon, 0, "ouput"));
+    console.log(printUtxo(outputUtxo, hasher, 0, "ouput"));
 
     await deposit(outputUtxo, user);
     console.log("DEPOSITED");
@@ -150,9 +154,10 @@ describe("Test multisig", () => {
       provider: lightProvider,
       multiSigParams: client.multiSigParams,
       signer: keypair,
+      poseidon,
       queuedTransactions: [approvedTransaction],
       eddsa,
-      poseidon,
+      hasher,
     });
     // approves the multisig transaction
     await client1.approve(0);

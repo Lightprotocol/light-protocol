@@ -28,7 +28,7 @@ export class MultisigParams {
   priorMultiSigSeed: Uint8Array;
 
   constructor({
-    poseidon,
+    hasher,
     threshold,
     nrSigners,
     publicKeyX,
@@ -39,7 +39,7 @@ export class MultisigParams {
     priorMultiSigHash,
     priorMultiSigSeed,
   }: {
-    poseidon: any;
+    hasher: any;
     threshold: number;
     nrSigners: number;
     publicKeyX: Array<Uint8Array>;
@@ -56,9 +56,9 @@ export class MultisigParams {
     this.nrSigners = new BN(nrSigners);
     this.signersEncryptionPublicKeys = signersEncryptionPublicKeys;
     this.appDataHash = MultisigParams.getHash(
-      poseidon,
+      hasher,
       MultisigParams.toArray(
-        poseidon,
+        hasher,
         threshold,
         nrSigners,
         publicKeyX,
@@ -66,19 +66,19 @@ export class MultisigParams {
       ),
     );
     this.seed = seed;
-    this.account = new Account({ poseidon, seed: bs58.encode(seed) });
+    this.account = new Account({ hasher, seed: bs58.encode(seed) });
     this.priorMultiSigSlot = priorMultiSigSlot;
     this.priorMultiSigHash = priorMultiSigHash;
     this.priorMultiSigSeed = priorMultiSigSeed;
   }
 
   static async createNewMultiSig({
-    poseidon,
+    hasher,
     signers,
     threshold,
     randomSeed = nacl.randomBytes(32),
   }: {
-    poseidon: any;
+    hasher: any;
     signers: Account[];
     threshold: number;
     randomSeed?: Uint8Array;
@@ -91,11 +91,11 @@ export class MultisigParams {
         `Not enough signers ${signers.length} for threshold ${threshold}`,
       );
     }
-    if (poseidon === undefined) {
-      throw new Error("Poseidon instance not defined");
+    if (hasher === undefined) {
+      throw new Error("Hasher instance not defined");
     }
     const dummyAccount = new Account({
-      poseidon,
+      hasher,
       seed: new Uint8Array(32).fill(3).toString(),
     });
     dummyAccount.poseidonEddsaKeypair = {
@@ -123,7 +123,7 @@ export class MultisigParams {
     );
 
     return new MultisigParams({
-      poseidon,
+      hasher,
       threshold,
       nrSigners: signers.length,
       publicKeyX,

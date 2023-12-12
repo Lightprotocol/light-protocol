@@ -19,19 +19,17 @@ import {
   Account,
   ConfirmOptions,
 } from "@lightprotocol/zk.js";
-
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RPC_URL } from "../src/config";
 import { getRelayer } from "../src/utils/provider";
-
-const circomlibjs = require("circomlibjs");
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 
 chai.use(chaiHttp);
 
 describe("Browser tests", () => {
   let RELAYER: Relayer;
-  let poseidon: any;
+  let hasher: Hasher;
   let provider: Provider;
   let user: User;
   const walletMock = useWallet(ADMIN_AUTH_KEYPAIR, RPC_URL);
@@ -43,7 +41,7 @@ describe("Browser tests", () => {
       process.env.LIGHT_PROTOCOL_ATOMIC_TRANSACTIONS = "true";
     }
 
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    hasher = await WasmHasher.getInstance();
 
     await createTestAccounts(connection);
 
@@ -170,7 +168,7 @@ describe("Browser tests", () => {
     };
 
     const recipientAccount = new Account({
-      poseidon,
+      hasher,
       seed: testInputs.recipientSeed,
     });
 

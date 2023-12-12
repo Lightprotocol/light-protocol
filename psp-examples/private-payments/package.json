@@ -9,14 +9,14 @@
     "test": "../../cli/test_bin/run test-validator -b; pnpm ts-node src/main.ts --exit"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.28.0",
+    "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/zk.js": "workspace:*"
   },
   "devDependencies": {
     "@lightprotocol/cli": "workspace:*",
     "@types/bn.js": "^5.1.1",
-    "@types/chai": "^4.3.6",
-    "@types/mocha": "^10.0.2",
+    "@types/chai": "^4.3.9",
+    "@types/mocha": "^10.0.3",
     "chai": "^4.3.10",
     "mocha": "^10.2.0",
     "prettier": "^3.0.3",

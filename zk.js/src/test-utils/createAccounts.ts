@@ -40,8 +40,8 @@ import {
   confirmTransaction,
   BN_0,
 } from "../index";
+import { WasmHasher } from "@lightprotocol/account.rs";
 import { Program } from "@coral-xyz/anchor";
-const circomlibjs = require("circomlibjs");
 
 // TODO: check whether we need all of these functions
 
@@ -182,54 +182,50 @@ export async function createMintWrapper({
   nft?: boolean;
   decimals?: number;
   connection: Connection;
-}) {
-  if (nft == true) {
+}): Promise<PublicKey> {
+  if (nft) {
     decimals = 0;
   }
 
-  try {
-    const space = MINT_SIZE;
+  const space = MINT_SIZE;
 
-    const txCreateAccount = new solana.Transaction().add(
-      SystemProgram.createAccount({
-        fromPubkey: authorityKeypair.publicKey,
-        lamports: connection.getMinimumBalanceForRentExemption(space),
-        newAccountPubkey: mintKeypair.publicKey,
-        programId: TOKEN_PROGRAM_ID,
-        space: space,
-      }),
-    );
+  const txCreateAccount = new solana.Transaction().add(
+    SystemProgram.createAccount({
+      fromPubkey: authorityKeypair.publicKey,
+      lamports: connection.getMinimumBalanceForRentExemption(space),
+      newAccountPubkey: mintKeypair.publicKey,
+      programId: TOKEN_PROGRAM_ID,
+      space: space,
+    }),
+  );
 
-    const res = await sendAndConfirmTransaction(
-      connection,
-      txCreateAccount,
-      [authorityKeypair, mintKeypair],
-      confirmConfig,
-    );
-    const transactionResult = await connection.getTransaction(res, {
-      commitment: "confirmed",
-    });
-    if (transactionResult === null) {
-      throw new Error("create mint account failed");
-    }
-
-    const mint = await createMint(
-      connection,
-      authorityKeypair,
-      authorityKeypair.publicKey,
-      null, // freez auth
-      decimals, //2,
-      mintKeypair,
-    );
-    const accountInfo = await connection.getAccountInfo(mint);
-    if (accountInfo === null) {
-      throw new Error("create mint failed");
-    }
-
-    return mintKeypair.publicKey;
-  } catch (e) {
-    console.log(e);
+  const res = await sendAndConfirmTransaction(
+    connection,
+    txCreateAccount,
+    [authorityKeypair, mintKeypair],
+    confirmConfig,
+  );
+  const transactionResult = await connection.getTransaction(res, {
+    commitment: "confirmed",
+  });
+  if (transactionResult === null) {
+    throw new Error("create mint account failed");
   }
+
+  const mint = await createMint(
+    connection,
+    authorityKeypair,
+    authorityKeypair.publicKey,
+    null, // freez auth
+    decimals, //2,
+    mintKeypair,
+  );
+  const accountInfo = await connection.getAccountInfo(mint);
+  if (accountInfo === null) {
+    throw new Error("create mint failed");
+  }
+
+  return mintKeypair.publicKey;
 }
 
 export async function createTestAccounts(
@@ -244,9 +240,9 @@ export async function createTestAccounts(
     const signature = await connection.requestAirdrop(ADMIN_AUTH_KEY, amount);
     await confirmTransaction(connection, signature);
 
-    const Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
+    const newBalance = await connection.getBalance(ADMIN_AUTH_KEY);
 
-    if (Newbalance !== balance + amount) {
+    if (newBalance !== balance + amount) {
       throw new Error("airdrop failed");
     }
 
@@ -345,14 +341,14 @@ export async function createTestAccounts(
     /* empty */
   }
 
-  const POSEIDON = await circomlibjs.buildPoseidonOpt();
+  const HASHER = await WasmHasher.getInstance();
   const KEYPAIR = new Account({
-    poseidon: POSEIDON,
+    hasher: HASHER,
     seed: KEYPAIR_PRIVKEY.toString(),
   });
   const RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
   return {
-    POSEIDON,
+    HASHER,
     KEYPAIR,
     RELAYER_RECIPIENT,
   };

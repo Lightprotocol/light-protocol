@@ -24,13 +24,13 @@ import {
   sendAndConfirmShieldedTransaction,
   getVerifierStatePda,
 } from "@lightprotocol/zk.js";
+import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import {
   Keypair as SolanaKeypair,
   Keypair,
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
-import { buildPoseidonOpt } from "circomlibjs";
 import { IDL } from "../target/types/streaming_payments";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
@@ -39,7 +39,7 @@ const path = require("path");
 const verifierProgramId = new PublicKey(
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
-let POSEIDON;
+let HASHER: Hasher;
 
 const RPC_URL = "http://127.0.0.1:8899";
 const USERS_COUNT = 3;
@@ -61,7 +61,7 @@ describe("Streaming Payments tests", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    POSEIDON = await buildPoseidonOpt();
+    HASHER = await WasmHasher.getInstance();
   });
 
   it("Create and Spend Program Utxo for one user", async () => {
@@ -131,7 +131,7 @@ describe("Streaming Payments tests", () => {
     const lightUser: User = await User.init({ provider: lightProvider });
 
     const outputUtxoSol = new Utxo({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       assets: [SystemProgram.programId],
       publicKey: lightUser.account.pubkey,
       amounts: [new BN(1_000_000)],
@@ -139,8 +139,6 @@ describe("Streaming Payments tests", () => {
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
       includeAppData: true,
     });
     const testInputsShield = {
@@ -156,12 +154,12 @@ describe("Streaming Payments tests", () => {
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await lightUser.syncStorage(IDL);
     const shieldedUtxoCommitmentHash =
-      testInputsShield.utxo.getCommitment(POSEIDON);
+      testInputsShield.utxo.getCommitment(HASHER);
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())
       .tokenBalances.get(testInputsShield.utxo.assets[0].toBase58())
       .utxos.get(shieldedUtxoCommitmentHash);
-    Utxo.equal(POSEIDON, inputUtxo, testInputsShield.utxo, false);
+    Utxo.equal(HASHER, inputUtxo, testInputsShield.utxo, false);
 
     const circuitPath = path.join(
       "build-circuit/streaming-payments/streamingPayments",
@@ -188,7 +186,7 @@ describe("Streaming Payments tests", () => {
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
       recipientSol: SolanaKeypair.generate().publicKey,
       action: Action.UNSHIELD,
-      poseidon: POSEIDON,
+      hasher: HASHER,
       relayer: relayer,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account: lightUser.account,
@@ -198,11 +196,11 @@ describe("Streaming Payments tests", () => {
       ),
     });
 
-    await txParams.getTxIntegrityHash(POSEIDON);
+    await txParams.getTxIntegrityHash(HASHER);
 
     // createProofInputsAndProve
     const proofInputs = createProofInputs({
-      poseidon: POSEIDON,
+      hasher: HASHER,
       transaction: txParams,
       pspTransaction: pspTransactionInput,
       account: lightUser.account,
@@ -276,7 +274,7 @@ describe("Streaming Payments tests", () => {
 
     let client: PaymentStreamClient = new PaymentStreamClient(
       IDL,
-      POSEIDON,
+      HASHER,
       circuitPath,
       lightProvider,
     );
@@ -292,7 +290,7 @@ describe("Streaming Payments tests", () => {
     const testInputsSol1 = {
       utxo: streamInitUtxo,
       action: Action.SHIELD,
-      poseidon: POSEIDON,
+      hasher: HASHER,
     };
 
     // console.log("storing streamInitUtxo");
@@ -301,13 +299,11 @@ describe("Streaming Payments tests", () => {
       action: testInputsSol1.action,
     });
     await lightUser.syncStorage(IDL);
-    const commitment = testInputsSol1.utxo.getCommitment(
-      testInputsSol1.poseidon,
-    );
+    const commitment = testInputsSol1.utxo.getCommitment(testInputsSol1.hasher);
 
     const utxo = (await lightUser.getUtxo(commitment))!;
     assert.equal(utxo.status, "ready");
-    Utxo.equal(POSEIDON, utxo.utxo, testInputsSol1.utxo, true);
+    Utxo.equal(HASHER, utxo.utxo, testInputsSol1.utxo, true);
     const currentSlot1 = await provider.connection.getSlot("confirmed");
 
     await lightUser.getBalance();
@@ -335,10 +331,10 @@ describe("Streaming Payments tests", () => {
       outUtxo.amounts[0].toString(),
       balance.totalSolBalance.toString(),
     );
-    console.log("inUtxo commitment: ", inUtxo.getCommitment(POSEIDON));
+    console.log("inUtxo commitment: ", inUtxo.getCommitment(HASHER));
 
     const spentCommitment = testInputsSol1.utxo.getCommitment(
-      testInputsSol1.poseidon,
+      testInputsSol1.hasher,
     );
     const utxoSpent = (await lightUser.getUtxo(spentCommitment, true, IDL))!;
     assert.equal(utxoSpent.status, "spent");
@@ -350,13 +346,13 @@ class PaymentStreamClient {
   endSlot?: BN;
   streamInitUtxo?: Utxo;
   latestStreamUtxo?: Utxo;
-  poseidon: any;
+  hasher: Hasher;
   circuitPath: string;
   lightProvider: LightProvider;
 
   constructor(
     idl: anchor.Idl,
-    poseidon: any,
+    hasher: Hasher,
     circuitPath: string,
     lightProvider: LightProvider,
     streamInitUtxo?: Utxo,
@@ -366,7 +362,7 @@ class PaymentStreamClient {
     this.streamInitUtxo = streamInitUtxo;
     this.endSlot = streamInitUtxo?.appData.endSlot;
     this.latestStreamUtxo = latestStreamUtxo;
-    this.poseidon = poseidon;
+    this.hasher = hasher;
     this.circuitPath = circuitPath;
     this.lightProvider = lightProvider;
   }
@@ -394,7 +390,7 @@ class PaymentStreamClient {
       rate,
     };
     const streamInitUtxo = new Utxo({
-      poseidon: this.poseidon,
+      hasher: this.hasher,
       assets: [SystemProgram.programId],
       publicKey: account.pubkey,
       amounts: [amount],
@@ -402,8 +398,6 @@ class PaymentStreamClient {
       appDataIdl: this.idl,
       verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
       assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        this.lightProvider.lookUpTables.verifierProgramLookupTable,
     });
 
     this.streamInitUtxo = streamInitUtxo;
@@ -434,7 +428,7 @@ class PaymentStreamClient {
       };
 
       const index = merkleTree.indexOf(
-        this.latestStreamUtxo?.getCommitment(this.poseidon),
+        this.latestStreamUtxo?.getCommitment(this.hasher),
       );
       this.latestStreamUtxo.index = index;
       const inUtxo = this.latestStreamUtxo;
@@ -443,10 +437,8 @@ class PaymentStreamClient {
           assets: inUtxo.assets,
           amounts: [inUtxo.amounts[0].sub(new BN(100_000)), inUtxo.amounts[1]],
           publicKey: inUtxo.publicKey,
-          poseidon: this.poseidon,
+          hasher: this.hasher,
           assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            this.lightProvider.lookUpTables.verifierProgramLookupTable,
         });
         return { programParameters, inUtxo, outUtxo, action };
       }
@@ -471,7 +463,7 @@ class PaymentStreamClient {
       };
       const inUtxo = this.latestStreamUtxo;
       const outUtxo = new Utxo({
-        poseidon: this.poseidon,
+        hasher: this.hasher,
         assets: [SystemProgram.programId],
         publicKey: inUtxo.publicKey,
         amounts: [remainingAmount],
@@ -479,8 +471,6 @@ class PaymentStreamClient {
         appDataIdl: this.idl,
         verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
         assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          this.lightProvider.lookUpTables.verifierProgramLookupTable,
       });
       return { programParameters, outUtxo, inUtxo };
     }

@@ -10,6 +10,7 @@ import {
   Utxo,
   BN_0,
 } from "../index";
+import { Hasher } from "@lightprotocol/account.rs";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   LightMerkleTreeProgram,
@@ -30,17 +31,19 @@ export type QueuedLeavesPda = {
 export class SolMerkleTree {
   merkleTree: MerkleTree;
   pubkey: PublicKey;
+  hasher: Hasher;
 
   constructor({
     pubkey,
-    poseidon,
-    merkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, poseidon),
+    hasher,
+    merkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, hasher),
   }: {
-    poseidon?: any;
+    hasher: Hasher;
     merkleTree?: MerkleTree;
     pubkey: PublicKey;
   }) {
     this.pubkey = pubkey;
+    this.hasher = hasher;
     this.merkleTree = merkleTree;
   }
 
@@ -64,12 +67,12 @@ export class SolMerkleTree {
 
   static async build({
     pubkey,
-    poseidon,
+    hasher,
     indexedTransactions,
     provider,
   }: {
     pubkey: PublicKey;
-    poseidon: any;
+    hasher: Hasher;
     indexedTransactions: ParsedIndexedTransaction[];
     provider?: Provider;
   }) {
@@ -89,7 +92,6 @@ export class SolMerkleTree {
         new BN(a.firstLeafIndex).toNumber() -
         new BN(b.firstLeafIndex).toNumber(),
     );
-
     const merkleTreeIndex = mtFetched.merkleTree.nextIndex;
     const leaves: string[] = [];
     if (indexedTransactions.length > 0) {
@@ -105,11 +107,7 @@ export class SolMerkleTree {
       }
     }
 
-    const builtMerkleTree = new MerkleTree(
-      MERKLE_TREE_HEIGHT,
-      poseidon,
-      leaves,
-    );
+    const builtMerkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, hasher, leaves);
 
     const builtMerkleTreeRoot = beInt2Buff(
       unstringifyBigInts(builtMerkleTree.root()),
@@ -140,7 +138,7 @@ export class SolMerkleTree {
       );
     }
 
-    return new SolMerkleTree({ merkleTree: builtMerkleTree, pubkey });
+    return new SolMerkleTree({ pubkey, hasher, merkleTree: builtMerkleTree });
   }
 
   static async getUninsertedLeaves(
@@ -192,7 +190,7 @@ export class SolMerkleTree {
    * @description For input utxos with amounts == 0 it returns merkle paths with all elements = 0.
    */
   getMerkleProofs(
-    poseidon: any,
+    hasher: Hasher,
     inputUtxos: Utxo[],
   ): {
     inputMerklePathIndices: Array<string>;
@@ -204,7 +202,7 @@ export class SolMerkleTree {
     for (const inputUtxo of inputUtxos) {
       if (inputUtxo.amounts[0].gt(BN_0) || inputUtxo.amounts[1].gt(BN_0)) {
         inputUtxo.index = this.merkleTree.indexOf(
-          inputUtxo.getCommitment(poseidon),
+          inputUtxo.getCommitment(hasher),
         );
 
         if (inputUtxo.index || inputUtxo.index === 0) {
@@ -213,7 +211,7 @@ export class SolMerkleTree {
               SolMerkleTreeErrorCode.INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE,
               "getMerkleProofs",
               `Input commitment ${inputUtxo.getCommitment(
-                poseidon,
+                hasher,
               )} was not found. Was the local merkle tree synced since the utxo was inserted?`,
             );
           }

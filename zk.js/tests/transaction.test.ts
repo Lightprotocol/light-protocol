@@ -1,5 +1,4 @@
 import { assert, expect } from "chai";
-const circomlibjs = require("circomlibjs");
 import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
@@ -27,6 +26,7 @@ import {
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
   BN_1,
 } from "../src";
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 import { STANDARD_SHIELDED_PUBLIC_KEY } from "../src";
@@ -42,19 +42,19 @@ describe("Transaction Error Tests", () => {
 
   const mockPubkey = SolanaKeypair.generate().publicKey;
   const mockPubkey2 = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
+  let hasher: Hasher,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     account: Account,
     params: TransactionParameters,
     rootIndex: BN;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    hasher = await WasmHasher.getInstance();
     // TODO: make fee mandatory
-    account = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ hasher, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -64,7 +64,7 @@ describe("Transaction Error Tests", () => {
       outputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
-      poseidon,
+      hasher,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
@@ -194,7 +194,7 @@ describe("Transaction Functional Tests", () => {
   const mockPubkey = SolanaKeypair.generate().publicKey;
   const mockPubkey2 = SolanaKeypair.generate().publicKey;
   const mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon: any,
+  let hasher: Hasher,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     relayer: Relayer,
@@ -202,14 +202,14 @@ describe("Transaction Functional Tests", () => {
     paramsShield: TransactionParameters,
     paramsUnshield: TransactionParameters;
   before(async () => {
-    poseidon = await circomlibjs.buildPoseidonOpt();
+    hasher = await WasmHasher.getInstance();
     // TODO: make fee mandatory
     relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
-    account = new Account({ poseidon: poseidon, seed: seed32 });
+    account = new Account({ hasher, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
       index: 0,
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.pubkey,
@@ -220,20 +220,20 @@ describe("Transaction Functional Tests", () => {
       outputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
-      poseidon,
+      hasher,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,
     });
-    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
-      shieldUtxo1.getCommitment(poseidon),
+    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, hasher, [
+      shieldUtxo1.getCommitment(hasher),
     ]);
 
     assert.equal(
       lightProvider.solMerkleTree?.merkleTree.indexOf(
-        shieldUtxo1.getCommitment(poseidon),
+        shieldUtxo1.getCommitment(hasher),
       ),
       0,
     );
@@ -241,7 +241,7 @@ describe("Transaction Functional Tests", () => {
       inputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
-      poseidon,
+      hasher,
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
@@ -253,7 +253,7 @@ describe("Transaction Functional Tests", () => {
 
   it("getMerkleProof", async () => {
     const merkleProofsShield = lightProvider.solMerkleTree!.getMerkleProofs(
-      lightProvider.poseidon,
+      lightProvider.hasher,
       paramsShield.inputUtxos,
     );
     assert.equal(
@@ -270,7 +270,7 @@ describe("Transaction Functional Tests", () => {
     );
 
     const merkleProofsUnshield = lightProvider.solMerkleTree!.getMerkleProofs(
-      lightProvider.poseidon,
+      lightProvider.hasher,
       paramsUnshield.inputUtxos,
     );
     assert.equal(
@@ -315,7 +315,7 @@ describe("Transaction Functional Tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsShield,
     });
-    await tx.compileAndProve(lightProvider.poseidon, account);
+    await tx.compileAndProve(lightProvider.hasher, account);
   });
 
   it("Functional storage ", async () => {
@@ -324,7 +324,7 @@ describe("Transaction Functional Tests", () => {
       inputUtxos: [shieldUtxo1],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
-      poseidon,
+      hasher,
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
@@ -337,13 +337,13 @@ describe("Transaction Functional Tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: paramsShieldStorage,
     });
-    await tx.compileAndProve(lightProvider.poseidon, account);
+    await tx.compileAndProve(lightProvider.hasher, account);
     await tx.getInstructions(tx.params);
   });
 
   it("Functional with STANDARD_SHIELDED_PRIVATE_KEY", async () => {
     const utxo = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       amounts: [BN_1],
@@ -351,15 +351,15 @@ describe("Transaction Functional Tests", () => {
       index: 0,
     });
 
-    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
-      utxo.getCommitment(poseidon),
+    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, hasher, [
+      utxo.getCommitment(hasher),
     ]);
 
     const params = new TransactionParameters({
       inputUtxos: [utxo],
       eventMerkleTreePubkey: mockPubkey2,
       transactionMerkleTreePubkey: mockPubkey2,
-      poseidon,
+      hasher,
       recipientSpl: mockPubkey,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
@@ -373,7 +373,7 @@ describe("Transaction Functional Tests", () => {
       solMerkleTree: lightProvider.solMerkleTree!,
       params: params,
     });
-    await tx.compileAndProve(poseidon, account);
+    await tx.compileAndProve(hasher, account);
     await tx.getInstructions(tx.params);
   });
 
@@ -398,7 +398,7 @@ describe("Transaction Functional Tests", () => {
       outputUtxos: [shieldUtxo1, shieldUtxo1],
       eventMerkleTreePubkey: AUTHORITY,
       transactionMerkleTreePubkey: AUTHORITY,
-      poseidon,
+      hasher,
       recipientSpl: AUTHORITY,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
@@ -409,15 +409,15 @@ describe("Transaction Functional Tests", () => {
     });
 
     const txIntegrityHash =
-      await paramsStaticEncryptedUtxos.getTxIntegrityHash(poseidon);
+      await paramsStaticEncryptedUtxos.getTxIntegrityHash(hasher);
 
     assert.equal(
       txIntegrityHash.toString(),
       "178019947886548898634529693934424187472177726159711448498621026153756684451",
     );
     assert.equal(
-      paramsStaticEncryptedUtxos.getTransactionHash(poseidon).toString(),
-      "12023539886044629438926573315156436353948534606330808023287151578444641767422",
+      paramsStaticEncryptedUtxos.getTransactionHash(hasher).toString(),
+      "3083080391170898506912286218994091788042804706074946384151915011055873189451",
     );
   });
 
@@ -428,7 +428,7 @@ describe("Transaction Functional Tests", () => {
       outputUtxos: [shieldUtxo1, shieldUtxo1],
       eventMerkleTreePubkey: AUTHORITY,
       transactionMerkleTreePubkey: AUTHORITY,
-      poseidon,
+      hasher,
       recipientSpl: AUTHORITY,
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
@@ -482,7 +482,7 @@ describe("Transaction Functional Tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
-      poseidon,
+      hasher,
       action: Action.SHIELD,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       account,
@@ -510,7 +510,7 @@ describe("Transaction Functional Tests", () => {
       transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
-      poseidon,
+      hasher,
       action: Action.SHIELD,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account,

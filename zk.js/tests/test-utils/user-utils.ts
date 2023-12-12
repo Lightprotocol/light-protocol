@@ -8,11 +8,11 @@ import {
   TestInputs,
   confirmConfig,
 } from "../../src";
-
+import { Hasher } from "@lightprotocol/account.rs";
 export type EnvironmentConfig = {
   relayer?: TestRelayer;
   providerSolanaKeypair?: Keypair;
-  poseidon?: any;
+  hasher?: Hasher;
   lookUpTable?: PublicKey;
 };
 

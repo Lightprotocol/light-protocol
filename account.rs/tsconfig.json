@@ -1,0 +1,19 @@
+{
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "compilerOptions": {
+      "target": "ES2022",
+      "noEmit": true,
+      "module": "ES2022",
+      "lib": ["dom", "ES2022"],
+      "types": ["vitest/globals"],
+      "declaration": true,
+      "declarationDir": "dist/types",
+      "strict": true,
+      "moduleResolution": "node",
+      "esModuleInterop": true,
+      "skipLibCheck": true,
+      "forceConsistentCasingInFileNames": true
+    },
+    "extends": "@lightprotocol/tsconfig/base.json",
+  "include": ["src", "tests"]
+}
