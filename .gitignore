@@ -72,3 +72,4 @@ qodana.yaml
 node_modules
 
 **/.pnpm-store/
+/web/webapp/public/build-circuits
