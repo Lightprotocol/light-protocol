@@ -6581,6 +6581,7 @@ dependencies = [
  "light-hasher",
  "light-merkle-tree",
  "light-utils",
+ "light-zero-bytes",
  "quote 1.0.33",
  "sha2 0.10.8",
 ]

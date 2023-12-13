@@ -78,11 +78,13 @@ where
         proof: &[[u8; 32]],
     ) -> Result<(), HasherError> {
         let mut changelog_path = [[0u8; 32]; MAX_HEIGHT];
+        println!("update_path_to_leaf start: i: {i}, leaf: {leaf:?}");
 
         for (j, sibling) in proof.iter().enumerate() {
             // PushBack(changeLog.path, node)
             changelog_path[j] = leaf;
             leaf = compute_parent_node::<H>(&leaf, sibling, i, j)?;
+            println!("update_path_to_leaf j: {j}, leaf: {leaf:?}");
         }
 
         // PushFront(tree.changeLogs, changeLog)
@@ -104,6 +106,7 @@ where
         j: usize,
         proof: &[[u8; 32]; MAX_HEIGHT],
     ) -> Result<(), HasherError> {
+        println!("called replace_leaf_inner");
         let mut updated_leaf = old_leaf;
         let mut updated_proof = proof.clone();
         for k in j..(self.current_index as usize) + 1 {
@@ -164,8 +167,14 @@ where
         Ok(())
     }
 
+    pub fn append(&mut self, leaf: [u8; 32]) -> Result<(), HasherError> {
+        let proof = self.rightmost_proof.clone();
+        self.update_path_to_leaf(leaf, self.current_index as usize, &proof)?;
+        Ok(())
+    }
+
     /// Appends a new node to the tree.
-    pub fn append(&mut self, mut leaf: [u8; 32]) -> Result<(), HasherError> {
+    pub fn append_foo(&mut self, mut leaf: [u8; 32]) -> Result<(), HasherError> {
         let mut changelog_path = [[0u8; 32]; MAX_HEIGHT];
         let mut intersection_node = self.rightmost_leaf;
         let intersection_index = self.rightmost_index.trailing_zeros() as usize;
@@ -187,7 +196,7 @@ where
             //
             // Here, we just call compute the new root and call `replace_leaf`
             // directly.
-            leaf = H::hashv(&[&leaf, &H::zero_bytes()[1]])?;
+            // leaf = H::hashv(&[&leaf, &H::zero_bytes()[1]])?;
             let proof = self.rightmost_proof.clone();
             self.replace_leaf_inner(H::zero_bytes()[0], leaf, 0, 0, &proof)?;
         } else {
