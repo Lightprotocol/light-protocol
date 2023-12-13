@@ -46,10 +46,6 @@ pub enum ErrorCode {
     InvalidOldMerkleTree,
     #[msg("Provided old Merkle tree is not the newest one.")]
     NotNewestOldMerkleTree,
-    #[msg(
-        "This instruction is not umplemented for Light Protocol with atomic transactions support"
-    )]
-    AtomicTransactionsEnabled,
     #[msg("Expected two leaves PDA as a remaining account.")]
     ExpectedTwoLeavesPda,
     #[msg("Invalid two leaves PDA.")]
