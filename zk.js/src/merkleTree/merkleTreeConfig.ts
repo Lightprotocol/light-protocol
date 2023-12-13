@@ -692,7 +692,7 @@ export class MerkleTreeConfig {
     return this.poolPdas[this.poolPdas.length - 1];
   }
 
-  async getTokenAuthority() {
+  async getTokenAuthorityPda() {
     this.tokenAuthority = PublicKey.findProgramAddressSync(
       [anchor.utils.bytes.utf8.encode("spl")],
       this.merkleTreeProgram.programId,
@@ -713,7 +713,7 @@ export class MerkleTreeConfig {
     const splPoolPda = await this.getSplPoolPda(mint, poolType);
 
     if (!this.tokenAuthority) {
-      await this.getTokenAuthority();
+      await this.getTokenAuthorityPda();
     }
 
     const tx = await this.merkleTreeProgram.methods

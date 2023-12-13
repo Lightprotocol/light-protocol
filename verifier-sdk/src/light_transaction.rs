@@ -408,16 +408,17 @@ impl<
                 .get_signing_address()
                 .key()
                 .to_bytes(),
-            &self.input.relayer_fee.to_le_bytes(),
+            &self.input.relayer_fee.to_be_bytes(),
             self.input.encrypted_utxos,
         ]);
         // msg!("message_hash: {:?}", message_hash.to_vec());
         // msg!("recipient_spl: {:?}", recipient_spl.to_vec());
         // msg!(
         //     "recipient_sol: {:?}",
-        //     self.accounts
-        //         .unwrap()
-        //         .recipient_sol
+        //     self.input
+        //         .ctx
+        //         .accounts
+        //         .get_recipient_sol()
         //         .as_ref()
         //         .unwrap()
         //         .key()
@@ -426,17 +427,20 @@ impl<
         // );
         // msg!(
         //     "signing_address: {:?}",
-        //     self.accounts
-        //         .unwrap()
-        //         .signing_address
+        //     self.input
+        //         .ctx
+        //         .accounts
+        //         .get_signing_address()
         //         .key()
         //         .to_bytes()
         //         .to_vec()
         // );
-        // msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
-        // msg!("relayer_fee {}", self.relayer_fee);
-        // msg!("integrity_hash inputs.len(): {}", input.len());
-        // msg!("encrypted_utxos: {:?}", self.encrypted_utxos);
+        // msg!(
+        //     "relayer_fee: {:?}",
+        //     self.input.relayer_fee.to_be_bytes().to_vec()
+        // );
+        // msg!("relayer_fee {}", self.input.relayer_fee);
+        // msg!("encrypted_utxos: {:?}", self.input.encrypted_utxos);
 
         self.tx_integrity_hash = truncate_to_circuit(&tx_integrity_hash.to_bytes());
         self.computed_tx_integrity_hash = true;

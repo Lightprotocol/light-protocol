@@ -4,7 +4,7 @@ import {
   Provider as LightProvider,
   MINT,
   Utxo,
-  Transaction,
+  LegacyTransaction as Transaction,
   Action,
   TransactionParameters,
   IDL_LIGHT_PSP2IN2OUT,

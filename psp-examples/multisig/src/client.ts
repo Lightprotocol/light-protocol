@@ -6,7 +6,7 @@ import {
   REGISTERED_POOL_PDA_SOL,
   Relayer,
   SolMerkleTree,
-  Transaction,
+  LegacyTransaction as Transaction,
   TransactionParameters,
   Account,
   Utxo,

@@ -15,7 +15,7 @@ import {
   FEE_ASSET,
   Provider as LightProvider,
   MINT,
-  Transaction,
+  LegacyTransaction as Transaction,
   TransactionParameters,
   Action,
   Utxo,

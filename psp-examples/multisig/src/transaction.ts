@@ -1,7 +1,7 @@
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import {
   Provider,
-  Transaction,
+  LegacyTransaction as Transaction,
   TransactionParameters,
 } from "@lightprotocol/zk.js";
 

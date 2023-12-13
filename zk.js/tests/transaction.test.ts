@@ -12,7 +12,7 @@ import {
   hashAndTruncateToCircuit,
   Provider as LightProvider,
   MINT,
-  Transaction,
+  LegacyTransaction as Transaction,
   TransactionParameters,
   TransactionErrorCode,
   Action,
