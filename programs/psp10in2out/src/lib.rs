@@ -42,7 +42,7 @@ pub mod light_psp10in2out {
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the verification and
     /// protocol logicin the second transaction.
     pub fn shielded_transfer_first<'info>(
-        ctx: Context<'_, '_, '_, 'info, LightInstructionFirst<'info, 0, 1, 10>>,
+        ctx: Context<'_, '_, '_, 'info, LightInstructionFirst<'info, 0, 2, 10>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferFirst =
@@ -82,7 +82,7 @@ pub mod light_psp10in2out {
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
     pub fn shielded_transfer_second<'info>(
-        ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info, 0, 1, 10>>,
+        ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info, 0, 2, 10>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataShieldedTransferSecond =
@@ -99,11 +99,14 @@ pub mod light_psp10in2out {
             sol: ctx.accounts.verifier_state.public_amount_sol,
             spl: ctx.accounts.verifier_state.public_amount_spl,
         };
-
-        let leaves = [[
-            ctx.accounts.verifier_state.leaves[0],
-            ctx.accounts.verifier_state.leaves[1],
-        ]; 1];
+        // TODO: get rid of vector
+        let leaves: [[u8; 32]; 2] = ctx
+            .accounts
+            .verifier_state
+            .leaves
+            .to_vec()
+            .try_into()
+            .unwrap();
         let nullifier: [[u8; 32]; 10] = ctx
             .accounts
             .verifier_state
@@ -132,13 +135,13 @@ pub mod light_psp10in2out {
             verifyingkey: &VERIFYINGKEY_TRANSACTION_MASP10_MAIN,
         };
         let mut tx =
-            Transaction::<0, 1, 10, 17, LightInstructionSecond<'info, 0, 1, 10>>::new(input);
+            Transaction::<0, 2, 10, 17, LightInstructionSecond<'info, 0, 2, 10>>::new(input);
         tx.transact()
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
     pub fn close_verifier_state<'info>(
-        _ctx: Context<'_, '_, '_, 'info, CloseVerifierState<'info, 0, 1, 10>>,
+        _ctx: Context<'_, '_, '_, 'info, CloseVerifierState<'info, 0, 2, 10>>,
     ) -> Result<()> {
         Ok(())
     }

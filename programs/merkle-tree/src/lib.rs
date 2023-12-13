@@ -147,11 +147,9 @@ pub mod light_merkle_tree_program {
     /// Can only be called from a registered verifier program.
     pub fn insert_two_leaves<'info>(
         ctx: Context<'_, '_, '_, 'info, InsertTwoLeaves<'info>>,
-        leaf_left: [u8; 32],
-        leaf_right: [u8; 32],
-        encrypted_utxo: [u8; 256],
+        leaves: Vec<[u8; 32]>,
     ) -> Result<()> {
-        process_insert_two_leaves(ctx, leaf_left, leaf_right, encrypted_utxo)
+        process_insert_two_leaves(ctx, &leaves)
     }
 
     pub fn insert_two_leaves_event<'info>(

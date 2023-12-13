@@ -644,12 +644,6 @@ export type LightMerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "twoLeavesPda",
-          "isMut": true,
-          "isSigner": false,
-          "isOptional": true
-        },
-        {
           "name": "transactionMerkleTree",
           "isMut": true,
           "isSigner": false
@@ -667,30 +661,14 @@ export type LightMerkleTreeProgram = {
       ],
       "args": [
         {
-          "name": "leafLeft",
+          "name": "leaves",
           "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "leafRight",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "encryptedUtxo",
-          "type": {
-            "array": [
-              "u8",
-              256
-            ]
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         }
       ]
@@ -1239,15 +1217,6 @@ export type LightMerkleTreeProgram = {
             "type": "publicKey"
           },
           {
-            "name": "encryptedUtxos",
-            "type": {
-              "array": [
-                "u8",
-                256
-              ]
-            }
-          },
-          {
             "name": "leftLeafIndex",
             "type": "u64"
           }
@@ -1511,6 +1480,11 @@ export type LightMerkleTreeProgram = {
       "code": 6024,
       "name": "InvalidTwoLeavesPda",
       "msg": "Invalid two leaves PDA."
+    },
+    {
+      "code": 6025,
+      "name": "OddNumberOfLeaves",
+      "msg": "Odd number of leaves."
     }
   ]
 };
@@ -2161,12 +2135,6 @@ export const IDL: LightMerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "twoLeavesPda",
-          "isMut": true,
-          "isSigner": false,
-          "isOptional": true
-        },
-        {
           "name": "transactionMerkleTree",
           "isMut": true,
           "isSigner": false
@@ -2184,30 +2152,14 @@ export const IDL: LightMerkleTreeProgram = {
       ],
       "args": [
         {
-          "name": "leafLeft",
+          "name": "leaves",
           "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "leafRight",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "encryptedUtxo",
-          "type": {
-            "array": [
-              "u8",
-              256
-            ]
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         }
       ]
@@ -2756,15 +2708,6 @@ export const IDL: LightMerkleTreeProgram = {
             "type": "publicKey"
           },
           {
-            "name": "encryptedUtxos",
-            "type": {
-              "array": [
-                "u8",
-                256
-              ]
-            }
-          },
-          {
             "name": "leftLeafIndex",
             "type": "u64"
           }
@@ -3028,6 +2971,11 @@ export const IDL: LightMerkleTreeProgram = {
       "code": 6024,
       "name": "InvalidTwoLeavesPda",
       "msg": "Invalid two leaves PDA."
+    },
+    {
+      "code": 6025,
+      "name": "OddNumberOfLeaves",
+      "msg": "Odd number of leaves."
     }
   ]
 };
