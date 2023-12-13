@@ -90,45 +90,27 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
-    two_leaves_pda: &'b AccountInfo<'a>,
+    two_leaves_pdas: Vec<AccountInfo<'a>>,
     transaction_merkle_tree_account: &'b AccountInfo<'a>,
     system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
-    leaf_left: [u8; 32],
-    leaf_right: [u8; 32],
-    encrypted_utxos: Vec<u8>,
+    leaves: Vec<[u8; 32]>,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    #[cfg(feature = "atomic-transactions")]
-    let two_leaves_pda = None;
-    #[cfg(not(feature = "atomic-transactions"))]
-    let two_leaves_pda = Some(two_leaves_pda.clone());
-
     let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeaves {
         authority: authority.clone(),
-        two_leaves_pda,
         system_program: system_program.clone(),
         transaction_merkle_tree: transaction_merkle_tree_account.clone(),
         registered_verifier_pda: registered_verifier_pda.clone(),
     };
 
-    let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+    let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+    cpi_ctx = cpi_ctx.with_remaining_accounts(two_leaves_pdas);
 
-    light_merkle_tree_program::cpi::insert_two_leaves(
-        cpi_ctx,
-        leaf_left,
-        leaf_right,
-        [
-            encrypted_utxos.to_vec(),
-            vec![0u8; 256 - encrypted_utxos.len()],
-        ]
-        .concat()
-        .try_into()
-        .unwrap(),
-    )?;
+    light_merkle_tree_program::cpi::insert_two_leaves(cpi_ctx, leaves)?;
 
     Ok(())
 }

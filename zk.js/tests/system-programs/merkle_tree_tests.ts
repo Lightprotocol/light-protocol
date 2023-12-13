@@ -821,7 +821,7 @@ describe("Merkle Tree Tests", () => {
           rent: DEFAULT_PROGRAMS.rent,
           transactionMerkleTree: newTransactionMerkleTreePubkey,
         })
-        .remainingAccounts(leavesPdas)
+        .remainingAccounts([leavesPdas[0]])
         .preInstructions([
           solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ])
@@ -1190,7 +1190,6 @@ describe("Merkle Tree Tests", () => {
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
       account: KEYPAIR,
     });
-
     const { rootIndex, remainingAccounts } = await lightProvider.getRootIndex();
     const transaction = new Transaction({
       rootIndex,

@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "scripts": {
     "start-test-validator": "./../cli/test_bin/run test-validator -b",
-    "test": "pnpm test-system-programs && pnpm test-zk.js",
+    "test": "pnpm test-zk.js && pnpm test-system-programs",
     "test-zk.js": "ts-mocha --resolveJsonModule ./tsconfig.json -t 10000000000 tests/**.ts --exit",
     "test-tx-params": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/transactionParameters.test.ts --exit",
     "test-utxo": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/utxo.test.ts --exit",
