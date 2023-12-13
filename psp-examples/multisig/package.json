@@ -16,24 +16,6 @@
     "/npm-shrinkwrap.json",
     "/oclif.manifest.json"
   ],
-  "scripts": {
-    "format": "prettier --write \"{src,tests}/**/*.{ts,js}\" -w",
-    "lint": "prettier \"{src,tests}/**/*{ts,js}\" --check",
-    "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
-    "test-psp": "light psp:test multisig Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
-    "test-cli": "pnpm test-cli-create && pnpm test-cli-approve && pnpm test-cli-execute",
-    "test-cli-create": "mocha ./tests/commands/create/index.test.ts --exit",
-    "test-cli-approve": "mocha ./tests/commands/approve/index.test.ts --exit",
-    "test-cli-execute": "mocha ./tests/commands/execute/index.test.ts --exit",
-    "test-cli-all": "mocha --forbid-only \"tests/**/*.test.ts\"",
-    "test-all": "pnpm kill && pnpm test-psp",
-    "test": "echo use test-all",
-    "build-circuit": "light psp:build multisig --ptau=17",
-    "build": "shx rm -rf dist && pnpm build-circuit && pnpm tsc -b",
-    "postpack": "shx rm -f oclif.manifest.json",
-    "prepack": "pnpm build && oclif manifest && oclif readme",
-    "version": "oclif readme && git add README.md"
-  },
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/zk.js": "workspace:*",

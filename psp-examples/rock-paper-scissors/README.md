@@ -1,3 +1,7 @@
+# Status
+
+currently not maintained
+
 # Rock-Paper-Scissors Game
 
 This is a TypeScript implementation of the classic game Rock-Paper-Scissors. The game is built on the Solana blockchain and is bootstrapped using the [Light CLI](https://www.npmjs.com/package/@lightprotocol/cli) (which also leverages the Anchor framework).  

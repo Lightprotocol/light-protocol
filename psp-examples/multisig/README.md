@@ -1,1 +1,3 @@
-# multisig
+# Status
+
+currently not maintained
