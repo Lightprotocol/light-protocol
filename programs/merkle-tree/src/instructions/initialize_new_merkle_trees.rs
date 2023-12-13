@@ -89,8 +89,5 @@ pub fn process_initialize_new_merkle_trees(
     let new_event_merkle_tree = &mut ctx.accounts.new_event_merkle_tree.load_init()?;
     process_initialize_new_event_merkle_tree(new_event_merkle_tree, merkle_tree_authority)?;
 
-    #[cfg(not(feature = "atomic-transactions"))]
-    crate::process_update_lock_duration(new_transaction_merkle_tree, lock_duration)?;
-
     Ok(())
 }
