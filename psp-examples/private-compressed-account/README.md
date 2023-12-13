@@ -1,3 +1,7 @@
+# Status
+
+currently not maintained
+
 # private-compressed-account
 
 This PSP allows you to insert values into a Merkletree and then prove the inclusion of these values via ZKPs.
