@@ -82,13 +82,11 @@ where
         proof: &[[u8; 32]],
     ) -> Result<(), HasherError> {
         let mut changelog_path = [[0u8; 32]; MAX_HEIGHT];
-        println!("update_path_to_leaf start: i: {i}, leaf: {leaf:?}");
 
         for (j, sibling) in proof.iter().enumerate() {
             // PushBack(changeLog.path, node)
             changelog_path[j] = leaf;
             leaf = compute_parent_node::<H>(&leaf, sibling, i, j)?;
-            println!("update_path_to_leaf j: {j}, leaf: {leaf:?}");
         }
 
         // PushFront(tree.changeLogs, changeLog)
@@ -96,7 +94,6 @@ where
         let changelog = ChangelogEntry::new(leaf, changelog_path, i);
         self.current_index += 1;
         self.changelog[self.current_index as usize] = changelog;
-        println!("setting leaf {leaf:?} as root");
         self.roots[self.current_index as usize] = leaf;
 
         // if i >= self.rightmost_index as usize {
@@ -118,29 +115,23 @@ where
         root_index: usize,
         proof: &[[u8; 32]; MAX_HEIGHT],
     ) -> Result<(), HasherError> {
-        println!("called replace_leaf_inner");
         let mut updated_leaf = old_leaf;
         let mut updated_proof = proof.clone();
         for k in root_index..(self.current_index as usize) + 1 {
-            println!("iteration k: {k}");
             let changelog_entry = self.changelog[k];
             if leaf_index != changelog_entry.index as usize {
-                println!("swapping critbit");
                 // This bit math is used to identify which node in the proof
                 // we need to swap for a corresponding node in a saved change log
-                let padding = 32 - MAX_HEIGHT;
+                let padding = 64 - MAX_HEIGHT;
                 let common_path_len = ((leaf_index ^ changelog_entry.index as usize) << padding)
                     .leading_zeros() as usize;
                 let critbit_index = (MAX_HEIGHT - 1) - common_path_len;
 
                 updated_proof[critbit_index] = changelog_entry.path[critbit_index];
             } else {
-                println!("not swapping critbit");
                 updated_leaf = changelog_entry.path[0];
             }
         }
-        println!("about to validate proof");
-        println!("old_leaf: {old_leaf:?}, updated_leaf: {updated_leaf:?}");
         if is_valid_proof::<H, MAX_HEIGHT>(
             self.roots[self.current_index as usize],
             old_leaf,
@@ -148,7 +139,6 @@ where
             proof,
         )? && updated_leaf == old_leaf
         {
-            println!("proof valid");
             self.update_path_to_leaf(new_leaf, leaf_index, &updated_proof)?
         }
 
@@ -171,10 +161,6 @@ where
         let proof = full_proof::<H, MAX_HEIGHT>(proof);
 
         for root_index in 0..(self.current_index as usize) + 1 {
-            println!(
-                "iteration root_index: {root_index}, root: {root:?}, roots[j]: {:?}",
-                self.roots[root_index]
-            );
             if root == self.roots[root_index] {
                 self.replace_leaf_inner(old_leaf, new_leaf, leaf_index, root_index, &proof)?;
             }

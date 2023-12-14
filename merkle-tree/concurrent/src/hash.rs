@@ -13,10 +13,8 @@ where
 {
     let is_left = (i_node >> i_sibling) & 1 == 0;
     if is_left {
-        println!("is left! node: {node:?}, sibling: {sibling:?}");
         H::hashv(&[node, sibling])
     } else {
-        println!("is right! node: {node:?}, sibling: {sibling:?}");
         H::hashv(&[sibling, node])
     }
 }
@@ -50,7 +48,6 @@ where
     H: Hasher,
 {
     let computed_root = compute_root::<H, MAX_HEIGHT>(node, i, proof)?;
-    println!("computed_root: {computed_root:?}, root: {root:?}");
     Ok(computed_root == root)
 }
 
