@@ -23,10 +23,10 @@ Developers can use Light to build applications such as
 ZK Anchor is what we call the collection of developer tools for writing Private Solana Programs. 
 It consists of the following:
 
-- [Macro Circom](https://github.com/Lightprotocol/light-protocol/tree/main/macro-circom) DSL
+- [Macro Circom](https://github.com/Lightprotocol/light-protocol/tree/main/macro-circom) DSL for writing PSPs.
 - [CLI](https://github.com/Lightprotocol/light-protocol/tree/main/cli) for writing and testing full Applications
 - [RPC Node](https://github.com/Lightprotocol/light-protocol/tree/main/relayer) (relayer) - for indexing and forwarding Light transactions to the Solana network.
-- [zk.js](https://github.com/Lightprotocol/light-protocol/tree/main/zk.js) - web3.js-esque helpers to build transactions and interact with Light.
+- [zk.js](https://github.com/Lightprotocol/light-protocol/tree/main/zk.js) - web3.js-esque helpers to build transactions and interact with your PSP.
   
 Note: All these tools and the protocol are in active development and unaudited.
 
