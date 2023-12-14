@@ -1,5 +1,5 @@
 import { box, sign } from "tweetnacl";
-import { BN, utils } from "@coral-xyz/anchor";
+import { BN, Idl, utils } from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
@@ -696,8 +696,8 @@ export class Account {
     );
   }
 
-  private addPrivateKey(proofInput: any, transaction: TransactionParameters) {
-    proofInput["inPrivateKey"] = transaction.inputUtxos.map((utxo: Utxo) => {
+  private addPrivateKey(proofInput: any, inputUtxos: Utxo[]) {
+    proofInput["inPrivateKey"] = inputUtxos.map((utxo: Utxo) => {
       if (utxo.publicKey == this.pubkey) {
         return this.privkey;
       }
@@ -707,40 +707,49 @@ export class Account {
     });
   }
 
-  async getProofInternal(
-    firstPath: string,
-    transaction: TransactionParameters | any,
-    proofInput: any,
-    addPrivateKey: boolean = false,
-    enableLogging: boolean = false,
-  ) {
+  async getProofInternal({
+    firstPath,
+    verifierIdl,
+    circuitName,
+    proofInput,
+    addPrivateKey,
+    enableLogging,
+    inputUtxos,
+  }: {
+    firstPath: string;
+    verifierIdl: Idl;
+    circuitName?: string;
+    proofInput: any;
+    addPrivateKey?: boolean;
+    enableLogging?: boolean;
+    inputUtxos?: Utxo[];
+  }) {
     if (!proofInput)
       throw new AccountError(
         TransactionErrorCode.PROOF_INPUT_UNDEFINED,
         "getProofInternal",
       );
-    if (!transaction)
-      throw new AccountError(
-        TransactionErrorCode.NO_PARAMETERS_PROVIDED,
-        "getProofInternal",
-      );
-    if (!transaction.verifierIdl)
+    if (!verifierIdl)
       throw new AccountError(
         TransactionErrorCode.NO_PARAMETERS_PROVIDED,
         "getProofInternal",
         "verifierIdl is missing in TransactionParameters",
       );
-    if (addPrivateKey) {
-      this.addPrivateKey(proofInput, transaction);
+
+    if (addPrivateKey && !inputUtxos) {
+      throw new AccountError(
+        TransactionErrorCode.NO_VERIFIER_IDL_PROVIDED,
+        "getProofInternal",
+        "verifierIdl is missing in TransactionParameters",
+      );
     }
-    const prover = new Prover(
-      transaction.verifierIdl,
-      firstPath,
-      transaction.circuitName,
-    );
+    if (addPrivateKey && inputUtxos) {
+      this.addPrivateKey(proofInput, inputUtxos);
+    }
+    const prover = new Prover(verifierIdl, firstPath, circuitName);
     await prover.addProofInputs(proofInput);
     const prefix = `\x1b[37m[${new Date(Date.now()).toISOString()}]\x1b[0m`;
-    const logMsg = `${prefix} Proving ${transaction.verifierIdl.name} circuit`;
+    const logMsg = `${prefix} Proving ${verifierIdl.name} circuit`;
     if (enableLogging) {
       console.time(logMsg);
     }

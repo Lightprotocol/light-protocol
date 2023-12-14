@@ -50,12 +50,14 @@ import {
   UserIndexedTransaction,
   Utxo,
   UtxoError,
-  UtxoErrorCode,
   Result,
   createSystemProofInputs,
   getSystemProof,
   createSolanaInstructions,
   getSolanaRemainingAccounts,
+  prepareAccounts,
+  getSystemPspIdl,
+  getTxParams,
 } from "../index";
 
 // TODO: Utxos should be assigned to a merkle tree
@@ -75,7 +77,7 @@ export class User {
   provider: Provider;
   account: Account;
   transactionHistory?: UserIndexedTransaction[];
-  recentTransactionParameters?: TransactionParameters;
+  recentTransactionParameters?: Transaction;
   recentTransaction?: Transaction;
   approved?: boolean;
   appUtxoConfig?: AppUtxoConfig;
@@ -337,7 +339,7 @@ export class User {
     message?: Buffer;
     skipDecimalConversions?: boolean;
     utxo?: Utxo;
-  }): Promise<TransactionParameters> {
+  }): Promise<Transaction> {
     // TODO: add errors for if appUtxo appDataHash or appData, no verifierAddress
     if (publicAmountSpl && token === "SOL")
       throw new UserError(
@@ -451,7 +453,7 @@ export class User {
       utxos = [];
     }
     if (utxo) outUtxos.push(utxo);
-    const txParams = await TransactionParameters.getTxParams({
+    const txParams = await getTxParams({
       tokenCtx,
       action: Action.SHIELD,
       account: this.account,
@@ -484,9 +486,6 @@ export class User {
         "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
 
-    await this.recentTransactionParameters.getTxIntegrityHash(
-      this.provider.hasher,
-    );
     const systemProofInputs = createSystemProofInputs({
       transaction: this.recentTransactionParameters,
       solMerkleTree: this.provider.solMerkleTree!,
@@ -495,7 +494,10 @@ export class User {
     });
     const systemProof = await getSystemProof({
       account: this.account,
-      transaction: this.recentTransactionParameters,
+      inputUtxos: this.recentTransactionParameters.private.inputUtxos,
+      verifierIdl: getSystemPspIdl(
+        this.recentTransactionParameters.public.accounts.systemPspId,
+      )!,
       systemProofInputs,
     });
     const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
@@ -505,13 +507,26 @@ export class User {
       systemProof.parsedPublicInputsObject,
       remainingMerkleTreeAccounts,
     );
-    this.recentInstructions = await createSolanaInstructions(
+    const accounts = prepareAccounts({
+      transactionAccounts: this.recentTransactionParameters.public.accounts,
+      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      relayerRecipientSol: this.provider.relayer.accounts.relayerRecipientSol,
+      signer: this.recentTransactionParameters.public.accounts.relayerPublicKey,
+    });
+
+    this.recentInstructions = await createSolanaInstructions({
+      action: this.recentTransactionParameters["action"]
+        ? this.recentTransactionParameters["action"]
+        : Action.TRANSFER,
       rootIndex,
       systemProof,
       remainingSolanaAccounts,
-      this.recentTransactionParameters,
-      this.recentTransactionParameters.verifierIdl,
-    );
+      accounts,
+      publicTransactionVariables: this.recentTransactionParameters.public,
+      systemPspIdl: getSystemPspIdl(
+        this.recentTransactionParameters.public.accounts.systemPspId,
+      ),
+    });
     return this.recentInstructions;
   }
 
@@ -523,12 +538,12 @@ export class User {
         "The method 'createShieldTransactionParameters' must be executed first to approve SPL funds before initiating a shield transaction.",
       );
     if (
-      this.recentTransactionParameters?.publicAmountSpl.gt(BN_0) &&
-      this.recentTransactionParameters?.action === Action.SHIELD
+      this.recentTransactionParameters?.public.publicAmountSpl.gt(BN_0) &&
+      this.recentTransactionParameters["action"] === Action.SHIELD
     ) {
       const tokenAccountInfo =
         await this.provider.provider?.connection!.getAccountInfo(
-          this.recentTransactionParameters.accounts.senderSpl!,
+          this.recentTransactionParameters.public.accounts.senderSpl!,
         );
 
       if (!tokenAccountInfo)
@@ -539,28 +554,28 @@ export class User {
         );
       const tokenBalance = await splToken.getAccount(
         this.provider.provider.connection!,
-        this.recentTransactionParameters.accounts.senderSpl!,
+        this.recentTransactionParameters.public.accounts.senderSpl!,
       );
 
       if (
-        this.recentTransactionParameters?.publicAmountSpl.gt(
+        this.recentTransactionParameters?.public.publicAmountSpl.gt(
           new BN(tokenBalance.amount.toString()),
         )
       )
         throw new UserError(
           UserErrorCode.INSUFFICIENT_BAlANCE,
           "shield",
-          `Insufficient token balance! ${this.recentTransactionParameters?.publicAmountSpl.toString()} bal: ${tokenBalance!
+          `Insufficient token balance! ${this.recentTransactionParameters?.public.publicAmountSpl.toString()} bal: ${tokenBalance!
             .amount!}`,
         );
 
       try {
         const transaction = new SolanaTransaction().add(
           splToken.createApproveInstruction(
-            this.recentTransactionParameters.accounts.senderSpl!,
+            this.recentTransactionParameters.public.accounts.senderSpl!,
             AUTHORITY,
             this.provider.wallet!.publicKey,
-            this.recentTransactionParameters?.publicAmountSpl.toNumber(),
+            this.recentTransactionParameters?.public.publicAmountSpl.toNumber(),
           ),
         );
         transaction.recentBlockhash = (
@@ -590,7 +605,7 @@ export class User {
         "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
       );
     if (
-      this.recentTransactionParameters?.action === Action.SHIELD &&
+      this.recentTransactionParameters["action"] === Action.SHIELD &&
       !this.approved
     )
       throw new UserError(
@@ -606,7 +621,7 @@ export class User {
       );
     let txResult;
     try {
-      if (this.recentTransactionParameters.action === Action.SHIELD) {
+      if (this.recentTransactionParameters["action"] === Action.SHIELD) {
         txResult = await this.provider.sendAndConfirmTransaction(
           this.recentInstructions,
         );
@@ -799,7 +814,7 @@ export class User {
       ? Array.from([...utxosEntries, ...utxosEntriesSol])
       : [];
 
-    const txParams = await TransactionParameters.getTxParams({
+    const txParams = await getTxParams({
       tokenCtx,
       publicAmountSpl: _publicSplAmount,
       action: Action.UNSHIELD,
@@ -980,7 +995,7 @@ export class User {
         `Balance does not have any utxos of ${token}`,
       );
 
-    const txParams = await TransactionParameters.getTxParams({
+    const txParams = await getTxParams({
       tokenCtx,
       action: Action.TRANSFER,
       account: this.account,
@@ -1007,7 +1022,7 @@ export class User {
     confirmOptions,
     shuffleEnabled = true,
   }: {
-    txParams: TransactionParameters;
+    txParams: Transaction;
     confirmOptions?: ConfirmOptions;
     shuffleEnabled?: boolean;
   }) {
@@ -1161,7 +1176,7 @@ export class User {
       inUtxos = inUtxos.slice(0, 10);
     }
 
-    const txParams = await TransactionParameters.getTxParams({
+    const txParams = await getTxParams({
       tokenCtx: inboxTokenBalance.tokenData,
       action: Action.TRANSFER,
       provider: this.provider,
@@ -1242,7 +1257,7 @@ export class User {
       );
     }
 
-    const txParams = await TransactionParameters.getTxParams({
+    const txParams = await getTxParams({
       tokenCtx: inboxTokenBalance.tokenData,
       action: Action.TRANSFER,
       provider: this.provider,
@@ -1722,23 +1737,22 @@ export class User {
 
       const tokenCtx = TOKEN_REGISTRY.get("SOL")!;
 
-      this.recentTransactionParameters =
-        await TransactionParameters.getTxParams({
-          tokenCtx,
-          action: Action.TRANSFER,
-          account: this.account,
-          inUtxos,
-          provider: this.provider,
-          relayer: this.provider.relayer,
-          appUtxo: this.appUtxoConfig,
-          message,
-          mergeUtxos: true,
-          addInUtxos: false,
-          verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
-          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-          verifierProgramLookupTable:
-            this.provider.lookUpTables.verifierProgramLookupTable,
-        });
+      this.recentTransactionParameters = await getTxParams({
+        tokenCtx,
+        action: Action.TRANSFER,
+        account: this.account,
+        inUtxos,
+        provider: this.provider,
+        relayer: this.provider.relayer,
+        appUtxo: this.appUtxoConfig,
+        message,
+        mergeUtxos: true,
+        addInUtxos: false,
+        verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
+        assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+        verifierProgramLookupTable:
+          this.provider.lookUpTables.verifierProgramLookupTable,
+      });
     }
 
     return this.transactWithParameters({

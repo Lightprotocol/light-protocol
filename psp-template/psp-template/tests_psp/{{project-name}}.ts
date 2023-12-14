@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { assert } from "chai";
 import {
   Utxo,
-  TransactionParameters,
+  createTransaction,
   Provider as LightProvider,
   confirmConfig,
   Action,
@@ -11,14 +11,14 @@ import {
   ProgramUtxoBalance,
   airdropSol,
   PspTransactionInput,
-  ConfirmOptions,
   getSystemProof,
   MerkleTreeConfig,
-  getVerifierStatePda,
+  lightPsp4in4outAppStorageId,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   createProofInputs,
   SolanaTransactionInputs,
-  sendAndConfirmShieldedTransaction
+  sendAndConfirmShieldedTransaction,
+  getVerifierProgramId
 } from "@lightprotocol/zk.js";
 import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import {
@@ -70,7 +70,7 @@ describe("Test {{project-name}}", () => {
     // The light provider is a connection and wallet abstraction.
     // The wallet is used to derive the seed for your shielded keypair with a signature.
     var lightProvider = await LightProvider.init({ wallet, url: RPC_URL, relayer, confirmConfig });
-    lightProvider.addVerifierProgramPublickeyToLookUpTable(TransactionParameters.getVerifierProgramId(IDL));
+    lightProvider.addVerifierProgramPublickeyToLookUpTable(getVerifierProgramId(IDL));
 
     const user: User = await User.init({ provider: lightProvider });
 
@@ -101,9 +101,9 @@ describe("Test {{project-name}}", () => {
     const shieldedUtxoCommitmentHash =
       testInputsShield.utxo.getCommitment(HASHER);
     const inputUtxo = programUtxoBalance
-      .get(verifierProgramId.toBase58())
-      .tokenBalances.get(testInputsShield.utxo.assets[1].toBase58())
-      .utxos.get(shieldedUtxoCommitmentHash);
+      .get(verifierProgramId.toBase58())!
+      .tokenBalances.get(testInputsShield.utxo.assets[1].toBase58())!
+      .utxos.get(shieldedUtxoCommitmentHash)!;
 
     Utxo.equal(HASHER, inputUtxo, testInputsShield.utxo, true);
 
@@ -129,63 +129,60 @@ describe("Test {{project-name}}", () => {
     });
     const inputUtxos = [inputUtxo];
     const outputUtxos = [changeUtxo];
-
-    const txParams = new TransactionParameters({
+    const shieldedTransaction = await createTransaction({
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
-      action: Action.TRANSFER,
+      relayerPublicKey: relayer.accounts.relayerPubkey,
       hasher: HASHER,
-      relayer,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      relayerFee: relayer.relayerFee,
+      pspId: verifierProgramId,
+      systemPspId: lightPsp4in4outAppStorageId,
       account: user.account,
-      verifierState: getVerifierStatePda(
-        verifierProgramId,
-        relayer.accounts.relayerPubkey,
-      ),
     });
-
-    await txParams.getTxIntegrityHash(HASHER);
 
     const proofInputs = createProofInputs({
       hasher: HASHER,
-      transaction: txParams,
+      transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: user.account,
-      solMerkleTree: user.provider.solMerkleTree,
+      solMerkleTree: user.provider.solMerkleTree!,
     });
 
     const systemProof = await getSystemProof({
       account: user.account,
-      transaction: txParams,
       systemProofInputs: proofInputs,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      inputUtxos,
     });
 
-    const pspProof = await user.account.getProofInternal(
-      pspTransactionInput.path,
-      pspTransactionInput,
-      proofInputs,
-      false,
-    );
+    const pspProof = await user.account.getProofInternal({
+      firstPath: pspTransactionInput.path,
+      verifierIdl: pspTransactionInput.verifierIdl,
+      proofInput: proofInputs,
+      inputUtxos,
+    });
     const solanaTransactionInputs: SolanaTransactionInputs = {
+      action: Action.TRANSFER,
       systemProof,
       pspProof,
-      transaction: txParams,
+      publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
+      relayerRecipientSol: relayer.accounts.relayerRecipientSol,
+      eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
+      systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
     };
 
     const {txHash} = await sendAndConfirmShieldedTransaction({
       solanaTransactionInputs,
       provider: user.provider,
-      confirmOptions: ConfirmOptions.spendable,
     });
 
     console.log("transaction hash ", txHash);
     const utxoSpent = await user.getUtxo(inputUtxo.getCommitment(HASHER), true, IDL);
-    assert.equal(utxoSpent.status, "spent");
-    Utxo.equal(HASHER, utxoSpent.utxo, inputUtxo, true);
+    assert.equal(utxoSpent!.status, "spent");
+    Utxo.equal(HASHER, utxoSpent!.utxo, inputUtxo, true);
   });
 });

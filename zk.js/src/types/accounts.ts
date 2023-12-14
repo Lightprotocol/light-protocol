@@ -1,22 +1,23 @@
 import { PublicKey } from "@solana/web3.js";
 
 export type lightAccounts = {
-  senderSpl?: PublicKey;
-  recipientSpl?: PublicKey;
-  senderSol?: PublicKey;
-  recipientSol?: PublicKey;
-  verifierState?: PublicKey;
-  tokenAuthority?: PublicKey;
+  senderSpl: PublicKey;
+  recipientSpl: PublicKey;
+  senderSol: PublicKey;
+  recipientSol: PublicKey;
+  tokenAuthority: PublicKey;
   systemProgramId: PublicKey;
-  eventMerkleTree?: PublicKey;
+  eventMerkleTree: PublicKey;
   transactionMerkleTree: PublicKey;
   tokenProgram: PublicKey;
   registeredVerifierPda: PublicKey;
   authority: PublicKey;
-  signingAddress?: PublicKey;
+  signingAddress: PublicKey;
   programMerkleTree: PublicKey;
   logWrapper: PublicKey;
+  relayerRecipientSol: PublicKey;
   verifierProgram?: PublicKey;
+  verifierState?: PublicKey;
 };
 
 export type remainingAccount = {

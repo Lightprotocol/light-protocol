@@ -22,6 +22,8 @@ import {
   sendAndConfirmShieldedTransaction,
   ConfirmOptions,
   hashAndTruncateToCircuit,
+  createTransaction,
+  lightPsp4in4outAppStorageId,
 } from "@lightprotocol/zk.js";
 
 import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
@@ -216,26 +218,19 @@ describe("Test swaps", () => {
 
     const inputUtxos = [fetchedOfferUtxo, shieldUtxo];
     const outputUtxos = [changeUtxo, tradeOutputUtxo, offerRewardUtxo];
-
-    const txParams = new TransactionParameters({
+    const shieldedTransaction = await createTransaction({
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
-      action: Action.TRANSFER,
+      relayerPublicKey: RELAYER.accounts.relayerPubkey,
       hasher: HASHER,
-      relayer: RELAYER,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      relayerFee: RELAYER.relayerFee,
+      pspId: verifierProgramId,
+      systemPspId: lightPsp4in4outAppStorageId,
       account: buyerUser.account,
-      verifierState: getVerifierStatePda(
-        verifierProgramId,
-        RELAYER.accounts.relayerPubkey,
-      ),
     });
-
-    await txParams.getTxIntegrityHash(HASHER);
 
     /**
      * Proves PSP logic
@@ -244,7 +239,7 @@ describe("Test swaps", () => {
 
     const proofInputs = createProofInputs({
       hasher: HASHER,
-      transaction: txParams,
+      transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: buyerUser.account,
       solMerkleTree: buyerUser.provider.solMerkleTree,
@@ -252,10 +247,10 @@ describe("Test swaps", () => {
 
     const systemProof = await getSystemProof({
       account: buyerUser.account,
-      transaction: txParams,
       systemProofInputs: proofInputs,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      inputUtxos,
     });
-
     /**
      * Proves PSP logic
      * returns proof and it's public inputs
@@ -266,12 +261,13 @@ describe("Test swaps", () => {
       IDL,
       pspTransactionInput.circuitName,
     );
-    const pspProof = await buyerUser.account.getProofInternal(
-      pspTransactionInput.path,
-      pspTransactionInput,
-      completePspProofInputs,
-      false,
-    );
+
+    const pspProof = await buyerUser.account.getProofInternal({
+      firstPath: pspTransactionInput.path,
+      verifierIdl: pspTransactionInput.verifierIdl,
+      proofInput: completePspProofInputs,
+      inputUtxos,
+    });
     /**
      * Create solana transactions.
      * We send 3 transactions because it is too much data for one solana transaction (max 1232 bytes).
@@ -282,16 +278,19 @@ describe("Test swaps", () => {
      * -
      */
     const solanaTransactionInputs: SolanaTransactionInputs = {
+      action: Action.TRANSFER,
       systemProof,
       pspProof,
-      transaction: txParams,
+      publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
+      relayerRecipientSol: RELAYER.accounts.relayerRecipientSol,
+      eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
+      systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
     };
 
     const res = await sendAndConfirmShieldedTransaction({
       solanaTransactionInputs,
       provider: buyerUser.provider,
-      confirmOptions: ConfirmOptions.spendable,
     });
     console.log("tx Hash : ", res.txHash);
 
@@ -499,26 +498,19 @@ describe("Test swaps", () => {
     const inputUtxos = [offerUtxo, fetchedCounterOfferUtxo];
     const outputUtxos = [tradeOutputUtxo, counterOfferRewardUtxo];
 
-    const txParams = new TransactionParameters({
+    const shieldedTransaction = await createTransaction({
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
-      action: Action.TRANSFER,
+      relayerPublicKey: RELAYER.accounts.relayerPubkey,
       hasher: HASHER,
-      relayer: RELAYER,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      relayerFee: RELAYER.relayerFee,
+      pspId: verifierProgramId,
+      systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
-      verifierState: getVerifierStatePda(
-        verifierProgramId,
-        RELAYER.accounts.relayerPubkey,
-      ),
     });
-
-    await txParams.getTxIntegrityHash(HASHER);
-
     /**
      * Proves PSP logic
      * returns proof and it's public inputs
@@ -526,7 +518,7 @@ describe("Test swaps", () => {
 
     const proofInputs = createProofInputs({
       hasher: HASHER,
-      transaction: txParams,
+      transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
       solMerkleTree: sellerUser.provider.solMerkleTree,
@@ -534,10 +526,10 @@ describe("Test swaps", () => {
 
     const systemProof = await getSystemProof({
       account: sellerUser.account,
-      transaction: txParams,
       systemProofInputs: proofInputs,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      inputUtxos,
     });
-
     /**
      * Proves PSP logic
      * returns proof and it's public inputs
@@ -548,12 +540,13 @@ describe("Test swaps", () => {
       IDL,
       pspTransactionInput.circuitName,
     );
-    const pspProof = await sellerUser.account.getProofInternal(
-      pspTransactionInput.path,
-      pspTransactionInput,
-      completePspProofInputs,
-      false,
-    );
+
+    const pspProof = await sellerUser.account.getProofInternal({
+      firstPath: pspTransactionInput.path,
+      verifierIdl: pspTransactionInput.verifierIdl,
+      proofInput: completePspProofInputs,
+      inputUtxos,
+    });
     /**
      * Create solana transactions.
      * We send 3 transactions because it is too much data for one solana transaction (max 1232 bytes).
@@ -563,17 +556,21 @@ describe("Test swaps", () => {
      * - systemProofPublicInputs:
      * -
      */
+
     const solanaTransactionInputs: SolanaTransactionInputs = {
+      action: Action.TRANSFER,
       systemProof,
       pspProof,
-      transaction: txParams,
+      publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
+      relayerRecipientSol: RELAYER.accounts.relayerRecipientSol,
+      eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
+      systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
     };
 
     const res = await sendAndConfirmShieldedTransaction({
       solanaTransactionInputs,
       provider: sellerUser.provider,
-      confirmOptions: ConfirmOptions.spendable,
     });
     console.log("tx Hash : ", res.txHash);
 
@@ -695,26 +692,19 @@ describe("Test swaps", () => {
     const inputUtxos = [fetchedOfferUtxo, emptySignerUtxo];
     const outputUtxos = [cancelOutputUtxo];
 
-    const txParams = new TransactionParameters({
+    const shieldedTransaction = await createTransaction({
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
-      action: Action.TRANSFER,
+      relayerPublicKey: RELAYER.accounts.relayerPubkey,
       hasher: HASHER,
-      relayer: RELAYER,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      relayerFee: RELAYER.relayerFee,
+      pspId: verifierProgramId,
+      systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
-      verifierState: getVerifierStatePda(
-        verifierProgramId,
-        RELAYER.accounts.relayerPubkey,
-      ),
     });
-
-    await txParams.getTxIntegrityHash(HASHER);
-
     /**
      * Proves PSP logic
      * returns proof and it's public inputs
@@ -722,7 +712,7 @@ describe("Test swaps", () => {
 
     const proofInputs = createProofInputs({
       hasher: HASHER,
-      transaction: txParams,
+      transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
       solMerkleTree: sellerUser.provider.solMerkleTree,
@@ -730,8 +720,9 @@ describe("Test swaps", () => {
 
     const systemProof = await getSystemProof({
       account: sellerUser.account,
-      transaction: txParams,
       systemProofInputs: proofInputs,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      inputUtxos,
     });
 
     /**
@@ -744,12 +735,13 @@ describe("Test swaps", () => {
       IDL,
       pspTransactionInput.circuitName,
     );
-    const pspProof = await sellerUser.account.getProofInternal(
-      pspTransactionInput.path,
-      pspTransactionInput,
-      completePspProofInputs,
-      false,
-    );
+
+    const pspProof = await sellerUser.account.getProofInternal({
+      firstPath: pspTransactionInput.path,
+      verifierIdl: pspTransactionInput.verifierIdl,
+      proofInput: completePspProofInputs,
+      inputUtxos,
+    });
     /**
      * Create solana transactions.
      * We send 3 transactions because it is too much data for one solana transaction (max 1232 bytes).
@@ -759,17 +751,21 @@ describe("Test swaps", () => {
      * - systemProofPublicInputs:
      * -
      */
+
     const solanaTransactionInputs: SolanaTransactionInputs = {
+      action: Action.TRANSFER,
       systemProof,
       pspProof,
-      transaction: txParams,
+      publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
+      relayerRecipientSol: RELAYER.accounts.relayerRecipientSol,
+      eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
+      systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
     };
 
     const res = await sendAndConfirmShieldedTransaction({
       solanaTransactionInputs,
       provider: sellerUser.provider,
-      confirmOptions: ConfirmOptions.spendable,
     });
     console.log("tx Hash : ", res.txHash);
 

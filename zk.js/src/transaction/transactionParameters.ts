@@ -17,6 +17,9 @@ import {
   createOutUtxos,
   CreateUtxoErrorCode,
   FIELD_SIZE,
+  getRegisteredVerifierPda,
+  getSignerAuthorityPda,
+  getTokenAuthorityPda,
   hashAndTruncateToCircuit,
   IDL_LIGHT_PSP2IN2OUT,
   lightAccounts,
@@ -26,7 +29,6 @@ import {
   RelayerErrorCode,
   selectInUtxos,
   TokenData,
-  Transaction,
   TransactionError,
   TransactionErrorCode,
   transactionParameters,
@@ -424,27 +426,27 @@ export class TransactionParameters implements transactionParameters {
         "",
       );
     }
-
+    // @ts-ignore: doesn't make sense to fix, TransactionParameters be removed in another pr soon
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
       logWrapper: SPL_NOOP_PROGRAM_ID,
       eventMerkleTree: eventMerkleTreePubkey,
       transactionMerkleTree: transactionMerkleTreePubkey,
-      registeredVerifierPda: Transaction.getRegisteredVerifierPda(
+      registeredVerifierPda: getRegisteredVerifierPda(
         merkleTreeProgramId,
         this.verifierProgramId,
       ),
-      authority: Transaction.getSignerAuthorityPda(
+      authority: getSignerAuthorityPda(
         merkleTreeProgramId,
         this.verifierProgramId,
       ),
-      senderSpl: senderSpl,
-      recipientSpl: recipientSpl,
-      senderSol: senderSol,
-      recipientSol: recipientSol,
+      senderSpl: senderSpl!,
+      recipientSpl: recipientSpl!,
+      senderSol: senderSol!,
+      recipientSol: recipientSol!,
       programMerkleTree: merkleTreeProgramId,
-      tokenAuthority: Transaction.getTokenAuthority(),
+      tokenAuthority: getTokenAuthorityPda(),
       verifierProgram: this.verifierProgramId,
     };
 

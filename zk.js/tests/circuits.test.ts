@@ -16,7 +16,7 @@ import {
   MINT,
   Relayer,
   TransactionErrorCode,
-  Transaction,
+  LegacyTransaction as Transaction,
   TransactionParameters,
   Action,
   IDL_LIGHT_PSP2IN2OUT,

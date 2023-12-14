@@ -13,7 +13,7 @@ import {
   hashAndTruncateToCircuit,
   Provider as LightProvider,
   MINT,
-  Transaction,
+  LegacyTransaction as Transaction,
   TransactionParameters,
   TransactionErrorCode,
   Action,
@@ -180,7 +180,7 @@ describe("Transaction Parameters Functional", () => {
     assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
     assert.equal(
       params.accounts.tokenAuthority?.toBase58(),
-      Transaction.getTokenAuthority().toBase58(),
+      Transaction.getTokenAuthorityPda().toBase58(),
     );
     assert.equal(
       TransactionParameters.getVerifierConfig(params.verifierIdl).in.toString(),
@@ -303,7 +303,7 @@ describe("Transaction Parameters Functional", () => {
       assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
       assert.equal(
         params.accounts.tokenAuthority?.toBase58(),
-        Transaction.getTokenAuthority().toBase58(),
+        Transaction.getTokenAuthorityPda().toBase58(),
       );
       assert.equal(
         TransactionParameters.getVerifierConfig(
@@ -415,7 +415,7 @@ describe("Transaction Parameters Functional", () => {
       assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
       assert.equal(
         params.accounts.tokenAuthority?.toBase58(),
-        Transaction.getTokenAuthority().toBase58(),
+        Transaction.getTokenAuthorityPda().toBase58(),
       );
       assert.equal(
         TransactionParameters.getVerifierConfig(
@@ -527,7 +527,7 @@ describe("Transaction Parameters Functional", () => {
       assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
       assert.equal(
         params.accounts.tokenAuthority?.toBase58(),
-        Transaction.getTokenAuthority().toBase58(),
+        Transaction.getTokenAuthorityPda().toBase58(),
       );
       assert.equal(
         TransactionParameters.getVerifierConfig(

@@ -5,7 +5,6 @@ import {
 } from "../errors";
 import {
   Account,
-  TransactionParameters,
   Provider,
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   checkRentExemption,
@@ -15,6 +14,10 @@ import {
   merkleTreeProgramId,
   fetchRecentTransactions,
   MerkleTreeConfig,
+  lightAccounts,
+  Transaction,
+  ShieldTransaction,
+  UnshieldTransaction,
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
@@ -28,17 +31,21 @@ export class TestTransaction {
     recipientFeeBalancePriorTx?: BN;
     is_token?: boolean;
   };
-  params: TransactionParameters;
+  accounts: lightAccounts;
   provider: Provider;
   merkleTreeProgram?: Program<typeof IDL_LIGHT_MERKLE_TREE_PROGRAM>;
   appParams?: any;
+  action: Action;
+  transaction: Transaction;
 
   constructor({
-    txParams,
+    accounts,
+    transaction,
     provider,
     appParams,
   }: {
-    txParams: TransactionParameters;
+    transaction: ShieldTransaction | UnshieldTransaction | Transaction;
+    accounts: lightAccounts;
     appParams?: any;
     provider: Provider;
   }) {
@@ -47,10 +54,14 @@ export class TestTransaction {
       merkleTreeProgramId,
       provider.provider,
     );
-    this.params = txParams;
+    this.accounts = accounts;
     this.provider = provider;
     this.appParams = appParams;
     this.testValues = {};
+    this.action = transaction["action"]
+      ? transaction["action"]
+      : Action.TRANSFER;
+    this.transaction = transaction;
   }
 
   // send transaction should be the same for both shiel and unshield
@@ -58,42 +69,6 @@ export class TestTransaction {
   // in case there is more than one transaction to be sent to the verifier these can be sent separately
   // TODO: make optional and default no
   async getTestValues() {
-    if (!this.provider)
-      throw new TransactionError(
-        ProviderErrorCode.PROVIDER_UNDEFINED,
-        "getTestValues",
-        "",
-      );
-    if (!this.provider.provider)
-      throw new TransactionError(
-        ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
-        "getTestValues",
-        "Provider.provider undefined",
-      );
-    if (!this.params)
-      throw new TransactionError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-        "getTestValues",
-        "",
-      );
-    if (!this.params.relayer)
-      throw new TransactionError(
-        TransactionErrorCode.RELAYER_UNDEFINED,
-        "getTestValues",
-        "",
-      );
-    if (!this.params.accounts.recipientSol)
-      throw new TransactionError(
-        TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
-        "getTestValues",
-        "",
-      );
-    if (!this.params.accounts.senderSol)
-      throw new TransactionError(
-        TransactionErrorCode.SOL_SENDER_UNDEFINED,
-        "getTestValues",
-        "",
-      );
     if (!this.testValues)
       throw new TransactionError(
         TransactionErrorCode.TRANSACTION_INPUTS_UNDEFINED,
@@ -101,13 +76,13 @@ export class TestTransaction {
         "",
       );
 
-    if (this.params.accounts.recipientSpl) {
+    if (this.accounts.recipientSpl) {
       try {
         this.testValues.recipientBalancePriorTx = new BN(
           (
             await getAccount(
               this.provider.provider.connection,
-              this.params.accounts.recipientSpl,
+              this.accounts.recipientSpl,
             )
           ).amount.toString(),
         );
@@ -116,7 +91,7 @@ export class TestTransaction {
         try {
           this.testValues.recipientBalancePriorTx = new BN(
             await this.provider.provider.connection.getBalance(
-              this.params.accounts.recipientSpl,
+              this.accounts.recipientSpl,
             ),
           );
         } catch (_) {
@@ -127,26 +102,26 @@ export class TestTransaction {
 
     this.testValues.recipientFeeBalancePriorTx = new BN(
       await this.provider.provider.connection.getBalance(
-        this.params.accounts.recipientSol,
+        this.accounts.recipientSol,
       ),
     );
-    if (this.params.action === "SHIELD") {
+    if (this.action === "SHIELD") {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
-          this.params.relayer.accounts.relayerPubkey,
+          this.accounts.signingAddress,
         ),
       );
     } else {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.senderSol,
+          this.accounts.senderSol,
         ),
       );
     }
 
     this.testValues.relayerRecipientAccountBalancePriorLastTx = new BN(
       await this.provider.provider.connection.getBalance(
-        this.params.relayer.accounts.relayerRecipientSol,
+        this.accounts.relayerRecipientSol,
       ),
     );
   }
@@ -157,12 +132,6 @@ export class TestTransaction {
     proofInput: any,
     account?: Account,
   ) {
-    if (!this.params)
-      throw new TransactionError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-        "getPdaAddresses",
-        "",
-      );
     if (!transactionInputs.publicInputs)
       throw new TransactionError(
         TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
@@ -170,12 +139,12 @@ export class TestTransaction {
         "",
       );
 
-    if (!this.params.accounts.senderSol) {
-      throw new Error("params.accounts.senderSol undefined");
+    if (!this.accounts.senderSol) {
+      throw new Error("accounts.senderSol undefined");
     }
 
-    if (!this.params.accounts.recipientSol) {
-      throw new Error("params.accounts.recipientSol undefined");
+    if (!this.accounts.recipientSol) {
+      throw new Error("accounts.recipientSol undefined");
     }
 
     if (!this.testValues) {
@@ -183,14 +152,6 @@ export class TestTransaction {
     }
     if (!this.testValues.senderFeeBalancePriorTx) {
       throw new Error("senderFeeBalancePriorTx undefined");
-    }
-
-    if (!this.params.publicAmountSol) {
-      throw new Error("amountSol undefined");
-    }
-
-    if (!this.params.publicAmountSol) {
-      throw new Error("amountSol undefined");
     }
 
     if (!this.merkleTreeProgram) {
@@ -204,22 +165,6 @@ export class TestTransaction {
 
     if (!this.provider.solMerkleTree) {
       throw new Error("provider.solMerkleTree undefined");
-    }
-
-    if (!this.params.encryptedUtxos) {
-      throw new Error("params.encryptedUtxos undefined");
-    }
-
-    if (!this.params.outputUtxos) {
-      throw new Error("params.outputUtxos undefined");
-    }
-
-    if (!this.provider.provider) {
-      throw new Error("params.outputUtxos undefined");
-    }
-
-    if (!this.params.relayer) {
-      throw new Error("params.relayer undefined");
     }
 
     if (!remainingAccounts) {
@@ -247,11 +192,11 @@ export class TestTransaction {
 
     this.testValues.is_token =
       new BN(proofInput.publicAmountSpl).toString() !== "0";
-    if (this.testValues.is_token && !this.params.accounts.senderSpl) {
-      throw new Error("params.accounts.senderSpl undefined");
+    if (this.testValues.is_token && !this.accounts.senderSpl) {
+      throw new Error("accounts.senderSpl undefined");
     }
-    if (this.testValues.is_token && !this.params.accounts.recipientSpl) {
-      throw new Error("params.accounts.recipientSpl undefined");
+    if (this.testValues.is_token && !this.accounts.recipientSpl) {
+      throw new Error("accounts.recipientSpl undefined");
     }
     if (this.testValues.is_token && !this.testValues.recipientBalancePriorTx) {
       throw new Error("test values recipientBalancePriorTx undefined");
@@ -278,168 +223,169 @@ export class TestTransaction {
     let nrInstructions;
     if (this.appParams) {
       nrInstructions = 2;
-    } else if (this.params) {
-      nrInstructions = this.params.inputUtxos.length === 2 ? 1 : 2;
-      if (this.params.message) {
-        nrInstructions = Math.ceil(this.params.message.length / 900) + 1;
+    } else if (this.transaction) {
+      nrInstructions = this.transaction.private.inputUtxos.length === 2 ? 1 : 2;
+      if (this.transaction.public.message) {
+        nrInstructions =
+          Math.ceil(this.transaction.public.message.length / 900) + 1;
       }
     } else {
       throw new Error("No params provided.");
     }
 
-    if (this.params.action == "SHIELD" && !this.testValues.is_token) {
+    if (this.action == "SHIELD" && !this.testValues.is_token) {
       const recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientSol,
+          this.accounts.recipientSol,
           "confirmed",
         );
 
       const senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.relayer.accounts.relayerPubkey,
+          this.accounts.signingAddress,
           "confirmed",
         );
       assert.equal(
         recipientSolAccountBalance,
         Number(this.testValues.recipientFeeBalancePriorTx) +
-          Number(this.params.publicAmountSol),
+          Number(this.transaction.public.publicAmountSol),
       );
 
       assert.equal(
         new BN(this.testValues.senderFeeBalancePriorTx)
-          .sub(this.params.publicAmountSol)
+          .sub(this.transaction.public.publicAmountSol)
           .sub(new BN(5000 * nrInstructions))
           .toString(),
         senderFeeAccountBalance.toString(),
       );
-    } else if (this.params.action == "SHIELD" && this.testValues.is_token) {
+    } else if (this.action == "SHIELD" && this.testValues.is_token) {
       const recipientAccount = await getAccount(
         this.provider.provider.connection,
-        this.params.accounts.recipientSpl!,
+        this.accounts.recipientSpl!,
       );
       const recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientSol,
+          this.accounts.recipientSol,
         );
       assert.equal(
         recipientAccount.amount.toString(),
         (
           Number(this.testValues.recipientBalancePriorTx) +
-          Number(this.params.publicAmountSpl)
+          Number(this.transaction.public.publicAmountSpl)
         ).toString(),
         "amount not transferred correctly",
       );
-      if (!this.params.accounts.signingAddress)
+      if (!this.accounts.signingAddress)
         throw new Error("Signing address undefined");
       const senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.signingAddress,
+          this.accounts.signingAddress,
           "confirmed",
         );
       assert.equal(
         recipientSolAccountBalance,
         Number(this.testValues.recipientFeeBalancePriorTx) +
-          Number(this.params.publicAmountSol),
+          Number(this.transaction.public.publicAmountSol),
       );
 
       assert.equal(
         new BN(this.testValues.senderFeeBalancePriorTx)
-          .sub(this.params.publicAmountSol)
+          .sub(this.transaction.public.publicAmountSol)
           .sub(new BN(5000 * nrInstructions))
           .toString(),
         senderFeeAccountBalance.toString(),
       );
-    } else if (this.params.action == "UNSHIELD" && !this.testValues.is_token) {
+    } else if (this.action == "UNSHIELD" && !this.testValues.is_token) {
       const relayerAccount = await this.provider.provider.connection.getBalance(
-        this.params.relayer.accounts.relayerRecipientSol,
+        this.accounts.relayerRecipientSol,
         "confirmed",
       );
 
       const recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientSol,
+          this.accounts.recipientSol,
           "confirmed",
         );
 
       assert.equal(
         new BN(recipientFeeAccount)
-          .add(
-            new BN(
-              this.params.relayer
-                .getRelayerFee(this.params.ataCreationFee)
-                .toString(),
-            ),
-          )
+          .add(this.transaction.public.relayerFee)
           .toString(),
         new BN(this.testValues.recipientFeeBalancePriorTx)
-          .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
+          .sub(
+            this.transaction.public.publicAmountSol
+              ?.sub(FIELD_SIZE)
+              .mod(FIELD_SIZE),
+          )
           .toString(),
       );
       assert.equal(
         new BN(relayerAccount)
-          .sub(this.params.relayer.getRelayerFee(this.params.ataCreationFee))
+          .sub(this.transaction.public.relayerFee)
           .toString(),
         this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
-    } else if (this.params.action == "UNSHIELD" && this.testValues.is_token) {
+    } else if (this.action == "UNSHIELD" && this.testValues.is_token) {
       await getAccount(
         this.provider.provider.connection,
-        this.params.accounts.senderSpl!,
+        this.accounts.senderSpl!,
       );
 
       const recipientAccount = await getAccount(
         this.provider.provider.connection,
-        this.params.accounts.recipientSpl!,
+        this.accounts.recipientSpl!,
       );
 
       assert.equal(
         recipientAccount.amount.toString(),
         new BN(this.testValues.recipientBalancePriorTx!)
-          .sub(this.params.publicAmountSpl?.sub(FIELD_SIZE).mod(FIELD_SIZE))
+          .sub(
+            this.transaction.public.publicAmountSpl
+              ?.sub(FIELD_SIZE)
+              .mod(FIELD_SIZE),
+          )
           .toString(),
         "amount not transferred correctly",
       );
 
       const relayerAccount = await this.provider.provider.connection.getBalance(
-        this.params.relayer.accounts.relayerRecipientSol,
+        this.accounts.relayerRecipientSol,
         "confirmed",
       );
 
       const recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientSol,
+          this.accounts.recipientSol,
           "confirmed",
         );
 
       assert.equal(
         new BN(recipientFeeAccount)
-          .add(
-            new BN(
-              this.params.relayer
-                .getRelayerFee(this.params.ataCreationFee)
-                .toString(),
-            ),
-          )
+          .add(this.transaction.public.relayerFee)
           .toString(),
         new BN(this.testValues.recipientFeeBalancePriorTx)
-          .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
+          .sub(
+            this.transaction.public.publicAmountSol
+              ?.sub(FIELD_SIZE)
+              .mod(FIELD_SIZE),
+          )
           .toString(),
       );
 
       assert.equal(
         new BN(relayerAccount)
-          .sub(this.params.relayer.getRelayerFee(this.params.ataCreationFee))
+          .sub(this.transaction.public.relayerFee)
           // .add(new BN("5000"))
           .toString(),
         this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
-    } else if (this.params.action === Action.TRANSFER) {
+    } else if (this.action === Action.TRANSFER) {
       console.log("balance check for transfer not implemented");
     } else {
       throw Error("mode not supplied");
     }
 
-    if (this.params.message) {
+    if (this.transaction.public.message) {
       const { transactions: indexedTransactions } =
         await fetchRecentTransactions({
           connection: this.provider!.provider!.connection,
@@ -450,7 +396,7 @@ export class TestTransaction {
       indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
       assert.equal(
         indexedTransactions[0].message.toString(),
-        this.params.message.toString(),
+        this.transaction.public.message.toString(),
       );
     }
   }
@@ -466,7 +412,9 @@ export class TestTransaction {
         new BN(
           this.provider.solMerkleTree!.merkleTree.elements()[
             this.provider.solMerkleTree!.merkleTree.indexOf(
-              this.params.outputUtxos[0].getCommitment(this.provider.hasher),
+              this.transaction.private.outputUtxos[0].getCommitment(
+                this.provider.hasher,
+              ),
             )
           ],
         ).toArray("be", 32),

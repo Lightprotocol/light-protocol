@@ -11,7 +11,7 @@ import {
   ADMIN_AUTH_KEYPAIR,
   POOL_TYPE,
   MINT,
-  Transaction,
+  LegacyTransaction as Transaction,
   merkleTreeProgramId,
   airdropSol,
   lightPsp2in2outId,

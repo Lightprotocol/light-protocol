@@ -10,6 +10,10 @@ import {
   LightPsp2in2out,
   LightPsp10in2out,
   LightPsp4in4outAppStorage,
+  IDL_LIGHT_PSP2IN2OUT,
+  IDL_LIGHT_PSP10IN2OUT,
+  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+  IDL_LIGHT_PSP2IN2OUT_STORAGE,
 } from "./idls";
 
 import {
@@ -222,3 +226,11 @@ export const STANDARD_SHIELDED_PUBLIC_KEY = new BN(
 
 export const FETCH_QUEUED_LEAVES_RETRIES = 5;
 export const UPDATE_MERKLE_TREE_RETRIES = 2;
+
+// @ts-ignore: anchor type error for different idls figure out whether we can avoid
+export const SYSTEM_PROGRAM_IDLS: Map<string, anchor.Idl> = new Map([
+  [lightPsp2in2outId.toBase58(), IDL_LIGHT_PSP2IN2OUT],
+  [lightPsp10in2outId.toBase58(), IDL_LIGHT_PSP10IN2OUT],
+  [lightPsp4in4outAppStorageId.toBase58(), IDL_LIGHT_PSP4IN4OUT_APP_STORAGE],
+  [lightPsp2in2outStorageId.toBase58(), IDL_LIGHT_PSP2IN2OUT_STORAGE],
+]);

@@ -20,6 +20,7 @@ import {
   SolMerkleTree,
   STANDARD_SHIELDED_PUBLIC_KEY,
   STANDARD_SHIELDED_PRIVATE_KEY,
+  getNullifierPda,
 } from "../index";
 import { Hasher } from "@lightprotocol/account.rs";
 import { remainingAccount } from "../types";
@@ -49,7 +50,7 @@ export type PublicInputs = {
   publicAppVerifier?: Array<number>;
 };
 // const { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
-export class Transaction {
+export class LegacyTransaction {
   solMerkleTree: SolMerkleTree;
   shuffleEnabled: boolean;
   params: TransactionParameters; // contains accounts
@@ -268,12 +269,13 @@ export class Transaction {
 
   async getProof(account: Account) {
     const { parsedProof, parsedPublicInputsObject } =
-      await account.getProofInternal(
-        this.firstPath,
-        this.params,
-        this.proofInput,
-        true,
-      );
+      await account.getProofInternal({
+        firstPath: this.firstPath,
+        inputUtxos: this.params.inputUtxos,
+        verifierIdl: this.params.verifierIdl,
+        proofInput: this.proofInput,
+        addPrivateKey: true,
+      });
     this.transactionInputs.proofBytes = parsedProof;
     this.transactionInputs.publicInputs = parsedPublicInputsObject as any;
   }
@@ -291,12 +293,13 @@ export class Transaction {
         "The app path is not defined. Please ensure it is specified in 'appParams'.",
       );
 
-    const res = await account.getProofInternal(
-      this.appParams.path,
-      this.appParams,
-      this.proofInput,
-      false,
-    );
+    const res = await account.getProofInternal({
+      firstPath: this.appParams.path,
+      inputUtxos: this.appParams.inputUtxos,
+      proofInput: this.proofInput,
+      verifierIdl: this.appParams.verifierIdl,
+      addPrivateKey: false,
+    });
     this.transactionInputs.proofBytesApp = {
       proofAApp: res.parsedProof.proofA,
       proofBApp: res.parsedProof.proofB,
@@ -542,10 +545,7 @@ export class Transaction {
       this.remainingAccounts.nullifierPdaPubkeys.push({
         isSigner: false,
         isWritable: true,
-        pubkey: Transaction.getNullifierPdaPublicKey(
-          nullifiers[i],
-          merkleTreeProgramId,
-        ),
+        pubkey: getNullifierPda(nullifiers[i], merkleTreeProgramId),
       });
     }
 
@@ -574,10 +574,7 @@ export class Transaction {
     }
   }
 
-  static getNullifierPdaPublicKey(
-    nullifier: number[],
-    merkleTreeProgramId: PublicKey,
-  ) {
+  static getNullifierPda(nullifier: number[], merkleTreeProgramId: PublicKey) {
     return PublicKey.findProgramAddressSync(
       [Uint8Array.from([...nullifier]), utils.bytes.utf8.encode("nf")],
       merkleTreeProgramId,
@@ -608,7 +605,7 @@ export class Transaction {
     return utxos;
   }
 
-  static getTokenAuthority(): PublicKey {
+  static getTokenAuthorityPda(): PublicKey {
     return PublicKey.findProgramAddressSync(
       [utils.bytes.utf8.encode("spl")],
       merkleTreeProgramId,
