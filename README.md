@@ -14,6 +14,24 @@ Developers can use Light to build applications such as
 - encrypted orderbooks
 - private governance
 - on-chain games with private state
+- zk-identity
+
+
+
+## ZK Anchor
+
+ZK Anchor is what we call the collection of developer tools for writing Private Solana Programs. 
+It consists of the following:
+
+- [Macro Circom](https://github.com/Lightprotocol/light-protocol/tree/main/macro-circom) DSL
+- [CLI](https://github.com/Lightprotocol/light-protocol/tree/main/cli) for writing and testing full Applications
+- [RPC Node](https://github.com/Lightprotocol/light-protocol/tree/main/relayer) (relayer) - for indexing and forwarding Light transactions to the Solana network.
+- [Dev environment](https://github.com/Lightprotocol/light-protocol/blob/main/scripts/devenv.sh) to interact with Light on a local Solana node.
+
+Note: All these tools and the protocol are in active development and unaudited.
+
+
+To get started, read below: 
 
 
 ## Development environment
