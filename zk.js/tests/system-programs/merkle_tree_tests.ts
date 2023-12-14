@@ -10,7 +10,7 @@ import { assert } from "chai";
 const token = require("@solana/spl-token");
 
 import {
-  Transaction,
+  LegacyTransaction as Transaction,
   Utxo,
   createMintWrapper,
   LightMerkleTreeProgram,
@@ -29,7 +29,6 @@ import {
   MerkleTreeConfig,
   DEFAULT_PROGRAMS,
   checkMerkleTreeUpdateStateCreated,
-  executeMerkleTreeUpdateTransactions,
   newAccountWithLamports,
   checkMerkleTreeBatchUpdateSuccess,
   POOL_TYPE,
@@ -38,12 +37,10 @@ import {
   Provider,
   Action,
   TestRelayer,
-  executeUpdateMerkleTreeTransactions,
   RELAYER_FEE,
   BN_1,
   BN_0,
   BN_2,
-  closeMerkleTreeUpdateState,
 } from "../../src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";

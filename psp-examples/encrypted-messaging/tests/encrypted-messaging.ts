@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
-  Transaction,
+  LegacyTransaction as Transaction,
   Provider as LightProvider,
   confirmConfig,
   TestRelayer,

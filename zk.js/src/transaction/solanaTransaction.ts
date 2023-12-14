@@ -1,5 +1,4 @@
 import { BN, BorshAccountsCoder, Idl, utils } from "@coral-xyz/anchor";
-import { TransactionParameters } from "./transactionParameters";
 import {
   AUTHORITY,
   UTXO_PREFIX_LENGTH,
@@ -7,23 +6,34 @@ import {
 } from "../constants";
 import {
   Action,
-  ConfirmOptions,
   MINT,
   Provider,
   PspTransactionInput,
   PublicInputs,
+  PublicTransactionVariables,
   SolanaTransactionError,
   SolanaTransactionErrorCode,
-  Transaction,
+  TransactionAccounts,
   TransactionError,
   TransactionErrorCode,
   createAccountObject,
   firstLetterToLower,
   firstLetterToUpper,
+  getVerifierConfig,
+  getVerifierProgram,
+  lightAccounts,
   remainingAccount,
 } from "../index";
-import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
-import { PublicKey, TransactionInstruction } from "@solana/web3.js";
+import {
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
+} from "@solana/spl-token";
+import {
+  PublicKey,
+  SystemProgram,
+  TransactionInstruction,
+} from "@solana/web3.js";
+import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 
 type SolanaInstructionInputs = {
   publicInputs?: PublicInputs;
@@ -61,10 +71,7 @@ export function getSolanaRemainingAccounts(
     remainingAccounts.nullifierPdaPubkeys.push({
       isSigner: false,
       isWritable: true,
-      pubkey: Transaction.getNullifierPdaPublicKey(
-        nullifiers[i],
-        merkleTreeProgramId,
-      ),
+      pubkey: getNullifierPda(nullifiers[i], merkleTreeProgramId),
     });
   }
 
@@ -98,15 +105,29 @@ export function getVerifierStatePda(
 
 // TODO: create solanaInstructions.ts file, to separate all solana logic from other logic
 // TODO: make getSolanaInstructionAccounts function
-export async function createSolanaInstructions(
-  rootIndex: BN,
-  systemProof: { parsedProof: any; parsedPublicInputsObject: any },
-  remainingSolanaAccounts: SolanaRemainingAccounts,
-  txParams: TransactionParameters,
-  pspIdl: Idl,
-  pspTransactionInput?: PspTransactionInput,
-  pspProof?: { parsedProof: any; parsedPublicInputsObject: any },
-): Promise<TransactionInstruction[]> {
+export async function createSolanaInstructions({
+  rootIndex,
+  systemProof,
+  remainingSolanaAccounts,
+  accounts,
+  publicTransactionVariables,
+  action,
+  pspTransactionInput,
+  pspProof,
+  pspIdl,
+  systemPspIdl,
+}: {
+  action: Action;
+  rootIndex: BN;
+  systemProof: { parsedProof: any; parsedPublicInputsObject: any };
+  remainingSolanaAccounts: SolanaRemainingAccounts;
+  accounts: lightAccounts;
+  publicTransactionVariables: PublicTransactionVariables;
+  systemPspIdl: Idl;
+  pspIdl?: Idl;
+  pspTransactionInput?: PspTransactionInput;
+  pspProof?: { parsedProof: any; parsedPublicInputsObject: any };
+}): Promise<TransactionInstruction[]> {
   let proofBytesApp = {};
   let publicInputsApp = undefined;
   if (pspProof) {
@@ -117,27 +138,26 @@ export async function createSolanaInstructions(
     };
     publicInputsApp = pspProof.parsedPublicInputsObject;
   }
-  if (!txParams.encryptedUtxos)
+  if (!publicTransactionVariables.encryptedUtxos)
     throw new TransactionError(
       TransactionErrorCode.ENCRYPTED_UTXOS_UNDEFINED,
       "getInstructions",
     );
+  const verifierConfig = getVerifierConfig(systemPspIdl);
+  const invokingProgramIdl = pspIdl ? pspIdl : systemPspIdl;
+  const verifierProgram = getVerifierProgram(invokingProgramIdl, {} as any);
   const instructionInputs: SolanaInstructionInputs = {
     proofBytes: systemProof.parsedProof,
     publicInputs: systemProof.parsedPublicInputsObject,
     proofBytesApp,
     publicInputsApp,
     rootIndex,
-    encryptedUtxos: txParams.encryptedUtxos,
-    verifierConfig: txParams.verifierConfig,
-    ataCreationFee: txParams.ataCreationFee,
-    action: txParams.action,
-    message: txParams.message,
+    encryptedUtxos: publicTransactionVariables.encryptedUtxos,
+    verifierConfig: verifierConfig,
+    ataCreationFee: publicTransactionVariables.ataCreationFee,
+    action: action,
+    message: publicTransactionVariables.message,
   };
-  const verifierProgram = TransactionParameters.getVerifierProgram(
-    pspIdl,
-    {} as any,
-  );
 
   if (!instructionInputs.publicInputs)
     throw new TransactionError(
@@ -200,9 +220,7 @@ export async function createSolanaInstructions(
     ...instructionInputs.proofBytes,
     ...instructionInputs.publicInputs,
     rootIndex: instructionInputs.rootIndex,
-    relayerFee: txParams.relayer.getRelayerFee(
-      instructionInputs.ataCreationFee,
-    ),
+    relayerFee: publicTransactionVariables.relayerFee,
     encryptedUtxos: Buffer.from(instructionInputs.encryptedUtxos!),
   };
   if (pspTransactionInput) {
@@ -221,36 +239,36 @@ export async function createSolanaInstructions(
    * - this transaction needs to be signed by the owner of the associated token account? has it?
    */
   if (instructionInputs.ataCreationFee) {
-    if (!txParams.accounts.recipientSpl)
+    if (!accounts.recipientSpl)
       throw new TransactionError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getInstructions",
         "Probably sth in the associated token address generation went wrong",
       );
-    if (!txParams.accounts.recipientSol)
+    if (!accounts.recipientSol)
       throw new TransactionError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getInstructions",
         "Probably sth in the associated token address generation went wrong",
       );
     const ix = createAssociatedTokenAccountInstruction(
-      txParams.relayer.accounts.relayerPubkey,
-      txParams.accounts.recipientSpl,
-      txParams.accounts.recipientSol,
+      accounts.signingAddress,
+      accounts.recipientSpl,
+      accounts.recipientSol,
       MINT,
     );
     instructions.push(ix);
   }
 
-  const instructionNames = getOrderedInstructionNames(pspIdl);
+  const instructionNames = getOrderedInstructionNames(invokingProgramIdl);
   for (let i = 0; i < instructionNames.length; i++) {
     const instruction = instructionNames[i];
-    const coder = new BorshAccountsCoder(pspIdl);
+    const coder = new BorshAccountsCoder(invokingProgramIdl);
 
     const accountName = "instructionData" + firstLetterToUpper(instruction);
     const inputs = createAccountObject(
       inputObject,
-      pspIdl.accounts!,
+      invokingProgramIdl.accounts!,
       accountName,
     );
 
@@ -264,13 +282,8 @@ export async function createSolanaInstructions(
     const method = verifierProgram.methods[
       methodName as keyof typeof verifierProgram.methods
     ](inputsVec).accounts({
-      ...txParams.accounts,
-      ...txParams.relayer.accounts,
+      ...accounts,
       ...appAccounts,
-      relayerRecipientSol:
-        instructionInputs.action === Action.SHIELD
-          ? AUTHORITY
-          : txParams.relayer.accounts.relayerRecipientSol,
     });
 
     // Check if it's the last iteration
@@ -298,29 +311,33 @@ export async function createSolanaInstructions(
 }
 
 export type SolanaTransactionInputs = {
-  transaction: TransactionParameters;
+  action: Action;
+  eventMerkleTree: PublicKey;
+  publicTransactionVariables: PublicTransactionVariables;
   systemProof: { parsedProof: any; parsedPublicInputsObject: any };
   pspTransactionInput?: PspTransactionInput;
   pspProof?: { parsedProof: any; parsedPublicInputsObject: any };
+  relayerRecipientSol?: PublicKey;
+  systemPspIdl: Idl;
 };
 
 // pspProof, systemProof,pspTransactionInput, txParams
 export async function sendAndConfirmShieldTransaction({
   provider,
   solanaTransactionInputs,
-  confirmOptions = ConfirmOptions.spendable,
 }: {
   provider: Provider;
   solanaTransactionInputs: SolanaTransactionInputs;
-  confirmOptions?: ConfirmOptions;
 }): Promise<any> {
-  if (solanaTransactionInputs.transaction.action !== Action.SHIELD) {
-    throw new SolanaTransactionError(
-      SolanaTransactionErrorCode.INVALID_ACTION,
-      "sendAndConfirmShieldTransaction",
-      `Action ${solanaTransactionInputs.transaction.action} is not SHIELD use sendAndConfirmShieldedTransaction.`,
-    );
-  }
+  const {
+    systemPspIdl,
+    publicTransactionVariables,
+    action,
+    eventMerkleTree,
+    pspProof,
+    pspTransactionInput,
+    systemProof,
+  } = solanaTransactionInputs;
   const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
     await provider.getRootIndex();
 
@@ -328,19 +345,24 @@ export async function sendAndConfirmShieldTransaction({
     solanaTransactionInputs.systemProof.parsedPublicInputsObject,
     remainingMerkleTreeAccounts,
   );
+  const accounts = prepareAccounts({
+    transactionAccounts: publicTransactionVariables.accounts,
+    eventMerkleTreePubkey: eventMerkleTree,
+  });
 
   // createSolanaInstructionsWithAccounts
-  const instructions = await createSolanaInstructions(
+  const instructions = await createSolanaInstructions({
+    action,
     rootIndex,
-    solanaTransactionInputs.systemProof,
+    systemProof,
     remainingSolanaAccounts,
-    solanaTransactionInputs.transaction,
-    solanaTransactionInputs.pspTransactionInput
-      ? solanaTransactionInputs.pspTransactionInput.verifierIdl
-      : solanaTransactionInputs.transaction.verifierIdl,
-    solanaTransactionInputs.pspTransactionInput,
-    solanaTransactionInputs.pspProof,
-  );
+    accounts,
+    systemPspIdl,
+    pspIdl: pspTransactionInput?.verifierIdl,
+    pspTransactionInput,
+    pspProof,
+    publicTransactionVariables,
+  });
 
   const txHash = await provider.sendAndConfirmTransaction(instructions);
   const relayerMerkleTreeUpdateResponse = "notPinged";
@@ -351,17 +373,32 @@ export async function sendAndConfirmShieldTransaction({
 export async function sendAndConfirmShieldedTransaction({
   provider,
   solanaTransactionInputs,
-  confirmOptions = ConfirmOptions.spendable,
 }: {
   provider: Provider;
   solanaTransactionInputs: SolanaTransactionInputs;
-  confirmOptions?: ConfirmOptions;
 }): Promise<any> {
-  if (solanaTransactionInputs.transaction.action === Action.SHIELD) {
+  const {
+    publicTransactionVariables,
+    action,
+    eventMerkleTree,
+    pspProof,
+    pspTransactionInput,
+    systemProof,
+    relayerRecipientSol,
+    systemPspIdl,
+  } = solanaTransactionInputs;
+  if (action === Action.SHIELD) {
     throw new SolanaTransactionError(
       SolanaTransactionErrorCode.INVALID_ACTION,
       "sendAndConfirmShieldedTransaction",
-      `Action ${solanaTransactionInputs.transaction.action} is SHIELD use sendAndConfirmShieldTransaction.`,
+      `Action ${action} is SHIELD use sendAndConfirmShieldTransaction.`,
+    );
+  }
+  if (!relayerRecipientSol) {
+    throw new SolanaTransactionError(
+      SolanaTransactionErrorCode.RELAYER_RECIPIENT_SOL_UNDEFINED,
+      "sendAndConfirmShieldedTransaction",
+      `Relayer recipient sol is undefined.`,
     );
   }
   const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
@@ -371,22 +408,121 @@ export async function sendAndConfirmShieldedTransaction({
     solanaTransactionInputs.systemProof.parsedPublicInputsObject,
     remainingMerkleTreeAccounts,
   );
+  const accounts = prepareAccounts({
+    transactionAccounts: publicTransactionVariables.accounts,
+    eventMerkleTreePubkey: eventMerkleTree,
+    relayerRecipientSol,
+    signer: publicTransactionVariables.accounts.relayerPublicKey,
+  });
 
   // createSolanaInstructionsWithAccounts
-  const instructions = await createSolanaInstructions(
+  const instructions = await createSolanaInstructions({
+    action,
     rootIndex,
-    solanaTransactionInputs.systemProof,
+    systemProof,
     remainingSolanaAccounts,
-    solanaTransactionInputs.transaction,
-    solanaTransactionInputs.pspTransactionInput
-      ? solanaTransactionInputs.pspTransactionInput.verifierIdl
-      : solanaTransactionInputs.transaction.verifierIdl,
-    solanaTransactionInputs.pspTransactionInput,
-    solanaTransactionInputs.pspProof,
-  );
+    accounts,
+    systemPspIdl,
+    pspIdl: pspTransactionInput?.verifierIdl,
+    pspTransactionInput,
+    pspProof,
+    publicTransactionVariables,
+  });
 
   const txHash = await provider.sendAndConfirmShieldedTransaction(instructions);
   const relayerMerkleTreeUpdateResponse = "notPinged";
 
   return { txHash, response: relayerMerkleTreeUpdateResponse };
+}
+
+// TODO: unify event Merkle tree and transaction Merkle tree so that only one is passed
+export function prepareAccounts({
+  transactionAccounts,
+  eventMerkleTreePubkey,
+  signer,
+  relayerRecipientSol,
+  verifierState,
+}: {
+  transactionAccounts: TransactionAccounts;
+  eventMerkleTreePubkey: PublicKey;
+  signer?: PublicKey;
+  relayerRecipientSol?: PublicKey;
+  verifierState?: PublicKey;
+}): lightAccounts {
+  const {
+    senderSol,
+    senderSpl,
+    recipientSol,
+    recipientSpl,
+    relayerPublicKey,
+    pspId,
+    systemPspId,
+  } = transactionAccounts;
+  const verifierProgramId = pspId ? pspId : systemPspId;
+  if (!signer) {
+    signer = relayerPublicKey;
+  }
+  if (!verifierState) {
+    verifierState = getVerifierStatePda(verifierProgramId, signer);
+  }
+  const accounts = {
+    systemProgramId: SystemProgram.programId,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    logWrapper: SPL_NOOP_PROGRAM_ID,
+    eventMerkleTree: eventMerkleTreePubkey,
+    transactionMerkleTree: transactionAccounts.transactionMerkleTree,
+    registeredVerifierPda: getRegisteredVerifierPda(
+      merkleTreeProgramId,
+      systemPspId,
+    ),
+    authority: getSignerAuthorityPda(merkleTreeProgramId, systemPspId),
+    senderSpl,
+    recipientSpl,
+    senderSol,
+    recipientSol,
+    programMerkleTree: merkleTreeProgramId,
+    tokenAuthority: getTokenAuthorityPda(),
+    verifierProgram: pspId ? systemPspId : undefined,
+    signingAddress: signer,
+    relayerRecipientSol: relayerRecipientSol ? relayerRecipientSol : AUTHORITY,
+    verifierState,
+  };
+  return accounts;
+}
+
+export function getRegisteredVerifierPda(
+  merkleTreeProgramId: PublicKey,
+  verifierProgramId: PublicKey,
+): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [verifierProgramId.toBytes()],
+    merkleTreeProgramId,
+  )[0];
+}
+
+export function getNullifierPda(
+  nullifier: number[],
+  merkleTreeProgramId: PublicKey,
+) {
+  return PublicKey.findProgramAddressSync(
+    [Uint8Array.from([...nullifier]), utils.bytes.utf8.encode("nf")],
+    merkleTreeProgramId,
+  )[0];
+}
+
+export function getTokenAuthorityPda(): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [utils.bytes.utf8.encode("spl")],
+    merkleTreeProgramId,
+  )[0];
+}
+
+export function getSignerAuthorityPda(
+  merkleTreeProgramId: PublicKey,
+  verifierProgramId: PublicKey,
+) {
+  return PublicKey.findProgramAddressSync(
+    [merkleTreeProgramId.toBytes()],
+    verifierProgramId,
+  )[0];
 }

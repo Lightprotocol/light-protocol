@@ -22,7 +22,8 @@ import {
   getSystemProof,
   SolanaTransactionInputs,
   sendAndConfirmShieldedTransaction,
-  getVerifierStatePda,
+  createTransaction,
+  lightPsp4in4outAppStorageId,
 } from "@lightprotocol/zk.js";
 import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import {
@@ -177,57 +178,57 @@ describe("Streaming Payments tests", () => {
       checkedInUtxos: [{ utxoName: "streamInUtxo", utxo: inputUtxo }],
     };
 
-    const txParams = new TransactionParameters({
+    const shieldedTransaction = await createTransaction({
       inputUtxos: [inputUtxo],
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
-      recipientSol: SolanaKeypair.generate().publicKey,
-      action: Action.UNSHIELD,
+      relayerPublicKey: relayer.accounts.relayerPubkey,
       hasher: HASHER,
-      relayer: relayer,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      relayerFee: relayer.relayerFee,
+      pspId: verifierProgramId,
+      systemPspId: lightPsp4in4outAppStorageId,
       account: lightUser.account,
-      verifierState: getVerifierStatePda(
-        verifierProgramId,
-        relayer.accounts.relayerPubkey,
-      ),
     });
-
-    await txParams.getTxIntegrityHash(HASHER);
-
     // createProofInputsAndProve
+
     const proofInputs = createProofInputs({
       hasher: HASHER,
-      transaction: txParams,
+      transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: lightUser.account,
-      solMerkleTree: lightProvider.solMerkleTree,
+      solMerkleTree: lightUser.provider.solMerkleTree!,
     });
 
     const systemProof = await getSystemProof({
       account: lightUser.account,
-      transaction: txParams,
       systemProofInputs: proofInputs,
+      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      inputUtxos: shieldedTransaction.private.inputUtxos,
     });
+
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
       proofInputs,
       IDL,
       pspTransactionInput.circuitName,
     );
 
-    const pspProof = await lightUser.account.getProofInternal(
-      pspTransactionInput.path,
-      pspTransactionInput,
-      completePspProofInputs,
-      false,
-    );
+    const pspProof = await lightUser.account.getProofInternal({
+      firstPath: pspTransactionInput.path,
+      verifierIdl: pspTransactionInput.verifierIdl,
+      proofInput: completePspProofInputs,
+      inputUtxos: [inputUtxo],
+    });
+
     const solanaTransactionInputs: SolanaTransactionInputs = {
+      action: Action.TRANSFER,
       systemProof,
       pspProof,
-      transaction: txParams,
+      publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
+      relayerRecipientSol: relayer.accounts.relayerRecipientSol,
+      eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
+      systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
     };
 
     const res = await sendAndConfirmShieldedTransaction({

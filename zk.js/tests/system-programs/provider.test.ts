@@ -9,7 +9,7 @@ import {
   Action,
   KEYPAIR_PRIVKEY,
   Provider as LightProvider,
-  Transaction,
+  LegacyTransaction as Transaction,
   TransactionParameters,
   userTokenAccount,
   IDL_LIGHT_PSP2IN2OUT,
