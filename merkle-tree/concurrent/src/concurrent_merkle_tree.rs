@@ -71,6 +71,10 @@ where
         // self.rightmost_index += 1;
     }
 
+    pub fn root(&self) -> [u8; 32] {
+        self.roots[self.current_index as usize]
+    }
+
     pub fn update_path_to_leaf(
         &mut self,
         mut leaf: [u8; 32],
@@ -95,6 +99,14 @@ where
         println!("setting leaf {leaf:?} as root");
         self.roots[self.current_index as usize] = leaf;
 
+        // if i >= self.rightmost_index as usize {
+        //     println!("updating proof");
+        //     self.rightmost_proof.copy_from_slice(proof);
+        //     // self.rightmost_index += 1;
+        //     // self.rightmost_leaf = leaf;
+        //     println!("rightmost proof after update: {:?}", self.rightmost_proof);
+        // }
+
         Ok(())
     }
 
@@ -102,23 +114,23 @@ where
         &mut self,
         old_leaf: [u8; 32],
         new_leaf: [u8; 32],
-        i: usize,
-        j: usize,
+        leaf_index: usize,
+        root_index: usize,
         proof: &[[u8; 32]; MAX_HEIGHT],
     ) -> Result<(), HasherError> {
         println!("called replace_leaf_inner");
         let mut updated_leaf = old_leaf;
         let mut updated_proof = proof.clone();
-        for k in j..(self.current_index as usize) + 1 {
+        for k in root_index..(self.current_index as usize) + 1 {
             println!("iteration k: {k}");
             let changelog_entry = self.changelog[k];
-            if i != changelog_entry.index as usize {
+            if leaf_index != changelog_entry.index as usize {
                 println!("swapping critbit");
                 // This bit math is used to identify which node in the proof
                 // we need to swap for a corresponding node in a saved change log
                 let padding = 32 - MAX_HEIGHT;
-                let common_path_len =
-                    ((i ^ changelog_entry.index as usize) << padding).leading_zeros() as usize;
+                let common_path_len = ((leaf_index ^ changelog_entry.index as usize) << padding)
+                    .leading_zeros() as usize;
                 let critbit_index = (MAX_HEIGHT - 1) - common_path_len;
 
                 updated_proof[critbit_index] = changelog_entry.path[critbit_index];
@@ -132,12 +144,12 @@ where
         if is_valid_proof::<H, MAX_HEIGHT>(
             self.roots[self.current_index as usize],
             old_leaf,
-            i,
+            leaf_index,
             proof,
         )? && updated_leaf == old_leaf
         {
             println!("proof valid");
-            self.update_path_to_leaf(new_leaf, i, &updated_proof)?
+            self.update_path_to_leaf(new_leaf, leaf_index, &updated_proof)?
         }
 
         Ok(())
@@ -148,39 +160,38 @@ where
         root: [u8; 32],
         old_leaf: [u8; 32],
         new_leaf: [u8; 32],
-        i: usize,
+        leaf_index: usize,
         proof: &[[u8; 32]],
     ) -> Result<(), HasherError> {
         let proof = full_proof::<H, MAX_HEIGHT>(proof);
         // let mut updated_proof = proof.clone();
 
-        for j in 0..(self.current_index as usize) + 1 {
+        for root_index in 0..(self.current_index as usize) + 1 {
             println!(
-                "iteration j: {j}, root: {root:?}, roots[j]: {:?}",
-                self.roots[j]
+                "iteration root_index: {root_index}, root: {root:?}, roots[j]: {:?}",
+                self.roots[root_index]
             );
-            if root == self.roots[j] {
-                self.replace_leaf_inner(old_leaf, new_leaf, i, j, &proof)?;
+            if root == self.roots[root_index] {
+                self.replace_leaf_inner(old_leaf, new_leaf, leaf_index, root_index, &proof)?;
             }
         }
 
         Ok(())
     }
 
-    pub fn append(&mut self, leaf: [u8; 32]) -> Result<(), HasherError> {
-        let proof = self.rightmost_proof.clone();
-        self.update_path_to_leaf(leaf, self.current_index as usize, &proof)?;
-        Ok(())
-    }
+    // pub fn append(&mut self, leaf: [u8; 32]) -> Result<(), HasherError> {
+    //     let proof = self.rightmost_proof.clone();
+    //     self.update_path_to_leaf(leaf, self.current_index as usize, &proof)?;
+    //     Ok(())
+    // }
 
     /// Appends a new node to the tree.
-    pub fn append_foo(&mut self, mut leaf: [u8; 32]) -> Result<(), HasherError> {
+    pub fn append(&mut self, leaf: [u8; 32]) -> Result<(), HasherError> {
         let mut changelog_path = [[0u8; 32]; MAX_HEIGHT];
         let mut intersection_node = self.rightmost_leaf;
         let intersection_index = self.rightmost_index.trailing_zeros() as usize;
 
         if self.rightmost_index == 0 {
-            println!("FIRST INSERTION");
             // NOTE(vadorovsky): This is not mentioned in the whitepaper, but
             // appending to an empty Merkle tree is a special case, where
             // `computer_parent_node` can't be called, because the usual
@@ -200,13 +211,14 @@ where
             let proof = self.rightmost_proof.clone();
             self.replace_leaf_inner(H::zero_bytes()[0], leaf, 0, 0, &proof)?;
         } else {
-            for (i, item) in changelog_path.iter_mut().enumerate() {
-                *item = leaf;
+            let mut current_leaf = leaf;
 
-                println!("i: {i}, intersection_index: {intersection_index}");
+            for (i, item) in changelog_path.iter_mut().enumerate() {
+                *item = current_leaf;
+
                 if i < intersection_index {
                     let empty_node = H::zero_bytes()[i];
-                    leaf = H::hashv(&[&leaf, &empty_node])?;
+                    current_leaf = H::hashv(&[&current_leaf, &empty_node])?;
                     intersection_node = compute_parent_node::<H>(
                         &intersection_node,
                         &self.rightmost_proof[i],
@@ -215,10 +227,11 @@ where
                     )?;
                     self.rightmost_proof[i] = empty_node;
                 } else if i == intersection_index {
-                    leaf = H::hashv(&[&intersection_node, &leaf])?;
+                    current_leaf = H::hashv(&[&intersection_node, &current_leaf])?;
+                    self.rightmost_proof[i] = intersection_node;
                 } else {
-                    leaf = compute_parent_node::<H>(
-                        &leaf,
+                    current_leaf = compute_parent_node::<H>(
+                        &current_leaf,
                         &self.rightmost_proof[i],
                         self.rightmost_index as usize - 1,
                         i,
@@ -229,7 +242,7 @@ where
             self.current_index += 1;
             self.changelog[self.current_index as usize] =
                 ChangelogEntry::new(leaf, changelog_path, self.rightmost_index as usize);
-            self.roots[self.current_index as usize] = leaf;
+            self.roots[self.current_index as usize] = current_leaf;
         }
 
         self.rightmost_index += 1;
