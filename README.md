@@ -20,7 +20,7 @@ Developers can use Light to build applications such as
 
 ## ZK Anchor
 
-ZK Anchor is what we call the collection of developer tools for writing Private Solana Programs. 
+ZK Anchor is what we call the collection of developer tools for writing Private Solana Programs (PSP). 
 It consists of the following:
 
 - [Macro Circom](https://github.com/Lightprotocol/light-protocol/tree/main/macro-circom) DSL for writing PSPs.
