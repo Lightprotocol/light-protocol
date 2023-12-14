@@ -37,7 +37,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - test: system-programs-tests
+          - test: system-programs-psp-examples
             sub-tests: '[
               "@lightprotocol/zk.js:test",
               "@lightprotocol/encrypted-messaging:test",
