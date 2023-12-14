@@ -50,9 +50,9 @@ where
 
         self.merkle_tree
             .replace_leaf(
-                [0u8; 32], // root
-                [0u8; 32], // old leaf
-                low_element_hash,
+                [0u8; 32],  // root
+                &[0u8; 32], // old leaf
+                &low_element_hash,
                 low_element_index,
                 &[], // proof
             )
@@ -68,7 +68,7 @@ where
         ])
         .unwrap();
 
-        self.merkle_tree.append(new_node_hash).unwrap();
+        self.merkle_tree.append(&new_node_hash).unwrap();
 
         Ok(())
     }
