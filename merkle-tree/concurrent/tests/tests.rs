@@ -5,131 +5,69 @@ fn append<H>()
 where
     H: Hasher,
 {
-    let mut merkle_tree = ConcurrentMerkleTree::<H, 8, 32>::default();
+    let mut merkle_tree = ConcurrentMerkleTree::<H, 4, 32>::default();
 
     merkle_tree.init();
 
     let leaf1 = [1u8; 32];
 
-    // The hash of our new leaf (`[1u8; 32]`) and its sibling (a zero value).
-    //
-    //    H1
-    //  /    \
-    // L1   Z[0]
-    let h1 = H::hashv(&[&leaf1, &H::zero_bytes()[0]]).unwrap();
+    // The hash of our new leaf (`[1u8; 32]`).
+    let h1 = H::hash(&leaf1).unwrap();
 
-    // The hash of `h1` and its sibling (a subtree represented by `Z[1]`).
+    // The hash of our new hashed leaf and its sibling (a zero value).
     //
-    //          H2
+    //    H2
+    //  /    \
+    // H1   Z[0]
+    // |
+    // L1
+    let h2 = H::hashv(&[&h1, &H::zero_bytes()[0]]).unwrap();
+
+    // The hash of `h2` and its sibling (a subtree represented by `Z[1]`).
+    //
+    //          H3
     //      /-/    \-\
-    //    H1          Z[1]
+    //    H2          Z[1]
     //  /    \      /      \
-    // L1   Z[0]   Z[0]   Z[0]
+    // H1   Z[0]   Z[0]   Z[0]
+    // |
+    // L1
     //
     // `Z[1]` represents the whole subtree on the right from `h2`. In the next
     // examples, we are just going to show empty subtrees instead of the whole
     // hierarchy.
-    let h2 = H::hashv(&[&h1, &H::zero_bytes()[1]]).unwrap();
+    let h3 = H::hashv(&[&h2, &H::zero_bytes()[1]]).unwrap();
 
-    // The hash of `h2` and its sibling (a subtree represented by `Z[2]`).
+    // The hash of `h3` and its sibling (a subtree represented by `Z[2]`).
     //
-    //          H3
+    //          H4
     //        /    \
-    //       H2   Z[2]
+    //       H3   Z[2]
     //     /    \
-    //    H1   Z[1]
+    //    H2   Z[1]
     //  /    \
-    // L1   Z[0]
-    let h3 = H::hashv(&[&h2, &H::zero_bytes()[2]]).unwrap();
+    // H1   Z[0]
+    // |
+    // L1
+    let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
 
-    // The hash of `h3` and its sibling (a subtree represented by `Z[3]`).
+    // The hash of `h4` and its sibling (a subtree represented by `Z[3]`),
+    // which is the root.
     //
-    //             H4
-    //           /    \
-    //          H3   Z[3]
+    //              R
+    //           /     \
+    //          H4    Z[3]
     //        /    \
-    //       H2   Z[2]
+    //       H3   Z[2]
     //     /    \
-    //    H1   Z[1]
+    //    H2   Z[1]
     //  /    \
-    // L1   Z[0]
-    let h4 = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
+    // H1   Z[0]
+    // |
+    // L1
+    let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
 
-    // The hash of `h4` and its sibling,
-    //
-    //                H5
-    //              /    \
-    //             H4   Z[4]
-    //           /    \
-    //          H3   Z[3]
-    //        /    \
-    //       H2   Z[2]
-    //     /    \
-    //    H1   Z[1]
-    //  /    \
-    // L1   Z[0]
-    let h5 = H::hashv(&[&h4, &H::zero_bytes()[4]]).unwrap();
-
-    // The hash of `h5` and its sibling.
-    //
-    //                   H6
-    //                 /    \
-    //                H5   Z[5]
-    //              /    \
-    //             H4   Z[4]
-    //           /    \
-    //          H3   Z[3]
-    //        /    \
-    //       H2   Z[2]
-    //     /    \
-    //    H1   Z[1]
-    //  /    \
-    // L1   Z[0]
-    let h6 = H::hashv(&[&h5, &H::zero_bytes()[5]]).unwrap();
-
-    // The hash of `h6` and its sibling.
-    //
-    //                      H7
-    //                    /    \
-    //                   H6   Z[6]
-    //                 /    \
-    //                H5   Z[5]
-    //              /    \
-    //             H4   Z[4]
-    //           /    \
-    //          H3   Z[3]
-    //        /    \
-    //       H2   Z[2]
-    //     /    \
-    //    H1   Z[1]
-    //  /    \
-    // L1   Z[0]
-    let h7 = H::hashv(&[&h6, &H::zero_bytes()[6]]).unwrap();
-
-    // Finally, we computed enough hashes (8) to compute the root of our
-    // tree (with height 8).
-    //
-    //                          R
-    //                       /     \
-    //                      H7    Z[7]
-    //                    /    \
-    //                   H6   Z[6]
-    //                 /    \
-    //                H5   Z[5]
-    //              /    \
-    //             H4   Z[4]
-    //           /    \
-    //          H3   Z[3]
-    //        /    \
-    //       H2   Z[2]
-    //     /    \
-    //    H1   Z[1]
-    //  /    \
-    // L1   Z[0]
-
-    let expected_root = H::hashv(&[&h7, &H::zero_bytes()[7]]).unwrap();
-
-    merkle_tree.append(leaf1).unwrap();
+    merkle_tree.append(&leaf1).unwrap();
 
     assert_eq!(merkle_tree.root(), expected_root);
 
@@ -140,35 +78,27 @@ where
     //
     // The other subtrees still remain the same.
     //
-    //                          R
-    //                       /     \
-    //                      H7    Z[7]
-    //                    /    \
-    //                   H6   Z[6]
-    //                 /    \
-    //                H5   Z[5]
-    //              /    \
-    //             H4   Z[4]
-    //           /    \
-    //          H3   Z[3]
+    //              R
+    //           /     \
+    //          H5    Z[3]
     //        /    \
-    //       H2   Z[2]
+    //       H4   Z[2]
     //     /    \
-    //   H1    Z[1]
+    //   H3    Z[1]
     //  /  \
+    // H1  H2
+    // |    |
     // L1  L2
     let leaf2 = [2u8; 32];
 
-    let h1 = H::hashv(&[&leaf1, &leaf2]).unwrap();
-    let h2 = H::hashv(&[&h1, &H::zero_bytes()[1]]).unwrap();
-    let h3 = H::hashv(&[&h2, &H::zero_bytes()[2]]).unwrap();
-    let h4 = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
-    let h5 = H::hashv(&[&h4, &H::zero_bytes()[4]]).unwrap();
-    let h6 = H::hashv(&[&h5, &H::zero_bytes()[5]]).unwrap();
-    let h7 = H::hashv(&[&h6, &H::zero_bytes()[6]]).unwrap();
-    let expected_root = H::hashv(&[&h7, &H::zero_bytes()[7]]).unwrap();
+    let h1 = H::hash(&leaf1).unwrap();
+    let h2 = H::hash(&leaf2).unwrap();
+    let h3 = H::hashv(&[&h1, &h2]).unwrap();
+    let h4 = H::hashv(&[&h3, &H::zero_bytes()[1]]).unwrap();
+    let h5 = H::hashv(&[&h4, &H::zero_bytes()[2]]).unwrap();
+    let expected_root = H::hashv(&[&h5, &H::zero_bytes()[3]]).unwrap();
 
-    merkle_tree.append(leaf2).unwrap();
+    merkle_tree.append(&leaf2).unwrap();
 
     assert_eq!(merkle_tree.root(), expected_root);
 
@@ -178,40 +108,64 @@ where
     //
     // The other subtrees still remain the same.
     //
-    //                              R
-    //                           /     \
-    //                          H8    Z[7]
-    //                        /    \
-    //                      H7    Z[6]
-    //                    /    \
-    //                  H6   Z[5]
-    //                /    \
-    //              H5   Z[4]
-    //            /    \
-    //           H4   Z[3]
+    //               R
+    //            /     \
+    //           H7    Z[3]
     //         /    \
-    //       H3   Z[2]
+    //       H6    Z[2]
     //     /    \
-    //   H1      H2
+    //   H4      H5
     //  /  \    /  \
-    // L1  L2  L3  Z[0]
+    // H1  H2  H3  Z[0]
+    // |    |  |
+    // L1  L2  L3
     let leaf3 = [3u8; 32];
 
-    let h1 = H::hashv(&[&leaf1, &leaf2]).unwrap();
-    let h2 = H::hashv(&[&leaf3, &H::zero_bytes()[0]]).unwrap();
-    let h3 = H::hashv(&[&h1, &h2]).unwrap();
-    let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
-    let h5 = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let h6 = H::hashv(&[&h5, &H::zero_bytes()[4]]).unwrap();
-    let h7 = H::hashv(&[&h6, &H::zero_bytes()[5]]).unwrap();
-    let h8 = H::hashv(&[&h7, &H::zero_bytes()[6]]).unwrap();
-    let expected_root = H::hashv(&[&h8, &H::zero_bytes()[7]]).unwrap();
+    let h1 = H::hash(&leaf1).unwrap();
+    let h2 = H::hash(&leaf2).unwrap();
+    let h3 = H::hash(&leaf3).unwrap();
+    let h4 = H::hashv(&[&h1, &h2]).unwrap();
+    let h5 = H::hashv(&[&h3, &H::zero_bytes()[0]]).unwrap();
+    let h6 = H::hashv(&[&h4, &h5]).unwrap();
+    let h7 = H::hashv(&[&h6, &H::zero_bytes()[2]]).unwrap();
+    let expected_root = H::hashv(&[&h7, &H::zero_bytes()[3]]).unwrap();
 
-    merkle_tree.append(leaf3).unwrap();
+    merkle_tree.append(&leaf3).unwrap();
 
     assert_eq!(merkle_tree.root(), expected_root);
 
-    // OK, that's enough of manual tests.
+    // Appending the 4th leaf alters the next subtree on the right.
+    // Instead of using Z[1], we will end up with the hash of the new leaf and
+    // Z[0].
+    //
+    // The other subtrees still remain the same.
+    //
+    //               R
+    //            /     \
+    //           H8    Z[3]
+    //         /    \
+    //       H7    Z[2]
+    //     /    \
+    //   H5      H6
+    //  /  \    /  \
+    // H1  H2  H3  H4
+    // |    |  |    |
+    // L1  L2  L3  L4
+    let leaf4 = [4u8; 32];
+
+    let h1 = H::hash(&leaf1).unwrap();
+    let h2 = H::hash(&leaf2).unwrap();
+    let h3 = H::hash(&leaf3).unwrap();
+    let h4 = H::hash(&leaf4).unwrap();
+    let h5 = H::hashv(&[&h1, &h2]).unwrap();
+    let h6 = H::hashv(&[&h3, &h4]).unwrap();
+    let h7 = H::hashv(&[&h5, &h6]).unwrap();
+    let h8 = H::hashv(&[&h7, &H::zero_bytes()[2]]).unwrap();
+    let expected_root = H::hashv(&[&h8, &H::zero_bytes()[3]]).unwrap();
+
+    merkle_tree.append(&leaf4).unwrap();
+
+    assert_eq!(merkle_tree.root(), expected_root);
 }
 
 #[test]
