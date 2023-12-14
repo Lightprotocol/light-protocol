@@ -26,8 +26,8 @@ It consists of the following:
 - [Macro Circom](https://github.com/Lightprotocol/light-protocol/tree/main/macro-circom) DSL
 - [CLI](https://github.com/Lightprotocol/light-protocol/tree/main/cli) for writing and testing full Applications
 - [RPC Node](https://github.com/Lightprotocol/light-protocol/tree/main/relayer) (relayer) - for indexing and forwarding Light transactions to the Solana network.
-- [Dev environment](https://github.com/Lightprotocol/light-protocol/blob/main/scripts/devenv.sh) to interact with Light on a local Solana node.
-
+- [zk.js](https://github.com/Lightprotocol/light-protocol/tree/main/zk.js) - web3.js-esque helpers to build transactions and interact with Light.
+  
 Note: All these tools and the protocol are in active development and unaudited.
 
 
