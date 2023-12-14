@@ -230,6 +230,7 @@ describe("Test swaps", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: buyerUser.account,
+      root: buyerUser.provider.solMerkleTree.merkleTree.root(),
     });
 
     /**
@@ -242,7 +243,6 @@ describe("Test swaps", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: buyerUser.account,
-      solMerkleTree: buyerUser.provider.solMerkleTree,
     });
 
     const systemProof = await getSystemProof({
@@ -510,6 +510,7 @@ describe("Test swaps", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
+      root: sellerUser.provider.solMerkleTree.merkleTree.root(),
     });
     /**
      * Proves PSP logic
@@ -521,7 +522,6 @@ describe("Test swaps", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
-      solMerkleTree: sellerUser.provider.solMerkleTree,
     });
 
     const systemProof = await getSystemProof({
@@ -704,6 +704,7 @@ describe("Test swaps", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
+      root: sellerUser.provider.solMerkleTree.merkleTree.root(),
     });
     /**
      * Proves PSP logic
@@ -715,7 +716,6 @@ describe("Test swaps", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
-      solMerkleTree: sellerUser.provider.solMerkleTree,
     });
 
     const systemProof = await getSystemProof({

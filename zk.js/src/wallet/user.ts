@@ -215,6 +215,9 @@ export class User {
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+          merkleProof:
+            this.provider.solMerkleTree!.merkleTree.path(leftLeafIndex)
+              .pathElements,
         });
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
@@ -233,6 +236,9 @@ export class User {
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+          merkleProof: this.provider.solMerkleTree!.merkleTree.path(
+            leftLeafIndex + 1,
+          ).pathElements,
         });
       }
     }
@@ -488,7 +494,6 @@ export class User {
 
     const systemProofInputs = createSystemProofInputs({
       transaction: this.recentTransactionParameters,
-      solMerkleTree: this.provider.solMerkleTree!,
       hasher: this.provider.hasher,
       account: this.account,
     });
@@ -1578,6 +1583,9 @@ export class User {
                   MerkleTreeConfig.getTransactionMerkleTreePda(),
                 compressed: false,
                 assetLookupTable,
+                merkleProof:
+                  this.provider.solMerkleTree!.merkleTree.path(index)
+                    .pathElements,
               });
             } else {
               decryptedUtxo = await Utxo.decryptUnchecked({
@@ -1592,6 +1600,9 @@ export class User {
                   MerkleTreeConfig.getTransactionMerkleTreePda(),
                 compressed: false,
                 assetLookupTable,
+                merkleProof:
+                  this.provider.solMerkleTree!.merkleTree.path(index)
+                    .pathElements,
               });
             }
 

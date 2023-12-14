@@ -189,6 +189,7 @@ describe("Streaming Payments tests", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: lightUser.account,
+      root: lightUser.provider.solMerkleTree!.merkleTree.root(),
     });
     // createProofInputsAndProve
 
@@ -197,7 +198,6 @@ describe("Streaming Payments tests", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: lightUser.account,
-      solMerkleTree: lightUser.provider.solMerkleTree!,
     });
 
     const systemProof = await getSystemProof({
@@ -314,7 +314,7 @@ describe("Streaming Payments tests", () => {
       Action.TRANSFER,
       merkleTree,
     );
-
+    // @ts-ignore: this code is not maintained and the api does not exist anymore
     await lightUser.executeAppUtxo({
       appUtxos: [inUtxo],
       programParameters,

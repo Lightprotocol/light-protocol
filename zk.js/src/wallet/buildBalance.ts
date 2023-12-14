@@ -183,6 +183,7 @@ export async function decryptAddUtxoToBalance({
   leftLeaf,
   aes,
   assetLookupTable,
+  merkleProof,
 }: {
   encBytes: Uint8Array;
   index: number;
@@ -195,6 +196,7 @@ export async function decryptAddUtxoToBalance({
   leftLeaf: Uint8Array;
   aes: boolean;
   assetLookupTable: string[];
+  merkleProof: string[];
 }): Promise<void> {
   const decryptedUtxo = aes
     ? await Utxo.decrypt({
@@ -206,6 +208,7 @@ export async function decryptAddUtxoToBalance({
         aes,
         merkleTreePdaPublicKey,
         assetLookupTable,
+        merkleProof,
       })
     : await Utxo.decryptUnchecked({
         hasher,
@@ -216,6 +219,7 @@ export async function decryptAddUtxoToBalance({
         aes,
         merkleTreePdaPublicKey,
         assetLookupTable,
+        merkleProof,
       });
 
   // null if utxo did not decrypt -> return nothing and continue
