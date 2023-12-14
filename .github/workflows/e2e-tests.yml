@@ -6,6 +6,8 @@ on:
       - "web/webapp/**"
       - "zk.js/**"
       - ".github/workflows/e2e-tests.yml"
+      - "psp-examples/**"
+
   pull_request:
     branches:
       - main
@@ -13,6 +15,8 @@ on:
       - "web/webapp/**"
       - "zk.js/**"
       - ".github/workflows/e2e-tests.yml"
+      - "psp-examples/**"
+
     types:
       - opened
       - synchronize
@@ -27,9 +31,17 @@ concurrency:
 
 jobs:
   e2e-tests:
-    name: End-to-end tests
+    name: web End-to-end test - 
     if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
+    strategy:
+      matrix:
+        include:
+          - test: psp-examples-tests
+            sub-tests: '[
+              "@lightprotocol/streaming-payments:test",
+              "@lightprotocol/swap:test"
+            ]'
     services:
       redis:
         image: redis
@@ -71,3 +83,12 @@ jobs:
         with:
           name: cypress-screenshots
           path: web/webapp/cypress/screenshots/
+      - name: ${{ matrix.test }}
+        run: |
+          source ./scripts/devenv.sh          
+          IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+          for subtest in "${sub_tests[@]}"
+          do
+            npx nx run $subtest
+          done
+  

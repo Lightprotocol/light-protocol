@@ -6,7 +6,8 @@ on:
       - "zk.js/**"
       - "programs/**"
       - "light-circuits/**"
-      - ".github/workflows/system-programs-tests.yml"
+      - "psp-examples/**"
+      - ".github/workflows/light-system-programs-tests.yml"
   pull_request:
     branches:
       - main
@@ -14,14 +15,15 @@ on:
       - "zk.js/**"
       - "programs/**"
       - "light-circuits/**"
-      - ".github/workflows/system-programs-tests.yml"
+      - ".github/workflows/light-system-programs-tests.yml"
+      - "psp-examples/**"
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
 
-name: system-programs-tests
+name: system-programs-psp-examples-tests
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -29,16 +31,18 @@ concurrency:
 
 jobs:
   system-programs:
-    name: system-programs
+    name: system-programs-psp-examples
     if: github.event.pull_request.draft == false
     runs-on: buildjet-16vcpu-ubuntu-2204
     strategy:
       matrix:
         include:
-          - test: system-programs-tests-transaction-user-verifiers-provider
-            sub-tests: '["sp-functional", "sp-user", "sp-verifiers", "sp-provider"]'
-          - test: system-programs-tests-user-merge
-            sub-tests: '["sp-user-merge", "zk.js"]'
+          - test: system-programs-psp-examples
+            sub-tests: '[
+              "@lightprotocol/zk.js:test",
+              "@lightprotocol/encrypted-messaging:test",
+              "@lightprotocol/private-payments:test"
+            ]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -52,5 +56,5 @@ jobs:
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            npx nx test-$subtest "@lightprotocol/zk.js"
+            npx nx run $subtest
           done
