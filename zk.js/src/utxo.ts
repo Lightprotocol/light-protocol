@@ -643,8 +643,10 @@ export class Utxo {
         bytes_message,
         commitment,
       );
-
-      const prefix = randomPrefixBytes();
+      // TODO: add option to use random or dedicated prefix for asynmetrically encrypted utxos which are sent to another party
+      const prefix = !this.isFillingUtxo
+        ? this.publicKey.toArray("be", 32).slice(0, 4)
+        : randomPrefixBytes();
       return Uint8Array.from([...prefix, ...ciphertext]);
     } else if (account) {
       if (!merkleTreePdaPublicKey)
@@ -664,7 +666,11 @@ export class Utxo {
       // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
       // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
       const prefix = !this.isFillingUtxo
-        ? account.generateUtxoPrefixHash(commitment, UTXO_PREFIX_LENGTH, hasher)
+        ? account.generateLatestUtxoPrefixHash(
+            merkleTreePdaPublicKey,
+            UTXO_PREFIX_LENGTH,
+            hasher,
+          )
         : randomPrefixBytes();
       if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
       const padding = sha3_256
@@ -685,35 +691,6 @@ export class Utxo {
         "Neither account nor this.encryptionPublicKey is defined",
       );
     }
-  }
-
-  /**
-   * @description Checks the UTXO prefix hash of UTXO_PREFIX_LENGTH-bytes
-   *
-   * @returns {boolean} true || false
-   */
-  static checkPrefixHash({
-    account,
-    commitment,
-    prefixBytes,
-    hasher,
-  }: {
-    account: Account;
-    commitment: Uint8Array;
-    prefixBytes: Uint8Array;
-    hasher: Hasher;
-  }): boolean {
-    const generatedPrefixHash = account.generateUtxoPrefixHash(
-      commitment,
-      UTXO_PREFIX_LENGTH,
-      hasher,
-    );
-    return (
-      generatedPrefixHash.length === prefixBytes.length &&
-      generatedPrefixHash.every(
-        (val: number, idx: number) => val === prefixBytes[idx],
-      )
-    );
   }
 
   // TODO: add method decryptWithViewingKey(viewingkey, bytes, commithash, aes) (issue is right now it's difficult to give a viewing key to another party and for this party to decrypt)
@@ -793,83 +770,6 @@ export class Utxo {
         merkleProof,
       }),
     );
-  }
-
-  // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
-  /**
-   * * @description Decrypts an utxo from an array of bytes by checking the UTXO prefix hash,
-   * * the first by 16 / 24 bytes of the commitment are the IV / nonce.
-   * @param {any} poseidon
-   * @param {Uint8Array} encBytes
-   * @param {Account} account
-   * @param {number} index
-   * @returns {Utxo | boolean }
-   */
-  static async decrypt({
-    hasher,
-    encBytes,
-    account,
-    index,
-    merkleTreePdaPublicKey,
-    aes,
-    commitment,
-    appDataIdl,
-    compressed = true,
-    assetLookupTable,
-    merkleProof,
-  }: {
-    hasher: Hasher;
-    encBytes: Uint8Array;
-    account: Account;
-    index: number;
-    merkleTreePdaPublicKey: PublicKey;
-    aes: boolean;
-    commitment: Uint8Array;
-    appDataIdl?: Idl;
-    compressed?: boolean;
-    assetLookupTable: string[];
-    merkleProof: string[];
-  }): Promise<Result<Utxo | null, UtxoError>> {
-    // Get UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
-    const prefixBytes = encBytes.slice(0, UTXO_PREFIX_LENGTH);
-
-    // If AES is enabled and the prefix of the commitment matches the account and prefixBytes,
-    // try to decrypt the UTXO
-    if (
-      aes &&
-      this.checkPrefixHash({ account, commitment, prefixBytes, hasher })
-    ) {
-      const utxoResult = await Utxo.decryptUnchecked({
-        hasher,
-        encBytes,
-        account,
-        index,
-        merkleTreePdaPublicKey,
-        aes,
-        commitment,
-        appDataIdl,
-        compressed,
-        assetLookupTable,
-        merkleProof,
-      });
-
-      // If the return value of decryptUnchecked operation is valid
-      if (utxoResult.value) {
-        // Return the successfully decrypted UTXO
-        return utxoResult;
-      }
-      // If decryption was unsuccessful, return an error message indicating a prefix collision
-      return Result.Err(
-        new UtxoError(
-          UtxoErrorCode.PREFIX_COLLISION,
-          "constructor",
-          "Prefix collision when decrypting utxo. " + utxoResult.error ?? "",
-        ),
-      );
-    }
-    // If AES isn't enabled or the checkPrefixHash condition fails,
-    // return a successful Result with `null`
-    return Result.Ok(null);
   }
 
   /**
