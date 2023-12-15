@@ -246,6 +246,7 @@ describe("verifier_program", () => {
       systemPspId: getVerifierProgramId(verifierIdl),
       account: ACCOUNT,
       outputUtxos: [shieldUtxo],
+      root: lightProvider.solMerkleTree!.merkleTree.root(),
     };
 
     const shieldTransaction = await createShieldTransaction(
@@ -254,7 +255,6 @@ describe("verifier_program", () => {
 
     const systemProofInputs = createSystemProofInputs({
       transaction: shieldTransaction,
-      solMerkleTree: lightProvider.solMerkleTree!,
       hasher: HASHER,
       account: ACCOUNT,
     });
@@ -357,6 +357,7 @@ describe("verifier_program", () => {
       outputUtxos,
       relayerFee: user.provider.relayer.getRelayerFee(true),
       ataCreationFee: spl ? spl : false,
+      root: lightProvider.solMerkleTree!.merkleTree.root(),
     };
 
     const unshieldTransaction = await createUnshieldTransaction(
@@ -365,7 +366,6 @@ describe("verifier_program", () => {
 
     const systemProofInputs = createSystemProofInputs({
       transaction: unshieldTransaction,
-      solMerkleTree: lightProvider.solMerkleTree!,
       hasher: HASHER,
       account: ACCOUNT,
     });

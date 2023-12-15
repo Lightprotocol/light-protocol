@@ -233,28 +233,19 @@ export async function getSystemProof({
  */
 export function createSystemProofInputs({
   transaction,
-  solMerkleTree,
   hasher,
   account,
 }: {
   transaction: Transaction;
-  solMerkleTree: SolMerkleTree;
   hasher: Hasher;
   account: Account;
 }) {
-  if (!solMerkleTree)
-    throw new TransactionError(
-      ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
-      "getProofInput",
-    );
   if (!transaction.public.txIntegrityHash)
     throw new TransactionError(
       TransactionErrorCode.TX_INTEGRITY_HASH_UNDEFINED,
       "compile",
     );
 
-  const { inputMerklePathIndices, inputMerklePathElements } =
-    solMerkleTree.getMerkleProofs(hasher, transaction.private.inputUtxos);
   const inputNullifier = transaction.private.inputUtxos.map((x) => {
     let _account = account;
     if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
@@ -271,13 +262,13 @@ export function createSystemProofInputs({
     });
   });
   const proofInput = {
-    root: solMerkleTree.merkleTree.root(),
+    root: transaction.public.root,
     inputNullifier,
     publicAmountSpl: transaction.public.publicAmountSpl.toString(),
     publicAmountSol: transaction.public.publicAmountSol.toString(),
     publicMintPubkey: transaction.public.publicMintPubkey,
-    inPathIndices: inputMerklePathIndices,
-    inPathElements: inputMerklePathElements,
+    inPathIndices: transaction.private.inputUtxos?.map((x) => x.index),
+    inPathElements: transaction.private.inputUtxos?.map((x) => x.merkleProof),
     internalTxIntegrityHash: transaction.public.txIntegrityHash.toString(),
     transactionVersion: "0",
     txIntegrityHash: transaction.public.txIntegrityHash.toString(),
@@ -330,23 +321,38 @@ export function getTransactionMint(transaction: Transaction) {
   }
 }
 
+export function syncInputUtxosMerkleProofs({
+  inputUtxos,
+  hasher,
+  solMerkleTree,
+}: {
+  inputUtxos: Utxo[];
+  hasher: Hasher;
+  solMerkleTree: SolMerkleTree;
+}): { syncedUtxos: Utxo[]; root: string } {
+  const proofs = solMerkleTree.getMerkleProofs(hasher, inputUtxos);
+  const syncedUtxos = inputUtxos?.map((utxo, index) => {
+    utxo.merkleProof = proofs.inputMerklePathElements[index];
+    utxo.index = Number(proofs.inputMerklePathIndices[index]);
+    return utxo;
+  });
+  return { syncedUtxos, root: solMerkleTree.merkleTree.root() };
+}
+
 // compileProofInputs
 export function createProofInputs({
   transaction,
-  solMerkleTree,
   hasher,
   account,
   pspTransaction,
 }: {
   transaction: Transaction;
   pspTransaction: PspTransactionInput;
-  solMerkleTree: SolMerkleTree;
   hasher: Hasher;
   account: Account;
 }): compiledProofInputs {
   const systemProofInputs = createSystemProofInputs({
     transaction,
-    solMerkleTree,
     hasher,
     account,
   });
@@ -397,6 +403,7 @@ export type PublicTransactionVariables = {
   transactionHash: string;
   // TODO: rename to publicDataHash
   txIntegrityHash: BN;
+  root: string;
 };
 
 export type PrivateTransactionVariables = {
@@ -929,6 +936,7 @@ export type ShieldTransactionInput = {
   systemPspId: PublicKey;
   pspId?: PublicKey;
   account: Account;
+  root: string;
 };
 
 // add createShieldSolanaTransaction
@@ -947,6 +955,7 @@ export async function createShieldTransaction(
     systemPspId,
     pspId,
     account,
+    root,
   } = shieldTransactionInput;
 
   const action = Action.SHIELD;
@@ -1012,6 +1021,7 @@ export async function createShieldTransaction(
     action,
     private: privateVars,
     public: {
+      root,
       transactionHash,
       publicMintPubkey: mint
         ? hashAndTruncateToCircuit(mint.toBytes()).toString()
@@ -1086,6 +1096,7 @@ export type UnshieldTransactionInput = {
   account: Account;
   relayerFee: BN;
   ataCreationFee: boolean;
+  root: string;
 };
 
 // add createShieldSolanaTransaction
@@ -1107,6 +1118,7 @@ export async function createUnshieldTransaction(
     account,
     relayerFee,
     ataCreationFee,
+    root,
   } = unshieldTransactionInput;
 
   const action = Action.UNSHIELD;
@@ -1175,6 +1187,7 @@ export async function createUnshieldTransaction(
     action,
     private: privateVars,
     public: {
+      root,
       transactionHash,
       publicMintPubkey: mint
         ? hashAndTruncateToCircuit(mint.toBytes()).toString()
@@ -1204,6 +1217,7 @@ export type TransactionInput = {
   pspId?: PublicKey;
   account: Account;
   relayerFee: BN;
+  root: string;
 };
 
 export async function createTransaction(
@@ -1220,6 +1234,7 @@ export async function createTransaction(
     systemPspId,
     account,
     relayerFee,
+    root,
   } = transactionInput;
   const verifierProgramId = pspId ? pspId : systemPspId;
   // TODO: unifiy systemPspId and verifierProgramId by adding verifierConfig to psps
@@ -1273,6 +1288,7 @@ export async function createTransaction(
   const transaction: Transaction = {
     private: privateVars,
     public: {
+      root,
       transactionHash,
       publicMintPubkey: "0",
       txIntegrityHash,
@@ -1417,6 +1433,15 @@ export async function getTxParams({
     });
   }
 
+  if (inputUtxos && inputUtxos.length != 0) {
+    const { syncedUtxos } = syncInputUtxosMerkleProofs({
+      inputUtxos,
+      solMerkleTree: provider.solMerkleTree!,
+      hasher: provider.hasher,
+    });
+    inputUtxos = syncedUtxos;
+  }
+
   if (action == Action.SHIELD) {
     return createShieldTransaction({
       message,
@@ -1433,6 +1458,7 @@ export async function getTxParams({
       hasher: provider.hasher,
       systemPspId: getVerifierProgramId(verifierIdl),
       account,
+      root: provider.solMerkleTree!.merkleTree.root(),
     });
   } else if (action == Action.UNSHIELD) {
     return createUnshieldTransaction({
@@ -1453,6 +1479,7 @@ export async function getTxParams({
       ataCreationFee: ataCreationFee ? true : false,
       relayerPublicKey: relayer!.accounts.relayerPubkey,
       relayerFee: relayer!.getRelayerFee(ataCreationFee),
+      root: provider.solMerkleTree!.merkleTree.root(),
     });
   } else if (action == Action.TRANSFER) {
     return createTransaction({
@@ -1466,6 +1493,7 @@ export async function getTxParams({
       account,
       relayerPublicKey: relayer!.accounts.relayerPubkey,
       relayerFee: relayer!.getRelayerFee(ataCreationFee),
+      root: provider.solMerkleTree!.merkleTree.root(),
     });
   } else {
     throw new TransactionParametersError(

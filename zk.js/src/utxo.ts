@@ -74,6 +74,7 @@ export class Utxo {
   splAssetIndex: BN;
   verifierProgramIndex: BN;
   isFillingUtxo: boolean;
+  merkleProof?: string[];
 
   /**
    * @description Initialize a new utxo - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
@@ -108,6 +109,7 @@ export class Utxo {
     assetLookupTable,
     isFillingUtxo = false,
     encryptionPublicKey,
+    merkleProof,
   }: {
     hasher: Hasher;
     assets?: PublicKey[];
@@ -124,6 +126,7 @@ export class Utxo {
     assetLookupTable: string[];
     isFillingUtxo?: boolean;
     encryptionPublicKey?: Uint8Array;
+    merkleProof?: string[];
   }) {
     if (!blinding.eq(blinding.mod(FIELD_SIZE))) {
       throw new UtxoError(
@@ -218,6 +221,8 @@ export class Utxo {
     this.poolType = poolType;
     this.includeAppData = includeAppData;
     this.transactionVersion = "0";
+    this.merkleProof = isFillingUtxo ? new Array(18).fill("0") : merkleProof;
+    this.index = isFillingUtxo ? 0 : index;
 
     if (
       assets[1].toBase58() === SystemProgram.programId.toBase58() &&
@@ -438,6 +443,7 @@ export class Utxo {
     index,
     appDataIdl,
     assetLookupTable,
+    merkleProof,
   }: {
     hasher: Hasher;
     bytes: Buffer;
@@ -446,6 +452,7 @@ export class Utxo {
     index?: number;
     appDataIdl?: Idl;
     assetLookupTable: string[];
+    merkleProof?: string[];
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding
     if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
@@ -513,6 +520,7 @@ export class Utxo {
       verifierAddress,
       ...decodedUtxoData,
       assetLookupTable,
+      merkleProof,
     });
   }
 
@@ -730,6 +738,7 @@ export class Utxo {
     appDataIdl,
     compressed = true,
     assetLookupTable,
+    merkleProof,
   }: {
     hasher: Hasher;
     encBytes: Uint8Array;
@@ -741,6 +750,7 @@ export class Utxo {
     appDataIdl?: Idl;
     compressed?: boolean;
     assetLookupTable: string[];
+    merkleProof: string[];
   }): Promise<Result<Utxo | null, UtxoError>> {
     // Remove UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
     encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
@@ -780,6 +790,7 @@ export class Utxo {
         index,
         appDataIdl,
         assetLookupTable,
+        merkleProof,
       }),
     );
   }
@@ -805,6 +816,7 @@ export class Utxo {
     appDataIdl,
     compressed = true,
     assetLookupTable,
+    merkleProof,
   }: {
     hasher: Hasher;
     encBytes: Uint8Array;
@@ -816,6 +828,7 @@ export class Utxo {
     appDataIdl?: Idl;
     compressed?: boolean;
     assetLookupTable: string[];
+    merkleProof: string[];
   }): Promise<Result<Utxo | null, UtxoError>> {
     // Get UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
     const prefixBytes = encBytes.slice(0, UTXO_PREFIX_LENGTH);
@@ -837,6 +850,7 @@ export class Utxo {
         appDataIdl,
         compressed,
         assetLookupTable,
+        merkleProof,
       });
 
       // If the return value of decryptUnchecked operation is valid

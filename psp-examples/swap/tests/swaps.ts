@@ -24,6 +24,7 @@ import {
   hashAndTruncateToCircuit,
   createTransaction,
   lightPsp4in4outAppStorageId,
+  syncInputUtxosMerkleProofs,
 } from "@lightprotocol/zk.js";
 
 import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
@@ -215,9 +216,14 @@ describe("Test swaps", () => {
       inUtxos: [shieldUtxo],
       outUtxos: [changeUtxo, tradeOutputUtxo],
     };
-
-    const inputUtxos = [fetchedOfferUtxo, shieldUtxo];
+    await buyerUser.provider.latestMerkleTree();
+    const { syncedUtxos: inputUtxos, root } = syncInputUtxosMerkleProofs({
+      inputUtxos: [fetchedOfferUtxo, shieldUtxo],
+      hasher: HASHER,
+      solMerkleTree: buyerUser.provider.solMerkleTree!,
+    });
     const outputUtxos = [changeUtxo, tradeOutputUtxo, offerRewardUtxo];
+
     const shieldedTransaction = await createTransaction({
       inputUtxos,
       outputUtxos,
@@ -230,6 +236,7 @@ describe("Test swaps", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: buyerUser.account,
+      root,
     });
 
     /**
@@ -242,7 +249,6 @@ describe("Test swaps", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: buyerUser.account,
-      solMerkleTree: buyerUser.provider.solMerkleTree,
     });
 
     const systemProof = await getSystemProof({
@@ -494,8 +500,12 @@ describe("Test swaps", () => {
       ],
       outUtxos: [tradeOutputUtxo],
     };
-
-    const inputUtxos = [offerUtxo, fetchedCounterOfferUtxo];
+    await sellerUser.provider.latestMerkleTree();
+    const { syncedUtxos: inputUtxos, root } = syncInputUtxosMerkleProofs({
+      inputUtxos: [offerUtxo, fetchedCounterOfferUtxo],
+      hasher: HASHER,
+      solMerkleTree: sellerUser.provider.solMerkleTree!,
+    });
     const outputUtxos = [tradeOutputUtxo, counterOfferRewardUtxo];
 
     const shieldedTransaction = await createTransaction({
@@ -510,6 +520,7 @@ describe("Test swaps", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
+      root,
     });
     /**
      * Proves PSP logic
@@ -521,7 +532,6 @@ describe("Test swaps", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
-      solMerkleTree: sellerUser.provider.solMerkleTree,
     });
 
     const systemProof = await getSystemProof({
@@ -688,8 +698,12 @@ describe("Test swaps", () => {
       ],
       outUtxos: [cancelOutputUtxo],
     };
-
-    const inputUtxos = [fetchedOfferUtxo, emptySignerUtxo];
+    await sellerUser.provider.latestMerkleTree();
+    const { syncedUtxos: inputUtxos, root } = syncInputUtxosMerkleProofs({
+      inputUtxos: [fetchedOfferUtxo, emptySignerUtxo],
+      hasher: HASHER,
+      solMerkleTree: sellerUser.provider.solMerkleTree!,
+    });
     const outputUtxos = [cancelOutputUtxo];
 
     const shieldedTransaction = await createTransaction({
@@ -704,6 +718,7 @@ describe("Test swaps", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
+      root,
     });
     /**
      * Proves PSP logic
@@ -715,7 +730,6 @@ describe("Test swaps", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
-      solMerkleTree: sellerUser.provider.solMerkleTree,
     });
 
     const systemProof = await getSystemProof({
