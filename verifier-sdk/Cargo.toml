@@ -9,9 +9,6 @@ edition = "2021"
 crate-type = ["cdylib", "lib"]
 name = "light_verifier_sdk"
 
-[features]
-atomic-transactions = ["light-merkle-tree-program/atomic-transactions"]
-
 [dependencies]
 anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"

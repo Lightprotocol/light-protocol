@@ -103,44 +103,6 @@ pub mod light_merkle_tree_program {
         process_register_sol_pool(ctx)
     }
 
-    /// Initializes a merkle tree update state pda. This pda stores the leaves to be inserted
-    /// and state of the computation of poseidon hashes to update the Merkle tree.
-    /// A maximum of 16 pairs of leaves can be passed in as leaves accounts as remaining accounts.
-    /// Every leaf is copied into this account such that no further accounts or data have to be
-    /// passed in during the following instructions which compute the poseidon hashes to update the tree.
-    /// The hashes are computed with the update merkle tree instruction and the new root is inserted
-    /// with the insert root merkle tree instruction.
-    pub fn initialize_merkle_tree_update_state<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeUpdateState<'info>>,
-    ) -> Result<()> {
-        process_initialize_update_state(ctx)
-    }
-
-    /// Computes poseidon hashes to update the Merkle tree.
-    pub fn update_transaction_merkle_tree<'info>(
-        mut ctx: Context<'_, '_, '_, 'info, UpdateTransactionMerkleTree<'info>>,
-        _bump: u64,
-    ) -> Result<()> {
-        process_update_merkle_tree(&mut ctx)
-    }
-
-    /// This is the last step of a Merkle tree update which inserts the prior computed Merkle tree
-    /// root.
-    pub fn insert_root_merkle_tree<'info>(
-        mut ctx: Context<'_, '_, '_, 'info, InsertRoot<'info>>,
-        _bump: u64,
-    ) -> Result<()> {
-        process_insert_root(&mut ctx)
-    }
-
-    /// Closes the Merkle tree update state.
-    /// A relayer can only close its own update state account.
-    pub fn close_merkle_tree_update_state(
-        _ctx: Context<CloseUpdateState>,
-    ) -> anchor_lang::Result<()> {
-        Ok(())
-    }
-
     /// Creates and initializes a pda which stores two merkle tree leaves and encrypted Utxos.
     /// The inserted leaves are not part of the Merkle tree yet and marked accordingly.
     /// The Merkle tree has to be updated after.

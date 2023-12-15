@@ -14,9 +14,8 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = ["atomic-transactions"]
+default = []
 test-bpf = []
-atomic-transactions = []
 
 [dependencies]
 anchor-lang = "0.28.0"
