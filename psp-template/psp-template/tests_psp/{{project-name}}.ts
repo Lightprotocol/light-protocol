@@ -141,6 +141,7 @@ describe("Test {{project-name}}", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: user.account,
+      root: user.provider.solMerkleTree!.merkleTree.root(),
     });
 
     const proofInputs = createProofInputs({
@@ -148,7 +149,6 @@ describe("Test {{project-name}}", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: user.account,
-      solMerkleTree: user.provider.solMerkleTree!,
     });
 
     const systemProof = await getSystemProof({
