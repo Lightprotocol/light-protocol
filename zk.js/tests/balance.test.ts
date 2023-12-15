@@ -165,7 +165,7 @@ describe("Utxo Functional", () => {
                 UTXO_PREFIX_LENGTH,
             ),
           );
-          let decryptedUtxo = await Utxo.decrypt({
+          let decryptedUtxo = await Utxo.decryptUnchecked({
             hasher,
             encBytes,
             account,
@@ -175,6 +175,7 @@ describe("Utxo Functional", () => {
             merkleTreePdaPublicKey:
               MerkleTreeConfig.getTransactionMerkleTreePda(),
             assetLookupTable,
+            merkleProof: [],
           });
           assert(decryptedUtxo.error === null, "Can't decrypt utxo");
           if (decryptedUtxo.value !== null) {
@@ -190,7 +191,7 @@ describe("Utxo Functional", () => {
                 UTXO_PREFIX_LENGTH,
             ),
           );
-          decryptedUtxo = await Utxo.decrypt({
+          decryptedUtxo = await Utxo.decryptUnchecked({
             hasher,
             encBytes,
             account,
@@ -200,6 +201,7 @@ describe("Utxo Functional", () => {
             merkleTreePdaPublicKey:
               MerkleTreeConfig.getTransactionMerkleTreePda(),
             assetLookupTable,
+            merkleProof: [],
           });
           assert(decryptedUtxo.error === null, "Can't decrypt utxo");
           if (decryptedUtxo.value !== null) {

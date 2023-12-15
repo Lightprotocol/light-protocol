@@ -6,6 +6,9 @@ import {
   AccountError,
   AccountErrorCode,
   ADMIN_AUTH_KEYPAIR,
+  BN_0,
+  BN_1,
+  MerkleTreeConfig,
   newNonce,
   useWallet,
 } from "../src";
@@ -369,24 +372,47 @@ describe("Test Account Functional", () => {
   });
 
   it("Should correctly generate UTXO prefix hash", () => {
-    const commitmentHash = new Uint8Array(32).fill(1);
     const prefixLength = 4;
-    const expectedOutput: Uint8Array = new Uint8Array([55, 154, 4, 63]);
+    const expectedOutput: Uint8Array = new Uint8Array([240, 73, 165, 83]);
     const currentOutput = k0.generateUtxoPrefixHash(
-      commitmentHash,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      BN_0,
       prefixLength,
       hasher,
     );
-    return expect(currentOutput).to.eql(expectedOutput);
+    expect(currentOutput).to.eql(expectedOutput);
+
+    const currentOutput1 = k0.generateUtxoPrefixHash(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      BN_1,
+      prefixLength,
+      hasher,
+    );
+    expect(currentOutput1).to.not.eq(expectedOutput);
+
+    const currentOutput0 = k0.generateLatestUtxoPrefixHash(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      prefixLength,
+      hasher,
+    );
+    expect(currentOutput).to.eql(currentOutput0);
+    expect(k0.prefixCounter.toString()).to.eql("1");
+
+    const currentOutputLatest1 = k0.generateLatestUtxoPrefixHash(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      prefixLength,
+      hasher,
+    );
+    expect(currentOutput1).to.deep.eq(currentOutputLatest1);
   });
 
   it("Should fail UTXO prefix hash generation test for wrong expected output", () => {
-    const commitmentHash = new Uint8Array(32).fill(1);
-    const prefix_length = 4;
+    const prefixLength = 4;
     const incorrectExpectedOutput: Uint8Array = new Uint8Array([1, 2, 3, 4]);
     const currentOutput = k0.generateUtxoPrefixHash(
-      commitmentHash,
-      prefix_length,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      BN_0,
+      prefixLength,
       hasher,
     );
     return expect(currentOutput).to.not.eql(incorrectExpectedOutput);

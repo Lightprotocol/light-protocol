@@ -4,6 +4,7 @@ import {
   AccountError,
   AccountErrorCode,
   BN_0,
+  BN_1,
   CONSTANT_SECRET_AUTHKEY,
   setEnvironment,
   SIGN_MESSAGE,
@@ -49,6 +50,7 @@ export class Account {
   aesSecret?: Uint8Array;
   hashingSecret?: Uint8Array;
   solanaPublicKey?: PublicKey;
+  prefixCounter: BN;
 
   static readonly hashLength = 32;
 
@@ -64,6 +66,7 @@ export class Account {
     encryptionPrivateKey,
     aesSecret,
     solanaPublicKey,
+    prefixCounter,
   }: {
     hasher: Hasher;
     seed?: string;
@@ -76,9 +79,11 @@ export class Account {
     encryptionPrivateKey?: Uint8Array;
     aesSecret?: Uint8Array;
     solanaPublicKey?: PublicKey;
+    prefixCounter?: BN;
   }) {
     this.solanaPublicKey = solanaPublicKey;
     this.burnerSeed = new Uint8Array();
+    this.prefixCounter = prefixCounter ? prefixCounter : BN_0;
     if (aesSecret && !privateKey) {
       this.aesSecret = aesSecret;
       this.privkey = BN_0;
@@ -287,14 +292,31 @@ export class Account {
     return Account.generateSecret(hasher, this.hashingSecret?.toString(), salt);
   }
 
+  generateLatestUtxoPrefixHash(
+    merkleTreePublicKey: PublicKey,
+    prefixLength: number,
+    hasher: Hasher,
+  ) {
+    const prefix = this.generateUtxoPrefixHash(
+      merkleTreePublicKey,
+      this.prefixCounter,
+      prefixLength,
+      hasher,
+    );
+    this.prefixCounter = this.prefixCounter.add(BN_1);
+    return prefix;
+  }
+
   generateUtxoPrefixHash(
-    commitmentHash: Uint8Array,
+    merkleTreePublicKey: PublicKey,
+    prefixCounter: BN,
     prefixLength: number,
     hasher: Hasher,
   ) {
     const input = Uint8Array.from([
       ...this.getUtxoPrefixViewingKey("hashing", hasher),
-      ...commitmentHash,
+      ...merkleTreePublicKey.toBytes(),
+      ...prefixCounter.toArray("be", 32),
     ]);
 
     return hasher.blakeHash(input, prefixLength);

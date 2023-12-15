@@ -1570,41 +1570,22 @@ export class User {
         let index = data.firstLeafIndex.toNumber();
         for (const [, leaf] of data.leaves.entries()) {
           try {
-            if (aes) {
-              decryptedUtxo = await Utxo.decrypt({
-                hasher: this.provider.hasher,
-                account: this.account,
-                encBytes: Uint8Array.from(data.message),
-                appDataIdl: idl,
-                aes: true,
-                index: index,
-                commitment: Uint8Array.from(leaf),
-                merkleTreePdaPublicKey:
-                  MerkleTreeConfig.getTransactionMerkleTreePda(),
-                compressed: false,
-                assetLookupTable,
-                merkleProof:
-                  this.provider.solMerkleTree!.merkleTree.path(index)
-                    .pathElements,
-              });
-            } else {
-              decryptedUtxo = await Utxo.decryptUnchecked({
-                hasher: this.provider.hasher,
-                account: this.account,
-                encBytes: Uint8Array.from(data.message),
-                appDataIdl: idl,
-                aes: false,
-                index: index,
-                commitment: Uint8Array.from(leaf),
-                merkleTreePdaPublicKey:
-                  MerkleTreeConfig.getTransactionMerkleTreePda(),
-                compressed: false,
-                assetLookupTable,
-                merkleProof:
-                  this.provider.solMerkleTree!.merkleTree.path(index)
-                    .pathElements,
-              });
-            }
+            decryptedUtxo = await Utxo.decryptUnchecked({
+              hasher: this.provider.hasher,
+              account: this.account,
+              encBytes: Uint8Array.from(data.message),
+              appDataIdl: idl,
+              aes,
+              index: index,
+              commitment: Uint8Array.from(leaf),
+              merkleTreePdaPublicKey:
+                MerkleTreeConfig.getTransactionMerkleTreePda(),
+              compressed: false,
+              assetLookupTable,
+              merkleProof:
+                this.provider.solMerkleTree!.merkleTree.path(index)
+                  .pathElements,
+            });
 
             if (decryptedUtxo.value) {
               const utxo = decryptedUtxo.value;
