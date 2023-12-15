@@ -20,7 +20,7 @@ pub fn process_initialize_new_merkle_tree(
     merkle_tree_authority: &mut Account<'_, MerkleTreeAuthority>,
     height: usize,
 ) -> Result<()> {
-    use light_merkle_tree::HashFunction;
+    use light_sparse_merkle_tree::HashFunction;
 
     merkle_tree.newest = 1;
     merkle_tree

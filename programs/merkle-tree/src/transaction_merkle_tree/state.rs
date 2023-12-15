@@ -1,12 +1,8 @@
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
+use light_hasher::Poseidon;
 use light_macros::pubkey;
-use light_merkle_tree::{
-    config::MerkleTreeConfig,
-    constants::{poseidon::ZERO_BYTES, ZeroBytes},
-    hasher::Poseidon,
-    MerkleTree,
-};
+use light_sparse_merkle_tree::{config::MerkleTreeConfig, MerkleTree};
 
 use crate::impl_indexed_merkle_tree;
 
@@ -14,7 +10,6 @@ use crate::impl_indexed_merkle_tree;
 pub struct TransactionMerkleTreeConfig {}
 
 impl MerkleTreeConfig for TransactionMerkleTreeConfig {
-    const ZERO_BYTES: ZeroBytes = ZERO_BYTES;
     const PROGRAM_ID: Pubkey = pubkey!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
 }
 

@@ -26,4 +26,4 @@ spl-token = "3.3.0"
 borsh = "0.9.3"
 groth16-solana = "0.0.2"
 light-utils = { path = "../utils", version = "0.1.0" }
-light-merkle-tree = { path = "../merkle-tree", version = "0.1.1" }
+light-sparse-merkle-tree = { path = "../merkle-tree/sparse", version = "0.1.1" }

@@ -9,6 +9,8 @@ on:
         options:
           - aligned-sized
           - light-macros
+          - light-sparse-merkle-tree
+          - light-hasher
           - light-merkle-tree-program
           - light-psp2in2out
           - light-psp10in2out
