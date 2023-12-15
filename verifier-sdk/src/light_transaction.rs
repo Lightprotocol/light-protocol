@@ -17,7 +17,6 @@ use ark_ff::{
 };
 use ark_std::vec::Vec;
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
-use light_merkle_tree::HashFunction;
 use light_merkle_tree_program::{
     program::LightMerkleTreeProgram,
     state::TransactionMerkleTree,
@@ -26,6 +25,7 @@ use light_merkle_tree_program::{
         constants::{POOL_CONFIG_SEED, POOL_SEED, TRANSACTION_MERKLE_TREE_SEED},
     },
 };
+use light_sparse_merkle_tree::HashFunction;
 use light_utils::{change_endianness, truncate_to_circuit};
 
 use crate::{

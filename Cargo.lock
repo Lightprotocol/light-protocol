@@ -2759,6 +2759,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-hasher"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "ark-bn254 0.4.0",
+ "light-poseidon",
+ "thiserror",
+]
+
+[[package]]
 name = "light-macros"
 version = "0.3.1"
 dependencies = [
@@ -2768,18 +2778,6 @@ dependencies = [
  "proc-macro2 1.0.68",
  "quote 1.0.33",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "light-merkle-tree"
-version = "0.1.1"
-dependencies = [
- "anchor-lang",
- "ark-bn254 0.4.0",
- "bytemuck",
- "light-poseidon",
- "sha2 0.10.8",
- "thiserror",
 ]
 
 [[package]]
@@ -2805,8 +2803,9 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "getrandom 0.2.10",
+ "light-hasher",
  "light-macros",
- "light-merkle-tree",
+ "light-sparse-merkle-tree",
  "light-utils",
  "serde_json",
  "solana-program-test",
@@ -2881,6 +2880,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-sparse-merkle-tree"
+version = "0.1.1"
+dependencies = [
+ "anchor-lang",
+ "bytemuck",
+ "light-hasher",
+ "sha2 0.10.8",
+ "thiserror",
+]
+
+[[package]]
 name = "light-user-registry"
 version = "0.3.0"
 dependencies = [
@@ -2909,8 +2919,8 @@ dependencies = [
  "ark-std 0.3.0",
  "borsh 0.9.3",
  "groth16-solana",
- "light-merkle-tree",
  "light-merkle-tree-program",
+ "light-sparse-merkle-tree",
  "light-utils",
  "spl-token",
 ]
@@ -6733,7 +6743,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 4.4.11",
- "light-merkle-tree",
+ "light-hasher",
+ "light-sparse-merkle-tree",
  "light-utils",
  "quote 1.0.33",
  "sha2 0.10.8",

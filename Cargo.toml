@@ -4,7 +4,7 @@ members = [
     "macro-circom",
     "macros/aligned-sized",
     "macros/light",
-    "merkle-tree",
+    "merkle-tree/*",
     "programs/*",
     "utils",
     "verifier-sdk",
