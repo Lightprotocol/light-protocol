@@ -48,7 +48,7 @@ describe("API tests", () => {
   let shieldFeeAmount = 10_000;
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let previousMerkleRoot =
-    "15800883723037093133305280672853871715176051618981698111580373208012928757479";
+    "6939770416153240137322503476966641397417391950902474480970945462551409848591";
   let userKeypair = Keypair.generate();
   let provider: Provider,
     user: User,
