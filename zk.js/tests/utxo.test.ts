@@ -93,10 +93,13 @@ describe("Utxo Functional", () => {
         account: utxo4Account,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       });
-      assert.equal(encBytes4.toString(), encBytes41.toString());
+      assert.equal(
+        encBytes4.slice(4).toString(),
+        encBytes41.slice(4).toString(),
+      );
 
       // decrypt checked
-      const utxo41 = await Utxo.decrypt({
+      const utxo41 = await Utxo.decryptUnchecked({
         hasher,
         encBytes: encBytes4,
         account: utxo4Account,
@@ -109,6 +112,7 @@ describe("Utxo Functional", () => {
           32,
         ),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        merkleProof: [],
       });
 
       if (utxo41.value) {
@@ -127,6 +131,7 @@ describe("Utxo Functional", () => {
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         commitment: new BN(utxo4.getCommitment(hasher)).toBuffer("be", 32),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+        merkleProof: [],
       });
 
       if (utxo41u.value !== null) {
@@ -252,7 +257,7 @@ describe("Utxo Functional", () => {
     });
 
     // decrypt
-    const utxo3 = await Utxo.decrypt({
+    const utxo3 = await Utxo.decryptUnchecked({
       hasher,
       encBytes,
       account: inputs.keypair,
@@ -265,6 +270,7 @@ describe("Utxo Functional", () => {
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      merkleProof: [],
     });
     if (utxo3.value) {
       Utxo.equal(hasher, utxo0, utxo3.value);
@@ -306,6 +312,7 @@ describe("Utxo Functional", () => {
         32,
       ),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      merkleProof: [],
     });
     if (receivingUtxo1Unchecked.value !== null) {
       Utxo.equal(hasher, receivingUtxo, receivingUtxo1Unchecked.value, true);
@@ -324,30 +331,6 @@ describe("Utxo Functional", () => {
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
-
-    // encrypt
-    const encBytesNaclNoAes = await receivingUtxoNoAes.encrypt({
-      hasher,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-    });
-
-    // decrypt
-    const receivingUtxo1NoAes = await Utxo.decrypt({
-      hasher,
-      encBytes: encBytesNaclNoAes,
-      account: inputs.keypair,
-      index: inputs.index,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      aes: false,
-      commitment: new BN(receivingUtxoNoAes.getCommitment(hasher)).toBuffer(
-        "le",
-        32,
-      ),
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-    });
-    if (receivingUtxo1NoAes.error) {
-      throw new Error("decrypt checked failed " + receivingUtxo1NoAes.error);
-    }
   });
 
   it("Program utxo to/from bytes", async () => {
@@ -586,46 +569,6 @@ describe("Utxo Errors", () => {
         functionName: "constructor",
       });
   });
-
-  it("decryption fails with checkPrefixHash on prefix generated from random bytes", async () => {
-    const publicKey = keypair.getPublicKey();
-    const receivingUtxo = new Utxo({
-      hasher,
-      assets: inputs.assets,
-      amounts: inputs.amounts,
-      publicKey: Account.fromPubkey(publicKey, hasher).pubkey,
-      encryptionPublicKey: Account.fromPubkey(publicKey, hasher)
-        .encryptionKeypair.publicKey,
-      blinding: inputs.blinding,
-      index: inputs.index,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-    });
-
-    // encrypt
-    const encBytesNacl = await receivingUtxo.encrypt({
-      hasher,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-    });
-
-    // decrypt
-    const receivingUtxo1 = await Utxo.decrypt({
-      hasher,
-      encBytes: encBytesNacl,
-      account: inputs.keypair,
-      index: inputs.index,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      aes: false,
-      commitment: new BN(receivingUtxo.getCommitment(hasher)).toBuffer(
-        "le",
-        32,
-      ),
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-    });
-
-    if (receivingUtxo1.value) {
-      throw new Error("decrypt succeeded");
-    }
-  });
 });
 
 describe("Utxo Benchmark", () => {
@@ -633,57 +576,5 @@ describe("Utxo Benchmark", () => {
   before(async () => {
     hasher = await WasmHasher.getInstance();
     lightProvider = await LightProvider.loadMock();
-  });
-
-  it.skip("Decrypting 256k UTXOs w/checkPrefixHash", async () => {
-    const utxoTestAccount = new Account({ hasher });
-    const testUtxo = new Utxo({
-      hasher,
-      amounts: [new BN(123)],
-      publicKey: utxoTestAccount.pubkey,
-      appDataHash: new BN(lightPsp4in4outAppStorageId.toBuffer()),
-      includeAppData: false,
-      verifierAddress: new PublicKey(
-        lightProvider.lookUpTables.verifierProgramLookupTable[1],
-      ),
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-    });
-
-    const encBytesVecs: Uint8Array[] = [];
-
-    for (let i = 0; i < 256 * 1000; i++) {
-      encBytesVecs.push(randomBytes(120 + UTXO_PREFIX_LENGTH));
-    }
-
-    let collisionCounter = 0;
-
-    console.time("getTransactionMerkleTreePdaTime");
-    const transactionMerkleTreePda =
-      MerkleTreeConfig.getTransactionMerkleTreePda();
-    console.timeEnd("getTransactionMerkleTreePdaTime");
-
-    console.time("256kPrefixHashCollisionTestTime");
-    for (let i = 0; i < 256 * 1000; i++) {
-      const resultUtxo = await Utxo.decrypt({
-        hasher,
-        encBytes: encBytesVecs[i],
-        account: utxoTestAccount,
-        aes: true,
-        index: 0,
-        merkleTreePdaPublicKey: transactionMerkleTreePda,
-        commitment: new BN(testUtxo.getCommitment(hasher)).toBuffer("le", 32),
-        assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      });
-      if (
-        resultUtxo.error &&
-        resultUtxo.error.code === UtxoErrorCode.PREFIX_COLLISION
-      )
-        collisionCounter++;
-    }
-    console.timeEnd("256kPrefixHashCollisionTestTime");
-    console.log(
-      "collisions detected (over 256k decryption attempts): ",
-      collisionCounter,
-    );
   });
 });

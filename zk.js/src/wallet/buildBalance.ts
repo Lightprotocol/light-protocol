@@ -198,29 +198,17 @@ export async function decryptAddUtxoToBalance({
   assetLookupTable: string[];
   merkleProof: string[];
 }): Promise<void> {
-  const decryptedUtxo = aes
-    ? await Utxo.decrypt({
-        hasher,
-        encBytes: encBytes,
-        account: account,
-        index: index,
-        commitment,
-        aes,
-        merkleTreePdaPublicKey,
-        assetLookupTable,
-        merkleProof,
-      })
-    : await Utxo.decryptUnchecked({
-        hasher,
-        encBytes: encBytes,
-        account: account,
-        index: index,
-        commitment,
-        aes,
-        merkleTreePdaPublicKey,
-        assetLookupTable,
-        merkleProof,
-      });
+  const decryptedUtxo = await Utxo.decryptUnchecked({
+    hasher,
+    encBytes: encBytes,
+    account: account,
+    index: index,
+    commitment,
+    aes,
+    merkleTreePdaPublicKey,
+    assetLookupTable,
+    merkleProof,
+  });
 
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo.value || decryptedUtxo.error) return;
