@@ -530,12 +530,6 @@ impl<
 
         let transaction_merkle_tree = self.get_transaction_merkle_tree()?;
 
-        #[cfg(feature = "atomic-transactions")]
-        let two_leaves_pdas = Vec::new();
-        #[cfg(not(feature = "atomic-transactions"))]
-        let two_leaves_pdas = self.input.ctx.remaining_accounts
-            [NR_NULLIFIERS..NR_NULLIFIERS + (NR_LEAVES / 2)]
-            .to_vec();
         // check account integrities
         insert_two_leaves_cpi(
             self.input.ctx.program_id,
@@ -546,7 +540,6 @@ impl<
                 .get_program_merkle_tree()
                 .to_account_info(),
             &self.input.ctx.accounts.get_authority().to_account_info(),
-            two_leaves_pdas,
             &transaction_merkle_tree,
             &self
                 .input

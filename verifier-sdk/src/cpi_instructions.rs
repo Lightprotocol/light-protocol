@@ -90,7 +90,6 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
-    two_leaves_pdas: Vec<AccountInfo<'a>>,
     transaction_merkle_tree_account: &'b AccountInfo<'a>,
     system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
@@ -107,8 +106,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         registered_verifier_pda: registered_verifier_pda.clone(),
     };
 
-    let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    cpi_ctx = cpi_ctx.with_remaining_accounts(two_leaves_pdas);
+    let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
 
     light_merkle_tree_program::cpi::insert_two_leaves(cpi_ctx, leaves)?;
 

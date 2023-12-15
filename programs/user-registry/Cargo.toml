@@ -15,7 +15,6 @@ no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = []
-atomic-transactions = []
 
 [dependencies]
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }

@@ -496,140 +496,6 @@ export type LightMerkleTreeProgram = {
       "args": []
     },
     {
-      "name": "initializeMerkleTreeUpdateState",
-      "docs": [
-        "Initializes a merkle tree update state pda. This pda stores the leaves to be inserted",
-        "and state of the computation of poseidon hashes to update the Merkle tree.",
-        "A maximum of 16 pairs of leaves can be passed in as leaves accounts as remaining accounts.",
-        "Every leaf is copied into this account such that no further accounts or data have to be",
-        "passed in during the following instructions which compute the poseidon hashes to update the tree.",
-        "The hashes are computed with the update merkle tree instruction and the new root is inserted",
-        "with the insert root merkle tree instruction."
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "merkleTreeUpdateState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateTransactionMerkleTree",
-      "docs": [
-        "Computes poseidon hashes to update the Merkle tree."
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "merkleTreeUpdateState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "bump",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "insertRootMerkleTree",
-      "docs": [
-        "This is the last step of a Merkle tree update which inserts the prior computed Merkle tree",
-        "root."
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "merkleTreeUpdateState",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Merkle tree is locked by merkle_tree_update_state",
-            "Is in correct instruction for root insert thus Merkle Tree update has been completed.",
-            "The account is closed to the authority at the end of the instruction."
-          ]
-        },
-        {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "logWrapper",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "bump",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "closeMerkleTreeUpdateState",
-      "docs": [
-        "Closes the Merkle tree update state.",
-        "A relayer can only close its own update state account."
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "merkleTreeUpdateState",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "insertTwoLeaves",
       "docs": [
         "Creates and initializes a pda which stores two merkle tree leaves and encrypted Utxos.",
@@ -1468,21 +1334,16 @@ export type LightMerkleTreeProgram = {
     },
     {
       "code": 6022,
-      "name": "AtomicTransactionsEnabled",
-      "msg": "This instruction is not umplemented for Light Protocol with atomic transactions support"
-    },
-    {
-      "code": 6023,
       "name": "ExpectedTwoLeavesPda",
       "msg": "Expected two leaves PDA as a remaining account."
     },
     {
-      "code": 6024,
+      "code": 6023,
       "name": "InvalidTwoLeavesPda",
       "msg": "Invalid two leaves PDA."
     },
     {
-      "code": 6025,
+      "code": 6024,
       "name": "OddNumberOfLeaves",
       "msg": "Odd number of leaves."
     }
@@ -1987,140 +1848,6 @@ export const IDL: LightMerkleTreeProgram = {
       "args": []
     },
     {
-      "name": "initializeMerkleTreeUpdateState",
-      "docs": [
-        "Initializes a merkle tree update state pda. This pda stores the leaves to be inserted",
-        "and state of the computation of poseidon hashes to update the Merkle tree.",
-        "A maximum of 16 pairs of leaves can be passed in as leaves accounts as remaining accounts.",
-        "Every leaf is copied into this account such that no further accounts or data have to be",
-        "passed in during the following instructions which compute the poseidon hashes to update the tree.",
-        "The hashes are computed with the update merkle tree instruction and the new root is inserted",
-        "with the insert root merkle tree instruction."
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "merkleTreeUpdateState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateTransactionMerkleTree",
-      "docs": [
-        "Computes poseidon hashes to update the Merkle tree."
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "merkleTreeUpdateState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "bump",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "insertRootMerkleTree",
-      "docs": [
-        "This is the last step of a Merkle tree update which inserts the prior computed Merkle tree",
-        "root."
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "merkleTreeUpdateState",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Merkle tree is locked by merkle_tree_update_state",
-            "Is in correct instruction for root insert thus Merkle Tree update has been completed.",
-            "The account is closed to the authority at the end of the instruction."
-          ]
-        },
-        {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "logWrapper",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "bump",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "closeMerkleTreeUpdateState",
-      "docs": [
-        "Closes the Merkle tree update state.",
-        "A relayer can only close its own update state account."
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "merkleTreeUpdateState",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "insertTwoLeaves",
       "docs": [
         "Creates and initializes a pda which stores two merkle tree leaves and encrypted Utxos.",
@@ -2959,21 +2686,16 @@ export const IDL: LightMerkleTreeProgram = {
     },
     {
       "code": 6022,
-      "name": "AtomicTransactionsEnabled",
-      "msg": "This instruction is not umplemented for Light Protocol with atomic transactions support"
-    },
-    {
-      "code": 6023,
       "name": "ExpectedTwoLeavesPda",
       "msg": "Expected two leaves PDA as a remaining account."
     },
     {
-      "code": 6024,
+      "code": 6023,
       "name": "InvalidTwoLeavesPda",
       "msg": "Invalid two leaves PDA."
     },
     {
-      "code": 6025,
+      "code": 6024,
       "name": "OddNumberOfLeaves",
       "msg": "Odd number of leaves."
     }

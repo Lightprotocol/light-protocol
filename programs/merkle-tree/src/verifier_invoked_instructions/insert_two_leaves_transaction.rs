@@ -20,7 +20,6 @@ pub struct InsertTwoLeaves<'info> {
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }
 
-#[cfg(feature = "atomic-transactions")]
 pub fn process_insert_two_leaves<'info, 'a>(
     ctx: Context<'a, '_, '_, 'info, InsertTwoLeaves<'info>>,
     leaves: &'a Vec<[u8; 32]>,
@@ -46,58 +45,5 @@ pub fn process_insert_two_leaves<'info, 'a>(
         merkle_tree.next_queued_index += 2;
     }
 
-    Ok(())
-}
-
-#[cfg(not(feature = "atomic-transactions"))]
-pub fn process_insert_two_leaves<'info, 'a>(
-    ctx: Context<'_, '_, '_, 'info, InsertTwoLeaves<'info>>,
-    leaves: &'a Vec<[u8; 32]>,
-) -> Result<()> {
-    use anchor_lang::solana_program::sysvar;
-    use light_utils::change_endianness;
-
-    use crate::{
-        transaction_merkle_tree::state::TwoLeavesBytesPda,
-        utils::{accounts::create_and_check_pda, constants::LEAVES_SEED},
-    };
-
-    let rent = <Rent as sysvar::Sysvar>::get()?;
-    let mut j = 0;
-    for i in (0..leaves.len()).step_by(2) {
-        create_and_check_pda(
-            ctx.program_id,
-            &ctx.accounts.authority.to_account_info(),
-            &ctx.remaining_accounts[i].to_account_info(),
-            &ctx.accounts.system_program.to_account_info(),
-            &rent,
-            &leaves[i].as_slice(),
-            LEAVES_SEED,
-            TwoLeavesBytesPda::LEN as u64,
-            0,    //lamports
-            true, //rent_exempt
-        )
-        .unwrap();
-        // Save leaves into PDA.
-        let two_leaves_bytes_struct = TwoLeavesBytesPda {
-            node_left: change_endianness::<32>(&leaves[i]),
-            node_right: change_endianness::<32>(&leaves[i + 1]),
-            left_leaf_index: 0,
-            merkle_tree_pubkey: ctx.accounts.transaction_merkle_tree.key(),
-        };
-        let mut account_data = Vec::with_capacity(TwoLeavesBytesPda::LEN);
-
-        AccountSerialize::try_serialize(&two_leaves_bytes_struct, &mut account_data)?;
-        for (index, byte) in account_data.iter().enumerate() {
-            ctx.remaining_accounts[j]
-                .to_account_info()
-                .data
-                .borrow_mut()[index] = *byte;
-        }
-        j += 1;
-        let mut merkle_tree = ctx.accounts.transaction_merkle_tree.load_mut()?;
-        // Increase next index by 2 because we're inserting 2 leaves at once.
-        merkle_tree.next_queued_index += 2;
-    }
     Ok(())
 }
