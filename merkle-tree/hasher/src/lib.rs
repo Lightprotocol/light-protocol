@@ -1,9 +1,11 @@
 pub mod errors;
+pub mod keccak;
 pub mod poseidon;
 pub mod sha256;
 pub mod syscalls;
 pub mod zero_bytes;
 
+pub use keccak::Keccak;
 pub use poseidon::Poseidon;
 pub use sha256::Sha256;
 
