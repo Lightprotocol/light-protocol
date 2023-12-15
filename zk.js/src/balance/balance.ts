@@ -46,7 +46,19 @@ export const isSPLUtxo = (utxo: Utxo): boolean => {
  * @param utxos
  * @returns sorted utxos
  */
-function sortUtxos(utxos: Utxo[]): Utxo[] {
+export function sortUtxos(utxos: Utxo[]): Utxo[] {
+  const mint = utxos[0].assets[UTXO_ASSET_SPL_INDEX];
+  for (const utxo of utxos) {
+    if (!utxo.assets[UTXO_ASSET_SPL_INDEX].equals(mint)) {
+      throw new ProgramUtxoBalanceError(
+        ProgramUtxoBalanceErrorCode.INVALID_UTXO_MINT,
+        "sortUtxos",
+        `Utxo mints don't match each other. Expecting: ${mint.toBase58()}, found ${utxo.assets[
+          UTXO_ASSET_SPL_INDEX
+        ].toBase58()}]}`,
+      );
+    }
+  }
   return utxos.sort((a, b) => {
     const aAmount = a.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0;
     const bAmount = b.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0;
@@ -298,7 +310,7 @@ export async function serializeBalance(balance: Balance): Promise<string> {
   return JSON.stringify(serializedBalance);
 }
 
-function initBalance() {
+export function initBalance() {
   const balance: Balance = {
     tokenBalances: new Map<string, TokenBalance>(),
     lastSyncedSlot: 0,
@@ -337,9 +349,12 @@ export function deserializeBalance(
 }
 
 /**
- *
+ * syncs balance with the blockchain. currently fetches all events. creates a new balance if none is provided.
+ * @param provider
+ * @param account
+ * @param hasher
  * @param balance
- * @param until
+ * @param _until
  */
 // until is either empty, accountcreationslot, or lastsyncedslot
 // later: make it a prefix/signature
@@ -390,7 +405,7 @@ export async function syncBalance(
 // We should also have a client sidef subscription that runs in the background, to these such that the "lastsyncedslot" is as fresh as possible.
 /// there should be fns that allows latency control and those that ensure safety for devs. (one that ensures full balance up2date).
 /// will change once we refactor indexing by prefixes. so keep it easy for now.
-async function findSpentUtxos(
+export async function findSpentUtxos(
   balance: Balance,
   connection: Connection,
   account: Account,
@@ -427,7 +442,7 @@ async function findSpentUtxos(
  * @param aes - whether to use aes (symmetric) decryption or not. default true for inbox
  * @param merkleTreePdaPublicKey
  */
-async function tryDecryptNewUtxos(
+export async function tryDecryptNewUtxos(
   balance: Balance,
   indexedTransactions: ParsedIndexedTransaction[],
   provider: Provider,

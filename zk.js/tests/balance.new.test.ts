@@ -1,8 +1,9 @@
 import { assert } from "chai";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { expect } from "chai";
+import { Hasher } from "@lightprotocol/account.rs";
 const circomlibjs = require("circomlibjs");
 const { buildPoseidonOpt } = circomlibjs;
 const chai = require("chai");
@@ -27,11 +28,22 @@ import {
   serializeBalance,
   deserializeBalance,
   spendUtxo,
+  MerkleTreeConfig,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  UTXO_PREFIX_LENGTH,
+  fetchNullifierAccountInfo,
 } from "../src";
 
 import { Balance, TokenBalance } from "../src/types/balance";
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { WasmHasher } from "@lightprotocol/account.rs";
+import {
+  findSpentUtxos,
+  initBalance,
+  sortUtxos,
+  tryDecryptNewUtxos,
+} from "../src/balance/balance";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -46,13 +58,15 @@ describe("Balance", () => {
     shieldUtxo1: Utxo,
     solTestUtxo1: Utxo,
     solTestUtxo2: Utxo,
-    keypair: Account;
+    keypair: Account,
+    hasher: Hasher;
   beforeEach(async () => {
+    hasher = await WasmHasher.getInstance();
     poseidon = await buildPoseidonOpt();
-    keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    keypair = new Account({ hasher, seed: seed32 });
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: keypair.pubkey,
@@ -60,15 +74,16 @@ describe("Balance", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     solTestUtxo1 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, SystemProgram.programId],
       amounts: [new BN(shieldAmount - 10), new BN(0)],
       publicKey: keypair.pubkey,
       index: 3,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
+    // smaller:
     solTestUtxo2 = new Utxo({
-      poseidon: poseidon,
+      hasher,
       assets: [FEE_ASSET, SystemProgram.programId],
       amounts: [new BN(shieldAmount * 0.8), new BN(0)], // maintaining order
       publicKey: keypair.pubkey,
@@ -274,6 +289,7 @@ describe("Balance", () => {
         serializedBalance,
         TOKEN_REGISTRY,
         lightProvider,
+        hasher,
       );
 
       // Check that the deserialized balance matches the original balance
@@ -304,7 +320,7 @@ describe("Balance", () => {
       };
 
       const commitment = utxo.getCommitment(poseidon);
-      const result = spendUtxo([balance], commitment);
+      const result = spendUtxo(balance, commitment);
       assert.equal(result, true);
 
       const updatedTokenBalance = balance.tokenBalances.get(
@@ -329,9 +345,179 @@ describe("Balance", () => {
       };
 
       const commitment = shieldUtxo1.getCommitment(poseidon);
-      spendUtxo([balance], commitment);
-      const result = spendUtxo([balance], commitment);
+      spendUtxo(balance, commitment);
+      const result = spendUtxo(balance, commitment);
       assert.equal(result, false);
+    });
+  });
+
+  describe("sortUtxos", () => {
+    it("should sort big to small", () => {
+      const utxos = [solTestUtxo2, solTestUtxo1];
+      const sortedUtxos = [solTestUtxo1, solTestUtxo2];
+      sortUtxos(utxos);
+      assert.deepEqual(utxos, sortedUtxos);
+    });
+
+    it("should sort utxos correctly with a single utxo", () => {
+      const utxos = [solTestUtxo1];
+      const sortedUtxos = [solTestUtxo1];
+      sortUtxos(utxos);
+      assert.deepEqual(utxos, sortedUtxos);
+    });
+    it("should sort big to small (nochange)", () => {
+      const utxos = [solTestUtxo1, solTestUtxo2];
+      const sortedUtxos = [solTestUtxo1, solTestUtxo2];
+      sortUtxos(utxos);
+      assert.deepEqual(utxos, sortedUtxos);
+    });
+
+    it("should break if different mints", () => {
+      const utxos = [solTestUtxo1, shieldUtxo1];
+      expect(() => sortUtxos(utxos)).to.throw();
+    });
+  });
+
+  describe.only("syncBalance", () => {
+    it.skip("should findSpentUtxos return empty balance", async () => {
+      const balance = initBalance();
+      console.log("LIGHTPROVIDER", lightProvider);
+      // const connection = new Connection("http://127.0.0.1:8899");
+
+      // Add UTXOs to balance
+      addUtxoToBalance(solTestUtxo1, balance, hasher);
+      addUtxoToBalance(solTestUtxo2, balance, hasher);
+
+      // Now you can use the mocked connection object in your tests
+      // const result = await findSpentUtxos(balance, connection, keypair, hasher);
+
+      // Add assertions to check if the function correctly identified the spent UTXO
+      // assert.notInclude(
+      //   result.tokenBalances.get(solTestUtxo1.assets[0].toString())!.utxos,
+      //   solTestUtxo1,
+      // ); // utxo1 should be removed from balance
+      // assert.include(
+      //   result.tokenBalances.get(solTestUtxo2.assets[0].toString())!.utxos,
+      //   solTestUtxo2,
+      // ); // utxo2 should still be in balance
+    });
+
+    it.skip("should findSpentUtxos return balance with 1 utxo", async () => {
+      const balance = initBalance();
+      const connection = lightProvider.provider.connection;
+      const _balance = await findSpentUtxos(
+        balance,
+        connection,
+        keypair,
+        hasher,
+      );
+      assert.equal(_balance.tokenBalances.size, 0);
+    });
+
+    it.skip("Test Decrypt Balance 2 and 4 utxos", async () => {
+      const provider = await LightProvider.loadMock();
+      const assetLookupTable = provider.lookUpTables.assetLookupTable;
+      const account = new Account({ hasher, seed: seed32 });
+      for (let j = 2; j < 4; j += 2) {
+        const utxos: Utxo[] = [];
+        let encryptedUtxos: any[] = [];
+        for (let index = 0; index < j; index++) {
+          const shieldAmount = index;
+          const shieldFeeAmount = index;
+          const utxo = new Utxo({
+            hasher,
+            assets: [FEE_ASSET, MINT],
+            amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
+            publicKey: account.pubkey,
+            index: index,
+            assetLookupTable: provider.lookUpTables.assetLookupTable,
+            blinding: new BN(1),
+          });
+          utxos.push(utxo);
+          const encryptedUtxo = await utxo.encrypt({
+            hasher,
+            account,
+            merkleTreePdaPublicKey:
+              MerkleTreeConfig.getTransactionMerkleTreePda(),
+            compressed: true,
+          });
+          encryptedUtxos = [...encryptedUtxos, ...encryptedUtxo];
+        }
+        const indexedTransactions = [
+          {
+            leaves: utxos.map((utxo) =>
+              new BN(utxo.getCommitment(hasher)).toBuffer("be", 32),
+            ),
+            firstLeafIndex: "0",
+            encryptedUtxos,
+          },
+        ];
+        const decryptedUtxos: Array<Utxo> = new Array<Utxo>();
+        for (const trx of indexedTransactions) {
+          const leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
+          for (let index = 0; index < trx.leaves.length; index += 2) {
+            const leafLeft = trx.leaves[index];
+            const leafRight = trx.leaves[index + 1];
+            let encBytes = Buffer.from(
+              trx.encryptedUtxos.slice(
+                (index / 2) * 240,
+                (index / 2) * 240 +
+                  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+                  UTXO_PREFIX_LENGTH,
+              ),
+            );
+            let decryptedUtxo = await Utxo.decrypt({
+              hasher,
+              encBytes,
+              account,
+              index: leftLeafIndex + index,
+              commitment: leafLeft,
+              aes: true,
+              merkleTreePdaPublicKey:
+                MerkleTreeConfig.getTransactionMerkleTreePda(),
+              assetLookupTable,
+              merkleProof:
+                provider.solMerkleTree!.merkleTree.path(leftLeafIndex)
+                  .pathElements,
+            });
+            assert(decryptedUtxo.error === null, "Can't decrypt utxo");
+            if (decryptedUtxo.value !== null) {
+              decryptedUtxos.push(decryptedUtxo.value);
+            }
+
+            encBytes = Buffer.from(
+              trx.encryptedUtxos.slice(
+                (index / 2) * 240 + 120 + UTXO_PREFIX_LENGTH,
+                (index / 2) * 240 +
+                  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+                  120 +
+                  UTXO_PREFIX_LENGTH,
+              ),
+            );
+            decryptedUtxo = await Utxo.decrypt({
+              hasher,
+              encBytes,
+              account,
+              index: leftLeafIndex + index + 1,
+              commitment: leafRight,
+              aes: true,
+              merkleTreePdaPublicKey:
+                MerkleTreeConfig.getTransactionMerkleTreePda(),
+              assetLookupTable,
+              merkleProof: provider.solMerkleTree!.merkleTree.path(
+                leftLeafIndex + 1,
+              ).pathElements,
+            });
+            assert(decryptedUtxo.error === null, "Can't decrypt utxo");
+            if (decryptedUtxo.value !== null) {
+              decryptedUtxos.push(decryptedUtxo.value);
+            }
+          }
+        }
+        utxos.map((utxo, index) => {
+          Utxo.equal(hasher, utxo, decryptedUtxos[index]!);
+        });
+      }
     });
   });
 });
