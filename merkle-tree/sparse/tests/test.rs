@@ -1,10 +1,7 @@
 use core::mem;
 
 use light_hasher::{zero_bytes, Poseidon, Sha256};
-use light_sparse_merkle_tree::{
-    config,
-    HashFunction, MerkleTree,
-};
+use light_sparse_merkle_tree::{config, HashFunction, MerkleTree};
 
 mod test_config {
     use anchor_lang::prelude::*;
