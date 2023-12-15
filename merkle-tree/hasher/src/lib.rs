@@ -1,6 +1,7 @@
 pub mod errors;
 pub mod poseidon;
 pub mod sha256;
+pub mod syscalls;
 pub mod zero_bytes;
 
 pub use poseidon::Poseidon;

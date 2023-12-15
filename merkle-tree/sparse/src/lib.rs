@@ -13,7 +13,6 @@ use crate::{
 pub mod config;
 pub mod constants;
 pub mod errors;
-pub mod syscalls;
 
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug, Clone, Copy)]
 #[repr(u64)]

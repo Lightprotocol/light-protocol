@@ -54,7 +54,7 @@ impl Hasher for Poseidon {
         // Call via a system call to perform the calculation.
         #[cfg(target_os = "solana")]
         {
-            use crate::hasher::HASH_BYTES;
+            use crate::HASH_BYTES;
 
             impl From<u64> for HasherError {
                 fn from(error: u64) -> Self {
