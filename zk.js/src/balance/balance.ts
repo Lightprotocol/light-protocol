@@ -8,7 +8,7 @@ import {
   UTXO_ASSET_SPL_INDEX,
   UTXO_PREFIX_LENGTH,
 } from "../constants";
-import { Provider, decryptAddUtxoToBalance } from "../wallet";
+import { Provider } from "../wallet";
 import { Poseidon } from "../types/poseidon";
 import {
   Balance,
@@ -25,8 +25,14 @@ import {
   fetchNullifierAccountInfo,
   fetchQueuedLeavesAccountInfo,
 } from "../utils";
-import { Account, IndexedTransaction } from "../index";
+import {
+  Account,
+  IndexedTransaction,
+  MerkleTreeConfig,
+  ParsedIndexedTransaction,
+} from "../index";
 import { BN } from "@coral-xyz/anchor";
+import { Hasher } from "@lightprotocol/account.rs";
 
 export const isSPLUtxo = (utxo: Utxo): boolean => {
   return !utxo.amounts[UTXO_ASSET_SPL_INDEX].eqn(0);
@@ -248,6 +254,7 @@ function deserializeTokenBalance(
   serializedTokenBalance: SerializedTokenBalance,
   tokenRegistry: Map<string, TokenData>,
   provider: Provider,
+  hasher: Hasher,
 ): TokenBalance {
   const tokenData = getTokenDataByMint(
     new PublicKey(serializedTokenBalance.mint),
@@ -258,7 +265,7 @@ function deserializeTokenBalance(
     serializedTokenBalance.utxos.map((serializedUtxo) => {
       const utxo = Utxo.fromString(
         serializedUtxo.utxo,
-        provider.poseidon,
+        hasher,
         provider.lookUpTables.assetLookupTable,
       );
 
@@ -291,6 +298,14 @@ export async function serializeBalance(balance: Balance): Promise<string> {
   return JSON.stringify(serializedBalance);
 }
 
+function initBalance() {
+  const balance: Balance = {
+    tokenBalances: new Map<string, TokenBalance>(),
+    lastSyncedSlot: 0,
+  };
+  return balance;
+}
+
 /**
  * deserializes stringified array of SerializedTokenBalances and reconstructs into a Balance
  * @param serializedBalance serializedBalance
@@ -302,18 +317,18 @@ export function deserializeBalance(
   serializedBalance: string,
   tokenRegistry: Map<string, TokenData>,
   provider: Provider,
+  hasher: Hasher,
 ): Balance {
   const cachedBalance: SerializedBalance = JSON.parse(serializedBalance);
-  const balance: Balance = {
-    tokenBalances: new Map<string, TokenBalance>(),
-    lastSyncedSlot: cachedBalance.lastSyncedSlot,
-  };
+  const balance = initBalance();
+  balance.lastSyncedSlot = cachedBalance.lastSyncedSlot;
 
   for (const serializedTokenBalance of cachedBalance.tokenBalances) {
     const tokenBalance = deserializeTokenBalance(
       serializedTokenBalance,
       tokenRegistry,
       provider,
+      hasher,
     );
     balance.tokenBalances.set(serializedTokenBalance.mint, tokenBalance);
   }
@@ -326,32 +341,46 @@ export function deserializeBalance(
  * @param balance
  * @param until
  */
-// fetch all events from indexer provided prefixes (or not),
 // until is either empty, accountcreationslot, or lastsyncedslot
-// later: make it a prefix/signature?
-
+// later: make it a prefix/signature
 export async function syncBalance(
-  balance: Balance,
-  provider,
-  account,
-  until?: number,
+  provider: Provider,
+  account: Account,
+  hasher: Hasher,
+  balance?: Balance,
+  _until?: number, // keep it if we extract the event fetching into its own function
 ) {
+  if (!balance) balance = initBalance();
   // loops backwards in time starting at most recent event
   // TODO: until 'until' is reached
-  const _balance = await findSpentUtxos(balance, provider, account);
+  const _balance = await findSpentUtxos(
+    balance,
+    provider.provider.connection,
+    account,
+    hasher,
+  );
 
+  /// TODO: refactor this after the indexer refactor
+  /// main goals: performant merkleproofs, and only fetch new events in syncbalance
+  /// use balance.lastSyncedSlot for it as well
   const indexedTransactions = await provider.relayer.getIndexedTransactions(
     provider.provider!.connection,
   );
 
   await provider.latestMerkleTree(indexedTransactions);
 
-  const __balance = await tryDecryptNewUtxos(
+  // mutates _balance
+  await tryDecryptNewUtxos(
     _balance,
     indexedTransactions,
     provider,
+    hasher,
     account,
+    true, // aes
+    MerkleTreeConfig.getTransactionMerkleTreePda(),
   );
+
+  return _balance;
 }
 
 /// Ideally we'd want to reduce these types of calls as much as possible. This should only be needed if we actually append new utxos.
@@ -363,21 +392,22 @@ export async function syncBalance(
 /// will change once we refactor indexing by prefixes. so keep it easy for now.
 async function findSpentUtxos(
   balance: Balance,
-  provider: Provider,
+  connection: Connection,
   account: Account,
+  hasher: Hasher,
 ) {
   const tokenBalancesPromises = Array.from(balance.tokenBalances.values()).map(
     async (tokenBalance) => {
       const utxoPromises = tokenBalance.utxos.map(async (utxo) => {
         const nullifierAccountInfo = await fetchNullifierAccountInfo(
           utxo.getNullifier({
-            poseidon: provider.poseidon,
-            account: account,
+            hasher,
+            account,
           })!,
-          provider.provider.connection,
+          connection,
         );
         if (nullifierAccountInfo)
-          spendUtxo(balance, utxo.getCommitment(provider.poseidon));
+          spendUtxo(balance, utxo.getCommitment(hasher));
       });
       await Promise.all(utxoPromises);
     },
@@ -387,14 +417,25 @@ async function findSpentUtxos(
 }
 
 /// TODO: adapt to work with wallet-adapter, batched decryption calls.
+/**
+ * for each event, decrypts the utxos belonging to the specified account and adds them to the balance
+ * @param balance
+ * @param indexedTransactions
+ * @param provider
+ * @param hasher
+ * @param account
+ * @param aes - whether to use aes (symmetric) decryption or not. default true for inbox
+ * @param merkleTreePdaPublicKey
+ */
 async function tryDecryptNewUtxos(
   balance: Balance,
-  indexedTransactions: IndexedTransaction[],
+  indexedTransactions: ParsedIndexedTransaction[],
   provider: Provider,
+  hasher: Hasher,
   account: Account,
-  aes: any,
+  aes: boolean,
   merkleTreePdaPublicKey: PublicKey,
-) {
+): Promise<void> {
   for (const trx of indexedTransactions) {
     const leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
 
@@ -415,13 +456,15 @@ async function tryDecryptNewUtxos(
         index: leftLeafIndex,
         commitment: Buffer.from([...leafLeft]),
         account: account,
-        poseidon: provider.poseidon,
+        hasher,
         connection: provider.provider.connection,
         balance,
         merkleTreePdaPublicKey,
         leftLeaf: Uint8Array.from([...leafLeft]),
         aes,
         assetLookupTable: provider.lookUpTables.assetLookupTable,
+        merkleProof:
+          provider.solMerkleTree!.merkleTree.path(leftLeafIndex).pathElements,
       });
       await decryptAddUtxoToBalance_new({
         encBytes: Buffer.from(
@@ -433,47 +476,55 @@ async function tryDecryptNewUtxos(
         index: leftLeafIndex + 1,
         commitment: Buffer.from([...leafRight]),
         account: account,
-        poseidon: provider.poseidon,
+        hasher: hasher,
         connection: provider.provider.connection,
         balance,
         merkleTreePdaPublicKey,
         leftLeaf: Uint8Array.from([...leafLeft]),
         aes,
         assetLookupTable: provider.lookUpTables.assetLookupTable,
+        merkleProof: provider.solMerkleTree!.merkleTree.path(leftLeafIndex + 1)
+          .pathElements,
       });
     }
   }
 }
 
 /// This is temporary. adapt after indexer refactor.
+/// uses new Balance type
+/// TODO: replace with batchdecryption
+/// Remove this when removing the user class
+/// Ideally we don't want to mutate balance in place
 export async function decryptAddUtxoToBalance_new({
   account,
   encBytes,
   index,
   commitment,
-  poseidon,
+  hasher,
   connection,
   balance,
   merkleTreePdaPublicKey,
   leftLeaf,
   aes,
   assetLookupTable,
+  merkleProof,
 }: {
   encBytes: Uint8Array;
   index: number;
   commitment: Uint8Array;
   account: Account;
   merkleTreePdaPublicKey: PublicKey;
-  poseidon: any;
+  hasher: Hasher;
   connection: Connection;
   balance: Balance;
   leftLeaf: Uint8Array;
   aes: boolean;
   assetLookupTable: string[];
+  merkleProof: string[];
 }): Promise<void> {
   const decryptedUtxo = aes
     ? await Utxo.decrypt({
-        poseidon,
+        hasher,
         encBytes: encBytes,
         account: account,
         index: index,
@@ -481,9 +532,10 @@ export async function decryptAddUtxoToBalance_new({
         aes,
         merkleTreePdaPublicKey,
         assetLookupTable,
+        merkleProof,
       })
     : await Utxo.decryptUnchecked({
-        poseidon,
+        hasher,
         encBytes: encBytes,
         account: account,
         index: index,
@@ -491,12 +543,13 @@ export async function decryptAddUtxoToBalance_new({
         aes,
         merkleTreePdaPublicKey,
         assetLookupTable,
+        merkleProof,
       });
 
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo.value || decryptedUtxo.error) return;
   const utxo = decryptedUtxo.value;
-  const nullifier = utxo.getNullifier({ poseidon, account });
+  const nullifier = utxo.getNullifier({ hasher, account });
   if (!nullifier) return;
 
   const nullifierExists = await fetchNullifierAccountInfo(
@@ -510,7 +563,6 @@ export async function decryptAddUtxoToBalance_new({
 
   const amountsValid =
     utxo.amounts[1].toString() !== "0" || utxo.amounts[0].toString() !== "0";
-  const assetIndex = utxo.amounts[1].toString() !== "0" ? 1 : 0;
 
   // valid amounts and is not app utxo
   if (
@@ -518,30 +570,9 @@ export async function decryptAddUtxoToBalance_new({
     utxo.verifierAddress.toBase58() === new PublicKey(0).toBase58() &&
     utxo.appDataHash.toString() === "0"
   ) {
-    // TODO: add is native to utxo
-    // if !asset try to add asset and then push
-    if (
-      assetIndex &&
-      !balance.tokenBalances.get(utxo.assets[assetIndex].toBase58())
-    ) {
-      // TODO: several maps or unify somehow
-      const tokenBalanceUsdc = new TokenUtxoBalance(
-        TOKEN_REGISTRY.get("USDC")!,
-      );
-      balance.tokenBalances.set(
-        tokenBalanceUsdc.tokenData.mint.toBase58(),
-        tokenBalanceUsdc,
-      );
+    if (!queuedLeavesPdaExists && !nullifierExists) {
+      addUtxoToBalance(utxo, balance, hasher);
     }
-    const assetKey = utxo.assets[assetIndex].toBase58();
-    const utxoType = queuedLeavesPdaExists
-      ? "committedUtxos"
-      : nullifierExists
-      ? "spentUtxos"
-      : "utxos";
-
-    balance.tokenBalances
-      .get(assetKey)
-      ?.addUtxo(utxo.getCommitment(poseidon), utxo, utxoType);
   }
+  return;
 }
