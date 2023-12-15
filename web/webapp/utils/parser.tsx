@@ -26,8 +26,8 @@ export function parseAmount(amount: BN, tokenCtx: any, decimals = 4) {
 }
 
 export const parseTxAmount = (tx: UserIndexedTransaction) => {
-  const amountSpl = tx.publicAmountSpl;
-  const amountSol = tx.publicAmountSol;
+  const amountSpl = new BN(tx.publicAmountSpl, "hex");
+  const amountSol = new BN(tx.publicAmountSol, "hex");
   const isSpl = amountSpl.toNumber() > 0;
   const isTransfer = amountSpl.toNumber() === 0 && amountSol.toNumber() === 0;
   const tokenCtx = isSpl

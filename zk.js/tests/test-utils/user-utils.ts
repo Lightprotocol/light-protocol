@@ -64,9 +64,8 @@ export async function performShielding({
         token: testInputs.token,
       });
     }
-    await userRecipient.provider.latestMerkleTree();
     if (testInputs.token === "SOL" && testInputs.type === Action.SHIELD) {
-      // await testStateValidator.checkSolShielded();
+      await testStateValidator.checkSolShielded();
     } else if (
       testInputs.token !== "SOL" &&
       testInputs.type === Action.SHIELD
@@ -117,7 +116,6 @@ export async function performMergeAll({
    * -
    */
   // TODO: add random amount and amount checks
-  await userSender.provider.latestMerkleTree();
   await testStateValidator.checkMergedAll();
 }
 
@@ -163,6 +161,5 @@ export async function performMergeUtxos({
    * -
    */
   // TODO: add random amount and amount checks
-  await userSender.provider.latestMerkleTree();
   await testStateValidator.checkMerged();
 }

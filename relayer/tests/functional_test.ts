@@ -11,12 +11,7 @@ import chaiHttp from "chai-http";
 
 import {
   Account,
-  DEFAULT_ZERO,
-  FEE_ASSET,
-  MERKLE_TREE_HEIGHT,
-  MINT,
   Provider,
-  Utxo,
   airdropSol,
   confirmConfig,
   User,
@@ -24,13 +19,18 @@ import {
   Action,
   UserTestAssertHelper,
   ConfirmOptions,
-  MerkleTreeConfig,
   Relayer,
   RELAYER_FEE,
   TOKEN_ACCOUNT_FEE,
+  BN_0,
+  MerkleTreeConfig,
+  merkleTreeProgramId,
+  AUTHORITY,
+  getVerifierProgramId,
+  IDL_LIGHT_PSP2IN2OUT,
+  MINT,
 } from "@lightprotocol/zk.js";
 
-import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
@@ -44,11 +44,6 @@ const server = RELAYER_URL;
 
 describe("API tests", () => {
   let hasher: Hasher;
-  let shieldAmount = 20_000;
-  let shieldFeeAmount = 10_000;
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  let previousMerkleRoot =
-    "6939770416153240137322503476966641397417391950902474480970945462551409848591";
   let userKeypair = Keypair.generate();
   let provider: Provider,
     user: User,
@@ -110,65 +105,6 @@ describe("API tests", () => {
     );
   });
 
-  it("Should return Merkle tree data", (done) => {
-    chai
-      .request(server)
-      .get("/getBuiltMerkletree")
-      .end((_err, res) => {
-        expect(res).to.have.status(200);
-
-        const fetchedMerkleTree: MerkleTree = res.body.data.merkleTree;
-
-        const pubkey = new PublicKey(res.body.data.pubkey);
-
-        const merkleTree = new MerkleTree(
-          MERKLE_TREE_HEIGHT,
-          hasher,
-          fetchedMerkleTree._layers[0],
-        );
-        let lookUpTable = [FEE_ASSET.toBase58(), MINT.toBase58()];
-        const shieldUtxo1 = new Utxo({
-          hasher,
-          assets: [FEE_ASSET, MINT],
-          amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
-          publicKey: new Account({ hasher, seed: seed32 }).pubkey,
-          blinding: new BN(new Array(31).fill(1)),
-          assetLookupTable: lookUpTable,
-        });
-
-        expect(res.body.data.merkleTree).to.exist;
-        expect(res.body.data).to.exist;
-        assert.equal(merkleTree.levels, MERKLE_TREE_HEIGHT);
-        assert.equal(
-          pubkey.toBase58(),
-          MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
-        );
-        assert.equal(merkleTree.root().toString(), previousMerkleRoot);
-        assert.equal(merkleTree._layers[0].length, 0);
-        assert.equal(merkleTree.zeroElement, DEFAULT_ZERO);
-        assert.equal(merkleTree.indexOf(shieldUtxo1.getCommitment(hasher)), -1);
-
-        done();
-      });
-  });
-
-  it("Should fail Merkle tree data with post request", (done: any) => {
-    chai
-      .request(server)
-      .post("/merkletree")
-      .end((_err, res) => {
-        const error = res.error;
-        assert.isNotFalse(error);
-        if (error != false) {
-          assert.isTrue(
-            error.message.includes("cannot POST /merkletree (404)"),
-          );
-        }
-        expect(res).to.have.status(404);
-        done();
-      });
-  });
-
   it("should shield", async () => {
     let testInputs = {
       amountSol: 0.3,
@@ -192,6 +128,192 @@ describe("API tests", () => {
 
     await waitForBalanceUpdate(userTestAssertHelper, user);
     await userTestAssertHelper.checkSolShielded();
+  });
+
+  it("getEventById", (done) => {
+    const utxo = user.getAllUtxos()[0];
+    const requestData = {
+      id: bs58.encode(
+        user.account.generateUtxoPrefixHash(
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
+          BN_0,
+          4,
+          hasher,
+        ),
+      ),
+      merkleTreePdaPublicKey:
+        MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+    };
+    chai
+      .request(server)
+      .post("/getEventById")
+      .send(requestData)
+      .end((_err, res) => {
+        expect(res).to.have.status(200);
+        expect(res.body.data).to.exist;
+        expect(res.body.data).to.have.property("transaction");
+        assert.deepEqual(res.body.data.leavesIndexes, [0, 1]);
+        assert.equal(res.body.data.merkleProofs.length, 2);
+        assert.equal(res.body.data.merkleProofs[0].length, 18);
+        assert.equal(res.body.data.merkleProofs[1].length, 18);
+        assert.equal(
+          res.body.data.transaction.signer,
+          user.provider.wallet.publicKey.toBase58(),
+        );
+        assert.equal(
+          res.body.data.transaction.to,
+          MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda.toBase58(),
+        );
+
+        console.log("to spl", res.body.data.transaction.toSpl);
+        console.log(
+          "ref ",
+          MerkleTreeConfig.getSplPoolPdaToken(
+            MINT,
+            merkleTreeProgramId,
+          ).toBase58(),
+        );
+        console.log(
+          "ref pool type ",
+          MerkleTreeConfig.getSolPoolPda(MINT).pda.toBase58(),
+        );
+        // TODO: investigate what account is used as place holder here
+        // assert.equal(res.body.data.transaction.toSpl, MerkleTreeConfig.getSplPoolPdaToken(MINT, merkleTreeProgramId).toBase58());
+        assert.equal(res.body.data.transaction.fromSpl, AUTHORITY.toBase58());
+        assert.equal(
+          res.body.data.transaction.verifier,
+          getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT).toBase58(),
+        );
+        assert.equal(res.body.data.transaction.type, Action.SHIELD);
+
+        assert.equal(
+          res.body.data.transaction.publicAmountSol,
+          new BN(3e8).toString("hex"),
+        );
+        assert.equal(res.body.data.transaction.publicAmountSpl, "0");
+        assert.equal(
+          new BN(res.body.data.transaction.leaves[0]).toString(),
+          utxo.getCommitment(hasher),
+        );
+        assert.equal(res.body.data.transaction.firstLeafIndex, "0");
+        // don't assert nullifiers since we shielded
+        // assert.deepEqual(res.body.data.transaction.nullifiers[0], new BN(utxo.getNullifier({hasher,account: user.account}).toString()).toArray("be", 32));
+        assert.equal(res.body.data.transaction.relayerFee, "0");
+
+        console.log("change amount", res.body.data.transaction.changeSolAmount);
+        done();
+      });
+  });
+
+  it("getEventsByIdBatch", (done) => {
+    const utxo = user.getAllUtxos()[0];
+    const requestData = {
+      ids: [
+        bs58.encode(
+          user.account.generateUtxoPrefixHash(
+            MerkleTreeConfig.getTransactionMerkleTreePda(),
+            BN_0,
+            4,
+            hasher,
+          ),
+        ),
+      ],
+      merkleTreePdaPublicKey:
+        MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+    };
+    chai
+      .request(server)
+      .post("/getEventsByIdBatch")
+      .send(requestData)
+      .end((_err, res) => {
+        expect(res).to.have.status(200);
+        expect(res.body.data).to.exist;
+        expect(res.body.data[0]).to.have.property("transaction");
+        assert.deepEqual(res.body.data[0].leavesIndexes, [0, 1]);
+        assert.equal(res.body.data[0].merkleProofs.length, 2);
+        assert.equal(res.body.data[0].merkleProofs[0].length, 18);
+        assert.equal(res.body.data[0].merkleProofs[1].length, 18);
+        assert.equal(
+          res.body.data[0].transaction.signer,
+          user.provider.wallet.publicKey.toBase58(),
+        );
+        assert.equal(
+          res.body.data[0].transaction.to,
+          MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda.toBase58(),
+        );
+        assert.equal(
+          res.body.data[0].transaction.fromSpl,
+          AUTHORITY.toBase58(),
+        );
+        assert.equal(
+          res.body.data[0].transaction.verifier,
+          getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT).toBase58(),
+        );
+        assert.equal(res.body.data[0].transaction.type, Action.SHIELD);
+
+        assert.equal(
+          res.body.data[0].transaction.publicAmountSol,
+          new BN(3e8).toString("hex"),
+        );
+        assert.equal(res.body.data[0].transaction.publicAmountSpl, "0");
+        assert.equal(
+          new BN(res.body.data[0].transaction.leaves[0]).toString(),
+          utxo.getCommitment(hasher),
+        );
+        assert.equal(res.body.data[0].transaction.firstLeafIndex, "0");
+        // don't assert nullifiers since we shielded
+        // assert.equal(new BN(res.body.data[0].transaction.nullifiers[0], 32, "be").toString(), utxo.getNullifier({hasher,account: user.account, index: 0}));
+        assert.equal(res.body.data[0].transaction.relayerFee, "0");
+
+        console.log(
+          "change amount",
+          res.body.data[0].transaction.changeSolAmount,
+        );
+        done();
+      });
+  });
+
+  it("getMerkleRoot", (done) => {
+    const requestData = {
+      merkleTreePdaPublicKey:
+        MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+    };
+    chai
+      .request(server)
+      .post("/getMerkleRoot")
+      .send(requestData)
+      .end((_err, res) => {
+        expect(res).to.have.status(200);
+        expect(res.body.data).to.exist;
+        expect(res.body.data).to.have.property("root");
+        expect(res.body.data).to.have.property("index");
+        assert.equal(res.body.data.index, 1);
+        done();
+      });
+  });
+
+  it("getMerkleProofByIndexBatch", (done) => {
+    const requestData = {
+      merkleTreePdaPublicKey:
+        MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+      indexes: [0, 1],
+    };
+    chai
+      .request(server)
+      .post("/getMerkleProofByIndexBatch")
+      .send(requestData)
+      .end((_err, res) => {
+        console.log("res.body.data", res.body);
+        expect(res).to.have.status(200);
+        expect(res.body.data).to.exist;
+        expect(res.body.data).to.have.property("root");
+        expect(res.body.data).to.have.property("index");
+        assert.equal(res.body.data.index, 1);
+        assert.equal(res.body.data.merkleProofs.length, 2);
+        assert.equal(res.body.data.merkleProofs[0].length, 18);
+        assert.equal(res.body.data.merkleProofs[1].length, 18);
+        done();
+      });
   });
 
   it("should fail to unshield SOL with invalid relayer pubkey", async () => {
@@ -294,7 +416,14 @@ describe("API tests", () => {
     });
 
     await waitForBalanceUpdate(userTestAssertHelper, user);
-    await userTestAssertHelper.checkSolUnshielded();
+    try {
+      await userTestAssertHelper.checkSolUnshielded();
+    } catch (e) {
+      console.log("userTestAssertHelper ", userTestAssertHelper);
+      console.log("\n----------------------------------\n");
+      console.log(user.getBalance());
+      throw e;
+    }
   });
 
   it("Should return lookup table data", (done: any) => {
@@ -390,6 +519,71 @@ describe("API tests", () => {
         assert.isTrue(res.body.message.includes("No instructions provided"));
         done();
       });
+  });
+
+  // Test to debug flakyness in unshield test
+  it.skip("debug should unshield SOL", async () => {
+    for (var i = 0; i < 20; i++) {
+      let testInputs = {
+        amountSol: 0.3,
+        token: "SOL",
+        type: Action.SHIELD,
+        expectedUtxoHistoryLength: 1,
+      };
+
+      const userTestAssertHelper = new UserTestAssertHelper({
+        userSender: user,
+        userRecipient: user,
+        provider,
+        testInputs,
+      });
+      await userTestAssertHelper.fetchAndSaveState();
+      await user.shield({
+        publicAmountSol: testInputs.amountSol,
+        token: testInputs.token,
+        confirmOptions: ConfirmOptions.spendable,
+      });
+
+      await waitForBalanceUpdate(userTestAssertHelper, user);
+      await userTestAssertHelper.checkSolShielded();
+      const solRecipient = Keypair.generate();
+
+      const testInputsUnshield = {
+        amountSol: 0.05,
+        token: "SOL",
+        type: Action.UNSHIELD,
+        recipient: solRecipient.publicKey,
+        expectedUtxoHistoryLength: 1,
+      };
+      await user.getBalance();
+      const userTestAssertHelperUnshield = new UserTestAssertHelper({
+        userSender: user,
+        userRecipient: user,
+        provider,
+        testInputs: testInputsUnshield,
+      });
+      // need to wait for balance update to fetch current utxos
+      await userTestAssertHelperUnshield.fetchAndSaveState();
+      await user.unshield({
+        publicAmountSol: testInputsUnshield.amountSol,
+        token: testInputsUnshield.token,
+        recipient: testInputsUnshield.recipient,
+        confirmOptions: ConfirmOptions.spendable,
+      });
+
+      await waitForBalanceUpdate(userTestAssertHelperUnshield, user);
+      try {
+        await userTestAssertHelperUnshield.checkSolUnshielded();
+      } catch (e) {
+        console.log(
+          "userTestAssertHelperUnshield ",
+          userTestAssertHelperUnshield,
+        );
+        console.log("\n----------------------------------\n");
+        console.log(await user.getBalance());
+        throw e;
+      }
+    }
   });
 });
 

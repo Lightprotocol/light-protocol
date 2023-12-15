@@ -51,36 +51,51 @@ export type IndexedTransaction = {
   changeSolAmount: string;
   publicAmountSol: string;
   publicAmountSpl: string;
-  encryptedUtxos: Buffer | any[];
+  encryptedUtxos: Buffer;
   leaves: number[][];
   firstLeafIndex: string;
-  nullifiers: BN[];
+  nullifiers: number[][];
   relayerFee: string;
   message: Buffer;
 };
 
 export type ParsedIndexedTransaction = {
   blockTime: number;
-  signer: PublicKey;
+  signer: string;
   signature: string;
-  to: PublicKey;
-  from: PublicKey;
-  toSpl: PublicKey;
-  fromSpl: PublicKey;
-  verifier: PublicKey;
-  relayerRecipientSol: PublicKey;
+  to: string;
+  from: string;
+  toSpl: string;
+  fromSpl: string;
+  verifier: string;
+  relayerRecipientSol: string;
   type: Action;
-  changeSolAmount: BN;
-  publicAmountSol: BN;
-  publicAmountSpl: BN;
-  encryptedUtxos: Buffer | any[];
+  changeSolAmount: string;
+  publicAmountSol: string;
+  publicAmountSpl: string;
+  encryptedUtxos: number[];
   leaves: number[][];
-  firstLeafIndex: BN;
-  nullifiers: BN[];
-  relayerFee: BN;
-  message: Buffer;
+  firstLeafIndex: string;
+  nullifiers: number[][];
+  relayerFee: string;
+  message: number[];
 };
 
+// Relayer internal type
+export type RelayerIndexedTransaction = {
+  transaction: ParsedIndexedTransaction;
+  IDs: string[];
+  merkleTreePublicKey: string;
+};
+
+// RPC response type
+export type RpcIndexedTransaction = {
+  transaction: ParsedIndexedTransaction;
+  merkleProofs: string[][];
+  leavesIndexes: number[];
+};
+
+// User internal type
 export type UserIndexedTransaction = ParsedIndexedTransaction & {
   inSpentUtxos: Utxo[];
   outSpentUtxos: Utxo[];

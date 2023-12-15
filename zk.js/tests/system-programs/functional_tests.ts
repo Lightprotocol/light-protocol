@@ -44,6 +44,8 @@ import {
   createUnshieldTransaction,
   UnshieldTransactionInput,
   DEFAULT_ZERO,
+  Action,
+  syncInputUtxosMerkleProofs,
 } from "../../src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -88,6 +90,8 @@ describe("verifier_program", () => {
       relayerRecipientSol,
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
+      connection: provider.connection,
+      hasher: HASHER,
     });
   });
 
@@ -118,19 +122,6 @@ describe("verifier_program", () => {
     );
     assert.equal(lightProviderMock.url, "http://127.0.0.1:8899");
     assert(lightProviderMock.hasher);
-    assert.equal(
-      lightProviderMock.solMerkleTree?.pubkey.toBase58(),
-      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
-    );
-    assert.equal(lightProviderMock.solMerkleTree?.merkleTree.levels, 18);
-    assert.equal(
-      lightProviderMock.solMerkleTree?.merkleTree.zeroElement,
-      DEFAULT_ZERO,
-    );
-    assert.equal(
-      lightProviderMock.solMerkleTree?.merkleTree._layers[0].length,
-      0,
-    );
   });
 
   it("Shield (verifier one)", async () => {
@@ -291,14 +282,17 @@ describe("verifier_program", () => {
       systemPspId: getVerifierProgramId(verifierIdl),
       account: ACCOUNT,
       outputUtxos: [shieldUtxo],
-      root: lightProvider.solMerkleTree!.merkleTree.root(),
     };
 
     const shieldTransaction = await createShieldTransaction(
       shieldTransactionInput,
     );
+    const { root, index: rootIndex } = (await RELAYER.getMerkleRoot(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+    ))!;
 
     const systemProofInputs = createSystemProofInputs({
+      root,
       transaction: shieldTransaction,
       hasher: HASHER,
       account: ACCOUNT,
@@ -310,12 +304,8 @@ describe("verifier_program", () => {
       systemProofInputs,
     });
 
-    const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
-      await lightProvider.getRootIndex();
-
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject as any,
-      remainingMerkleTreeAccounts,
     );
     const accounts = prepareAccounts({
       transactionAccounts: shieldTransaction.public.accounts,
@@ -339,7 +329,6 @@ describe("verifier_program", () => {
     });
     await transactionTester.getTestValues();
     await lightProvider.sendAndConfirmShieldedTransaction(instructions);
-
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },
       remainingSolanaAccounts,
@@ -385,7 +374,15 @@ describe("verifier_program", () => {
       .get(tokenProgram.toBase58())!
       .utxos.values()
       .next().value;
-
+    const {
+      syncedUtxos,
+      root,
+      index: rootIndex,
+    } = await syncInputUtxosMerkleProofs({
+      inputUtxos: [unshieldUtxo],
+      merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      relayer: RELAYER,
+    });
     // Running into memory issues with verifier one (10in2out) unshielding spl
     const unshieldTransactionInput: UnshieldTransactionInput = {
       hasher: HASHER,
@@ -398,11 +395,10 @@ describe("verifier_program", () => {
       relayerPublicKey: lightProvider.relayer.accounts.relayerPubkey,
       systemPspId: getVerifierProgramId(verifierIdl),
       account: ACCOUNT,
-      inputUtxos: [unshieldUtxo],
+      inputUtxos: syncedUtxos,
       outputUtxos,
       relayerFee: user.provider.relayer.getRelayerFee(true),
       ataCreationFee: spl ? spl : false,
-      root: lightProvider.solMerkleTree!.merkleTree.root(),
     };
 
     const unshieldTransaction = await createUnshieldTransaction(
@@ -413,6 +409,7 @@ describe("verifier_program", () => {
       transaction: unshieldTransaction,
       hasher: HASHER,
       account: ACCOUNT,
+      root,
     });
     const systemProof = await getSystemProof({
       account: ACCOUNT,
@@ -421,12 +418,8 @@ describe("verifier_program", () => {
       systemProofInputs,
     });
 
-    const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
-      await lightProvider.getRootIndex();
-
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject as any,
-      remainingMerkleTreeAccounts,
     );
     const accounts = prepareAccounts({
       transactionAccounts: unshieldTransaction.public.accounts,

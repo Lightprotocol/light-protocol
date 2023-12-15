@@ -1,4 +1,4 @@
-import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
+import { AnchorProvider, BN } from "@coral-xyz/anchor";
 import {
   AddressLookupTableAccount,
   ConfirmOptions,
@@ -12,13 +12,8 @@ import {
 import { initLookUpTable } from "../utils";
 import {
   ADMIN_AUTH_KEYPAIR,
-  BN_0,
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
-  MerkleTreeConfig,
-  merkleTreeProgramId,
   MINIMUM_LAMPORTS,
   MINT,
-  ParsedIndexedTransaction,
   ProviderError,
   ProviderErrorCode,
   Relayer,
@@ -27,11 +22,8 @@ import {
   RelayerSendTransactionsResponse,
   sendVersionedTransactions,
   SendVersionedTransactionsResult,
-  SolMerkleTree,
-  SolMerkleTreeErrorCode,
+  TestRelayer,
   TOKEN_ACCOUNT_FEE,
-  TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
-  TransactionErrorCode,
   useWallet,
 } from "../index";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
@@ -58,7 +50,6 @@ export class Provider {
   wallet: Wallet;
   confirmConfig: ConfirmOptions;
   hasher: Hasher;
-  solMerkleTree?: SolMerkleTree;
   provider: AnchorProvider;
   url?: string;
   minimumLamports: BN;
@@ -141,10 +132,6 @@ export class Provider {
       versionedTransactionLookupTable,
     };
     this.hasher = hasher;
-    this.solMerkleTree = new SolMerkleTree({
-      pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      hasher: this.hasher,
-    });
   }
 
   static async loadMock(): Promise<Provider> {
@@ -155,11 +142,6 @@ export class Provider {
       url: "mock",
       versionedTransactionLookupTable: PublicKey.default,
       hasher,
-    });
-
-    mockProvider.solMerkleTree = new SolMerkleTree({
-      hasher: mockProvider.hasher,
-      pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
 
     return mockProvider;
@@ -176,142 +158,6 @@ export class Provider {
       const response = await axios.get(relayerUrl + "/lookuptable");
       return new PublicKey(response.data.data);
     }
-  }
-
-  private async fetchMerkleTree(
-    merkleTreePubkey: PublicKey,
-    indexedTransactions?: ParsedIndexedTransaction[],
-  ) {
-    try {
-      const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
-        merkleTreePubkey,
-        "confirmed",
-      );
-      if (!merkletreeIsInited) {
-        // FIXME: throw of exception caught locally
-        throw new ProviderError(
-          ProviderErrorCode.MERKLE_TREE_NOT_INITIALIZED,
-          "fetchMerkleTree",
-          `Merkle tree is not initialized if on local host run test utils setUpMerkleTree before initin the provider, on other networks check your merkle tree pubkey ${merkleTreePubkey}`,
-        );
-      }
-      if (!indexedTransactions) {
-        indexedTransactions = await this.relayer.getIndexedTransactions(
-          this.provider!.connection,
-        );
-      }
-
-      const mt = await SolMerkleTree.build({
-        pubkey: merkleTreePubkey,
-        hasher: this.hasher,
-        indexedTransactions,
-        provider: this.provider,
-      });
-
-      this.solMerkleTree = mt;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  }
-
-  async latestMerkleTree(indexedTransactions?: ParsedIndexedTransaction[]) {
-    await this.fetchMerkleTree(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-      indexedTransactions,
-    );
-  }
-
-  // TODO: add index to merkle tree and check correctness at setup
-  // TODO: repeat check for example at tx init to acertain that the merkle tree is not outdated
-  /**
-   * @description fetches the merkle tree pda from the chain and checks in which index the root of the local merkle tree is.
-   */
-  async getRootIndex() {
-    if (!this.solMerkleTree)
-      throw new ProviderError(
-        ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
-        "getRootIndex",
-        "",
-      );
-    if (!this.solMerkleTree.merkleTree)
-      throw new ProviderError(
-        SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
-        "getRootIndex",
-        "The Merkle tree is not defined in the 'provider.solMerkleTree' object.",
-      );
-    let rootIndex: BN | undefined;
-    const remainingAccounts: any = {};
-    if (this.provider && this.solMerkleTree.merkleTree) {
-      const merkleTreeProgram = new Program(
-        IDL_LIGHT_MERKLE_TREE_PROGRAM,
-        merkleTreeProgramId,
-        this.provider,
-      );
-      const root = new BN(this.solMerkleTree.merkleTree.root()).toArray(
-        "be",
-        32,
-      );
-      const merkle_tree_account_data =
-        await merkleTreeProgram.account.transactionMerkleTree.fetch(
-          this.solMerkleTree.pubkey,
-          "confirmed",
-        );
-      // @ts-ignore: unknown type error
-      const index = merkle_tree_account_data.merkleTree.roots.findIndex(
-        (rootFetched) => {
-          return (
-            Array.from(root).toString() === Array.from(rootFetched).toString()
-          );
-        },
-      );
-      if (index === -1) {
-        throw new ProviderError(
-          TransactionErrorCode.ROOT_NOT_FOUND,
-          "getRootIndex",
-          `Root index not found for root${root}`,
-        );
-      }
-      rootIndex = new BN(index);
-
-      if (
-        merkle_tree_account_data.merkleTree.nextIndex.gte(
-          TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD,
-        )
-      ) {
-        const merkleTreeConfig = new MerkleTreeConfig({
-          anchorProvider: this.provider,
-        });
-        const nextTransactionMerkleTreeIndex =
-          await merkleTreeConfig.getTransactionMerkleTreeIndex();
-        const nextTransactionMerkleTreePubkey =
-          MerkleTreeConfig.getTransactionMerkleTreePda(
-            nextTransactionMerkleTreeIndex,
-          );
-
-        const nextEventMerkleTreeIndex =
-          await merkleTreeConfig.getEventMerkleTreeIndex();
-        const nextEventMerkleTreePubkey =
-          MerkleTreeConfig.getEventMerkleTreePda(nextEventMerkleTreeIndex);
-
-        remainingAccounts.nextTransactionMerkleTree = {
-          isSigner: false,
-          isWritable: true,
-          pubkey: nextTransactionMerkleTreePubkey,
-        };
-        remainingAccounts.nextEventMerkleTree = {
-          isSigner: false,
-          isWritable: true,
-          pubkey: nextEventMerkleTreePubkey,
-        };
-      }
-    } else {
-      console.log(
-        "Provider is not defined. Unable to fetch rootIndex. Setting root index to 0 as a default value.",
-      );
-      rootIndex = BN_0;
-    }
-    return { rootIndex, remainingAccounts };
   }
 
   async sendAndConfirmTransaction(

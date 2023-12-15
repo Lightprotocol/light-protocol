@@ -20,14 +20,14 @@ import {
   BN_0,
 } from "../constants";
 
-import { Action } from "../index";
+import { Action, MerkleTreeConfig, getIdsFromEncryptedUtxos } from "../index";
 
 import { getUpdatedSpentUtxos, sleep } from "../utils";
 import {
-  IndexedTransaction,
   UserIndexedTransaction,
   IndexedTransactionData,
   ParsedIndexedTransaction,
+  RelayerIndexedTransaction,
 } from "../types";
 import { Utxo } from "../utxo";
 import { TokenUtxoBalance, Provider } from "../wallet";
@@ -87,8 +87,7 @@ export const getUserIndexTransactions = async (
 
     const nullifierOne = new BN(trx.nullifiers[1]).toString();
 
-    const isFromUser =
-      trx.signer.toBase58() === provider.wallet.publicKey.toBase58();
+    const isFromUser = trx.signer === provider.wallet.publicKey.toBase58();
 
     const inSpentUtxos: Utxo[] = [];
     const outSpentUtxos: Utxo[] = [];
@@ -153,7 +152,7 @@ export const findMatchingInstruction = (
  */
 async function enrichParsedTransactionEvents(
   event: IndexedTransactionData,
-  transactions: IndexedTransaction[],
+  transactions: RelayerIndexedTransaction[],
 ) {
   // check if transaction contains the meta data or not , else return without processing transaction
   const {
@@ -252,29 +251,37 @@ async function enrichParsedTransactionEvents(
   changeSolAmount = changeSolAmount.lt(BN_0)
     ? changeSolAmount.abs().sub(relayerFee)
     : changeSolAmount;
-
+  const IDs = getIdsFromEncryptedUtxos(
+    Buffer.from(encryptedUtxos),
+    leaves.length,
+  );
   transactions.push({
-    blockTime: tx.blockTime! * 1000,
-    signer: accountKeys[0],
-    signature,
-    to,
-    from,
-    //TODO: check if this is the correct type after latest main?
-    //@ts-ignore
-    toSpl,
-    fromSpl,
-    verifier,
-    relayerRecipientSol,
-    type,
-    changeSolAmount: changeSolAmount.toString("hex"),
-    publicAmountSol: amountSol.toString("hex"),
-    publicAmountSpl: amountSpl.toString("hex"),
-    encryptedUtxos,
-    leaves,
-    nullifiers,
-    relayerFee: relayerFee.toString("hex"),
-    firstLeafIndex: firstLeafIndex.toString("hex"),
-    message: Buffer.from(message),
+    IDs,
+    merkleTreePublicKey:
+      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+    transaction: {
+      blockTime: tx.blockTime! * 1000,
+      signer: accountKeys[0],
+      signature,
+      to,
+      from,
+      //TODO: check if this is the correct type after latest main?
+      //@ts-ignore
+      toSpl,
+      fromSpl,
+      verifier: verifier.toBase58(),
+      relayerRecipientSol,
+      type,
+      changeSolAmount: changeSolAmount.toString("hex"),
+      publicAmountSol: amountSol.toString("hex"),
+      publicAmountSpl: amountSpl.toString("hex"),
+      encryptedUtxos: encryptedUtxos,
+      leaves,
+      nullifiers,
+      relayerFee: relayerFee.toString("hex"),
+      firstLeafIndex: firstLeafIndex.toString("hex"),
+      message: message,
+    },
   });
 }
 
@@ -343,7 +350,7 @@ async function getTransactionsBatch({
   connection: Connection;
   merkleTreeProgramId: PublicKey;
   batchOptions: ConfirmedSignaturesForAddress2Options;
-  transactions: any;
+  transactions: RelayerIndexedTransaction[];
 }): Promise<ConfirmedSignatureInfo> {
   const signatures = await connection.getConfirmedSignaturesForAddress2(
     new PublicKey(merkleTreeProgramId),
@@ -419,9 +426,9 @@ export async function fetchRecentTransactions({
 }: {
   connection: Connection;
   batchOptions: ConfirmedSignaturesForAddress2Options;
-  transactions?: IndexedTransaction[];
+  transactions?: RelayerIndexedTransaction[];
 }): Promise<{
-  transactions: IndexedTransaction[];
+  transactions: RelayerIndexedTransaction[];
   oldestFetchedSignature: string;
 }> {
   const batchSize = 1000;
@@ -452,8 +459,8 @@ export async function fetchRecentTransactions({
   return {
     transactions: transactions.sort(
       (a, b) =>
-        new BN(a.firstLeafIndex, "hex").toNumber() -
-        new BN(b.firstLeafIndex, "hex").toNumber(),
+        new BN(a.transaction.firstLeafIndex, "hex").toNumber() -
+        new BN(b.transaction.firstLeafIndex, "hex").toNumber(),
     ),
     oldestFetchedSignature: batchBefore!,
   };

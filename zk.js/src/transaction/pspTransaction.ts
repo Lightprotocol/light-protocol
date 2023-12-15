@@ -232,12 +232,14 @@ export async function getSystemProof({
  */
 export function createSystemProofInputs({
   transaction,
+  root,
   hasher,
   account,
 }: {
   transaction: Transaction;
   hasher: Hasher;
   account: Account;
+  root: string;
 }) {
   if (!transaction.public.txIntegrityHash)
     throw new TransactionError(
@@ -261,7 +263,7 @@ export function createSystemProofInputs({
     });
   });
   const proofInput = {
-    root: transaction.public.root,
+    root,
     inputNullifier,
     publicAmountSpl: transaction.public.publicAmountSpl.toString(),
     publicAmountSol: transaction.public.publicAmountSol.toString(),
@@ -320,38 +322,55 @@ export function getTransactionMint(transaction: Transaction) {
   }
 }
 
-export function syncInputUtxosMerkleProofs({
+// TODO: implement privacy preserving fetching, this fetching strategy is not priaacy preserving for the rpc
+export async function syncInputUtxosMerkleProofs({
   inputUtxos,
-  hasher,
-  solMerkleTree,
+  relayer,
+  merkleTreePublicKey,
 }: {
   inputUtxos: Utxo[];
-  hasher: Hasher;
-  solMerkleTree: SolMerkleTree;
-}): { syncedUtxos: Utxo[]; root: string } {
-  const proofs = solMerkleTree.getMerkleProofs(hasher, inputUtxos);
-  const syncedUtxos = inputUtxos?.map((utxo, index) => {
-    utxo.merkleProof = proofs.inputMerklePathElements[index];
-    utxo.index = Number(proofs.inputMerklePathIndices[index]);
+  merkleTreePublicKey: PublicKey;
+  relayer: Relayer;
+}): Promise<{ syncedUtxos: Utxo[]; root: string; index: number }> {
+  // skip empty utxos
+  const { merkleProofs, root, index } =
+    (await relayer.getMerkleProofByIndexBatch(
+      merkleTreePublicKey,
+      inputUtxos
+        .filter(
+          (utxo) => !utxo.amounts[0].eq(BN_0) || !utxo.amounts[1].eq(BN_0),
+        )
+        .map((utxo) => utxo.index!),
+    ))!;
+  let tmpIndex = 0;
+  const syncedUtxos = inputUtxos?.map((utxo) => {
+    // skip empty utxos
+    if (!utxo.amounts[0].eq(BN_0) || !utxo.amounts[1].eq(BN_0)) {
+      utxo.merkleProof = merkleProofs[tmpIndex];
+      tmpIndex++;
+    }
     return utxo;
   });
-  return { syncedUtxos, root: solMerkleTree.merkleTree.root() };
+  return { syncedUtxos, root, index };
 }
 
 // compileProofInputs
 export function createProofInputs({
   transaction,
+  root,
   hasher,
   account,
   pspTransaction,
 }: {
   transaction: Transaction;
+  root: string;
   pspTransaction: PspTransactionInput;
   hasher: Hasher;
   account: Account;
 }): compiledProofInputs {
   const systemProofInputs = createSystemProofInputs({
     transaction,
+    root,
     hasher,
     account,
   });
@@ -402,7 +421,6 @@ export type PublicTransactionVariables = {
   transactionHash: string;
   // TODO: rename to publicDataHash
   txIntegrityHash: BN;
-  root: string;
 };
 
 export type PrivateTransactionVariables = {
@@ -935,7 +953,6 @@ export type ShieldTransactionInput = {
   systemPspId: PublicKey;
   pspId?: PublicKey;
   account: Account;
-  root: string;
 };
 
 // add createShieldSolanaTransaction
@@ -954,7 +971,6 @@ export async function createShieldTransaction(
     systemPspId,
     pspId,
     account,
-    root,
   } = shieldTransactionInput;
 
   const action = Action.SHIELD;
@@ -1020,7 +1036,6 @@ export async function createShieldTransaction(
     action,
     private: privateVars,
     public: {
-      root,
       transactionHash,
       publicMintPubkey: mint
         ? hashAndTruncateToCircuit(mint.toBytes()).toString()
@@ -1095,7 +1110,6 @@ export type UnshieldTransactionInput = {
   account: Account;
   relayerFee: BN;
   ataCreationFee: boolean;
-  root: string;
 };
 
 // add createShieldSolanaTransaction
@@ -1117,7 +1131,6 @@ export async function createUnshieldTransaction(
     account,
     relayerFee,
     ataCreationFee,
-    root,
   } = unshieldTransactionInput;
 
   const action = Action.UNSHIELD;
@@ -1186,7 +1199,6 @@ export async function createUnshieldTransaction(
     action,
     private: privateVars,
     public: {
-      root,
       transactionHash,
       publicMintPubkey: mint
         ? hashAndTruncateToCircuit(mint.toBytes()).toString()
@@ -1216,7 +1228,6 @@ export type TransactionInput = {
   pspId?: PublicKey;
   account: Account;
   relayerFee: BN;
-  root: string;
 };
 
 export async function createTransaction(
@@ -1233,7 +1244,6 @@ export async function createTransaction(
     systemPspId,
     account,
     relayerFee,
-    root,
   } = transactionInput;
   const verifierProgramId = pspId ? pspId : systemPspId;
   // TODO: unifiy systemPspId and verifierProgramId by adding verifierConfig to psps
@@ -1287,7 +1297,6 @@ export async function createTransaction(
   const transaction: Transaction = {
     private: privateVars,
     public: {
-      root,
       transactionHash,
       publicMintPubkey: "0",
       txIntegrityHash,
@@ -1360,7 +1369,7 @@ export async function getTxParams({
   outUtxos?: Utxo[];
   action: Action;
   provider: Provider;
-  relayer?: Relayer;
+  relayer: Relayer;
   ataCreationFee?: boolean;
   appUtxo?: AppUtxoConfig;
   addInUtxos?: boolean;
@@ -1378,8 +1387,14 @@ export async function getTxParams({
       "getTxParams",
       "Recipient outUtxo not provided for transfer",
     );
-
-  if (action !== Action.SHIELD && !relayer?.getRelayerFee(ataCreationFee)) {
+  if (!relayer) {
+    throw new TransactionParametersError(
+      TransactionErrorCode.RELAYER_UNDEFINED,
+      "getTxParams",
+      "Fetching root from relayer failed.",
+    );
+  }
+  if (action !== Action.SHIELD && !relayer.getRelayerFee(ataCreationFee)) {
     // TODO: could make easier to read by adding separate if/cases
     throw new TransactionParametersError(
       RelayerErrorCode.RELAYER_FEE_UNDEFINED,
@@ -1407,7 +1422,10 @@ export async function getTxParams({
       inUtxos,
       outUtxos,
       utxos,
-      relayerFee: relayer?.getRelayerFee(ataCreationFee),
+      relayerFee:
+        action == Action.SHIELD
+          ? undefined
+          : relayer.getRelayerFee(ataCreationFee),
       action,
       numberMaxInUtxos: getVerifierConfig(verifierIdl).in,
       numberMaxOutUtxos: getVerifierConfig(verifierIdl).out,
@@ -1420,7 +1438,10 @@ export async function getTxParams({
       inUtxos: inputUtxos,
       publicAmountSol, // TODO: add support for extra sol for unshield & transfer
       hasher: provider.hasher,
-      relayerFee: relayer?.getRelayerFee(ataCreationFee),
+      relayerFee:
+        action == Action.SHIELD
+          ? undefined
+          : relayer.getRelayerFee(ataCreationFee),
       changeUtxoAccount: account,
       outUtxos,
       action,
@@ -1430,15 +1451,6 @@ export async function getTxParams({
       verifierProgramLookupTable,
       separateSolUtxo,
     });
-  }
-
-  if (inputUtxos && inputUtxos.length != 0) {
-    const { syncedUtxos } = syncInputUtxosMerkleProofs({
-      inputUtxos,
-      solMerkleTree: provider.solMerkleTree!,
-      hasher: provider.hasher,
-    });
-    inputUtxos = syncedUtxos;
   }
 
   if (action == Action.SHIELD) {
@@ -1457,7 +1469,6 @@ export async function getTxParams({
       hasher: provider.hasher,
       systemPspId: getVerifierProgramId(verifierIdl),
       account,
-      root: provider.solMerkleTree!.merkleTree.root(),
     });
   } else if (action == Action.UNSHIELD) {
     return createUnshieldTransaction({
@@ -1477,8 +1488,7 @@ export async function getTxParams({
       account,
       ataCreationFee: ataCreationFee ? true : false,
       relayerPublicKey: relayer!.accounts.relayerPubkey,
-      relayerFee: relayer!.getRelayerFee(ataCreationFee),
-      root: provider.solMerkleTree!.merkleTree.root(),
+      relayerFee: relayer.getRelayerFee(ataCreationFee),
     });
   } else if (action == Action.TRANSFER) {
     return createTransaction({
@@ -1491,8 +1501,7 @@ export async function getTxParams({
       systemPspId: getVerifierProgramId(verifierIdl),
       account,
       relayerPublicKey: relayer!.accounts.relayerPubkey,
-      relayerFee: relayer!.getRelayerFee(ataCreationFee),
-      root: provider.solMerkleTree!.merkleTree.root(),
+      relayerFee: relayer.getRelayerFee(ataCreationFee),
     });
   } else {
     throw new TransactionParametersError(

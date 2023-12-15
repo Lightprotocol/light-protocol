@@ -12,6 +12,7 @@ import {
   confirmConfig,
   confirmTransaction,
   RELAYER_FEE,
+  Relayer,
 } from "../index";
 
 export async function airdropShieldedSol({
@@ -20,11 +21,13 @@ export async function airdropShieldedSol({
   seed,
   recipientPublicKey,
 }: {
-  provider?: Provider;
+  provider: Provider;
   amount: number;
   seed?: string;
   recipientPublicKey?: string;
 }) {
+  const connection = provider?.provider?.connection;
+  if (!connection) throw new Error("connection undefined");
   if (!amount) throw new Error("Sol Airdrop amount undefined");
   if (!seed && !recipientPublicKey)
     throw new Error(
@@ -35,17 +38,13 @@ export async function airdropShieldedSol({
     relayerRecipientSol: Keypair.generate().publicKey,
     relayerFee: RELAYER_FEE,
     payer: ADMIN_AUTH_KEYPAIR,
+    connection,
+    hasher: provider!.hasher,
   });
-  if (!provider) {
-    provider = await Provider.init({
-      wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: relayer,
-      confirmConfig,
-    });
-  }
+
   const userKeypair = Keypair.generate();
   await airdropSol({
-    connection: provider.provider!.connection,
+    connection,
     recipientPublicKey: userKeypair.publicKey,
     lamports: amount * 1e9,
   });
@@ -93,11 +92,15 @@ export async function airdropShieldedMINTSpl({
     throw new Error(
       "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
     );
+  const connection = provider?.provider?.connection;
+  if (!connection) throw new Error("connection undefined");
   const relayer = new TestRelayer({
     relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
     relayerRecipientSol: Keypair.generate().publicKey,
     relayerFee: RELAYER_FEE,
     payer: ADMIN_AUTH_KEYPAIR,
+    connection,
+    hasher: provider!.hasher,
   });
   if (!provider) {
     provider = await Provider.init({

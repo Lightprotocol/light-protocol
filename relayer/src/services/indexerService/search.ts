@@ -3,15 +3,15 @@ import { Job } from "bullmq";
 import { FORWARD_SEARCH_BATCH_SIZE, TX_BATCH_SIZE } from "../../config";
 
 import {
-  IndexedTransaction,
+  RelayerIndexedTransaction,
   fetchRecentTransactions,
 } from "@lightprotocol/zk.js";
 
 export async function searchForward(job: Job, connection: Connection) {
   if (job.data.transactions.length === 0) return [];
   const mostRecentTransaction = job.data.transactions.reduce(
-    (a: IndexedTransaction, b: IndexedTransaction) =>
-      a.blockTime > b.blockTime ? a : b,
+    (a: RelayerIndexedTransaction, b: RelayerIndexedTransaction) =>
+      a.transaction.blockTime > b.transaction.blockTime ? a : b,
   );
 
   const { transactions: newerTransactions } = await fetchRecentTransactions({
@@ -34,7 +34,7 @@ export async function searchBackward(
   job: Job,
   connection: Connection,
 ): Promise<{
-  olderTransactions: IndexedTransaction[];
+  olderTransactions: RelayerIndexedTransaction[];
   oldestFetchedSignature: string;
 }> {
   if (job.data.transactions.length === 0) {

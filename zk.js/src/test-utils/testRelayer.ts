@@ -1,35 +1,60 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
+import {
+  AnchorProvider,
+  BN,
+  BorshAccountsCoder,
+  Program,
+} from "@coral-xyz/anchor";
 import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
 import { Provider, useWallet } from "../wallet";
 import {
   fetchRecentTransactions,
   sendVersionedTransactions,
 } from "../transaction";
-import { ParsedIndexedTransaction } from "../types";
+import {
+  ParsedIndexedTransaction,
+  RelayerIndexedTransaction,
+  RpcIndexedTransaction,
+} from "../types";
 import { airdropSol } from "./airdrop";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   MerkleTreeConfig,
   BN_0,
+  SolMerkleTree,
+  UTXO_PREFIX_LENGTH,
+  LightMerkleTreeProgram,
+  RelayerError,
+  TransactionErrorCode,
+  merkleTreeProgramId,
 } from "../index";
+import { Hasher } from "@lightprotocol/account.rs";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export class TestRelayer extends Relayer {
-  indexedTransactions: ParsedIndexedTransaction[] = [];
+  // @ts-ignore
+  indexedTransactions: RelayerIndexedTransaction[] = [];
   relayerKeypair: Keypair;
-
+  connection: Connection;
+  merkleTrees: SolMerkleTree[] = [];
+  hasher: Hasher;
+  merkleTreeProgram: Program<LightMerkleTreeProgram>;
   constructor({
     relayerPubkey,
     relayerRecipientSol,
     relayerFee = BN_0,
     highRelayerFee,
     payer,
+    connection,
+    hasher,
   }: {
     relayerPubkey: PublicKey;
     relayerRecipientSol?: PublicKey;
     relayerFee: BN;
     highRelayerFee?: BN;
     payer: Keypair;
+    connection: Connection;
+    hasher: Hasher;
   }) {
     super(relayerPubkey, relayerRecipientSol, relayerFee, highRelayerFee);
     if (payer.publicKey.toBase58() != relayerPubkey.toBase58())
@@ -37,6 +62,18 @@ export class TestRelayer extends Relayer {
         `Payer public key ${payer.publicKey.toBase58()} does not match relayer public key ${relayerPubkey.toBase58()}`,
       );
     this.relayerKeypair = payer;
+    this.connection = connection;
+    const solMerkleTree = new SolMerkleTree({
+      hasher,
+      pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+    });
+    this.merkleTrees.push(solMerkleTree);
+    this.hasher = hasher;
+    this.merkleTreeProgram = new Program(
+      IDL_LIGHT_MERKLE_TREE_PROGRAM,
+      merkleTreeProgramId,
+      new AnchorProvider(connection, {} as any, {}),
+    );
   }
 
   async sendTransactions(
@@ -61,9 +98,10 @@ export class TestRelayer extends Relayer {
    * @param connection
    * @returns
    */
+  // @ts-ignore
   async getIndexedTransactions(
     connection: Connection,
-  ): Promise<ParsedIndexedTransaction[]> {
+  ): Promise<RelayerIndexedTransaction[]> {
     const merkleTreeAccountInfo = await connection.getAccountInfo(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       "confirmed",
@@ -89,46 +127,190 @@ export class TestRelayer extends Relayer {
           limit,
         },
       });
-      this.indexedTransactions = newTransactions.map((trx) => {
-        return {
-          ...trx,
-          firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
-          publicAmountSol: new BN(trx.publicAmountSol, "hex"),
-          publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
-          changeSolAmount: new BN(trx.changeSolAmount, "hex"),
-          relayerFee: new BN(trx.relayerFee, "hex"),
-        };
-      });
+      this.indexedTransactions = newTransactions;
       return this.indexedTransactions;
     } else {
       if (this.indexedTransactions.length === 0) return [];
 
       const mostRecentTransaction = this.indexedTransactions.reduce((a, b) =>
-        a.blockTime > b.blockTime ? a : b,
+        a.transaction.blockTime > b.transaction.blockTime ? a : b,
       );
 
       const { transactions: newTransactions } = await fetchRecentTransactions({
         connection,
         batchOptions: {
           limit,
-          until: mostRecentTransaction.signature,
+          until: mostRecentTransaction.transaction.signature,
         },
-      });
-      const parsedNewTransactions = newTransactions.map((trx) => {
-        return {
-          ...trx,
-          firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
-          publicAmountSol: new BN(trx.publicAmountSol, "hex"),
-          publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
-          changeSolAmount: new BN(trx.changeSolAmount, "hex"),
-          relayerFee: new BN(trx.relayerFee, "hex"),
-        };
       });
       this.indexedTransactions = [
         ...this.indexedTransactions,
-        ...parsedNewTransactions,
+        ...newTransactions,
       ];
       return this.indexedTransactions;
     }
   }
+
+  async syncMerkleTree(
+    merkleTreePubkey: PublicKey,
+    indexedTransactions: ParsedIndexedTransaction[],
+  ): Promise<SolMerkleTree> {
+    const solMerkleTreeIndex = this.merkleTrees.findIndex((tree) =>
+      tree.pubkey.equals(merkleTreePubkey),
+    );
+    const rebuiltMt = await SolMerkleTree.build({
+      pubkey: merkleTreePubkey,
+      hasher: this.hasher,
+      indexedTransactions,
+    });
+    this.merkleTrees[solMerkleTreeIndex] = rebuiltMt;
+    return rebuiltMt;
+  }
+
+  async getEventById(
+    merkleTreePdaPublicKey: PublicKey,
+    id: string,
+    variableNameID: number,
+  ): Promise<RpcIndexedTransaction | undefined> {
+    const indexedTransactions = await this.getIndexedTransactions(
+      this.connection,
+    );
+    const indexedTransaction = indexedTransactions.find((trx) =>
+      trx.IDs.includes(id),
+    )?.transaction;
+    if (!indexedTransaction) return undefined;
+    const merkleTree = await this.syncMerkleTree(
+      merkleTreePdaPublicKey,
+      indexedTransactions.map((trx) => trx.transaction),
+    );
+    return createRpcIndexedTransaction(indexedTransaction, merkleTree);
+  }
+
+  async getEventsByIdBatch(
+    merkleTreePdaPublicKey: PublicKey,
+    ids: string[],
+    variableNameID: number,
+  ): Promise<RpcIndexedTransaction[] | undefined> {
+    const indexedTransactions = await this.getIndexedTransactions(
+      this.connection,
+    );
+    const indexedTransactionsById = indexedTransactions.filter((trx) =>
+      trx.IDs.some((id) => ids.includes(id)),
+    );
+    const merkleTree = await this.syncMerkleTree(
+      merkleTreePdaPublicKey,
+      indexedTransactions.map((trx) => trx.transaction),
+    );
+    return indexedTransactionsById.map((trx) =>
+      createRpcIndexedTransaction(trx.transaction, merkleTree),
+    );
+  }
+
+  async getMerkleProofByIndexBatch(
+    merkleTreePublicKey: PublicKey,
+    indexes: number[],
+  ): Promise<
+    { merkleProofs: string[][]; root: string; index: number } | undefined
+  > {
+    const indexedTransactions = await this.getIndexedTransactions(
+      this.connection,
+    );
+    const merkleTree = await this.syncMerkleTree(
+      merkleTreePublicKey,
+      indexedTransactions.map((trx) => trx.transaction),
+    );
+    if (!merkleTree) return undefined;
+    const index = await getRootIndex(
+      this.merkleTreeProgram,
+      merkleTree.pubkey,
+      merkleTree.merkleTree.root(),
+    );
+
+    return {
+      merkleProofs: indexes.map(
+        (index) => merkleTree.merkleTree.path(index).pathElements,
+      ),
+      root: merkleTree.merkleTree.root(),
+      index: index.toNumber(),
+    };
+  }
+
+  async getMerkleRoot(
+    merkleTreePublicKey: PublicKey,
+  ): Promise<{ root: string; index: number } | undefined> {
+    const indexedTransactions = await this.getIndexedTransactions(
+      this.connection,
+    );
+    const merkleTree = await this.syncMerkleTree(
+      merkleTreePublicKey,
+      indexedTransactions.map((trx) => trx.transaction),
+    );
+    const index = await getRootIndex(
+      this.merkleTreeProgram,
+      merkleTree.pubkey,
+      merkleTree.merkleTree.root(),
+    );
+    return { root: merkleTree.merkleTree.root(), index: index.toNumber() };
+  }
 }
+
+export async function getRootIndex(
+  merkleTreeProgram: Program<LightMerkleTreeProgram>,
+  merkleTreePublicKey: PublicKey,
+  root: string,
+) {
+  const rootBytes = new BN(root).toArray("be", 32);
+  const merkle_tree_account_data =
+    await merkleTreeProgram.account.transactionMerkleTree.fetch(
+      merkleTreePublicKey,
+      "confirmed",
+    );
+  let rootIndex: BN | undefined;
+  // @ts-ignore: unknown type error
+  merkle_tree_account_data.merkleTree.roots.map((x: any, index: any) => {
+    if (x.toString() === rootBytes.toString()) {
+      rootIndex = new BN(index.toString());
+    }
+  });
+
+  if (rootIndex === undefined) {
+    throw new RelayerError(
+      TransactionErrorCode.ROOT_NOT_FOUND,
+      "getRootIndex",
+      `Root index not found for root${root}`,
+    );
+  }
+  return rootIndex;
+}
+
+export const createRpcIndexedTransaction = (
+  indexedTransaction: ParsedIndexedTransaction,
+  merkleTree: SolMerkleTree,
+): RpcIndexedTransaction => {
+  const leavesIndexes = indexedTransaction.leaves.map((leaf) =>
+    merkleTree.merkleTree.indexOf(new BN(leaf).toString()),
+  );
+  const merkleProofs = leavesIndexes.map(
+    (index) => merkleTree.merkleTree.path(index).pathElements,
+  );
+  const rpcIndexedTransaction: RpcIndexedTransaction = {
+    transaction: indexedTransaction,
+    leavesIndexes,
+    merkleProofs,
+  };
+  return rpcIndexedTransaction;
+};
+
+export const getIdsFromEncryptedUtxos = (
+  encryptedUtxos: Buffer,
+  numberOfLeaves: number,
+): string[] => {
+  const utxoLength = 124; //encryptedUtxos.length / numberOfLeaves;
+  // divide encrypted utxos by multiples of 2
+  // and extract the first two bytes of each
+  const ids: string[] = [];
+  for (let i = 0; i < encryptedUtxos.length; i += utxoLength) {
+    ids.push(bs58.encode(encryptedUtxos.slice(i, i + UTXO_PREFIX_LENGTH)));
+  }
+  return ids;
+};

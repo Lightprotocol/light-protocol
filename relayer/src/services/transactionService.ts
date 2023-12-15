@@ -1,6 +1,5 @@
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
-  IndexedTransaction,
   fetchRecentTransactions,
   sendVersionedTransactions,
   ProviderErrorCode,
@@ -8,6 +7,7 @@ import {
 } from "@lightprotocol/zk.js";
 import { getAnchorProvider, getLightProvider } from "../utils/provider";
 import { RelayError, RelayErrorCode } from "../errors";
+import { RelayerIndexedTransaction } from "@lightprotocol/zk.js";
 
 export async function sendTransaction(req: any, res: any) {
   try {
@@ -75,14 +75,18 @@ export async function indexedTransactions(_req: any, res: any) {
     );
 
     const stringifiedIndexedTransactions = indexedTransactions.map(
-      (trx: IndexedTransaction) => {
+      (trx: RelayerIndexedTransaction) => {
         return {
-          ...trx,
-          publicAmountSol: trx.publicAmountSol.toString(),
-          publicAmountSpl: trx.publicAmountSpl.toString(),
-          changeSolAmount: trx.changeSolAmount.toString(),
-          relayerFee: trx.relayerFee.toString(),
-          firstLeafIndex: trx.firstLeafIndex.toString(),
+          IDs: trx.IDs,
+          merkleTreePublicKey: trx.merkleTreePublicKey.toString(),
+          transaction: {
+            ...trx.transaction,
+            publicAmountSol: trx.transaction.publicAmountSol.toString(),
+            publicAmountSpl: trx.transaction.publicAmountSpl.toString(),
+            changeSolAmount: trx.transaction.changeSolAmount.toString(),
+            relayerFee: trx.transaction.relayerFee.toString(),
+            firstLeafIndex: trx.transaction.firstLeafIndex.toString(),
+          },
         };
       },
     );

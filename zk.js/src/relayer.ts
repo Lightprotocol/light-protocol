@@ -13,8 +13,9 @@ import {
   IndexedTransaction,
   TOKEN_ACCOUNT_FEE,
   SendVersionedTransactionsResult,
-  ParsedIndexedTransaction,
   BN_0,
+  RpcIndexedTransaction,
+  RelayerIndexedTransaction,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -30,7 +31,6 @@ export class Relayer {
   };
   relayerFee: BN;
   highRelayerFee: BN;
-  indexedTransactions: ParsedIndexedTransaction[] = [];
   url: string;
 
   /**
@@ -105,11 +105,11 @@ export class Relayer {
   async getIndexedTransactions(
     /* We must keep the param for type equality with TestRelayer */
     _connection: Connection,
-  ): Promise<ParsedIndexedTransaction[]> {
+  ): Promise<RelayerIndexedTransaction[]> {
     try {
       const response = await axios.get(this.url + "/indexedTransactions");
 
-      const indexedTransactions: ParsedIndexedTransaction[] =
+      const indexedTransactions: RelayerIndexedTransaction[] =
         response.data.data.map((trx: IndexedTransaction) => {
           return {
             ...trx,
@@ -154,5 +154,74 @@ export class Relayer {
       new BN(data.highRelayerFee),
       url,
     );
+  }
+
+  async getEventById(
+    merkleTreePdaPublicKey: PublicKey,
+    id: string,
+    variableNameID: number,
+  ): Promise<RpcIndexedTransaction | undefined> {
+    try {
+      const response = await axios.post(this.url + "/getEventById", {
+        id,
+        variableNameID,
+        merkleTreePdaPublicKey: merkleTreePdaPublicKey.toBase58(),
+      });
+      return response.data.data;
+    } catch (err) {
+      console.error({ err });
+      throw err;
+    }
+  }
+
+  async getEventsByIdBatch(
+    merkleTreePdaPublicKey: PublicKey,
+    ids: string[],
+    variableNameID: number,
+  ): Promise<RpcIndexedTransaction[] | undefined> {
+    if (ids.length === 0) return [];
+    try {
+      const response = await axios.post(this.url + "/getEventsByIdBatch", {
+        ids,
+        variableNameID,
+        merkleTreePdaPublicKey: merkleTreePdaPublicKey.toBase58(),
+      });
+      return response.data.data;
+    } catch (err) {
+      console.error({ err });
+      throw err;
+    }
+  }
+
+  async getMerkleProofByIndexBatch(
+    merkleTreePdaPublicKey: PublicKey,
+    indexes: number[],
+  ): Promise<
+    { merkleProofs: string[][]; root: string; index: number } | undefined
+  > {
+    try {
+      const response = await axios.post(
+        this.url + "/getMerkleProofByIndexBatch",
+        { indexes, merkleTreePdaPublicKey: merkleTreePdaPublicKey.toBase58() },
+      );
+      return response.data.data;
+    } catch (err) {
+      console.error({ err });
+      throw err;
+    }
+  }
+
+  async getMerkleRoot(
+    merkleTreePdaPublicKey: PublicKey,
+  ): Promise<{ root: string; index: number } | undefined> {
+    try {
+      const response = await axios.post(this.url + "/getMerkleRoot", {
+        merkleTreePdaPublicKey: merkleTreePdaPublicKey.toBase58(),
+      });
+      return response.data.data;
+    } catch (err) {
+      console.error({ err });
+      throw err;
+    }
   }
 }

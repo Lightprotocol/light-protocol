@@ -1,19 +1,24 @@
 import { Job } from "bullmq";
 import { Connection } from "@solana/web3.js";
-import { IndexedTransaction } from "@lightprotocol/zk.js";
 import { searchBackward, searchForward } from "./search";
 import { MIN_INDEXER_SLOT } from "../../config";
+import { RelayerIndexedTransaction } from "@lightprotocol/zk.js";
 
 function mergeAndSortTransactions(
-  dbTransactions: IndexedTransaction[],
-  newTransactions: IndexedTransaction[][],
+  dbTransactions: RelayerIndexedTransaction[],
+  newTransactions: RelayerIndexedTransaction[][],
 ) {
-  const mergedTransactions: IndexedTransaction[] = dbTransactions.concat(
+  const mergedTransactions: RelayerIndexedTransaction[] = dbTransactions.concat(
     ...newTransactions,
   );
   const dedupedTransactions = mergedTransactions.reduce(
-    (acc: IndexedTransaction[], cur: IndexedTransaction) => {
-      if (cur && !acc.find((item) => item.signature === cur.signature)) {
+    (acc: RelayerIndexedTransaction[], cur: RelayerIndexedTransaction) => {
+      if (
+        cur &&
+        !acc.find(
+          (item) => item.transaction.signature === cur.transaction.signature,
+        )
+      ) {
         acc.push(cur);
       }
       return acc;
@@ -21,7 +26,8 @@ function mergeAndSortTransactions(
     [],
   );
   dedupedTransactions.sort(
-    (a: IndexedTransaction, b: IndexedTransaction) => b.blockTime - a.blockTime,
+    (a: RelayerIndexedTransaction, b: RelayerIndexedTransaction) =>
+      b.transaction.blockTime - a.transaction.blockTime,
   );
   return dedupedTransactions;
 }
@@ -36,7 +42,7 @@ export async function indexTransactions({
   fillBackward: boolean;
 }): Promise<{ continueBackwardFill: boolean }> {
   try {
-    let olderTransactions: IndexedTransaction[] = [];
+    let olderTransactions: RelayerIndexedTransaction[] = [];
     let oldestFetchedSignature: string | null = null;
     let continueBackwardFill = false;
     /// fillBackward is true when the indexer is started for the first time
@@ -51,15 +57,16 @@ export async function indexTransactions({
       if (olderTransactions.length > 0) continueBackwardFill = true;
     }
 
-    const newerTransactions: IndexedTransaction[] = await searchForward(
+    const newerTransactions: RelayerIndexedTransaction[] = await searchForward(
       job,
       connection,
     );
 
-    const dedupedTransactions: IndexedTransaction[] = mergeAndSortTransactions(
-      job.data.transactions,
-      [olderTransactions, newerTransactions],
-    );
+    const dedupedTransactions: RelayerIndexedTransaction[] =
+      mergeAndSortTransactions(job.data.transactions, [
+        olderTransactions,
+        newerTransactions,
+      ]);
     console.log(
       `new total: ${dedupedTransactions.length} transactions old: ${job.data.transactions.length}, older: ${olderTransactions.length}, newer: ${newerTransactions.length}`,
     );
@@ -85,8 +92,8 @@ export async function indexTransactions({
 // This function is used to exclude transactions which have been executed before a certain block.
 // We need this for testnet to exclude transactions of an old merkle tree.
 function filterTransactionsByMinBlockTime(
-  transactions: IndexedTransaction[],
+  transactions: RelayerIndexedTransaction[],
   minBlockTime: number,
 ) {
-  return transactions.filter((trx) => trx.blockTime > minBlockTime);
+  return transactions.filter((trx) => trx.transaction.blockTime > minBlockTime);
 }

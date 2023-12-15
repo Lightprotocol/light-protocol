@@ -10,10 +10,8 @@ import {
   Provider as LightProvider,
   ProviderErrorCode,
   ADMIN_AUTH_KEYPAIR,
-  DEFAULT_ZERO,
   ProviderError,
   MINT,
-  MerkleTreeConfig,
 } from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -30,15 +28,6 @@ describe("Test Provider Functional", () => {
     assert.equal(lightProviderMock.url, "mock");
     assert(lightProviderMock.hasher);
     assert(lightProviderMock.lookUpTables.versionedTransactionLookupTable);
-    assert.equal(
-      lightProviderMock.solMerkleTree?.pubkey.toBase58(),
-      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
-    );
-    assert.equal(lightProviderMock.solMerkleTree?.merkleTree.levels, 18);
-    assert.equal(
-      lightProviderMock.solMerkleTree?.merkleTree.zeroElement,
-      DEFAULT_ZERO,
-    );
     const additionalMint = SolanaKeypair.generate().publicKey;
     assert.equal(
       lightProviderMock.lookUpTables.assetLookupTable[0],

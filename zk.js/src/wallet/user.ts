@@ -57,7 +57,13 @@ import {
   getSystemPspIdl,
   getTxParams,
   getVerifierProgramId,
+  syncInputUtxosMerkleProofs,
+  TransactionParametersError,
+  TransactionParametersErrorCode,
+  RpcIndexedTransaction,
 } from "../index";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Hasher } from "@lightprotocol/account.rs";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -178,28 +184,38 @@ export class User {
       throw new UserError(ProviderErrorCode.PROVIDER_UNDEFINED, "syncState");
     if (!this.provider.provider)
       throw new UserError(UserErrorCode.PROVIDER_NOT_INITIALIZED, "syncState");
-    // TODO: adapt to indexedTransactions such that this works with verifier two for
 
-    const indexedTransactions =
-      await this.provider.relayer.getIndexedTransactions(
-        this.provider.provider!.connection,
-      );
-
-    await this.provider.latestMerkleTree(indexedTransactions);
+    const prefixes = aes
+      ? getPrefixes(
+          this.account,
+          merkleTreePdaPublicKey,
+          100,
+          this.provider.hasher,
+        )
+      : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
+    const indexedTransactions = await this.provider.relayer.getEventsByIdBatch(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      prefixes,
+      0,
+    );
+    if (!indexedTransactions) return balance;
 
     for (const trx of indexedTransactions) {
-      const leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
+      const leftLeafIndex = new BN(
+        trx.transaction.firstLeafIndex,
+        "hex",
+      ).toNumber();
 
-      for (let index = 0; index < trx.leaves.length; index += 2) {
-        const leafLeft = trx.leaves[index];
-        const leafRight = trx.leaves[index + 1];
+      for (let index = 0; index < trx.transaction.leaves.length; index += 2) {
+        const leafLeft = trx.transaction.leaves[index];
+        const leafRight = trx.transaction.leaves[index + 1];
 
         const encUtxoSize =
           NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
         // transaction nonce is the same for all utxos in one transaction
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
+            trx.transaction.encryptedUtxos.slice(
               index * encUtxoSize,
               index * encUtxoSize + encUtxoSize,
             ),
@@ -214,13 +230,11 @@ export class User {
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-          merkleProof:
-            this.provider.solMerkleTree!.merkleTree.path(leftLeafIndex)
-              .pathElements,
+          merkleProof: trx.merkleProofs[index],
         });
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
-            trx.encryptedUtxos.slice(
+            trx.transaction.encryptedUtxos.slice(
               index * encUtxoSize + encUtxoSize,
               index * encUtxoSize + encUtxoSize * 2,
             ),
@@ -235,9 +249,7 @@ export class User {
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-          merkleProof: this.provider.solMerkleTree!.merkleTree.path(
-            leftLeafIndex + 1,
-          ).pathElements,
+          merkleProof: trx.merkleProofs[index + 1],
         });
       }
     }
@@ -252,7 +264,7 @@ export class User {
     };
 
     this.transactionHistory = await getUserIndexTransactions(
-      indexedTransactions,
+      indexedTransactions.map((trx) => trx.transaction),
       this.provider,
       this.balance.tokenBalances,
     );
@@ -287,12 +299,6 @@ export class User {
       throw new UserError(
         UserErrorCode.USER_ACCOUNT_NOT_INITIALIZED,
         "Provider not initialized",
-      );
-    if (!this.provider.solMerkleTree)
-      throw new UserError(
-        ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
-        "getBalance",
-        "Merkle Tree not initialized",
       );
     if (!this.provider.lookUpTables.verifierProgramLookupTable)
       throw new UserError(
@@ -476,6 +482,7 @@ export class User {
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         this.provider.lookUpTables.verifierProgramLookupTable,
+      relayer: this.provider.relayer,
     });
     this.recentTransactionParameters = txParams;
     return txParams;
@@ -490,11 +497,43 @@ export class User {
         "compileAndProveTransaction",
         "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
-
+    let root: string | undefined = undefined;
+    let rootIndex: number | undefined = undefined;
+    if (
+      this.recentTransactionParameters.private.inputUtxos &&
+      this.recentTransactionParameters.private.inputUtxos.length != 0
+    ) {
+      const {
+        syncedUtxos,
+        root: fetchedRoot,
+        index,
+      } = await syncInputUtxosMerkleProofs({
+        inputUtxos: this.recentTransactionParameters.private.inputUtxos,
+        merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        relayer: this.provider.relayer,
+      });
+      this.recentTransactionParameters.private.inputUtxos = syncedUtxos;
+      root = fetchedRoot;
+      rootIndex = index;
+    } else {
+      const res = (await this.provider.relayer!.getMerkleRoot(
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      ))!;
+      root = res.root;
+      rootIndex = res.index;
+    }
+    if (!root) {
+      throw new TransactionParametersError(
+        TransactionParametersErrorCode.FETCHING_ROOT_FAILED,
+        "getTxParams",
+        "Fetching root from relayer failed.",
+      );
+    }
     const systemProofInputs = createSystemProofInputs({
       transaction: this.recentTransactionParameters,
       hasher: this.provider.hasher,
       account: this.account,
+      root,
     });
     const systemProof = await getSystemProof({
       account: this.account,
@@ -504,12 +543,10 @@ export class User {
       )!,
       systemProofInputs,
     });
-    const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
-      await this.provider.getRootIndex();
 
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject,
-      remainingMerkleTreeAccounts,
+      // TODO: readd remainingMerkleTreeAccounts,
     );
     const accounts = prepareAccounts({
       transactionAccounts: this.recentTransactionParameters.public.accounts,
@@ -522,7 +559,6 @@ export class User {
       action: this.recentTransactionParameters["action"]
         ? this.recentTransactionParameters["action"]
         : Action.TRANSFER,
-      rootIndex,
       systemProof,
       remainingSolanaAccounts,
       accounts,
@@ -530,6 +566,7 @@ export class User {
       systemPspIdl: getSystemPspIdl(
         this.recentTransactionParameters.public.accounts.systemPspId,
       ),
+      rootIndex,
     });
     return this.recentInstructions;
   }
@@ -1297,11 +1334,6 @@ export class User {
   }
 
   // TODO: add proof-of-origin call.
-  // TODO: merge with getUtxoStatus?
-
-  getUtxoStatus() {
-    throw new Error("not implemented yet");
-  }
 
   // getPrivacyScore() -> for unshield only, can separate into its own helper method
   // Fetch utxos should probably be a function such the user object is not occupied while fetching,
@@ -1523,7 +1555,11 @@ export class User {
    * - try to decrypt all and add to appUtxos or decrypted data map
    * - add custom description strategies for arbitrary data
    */
-  async syncStorage(idl: anchor.Idl, aes: boolean = true) {
+  async syncStorage(
+    idl: anchor.Idl,
+    aes: boolean = true,
+    merkleTreePdaPublicKey: PublicKey = MerkleTreeConfig.getTransactionMerkleTreePda(),
+  ) {
     // TODO: move to relayer
     // TODO: implement the following
     /**
@@ -1536,15 +1572,30 @@ export class User {
      *  remaining message
      * ]
      */
-    const indexedTransactions =
-      await this.provider.relayer.getIndexedTransactions(
-        this.provider.provider!.connection,
+
+    const prefixes = aes
+      ? getPrefixes(
+          this.account,
+          merkleTreePdaPublicKey,
+          100,
+          this.provider.hasher,
+        )
+      : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
+    const indexedTransactions = await this.provider.relayer.getEventsByIdBatch(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      prefixes,
+      0,
+    );
+    if (!indexedTransactions)
+      throw new UserError(
+        UserErrorCode.FETCHING_INDEXED_TRANSACTIONS_FAILED,
+        "syncStorage",
+        "Fetching indexed transactions from relayer failed!",
       );
-    await this.provider.latestMerkleTree(indexedTransactions);
 
     const indexedStorageVerifierTransactionsFiltered =
       indexedTransactions.filter((indexedTransaction) => {
-        return indexedTransaction.message.length !== 0;
+        return indexedTransaction.transaction.message.length !== 0;
       });
     // /**
     //  * - match first 8 bytes against account discriminator for every appIdl that is cached in the user class
@@ -1557,8 +1608,9 @@ export class User {
      * - aes: boolean = true
      * - decrypt storage verifier
      */
+    // TODO: support decryption of multiple messages in one transaction, the first 8 bytes should be the length of the message
     const decryptIndexStorage = async (
-      indexedTransactions: ParsedIndexedTransaction[],
+      indexedTransactions: RpcIndexedTransaction[],
       assetLookupTable: string[],
       aes: boolean,
     ) => {
@@ -1566,13 +1618,13 @@ export class User {
       const spentUtxos: Utxo[] = [];
       for (const data of indexedTransactions) {
         let decryptedUtxo: Result<Utxo | null, UtxoError>;
-        let index = data.firstLeafIndex.toNumber();
-        for (const [, leaf] of data.leaves.entries()) {
+        let index = new BN(data.transaction.firstLeafIndex, "hex").toNumber();
+        for (const [, leaf] of data.transaction.leaves.entries()) {
           try {
             decryptedUtxo = await Utxo.decryptUnchecked({
               hasher: this.provider.hasher,
               account: this.account,
-              encBytes: Uint8Array.from(data.message),
+              encBytes: Uint8Array.from(data.transaction.message),
               appDataIdl: idl,
               aes,
               index: index,
@@ -1581,9 +1633,7 @@ export class User {
                 MerkleTreeConfig.getTransactionMerkleTreePda(),
               compressed: false,
               assetLookupTable,
-              merkleProof:
-                this.provider.solMerkleTree!.merkleTree.path(index)
-                  .pathElements,
+              merkleProof: data.merkleProofs[index],
             });
 
             if (decryptedUtxo.value) {
@@ -1757,19 +1807,21 @@ export class User {
     latestInboxBalance = true,
     idl,
     asMap = false,
+    merkleTree = MerkleTreeConfig.getTransactionMerkleTreePda(),
   }: {
     latestBalance?: boolean;
     latestInboxBalance?: boolean;
     idl: Idl;
     aes?: boolean;
     asMap?: boolean;
+    merkleTree?: PublicKey;
   }) {
     const programAddress = getVerifierProgramId(idl);
     const balance = latestBalance
-      ? await this.syncStorage(idl, true)
+      ? await this.syncStorage(idl, true, merkleTree)
       : this.balance.programBalances;
     const inboxBalance = latestInboxBalance
-      ? await this.syncStorage(idl, false)
+      ? await this.syncStorage(idl, false, merkleTree)
       : this.inboxBalance.programBalances;
 
     const programBalance = balance?.get(programAddress.toBase58());
@@ -1798,13 +1850,14 @@ export class User {
   async getUtxo(
     commitment: string,
     latest: boolean = false,
+    merkleTree = MerkleTreeConfig.getTransactionMerkleTreePda(),
     idl?: Idl,
   ): Promise<{ utxo: Utxo; status: string } | undefined> {
     if (latest) {
       await this.getBalance();
       if (idl) {
-        await this.syncStorage(idl, true);
-        await this.syncStorage(idl, false);
+        await this.syncStorage(idl, true, merkleTree);
+        await this.syncStorage(idl, false, merkleTree);
       }
     }
 
@@ -1833,3 +1886,23 @@ export class User {
     return iterateOverTokenBalance(this.balance.tokenBalances);
   }
 }
+
+// get prefixes until the latest leaf index
+export const getPrefixes = (
+  account: Account,
+  merkleTreePdaPublicKey: PublicKey,
+  no: number,
+  hasher: Hasher,
+) => {
+  const prefixes: string[] = [];
+  for (let i = 0; i < no; i++) {
+    const prefix = account.generateUtxoPrefixHash(
+      merkleTreePdaPublicKey,
+      new BN(i),
+      UTXO_PREFIX_LENGTH,
+      hasher,
+    );
+    prefixes.push(bs58.encode(prefix));
+  }
+  return prefixes;
+};

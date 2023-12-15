@@ -4,11 +4,14 @@ import { addCorsHeaders } from "./middleware";
 import bodyParser from "body-parser";
 import {
   getIndexedTransactions,
-  buildMerkleTree,
   handleRelayRequest,
   runIndexer,
   getLookUpTable,
   getRelayerInfo,
+  getEventById,
+  getEventsByIdBatch,
+  getMerkleProofByIndexBatch,
+  getMerkleRoot,
 } from "./services";
 import { getTransactions } from "./db/redis";
 import { createTestAccounts } from "@lightprotocol/zk.js";
@@ -32,8 +35,6 @@ app.get("/", async (_req: any, res: any) => {
   }
 });
 
-app.get("/getBuiltMerkletree", buildMerkleTree);
-
 app.get("/lookuptable", getLookUpTable);
 
 app.post("/relayTransaction", handleRelayRequest);
@@ -41,6 +42,14 @@ app.post("/relayTransaction", handleRelayRequest);
 app.get("/indexedTransactions", getIndexedTransactions);
 
 app.get("/getRelayerInfo", getRelayerInfo);
+
+app.post("/getEventById", getEventById);
+
+app.post("/getEventsByIdBatch", getEventsByIdBatch);
+
+app.post("/getMerkleProofByIndexBatch", getMerkleProofByIndexBatch);
+
+app.post("/getMerkleRoot", getMerkleRoot);
 
 app.listen(port, async () => {
   console.log("Starting relayer...");
