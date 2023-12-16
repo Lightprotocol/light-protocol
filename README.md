@@ -28,10 +28,11 @@ It consists of the following:
 - [RPC Node](https://github.com/Lightprotocol/light-protocol/tree/main/relayer) (relayer) - for indexing and forwarding Light transactions to the Solana network.
 - [zk.js](https://github.com/Lightprotocol/light-protocol/tree/main/zk.js) - web3.js-esque helpers to build transactions and interact with your PSP.
   
-Note: All these tools and the protocol are in active development and unaudited.
+Note: All these tools and the protocol are in active development and unaudited. You can currently test and deploy your PSP on Localnet, Testnet, and Devnet.
 
+To get started, a good PSP reference implementation is available [here](https://github.com/Lightprotocol/breakpoint-workshop).
 
-To get started, read below: 
+Otherwise, to work with this Monorepo, read below: 
 
 
 ## Development environment
