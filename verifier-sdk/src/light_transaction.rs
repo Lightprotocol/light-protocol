@@ -184,7 +184,7 @@ impl<
         let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
         let merkle_tree = merkle_tree.load_mut()?;
 
-        let first_leaf_index = merkle_tree.next_queued_index;
+        let first_leaf_index = merkle_tree.merkle_tree.next_index;
 
         let message = match &self.input.message {
             Some(message) => message.content.clone(),

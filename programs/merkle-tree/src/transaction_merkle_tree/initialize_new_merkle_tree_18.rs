@@ -22,6 +22,7 @@ pub fn process_initialize_new_merkle_tree(
     use light_sparse_merkle_tree::HashFunction;
 
     merkle_tree.newest = 1;
+    merkle_tree.merkle_tree_nr = merkle_tree_authority.transaction_merkle_tree_index;
     merkle_tree
         .merkle_tree
         .init(height, HashFunction::Poseidon)?;

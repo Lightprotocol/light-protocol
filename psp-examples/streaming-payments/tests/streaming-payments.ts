@@ -12,7 +12,6 @@ import {
   ProgramUtxoBalance,
   Provider as LightProvider,
   TestRelayer,
-  TransactionParameters,
   User,
   Utxo,
   ProgramParameters,
@@ -24,6 +23,7 @@ import {
   sendAndConfirmShieldedTransaction,
   createTransaction,
   lightPsp4in4outAppStorageId,
+  getVerifierProgramId,
 } from "@lightprotocol/zk.js";
 import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import {
@@ -396,7 +396,7 @@ class PaymentStreamClient {
       amounts: [amount],
       appData: appData,
       appDataIdl: this.idl,
-      verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
+      verifierAddress: getVerifierProgramId(this.idl),
       assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
     });
 
@@ -469,7 +469,7 @@ class PaymentStreamClient {
         amounts: [remainingAmount],
         appData: this.streamInitUtxo.appData,
         appDataIdl: this.idl,
-        verifierAddress: TransactionParameters.getVerifierProgramId(this.idl),
+        verifierAddress: getVerifierProgramId(this.idl),
         assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
       });
       return { programParameters, outUtxo, inUtxo };

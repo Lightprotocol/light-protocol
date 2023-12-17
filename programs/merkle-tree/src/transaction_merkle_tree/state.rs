@@ -20,14 +20,9 @@ impl MerkleTreeConfig for TransactionMerkleTreeConfig {
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
 pub struct TransactionMerkleTree {
-    pub merkle_tree: MerkleTree<Poseidon, TransactionMerkleTreeConfig>,
-    pub pubkey_locked: Pubkey,
-    pub time_locked: u64,
     pub merkle_tree_nr: u64,
-    pub lock_duration: u64,
-    pub next_queued_index: u64,
-    pub newest: u8,
-    _padding: [u8; 7],
+    pub newest: u64,
+    pub merkle_tree: MerkleTree<Poseidon, TransactionMerkleTreeConfig>,
 }
 
 impl_indexed_merkle_tree!(TransactionMerkleTree);

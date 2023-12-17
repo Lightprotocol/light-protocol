@@ -105,19 +105,3 @@ pub struct Utxo {
     account_shielded_public_key: u256,
     account_encryption_public_key: [u8; 32],
 }
-
-#[account]
-pub struct TransactionParameters {
-    message: Vec<u8>,
-    input_utxos_bytes: Vec<Vec<u8>>,
-    // outputUtxos should be checked
-    // TODO: write function which checks and displays how much multisig funds are spent, to whom, etc
-    output_utxos_bytes: Vec<Vec<u8>>,
-    // integrityHashInputs
-    recipient_spl: Pubkey,
-    recipient_sol: Pubkey,
-    relayer_pubkey: Pubkey,
-    relayer_fee: u64,
-    // for determinitic encryption, nonces are derived from commitment hashes thus no need to save separately
-    transaction_nonce: u64,
-}

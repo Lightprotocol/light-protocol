@@ -119,13 +119,20 @@ export class MerkleTreeConfig {
 
     await this.checkTransactionMerkleTreeIsInitialized(
       newTransactionMerkleTree,
+      transactionMerkleTreeIndex,
     );
     await this.checkEventMerkleTreeIsInitialized(newEventMerkleTree);
-    return txHash;
+    return {
+      txHash,
+      eventMerkleTree: newEventMerkleTree,
+      transactionMerkleTree: newTransactionMerkleTree,
+      index: transactionMerkleTreeIndex,
+    };
   }
 
   async checkTransactionMerkleTreeIsInitialized(
     transactionMerkleTreePda: PublicKey,
+    transactionMerkleTreeIndex: anchor.BN,
   ) {
     const transactionMerkleTreeAccountInfo =
       await this.getTransactionMerkleTreeAccountInfo(transactionMerkleTreePda);
@@ -133,9 +140,23 @@ export class MerkleTreeConfig {
       transactionMerkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
     );
-    assert(
-      transactionMerkleTreeAccountInfo.newest == 1,
+    assert.equal(
+      transactionMerkleTreeAccountInfo.newest.toString(),
+      "1",
       "new Merkle Tree is not marked as the newest",
+    );
+    assert.equal(
+      transactionMerkleTreeIndex.toString(),
+      transactionMerkleTreeAccountInfo.merkleTreeNr.toString(),
+      "Merkle tree number is not correct",
+    );
+    const merkleTreeAuthorityAccountInfo =
+      await this.getMerkleTreeAuthorityAccountInfo();
+    assert.equal(
+      transactionMerkleTreeAccountInfo.merkleTreeNr.toString(),
+      merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex
+        .sub(BN_1)
+        .toString(),
     );
   }
 
@@ -143,6 +164,8 @@ export class MerkleTreeConfig {
     const merkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
       eventMerkleTreePubkey,
     );
+    const merkleTreeAuthorityAccountInfo =
+      await this.getMerkleTreeAuthorityAccountInfo();
     assert(
       merkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
@@ -150,6 +173,10 @@ export class MerkleTreeConfig {
     assert(
       merkleTreeAccountInfo.newest == 1,
       "new Merkle Tree is not marked as the newest",
+    );
+    assert.equal(
+      merkleTreeAccountInfo.merkleTreeNr.toString(),
+      merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex.sub(BN_1).toString(),
     );
   }
 
@@ -208,7 +235,7 @@ export class MerkleTreeConfig {
       await this.getTransactionMerkleTreeAccountInfo(
         transactionMerkleTreePubkey,
       );
-    return transactionMerkleTreeAccountInfo.newest == 1;
+    return transactionMerkleTreeAccountInfo.newest.toString() === "1";
   }
 
   async getEventMerkleTreeIndex(): Promise<anchor.BN> {
@@ -392,42 +419,6 @@ export class MerkleTreeConfig {
         this.merkleTreeAuthorityPda!,
       );
     assert(merkleTreeAuthority.enablePermissionlessSplTokens == configValue);
-    return txHash;
-  }
-
-  async updateLockDuration(lockDuration: number) {
-    if (!this.payer) throw new Error("Payer undefined");
-    if (this.merkleTreeAuthorityPda == undefined) {
-      await this.getMerkleTreeAuthorityPda();
-    }
-
-    const transactionMerkleTreePda =
-      MerkleTreeConfig.getTransactionMerkleTreePda();
-
-    const tx = await this.merkleTreeProgram.methods
-      .updateLockDuration(new anchor.BN(lockDuration.toString()))
-      .accounts({
-        authority: this.payer.publicKey,
-        merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
-        transactionMerkleTree: transactionMerkleTreePda,
-        ...DEFAULT_PROGRAMS,
-      })
-      .signers([this.payer])
-      .transaction();
-
-    const txHash = await sendAndConfirmTransaction(
-      this.connection,
-      tx,
-      [this.payer!],
-      confirmConfig,
-    );
-    const merkleTree =
-      await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-        transactionMerkleTreePda!,
-      );
-    assert.equal(merkleTree.lockDuration.toString(), lockDuration.toString());
-    console.log("lock duration updated to: ", lockDuration);
-
     return txHash;
   }
 
