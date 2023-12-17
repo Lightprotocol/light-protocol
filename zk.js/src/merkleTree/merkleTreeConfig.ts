@@ -235,7 +235,7 @@ export class MerkleTreeConfig {
       await this.getTransactionMerkleTreeAccountInfo(
         transactionMerkleTreePubkey,
       );
-    return transactionMerkleTreeAccountInfo.newest.toString() == "1";
+    return transactionMerkleTreeAccountInfo.newest.toString() === "1";
   }
 
   async getEventMerkleTreeIndex(): Promise<anchor.BN> {
