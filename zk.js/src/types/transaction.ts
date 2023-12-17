@@ -1,7 +1,6 @@
 import { BN, Idl, Provider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { Relayer } from "../relayer";
-import { Action } from "../transaction";
 import { Utxo } from "../utxo";
 
 export type AppUtxoConfig = {
@@ -59,6 +58,7 @@ export type IndexedTransaction = {
   relayerFee: string;
   message: Buffer;
 };
+
 export type ParsedIndexedTransaction = {
   blockTime: number;
   signer: PublicKey;
@@ -84,4 +84,24 @@ export type ParsedIndexedTransaction = {
 export type UserIndexedTransaction = ParsedIndexedTransaction & {
   inSpentUtxos: Utxo[];
   outSpentUtxos: Utxo[];
+};
+
+export enum Action {
+  SHIELD = "SHIELD",
+  TRANSFER = "TRANSFER",
+  UNSHIELD = "UNSHIELD",
+}
+
+export type PublicInputs = {
+  root: Array<number>;
+  publicAmountSpl: Array<number>;
+  txIntegrityHash: Array<number>;
+  publicAmountSol: Array<number>;
+  publicMintPubkey: Array<number>;
+  inputNullifier: Array<Array<number>>;
+  outputCommitment: Array<Array<number>>;
+  // only for app verifiers
+  transactionHash?: Array<number>;
+  checkedParams?: Array<Array<number>>;
+  publicAppVerifier?: Array<number>;
 };

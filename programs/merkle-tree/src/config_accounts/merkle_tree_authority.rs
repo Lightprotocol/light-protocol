@@ -1,5 +1,3 @@
-use std::cell::RefMut;
-
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 
@@ -123,14 +121,6 @@ pub fn process_initialize_merkle_tree_authority(
 
 pub fn process_update_merkle_tree_authority(ctx: Context<UpdateMerkleTreeAuthority>) -> Result<()> {
     ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.new_authority.key();
-    Ok(())
-}
-
-pub fn process_update_lock_duration(
-    transaction_merkle_tree: &mut RefMut<'_, TransactionMerkleTree>,
-    lock_duration: u64,
-) -> Result<()> {
-    transaction_merkle_tree.lock_duration = lock_duration;
     Ok(())
 }
 

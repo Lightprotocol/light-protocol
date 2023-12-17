@@ -15,12 +15,17 @@ import {
   FEE_ASSET,
   Provider as LightProvider,
   MINT,
-  LegacyTransaction as Transaction,
-  TransactionParameters,
   Action,
   Utxo,
   Account,
   IDL_LIGHT_PSP2IN2OUT,
+  ShieldTransaction,
+  createShieldTransaction,
+  ShieldTransactionInput,
+  MerkleTreeConfig,
+  getVerifierProgramId,
+  createSystemProofInputs,
+  getSystemProof,
 } from "../../zk.js/src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -31,16 +36,16 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 describe("Prover Functionality Tests", () => {
   const shieldAmount = 20_000;
   const shieldFeeAmount = 10_000;
-
+  const verifierIdl = IDL_LIGHT_PSP2IN2OUT;
   const mockPubkey = SolanaKeypair.generate().publicKey;
   const mockPubkey2 = SolanaKeypair.generate().publicKey;
-
+  const path = require("path");
+  const firstPath = path.resolve(__dirname, "../build-circuits/");
   let lightProvider: LightProvider;
-  let paramsShield: TransactionParameters;
   let shieldUtxo: Utxo;
   let account: Account;
   let hasher: Hasher;
-
+  let shieldTransaction: ShieldTransaction;
   before(async () => {
     hasher = await WasmHasher.getInstance();
     lightProvider = await LightProvider.loadMock();
@@ -54,18 +59,20 @@ describe("Prover Functionality Tests", () => {
       blinding: new anchor.BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
-
-    paramsShield = new TransactionParameters({
-      outputUtxos: [shieldUtxo],
-      eventMerkleTreePubkey: mockPubkey2,
-      transactionMerkleTreePubkey: mockPubkey2,
+    const shieldTransactionInput: ShieldTransactionInput = {
       hasher,
+      mint: MINT,
+      transactionMerkleTreePubkey:
+        MerkleTreeConfig.getTransactionMerkleTreePda(),
       senderSpl: mockPubkey,
-      senderSol: lightProvider.wallet?.publicKey,
-      action: Action.SHIELD,
-      verifierIdl: IDL_LIGHT_PSP2IN2OUT,
+      signer: mockPubkey2,
+      systemPspId: getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT),
       account,
-    });
+      outputUtxos: [shieldUtxo],
+      root: lightProvider.solMerkleTree!.merkleTree.root(),
+    };
+
+    shieldTransaction = await createShieldTransaction(shieldTransactionInput);
 
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, hasher, [
       shieldUtxo.getCommitment(hasher),
@@ -85,19 +92,22 @@ describe("Prover Functionality Tests", () => {
   });
 
   it("Verifies Prover with VerifierZero", async () => {
-    const tx = new Transaction({
-      ...(await lightProvider.getRootIndex()),
-      solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsShield,
+    const systemProofInputs = createSystemProofInputs({
+      transaction: shieldTransaction,
+      hasher,
+      account,
     });
 
-    await tx.compile(lightProvider.hasher, account);
-
-    const genericProver = new Prover(tx.params.verifierIdl, tx.firstPath);
-    tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
-    await genericProver.addProofInputs(tx.proofInput);
+    const genericProver = new Prover(verifierIdl, firstPath);
+    systemProofInputs["inPrivateKey"] = new Array(2).fill(account.privkey);
+    await genericProver.addProofInputs(systemProofInputs);
     await genericProver.fullProve();
-    await tx.getProof(account);
+    await getSystemProof({
+      account,
+      inputUtxos: shieldTransaction.private.inputUtxos,
+      verifierIdl,
+      systemProofInputs,
+    });
 
     const publicInputsBytes = genericProver.parseToBytesArray(
       genericProver.publicInputs,
@@ -124,24 +134,32 @@ describe("Prover Functionality Tests", () => {
   });
 
   it("Checks identical public inputs with different randomness", async () => {
-    const tx = new Transaction({
-      ...(await lightProvider.getRootIndex()),
-      solMerkleTree: lightProvider.solMerkleTree!,
-      params: paramsShield,
+    const proofInput = createSystemProofInputs({
+      transaction: shieldTransaction,
+      hasher,
+      account,
     });
 
-    await tx.compile(lightProvider.hasher, account);
-
-    const prover1 = new Prover(tx.params.verifierIdl, tx.firstPath);
-    tx.proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
-    await prover1.addProofInputs(tx.proofInput);
+    const prover1 = new Prover(verifierIdl, firstPath);
+    proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
+    await prover1.addProofInputs(proofInput);
     await prover1.fullProve();
-    await tx.getProof(account);
+    await getSystemProof({
+      account,
+      inputUtxos: shieldTransaction.private.inputUtxos,
+      verifierIdl,
+      systemProofInputs: proofInput,
+    });
 
-    const prover2 = new Prover(tx.params.verifierIdl, tx.firstPath);
-    await prover2.addProofInputs(tx.proofInput);
+    const prover2 = new Prover(verifierIdl, firstPath);
+    await prover2.addProofInputs(proofInput);
     await prover2.fullProve();
-    await tx.getProof(account);
+    await getSystemProof({
+      account,
+      inputUtxos: shieldTransaction.private.inputUtxos,
+      verifierIdl,
+      systemProofInputs: proofInput,
+    });
 
     expect(prover1.publicInputs).to.deep.equal(
       prover2.publicInputs,

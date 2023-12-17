@@ -40,9 +40,6 @@ pub fn process_insert_two_leaves<'info, 'a>(
 
         // Insert the pair into the merkle tree
         merkle_tree.merkle_tree.insert(*leaf_left, *leaf_right)?;
-
-        // Increase next index by 2 because we're inserting 2 leaves at once
-        merkle_tree.next_queued_index += 2;
     }
 
     Ok(())

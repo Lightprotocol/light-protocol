@@ -25,7 +25,6 @@ import {
   getUserIndexTransactions,
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP10IN2OUT,
-  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
   InboxBalance,
   isProgramVerifier,
@@ -44,7 +43,6 @@ import {
   TokenUtxoBalance,
   Transaction,
   TransactionErrorCode,
-  TransactionParameters,
   UserError,
   UserErrorCode,
   UserIndexedTransaction,
@@ -58,6 +56,7 @@ import {
   prepareAccounts,
   getSystemPspIdl,
   getTxParams,
+  getVerifierProgramId,
 } from "../index";
 
 // TODO: Utxos should be assigned to a merkle tree
@@ -1765,7 +1764,7 @@ export class User {
     aes?: boolean;
     asMap?: boolean;
   }) {
-    const programAddress = TransactionParameters.getVerifierProgramId(idl);
+    const programAddress = getVerifierProgramId(idl);
     const balance = latestBalance
       ? await this.syncStorage(idl, true)
       : this.balance.programBalances;

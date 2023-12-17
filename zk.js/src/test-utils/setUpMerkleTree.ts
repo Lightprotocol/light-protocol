@@ -11,13 +11,13 @@ import {
   ADMIN_AUTH_KEYPAIR,
   POOL_TYPE,
   MINT,
-  LegacyTransaction as Transaction,
   merkleTreeProgramId,
   airdropSol,
   lightPsp2in2outId,
   lightPsp10in2outId,
   lightPsp4in4outAppStorageId,
   lightPsp2in2outStorageId,
+  getSignerAuthorityPda,
 } from "../index";
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 
@@ -106,7 +106,7 @@ export async function setUpMerkleTree(
         `verifier ${verifier.programId.toBase58()} is already initialized`,
       );
     }
-    const authorityPda = Transaction.getSignerAuthorityPda(
+    const authorityPda = getSignerAuthorityPda(
       merkleTreeProgramId,
       verifier.programId,
     );

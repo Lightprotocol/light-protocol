@@ -12,11 +12,11 @@ import {
   fetchAssetByIdLookUp,
   FIELD_SIZE,
   getAssetIndex,
+  getVerifierProgramId,
   hashAndTruncateToCircuit,
   IDL_LIGHT_PSP2IN2OUT,
   N_ASSETS,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  TransactionParameters,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
   UTXO_PREFIX_LENGTH,
   UtxoError,
@@ -495,7 +495,7 @@ export class Utxo {
         "utxoAppData",
       );
 
-      verifierAddress = TransactionParameters.getVerifierProgramId(appDataIdl);
+      verifierAddress = getVerifierProgramId(appDataIdl);
     }
     const assets = [
       SystemProgram.programId,

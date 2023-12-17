@@ -258,35 +258,6 @@ export type LightMerkleTreeProgram = {
       "args": []
     },
     {
-      "name": "updateLockDuration",
-      "docs": [
-        "Updates the lock duration for a specific merkle tree."
-      ],
-      "accounts": [
-        {
-          "name": "merkleTreeAuthorityPda",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "lockDuration",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "enablePermissionlessSplTokens",
       "docs": [
         "Enables anyone to create token pools."
@@ -1014,42 +985,17 @@ export type LightMerkleTreeProgram = {
         "kind": "struct",
         "fields": [
           {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
-            }
-          },
-          {
-            "name": "pubkeyLocked",
-            "type": "publicKey"
-          },
-          {
-            "name": "timeLocked",
-            "type": "u64"
-          },
-          {
             "name": "merkleTreeNr",
             "type": "u64"
           },
           {
-            "name": "lockDuration",
-            "type": "u64"
-          },
-          {
-            "name": "nextQueuedIndex",
-            "type": "u64"
-          },
-          {
             "name": "newest",
-            "type": "u8"
+            "type": "u64"
           },
           {
-            "name": "padding",
+            "name": "merkleTree",
             "type": {
-              "array": [
-                "u8",
-                7
-              ]
+              "defined": "MerkleTree"
             }
           }
         ]
@@ -1610,35 +1556,6 @@ export const IDL: LightMerkleTreeProgram = {
       "args": []
     },
     {
-      "name": "updateLockDuration",
-      "docs": [
-        "Updates the lock duration for a specific merkle tree."
-      ],
-      "accounts": [
-        {
-          "name": "merkleTreeAuthorityPda",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "lockDuration",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "enablePermissionlessSplTokens",
       "docs": [
         "Enables anyone to create token pools."
@@ -2366,42 +2283,17 @@ export const IDL: LightMerkleTreeProgram = {
         "kind": "struct",
         "fields": [
           {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
-            }
-          },
-          {
-            "name": "pubkeyLocked",
-            "type": "publicKey"
-          },
-          {
-            "name": "timeLocked",
-            "type": "u64"
-          },
-          {
             "name": "merkleTreeNr",
             "type": "u64"
           },
           {
-            "name": "lockDuration",
-            "type": "u64"
-          },
-          {
-            "name": "nextQueuedIndex",
-            "type": "u64"
-          },
-          {
             "name": "newest",
-            "type": "u8"
+            "type": "u64"
           },
           {
-            "name": "padding",
+            "name": "merkleTree",
             "type": {
-              "array": [
-                "u8",
-                7
-              ]
+              "defined": "MerkleTree"
             }
           }
         ]

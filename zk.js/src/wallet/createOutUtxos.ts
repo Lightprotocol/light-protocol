@@ -8,12 +8,12 @@ import {
   Action,
   Account,
   Utxo,
-  TransactionParameters,
   AppUtxoConfig,
   MINIMUM_LAMPORTS,
   BN_0,
   BN_1,
   BN_2,
+  getAssetPubkeys,
 } from "../index";
 import { Hasher } from "@lightprotocol/account.rs";
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
@@ -131,7 +131,7 @@ export function createOutUtxos({
           SystemProgram.programId,
           publicMint ? publicMint : SystemProgram.programId,
         ]
-      : TransactionParameters.getAssetPubkeys(inUtxos).assetPubkeys;
+      : getAssetPubkeys(inUtxos).assetPubkeys;
 
   if (!assetPubkeys)
     throw new CreateUtxoError(

@@ -20,7 +20,7 @@ import {
   BN_0,
 } from "../constants";
 
-import { Action } from "./transaction";
+import { Action } from "../index";
 
 import { getUpdatedSpentUtxos, sleep } from "../utils";
 import {

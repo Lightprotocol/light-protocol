@@ -1,6 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
-  LegacyTransaction as Transaction,
   Provider as LightProvider,
   confirmConfig,
   TestRelayer,
@@ -8,6 +7,7 @@ import {
   airdropSol,
   lightPsp2in2outStorageId,
   merkleTreeProgramId,
+  getSignerAuthorityPda,
 } from "@lightprotocol/zk.js";
 import { Keypair } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
@@ -20,7 +20,7 @@ describe("Test foobar", () => {
   const provider = setupAnchor();
 
   it("Test encrypted messaging", async () => {
-    const authorityPda = Transaction.getSignerAuthorityPda(
+    const authorityPda = getSignerAuthorityPda(
       merkleTreeProgramId,
       lightPsp2in2outStorageId,
     );

@@ -1,5 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
+  Connection,
   Keypair,
   Keypair as SolanaKeypair,
   SystemProgram,
@@ -42,6 +43,7 @@ import {
   getVerifierProgramId,
   createUnshieldTransaction,
   UnshieldTransactionInput,
+  DEFAULT_ZERO,
 } from "../../src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -49,6 +51,7 @@ import {
   getAssociatedTokenAddress,
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
+import { assert } from "chai";
 
 let HASHER: Hasher;
 let RELAYER: TestRelayer;
@@ -86,6 +89,48 @@ describe("verifier_program", () => {
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
     });
+  });
+
+  it("Provider", async () => {
+    const connection = new Connection("http://127.0.0.1:8899", "confirmed");
+    await connection.confirmTransaction(
+      await connection.requestAirdrop(
+        ADMIN_AUTH_KEYPAIR.publicKey,
+        10_000_000_0000,
+      ),
+      "confirmed",
+    );
+    const mockKeypair = SolanaKeypair.generate();
+    await airdropSol({
+      connection: provider.connection,
+      lamports: 1e9,
+      recipientPublicKey: mockKeypair.publicKey,
+    });
+    const lightProviderMock = await Provider.init({
+      wallet: mockKeypair,
+      relayer: RELAYER,
+      confirmConfig,
+    });
+    assert.equal(lightProviderMock.wallet.isNodeWallet, true);
+    assert.equal(
+      lightProviderMock.wallet?.publicKey.toBase58(),
+      mockKeypair.publicKey.toBase58(),
+    );
+    assert.equal(lightProviderMock.url, "http://127.0.0.1:8899");
+    assert(lightProviderMock.hasher);
+    assert.equal(
+      lightProviderMock.solMerkleTree?.pubkey.toBase58(),
+      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+    );
+    assert.equal(lightProviderMock.solMerkleTree?.merkleTree.levels, 18);
+    assert.equal(
+      lightProviderMock.solMerkleTree?.merkleTree.zeroElement,
+      DEFAULT_ZERO,
+    );
+    assert.equal(
+      lightProviderMock.solMerkleTree?.merkleTree._layers[0].length,
+      0,
+    );
   });
 
   it("Shield (verifier one)", async () => {

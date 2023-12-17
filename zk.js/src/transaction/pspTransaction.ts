@@ -13,7 +13,6 @@ import {
 } from "../constants";
 import {
   Account,
-  ProviderErrorCode,
   SolMerkleTree,
   TransactionError,
   TransactionErrorCode,

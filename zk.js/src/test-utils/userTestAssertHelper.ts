@@ -5,22 +5,14 @@ import {
   fetchNullifierAccountInfo,
   sleep,
   convertAndComputeDecimals,
-} from "../utils";
-import {
   Action,
-  TransactionParameters,
   fetchRecentTransactions,
-} from "../transaction";
-import {
   ParsedIndexedTransaction,
   TokenData,
   UserIndexedTransaction,
-} from "../types";
-import { Balance, Provider, User } from "../wallet";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { BN } from "@coral-xyz/anchor";
-
-import {
+  Balance,
+  Provider,
+  User,
   AUTHORITY,
   MINIMUM_LAMPORTS,
   TOKEN_REGISTRY,
@@ -28,9 +20,12 @@ import {
   BN_0,
   lightPsp10in2outId,
   lightPsp2in2outId,
-} from "../constants";
-import { Utxo } from "../utxo";
-import { MerkleTreeConfig } from "../index";
+  Utxo,
+  MerkleTreeConfig,
+  getEscrowPda,
+} from "../index";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { BN } from "@coral-xyz/anchor";
 
 export type TestInputs = {
   amountSpl?: number;
@@ -308,7 +303,7 @@ export class UserTestAssertHelper {
             {
               signer: this.sender.user.provider.wallet.publicKey,
               to: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
-              from: TransactionParameters.getEscrowPda(lightPsp2in2outId),
+              from: getEscrowPda(lightPsp2in2outId),
               publicAmountSpl: amountSpl
                 ? convertAndComputeDecimals(amountSpl, this.tokenCtx!.decimals)
                 : BN_0,
