@@ -1,8 +1,12 @@
 import {
+  BlockhashWithExpiryBlockHeight,
   Connection,
   PublicKey,
   RpcResponseAndContext,
   SignatureResult,
+  TransactionInstruction,
+  TransactionSignature,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import axios from "axios";
@@ -81,6 +85,22 @@ export class Relayer {
     this.highRelayerFee = highRelayerFee;
     this.relayerFee = relayerFee;
     this.url = url;
+  }
+
+  async sendSolanaInstructions(ixs: TransactionInstruction[]): Promise<{
+    signatures: TransactionSignature[];
+    blockHashInfo: BlockhashWithExpiryBlockHeight[];
+    versionedTransactions: VersionedTransaction[];
+  }> {
+    try {
+      const response = await axios.post(this.url + "/relayTransaction", {
+        ixs,
+      });
+      return response.data.data;
+    } catch (err) {
+      console.error({ err });
+      throw err;
+    }
   }
 
   async sendTransactions(

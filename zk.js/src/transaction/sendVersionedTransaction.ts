@@ -8,19 +8,180 @@ import {
   TransactionInstruction,
   TransactionMessage,
   TransactionSignature,
+  Blockhash,
   VersionedTransaction,
+  AddressLookupTableAccountArgs,
+  ConfirmOptions,
+  RecentPrioritizationFees,
 } from "@solana/web3.js";
 
-import { Wallet } from "../wallet";
+import { Provider, Wallet } from "../wallet";
 import { confirmConfig } from "../constants";
-export const sendVersionedTransaction = async (
+import { Action } from "./transaction";
+import { PrioritizationFee } from "../types";
+
+export async function sendAndConfirmSolanaInstructions(
+  ixs: TransactionInstruction[],
+  provider: Provider,
+  action?: Action,
+  confirmOptions?: ConfirmOptions,
+  prioritizationFee?: PrioritizationFee,
+): Promise<TransactionSignature[]> {
+  const versionedTransactionLookupTableAccountArgs =
+    await provider.getVersionedTransactionLookupTableAccountArgs();
+
+  const _action = action ?? Action.TRANSFER;
+
+  // on-ramp
+  // fetches recent blockhash, creates, signs, sends, and confirms transactions
+  if (_action === Action.SHIELD) {
+    const {
+      value: { blockhash, lastValidBlockHeight },
+    } = await provider.connection!.getLatestBlockhashAndContext();
+
+    const txs = createSolanaTransactions(
+      ixs,
+      blockhash,
+      versionedTransactionLookupTableAccountArgs,
+      prioritizationFee,
+    );
+    const signedTransactions: VersionedTransaction[] =
+      await provider.wallet.signAllTransactions(txs);
+
+    const signatures: TransactionSignature[] = [];
+    for (const tx of signedTransactions) {
+      const signature = await provider.wallet.sendTransaction(
+        tx,
+        provider.connection!,
+      );
+
+      /// we assume that we're able to fit all txs into one blockhash expiry window
+      const strategy: TransactionConfirmationStrategy = {
+        signature,
+        lastValidBlockHeight,
+        blockhash,
+      };
+
+      await provider.connection!.confirmTransaction(
+        strategy,
+        confirmOptions?.commitment,
+      );
+      signatures.push(signature);
+    }
+
+    return signatures;
+  }
+
+  // default
+  // sends instructions to node, confirms last transaction
+  const { signatures, blockHashInfo, versionedTransactions } =
+    await provider.relayer.sendSolanaInstructions(ixs);
+
+  const lastTxIndex = versionedTransactions.length - 1;
+
+  const strategy: TransactionConfirmationStrategy = {
+    signature: signatures[lastTxIndex],
+    lastValidBlockHeight: blockHashInfo[lastTxIndex].lastValidBlockHeight,
+    blockhash: blockHashInfo[lastTxIndex].blockhash,
+  };
+  await provider.connection!.confirmTransaction(
+    strategy,
+    confirmOptions?.commitment,
+  );
+
+  return signatures;
+}
+
+/**
+ * Creates a Light Transaction (array of VersionedTransactions) from a given array of TransactionInstructions.
+ * Txs must be executed in the order they appear in the array.
+ * The last tx verifies the correctness of the state transition and updates the protocol state.
+ * All preceding txs (if any) send data to the chain.
+ * @param ixs
+ * @param recentBlockhash
+ * @param versionedTransactionLookupTableAccountArgs
+ * @returns LightTransaction - VersionedTransaction[]
+ */
+export function createSolanaTransactions(
+  ixs: TransactionInstruction[],
+  recentBlockhash: Blockhash,
+  versionedTransactionLookupTableAccountArgs: AddressLookupTableAccountArgs,
+  prioritizationFee?: PrioritizationFee,
+): VersionedTransaction[] {
+  const versionedTransactions: VersionedTransaction[] = [];
+
+  for (const ix of ixs) {
+    versionedTransactions.push(
+      createVersionedTransaction(
+        ix,
+        versionedTransactionLookupTableAccountArgs,
+        recentBlockhash,
+        prioritizationFee,
+      ),
+    );
+  }
+  return versionedTransactions;
+}
+
+/**
+ * Creates and compiles a VersionedTransaction from a TransactionInstruction.
+ * @param ix
+ * @param versionedTransactionLookupTableAccountArgs
+ * @param recentBlockhash
+ * @returns VersionedTransaction
+ */
+export function createVersionedTransaction(
+  ix: TransactionInstruction,
+  versionedTransactionLookupTableAccountArgs: AddressLookupTableAccountArgs,
+  recentBlockhash: Blockhash,
+  prioritizationFee?: PrioritizationFee,
+): VersionedTransaction {
+  const payerKey = ix.keys.find((key) => key.isSigner)?.pubkey;
+
+  if (!payerKey) {
+    throw new Error(`Instruction must have one signer`);
+  }
+
+  // TODO: we should set cu to minimum required for execution to save cost and maximize throughput.
+  const txMsg = new TransactionMessage({
+    payerKey,
+    instructions: prioritizationFee
+      ? [
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+          ComputeBudgetProgram.setComputeUnitPrice({
+            microLamports: prioritizationFee,
+          }),
+          ix,
+        ]
+      : [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }), ix],
+    recentBlockhash,
+  });
+
+  const { state, key } = versionedTransactionLookupTableAccountArgs;
+
+  const compiledTx = txMsg.compileToV0Message([
+    {
+      state,
+      key,
+      isActive: () => true,
+    },
+  ]);
+  if (compiledTx.addressTableLookups[0]) {
+    compiledTx.addressTableLookups[0].accountKey = key;
+  }
+
+  const versionedTransaction = new VersionedTransaction(compiledTx);
+  return versionedTransaction;
+}
+
+export async function sendVersionedTransaction(
   ix: TransactionInstruction,
   connection: Connection,
   lookUpTable: PublicKey,
+  versionedTransactionLookupTableAccountArgs: AddressLookupTableAccountArgs,
   payer: Wallet,
-) => {
-  const recentBlockhash = (await connection.getLatestBlockhash(confirmConfig))
-    .blockhash;
+  recentBlockhash: Blockhash,
+) {
   const ixSigner = ix.keys
     .map((key) => {
       if (key.isSigner == true) return key.pubkey;
@@ -37,7 +198,7 @@ export const sendVersionedTransaction = async (
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
       ix,
     ],
-    recentBlockhash: recentBlockhash,
+    recentBlockhash,
   });
 
   const lookupTableAccount = await connection.getAccountInfo(
@@ -77,7 +238,7 @@ export const sendVersionedTransaction = async (
       }
     }
   }
-};
+}
 
 export type SendVersionedTransactionsResult = {
   signatures?: TransactionSignature[];

@@ -8,6 +8,8 @@ import {
   PublicKey,
   SystemProgram,
   TransactionInstruction,
+  Commitment,
+  AddressLookupTableAccountArgs,
 } from "@solana/web3.js";
 import { initLookUpTable } from "../utils";
 import {
@@ -44,6 +46,7 @@ export type Wallet = {
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   signTransaction: (transaction: any) => Promise<any>;
   signAllTransactions: (transaction: any[]) => Promise<any[]>;
+  sendTransaction: (transaction: any, connection: Connection) => Promise<any>;
   sendAndConfirmTransaction: (transaction: any) => Promise<any>;
   publicKey: PublicKey;
   isNodeWallet?: boolean;
@@ -310,6 +313,32 @@ export class Provider {
       rootIndex = BN_0;
     }
     return { rootIndex, remainingAccounts };
+  }
+
+  async getVersionedTransactionLookupTableAccountArgs(
+    commitment?: Commitment,
+  ): Promise<AddressLookupTableAccountArgs> {
+    if (!this.connection)
+      throw new ProviderError(
+        ProviderErrorCode.CONNECTION_UNDEFINED,
+        "getKeyedAddressLookUpTableAccountInfo",
+      );
+
+    const { versionedTransactionLookupTable } = this.lookUpTables;
+
+    const lookupTableAccount = await this.connection.getAccountInfo(
+      versionedTransactionLookupTable,
+      commitment || "confirmed",
+    );
+
+    const unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(
+      lookupTableAccount!.data,
+    );
+
+    return {
+      key: versionedTransactionLookupTable,
+      state: unpackedLookupTableAccount,
+    };
   }
 
   async sendAndConfirmTransaction(

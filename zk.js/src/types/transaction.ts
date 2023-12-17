@@ -1,5 +1,10 @@
 import { BN, Idl, Provider } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import {
+  PublicKey,
+  TransactionSignature,
+  VersionedTransaction,
+  VersionedTransactionResponse,
+} from "@solana/web3.js";
 import { Relayer } from "../relayer";
 import { Action } from "../transaction";
 import { Utxo } from "../utxo";
@@ -11,6 +16,12 @@ export type AppUtxoConfig = {
   includeAppData?: boolean;
   idl: Idl;
 };
+
+export type PrioritizationFee = bigint;
+
+export type LightTransaction = VersionedTransaction[];
+export type LightTransactionResponse = VersionedTransactionResponse[];
+export type LightTransactionSignature = TransactionSignature[];
 
 export type transactionParameters = {
   provider?: Provider;
