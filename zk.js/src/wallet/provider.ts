@@ -46,7 +46,7 @@ export type Wallet = {
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   signTransaction: (transaction: any) => Promise<any>;
   signAllTransactions: (transaction: any[]) => Promise<any[]>;
-  sendTransaction: (transaction: any, connection: Connection) => Promise<any>;
+  sendTransaction: (transaction: any, connection?: Connection) => Promise<any>;
   sendAndConfirmTransaction: (transaction: any) => Promise<any>;
   publicKey: PublicKey;
   isNodeWallet?: boolean;

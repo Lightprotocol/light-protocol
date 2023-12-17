@@ -20,6 +20,17 @@ import { confirmConfig } from "../constants";
 import { Action } from "./transaction";
 import { PrioritizationFee } from "../types";
 
+/**
+ * Convenience function for sending and confirming light transactions.
+ * Default: Sends instructions via relay node to chain, confirms last transaction.
+ * If shield: Builds transactions from instructions, signs, sends, and confirms them.
+ * @param ixs
+ * @param provider
+ * @param action default is Action.TRANSFER. use Action.SHIELD to force inclusion via client.
+ * @param confirmOptions
+ * @param prioritizationFee
+ * @returns TransactionSignature[]
+ */
 export async function sendAndConfirmSolanaInstructions(
   ixs: TransactionInstruction[],
   provider: Provider,
