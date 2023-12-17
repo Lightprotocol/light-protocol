@@ -1,12 +1,12 @@
 import {
-  BlockhashWithExpiryBlockHeight,
+  ConfirmOptions,
   Connection,
   PublicKey,
   RpcResponseAndContext,
   SignatureResult,
+  TransactionConfirmationStrategy,
   TransactionInstruction,
   TransactionSignature,
-  VersionedTransaction,
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import axios from "axios";
@@ -19,6 +19,8 @@ import {
   SendVersionedTransactionsResult,
   ParsedIndexedTransaction,
   BN_0,
+  PrioritizationFee,
+  RelayInstructionsRpcResponse,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -87,29 +89,55 @@ export class Relayer {
     this.url = url;
   }
 
-  async sendSolanaInstructions(ixs: TransactionInstruction[]): Promise<{
-    signatures: TransactionSignature[];
-    blockHashInfo: BlockhashWithExpiryBlockHeight[];
-    versionedTransactions: VersionedTransaction[];
-  }> {
+  /**
+   * Convenience function for sending and confirming instructions via Light RPC node.
+   * Routes instructions to Light RPC node and confirms the last transaction signature.
+   * @param ixs
+   * @param connection
+   * @param confirmOptions
+   * @param prioritizationFee
+   * @returns TransactionSignature[]
+   */
+  async sendAndConfirmSolanaInstructions(
+    ixs: TransactionInstruction[],
+    connection: Connection,
+    confirmOptions?: ConfirmOptions,
+    prioritizationFee?: PrioritizationFee,
+  ): Promise<TransactionSignature[]> {
+    const { signatures, blockHashInfo } = await this.sendSolanaInstructions(
+      ixs,
+      prioritizationFee,
+    );
+
+    const lastTxIndex = signatures.length - 1;
+
+    const strategy: TransactionConfirmationStrategy = {
+      signature: signatures[lastTxIndex],
+      lastValidBlockHeight: blockHashInfo[lastTxIndex].lastValidBlockHeight,
+      blockhash: blockHashInfo[lastTxIndex].blockhash,
+    };
+    await connection.confirmTransaction(strategy, confirmOptions?.commitment);
+
+    return signatures;
+  }
+
+  /**
+   * Convenience function for sending instructions via Light RPC node.
+   * Routes instructions to Light RPC node and returns tx metadata.
+   * @param instructions
+   * @param connection
+   * @param confirmOptions
+   * @param prioritizationFee
+   * @returns TransactionSignature[]
+   */
+  async sendSolanaInstructions(
+    ixs: TransactionInstruction[],
+    prioritizationFee?: bigint,
+  ): Promise<RelayInstructionsRpcResponse> {
     try {
       const response = await axios.post(this.url + "/relayTransaction", {
         ixs,
-      });
-      return response.data.data;
-    } catch (err) {
-      console.error({ err });
-      throw err;
-    }
-  }
-
-  async sendTransactions(
-    instructions: any[],
-    _provider: Provider,
-  ): Promise<RelayerSendTransactionsResponse> {
-    try {
-      const response = await axios.post(this.url + "/relayTransaction", {
-        instructions,
+        prioritizationFee,
       });
       return response.data.data;
     } catch (err) {

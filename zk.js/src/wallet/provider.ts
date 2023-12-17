@@ -10,17 +10,23 @@ import {
   TransactionInstruction,
   Commitment,
   AddressLookupTableAccountArgs,
+  TransactionConfirmationStrategy,
+  TransactionSignature,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import { initLookUpTable } from "../utils";
 import {
+  Action,
   ADMIN_AUTH_KEYPAIR,
   BN_0,
+  createSolanaTransactions,
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   MerkleTreeConfig,
   merkleTreeProgramId,
   MINIMUM_LAMPORTS,
   MINT,
   ParsedIndexedTransaction,
+  PrioritizationFee,
   ProviderError,
   ProviderErrorCode,
   Relayer,
@@ -341,29 +347,55 @@ export class Provider {
     };
   }
 
-  async sendAndConfirmTransaction(
-    instructions: TransactionInstruction[],
-  ): Promise<
-    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
-  > {
-    const response = await sendVersionedTransactions(
-      instructions,
-      this.provider.connection,
-      this.lookUpTables.versionedTransactionLookupTable,
-      this.wallet,
-    );
-    if (response.error) throw response.error;
-    return response;
-  }
+  /**
+   * Convenience wrapper for sending and confirming light transactions.
+   * Fetches recentBlockhash, builds transactions from instructions, signs, sends, and confirms them.
+   * @param ixs
+   * @param provider
+   * @param confirmOptions
+   * @param prioritizationFee
+   * @returns TransactionSignature[]
+   */
+  async sendAndConfirmSolanaInstructions(
+    ixs: TransactionInstruction[],
+    confirmOptions?: ConfirmOptions,
+    prioritizationFee?: PrioritizationFee,
+  ): Promise<TransactionSignature[]> {
+    const connection = this.connection!;
+    const wallet = this.wallet;
+    const versionedTransactionLookupTableAccountArgs =
+      await this.getVersionedTransactionLookupTableAccountArgs();
 
-  async sendAndConfirmShieldedTransaction(
-    instructions: TransactionInstruction[],
-  ): Promise<
-    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
-  > {
-    const response = await this.relayer.sendTransactions(instructions, this);
-    if (response.error) throw response.error;
-    return response;
+    const {
+      value: { blockhash, lastValidBlockHeight },
+    } = await connection.getLatestBlockhashAndContext();
+
+    const txs = createSolanaTransactions(
+      ixs,
+      blockhash,
+      versionedTransactionLookupTableAccountArgs,
+      prioritizationFee,
+    );
+    const signedTransactions: VersionedTransaction[] =
+      await wallet.signAllTransactions(txs);
+
+    const signatures: TransactionSignature[] = [];
+
+    for (const tx of signedTransactions) {
+      const signature = await wallet.sendTransaction(tx, connection!);
+
+      /// we assume that we're able to fit all txs into one blockhash expiry window
+      const strategy: TransactionConfirmationStrategy = {
+        signature,
+        lastValidBlockHeight,
+        blockhash,
+      };
+
+      await connection.confirmTransaction(strategy, confirmOptions?.commitment);
+      signatures.push(signature);
+    }
+
+    return signatures;
   }
 
   /**

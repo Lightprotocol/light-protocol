@@ -1,5 +1,6 @@
 import { BN, Idl, Provider } from "@coral-xyz/anchor";
 import {
+  BlockhashWithExpiryBlockHeight,
   PublicKey,
   TransactionSignature,
   VersionedTransaction,
@@ -47,6 +48,12 @@ export type transactionParameters = {
     isWritable: boolean;
     pubkey: PublicKey;
   }[];
+};
+
+export type RelayInstructionsRpcResponse = {
+  signatures: TransactionSignature[];
+  blockHashInfo: BlockhashWithExpiryBlockHeight[];
+  versionedTransactions: VersionedTransaction[];
 };
 
 export type IndexedTransaction = {
