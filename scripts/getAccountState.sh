@@ -1,4 +1,5 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+
 
 keys=(
     "LOOK_UP_TABLE"

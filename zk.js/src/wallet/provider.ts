@@ -258,19 +258,21 @@ export class Provider {
           "confirmed",
         );
       // @ts-ignore: unknown type error
-      merkle_tree_account_data.merkleTree.roots.map((x: any, index: any) => {
-        if (x.toString() === root.toString()) {
-          rootIndex = new BN(index.toString());
-        }
-      });
-
-      if (rootIndex === undefined) {
+      const index = merkle_tree_account_data.merkleTree.roots.findIndex(
+        (rootFetched) => {
+          return (
+            Array.from(root).toString() === Array.from(rootFetched).toString()
+          );
+        },
+      );
+      if (index === -1) {
         throw new ProviderError(
           TransactionErrorCode.ROOT_NOT_FOUND,
           "getRootIndex",
           `Root index not found for root${root}`,
         );
       }
+      rootIndex = new BN(index);
 
       if (
         merkle_tree_account_data.merkleTree.nextIndex.gte(

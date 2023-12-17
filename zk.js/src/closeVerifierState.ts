@@ -6,7 +6,7 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 import { TransactionError, TransactionErrorCode } from "./errors";
-import { Provider, TransactionParameters } from "./index";
+import { Provider, getVerifierProgram } from "./index";
 import { Idl } from "@coral-xyz/anchor";
 
 // TODO: add test
@@ -24,10 +24,7 @@ export async function closeVerifierState(
     );
 
   const transaction = new SolanaTransaction().add(
-    await TransactionParameters.getVerifierProgram(
-      verifierIdl,
-      provider.provider,
-    )
+    await getVerifierProgram(verifierIdl, provider.provider)
       .methods.closeVerifierState()
       .accounts({
         signingAddress: provider.wallet.publicKey,

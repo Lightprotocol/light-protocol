@@ -11,7 +11,6 @@ import {
   STANDARD_SHIELDED_PRIVATE_KEY,
   STANDARD_SHIELDED_PUBLIC_KEY,
   TransactionErrorCode,
-  TransactionParameters,
   truncateToCircuit,
   Utxo,
   UtxoErrorCode,

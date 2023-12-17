@@ -54,17 +54,6 @@ pub mod light_merkle_tree_program {
         process_update_merkle_tree_authority(ctx)
     }
 
-    /// Updates the lock duration for a specific merkle tree.
-    pub fn update_lock_duration(
-        ctx: Context<UpdateLockDuration>,
-        lock_duration: u64,
-    ) -> Result<()> {
-        process_update_lock_duration(
-            &mut ctx.accounts.transaction_merkle_tree.load_mut()?,
-            lock_duration,
-        )
-    }
-
     /// Enables anyone to create token pools.
     pub fn enable_permissionless_spl_tokens(
         ctx: Context<UpdateMerkleTreeAuthorityConfig>,
