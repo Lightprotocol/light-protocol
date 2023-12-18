@@ -133,10 +133,10 @@ export const createPspProofInputs = (
   outputUtxos: Utxo[],
   transactionHash: string,
 ): any => {
-  const inUtxosInputs = {};
+  /// disabling type-checking
+  const inUtxosInputs: { [key: string]: any } = {};
   pspTransaction.checkedInUtxos?.forEach(({ utxoName, utxo }) => {
     for (const field in utxo.appData) {
-      // @ts-ignore
       inUtxosInputs[`${utxoName}${upperCamelCase(field)}`] =
         utxo.appData[field];
     }
@@ -146,7 +146,7 @@ export const createPspProofInputs = (
       inputUtxos,
       utxo.getCommitment(hasher),
     );
-    // @ts-ignore
+
     inUtxosInputs[`isInAppUtxo${upperCamelCase(utxoName)}`] = isAppUtxo;
     inUtxosInputs[`${camelCase(utxoName)}Blinding`] = utxo.blinding;
     inUtxosInputs[`${camelCase(utxoName)}AmountSol`] = utxo.amounts[0];

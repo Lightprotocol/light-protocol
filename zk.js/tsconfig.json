@@ -4,7 +4,8 @@
     "outDir": "./lib",
     "rootDir": "src",
     "baseUrl": "src",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "noImplicitAny": true
   },
   "extends": "@lightprotocol/tsconfig/base.json",
   "include": ["src"]

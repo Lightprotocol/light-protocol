@@ -13,10 +13,11 @@ import {
   TransactionConfirmationStrategy,
   TransactionSignature,
   VersionedTransaction,
+  Blockhash,
+  BlockhashWithExpiryBlockHeight,
 } from "@solana/web3.js";
 import { initLookUpTable } from "../utils";
 import {
-  Action,
   ADMIN_AUTH_KEYPAIR,
   BN_0,
   createSolanaTransactions,
@@ -32,9 +33,7 @@ import {
   Relayer,
   RELAYER_FEE,
   RELAYER_RECIPIENT_KEYPAIR,
-  RelayerSendTransactionsResponse,
-  sendVersionedTransactions,
-  SendVersionedTransactionsResult,
+  SignaturesWithBlockhashInfo,
   SolMerkleTree,
   SolMerkleTreeErrorCode,
   TOKEN_ACCOUNT_FEE,
@@ -349,26 +348,36 @@ export class Provider {
 
   /**
    * Convenience wrapper for sending and confirming light transactions.
-   * Fetches recentBlockhash, builds transactions from instructions, signs, sends, and confirms them.
-   * @param ixs
-   * @param provider
-   * @param confirmOptions
-   * @param prioritizationFee
-   * @returns TransactionSignature[]
+   * Fetches recentBlockhash if none provided, builds transactions from instructions, signs, sends, and confirms them.
    */
   async sendAndConfirmSolanaInstructions(
     ixs: TransactionInstruction[],
     confirmOptions?: ConfirmOptions,
     prioritizationFee?: PrioritizationFee,
+    recentBlockhashWithExpiryBlockHeight?: BlockhashWithExpiryBlockHeight,
   ): Promise<TransactionSignature[]> {
     const connection = this.connection!;
     const wallet = this.wallet;
     const versionedTransactionLookupTableAccountArgs =
       await this.getVersionedTransactionLookupTableAccountArgs();
 
-    const {
-      value: { blockhash, lastValidBlockHeight },
-    } = await connection.getLatestBlockhashAndContext();
+    let blockhash: Blockhash;
+    let lastValidBlockHeight: number;
+
+    if (!recentBlockhashWithExpiryBlockHeight) {
+      const {
+        value: {
+          blockhash: fetchedBlockhash,
+          lastValidBlockHeight: fetchedLastValidBlockHeight,
+        },
+      } = await connection.getLatestBlockhashAndContext();
+      blockhash = fetchedBlockhash;
+      lastValidBlockHeight = fetchedLastValidBlockHeight;
+    } else {
+      blockhash = recentBlockhashWithExpiryBlockHeight.blockhash;
+      lastValidBlockHeight =
+        recentBlockhashWithExpiryBlockHeight.lastValidBlockHeight;
+    }
 
     const txs = createSolanaTransactions(
       ixs,
@@ -376,13 +385,18 @@ export class Provider {
       versionedTransactionLookupTableAccountArgs,
       prioritizationFee,
     );
+
+    /// TODO: wallet adapter should have a signAndSendAllTransactions interface soon
     const signedTransactions: VersionedTransaction[] =
       await wallet.signAllTransactions(txs);
 
     const signatures: TransactionSignature[] = [];
 
     for (const tx of signedTransactions) {
-      const signature = await wallet.sendTransaction(tx, connection!);
+      const signature: TransactionSignature = await wallet.sendTransaction(
+        tx,
+        connection!,
+      );
 
       /// we assume that we're able to fit all txs into one blockhash expiry window
       const strategy: TransactionConfirmationStrategy = {
@@ -400,10 +414,6 @@ export class Provider {
 
   /**
    * Only use this if you use the WalletAdapter, e.g. in the browser. If you use a local keypair, use getNodeProvider().
-   * @param walletContext get from useWallet() hook
-   * @param confirmConfig optional, default = 'confirmed'
-   * @param connection get from useConnection() hook
-   * @param url full-node rpc endpoint to instantiate a Connection
    */
   static async init({
     wallet,

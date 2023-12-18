@@ -364,7 +364,7 @@ export async function sendAndConfirmShieldTransaction({
     publicTransactionVariables,
   });
 
-  const txHash = await provider.sendAndConfirmTransaction(instructions);
+  const txHash = await provider.sendAndConfirmSolanaInstructions(instructions);
   const relayerMerkleTreeUpdateResponse = "notPinged";
   return { txHash, response: relayerMerkleTreeUpdateResponse };
 }
@@ -429,7 +429,10 @@ export async function sendAndConfirmShieldedTransaction({
     publicTransactionVariables,
   });
 
-  const txHash = await provider.sendAndConfirmShieldedTransaction(instructions);
+  const txHash = await provider.relayer.sendAndConfirmSolanaInstructions(
+    instructions,
+    provider.connection!,
+  );
   const relayerMerkleTreeUpdateResponse = "notPinged";
 
   return { txHash, response: relayerMerkleTreeUpdateResponse };

@@ -4,6 +4,7 @@ import {
   SystemProgram,
   Transaction as SolanaTransaction,
   TransactionInstruction,
+  TransactionSignature,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { BN, Idl } from "@coral-xyz/anchor";
@@ -520,8 +521,11 @@ export class User {
     });
 
     this.recentInstructions = await createSolanaInstructions({
+      // FIX: this.recentTransactionParameters is never not undefined!
+      //@ts-ignore
       action: this.recentTransactionParameters["action"]
-        ? this.recentTransactionParameters["action"]
+        ? //@ts-ignore
+          this.recentTransactionParameters["action"]
         : Action.TRANSFER,
       rootIndex,
       systemProof,
@@ -544,6 +548,8 @@ export class User {
       );
     if (
       this.recentTransactionParameters?.public.publicAmountSpl.gt(BN_0) &&
+      // FIX: this.recentTransactionParameters is never not undefined!
+      //@ts-ignore
       this.recentTransactionParameters["action"] === Action.SHIELD
     ) {
       const tokenAccountInfo =
@@ -602,7 +608,7 @@ export class User {
     }
   }
 
-  async sendTransaction() {
+  async sendTransaction(): Promise<TransactionSignature[]> {
     if (!this.recentTransactionParameters)
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
@@ -610,6 +616,8 @@ export class User {
         "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
       );
     if (
+      // FIX: this.recentTransactionParameters is never not undefined!
+      //@ts-ignore
       this.recentTransactionParameters["action"] === Action.SHIELD &&
       !this.approved
     )
@@ -624,14 +632,17 @@ export class User {
         "sendTransaction",
         "Unable to send transaction. The transaction must be compiled and a proof must be generated first to create solana instructions.",
       );
-    let txResult;
+    let txResult: TransactionSignature[];
     try {
+      // FIX: this.recentTransactionParameters is never not undefined!
+      //@ts-ignore
       if (this.recentTransactionParameters["action"] === Action.SHIELD) {
-        txResult = await this.provider.sendAndConfirmTransaction(
+        txResult = await this.provider.relayer.sendAndConfirmSolanaInstructions(
           this.recentInstructions,
+          this.provider.connection!,
         );
       } else {
-        txResult = await this.provider.sendAndConfirmShieldedTransaction(
+        txResult = await this.provider.sendAndConfirmSolanaInstructions(
           this.recentInstructions,
         );
       }

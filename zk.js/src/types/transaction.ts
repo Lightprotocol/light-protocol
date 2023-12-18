@@ -50,10 +50,9 @@ export type transactionParameters = {
   }[];
 };
 
-export type RelayInstructionsRpcResponse = {
+export type SignaturesWithBlockhashInfo = {
   signatures: TransactionSignature[];
-  blockHashInfo: BlockhashWithExpiryBlockHeight[];
-  versionedTransactions: VersionedTransaction[];
+  blockhashInfo: BlockhashWithExpiryBlockHeight;
 };
 
 export type IndexedTransaction = {

@@ -1,12 +1,18 @@
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  TransactionInstruction,
+  TransactionSignature,
+} from "@solana/web3.js";
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
 import { Provider, useWallet } from "../wallet";
+import { fetchRecentTransactions } from "../transaction";
 import {
-  fetchRecentTransactions,
-  sendVersionedTransactions,
-} from "../transaction";
-import { ParsedIndexedTransaction } from "../types";
+  ParsedIndexedTransaction,
+  SignaturesWithBlockhashInfo,
+} from "../types";
 import { airdropSol } from "./airdrop";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
@@ -39,18 +45,32 @@ export class TestRelayer extends Relayer {
     this.relayerKeypair = payer;
   }
 
-  async sendTransactions(
-    instructions: any[],
-    provider: Provider,
-  ): Promise<RelayerSendTransactionsResponse> {
-    const res = await sendVersionedTransactions(
-      instructions,
-      provider.provider!.connection!,
-      provider.lookUpTables.versionedTransactionLookupTable,
-      useWallet(this.relayerKeypair),
+  /**
+   * Mocks sending a transaction to the relayer, executes by itself
+   * Contrary to the actual relayer response, this mock has already
+   * confirmed the transaction by the time it returns
+   * @param ixs TransactionInstructions
+   * @param prioritizationFee optional prioritization fee
+   * @param provider Provider
+   * @returns SignaturesWithBlockhashInfo
+   */
+  async sendSolanaInstructions(
+    ixs: TransactionInstruction[],
+    prioritizationFee?: bigint,
+    provider?: Provider,
+  ): Promise<SignaturesWithBlockhashInfo> {
+    // we're passing the blockhashinfo manually to be able to mock the return type of the 'sendSolanaInstructions' Relayer method
+    const { value: blockhashInfo } =
+      await provider!.connection!.getLatestBlockhashAndContext();
+
+    const signatures = await provider!.sendAndConfirmSolanaInstructions(
+      ixs,
+      undefined,
+      prioritizationFee,
+      blockhashInfo,
     );
-    if (res.error) return { transactionStatus: "error", ...res };
-    else return { transactionStatus: "confirmed", ...res };
+
+    return { signatures, blockhashInfo };
   }
 
   /**
