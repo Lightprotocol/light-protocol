@@ -1262,7 +1262,7 @@ export class User {
     asset: PublicKey,
     confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
     latest: boolean = false,
-  ) {
+  ): Promise<ActionResponseMulti> {
     if (commitments.length == 0)
       throw new UserError(
         UserErrorCode.NO_COMMITMENTS_PROVIDED,
@@ -1328,7 +1328,16 @@ export class User {
       verifierProgramLookupTable:
         this.provider.lookUpTables.verifierProgramLookupTable,
     });
-    return this.transactWithParameters({ txParams, confirmOptions });
+
+    const { signatures, response } = await this.transactWithParameters({
+      txParams,
+      confirmOptions,
+    });
+    // TODO: conforms with current interface as consumed. Change the interface across the board in a separate PR
+    return {
+      txHash: { signatures: signatures },
+      response,
+    };
   }
 
   async getTransactionHistory(
