@@ -2,11 +2,13 @@ import {
   AccountMeta,
   PublicKey,
   TransactionInstruction,
+  VersionedTransaction,
 } from "@solana/web3.js";
-import { sleep } from "@lightprotocol/zk.js";
-import { Job } from "bullmq";
-import { MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION, SECONDS } from "../../config";
-import { getRelayer } from "../../utils/provider";
+import {
+  SignaturesWithBlockhashInfo,
+  createSolanaTransactions,
+} from "@lightprotocol/zk.js";
+import { getLightProvider, getRelayer } from "../../utils/provider";
 import { relayQueue } from "../../db/redis";
 import { sha3_256 } from "@noble/hashes/sha3";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -19,22 +21,48 @@ export function getUidFromIxs(ixs: TransactionInstruction[]): string {
   return bs58.encode(hasher.digest());
 }
 
+/**
+ * Creates Transactions from instruction payload and adds relay job to queue. Returns signatures and blockhashInfo.
+ * Note: assumes the queue picks up the job ASAP and optimistically signs the transactions.
+ */
 async function addRelayJob({
   instructions,
 }: {
   instructions: TransactionInstruction[];
 }) {
   const uid = getUidFromIxs(instructions); // TODO: add a test that checks that this is unique
+  /// TODO: this is inefficient
+  const provider = await getLightProvider();
+
+  const versionedTransactionLookupTableAccountArgs =
+    await provider.getVersionedTransactionLookupTableAccountArgs();
+
+  const { blockhash, lastValidBlockHeight } =
+    await provider.connection!.getLatestBlockhash();
+
+  const transactions = createSolanaTransactions(
+    instructions,
+    blockhash,
+    versionedTransactionLookupTableAccountArgs,
+  );
+  const signedTransactions: VersionedTransaction[] =
+    await provider.wallet.signAllTransactions(transactions);
+
   const job = await relayQueue.add(
     "relay",
     {
-      instructions,
+      signedTransactions,
+      blockhashInfo: { lastValidBlockHeight, blockhash },
       response: null,
     },
     { jobId: uid },
   );
 
-  return job;
+  return {
+    job,
+    signatures: signedTransactions.map((tx) => bs58.encode(tx.signatures[0])),
+    blockhashInfo: { lastValidBlockHeight, blockhash },
+  };
 }
 
 function validateReqParams(req: any) {
@@ -107,58 +135,32 @@ export async function parseReqParams(reqInstructions: any) {
   return instructions;
 }
 
-async function awaitJobCompletion({ job, res }: { job: Job; res: any }) {
-  console.log(`/awaitJobCompletion - id: ${job.id}`);
-  let state;
-  let i = 0;
-  const maxSteps = MAX_STEPS_TO_WAIT_FOR_JOB_COMPLETION;
-  const sleepTime = 1 * SECONDS;
-  while (i < maxSteps) {
-    const latestJob = await relayQueue.getJob(job.id!);
-    await sleep(sleepTime);
-    state = await latestJob!.getState();
-    console.log("state:", state);
-    if (state === "completed" || state === "failed" || state === "unknown") {
-      i = maxSteps;
-      if (state === "failed") {
-        console.log(`/awaitJobCompletion error (500) failed - id: ${job.id}`);
-        const newJob = await relayQueue.getJob(job.id!); // we need to refetch the job to get the error message
-
-        // TODO: add nuanced error handling with different error codes
-        return res
-          .status(400)
-          .json({ status: "error", message: newJob!.data.response.error });
-      } else if (state === "completed") {
-        console.log(`/awaitJobCompletion success - id: ${job.id}`);
-
-        return res.status(200).json({
-          data: {
-            transactionStatus: "confirmed",
-            response: latestJob!.data.response,
-          },
-        });
-      }
-    } else i++;
-  }
-}
-
+/**
+ * Performs sanity payload checks and adds relay job to queue. Returns signatures and blockhashInfo.
+ */
 export async function handleRelayRequest(req: any, res: any) {
   try {
     validateReqParams(req);
+    // TODO: recognize and handle optional priorityFees field in payload
     const instructions = await parseReqParams(req.body.instructions);
     console.log(
       `/handleRelayRequest - req.body.instructions: ${req.body.instructions}`,
     );
 
-    const job = await addRelayJob({ instructions });
+    const { job, signatures, blockhashInfo } = await addRelayJob({
+      instructions,
+    });
 
     console.log(
       `/handleRelayRequest - added relay job to queue - id: ${job.id}`,
     );
-    await awaitJobCompletion({ job, res });
-    return;
+
+    return res.status(200).json({
+      signatures,
+      blockhashInfo,
+    } as SignaturesWithBlockhashInfo);
   } catch (error) {
     console.log("/handleRelayRequest error (500)", error, error.message);
-    return res.status(500).json({ status: "error", message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 }

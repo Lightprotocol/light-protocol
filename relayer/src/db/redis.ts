@@ -11,15 +11,17 @@ import {
   REDIS_ENVIRONMENT,
 } from "../config";
 
-import { sendVersionedTransactions } from "@lightprotocol/zk.js";
 import { getLightProvider } from "../utils/provider";
-import { parseReqParams } from "../services/index";
 import {
   EnvironmentVariableError,
   EnvironmentVariableErrorCode,
   RedisError,
   RedisErrorCode,
 } from "../errors";
+import {
+  TransactionConfirmationStrategy,
+  TransactionSignature,
+} from "@solana/web3.js";
 
 let redisConnection: any;
 
@@ -66,28 +68,30 @@ export const relayWorker = new Worker(
   "relay",
   async (job: Job) => {
     console.log(`/relayWorker relay start - id: ${job.id}`);
-    const { instructions } = job.data;
-    const parsedInstructions = await parseReqParams(instructions);
+    // TODO: add type safety
+    const { signedTransactions, blockhashInfo } = job.data;
+
+    console.log("@relayWorker signedTransactions", signedTransactions);
+    console.log("@relayWorker blockhashInfo", blockhashInfo);
     try {
+      // TOOD: inefficient
       const provider = await getLightProvider();
-      const response = await sendVersionedTransactions(
-        parsedInstructions,
-        provider.provider!.connection,
-        provider.lookUpTables.versionedTransactionLookupTable!,
-        provider.wallet,
-      );
-      console.log("RELAY  JOB WORKER SENT TX, RESPONSE: ", response);
-      if (response.error) {
-        await job.updateData({
-          ...job.data,
-          response: { error: response.error.message },
-        });
-        throw new Error(response.error.message);
+
+      for (const tx of signedTransactions) {
+        const signature: TransactionSignature =
+          await provider.wallet.sendTransaction(tx, provider.connection!);
+
+        /// we assume that we're able to fit all txs into one blockhash expiry window
+        const strategy: TransactionConfirmationStrategy = {
+          signature,
+          lastValidBlockHeight: blockhashInfo.lastValidBlockHeight,
+          blockhash: blockhashInfo.blockhash,
+        };
+
+        await provider.connection!.confirmTransaction(strategy, "confirmed");
       }
-      await job.updateData({
-        ...job.data,
-        response,
-      });
+
+      return; // finish
     } catch (e) {
       console.log("error in worker: ", e);
       throw e;
