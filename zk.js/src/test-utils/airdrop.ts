@@ -12,6 +12,7 @@ import {
   confirmConfig,
   confirmTransaction,
   RELAYER_FEE,
+  ActionResponse,
 } from "../index";
 
 export async function airdropShieldedSol({
@@ -24,7 +25,7 @@ export async function airdropShieldedSol({
   amount: number;
   seed?: string;
   recipientPublicKey?: string;
-}) {
+}): Promise<ActionResponse> {
   if (!amount) throw new Error("Sol Airdrop amount undefined");
   if (!seed && !recipientPublicKey)
     throw new Error(
@@ -87,7 +88,7 @@ export async function airdropShieldedMINTSpl({
   amount: number;
   seed?: string;
   recipientPublicKey?: string;
-}) {
+}): Promise<ActionResponse> {
   if (!amount) throw new Error("Sol Airdrop amount undefined");
   if (!seed && !recipientPublicKey)
     throw new Error(

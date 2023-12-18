@@ -9,7 +9,7 @@ import {
   TransactionSignature,
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import {
   RelayerError,
   RelayerErrorCode,
@@ -20,6 +20,7 @@ import {
   BN_0,
   PrioritizationFee,
   SignaturesWithBlockhashInfo,
+  RelayerRelayPayload,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -119,16 +120,20 @@ export class Relayer {
    * Convenience function for sending instructions via Light RPC node.
    * Routes instructions to Light RPC node and returns tx metadata.
    */
+
   async sendSolanaInstructions(
     ixs: TransactionInstruction[],
     prioritizationFee?: bigint,
   ): Promise<SignaturesWithBlockhashInfo> {
     try {
-      const response = await axios.post(this.url + "/relayTransaction", {
-        ixs,
-        prioritizationFee,
-      });
-      return response.data.data as SignaturesWithBlockhashInfo;
+      const response: AxiosResponse = await axios.post(
+        this.url + "/relayTransaction",
+        {
+          instructions: ixs,
+          prioritizationFee: prioritizationFee?.toString(),
+        } as RelayerRelayPayload,
+      );
+      return response.data as SignaturesWithBlockhashInfo;
     } catch (err) {
       console.error({ err });
       throw err;

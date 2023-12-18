@@ -354,30 +354,15 @@ export class Provider {
     ixs: TransactionInstruction[],
     confirmOptions?: ConfirmOptions,
     prioritizationFee?: PrioritizationFee,
-    recentBlockhashWithExpiryBlockHeight?: BlockhashWithExpiryBlockHeight,
+    blockhashInfo?: BlockhashWithExpiryBlockHeight,
   ): Promise<TransactionSignature[]> {
     const connection = this.connection!;
     const wallet = this.wallet;
     const versionedTransactionLookupTableAccountArgs =
       await this.getVersionedTransactionLookupTableAccountArgs();
 
-    let blockhash: Blockhash;
-    let lastValidBlockHeight: number;
-
-    if (!recentBlockhashWithExpiryBlockHeight) {
-      const {
-        value: {
-          blockhash: fetchedBlockhash,
-          lastValidBlockHeight: fetchedLastValidBlockHeight,
-        },
-      } = await connection.getLatestBlockhashAndContext();
-      blockhash = fetchedBlockhash;
-      lastValidBlockHeight = fetchedLastValidBlockHeight;
-    } else {
-      blockhash = recentBlockhashWithExpiryBlockHeight.blockhash;
-      lastValidBlockHeight =
-        recentBlockhashWithExpiryBlockHeight.lastValidBlockHeight;
-    }
+    const { blockhash, lastValidBlockHeight }: BlockhashWithExpiryBlockHeight =
+      blockhashInfo || (await connection.getLatestBlockhash());
 
     const txs = createSolanaTransactions(
       ixs,

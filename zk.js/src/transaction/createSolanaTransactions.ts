@@ -9,9 +9,10 @@ import {
   Blockhash,
   VersionedTransaction,
   AddressLookupTableAccountArgs,
+  BlockhashWithExpiryBlockHeight,
 } from "@solana/web3.js";
 
-import { PrioritizationFee } from "../types";
+import { PrioritizationFee, SignaturesWithBlockhashInfo } from "../types";
 
 /**
  * Creates a Light Transaction (array of VersionedTransactions) from a given array of TransactionInstructions.
@@ -94,14 +95,17 @@ export type SendVersionedTransactionsResult = {
 
 export async function confirmTransaction(
   connection: Connection,
-  signature: string,
+  signature: TransactionSignature,
   confirmation: Commitment = "confirmed",
+  blockhashInfo?: BlockhashWithExpiryBlockHeight,
 ) {
-  const latestBlockHash = await connection.getLatestBlockhash(confirmation);
+  const latestBlockHashInfo: BlockhashWithExpiryBlockHeight =
+    blockhashInfo || (await connection.getLatestBlockhash(confirmation));
+
   const strategy: TransactionConfirmationStrategy = {
     signature: signature.toString(),
-    lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-    blockhash: latestBlockHash.blockhash,
+    lastValidBlockHeight: latestBlockHashInfo.lastValidBlockHeight,
+    blockhash: latestBlockHashInfo.blockhash,
   };
   return await connection.confirmTransaction(strategy, confirmation);
 }

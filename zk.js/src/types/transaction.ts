@@ -2,6 +2,7 @@ import { BN, Idl, Provider } from "@coral-xyz/anchor";
 import {
   BlockhashWithExpiryBlockHeight,
   PublicKey,
+  TransactionInstruction,
   TransactionSignature,
   VersionedTransaction,
   VersionedTransactionResponse,
@@ -48,6 +49,21 @@ export type transactionParameters = {
     isWritable: boolean;
     pubkey: PublicKey;
   }[];
+};
+
+export type RelayerRelayPayload = {
+  instructions: TransactionInstruction[];
+  prioritizationFee?: string;
+};
+
+// TODO: we should replace this for the Poseidon release
+export type ActionResponse = {
+  txHash: { signatures: TransactionSignature };
+  response: string;
+};
+export type ActionResponseMulti = {
+  txHash: { signatures: TransactionSignature[] };
+  response: string;
 };
 
 export type SignaturesWithBlockhashInfo = {

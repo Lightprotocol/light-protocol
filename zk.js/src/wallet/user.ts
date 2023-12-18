@@ -59,6 +59,8 @@ import {
   prepareAccounts,
   getSystemPspIdl,
   getTxParams,
+  ActionResponse,
+  ActionResponseMulti,
 } from "../index";
 
 // TODO: Utxos should be assigned to a merkle tree
@@ -639,13 +641,13 @@ export class User {
       // FIX: this.recentTransactionParameters is never not undefined!
       //@ts-ignore
       if (this.recentTransactionParameters["action"] === Action.SHIELD) {
+        txResult = await this.provider.sendAndConfirmSolanaInstructions(
+          this.recentInstructions,
+        );
+      } else {
         txResult = await this.provider.relayer.sendAndConfirmSolanaInstructions(
           this.recentInstructions,
           this.provider.connection!,
-        );
-      } else {
-        txResult = await this.provider.sendAndConfirmSolanaInstructions(
-          this.recentInstructions,
         );
       }
     } catch (e) {
@@ -691,7 +693,7 @@ export class User {
     appUtxo?: AppUtxoConfig;
     skipDecimalConversions?: boolean;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponse> {
     const recipientAccount = recipient
       ? Account.fromPubkey(recipient, this.provider.hasher)
       : undefined;
@@ -706,7 +708,15 @@ export class User {
       appUtxo,
       skipDecimalConversions,
     });
-    return await this.transactWithParameters({ txParams, confirmOptions });
+    const { signatures, response } = await this.transactWithParameters({
+      txParams,
+      confirmOptions,
+    });
+    // TODO: conforms with current interface as consumed. Change the interface across the board in a separate PR
+    return {
+      txHash: { signatures: signatures[signatures.length - 1] },
+      response,
+    };
   }
 
   async unshield({
@@ -723,7 +733,7 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponse> {
     const txParams = await this.createUnshieldTransactionParameters({
       token,
       publicAmountSpl,
@@ -731,7 +741,15 @@ export class User {
       recipient,
       minimumLamports,
     });
-    return await this.transactWithParameters({ txParams, confirmOptions });
+    const { signatures, response } = await this.transactWithParameters({
+      txParams,
+      confirmOptions,
+    });
+    // TODO: conforms with current interface as consumed. Change the interface across the board in a separate PR
+    return {
+      txHash: { signatures: signatures[signatures.length - 1] },
+      response,
+    };
   }
 
   // TODO: add unshieldSol and unshieldSpl
@@ -869,7 +887,7 @@ export class User {
     recipient: string;
     appUtxo?: AppUtxoConfig;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponse> {
     if (!recipient)
       throw new UserError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
@@ -888,7 +906,15 @@ export class User {
       amountSol,
       appUtxo,
     });
-    return this.transactWithParameters({ txParams, confirmOptions });
+    const { signatures, response } = await this.transactWithParameters({
+      txParams,
+      confirmOptions,
+    });
+    // TODO: conforms with current interface as consumed. Change the interface across the board in a separate PR
+    return {
+      txHash: { signatures: signatures[signatures.length - 1] },
+      response,
+    };
   }
 
   // TODO: add separate lookup function for users.
@@ -1043,7 +1069,7 @@ export class User {
     txParams: Transaction;
     confirmOptions?: ConfirmOptions;
     shuffleEnabled?: boolean;
-  }) {
+  }): Promise<{ signatures: TransactionSignature[]; response: string }> {
     this.recentTransactionParameters = txParams;
 
     this.recentInstructions =
@@ -1053,14 +1079,14 @@ export class User {
     this.approved = true;
 
     // we send an array of instructions to the relayer and the relayer sends 3 transaction
-    const txHash = await this.sendTransaction();
+    const signatures = await this.sendTransaction();
 
     const relayerMerkleTreeUpdateResponse = "success";
 
     await this.getBalance();
 
     this.resetTxState();
-    return { txHash, response: relayerMerkleTreeUpdateResponse };
+    return { signatures, response: relayerMerkleTreeUpdateResponse };
   }
 
   // @ts-ignore
@@ -1151,7 +1177,10 @@ export class User {
     asset: PublicKey,
     confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
     latest: boolean = true,
-  ) {
+  ): Promise<{
+    txHash: { signatures: TransactionSignature[] };
+    response: string;
+  }> {
     await this.getUtxoInbox(latest);
     await this.getBalance(latest);
     const inboxTokenBalance: TokenUtxoBalance | undefined =
@@ -1210,7 +1239,16 @@ export class User {
       verifierProgramLookupTable:
         this.provider.lookUpTables.verifierProgramLookupTable,
     });
-    return await this.transactWithParameters({ txParams, confirmOptions });
+    // actually should return array of it apparently
+    const { signatures, response } = await this.transactWithParameters({
+      txParams,
+      confirmOptions,
+    });
+    // TODO: conforms with current interface as consumed. Change the interface across the board in a separate PR
+    return {
+      txHash: { signatures },
+      response,
+    };
   }
 
   // TODO: how do we handle app utxos?, some will not be able to be accepted we can only mark these as accepted
@@ -1513,7 +1551,7 @@ export class User {
     appUtxoConfig?: AppUtxoConfig;
     skipDecimalConversions?: boolean;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponseMulti> {
     const txParams = await this.createStoreAppUtxoTransactionParameters({
       token,
       amountSol,
@@ -1528,7 +1566,15 @@ export class User {
       skipDecimalConversions,
     });
 
-    return this.transactWithParameters({ txParams, confirmOptions });
+    const { signatures, response } = await this.transactWithParameters({
+      txParams,
+      confirmOptions,
+    });
+    // TODO: conforms with current interface as consumed. Change the interface across the board in a separate PR
+    return {
+      txHash: { signatures: signatures },
+      response,
+    };
   }
 
   // TODO: add storage transaction nonce to rotate keypairs
@@ -1700,7 +1746,7 @@ export class User {
     message: Buffer,
     confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
     shield: boolean = false,
-  ) {
+  ): Promise<ActionResponseMulti> {
     if (message.length > MAX_MESSAGE_SIZE)
       throw new UserError(
         UserErrorCode.MAX_STORAGE_MESSAGE_SIZE_EXCEEDED,
@@ -1760,10 +1806,15 @@ export class User {
       });
     }
 
-    return this.transactWithParameters({
+    const { signatures, response } = await this.transactWithParameters({
       txParams: this.recentTransactionParameters!,
       confirmOptions,
     });
+    // TODO: conforms with current interface as consumed. Change the interface across the board in a separate PR
+    return {
+      txHash: { signatures: signatures },
+      response,
+    };
   }
 
   async getProgramUtxos({

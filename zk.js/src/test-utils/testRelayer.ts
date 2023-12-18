@@ -3,17 +3,15 @@ import {
   Keypair,
   PublicKey,
   TransactionInstruction,
-  TransactionSignature,
 } from "@solana/web3.js";
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
-import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
-import { Provider, useWallet } from "../wallet";
+import { Relayer } from "../relayer";
+import { Provider } from "../wallet";
 import { fetchRecentTransactions } from "../transaction";
 import {
   ParsedIndexedTransaction,
   SignaturesWithBlockhashInfo,
 } from "../types";
-import { airdropSol } from "./airdrop";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   MerkleTreeConfig,
@@ -49,10 +47,6 @@ export class TestRelayer extends Relayer {
    * Mocks sending a transaction to the relayer, executes by itself
    * Contrary to the actual relayer response, this mock has already
    * confirmed the transaction by the time it returns
-   * @param ixs TransactionInstructions
-   * @param prioritizationFee optional prioritization fee
-   * @param provider Provider
-   * @returns SignaturesWithBlockhashInfo
    */
   async sendSolanaInstructions(
     ixs: TransactionInstruction[],
@@ -60,8 +54,7 @@ export class TestRelayer extends Relayer {
     provider?: Provider,
   ): Promise<SignaturesWithBlockhashInfo> {
     // we're passing the blockhashinfo manually to be able to mock the return type of the 'sendSolanaInstructions' Relayer method
-    const { value: blockhashInfo } =
-      await provider!.connection!.getLatestBlockhashAndContext();
+    const blockhashInfo = await provider!.connection!.getLatestBlockhash();
 
     const signatures = await provider!.sendAndConfirmSolanaInstructions(
       ixs,
@@ -78,8 +71,6 @@ export class TestRelayer extends Relayer {
    * - getting all signatures the merkle tree was involved in
    * - trying to extract and parse event cpi for every signature's transaction
    * - if there are indexed transactions already in the relayer object only transactions after the last indexed event are indexed
-   * @param connection
-   * @returns
    */
   async getIndexedTransactions(
     connection: Connection,
