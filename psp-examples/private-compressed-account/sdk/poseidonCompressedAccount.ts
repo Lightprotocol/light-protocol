@@ -27,7 +27,7 @@ import {
 } from "@lightprotocol/zk.js";
 import { Prover } from "@lightprotocol/prover.js";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
-import {Hasher} from "@lightprotocol/account.rs";
+import { Hasher } from "@lightprotocol/account.rs";
 const path = require("path");
 
 const getSubTreeHash = (subTrees: BN[], hasher: Hasher) => {

@@ -102,7 +102,7 @@ describe("Test private-compressed-account", () => {
       confirmConfig,
     });
     lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      TransactionParameters.getVerifierProgramId(IDL),
+      TransactionParameters.getVerifierProgramId(IDL)
     );
 
     const user: User = await User.init({ provider: lightProvider });
@@ -113,7 +113,7 @@ describe("Test private-compressed-account", () => {
       HASHER,
       IDL,
       0,
-      user,
+      user
     );
 
     try {
@@ -125,6 +125,7 @@ describe("Test private-compressed-account", () => {
     log("merkle tree account initialized");
 
     let insertValue = "12";
+    /// FIX: this interface
     let { txHash } = await compressedAccount.insertLeaf(insertValue);
     log(`tx signatures: ${txHash.signatures}`);
 
