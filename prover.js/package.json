@@ -9,13 +9,13 @@
   "module": "./dist/es/index.js",
   "exports": {
     ".": {
-      "types": "./dist/types/main/index.d.ts",
+      "types": "./dist/types/index.d.ts",
       "import": "./dist/es/index.js",
       "default": "./dist/cjs/index.cjs"
     },
     "./package.json": "./package.json"
   },
-  "types": "./dist/types/main/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist"
   ],
