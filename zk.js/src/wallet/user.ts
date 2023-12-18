@@ -510,6 +510,8 @@ export class User {
       await this.provider.getRootIndex();
 
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
+      // FIX: type mismatch!
+      //@ts-ignore
       systemProof.parsedPublicInputsObject,
       remainingMerkleTreeAccounts,
     );

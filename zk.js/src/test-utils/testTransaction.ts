@@ -58,8 +58,11 @@ export class TestTransaction {
     this.provider = provider;
     this.appParams = appParams;
     this.testValues = {};
+    // FIX: action is not defined
+    //@ts-ignore
     this.action = transaction["action"]
-      ? transaction["action"]
+      ? //@ts-ignore
+        transaction["action"]
       : Action.TRANSFER;
     this.transaction = transaction;
   }
