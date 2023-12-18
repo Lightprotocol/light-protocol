@@ -271,50 +271,6 @@ export type LightPsp2in2out = {
       }
     },
     {
-      "name": "transactionParameters",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "message",
-            "type": "bytes"
-          },
-          {
-            "name": "inputUtxosBytes",
-            "type": {
-              "vec": "bytes"
-            }
-          },
-          {
-            "name": "outputUtxosBytes",
-            "type": {
-              "vec": "bytes"
-            }
-          },
-          {
-            "name": "recipientSpl",
-            "type": "publicKey"
-          },
-          {
-            "name": "recipientSol",
-            "type": "publicKey"
-          },
-          {
-            "name": "relayerPubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "relayerFee",
-            "type": "u64"
-          },
-          {
-            "name": "transactionNonce",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "zKtransactionMasp2MainProofInputs",
       "type": {
         "kind": "struct",
@@ -954,50 +910,6 @@ export const IDL: LightPsp2in2out = {
                 32
               ]
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "transactionParameters",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "message",
-            "type": "bytes"
-          },
-          {
-            "name": "inputUtxosBytes",
-            "type": {
-              "vec": "bytes"
-            }
-          },
-          {
-            "name": "outputUtxosBytes",
-            "type": {
-              "vec": "bytes"
-            }
-          },
-          {
-            "name": "recipientSpl",
-            "type": "publicKey"
-          },
-          {
-            "name": "recipientSol",
-            "type": "publicKey"
-          },
-          {
-            "name": "relayerPubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "relayerFee",
-            "type": "u64"
-          },
-          {
-            "name": "transactionNonce",
-            "type": "u64"
           }
         ]
       }
