@@ -67,3 +67,20 @@ runs:
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
         npx nx build @lightprotocol/account.rs
         npx nx build @lightprotocol/cli
+
+    - name: Check for git changes
+      shell: bash
+      run: |
+        # Check for unstaged changes
+        if ! git diff --quiet; then
+          echo "There are unstaged changes after build!"
+          exit 1
+        fi
+
+        # Check for uncommitted changes
+        if ! git diff --staged --quiet; then
+          echo "There are uncommitted changes after build!"
+          exit 1
+        fi
+
+        echo "No changes detected."
