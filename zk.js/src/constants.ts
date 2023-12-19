@@ -99,8 +99,7 @@ export const ENCRYPTED_UNCOMPRESSED_UTXO_BYTES_LENGTH =
 
 export const DEFAULT_PRIVATE_KEY = bs58.encode(new Uint8Array(32).fill(0));
 
-export const DEFAULT_ZERO =
-  "14522046728041339886521211779101644712859239303505368468566383402165481390632";
+export const DEFAULT_ZERO = "0";
 
 export const AUTHORITY_SEED = anchor.utils.bytes.utf8.encode("AUTHORITY_SEED");
 export const DEFAULT_PROGRAMS = {
