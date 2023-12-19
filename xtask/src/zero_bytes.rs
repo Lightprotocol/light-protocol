@@ -33,18 +33,21 @@ where
     let mut zero_bytes = [[0u8; 32]; MAX_HEIGHT + 1];
     let mut zero_bytes_tokens = vec![];
 
-    let mut prev_hash = H::hashv(&[&[1u8; 32], &[1u8; 32]]).unwrap();
+    let mut prev_hash = H::hashv(&[&[0u8; 32], &[0u8; 32]]).unwrap();
+    zero_bytes[1] = prev_hash;
 
-    for zero_bytes_element in zero_bytes.iter_mut() {
+    for element in zero_bytes[2..].iter_mut() {
         let cur_hash = H::hashv(&[&prev_hash, &prev_hash]).unwrap();
-        zero_bytes_element.copy_from_slice(&cur_hash);
-
-        let cur_hash_iter = cur_hash.iter();
-        zero_bytes_tokens.push(quote! {
-            [ #(#cur_hash_iter),* ]
-        });
+        element.copy_from_slice(&cur_hash);
 
         prev_hash = cur_hash;
+    }
+
+    for element in zero_bytes.iter() {
+        let element_iter = element.iter();
+        zero_bytes_tokens.push(quote! {
+            [ #(#element_iter),* ]
+        });
     }
 
     // NOTE(vadorovsky): I couldn't find any way to do a double repetition
