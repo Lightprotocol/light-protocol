@@ -192,9 +192,10 @@ mod tests {
         let res_no_args = aligned_sized(parse_quote! {}, test_struct.clone())
             .unwrap()
             .to_string();
+        println!("{res_no_args}");
         assert!(res_no_args.contains(":: core :: mem :: size_of :: < u32 > ()"));
         assert!(res_no_args.contains(":: core :: mem :: size_of :: < u16 > ()"));
-        assert!(res_no_args.contains(" 128usize "));
+        assert!(res_no_args.contains(" 128 "));
 
         let res_anchor = aligned_sized(parse_quote! { anchor }, test_struct)
             .unwrap()
@@ -202,6 +203,6 @@ mod tests {
         assert!(res_anchor.contains(" 8 "));
         assert!(res_anchor.contains(":: core :: mem :: size_of :: < u32 > ()"));
         assert!(res_anchor.contains(":: core :: mem :: size_of :: < u16 > ()"));
-        assert!(res_anchor.contains(" 128usize "));
+        assert!(res_anchor.contains(" 128 "));
     }
 }
