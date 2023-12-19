@@ -271,6 +271,52 @@ export type LightPsp2in2out = {
       }
     },
     {
+      "name": "outUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amounts",
+            "type": {
+              "array": [
+                "u64",
+                2
+              ]
+            }
+          },
+          {
+            "name": "splAssetIndex",
+            "type": "u64"
+          },
+          {
+            "name": "blinding",
+            "type": "u256"
+          },
+          {
+            "name": "utxoDataHash",
+            "type": "u256"
+          },
+          {
+            "name": "accountShieldedPublicKey",
+            "type": "u256"
+          },
+          {
+            "name": "accountEncryptionPublicKey",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "isFillingUtxo",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
       "name": "zKtransactionMasp2MainProofInputs",
       "type": {
         "kind": "struct",
@@ -910,6 +956,52 @@ export const IDL: LightPsp2in2out = {
                 32
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "outUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amounts",
+            "type": {
+              "array": [
+                "u64",
+                2
+              ]
+            }
+          },
+          {
+            "name": "splAssetIndex",
+            "type": "u64"
+          },
+          {
+            "name": "blinding",
+            "type": "u256"
+          },
+          {
+            "name": "utxoDataHash",
+            "type": "u256"
+          },
+          {
+            "name": "accountShieldedPublicKey",
+            "type": "u256"
+          },
+          {
+            "name": "accountEncryptionPublicKey",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "isFillingUtxo",
+            "type": "bool"
           }
         ]
       }
