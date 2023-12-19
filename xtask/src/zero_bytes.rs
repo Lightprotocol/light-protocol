@@ -1,14 +1,15 @@
 use std::{fs::File, io::prelude::*, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
-use light_hasher::{zero_bytes::MAX_HEIGHT, Hasher, Poseidon, Sha256};
+use light_hasher::{zero_bytes::MAX_HEIGHT, Hasher, Keccak, Poseidon, Sha256};
 use light_utils::rustfmt;
 use quote::quote;
 
 #[derive(Debug, Clone, ValueEnum)]
 enum Hash {
-    Sha256,
+    Keccak,
     Poseidon,
+    Sha256,
 }
 
 #[derive(Debug, Parser)]
@@ -21,8 +22,9 @@ pub struct Options {
 
 pub fn generate_zero_bytes(opts: Options) -> anyhow::Result<()> {
     match opts.hash {
-        Hash::Sha256 => generate_zero_bytes_for_hasher::<Sha256>(opts),
+        Hash::Keccak => generate_zero_bytes_for_hasher::<Keccak>(opts),
         Hash::Poseidon => generate_zero_bytes_for_hasher::<Poseidon>(opts),
+        Hash::Sha256 => generate_zero_bytes_for_hasher::<Sha256>(opts),
     }
 }
 
