@@ -8,7 +8,7 @@ where
     const HEIGHT: usize = 4;
     const ROOTS: usize = 256;
 
-    let mut merkle_tree = MerkleTree::<H, ROOTS>::new(HEIGHT).unwrap();
+    let mut merkle_tree = MerkleTree::<H, HEIGHT, ROOTS>::new().unwrap();
 
     let leaf1 = H::hash(&[1u8; 32]).unwrap();
 
@@ -56,7 +56,7 @@ where
     //  /    \
     // L1   Z[0]
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = vec![
+    let expected_proof = [
         H::zero_bytes()[0],
         H::zero_bytes()[1],
         H::zero_bytes()[2],
@@ -90,7 +90,7 @@ where
     let h2 = H::hashv(&[&h1, &H::zero_bytes()[1]]).unwrap();
     let h3 = H::hashv(&[&h2, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = vec![
+    let expected_proof = [
         leaf1,
         H::zero_bytes()[1],
         H::zero_bytes()[2],

@@ -40,7 +40,7 @@ where
 }
 
 /// Reference implementation of Merkle tree used for testing.
-pub struct MerkleTree<H, const MAX_ROOTS: usize>
+pub struct MerkleTree<H, const HEIGHT: usize, const MAX_ROOTS: usize>
 where
     H: Hasher,
 {
@@ -50,7 +50,7 @@ where
     _hasher: PhantomData<H>,
 }
 
-impl<H, const MAX_ROOTS: usize> Default for MerkleTree<H, MAX_ROOTS>
+impl<H, const HEIGHT: usize, const MAX_ROOTS: usize> Default for MerkleTree<H, HEIGHT, MAX_ROOTS>
 where
     H: Hasher,
 {
@@ -63,13 +63,13 @@ where
     }
 }
 
-impl<H, const MAX_ROOTS: usize> MerkleTree<H, MAX_ROOTS>
+impl<H, const HEIGHT: usize, const MAX_ROOTS: usize> MerkleTree<H, HEIGHT, MAX_ROOTS>
 where
     H: Hasher,
 {
-    pub fn new(height: usize) -> Result<Self, HasherError> {
+    pub fn new() -> Result<Self, HasherError> {
         let mut leaf_nodes = vec![];
-        for i in 0..(1 << height) {
+        for i in 0..(1 << HEIGHT) {
             let tree_node = TreeNode::new_empty(0, i);
             leaf_nodes.push(Rc::new(RefCell::new(tree_node)));
         }
@@ -82,10 +82,11 @@ where
         })
     }
 
-    /// Getch the Merkle proof of the leaf under the given `ìndex`.
-    pub fn get_proof_of_leaf(&self, index: usize) -> Vec<[u8; 32]> {
-        let mut proof = vec![];
+    /// Returns the Merkle proof of the leaf under the given `ìndex`.
+    pub fn get_proof_of_leaf(&self, index: usize) -> [[u8; 32]; HEIGHT] {
+        let mut proof = [[0u8; 32]; HEIGHT];
         let mut node = self.leaf_nodes[index].clone();
+        let mut i = 0_usize;
         loop {
             let ref_node = node.clone();
             if ref_node.borrow().parent.is_none() {
@@ -93,12 +94,20 @@ where
             }
             let parent = ref_node.borrow().parent.as_ref().unwrap().clone();
             if parent.borrow().left.as_ref().unwrap().borrow().id == ref_node.borrow().id {
-                proof.push(parent.borrow().right.as_ref().unwrap().borrow().node);
+                proof[i] = parent.borrow().right.as_ref().unwrap().borrow().node;
             } else {
-                proof.push(parent.borrow().left.as_ref().unwrap().borrow().node);
+                proof[i] = parent.borrow().left.as_ref().unwrap().borrow().node;
             }
             node = parent;
+            i += 1;
         }
+
+        // Fill up the proof with zero bytes.
+        while i < HEIGHT {
+            proof[i] = H::zero_bytes()[i];
+            i += 1;
+        }
+
         proof
     }
 

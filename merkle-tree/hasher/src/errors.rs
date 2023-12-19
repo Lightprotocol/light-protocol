@@ -6,6 +6,18 @@ pub enum HasherError {
     HeightZero,
     #[msg("Invalid height, it cannot exceed the maximum allowed height")]
     HeightHigherThanMax,
+    #[msg("Invalid number of roots, it has to be greater than 0")]
+    RootsZero,
+    #[msg("Invalid root index, it exceeds the root buffer size")]
+    RootHigherThanMax,
+    #[msg("Merkle tree is full, cannot append more leaves.")]
+    TreeFull,
+    #[msg("Provided proof is larger than the height of the tree.")]
+    ProofTooLarge,
+    #[msg("Invalid Merkle proof, stopping the update operation.")]
+    InvalidProof,
+    #[msg("Attempting to update the leaf which was updated by an another newest change.")]
+    CannotUpdateLeaf,
     #[msg("Invalid number of inputs.")]
     PoseidonInvalidNumberOfInputs,
     #[msg("Input is an empty slice.")]
