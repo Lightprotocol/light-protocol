@@ -17,7 +17,6 @@ import {
   TransactionParametersErrorCode,
   createOutUtxos,
   TOKEN_REGISTRY,
-  Utxo,
   CreateUtxoError,
   CreateUtxoErrorCode,
   Account,
@@ -31,6 +30,10 @@ import {
   BN_0,
   BN_1,
   BN_2,
+  createOutUtxo,
+  Utxo,
+  OutUtxo,
+  createUtxo,
 } from "../src";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -46,7 +49,7 @@ describe("Test createOutUtxos Functional", () => {
 
   let splAmount: BN,
     solAmount: BN,
-    token: string,
+    token,
     tokenCtx: TokenData,
     utxo1: Utxo,
     relayerFee: BN,
@@ -64,20 +67,32 @@ describe("Test createOutUtxos Functional", () => {
     if (!tmpTokenCtx) throw new Error("Token not supported!");
     tokenCtx = tmpTokenCtx as TokenData;
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
-    utxo1 = new Utxo({
+    utxo1 = createUtxo(
       lightWasm,
-      assets: [SystemProgram.programId, tokenCtx.mint],
-      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: k0.keypair.publicKey,
-    });
-    utxoSol = new Utxo({
+      k0,
+      {
+        assets: [SystemProgram.programId, tokenCtx.mint],
+        amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
+        merkleProof: ["1"],
+        utxoHash: "0",
+        blinding: "1",
+        merkleTreeLeafIndex: 0,
+      },
+      false,
+    );
+    utxoSol = createUtxo(
       lightWasm,
-      assets: [SystemProgram.programId],
-      amounts: [new BN(1e6)],
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: k0.keypair.publicKey,
-    });
+      k0,
+      {
+        assets: [SystemProgram.programId],
+        amounts: [new BN(1e6)],
+        merkleProof: ["1"],
+        utxoHash: "0",
+        blinding: "2",
+        merkleTreeLeafIndex: 0,
+      },
+      false,
+    );
     relayerFee = RELAYER_FEE;
 
     const recipientAccountRoot = Account.createFromSeed(
@@ -550,7 +565,7 @@ describe("createRecipientUtxos", () => {
     const account1 = Account.createFromSeed(lightWasm, seed32);
     const account2 = Account.createFromSeed(
       lightWasm,
-      new Uint8Array(32).fill(4).toString(),
+      bs58.encode(new Uint8Array(32).fill(4)),
     );
 
     const recipients: Recipient[] = [
@@ -603,28 +618,48 @@ describe("validateUtxoAmounts", () => {
     lightWasm = await WasmFactory.getInstance();
     assetPubkey = new PublicKey(0);
     inUtxos = [
-      createUtxo(lightWasm, [new BN(5)], [assetPubkey]),
-      createUtxo(lightWasm, [new BN(3)], [assetPubkey]),
+      createUtxoHelper(lightWasm, [new BN(5)], [assetPubkey]),
+      createUtxoHelper(lightWasm, [new BN(3)], [assetPubkey]),
     ];
   });
-  // Helper function to create a UTXO with specific amounts and assets
-  function createUtxo(
+  function createUtxoHelper(
     lightWasm: LightWasm,
     amounts: BN[],
     assets: PublicKey[],
   ): Utxo {
-    return new Utxo({
+    return createUtxo(
+      lightWasm,
+      Account.createFromSeed(lightWasm, seed32),
+      {
+        amounts,
+        assets,
+        blinding: "0",
+        utxoHash: "0",
+        merkleProof: ["1"],
+        merkleTreeLeafIndex: 0,
+      },
+      false,
+    );
+  }
+  // Helper function to create a UTXO with specific amounts and assets
+  function createOutUtxoHelper(
+    lightWasm: LightWasm,
+    amounts: BN[],
+    assets: PublicKey[],
+  ): OutUtxo {
+    return createOutUtxo({
       lightWasm,
       amounts,
       assets,
       blinding: BN_0,
-      publicKey: Account.random(lightWasm).keypair.publicKey,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      publicKey: Account.createFromSeed(lightWasm, seed32).keypair.publicKey,
     });
   }
 
   it("should not throw an error if input UTXOs sum is equal to output UTXOs sum", () => {
-    const outUtxos = [createUtxo(lightWasm, [new BN(8)], [assetPubkey])];
+    const outUtxos = [
+      createOutUtxoHelper(lightWasm, [new BN(8)], [assetPubkey]),
+    ];
 
     expect(() =>
       validateUtxoAmounts({ assetPubkeys: [assetPubkey], inUtxos, outUtxos }),
@@ -632,7 +667,9 @@ describe("validateUtxoAmounts", () => {
   });
 
   it("should not throw an error if input UTXOs sum is greater than output UTXOs sum", () => {
-    const outUtxos = [createUtxo(lightWasm, [new BN(7)], [assetPubkey])];
+    const outUtxos = [
+      createOutUtxoHelper(lightWasm, [new BN(7)], [assetPubkey]),
+    ];
 
     expect(() =>
       validateUtxoAmounts({ assetPubkeys: [assetPubkey], inUtxos, outUtxos }),
@@ -640,7 +677,9 @@ describe("validateUtxoAmounts", () => {
   });
 
   it("should throw an error if input UTXOs sum is less than output UTXOs sum", () => {
-    const outUtxos = [createUtxo(lightWasm, [new BN(9)], [assetPubkey])];
+    const outUtxos = [
+      createOutUtxoHelper(lightWasm, [new BN(9)], [assetPubkey]),
+    ];
 
     expect(() =>
       validateUtxoAmounts({ assetPubkeys: [assetPubkey], inUtxos, outUtxos }),
@@ -667,20 +706,32 @@ describe("Test createOutUtxos Errors", () => {
     if (!tmpTokenCtx) throw new Error("Token not supported!");
     tokenCtx = tmpTokenCtx as TokenData;
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
-    utxo1 = new Utxo({
-      lightWasm: lightWasm,
-      assets: [SystemProgram.programId, tokenCtx.mint],
-      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: k0.keypair.publicKey,
-    });
-    utxoSol = new Utxo({
-      lightWasm: lightWasm,
-      assets: [SystemProgram.programId],
-      amounts: [new BN(1e6)],
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: k0.keypair.publicKey,
-    });
+    utxo1 = createUtxo(
+      lightWasm,
+      k0,
+      {
+        assets: [SystemProgram.programId, tokenCtx.mint],
+        amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
+        merkleProof: ["1"],
+        utxoHash: "0",
+        blinding: "1",
+        merkleTreeLeafIndex: 0,
+      },
+      false,
+    );
+    utxoSol = createUtxo(
+      lightWasm,
+      k0,
+      {
+        assets: [SystemProgram.programId],
+        amounts: [new BN(1e6)],
+        merkleProof: ["1"],
+        utxoHash: "0",
+        blinding: "2",
+        merkleTreeLeafIndex: 0,
+      },
+      false,
+    );
 
     createOutUtxos({
       publicMint: tokenCtx.mint,
@@ -728,15 +779,17 @@ describe("Test createOutUtxos Errors", () => {
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [
-          new Utxo({
-            lightWasm: lightWasm,
-            assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          createOutUtxo({
+            lightWasm,
             publicKey: k0.keypair.publicKey,
+            amounts: [BN_0],
+            assets: [SystemProgram.programId],
           }),
-          new Utxo({
-            lightWasm: lightWasm,
-            assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          createOutUtxo({
+            lightWasm,
             publicKey: k0.keypair.publicKey,
+            amounts: [BN_0],
+            assets: [SystemProgram.programId],
           }),
         ],
         numberMaxOutUtxos,
@@ -765,15 +818,11 @@ describe("Test createOutUtxos Errors", () => {
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [
-          new Utxo({
-            lightWasm: lightWasm,
-            assets: [SystemProgram.programId, invalidMint],
-            amounts: [BN_0, BN_1],
-            assetLookupTable: [
-              ...lightProvider.lookUpTables.assetLookupTable,
-              ...[invalidMint.toBase58()],
-            ],
+          createOutUtxo({
+            lightWasm,
             publicKey: k0.keypair.publicKey,
+            amounts: [BN_0, BN_1],
+            assets: [SystemProgram.programId, invalidMint],
           }),
         ],
       });
@@ -797,12 +846,11 @@ describe("Test createOutUtxos Errors", () => {
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [
-          new Utxo({
-            lightWasm: lightWasm,
-            assets: [SystemProgram.programId, utxo1.assets[1]],
-            amounts: [BN_0, new BN(1e12)],
-            assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          createOutUtxo({
+            lightWasm,
             publicKey: k0.keypair.publicKey,
+            amounts: [BN_0, new BN(1e12)],
+            assets: [SystemProgram.programId, utxo1.assets[1]],
           }),
         ],
       });
@@ -855,39 +903,22 @@ describe("Test createOutUtxos Errors", () => {
       });
   });
 
-  // it("SPL_AMOUNT_UNDEFINED",async () => {
-  //     expect(()=>{
-  //         // @ts-ignore
-  //         createOutUtxos({
-  //             publicMint: tokenCtx.mint,
-  //             publicAmountSpl: splAmount,
-  //             inUtxos: [utxo1, utxoSol],
-  //             publicAmountSol: BN_0,
-  //             poseidon,
-  //             changeUtxoAccount: k0,
-  //             action: Action.UNSHIELD,
-  //             // @ts-ignore
-  //             recipients: [{account: recipientAccount, mint: utxo1.assets[1], solAmount: BN_0}],
-  //         });
-  //     }).to.throw(CreateUtxoError).includes({
-  //         code: CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
-  //         functionName: "createOutUtxos"
-  //     })
-  // })
-
   it("INVALID_OUTPUT_UTXO_LENGTH", async () => {
     const invalidMint = SolanaKeypair.generate().publicKey;
 
-    const utxoSol0 = new Utxo({
-      lightWasm: lightWasm,
-      assets: [SystemProgram.programId, invalidMint],
-      amounts: [new BN(1e6), new BN(1e6)],
-      assetLookupTable: [
-        ...lightProvider.lookUpTables.assetLookupTable,
-        ...[invalidMint.toBase58()],
-      ],
-      publicKey: k0.keypair.publicKey,
-    });
+    const utxoSol0 = createUtxo(
+      lightWasm,
+      k0,
+      {
+        assets: [SystemProgram.programId, invalidMint],
+        amounts: [new BN(1e6), new BN(1e6)],
+        merkleProof: ["3"],
+        utxoHash: "0",
+        blinding: "1",
+        merkleTreeLeafIndex: 0,
+      },
+      false,
+    );
 
     expect(() => {
       createOutUtxos({
@@ -899,15 +930,11 @@ describe("Test createOutUtxos Errors", () => {
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [
-          new Utxo({
-            lightWasm: lightWasm,
-            assets: [SystemProgram.programId, utxo1.assets[1]],
-            amounts: [BN_0, BN_1],
-            assetLookupTable: [
-              ...lightProvider.lookUpTables.assetLookupTable,
-              ...[invalidMint.toBase58()],
-            ],
+          createOutUtxo({
+            lightWasm,
             publicKey: k0.keypair.publicKey,
+            amounts: [BN_0, BN_1],
+            assets: [SystemProgram.programId, utxo1.assets[1]],
           }),
         ],
         numberMaxOutUtxos,

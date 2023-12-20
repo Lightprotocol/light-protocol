@@ -190,7 +190,7 @@ describe("API tests", () => {
         assert.equal(res.body.data.transaction.publicAmountSpl, "0");
         assert.equal(
           new BN(res.body.data.transaction.leaves[0]).toString(),
-          utxo.getCommitment(lightWasm),
+          utxo.utxoHash,
         );
         assert.equal(res.body.data.transaction.firstLeafIndex, "0");
         // don't assert nullifiers since we shielded
@@ -253,7 +253,7 @@ describe("API tests", () => {
         assert.equal(res.body.data[0].transaction.publicAmountSpl, "0");
         assert.equal(
           new BN(res.body.data[0].transaction.leaves[0]).toString(),
-          utxo.getCommitment(lightWasm),
+          utxo.utxoHash,
         );
         assert.equal(res.body.data[0].transaction.firstLeafIndex, "0");
         // don't assert nullifiers since we shielded

@@ -8,7 +8,7 @@ chai.use(chaiAsPromised);
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-
+import { compareUtxos } from "./test-utils/compareUtxos";
 import {
   TransactionErrorCode,
   Action,
@@ -25,6 +25,7 @@ import {
   RELAYER_FEE,
   BN_0,
   BN_1,
+  createTestInUtxo,
 } from "../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -63,29 +64,23 @@ describe("Test selectInUtxos Functional", () => {
     tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
-    utxo1 = new Utxo({
+    utxo1 = createTestInUtxo({
       lightWasm,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals.toNumber())],
-      index: 0,
-      publicKey: utxo1Burner.keypair.publicKey,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      account: utxo1Burner,
     });
-    utxo2 = new Utxo({
+    utxo2 = createTestInUtxo({
       lightWasm,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
-      index: 0,
-      publicKey: utxo2Burner.keypair.publicKey,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      account: utxo2Burner,
     });
-    utxoSol = new Utxo({
+    utxoSol = createTestInUtxo({
       lightWasm,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
-      index: 1,
-      publicKey: utxoSolBurner.keypair.publicKey,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      account: utxoSolBurner,
     });
   });
 
@@ -102,7 +97,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
-    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
+    compareUtxos(selectedUtxo[0], utxo1);
   });
 
   it("Unshield select sol", async () => {
@@ -118,7 +113,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(selectedUtxo[0], utxoSol, lightWasm);
+    compareUtxos(selectedUtxo[0], utxoSol);
     assert.equal(selectInUtxos.length, 1);
   });
 
@@ -137,8 +132,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(selectedUtxo[1], utxoSol, lightWasm);
-    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
+    compareUtxos(selectedUtxo[1], utxoSol);
+    compareUtxos(selectedUtxo[0], utxo1);
   });
 
   it("Transfer select sol & spl", async () => {
@@ -166,8 +161,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(selectedUtxo[1], utxoSol, lightWasm);
-    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
+    compareUtxos(selectedUtxo[1], utxoSol);
+    compareUtxos(selectedUtxo[0], utxo1);
   });
 
   it("Transfer select sol", async () => {
@@ -194,8 +189,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(selectedUtxo[0], utxoSol, lightWasm);
-    Utxo.equal(selectedUtxo[1], utxo1, lightWasm);
+    compareUtxos(selectedUtxo[0], utxoSol);
+    compareUtxos(selectedUtxo[1], utxo1);
   });
 
   it("Transfer select spl", async () => {
@@ -223,7 +218,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
+    compareUtxos(selectedUtxo[0], utxo1);
   });
 
   it("Shield select sol & spl", async () => {
@@ -240,7 +235,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
+    compareUtxos(selectedUtxo[0], utxo1);
   });
 
   it("Shield select sol", async () => {
@@ -255,8 +250,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(selectedUtxo[0], utxoSol, lightWasm);
-    Utxo.equal(selectedUtxo[1], utxo1, lightWasm);
+    compareUtxos(selectedUtxo[0], utxoSol);
+    compareUtxos(selectedUtxo[1], utxo1);
   });
 
   it("Shield select spl", async () => {
@@ -272,7 +267,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
+    compareUtxos(selectedUtxo[0], utxo1);
     assert.equal(selectedUtxo.length, 1);
   });
 
@@ -301,8 +296,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
-    Utxo.equal(selectedUtxo[1], utxo2, lightWasm);
+    compareUtxos(selectedUtxo[0], utxo1);
+    compareUtxos(selectedUtxo[1], utxo2);
   });
 });
 
@@ -325,30 +320,24 @@ describe("Test selectInUtxos Errors", () => {
     tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
-    account = Account.random(lightWasm);
-    utxo1 = new Utxo({
+    account = Account.createFromSeed(lightWasm, seed32);
+    utxo1 = createTestInUtxo({
+      lightWasm,
+      assets: [SystemProgram.programId, tokenCtx.mint],
+      amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals.toNumber())],
+      account,
+    });
+    utxo2 = createTestInUtxo({
       lightWasm,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
-      index: 0,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: account.keypair.publicKey,
+      account,
     });
-    utxo2 = new Utxo({
-      lightWasm,
-      assets: [SystemProgram.programId, tokenCtx.mint],
-      amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
-      index: 0,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: account.keypair.publicKey,
-    });
-    utxoSol = new Utxo({
+    utxoSol = createTestInUtxo({
       lightWasm,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
-      index: 1,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: account.keypair.publicKey,
+      account,
     });
   });
 

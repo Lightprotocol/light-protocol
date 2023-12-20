@@ -13,21 +13,22 @@ import {
   encryptOutUtxoInternal,
   fetchAssetByIdLookUp,
   OutUtxo,
+  STANDARD_SHIELDED_PRIVATE_KEY,
+  STANDARD_SHIELDED_PUBLIC_KEY,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
   UtxoError,
   UtxoErrorCode,
-  UtxoNew,
+  Utxo,
 } from "./index";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
-
+// TODO: make utxoData depend on idl with generic type
 export type ProgramOutUtxo = {
   outUtxo: OutUtxo;
   pspId: PublicKey;
   pspIdl: Idl;
   includeUtxoData: boolean;
-  utxoData: any; // TODO: make depend on idl with generic type
   utxoName: string;
 };
 
@@ -57,7 +58,6 @@ export function createProgramOutUtxo({
   utxoName: string;
 }): ProgramOutUtxo {
   checkUtxoData(utxoData, pspIdl, utxoName + "OutUtxo");
-  const utxoDataHash = createUtxoDataHash(utxoData, lightWasm);
 
   const outUtxo = createOutUtxo({
     publicKey,
@@ -67,8 +67,8 @@ export function createProgramOutUtxo({
     blinding,
     isFillingUtxo: false,
     lightWasm,
-    utxoDataHash,
     verifierAddress: pspId,
+    utxoData,
   });
 
   const programOutUtxo: ProgramOutUtxo = {
@@ -76,7 +76,6 @@ export function createProgramOutUtxo({
     pspId,
     pspIdl,
     includeUtxoData,
-    utxoData,
     utxoName,
   };
   return programOutUtxo;
@@ -152,7 +151,7 @@ export async function programOutUtxoToBytes(
   const serializeObject = {
     ...outUtxo,
     ...outUtxo.outUtxo,
-    ...outUtxo.utxoData,
+    ...outUtxo.outUtxo.utxoData,
     accountShieldedPublicKey: new BN(outUtxo.outUtxo.publicKey),
     accountEncryptionPublicKey: outUtxo.outUtxo.encryptionPublicKey
       ? outUtxo.outUtxo.encryptionPublicKey
@@ -241,7 +240,7 @@ export function programOutUtxoFromBytes({
   const utxoData = createAccountObject(
     decodedUtxoData,
     pspIdl.accounts,
-    "utxoAppData", // TODO: make name flexible
+    "utxoOutUtxoAppData", // TODO: make name flexible
   );
 
   const programUtxo = createProgramOutUtxo({
@@ -382,12 +381,10 @@ export async function decryptProgramOutUtxo({
 }
 
 export type ProgramUtxo = {
-  utxo: UtxoNew;
+  utxo: Utxo;
   pspId: PublicKey;
   pspIdl: Idl;
   includeUtxoData: boolean;
-  utxoData: any; // TODO: make depend on idl
-  utxoName: string;
 };
 
 export function createProgramUtxo({
@@ -414,6 +411,8 @@ export function createProgramUtxo({
   const utxoDataHash = createUtxoDataHash(utxoDataInternal, lightWasm);
   createUtxoInputs["utxoDataHash"] = utxoDataHash.toString();
   createUtxoInputs["verifierAddress"] = pspId;
+  createUtxoInputs["utxoData"] = utxoDataInternal;
+  createUtxoInputs["utxoName"] = utxoName;
 
   const utxo = createUtxo(lightWasm, account, createUtxoInputs, false);
   const programOutUtxo: ProgramUtxo = {
@@ -421,8 +420,6 @@ export function createProgramUtxo({
     pspId,
     pspIdl,
     includeUtxoData,
-    utxoData: utxoDataInternal,
-    utxoName,
   };
   return programOutUtxo;
 }
@@ -450,7 +447,7 @@ export async function decryptProgramUtxo({
   aes,
   utxoHash,
   lightWasm,
-  compressed = true,
+  compressed = false,
   merkleProof,
   merkleTreeLeafIndex,
   assetLookupTable,
@@ -473,6 +470,14 @@ export async function decryptProgramUtxo({
   });
   if (!decryptedProgramOutUtxo.value) {
     return decryptedProgramOutUtxo as Result<ProgramUtxo | null, UtxoError>;
+  }
+  if (
+    decryptedProgramOutUtxo.value.outUtxo.publicKey ===
+    STANDARD_SHIELDED_PUBLIC_KEY.toString()
+  ) {
+    const bs58Standard = bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray());
+    const bs5832 = bs58.encode(new Uint8Array(32).fill(1));
+    account = Account.fromPrivkey(lightWasm, bs58Standard, bs5832, bs5832);
   }
 
   return Result.Ok(
@@ -508,7 +513,7 @@ export function programOutUtxoToProgramUtxo(
     pspId: programOutUtxo.pspId,
     pspIdl: programOutUtxo.pspIdl,
     includeUtxoData: programOutUtxo.includeUtxoData,
-    utxoData: programOutUtxo.utxoData,
+    utxoData: programOutUtxo.outUtxo.utxoData,
     utxoName: programOutUtxo.utxoName,
   });
 }

@@ -6,7 +6,6 @@ import { it } from "mocha";
 
 import {
   ADMIN_AUTH_KEYPAIR,
-  Account,
   Action,
   BN_0,
   BN_1,
@@ -22,12 +21,14 @@ import {
   Utxo,
   VerifierConfig,
   confirmConfig,
+  createOutUtxo,
   createRpcIndexedTransaction,
   encryptOutUtxos,
   getIdsFromEncryptedUtxos,
+  Account,
 } from "../src";
 import { WasmFactory } from "@lightprotocol/account.rs";
-import { MerkleTree, encrypt } from "@lightprotocol/circuit-lib.js";
+import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -37,6 +38,7 @@ const mockKeypair = SolanaKeypair.generate();
 const mockKeypair1 = SolanaKeypair.generate();
 const relayerFee = new BN("123214");
 const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test Relayer Functional", () => {
   it("Relayer Shield", () => {
@@ -125,19 +127,17 @@ describe("Test Relayer Errors", () => {
     const WASM = await WasmFactory.getInstance();
 
     const account = Account.random(WASM);
-    const utxo = new Utxo({
+    const utxo = createOutUtxo({
       amounts: [new BN(1)],
       assets: [mockKeypair.publicKey],
       publicKey: account.keypair.publicKey,
       lightWasm: WASM,
-      assetLookupTable: [SystemProgram.programId.toBase58()],
     });
-    const utxo2 = new Utxo({
+    const utxo2 = createOutUtxo({
       amounts: [new BN(2)],
       assets: [mockKeypair.publicKey],
       publicKey: account.keypair.publicKey,
       lightWasm: WASM,
-      assetLookupTable: [SystemProgram.programId.toBase58()],
     });
     const verifierConfig: VerifierConfig = {
       in: 2,
@@ -148,6 +148,7 @@ describe("Test Relayer Errors", () => {
       [utxo, utxo2],
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       verifierConfig,
+      [SystemProgram.programId.toBase58()],
       WASM,
     );
     const ids = getIdsFromEncryptedUtxos(Buffer.from(encryptedUtxos), 2);
@@ -175,19 +176,17 @@ describe("Test Relayer Errors", () => {
     const WASM = await WasmFactory.getInstance();
 
     const account = Account.random(WASM);
-    const utxo = new Utxo({
+    const utxo = createOutUtxo({
       amounts: [new BN(1)],
       assets: [mockKeypair.publicKey],
       publicKey: account.keypair.publicKey,
       lightWasm: WASM,
-      assetLookupTable: [SystemProgram.programId.toBase58()],
     });
-    const utxo2 = new Utxo({
+    const utxo2 = createOutUtxo({
       amounts: [new BN(2)],
       assets: [mockKeypair.publicKey],
       publicKey: account.keypair.publicKey,
       lightWasm: WASM,
-      assetLookupTable: [SystemProgram.programId.toBase58()],
     });
     const verifierConfig: VerifierConfig = {
       in: 2,
@@ -198,12 +197,13 @@ describe("Test Relayer Errors", () => {
       [utxo, utxo2],
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       verifierConfig,
+      [SystemProgram.programId.toBase58()],
       WASM,
     );
 
     const merkleTree = new MerkleTree(18, WASM, [
-      utxo.getCommitment(WASM),
-      utxo2.getCommitment(WASM),
+      utxo.utxoHash,
+      utxo2.utxoHash,
     ]);
     const solMerkleTree = new SolMerkleTree({
       pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -213,30 +213,27 @@ describe("Test Relayer Errors", () => {
 
     const indexedTransaction: ParsedIndexedTransaction = {
       blockTime: 0,
-      signer: mockKeypair.publicKey.toString(),
+      signer: mockKeypair.publicKey.toBase58(),
       signature: "",
-      to: mockKeypair.publicKey.toString(),
-      from: mockKeypair.publicKey.toString(),
-      toSpl: mockKeypair.publicKey.toString(),
-      fromSpl: mockKeypair.publicKey.toString(),
-      verifier: mockKeypair.publicKey.toString(),
-      relayerRecipientSol: mockKeypair.publicKey.toString(),
+      to: mockKeypair.publicKey.toBase58(),
+      from: mockKeypair.publicKey.toBase58(),
+      toSpl: mockKeypair.publicKey.toBase58(),
+      fromSpl: mockKeypair.publicKey.toBase58(),
+      verifier: mockKeypair.publicKey.toBase58(),
+      relayerRecipientSol: mockKeypair.publicKey.toBase58(),
       type: Action.SHIELD,
-      changeSolAmount: BN_0.toString(),
-      publicAmountSol: BN_0.toString(),
-      publicAmountSpl: BN_0.toString(),
-      encryptedUtxos: Buffer.from(encryptedUtxos),
+      changeSolAmount: "0",
+      publicAmountSol: "0",
+      publicAmountSpl: "0",
+      encryptedUtxos: Array.from(encryptedUtxos),
       leaves: [
-        new BN(utxo.getCommitment(WASM)).toArray("be", 32),
-        new BN(utxo2.getCommitment(WASM)).toArray("be", 32),
+        new BN(utxo.utxoHash).toArray("be", 32),
+        new BN(utxo2.utxoHash).toArray("be", 32),
       ],
-      firstLeafIndex: BN_0.toString(),
-      nullifiers: [
-        new BN(utxo.getNullifier({ lightWasm: WASM, account, index: 0 })),
-        new BN(utxo2.getNullifier({ lightWasm: WASM, account, index: 1 })),
-      ],
-      relayerFee: BN_0.toString(),
-      message: Buffer.from(""),
+      firstLeafIndex: "0",
+      nullifiers: [Array(32).fill(1), Array(32).fill(2)],
+      relayerFee: "0",
+      message: Array<number>(),
     };
     const rpcIndexedTransaction = createRpcIndexedTransaction(
       indexedTransaction,
@@ -258,8 +255,6 @@ describe("Test Relayer Errors", () => {
 
   it.skip("Index transaction", async () => {
     const WASM = await WasmFactory.getInstance();
-    const seed = bs58.encode(new Uint8Array(32).fill(1));
-    const ACCOUNT = Account.createFromSeed(WASM, seed);
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     const provider = AnchorProvider.local(
       "http://127.0.0.1:8899",

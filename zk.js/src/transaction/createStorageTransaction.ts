@@ -29,7 +29,6 @@ import {
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
   MAX_MESSAGE_SIZE,
   TOKEN_PUBKEY_SYMBOL,
-  Utxo,
   createSolanaInstructions,
   getSolanaRemainingAccounts,
   prepareAccounts,
@@ -37,6 +36,10 @@ import {
   TOKEN_REGISTRY,
   CreateUtxoErrorCode,
   BN_0,
+  ProgramUtxo,
+  createProgramOutUtxo,
+  encryptProgramOutUtxo,
+  ProgramOutUtxo,
 } from "../index";
 
 export async function prepareStoreProgramUtxo({
@@ -46,7 +49,6 @@ export async function prepareStoreProgramUtxo({
   senderTokenAccount,
   recipientPublicKey,
   appUtxo,
-  stringUtxo,
   appUtxoConfig,
   account,
   lightWasm,
@@ -57,8 +59,7 @@ export async function prepareStoreProgramUtxo({
   amountSpl?: BN;
   senderTokenAccount?: PublicKey;
   recipientPublicKey?: string;
-  appUtxo?: Utxo;
-  stringUtxo?: string;
+  appUtxo?: ProgramOutUtxo;
   appUtxoConfig?: AppUtxoConfig;
   account: Account;
   lightWasm: LightWasm;
@@ -90,21 +91,21 @@ export async function prepareStoreProgramUtxo({
       const recipientAccount = recipientPublicKey
         ? Account.fromPubkey(recipientPublicKey, lightWasm)
         : undefined;
-      appUtxo = new Utxo({
+      appUtxo = createProgramOutUtxo({
+        lightWasm,
         amounts: [amountSol, amountSpl],
         assets: [SystemProgram.programId, tokenCtx.mint],
-        ...appUtxoConfig,
         publicKey: recipientAccount
           ? recipientAccount.keypair.publicKey
           : account.keypair.publicKey,
         encryptionPublicKey: recipientAccount
           ? recipientAccount.encryptionKeypair.publicKey
           : undefined,
-        assetLookupTable,
-        lightWasm,
+        pspId: appUtxoConfig.verifierAddress,
+        pspIdl: appUtxoConfig.idl,
+        utxoData: appUtxoConfig.appData,
+        utxoName: "appUtxo", // TODO: make dynamic
       });
-    } else if (stringUtxo) {
-      appUtxo = Utxo.fromString(stringUtxo, assetLookupTable, lightWasm);
     } else {
       throw new UserError(
         UserErrorCode.APP_UTXO_UNDEFINED,
@@ -122,9 +123,9 @@ export async function prepareStoreProgramUtxo({
 
   if (!token) {
     const utxoAsset =
-      appUtxo.amounts[1].toString() === "0"
+      appUtxo.outUtxo.amounts[1].toString() === "0"
         ? new PublicKey(0).toBase58()
-        : appUtxo.assets[1].toBase58();
+        : appUtxo.outUtxo.assets[1].toBase58();
     token = TOKEN_PUBKEY_SYMBOL.get(utxoAsset);
   }
 
@@ -135,11 +136,13 @@ export async function prepareStoreProgramUtxo({
     );
 
   const message = Buffer.from(
-    await appUtxo.encrypt({
+    await encryptProgramOutUtxo({
+      lightWasm,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       compressed: false,
       account,
-      lightWasm,
+      utxo: appUtxo,
+      assetLookupTable,
     }),
   );
 
@@ -149,10 +152,12 @@ export async function prepareStoreProgramUtxo({
       "storeData",
       `${message.length}/${MAX_MESSAGE_SIZE}`,
     );
-  appUtxo.includeAppData = false;
+  appUtxo.includeUtxoData = false;
   if (!amountSpl)
     amountSpl =
-      appUtxo.amounts[1].toString() === "0" ? undefined : appUtxo.amounts[1];
+      appUtxo.outUtxo.amounts[1].toString() === "0"
+        ? undefined
+        : appUtxo.outUtxo.amounts[1];
 
   const tokenCtx = getTokenContext(token);
 
@@ -173,7 +178,6 @@ export async function shieldProgramUtxo({
   senderTokenAccount,
   recipientPublicKey,
   appUtxo,
-  stringUtxo,
   appUtxoConfig,
   account,
   provider,
@@ -183,8 +187,7 @@ export async function shieldProgramUtxo({
   amountSpl?: BN;
   senderTokenAccount?: PublicKey;
   recipientPublicKey?: string;
-  appUtxo?: Utxo;
-  stringUtxo?: string;
+  appUtxo?: ProgramOutUtxo;
   appUtxoConfig?: AppUtxoConfig;
   account: Account;
   provider: Provider;
@@ -203,7 +206,6 @@ export async function shieldProgramUtxo({
     senderTokenAccount,
     recipientPublicKey,
     appUtxo,
-    stringUtxo,
     appUtxoConfig,
     account,
     assetLookupTable: provider.lookUpTables.assetLookupTable,
@@ -216,7 +218,7 @@ export async function shieldProgramUtxo({
     mint:
       publicAmountSpl && !publicAmountSpl.eq(BN_0) ? tokenCtx.mint : undefined,
     senderSpl: userSplAccount,
-    outputUtxos: [utxo],
+    outputUtxos: [utxo.outUtxo],
     signer: provider.wallet.publicKey,
     systemPspId: getVerifierProgramId(verifierIdl),
     account,

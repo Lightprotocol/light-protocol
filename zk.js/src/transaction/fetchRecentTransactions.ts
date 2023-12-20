@@ -20,7 +20,12 @@ import {
   BN_0,
 } from "../constants";
 
-import { Action, MerkleTreeConfig, getIdsFromEncryptedUtxos } from "../index";
+import {
+  Action,
+  MerkleTreeConfig,
+  Utxo,
+  getIdsFromEncryptedUtxos,
+} from "../index";
 
 import { getUpdatedSpentUtxos, sleep } from "../utils";
 import {
@@ -29,7 +34,6 @@ import {
   ParsedIndexedTransaction,
   RelayerIndexedTransaction,
 } from "../types";
-import { Utxo } from "../utxo";
 import { TokenUtxoBalance, Provider } from "../wallet";
 
 export class TransactionIndexerEvent {
@@ -94,13 +98,12 @@ export const getUserIndexTransactions = async (
 
     spentUtxos?.forEach((sUtxo) => {
       const matchesNullifier =
-        sUtxo._nullifier === nullifierOne || sUtxo._nullifier === nullifierZero;
+        sUtxo.nullifier === nullifierOne || sUtxo.nullifier === nullifierZero;
 
       let matchesCommitment = false;
       for (const leaf of trx.leaves) {
         if (!matchesCommitment) {
-          matchesCommitment =
-            sUtxo._commitment === new BN(leaf, "le").toString();
+          matchesCommitment = sUtxo.utxoHash === new BN(leaf, "le").toString();
         }
       }
 

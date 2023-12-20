@@ -16,7 +16,6 @@ import {
   TransactionError,
   TransactionErrorCode,
   hashAndTruncateToCircuit,
-  Utxo,
   truncateToCircuit,
   TransactionParametersError,
   TransactionParametersErrorCode,
@@ -31,6 +30,13 @@ import {
   CreateUtxoErrorCode,
   selectInUtxos,
   createOutUtxos,
+  OutUtxo,
+  Utxo,
+  createFillingOutUtxo,
+  createFillingUtxo,
+  encryptOutUtxo,
+  ProgramUtxo,
+  MINT,
 } from "../index";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { getIndices3D } from "@lightprotocol/circuit-lib.js";
@@ -92,18 +98,19 @@ export type PspTransactionInput = {
   circuitName: string;
   path: string;
   checkedInUtxos?: { utxoName: string; utxo: Utxo }[];
-  checkedOutUtxos?: { utxoName: string; utxo: Utxo }[];
+  checkedOutUtxos?: { utxoName: string; utxo: OutUtxo }[];
   inUtxos?: Utxo[];
-  outUtxos?: Utxo[];
+  outUtxos?: OutUtxo[];
   accounts?: any;
 };
+8;
 type compiledProofInputs = {
   systemProofInputs: any;
   pspProofInputs: any;
 };
 
 // how do I best steamline the transaction generation process for psps?
-// 1. define circuit specific proof inputs which are not part of the utxos appData - check whether inputs which are not utxos pausible
+// 1. define circuit specific proof inputs which are not part of the utxos utxoData - check whether inputs which are not utxos pausible
 // 2. define in and out utxos
 // 3.1 filter utxos that go into selection for input utxos -> select miising utxos
 // 3.2 create output utxos
@@ -111,39 +118,36 @@ type compiledProofInputs = {
 // 4. compile app parameters
 // 5. compile and prove etc.
 export const createUtxoIndices = (
-  utxos: Utxo[],
-  commitHashUtxo: string,
-  lightWasm: LightWasm,
+  utxos: Utxo[] | OutUtxo[],
+  utxoHash: string,
 ) => {
   const isAppInUtxo = new Array(4).fill(new BN(0));
   for (const i in utxos) {
-    if (utxos[i].getCommitment(lightWasm) === commitHashUtxo) {
+    if (utxos[i].utxoHash === utxoHash) {
       isAppInUtxo[i] = new BN(1);
     }
   }
   return isAppInUtxo;
 };
 
+// TODO: resolve out utxo vs program utxo type use
 export const createPspProofInputs = (
   lightWasm: LightWasm,
   pspTransaction: PspTransactionInput,
   inputUtxos: Utxo[],
-  outputUtxos: Utxo[],
+  outputUtxos: OutUtxo[],
   transactionHash: string,
 ): any => {
   const inUtxosInputs = {};
-  pspTransaction.checkedInUtxos?.forEach(({ utxoName, utxo }) => {
-    for (const field in utxo.appData) {
+  pspTransaction.checkedInUtxos?.forEach(({ utxoName, utxo: programUtxo }) => {
+    const utxo = programUtxo;
+    for (const field in programUtxo.utxoData) {
       // @ts-ignore
       inUtxosInputs[`${utxoName}${upperCamelCase(field)}`] =
-        utxo.appData[field];
+        programUtxo.utxoData[field];
     }
 
-    const isAppUtxo = createUtxoIndices(
-      inputUtxos,
-      utxo.getCommitment(lightWasm),
-      lightWasm,
-    );
+    const isAppUtxo = createUtxoIndices(inputUtxos, utxo.utxoHash);
     // @ts-ignore
     inUtxosInputs[`isInAppUtxo${upperCamelCase(utxoName)}`] = isAppUtxo;
     inUtxosInputs[`${camelCase(utxoName)}Blinding`] = utxo.blinding;
@@ -159,20 +163,18 @@ export const createPspProofInputs = (
     // utxo data hash is calculated in the circuit
   });
 
+  // TODO: think about how to make outUtxos and programOutUtxos consistent, do I need utxoData in outUtxos?
   const outUtxosInputs = {};
   pspTransaction.checkedOutUtxos?.forEach(
-    ({ utxoName, utxo }: { utxoName: string; utxo: Utxo }) => {
-      for (const field in utxo.appData) {
+    ({ utxoName, utxo: programUtxo }: { utxoName: string; utxo: OutUtxo }) => {
+      const utxo = programUtxo;
+      for (const field in utxo.utxoData) {
         // @ts-ignore
         outUtxosInputs[`${utxoName}${upperCamelCase(field)}`] =
-          utxo.appData[field];
+          utxo.utxoData[field];
       }
 
-      const isAppUtxoIndices = createUtxoIndices(
-        outputUtxos,
-        utxo.getCommitment(lightWasm),
-        lightWasm,
-      );
+      const isAppUtxoIndices = createUtxoIndices(outputUtxos, utxo.utxoHash);
       // @ts-ignore
       outUtxosInputs[`isOutAppUtxo${upperCamelCase(utxoName)}`] =
         isAppUtxoIndices;
@@ -203,7 +205,8 @@ export const createPspProofInputs = (
   };
   return compiledProofInputs;
 };
-// TODO: add check that lenght input utxos is as expected by the verifier idl
+
+// TODO: add check that length input utxos is as expected by the verifier idl
 export async function getSystemProof({
   account,
   inputUtxos,
@@ -248,7 +251,7 @@ export function createSystemProofInputs({
 
   const inputNullifier = transaction.private.inputUtxos.map((x) => {
     let _account = account;
-    if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
+    if (new BN(x.publicKey).eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
       _account = Account.fromPrivkey(
         lightWasm,
         bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
@@ -256,10 +259,7 @@ export function createSystemProofInputs({
         bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
       );
     }
-    return x.getNullifier({
-      lightWasm,
-      account: _account,
-    });
+    return x.nullifier;
   });
   const proofInput = {
     root,
@@ -267,14 +267,14 @@ export function createSystemProofInputs({
     publicAmountSpl: transaction.public.publicAmountSpl.toString(),
     publicAmountSol: transaction.public.publicAmountSol.toString(),
     publicMintPubkey: transaction.public.publicMintPubkey,
-    inPathIndices: transaction.private.inputUtxos?.map((x) => x.index),
+    inPathIndices: transaction.private.inputUtxos?.map(
+      (x) => x.merkleTreeLeafIndex,
+    ),
     inPathElements: transaction.private.inputUtxos?.map((x) => x.merkleProof),
     internalTxIntegrityHash: transaction.public.txIntegrityHash.toString(),
     transactionVersion: "0",
     txIntegrityHash: transaction.public.txIntegrityHash.toString(),
-    outputCommitment: transaction.private.outputUtxos.map((x) =>
-      x.getCommitment(lightWasm),
-    ),
+    outputCommitment: transaction.private.outputUtxos.map((x) => x.utxoHash),
     inAmount: transaction.private.inputUtxos?.map((x) => x.amounts),
     inBlinding: transaction.private.inputUtxos?.map((x) => x.blinding),
     assetPubkeys: transaction.private.assetPubkeysCircuit,
@@ -293,8 +293,8 @@ export function createSystemProofInputs({
       transaction.private.outputUtxos.map((utxo) => utxo.assetsCircuit),
       transaction.private.assetPubkeysCircuit,
     ),
-    inAppDataHash: transaction.private.inputUtxos?.map((x) => x.appDataHash),
-    outAppDataHash: transaction.private.outputUtxos?.map((x) => x.appDataHash),
+    inAppDataHash: transaction.private.inputUtxos?.map((x) => x.utxoDataHash),
+    outAppDataHash: transaction.private.outputUtxos?.map((x) => x.utxoDataHash),
     inPoolType: transaction.private.inputUtxos?.map((x) => x.poolType),
     outPoolType: transaction.private.outputUtxos?.map((x) => x.poolType),
     inVerifierPubkey: transaction.private.inputUtxos?.map(
@@ -339,7 +339,7 @@ export async function syncInputUtxosMerkleProofs({
         .filter(
           (utxo) => !utxo.amounts[0].eq(BN_0) || !utxo.amounts[1].eq(BN_0),
         )
-        .map((utxo) => utxo.index!),
+        .map((utxo) => utxo.merkleTreeLeafIndex),
     ))!;
   let tmpIndex = 0;
   const syncedUtxos = inputUtxos?.map((utxo) => {
@@ -424,7 +424,7 @@ export type PublicTransactionVariables = {
 
 export type PrivateTransactionVariables = {
   inputUtxos: Array<Utxo>;
-  outputUtxos: Array<Utxo>;
+  outputUtxos: Array<OutUtxo>;
   assetPubkeys: PublicKey[];
   assetPubkeysCircuit: string[];
 };
@@ -548,19 +548,34 @@ export function getVerifierConfig(verifierIdl: Idl): VerifierConfig {
  * @param len
  * @returns
  */
-export function addEmptyUtxos(
-  utxos: Utxo[] = [],
+export function addFillingOutUtxos(
+  utxos: OutUtxo[] = [],
   len: number,
   lightWasm: LightWasm,
   publicKey: BN,
+): OutUtxo[] {
+  while (utxos.length < len) {
+    utxos.push(
+      createFillingOutUtxo({
+        lightWasm,
+        publicKey,
+      }),
+    );
+  }
+  return utxos;
+}
+
+export function addFillingUtxos(
+  utxos: Utxo[] = [],
+  len: number,
+  lightWasm: LightWasm,
+  account: Account,
 ): Utxo[] {
   while (utxos.length < len) {
     utxos.push(
-      new Utxo({
+      createFillingUtxo({
         lightWasm,
-        publicKey,
-        assetLookupTable: [SystemProgram.programId.toBase58()],
-        isFillingUtxo: true,
+        account,
       }),
     );
   }
@@ -669,7 +684,7 @@ export function getEscrowPda(verifierProgramId: PublicKey): PublicKey {
 // pspTransaction
 export function getAssetPubkeys(
   inputUtxos?: Utxo[],
-  outputUtxos?: Utxo[],
+  outputUtxos?: OutUtxo[],
 ): { assetPubkeysCircuit: string[]; assetPubkeys: PublicKey[] } {
   const assetPubkeysCircuit: string[] = [
     hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
@@ -756,13 +771,13 @@ export function getAssetPubkeys(
 export function getExternalAmount(
   assetIndex: number,
   inputUtxos: Utxo[],
-  outputUtxos: Utxo[],
+  outputUtxos: OutUtxo[],
   assetPubkeysCircuit: string[],
 ): BN {
   return new BN(0)
     .add(
       outputUtxos
-        .filter((utxo: Utxo) => {
+        .filter((utxo: OutUtxo) => {
           return (
             utxo.assetsCircuit[assetIndex].toString() ==
             assetPubkeysCircuit![assetIndex]
@@ -872,27 +887,28 @@ export function getTxIntegrityHash(
 // pspTransaction
 export async function encryptOutUtxos(
   account: Account,
-  outputUtxos: Utxo[],
+  outputUtxos: OutUtxo[],
   transactionMerkleTree: PublicKey,
   verifierConfig: VerifierConfig,
+  assetLookupTable: string[],
   lightWasm: LightWasm,
 ): Promise<Uint8Array> {
   let encryptedOutputs = new Array<any>();
   for (const utxo in outputUtxos) {
-    if (
-      outputUtxos[utxo].appDataHash.toString() !== "0" &&
-      outputUtxos[utxo].includeAppData
-    )
+    if (outputUtxos[utxo].utxoDataHash.toString() !== "0")
       // TODO: implement encryption for utxos with app data
       console.log(
         "Warning encrypting utxos with app data as normal utxo without app data. App data will not be encrypted.",
       );
 
     encryptedOutputs.push(
-      await outputUtxos[utxo].encrypt({
+      await encryptOutUtxo({
         lightWasm,
-        account: account,
+        account,
+        utxo: outputUtxos[utxo],
         merkleTreePdaPublicKey: transactionMerkleTree,
+        compressed: true,
+        assetLookupTable,
       }),
     );
   }
@@ -920,15 +936,15 @@ export async function encryptOutUtxos(
 // pspTransaction
 export function getTransactionHash(
   inputUtxos: Utxo[],
-  outputUtxos: Utxo[],
+  outputUtxos: OutUtxo[],
   txIntegrityHash: BN,
   lightWasm: LightWasm,
 ): string {
   const inputHasher = lightWasm.poseidonHashString(
-    inputUtxos?.map((utxo) => utxo.getCommitment(lightWasm)),
+    inputUtxos?.map((utxo) => utxo.utxoHash),
   );
   const outputHasher = lightWasm.poseidonHashString(
-    outputUtxos?.map((utxo) => utxo.getCommitment(lightWasm)),
+    outputUtxos?.map((utxo) => utxo.utxoHash),
   );
 
   return lightWasm.poseidonHashString([
@@ -943,12 +959,13 @@ export type ShieldTransactionInput = {
   transactionMerkleTreePubkey: PublicKey;
   senderSpl?: PublicKey;
   inputUtxos?: Utxo[];
-  outputUtxos?: Utxo[];
+  outputUtxos?: OutUtxo[];
   signer: PublicKey;
   lightWasm: LightWasm;
   systemPspId: PublicKey;
   pspId?: PublicKey;
   account: Account;
+  assetLookUpTable?: string[];
 };
 
 // add createShieldSolanaTransaction
@@ -968,6 +985,9 @@ export async function createShieldTransaction(
     account,
     lightWasm,
   } = shieldTransactionInput;
+  const assetLookUpTable = shieldTransactionInput.assetLookUpTable
+    ? shieldTransactionInput.assetLookUpTable
+    : [SystemProgram.programId.toBase58(), MINT.toBase58()];
 
   const action = Action.SHIELD;
   const verifierIdl = getSystemPspIdl(systemPspId);
@@ -1010,6 +1030,7 @@ export async function createShieldTransaction(
     privateVars.outputUtxos,
     transactionMerkleTreePubkey,
     verifierConfig,
+    assetLookUpTable,
     lightWasm,
   );
   const txIntegrityHash = getTxIntegrityHash(
@@ -1061,18 +1082,18 @@ export function createPrivateTransactionVariables({
   verifierConfig,
 }: {
   inputUtxos?: Utxo[];
-  outputUtxos?: Utxo[];
+  outputUtxos?: OutUtxo[];
   lightWasm: LightWasm;
   account: Account;
   verifierConfig: VerifierConfig;
 }): PrivateTransactionVariables {
-  const filledInputUtxos = addEmptyUtxos(
+  const filledInputUtxos = addFillingUtxos(
     inputUtxos,
     verifierConfig.in,
     lightWasm,
-    account.keypair.publicKey,
+    account,
   );
-  const filledOutputUtxos = addEmptyUtxos(
+  const filledOutputUtxos = addFillingOutUtxos(
     outputUtxos,
     verifierConfig.out,
     lightWasm,
@@ -1098,7 +1119,7 @@ export type UnshieldTransactionInput = {
   recipientSpl?: PublicKey;
   recipientSol?: PublicKey;
   inputUtxos?: Utxo[];
-  outputUtxos?: Utxo[];
+  outputUtxos?: OutUtxo[];
   relayerPublicKey: PublicKey;
   lightWasm: LightWasm;
   systemPspId: PublicKey;
@@ -1106,6 +1127,7 @@ export type UnshieldTransactionInput = {
   account: Account;
   relayerFee: BN;
   ataCreationFee: boolean;
+  assetLookUpTable?: string[];
 };
 
 // add createShieldSolanaTransaction
@@ -1128,6 +1150,9 @@ export async function createUnshieldTransaction(
     relayerFee,
     ataCreationFee,
   } = unshieldTransactionInput;
+  const assetLookUpTable = unshieldTransactionInput.assetLookUpTable
+    ? unshieldTransactionInput.assetLookUpTable
+    : [SystemProgram.programId.toBase58(), MINT.toBase58()];
 
   const action = Action.UNSHIELD;
   const verifierIdl = getSystemPspIdl(systemPspId);
@@ -1173,6 +1198,7 @@ export async function createUnshieldTransaction(
     privateVars.outputUtxos,
     transactionMerkleTreePubkey,
     verifierConfig,
+    assetLookUpTable,
     lightWasm,
   );
   const txIntegrityHash = getTxIntegrityHash(
@@ -1217,13 +1243,14 @@ export type TransactionInput = {
   message?: Buffer;
   transactionMerkleTreePubkey: PublicKey;
   inputUtxos?: Utxo[];
-  outputUtxos?: Utxo[];
+  outputUtxos?: OutUtxo[];
   relayerPublicKey: PublicKey;
   lightWasm: LightWasm;
   systemPspId: PublicKey;
   pspId?: PublicKey;
   account: Account;
   relayerFee: BN;
+  assetLookUpTable?: string[];
 };
 
 export async function createTransaction(
@@ -1241,6 +1268,9 @@ export async function createTransaction(
     account,
     relayerFee,
   } = transactionInput;
+  const assetLookUpTable = transactionInput.assetLookUpTable
+    ? transactionInput.assetLookUpTable
+    : [SystemProgram.programId.toBase58(), MINT.toBase58()];
   const verifierProgramId = pspId ? pspId : systemPspId;
   // TODO: unify systemPspId and verifierProgramId by adding verifierConfig to psps
   const verifierConfig = getVerifierConfig(getSystemPspIdl(systemPspId));
@@ -1272,6 +1302,7 @@ export async function createTransaction(
     privateVars.outputUtxos,
     transactionMerkleTreePubkey,
     verifierConfig,
+    assetLookUpTable,
     lightWasm,
   );
 
@@ -1363,7 +1394,7 @@ export async function getTxParams({
   recipientSol?: PublicKey;
   recipientSplAddress?: PublicKey;
   inUtxos?: Utxo[];
-  outUtxos?: Utxo[];
+  outUtxos?: OutUtxo[];
   action: Action;
   provider: Provider;
   relayer: Relayer;
@@ -1408,7 +1439,7 @@ export async function getTxParams({
   }
 
   let inputUtxos: Utxo[] = inUtxos ? [...inUtxos] : [];
-  let outputUtxos: Utxo[] = outUtxos ? [...outUtxos] : [];
+  let outputUtxos: OutUtxo[] = outUtxos ? [...outUtxos] : [];
 
   if (addInUtxos) {
     inputUtxos = selectInUtxos({

@@ -209,23 +209,24 @@ export class SolMerkleTree {
     // getting merkle proofs
     for (const inputUtxo of inputUtxos) {
       if (inputUtxo.amounts[0].gt(BN_0) || inputUtxo.amounts[1].gt(BN_0)) {
-        inputUtxo.index = this.merkleTree.indexOf(
-          inputUtxo.getCommitment(lightWasm),
+        inputUtxo.merkleTreeLeafIndex = this.merkleTree.indexOf(
+          inputUtxo.utxoHash,
         );
 
-        if (inputUtxo.index || inputUtxo.index === 0) {
-          if (inputUtxo.index < 0) {
+        if (
+          inputUtxo.merkleTreeLeafIndex ||
+          inputUtxo.merkleTreeLeafIndex === 0
+        ) {
+          if (inputUtxo.merkleTreeLeafIndex < 0) {
             throw new SolMerkleTreeError(
               SolMerkleTreeErrorCode.INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE,
               "getMerkleProofs",
-              `Input commitment ${inputUtxo.getCommitment(
-                lightWasm,
-              )} was not found. Was the local merkle tree synced since the utxo was inserted?`,
+              `Input commitment ${inputUtxo.utxoHash} was not found. Was the local merkle tree synced since the utxo was inserted?`,
             );
           }
-          inputMerklePathIndices.push(inputUtxo.index.toString());
+          inputMerklePathIndices.push(inputUtxo.merkleTreeLeafIndex.toString());
           inputMerklePathElements.push(
-            this.merkleTree.path(inputUtxo.index).pathElements,
+            this.merkleTree.path(inputUtxo.merkleTreeLeafIndex).pathElements,
           );
         }
       } else {

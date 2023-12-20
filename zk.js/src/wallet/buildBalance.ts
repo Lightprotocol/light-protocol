@@ -1,4 +1,4 @@
-import { Utxo } from "../utxo";
+import { ProgramUtxo, Utxo, decryptUtxo } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 
@@ -95,25 +95,29 @@ export class ProgramUtxoBalance {
     this.tokenBalances = new Map();
   }
 
-  addUtxo(commitment: string, utxo: Utxo, attribute: VariableType): boolean {
-    if (!utxo.verifierAddress) {
+  addUtxo(
+    commitment: string,
+    utxo: ProgramUtxo,
+    attribute: VariableType,
+  ): boolean {
+    if (!utxo.utxo.verifierAddress) {
       throw new ProgramUtxoBalanceError(
         ProgramUtxoBalanceErrorCode.INVALID_PROGRAM_ADDRESS,
         "addUtxo",
-        `Verifier address in utxo ${utxo._commitment} does not exist in utxo (trying to add utxo to program utxos balance)`,
+        `Verifier address in utxo ${utxo.utxo.utxoHash} does not exist in utxo (trying to add utxo to program utxos balance)`,
       );
     }
-    if (!utxo.verifierAddress.equals(this.programAddress)) {
+    if (!utxo.utxo.verifierAddress.equals(this.programAddress)) {
       throw new ProgramUtxoBalanceError(
         ProgramUtxoBalanceErrorCode.INVALID_PROGRAM_ADDRESS,
         "addUtxo",
-        `Verifier address ${utxo.verifierAddress} does not match the program address (trying to add utxo to program utxos balance)`,
+        `Verifier address ${utxo.utxo.verifierAddress} does not match the program address (trying to add utxo to program utxos balance)`,
       );
     }
     const utxoAsset =
-      utxo.amounts[1].toString() === "0"
+      utxo.utxo.amounts[1].toString() === "0"
         ? new PublicKey(0).toBase58()
-        : utxo.assets[1].toBase58();
+        : utxo.utxo.assets[1].toBase58();
     const tokenBalance = this.tokenBalances?.get(utxoAsset);
     // if not token balance for utxoAsset create token balance
     if (!tokenBalance) {
@@ -135,7 +139,7 @@ export class ProgramUtxoBalance {
     }
     return this.tokenBalances
       .get(utxoAsset)!
-      .addUtxo(commitment, utxo, attribute);
+      .addUtxo(commitment, utxo.utxo, attribute);
   }
 }
 
@@ -155,16 +159,26 @@ export class ProgramBalance extends TokenUtxoBalance {
 
   addProgramUtxo(
     commitment: string,
-    utxo: Utxo,
+    utxo: ProgramUtxo,
     attribute: VariableType,
   ): boolean {
+    if (utxo.utxo.verifierAddress != this.programAddress) {
+      throw new ProgramUtxoBalanceError(
+        ProgramUtxoBalanceErrorCode.INVALID_PROGRAM_ADDRESS,
+        "addProgramUtxo",
+        `Verifier address ${
+          utxo.utxo.verifierAddress
+        } does not match the program address ${this.programAddress.toBase58()} (trying to add utxo to program utxos balance) `,
+      );
+    }
+
     const utxoExists = this[attribute].get(commitment) !== undefined;
-    this[attribute].set(commitment, utxo);
+    this[attribute].set(commitment, utxo.utxo);
 
     if (attribute === ("utxos" as VariableType) && !utxoExists) {
-      this.totalBalanceSol = this.totalBalanceSol.add(utxo.amounts[0]);
-      if (utxo.amounts[1]) {
-        this.totalBalanceSpl = this.totalBalanceSpl.add(utxo.amounts[1]);
+      this.totalBalanceSol = this.totalBalanceSol.add(utxo.utxo.amounts[0]);
+      if (utxo.utxo.amounts[1]) {
+        this.totalBalanceSpl = this.totalBalanceSpl.add(utxo.utxo.amounts[1]);
       }
     }
     return !utxoExists;
@@ -198,22 +212,25 @@ export async function decryptAddUtxoToBalance({
   assetLookupTable: string[];
   merkleProof: string[];
 }): Promise<void> {
-  const decryptedUtxo = await Utxo.decryptUnchecked({
-    lightWasm,
-    encBytes: encBytes,
-    account: account,
-    index: index,
-    commitment,
-    aes,
+  const decryptedUtxo = await decryptUtxo(
+    encBytes,
+    account,
     merkleTreePdaPublicKey,
-    assetLookupTable,
+    aes,
+    commitment,
+    lightWasm,
+    true,
     merkleProof,
-  });
+    index,
+    assetLookupTable,
+  );
 
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo.value || decryptedUtxo.error) return;
+  if (decryptedUtxo.value && decryptedUtxo.value.utxoDataHash !== "0") return;
+
   const utxo = decryptedUtxo.value;
-  const nullifier = utxo.getNullifier({ lightWasm, account });
+  const nullifier = utxo.nullifier;
   if (!nullifier) return;
 
   const nullifierExists = await fetchNullifierAccountInfo(
@@ -233,7 +250,7 @@ export async function decryptAddUtxoToBalance({
   if (
     amountsValid &&
     utxo.verifierAddress.toBase58() === new PublicKey(0).toBase58() &&
-    utxo.appDataHash.toString() === "0"
+    utxo.utxoDataHash.toString() === "0"
   ) {
     // TODO: add is native to utxo
     // if !asset try to add asset and then push
@@ -257,8 +274,6 @@ export async function decryptAddUtxoToBalance({
       ? "spentUtxos"
       : "utxos";
 
-    balance.tokenBalances
-      .get(assetKey)
-      ?.addUtxo(utxo.getCommitment(lightWasm), utxo, utxoType);
+    balance.tokenBalances.get(assetKey)?.addUtxo(utxo.utxoHash, utxo, utxoType);
   }
 }
