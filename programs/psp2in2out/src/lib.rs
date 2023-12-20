@@ -105,3 +105,14 @@ pub struct Utxo {
     account_shielded_public_key: u256,
     account_encryption_public_key: [u8; 32],
 }
+
+#[account]
+pub struct OutUtxo {
+    amounts: [u64; 2],
+    spl_asset_index: u64,
+    blinding: u256,
+    utxo_data_hash: u256,
+    account_shielded_public_key: u256,
+    account_encryption_public_key: [u8; 32],
+    is_filling_utxo: bool,
+}
