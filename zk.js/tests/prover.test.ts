@@ -15,7 +15,6 @@ import {
   FEE_ASSET,
   Provider as LightProvider,
   MINT,
-  Action,
   Utxo,
   Account,
   IDL_LIGHT_PSP2IN2OUT,
@@ -46,6 +45,7 @@ describe("Prover Functionality Tests", () => {
   let account: Account;
   let hasher: Hasher;
   let shieldTransaction: ShieldTransaction;
+  let merkleTree: MerkleTree;
   before(async () => {
     hasher = await WasmHasher.getInstance();
     lightProvider = await LightProvider.loadMock();
@@ -69,21 +69,13 @@ describe("Prover Functionality Tests", () => {
       systemPspId: getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT),
       account,
       outputUtxos: [shieldUtxo],
-      root: lightProvider.solMerkleTree!.merkleTree.root(),
     };
 
     shieldTransaction = await createShieldTransaction(shieldTransactionInput);
 
-    lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, hasher, [
-      shieldUtxo.getCommitment(hasher),
-    ]);
+    merkleTree = new MerkleTree(18, hasher, [shieldUtxo.getCommitment(hasher)]);
 
-    assert.equal(
-      lightProvider.solMerkleTree?.merkleTree.indexOf(
-        shieldUtxo.getCommitment(hasher),
-      ),
-      0,
-    );
+    assert.equal(merkleTree.indexOf(shieldUtxo.getCommitment(hasher)), 0);
   });
 
   after(async () => {
@@ -96,6 +88,7 @@ describe("Prover Functionality Tests", () => {
       transaction: shieldTransaction,
       hasher,
       account,
+      root: merkleTree.root(),
     });
 
     const genericProver = new Prover(verifierIdl, firstPath);
@@ -138,6 +131,7 @@ describe("Prover Functionality Tests", () => {
       transaction: shieldTransaction,
       hasher,
       account,
+      root: merkleTree.root(),
     });
 
     const prover1 = new Prover(verifierIdl, firstPath);

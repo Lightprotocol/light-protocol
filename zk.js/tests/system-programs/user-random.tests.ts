@@ -30,6 +30,7 @@ import {
   createAssociatedTokenAccount,
 } from "@solana/spl-token";
 import { assert } from "chai";
+import { WasmHasher } from "@lightprotocol/account.rs";
 
 function generateRandomTestAmount(
   min: number = 0.2,
@@ -145,8 +146,6 @@ const shield = async (
     token: testInputs.token,
   });
   console.log(res);
-
-  await user.provider.latestMerkleTree();
 
   if (isSol) {
     await userTestAssertHelper.checkSolShielded();
@@ -454,6 +453,8 @@ describe("Test User", () => {
       relayerRecipientSol: relayerRecipientSol.publicKey,
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
+      connection: anchorProvider.connection,
+      hasher: await WasmHasher.getInstance(),
     });
 
     const testUsers: { user: User; wallet: Keypair }[] = [];

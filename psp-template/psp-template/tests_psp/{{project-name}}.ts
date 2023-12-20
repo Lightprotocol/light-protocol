@@ -64,7 +64,9 @@ describe("Test {{project-name}}", () => {
       relayerPubkey: wallet.publicKey,
       relayerRecipientSol:  wallet.publicKey,
       relayerFee: new BN(100000),
-      payer: wallet
+      payer: wallet,
+      connection: provider.connection,
+      hasher: HASHER,
     });
 
     // The light provider is a connection and wallet abstraction.
@@ -141,14 +143,18 @@ describe("Test {{project-name}}", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: user.account,
-      root: user.provider.solMerkleTree!.merkleTree.root(),
     });
+
+    const { root, index: rootIndex } = (await relayer.getMerkleRoot(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+    ))!;
 
     const proofInputs = createProofInputs({
       hasher: HASHER,
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: user.account,
+      root,
     });
 
     const systemProof = await getSystemProof({
@@ -173,6 +179,7 @@ describe("Test {{project-name}}", () => {
       relayerRecipientSol: relayer.accounts.relayerRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      rootIndex,
     };
 
     const {txHash} = await sendAndConfirmShieldedTransaction({
@@ -181,7 +188,7 @@ describe("Test {{project-name}}", () => {
     });
 
     console.log("transaction hash ", txHash);
-    const utxoSpent = await user.getUtxo(inputUtxo.getCommitment(HASHER), true, IDL);
+    const utxoSpent = await user.getUtxo(inputUtxo.getCommitment(HASHER), true, MerkleTreeConfig.getTransactionMerkleTreePda(),IDL);
     assert.equal(utxoSpent!.status, "spent");
     Utxo.equal(HASHER, utxoSpent!.utxo, inputUtxo, true);
   });

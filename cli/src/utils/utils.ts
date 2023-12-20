@@ -102,7 +102,7 @@ export const getUser = async ({
 }: {
   skipFetchBalance?: boolean;
   localTestRelayer?: boolean;
-} = {}): Promise<User> => {
+}): Promise<User> => {
   const provider = await getLightProvider(localTestRelayer);
   const user = await User.init({ provider, skipFetchBalance });
   return user;
@@ -112,12 +112,15 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
   if (!relayer) {
     if (localTestRelayer) {
       const wallet = readWalletFromFile();
+
       relayer = new TestRelayer({
         relayerPubkey: wallet.publicKey,
         relayerRecipientSol: wallet.publicKey,
         relayerFee: RELAYER_FEE,
         highRelayerFee: TOKEN_ACCOUNT_FEE,
         payer: wallet,
+        connection: new solana.Connection(getRpcUrl(), "confirmed"),
+        hasher: (await getLightProvider()).hasher,
       });
       return relayer;
     } else {

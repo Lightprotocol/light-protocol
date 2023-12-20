@@ -6,7 +6,11 @@ import {
   airdropShieldedSol,
   airdropSol,
 } from "@lightprotocol/zk.js";
-import { getConfig, readWalletFromFile } from "../../../src/utils/utils";
+import {
+  getConfig,
+  getLightProvider,
+  readWalletFromFile,
+} from "../../../src/utils/utils";
 import { Connection } from "@solana/web3.js";
 
 describe("accept-utxos", () => {
@@ -15,6 +19,7 @@ describe("accept-utxos", () => {
     const configWallet = readWalletFromFile();
     const config = getConfig();
     const connection = new Connection(config.rpcUrl, "confirmed");
+    const provider = await getLightProvider(true);
     await airdropSol({
       connection,
       lamports: 10e9,
@@ -29,11 +34,13 @@ describe("accept-utxos", () => {
       recipientPublicKey:
         "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q",
       amount: 1,
+      provider,
     });
     await airdropShieldedMINTSpl({
       recipientPublicKey:
         "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q",
       amount: 1,
+      provider,
     });
   });
 

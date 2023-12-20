@@ -69,6 +69,8 @@ describe("Test User", () => {
       relayerFee: RELAYER_FEE,
       highRelayerFee: TOKEN_ACCOUNT_FEE,
       payer: relayer,
+      connection: anchorProvider.connection,
+      hasher: HASHER,
     });
 
     provider = await Provider.init({
@@ -110,6 +112,8 @@ describe("Test User", () => {
       relayerRecipientSol: Keypair.generate().publicKey,
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
+      connection: anchorProvider.connection,
+      hasher: HASHER,
     });
     const providerExternalSeed = await Provider.init({
       relayer: testRelayer,
@@ -166,7 +170,6 @@ describe("Test User", () => {
       publicAmountSpl: testInputs.amountSpl,
       token: testInputs.token,
     });
-
     await testStateValidator.checkSplShielded();
   });
 
@@ -221,8 +224,6 @@ describe("Test User", () => {
       recipient: testInputs.recipient,
     });
 
-    await user.provider.latestMerkleTree();
-
     await testStateValidator.checkSplUnshielded();
   });
 
@@ -262,7 +263,6 @@ describe("Test User", () => {
       recipient: recipientAccount.getPublicKey(),
     });
 
-    await user.provider.latestMerkleTree();
     await user.getBalance();
     await testStateValidator.checkSplTransferred();
   });
@@ -287,7 +287,6 @@ describe("Test User", () => {
 
     await testStateValidator.fetchAndSaveState();
     await user.storeData(testInputs.message, ConfirmOptions.spendable, true);
-    await user.provider.latestMerkleTree();
 
     await testStateValidator.assertStoredWithShield();
   });
@@ -307,7 +306,6 @@ describe("Test User", () => {
     const seed = bs58.encode(new Uint8Array(32).fill(4));
     await airdropShieldedSol({ provider, amount: 1, seed });
 
-    await provider.latestMerkleTree();
     const user: User = await User.init({ provider, seed });
 
     const testStateValidator = new UserTestAssertHelper({
@@ -320,7 +318,7 @@ describe("Test User", () => {
     await testStateValidator.fetchAndSaveState();
 
     await user.storeData(testInputs.message, ConfirmOptions.spendable, false);
-    await user.provider.latestMerkleTree();
+
     await testStateValidator.assertStoredWithTransfer();
   });
 });

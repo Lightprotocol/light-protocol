@@ -41,20 +41,20 @@ const main = async () => {
     calls.push(makeShield(sender.keypair, recipient.keypair));
   }
   await Promise.all(calls);
-
+  const lightProvider = await light.Provider.init({
+    wallet: senders[0].keypair,
+    confirmConfig,
+  });
   const relayer = new TestRelayer({
     relayerPubkey: senders[0].keypair.publicKey,
     relayerRecipientSol: senders[0].keypair.publicKey,
     relayerFee: new BN(100_000),
     payer: senders[0].keypair,
+    connection: provider.connection,
+    hasher: lightProvider.hasher,
   });
-
+  lightProvider.relayer = relayer;
   log("initializing light provider...");
-  const lightProvider = await light.Provider.init({
-    wallet: senders[0].keypair,
-    relayer,
-    confirmConfig,
-  });
 
   calls = [];
   for (let i = 0; i < PARTICIPANTS_COUNT; i++) {
@@ -78,20 +78,22 @@ const main = async () => {
     });
 
     log("initializing Solana wallet...");
+
+    log("initializing light provider...");
+    const lightProvider = await light.Provider.init({
+      wallet: sender,
+      confirmConfig,
+    });
     log("setting-up test relayer...");
     const relayer = new TestRelayer({
       relayerPubkey: sender.publicKey,
       relayerRecipientSol: sender.publicKey,
       relayerFee: new BN(100_000),
       payer: sender,
+      connection: provider.connection,
+      hasher: lightProvider.hasher,
     });
-
-    log("initializing light provider...");
-    const lightProvider = await light.Provider.init({
-      wallet: sender,
-      relayer,
-      confirmConfig,
-    });
+    lightProvider.relayer = relayer;
 
     log("initializing user...");
     const user = await light.User.init({ provider: lightProvider });
@@ -109,6 +111,11 @@ const main = async () => {
     sender: anchor.web3.Keypair,
     recipient: anchor.web3.Keypair,
   ) {
+    log("initializing light provider...");
+    const lightProvider = await light.Provider.init({
+      wallet: sender,
+      confirmConfig,
+    });
     log("initializing Solana wallet...");
     log("setting-up test relayer...");
     const relayer = new TestRelayer({
@@ -116,14 +123,10 @@ const main = async () => {
       relayerRecipientSol: sender.publicKey,
       relayerFee: new BN(100_000),
       payer: sender,
+      connection: provider.connection,
+      hasher: lightProvider.hasher,
     });
-
-    log("initializing light provider...");
-    const lightProvider = await light.Provider.init({
-      wallet: sender,
-      relayer,
-      confirmConfig,
-    });
+    lightProvider.relayer = relayer;
 
     log("initializing user...");
     const user = await light.User.init({ provider: lightProvider });

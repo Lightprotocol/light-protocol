@@ -582,7 +582,7 @@ export class Utxo {
     index?: number | undefined;
   }): string {
     if (this.index === undefined) {
-      if (index) {
+      if (index != undefined) {
         this.index = index;
       } else if (this.amounts[0].isZero() && this.amounts[1].isZero()) {
         this.index = 0;
@@ -645,7 +645,7 @@ export class Utxo {
       );
       // TODO: add option to use random or dedicated prefix for asynmetrically encrypted utxos which are sent to another party
       const prefix = !this.isFillingUtxo
-        ? this.publicKey.toArray("be", 32).slice(0, 4)
+        ? this.encryptionPublicKey.slice(0, 4)
         : randomPrefixBytes();
       return Uint8Array.from([...prefix, ...ciphertext]);
     } else if (account) {

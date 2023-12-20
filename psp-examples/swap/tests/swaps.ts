@@ -87,6 +87,8 @@ describe("Test swaps", () => {
       relayerRecipientSol: relayerWallet.publicKey,
       relayerFee: new BN(100000),
       payer: relayerWallet,
+      connection: provider.connection,
+      hasher: HASHER,
     });
   });
 
@@ -122,7 +124,6 @@ describe("Test swaps", () => {
         recipientEncryptionPublicKey: hashAndTruncateToCircuit(
           sellerUser.account.encryptionKeypair.publicKey,
         ),
-        // blinding: new BN(0),
       },
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,
@@ -136,9 +137,8 @@ describe("Test swaps", () => {
     console.log("made offer: ", txHashMakeOffer);
 
     let syncedStorage = await buyerUser.syncStorage(IDL, false);
-    await buyerUser.provider.latestMerkleTree();
     //TODO: refactor to only have one program utxo layer then an utxo array
-    let fetchedOfferUtxo = Array.from(
+    let fetchedOfferUtxo: Utxo = Array.from(
       syncedStorage
         .get(verifierProgramId.toBase58())
         .tokenBalances.get(SystemProgram.programId.toBase58())
@@ -153,7 +153,7 @@ describe("Test swaps", () => {
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
     );
     const circuitPath = path.join("build-circuit/swaps/swaps");
-
+    await buyerUser.getBalance();
     const shieldUtxo = buyerUser.getAllUtxos()[0];
 
     // TODO: throw error if the pubkey is not mine and there is no encryption key specified
@@ -213,11 +213,15 @@ describe("Test swaps", () => {
       inUtxos: [shieldUtxo],
       outUtxos: [changeUtxo, tradeOutputUtxo],
     };
-    await buyerUser.provider.latestMerkleTree();
-    const { syncedUtxos: inputUtxos, root } = syncInputUtxosMerkleProofs({
+
+    const {
+      syncedUtxos: inputUtxos,
+      root,
+      index: rootIndex,
+    } = await syncInputUtxosMerkleProofs({
       inputUtxos: [fetchedOfferUtxo, shieldUtxo],
-      hasher: HASHER,
-      solMerkleTree: buyerUser.provider.solMerkleTree!,
+      relayer: RELAYER,
+      merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
     const outputUtxos = [changeUtxo, tradeOutputUtxo, offerRewardUtxo];
 
@@ -233,7 +237,6 @@ describe("Test swaps", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: buyerUser.account,
-      root,
     });
 
     /**
@@ -246,6 +249,7 @@ describe("Test swaps", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: buyerUser.account,
+      root,
     });
 
     const systemProof = await getSystemProof({
@@ -289,6 +293,7 @@ describe("Test swaps", () => {
       relayerRecipientSol: RELAYER.accounts.relayerRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      rootIndex,
     };
 
     const res = await sendAndConfirmShieldedTransaction({
@@ -362,9 +367,9 @@ describe("Test swaps", () => {
     console.log("made offer: ", txHashMakeOffer);
 
     let syncedStorage = await buyerUser.syncStorage(IDL, false);
-    await buyerUser.provider.latestMerkleTree();
+
     //TODO: refactor to only have one program utxo layer then an utxo array
-    let fetchedOfferUtxo = Array.from(
+    let fetchedOfferUtxo: Utxo = Array.from(
       syncedStorage
         .get(verifierProgramId.toBase58())
         .tokenBalances.get(SystemProgram.programId.toBase58())
@@ -410,9 +415,9 @@ describe("Test swaps", () => {
     console.log("made counter offer: ", txHashMakeCounterOffer);
 
     let syncedSellerStorage = await sellerUser.syncStorage(IDL, false);
-    await sellerUser.provider.latestMerkleTree();
+
     //TODO: refactor to only have one program utxo layer then an utxo array
-    let fetchedCounterOfferUtxo = Array.from(
+    let fetchedCounterOfferUtxo: Utxo = Array.from(
       syncedSellerStorage
         .get(verifierProgramId.toBase58())
         .tokenBalances.get(SystemProgram.programId.toBase58())
@@ -497,11 +502,14 @@ describe("Test swaps", () => {
       ],
       outUtxos: [tradeOutputUtxo],
     };
-    await sellerUser.provider.latestMerkleTree();
-    const { syncedUtxos: inputUtxos, root } = syncInputUtxosMerkleProofs({
+    const {
+      syncedUtxos: inputUtxos,
+      root,
+      index: rootIndex,
+    } = await syncInputUtxosMerkleProofs({
       inputUtxos: [offerUtxo, fetchedCounterOfferUtxo],
-      hasher: HASHER,
-      solMerkleTree: sellerUser.provider.solMerkleTree!,
+      relayer: RELAYER,
+      merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
     const outputUtxos = [tradeOutputUtxo, counterOfferRewardUtxo];
 
@@ -517,7 +525,6 @@ describe("Test swaps", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
-      root,
     });
     /**
      * Proves PSP logic
@@ -529,6 +536,7 @@ describe("Test swaps", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
+      root,
     });
 
     const systemProof = await getSystemProof({
@@ -573,6 +581,7 @@ describe("Test swaps", () => {
       relayerRecipientSol: RELAYER.accounts.relayerRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      rootIndex,
     };
 
     const res = await sendAndConfirmShieldedTransaction({
@@ -600,6 +609,7 @@ describe("Test swaps", () => {
       offerUtxo.amounts[0].toNumber(),
     );
   });
+
   it("Swap Cancel functional", async () => {
     /**
      * 1. Create seller and buyer Users
@@ -644,9 +654,9 @@ describe("Test swaps", () => {
     console.log("made offer: ", txHashMakeOffer);
 
     let syncedStorage = await sellerUser.syncStorage(IDL, false);
-    await sellerUser.provider.latestMerkleTree();
+
     //TODO: refactor to only have one program utxo layer then an utxo array
-    let fetchedOfferUtxo = Array.from(
+    let fetchedOfferUtxo: Utxo = Array.from(
       syncedStorage
         .get(verifierProgramId.toBase58())
         .tokenBalances.get(SystemProgram.programId.toBase58())
@@ -678,6 +688,7 @@ describe("Test swaps", () => {
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [BN_0],
       assets: [SystemProgram.programId],
+      merkleProof: new Array(18).fill("0"),
     });
 
     // should I bundle it here or go through this step by step?
@@ -695,12 +706,17 @@ describe("Test swaps", () => {
       ],
       outUtxos: [cancelOutputUtxo],
     };
-    await sellerUser.provider.latestMerkleTree();
-    const { syncedUtxos: inputUtxos, root } = syncInputUtxosMerkleProofs({
+
+    const {
+      syncedUtxos: inputUtxos,
+      root,
+      index: rootIndex,
+    } = await syncInputUtxosMerkleProofs({
       inputUtxos: [fetchedOfferUtxo, emptySignerUtxo],
-      hasher: HASHER,
-      solMerkleTree: sellerUser.provider.solMerkleTree!,
+      relayer: RELAYER,
+      merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
+
     const outputUtxos = [cancelOutputUtxo];
 
     const shieldedTransaction = await createTransaction({
@@ -715,7 +731,6 @@ describe("Test swaps", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
-      root,
     });
     /**
      * Proves PSP logic
@@ -727,6 +742,7 @@ describe("Test swaps", () => {
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
+      root,
     });
 
     const systemProof = await getSystemProof({
@@ -772,6 +788,7 @@ describe("Test swaps", () => {
       relayerRecipientSol: RELAYER.accounts.relayerRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      rootIndex,
     };
 
     const res = await sendAndConfirmShieldedTransaction({

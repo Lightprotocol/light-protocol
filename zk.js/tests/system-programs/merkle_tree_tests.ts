@@ -30,6 +30,8 @@ import {
   prepareAccounts,
   createUnshieldTransaction,
   getSolanaRemainingAccounts,
+  Utxo,
+  syncInputUtxosMerkleProofs,
 } from "../../src";
 import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
@@ -89,6 +91,8 @@ describe("Merkle Tree Tests", () => {
       relayerRecipientSol,
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
+      connection: provider.connection,
+      hasher: HASHER,
     });
     await airdropSol({
       connection: provider.connection,
@@ -498,9 +502,6 @@ describe("Merkle Tree Tests", () => {
   });
 
   it("Switch to a new Merkle tree", async () => {
-    const x = await merkleTreeConfig.getTransactionMerkleTreeAccountInfo(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    );
     const user = await User.init({ provider: lightProvider });
     await user.shield({
       publicAmountSpl: shieldAmount,
@@ -509,10 +510,17 @@ describe("Merkle Tree Tests", () => {
     });
 
     await user.getBalance();
-    const unshieldUtxo = user.getAllUtxos()[0];
-    unshieldUtxo.merkleProof = lightProvider.solMerkleTree!.merkleTree.path(
-      unshieldUtxo.index!,
-    ).pathElements;
+    const unshieldUtxo: Utxo = user.getAllUtxos()[0];
+    const {
+      root,
+      index: rootIndex,
+      syncedUtxos: inputUtxos,
+    } = await syncInputUtxosMerkleProofs({
+      inputUtxos: [unshieldUtxo],
+      merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      relayer: lightProvider.relayer,
+    });
+
     const tokenAccount = await getOrCreateAssociatedTokenAccount(
       provider.connection,
       ADMIN_AUTH_KEYPAIR,
@@ -535,10 +543,9 @@ describe("Merkle Tree Tests", () => {
       relayerPublicKey: lightProvider.relayer.accounts.relayerPubkey,
       systemPspId: getVerifierProgramId(verifierIdl),
       account: user.account,
-      inputUtxos: [unshieldUtxo],
+      inputUtxos,
       relayerFee: lightProvider.relayer.getRelayerFee(false),
       ataCreationFee: false,
-      root: lightProvider.solMerkleTree!.merkleTree.root(),
     };
 
     const unshieldTransaction = await createUnshieldTransaction(
@@ -549,6 +556,7 @@ describe("Merkle Tree Tests", () => {
       transaction: unshieldTransaction,
       hasher: HASHER,
       account: user.account,
+      root,
     });
     const systemProof = await getSystemProof({
       account: user.account,
@@ -556,7 +564,7 @@ describe("Merkle Tree Tests", () => {
       verifierIdl,
       systemProofInputs,
     });
-    const { rootIndex } = await lightProvider.getRootIndex();
+
     const remainingMerkleTreeAccounts = {
       nextTransactionMerkleTree: {
         isSigner: false,

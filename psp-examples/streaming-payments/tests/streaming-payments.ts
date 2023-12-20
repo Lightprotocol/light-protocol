@@ -118,6 +118,8 @@ describe("Streaming Payments tests", () => {
       relayerRecipientSol: relayerRecipientSol,
       relayerFee: new BN(100_000),
       payer: wallet,
+      connection: provider.connection,
+      hasher: HASHER,
     });
 
     // The light provider is a connection and wallet abstraction.
@@ -189,15 +191,17 @@ describe("Streaming Payments tests", () => {
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: lightUser.account,
-      root: lightUser.provider.solMerkleTree!.merkleTree.root(),
     });
     // createProofInputsAndProve
-
+    const { root, index: rootIndex } = (await relayer.getMerkleRoot(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+    ))!;
     const proofInputs = createProofInputs({
       hasher: HASHER,
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: lightUser.account,
+      root,
     });
 
     const systemProof = await getSystemProof({
@@ -229,6 +233,7 @@ describe("Streaming Payments tests", () => {
       relayerRecipientSol: relayer.accounts.relayerRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+      rootIndex,
     };
 
     const res = await sendAndConfirmShieldedTransaction({
@@ -260,6 +265,8 @@ describe("Streaming Payments tests", () => {
       relayerRecipientSol: relayerRecipientSol,
       relayerFee: new BN(100_000),
       payer: wallet,
+      connection: provider.connection,
+      hasher: HASHER,
     });
 
     // The light provider is a connection and wallet abstraction.
@@ -307,7 +314,8 @@ describe("Streaming Payments tests", () => {
     const currentSlot1 = await provider.connection.getSlot("confirmed");
 
     await lightUser.getBalance();
-    let merkleTree = lightUser.provider.solMerkleTree.merkleTree;
+    let merkleTree = (lightUser.provider.relayer as any).solMerkleTree
+      .merkleTree;
 
     const { programParameters, inUtxo, outUtxo, action } = client.collectStream(
       new BN(currentSlot1),
@@ -336,7 +344,12 @@ describe("Streaming Payments tests", () => {
     const spentCommitment = testInputsSol1.utxo.getCommitment(
       testInputsSol1.hasher,
     );
-    const utxoSpent = (await lightUser.getUtxo(spentCommitment, true, IDL))!;
+    const utxoSpent = (await lightUser.getUtxo(
+      spentCommitment,
+      true,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      IDL,
+    ))!;
     assert.equal(utxoSpent.status, "spent");
   }
 });

@@ -1,5 +1,5 @@
 export * from "./relayService/index";
 export * from "./indexerService/index";
 export * from "./lookupTableService";
-export * from "./merkleTreeService";
 export * from "./infoService";
+export * from "./rpc";
