@@ -213,7 +213,15 @@ mod tests {
         println!("Running test_main_functional");
         let file_path = "./test-files/test-data/test_data.light";
         let program_name = "test_data";
-        let command_output = Command::new("../target/debug/macro-circom")
+        let current_exe =
+            std::env::current_exe().expect("Failed to get the current executable path");
+        let target_dir = current_exe
+            .parent()
+            .expect("Failed to get executable directory")
+            .parent()
+            .expect("Failed to get target directory");
+        let macro_circom = target_dir.join("macro-circom");
+        let command_output = Command::new(macro_circom)
             .args(&[
                 file_path,
                 program_name,
