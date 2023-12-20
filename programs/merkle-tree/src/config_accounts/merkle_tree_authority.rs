@@ -65,7 +65,10 @@ pub struct InitializeMerkleTreeAuthority<'info> {
     )]
     pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
     /// CHECK:` Signer is merkle tree init authority.
-    #[account(mut, address=anchor_lang::prelude::Pubkey::try_from(config::INITIAL_MERKLE_TREE_AUTHORITY).map_err(|_| ErrorCode::PubkeyTryFromFailed)? @ErrorCode::InvalidAuthority)]
+    #[account(
+        mut,
+        address=anchor_lang::prelude::Pubkey::from(config::INITIAL_MERKLE_TREE_AUTHORITY) @ErrorCode::InvalidAuthority
+    )]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,

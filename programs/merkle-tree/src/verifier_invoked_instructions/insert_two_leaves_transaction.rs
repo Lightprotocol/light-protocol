@@ -22,7 +22,7 @@ pub struct InsertTwoLeaves<'info> {
 
 pub fn process_insert_two_leaves<'info, 'a>(
     ctx: Context<'a, '_, '_, 'info, InsertTwoLeaves<'info>>,
-    leaves: &'a Vec<[u8; 32]>,
+    leaves: &'a [[u8; 32]],
 ) -> Result<()> {
     let merkle_tree = &mut ctx.accounts.transaction_merkle_tree.load_mut()?;
 
