@@ -23,10 +23,10 @@ pub fn insert_0_double(
         msg!("Merkle tree full");
         return Err(ProgramError::InvalidInstructionData);
     }
-    update_state_data.node_left = update_state_data.leaves
-        [usize::try_from(update_state_data.insert_leaves_index).unwrap()][0];
-    update_state_data.node_right = update_state_data.leaves
-        [usize::try_from(update_state_data.insert_leaves_index).unwrap()][1];
+    update_state_data.node_left =
+        update_state_data.leaves[usize::from(update_state_data.insert_leaves_index)][0];
+    update_state_data.node_right =
+        update_state_data.leaves[usize::from(update_state_data.insert_leaves_index)][1];
 
     update_state_data.current_level = 1;
     // increase insert leaves index to insert the next leaf
