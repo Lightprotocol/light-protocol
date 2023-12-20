@@ -6,7 +6,7 @@ import {
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { IDL as TEST_PSP_IDL } from "./testData/tmp_test_psp -legacy";
+import { IDL as TEST_PSP_IDL } from "./testData/tmp_test_psp_legacy";
 
 import {
   Account,

@@ -38,7 +38,7 @@ const utxoData = {
 };
 const utxoName = "utxo";
 let createOutUtxoInputs;
-describe("Utxo Functional", () => {
+describe("Program Utxo Functional", () => {
   let hasher: Hasher, lightProvider: LightProvider;
   before(async () => {
     hasher = await WasmHasher.getInstance();
@@ -264,21 +264,26 @@ describe("Utxo Functional", () => {
       throw new Error("decrypt failed");
     }
 
-    const decryptedUtxo = await decryptProgramUtxo(
+    const decryptedUtxo = await decryptProgramUtxo({
       encBytes,
-      inputs.keypair,
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-      true,
-      new BN(programOutUtxo.outUtxo.utxoHash).toArrayLike(Buffer, "be", 32),
+      account: inputs.keypair,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      aes: true,
+      utxoHash: new BN(programOutUtxo.outUtxo.utxoHash).toArrayLike(
+        Buffer,
+        "be",
+        32,
+      ),
       hasher,
-      false,
-      ["1", "2", "3"],
-      inputs.index,
+      compressed: false,
+      merkleProof: ["1", "2", "3"],
+      merkleTreeLeafIndex: inputs.index,
       assetLookupTable,
       pspId,
       pspIdl,
       utxoName,
-    );
+    });
+
     assert.equal(decryptedUtxo.value?.utxo.amounts[0].toString(), amountFee);
     assert.equal(decryptedUtxo.value?.utxo.amounts[1].toString(), amountToken);
     assert.equal(

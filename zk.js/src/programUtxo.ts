@@ -424,21 +424,37 @@ export function createProgramUtxo({
   return programOutUtxo;
 }
 
-export async function decryptProgramUtxo(
-  encBytes: Uint8Array,
-  account: Account,
-  merkleTreePdaPublicKey: PublicKey,
-  aes: boolean,
-  utxoHash: Uint8Array,
-  hasher: Hasher,
-  compressed: boolean = true,
-  merkleProof: string[],
-  merkleTreeLeafIndex: number,
-  assetLookupTable: string[],
-  pspId: PublicKey,
-  pspIdl: Idl,
-  utxoName: string,
-): Promise<Result<ProgramUtxo | null, UtxoError>> {
+export interface DecryptProgramUtxoParams {
+  encBytes: Uint8Array;
+  account: Account;
+  merkleTreePdaPublicKey: PublicKey;
+  aes: boolean;
+  utxoHash: Uint8Array;
+  hasher: Hasher;
+  compressed?: boolean;
+  merkleProof: string[];
+  merkleTreeLeafIndex: number;
+  assetLookupTable: string[];
+  pspId: PublicKey;
+  pspIdl: Idl;
+  utxoName: string;
+}
+
+export async function decryptProgramUtxo({
+  encBytes,
+  account,
+  merkleTreePdaPublicKey,
+  aes,
+  utxoHash,
+  hasher,
+  compressed = true,
+  merkleProof,
+  merkleTreeLeafIndex,
+  assetLookupTable,
+  pspId,
+  pspIdl,
+  utxoName,
+}: DecryptProgramUtxoParams): Promise<Result<ProgramUtxo | null, UtxoError>> {
   const decryptedProgramOutUtxo = await decryptProgramOutUtxo({
     encBytes,
     account,
