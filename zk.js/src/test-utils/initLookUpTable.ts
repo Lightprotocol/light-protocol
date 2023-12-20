@@ -41,6 +41,7 @@ export async function initLookUpTableFromFile(
 ) /*: Promise<PublicKey>*/ {
   const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
 
+  console.log("hi recentSlot: ", recentSlot);
   const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
   let [lookUpTable] = PublicKey.findProgramAddressSync(
     [

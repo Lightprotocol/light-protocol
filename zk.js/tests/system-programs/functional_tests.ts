@@ -42,6 +42,7 @@ import {
   getVerifierProgramId,
   createUnshieldTransaction,
   UnshieldTransactionInput,
+  sleep,
 } from "../../src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -53,6 +54,7 @@ import {
 let HASHER: Hasher;
 let RELAYER: TestRelayer;
 let ACCOUNT: Account;
+let lightProvider: Provider;
 
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
@@ -86,9 +88,16 @@ describe("verifier_program", () => {
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
     });
+    lightProvider = await Provider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+      confirmConfig,
+    });
+    // TODO: apparently lookuptable extends until 33 slot!
+    await sleep(15000);
   });
 
-  it("Shield (verifier one)", async () => {
+  it.only("Shield (verifier one)", async () => {
     await performShield({
       delegate: AUTHORITY_ONE,
       spl: true,
@@ -184,10 +193,14 @@ describe("verifier_program", () => {
       throw "undefined LOOK_UP_TABLE";
     }
 
+    console.log("LOOK_UP_TABLE", LOOK_UP_TABLE.toBase58());
     const shieldAmount = spl
       ? 10_000 + Math.floor(Math.random() * 1_000_000_000)
       : 0;
     const shieldFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+
+    console.log("shieldAmount", shieldAmount);
+    console.log("shieldFeeAmount", shieldFeeAmount);
 
     await airdropSplToAssociatedTokenAccount(
       provider.connection,
@@ -211,11 +224,8 @@ describe("verifier_program", () => {
       [ADMIN_AUTH_KEYPAIR],
     );
     const senderSpl = spl ? tokenAccount.address : undefined;
-    const lightProvider = await Provider.init({
-      wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
-      confirmConfig,
-    });
+
+    // TEST REMOVED lightProvider here
 
     const shieldUtxo = spl
       ? new Utxo({
@@ -293,7 +303,16 @@ describe("verifier_program", () => {
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
-    await lightProvider.sendAndConfirmShieldedTransaction(instructions);
+    console.log("@performShield .relayer.sendAndConfirmSolanaInstructions");
+    const signatures = await lightProvider.sendAndConfirmSolanaInstructions(
+      instructions,
+      // lightProvider.connection!,
+      { commitment: "confirmed" },
+      undefined,
+      undefined,
+      // lightProvider,
+    );
+    console.log("SIGS", signatures);
 
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },
@@ -318,11 +337,16 @@ describe("verifier_program", () => {
     shuffleEnabled: boolean;
     verifierIdl: Idl;
   }) => {
-    const lightProvider = await Provider.init({
-      wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
-      confirmConfig,
-    });
+    // const lightProvider = await Provider.init({
+    //   wallet: ADMIN_AUTH_KEYPAIR,
+    //   relayer: RELAYER,
+    //   confirmConfig,
+    // });
+    // FIX: apparently lookuptable extends until 33 slot is finalized!
+    // I suspect the same underlying issue wrt my test-validator to cause this
+    // Expects finalized state.
+    await sleep(15000);
+
     const user = await User.init({
       provider: lightProvider,
       account: ACCOUNT,
@@ -405,7 +429,15 @@ describe("verifier_program", () => {
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
-    await lightProvider.sendAndConfirmShieldedTransaction(instructions);
+    const signatures =
+      await lightProvider.relayer.sendAndConfirmSolanaInstructions(
+        instructions,
+        provider.connection!,
+        { commitment: "finalized" },
+        undefined,
+        lightProvider,
+      );
+    console.log("SIGS UNSHIELD", signatures);
 
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },

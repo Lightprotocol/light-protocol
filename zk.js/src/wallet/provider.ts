@@ -16,7 +16,7 @@ import {
   Blockhash,
   BlockhashWithExpiryBlockHeight,
 } from "@solana/web3.js";
-import { initLookUpTable } from "../utils";
+import { initLookUpTable, sleep } from "../utils";
 import {
   ADMIN_AUTH_KEYPAIR,
   BN_0,
@@ -33,7 +33,6 @@ import {
   Relayer,
   RELAYER_FEE,
   RELAYER_RECIPIENT_KEYPAIR,
-  SignaturesWithBlockhashInfo,
   SolMerkleTree,
   SolMerkleTreeErrorCode,
   TOKEN_ACCOUNT_FEE,
@@ -42,6 +41,7 @@ import {
   useWallet,
 } from "../index";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const axios = require("axios");
 
 /**
@@ -178,6 +178,12 @@ export class Provider {
     provider: AnchorProvider,
     relayerUrl?: string,
   ): Promise<PublicKey | undefined> {
+    console.log(
+      "fetchLookupTable isNodeWallet",
+      wallet.isNodeWallet,
+      "relayerUrl",
+      relayerUrl,
+    );
     if (wallet.isNodeWallet) {
       return await initLookUpTable(wallet, provider);
     } else if (relayerUrl) {
@@ -330,7 +336,10 @@ export class Provider {
       );
 
     const { versionedTransactionLookupTable } = this.lookUpTables;
-
+    console.log(
+      "versionedTransactionLookupTable",
+      versionedTransactionLookupTable,
+    );
     const lookupTableAccount = await this.connection.getAccountInfo(
       versionedTransactionLookupTable,
       commitment || "confirmed",
@@ -350,6 +359,7 @@ export class Provider {
    * Convenience wrapper for sending and confirming light transactions.
    * Fetches recentBlockhash if none provided, builds transactions from instructions, signs, sends, and confirms them.
    */
+  /// TODO: figure out whether we should use confirmOptions to specify the latestblockhash commitment or not
   async sendAndConfirmSolanaInstructions(
     ixs: TransactionInstruction[],
     confirmOptions?: ConfirmOptions,
@@ -362,9 +372,10 @@ export class Provider {
       await this.getVersionedTransactionLookupTableAccountArgs();
 
     const { blockhash, lastValidBlockHeight }: BlockhashWithExpiryBlockHeight =
-      blockhashInfo || (await connection.getLatestBlockhash());
+      blockhashInfo ||
+      (await connection.getLatestBlockhash(confirmOptions?.commitment));
 
-    const txs = createSolanaTransactions(
+    const txs = await createSolanaTransactions(
       ixs,
       blockhash,
       versionedTransactionLookupTableAccountArgs,
@@ -375,23 +386,36 @@ export class Provider {
     const signedTransactions: VersionedTransaction[] =
       await wallet.signAllTransactions(txs);
 
+    console.log(
+      "tx signatures :",
+      signedTransactions.map((tx) => bs58.encode(tx.signatures[0])),
+    );
     const signatures: TransactionSignature[] = [];
 
-    for (const tx of signedTransactions) {
-      const signature: TransactionSignature = await wallet.sendTransaction(
-        tx,
-        connection!,
-      );
+    try {
+      for (const tx of signedTransactions) {
+        const signature: TransactionSignature = await wallet.sendTransaction(
+          tx,
+          connection!,
+        );
 
-      /// we assume that we're able to fit all txs into one blockhash expiry window
-      const strategy: TransactionConfirmationStrategy = {
-        signature,
-        lastValidBlockHeight,
-        blockhash,
-      };
+        /// we assume that we're able to fit all txs into one blockhash expiry window
+        const strategy: TransactionConfirmationStrategy = {
+          signature,
+          lastValidBlockHeight,
+          blockhash,
+        };
 
-      await connection.confirmTransaction(strategy, confirmOptions?.commitment);
-      signatures.push(signature);
+        await connection.confirmTransaction(
+          strategy,
+          confirmOptions?.commitment || "confirmed",
+        );
+        console.log("CHECK: ", signature);
+        signatures.push(signature);
+      }
+    } catch (error) {
+      console.error("error: ", error);
+      throw error;
     }
 
     return signatures;

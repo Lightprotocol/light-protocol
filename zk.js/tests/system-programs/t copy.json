@@ -1,0 +1,72 @@
+{
+  "header": {
+    "numRequiredSignatures": 1,
+    "numReadonlySignedAccounts": 0,
+    "numReadonlyUnsignedAccounts": 2
+  },
+  "staticAccountKeys": [
+    "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k",
+    "6n2eREPP6bMLLYVJSGcSCULFy7u2WDrx3v5GJR7bByMa",
+    "9hKjURg9UreUFYKNDog1QD69HbddkbhemHEVJse2cxVs",
+    "BWZtDhqYZ3q6nS6nPJ1FNJkchWiAGEDn8MvjYtdmgY5Y",
+    "HxNJ7zXR1BKzDXX8anZbUeUKPHthRFnebc7CShvu7KAD",
+    "388XabAXwBT19iG94hHMGK7cSBir6RhAu33o8xvoXrT6",
+    "52yfTXk6LFq7WmS6KQ6Wdqz53Crzm3JaZG4fWf6bsp9U",
+    "3q8TYSM8EBWtUQCP4AgY2LR5XEjmWCWBEXX4M865sSQq",
+    "DRPhbW8J1epyUjStW2CB718oW5oXZWeUGZPPpLZTvZfs",
+    "59DGcCdCb4CDmNcJ5yLNGZXUC3F446iJiYJGUGKTNi81",
+    "C4LggjixDq4DodfN54pqpTXV7ageE2P6zpRzBtLSmupp",
+    "3M5Nat1cerr76Bs64qEYfcmET3eVzt7aBbixkkHsSM6g",
+    "64yt731ck7fdPE6QZyekXnz1HNcrsKfm5s1ta2rtjpDN",
+    "BdAEugxGaeR9LstvWTRidhZbrEaW1XboM3aLmyiaj1x5",
+    "2fVsq69tcZ8Hfy8s2fhxUJnLop6oy9Cr7fCEC4erP9r7",
+    "DpPxnwVoMXevMZHDu35NaVn78Rr11jcjW4NnhLAPV24q",
+    "ComputeBudget111111111111111111111111111111",
+    "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
+  ],
+  "recentBlockhash": "5hzDmaijCs2s99VZK2prShhXQfFLD6MmWEcrhbgczvmx",
+  "compiledInstructions": [
+    {
+      "programIdIndex": 16,
+      "accountKeyIndexes": [],
+      "data": { "type": "Buffer", "data": [2, 192, 92, 21, 0] }
+    },
+    {
+      "programIdIndex": 17,
+      "accountKeyIndexes": [
+        0, 25, 26, 18, 1, 19, 2, 20, 27, 21, 3, 22, 23, 28, 24, 4, 5, 6, 7, 8,
+        9, 10, 11, 12, 13, 14, 15
+      ],
+      "data": {
+        "type": "Buffer",
+        "data": [
+          40, 111, 56, 127, 240, 101, 186, 144, 0, 1, 0, 0, 24, 52, 235, 74,
+          239, 100, 179, 217, 65, 123, 115, 254, 25, 157, 167, 79, 155, 250, 23,
+          15, 121, 192, 34, 247, 93, 196, 88, 72, 239, 148, 169, 8, 8, 221, 64,
+          209, 217, 94, 251, 232, 119, 70, 242, 21, 21, 160, 113, 83, 1, 68,
+          204, 223, 51, 182, 254, 161, 2, 92, 113, 13, 157, 209, 51, 21, 17,
+          195, 119, 169, 134, 93, 156, 146, 147, 230, 90, 192, 30, 241, 94, 121,
+          97, 122, 101, 104, 43, 25, 130, 236, 42, 116, 121, 127, 69, 107, 230,
+          85, 38, 125, 218, 145, 139, 206, 186, 81, 125, 156, 157, 231, 96, 164,
+          69, 106, 1, 121, 116, 16, 96, 106, 211, 92, 121, 169, 169, 214, 218,
+          106, 136, 111, 39, 9, 27, 85, 169, 1, 199, 114, 126, 155, 221, 58, 20,
+          96, 128, 29, 127, 42, 101, 242, 181, 46, 43, 178, 177, 16, 104, 226,
+          102, 213, 142, 8, 15, 179, 47, 219, 189, 67, 237, 59, 149, 80, 29,
+          154, 130, 199, 136, 184, 49, 229, 115, 129, 142, 124, 65, 243, 254,
+          104, 215, 98, 83, 204, 124, 145, 32, 249, 109, 129, 176, 185, 27, 147,
+          5, 145, 175, 17, 76, 163, 50, 71, 34, 114, 163, 150, 77, 227, 194, 62,
+          19, 185, 215, 172, 118, 122, 80, 142, 32, 64, 173, 181, 56, 163, 65,
+          9, 243, 15, 86, 152, 65, 167, 54, 63, 156, 54, 107, 91, 225, 140, 52,
+          93, 40, 161, 53, 134, 120, 224, 35, 242
+        ]
+      }
+    }
+  ],
+  "addressTableLookups": [
+    {
+      "accountKey": "5hTGebckLstPg2Y4Tf2KQVnfDJQ6bdpJLrNT3dbdM5TZ",
+      "writableIndexes": [6, 10, 14, 13, 15, 17, 5],
+      "readonlyIndexes": [0, 1, 11, 3]
+    }
+  ]
+}

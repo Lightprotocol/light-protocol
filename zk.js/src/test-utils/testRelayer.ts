@@ -1,8 +1,11 @@
 import {
+  ConfirmOptions,
   Connection,
   Keypair,
   PublicKey,
+  TransactionConfirmationStrategy,
   TransactionInstruction,
+  TransactionSignature,
 } from "@solana/web3.js";
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Relayer } from "../relayer";
@@ -10,6 +13,7 @@ import { Provider } from "../wallet";
 import { fetchRecentTransactions } from "../transaction";
 import {
   ParsedIndexedTransaction,
+  PrioritizationFee,
   SignaturesWithBlockhashInfo,
 } from "../types";
 import {
@@ -44,6 +48,35 @@ export class TestRelayer extends Relayer {
   }
 
   /**
+   * Convenience function for sending and confirming instructions via Light RPC node.
+   * Routes instructions to Light RPC node and confirms the last transaction signature.
+   */
+  async sendAndConfirmSolanaInstructions(
+    ixs: TransactionInstruction[],
+    connection: Connection,
+    confirmOptions?: ConfirmOptions,
+    prioritizationFee?: PrioritizationFee,
+    provider?: Provider,
+  ): Promise<TransactionSignature[]> {
+    console.log("@testRelayer.sendAndConfirmSolanaInstructions");
+
+    const {
+      signatures,
+      blockhashInfo: { lastValidBlockHeight, blockhash },
+    } = await this.sendSolanaInstructions(ixs, prioritizationFee, provider!);
+
+    const lastTxIndex = signatures.length - 1;
+
+    const strategy: TransactionConfirmationStrategy = {
+      signature: signatures[lastTxIndex],
+      lastValidBlockHeight,
+      blockhash,
+    };
+    await connection.confirmTransaction(strategy, confirmOptions?.commitment);
+
+    return signatures;
+  }
+  /**
    * Mocks sending a transaction to the relayer, executes by itself
    * Contrary to the actual relayer response, this mock has already
    * confirmed the transaction by the time it returns
@@ -54,11 +87,13 @@ export class TestRelayer extends Relayer {
     provider?: Provider,
   ): Promise<SignaturesWithBlockhashInfo> {
     // we're passing the blockhashinfo manually to be able to mock the return type of the 'sendSolanaInstructions' Relayer method
-    const blockhashInfo = await provider!.connection!.getLatestBlockhash();
-
+    const blockhashInfo =
+      await provider!.connection!.getLatestBlockhash("finalized"); // must get finalized blockhash to avoid "BlockhashNotFound" error
+    console.log("blockhashInfo", blockhashInfo);
+    /// We're confirming with finalized just in this test case. TODO: check whether workaround
     const signatures = await provider!.sendAndConfirmSolanaInstructions(
       ixs,
-      undefined,
+      { commitment: "finalized" },
       prioritizationFee,
       blockhashInfo,
     );

@@ -10,6 +10,7 @@ import {
   VersionedTransaction,
   AddressLookupTableAccountArgs,
   BlockhashWithExpiryBlockHeight,
+  PublicKey,
 } from "@solana/web3.js";
 
 import { PrioritizationFee, SignaturesWithBlockhashInfo } from "../types";
@@ -20,17 +21,17 @@ import { PrioritizationFee, SignaturesWithBlockhashInfo } from "../types";
  * The last tx verifies the correctness of the state transition and updates the protocol state.
  * All preceding txs (if any) send data to the chain.
  */
-export function createSolanaTransactions(
+export async function createSolanaTransactions(
   ixs: TransactionInstruction[],
   recentBlockhash: Blockhash,
   versionedTransactionLookupTableAccountArgs: AddressLookupTableAccountArgs,
   prioritizationFee?: PrioritizationFee,
-): VersionedTransaction[] {
+): Promise<VersionedTransaction[]> {
   const versionedTransactions: VersionedTransaction[] = [];
 
   for (const ix of ixs) {
     versionedTransactions.push(
-      createVersionedTransaction(
+      await createVersionedTransaction(
         ix,
         versionedTransactionLookupTableAccountArgs,
         recentBlockhash,
@@ -44,12 +45,12 @@ export function createSolanaTransactions(
 /**
  * Creates and compiles a VersionedTransaction from a TransactionInstruction.
  */
-export function createVersionedTransaction(
+export async function createVersionedTransaction(
   ix: TransactionInstruction,
   versionedTransactionLookupTableAccountArgs: AddressLookupTableAccountArgs,
   recentBlockhash: Blockhash,
   prioritizationFee?: PrioritizationFee,
-): VersionedTransaction {
+): Promise<VersionedTransaction> {
   const payerKey = ix.keys.find((key) => key.isSigner)?.pubkey;
 
   if (!payerKey) {
@@ -70,19 +71,30 @@ export function createVersionedTransaction(
       : [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }), ix],
     recentBlockhash,
   });
+  // console.log("txMsg", JSON.stringify(txMsg));
 
   const { state, key } = versionedTransactionLookupTableAccountArgs;
+  // const conn = new Connection("http://127.0.0.1:8899");
+
+  // const acc = (
+  //   await conn.getAddressLookupTable(
+  //     new PublicKey("EUwVvyTZrBVyB1LUQf6b6WWcdXgcgYz5E5mcWUtkW2vX"),
+  //   )
+  // ).value;
+  // console.log("acc", acc);
 
   const compiledTx = txMsg.compileToV0Message([
+    // acc!,
     {
       state,
       key,
       isActive: () => true,
     },
   ]);
-  if (compiledTx.addressTableLookups[0]) {
-    compiledTx.addressTableLookups[0].accountKey = key;
-  }
+  // if (compiledTx.addressTableLookups[0]) {
+  //   compiledTx.addressTableLookups[0].accountKey = key;
+  // }
+  // console.log("compiledTx", JSON.stringify(compiledTx));
 
   const versionedTransaction = new VersionedTransaction(compiledTx);
   return versionedTransaction;

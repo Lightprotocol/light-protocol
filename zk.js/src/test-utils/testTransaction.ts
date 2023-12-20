@@ -207,6 +207,10 @@ export class TestTransaction {
 
     // Checking that nullifiers were inserted
     for (let i = 0; i < remainingAccounts.nullifierPdaPubkeys?.length; i++) {
+      console.log(
+        "NULIF PUBKEY:",
+        remainingAccounts.nullifierPdaPubkeys[i].pubkey.toBase58(),
+      );
       const nullifierAccount =
         await this.provider.provider!.connection.getAccountInfo(
           remainingAccounts.nullifierPdaPubkeys[i].pubkey,

@@ -21,6 +21,7 @@ import {
   PrioritizationFee,
   SignaturesWithBlockhashInfo,
   RelayerRelayPayload,
+  Provider,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -98,12 +99,14 @@ export class Relayer {
     connection: Connection,
     confirmOptions?: ConfirmOptions,
     prioritizationFee?: PrioritizationFee,
+    _provider?: Provider, // unused, for testRelayer compat
   ): Promise<TransactionSignature[]> {
     const {
       signatures,
       blockhashInfo: { lastValidBlockHeight, blockhash },
     } = await this.sendSolanaInstructions(ixs, prioritizationFee);
 
+    console.log("@relayer.sendAndConfirmSolanaInstructions");
     const lastTxIndex = signatures.length - 1;
 
     const strategy: TransactionConfirmationStrategy = {
@@ -126,6 +129,7 @@ export class Relayer {
     prioritizationFee?: bigint,
   ): Promise<SignaturesWithBlockhashInfo> {
     try {
+      console.log("IN HERE SHOULDNT BE");
       const response: AxiosResponse = await axios.post(
         this.url + "/relayTransaction",
         {
