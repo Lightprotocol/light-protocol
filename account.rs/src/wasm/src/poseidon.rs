@@ -57,8 +57,8 @@ mod tests {
 
         let input_of_1 = [vec![0u8; 31], vec![1u8]].concat();
         let inputs = vec![input_of_1];
-        let hash = poseidon_hash(inputs);
-        assert_eq!(hash?, hash_of_1.to_vec());
+        let hash = poseidon_hash(inputs).unwrap();
+        assert_eq!(hash, hash_of_1.to_vec());
     }
 
     #[test]

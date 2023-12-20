@@ -1,0 +1,50 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.rs"
+      - "**/Cargo.*"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "**/*.rs"
+      - "**/Cargo.*"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: rust
+
+concurrency:  
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    if: github.event.pull_request.draft == false
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Cache .local directory
+        uses: buildjet/cache@v3
+        with:
+          path: .local
+          key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          ./scripts/install.sh
+          source ./scripts/devenv.sh
+
+      - name: Build and test
+        run: |
+          source ./scripts/devenv.sh
+          cargo build --workspace --all-targets
+          cargo test --workspace --all-targets

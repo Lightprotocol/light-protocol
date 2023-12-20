@@ -105,7 +105,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "assertion failed")]
     fn test_generate_circom_string_fail() {
         let instance = Instance {
             name: "appTransaction".to_owned(),
@@ -121,7 +120,7 @@ mod tests {
             include \"./circuit.circom\";\n\
             component main {public [transactionHash, publicAppVerifier]} =  appTransaction(7, 2 ,18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);";
 
-        assert_eq!(
+        assert_ne!(
             generate_circom_main_code(&instance).unwrap(),
             incorrect_expected_string
         );
