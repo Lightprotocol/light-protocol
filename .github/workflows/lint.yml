@@ -51,12 +51,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Install dependencies
-        run: |
-          ./scripts/install.sh
-
       - name: Run linters
         run: |
-          pnpm install
+          set -euxo pipefail
+          ./scripts/install.sh
           source ./scripts/devenv.sh
+          # NOTE(vadorovsky): I have no idea why do we need to do this again
+          # here... But without that, the toolchain is just not there!
+          # I will spend more time on debugging this once I can afford burning
+          # more hours.
+          rustup toolchain install nightly --component clippy,rustfmt
           ./scripts/lint.sh

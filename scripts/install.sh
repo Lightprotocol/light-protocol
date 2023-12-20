@@ -117,13 +117,6 @@ MACRO_CIRCOM_VERSION=`latest_release Lightprotocol macro-circom`
 LIGHT_PROTOCOL_VERSION=`latest_release Lightprotocol light-protocol`
 ENABLE_REDIS=$(check_flag --enable-redis "$@")
 
-
-if ! rustup toolchain list 2>/dev/null | grep -q "nightly"; then
-    echo "Rust nightly is not installed!"
-    echo "Please install https://rustup.rs/ and then install the nightly toolchain with:"
-    echo "    rustup toolchain install nightly" 
-fi
-
 case "${OS}" in
     "Darwin")
         case "${ARCH}" in
@@ -181,10 +174,13 @@ export RUSTUP_HOME="${PREFIX}/rustup"
 export CARGO_HOME="${PREFIX}/cargo"
 curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
     --no-modify-path # We want to control the PATH ourselves.
-. "${CARGO_HOME}/env"
-cargo install cargo-expand wasm-pack
+export PATH="${PREFIX}/cargo/bin:${PATH}"
 
+rustup component add clippy
 rustup component add rustfmt
+rustup toolchain install nightly --component clippy,rustfmt
+
+cargo install cargo-expand wasm-pack
 
 echo "📥 Downloading Node.js"
 download_and_extract \
