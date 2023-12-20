@@ -78,15 +78,17 @@ export async function functionalCircuitTest(
     relayerFee,
     systemPspId: getVerifierProgramId(verifierIdl),
     relayerPublicKey: lightProvider.relayer.accounts.relayerPubkey,
-    root: merkleTree.root(),
     pspId: app ? getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT) : undefined,
   };
+
   const transaction = await createTransaction(txInput);
   let systemProofInputs = createSystemProofInputs({
     transaction: transaction,
     hasher,
     account,
+    root: merkleTree.root(),
   });
+
   const transactionHash = getTransactionHash(
     hasher,
     transaction.private.inputUtxos,

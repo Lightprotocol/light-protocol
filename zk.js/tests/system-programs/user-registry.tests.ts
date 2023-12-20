@@ -62,6 +62,8 @@ describe("User registry", () => {
       relayerRecipientSol,
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
+      connection: provider.connection,
+      hasher,
     });
 
     await Provider.init({

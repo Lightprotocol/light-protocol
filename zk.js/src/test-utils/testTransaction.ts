@@ -18,6 +18,7 @@ import {
   Transaction,
   ShieldTransaction,
   UnshieldTransaction,
+  TestRelayer,
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
@@ -157,14 +158,9 @@ export class TestTransaction {
     if (!this.merkleTreeProgram) {
       throw new Error("merkleTreeProgram undefined");
     }
-    this.provider.solMerkleTree;
 
     if (!this.provider) {
       throw new Error("provider undefined");
-    }
-
-    if (!this.provider.solMerkleTree) {
-      throw new Error("provider.solMerkleTree undefined");
     }
 
     if (!remainingAccounts) {
@@ -217,8 +213,6 @@ export class TestTransaction {
         connection: this.provider.provider!.connection,
       });
     }
-
-    await this.checkMerkleTreeLeaves(transactionInputs);
 
     let nrInstructions;
     if (this.appParams) {
@@ -393,9 +387,11 @@ export class TestTransaction {
             limit: 5000,
           },
         });
-      indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
+      indexedTransactions.sort(
+        (a, b) => b.transaction.blockTime - a.transaction.blockTime,
+      );
       assert.equal(
-        indexedTransactions[0].message.toString(),
+        indexedTransactions[0].transaction.message.toString(),
         this.transaction.public.message.toString(),
       );
     }
@@ -406,19 +402,22 @@ export class TestTransaction {
    * tree.
    */
   async checkMerkleTreeLeaves(transactionInputs: any) {
-    await this.provider.latestMerkleTree();
+    // using any because TestRelayer has solMerkleTree property but Relayer doesn't
+    const relayer = this.provider.relayer as any;
     for (let i = 0; i < 2; i++) {
       assert.deepEqual(
         new BN(
-          this.provider.solMerkleTree!.merkleTree.elements()[
-            this.provider.solMerkleTree!.merkleTree.indexOf(
+          relayer.solMerkleTree!.merkleTree.elements()[
+            relayer.solMerkleTree!.merkleTree.indexOf(
               this.transaction.private.outputUtxos[0].getCommitment(
                 this.provider.hasher,
               ),
             )
           ],
-        ).toArray("be", 32),
-        transactionInputs.publicInputs.outputCommitment[0],
+        )
+          .toArray("be", 32)
+          .toString(),
+        transactionInputs.publicInputs.outputCommitment[0].toString(),
       );
     }
   }

@@ -89,15 +89,15 @@ export class SolMerkleTree {
 
     indexedTransactions.sort(
       (a, b) =>
-        new BN(a.firstLeafIndex).toNumber() -
-        new BN(b.firstLeafIndex).toNumber(),
+        new BN(a.firstLeafIndex, "hex").toNumber() -
+        new BN(b.firstLeafIndex, "hex").toNumber(),
     );
     const merkleTreeIndex = mtFetched.merkleTree.nextIndex;
     const leaves: string[] = [];
     if (indexedTransactions.length > 0) {
       for (let i: number = 0; i < indexedTransactions.length; i++) {
         if (
-          new BN(indexedTransactions[i].firstLeafIndex).toNumber() <
+          new BN(indexedTransactions[i].firstLeafIndex, "hex").toNumber() <
           merkleTreeIndex.toNumber()
         ) {
           for (const iterator of indexedTransactions[i].leaves) {

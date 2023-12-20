@@ -37,7 +37,7 @@ import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 
 type SolanaInstructionInputs = {
   publicInputs?: PublicInputs;
-  rootIndex?: BN;
+  rootIndex?: number;
   proofBytes?: any;
   proofBytesApp?: any;
   publicInputsApp?: any;
@@ -118,7 +118,7 @@ export async function createSolanaInstructions({
   systemPspIdl,
 }: {
   action: Action;
-  rootIndex: BN;
+  rootIndex: number;
   systemProof: { parsedProof: any; parsedPublicInputsObject: any };
   remainingSolanaAccounts: SolanaRemainingAccounts;
   accounts: lightAccounts;
@@ -219,7 +219,7 @@ export async function createSolanaInstructions({
     message: instructionInputs.message,
     ...instructionInputs.proofBytes,
     ...instructionInputs.publicInputs,
-    rootIndex: instructionInputs.rootIndex,
+    rootIndex: new BN(instructionInputs.rootIndex!),
     relayerFee: publicTransactionVariables.relayerFee,
     encryptedUtxos: Buffer.from(instructionInputs.encryptedUtxos!),
   };
@@ -319,6 +319,7 @@ export type SolanaTransactionInputs = {
   pspProof?: { parsedProof: any; parsedPublicInputsObject: any };
   relayerRecipientSol?: PublicKey;
   systemPspIdl: Idl;
+  rootIndex: number;
 };
 
 // pspProof, systemProof,pspTransactionInput, txParams
@@ -337,13 +338,11 @@ export async function sendAndConfirmShieldTransaction({
     pspProof,
     pspTransactionInput,
     systemProof,
+    rootIndex,
   } = solanaTransactionInputs;
-  const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
-    await provider.getRootIndex();
 
   const remainingSolanaAccounts = getSolanaRemainingAccounts(
     solanaTransactionInputs.systemProof.parsedPublicInputsObject,
-    remainingMerkleTreeAccounts,
   );
   const accounts = prepareAccounts({
     transactionAccounts: publicTransactionVariables.accounts,
@@ -386,6 +385,7 @@ export async function sendAndConfirmShieldedTransaction({
     systemProof,
     relayerRecipientSol,
     systemPspIdl,
+    rootIndex,
   } = solanaTransactionInputs;
   if (action === Action.SHIELD) {
     throw new SolanaTransactionError(
@@ -401,12 +401,9 @@ export async function sendAndConfirmShieldedTransaction({
       `Relayer recipient sol is undefined.`,
     );
   }
-  const { rootIndex, remainingAccounts: remainingMerkleTreeAccounts } =
-    await provider.getRootIndex();
 
   const remainingSolanaAccounts = getSolanaRemainingAccounts(
     solanaTransactionInputs.systemProof.parsedPublicInputsObject,
-    remainingMerkleTreeAccounts,
   );
   const accounts = prepareAccounts({
     transactionAccounts: publicTransactionVariables.accounts,

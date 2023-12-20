@@ -20,7 +20,7 @@ function TransactionCard({
     TRANSFER: <IconArrowRight color="blue" />,
   };
   const tokenCtx = TOKEN_REGISTRY.get("SOL")!;
-  const parsedRelayerFee = parseAmount(relayerFee, tokenCtx);
+  const parsedRelayerFee = parseAmount(new BN(relayerFee, "hex"), tokenCtx);
 
   return (
     <Stack mt={"xl"} gap="xs" w={300} data-testid="TransactionCard">
@@ -59,6 +59,7 @@ function TransactionCard({
 import { format } from "date-fns";
 import { useState } from "react";
 import { parseAmount, parseTxAmount } from "../../utils/parser";
+import { BN } from "@coral-xyz/anchor";
 
 export const Transactions = () => {
   const { transactions } = useTransactions();

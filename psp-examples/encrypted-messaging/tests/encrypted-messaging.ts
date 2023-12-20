@@ -8,6 +8,7 @@ import {
   lightPsp2in2outStorageId,
   merkleTreeProgramId,
   getSignerAuthorityPda,
+  Provider,
 } from "@lightprotocol/zk.js";
 import { Keypair } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
@@ -29,14 +30,15 @@ describe("Test foobar", () => {
     console.log(`authorityPda balance: ${authorityBalance} SOL`);
 
     const wallet = await createWalletAndAirdropSol(provider, 1e10);
-    const relayer = createRelayer(wallet);
 
     let lightProvider = await LightProvider.init({
       wallet,
       url: RPC_URL,
-      relayer,
       confirmConfig: confirmConfig,
     });
+    const relayer = createRelayer(wallet, lightProvider);
+    lightProvider.relayer = relayer;
+
     const user: User = await User.init({ provider: lightProvider });
 
     let messageClient = new MessageClient(user);
@@ -80,11 +82,13 @@ async function createWalletAndAirdropSol(
   return wallet;
 }
 
-function createRelayer(wallet: Keypair): TestRelayer {
+function createRelayer(wallet: Keypair, lightProvider: Provider): TestRelayer {
   return new TestRelayer({
     relayerPubkey: wallet.publicKey,
     relayerRecipientSol: wallet.publicKey,
     relayerFee: new BN(100_000),
     payer: wallet,
+    connection: lightProvider.provider.connection,
+    hasher: lightProvider.hasher,
   });
 }

@@ -27,7 +27,7 @@ import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const recipientSeed = bs58.encode(new Uint8Array(32).fill(7));
-
+let provider: Provider;
 describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -59,6 +59,13 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       relayerRecipientSol,
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
+      connection: anchorProvider.connection,
+      hasher: environmentConfig.hasher,
+    });
+    provider = await Provider.init({
+      wallet: environmentConfig.providerSolanaKeypair!,
+      relayer: environmentConfig.relayer,
+      confirmConfig,
     });
     await airdropSol({
       recipientPublicKey: userKeypair.publicKey,
@@ -160,9 +167,15 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   });
 
   it("Merge one spl (existing utxos)", async () => {
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: environmentConfig.relayer,
+      confirmConfig,
+    });
     await airdropShieldedMINTSpl({
       seed: recipientSeed,
       amount: 11,
+      provider,
     });
     // shield SPL to recipient
     const testInputsShield = {
@@ -179,11 +192,6 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       numberOfShields: 2,
       testInputs: testInputsShield,
       environmentConfig,
-    });
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: environmentConfig.relayer,
-      confirmConfig,
     });
 
     const userSender: User = await User.init({
@@ -217,7 +225,9 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     await airdropShieldedSol({
       seed: recipientSeed,
       amount: 15,
+      provider,
     });
+
     const testInputsShield = {
       amountSol: 20,
       token: "SOL",
@@ -249,9 +259,15 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   });
 
   it("Merge one sol (existing utxos)", async () => {
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: environmentConfig.relayer,
+      confirmConfig,
+    });
     await airdropShieldedSol({
       seed: recipientSeed,
       amount: 1,
+      provider,
     });
     const testInputsShield = {
       amountSpl: 0,
@@ -268,12 +284,6 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       numberOfShields: 2,
       testInputs: testInputsShield,
       environmentConfig,
-    });
-
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: environmentConfig.relayer,
-      confirmConfig,
     });
 
     const userSender: User = await User.init({

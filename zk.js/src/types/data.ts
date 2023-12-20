@@ -4,8 +4,8 @@ export type IndexedTransactionData = {
   publicAmountSpl: Uint8Array;
   publicAmountSol: Uint8Array;
   leaves: number[][];
-  encryptedUtxos: any[];
-  nullifiers: any[];
+  encryptedUtxos: number[];
+  nullifiers: number[][];
   relayerFee: BN;
   firstLeafIndex: BN;
   tx: any;

@@ -35,8 +35,8 @@ export const DEFAULT_CONFIG = {
   rpcUrl: "http://127.0.0.1:8899",
   relayerPublicKey: "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
   lookupTable: "8SezKuv7wMNPd574Sq4rQ1wvVrxa22xPYtkeruJRjrhG",
-  relayerFee: RELAYER_FEE,
-  highRelayerFee: TOKEN_ACCOUNT_FEE,
+  relayerFee: RELAYER_FEE.toString(),
+  highRelayerFee: TOKEN_ACCOUNT_FEE.toString(),
 };
 
 // TODO: investigate why latest cargo-generate fails

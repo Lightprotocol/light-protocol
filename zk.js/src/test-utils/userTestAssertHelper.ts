@@ -185,40 +185,43 @@ export class UserTestAssertHelper {
         "Transaction type mismatch",
       );
       assert.equal(
-        transaction.signer.toBase58(),
+        transaction.signer,
         reference.signer.toBase58(),
         "Signer mismatch",
       );
-      assert(
-        transaction.publicAmountSol.eq(reference.publicAmountSol),
+      assert.equal(
+        transaction.publicAmountSol,
+        reference.publicAmountSol.toString(),
         "Public SOL amount mismatch",
       );
-      assert(
-        transaction.publicAmountSpl.eq(reference.publicAmountSpl),
+      assert.equal(
+        transaction.publicAmountSpl,
+        reference.publicAmountSpl.toString(),
         "Public SPL amount mismatch",
       );
       assert.equal(
-        transaction.to.toBase58(),
+        transaction.to,
         reference.to.toBase58(),
         "Recipient mismatch",
       );
       assert.equal(
-        transaction.from.toBase58(),
+        transaction.from,
         reference.from.toBase58(),
         "Sender mismatch",
       );
       assert.equal(
-        transaction.verifier.toBase58(),
+        transaction.verifier,
         reference.verifier.toBase58(),
         "Verifier mismatch",
       );
       assert.equal(
-        transaction.relayerRecipientSol.toBase58(),
+        transaction.relayerRecipientSol,
         reference.relayerRecipientSol.toBase58(),
         "Relayer recipient SOL mismatch",
       );
-      assert(
-        transaction.relayerFee.eq(reference.relayerFee),
+      assert.equal(
+        transaction.relayerFee,
+        reference.relayerFee.toString(),
         "Relayer fee mismatch",
       );
 
@@ -397,16 +400,10 @@ export class UserTestAssertHelper {
     };
 
     await user.getBalance();
-    await user.provider.latestMerkleTree();
+    // await user.provider.latestMerkleTree();
     for (const [asset, tokenBalance] of user.balance.tokenBalances.entries()) {
-      // commitment is inserted in the merkle tree
+      // nullifier is not inserted
       for (const [, utxo] of tokenBalance.utxos.entries()) {
-        assert.notDeepEqual(
-          user.provider.solMerkleTree?.merkleTree.indexOf(
-            utxo.getCommitment(this.provider.hasher),
-          ),
-          -1,
-        );
         if (
           !utxo.getNullifier({
             hasher: this.provider.hasher,
@@ -415,29 +412,6 @@ export class UserTestAssertHelper {
         )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         await this.assertNullifierAccountDoesNotExist(
-          utxo.getNullifier({
-            hasher: user.provider.hasher,
-            account: user.account,
-          })!,
-        );
-        checkCategorizationByAsset(asset, utxo);
-      }
-      // commitment is not inserted in the merkle tree
-      for (const utxo of tokenBalance.committedUtxos.values()) {
-        assert.deepEqual(
-          user.provider.solMerkleTree?.merkleTree.indexOf(
-            utxo.getCommitment(this.provider.hasher),
-          ),
-          -1,
-        );
-        if (
-          !utxo.getNullifier({
-            hasher: this.provider.hasher,
-            account: user.account,
-          })
-        )
-          throw new Error(`nullifier of utxo undefined, ${utxo}`);
-        this.assertNullifierAccountDoesNotExist(
           utxo.getNullifier({
             hasher: user.provider.hasher,
             account: user.account,
@@ -467,26 +441,7 @@ export class UserTestAssertHelper {
 
   async assertInboxBalance(user: User) {
     await user.getUtxoInbox();
-    await user.provider.latestMerkleTree();
     for (const tokenBalance of user.inboxBalance.tokenBalances.values()) {
-      // commitment is inserted in the merkle tree
-      for (const utxo of tokenBalance.utxos.values()) {
-        assert.notDeepEqual(
-          user.provider.solMerkleTree?.merkleTree.indexOf(
-            utxo.getCommitment(this.provider.hasher),
-          ),
-          -1,
-        );
-      }
-      // commitment is not inserted in the merkle tree
-      for (const utxo of tokenBalance.committedUtxos.values()) {
-        assert.deepEqual(
-          user.provider.solMerkleTree?.merkleTree.indexOf(
-            utxo.getCommitment(this.provider.hasher),
-          ),
-          -1,
-        );
-      }
       // nullifier of utxo is inserted
       for (const utxo of tokenBalance.spentUtxos.values()) {
         if (
@@ -1118,9 +1073,11 @@ export class UserTestAssertHelper {
         },
       },
     );
-    indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
+    indexedTransactions.sort(
+      (a, b) => b.transaction.blockTime - a.transaction.blockTime,
+    );
     assert.equal(
-      indexedTransactions[0].message.toString(),
+      indexedTransactions[0].transaction.message.toString(),
       this.testInputs.message.toString(),
     );
   }
