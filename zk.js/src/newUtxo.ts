@@ -4,7 +4,6 @@ import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import {
   Account,
   BN_0,
-  BN_1,
   COMPRESSED_UTXO_BYTES_LENGTH,
   CreateUtxoErrorCode,
   ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
@@ -22,7 +21,7 @@ import { Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
 
-const randomBN = (nbytes = 30) => {
+export const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
 const { sha3_256 } = require("@noble/hashes/sha3");
@@ -52,6 +51,8 @@ export function createOutUtxo({
   blinding = new BN(randomBN(), 31, "be"),
   isFillingUtxo = false,
   hasher,
+  verifierAddress = SystemProgram.programId,
+  utxoDataHash = BN_0,
 }: {
   publicKey: BN;
   encryptionPublicKey?: Uint8Array;
@@ -60,11 +61,15 @@ export function createOutUtxo({
   blinding?: BN;
   isFillingUtxo?: boolean;
   hasher: Hasher;
+  verifierAddress?: PublicKey;
+  utxoDataHash?: BN;
 }): OutUtxo {
   const poolType = BN_0;
   const transactionVersion = BN_0;
-  const utxoDataHash = "0";
-  const verifierAddressCircuit = "0";
+  const verifierAddressCircuit =
+    verifierAddress.toBase58() === SystemProgram.programId.toBase58()
+      ? "0"
+      : hashAndTruncateToCircuit(verifierAddress.toBytes()).toString();
   const utxoHashInputs: UtxoHashInputs = {
     publicKey: publicKey.toString(),
     amounts: amounts.map((amount) => amount.toString()),
@@ -74,7 +79,7 @@ export function createOutUtxo({
     blinding: blinding.toString(),
     poolType: poolType.toString(),
     transactionVersion: transactionVersion.toString(),
-    utxoDataHash,
+    utxoDataHash: utxoDataHash.toString(),
     verifierAddressCircuit,
   };
   const utxoHash = getUtxoHash(hasher, utxoHashInputs);
@@ -91,7 +96,7 @@ export function createOutUtxo({
     isFillingUtxo,
     verifierAddress: SystemProgram.programId,
     verifierAddressCircuit: utxoHashInputs.verifierAddressCircuit,
-    utxoDataHash: BN_0,
+    utxoDataHash,
   };
   return outUtxo;
 }
@@ -205,11 +210,6 @@ export function outUtxoFromBytes({
   compressed?: boolean;
   hasher: Hasher;
 }): OutUtxo {
-  const poolType = "0";
-  const transactionVersion = "0";
-  const verifierAddress = SystemProgram.programId;
-  const verifierAddressCircuit = "0";
-  const utxoDataHash = "0";
   // if it is compressed and adds 64 0 bytes padding
   if (compressed) {
     const tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
@@ -236,42 +236,19 @@ export function outUtxoFromBytes({
   const publicKey = compressed
     ? account?.pubkey
     : decodedUtxoData.accountShieldedPublicKey;
-  const utxoHashInputs: UtxoHashInputs = {
-    publicKey: publicKey.toString(),
-    amounts: decodedUtxoData.amounts.map((amount: BN) => amount.toString()),
-    assetsCircuit: assets.map((asset) =>
-      hashAndTruncateToCircuit(asset.toBytes()).toString(),
-    ),
-    blinding: decodedUtxoData.blinding.toString(),
-    poolType: poolType.toString(),
-    transactionVersion: transactionVersion.toString(),
-    utxoDataHash,
-    verifierAddressCircuit,
-  };
 
-  const utxoHash = getUtxoHash(hasher, utxoHashInputs);
-
-  const outUtxo: OutUtxo = {
-    publicKey,
+  const outUtxo = createOutUtxo({
+    publicKey: new BN(publicKey),
     encryptionPublicKey: new BN(decodedUtxoData.accountEncryptionPublicKey).eq(
       BN_0,
     )
       ? undefined
-      : new Uint8Array(decodedUtxoData.accountEncryptionPublicKey),
+      : decodedUtxoData.accountEncryptionPublicKey,
     amounts: decodedUtxoData.amounts,
     assets,
-    assetsCircuit: assets.map((asset) =>
-      hashAndTruncateToCircuit(asset.toBytes()).toString(),
-    ),
-    blinding: decodedUtxoData.blinding,
-    poolType,
-    utxoHash,
-    transactionVersion,
-    verifierAddress,
-    verifierAddressCircuit,
-    utxoDataHash: BN_0,
-    isFillingUtxo: decodedUtxoData.isFillingUtxo,
-  };
+    blinding: new BN(decodedUtxoData.blinding),
+    hasher,
+  });
   return outUtxo;
 }
 
@@ -321,16 +298,49 @@ export async function encryptOutUtxo({
 }): Promise<Uint8Array> {
   const bytes = await outUtxoToBytes(utxo, assetLookupTable, compressed);
   const utxoHash = new BN(utxo.utxoHash).toArrayLike(Buffer, "be", 32);
+  const encryptedUtxo = await encryptOutUtxoInternal({
+    bytes,
+    utxoHash,
+    hasher,
+    account,
+    merkleTreePdaPublicKey,
+    compressed,
+    publicKey: utxo.publicKey,
+    encryptionPublicKey: utxo.encryptionPublicKey,
+  });
+  return encryptedUtxo;
+}
 
-  if (utxo.encryptionPublicKey) {
+export async function encryptOutUtxoInternal({
+  bytes,
+  hasher,
+  account,
+  merkleTreePdaPublicKey,
+  compressed = false,
+  isFillingUtxo = false,
+  encryptionPublicKey,
+  publicKey,
+  utxoHash,
+}: {
+  bytes: Uint8Array;
+  hasher: Hasher;
+  account?: Account;
+  merkleTreePdaPublicKey?: PublicKey;
+  compressed?: boolean;
+  isFillingUtxo?: boolean;
+  encryptionPublicKey?: Uint8Array;
+  publicKey: string;
+  utxoHash: Uint8Array;
+}): Promise<Uint8Array> {
+  if (encryptionPublicKey) {
     const ciphertext = Account.encryptNaclUtxo(
-      utxo.encryptionPublicKey,
+      encryptionPublicKey,
       bytes,
       utxoHash,
     );
     // TODO: add option to use random or dedicated prefix for asynmetrically encrypted utxos which are sent to another party
-    const prefix = !utxo.isFillingUtxo
-      ? new BN(utxo.publicKey).toArray("be", 32).slice(0, 4)
+    const prefix = !isFillingUtxo
+      ? new BN(publicKey).toArray("be", 32).slice(0, 4)
       : randomPrefixBytes();
     return Uint8Array.from([...prefix, ...ciphertext]);
   } else if (account) {
@@ -350,7 +360,7 @@ export async function encryptOutUtxo({
 
     // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
     // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
-    const prefix = !utxo.isFillingUtxo
+    const prefix = !isFillingUtxo
       ? account.generateLatestUtxoPrefixHash(
           merkleTreePdaPublicKey,
           UTXO_PREFIX_LENGTH,
@@ -377,7 +387,6 @@ export async function encryptOutUtxo({
     );
   }
 }
-
 export async function decryptOutUtxo({
   hasher,
   encBytes,
@@ -397,6 +406,46 @@ export async function decryptOutUtxo({
   compressed?: boolean;
   assetLookupTable: string[];
 }): Promise<Result<OutUtxo | null, UtxoError>> {
+  const cleartext = await decryptOutUtxoInternal({
+    hasher,
+    encBytes,
+    account,
+    merkleTreePdaPublicKey,
+    aes,
+    utxoHash,
+    compressed,
+  });
+  if (!cleartext || cleartext.error || !cleartext.value) return Result.Ok(null);
+  const bytes = Buffer.from(cleartext.value);
+
+  return Result.Ok(
+    outUtxoFromBytes({
+      hasher,
+      bytes,
+      account,
+      assetLookupTable,
+      compressed,
+    }),
+  );
+}
+
+export async function decryptOutUtxoInternal({
+  hasher,
+  encBytes,
+  account,
+  merkleTreePdaPublicKey,
+  aes,
+  utxoHash,
+  compressed = false,
+}: {
+  hasher: Hasher;
+  encBytes: Uint8Array;
+  account: Account;
+  merkleTreePdaPublicKey: PublicKey;
+  aes: boolean;
+  utxoHash: Uint8Array;
+  compressed?: boolean;
+}): Promise<Result<Uint8Array | null, Error>> {
   // Remove UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
   encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
 
@@ -423,26 +472,8 @@ export async function decryptOutUtxo({
       )
     : await account.decryptNaclUtxo(encBytes, utxoHash);
 
-  if (!cleartext || cleartext.error || !cleartext.value) return Result.Ok(null);
-  const bytes = Buffer.from(cleartext.value || cleartext);
-
-  return Result.Ok(
-    outUtxoFromBytes({
-      hasher,
-      bytes,
-      account,
-      assetLookupTable,
-      compressed,
-    }),
-  );
+  return cleartext;
 }
-
-export type programOutUtxo = {
-  outUtxo: OutUtxo;
-  pspId: PublicKey;
-  pspIdl: Idl;
-  includeAppData: boolean;
-};
 
 export type UtxoNew = {
   publicKey: string;
@@ -457,7 +488,7 @@ export type UtxoNew = {
   verifierAddressCircuit: string;
   isFillingUtxo: boolean; // should I serialize this as well?
   nullifier: string;
-  merkleTreeIndex: number;
+  merkleTreeLeafIndex: number;
   merkleProof: string[];
   utxoDataHash: string;
 };
@@ -465,17 +496,18 @@ export type UtxoNew = {
 export type NullifierInputs = {
   signature: string;
   utxoHash: string;
-  merkleTreeIndex: string;
+  merkleTreeLeafIndex: string;
 };
 
 export type CreateUtxoInputs = {
   utxoHash: string;
-  merkleTreeIndex?: number;
-  verifierAddress?: PublicKey;
   blinding: string;
   amounts: BN[];
   assets: PublicKey[];
+  merkleTreeLeafIndex?: number;
   merkleProof: string[];
+  verifierAddress?: PublicKey;
+  utxoDataHash?: string;
 };
 
 export async function decryptUtxo(
@@ -487,7 +519,7 @@ export async function decryptUtxo(
   hasher: Hasher,
   compressed: boolean = true,
   merkleProof: string[],
-  merkleTreeIndex: number,
+  merkleTreeLeafIndex: number,
   assetLookupTable: string[],
 ): Promise<Result<UtxoNew | null, UtxoError>> {
   const decryptedOutUtxo = await decryptOutUtxo({
@@ -508,7 +540,7 @@ export async function decryptUtxo(
     outUtxoToUtxo(
       decryptedOutUtxo.value,
       merkleProof,
-      merkleTreeIndex,
+      merkleTreeLeafIndex,
       hasher,
       account,
     ),
@@ -518,7 +550,7 @@ export async function decryptUtxo(
 export function outUtxoToUtxo(
   outUtxo: OutUtxo,
   merkleProof: string[],
-  merkleTreeIndex: number,
+  merkleTreeLeafIndex: number,
   hasher: Hasher,
   account: Account,
 ): UtxoNew {
@@ -528,7 +560,7 @@ export function outUtxoToUtxo(
     amounts: outUtxo.amounts,
     assets: outUtxo.assets,
     merkleProof,
-    merkleTreeIndex,
+    merkleTreeLeafIndex,
   };
   return createUtxo(hasher, account, inputs, outUtxo.isFillingUtxo);
 }
@@ -539,17 +571,32 @@ export function createUtxo(
   createUtxoInputs: CreateUtxoInputs,
   isFillingUtxo: boolean,
 ): UtxoNew {
-  const { merkleTreeIndex, utxoHash, blinding, amounts, assets, merkleProof } =
-    createUtxoInputs;
+  const {
+    merkleTreeLeafIndex,
+    utxoHash,
+    blinding,
+    amounts,
+    assets,
+    merkleProof,
+    verifierAddress: verifierAddressInput,
+    utxoDataHash: utxoDataHashInput,
+  } = createUtxoInputs;
 
   const poolType = "0";
   const transactionVersion = "0";
-  const merkleTreeIndexInternal = isFillingUtxo ? 0 : merkleTreeIndex;
-  const verifierAddress = SystemProgram.programId;
-  const verifierAddressCircuit = "0";
-  const utxoDataHash = "0";
+  const merkleTreeLeafIndexInternal = isFillingUtxo ? 0 : merkleTreeLeafIndex;
+  const merkleProofInternal = isFillingUtxo
+    ? new Array(18).fill("0")
+    : merkleProof;
+  const verifierAddress = verifierAddressInput
+    ? verifierAddressInput
+    : SystemProgram.programId;
+  const verifierAddressCircuit = verifierAddressInput
+    ? hashAndTruncateToCircuit(verifierAddressInput.toBytes()).toString()
+    : "0";
+  const utxoDataHash = utxoDataHashInput ? utxoDataHashInput : "0";
 
-  if (!merkleTreeIndexInternal) {
+  if (!merkleTreeLeafIndexInternal) {
     throw new UtxoError(
       CreateUtxoErrorCode.MERKLE_TREE_INDEX_UNDEFINED,
       "createUtxo",
@@ -558,13 +605,13 @@ export function createUtxo(
   }
 
   const signature = account
-    .sign(hasher, utxoHash, merkleTreeIndexInternal)
+    .sign(hasher, utxoHash, merkleTreeLeafIndexInternal)
     .toString();
 
   const nullifierInputs: NullifierInputs = {
     signature,
     utxoHash,
-    merkleTreeIndex: merkleTreeIndexInternal.toString(),
+    merkleTreeLeafIndex: merkleTreeLeafIndexInternal.toString(),
   };
   const nullifier = getNullifier(hasher, nullifierInputs);
   const utxo: UtxoNew = {
@@ -582,8 +629,8 @@ export function createUtxo(
     verifierAddressCircuit,
     isFillingUtxo,
     nullifier,
-    merkleTreeIndex: merkleTreeIndexInternal,
-    merkleProof,
+    merkleTreeLeafIndex: merkleTreeLeafIndexInternal,
+    merkleProof: merkleProofInternal,
     utxoDataHash,
   };
   return utxo;
@@ -592,164 +639,7 @@ export function createUtxo(
 export function getNullifier(hasher: Hasher, inputs: NullifierInputs): string {
   return hasher.poseidonHashString([
     inputs.utxoHash,
-    inputs.merkleTreeIndex,
+    inputs.merkleTreeLeafIndex,
     inputs.signature,
   ]);
 }
-
-// export async function utxoToBytes(
-//   utxo: UtxoNew,
-//   assetLookupTable: string[],
-//   compressed: boolean = false,
-// ) {
-//   let serializeObject = {
-//     ...utxo,
-//     accountShieldedPublicKey: utxo.publicKey,
-//     accountEncryptionPublicKey: new Uint8Array(32).fill(0),
-//     verifierAddressIndex: 0,
-//     splAssetIndex: assetLookupTable.findIndex(
-//       (asset) => asset === utxo.assets[1].toBase58(),
-//     ),
-//   };
-
-//   const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
-//   const serializedData = await coder.encode("utxo", serializeObject);
-//   // Compressed serialization does not store the account since for an encrypted utxo
-//   // we assume that the user who is able to decrypt the utxo knows the corresponding account.
-//   return compressed
-//     ? serializedData.subarray(0, COMPRESSED_UTXO_BYTES_LENGTH)
-//     : serializedData;
-// }
-
-// export function utxoFromBytes({
-//   hasher,
-//   bytes,
-//   account,
-//   assetLookupTable,
-//   compressed = false,
-//   isFillingUtxo = false,
-// }: {
-//   hasher: Hasher;
-//   bytes: Buffer;
-//   account: Account;
-//   assetLookupTable: string[];
-//   compressed: boolean;
-//   isFillingUtxo: boolean;
-// }): UtxoNew {
-//   const poolType = "0";
-//   const transactionVersion = "0";
-//   const verifierAddress = SystemProgram.programId;
-//   const verifierAddressCircuit = "0";
-//   const utxoDataHash = "0";
-
-//   // if it is compressed adds 64 0 bytes padding and requires account
-//   if (compressed) {
-//     const tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
-//     bytes = Buffer.from([
-//       ...tmp,
-//       ...new Uint8Array(
-//         UNCOMPRESSED_UTXO_BYTES_LENGTH - COMPRESSED_UTXO_BYTES_LENGTH,
-//       ).fill(0),
-//     ]);
-//     if (!account)
-//       throw new UtxoError(
-//         CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-//         "fromBytes",
-//         "For deserializing a compressed utxo an account is required.",
-//       );
-//   }
-
-//   // TODO: should I check whether an account is passed or not?
-//   const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
-//   const decodedUtxoData = coder.decode("utxo", bytes);
-
-//   const assets = [
-//     SystemProgram.programId,
-//     fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
-//   ];
-//   const utxoHashInputs: UtxoHashInputs = {
-//     publicKey: decodedUtxoData.accountShieldedPublicKey,
-//     amounts: decodedUtxoData.amounts.map((amount: BN) => amount.toString()),
-//     assetsCircuit: assets.map((asset) =>
-//       hashAndTruncateToCircuit(asset.toBytes()).toString(),
-//     ),
-//     blinding: decodedUtxoData.blinding,
-//     poolType,
-//     transactionVersion,
-//     utxoDataHash,
-//     verifierAddressCircuit,
-//   };
-//   const utxoHash = getUtxoHash(hasher, utxoHashInputs);
-//   const signature = account
-//     .sign(hasher, utxoHash, decodedUtxoData.merkleTreeIndex)
-//     .toString();
-//   const nullifierInputs: NullifierInputs = {
-//     signature,
-//     utxoHash,
-//     merkleTreeIndex: decodedUtxoData.merkleTreeIndex.toString(),
-//   };
-//   const nullifier = getNullifier(hasher, nullifierInputs);
-//   const utxo: UtxoNew = {
-//     publicKey: decodedUtxoData.accountShieldedPublicKey,
-//     amounts: decodedUtxoData.amounts,
-//     assets,
-//     assetsCircuit: assets.map((asset) =>
-//       hashAndTruncateToCircuit(asset.toBytes()).toString(),
-//     ),
-//     blinding: decodedUtxoData.blinding,
-//     poolType: decodedUtxoData.poolType,
-//     utxoHash,
-//     transactionVersion,
-//     verifierAddress,
-//     verifierAddressCircuit,
-//     isFillingUtxo,
-//     nullifier,
-//     merkleTreeIndex: decodedUtxoData.merkleTreeIndex,
-//     merkleProof: decodedUtxoData.merkleProof,
-//     utxoDataHash,
-//   };
-//   return utxo;
-// }
-
-// export function utxoFromString(
-//   string: string,
-//   hasher: Hasher,
-//   assetLookupTable: string[],
-//   account: Account,
-//   compressed: boolean = false,
-//   isFillingUtxo: boolean = false,
-// ): UtxoNew {
-//   return utxoFromBytes({
-//     bytes: bs58.decode(string),
-//     hasher,
-//     assetLookupTable,
-//     account,
-//     compressed,
-//     isFillingUtxo,
-//   });
-// }
-
-// /**
-//  * Converts the Utxo instance into a base58 encoded string.
-//  * @async
-//  * @returns {Promise<string>} A promise that resolves to the base58 encoded string representation of the Utxo.
-//  */
-// export async function toString(
-//   utxo: UtxoNew,
-//   assetLookupTable: string[],
-// ): Promise<string> {
-//   const bytes = await utxoToBytes(utxo, assetLookupTable);
-//   return bs58.encode(bytes);
-// }
-
-// export function getAppInUtxoIndices(appUtxos: ProgramUtxo[]) {
-//   const isAppInUtxo: BN[][] = [];
-//   for (const i in appUtxos) {
-//     const array = new Array(4).fill(new BN(0));
-//     if (appUtxos[i].appData) {
-//       array[i] = new BN(1);
-//       isAppInUtxo.push(array);
-//     }
-//   }
-//   return isAppInUtxo;
-// }

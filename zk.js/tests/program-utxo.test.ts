@@ -1,0 +1,376 @@
+import { assert } from "chai";
+import { SystemProgram } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+import { it } from "mocha";
+import { IDL as TEST_PSP_IDL } from "./testData/tmp_test_psp";
+
+import {
+  Account,
+  BN_1,
+  hashAndTruncateToCircuit,
+  MerkleTreeConfig,
+  MINT,
+  Provider as LightProvider,
+  OutUtxo,
+  createProgramOutUtxo,
+  getVerifierProgramId,
+  programOutUtxoToBytes,
+  programOutUtxoFromBytes,
+  ProgramOutUtxo,
+  encryptProgramOutUtxo,
+  decryptProgramOutUtxo,
+  decryptProgramUtxo,
+} from "../src";
+import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { compareOutUtxos } from "./test-utils/compareUtxos";
+const chai = require("chai");
+const chaiAsPromised = require("chai-as-promised");
+// Load chai-as-promised support
+chai.use(chaiAsPromised);
+process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+const seed32 = new Uint8Array(32).fill(1).toString();
+let account: Account;
+const pspIdl = TEST_PSP_IDL;
+const pspId = getVerifierProgramId(pspIdl);
+const utxoData = {
+  releaseSlot: BN_1,
+};
+const utxoName = "utxo";
+let createOutUtxoInputs;
+describe("Program Utxo Functional", () => {
+  let hasher: Hasher, lightProvider: LightProvider;
+  before(async () => {
+    hasher = await WasmHasher.getInstance();
+    lightProvider = await LightProvider.loadMock();
+    account = new Account({ hasher, seed: seed32 });
+    createOutUtxoInputs = {
+      publicKey: account.pubkey,
+      amounts: [new BN(123), new BN(456)],
+      assets: [SystemProgram.programId, MINT],
+      verifierAddress: pspId,
+    };
+  });
+
+  it("create program out utxo", async () => {
+    for (let i = 0; i < 100; i++) {
+      const programOutUtxo = createProgramOutUtxo({
+        ...createOutUtxoInputs,
+        hasher,
+        pspId,
+        utxoName,
+        pspIdl,
+        utxoData,
+      });
+      const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
+      const bytes = await programOutUtxoToBytes(
+        programOutUtxo,
+        assetLookupTable,
+      );
+      const fromBytesOutUtxo = programOutUtxoFromBytes({
+        bytes: Buffer.from(bytes),
+        account,
+        assetLookupTable,
+        hasher,
+        pspId,
+        utxoName,
+        pspIdl,
+      });
+      compareOutUtxos(fromBytesOutUtxo.outUtxo, programOutUtxo.outUtxo);
+
+      const encryptedBytes = await encryptProgramOutUtxo({
+        utxo: programOutUtxo,
+        account,
+        hasher,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        assetLookupTable,
+      });
+      const decryptedUtxo = await decryptProgramOutUtxo({
+        encBytes: encryptedBytes,
+        account,
+        hasher,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        assetLookupTable,
+        aes: true,
+        utxoHash: new BN(programOutUtxo.outUtxo.utxoHash).toArrayLike(
+          Buffer,
+          "be",
+          32,
+        ),
+        pspId,
+        utxoName,
+        pspIdl,
+      });
+      compareOutUtxos(decryptedUtxo.value!.outUtxo, programOutUtxo.outUtxo);
+
+      const asymOutUtxoInputs = {
+        ...createOutUtxoInputs,
+        encryptionPublicKey: account.encryptionKeypair.publicKey,
+      };
+      const asymOutUtxo = createProgramOutUtxo({
+        ...asymOutUtxoInputs,
+        hasher,
+        pspId,
+        utxoName,
+        pspIdl,
+        utxoData,
+      });
+
+      const encryptedBytesNacl = await encryptProgramOutUtxo({
+        utxo: asymOutUtxo,
+        account,
+        hasher,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        assetLookupTable,
+      });
+      const decryptedUtxoNacl = await decryptProgramOutUtxo({
+        encBytes: encryptedBytesNacl,
+        account,
+        hasher,
+        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        assetLookupTable,
+        aes: false,
+        utxoHash: new BN(asymOutUtxo.outUtxo.utxoHash).toArrayLike(
+          Buffer,
+          "be",
+          32,
+        ),
+        pspId,
+        utxoName,
+        pspIdl,
+      });
+      if (decryptedUtxoNacl.value === null) {
+        throw new Error("decrypt nacl failed");
+      }
+      decryptedUtxoNacl.value!["encryptionPublicKey"] =
+        account.encryptionKeypair.publicKey;
+      compareOutUtxos(decryptedUtxoNacl.value!.outUtxo, asymOutUtxo.outUtxo);
+    }
+  });
+
+  it("encryption", async () => {
+    const amountFee = "1";
+    const amountToken = "2";
+    const assetPubkey = MINT;
+    const seed32 = new Uint8Array(32).fill(1).toString();
+    const inputs = {
+      keypair: new Account({ hasher, seed: seed32 }),
+      amountFee,
+      amountToken,
+      assetPubkey,
+      assets: [SystemProgram.programId, assetPubkey],
+      amounts: [new BN(amountFee), new BN(amountToken)],
+      blinding: new BN(new Uint8Array(31).fill(2)),
+      index: 1,
+    };
+    const createOutUtxoInputs = {
+      publicKey: account.pubkey,
+      amounts: [new BN(amountFee), new BN(amountToken)],
+      assets: [SystemProgram.programId, MINT],
+      verifierAddress: pspId,
+      blinding: new BN(new Uint8Array(31).fill(2)),
+    };
+    const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
+
+    const programOutUtxo = createProgramOutUtxo({
+      ...createOutUtxoInputs,
+      hasher,
+      pspId,
+      utxoName,
+      pspIdl,
+      utxoData,
+    });
+
+    // functional
+    assert.equal(programOutUtxo.outUtxo.amounts[0].toString(), amountFee);
+    assert.equal(programOutUtxo.outUtxo.amounts[1].toString(), amountToken);
+    assert.equal(
+      programOutUtxo.outUtxo.assets[0].toBase58(),
+      SystemProgram.programId.toBase58(),
+    );
+    assert.equal(
+      programOutUtxo.outUtxo.assets[1].toBase58(),
+      assetPubkey.toBase58(),
+    );
+    assert.equal(
+      programOutUtxo.outUtxo.assetsCircuit[0].toString(),
+      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
+    );
+    assert.equal(
+      programOutUtxo.outUtxo.assetsCircuit[1].toString(),
+      hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
+    );
+    assert.equal(
+      programOutUtxo.outUtxo.utxoDataHash.toString(),
+      hasher.poseidonHashString([utxoData.releaseSlot]).toString(),
+    );
+    assert.equal(programOutUtxo.outUtxo.poolType.toString(), "0");
+    assert.equal(
+      programOutUtxo.outUtxo.verifierAddress.toString(),
+      SystemProgram.programId.toString(),
+    );
+    assert.equal(
+      programOutUtxo.outUtxo.verifierAddressCircuit.toString(),
+      hashAndTruncateToCircuit(pspId.toBytes()).toString(),
+    );
+    assert.equal(
+      programOutUtxo.outUtxo.utxoHash,
+      "5240414828030307081070018010503872590082226773359951533997641675833943725929",
+    );
+
+    // toBytes
+    const bytes = await programOutUtxoToBytes(programOutUtxo, assetLookupTable);
+    // fromBytes
+    const utxo1 = programOutUtxoFromBytes({
+      hasher,
+      account: inputs.keypair,
+      bytes: Buffer.from(bytes),
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      pspId,
+      utxoName,
+      pspIdl,
+    });
+    compareOutUtxos(utxo1.outUtxo, programOutUtxo.outUtxo);
+
+    // encrypt
+    const encBytes = await encryptProgramOutUtxo({
+      utxo: programOutUtxo,
+      hasher,
+      account: inputs.keypair,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      assetLookupTable,
+    });
+
+    // decrypt
+    const utxo3 = await decryptProgramOutUtxo({
+      hasher,
+      encBytes,
+      account: inputs.keypair,
+      aes: true,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      utxoHash: new BN(programOutUtxo.outUtxo.utxoHash).toArrayLike(
+        Buffer,
+        "be",
+        32,
+      ),
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      pspId,
+      utxoName,
+      pspIdl,
+    });
+    if (utxo3.value) {
+      compareOutUtxos(utxo3.value.outUtxo, programOutUtxo.outUtxo);
+    } else {
+      throw new Error("decrypt failed");
+    }
+
+    const decryptedUtxo = await decryptProgramUtxo({
+      encBytes,
+      account: inputs.keypair,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      aes: true,
+      utxoHash: new BN(programOutUtxo.outUtxo.utxoHash).toArrayLike(
+        Buffer,
+        "be",
+        32,
+      ),
+      hasher,
+      compressed: false,
+      merkleProof: ["1", "2", "3"],
+      merkleTreeLeafIndex: inputs.index,
+      assetLookupTable,
+      pspId,
+      pspIdl,
+      utxoName,
+    });
+
+    assert.equal(decryptedUtxo.value?.utxo.amounts[0].toString(), amountFee);
+    assert.equal(decryptedUtxo.value?.utxo.amounts[1].toString(), amountToken);
+    assert.equal(
+      decryptedUtxo.value?.utxo.assets[0].toBase58(),
+      SystemProgram.programId.toBase58(),
+    );
+    assert.equal(
+      decryptedUtxo.value?.utxo.assets[1].toBase58(),
+      assetPubkey.toBase58(),
+    );
+    assert.equal(
+      decryptedUtxo.value?.utxo.assetsCircuit[0].toString(),
+      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
+    );
+    assert.equal(
+      decryptedUtxo.value?.utxo.assetsCircuit[1].toString(),
+      hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
+    );
+    assert.equal(
+      decryptedUtxo.value?.utxo.utxoDataHash.toString(),
+      hasher.poseidonHashString([utxoData.releaseSlot]).toString(),
+    );
+    assert.equal(decryptedUtxo.value?.utxo.poolType.toString(), "0");
+    assert.equal(
+      decryptedUtxo.value?.utxo.verifierAddress.toString(),
+      pspId.toString(),
+    );
+    assert.equal(
+      decryptedUtxo.value?.utxo.verifierAddressCircuit.toString(),
+      hashAndTruncateToCircuit(pspId.toBytes()).toString(),
+    );
+    assert.equal(
+      decryptedUtxo.value?.utxo.utxoHash,
+      programOutUtxo.outUtxo.utxoHash,
+    );
+    assert.equal(
+      decryptedUtxo.value?.utxo.nullifier,
+      "16981370343078773935280418088638447450259579241977393063738558836516416772931",
+    );
+    assert.deepEqual(decryptedUtxo.value?.utxo.merkleProof, ["1", "2", "3"]);
+    assert.equal(decryptedUtxo.value?.utxo.merkleTreeLeafIndex, inputs.index);
+    const programOutUtxoNaclInputs = {
+      ...createOutUtxoInputs,
+      encryptionPublicKey: account.encryptionKeypair.publicKey,
+    };
+    // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
+    const programOutUtxoNacl = createProgramOutUtxo({
+      ...programOutUtxoNaclInputs,
+      hasher,
+      pspId,
+      utxoName,
+      pspIdl,
+      utxoData,
+    });
+
+    // encrypt
+    const encBytesNacl = await encryptProgramOutUtxo({
+      utxo: programOutUtxoNacl,
+      hasher,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      assetLookupTable,
+    });
+
+    // decrypt
+    const receivingUtxo1Unchecked = await decryptProgramOutUtxo({
+      hasher,
+      encBytes: encBytesNacl,
+      account: inputs.keypair,
+      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      aes: false,
+      utxoHash: new BN(programOutUtxoNacl.outUtxo.utxoHash).toArrayLike(
+        Buffer,
+        "be",
+        32,
+      ),
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      pspId,
+      utxoName,
+      pspIdl,
+    });
+    if (receivingUtxo1Unchecked.value !== null) {
+      const decryptedProgramUtxo = receivingUtxo1Unchecked.value;
+      decryptedProgramUtxo.outUtxo["encryptionPublicKey"] =
+        account.encryptionKeypair.publicKey;
+      compareOutUtxos(decryptedProgramUtxo.outUtxo, programOutUtxoNacl.outUtxo);
+    } else {
+      throw new Error("decrypt unchecked failed");
+    }
+  });
+});
