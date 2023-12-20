@@ -1,40 +1,23 @@
-import { assert, expect } from "chai";
-import {
-  Keypair as SolanaKeypair,
-  PublicKey,
-  SystemProgram,
-} from "@solana/web3.js";
+import { assert } from "chai";
+import { SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { IDL as TEST_PSP_IDL } from "./testData/tmp_test_psp";
+import { compareOutUtxos } from "./test-utils/compareUtxos";
 
 import {
   Account,
-  BN_1,
-  BN_2,
-  createAccountObject,
-  FIELD_SIZE,
   hashAndTruncateToCircuit,
   MerkleTreeConfig,
   MINT,
   Provider as LightProvider,
-  Utxo,
-  UTXO_PREFIX_LENGTH,
-  UtxoError,
-  UtxoErrorCode,
-  lightPsp4in4outAppStorageId,
-  CreateUtxoErrorCode,
   createOutUtxo,
   outUtxoToBytes,
   outUtxoFromBytes,
-  OutUtxo,
   encryptOutUtxo,
   decryptOutUtxo,
   decryptUtxo,
 } from "../src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { randomBytes } from "tweetnacl";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -48,7 +31,6 @@ describe("Utxo Functional", () => {
   let hasher: Hasher, lightProvider: LightProvider;
   before(async () => {
     hasher = await WasmHasher.getInstance();
-    // TODO: make fee mandatory
     lightProvider = await LightProvider.loadMock();
     account = new Account({ hasher, seed: seed32 });
   });
@@ -272,7 +254,7 @@ describe("Utxo Functional", () => {
       "20156180646641338299834793922899381259815381519712122415534487127198510064334",
     );
     assert.deepEqual(decryptedUtxo.value?.merkleProof, ["1", "2", "3"]);
-    assert.equal(decryptedUtxo.value?.merkleTreeIndex, inputs.index);
+    assert.equal(decryptedUtxo.value?.merkleTreeLeafIndex, inputs.index);
 
     // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
     const outUtxoNacl = createOutUtxo({
@@ -312,79 +294,3 @@ describe("Utxo Functional", () => {
     }
   });
 });
-
-function compareOutUtxos(utxo1: OutUtxo, utxo2: OutUtxo): void {
-  assert.strictEqual(
-    utxo1.publicKey.toString(),
-    utxo2.publicKey.toString(),
-    "publicKey does not match",
-  );
-
-  if (utxo1.encryptionPublicKey || utxo2.encryptionPublicKey) {
-    assert.deepStrictEqual(
-      utxo1.encryptionPublicKey,
-      utxo2.encryptionPublicKey,
-      "encryptionPublicKey does not match",
-    );
-  }
-
-  assert.strictEqual(
-    utxo1.amounts.length,
-    utxo2.amounts.length,
-    "amounts array length does not match",
-  );
-  utxo1.amounts.forEach((amount, index) =>
-    assert(amount.eq(utxo2.amounts[index]), `amounts[${index}] does not match`),
-  );
-
-  assert.strictEqual(
-    utxo1.assets.length,
-    utxo2.assets.length,
-    "assets array length does not match",
-  );
-  utxo1.assets.forEach((asset, index) =>
-    assert.strictEqual(
-      asset.toString(),
-      utxo2.assets[index].toString(),
-      `assets[${index}] does not match`,
-    ),
-  );
-
-  assert.deepEqual(
-    utxo1.assetsCircuit,
-    utxo2.assetsCircuit,
-    "assetsCircuit does not match",
-  );
-  assert.strictEqual(
-    utxo1.blinding.toString(),
-    utxo2.blinding.toString(),
-    "blinding does not match",
-  );
-  assert.strictEqual(utxo1.poolType, utxo2.poolType, "poolType does not match");
-  assert.strictEqual(utxo1.utxoHash, utxo2.utxoHash, "utxoHash does not match");
-  assert.strictEqual(
-    utxo1.transactionVersion,
-    utxo2.transactionVersion,
-    "transactionVersion does not match",
-  );
-  assert.strictEqual(
-    utxo1.verifierAddress.toString(),
-    utxo2.verifierAddress.toString(),
-    "verifierAddress does not match",
-  );
-  assert.strictEqual(
-    utxo1.verifierAddressCircuit,
-    utxo2.verifierAddressCircuit,
-    "verifierAddressCircuit does not match",
-  );
-  assert.strictEqual(
-    utxo1.isFillingUtxo,
-    utxo2.isFillingUtxo,
-    "isFillingUtxo does not match",
-  );
-  assert.strictEqual(
-    utxo1.utxoDataHash.toString(),
-    utxo2.utxoDataHash.toString(),
-    "utxoDataHash does not match",
-  );
-}
