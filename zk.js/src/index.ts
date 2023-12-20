@@ -1,4 +1,5 @@
 export * from "./utxo";
+export * from "./newUtxo";
 export * from "./test-utils";
 export * from "./account";
 export * from "./constants";
