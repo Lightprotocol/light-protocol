@@ -19,8 +19,11 @@ export const sendVersionedTransaction = async (
   lookUpTable: PublicKey,
   payer: Wallet,
 ) => {
-  const recentBlockhash = (await connection.getLatestBlockhash(confirmConfig))
-    .blockhash;
+  const recentBlockhashInfo =
+    await connection.getLatestBlockhash(confirmConfig);
+
+  const recentBlockhash = recentBlockhashInfo.blockhash;
+
   const ixSigner = ix.keys
     .map((key) => {
       if (key.isSigner == true) return key.pubkey;
@@ -67,7 +70,8 @@ export const sendVersionedTransaction = async (
   while (retries > 0) {
     tx = await payer.signTransaction(tx);
     try {
-      return await connection.sendTransaction(tx, confirmConfig);
+      const signature = await connection.sendTransaction(tx, confirmConfig);
+      return signature;
     } catch (e: any) {
       console.log(e);
       retries--;

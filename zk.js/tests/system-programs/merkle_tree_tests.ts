@@ -600,6 +600,6 @@ describe("Merkle Tree Tests", () => {
       systemPspIdl: verifierIdl,
     });
 
-    await lightProvider.sendAndConfirmTransaction(instructions);
+    await lightProvider.sendAndConfirmSolanaInstructions(instructions);
   });
 });

@@ -1,11 +1,15 @@
 import {
+  ConfirmOptions,
   Connection,
   PublicKey,
   RpcResponseAndContext,
   SignatureResult,
+  TransactionConfirmationStrategy,
+  TransactionInstruction,
+  TransactionSignature,
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import {
   RelayerError,
   RelayerErrorCode,
@@ -16,6 +20,9 @@ import {
   BN_0,
   RpcIndexedTransaction,
   RelayerIndexedTransaction,
+  PrioritizationFee,
+  RelayerRelayPayload,
+  SignaturesWithBlockhashInfo,
 } from "./index";
 
 export type RelayerSendTransactionsResponse =
@@ -83,20 +90,77 @@ export class Relayer {
     this.url = url;
   }
 
-  async sendTransactions(
-    instructions: any[],
-    _provider: Provider,
-  ): Promise<RelayerSendTransactionsResponse> {
+  /**
+   * Convenience function for sending and confirming instructions via Light RPC node.
+   * Routes instructions to Light RPC node and confirms the last transaction signature.
+   */
+  async sendAndConfirmSolanaInstructions(
+    ixs: TransactionInstruction[],
+    connection: Connection,
+    confirmOptions?: ConfirmOptions,
+    prioritizationFee?: PrioritizationFee,
+    _provider?: Provider, // unused, for testRelayer compat
+  ): Promise<TransactionSignature[]> {
+    const {
+      signatures,
+      blockhashInfo: { lastValidBlockHeight, blockhash },
+    } = await this.sendSolanaInstructions(ixs, prioritizationFee);
+
+    console.log("@relayer.sendAndConfirmSolanaInstructions");
+    const lastTxIndex = signatures.length - 1;
+
+    const strategy: TransactionConfirmationStrategy = {
+      signature: signatures[lastTxIndex],
+      lastValidBlockHeight,
+      blockhash,
+    };
+    await connection.confirmTransaction(strategy, confirmOptions?.commitment);
+
+    return signatures;
+  }
+
+  /**
+   * Convenience function for sending instructions via Light RPC node.
+   * Routes instructions to Light RPC node and returns tx metadata.
+   */
+
+  async sendSolanaInstructions(
+    ixs: TransactionInstruction[],
+    prioritizationFee?: bigint,
+  ): Promise<SignaturesWithBlockhashInfo> {
+    console.log("SHOULD NOT BE HERE");
     try {
-      const response = await axios.post(this.url + "/relayTransaction", {
-        instructions,
-      });
-      return response.data.data;
+      const response: AxiosResponse = await axios.post(
+        this.url + "/relayTransaction",
+        {
+          instructions: ixs,
+          prioritizationFee: prioritizationFee?.toString(),
+        } as RelayerRelayPayload,
+      );
+      return response.data as SignaturesWithBlockhashInfo;
     } catch (err) {
       console.error({ err });
       throw err;
     }
   }
+
+  // /**
+  //  * @deprecated
+  //  */
+  // async sendTransactions(
+  //   instructions: any[],
+  //   _provider: Provider,
+  // ): Promise<RelayerSendTransactionsResponse> {
+  //   try {
+  //     const response = await axios.post(this.url + "/relayTransaction", {
+  //       instructions,
+  //     });
+  //     return response.data.data;
+  //   } catch (err) {
+  //     console.error({ err });
+  //     throw err;
+  //   }
+  // }
 
   getRelayerFee(ataCreationFee?: boolean): BN {
     return ataCreationFee ? this.highRelayerFee : this.relayerFee;

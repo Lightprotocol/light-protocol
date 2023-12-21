@@ -61,6 +61,7 @@ import {
   TransactionParametersError,
   TransactionParametersErrorCode,
   RpcIndexedTransaction,
+  ActionResponseMulti,
 } from "../index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Hasher } from "@lightprotocol/account.rs";
@@ -660,15 +661,19 @@ export class User {
         "sendTransaction",
         "Unable to send transaction. The transaction must be compiled and a proof must be generated first to create solana instructions.",
       );
-    let txResult;
+    let txResult: string[];
     try {
       if (this.recentTransactionParameters["action"] === Action.SHIELD) {
-        txResult = await this.provider.sendAndConfirmTransaction(
+        txResult = await this.provider.sendAndConfirmSolanaInstructions(
           this.recentInstructions,
         );
       } else {
-        txResult = await this.provider.sendAndConfirmShieldedTransaction(
+        txResult = await this.provider.relayer.sendAndConfirmSolanaInstructions(
           this.recentInstructions,
+          this.provider.provider.connection,
+          undefined,
+          undefined,
+          this.provider,
         );
       }
     } catch (e) {
@@ -714,7 +719,7 @@ export class User {
     appUtxo?: AppUtxoConfig;
     skipDecimalConversions?: boolean;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponseMulti> {
     const recipientAccount = recipient
       ? Account.fromPubkey(recipient, this.provider.hasher)
       : undefined;
@@ -746,7 +751,7 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponseMulti> {
     const txParams = await this.createUnshieldTransactionParameters({
       token,
       publicAmountSpl,
@@ -892,7 +897,7 @@ export class User {
     recipient: string;
     appUtxo?: AppUtxoConfig;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponseMulti> {
     if (!recipient)
       throw new UserError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
@@ -1066,7 +1071,7 @@ export class User {
     txParams: Transaction;
     confirmOptions?: ConfirmOptions;
     shuffleEnabled?: boolean;
-  }) {
+  }): Promise<ActionResponseMulti> {
     this.recentTransactionParameters = txParams;
 
     this.recentInstructions =
@@ -1083,7 +1088,10 @@ export class User {
     await this.getBalance();
 
     this.resetTxState();
-    return { txHash, response: relayerMerkleTreeUpdateResponse };
+    return {
+      txHash: { signatures: txHash }, // TODO: unify external interfaces
+      response: relayerMerkleTreeUpdateResponse,
+    };
   }
 
   // @ts-ignore
@@ -1174,7 +1182,7 @@ export class User {
     asset: PublicKey,
     confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
     latest: boolean = true,
-  ) {
+  ): Promise<ActionResponseMulti> {
     await this.getUtxoInbox(latest);
     await this.getBalance(latest);
     const inboxTokenBalance: TokenUtxoBalance | undefined =
@@ -1247,7 +1255,7 @@ export class User {
     asset: PublicKey,
     confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
     latest: boolean = false,
-  ) {
+  ): Promise<ActionResponseMulti> {
     if (commitments.length == 0)
       throw new UserError(
         UserErrorCode.NO_COMMITMENTS_PROVIDED,

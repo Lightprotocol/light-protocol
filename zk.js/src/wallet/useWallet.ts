@@ -2,6 +2,7 @@ import {
   Commitment,
   Connection,
   Keypair,
+  VersionedTransaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import { PublicKey, Transaction } from "@solana/web3.js";
@@ -43,6 +44,13 @@ class Wallet {
     return sign.detached(message, this._keypair.secretKey);
   };
 
+  sendTransaction = async (
+    transaction: VersionedTransaction,
+  ): Promise<string> => {
+    const signature = await this._connection.sendTransaction(transaction);
+    return signature;
+  };
+
   sendAndConfirmTransaction = async (
     transaction: Transaction,
     signers = [],
@@ -70,6 +78,7 @@ export const useWallet = (
   const wallet = new Wallet(keypair, url, commitment);
   return {
     publicKey: wallet._publicKey,
+    sendTransaction: wallet.sendTransaction,
     sendAndConfirmTransaction: wallet.sendAndConfirmTransaction,
     signMessage: wallet.signMessage,
     signTransaction: wallet.signTransaction,

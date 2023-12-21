@@ -1,4 +1,12 @@
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import {
+  ConfirmOptions,
+  Connection,
+  Keypair,
+  PublicKey,
+  TransactionConfirmationStrategy,
+  TransactionInstruction,
+  TransactionSignature,
+} from "@solana/web3.js";
 import {
   AnchorProvider,
   BN,
@@ -13,8 +21,10 @@ import {
 } from "../transaction";
 import {
   ParsedIndexedTransaction,
+  PrioritizationFee,
   RelayerIndexedTransaction,
   RpcIndexedTransaction,
+  SignaturesWithBlockhashInfo,
 } from "../types";
 import { airdropSol } from "./airdrop";
 import {
@@ -27,6 +37,7 @@ import {
   RelayerError,
   TransactionErrorCode,
   merkleTreeProgramId,
+  confirmConfig,
 } from "../index";
 import { Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -76,19 +87,87 @@ export class TestRelayer extends Relayer {
     );
   }
 
-  async sendTransactions(
-    instructions: any[],
-    provider: Provider,
-  ): Promise<RelayerSendTransactionsResponse> {
-    const res = await sendVersionedTransactions(
-      instructions,
-      provider.provider!.connection!,
-      provider.lookUpTables.versionedTransactionLookupTable,
-      useWallet(this.relayerKeypair),
-    );
-    if (res.error) return { transactionStatus: "error", ...res };
-    else return { transactionStatus: "confirmed", ...res };
+  /**
+   * Wraps Same as provider.sendAndConfirmTransaction but using Light RPC node
+   * Convenience function for sending and confirming instructions via Light RPC node.
+   * Routes instructions to Light RPC node and confirms the last transaction signature.
+   */
+  async sendAndConfirmSolanaInstructions(
+    ixs: TransactionInstruction[],
+    connection: Connection,
+    confirmOptions?: ConfirmOptions,
+    prioritizationFee?: PrioritizationFee,
+    /*
+     * TODO: we can remove the _provider param if we provide a method to get a static txlookuptable without using provider!
+     */
+    provider?: Provider,
+  ): Promise<TransactionSignature[]> {
+    console.log("@testRelayer.sendAndConfirmSolanaInstructions");
+
+    const {
+      signatures,
+      blockhashInfo: { lastValidBlockHeight, blockhash },
+    } = await this.sendSolanaInstructions(ixs, prioritizationFee, provider!);
+
+    const lastTxIndex = signatures.length - 1;
+
+    const strategy: TransactionConfirmationStrategy = {
+      signature: signatures[lastTxIndex],
+      lastValidBlockHeight,
+      blockhash,
+    };
+    await connection.confirmTransaction(strategy, confirmOptions?.commitment);
+
+    return signatures;
   }
+
+  /**
+   * Mocks sending a transaction to the relayer, executes by itself
+   * Contrary to the actual relayer response, this mock has already
+   * confirmed the transaction by the time it returns
+   */
+  async sendSolanaInstructions(
+    ixs: TransactionInstruction[],
+    prioritizationFee?: bigint,
+    provider?: Provider,
+  ): Promise<SignaturesWithBlockhashInfo> {
+    /** We mock the internal relayer server logic and must init a provider with the relayerKeypair */
+    provider = await Provider.init({
+      wallet: this.relayerKeypair,
+      relayer: this,
+      confirmConfig,
+      versionedTransactionLookupTable:
+        provider!.lookUpTables.versionedTransactionLookupTable,
+    });
+
+    /** Mock return type of relayer server */
+    const blockhashInfo = await provider!.connection!.getLatestBlockhash();
+
+    const signatures = await provider!.sendAndConfirmSolanaInstructions(
+      ixs,
+      undefined,
+      prioritizationFee,
+      blockhashInfo,
+    );
+
+    return { signatures, blockhashInfo };
+  }
+  // /**
+  //  * @deprecated TODO: remove
+  //  */
+  // async sendTransactions(
+  //   instructions: any[],
+  //   provider: Provider,
+  // ): Promise<RelayerSendTransactionsResponse> {
+  //   const res = await sendVersionedTransactions(
+  //     instructions,
+  //     provider.provider!.connection!,
+  //     provider.lookUpTables.versionedTransactionLookupTable,
+  //     useWallet(this.relayerKeypair),
+  //   );
+  //   if (res.error) return { transactionStatus: "error", ...res };
+  //   else return { transactionStatus: "confirmed", ...res };
+  // }
 
   /**
    * Indexes light transactions by:

@@ -328,7 +328,9 @@ describe("verifier_program", () => {
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
-    await lightProvider.sendAndConfirmShieldedTransaction(instructions);
+
+    await lightProvider.sendAndConfirmSolanaInstructions(instructions);
+
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },
       remainingSolanaAccounts,
@@ -443,8 +445,14 @@ describe("verifier_program", () => {
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
-    await lightProvider.sendAndConfirmShieldedTransaction(instructions);
 
+    await lightProvider.relayer.sendAndConfirmSolanaInstructions(
+      instructions,
+      lightProvider.provider.connection,
+      undefined,
+      undefined,
+      lightProvider,
+    );
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },
       remainingSolanaAccounts,

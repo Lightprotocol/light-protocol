@@ -63,6 +63,7 @@ describe("Test User", () => {
       lamports: 2_000_000_000,
       recipientPublicKey: relayer.publicKey,
     });
+
     RELAYER = new TestRelayer({
       relayerPubkey: relayer.publicKey,
       relayerRecipientSol,
