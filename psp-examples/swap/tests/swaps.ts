@@ -22,6 +22,7 @@ import {
   createTransaction,
   lightPsp4in4outAppStorageId,
   syncInputUtxosMerkleProofs,
+  shieldProgramUtxo,
 } from "@lightprotocol/zk.js";
 
 import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
@@ -130,9 +131,10 @@ describe("Test swaps", () => {
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
     });
 
-    let txHashMakeOffer = await sellerUser.storeAppUtxo({
+    const txHashMakeOffer = await shieldProgramUtxo({
+      account: sellerUser.account,
       appUtxo: offerUtxo,
-      action: Action.SHIELD,
+      provider: sellerUser.provider,
     });
     console.log("made offer: ", txHashMakeOffer);
 
@@ -360,9 +362,10 @@ describe("Test swaps", () => {
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
     });
 
-    let txHashMakeOffer = await sellerUser.storeAppUtxo({
+    let txHashMakeOffer = await shieldProgramUtxo({
+      account: sellerUser.account,
       appUtxo: offerUtxo,
-      action: Action.SHIELD,
+      provider: sellerUser.provider,
     });
     console.log("made offer: ", txHashMakeOffer);
 
@@ -408,9 +411,10 @@ describe("Test swaps", () => {
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
     });
 
-    let txHashMakeCounterOffer = await buyerUser.storeAppUtxo({
+    let txHashMakeCounterOffer = await shieldProgramUtxo({
+      account: buyerUser.account,
       appUtxo: counterOfferUtxo,
-      action: Action.TRANSFER,
+      provider: buyerUser.provider,
     });
     console.log("made counter offer: ", txHashMakeCounterOffer);
 
@@ -647,9 +651,10 @@ describe("Test swaps", () => {
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
     });
 
-    let txHashMakeOffer = await sellerUser.storeAppUtxo({
+    let txHashMakeOffer = await shieldProgramUtxo({
+      account: sellerUser.account,
       appUtxo: offerUtxo,
-      action: Action.SHIELD,
+      provider: sellerUser.provider,
     });
     console.log("made offer: ", txHashMakeOffer);
 
