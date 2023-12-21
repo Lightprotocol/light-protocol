@@ -18,9 +18,10 @@ import {
   createProofInputs,
   SolanaTransactionInputs,
   sendAndConfirmShieldedTransaction,
-  getVerifierProgramId
+  getVerifierProgramId,
+  shieldProgramUtxo
 } from "@lightprotocol/zk.js";
-import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
+import { WasmHasher } from "@lightprotocol/account.rs";
 import {
   SystemProgram,
   PublicKey,
@@ -92,11 +93,12 @@ describe("Test {{project-name}}", () => {
       action: Action.SHIELD,
     }
 
-    let storeTransaction = await user.storeAppUtxo({
+    let storeTransaction = await shieldProgramUtxo({
+      account: user.account,
       appUtxo: testInputsShield.utxo,
-      action: testInputsShield.action,
-    });
-    console.log("store program utxo transaction hash ", storeTransaction.txHash);
+      provider: user.provider,
+    })
+    console.log("store program utxo transaction hash ", storeTransaction.signatures);
 
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await user.syncStorage(IDL);
