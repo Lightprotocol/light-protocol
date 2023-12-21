@@ -24,6 +24,7 @@ import {
   createTransaction,
   lightPsp4in4outAppStorageId,
   getVerifierProgramId,
+  shieldProgramUtxo,
 } from "@lightprotocol/zk.js";
 import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
 import {
@@ -148,11 +149,12 @@ describe("Streaming Payments tests", () => {
       action: Action.SHIELD,
     };
 
-    await lightUser.storeAppUtxo({
+    const storeProgramUtxoResult = await shieldProgramUtxo({
+      account: lightUser.account,
       appUtxo: testInputsShield.utxo,
-      action: testInputsShield.action,
+      provider: lightProvider,
     });
-
+    console.log("storeProgramUtxoResult: ", storeProgramUtxoResult);
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await lightUser.syncStorage(IDL);
     const shieldedUtxoCommitmentHash =
@@ -300,10 +302,12 @@ describe("Streaming Payments tests", () => {
       hasher: HASHER,
     };
 
-    // console.log("storing streamInitUtxo");
-    await lightUser.storeAppUtxo({
+    console.log("storing streamInitUtxo");
+
+    await shieldProgramUtxo({
+      account: lightUser.account,
       appUtxo: testInputsSol1.utxo,
-      action: testInputsSol1.action,
+      provider: lightProvider,
     });
     await lightUser.syncStorage(IDL);
     const commitment = testInputsSol1.utxo.getCommitment(testInputsSol1.hasher);
