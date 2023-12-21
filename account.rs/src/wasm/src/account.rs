@@ -18,6 +18,8 @@ use crate::hash::{
     poseidon::poseidon_hash,
 };
 
+pub const UTXO_PREFIX_LENGTH: usize = 4;
+
 #[derive(Debug)]
 pub enum AccountError {
     Poseidon(PoseidonError),
@@ -71,9 +73,13 @@ impl Account {
     pub fn new(seed: &str) -> Result<Account, AccountError> {
         console_error_panic_hook::set_once();
 
-        let private_key: [u8; 32] = Account::generate_shielded_private_key(seed)?.try_into().map_err(|_| {
-            AccountError::Generic(String::from("Can't generate shielded private key: expected a vec of length 32"))
-        })?;
+        let private_key: [u8; 32] = Account::generate_shielded_private_key(seed)?
+            .try_into()
+            .map_err(|_| {
+                AccountError::Generic(String::from(
+                    "Can't generate shielded private key: expected a vec of length 32",
+                ))
+            })?;
 
         let public_key = Account::generate_shielded_public_key(private_key.to_vec())?;
 
@@ -118,7 +124,9 @@ impl Account {
         aes_secret: Vec<u8>,
     ) -> Result<Account, AccountError> {
         let private_key_arr: [u8; 32] = private_key.clone().try_into().map_err(|_| {
-            AccountError::Generic(String::from("Can't generate shielded private key: expected a vec of length 32"))
+            AccountError::Generic(String::from(
+                "Can't generate shielded private key: expected a vec of length 32",
+            ))
         })?;
 
         let public_key = Account::generate_shielded_public_key(private_key.to_vec())?;
@@ -248,12 +256,14 @@ impl Account {
         &self,
         merkle_tree_public_key: &[u8; 32],
         prefix_counter: BigUint,
-        prefix_length: usize,
-    ) -> Result<Vec<u8>, AccountError> {
+    ) -> Result<[u8; UTXO_PREFIX_LENGTH], AccountError> {
         let mut input = self.get_utxo_prefix_viewing_key("hashing")?;
         input.extend(merkle_tree_public_key.to_vec());
         input.extend(prefix_counter.to_bytes_be());
-        let hash = blake2(&input, prefix_length);
+        let hash: [u8; UTXO_PREFIX_LENGTH] = blake2(&input, UTXO_PREFIX_LENGTH)
+            .as_slice()
+            .try_into()
+            .map_err(|_| AccountError::Generic(String::from("Expected a Vec of length 32")))?;
         Ok(hash)
     }
 
@@ -261,7 +271,6 @@ impl Account {
     pub fn generate_latest_utxo_prefix_hash(
         &mut self,
         merkle_tree_public_key: Vec<u8>,
-        prefix_length: usize,
     ) -> Result<Vec<u8>, AccountError> {
         let merkle_tree_pubkey_array: Result<[u8; 32], AccountError> =
             merkle_tree_public_key.as_slice().try_into().map_err(|_| {
@@ -270,11 +279,9 @@ impl Account {
                 ))
             });
 
-        let hash = self.generate_utxo_prefix_hash(
-            &merkle_tree_pubkey_array?,
-            self.prefix_counter.clone(),
-            prefix_length,
-        )?;
+        let hash = self
+            .generate_utxo_prefix_hash(&merkle_tree_pubkey_array?, self.prefix_counter.clone())?
+            .to_vec();
         self.prefix_counter = self.prefix_counter.clone().add(BigUint::from(1u32));
         Ok(hash)
     }
