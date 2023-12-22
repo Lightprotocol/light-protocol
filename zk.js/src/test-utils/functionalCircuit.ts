@@ -31,7 +31,7 @@ export async function functionalCircuitTest(
 
   const hasher = await WasmHasher.getInstance();
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  const account = new Account({ hasher, seed: seed32 });
+  const account = Account.createFromSeed(hasher, seed32);
   const shieldAmount = 20_000;
   const shieldFeeAmount = 10_000;
   const relayerFee = new BN(5000);

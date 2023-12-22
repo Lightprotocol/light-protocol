@@ -25,7 +25,9 @@ pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {
         })
         .collect();
 
-    let hash_res = poseidon_hash(inputs_res?);
+    let binding = inputs_res?;
+    let binding = binding.iter().map(|val| val.as_slice()).collect::<Vec<_>>();
+    let hash_res = poseidon_hash(binding.as_slice());
     match hash_res {
         Ok(val) => {
             let js_arr = Uint8Array::from(&val[..]);
@@ -35,12 +37,9 @@ pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {
     }
 }
 
-pub fn poseidon_hash(input: Vec<Vec<u8>>) -> Result<Vec<u8>, PoseidonError> {
-    let temp: Vec<&[u8]> = input.iter().map(AsRef::as_ref).collect();
-    let input_slice = temp.as_slice();
-
+pub fn poseidon_hash(input: &[&[u8]]) -> Result<Vec<u8>, PoseidonError> {
     let hasher = Poseidon::<Fr>::new_circom(input.len());
-    let hash = hasher?.hash_bytes_be(input_slice);
+    let hash = hasher?.hash_bytes_be(input);
     Ok(hash?.to_vec())
 }
 
@@ -56,8 +55,8 @@ mod tests {
         ];
 
         let input_of_1 = [vec![0u8; 31], vec![1u8]].concat();
-        let inputs = vec![input_of_1];
-        let hash = poseidon_hash(inputs).unwrap();
+        let inputs = vec![input_of_1.as_slice()];
+        let hash = poseidon_hash(&inputs).unwrap();
         assert_eq!(hash, hash_of_1.to_vec());
     }
 
