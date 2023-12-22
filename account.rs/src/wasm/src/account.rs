@@ -55,13 +55,13 @@ const ACCOUNT_HASH_LENGTH: usize = 32;
 pub struct Account {
     // solana_public_key: String,
     private_key: [u8; 32],
-    public_key: Vec<u8>,
+    public_key: [u8; 32],
 
-    encryption_private_key: Vec<u8>,
-    encryption_public_key: Vec<u8>,
+    encryption_private_key: [u8; 32],
+    encryption_public_key: [u8; 32],
 
-    aes_secret: Vec<u8>,
-    hashing_secret: Option<Vec<u8>>,
+    aes_secret: [u8; 32],
+    hashing_secret: Option<[u8; 32]>,
     burner_seed: Option<String>,
 
     prefix_counter: BigUint,
@@ -69,26 +69,29 @@ pub struct Account {
 
 #[wasm_bindgen]
 impl Account {
+
+    fn vec_to_key(vec: Vec<u8>) -> Result<[u8; 32], AccountError> {
+        vec.try_into()
+            .map_err(|_| AccountError::Generic(String::from("Expected a Vec of length 32")))
+    }
+
+    fn key_to_vec(key: [u8; 32]) -> Vec<u8> {
+        key.to_vec()
+    }
+
     #[wasm_bindgen]
     pub fn new(seed: &str) -> Result<Account, AccountError> {
         console_error_panic_hook::set_once();
 
-        let private_key: [u8; 32] = Account::generate_shielded_private_key(seed)?
-            .try_into()
-            .map_err(|_| {
-                AccountError::Generic(String::from(
-                    "Can't generate shielded private key: expected a vec of length 32",
-                ))
-            })?;
+        let private_key = Account::vec_to_key(Account::generate_shielded_private_key(seed)?)?;
+        let public_key = Account::vec_to_key(Account::generate_shielded_public_key(private_key.to_vec())?)?;
 
-        let public_key = Account::generate_shielded_public_key(private_key.to_vec())?;
-
-        let encryption_private_key = Account::create_encryption_private_key(seed)?;
+        let encryption_private_key = Account::vec_to_key(Account::create_encryption_private_key(seed)?)?;
         let encryption_public_key =
-            Account::create_encryption_public_key(encryption_private_key.to_vec())?;
+            Account::vec_to_key(Account::create_encryption_public_key(encryption_private_key.to_vec())?)?;
 
-        let aes_secret = Account::generate_secret(seed, "aes");
-        let hashing_secret = Account::generate_secret(seed, "hashing");
+        let aes_secret = Account::vec_to_key(Account::generate_secret(seed, "aes"))?;
+        let hashing_secret = Account::vec_to_key(Account::generate_secret(seed, "hashing"))?;
 
         Ok(Account {
             // solana_public_key,
@@ -129,19 +132,18 @@ impl Account {
             ))
         })?;
 
-        let public_key = Account::generate_shielded_public_key(private_key.to_vec())?;
-        let encryption_public_key =
-            Account::create_encryption_public_key(encryption_private_key.to_vec())?;
+        let public_key = Account::vec_to_key(Account::generate_shielded_public_key(private_key.to_vec())?)?;
+        let encryption_public_key = Account::create_encryption_public_key(encryption_private_key.to_vec())?;
 
         Ok(Account {
             // solana_public_key,
             private_key: private_key_arr,
             public_key,
 
-            encryption_public_key,
-            encryption_private_key,
+            encryption_public_key: Account::vec_to_key(encryption_public_key)?,
+            encryption_private_key: Account::vec_to_key(encryption_private_key)?,
 
-            aes_secret,
+            aes_secret: Account::vec_to_key(aes_secret)?,
             hashing_secret: None,
 
             burner_seed: None,
@@ -242,7 +244,7 @@ impl Account {
     #[wasm_bindgen(js_name = getUtxoPrefixViewingKey)]
     pub fn get_utxo_prefix_viewing_key(&self, salt: &str) -> Result<Vec<u8>, AccountError> {
         if let Some(hashing_secret) = &self.hashing_secret {
-            let input_string = String::from_utf8(hashing_secret.clone()).map_err(|_| {
+            let input_string = String::from_utf8(hashing_secret.to_vec()).map_err(|_| {
                 AccountError::Generic(String::from("Cannot convert hashing_secret to String"))
             })?;
             let secret = Account::generate_secret(&input_string, salt);
@@ -296,7 +298,7 @@ impl Account {
             bs58::encode(merkle_tree_pda_public_key).into_string();
         let aes_salt = format!("{}{}", encoded_merkle_tree_pda_public_key, salt);
 
-        let aes_secret_string = String::from_utf8(self.aes_secret.clone())
+        let aes_secret_string = String::from_utf8(self.aes_secret.to_vec())
             .map_err(|_| AccountError::Generic(String::from("aes_secret is invalid")))?;
         Ok(Account::generate_secret(&aes_secret_string, &aes_salt))
     }
@@ -309,18 +311,18 @@ impl Account {
     #[wasm_bindgen(js_name = getPublicKey)]
 
     pub fn get_public_key(&self) -> Vec<u8> {
-        self.public_key.clone()
+        Account::key_to_vec(self.public_key)
     }
 
     #[wasm_bindgen(js_name = getEncryptionPrivateKey)]
 
     pub fn get_encryption_private_key(&self) -> Vec<u8> {
-        self.encryption_private_key.clone()
+        Account::key_to_vec(self.encryption_private_key)
     }
 
     #[wasm_bindgen(js_name = getEncryptionPublicKey)]
     pub fn get_encryption_public_key(&self) -> Vec<u8> {
-        self.encryption_public_key.clone()
+        Account::key_to_vec(self.encryption_public_key)
     }
 }
 
@@ -364,7 +366,7 @@ mod tests {
     }
 
     fn assert_encryption_public_key(account: &Account) {
-        let ref_encryption_public_key = vec![
+        let ref_encryption_public_key = [
             28, 117, 135, 209, 179, 252, 123, 65, 26, 50, 142, 83, 93, 91, 228, 148, 120, 141, 141,
             161, 182, 86, 131, 115, 63, 11, 196, 172, 184, 158, 34, 5,
         ];
@@ -380,7 +382,7 @@ mod tests {
     }
 
     fn assert_public_key(account: &Account) {
-        let ref_pubkey = vec![
+        let ref_pubkey = [
             15, 74, 51, 27, 176, 196, 75, 247, 216, 187, 125, 105, 158, 48, 160, 112, 27, 208, 157,
             98, 114, 144, 100, 250, 125, 48, 160, 133, 16, 199, 14, 243,
         ];
