@@ -1,5 +1,3 @@
-mod blake2;
-mod poseidon;
+mod account;
+mod hash;
 mod utils;
-
-pub use crate::poseidon::poseidon;

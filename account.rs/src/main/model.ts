@@ -1,11 +1,16 @@
-import {BN} from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
+import { Account } from "./wasm/account_wasm";
+
+export { Account } from "./wasm/account_wasm";
 
 export interface Hasher {
     blakeHash(input: string|Uint8Array, hashLength: number): Uint8Array;
     poseidonHash(input: string[] | BN[]): Uint8Array;
     poseidonHashString(input: string[] | BN[]): string;
     poseidonHashBN(input: string[] | BN[]): BN;
+    account(seed: string): Account;
 }
+
 export interface HashCreator {
     create(): Hasher;
 }

@@ -477,10 +477,10 @@ describe("API tests", () => {
       expectedRecipientUtxoLength: 1,
     };
 
-    const recipientAccount = new Account({
+    const recipientAccount = Account.createFromSeed(
       hasher,
-      seed: testInputs.recipientSeed,
-    });
+      testInputs.recipientSeed,
+    );
 
     const userRecipient: User = await User.init({
       provider,

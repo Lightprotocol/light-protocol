@@ -342,14 +342,11 @@ export async function createTestAccounts(
   }
 
   const HASHER = await WasmHasher.getInstance();
-  const KEYPAIR = new Account({
-    hasher: HASHER,
-    seed: KEYPAIR_PRIVKEY.toString(),
-  });
+  const ACCOUNT = Account.createFromSeed(HASHER, KEYPAIR_PRIVKEY.toString());
   const RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
   return {
     HASHER,
-    KEYPAIR,
+    ACCOUNT,
     RELAYER_RECIPIENT,
   };
 }

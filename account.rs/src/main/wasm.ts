@@ -7,14 +7,16 @@ import type {
 } from "./model.js";
 
 import init, {
+    Account as AccountWasm,
     blake2 as blake2Wasm,
     blake2str as blake2strWasm,
-    poseidon as poseidonWasm
+    poseidon as poseidonWasm,
 } from "./wasm/account_wasm";
 import simdInit, {
+    Account as AccountSimd,
     blake2 as blake2Simd,
     blake2str as blake2strSimd,
-    poseidon as poseidonSimd
+    poseidon as poseidonSimd,
 } from "./wasm-simd/account_wasm_simd";
 import {BN} from "@coral-xyz/anchor";
 
@@ -78,15 +80,15 @@ export class WasmHasher {
     }
 }
 
-
 interface HashStrategy {
     blake2str(input: string, hash_length: number): Uint8Array;
     blake2(input: Uint8Array, hash_length: number): Uint8Array;
     poseidon(inputs: Array<any>): Uint8Array;
+    account(seed: string): AccountWasm;
 }
 
 
-function wasmAccount( hasher: HashStrategy): HashCreator {
+function wasmAccount(hasher: HashStrategy): HashCreator {
     const WasmHasher = class implements Hasher {
         blakeHash(input: string | Uint8Array, hashLength: number): Uint8Array {
             if (typeof input === 'string') {
@@ -109,6 +111,10 @@ function wasmAccount( hasher: HashStrategy): HashCreator {
             const bn = new BN(this.poseidonHash(input));
             return bn.toString();
         }
+
+        account(seed: string): AccountWasm {
+            return hasher.account(seed);
+        }
     };
 
     return {
@@ -124,7 +130,8 @@ const loadWasmSimd = async (module?: InitInput) => {
             return wasmAccount({
                 blake2str: blake2strSimd,
                 blake2: blake2Simd,
-                poseidon: poseidonSimd
+                poseidon: poseidonSimd,
+                account: AccountSimd.new
             });
         });
     }
@@ -138,7 +145,8 @@ const loadWasm = async (module?: InitInput) => {
             return wasmAccount({
                 blake2str: blake2strWasm,
                 blake2: blake2Wasm,
-                poseidon: poseidonWasm
+                poseidon: poseidonWasm,
+                account: AccountWasm.new
             });
         });
     }

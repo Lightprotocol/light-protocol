@@ -1,8 +1,10 @@
 import {beforeAll} from "vitest";
 const { blake2b } = require("@noble/hashes/blake2b");
 import * as circomlibjs from "circomlibjs";
-import { AccountHasher, WasmHasher, hasWasmSimd } from "..";
+import { AccountHasher, WasmHasher } from "..";
 import {BN} from "@coral-xyz/anchor";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Account as AccountWasm } from "../src/main/wasm/account_wasm";
 
 function isNode() {
     return (
@@ -31,6 +33,19 @@ describe("Test Account Functional", () => {
         } else {
             expect(WasmHasher.name).toContain("WasmAccountHash");
         }
+    });
+
+    it("test account", async () => {
+        const seed32 = (): string => {
+            return bs58.encode(new Uint8Array(32).fill(1));
+        };
+
+        const mod = await WasmHasher.loadModule();
+        const hash = mod.create();
+
+        const account: AccountWasm = hash.account(seed32());
+        const account2: AccountWasm = hash.account(seed32());
+        expect(account2.getPrivateKey()).toEqual(account.getPrivateKey());
     });
 
     it("Test poseidon216", async () => {

@@ -38,13 +38,10 @@ const keypairReferenceAccount = {
     "7314374631704302594235695652925685842509708564100145210880269088513605645300",
   pubkey:
     "6391168142226478154718281169178137802178553836996014555114884736358424922672",
-  eddsaSignature:
-    "149,4,55,200,119,181,112,89,28,114,19,62,250,125,9,166,167,0,255,21,231,177,123,126,100,125,212,10,93,27,186,172,107,200,130,11,182,98,146,73,73,248,205,73,73,217,201,196,85,249,115,198,152,225,175,160,254,131,131,146,148,73,211,1",
 };
 
 describe("Test Account Functional", () => {
   let hasher: Hasher,
-    eddsa: any,
     babyJub,
     F: any,
     k0: Account,
@@ -53,12 +50,22 @@ describe("Test Account Functional", () => {
 
   before(async () => {
     hasher = await WasmHasher.getInstance();
-    eddsa = await buildEddsa();
     babyJub = await buildBabyjub();
     F = babyJub.F;
-    k0 = new Account({ hasher, seed: seed32() });
-    k00 = new Account({ hasher, seed: seed32() });
+    k0 = Account.createFromSeed(hasher, seed32());
+    k00 = Account.createFromSeed(hasher, seed32());
     kBurner = Account.createBurner(hasher, seed32(), new BN("0"));
+  });
+
+  it("compare wasm account keypairs to the ref", () => {
+    assert.equal(
+      k0.privkey.toString(),
+      new BN(k0.wasmAccount.getPrivateKey()).toString(),
+    );
+    assert.equal(
+      k0.pubkey.toString(),
+      new BN(k0.wasmAccount.getPublicKey()).toString(),
+    );
   });
 
   it("Test blake2 Domain separation", () => {
@@ -114,40 +121,6 @@ describe("Test Account Functional", () => {
     assert.notEqual(hash, hash1);
   });
 
-  it("Test Poseidon Eddsa Keypair", async () => {
-    const k0 = new Account({ hasher, seed: seed32(), eddsa });
-
-    const prvKey = hasher.blakeHash(
-      seed32() + "poseidonEddsaKeypair",
-      Account.hashLength,
-    );
-    const pubKey = eddsa.prv2pub(prvKey);
-    await k0.getEddsaPublicKey();
-    if (k0.poseidonEddsaKeypair && k0.poseidonEddsaKeypair.publicKey) {
-      assert.equal(
-        prvKey.toString(),
-        k0.poseidonEddsaKeypair.privateKey.toString(),
-      );
-      assert.equal(
-        pubKey[0].toString(),
-        k0.poseidonEddsaKeypair.publicKey[0].toString(),
-      );
-      assert.equal(
-        pubKey[1].toString(),
-        k0.poseidonEddsaKeypair.publicKey[1].toString(),
-      );
-    } else {
-      throw new Error("k0.poseidonEddsaKeypair undefined");
-    }
-
-    const msg = "12321";
-    const sigK0 = await k0.signEddsa(msg);
-    assert.equal(
-      sigK0.toString(),
-      eddsa.packSignature(eddsa.signPoseidon(prvKey, F.e(Scalar.e(msg)))),
-    );
-    assert(eddsa.verifyPoseidon(msg, eddsa.unpackSignature(sigK0), pubKey));
-  });
   const compareKeypairsEqual = (
     k0: Account,
     k1: Account,
@@ -197,10 +170,6 @@ describe("Test Account Functional", () => {
         reference.burnerSeed.toString(),
       );
     }
-    assert.equal(
-      (await account.signEddsa("12321")).toString(),
-      reference.eddsaSignature.toString(),
-    );
   };
 
   it("Constructor & from seed Functional", async () => {
@@ -213,13 +182,11 @@ describe("Test Account Functional", () => {
         "17660568269376948254360594374708563282178836364116256831458469636153315805952",
       pubkey:
         "8603563756329284155374037240612788771833697010028509322943197012915150315482",
-      eddsaSignature:
-        "49,171,181,231,94,94,233,87,62,92,132,207,160,18,252,199,169,46,131,38,9,250,202,156,232,7,147,10,62,115,216,21,224,99,163,86,218,224,115,91,107,158,231,171,120,83,79,35,221,119,92,43,69,148,166,215,39,96,194,102,65,19,238,1",
     };
     await compareAccountToReference(k0, referenceAccount);
 
     const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    const k1 = new Account({ hasher, seed: seedDiff32 });
+    const k1 = Account.createFromSeed(hasher, seedDiff32);
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(k0, k1);
 
@@ -231,7 +198,6 @@ describe("Test Account Functional", () => {
     const solanaKeypairAccount = Account.createFromSolanaKeypair(
       hasher,
       ADMIN_AUTH_KEYPAIR,
-      eddsa,
     );
     await compareAccountToReference(
       solanaKeypairAccount,
@@ -239,7 +205,7 @@ describe("Test Account Functional", () => {
     );
 
     const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    const k1 = new Account({ hasher, seed: seedDiff32 });
+    const k1 = Account.createFromSeed(hasher, seedDiff32);
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(solanaKeypairAccount, k1);
   });
@@ -250,7 +216,6 @@ describe("Test Account Functional", () => {
     const solanaWalletAccount = await Account.createFromBrowserWallet(
       hasher,
       wallet,
-      eddsa,
     );
     await compareAccountToReference(
       solanaWalletAccount,
@@ -258,7 +223,7 @@ describe("Test Account Functional", () => {
     );
 
     const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    const k1 = new Account({ hasher, seed: seedDiff32 });
+    const k1 = Account.createFromSeed(hasher, seedDiff32);
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(solanaWalletAccount, k1);
   });
@@ -273,8 +238,6 @@ describe("Test Account Functional", () => {
         "16628940406069543878444471255790949971721743937795035096532685288799757413966",
       burnerSeed:
         "21,73,66,60,60,94,31,45,240,18,81,195,45,57,152,4,115,85,189,103,253,170,190,192,190,13,46,155,92,44,145,46",
-      eddsaSignature:
-        "43,114,239,133,220,59,32,233,39,134,131,226,64,196,102,141,235,195,197,43,213,133,176,199,208,176,254,49,72,83,81,152,148,24,18,17,222,198,197,197,248,112,220,94,108,62,185,35,130,216,88,82,19,84,210,16,51,3,213,86,77,210,74,0",
     };
     await compareAccountToReference(kBurner, referenceAccount);
 
@@ -423,12 +386,12 @@ describe("Test Account Errors", () => {
   let hasher: Hasher, k0: Account;
   before(async () => {
     hasher = await WasmHasher.getInstance();
-    k0 = new Account({ hasher, seed: seed32() });
+    k0 = Account.createFromSeed(hasher, seed32());
   });
 
   it("INVALID_SEED_SIZE", async () => {
     expect(() => {
-      new Account({ hasher, seed: bs58.encode([1, 2, 3]) });
+      Account.createFromSeed(hasher, bs58.encode([1, 2, 3]));
     })
       .to.throw(AccountError)
       .includes({
@@ -439,7 +402,7 @@ describe("Test Account Errors", () => {
 
   it("INVALID_SEED_SIZE burner", async () => {
     expect(() => {
-      new Account({ hasher, seed: "123", burner: true });
+      Account.fromBurnerSeed(hasher, "123");
     })
       .to.throw(AccountError)
       .includes({
@@ -475,25 +438,5 @@ describe("Test Account Errors", () => {
         code: AccountErrorCode.AES_SECRET_UNDEFINED,
         functionName: "constructor",
       });
-  });
-
-  it("POSEIDON_EDDSA_KEYPAIR_UNDEFINED getEddsaPublicKey", async () => {
-    const pubKey = k0.getPublicKey();
-
-    const account = Account.fromPubkey(pubKey, hasher);
-    await chai.assert.isRejected(
-      account.getEddsaPublicKey(),
-      AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,
-    );
-  });
-
-  it("POSEIDON_EDDSA_KEYPAIR_UNDEFINED signEddsa", async () => {
-    const pubKey = k0.getPublicKey();
-
-    const account = Account.fromPubkey(pubKey, hasher);
-    await chai.assert.isRejected(
-      account.signEddsa("123123"),
-      AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,
-    );
   });
 });
