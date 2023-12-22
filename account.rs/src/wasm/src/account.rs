@@ -69,7 +69,6 @@ pub struct Account {
 
 #[wasm_bindgen]
 impl Account {
-
     fn vec_to_key(vec: Vec<u8>) -> Result<[u8; 32], AccountError> {
         vec.try_into()
             .map_err(|_| AccountError::Generic(String::from("Expected a Vec of length 32")))
@@ -84,11 +83,14 @@ impl Account {
         console_error_panic_hook::set_once();
 
         let private_key = Account::vec_to_key(Account::generate_shielded_private_key(seed)?)?;
-        let public_key = Account::vec_to_key(Account::generate_shielded_public_key(private_key.to_vec())?)?;
+        let public_key =
+            Account::vec_to_key(Account::generate_shielded_public_key(private_key.to_vec())?)?;
 
-        let encryption_private_key = Account::vec_to_key(Account::create_encryption_private_key(seed)?)?;
-        let encryption_public_key =
-            Account::vec_to_key(Account::create_encryption_public_key(encryption_private_key.to_vec())?)?;
+        let encryption_private_key =
+            Account::vec_to_key(Account::create_encryption_private_key(seed)?)?;
+        let encryption_public_key = Account::vec_to_key(Account::create_encryption_public_key(
+            encryption_private_key.to_vec(),
+        )?)?;
 
         let aes_secret = Account::vec_to_key(Account::generate_secret(seed, "aes"))?;
         let hashing_secret = Account::vec_to_key(Account::generate_secret(seed, "hashing"))?;
@@ -132,8 +134,10 @@ impl Account {
             ))
         })?;
 
-        let public_key = Account::vec_to_key(Account::generate_shielded_public_key(private_key.to_vec())?)?;
-        let encryption_public_key = Account::create_encryption_public_key(encryption_private_key.to_vec())?;
+        let public_key =
+            Account::vec_to_key(Account::generate_shielded_public_key(private_key.to_vec())?)?;
+        let encryption_public_key =
+            Account::create_encryption_public_key(encryption_private_key.to_vec())?;
 
         Ok(Account {
             // solana_public_key,
