@@ -22,6 +22,7 @@ import {
   TransactionConfirmationStrategy,
   TransactionSignature,
 } from "@solana/web3.js";
+import { Provider } from "@lightprotocol/zk.js";
 
 let redisConnection: any;
 
@@ -75,20 +76,25 @@ export const relayWorker = new Worker(
     console.log("@relayWorker blockhashInfo", blockhashInfo);
     try {
       // TOOD: inefficient
-      const provider = await getLightProvider();
+      const provider: Provider = await getLightProvider();
 
-      for (const tx of signedTransactions) {
-        const signature: TransactionSignature =
-          await provider.wallet.sendTransaction(tx, provider.connection!);
+      try {
+        for (const tx of signedTransactions) {
+          const signature: TransactionSignature =
+            await provider.connection!.sendTransaction(tx);
 
-        /// we assume that we're able to fit all txs into one blockhash expiry window
-        const strategy: TransactionConfirmationStrategy = {
-          signature,
-          lastValidBlockHeight: blockhashInfo.lastValidBlockHeight,
-          blockhash: blockhashInfo.blockhash,
-        };
+          /// we assume that we're able to fit all txs into one blockhash expiry window
+          const strategy: TransactionConfirmationStrategy = {
+            signature,
+            lastValidBlockHeight: blockhashInfo.lastValidBlockHeight,
+            blockhash: blockhashInfo.blockhash,
+          };
 
-        await provider.connection!.confirmTransaction(strategy, "confirmed");
+          await provider.connection!.confirmTransaction(strategy, "confirmed");
+        }
+      } catch (error) {
+        console.error("@relayWorker send error: ", error); // TODO: turn into custom error that prints the entire call stack
+        throw error;
       }
 
       return; // finish
