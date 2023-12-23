@@ -152,7 +152,7 @@ export class TestRelayer extends Relayer {
 
     return { signatures, blockhashInfo };
   }
- 
+
   /**
    * Indexes light transactions by:
    * - getting all signatures the merkle tree was involved in

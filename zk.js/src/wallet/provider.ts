@@ -265,7 +265,6 @@ export class Provider {
     return signatures;
   }
 
-
   /**
    * Only use this if you use the WalletAdapter, e.g. in the browser. If you use a local keypair, use getNodeProvider().
    * @param walletContext get from useWallet() hook
