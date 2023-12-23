@@ -23,11 +23,6 @@ export type RelayerRelayPayload = {
 
 // TODO: create unified interface for consumers
 /** these are placeholder types until we unify the external response interface */
-export type ActionResponse = {
-  txHash: { signatures: TransactionSignature };
-  response: string;
-};
-/** these are placeholder types until we unify the external response interface */
 export type ActionResponseMulti = {
   txHash: { signatures: TransactionSignature[] };
   response: string;

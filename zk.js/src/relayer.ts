@@ -106,7 +106,6 @@ export class Relayer {
       blockhashInfo: { lastValidBlockHeight, blockhash },
     } = await this.sendSolanaInstructions(ixs, prioritizationFee);
 
-    console.log("@relayer.sendAndConfirmSolanaInstructions");
     const lastTxIndex = signatures.length - 1;
 
     const strategy: TransactionConfirmationStrategy = {
@@ -128,7 +127,6 @@ export class Relayer {
     ixs: TransactionInstruction[],
     prioritizationFee?: bigint,
   ): Promise<SignaturesWithBlockhashInfo> {
-    console.log("SHOULD NOT BE HERE");
     try {
       const response: AxiosResponse = await axios.post(
         this.url + "/relayTransaction",

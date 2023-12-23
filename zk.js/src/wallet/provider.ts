@@ -188,7 +188,9 @@ export class Provider {
 
     const lookupTableAccount = await this.connection.getAccountInfo(
       versionedTransactionLookupTable,
-      // TODO: Determine whether we should use 'finalized' instead!
+      // TODO: Determine whether we should use 'finalized' instead:
+      // https://docs.solana.com/proposals/versioned-transactions#front-running
+      // potential security implications
       commitment || "confirmed",
     );
 

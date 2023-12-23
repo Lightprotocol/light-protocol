@@ -74,23 +74,12 @@ export const relayWorker = new Worker(
     const { signedTransactions: serializedTransactions, blockhashInfo } =
       job.data;
 
-    console.log(
-      "@relayWorker signedTransactions (serialized)",
-      serializedTransactions,
-    );
-    console.log("@relayWorker blockhashInfo", blockhashInfo);
-
     /// deserialize
     const signedTransactions = serializedTransactions.map((tx: string) => {
       return VersionedTransaction.deserialize(
         Uint8Array.from(Buffer.from(tx, "base64")),
       );
     });
-
-    console.log(
-      "@relayWorker deserializedTransactions",
-      signedTransactions.map((tx: VersionedTransaction) => tx),
-    );
 
     try {
       // TOOD: inefficient
