@@ -22,7 +22,7 @@ export function getUidFromIxs(ixs: TransactionInstruction[]): string {
 }
 
 /**
- * Creates Transactions from instruction payload and adds relay job to queue. Returns signatures and blockhashInfo.
+ * Creates Transactions from instruction payload, serializes them and adds relay job to queue. Returns signatures and blockhashInfo.
  * Note: assumes the queue picks up the job ASAP and optimistically signs the transactions.
  */
 async function addRelayJob({
@@ -48,10 +48,17 @@ async function addRelayJob({
   const signedTransactions: VersionedTransaction[] =
     await provider.wallet.signAllTransactions(transactions);
 
+  const serializedTransactions = signedTransactions.map((tx) => {
+    return Buffer.from(tx.serialize()).toString("base64");
+  });
+  console.log(
+    "SERIALIZED TRANSACTIONS",
+    serializedTransactions.map((tx) => tx),
+  );
   const job = await relayQueue.add(
     "relay",
     {
-      signedTransactions,
+      signedTransactions: serializedTransactions,
       blockhashInfo: { lastValidBlockHeight, blockhash },
       response: null,
     },

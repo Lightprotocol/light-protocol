@@ -21,6 +21,7 @@ import {
 import {
   TransactionConfirmationStrategy,
   TransactionSignature,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import { Provider } from "@lightprotocol/zk.js";
 
@@ -70,10 +71,27 @@ export const relayWorker = new Worker(
   async (job: Job) => {
     console.log(`/relayWorker relay start - id: ${job.id}`);
     // TODO: add type safety
-    const { signedTransactions, blockhashInfo } = job.data;
+    const { signedTransactions: serializedTransactions, blockhashInfo } =
+      job.data;
 
-    console.log("@relayWorker signedTransactions", signedTransactions);
+    console.log(
+      "@relayWorker signedTransactions (serialized)",
+      serializedTransactions,
+    );
     console.log("@relayWorker blockhashInfo", blockhashInfo);
+
+    /// deserialize
+    const signedTransactions = serializedTransactions.map((tx: string) => {
+      return VersionedTransaction.deserialize(
+        Uint8Array.from(Buffer.from(tx, "base64")),
+      );
+    });
+
+    console.log(
+      "@relayWorker deserializedTransactions",
+      signedTransactions.map((tx: VersionedTransaction) => tx),
+    );
+
     try {
       // TOOD: inefficient
       const provider: Provider = await getLightProvider();
