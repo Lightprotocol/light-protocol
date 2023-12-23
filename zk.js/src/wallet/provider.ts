@@ -265,42 +265,6 @@ export class Provider {
     return signatures;
   }
 
-  // /**
-  //  * @deprecated
-  //  * TODO: remove
-  //  * */
-  // async sendAndConfirmTransaction(
-  //   instructions: TransactionInstruction[],
-  // ): Promise<
-  //   RelayerSendTransactionsResponse | SendVersionedTransactionsResult
-  // > {
-  //   const response = await sendVersionedTransactions(
-  //     instructions,
-  //     this.provider.connection,
-  //     this.lookUpTables.versionedTransactionLookupTable,
-  //     this.wallet,
-  //   );
-
-  //   if (response.error) throw response.error;
-  //   // throw new Error("DEPRECATED");
-
-  //   return response;
-  // }
-
-  // /**
-  //  * @deprecated
-  //  * TODO: remove
-  //  * */
-  // async sendAndConfirmShieldedTransaction(
-  //   instructions: TransactionInstruction[],
-  // ): Promise<
-  //   RelayerSendTransactionsResponse | SendVersionedTransactionsResult
-  // > {
-  //   const response = await this.relayer.sendTransactions(instructions, this);
-  //   if (response.error) throw response.error;
-  //   // throw new Error("DEPRECATED");
-  //   return response;
-  // }
 
   /**
    * Only use this if you use the WalletAdapter, e.g. in the browser. If you use a local keypair, use getNodeProvider().

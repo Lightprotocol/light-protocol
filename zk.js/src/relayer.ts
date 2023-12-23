@@ -142,23 +142,6 @@ export class Relayer {
     }
   }
 
-  // /**
-  //  * @deprecated
-  //  */
-  // async sendTransactions(
-  //   instructions: any[],
-  //   _provider: Provider,
-  // ): Promise<RelayerSendTransactionsResponse> {
-  //   try {
-  //     const response = await axios.post(this.url + "/relayTransaction", {
-  //       instructions,
-  //     });
-  //     return response.data.data;
-  //   } catch (err) {
-  //     console.error({ err });
-  //     throw err;
-  //   }
-  // }
 
   getRelayerFee(ataCreationFee?: boolean): BN {
     return ataCreationFee ? this.highRelayerFee : this.relayerFee;

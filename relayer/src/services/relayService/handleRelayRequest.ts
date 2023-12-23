@@ -51,10 +51,7 @@ async function addRelayJob({
   const serializedTransactions = signedTransactions.map((tx) => {
     return Buffer.from(tx.serialize()).toString("base64");
   });
-  console.log(
-    "SERIALIZED TRANSACTIONS",
-    serializedTransactions.map((tx) => tx),
-  );
+
   const job = await relayQueue.add(
     "relay",
     {

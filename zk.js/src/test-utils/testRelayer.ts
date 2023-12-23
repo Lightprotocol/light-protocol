@@ -152,23 +152,7 @@ export class TestRelayer extends Relayer {
 
     return { signatures, blockhashInfo };
   }
-  // /**
-  //  * @deprecated TODO: remove
-  //  */
-  // async sendTransactions(
-  //   instructions: any[],
-  //   provider: Provider,
-  // ): Promise<RelayerSendTransactionsResponse> {
-  //   const res = await sendVersionedTransactions(
-  //     instructions,
-  //     provider.provider!.connection!,
-  //     provider.lookUpTables.versionedTransactionLookupTable,
-  //     useWallet(this.relayerKeypair),
-  //   );
-  //   if (res.error) return { transactionStatus: "error", ...res };
-  //   else return { transactionStatus: "confirmed", ...res };
-  // }
-
+ 
   /**
    * Indexes light transactions by:
    * - getting all signatures the merkle tree was involved in
