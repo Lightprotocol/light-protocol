@@ -22,7 +22,6 @@ import {
   Relayer,
   RELAYER_FEE,
   TOKEN_ACCOUNT_FEE,
-  BN_0,
   MerkleTreeConfig,
   merkleTreeProgramId,
   AUTHORITY,
@@ -133,14 +132,7 @@ describe("API tests", () => {
   it("getEventById", (done) => {
     const utxo = user.getAllUtxos()[0];
     const requestData = {
-      id: bs58.encode(
-        user.account.generateUtxoPrefixHash(
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
-          BN_0,
-          4,
-          hasher,
-        ),
-      ),
+      id: bs58.encode(user.account.generateUtxoPrefixHash(MerkleTreeConfig.getTransactionMerkleTreePda(), 0)),
       merkleTreePdaPublicKey:
         MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
     };
@@ -210,13 +202,7 @@ describe("API tests", () => {
     const requestData = {
       ids: [
         bs58.encode(
-          user.account.generateUtxoPrefixHash(
-            MerkleTreeConfig.getTransactionMerkleTreePda(),
-            BN_0,
-            4,
-            hasher,
-          ),
-        ),
+          user.account.generateUtxoPrefixHash(MerkleTreeConfig.getTransactionMerkleTreePda(), 0)),
       ],
       merkleTreePdaPublicKey:
         MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),

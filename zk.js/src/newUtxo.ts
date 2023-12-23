@@ -1,6 +1,6 @@
 import nacl from "tweetnacl";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import {
   Account,
   BN_0,
@@ -138,14 +138,7 @@ export function getUtxoHash(
       "Neither Account nor shieldedPublicKey was provided",
     );
   }
-  // console.log("this.assetsCircuit ", this.assetsCircuit);
 
-  // console.log("amountHash ", amountHash.toString());
-  // console.log("this.keypair.pubkey ", this.publicKey.toString());
-  // console.log("this.blinding ", this.blinding.toString());
-  // console.log("assetHash ", assetHash.toString());
-  // console.log("this.appDataHash ", this.appDataHash.toString());
-  // console.log("this.poolType ", this.poolType.toString());
   return hasher.poseidonHashString([
     transactionVersion,
     amountHash,
@@ -234,7 +227,7 @@ export function outUtxoFromBytes({
     fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
   ];
   const publicKey = compressed
-    ? account?.pubkey
+    ? account?.keypair.publicKey
     : decodedUtxoData.accountShieldedPublicKey;
 
   const outUtxo = createOutUtxo({
@@ -297,9 +290,10 @@ export async function encryptOutUtxo({
   assetLookupTable: string[];
 }): Promise<Uint8Array> {
   const bytes = await outUtxoToBytes(utxo, assetLookupTable, compressed);
+  const byteArray = new Uint8Array(bytes);
   const utxoHash = new BN(utxo.utxoHash).toArrayLike(Buffer, "be", 32);
   const encryptedUtxo = await encryptOutUtxoInternal({
-    bytes,
+    bytes: byteArray,
     utxoHash,
     hasher,
     account,
@@ -351,21 +345,17 @@ export async function encryptOutUtxoInternal({
         "For aes encryption the merkle tree pda publickey is necessary to derive the viewingkey",
       );
 
-    const ciphertext = await account.encryptAesUtxo(
+    const ciphertext = account.encryptAesUtxo(
       bytes,
       merkleTreePdaPublicKey,
-      utxoHash,
-      hasher,
+      utxoHash
     );
 
+    const decrypted = await account.decryptAesUtxo(ciphertext, merkleTreePdaPublicKey, utxoHash);
     // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
     // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
     const prefix = !isFillingUtxo
-      ? account.generateLatestUtxoPrefixHash(
-          merkleTreePdaPublicKey,
-          UTXO_PREFIX_LENGTH,
-          hasher,
-        )
+      ? account.generateLatestUtxoPrefixHash(merkleTreePdaPublicKey)
       : randomPrefixBytes();
     if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
     const padding = sha3_256
@@ -464,12 +454,7 @@ export async function decryptOutUtxoInternal({
     encBytes = encBytes.slice(0, length);
   }
   const cleartext = aes
-    ? await account.decryptAesUtxo(
-        encBytes,
-        merkleTreePdaPublicKey,
-        utxoHash,
-        hasher,
-      )
+    ? account.decryptAesUtxo(encBytes, merkleTreePdaPublicKey, utxoHash)
     : await account.decryptNaclUtxo(encBytes, utxoHash);
 
   return cleartext;
@@ -605,7 +590,7 @@ export function createUtxo(
   }
 
   const signature = account
-    .sign(hasher, utxoHash, merkleTreeLeafIndexInternal)
+    .sign(utxoHash, merkleTreeLeafIndexInternal)
     .toString();
 
   const nullifierInputs: NullifierInputs = {
@@ -615,7 +600,7 @@ export function createUtxo(
   };
   const nullifier = getNullifier(hasher, nullifierInputs);
   const utxo: UtxoNew = {
-    publicKey: account.pubkey.toString(),
+    publicKey: account.keypair.publicKey.toString(),
     amounts,
     assets,
     assetsCircuit: assets.map((asset) =>

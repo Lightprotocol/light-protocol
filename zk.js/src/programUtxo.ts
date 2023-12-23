@@ -1,4 +1,3 @@
-import nacl from "tweetnacl";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import {
@@ -227,7 +226,7 @@ export function programOutUtxoFromBytes({
     fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
   ];
   const publicKey = compressed
-    ? account?.pubkey
+    ? account?.keypair.publicKey
     : decodedUtxoData.accountShieldedPublicKey;
 
   if (!pspIdl.accounts)

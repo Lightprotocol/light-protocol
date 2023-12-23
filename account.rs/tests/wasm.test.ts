@@ -43,8 +43,8 @@ describe("Test Account Functional", () => {
         const mod = await WasmHasher.loadModule();
         const hash = mod.create();
 
-        const account: AccountWasm = hash.account(seed32());
-        const account2: AccountWasm = hash.account(seed32());
+        const account: AccountWasm = hash.seedAccount(seed32());
+        const account2: AccountWasm = hash.seedAccount(seed32());
         expect(account2.getPrivateKey()).toEqual(account.getPrivateKey());
     });
 

@@ -11,12 +11,10 @@ import {
   MerkleTreeConfig,
   MINT,
   Provider as LightProvider,
-  OutUtxo,
   createProgramOutUtxo,
   getVerifierProgramId,
   programOutUtxoToBytes,
   programOutUtxoFromBytes,
-  ProgramOutUtxo,
   encryptProgramOutUtxo,
   decryptProgramOutUtxo,
   decryptProgramUtxo,
@@ -43,9 +41,9 @@ describe("Program Utxo Functional", () => {
   before(async () => {
     hasher = await WasmHasher.getInstance();
     lightProvider = await LightProvider.loadMock();
-    account = new Account({ hasher, seed: seed32 });
+    account = Account.createFromSeed(hasher, seed32);
     createOutUtxoInputs = {
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       amounts: [new BN(123), new BN(456)],
       assets: [SystemProgram.programId, MINT],
       verifierAddress: pspId,
@@ -154,7 +152,7 @@ describe("Program Utxo Functional", () => {
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
     const inputs = {
-      keypair: new Account({ hasher, seed: seed32 }),
+      keypair: Account.createFromSeed(hasher, seed32),
       amountFee,
       amountToken,
       assetPubkey,
@@ -164,7 +162,7 @@ describe("Program Utxo Functional", () => {
       index: 1,
     };
     const createOutUtxoInputs = {
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       amounts: [new BN(amountFee), new BN(amountToken)],
       assets: [SystemProgram.programId, MINT],
       verifierAddress: pspId,

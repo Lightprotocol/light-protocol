@@ -23,7 +23,7 @@ export const sendVersionedTransaction = async (
     .blockhash;
   const ixSigner = ix.keys
     .map((key) => {
-      if (key.isSigner == true) return key.pubkey;
+      if (key.isSigner) return key.pubkey;
     })[0]
     ?.toBase58();
   if (payer.publicKey.toBase58() != ixSigner) {
@@ -90,24 +90,21 @@ export async function sendVersionedTransactions(
   lookUpTable: PublicKey,
   payer: Wallet,
 ): Promise<SendVersionedTransactionsResult> {
-  try {
-    const signatures: TransactionSignature[] = [];
-    for (const instruction of instructions) {
-      const signature = await sendVersionedTransaction(
+  const signatures: TransactionSignature[] = [];
+  for (const instruction of instructions) {
+    const signature = await sendVersionedTransaction(
         instruction,
         connection,
         lookUpTable,
         payer,
-      );
-      if (!signature)
-        throw new Error("sendVersionedTransactions: signature is undefined");
-      signatures.push(signature);
-      await confirmTransaction(connection, signature);
+    );
+    if (!signature) {
+      throw new Error("sendVersionedTransactions: signature is undefined");
     }
-    return { signatures };
-  } catch (error) {
-    return { error };
+    signatures.push(signature);
+    await confirmTransaction(connection, signature);
   }
+  return {signatures};
 }
 
 export async function confirmTransaction(

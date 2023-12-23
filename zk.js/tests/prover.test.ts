@@ -49,13 +49,13 @@ describe("Prover Functionality Tests", () => {
   before(async () => {
     hasher = await WasmHasher.getInstance();
     lightProvider = await LightProvider.loadMock();
-    account = new Account({ hasher });
+    account = Account.random(hasher);
 
     shieldUtxo = new Utxo({
       hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       blinding: new anchor.BN(new Array(31).fill(1)),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
@@ -92,7 +92,7 @@ describe("Prover Functionality Tests", () => {
     });
 
     const genericProver = new Prover(verifierIdl, firstPath);
-    systemProofInputs["inPrivateKey"] = new Array(2).fill(account.privkey);
+    systemProofInputs["inPrivateKey"] = new Array(2).fill(account.keypair.privateKey);
     await genericProver.addProofInputs(systemProofInputs);
     await genericProver.fullProve();
     await getSystemProof({
@@ -135,7 +135,7 @@ describe("Prover Functionality Tests", () => {
     });
 
     const prover1 = new Prover(verifierIdl, firstPath);
-    proofInput["inPrivateKey"] = new Array(2).fill(account.privkey);
+    proofInput["inPrivateKey"] = new Array(2).fill(account.keypair.privateKey);
     await prover1.addProofInputs(proofInput);
     await prover1.fullProve();
     await getSystemProof({

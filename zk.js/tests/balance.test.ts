@@ -36,16 +36,16 @@ describe("Utxo Functional", () => {
   let hasher: Hasher,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
-    keypair: Account;
+    account: Account;
   before(async () => {
     hasher = await WasmHasher.getInstance();
-    keypair = new Account({ hasher, seed: seed32 });
+    account = Account.createFromSeed(hasher, seed32);
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
       hasher,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
-      publicKey: keypair.pubkey,
+      publicKey: account.keypair.publicKey,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
@@ -116,7 +116,7 @@ describe("Utxo Functional", () => {
   it("Test Decrypt Balance 2 and 4 utxos", async () => {
     const provider = await LightProvider.loadMock();
     const assetLookupTable = provider.lookUpTables.assetLookupTable;
-    const account = new Account({ hasher, seed: seed32 });
+    const account = Account.createFromSeed(hasher, seed32);
     for (let j = 2; j < 4; j += 2) {
       const utxos: Utxo[] = [];
       let encryptedUtxos: any[] = [];
@@ -127,7 +127,7 @@ describe("Utxo Functional", () => {
           hasher,
           assets: [FEE_ASSET, MINT],
           amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
-          publicKey: account.pubkey,
+          publicKey: account.keypair.publicKey,
           index: index,
           assetLookupTable: provider.lookUpTables.assetLookupTable,
           blinding: new BN(1),
@@ -157,14 +157,10 @@ describe("Utxo Functional", () => {
         for (let index = 0; index < trx.leaves.length; index += 2) {
           const leafLeft = trx.leaves[index];
           const leafRight = trx.leaves[index + 1];
-          let encBytes = Buffer.from(
-            trx.encryptedUtxos.slice(
-              (index / 2) * 240,
-              (index / 2) * 240 +
-                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
-                UTXO_PREFIX_LENGTH,
-            ),
-          );
+
+          let indexFrom =  (index / 2) * 240;
+          let indexTo = (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
+          let encBytes = Buffer.from(trx.encryptedUtxos.slice(indexFrom, indexTo));
           let decryptedUtxo = await Utxo.decryptUnchecked({
             hasher,
             encBytes,
@@ -182,15 +178,11 @@ describe("Utxo Functional", () => {
             decryptedUtxos.push(decryptedUtxo.value);
           }
 
-          encBytes = Buffer.from(
-            trx.encryptedUtxos.slice(
-              (index / 2) * 240 + 120 + UTXO_PREFIX_LENGTH,
-              (index / 2) * 240 +
-                NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
-                120 +
-                UTXO_PREFIX_LENGTH,
-            ),
-          );
+
+          indexFrom = (index / 2) * 240 + 120 + UTXO_PREFIX_LENGTH ;
+          indexTo = (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + 120 + UTXO_PREFIX_LENGTH + 4;
+
+          encBytes = Buffer.from(trx.encryptedUtxos.slice(indexFrom, indexTo));
           decryptedUtxo = await Utxo.decryptUnchecked({
             hasher,
             encBytes,

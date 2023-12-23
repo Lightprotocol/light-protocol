@@ -121,7 +121,7 @@ describe("Test swaps", () => {
         priceSol: new BN(2e9),
         priceSpl: new BN(0),
         splAsset: new BN(0),
-        recipient: sellerUser.account.pubkey,
+        recipient: sellerUser.account.keypair.publicKey,
         recipientEncryptionPublicKey: hashAndTruncateToCircuit(
           sellerUser.account.encryptionKeypair.publicKey,
         ),
@@ -351,7 +351,7 @@ describe("Test swaps", () => {
         priceSol: new BN(2e9),
         priceSpl: new BN(0),
         splAsset: new BN(0),
-        recipient: sellerUser.account.pubkey,
+        recipient: sellerUser.account.keypair.publicKey,
         recipientEncryptionPublicKey: hashAndTruncateToCircuit(
           sellerUser.account.encryptionKeypair.publicKey,
         ),
@@ -401,7 +401,7 @@ describe("Test swaps", () => {
         priceSol: new BN(1e9),
         priceSpl: new BN(0),
         splAsset: new BN(0),
-        recipient: buyerUser.account.pubkey,
+        recipient: buyerUser.account.keypair.publicKey,
         recipientEncryptionPublicKey: hashAndTruncateToCircuit(
           buyerUser.account.encryptionKeypair.publicKey,
         ),
@@ -463,7 +463,7 @@ describe("Test swaps", () => {
     );
     const tradeOutputUtxo = new Utxo({
       hasher: HASHER,
-      publicKey: sellerUser.account.pubkey,
+      publicKey: sellerUser.account.keypair.publicKey,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [
         fetchedCounterOfferUtxo.amounts[0].sub(
@@ -641,7 +641,7 @@ describe("Test swaps", () => {
         priceSol: new BN(2e9),
         priceSpl: new BN(0),
         splAsset: new BN(0),
-        recipient: sellerUser.account.pubkey,
+        recipient: sellerUser.account.keypair.publicKey,
         recipientEncryptionPublicKey: hashAndTruncateToCircuit(
           sellerUser.account.encryptionKeypair.publicKey,
         ),
@@ -689,7 +689,7 @@ describe("Test swaps", () => {
 
     const emptySignerUtxo = new Utxo({
       hasher: HASHER,
-      publicKey: sellerUser.account.pubkey,
+      publicKey: sellerUser.account.keypair.publicKey,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [BN_0],
       assets: [SystemProgram.programId],

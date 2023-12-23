@@ -4,7 +4,7 @@
   "rpcUrl": "http://127.0.0.1:8899",
   "relayerPublicKey": "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
   "lookupTable": "8SezKuv7wMNPd574Sq4rQ1wvVrxa22xPYtkeruJRjrhG",
-  "relayerFee": "0186a0",
-  "highRelayerFee": "1660e8",
+  "relayerFee": "100000",
+  "highRelayerFee": "1466600",
   "secretKey": "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8"
 }

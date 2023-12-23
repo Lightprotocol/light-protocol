@@ -209,9 +209,7 @@ export class User {
       for (let index = 0; index < trx.transaction.leaves.length; index += 2) {
         const leafLeft = trx.transaction.leaves[index];
         const leafRight = trx.transaction.leaves[index + 1];
-
-        const encUtxoSize =
-          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
+        const encUtxoSize = NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
         // transaction nonce is the same for all utxos in one transaction
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(
@@ -452,7 +450,7 @@ export class User {
           hasher: this.provider.hasher,
           assets,
           amounts,
-          publicKey: recipient.pubkey,
+          publicKey: recipient.keypair.publicKey,
           encryptionPublicKey: recipient.encryptionKeypair.publicKey,
           appDataHash: appUtxo?.appDataHash,
           verifierAddress: appUtxo?.verifierAddress,
@@ -917,7 +915,7 @@ export class User {
   // TODO: add separate lookup function for users.
   // TODO: add account parsing from and to string which is concat shielded pubkey and encryption key
   /**
-   * @description transfers to one recipient utxo and creates a change utxo with remainders of the input
+   * @description transfers to one recipient utxo and crencrypteates a change utxo with remainders of the input
    * @param token mint
    * @param amount
    * @param recipient shieldedAddress (BN)
@@ -1689,12 +1687,7 @@ export const getPrefixes = (
 ) => {
   const prefixes: string[] = [];
   for (let i = 0; i < no; i++) {
-    const prefix = account.generateUtxoPrefixHash(
-      merkleTreePdaPublicKey,
-      new BN(i),
-      UTXO_PREFIX_LENGTH,
-      hasher,
-    );
+    const prefix = account.generateUtxoPrefixHash(merkleTreePdaPublicKey, i);
     prefixes.push(bs58.encode(prefix));
   }
   return prefixes;

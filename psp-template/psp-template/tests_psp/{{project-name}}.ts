@@ -80,7 +80,7 @@ describe("Test {{project-name}}", () => {
     const outputUtxoSol = new Utxo({
       hasher: HASHER,
       assets: [SystemProgram.programId],
-      publicKey: user.account.pubkey,
+      publicKey: user.account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
       appData: { x: new BN(1), y: new BN(1) },
       appDataIdl: IDL,

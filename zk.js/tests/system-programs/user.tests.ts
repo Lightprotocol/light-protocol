@@ -238,10 +238,8 @@ describe("Test User", () => {
       expectedRecipientUtxoLength: 1,
     };
 
-    const recipientAccount = new Account({
-      hasher: HASHER,
-      seed: testInputs.recipientSeed,
-    });
+
+    const recipientAccount = Account.createFromSeed(HASHER, testInputs.recipientSeed);
 
     const userRecipient: User = await User.init({
       provider,
@@ -255,6 +253,11 @@ describe("Test User", () => {
       testInputs,
     });
 
+    await user.shield({
+      publicAmountSpl: testInputs.amountSpl,
+      token: testInputs.token,
+    });
+
     await testStateValidator.fetchAndSaveState();
 
     await user.transfer({
@@ -266,6 +269,7 @@ describe("Test User", () => {
     await user.getBalance();
     await testStateValidator.checkSplTransferred();
   });
+
 
   it("(user class) storage shield", async () => {
     const testInputs = {
@@ -335,7 +339,7 @@ describe("Test User Errors", () => {
   setProvider(providerAnchor);
 
   const userKeypair = ADMIN_AUTH_KEYPAIR;
-  let amount: number, token: string, provider: Provider, user: User;
+  let amount: number, token: string, relayer: TestRelayer, provider: Provider, user: User;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     if ((await providerAnchor.connection.getBalance(ADMIN_AUTH_KEY)) === 0) {
@@ -346,6 +350,34 @@ describe("Test User Errors", () => {
     amount = 20;
     token = "USDC";
 
+    const anchorProvider = AnchorProvider.local(
+        "http://127.0.0.1:8899",
+        confirmConfig,
+    );
+    setProvider(anchorProvider);
+
+    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+    await anchorProvider.connection.requestAirdrop(
+        relayerRecipientSol,
+        2_000_000_000,
+    );
+
+    const relayer = Keypair.generate();
+    await airdropSol({
+      connection: anchorProvider.connection,
+      lamports: 2_000_000_000,
+      recipientPublicKey: relayer.publicKey,
+    });
+
+    RELAYER = new TestRelayer({
+      relayerPubkey: relayer.publicKey,
+      relayerRecipientSol,
+      relayerFee: RELAYER_FEE,
+      highRelayerFee: TOKEN_ACCOUNT_FEE,
+      payer: relayer,
+      connection: anchorProvider.connection,
+      hasher: HASHER,
+    });
     provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
@@ -354,6 +386,7 @@ describe("Test User Errors", () => {
 
     user = await User.init({ provider });
   });
+
   it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {
     await chai.assert.isRejected(
       user.shield({ token }),
@@ -466,7 +499,7 @@ describe("Test User Errors", () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({
-        recipient: new Account({ hasher: HASHER }).getPublicKey(),
+        recipient: Account.random(HASHER).getPublicKey(),
         amountSol: BN_1,
         token: "SPL",
       }),
@@ -486,7 +519,7 @@ describe("Test User Errors", () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({
-        recipient: new Account({ hasher: HASHER }).getPublicKey(),
+        recipient: Account.random(HASHER).getPublicKey(),
       }),
       UserErrorCode.NO_AMOUNTS_PROVIDED,
     );

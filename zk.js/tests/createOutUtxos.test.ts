@@ -46,7 +46,7 @@ describe("Test createOutUtxos Functional", () => {
 
   let splAmount: BN,
     solAmount: BN,
-    token,
+    token: string,
     tokenCtx: TokenData,
     utxo1: Utxo,
     relayerFee: BN,
@@ -56,7 +56,7 @@ describe("Test createOutUtxos Functional", () => {
   before(async () => {
     lightProvider = await Provider.loadMock();
     hasher = await WasmHasher.getInstance();
-    k0 = new Account({ hasher, seed: seed32 });
+    k0 = Account.createFromSeed(hasher, seed32);
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
@@ -69,21 +69,18 @@ describe("Test createOutUtxos Functional", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: k0.pubkey,
+      publicKey: k0.keypair.publicKey,
     });
     utxoSol = new Utxo({
       hasher,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e6)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: k0.pubkey,
+      publicKey: k0.keypair.publicKey,
     });
     relayerFee = RELAYER_FEE;
 
-    const recipientAccountRoot = new Account({
-      hasher,
-      seed: bs58.encode(new Uint8Array(32).fill(3)),
-    });
+    const recipientAccountRoot = Account.createFromSeed(hasher, bs58.encode(new Uint8Array(32).fill(3)));
 
     recipientAccount = Account.fromPubkey(
       recipientAccountRoot.getPublicKey(),
@@ -549,11 +546,8 @@ describe("createRecipientUtxos", () => {
     const hasher = await WasmHasher.getInstance();
 
     const mint = MINT;
-    const account1 = new Account({ hasher, seed: seed32 });
-    const account2 = new Account({
-      hasher,
-      seed: new Uint8Array(32).fill(4).toString(),
-    });
+    const account1 = Account.createFromSeed(hasher, seed32);
+    const account2 = Account.createFromSeed(hasher, new Uint8Array(32).fill(4).toString());
 
     const recipients: Recipient[] = [
       {
@@ -579,13 +573,13 @@ describe("createRecipientUtxos", () => {
     });
 
     expect(outputUtxos.length).to.equal(recipients.length);
-    expect(outputUtxos[0].publicKey).to.equal(account1.pubkey);
+    expect(outputUtxos[0].publicKey.toString()).to.equal(account1.keypair.publicKey.toString());
     expect(outputUtxos[0].amounts[0].toString()).to.equal("5");
     expect(outputUtxos[0].amounts[1].toString()).to.equal("10");
     expect(outputUtxos[0].assets[0].equals(SystemProgram.programId)).to.be.true;
     expect(outputUtxos[0].assets[1].equals(mint)).to.be.true;
 
-    expect(outputUtxos[1].publicKey).to.equal(account2.pubkey);
+    expect(outputUtxos[1].publicKey.toString()).to.equal(account2.keypair.publicKey.toString());
     expect(outputUtxos[1].amounts[0].toString()).to.equal("3");
     expect(outputUtxos[1].amounts[1].toString()).to.equal("7");
     expect(outputUtxos[1].assets[0].equals(SystemProgram.programId)).to.be.true;
@@ -618,7 +612,7 @@ describe("validateUtxoAmounts", () => {
       amounts,
       assets,
       blinding: BN_0,
-      publicKey: new Account({ hasher }).pubkey,
+      publicKey: Account.random(hasher).keypair.publicKey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
   }
@@ -660,7 +654,7 @@ describe("Test createOutUtxos Errors", () => {
   before(async () => {
     lightProvider = await Provider.loadMock();
     hasher = await WasmHasher.getInstance();
-    k0 = new Account({ hasher, seed: seed32 });
+    k0 = Account.createFromSeed(hasher, seed32);
     splAmount = new BN(3);
     token = "USDC";
     const tmpTokenCtx = TOKEN_REGISTRY.get(token);
@@ -672,14 +666,14 @@ describe("Test createOutUtxos Errors", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: k0.pubkey,
+      publicKey: k0.keypair.publicKey,
     });
     utxoSol = new Utxo({
       hasher,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e6)],
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: k0.pubkey,
+      publicKey: k0.keypair.publicKey,
     });
 
     createOutUtxos({
@@ -731,12 +725,12 @@ describe("Test createOutUtxos Errors", () => {
           new Utxo({
             hasher,
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-            publicKey: k0.pubkey,
+            publicKey: k0.keypair.publicKey,
           }),
           new Utxo({
             hasher,
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-            publicKey: k0.pubkey,
+            publicKey: k0.keypair.publicKey,
           }),
         ],
         numberMaxOutUtxos,
@@ -773,7 +767,7 @@ describe("Test createOutUtxos Errors", () => {
               ...lightProvider.lookUpTables.assetLookupTable,
               ...[invalidMint.toBase58()],
             ],
-            publicKey: k0.pubkey,
+            publicKey: k0.keypair.publicKey,
           }),
         ],
       });
@@ -802,7 +796,7 @@ describe("Test createOutUtxos Errors", () => {
             assets: [SystemProgram.programId, utxo1.assets[1]],
             amounts: [BN_0, new BN(1e12)],
             assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-            publicKey: k0.pubkey,
+            publicKey: k0.keypair.publicKey,
           }),
         ],
       });
@@ -886,7 +880,7 @@ describe("Test createOutUtxos Errors", () => {
         ...lightProvider.lookUpTables.assetLookupTable,
         ...[invalidMint.toBase58()],
       ],
-      publicKey: k0.pubkey,
+      publicKey: k0.keypair.publicKey,
     });
 
     expect(() => {
@@ -907,7 +901,7 @@ describe("Test createOutUtxos Errors", () => {
               ...lightProvider.lookUpTables.assetLookupTable,
               ...[invalidMint.toBase58()],
             ],
-            publicKey: k0.pubkey,
+            publicKey: k0.keypair.publicKey,
           }),
         ],
         numberMaxOutUtxos,

@@ -39,7 +39,7 @@ export async function functionalCircuitTest(
     hasher: hasher,
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
-    publicKey: account.pubkey,
+    publicKey: account.keypair.publicKey,
     assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     index: 0,
     verifierAddress: app ? mockPubkey : undefined,
@@ -57,7 +57,7 @@ export async function functionalCircuitTest(
       new BN(shieldFeeAmount / 2).sub(relayerFee),
       new BN(shieldAmount / 2),
     ],
-    publicKey: account.pubkey,
+    publicKey: account.keypair.publicKey,
     assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
   });
 
@@ -65,7 +65,7 @@ export async function functionalCircuitTest(
     hasher: hasher,
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(shieldFeeAmount / 2), new BN(shieldAmount / 2)],
-    publicKey: account.pubkey,
+    publicKey: account.keypair.publicKey,
     assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
   });
 

@@ -124,18 +124,18 @@ describe("Test Relayer Errors", () => {
   it("getIds from encrypted utxos", async () => {
     const HASHER = await WasmHasher.getInstance();
 
-    const account = new Account({ hasher: HASHER });
+    const account = Account.random(HASHER);
     const utxo = new Utxo({
       amounts: [new BN(1)],
       assets: [mockKeypair.publicKey],
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       hasher: HASHER,
       assetLookupTable: [SystemProgram.programId.toBase58()],
     });
     const utxo2 = new Utxo({
       amounts: [new BN(2)],
       assets: [mockKeypair.publicKey],
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       hasher: HASHER,
       assetLookupTable: [SystemProgram.programId.toBase58()],
     });
@@ -153,43 +153,27 @@ describe("Test Relayer Errors", () => {
     const ids = getIdsFromEncryptedUtxos(Buffer.from(encryptedUtxos), 2);
     assert.equal(
       ids[0],
-      bs58.encode(
-        account.generateUtxoPrefixHash(
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
-          new BN(0),
-          4,
-          HASHER,
-        ),
-      ),
-    );
+      bs58.encode(account.generateUtxoPrefixHash(MerkleTreeConfig.getTransactionMerkleTreePda(), 0)));
     assert.equal(
       ids[1],
-      bs58.encode(
-        account.generateUtxoPrefixHash(
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
-          new BN(1),
-          4,
-          HASHER,
-        ),
-      ),
-    );
+      bs58.encode(account.generateUtxoPrefixHash(MerkleTreeConfig.getTransactionMerkleTreePda(), 1)));
   });
 
   it("create rpc index", async () => {
     const HASHER = await WasmHasher.getInstance();
 
-    const account = new Account({ hasher: HASHER });
+    const account = Account.random(HASHER);
     const utxo = new Utxo({
       amounts: [new BN(1)],
       assets: [mockKeypair.publicKey],
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       hasher: HASHER,
       assetLookupTable: [SystemProgram.programId.toBase58()],
     });
     const utxo2 = new Utxo({
       amounts: [new BN(2)],
       assets: [mockKeypair.publicKey],
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       hasher: HASHER,
       assetLookupTable: [SystemProgram.programId.toBase58()],
     });
@@ -217,29 +201,29 @@ describe("Test Relayer Errors", () => {
 
     const indexedTransaction: ParsedIndexedTransaction = {
       blockTime: 0,
-      signer: mockKeypair.publicKey,
+      signer: mockKeypair.publicKey.toString(),
       signature: "",
-      to: mockKeypair.publicKey,
-      from: mockKeypair.publicKey,
-      toSpl: mockKeypair.publicKey,
-      fromSpl: mockKeypair.publicKey,
-      verifier: mockKeypair.publicKey,
-      relayerRecipientSol: mockKeypair.publicKey,
+      to: mockKeypair.publicKey.toString(),
+      from: mockKeypair.publicKey.toString(),
+      toSpl: mockKeypair.publicKey.toString(),
+      fromSpl: mockKeypair.publicKey.toString(),
+      verifier: mockKeypair.publicKey.toString(),
+      relayerRecipientSol: mockKeypair.publicKey.toString(),
       type: Action.SHIELD,
-      changeSolAmount: BN_0,
-      publicAmountSol: BN_0,
-      publicAmountSpl: BN_0,
+      changeSolAmount: BN_0.toString(),
+      publicAmountSol: BN_0.toString(),
+      publicAmountSpl: BN_0.toString(),
       encryptedUtxos: Buffer.from(encryptedUtxos),
       leaves: [
         new BN(utxo.getCommitment(HASHER)).toArray("be", 32),
         new BN(utxo2.getCommitment(HASHER)).toArray("be", 32),
       ],
-      firstLeafIndex: BN_0,
+      firstLeafIndex: BN_0.toString(),
       nullifiers: [
         new BN(utxo.getNullifier({ hasher: HASHER, account, index: 0 })),
         new BN(utxo2.getNullifier({ hasher: HASHER, account, index: 1 })),
       ],
-      relayerFee: BN_0,
+      relayerFee: BN_0.toString(),
       message: Buffer.from(""),
     };
     const rpcIndexedTransaction = createRpcIndexedTransaction(
@@ -263,11 +247,7 @@ describe("Test Relayer Errors", () => {
   it.skip("Index transaction", async () => {
     const HASHER = await WasmHasher.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
-    const ACCOUNT = new Account({
-      hasher: HASHER,
-      seed,
-    });
-
+    const ACCOUNT = Account.createFromSeed(HASHER, seed);
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     const provider = AnchorProvider.local(
       "http://127.0.0.1:8899",

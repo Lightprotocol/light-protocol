@@ -506,7 +506,7 @@ export class Utxo {
       assets,
       publicKey: !account
         ? decodedUtxoData.accountShieldedPublicKey
-        : account.pubkey,
+        : account.keypair.publicKey,
       encryptionPublicKey: new BN(
         decodedUtxoData.accountEncryptionPublicKey,
       ).eq(BN_0)
@@ -550,7 +550,7 @@ export class Utxo {
     // console.log("assetHash ", assetHash.toString());
     // console.log("this.appDataHash ", this.appDataHash.toString());
     // console.log("this.poolType ", this.poolType.toString());
-    this._commitment = hasher.poseidonHashString([
+    const commitment = hasher.poseidonHashString([
       this.transactionVersion,
       amountHash,
       this.publicKey.toString(),
@@ -560,7 +560,8 @@ export class Utxo {
       this.poolType.toString(),
       this.verifierAddressCircuit.toString(),
     ]);
-    return this._commitment;
+    this._commitment = commitment;
+    return commitment;
   }
 
   /**
@@ -602,7 +603,7 @@ export class Utxo {
       );
 
     const signature = account
-      .sign(hasher, this.getCommitment(hasher), this.index || 0)
+      .sign(this.getCommitment(hasher), this.index || 0)
       .toString();
     this._nullifier = hasher.poseidonHashString([
       this.getCommitment(hasher),
@@ -613,7 +614,7 @@ export class Utxo {
     return this._nullifier!;
   }
 
-  // TODO: evaluate whether to add a flag to encrypt asymetrically
+  // TODO: evaluate whether to add a flag to encrypt asymmetrically
   /**
    * @description Encrypts the utxo to the utxo's accounts public key with nacl.box.
    *
@@ -643,7 +644,7 @@ export class Utxo {
         bytes_message,
         commitment,
       );
-      // TODO: add option to use random or dedicated prefix for asynmetrically encrypted utxos which are sent to another party
+      // TODO: add option to use random or dedicated prefix for asymmetrically encrypted utxos which are sent to another party
       const prefix = !this.isFillingUtxo
         ? this.encryptionPublicKey.slice(0, 4)
         : randomPrefixBytes();
@@ -656,33 +657,23 @@ export class Utxo {
           "For aes encryption the merkle tree pda publickey is necessary to derive the viewingkey",
         );
 
-      const ciphertext = await account.encryptAesUtxo(
+      const ciphertext = account.encryptAesUtxo(
         bytes_message,
         merkleTreePdaPublicKey,
         commitment,
-        hasher,
       );
 
       // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
       // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
       const prefix = !this.isFillingUtxo
-        ? account.generateLatestUtxoPrefixHash(
-            merkleTreePdaPublicKey,
-            UTXO_PREFIX_LENGTH,
-            hasher,
-          )
+        ? account.generateLatestUtxoPrefixHash(merkleTreePdaPublicKey)
         : randomPrefixBytes();
       if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
-      const padding = sha3_256
-        .create()
-        .update(Uint8Array.from([...commitment, ...bytes_message]))
-        .digest();
 
-      // adding the 8 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of (120 + PREFIX_LENGTH) bytes
+      // adding the 4 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of (120 + PREFIX_LENGTH) bytes
       return Uint8Array.from([
         ...prefix,
         ...ciphertext,
-        ...padding.subarray(0, 8),
       ]);
     } else {
       throw new UtxoError(
@@ -747,11 +738,10 @@ export class Utxo {
       encBytes = encBytes.slice(0, length);
     }
     const cleartext = aes
-      ? await account.decryptAesUtxo(
+      ? account.decryptAesUtxo(
           encBytes,
           merkleTreePdaPublicKey,
           commitment,
-          hasher,
         )
       : await account.decryptNaclUtxo(encBytes, commitment);
 

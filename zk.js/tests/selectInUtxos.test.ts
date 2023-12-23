@@ -54,7 +54,7 @@ describe("Test selectInUtxos Functional", () => {
     lightProvider = await Provider.loadMock();
 
     hasher = await WasmHasher.getInstance();
-    utxo1Burner = new Account({ hasher, seed: seed32 });
+    utxo1Burner = Account.createFromSeed(hasher, seed32);
     utxo2Burner = Account.createBurner(hasher, seed32, new anchor.BN("0"));
     utxoSolBurner = Account.createBurner(hasher, seed32, new anchor.BN("1"));
 
@@ -68,7 +68,7 @@ describe("Test selectInUtxos Functional", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals.toNumber())],
       index: 0,
-      publicKey: utxo1Burner.pubkey,
+      publicKey: utxo1Burner.keypair.publicKey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     utxo2 = new Utxo({
@@ -76,7 +76,7 @@ describe("Test selectInUtxos Functional", () => {
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
-      publicKey: utxo2Burner.pubkey,
+      publicKey: utxo2Burner.keypair.publicKey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     utxoSol = new Utxo({
@@ -84,7 +84,7 @@ describe("Test selectInUtxos Functional", () => {
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
       index: 1,
-      publicKey: utxoSolBurner.pubkey,
+      publicKey: utxoSolBurner.keypair.publicKey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
   });
@@ -149,7 +149,7 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
       ],
       hasher,
@@ -180,7 +180,7 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_0,
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
       ],
       hasher,
@@ -210,7 +210,7 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: BN_0,
           splAmount: BN_1,
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
       ],
       hasher,
@@ -290,7 +290,7 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: utxo2.amounts[0],
           splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
       ],
       hasher,
@@ -333,14 +333,14 @@ describe("Test selectInUtxos Errors", () => {
     tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
-    account = new Account({ hasher });
+    account = Account.random(hasher);
     utxo1 = new Utxo({
       hasher,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
     });
     utxo2 = new Utxo({
       hasher,
@@ -348,7 +348,7 @@ describe("Test selectInUtxos Errors", () => {
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
     });
     utxoSol = new Utxo({
       hasher,
@@ -356,7 +356,7 @@ describe("Test selectInUtxos Errors", () => {
       amounts: [new BN(1e8)],
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
     });
   });
 
@@ -368,7 +368,7 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
       ],
       hasher,
@@ -533,13 +533,13 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
         {
           mint,
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
       ],
       hasher,
@@ -576,7 +576,7 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(2e10),
           splAmount: BN_1,
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
       ],
       hasher,
@@ -610,7 +610,7 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: BN_0,
           splAmount: new BN(1e10),
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
       ],
       hasher,
@@ -644,7 +644,7 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: utxo2.amounts[0].add(utxo1.amounts[0]),
           splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-          account: new Account({ hasher }),
+          account: Account.random(hasher)
         },
       ],
       hasher,

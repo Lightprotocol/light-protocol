@@ -24,7 +24,7 @@ import {
 } from "@solana/web3.js";
 import { assert } from "chai";
 
-let KEYPAIR: Account, RELAYER: TestRelayer;
+let ACCOUNT: Account, RELAYER: TestRelayer;
 
 describe("User registry", () => {
   // Configure the client to use the local cluster.
@@ -45,11 +45,7 @@ describe("User registry", () => {
 
     const hasher = await WasmHasher.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
-    KEYPAIR = new Account({
-      hasher,
-      seed,
-    });
-
+    ACCOUNT = Account.createFromSeed(hasher, seed);
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
     await provider.connection.requestAirdrop(
@@ -79,8 +75,8 @@ describe("User registry", () => {
       userRegistryProgramId,
     )[0];
     const tx = await userRegistryProgram.methods
-      .initializeUserEntry(KEYPAIR.pubkey.toArray(), [
-        ...KEYPAIR.encryptionKeypair.publicKey,
+      .initializeUserEntry(ACCOUNT.keypair.publicKey.toArray(), [
+        ...ACCOUNT.encryptionKeypair.publicKey,
       ])
       .accounts({
         signer: ADMIN_AUTH_KEYPAIR.publicKey,
@@ -98,9 +94,9 @@ describe("User registry", () => {
 
     const accountInfo =
       await userRegistryProgram.account.userEntry.fetch(userEntryPubkey);
-    assert.deepEqual(accountInfo.lightPubkey, KEYPAIR.pubkey.toArray());
+    assert.deepEqual(accountInfo.lightPubkey, ACCOUNT.keypair.publicKey.toArray());
     assert.deepEqual(accountInfo.lightEncryptionPubkey, [
-      ...KEYPAIR.encryptionKeypair.publicKey,
+      ...ACCOUNT.encryptionKeypair.publicKey,
     ]);
     assert.deepEqual(
       new Uint8Array(accountInfo.solanaPubkey),
