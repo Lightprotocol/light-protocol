@@ -19,23 +19,16 @@ import {
   SolanaTransactionInputs,
   sendAndConfirmShieldedTransaction,
   getVerifierProgramId,
-  shieldProgramUtxo
+  shieldProgramUtxo,
 } from "@lightprotocol/zk.js";
 import { WasmHasher } from "@lightprotocol/account.rs";
-import {
-  SystemProgram,
-  PublicKey,
-  Keypair,
-} from "@solana/web3.js";
-
+import { SystemProgram, PublicKey, Keypair } from "@solana/web3.js";
 
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/{{rust-name}}";
 const path = require("path");
 
-const verifierProgramId = new PublicKey(
-  "{{program-id}}",
-);
+const verifierProgramId = new PublicKey("{{program-id}}");
 let HASHER;
 
 const RPC_URL = "http://127.0.0.1:8899";
@@ -52,7 +45,6 @@ describe("Test {{project-name}}", () => {
     HASHER = await WasmHasher.getInstance();
   });
 
-
   it("Create and Spend Program Utxo ", async () => {
     const wallet = Keypair.generate();
     await airdropSol({
@@ -63,7 +55,7 @@ describe("Test {{project-name}}", () => {
 
     let relayer = new TestRelayer({
       relayerPubkey: wallet.publicKey,
-      relayerRecipientSol:  wallet.publicKey,
+      relayerRecipientSol: wallet.publicKey,
       relayerFee: new BN(100000),
       payer: wallet,
       connection: provider.connection,
@@ -72,8 +64,15 @@ describe("Test {{project-name}}", () => {
 
     // The light provider is a connection and wallet abstraction.
     // The wallet is used to derive the seed for your shielded keypair with a signature.
-    var lightProvider = await LightProvider.init({ wallet, url: RPC_URL, relayer, confirmConfig });
-    lightProvider.addVerifierProgramPublickeyToLookUpTable(getVerifierProgramId(IDL));
+    var lightProvider = await LightProvider.init({
+      wallet,
+      url: RPC_URL,
+      relayer,
+      confirmConfig,
+    });
+    lightProvider.addVerifierProgramPublickeyToLookUpTable(
+      getVerifierProgramId(IDL)
+    );
 
     const user: User = await User.init({ provider: lightProvider });
 
@@ -91,14 +90,14 @@ describe("Test {{project-name}}", () => {
     const testInputsShield = {
       utxo: outputUtxoSol,
       action: Action.SHIELD,
-    }
+    };
 
     let storeTransaction = await shieldProgramUtxo({
       account: user.account,
       appUtxo: testInputsShield.utxo,
       provider: user.provider,
-    })
-    console.log("store program utxo transaction hash ", storeTransaction.signatures);
+    });
+    console.log("store program utxo transaction hash ", storeTransaction);
 
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await user.syncStorage(IDL);
@@ -111,7 +110,9 @@ describe("Test {{project-name}}", () => {
 
     Utxo.equal(HASHER, inputUtxo, testInputsShield.utxo, true);
 
-    const circuitPath = path.join(`build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`);
+    const circuitPath = path.join(
+      `build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`
+    );
 
     const pspTransactionInput: PspTransactionInput = {
       proofInputs: {
@@ -122,8 +123,7 @@ describe("Test {{project-name}}", () => {
       circuitName: "{{circom-name-camel-case}}",
       checkedInUtxos: [{ utxoName: "inputUtxo", utxo: inputUtxo }],
     };
-    const changeAmountSol = inputUtxo.amounts[0]
-      .sub(relayer.relayerFee);
+    const changeAmountSol = inputUtxo.amounts[0].sub(relayer.relayerFee);
     const changeUtxo = new Utxo({
       hasher: HASHER,
       publicKey: inputUtxo.publicKey,
@@ -137,7 +137,7 @@ describe("Test {{project-name}}", () => {
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0),
+        new BN(0)
       ),
       relayerPublicKey: relayer.accounts.relayerPubkey,
       hasher: HASHER,
@@ -148,7 +148,7 @@ describe("Test {{project-name}}", () => {
     });
 
     const { root, index: rootIndex } = (await relayer.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MerkleTreeConfig.getTransactionMerkleTreePda()
     ))!;
 
     const proofInputs = createProofInputs({
@@ -184,13 +184,18 @@ describe("Test {{project-name}}", () => {
       rootIndex,
     };
 
-    const {txHash} = await sendAndConfirmShieldedTransaction({
+    const { txHash } = await sendAndConfirmShieldedTransaction({
       solanaTransactionInputs,
       provider: user.provider,
     });
 
     console.log("transaction hash ", txHash);
-    const utxoSpent = await user.getUtxo(inputUtxo.getCommitment(HASHER), true, MerkleTreeConfig.getTransactionMerkleTreePda(),IDL);
+    const utxoSpent = await user.getUtxo(
+      inputUtxo.getCommitment(HASHER),
+      true,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      IDL
+    );
     assert.equal(utxoSpent!.status, "spent");
     Utxo.equal(HASHER, utxoSpent!.utxo, inputUtxo, true);
   });

@@ -3,6 +3,7 @@ import {
   PublicKey,
   SystemProgram,
   TransactionInstruction,
+  TransactionSignature,
 } from "@solana/web3.js";
 import {
   ShieldTransaction,
@@ -186,7 +187,7 @@ export async function shieldProgramUtxo({
   appUtxoConfig?: AppUtxoConfig;
   account: Account;
   provider: Provider;
-}) {
+}): Promise<TransactionSignature[]> {
   const {
     tokenCtx,
     utxo,
@@ -226,7 +227,8 @@ export async function shieldProgramUtxo({
     hasher: provider.hasher,
     account,
   });
-  const txResult = await provider.sendAndConfirmTransaction(instructions);
+  const txResult =
+    await provider.sendAndConfirmSolanaInstructions(instructions);
   return txResult;
 }
 
