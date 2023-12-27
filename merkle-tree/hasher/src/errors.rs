@@ -20,6 +20,10 @@ pub enum HasherError {
     CannotUpdateLeaf,
     #[msg("Cannot update tree without changelog, only `append` is supported.")]
     AppendOnly,
+    #[msg("Invalid index, it exceeds the number of elements")]
+    IndexHigherThanMax,
+    #[msg("Could not find the low element")]
+    LowElementNotFound,
     #[msg("Invalid number of inputs.")]
     PoseidonInvalidNumberOfInputs,
     #[msg("Input is an empty slice.")]
