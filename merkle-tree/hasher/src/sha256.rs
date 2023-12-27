@@ -3,6 +3,7 @@ use anchor_lang::solana_program::hash::{hash, hashv};
 use crate::{
     errors::HasherError,
     zero_bytes::{sha256::ZERO_BYTES, ZeroBytes},
+    zero_indexed_leaf::sha256::ZERO_INDEXED_LEAF,
     Hash, Hasher,
 };
 
@@ -20,5 +21,9 @@ impl Hasher for Sha256 {
 
     fn zero_bytes() -> ZeroBytes {
         ZERO_BYTES
+    }
+
+    fn zero_indexed_leaf() -> [u8; 32] {
+        ZERO_INDEXED_LEAF
     }
 }
