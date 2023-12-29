@@ -1,0 +1,7 @@
+[package]
+name = "light-merkle-tree-reference"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+light-hasher = { path = "../hasher", version = "0.1.0" }

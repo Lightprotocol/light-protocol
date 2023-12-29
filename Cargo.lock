@@ -2816,6 +2816,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-merkle-tree-reference"
+version = "0.1.0"
+dependencies = [
+ "light-hasher",
+]
+
+[[package]]
 name = "light-poseidon"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
