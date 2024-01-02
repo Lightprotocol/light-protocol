@@ -20,3 +20,6 @@ default = []
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
 anchor-lang = "0.28.0"
 bytemuck = "1.14"
+
+# TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
+ahash = "=0.8.6"

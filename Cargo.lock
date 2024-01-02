@@ -17,6 +17,7 @@ name = "account-wasm"
 version = "0.1.0"
 dependencies = [
  "aes-gcm-siv",
+ "ahash 0.8.6",
  "ark-bn254 0.4.0",
  "ark-ff 0.4.2",
  "blake2b_simd",
@@ -97,14 +98,15 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.3"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c99f64d1e06488f620f932677e24bc6e2897582980441ae90a671415bd7ec2f"
+checksum = "91429305e9f0a25f6205c5b8e0d2db09e0708a7a6df0f42212bb56c32c8ac97a"
 dependencies = [
  "cfg-if",
  "getrandom 0.2.10",
  "once_cell",
  "version_check",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2322,7 +2324,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
- "ahash 0.8.3",
+ "ahash 0.8.6",
 ]
 
 [[package]]
@@ -2798,6 +2800,7 @@ dependencies = [
 name = "light-merkle-tree-program"
 version = "0.3.1"
 dependencies = [
+ "ahash 0.8.6",
  "aligned-sized",
  "anchor-lang",
  "anchor-spl",
@@ -2851,6 +2854,7 @@ dependencies = [
 name = "light-psp10in2out"
 version = "0.3.1"
 dependencies = [
+ "ahash 0.8.6",
  "anchor-lang",
  "anchor-spl",
  "groth16-solana",
@@ -2864,6 +2868,7 @@ dependencies = [
 name = "light-psp2in2out"
 version = "0.3.1"
 dependencies = [
+ "ahash 0.8.6",
  "anchor-lang",
  "anchor-spl",
  "groth16-solana",
@@ -2877,6 +2882,7 @@ dependencies = [
 name = "light-psp2in2out-storage"
 version = "0.3.1"
 dependencies = [
+ "ahash 0.8.6",
  "aligned-sized",
  "anchor-lang",
  "anchor-spl",
@@ -2890,6 +2896,7 @@ dependencies = [
 name = "light-psp4in4out-app-storage"
 version = "0.3.1"
 dependencies = [
+ "ahash 0.8.6",
  "anchor-lang",
  "anchor-spl",
  "bytemuck",
@@ -2915,6 +2922,7 @@ dependencies = [
 name = "light-user-registry"
 version = "0.3.0"
 dependencies = [
+ "ahash 0.8.6",
  "aligned-sized",
  "anchor-lang",
  "bytemuck",
@@ -4722,7 +4730,7 @@ version = "1.16.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "361cc834e5fbbe1a73f1d904fcb8ab052a665e5be6061bd1ba7ab478d7d17c9c"
 dependencies = [
- "ahash 0.8.3",
+ "ahash 0.8.6",
  "blake3",
  "block-buffer 0.10.4",
  "bs58 0.4.0",
@@ -4838,7 +4846,7 @@ version = "1.16.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4d44a4998ba6d9b37e89399d9ce2812e84489dd4665df619fb23366e1c2ec1b"
 dependencies = [
- "ahash 0.8.3",
+ "ahash 0.8.6",
  "bincode",
  "bv",
  "caps",
@@ -6789,6 +6797,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd"
 dependencies = [
  "time",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.7.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74d4d3961e53fa4c9a25a8637fc2bfaf2595b3d3ae34875568a5cf64787716be"
+dependencies = [
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.7.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ce1b18ccd8e73a9321186f97e46f9f04b778851177567b1975109d26a08d2a6"
+dependencies = [
+ "proc-macro2 1.0.68",
+ "quote 1.0.33",
+ "syn 2.0.38",
 ]
 
 [[package]]
