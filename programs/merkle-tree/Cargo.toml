@@ -51,6 +51,9 @@ light-utils = { version = "0.1.0", path = "../../utils" }
 light-macros = { version = "0.3.1", path = "../../macros/light" }
 light-sparse-merkle-tree = { path = "../../merkle-tree/sparse", version = "0.1.1" }
 
+# TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
+ahash = "=0.8.6"
+
 [dev-dependencies]
 solana-program-test = "1.9.16"
 solana-sdk = "1.16"
