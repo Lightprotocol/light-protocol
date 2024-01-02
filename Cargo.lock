@@ -24,6 +24,7 @@ dependencies = [
  "bs58 0.5.0",
  "console_error_panic_hook",
  "crypto_box",
+ "getrandom 0.2.10",
  "hex",
  "js-sys",
  "light-poseidon",
