@@ -521,10 +521,10 @@ describe("Test User", () => {
     }
   }
 
-  it.skip("random sol test", async () => {
+  it("random sol test", async () => {
     await randomTest(1, anchorProvider);
   });
-  it.only("random spl test", async () => {
+  it("random spl test", async () => {
     await randomTest(1, anchorProvider, "USDC");
   });
 

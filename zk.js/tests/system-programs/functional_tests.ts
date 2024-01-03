@@ -43,8 +43,6 @@ import {
   getVerifierProgramId,
   createUnshieldTransaction,
   UnshieldTransactionInput,
-  DEFAULT_ZERO,
-  Action,
   syncInputUtxosMerkleProofs,
 } from "../../src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
@@ -76,10 +74,7 @@ describe("verifier_program", () => {
 
     HASHER = await WasmHasher.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
-    ACCOUNT = new Account({
-      hasher: HASHER,
-      seed,
-    });
+    ACCOUNT = Account.createFromSeed(HASHER, seed);
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
@@ -261,13 +256,13 @@ describe("verifier_program", () => {
             new anchor.BN(shieldFeeAmount),
             new anchor.BN(shieldAmount),
           ],
-          publicKey: ACCOUNT.pubkey,
+          publicKey: ACCOUNT.keypair.publicKey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         })
       : new Utxo({
           hasher: HASHER,
           amounts: [new anchor.BN(shieldFeeAmount)],
-          publicKey: ACCOUNT.pubkey,
+          publicKey: ACCOUNT.keypair.publicKey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         });
 

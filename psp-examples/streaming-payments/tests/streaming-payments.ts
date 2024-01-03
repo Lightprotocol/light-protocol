@@ -136,7 +136,7 @@ describe("Streaming Payments tests", () => {
     const outputUtxoSol = new Utxo({
       hasher: HASHER,
       assets: [SystemProgram.programId],
-      publicKey: lightUser.account.pubkey,
+      publicKey: lightUser.account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
       appData: { endSlot: new BN(1), rate: new BN(1) },
       appDataIdl: IDL,
@@ -409,7 +409,7 @@ class PaymentStreamClient {
     const streamInitUtxo = new Utxo({
       hasher: this.hasher,
       assets: [SystemProgram.programId],
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       amounts: [amount],
       appData: appData,
       appDataIdl: this.idl,

@@ -84,7 +84,12 @@ interface HashStrategy {
     blake2str(input: string, hash_length: number): Uint8Array;
     blake2(input: Uint8Array, hash_length: number): Uint8Array;
     poseidon(inputs: Array<any>): Uint8Array;
-    account(seed: string): AccountWasm;
+    seedAccount(seed: string): AccountWasm;
+    aesAccount(aes: Uint8Array): AccountWasm;
+    burnerAccount(seed: string, index: string): AccountWasm;
+    burnerSeedAccount(seed: string): AccountWasm;
+    privateKeyAccount(privateKey: Uint8Array, encryptionPrivateKey: Uint8Array, aesSecret: Uint8Array): AccountWasm;
+    publicKeyAccount(publicKey: Uint8Array, encryptionPublicKey: Uint8Array | undefined): AccountWasm;
 }
 
 
@@ -112,9 +117,30 @@ function wasmAccount(hasher: HashStrategy): HashCreator {
             return bn.toString();
         }
 
-        account(seed: string): AccountWasm {
-            return hasher.account(seed);
+        seedAccount(seed: string): AccountWasm {
+            return hasher.seedAccount(seed);
         }
+
+        aesAccount(aesSecret: Uint8Array): AccountWasm {
+            return hasher.aesAccount(aesSecret);
+        }
+
+        burnerAccount(seed: string, index: string): AccountWasm {
+            return hasher.burnerAccount(seed, index);
+        }
+
+        burnerSeedAccount(seed: string): AccountWasm {
+            return hasher.burnerSeedAccount(seed);
+        }
+
+        privateKeyAccount(privateKey: Uint8Array, encryptionPrivateKey: Uint8Array, aesSecret: Uint8Array): AccountWasm {
+            return hasher.privateKeyAccount(privateKey, encryptionPrivateKey, aesSecret);
+        }
+
+        publicKeyAccount(publicKey: Uint8Array, encryptionPublicKey: Uint8Array | undefined): AccountWasm {
+            return hasher.publicKeyAccount(publicKey, encryptionPublicKey);
+        }
+
     };
 
     return {
@@ -131,7 +157,12 @@ const loadWasmSimd = async (module?: InitInput) => {
                 blake2str: blake2strSimd,
                 blake2: blake2Simd,
                 poseidon: poseidonSimd,
-                account: AccountSimd.new
+                seedAccount: AccountSimd.new,
+                aesAccount: AccountSimd.fromAesSecret,
+                burnerAccount: AccountSimd.burner,
+                burnerSeedAccount: AccountSimd.createFromBurnerSeed,
+                privateKeyAccount: AccountSimd.fromPrivateKey,
+                publicKeyAccount: AccountSimd.fromPublicKey,
             });
         });
     }
@@ -141,12 +172,16 @@ const loadWasmSimd = async (module?: InitInput) => {
 const loadWasm = async (module?: InitInput) => {
     if (sisdMemory === undefined) {
         sisdMemory = init(module ?? wasmInit?.()).then((x) => {
-            // grow by 1 page to hold key, results, and data hashing
             return wasmAccount({
                 blake2str: blake2strWasm,
                 blake2: blake2Wasm,
                 poseidon: poseidonWasm,
-                account: AccountWasm.new
+                seedAccount: AccountSimd.new,
+                aesAccount: AccountSimd.fromAesSecret,
+                burnerAccount: AccountSimd.burner,
+                burnerSeedAccount: AccountSimd.createFromBurnerSeed,
+                privateKeyAccount: AccountSimd.fromPrivateKey,
+                publicKeyAccount: AccountSimd.fromPublicKey,
             });
         });
     }
@@ -157,7 +192,7 @@ const loadWasm = async (module?: InitInput) => {
 // https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/40269813c83f7e9ff370afc92cde3cc0456c557e/src/detectors/simd/module.wat
 //
 // Changes:
-//  - Validation is cached so it needs to only run once
+//  - Validation is cached, so it needs to only run once
 //  - There's no need to mark as async
 let simdEnabled: boolean | undefined;
 export const hasSimd = () =>

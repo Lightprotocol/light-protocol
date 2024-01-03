@@ -211,7 +211,7 @@ export class MultiSigClient {
       return new Utxo({
         hasher: this.hasher,
         assets: [SystemProgram.programId, splAsset],
-        publicKey: this.multiSigParams.account.pubkey,
+        publicKey: this.multiSigParams.account.keypair.publicKey,
         amounts: [realSolAmount, splAmount],
         appData,
         appDataIdl: IDL,
@@ -222,7 +222,7 @@ export class MultiSigClient {
       return new Utxo({
         hasher: this.hasher,
         assets: [SystemProgram.programId],
-        publicKey: this.multiSigParams.account.pubkey,
+        publicKey: this.multiSigParams.account.keypair.publicKey,
         amounts: [solAmount],
         appData,
         appDataIdl: IDL,

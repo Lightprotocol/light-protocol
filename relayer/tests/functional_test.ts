@@ -22,7 +22,6 @@ import {
   Relayer,
   RELAYER_FEE,
   TOKEN_ACCOUNT_FEE,
-  BN_0,
   MerkleTreeConfig,
   merkleTreeProgramId,
   AUTHORITY,
@@ -136,9 +135,7 @@ describe("API tests", () => {
       id: bs58.encode(
         user.account.generateUtxoPrefixHash(
           MerkleTreeConfig.getTransactionMerkleTreePda(),
-          BN_0,
-          4,
-          hasher,
+          0,
         ),
       ),
       merkleTreePdaPublicKey:
@@ -212,9 +209,7 @@ describe("API tests", () => {
         bs58.encode(
           user.account.generateUtxoPrefixHash(
             MerkleTreeConfig.getTransactionMerkleTreePda(),
-            BN_0,
-            4,
-            hasher,
+            0,
           ),
         ),
       ],

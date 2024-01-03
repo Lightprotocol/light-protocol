@@ -13,7 +13,6 @@ import {
 } from "../constants";
 import {
   Account,
-  SolMerkleTree,
   TransactionError,
   TransactionErrorCode,
   hashAndTruncateToCircuit,
@@ -836,6 +835,7 @@ export function getTxIntegrityHash(
       "getTxIntegrityHash",
       "",
     );
+
   if (encryptedUtxos && encryptedUtxos.length > 128 * verifierConfig.out)
     throw new TransactionParametersError(
       TransactionParametersErrorCode.ENCRYPTED_UTXOS_TOO_LONG,
@@ -855,12 +855,7 @@ export function getTxIntegrityHash(
     verifierProgramId.toBase58() === lightPsp2in2outStorageId.toBase58()
       ? new Uint8Array(32)
       : accounts.recipientSpl.toBytes();
-  // console.log("messageHash ", messageHash);
-  // console.log("recipientSpl ", Array.from(recipientSpl));
-  // console.log("accounts.recipientSol ", Array.from(accounts.recipientSol.toBytes()));
-  // console.log("accounts.relayerPublicKey ", Array.from(accounts.relayerPublicKey.toBytes()));
-  // console.log("relayerFee ", Array.from(relayerFee.toArrayLike(Buffer, "be", 8)));
-  // console.log("encryptedUtxos ", Array.from(encryptedUtxos));
+
   const hash = sha256
     .create()
     .update(messageHash)
@@ -892,6 +887,7 @@ export async function encryptOutUtxos(
       console.log(
         "Warning encrypting utxos with app data as normal utxo without app data. App data will not be encrypted.",
       );
+
     encryptedOutputs.push(
       await outputUtxos[utxo].encrypt({
         hasher,
@@ -1074,13 +1070,13 @@ export function createPrivateTransactionVariables({
     inputUtxos,
     verifierConfig.in,
     hasher,
-    account.pubkey,
+    account.keypair.publicKey,
   );
   const filledOutputUtxos = addEmptyUtxos(
     outputUtxos,
     verifierConfig.out,
     hasher,
-    account.pubkey,
+    account.keypair.publicKey,
   );
 
   const { assetPubkeysCircuit, assetPubkeys } = getAssetPubkeys(
@@ -1246,7 +1242,7 @@ export async function createTransaction(
     relayerFee,
   } = transactionInput;
   const verifierProgramId = pspId ? pspId : systemPspId;
-  // TODO: unifiy systemPspId and verifierProgramId by adding verifierConfig to psps
+  // TODO: unify systemPspId and verifierProgramId by adding verifierConfig to psps
   const verifierConfig = getVerifierConfig(getSystemPspIdl(systemPspId));
 
   const privateVars = createPrivateTransactionVariables({
@@ -1278,6 +1274,7 @@ export async function createTransaction(
     transactionMerkleTreePubkey,
     verifierConfig,
   );
+
   const txIntegrityHash = getTxIntegrityHash(
     relayerFee,
     encryptedUtxos,
