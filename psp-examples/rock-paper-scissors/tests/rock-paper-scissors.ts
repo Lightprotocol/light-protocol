@@ -137,7 +137,7 @@ class Game {
       slot: new BN(slot),
       gameAmount,
       player2CommitmentHash: gameCommitmentHash,
-      userPubkey: account.pubkey,
+      userPubkey: account.keypair.publicKey,
     };
     gameParameters.gameCommitmentHash = Game.generateGameCommitmentHash(
       lightProvider,
@@ -151,7 +151,7 @@ class Game {
       amounts: [gameAmount],
       appData: {
         gameCommitmentHash: gameParameters.gameCommitmentHash,
-        userPubkey: account.pubkey,
+        userPubkey: account.keypair.publicKey,
       },
       appDataIdl: IDL,
       verifierAddress: verifierProgramId,

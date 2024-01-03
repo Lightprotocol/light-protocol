@@ -11,7 +11,7 @@
     "test-utxo": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/utxo.test.ts --exit",
     "test-utxo-new": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/utxo-new.test.ts --exit",
     "test-program-utxo": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/program-utxo.test.ts --exit",
-    "test-verifiers": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/verifiers.test.ts --require mocha-suppress-logs --exit",
+    "test-verifiers": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/verifiers.test.ts --exit",
     "test-circuits": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/circuits.test.ts --exit",
     "test-transaction": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/transaction.test.ts --exit",
     "test-prover": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/prover.test.ts --exit",

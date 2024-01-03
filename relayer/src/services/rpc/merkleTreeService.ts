@@ -86,7 +86,7 @@ export const getMerkleProofByIndexBatch = async (req: any, res: any) => {
       merkleTree.pubkey,
       merkleTree.merkleTree.root(),
     );
-    // issue is that zk js expects proofs to returned but rn an error and no proofs are returnerd
+    // issue is that zk js expects proofs to returned but rn an error and no proofs are returned
     const merkleProofs = indexes.map(
       (index: string) => merkleTree.merkleTree.path(Number(index)).pathElements,
     );

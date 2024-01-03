@@ -19,7 +19,6 @@ import {
   MINT,
   Provider as LightProvider,
   Utxo,
-  UTXO_PREFIX_LENGTH,
   UtxoError,
   UtxoErrorCode,
   lightPsp4in4outAppStorageId,
@@ -27,7 +26,6 @@ import {
 } from "../src";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { randomBytes } from "tweetnacl";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -47,11 +45,11 @@ describe("Utxo Functional", () => {
   it("rnd utxo functional loop 100", async () => {
     for (let i = 0; i < 100; i++) {
       // try basic tests for rnd empty utxo
-      const utxo4Account = new Account({ hasher });
+      const utxo4Account = Account.random(hasher);
       const utxo4 = new Utxo({
         hasher,
         amounts: [new BN(123)],
-        publicKey: utxo4Account.pubkey,
+        publicKey: utxo4Account.keypair.publicKey,
         appDataHash: new BN(lightPsp4in4outAppStorageId.toBuffer()),
         includeAppData: false,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -148,7 +146,7 @@ describe("Utxo Functional", () => {
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
     const inputs = {
-      keypair: new Account({ hasher, seed: seed32 }),
+      keypair: Account.createFromSeed(hasher, seed32),
       amountFee,
       amountToken,
       assetPubkey,
@@ -162,7 +160,7 @@ describe("Utxo Functional", () => {
       hasher,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      publicKey: inputs.keypair.pubkey,
+      publicKey: inputs.keypair.keypair.publicKey,
       encryptionPublicKey: inputs.keypair.encryptionKeypair.publicKey,
       blinding: inputs.blinding,
       index: inputs.index,
@@ -184,7 +182,7 @@ describe("Utxo Functional", () => {
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
     const inputs = {
-      keypair: new Account({ hasher, seed: seed32 }),
+      account: Account.createFromSeed(hasher, seed32),
       amountFee,
       amountToken,
       assetPubkey,
@@ -198,7 +196,7 @@ describe("Utxo Functional", () => {
       hasher,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      publicKey: inputs.keypair.pubkey,
+      publicKey: inputs.account.keypair.publicKey,
       blinding: inputs.blinding,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -233,7 +231,7 @@ describe("Utxo Functional", () => {
     );
 
     assert.equal(
-      utxo0.getNullifier({ hasher, account: inputs.keypair })?.toString(),
+      utxo0.getNullifier({ hasher, account: inputs.account })?.toString(),
       "20156180646641338299834793922899381259815381519712122415534487127198510064334",
     );
 
@@ -242,7 +240,7 @@ describe("Utxo Functional", () => {
     // fromBytes
     const utxo1 = Utxo.fromBytes({
       hasher,
-      account: inputs.keypair,
+      account: inputs.account,
       bytes,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -252,7 +250,7 @@ describe("Utxo Functional", () => {
     // encrypt
     const encBytes = await utxo1.encrypt({
       hasher,
-      account: inputs.keypair,
+      account: inputs.account,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
 
@@ -260,7 +258,7 @@ describe("Utxo Functional", () => {
     const utxo3 = await Utxo.decryptUnchecked({
       hasher,
       encBytes,
-      account: inputs.keypair,
+      account: inputs.account,
       aes: true,
       index: inputs.index,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -278,13 +276,13 @@ describe("Utxo Functional", () => {
       throw new Error("decrypt failed");
     }
 
-    const publicKey = inputs.keypair.getPublicKey();
+    const publicKey = inputs.account.getPublicKey();
     // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
     const receivingUtxo = new Utxo({
       hasher,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      publicKey: Account.fromPubkey(publicKey, hasher).pubkey,
+      publicKey: Account.fromPubkey(publicKey, hasher).keypair.publicKey,
       encryptionPublicKey: Account.fromPubkey(publicKey, hasher)
         .encryptionKeypair.publicKey,
       blinding: inputs.blinding,
@@ -302,7 +300,7 @@ describe("Utxo Functional", () => {
     const receivingUtxo1Unchecked = await Utxo.decryptUnchecked({
       hasher,
       encBytes: encBytesNacl,
-      account: inputs.keypair,
+      account: inputs.account,
       index: inputs.index,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       aes: false,
@@ -324,7 +322,7 @@ describe("Utxo Functional", () => {
       hasher,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      publicKey: Account.fromPubkey(publicKey, hasher).pubkey,
+      publicKey: Account.fromPubkey(publicKey, hasher).keypair.publicKey,
       encryptionPublicKey: Account.fromPubkey(publicKey, hasher)
         .encryptionKeypair.publicKey,
       blinding: inputs.blinding,
@@ -338,14 +336,12 @@ describe("Utxo Functional", () => {
       "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
     );
 
-    const account = new Account({
-      hasher,
-      seed: bs58.encode(new Uint8Array(32).fill(1)),
-    });
+    const seed = bs58.encode(new Uint8Array(32).fill(1));
+    const account = Account.createFromSeed(hasher, seed);
     const outputUtxo = new Utxo({
       hasher,
       assets: [SystemProgram.programId],
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
       appData: { releaseSlot: BN_1 },
       appDataIdl: TEST_PSP_IDL,
@@ -406,9 +402,9 @@ describe("Utxo Errors", () => {
   before(async () => {
     lightProvider = await LightProvider.loadMock();
     hasher = await WasmHasher.getInstance();
-    keypair = new Account({ hasher, seed: seed32 });
+    keypair = Account.createFromSeed(hasher, seed32);
     inputs = {
-      keypair: new Account({ hasher, seed: seed32 }),
+      keypair: Account.createFromSeed(hasher, seed32),
       amountFee,
       amountToken,
       assetPubkey,
@@ -424,7 +420,7 @@ describe("Utxo Errors", () => {
     const pubkeyUtxo = new Utxo({
       hasher,
       amounts: [BN_1],
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
 
@@ -445,7 +441,7 @@ describe("Utxo Errors", () => {
     const pubkeyUtxo = new Utxo({
       hasher,
       amounts: [BN_1],
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       index: 1,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
@@ -521,7 +517,7 @@ describe("Utxo Errors", () => {
         hasher,
         assets: inputs.assets,
         amounts: inputs.amounts,
-        publicKey: inputs.keypair.pubkey,
+        publicKey: inputs.keypair.keypair.publicKey,
         blinding: inputs.blinding,
         appData: new Array(32).fill(1),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,

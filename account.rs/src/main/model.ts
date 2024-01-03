@@ -1,5 +1,5 @@
 import { BN } from "@coral-xyz/anchor";
-import { Account } from "./wasm/account_wasm";
+import {Account as AccountWasm, Account} from "./wasm/account_wasm";
 
 export { Account } from "./wasm/account_wasm";
 
@@ -8,7 +8,12 @@ export interface Hasher {
     poseidonHash(input: string[] | BN[]): Uint8Array;
     poseidonHashString(input: string[] | BN[]): string;
     poseidonHashBN(input: string[] | BN[]): BN;
-    account(seed: string): Account;
+    seedAccount(seed: string): Account;
+    aesAccount(aesSecret: Uint8Array): Account;
+    privateKeyAccount(privateKey: Uint8Array, encryptionPrivateKey: Uint8Array, aesSecret: Uint8Array): Account;
+    publicKeyAccount(publicKey: Uint8Array, encryptionPublicKey: Uint8Array | undefined): Account;
+    burnerAccount(seed: string, index: string): Account;
+    burnerSeedAccount(seed: string): Account;
 }
 
 export interface HashCreator {

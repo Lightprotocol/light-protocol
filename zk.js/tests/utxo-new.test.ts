@@ -32,13 +32,13 @@ describe("Utxo Functional", () => {
   before(async () => {
     hasher = await WasmHasher.getInstance();
     lightProvider = await LightProvider.loadMock();
-    account = new Account({ hasher, seed: seed32 });
+    account = Account.createFromSeed(hasher, seed32);
   });
 
   it("create out utxo", async () => {
     for (let i = 0; i < 100; i++) {
       const outUtxo = createOutUtxo({
-        publicKey: account.pubkey,
+        publicKey: account.keypair.publicKey,
         amounts: [new BN(123), new BN(456)],
         assets: [SystemProgram.programId, MINT],
         hasher,
@@ -86,7 +86,7 @@ describe("Utxo Functional", () => {
       compareOutUtxos(decryptedUtxo.value!, outUtxo);
 
       const asymOutUtxo = createOutUtxo({
-        publicKey: account.pubkey,
+        publicKey: account.keypair.publicKey,
         encryptionPublicKey: account.encryptionKeypair.publicKey,
         amounts: [new BN(123), new BN(456)],
         assets: [SystemProgram.programId, MINT],
@@ -124,7 +124,7 @@ describe("Utxo Functional", () => {
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
     const inputs = {
-      keypair: new Account({ hasher, seed: seed32 }),
+      keypair: Account.createFromSeed(hasher, seed32),
       amountFee,
       amountToken,
       assetPubkey,
@@ -136,7 +136,7 @@ describe("Utxo Functional", () => {
     const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
 
     const outUtxo = createOutUtxo({
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       amounts: inputs.amounts,
       assets: inputs.assets,
       blinding: inputs.blinding,
@@ -204,6 +204,7 @@ describe("Utxo Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       compressed: true,
     });
+
     if (utxo3.value) {
       // Utxo.equal(hasher, utxo0, utxo3.value);
       compareOutUtxos(utxo3.value, outUtxo);
@@ -258,7 +259,7 @@ describe("Utxo Functional", () => {
 
     // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
     const outUtxoNacl = createOutUtxo({
-      publicKey: account.pubkey,
+      publicKey: account.keypair.publicKey,
       encryptionPublicKey: account.encryptionKeypair.publicKey,
       amounts: inputs.amounts,
       assets: inputs.assets,

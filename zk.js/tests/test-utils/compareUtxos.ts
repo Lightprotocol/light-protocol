@@ -1,5 +1,5 @@
 import { assert } from "chai";
-import { OutUtxo } from "../../src/index";
+import { OutUtxo } from "../../src";
 
 export function compareOutUtxos(utxo1: OutUtxo, utxo2: OutUtxo): void {
   assert.strictEqual(

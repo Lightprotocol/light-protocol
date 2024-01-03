@@ -95,7 +95,9 @@ export async function prepareStoreProgramUtxo({
         amounts: [amountSol, amountSpl],
         assets: [SystemProgram.programId, tokenCtx.mint],
         ...appUtxoConfig,
-        publicKey: recipientAccount ? recipientAccount.pubkey : account.pubkey,
+        publicKey: recipientAccount
+          ? recipientAccount.keypair.publicKey
+          : account.keypair.publicKey,
         encryptionPublicKey: recipientAccount
           ? recipientAccount.encryptionKeypair.publicKey
           : undefined,

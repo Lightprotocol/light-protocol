@@ -116,6 +116,18 @@ export const arrToStr = (uint8arr: Uint8Array) =>
 export const strToArr = (str: string) =>
   new Uint8Array(Buffer.from(str.slice(3), "hex"));
 
+export function isEqualUint8Array(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function decimalConversion({
   tokenCtx,
   skipDecimalConversions,

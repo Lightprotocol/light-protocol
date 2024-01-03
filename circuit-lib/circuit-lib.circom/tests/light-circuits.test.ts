@@ -15,11 +15,11 @@ describe("verifier_program", () => {
   before(async () => {
     try {
       const provider = new anchor.AnchorProvider(
-        await new Connection("http://127.0.0.1:8899"),
+        new Connection("http://127.0.0.1:8899"),
         new anchor.Wallet(SolanaKeypair.generate()),
         confirmConfig,
       );
-      await anchor.setProvider(provider);
+      anchor.setProvider(provider);
     } catch (error) {
       console.log("expected local test validator to be running");
       process.exit();

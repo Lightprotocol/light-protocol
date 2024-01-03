@@ -342,7 +342,7 @@ export class MerkleTreeConfig {
 
   async updateMerkleTreeAuthority(newAuthority: PublicKey, test = false) {
     if (!this.merkleTreeAuthorityPda) {
-      await this.getMerkleTreeAuthorityPda();
+      this.getMerkleTreeAuthorityPda();
     }
     if (!this.payer) throw new Error("Payer undefined");
 

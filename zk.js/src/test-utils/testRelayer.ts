@@ -16,7 +16,6 @@ import {
   RelayerIndexedTransaction,
   RpcIndexedTransaction,
 } from "../types";
-import { airdropSol } from "./airdrop";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   MerkleTreeConfig,
