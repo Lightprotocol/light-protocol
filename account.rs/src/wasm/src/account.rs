@@ -437,7 +437,11 @@ impl Account {
             .cloned()
             .collect::<Vec<_>>()
             .try_into()
-            .map_err(|_| AccountError::Generic("get_combined_public_key: error converting to a 64-byte array".to_string()))?;
+            .map_err(|_| {
+                AccountError::Generic(
+                    "get_combined_public_key: error converting to a 64-byte array".to_string(),
+                )
+            })?;
 
         Ok(bs58::encode(combined_public_keys).into_string())
     }
