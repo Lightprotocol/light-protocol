@@ -109,7 +109,7 @@ impl Account {
         let input = format!("{}burnerSeed{}", seed, index);
 
         let burner_seed = blake2_string(input, ACCOUNT_HASH_LENGTH);
-        let burner_arr = vec_to_key(&burner_seed.clone())?;
+        let burner_arr = vec_to_key(&burner_seed)?;
         let burner_arr_string = vec_to_string(&burner_seed);
         let burner_seed_string = bs58::encode(burner_seed).into_string();
 
