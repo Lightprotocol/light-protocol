@@ -20,10 +20,6 @@ use crate::{
 };
 
 pub const UTXO_PREFIX_LENGTH: usize = 4;
-// const SECRET_AUTHKEY: [u8; 32] = [
-//     155, 249, 234, 55, 8, 49, 0, 14, 84, 72, 10, 224, 21, 139, 87, 102, 115, 88,
-//     217, 72, 137, 38, 0, 179, 93, 202, 220, 31, 143, 79, 247, 200,
-// ];
 
 #[derive(Debug)]
 pub enum AccountError {
@@ -132,7 +128,7 @@ impl Account {
         let burner_seed_vec = bs58::decode(burner_seed)
             .into_vec()
             .map_err(|_| AccountError::Generic("Invalid burner seed".to_string()))?;
-        let burner_arr = vec_to_key(&burner_seed_vec.clone())?;
+        let burner_arr = vec_to_key(&burner_seed_vec)?;
         let burner_arr_string = vec_to_string(&burner_seed_vec);
 
         let mut account = Self::new(burner_seed)?;
@@ -434,17 +430,16 @@ impl Account {
     }
 
     #[wasm_bindgen(js_name = getCombinedPublicKey)]
-    pub fn get_combined_public_key(&self) -> String {
-        let combined_public_keys: [u8; 64] = self
-            .public_key
-            .iter()
+    pub fn get_combined_public_key(&self) -> Result<String, AccountError> {
+        let combined_keys_iter = self.public_key.iter().chain(&self.encryption_public_key);
+
+        let combined_public_keys: [u8; 64] = combined_keys_iter
             .cloned()
-            .chain(self.encryption_public_key.iter().cloned())
             .collect::<Vec<_>>()
             .try_into()
-            .unwrap();
+            .map_err(|_| AccountError::Generic("get_combined_public_key: error converting to a 64-byte array".to_string()))?;
 
-        bs58::encode(combined_public_keys).into_string()
+        Ok(bs58::encode(combined_public_keys).into_string())
     }
 
     #[wasm_bindgen(js_name = getEncryptionPrivateKey)]
