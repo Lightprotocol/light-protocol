@@ -90,9 +90,9 @@ export class Account {
       }
       if (bs58.decode(seed).length !== 32) {
         throw new AccountError(
-            AccountErrorCode.INVALID_SEED_SIZE,
-            "constructor",
-            "seed too short length less than 32",
+          AccountErrorCode.INVALID_SEED_SIZE,
+          "constructor",
+          "seed too short length less than 32",
         );
       }
       if (burnerSeed) {
@@ -100,12 +100,17 @@ export class Account {
       } else {
         this.wasmAccount = hasher.burnerAccount(seed, burnerIndex);
       }
-
     } else if (privateKey && encryptionPrivateKey && aesSecret) {
-      this.wasmAccount = hasher.privateKeyAccount(Uint8Array.from([...privateKey.toArray("be", 32)]), encryptionPrivateKey, aesSecret);
-
+      this.wasmAccount = hasher.privateKeyAccount(
+        Uint8Array.from([...privateKey.toArray("be", 32)]),
+        encryptionPrivateKey,
+        aesSecret,
+      );
     } else if (publicKey) {
-      this.wasmAccount = hasher.publicKeyAccount(Uint8Array.from([...publicKey.toArray("be", 32)]), encryptionPublicKey);
+      this.wasmAccount = hasher.publicKeyAccount(
+        Uint8Array.from([...publicKey.toArray("be", 32)]),
+        encryptionPublicKey,
+      );
     } else {
       if (!seed) {
         throw new AccountError(
@@ -129,7 +134,6 @@ export class Account {
   }
 
   // constructors
-
 
   static random(hasher: Hasher): Account {
     return new Account({ hasher });
@@ -165,7 +169,12 @@ export class Account {
   }
 
   static createBurner(hasher: Hasher, seed: string, burnerIndex: BN): Account {
-    return new Account({ hasher, seed, burner: true, burnerIndex: burnerIndex.toString() });
+    return new Account({
+      hasher,
+      seed,
+      burner: true,
+      burnerIndex: burnerIndex.toString(),
+    });
   }
 
   static fromBurnerSeed(hasher: Hasher, seed: string): Account {
@@ -233,9 +242,12 @@ export class Account {
 
   getAesUtxoViewingKey(
     merkleTreePdaPublicKey: PublicKey,
-    salt: string
+    salt: string,
   ): Uint8Array {
-    return this.wasmAccount.getAesUtxoViewingKey(merkleTreePdaPublicKey.toBytes(), salt);
+    return this.wasmAccount.getAesUtxoViewingKey(
+      merkleTreePdaPublicKey.toBytes(),
+      salt,
+    );
   }
 
   getUtxoPrefixViewingKey(salt: string): Uint8Array {
@@ -243,11 +255,19 @@ export class Account {
   }
 
   generateLatestUtxoPrefixHash(merkleTreePublicKey: PublicKey): Uint8Array {
-    return this.wasmAccount.generateLatestUtxoPrefixHash(merkleTreePublicKey.toBytes());
+    return this.wasmAccount.generateLatestUtxoPrefixHash(
+      merkleTreePublicKey.toBytes(),
+    );
   }
 
-  generateUtxoPrefixHash(merkleTreePublicKey: PublicKey, prefixCounter: number) {
-    return this.wasmAccount.generateUtxoPrefixHash(merkleTreePublicKey.toBytes(), prefixCounter);
+  generateUtxoPrefixHash(
+    merkleTreePublicKey: PublicKey,
+    prefixCounter: number,
+  ) {
+    return this.wasmAccount.generateUtxoPrefixHash(
+      merkleTreePublicKey.toBytes(),
+      prefixCounter,
+    );
   }
 
   getPublicKey(): string {
@@ -264,10 +284,13 @@ export class Account {
   encryptAesUtxo(
     messageBytes: Uint8Array,
     merkleTreePdaPublicKey: PublicKey,
-    commitment: Uint8Array
+    commitment: Uint8Array,
   ): Uint8Array {
-
-    const encryptedBytes = this.wasmAccount.encryptAesUtxo(messageBytes, merkleTreePdaPublicKey.toBytes(), commitment);
+    const encryptedBytes = this.wasmAccount.encryptAesUtxo(
+      messageBytes,
+      merkleTreePdaPublicKey.toBytes(),
+      commitment,
+    );
     return encryptedBytes;
   }
 
@@ -282,17 +305,14 @@ export class Account {
     iv12: Uint8Array = nacl.randomBytes(12),
   ) {
     if (!this.aesSecret) {
-      throw new AccountError(
-        UtxoErrorCode.AES_SECRET_UNDEFINED,
-        "encryptAes",
-      );
+      throw new AccountError(UtxoErrorCode.AES_SECRET_UNDEFINED, "encryptAes");
     }
 
     if (iv12.length != 12) {
       throw new AccountError(
-          UtxoErrorCode.INVALID_NONCE_LENGTH,
-          "encryptAes",
-          `Required iv length 12, provided ${iv12.length}`,
+        UtxoErrorCode.INVALID_NONCE_LENGTH,
+        "encryptAes",
+        `Required iv length 12, provided ${iv12.length}`,
       );
     }
 
@@ -310,7 +330,7 @@ export class Account {
   decryptAesUtxo(
     encryptedBytes: Uint8Array,
     merkleTreePdaPublicKey: PublicKey,
-    commitment: Uint8Array
+    commitment: Uint8Array,
   ): Result<Uint8Array | null, Error> {
     // Check if account secret key is available for decrypting using AES
     if (!this.aesSecret) {
@@ -321,7 +341,11 @@ export class Account {
     }
 
     try {
-      const decryptedAesUtxo = this.wasmAccount.decryptAesUtxo(encryptedBytes, merkleTreePdaPublicKey.toBytes(), commitment);
+      const decryptedAesUtxo = this.wasmAccount.decryptAesUtxo(
+        encryptedBytes,
+        merkleTreePdaPublicKey.toBytes(),
+        commitment,
+      );
       return Result.Ok(decryptedAesUtxo);
     } catch (e: any) {
       return Result.Err(Error(e.toString()));
@@ -334,9 +358,7 @@ export class Account {
    * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
    * @throws Will throw an error if the aesSecret is undefined.
    */
-  decryptAes(
-    encryptedBytes: Uint8Array,
-  ): Uint8Array | null {
+  decryptAes(encryptedBytes: Uint8Array): Uint8Array | null {
     if (!this.aesSecret) {
       throw new AccountError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decryptAes");
     }

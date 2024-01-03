@@ -5,7 +5,8 @@ import {
   Account,
   AccountError,
   AccountErrorCode,
-  ADMIN_AUTH_KEYPAIR, isEqualUint8Array,
+  ADMIN_AUTH_KEYPAIR,
+  isEqualUint8Array,
   MerkleTreeConfig,
   newNonce,
   useWallet,
@@ -19,7 +20,7 @@ const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
 const circomlibjs = require("circomlibjs");
-const { buildBabyjub  } = circomlibjs;
+const { buildBabyjub } = circomlibjs;
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
@@ -120,10 +121,19 @@ describe("Test Account Functional", () => {
     k1: Account,
     fromPrivkey: boolean = false,
   ) => {
-    assert.equal(k0.keypair.privateKey.toString(), k1.keypair.privateKey.toString());
-    assert.equal(k0.keypair.publicKey.toString(), k1.keypair.publicKey.toString());
+    assert.equal(
+      k0.keypair.privateKey.toString(),
+      k1.keypair.privateKey.toString(),
+    );
+    assert.equal(
+      k0.keypair.publicKey.toString(),
+      k1.keypair.publicKey.toString(),
+    );
     if (k0.wasmAccount.getBurnerSeed() && k1.wasmAccount.getBurnerSeed()) {
-      assert.equal(k0.wasmAccount.getBurnerSeed().toString(), k1.wasmAccount.getBurnerSeed().toString());
+      assert.equal(
+        k0.wasmAccount.getBurnerSeed().toString(),
+        k1.wasmAccount.getBurnerSeed().toString(),
+      );
     }
     assert.equal(bs58.encode(k0.aesSecret!), bs58.encode(k1.aesSecret!));
     if (!fromPrivkey) {
@@ -139,14 +149,27 @@ describe("Test Account Functional", () => {
     k1: Account,
     burner = false,
   ) => {
-    assert.notEqual(k0.keypair.privateKey.toString(), k1.keypair.privateKey.toString());
+    assert.notEqual(
+      k0.keypair.privateKey.toString(),
+      k1.keypair.privateKey.toString(),
+    );
     assert.notEqual(
       k0.encryptionKeypair.publicKey.toString(),
       k1.encryptionKeypair.publicKey.toString(),
     );
-    assert.notEqual(k0.keypair.publicKey.toString(), k1.keypair.publicKey.toString());
-    if (burner && k0.wasmAccount.getBurnerSeed() && k1.wasmAccount.getBurnerSeed() ) {
-      assert.notEqual(k0.wasmAccount.getBurnerSeed().toString(), k1.wasmAccount.getBurnerSeed().toString());
+    assert.notEqual(
+      k0.keypair.publicKey.toString(),
+      k1.keypair.publicKey.toString(),
+    );
+    if (
+      burner &&
+      k0.wasmAccount.getBurnerSeed() &&
+      k1.wasmAccount.getBurnerSeed()
+    ) {
+      assert.notEqual(
+        k0.wasmAccount.getBurnerSeed().toString(),
+        k1.wasmAccount.getBurnerSeed().toString(),
+      );
     }
   };
 
@@ -158,8 +181,14 @@ describe("Test Account Functional", () => {
       account.encryptionKeypair.publicKey.toString(),
       reference.encryptionPublicKey.toString(),
     );
-    assert.equal(account.keypair.privateKey.toString(), reference.privkey.toString());
-    assert.equal(account.keypair.publicKey.toString(), reference.pubkey.toString());
+    assert.equal(
+      account.keypair.privateKey.toString(),
+      reference.privkey.toString(),
+    );
+    assert.equal(
+      account.keypair.publicKey.toString(),
+      reference.pubkey.toString(),
+    );
     if (reference.burnerSeed) {
       assert.equal(
         Array.from(kBurner.wasmAccount.getBurnerSeed()).toString(),
@@ -277,7 +306,10 @@ describe("Test Account Functional", () => {
   it("fromPubkey", () => {
     const pubKey = k0.getPublicKey();
     const k0Pubkey = Account.fromPubkey(pubKey, hasher);
-    assert.equal(k0Pubkey.keypair.publicKey.toString(), k0.keypair.publicKey.toString());
+    assert.equal(
+      k0Pubkey.keypair.publicKey.toString(),
+      k0.keypair.publicKey.toString(),
+    );
     assert.notEqual(k0Pubkey.keypair.privateKey, k0.keypair.privateKey);
   });
 
@@ -346,7 +378,10 @@ describe("Test Account Functional", () => {
 
   it("Should fail UTXO prefix hash generation test for wrong expected output", () => {
     const incorrectExpectedOutput: Uint8Array = new Uint8Array([1, 2, 3, 4]);
-    const currentOutput = k0.generateUtxoPrefixHash(MerkleTreeConfig.getTransactionMerkleTreePda(), 0);
+    const currentOutput = k0.generateUtxoPrefixHash(
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      0,
+    );
     return expect(currentOutput).to.not.eql(incorrectExpectedOutput);
   });
 });

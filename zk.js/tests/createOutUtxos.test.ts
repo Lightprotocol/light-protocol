@@ -80,7 +80,10 @@ describe("Test createOutUtxos Functional", () => {
     });
     relayerFee = RELAYER_FEE;
 
-    const recipientAccountRoot = Account.createFromSeed(hasher, bs58.encode(new Uint8Array(32).fill(3)));
+    const recipientAccountRoot = Account.createFromSeed(
+      hasher,
+      bs58.encode(new Uint8Array(32).fill(3)),
+    );
 
     recipientAccount = Account.fromPubkey(
       recipientAccountRoot.getPublicKey(),
@@ -547,7 +550,10 @@ describe("createRecipientUtxos", () => {
 
     const mint = MINT;
     const account1 = Account.createFromSeed(hasher, seed32);
-    const account2 = Account.createFromSeed(hasher, new Uint8Array(32).fill(4).toString());
+    const account2 = Account.createFromSeed(
+      hasher,
+      new Uint8Array(32).fill(4).toString(),
+    );
 
     const recipients: Recipient[] = [
       {
@@ -573,13 +579,17 @@ describe("createRecipientUtxos", () => {
     });
 
     expect(outputUtxos.length).to.equal(recipients.length);
-    expect(outputUtxos[0].publicKey.toString()).to.equal(account1.keypair.publicKey.toString());
+    expect(outputUtxos[0].publicKey.toString()).to.equal(
+      account1.keypair.publicKey.toString(),
+    );
     expect(outputUtxos[0].amounts[0].toString()).to.equal("5");
     expect(outputUtxos[0].amounts[1].toString()).to.equal("10");
     expect(outputUtxos[0].assets[0].equals(SystemProgram.programId)).to.be.true;
     expect(outputUtxos[0].assets[1].equals(mint)).to.be.true;
 
-    expect(outputUtxos[1].publicKey.toString()).to.equal(account2.keypair.publicKey.toString());
+    expect(outputUtxos[1].publicKey.toString()).to.equal(
+      account2.keypair.publicKey.toString(),
+    );
     expect(outputUtxos[1].amounts[0].toString()).to.equal("3");
     expect(outputUtxos[1].amounts[1].toString()).to.equal("7");
     expect(outputUtxos[1].assets[0].equals(SystemProgram.programId)).to.be.true;

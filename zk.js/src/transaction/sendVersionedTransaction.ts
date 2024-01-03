@@ -93,10 +93,10 @@ export async function sendVersionedTransactions(
   const signatures: TransactionSignature[] = [];
   for (const instruction of instructions) {
     const signature = await sendVersionedTransaction(
-        instruction,
-        connection,
-        lookUpTable,
-        payer,
+      instruction,
+      connection,
+      lookUpTable,
+      payer,
     );
     if (!signature) {
       throw new Error("sendVersionedTransactions: signature is undefined");
@@ -104,7 +104,7 @@ export async function sendVersionedTransactions(
     signatures.push(signature);
     await confirmTransaction(connection, signature);
   }
-  return {signatures};
+  return { signatures };
 }
 
 export async function confirmTransaction(

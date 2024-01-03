@@ -149,7 +149,7 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
       ],
       hasher,
@@ -180,7 +180,7 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_0,
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
       ],
       hasher,
@@ -210,7 +210,7 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: BN_0,
           splAmount: BN_1,
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
       ],
       hasher,
@@ -290,7 +290,7 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: utxo2.amounts[0],
           splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
       ],
       hasher,
@@ -368,7 +368,7 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
       ],
       hasher,
@@ -533,13 +533,13 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
         {
           mint,
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
       ],
       hasher,
@@ -576,7 +576,7 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(2e10),
           splAmount: BN_1,
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
       ],
       hasher,
@@ -610,7 +610,7 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: BN_0,
           splAmount: new BN(1e10),
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
       ],
       hasher,
@@ -644,7 +644,7 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: utxo2.amounts[0].add(utxo1.amounts[0]),
           splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-          account: Account.random(hasher)
+          account: Account.random(hasher),
         },
       ],
       hasher,

@@ -348,10 +348,14 @@ export async function encryptOutUtxoInternal({
     const ciphertext = account.encryptAesUtxo(
       bytes,
       merkleTreePdaPublicKey,
-      utxoHash
+      utxoHash,
     );
 
-    const decrypted = await account.decryptAesUtxo(ciphertext, merkleTreePdaPublicKey, utxoHash);
+    const decrypted = await account.decryptAesUtxo(
+      ciphertext,
+      merkleTreePdaPublicKey,
+      utxoHash,
+    );
     // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
     // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
     const prefix = !isFillingUtxo

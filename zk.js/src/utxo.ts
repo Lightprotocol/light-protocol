@@ -671,10 +671,7 @@ export class Utxo {
       if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
 
       // adding the 4 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of (120 + PREFIX_LENGTH) bytes
-      return Uint8Array.from([
-        ...prefix,
-        ...ciphertext,
-      ]);
+      return Uint8Array.from([...prefix, ...ciphertext]);
     } else {
       throw new UtxoError(
         CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
@@ -738,11 +735,7 @@ export class Utxo {
       encBytes = encBytes.slice(0, length);
     }
     const cleartext = aes
-      ? account.decryptAesUtxo(
-          encBytes,
-          merkleTreePdaPublicKey,
-          commitment,
-        )
+      ? account.decryptAesUtxo(encBytes, merkleTreePdaPublicKey, commitment)
       : await account.decryptNaclUtxo(encBytes, commitment);
 
     if (!cleartext || cleartext.error || !cleartext.value)

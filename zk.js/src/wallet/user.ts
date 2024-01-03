@@ -209,7 +209,8 @@ export class User {
       for (let index = 0; index < trx.transaction.leaves.length; index += 2) {
         const leafLeft = trx.transaction.leaves[index];
         const leafRight = trx.transaction.leaves[index + 1];
-        const encUtxoSize = NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
+        const encUtxoSize =
+          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
         // transaction nonce is the same for all utxos in one transaction
         await decryptAddUtxoToBalance({
           encBytes: Buffer.from(

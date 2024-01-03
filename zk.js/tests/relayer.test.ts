@@ -153,10 +153,22 @@ describe("Test Relayer Errors", () => {
     const ids = getIdsFromEncryptedUtxos(Buffer.from(encryptedUtxos), 2);
     assert.equal(
       ids[0],
-      bs58.encode(account.generateUtxoPrefixHash(MerkleTreeConfig.getTransactionMerkleTreePda(), 0)));
+      bs58.encode(
+        account.generateUtxoPrefixHash(
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
+          0,
+        ),
+      ),
+    );
     assert.equal(
       ids[1],
-      bs58.encode(account.generateUtxoPrefixHash(MerkleTreeConfig.getTransactionMerkleTreePda(), 1)));
+      bs58.encode(
+        account.generateUtxoPrefixHash(
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
+          1,
+        ),
+      ),
+    );
   });
 
   it("create rpc index", async () => {

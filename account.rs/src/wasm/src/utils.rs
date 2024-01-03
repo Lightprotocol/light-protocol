@@ -11,7 +11,6 @@ pub fn set_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
-
 pub fn vec_to_key(vec: &[u8]) -> Result<[u8; 32], AccountError> {
     vec.try_into()
         .map_err(|_| AccountError::Generic(String::from("Expected a Vec of length 32")))

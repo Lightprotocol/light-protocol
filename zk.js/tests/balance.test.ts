@@ -158,9 +158,14 @@ describe("Utxo Functional", () => {
           const leafLeft = trx.leaves[index];
           const leafRight = trx.leaves[index + 1];
 
-          let indexFrom =  (index / 2) * 240;
-          let indexTo = (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + UTXO_PREFIX_LENGTH;
-          let encBytes = Buffer.from(trx.encryptedUtxos.slice(indexFrom, indexTo));
+          let indexFrom = (index / 2) * 240;
+          let indexTo =
+            (index / 2) * 240 +
+            NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+            UTXO_PREFIX_LENGTH;
+          let encBytes = Buffer.from(
+            trx.encryptedUtxos.slice(indexFrom, indexTo),
+          );
           let decryptedUtxo = await Utxo.decryptUnchecked({
             hasher,
             encBytes,
@@ -178,9 +183,13 @@ describe("Utxo Functional", () => {
             decryptedUtxos.push(decryptedUtxo.value);
           }
 
-
-          indexFrom = (index / 2) * 240 + 120 + UTXO_PREFIX_LENGTH ;
-          indexTo = (index / 2) * 240 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH + 120 + UTXO_PREFIX_LENGTH + 4;
+          indexFrom = (index / 2) * 240 + 120 + UTXO_PREFIX_LENGTH;
+          indexTo =
+            (index / 2) * 240 +
+            NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH +
+            120 +
+            UTXO_PREFIX_LENGTH +
+            4;
 
           encBytes = Buffer.from(trx.encryptedUtxos.slice(indexFrom, indexTo));
           decryptedUtxo = await Utxo.decryptUnchecked({

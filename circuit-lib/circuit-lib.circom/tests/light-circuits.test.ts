@@ -15,7 +15,7 @@ describe("verifier_program", () => {
   before(async () => {
     try {
       const provider = new anchor.AnchorProvider(
-          new Connection("http://127.0.0.1:8899"),
+        new Connection("http://127.0.0.1:8899"),
         new anchor.Wallet(SolanaKeypair.generate()),
         confirmConfig,
       );

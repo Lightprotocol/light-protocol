@@ -11,12 +11,13 @@ extern crate console_error_panic_hook;
 use js_sys::Error as JsError;
 use wasm_bindgen::JsValue;
 
-use crate::hash::{
-    blake2::{blake2, blake2_string},
-    poseidon::poseidon_hash,
+use crate::{
+    hash::{
+        blake2::{blake2, blake2_string},
+        poseidon::poseidon_hash,
+    },
+    utils::{key_to_vec, vec_to_key, vec_to_string},
 };
-
-use crate::utils::{key_to_vec, vec_to_key, vec_to_string};
 
 pub const UTXO_PREFIX_LENGTH: usize = 4;
 // const SECRET_AUTHKEY: [u8; 32] = [
@@ -40,7 +41,6 @@ impl From<PoseidonError> for AccountError {
 impl From<aes_gcm_siv::aead::Error> for AccountError {
     fn from(error: aes_gcm_siv::aead::Error) -> Self {
         AccountError::AesGcmSiv(error)
-
     }
 }
 
@@ -78,13 +78,12 @@ impl Account {
     pub fn new(seed: &str) -> Result<Account, AccountError> {
         console_error_panic_hook::set_once();
 
-
         let private_key = vec_to_key(&Account::generate_shielded_private_key(seed)?)?;
-        let public_key =
-            vec_to_key(&Account::generate_shielded_public_key(private_key.to_vec())?)?;
+        let public_key = vec_to_key(&Account::generate_shielded_public_key(
+            private_key.to_vec(),
+        )?)?;
 
-        let encryption_private_key =
-            vec_to_key(&Account::create_encryption_private_key(seed)?)?;
+        let encryption_private_key = vec_to_key(&Account::create_encryption_private_key(seed)?)?;
         let encryption_public_key = vec_to_key(&Account::create_encryption_public_key(
             encryption_private_key.to_vec(),
         )?)?;
@@ -121,20 +120,28 @@ impl Account {
         let mut account = Self::new(&burner_seed_string)?;
         account.burner_seed = Some(burner_arr);
         account.aes_secret = vec_to_key(&Account::generate_secret(&burner_arr_string, "aes"))?;
-        account.hashing_secret = Some(vec_to_key(&Account::generate_secret(&burner_arr_string, "hashing"))?);
+        account.hashing_secret = Some(vec_to_key(&Account::generate_secret(
+            &burner_arr_string,
+            "hashing",
+        ))?);
         Ok(account)
     }
 
     #[wasm_bindgen(js_name = createFromBurnerSeed)]
     pub fn from_burner_seed(burner_seed: &str) -> Result<Account, AccountError> {
-        let burner_seed_vec = bs58::decode(burner_seed).into_vec().map_err(|_| AccountError::Generic("Invalid burner seed".to_string()))?;
+        let burner_seed_vec = bs58::decode(burner_seed)
+            .into_vec()
+            .map_err(|_| AccountError::Generic("Invalid burner seed".to_string()))?;
         let burner_arr = vec_to_key(&burner_seed_vec.clone())?;
         let burner_arr_string = vec_to_string(&burner_seed_vec);
 
         let mut account = Self::new(burner_seed)?;
         account.burner_seed = Some(burner_arr);
         account.aes_secret = vec_to_key(&Account::generate_secret(&burner_arr_string, "aes"))?;
-        account.hashing_secret = Some(vec_to_key(&Account::generate_secret(&burner_arr_string, "hashing"))?);
+        account.hashing_secret = Some(vec_to_key(&Account::generate_secret(
+            &burner_arr_string,
+            "hashing",
+        ))?);
         Ok(account)
     }
 
@@ -169,21 +176,15 @@ impl Account {
         })
     }
 
-
     #[wasm_bindgen(js_name = fromPublicKey)]
     pub fn from_public_key(
         public_key: Vec<u8>,
-        encryption_public_key: Option<Vec<u8>>
+        encryption_public_key: Option<Vec<u8>>,
     ) -> Result<Account, AccountError> {
-
         let public_key = vec_to_key(&public_key)?;
         let encryption_public_key: [u8; 32] = match encryption_public_key {
-            Some(encryption_public_key) => {
-                vec_to_key(&encryption_public_key)?
-            },
-            None => {
-                Default::default()
-            }
+            Some(encryption_public_key) => vec_to_key(&encryption_public_key)?,
+            None => Default::default(),
         };
 
         Ok(Account {
@@ -200,10 +201,7 @@ impl Account {
     }
 
     #[wasm_bindgen(js_name = fromAesSecret)]
-    pub fn from_aes_secret(
-        aes_secret: Vec<u8>,
-    ) -> Result<Account, AccountError> {
-
+    pub fn from_aes_secret(aes_secret: Vec<u8>) -> Result<Account, AccountError> {
         Ok(Account {
             solana_public_key: None,
 
@@ -268,15 +266,24 @@ impl Account {
             .ok_or_else(|| AccountError::Generic("Error parsing string to BigUint".to_string()))?;
         let commitment_bytes = commitment_bn.to_bytes_be();
         let merkle_tree_bytes = merkle_path.to_be_bytes();
-        let inputs = vec![self.private_key.as_slice(), commitment_bytes.as_slice(), merkle_tree_bytes.as_slice()];
-        poseidon_hash(inputs.as_slice())
-            .map_err(AccountError::Poseidon)
+        let inputs = vec![
+            self.private_key.as_slice(),
+            commitment_bytes.as_slice(),
+            merkle_tree_bytes.as_slice(),
+        ];
+        poseidon_hash(inputs.as_slice()).map_err(AccountError::Poseidon)
     }
 
     #[wasm_bindgen(js_name = encryptAesUtxo)]
-    pub fn encrypt_aes_utxo(&self, message: Vec<u8>, merkle_tree_pda_public_key: Vec<u8>, commitment: Vec<u8>) -> Result<Vec<u8>, AccountError> {
+    pub fn encrypt_aes_utxo(
+        &self,
+        message: Vec<u8>,
+        merkle_tree_pda_public_key: Vec<u8>,
+        commitment: Vec<u8>,
+    ) -> Result<Vec<u8>, AccountError> {
         let iv12 = commitment[0..12].to_vec();
-        let aes_utxo_viewing_key = self.get_aes_utxo_viewing_key(merkle_tree_pda_public_key, commitment)?;
+        let aes_utxo_viewing_key =
+            self.get_aes_utxo_viewing_key(merkle_tree_pda_public_key, commitment)?;
         let key = Key::from_slice(&aes_utxo_viewing_key);
         let cipher = Aes256GcmSiv::new(key);
         let nonce = Nonce::from_slice(&iv12);
@@ -287,9 +294,15 @@ impl Account {
     }
 
     #[wasm_bindgen(js_name = decryptAesUtxo)]
-    pub fn decrypt_aes_utxo(&self, encrypted_message: Vec<u8>, merkle_tree_pda_public_key: Vec<u8>, commitment: Vec<u8>) -> Result<Vec<u8>, AccountError> {
+    pub fn decrypt_aes_utxo(
+        &self,
+        encrypted_message: Vec<u8>,
+        merkle_tree_pda_public_key: Vec<u8>,
+        commitment: Vec<u8>,
+    ) -> Result<Vec<u8>, AccountError> {
         let iv12 = commitment[0..12].to_vec();
-        let aes_utxo_viewing_key = self.get_aes_utxo_viewing_key(merkle_tree_pda_public_key, commitment)?;
+        let aes_utxo_viewing_key =
+            self.get_aes_utxo_viewing_key(merkle_tree_pda_public_key, commitment)?;
         let key = Key::from_slice(&aes_utxo_viewing_key);
         let cipher = Aes256GcmSiv::new(key);
         let nonce = Nonce::from_slice(&iv12);
@@ -305,7 +318,9 @@ impl Account {
         let key = Key::from_slice(&self.aes_secret);
         let cipher = Aes256GcmSiv::new(key);
         let nonce = Nonce::from_slice(&iv12);
-        let ciphertext = cipher.encrypt(nonce, message.as_ref()).map_err(AccountError::AesGcmSiv)?;
+        let ciphertext = cipher
+            .encrypt(nonce, message.as_ref())
+            .map_err(AccountError::AesGcmSiv)?;
         let mut result = iv12;
         result.extend(ciphertext);
         Ok(result)
@@ -345,10 +360,8 @@ impl Account {
         prefix_counter: u32,
     ) -> Result<Vec<u8>, AccountError> {
         let merkle_tree_pubkey_array = vec_to_key(&merkle_tree_public_key)?;
-        let hash = self.generate_utxo_prefix_hash_internal(
-            &merkle_tree_pubkey_array,
-            prefix_counter,
-        )?;
+        let hash =
+            self.generate_utxo_prefix_hash_internal(&merkle_tree_pubkey_array, prefix_counter)?;
         Ok(hash.to_vec())
     }
 
@@ -360,7 +373,7 @@ impl Account {
         let mut input = self.get_utxo_prefix_viewing_key("hashing")?;
         input.extend(merkle_tree_public_key.to_vec());
 
-        let prefix_counter_vec  = prefix_counter.to_be_bytes().to_vec();
+        let prefix_counter_vec = prefix_counter.to_be_bytes().to_vec();
         let padded_prefix_counter: Vec<u8> = if prefix_counter_vec.len() < 32 {
             let mut padded = vec![0; 32 - prefix_counter_vec.len()];
             padded.extend_from_slice(&prefix_counter_vec);
@@ -370,7 +383,7 @@ impl Account {
         };
 
         input.extend(padded_prefix_counter);
-        let hash_vec =  blake2(&input, UTXO_PREFIX_LENGTH);
+        let hash_vec = blake2(&input, UTXO_PREFIX_LENGTH);
         let hash: [u8; UTXO_PREFIX_LENGTH] = hash_vec
             .as_slice()
             .try_into()
@@ -413,16 +426,23 @@ impl Account {
     }
 
     fn get_hashing_secret_string(&self) -> Result<String, AccountError> {
-        let hashing_secret = self.hashing_secret.as_ref().ok_or(AccountError::Generic("hashing_secret is undefined".to_string()))?;
+        let hashing_secret = self.hashing_secret.as_ref().ok_or(AccountError::Generic(
+            "hashing_secret is undefined".to_string(),
+        ))?;
         let hashing_secret_string: String = vec_to_string(hashing_secret);
         Ok(hashing_secret_string)
     }
 
     #[wasm_bindgen(js_name = getCombinedPublicKey)]
     pub fn get_combined_public_key(&self) -> String {
-        let combined_public_keys: [u8; 64] = self.public_key.iter().cloned()
+        let combined_public_keys: [u8; 64] = self
+            .public_key
+            .iter()
+            .cloned()
             .chain(self.encryption_public_key.iter().cloned())
-            .collect::<Vec<_>>().try_into().unwrap();
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
 
         bs58::encode(combined_public_keys).into_string()
     }

@@ -238,8 +238,10 @@ describe("Test User", () => {
       expectedRecipientUtxoLength: 1,
     };
 
-
-    const recipientAccount = Account.createFromSeed(HASHER, testInputs.recipientSeed);
+    const recipientAccount = Account.createFromSeed(
+      HASHER,
+      testInputs.recipientSeed,
+    );
 
     const userRecipient: User = await User.init({
       provider,
@@ -269,7 +271,6 @@ describe("Test User", () => {
     await user.getBalance();
     await testStateValidator.checkSplTransferred();
   });
-
 
   it("(user class) storage shield", async () => {
     const testInputs = {
@@ -339,7 +340,11 @@ describe("Test User Errors", () => {
   setProvider(providerAnchor);
 
   const userKeypair = ADMIN_AUTH_KEYPAIR;
-  let amount: number, token: string, relayer: TestRelayer, provider: Provider, user: User;
+  let amount: number,
+    token: string,
+    relayer: TestRelayer,
+    provider: Provider,
+    user: User;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     if ((await providerAnchor.connection.getBalance(ADMIN_AUTH_KEY)) === 0) {
@@ -351,15 +356,15 @@ describe("Test User Errors", () => {
     token = "USDC";
 
     const anchorProvider = AnchorProvider.local(
-        "http://127.0.0.1:8899",
-        confirmConfig,
+      "http://127.0.0.1:8899",
+      confirmConfig,
     );
     setProvider(anchorProvider);
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     await anchorProvider.connection.requestAirdrop(
-        relayerRecipientSol,
-        2_000_000_000,
+      relayerRecipientSol,
+      2_000_000_000,
     );
 
     const relayer = Keypair.generate();

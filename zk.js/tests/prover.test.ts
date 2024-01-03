@@ -92,7 +92,9 @@ describe("Prover Functionality Tests", () => {
     });
 
     const genericProver = new Prover(verifierIdl, firstPath);
-    systemProofInputs["inPrivateKey"] = new Array(2).fill(account.keypair.privateKey);
+    systemProofInputs["inPrivateKey"] = new Array(2).fill(
+      account.keypair.privateKey,
+    );
     await genericProver.addProofInputs(systemProofInputs);
     await genericProver.fullProve();
     await getSystemProof({

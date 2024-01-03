@@ -132,7 +132,12 @@ describe("API tests", () => {
   it("getEventById", (done) => {
     const utxo = user.getAllUtxos()[0];
     const requestData = {
-      id: bs58.encode(user.account.generateUtxoPrefixHash(MerkleTreeConfig.getTransactionMerkleTreePda(), 0)),
+      id: bs58.encode(
+        user.account.generateUtxoPrefixHash(
+          MerkleTreeConfig.getTransactionMerkleTreePda(),
+          0,
+        ),
+      ),
       merkleTreePdaPublicKey:
         MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
     };
@@ -202,7 +207,11 @@ describe("API tests", () => {
     const requestData = {
       ids: [
         bs58.encode(
-          user.account.generateUtxoPrefixHash(MerkleTreeConfig.getTransactionMerkleTreePda(), 0)),
+          user.account.generateUtxoPrefixHash(
+            MerkleTreeConfig.getTransactionMerkleTreePda(),
+            0,
+          ),
+        ),
       ],
       merkleTreePdaPublicKey:
         MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
