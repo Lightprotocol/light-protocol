@@ -1,6 +1,12 @@
+use std::mem;
+
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
-use light_concurrent_merkle_tree::{changelog::ChangelogEntry, ConcurrentMerkleTree};
+use light_concurrent_merkle_tree::{
+    changelog::ChangelogEntry,
+    hash::{compute_root, validate_proof},
+    ConcurrentMerkleTree,
+};
 use light_hasher::{errors::HasherError, Hasher, Keccak, Poseidon, Sha256};
 use rand::thread_rng;
 
@@ -613,6 +619,169 @@ where
     }
 }
 
+/// Tests the case outlined in the [indexed Merkle tree] examples. It does so
+/// without defining any abstraction for indexed MTs, instead it just does all
+/// necessary operations manually to ensure the correctness of the concurrent
+/// MT implementation.
+///
+/// [indexed Merkle tree](https://docs.aztec.network/concepts/advanced/data_structures/indexed_merkle_tree)
+fn nullifiers<H>()
+where
+    H: Hasher,
+{
+    const HEIGHT: usize = 4;
+    const CHANGELOG: usize = 8;
+    const ROOTS: usize = 256;
+
+    // Our implementation of concurrent Merkle tree.
+    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT, CHANGELOG, ROOTS>::default();
+    merkle_tree.init().unwrap();
+
+    // Reference implementation of Merkle tree which Solana Labs uses for
+    // testing (and therefore, we as well). We use it mostly to get the Merkle
+    // proofs.
+    let mut reference_tree =
+        light_merkle_tree_reference::MerkleTree::<H, HEIGHT, ROOTS>::new().unwrap();
+
+    // Append a "zero indexed leaf".
+    let zero_indexed_leaf =
+        H::hashv(&[&[0u8; 32], &[0u8; mem::size_of::<usize>()], &[0u8; 32]]).unwrap();
+    merkle_tree.append(&zero_indexed_leaf).unwrap();
+    reference_tree.update(&zero_indexed_leaf, 0).unwrap();
+
+    // Append the first nullifier (30).
+    let low_nullifier_index: usize = 0;
+    let nullifier1_index: usize = 1;
+    let nullifier1: [u8; 32] = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 30,
+    ];
+    let low_nullifier_leaf1 = H::hashv(&[
+        &[0u8; 32],                                // value
+        nullifier1_index.to_le_bytes().as_slice(), // next index
+        nullifier1.as_slice(),                     // next value
+    ])
+    .unwrap();
+    let low_nullifier_proof = reference_tree.get_proof_of_leaf(low_nullifier_index);
+    let nullifier1_leaf = H::hashv(&[
+        nullifier1.as_slice(),            // value
+        0_usize.to_le_bytes().as_slice(), // next index
+        &[0u8; 32],                       // next value
+    ])
+    .unwrap();
+    // Update the low nullifier.
+    merkle_tree
+        .update(
+            merkle_tree.changelog_index(),
+            &zero_indexed_leaf,
+            &low_nullifier_leaf1,
+            low_nullifier_index,
+            &low_nullifier_proof,
+        )
+        .unwrap();
+    reference_tree
+        .update(&low_nullifier_leaf1, low_nullifier_index)
+        .unwrap();
+    println!(
+        "onchain root after updating 1st low nullifier: {:?}",
+        merkle_tree.root().unwrap()
+    );
+    println!(
+        "offchain root after updating 1st low nullifier: {:?}",
+        reference_tree.root().unwrap()
+    );
+    // Append the new nullifier.
+    merkle_tree.append(&nullifier1_leaf).unwrap();
+    reference_tree
+        .update(&nullifier1_leaf, nullifier1_index)
+        .unwrap();
+    println!(
+        "onchain root after appending 1st nullifier: {:?}",
+        merkle_tree.root().unwrap()
+    );
+    println!(
+        "offchain root after updating 1st nullifier: {:?}",
+        reference_tree.root().unwrap()
+    );
+    println!(
+        "low_nullifier_proof onchain: {:?}",
+        merkle_tree.rightmost_proof
+    );
+
+    assert_eq!(merkle_tree.root().unwrap(), reference_tree.root().unwrap());
+    assert_eq!(
+        merkle_tree.rightmost_proof,
+        reference_tree.get_proof_of_leaf(nullifier1_index)
+    );
+
+    // Append the second nullifier (10).
+    let low_nullifier_index: usize = 0;
+    let nullifier2_index: usize = 2;
+    let nullifier2: [u8; 32] = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 10,
+    ];
+    let low_nullifier_leaf2 = H::hashv(&[
+        &[0u8; 32],                                // value
+        nullifier2_index.to_le_bytes().as_slice(), // next index
+        nullifier2.as_slice(),
+    ])
+    .unwrap();
+    let low_nullifier_proof = reference_tree.get_proof_of_leaf(low_nullifier_index);
+    let expected_root = compute_root::<H, HEIGHT>(
+        &zero_indexed_leaf,
+        low_nullifier_index,
+        &low_nullifier_proof,
+    )
+    .unwrap();
+    println!("expected root: {expected_root:?}");
+    let h1 = H::hashv(&[zero_indexed_leaf.as_slice(), nullifier1_leaf.as_slice()]).unwrap();
+    println!("h1: {h1:?}");
+    let h2 = H::hashv(&[h1.as_slice(), H::zero_bytes()[1].as_slice()]).unwrap();
+    println!("h2: {h2:?}");
+    let h3 = H::hashv(&[h2.as_slice(), H::zero_bytes()[2].as_slice()]).unwrap();
+    println!("h3: {h3:?}");
+    let expected_root_manual = H::hashv(&[h3.as_slice(), H::zero_bytes()[3].as_slice()]).unwrap();
+    println!("expected root manual: {expected_root_manual:?}");
+    println!("root: {:?}", merkle_tree.root().unwrap());
+    println!("offchain roots: {:?}", reference_tree.roots);
+    println!(
+        "onchain roots: {:?}",
+        &merkle_tree.roots[..merkle_tree.current_root_index as usize + 1]
+    );
+    let nullifier2_leaf = H::hashv(&[
+        nullifier2.as_slice(),
+        0_usize.to_le_bytes().as_slice(),
+        &[0u8; 32],
+    ])
+    .unwrap();
+    // Update the low nullifier.
+    merkle_tree
+        .update(
+            merkle_tree.changelog_index(),
+            &low_nullifier_leaf1,
+            &low_nullifier_leaf2,
+            low_nullifier_index,
+            &low_nullifier_proof,
+        )
+        .unwrap();
+    reference_tree
+        .update(&low_nullifier_leaf2, low_nullifier_index)
+        .unwrap();
+    assert_eq!(merkle_tree.root().unwrap(), reference_tree.root().unwrap());
+    // Append the new nullifier.
+    merkle_tree.append(&nullifier2_leaf).unwrap();
+    reference_tree
+        .update(&nullifier2_leaf, nullifier2_index)
+        .unwrap();
+
+    assert_eq!(merkle_tree.root().unwrap(), reference_tree.root().unwrap());
+    assert_eq!(
+        merkle_tree.rightmost_proof,
+        reference_tree.get_proof_of_leaf(nullifier1_index)
+    );
+}
+
 #[test]
 fn test_append_keccak() {
     append::<Keccak>()
@@ -666,6 +835,21 @@ fn test_overfill_changelog_keccak() {
 #[test]
 fn test_without_changelog_keccak() {
     without_changelog::<Keccak>()
+}
+
+#[test]
+fn test_nullifiers_keccak() {
+    nullifiers::<Keccak>()
+}
+
+#[test]
+fn test_nullifiers_poseidon() {
+    nullifiers::<Poseidon>()
+}
+
+#[test]
+fn test_nullifiers_sha256() {
+    nullifiers::<Sha256>()
 }
 
 /// Checks whether our `append` and `update` implementations are compatible

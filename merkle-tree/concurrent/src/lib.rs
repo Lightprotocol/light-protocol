@@ -242,8 +242,11 @@ where
             .get_mut(self.current_root_index as usize)
             .ok_or(HasherError::RootsZero)? = node;
 
+        println!("updating leaf {leaf_index}: {new_leaf:?}");
+        println!("rightmost_index: {}", self.rightmost_index);
         if self.rightmost_index > 0 && leaf_index == self.rightmost_index as usize - 1 {
             self.rightmost_proof.copy_from_slice(proof);
+            println!("update_leaf_in_tree: self.rightmost_leaf = {new_leaf:?}");
             self.rightmost_leaf = *new_leaf;
         }
 
@@ -274,12 +277,15 @@ where
 
     /// Appends a new leaf to the tree.
     pub fn append(&mut self, leaf: &[u8; 32]) -> Result<(), HasherError> {
+        println!("appending leaf: {leaf:?}");
         if self.rightmost_index >= 1 << MAX_HEIGHT {
             return Err(HasherError::TreeFull);
         }
 
         let mut changelog_path = [[0u8; 32]; MAX_HEIGHT];
         let mut intersection_node = self.rightmost_leaf;
+        println!("set it from rightmost_leaf");
+        println!("intersection_node = {:?}", self.rightmost_leaf);
         let intersection_index = self.rightmost_index.trailing_zeros() as usize;
 
         if self.rightmost_index == 0 {
@@ -316,10 +322,14 @@ where
                             self.rightmost_index as usize - 1,
                             i,
                         )?;
+                        println!("Ordering::Less");
+                        println!("self.rightmost_proof[{i}] = {empty_node:?}");
                         self.rightmost_proof[i] = empty_node;
                     }
                     Ordering::Equal => {
                         current_node = H::hashv(&[&intersection_node, &current_node])?;
+                        println!("Ordering::Equal");
+                        println!("self.rightmost_proof[{i}] = {intersection_node:?}");
                         self.rightmost_proof[i] = intersection_node;
                     }
                     Ordering::Greater => {
@@ -349,6 +359,7 @@ where
         }
 
         self.rightmost_index += 1;
+        println!("self.rightmost_leaf = {leaf:?}");
         self.rightmost_leaf = *leaf;
 
         Ok(())
