@@ -90,6 +90,7 @@ interface HashStrategy {
     burnerSeedAccount(seed: string): AccountWasm;
     privateKeyAccount(privateKey: Uint8Array, encryptionPrivateKey: Uint8Array, aesSecret: Uint8Array): AccountWasm;
     publicKeyAccount(publicKey: Uint8Array, encryptionPublicKey: Uint8Array | undefined): AccountWasm;
+    encryptNaclUtxo(publicKey: Uint8Array, message: Uint8Array, commitment: Uint8Array): Uint8Array;
 }
 
 
@@ -140,6 +141,9 @@ function wasmAccount(hasher: HashStrategy): HashCreator {
         publicKeyAccount(publicKey: Uint8Array, encryptionPublicKey: Uint8Array | undefined): AccountWasm {
             return hasher.publicKeyAccount(publicKey, encryptionPublicKey);
         }
+        encryptNaclUtxo(publicKey: Uint8Array, message: Uint8Array, commitment: Uint8Array): Uint8Array {
+            return hasher.encryptNaclUtxo(publicKey, message, commitment);
+        }
 
     };
 
@@ -163,6 +167,7 @@ const loadWasmSimd = async (module?: InitInput) => {
                 burnerSeedAccount: AccountSimd.createFromBurnerSeed,
                 privateKeyAccount: AccountSimd.fromPrivateKey,
                 publicKeyAccount: AccountSimd.fromPublicKey,
+                encryptNaclUtxo: AccountSimd.encryptNaclUtxo,
             });
         });
     }
@@ -182,6 +187,7 @@ const loadWasm = async (module?: InitInput) => {
                 burnerSeedAccount: AccountSimd.createFromBurnerSeed,
                 privateKeyAccount: AccountSimd.fromPrivateKey,
                 publicKeyAccount: AccountSimd.fromPublicKey,
+                encryptNaclUtxo: AccountSimd.encryptNaclUtxo,
             });
         });
     }

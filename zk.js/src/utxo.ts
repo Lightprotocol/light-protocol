@@ -639,7 +639,7 @@ export class Utxo {
     );
 
     if (this.encryptionPublicKey) {
-      const ciphertext = Account.encryptNaclUtxo(
+      const ciphertext = hasher.encryptNaclUtxo(
         this.encryptionPublicKey,
         bytes_message,
         commitment,
@@ -736,7 +736,7 @@ export class Utxo {
     }
     const cleartext = aes
       ? account.decryptAesUtxo(encBytes, merkleTreePdaPublicKey, commitment)
-      : await account.decryptNaclUtxo(encBytes, commitment);
+      : account.decryptNaclUtxo(encBytes, commitment);
 
     if (!cleartext || cleartext.error || !cleartext.value)
       return Result.Ok(null);

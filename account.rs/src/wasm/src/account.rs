@@ -2,13 +2,13 @@ use aes_gcm_siv::{
     aead::{Aead, NewAead},
     Aes256GcmSiv, Key, Nonce,
 };
-use crypto_box::SecretKey;
+use crypto_box::{aead::generic_array::GenericArray, Box, PublicKey, SecretKey};
 use light_poseidon::PoseidonError;
-use num_bigint::BigUint;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 extern crate console_error_panic_hook;
 use js_sys::Error as JsError;
+use num_bigint::BigUint;
 use wasm_bindgen::JsValue;
 
 use crate::{
@@ -20,6 +20,10 @@ use crate::{
 };
 
 pub const UTXO_PREFIX_LENGTH: usize = 4;
+pub const SECRET_KEY: [u8; 32] = [
+    155, 249, 234, 55, 8, 49, 0, 14, 84, 72, 10, 224, 21, 139, 87, 102, 115, 88, 217, 72, 137, 38,
+    0, 179, 93, 202, 220, 31, 143, 79, 247, 200,
+];
 
 #[derive(Debug)]
 pub enum AccountError {
@@ -150,7 +154,6 @@ impl Account {
         let private_key_arr: [u8; 32] = vec_to_key(&private_key)?;
         let public_key = vec_to_key(&Account::generate_shielded_public_key(private_key)?)?;
 
-        //  this.encryptionKeypair = nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
         let encryption_public_key =
             Account::create_encryption_public_key(encryption_private_key.to_vec())?;
 
@@ -340,6 +343,55 @@ impl Account {
         cipher
             .decrypt(nonce, cipher_text.as_ref())
             .map_err(AccountError::AesGcmSiv)
+    }
+
+    #[wasm_bindgen(js_name = decryptNaclUtxo)]
+    pub fn decrypt_nacl_utxo(
+        &self,
+        ciphertext: Vec<u8>,
+        commitment: Vec<u8>,
+    ) -> Result<Vec<u8>, AccountError> {
+        let nonce = GenericArray::from_slice(&commitment[0..24]);
+        let signer_pub_key = SecretKey::from(SECRET_KEY).public_key();
+        let private_key = SecretKey::from(self.encryption_private_key);
+        let nacl_box = Box::new(&signer_pub_key, &private_key);
+        let decrypted_message = nacl_box
+            .decrypt(nonce, &ciphertext[..])
+            .map_err(|_| AccountError::Generic("can't decrypt nacl".to_string()))?;
+
+        Ok(decrypted_message)
+    }
+
+    /**
+     * Encrypts utxo bytes to public key using a nonce and a standardized secret for hmac.
+     * @static
+     * @param publicKey - The public key to encrypt to.
+     * @param bytes_message - The message to be encrypted.
+     * @param commitment - The commitment used to generate the nonce.
+     * @returns The encrypted Uint8Array.
+     */
+    #[wasm_bindgen(js_name = encryptNaclUtxo)]
+    pub fn encrypt_nacl_utxo(
+        public_key: Vec<u8>,
+        message: Vec<u8>,
+        commitment: Vec<u8>,
+    ) -> Result<Vec<u8>, AccountError> {
+        let pub_key_array: [u8; 32] = vec_to_key(&public_key)?;
+        let pub_key = PublicKey::from(pub_key_array);
+        let nonce = GenericArray::from_slice(&commitment[0..24]);
+
+        // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
+        // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
+        // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
+        let private_key = SecretKey::from(SECRET_KEY);
+
+        let nacl_box = Box::new(&pub_key, &private_key);
+
+        let encrypted_message = nacl_box
+            .encrypt(nonce, &message[..])
+            .map_err(|_| AccountError::Generic("can't encrypt nacl".to_string()))?;
+
+        Ok(encrypted_message)
     }
 
     #[wasm_bindgen(js_name = getUtxoPrefixViewingKey)]
