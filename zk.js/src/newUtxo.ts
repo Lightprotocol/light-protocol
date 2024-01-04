@@ -327,7 +327,7 @@ export async function encryptOutUtxoInternal({
   utxoHash: Uint8Array;
 }): Promise<Uint8Array> {
   if (encryptionPublicKey) {
-    const ciphertext = Account.encryptNaclUtxo(
+    const ciphertext = hasher.encryptNaclUtxo(
       encryptionPublicKey,
       bytes,
       utxoHash,
@@ -351,7 +351,7 @@ export async function encryptOutUtxoInternal({
       utxoHash,
     );
 
-    const decrypted = await account.decryptAesUtxo(
+    const decrypted = account.decryptAesUtxo(
       ciphertext,
       merkleTreePdaPublicKey,
       utxoHash,
@@ -459,7 +459,7 @@ export async function decryptOutUtxoInternal({
   }
   const cleartext = aes
     ? account.decryptAesUtxo(encBytes, merkleTreePdaPublicKey, utxoHash)
-    : await account.decryptNaclUtxo(encBytes, utxoHash);
+    : account.decryptNaclUtxo(encBytes, utxoHash);
 
   return cleartext;
 }
