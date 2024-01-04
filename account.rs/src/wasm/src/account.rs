@@ -362,14 +362,15 @@ impl Account {
         Ok(decrypted_message)
     }
 
-    /**
-     * Encrypts utxo bytes to public key using a nonce and a standardized secret for hmac.
-     * @static
-     * @param publicKey - The public key to encrypt to.
-     * @param bytes_message - The message to be encrypted.
-     * @param commitment - The commitment used to generate the nonce.
-     * @returns The encrypted Uint8Array.
-     */
+/// Encrypts UTXO bytes to a public key using a nonce and a standardized secret for HMAC.
+///
+/// # Arguments
+/// * `public_key` - The public key to encrypt to.
+/// * `bytes_message` - The message to be encrypted.
+/// * `commitment` - The commitment used to generate the nonce.
+///
+/// # Returns
+/// The encrypted `Uint8Array`.
     #[wasm_bindgen(js_name = encryptNaclUtxo)]
     pub fn encrypt_nacl_utxo(
         public_key: Vec<u8>,
