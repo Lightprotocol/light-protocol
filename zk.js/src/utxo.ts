@@ -29,7 +29,6 @@ import { Result } from "./types";
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
-const { sha3_256 } = require("@noble/hashes/sha3");
 const anchor = require("@coral-xyz/anchor");
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
