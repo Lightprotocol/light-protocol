@@ -1,10 +1,9 @@
-import { box, sign } from "tweetnacl";
+import { sign } from "tweetnacl";
 import { BN, Idl, utils } from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
   BN_0,
-  CONSTANT_SECRET_AUTHKEY,
   SIGN_MESSAGE,
   STANDARD_SHIELDED_PRIVATE_KEY,
   STANDARD_SHIELDED_PUBLIC_KEY,
@@ -45,6 +44,24 @@ export class Account {
 
   get aesSecret(): Uint8Array {
     return this.wasmAccount.getAesSecret();
+  }
+
+  getPrivateKeys(): {
+    privateKey: string;
+    encryptionPrivateKey: string;
+    aesSecret: string;
+  } {
+    if (!this.aesSecret) {
+      throw new AccountError(
+        AccountErrorCode.AES_SECRET_UNDEFINED,
+        "getPrivateKeys",
+      );
+    }
+    return {
+      privateKey: bs58.encode(this.keypair.privateKey.toArray("be", 32)),
+      encryptionPrivateKey: bs58.encode(this.encryptionKeypair.privateKey),
+      aesSecret: bs58.encode(this.aesSecret),
+    };
   }
 
   static readonly hashLength = 32;
@@ -286,18 +303,17 @@ export class Account {
     merkleTreePdaPublicKey: PublicKey,
     commitment: Uint8Array,
   ): Uint8Array {
-    const encryptedBytes = this.wasmAccount.encryptAesUtxo(
+    return this.wasmAccount.encryptAesUtxo(
       messageBytes,
       merkleTreePdaPublicKey.toBytes(),
       commitment,
     );
-    return encryptedBytes;
   }
 
   /**
    * Encrypts bytes with aes secret key.
    * @param messageBytes - The bytes to be encrypted.
-   * @param iv16 - Optional Initialization Vector (iv), 16 random bytes by default.
+   * @param iv12 - Optional Initialization Vector (iv), 12 random bytes by default.
    * @returns A Uint8Array of encrypted bytes with the iv as the first 16 bytes of the cipher text.
    */
   async encryptAes(
@@ -316,8 +332,7 @@ export class Account {
       );
     }
 
-    const encryptedBytes = this.wasmAccount.encryptAes(messageBytes, iv12);
-    return encryptedBytes;
+    return this.wasmAccount.encryptAes(messageBytes, iv12);
   }
 
   /**
@@ -371,56 +386,19 @@ export class Account {
    * @param commitment - The commitment used to generate the nonce.
    * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
    */
-  async decryptNaclUtxo(
+  decryptNaclUtxo(
     ciphertext: Uint8Array,
     commitment: Uint8Array,
-  ): Promise<Result<Uint8Array | null, Error>> {
-    const nonce = commitment.slice(0, 24);
-    return this._decryptNacl(
-      ciphertext,
-      nonce,
-      nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
-    );
-  }
-
-  /**
-   * Decrypts encrypted bytes.
-   * If nonce is not provided, it expects the first 24 bytes to be the nonce.
-   * If signerPublicKey is not provided, expects the subsequent 32 bytes (after the nonce) to be the signer public key.
-   * @param ciphertext - The encrypted bytes to be decrypted.
-   * @param nonce - Optional nonce, if not provided, it is extracted from the ciphertext.
-   * @param signerpublicKey - Optional signer public key, if not provided, it is extracted from the ciphertext.
-   * @returns A promise that resolves to a Result containing the decrypted Uint8Array or null in case of an error.
-   */
-  async decryptNacl(
-    ciphertext: Uint8Array,
-    nonce?: Uint8Array,
-    signerPublicKey?: Uint8Array,
-  ): Promise<Result<Uint8Array | null, Error>> {
-    if (!nonce) {
-      nonce = ciphertext.slice(0, 24);
-      ciphertext = ciphertext.slice(24);
-    }
-    if (!signerPublicKey) {
-      signerPublicKey = ciphertext.slice(0, 32);
-      ciphertext = ciphertext.slice(32);
-    }
-    return this._decryptNacl(ciphertext, nonce, signerPublicKey);
-  }
-
-  private async _decryptNacl(
-    ciphertext: Uint8Array,
-    nonce: Uint8Array,
-    signerPublicKey?: Uint8Array,
-  ): Promise<Result<Uint8Array | null, Error>> {
-    return Result.Ok(
-      nacl.box.open(
+  ): Result<Uint8Array | null, Error> {
+    try {
+      const decryptedUtxo = this.wasmAccount.decryptNaclUtxo(
         ciphertext,
-        nonce,
-        signerPublicKey,
-        this.encryptionKeypair.privateKey,
-      ),
-    );
+        commitment,
+      );
+      return Result.Ok(decryptedUtxo);
+    } catch (e: any) {
+      return Result.Err(Error(e.toString()));
+    }
   }
 
   private addPrivateKey(proofInput: any, inputUtxos: Utxo[]) {
@@ -507,91 +485,5 @@ export class Account {
     const parsedPublicInputsObject =
       prover.parsePublicInputsFromArray(parsedPublicInputs);
     return { parsedProof, parsedPublicInputsObject };
-  }
-
-  getPrivateKeys(): {
-    privateKey: string;
-    encryptionPrivateKey: string;
-    aesSecret: string;
-  } {
-    if (!this.aesSecret) {
-      throw new AccountError(
-        AccountErrorCode.AES_SECRET_UNDEFINED,
-        "getPrivateKeys",
-      );
-    }
-    return {
-      privateKey: bs58.encode(this.keypair.privateKey.toArray("be", 32)),
-      encryptionPrivateKey: bs58.encode(this.encryptionKeypair.privateKey),
-      aesSecret: bs58.encode(this.aesSecret),
-    };
-  }
-
-  /**
-   * Encrypts utxo bytes to public key using a nonce and a standardized secret for hmac.
-   * @static
-   * @param publicKey - The public key to encrypt to.
-   * @param bytes_message - The message to be encrypted.
-   * @param commitment - The commitment used to generate the nonce.
-   * @returns The encrypted Uint8Array.
-   */
-  static encryptNaclUtxo(
-    publicKey: Uint8Array,
-    messageBytes: Uint8Array,
-    commitment: Uint8Array,
-  ) {
-    const nonce = commitment.subarray(0, 24);
-
-    // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
-    // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
-    // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
-    return Account.encryptNacl(
-      publicKey,
-      messageBytes,
-      CONSTANT_SECRET_AUTHKEY,
-      true,
-      nonce,
-      true,
-    );
-  }
-
-  /**
-   * Encrypts bytes to a public key.
-   * @static
-   * @param publicKey - The public key to encrypt to.
-   * @param messageBytes - The message to be encrypted.
-   * @param signerSecretKey - Optional signing secret key.
-   * @param returnWithoutSigner - Optional flag to return without signer.
-   * @param nonce - Optional nonce, generates random if undefined.
-   * @param returnWithoutNonce - Optional flag to return without nonce.
-   * @returns The encrypted Uint8Array.
-   */
-  static encryptNacl(
-    publicKey: Uint8Array,
-    messageBytes: Uint8Array,
-    signerSecretKey?: Uint8Array,
-    returnWithoutSigner?: boolean,
-    nonce?: Uint8Array,
-    returnWithoutNonce?: boolean,
-  ): Uint8Array {
-    if (!nonce) {
-      nonce = nacl.randomBytes(nacl.nonceLength);
-    }
-    if (!signerSecretKey) {
-      signerSecretKey = nacl.box.keyPair.generate().secretKey;
-    }
-    const ciphertext = box(messageBytes, nonce!, publicKey, signerSecretKey!);
-
-    if (returnWithoutNonce) {
-      return Uint8Array.from([...ciphertext]);
-    }
-    if (returnWithoutSigner) {
-      return Uint8Array.from([...nonce!, ...ciphertext]);
-    }
-    return Uint8Array.from([
-      ...nonce!,
-      ...nacl.box.keyPair.fromSecretKey(signerSecretKey).publicKey,
-      ...ciphertext,
-    ]);
   }
 }

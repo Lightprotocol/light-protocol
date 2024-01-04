@@ -1,5 +1,5 @@
 import { BN } from "@coral-xyz/anchor";
-import {Account as AccountWasm, Account} from "./wasm/account_wasm";
+import { Account } from "./wasm/account_wasm";
 
 export { Account } from "./wasm/account_wasm";
 
@@ -14,6 +14,7 @@ export interface Hasher {
     publicKeyAccount(publicKey: Uint8Array, encryptionPublicKey: Uint8Array | undefined): Account;
     burnerAccount(seed: string, index: string): Account;
     burnerSeedAccount(seed: string): Account;
+    encryptNaclUtxo(public_key: Uint8Array, message: Uint8Array, commitment: Uint8Array): Uint8Array;
 }
 
 export interface HashCreator {
