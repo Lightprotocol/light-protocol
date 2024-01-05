@@ -14,7 +14,10 @@ export type Balance = {
   // includes only unspent UTXOs
   tokenBalances: Map<string, TokenBalance>;
   lastSyncedSlot: number;
+  programBalances: Map<string, TokenBalance>; // unused for now
 };
+
+
 
 export type TokenBalance = {
   splAmount: BN;

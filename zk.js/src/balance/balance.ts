@@ -27,9 +27,9 @@ import {
 } from "../utils";
 import {
   Account,
-  IndexedTransaction,
   MerkleTreeConfig,
   ParsedIndexedTransaction,
+  Relayer,
 } from "../index";
 import { BN } from "@coral-xyz/anchor";
 import { Hasher } from "@lightprotocol/account.rs";
@@ -129,7 +129,7 @@ export function initTokenBalance(
     lamports,
     tokenData,
     utxos: utxos ? sortUtxos(utxos) : [],
-  };
+  } as TokenBalance;
 }
 
 /**
@@ -255,17 +255,14 @@ async function serializeTokenBalance(
   return serializedTokenBalance;
 }
 
+export type AssetLookupTable = string[];
 /**
  * deserializes SerializedTokenBalance into a TokenBalance
- * @param serializedTokenBalance
- * @param tokenRegistry
- * @param provider lightProvider
- * @returns tokenBalance
  */
 function deserializeTokenBalance(
   serializedTokenBalance: SerializedTokenBalance,
   tokenRegistry: Map<string, TokenData>,
-  provider: Provider,
+  assetLookupTable: AssetLookupTable,
   hasher: Hasher,
 ): TokenBalance {
   const tokenData = getTokenDataByMint(
@@ -278,7 +275,7 @@ function deserializeTokenBalance(
       const utxo = Utxo.fromString(
         serializedUtxo.utxo,
         hasher,
-        provider.lookUpTables.assetLookupTable,
+        assetLookupTable,
       );
 
       const index = serializedUtxo.index;
@@ -328,7 +325,7 @@ export function initBalance() {
 export function deserializeBalance(
   serializedBalance: string,
   tokenRegistry: Map<string, TokenData>,
-  provider: Provider,
+  assetLookupTable: AssetLookupTable,
   hasher: Hasher,
 ): Balance {
   const cachedBalance: SerializedBalance = JSON.parse(serializedBalance);
@@ -339,7 +336,7 @@ export function deserializeBalance(
     const tokenBalance = deserializeTokenBalance(
       serializedTokenBalance,
       tokenRegistry,
-      provider,
+      assetLookupTable,
       hasher,
     );
     balance.tokenBalances.set(serializedTokenBalance.mint, tokenBalance);
@@ -350,50 +347,50 @@ export function deserializeBalance(
 
 /**
  * syncs balance with the blockchain. currently fetches all events. creates a new balance if none is provided.
- * @param provider
- * @param account
- * @param hasher
- * @param balance
- * @param _until
  */
 // until is either empty, accountcreationslot, or lastsyncedslot
 // later: make it a prefix/signature
-export async function syncBalance(
-  provider: Provider,
-  account: Account,
-  hasher: Hasher,
-  balance?: Balance,
-  _until?: number, // keep it if we extract the event fetching into its own function
-) {
+export async function syncBalance({
+  connection,
+  relayer,
+  account,
+  hasher,
+  assetLookupTable,
+  balance,
+  _until, // keep it if we extract the event fetching into its own function,
+}: {
+  connection: Connection;
+  relayer: Relayer;
+  account: Account;
+  hasher: Hasher;
+  assetLookupTable: string[];
+  balance?: Balance;
+  _until?: number;
+}) {
   if (!balance) balance = initBalance();
   // loops backwards in time starting at most recent event
   // TODO: until 'until' is reached
-  const _balance = await findSpentUtxos(
-    balance,
-    provider.provider.connection,
-    account,
-    hasher,
-  );
+  const _balance = await findSpentUtxos(balance, connection, account, hasher);
 
   /// TODO: refactor this after the indexer refactor
   /// main goals: performant merkleproofs, and only fetch new events in syncbalance
   /// use balance.lastSyncedSlot for it as well
-  const indexedTransactions = await provider.relayer.getIndexedTransactions(
-    provider.provider!.connection,
-  );
+  const indexedTransactions = await relayer.getIndexedTransactions(connection);
 
-  await provider.latestMerkleTree(indexedTransactions);
+  /// TODO: adapt to new index refactor
+  // await provider.latestMerkleTree(indexedTransactions);
 
   // mutates _balance
-  await tryDecryptNewUtxos(
-    _balance,
+  await tryDecryptNewUtxos({
+    balance: _balance,
     indexedTransactions,
-    provider,
+    connection,
+    assetLookupTable,
     hasher,
     account,
-    true, // aes
-    MerkleTreeConfig.getTransactionMerkleTreePda(),
-  );
+    aes: true, // aes
+    merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+  });
 
   return _balance;
 }
@@ -442,19 +439,35 @@ export async function findSpentUtxos(
  * @param aes - whether to use aes (symmetric) decryption or not. default true for inbox
  * @param merkleTreePdaPublicKey
  */
-export async function tryDecryptNewUtxos(
-  balance: Balance,
-  indexedTransactions: ParsedIndexedTransaction[],
-  provider: Provider,
-  hasher: Hasher,
-  account: Account,
-  aes: boolean,
-  merkleTreePdaPublicKey: PublicKey,
-): Promise<void> {
+export async function tryDecryptNewUtxos({
+  balance,
+  indexedTransactions,
+  connection,
+  hasher,
+  account,
+  aes,
+  merkleTreePdaPublicKey,
+  assetLookupTable, /// TODO: make optional, provide DEFAULT_ASSET_LOOKUP_TABLE
+}: {
+  balance: Balance;
+  indexedTransactions: ParsedIndexedTransaction[];
+  connection: Connection;
+  hasher: Hasher;
+  account: Account;
+  aes: boolean;
+  merkleTreePdaPublicKey: PublicKey;
+  assetLookupTable: string[];
+}): Promise<void> {
+  /**
+   * provider.solMerkleTree!.merkleTree.path(leftLeafIndex + 1)
+   *       .pathElements
+   */
+  const merkleProofs = []; /// TODO: adapt to secure index refactor
   for (const trx of indexedTransactions) {
     const leftLeafIndex = new BN(trx.firstLeafIndex).toNumber();
 
     for (let index = 0; index < trx.leaves.length; index += 2) {
+      /// @ts-ignore
       const leafLeft = trx.leaves[index];
       const leafRight = trx.leaves[index + 1];
 
@@ -470,16 +483,15 @@ export async function tryDecryptNewUtxos(
         ),
         index: leftLeafIndex,
         commitment: Buffer.from([...leafLeft]),
-        account: account,
+        account,
         hasher,
-        connection: provider.provider.connection,
+        connection,
         balance,
         merkleTreePdaPublicKey,
         leftLeaf: Uint8Array.from([...leafLeft]),
         aes,
-        assetLookupTable: provider.lookUpTables.assetLookupTable,
-        merkleProof:
-          provider.solMerkleTree!.merkleTree.path(leftLeafIndex).pathElements,
+        assetLookupTable,
+        merkleProof: merkleProofs[index],
       });
       await decryptAddUtxoToBalance_new({
         encBytes: Buffer.from(
@@ -490,16 +502,15 @@ export async function tryDecryptNewUtxos(
         ),
         index: leftLeafIndex + 1,
         commitment: Buffer.from([...leafRight]),
-        account: account,
-        hasher: hasher,
-        connection: provider.provider.connection,
+        account,
+        hasher,
+        connection,
         balance,
         merkleTreePdaPublicKey,
         leftLeaf: Uint8Array.from([...leafLeft]),
         aes,
-        assetLookupTable: provider.lookUpTables.assetLookupTable,
-        merkleProof: provider.solMerkleTree!.merkleTree.path(leftLeafIndex + 1)
-          .pathElements,
+        assetLookupTable,
+        merkleProof: merkleProofs[index + 1],
       });
     }
   }

@@ -11,9 +11,11 @@ import {
 } from "@solana/web3.js";
 import { initLookUpTable } from "../utils";
 import {
+  Account,
   ADMIN_AUTH_KEYPAIR,
   BN_0,
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
+  isSolanaKeypair,
   MerkleTreeConfig,
   merkleTreeProgramId,
   MINIMUM_LAMPORTS,
@@ -35,6 +37,7 @@ import {
   useWallet,
 } from "../index";
 import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { Balance, SerializedBalance } from "../types/balance";
 const axios = require("axios");
 
 /**
@@ -47,6 +50,8 @@ export type Wallet = {
   sendAndConfirmTransaction: (transaction: any) => Promise<any>;
   publicKey: PublicKey;
   isNodeWallet?: boolean;
+  getProof?: (transaction: any) => Promise<any>;
+  getCompressedBalance?: () => Promise<SerializedBalance>;
 };
 
 /**
@@ -375,7 +380,7 @@ export class Provider {
         "constructor",
         "No connection provided with browser wallet.",
       );
-    if ("secretKey" in wallet) {
+    if (isSolanaKeypair(wallet)) {
       wallet = useWallet(wallet as SolanaKeypair, url);
     } else {
       wallet = wallet as Wallet;
@@ -388,6 +393,7 @@ export class Provider {
     );
     if (!versionedTransactionLookupTable) {
       // initializing lookup table or fetching one from relayer in case of browser wallet
+      /// TODO: by default, this should be a pre-initialzed lookup table publicKey
       versionedTransactionLookupTable = await Provider.fetchLookupTable(
         wallet,
         anchorProvider,

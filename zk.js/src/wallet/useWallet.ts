@@ -6,14 +6,23 @@ import {
 } from "@solana/web3.js";
 import { PublicKey, Transaction } from "@solana/web3.js";
 import { sign } from "tweetnacl";
+import { Provider, Wallet as WrappedWallet } from "./provider";
+import { Balance } from "../types/balance";
+import { Account, Relayer } from "index";
+import { syncBalance } from "balance/balance";
+import { WasmHasher } from "@lightprotocol/account.rs";
 
-// Mock Solana web3 library
+// Mock Solana-Wallet-Adapter Wallet interface
+// Plus our own wrappers that we need in the wallet adapter
 class Wallet {
   _publicKey: PublicKey;
   _keypair: Keypair;
   _connection: Connection;
   _url: string;
   _commitment: Commitment;
+  /** Our own extension */
+  private _compressedBalance: Balance | undefined;
+  private _account: Account | undefined;
 
   constructor(keypair: Keypair, url: string, commitment: Commitment) {
     this._publicKey = keypair.publicKey;
@@ -21,6 +30,7 @@ class Wallet {
     this._connection = new Connection(url);
     this._url = url;
     this._commitment = commitment;
+    this._compressedBalance = undefined; /// needs to be inited manually (at first ivocation of getCompressedBalance)
   }
 
   signTransaction = async (tx: any): Promise<any> => {
@@ -57,6 +67,40 @@ class Wallet {
     );
     return response;
   };
+
+  /** This mocks the interface, the wallet would implement this themselves inside their wallet */
+  getProof = async (tx: Transaction): Promise<any> => {};
+
+  getCompressedBalance = async (): Promise<any> => {
+    /// wallets should cache/persist this
+    const hasher = await WasmHasher.getInstance();
+    /// wallets should cache/persist this
+    const relayer = await Relayer.initFromUrl("https://helius.xyz/...");
+
+    const account = await this.getAccount();
+
+    const assetLookupTable = [];
+
+    const balance = await syncBalance({
+      connection: this._connection,
+      relayer,
+      account,
+      hasher,
+      assetLookupTable,
+      balance: this._compressedBalance ?? undefined,
+      _until: undefined,
+    });
+    this._compressedBalance = balance;
+  };
+
+  private getAccount = async (): Promise<Account> => {
+    if (!this._account) {
+      //@ts-ignore
+      this._account = 1;
+      return this._account!;
+    }
+    return this._account;
+  };
 }
 
 // Mock useWallet hook
@@ -65,7 +109,7 @@ export const useWallet = (
   url: string = "http://127.0.0.1:8899",
   isNodeWallet: boolean = true,
   commitment: Commitment = "confirmed",
-) => {
+): WrappedWallet => {
   url = url !== "mock" ? url : "http://127.0.0.1:8899";
   const wallet = new Wallet(keypair, url, commitment);
   return {
@@ -75,5 +119,13 @@ export const useWallet = (
     signTransaction: wallet.signTransaction,
     signAllTransactions: wallet.signAllTransactions,
     isNodeWallet,
+    getProof: wallet.getProof,
+    getCompressedBalance: wallet.getCompressedBalance,
   };
 };
+
+/// Type guard function
+export function isSolanaKeypair(obj: Keypair | WrappedWallet): obj is Keypair {
+  if ("secretKey" in obj) return true;
+  else return false;
+}
