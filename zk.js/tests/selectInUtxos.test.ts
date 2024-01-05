@@ -153,7 +153,7 @@ describe("Test selectInUtxos Functional", () => {
         },
       ],
       lightWasm,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
 
     const selectedUtxo = selectInUtxos({
@@ -182,7 +182,7 @@ describe("Test selectInUtxos Functional", () => {
         },
       ],
       lightWasm,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
@@ -210,7 +210,7 @@ describe("Test selectInUtxos Functional", () => {
         },
       ],
       lightWasm,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
 
     const selectedUtxo = selectInUtxos({
@@ -288,7 +288,7 @@ describe("Test selectInUtxos Functional", () => {
         },
       ],
       lightWasm,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
 
     const selectedUtxo = selectInUtxos({
@@ -364,7 +364,7 @@ describe("Test selectInUtxos Errors", () => {
         },
       ],
       lightWasm,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     expect(() => {
       selectInUtxos({
@@ -536,7 +536,7 @@ describe("Test selectInUtxos Errors", () => {
       assetLookupTable: [
         ...lightProvider.lookUpTables.assetLookupTable,
         ...[mint.toBase58()],
-      ]
+      ],
     });
     expect(() => {
       selectInUtxos({
@@ -568,7 +568,7 @@ describe("Test selectInUtxos Errors", () => {
         },
       ],
       lightWasm,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     expect(() => {
       selectInUtxos({
@@ -600,7 +600,7 @@ describe("Test selectInUtxos Errors", () => {
         },
       ],
       lightWasm,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     expect(() => {
       selectInUtxos({
@@ -632,7 +632,7 @@ describe("Test selectInUtxos Errors", () => {
         },
       ],
       lightWasm,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     expect(() => {
       selectInUtxos({

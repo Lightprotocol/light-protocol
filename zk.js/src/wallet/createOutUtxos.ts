@@ -94,8 +94,9 @@ export function createOutUtxos({
   appUtxo,
   numberMaxOutUtxos,
   assetLookupTable,
-  separateSolUtxo = false, lightWasm,
-                               }: {
+  separateSolUtxo = false,
+  lightWasm,
+}: {
   inUtxos?: Utxo[];
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
@@ -345,7 +346,7 @@ export function createOutUtxos({
       includeAppData: appUtxo?.includeAppData,
       verifierAddress: appUtxo?.verifierAddress,
       assetLookupTable,
-      lightWasm
+      lightWasm,
     });
 
     outputUtxos.push(changeUtxo);
@@ -372,7 +373,8 @@ export function createOutUtxos({
  */
 export function createRecipientUtxos({
   recipients,
-  assetLookupTable, lightWasm,
+  assetLookupTable,
+  lightWasm,
 }: {
   recipients: Recipient[];
   assetLookupTable: string[];
@@ -406,7 +408,7 @@ export function createRecipientUtxos({
       appDataHash: recipients[j].appUtxo?.appDataHash,
       verifierAddress: recipients[j].appUtxo?.verifierAddress,
       assetLookupTable,
-      lightWasm
+      lightWasm,
     });
 
     outputUtxos.push(recipientUtxo);

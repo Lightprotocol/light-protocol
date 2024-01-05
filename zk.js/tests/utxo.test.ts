@@ -170,7 +170,7 @@ describe("Utxo Functional", () => {
     const utxo1 = Utxo.fromString(
       string,
       lightProvider.lookUpTables.assetLookupTable,
-        lightWasm
+      lightWasm,
     );
     // cannot compute nullifier in utxo1 because no privkey is serialized with toString()
     Utxo.equal(utxo0, utxo1, lightWasm, true);

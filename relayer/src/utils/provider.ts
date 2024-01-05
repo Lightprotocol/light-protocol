@@ -59,7 +59,7 @@ export const getLightProvider = async () => {
         connection: anchorProvider.connection,
         url: process.env.RPC_URL!,
         versionedTransactionLookupTable: RELAYER_LOOK_UP_TABLE,
-        anchorProvider
+        anchorProvider,
       });
     } catch (e) {
       if (e.message.includes("LOOK_UP_TABLE_NOT_INITIALIZED")) {

@@ -26,7 +26,12 @@ export class MerkleTree {
   _layers: string[][];
   _lightWasm: LightWasm;
 
-  constructor(levels: number, lightWasm: LightWasm, elements: string[] = [],  { zeroElement = DEFAULT_ZERO } = {}) {
+  constructor(
+    levels: number,
+    lightWasm: LightWasm,
+    elements: string[] = [],
+    { zeroElement = DEFAULT_ZERO } = {},
+  ) {
     this.levels = levels;
     this.capacity = 2 ** levels;
     this.zeroElement = zeroElement;

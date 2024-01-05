@@ -37,7 +37,7 @@ export function createProgramOutUtxo({
   amounts,
   assets,
   blinding,
-                                       lightWasm,
+  lightWasm,
   pspId,
   pspIdl,
   includeUtxoData = true,
@@ -131,7 +131,11 @@ export const createUtxoDataHash = (utxoData: any, lightWasm: LightWasm): BN => {
       "utxoData length exceeds 16",
     );
   }
-  const utxoDataHash = new BN(lightWasm.poseidonHash(hashArray), undefined, "be");
+  const utxoDataHash = new BN(
+    lightWasm.poseidonHash(hashArray),
+    undefined,
+    "be",
+  );
   return utxoDataHash;
 };
 
@@ -186,7 +190,7 @@ export function programOutUtxoFromBytes({
   account,
   assetLookupTable,
   compressed = false,
-                                          lightWasm,
+  lightWasm,
   pspId,
   pspIdl,
   utxoName,
@@ -297,7 +301,7 @@ export async function programOutUtxoToString(
 
 export async function encryptProgramOutUtxo({
   utxo,
-                                              lightWasm,
+  lightWasm,
   account,
   merkleTreePdaPublicKey,
   compressed = false,
@@ -327,7 +331,7 @@ export async function encryptProgramOutUtxo({
 }
 
 export async function decryptProgramOutUtxo({
-                                              lightWasm,
+  lightWasm,
   encBytes,
   account,
   merkleTreePdaPublicKey,
@@ -389,7 +393,7 @@ export type ProgramUtxo = {
 export function createProgramUtxo({
   createUtxoInputs,
   account,
-                                    lightWasm,
+  lightWasm,
   pspId,
   pspIdl,
   includeUtxoData = true,
@@ -445,7 +449,7 @@ export async function decryptProgramUtxo({
   merkleTreePdaPublicKey,
   aes,
   utxoHash,
-                                           lightWasm,
+  lightWasm,
   compressed = true,
   merkleProof,
   merkleTreeLeafIndex,
@@ -476,7 +480,7 @@ export async function decryptProgramUtxo({
       decryptedProgramOutUtxo.value,
       merkleProof,
       merkleTreeLeafIndex,
-        lightWasm,
+      lightWasm,
       account,
     ),
   );

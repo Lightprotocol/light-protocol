@@ -92,7 +92,7 @@ export async function functionalCircuitTest(
     transaction.private.inputUtxos,
     transaction.private.outputUtxos,
     BN_0, // is not checked in circuit
-      lightWasm,
+    lightWasm,
   );
   systemProofInputs = {
     ...systemProofInputs,

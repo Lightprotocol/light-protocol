@@ -67,7 +67,7 @@ export class Account {
   static readonly hashLength = 32;
 
   private constructor({
-                        lightWasm,
+    lightWasm,
     seed = bs58.encode(nacl.randomBytes(32)),
     burner = false,
     burnerIndex = "",
@@ -159,7 +159,10 @@ export class Account {
     return new Account({ lightWasm, seed });
   }
 
-  static createFromSolanaKeypair(lightWasm: LightWasm, keypair: Keypair): Account {
+  static createFromSolanaKeypair(
+    lightWasm: LightWasm,
+    keypair: Keypair,
+  ): Account {
     const encodedMessage = utils.bytes.utf8.encode(SIGN_MESSAGE);
     const signature: Uint8Array = sign.detached(
       encodedMessage,
@@ -185,7 +188,11 @@ export class Account {
     });
   }
 
-  static createBurner(lightWasm: LightWasm, seed: string, burnerIndex: BN): Account {
+  static createBurner(
+    lightWasm: LightWasm,
+    seed: string,
+    burnerIndex: BN,
+  ): Account {
     return new Account({
       lightWasm,
       seed,
@@ -199,7 +206,7 @@ export class Account {
   }
 
   static fromPrivkey(
-      lightWasm: LightWasm,
+    lightWasm: LightWasm,
     privateKey: string,
     encryptionPrivateKey: string,
     aesSecret: string,

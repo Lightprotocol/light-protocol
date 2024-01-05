@@ -1,7 +1,4 @@
-import {
-  TransactionError,
-  TransactionErrorCode,
-} from "../errors";
+import { TransactionError, TransactionErrorCode } from "../errors";
 import {
   Account,
   Provider,
@@ -14,7 +11,7 @@ import {
   lightAccounts,
   Transaction,
   ShieldTransaction,
-  UnshieldTransaction
+  UnshieldTransaction,
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
@@ -126,7 +123,7 @@ export class TestTransaction {
   async checkBalances(
     transactionInputs: any,
     remainingAccounts: any,
-    proofInput: any
+    proofInput: any,
   ) {
     if (!transactionInputs.publicInputs)
       throw new TransactionError(

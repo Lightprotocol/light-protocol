@@ -73,7 +73,9 @@ describe("Prover Functionality Tests", () => {
 
     shieldTransaction = await createShieldTransaction(shieldTransactionInput);
 
-    merkleTree = new MerkleTree(18, lightWasm, [shieldUtxo.getCommitment(lightWasm)]);
+    merkleTree = new MerkleTree(18, lightWasm, [
+      shieldUtxo.getCommitment(lightWasm),
+    ]);
 
     assert.equal(merkleTree.indexOf(shieldUtxo.getCommitment(lightWasm)), 0);
   });

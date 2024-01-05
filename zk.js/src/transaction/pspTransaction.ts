@@ -113,7 +113,7 @@ type compiledProofInputs = {
 export const createUtxoIndices = (
   utxos: Utxo[],
   commitHashUtxo: string,
-  lightWasm: LightWasm
+  lightWasm: LightWasm,
 ) => {
   const isAppInUtxo = new Array(4).fill(new BN(0));
   for (const i in utxos) {
@@ -142,7 +142,7 @@ export const createPspProofInputs = (
     const isAppUtxo = createUtxoIndices(
       inputUtxos,
       utxo.getCommitment(lightWasm),
-        lightWasm,
+      lightWasm,
     );
     // @ts-ignore
     inUtxosInputs[`isInAppUtxo${upperCamelCase(utxoName)}`] = isAppUtxo;
@@ -171,7 +171,7 @@ export const createPspProofInputs = (
       const isAppUtxoIndices = createUtxoIndices(
         outputUtxos,
         utxo.getCommitment(lightWasm),
-          lightWasm
+        lightWasm,
       );
       // @ts-ignore
       outUtxosInputs[`isOutAppUtxo${upperCamelCase(utxoName)}`] =
@@ -232,7 +232,9 @@ export async function getSystemProof({
 export function createSystemProofInputs({
   transaction,
   root,
-  account, lightWasm}: {
+  account,
+  lightWasm,
+}: {
   transaction: Transaction;
   root: string;
   account: Account;
@@ -355,7 +357,7 @@ export async function syncInputUtxosMerkleProofs({
 export function createProofInputs({
   transaction,
   root,
-                                    lightWasm,
+  lightWasm,
   account,
   pspTransaction,
 }: {
@@ -372,7 +374,7 @@ export function createProofInputs({
     account,
   });
   const pspProofInputs = createPspProofInputs(
-      lightWasm,
+    lightWasm,
     pspTransaction,
     transaction.private.inputUtxos,
     transaction.private.outputUtxos,
@@ -921,7 +923,6 @@ export function getTransactionHash(
   outputUtxos: Utxo[],
   txIntegrityHash: BN,
   lightWasm: LightWasm,
-
 ): string {
   const inputHasher = lightWasm.poseidonHashString(
     inputUtxos?.map((utxo) => utxo.getCommitment(lightWasm)),
@@ -1009,7 +1010,7 @@ export async function createShieldTransaction(
     privateVars.outputUtxos,
     transactionMerkleTreePubkey,
     verifierConfig,
-      lightWasm
+    lightWasm,
   );
   const txIntegrityHash = getTxIntegrityHash(
     BN_0,
@@ -1024,7 +1025,7 @@ export async function createShieldTransaction(
     privateVars.inputUtxos,
     privateVars.outputUtxos,
     txIntegrityHash,
-      lightWasm
+    lightWasm,
   );
 
   const transaction: ShieldTransaction = {
@@ -1068,13 +1069,13 @@ export function createPrivateTransactionVariables({
   const filledInputUtxos = addEmptyUtxos(
     inputUtxos,
     verifierConfig.in,
-      lightWasm,
+    lightWasm,
     account.keypair.publicKey,
   );
   const filledOutputUtxos = addEmptyUtxos(
     outputUtxos,
     verifierConfig.out,
-      lightWasm,
+    lightWasm,
     account.keypair.publicKey,
   );
 
@@ -1172,7 +1173,7 @@ export async function createUnshieldTransaction(
     privateVars.outputUtxos,
     transactionMerkleTreePubkey,
     verifierConfig,
-      lightWasm
+    lightWasm,
   );
   const txIntegrityHash = getTxIntegrityHash(
     relayerFee,
@@ -1187,7 +1188,7 @@ export async function createUnshieldTransaction(
     privateVars.inputUtxos,
     privateVars.outputUtxos,
     txIntegrityHash,
-      lightWasm
+    lightWasm,
   );
 
   const transaction: UnshieldTransaction = {
@@ -1271,8 +1272,7 @@ export async function createTransaction(
     privateVars.outputUtxos,
     transactionMerkleTreePubkey,
     verifierConfig,
-      lightWasm,
-
+    lightWasm,
   );
 
   const txIntegrityHash = getTxIntegrityHash(
@@ -1288,8 +1288,7 @@ export async function createTransaction(
     privateVars.inputUtxos,
     privateVars.outputUtxos,
     txIntegrityHash,
-      lightWasm,
-
+    lightWasm,
   );
 
   const transaction: Transaction = {

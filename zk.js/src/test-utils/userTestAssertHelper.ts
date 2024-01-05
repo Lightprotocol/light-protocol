@@ -747,7 +747,7 @@ export class UserTestAssertHelper {
         ?.utxos.values()
         .next()!
         .value.getNullifier({
-        lightWasm: this.provider.lightWasm,
+          lightWasm: this.provider.lightWasm,
           account: this.recipient.user.account,
         }),
     );

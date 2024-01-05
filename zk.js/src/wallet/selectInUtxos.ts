@@ -114,7 +114,7 @@ const selectBiggestSmallest = (
 // TODO: enable users to pass in this function to use their own selection strategies
 // TODO: add option how many utxos to select
 export function selectInUtxos({
-                                lightWasm,
+  lightWasm,
   utxos,
   publicMint,
   publicAmountSpl,
@@ -125,7 +125,6 @@ export function selectInUtxos({
   action,
   numberMaxInUtxos,
   numberMaxOutUtxos,
-
 }: {
   lightWasm: LightWasm;
   publicMint?: PublicKey;

@@ -314,7 +314,7 @@ describe("Streaming Payments tests", () => {
 
     const utxo = (await lightUser.getUtxo(commitment))!;
     assert.equal(utxo.status, "ready");
-    Utxo.equal(utxo.utxo, testInputsSol1.utxo, WASM,true);
+    Utxo.equal(utxo.utxo, testInputsSol1.utxo, WASM, true);
     const currentSlot1 = await provider.connection.getSlot("confirmed");
 
     await lightUser.getBalance();

@@ -17,7 +17,7 @@ import {
   decryptOutUtxo,
   decryptUtxo,
 } from "../src";
-import {WasmFactory, LightWasm} from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -218,7 +218,7 @@ describe("Utxo Functional", () => {
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       true,
       new BN(outUtxo.utxoHash).toArrayLike(Buffer, "be", 32),
-        lightWasm,
+      lightWasm,
       true,
       ["1", "2", "3"],
       inputs.index,

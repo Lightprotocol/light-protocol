@@ -64,7 +64,7 @@ export class Provider {
    * Optionally provide confirmConfig, Default = 'confirmed'.
    */
   constructor({
-      lightWasm,
+    lightWasm,
     wallet,
     confirmConfig,
     connection,
@@ -74,7 +74,7 @@ export class Provider {
     verifierProgramLookupTable,
     assetLookupTable,
     versionedTransactionLookupTable,
-    anchorProvider
+    anchorProvider,
   }: {
     lightWasm: LightWasm;
     wallet: Wallet;
@@ -281,7 +281,7 @@ export class Provider {
       assetLookupTable,
       verifierProgramLookupTable,
       versionedTransactionLookupTable,
-      anchorProvider
+      anchorProvider,
     });
   }
 

@@ -45,7 +45,7 @@ export class TestRelayer extends Relayer {
     highRelayerFee,
     payer,
     connection,
-                lightWasm,
+    lightWasm,
   }: {
     relayerPubkey: PublicKey;
     relayerRecipientSol?: PublicKey;

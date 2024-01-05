@@ -109,7 +109,10 @@ export class User {
         "No wallet provided",
       );
 
-    if (!provider.lookUpTables.verifierProgramLookupTable || !provider.lightWasm)
+    if (
+      !provider.lookUpTables.verifierProgramLookupTable ||
+      !provider.lightWasm
+    )
       throw new UserError(
         UserErrorCode.PROVIDER_NOT_INITIALIZED,
         "constructor",
@@ -184,11 +187,7 @@ export class User {
       throw new UserError(UserErrorCode.PROVIDER_NOT_INITIALIZED, "syncState");
 
     const prefixes = aes
-      ? getPrefixes(
-          this.account,
-          merkleTreePdaPublicKey,
-          100
-        )
+      ? getPrefixes(this.account, merkleTreePdaPublicKey, 100)
       : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
     const indexedTransactions = await this.provider.relayer.getEventsByIdBatch(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -1361,11 +1360,7 @@ export class User {
      */
 
     const prefixes = aes
-      ? getPrefixes(
-          this.account,
-          merkleTreePdaPublicKey,
-          100
-        )
+      ? getPrefixes(this.account, merkleTreePdaPublicKey, 100)
       : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
     const indexedTransactions = await this.provider.relayer.getEventsByIdBatch(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -1484,7 +1479,11 @@ export class User {
       }
       this.balance.programBalances
         .get(verifierAddress)!
-        .addUtxo(utxo.getCommitment(this.provider.lightWasm), utxo, "spentUtxos");
+        .addUtxo(
+          utxo.getCommitment(this.provider.lightWasm),
+          utxo,
+          "spentUtxos",
+        );
     }
     for (const [, programBalance] of this.balance.programBalances) {
       for (const [, tokenBalance] of programBalance.tokenBalances) {
@@ -1677,7 +1676,7 @@ export class User {
 export const getPrefixes = (
   account: Account,
   merkleTreePdaPublicKey: PublicKey,
-  no: number
+  no: number,
 ) => {
   const prefixes: string[] = [];
   for (let i = 0; i < no; i++) {

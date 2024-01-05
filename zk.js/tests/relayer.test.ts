@@ -148,7 +148,7 @@ describe("Test Relayer Errors", () => {
       [utxo, utxo2],
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       verifierConfig,
-        WASM
+      WASM,
     );
     const ids = getIdsFromEncryptedUtxos(Buffer.from(encryptedUtxos), 2);
     assert.equal(
@@ -198,7 +198,7 @@ describe("Test Relayer Errors", () => {
       [utxo, utxo2],
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       verifierConfig,
-        WASM
+      WASM,
     );
 
     const merkleTree = new MerkleTree(18, WASM, [

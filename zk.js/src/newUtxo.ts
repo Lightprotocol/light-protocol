@@ -49,7 +49,8 @@ export function createOutUtxo({
   amounts,
   assets,
   blinding = new BN(randomBN(), 31, "be"),
-  isFillingUtxo = false, lightWasm,
+  isFillingUtxo = false,
+  lightWasm,
   verifierAddress = SystemProgram.programId,
   utxoDataHash = BN_0,
 }: {
@@ -194,7 +195,7 @@ export function outUtxoFromBytes({
   account,
   assetLookupTable,
   compressed = false,
-                                   lightWasm,
+  lightWasm,
 }: {
   bytes: Buffer;
   account?: Account;
@@ -275,7 +276,7 @@ export async function outUtxoToString(
 
 export async function encryptOutUtxo({
   utxo,
-                                       lightWasm,
+  lightWasm,
   account,
   merkleTreePdaPublicKey,
   compressed = false,
@@ -306,7 +307,7 @@ export async function encryptOutUtxo({
 
 export async function encryptOutUtxoInternal({
   bytes,
-                                               lightWasm,
+  lightWasm,
   account,
   merkleTreePdaPublicKey,
   compressed = false,
@@ -381,7 +382,7 @@ export async function encryptOutUtxoInternal({
   }
 }
 export async function decryptOutUtxo({
-                                       lightWasm,
+  lightWasm,
   encBytes,
   account,
   merkleTreePdaPublicKey,
@@ -423,7 +424,7 @@ export async function decryptOutUtxo({
 }
 
 export async function decryptOutUtxoInternal({
-                                               lightWasm,
+  lightWasm,
   encBytes,
   account,
   merkleTreePdaPublicKey,
@@ -529,7 +530,7 @@ export async function decryptUtxo(
       decryptedOutUtxo.value,
       merkleProof,
       merkleTreeLeafIndex,
-        lightWasm,
+      lightWasm,
       account,
     ),
   );
@@ -554,7 +555,7 @@ export function outUtxoToUtxo(
 }
 
 export function createUtxo(
-    lightWasm: LightWasm,
+  lightWasm: LightWasm,
   account: Account,
   createUtxoInputs: CreateUtxoInputs,
   isFillingUtxo: boolean,
@@ -624,7 +625,10 @@ export function createUtxo(
   return utxo;
 }
 
-export function getNullifier(lightWasm: LightWasm, inputs: NullifierInputs): string {
+export function getNullifier(
+  lightWasm: LightWasm,
+  inputs: NullifierInputs,
+): string {
   return lightWasm.poseidonHashString([
     inputs.utxoHash,
     inputs.merkleTreeLeafIndex,

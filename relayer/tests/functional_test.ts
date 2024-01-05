@@ -473,7 +473,7 @@ describe("API tests", () => {
     };
 
     const recipientAccount = Account.createFromSeed(
-        lightWasm,
+      lightWasm,
       testInputs.recipientSeed,
     );
 

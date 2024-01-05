@@ -32,7 +32,7 @@ import {
   BN_1,
   BN_2,
 } from "../src";
-import {LightWasm, WasmFactory} from "@lightprotocol/account.rs";
+import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const numberMaxOutUtxos = 2;
 
@@ -81,13 +81,13 @@ describe("Test createOutUtxos Functional", () => {
     relayerFee = RELAYER_FEE;
 
     const recipientAccountRoot = Account.createFromSeed(
-        lightWasm,
+      lightWasm,
       bs58.encode(new Uint8Array(32).fill(3)),
     );
 
     recipientAccount = Account.fromPubkey(
       recipientAccountRoot.getPublicKey(),
-        lightWasm,
+      lightWasm,
     );
   });
 
@@ -497,7 +497,7 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createRecipientUtxos({
       recipients,
       lightWasm,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
 
     outUtxos = createOutUtxos({
@@ -549,7 +549,7 @@ describe("createRecipientUtxos", () => {
     const mint = MINT;
     const account1 = Account.createFromSeed(lightWasm, seed32);
     const account2 = Account.createFromSeed(
-        lightWasm,
+      lightWasm,
       new Uint8Array(32).fill(4).toString(),
     );
 
@@ -571,7 +571,7 @@ describe("createRecipientUtxos", () => {
     const outputUtxos = createRecipientUtxos({
       recipients,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      lightWasm
+      lightWasm,
     });
 
     expect(outputUtxos.length).to.equal(recipients.length);
@@ -609,7 +609,7 @@ describe("validateUtxoAmounts", () => {
   });
   // Helper function to create a UTXO with specific amounts and assets
   function createUtxo(
-      lightWasm: LightWasm,
+    lightWasm: LightWasm,
     amounts: BN[],
     assets: PublicKey[],
   ): Utxo {

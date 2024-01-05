@@ -200,7 +200,7 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(
       programOutUtxo.outUtxo.utxoDataHash.toString(),
-        lightWasm.poseidonHashString([utxoData.releaseSlot]).toString(),
+      lightWasm.poseidonHashString([utxoData.releaseSlot]).toString(),
     );
     assert.equal(programOutUtxo.outUtxo.poolType.toString(), "0");
     assert.equal(
@@ -302,7 +302,7 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(
       decryptedUtxo.value?.utxo.utxoDataHash.toString(),
-        lightWasm.poseidonHashString([utxoData.releaseSlot]).toString(),
+      lightWasm.poseidonHashString([utxoData.releaseSlot]).toString(),
     );
     assert.equal(decryptedUtxo.value?.utxo.poolType.toString(), "0");
     assert.equal(

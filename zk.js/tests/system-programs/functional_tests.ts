@@ -327,7 +327,7 @@ describe("verifier_program", () => {
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },
       remainingSolanaAccounts,
-      systemProofInputs
+      systemProofInputs,
     );
   };
 
@@ -442,7 +442,7 @@ describe("verifier_program", () => {
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },
       remainingSolanaAccounts,
-      systemProofInputs
+      systemProofInputs,
     );
   };
 });

@@ -221,7 +221,7 @@ describe("Test Account Functional", () => {
 
   it("createFromSolanaKeypair Functional", async () => {
     const solanaKeypairAccount = Account.createFromSolanaKeypair(
-        lightWasm,
+      lightWasm,
       ADMIN_AUTH_KEYPAIR,
     );
     await compareAccountToReference(
@@ -239,7 +239,7 @@ describe("Test Account Functional", () => {
     const wallet = useWallet(ADMIN_AUTH_KEYPAIR);
 
     const solanaWalletAccount = await Account.createFromBrowserWallet(
-        lightWasm,
+      lightWasm,
       wallet,
     );
     await compareAccountToReference(
@@ -295,7 +295,7 @@ describe("Test Account Functional", () => {
     if (!k0.aesSecret) throw new Error("Aes key is undefined");
     const { privateKey, aesSecret, encryptionPrivateKey } = k0.getPrivateKeys();
     const k0Privkey = Account.fromPrivkey(
-        lightWasm,
+      lightWasm,
       privateKey,
       encryptionPrivateKey,
       aesSecret,
@@ -419,7 +419,7 @@ describe("Test Account Errors", () => {
     expect(() => {
       // @ts-ignore
       Account.fromPrivkey(
-          lightWasm,
+        lightWasm,
         bs58.encode(k0.keypair.privateKey.toArrayLike(Buffer, "be", 32)),
       );
     })

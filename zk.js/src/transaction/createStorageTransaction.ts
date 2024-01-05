@@ -49,7 +49,7 @@ export async function prepareStoreProgramUtxo({
   stringUtxo,
   appUtxoConfig,
   account,
-                                                lightWasm,
+  lightWasm,
   assetLookupTable,
 }: {
   token?: string;
@@ -101,7 +101,7 @@ export async function prepareStoreProgramUtxo({
           ? recipientAccount.encryptionKeypair.publicKey
           : undefined,
         assetLookupTable,
-        lightWasm
+        lightWasm,
       });
     } else if (stringUtxo) {
       appUtxo = Utxo.fromString(stringUtxo, assetLookupTable, lightWasm);
@@ -139,7 +139,7 @@ export async function prepareStoreProgramUtxo({
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       compressed: false,
       account,
-      lightWasm
+      lightWasm,
     }),
   );
 
@@ -236,7 +236,7 @@ export async function proveAndCreateInstructions({
   transaction,
   relayer,
   account,
-    lightWasm
+  lightWasm,
 }: {
   transaction: ShieldTransaction | Transaction | UnshieldTransaction;
   relayer: Relayer;

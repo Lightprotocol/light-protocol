@@ -107,7 +107,8 @@ export class Utxo {
     assetLookupTable,
     isFillingUtxo = false,
     encryptionPublicKey,
-    merkleProof, lightWasm
+    merkleProof,
+    lightWasm,
   }: {
     assets?: PublicKey[];
     amounts?: BN[];
@@ -441,7 +442,7 @@ export class Utxo {
     appDataIdl,
     assetLookupTable,
     merkleProof,
-                     lightWasm,
+    lightWasm,
   }: {
     bytes: Buffer;
     account?: Account;
@@ -451,7 +452,6 @@ export class Utxo {
     assetLookupTable: string[];
     merkleProof?: string[];
     lightWasm: LightWasm;
-
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding
     if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
@@ -573,7 +573,7 @@ export class Utxo {
    * @returns {string}
    */
   getNullifier({
-                 lightWasm,
+    lightWasm,
     account,
     index,
   }: {
@@ -623,7 +623,7 @@ export class Utxo {
     account,
     merkleTreePdaPublicKey,
     compressed = true,
-                  lightWasm,
+    lightWasm,
   }: {
     account?: Account;
     merkleTreePdaPublicKey?: PublicKey;
@@ -692,7 +692,7 @@ export class Utxo {
    * @returns {Utxo | null}
    */
   static async decryptUnchecked({
-                                  lightWasm,
+    lightWasm,
     encBytes,
     account,
     index,
@@ -761,9 +761,9 @@ export class Utxo {
    * @returns {Utxo} The newly created Utxo.
    */
   static fromString(
-      string: string,
+    string: string,
     assetLookupTable: string[],
-      lightWasm: LightWasm,
+    lightWasm: LightWasm,
   ): Utxo {
     return Utxo.fromBytes({
       bytes: bs58.decode(string),

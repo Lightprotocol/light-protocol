@@ -35,7 +35,7 @@ export class SolMerkleTree {
 
   constructor({
     pubkey,
-                lightWasm,
+    lightWasm,
     merkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, lightWasm),
   }: {
     lightWasm: LightWasm;
@@ -65,7 +65,9 @@ export class SolMerkleTree {
     return { leavesAccounts, merkleTreeIndex, mtFetched };
   }
 
-  static async build({lightWasm, pubkey,
+  static async build({
+    lightWasm,
+    pubkey,
     indexedTransactions,
     provider,
   }: {
@@ -105,7 +107,11 @@ export class SolMerkleTree {
       }
     }
 
-    const builtMerkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, lightWasm, leaves);
+    const builtMerkleTree = new MerkleTree(
+      MERKLE_TREE_HEIGHT,
+      lightWasm,
+      leaves,
+    );
 
     const builtMerkleTreeRoot = beInt2Buff(
       unstringifyBigInts(builtMerkleTree.root()),
@@ -136,7 +142,11 @@ export class SolMerkleTree {
       );
     }
 
-    return new SolMerkleTree({ pubkey, lightWasm, merkleTree: builtMerkleTree });
+    return new SolMerkleTree({
+      pubkey,
+      lightWasm,
+      merkleTree: builtMerkleTree,
+    });
   }
 
   static async getUninsertedLeaves(
@@ -209,7 +219,7 @@ export class SolMerkleTree {
               SolMerkleTreeErrorCode.INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE,
               "getMerkleProofs",
               `Input commitment ${inputUtxo.getCommitment(
-                  lightWasm,
+                lightWasm,
               )} was not found. Was the local merkle tree synced since the utxo was inserted?`,
             );
           }
