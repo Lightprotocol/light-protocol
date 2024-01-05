@@ -5,7 +5,6 @@ import {
   MINT,
   Utxo,
   IDL_LIGHT_PSP2IN2OUT,
-  lightPsp2in2outId,
   createTransaction,
   TransactionInput,
   getVerifierProgramId,
@@ -15,7 +14,7 @@ import {
   BN_0,
   getTransactionHash,
 } from "../index";
-import { WasmHasher } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/account.rs";
 import { BN } from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
@@ -29,14 +28,14 @@ export async function functionalCircuitTest(
   const lightProvider = await LightProvider.loadMock();
   const mockPubkey = SolanaKeypair.generate().publicKey;
 
-  const hasher = await WasmHasher.getInstance();
+  const lightWasm = await WasmFactory.getInstance();
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  const account = Account.createFromSeed(hasher, seed32);
+  const account = Account.createFromSeed(lightWasm, seed32);
   const shieldAmount = 20_000;
   const shieldFeeAmount = 10_000;
   const relayerFee = new BN(5000);
   const inputUtxo = new Utxo({
-    hasher: hasher,
+    lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
     publicKey: account.keypair.publicKey,
@@ -45,13 +44,13 @@ export async function functionalCircuitTest(
     verifierAddress: app ? mockPubkey : undefined,
   });
 
-  const merkleTree = new MerkleTree(18, hasher, [
-    inputUtxo.getCommitment(hasher),
+  const merkleTree = new MerkleTree(18, lightWasm, [
+    inputUtxo.getCommitment(lightWasm),
   ]);
   inputUtxo.merkleProof = merkleTree.path(0).pathElements;
 
   const outputUtxo1 = new Utxo({
-    hasher: hasher,
+    lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [
       new BN(shieldFeeAmount / 2).sub(relayerFee),
@@ -62,7 +61,7 @@ export async function functionalCircuitTest(
   });
 
   const outputUtxo2 = new Utxo({
-    hasher: hasher,
+    lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(shieldFeeAmount / 2), new BN(shieldAmount / 2)],
     publicKey: account.keypair.publicKey,
@@ -73,7 +72,7 @@ export async function functionalCircuitTest(
     inputUtxos: [inputUtxo],
     outputUtxos: [outputUtxo1, outputUtxo2],
     transactionMerkleTreePubkey: mockPubkey,
-    hasher,
+    lightWasm,
     account,
     relayerFee,
     systemPspId: getVerifierProgramId(verifierIdl),
@@ -84,16 +83,16 @@ export async function functionalCircuitTest(
   const transaction = await createTransaction(txInput);
   let systemProofInputs = createSystemProofInputs({
     transaction: transaction,
-    hasher,
+    lightWasm,
     account,
     root: merkleTree.root(),
   });
 
   const transactionHash = getTransactionHash(
-    hasher,
     transaction.private.inputUtxos,
     transaction.private.outputUtxos,
     BN_0, // is not checked in circuit
+      lightWasm,
   );
   systemProofInputs = {
     ...systemProofInputs,

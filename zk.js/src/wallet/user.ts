@@ -31,7 +31,6 @@ import {
   MAX_MESSAGE_SIZE,
   MerkleTreeConfig,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  ParsedIndexedTransaction,
   UTXO_PREFIX_LENGTH,
   ProgramUtxoBalance,
   Provider,
@@ -63,7 +62,6 @@ import {
   RpcIndexedTransaction,
 } from "../index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Hasher } from "@lightprotocol/account.rs";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -111,7 +109,7 @@ export class User {
         "No wallet provided",
       );
 
-    if (!provider.lookUpTables.verifierProgramLookupTable || !provider.hasher)
+    if (!provider.lookUpTables.verifierProgramLookupTable || !provider.lightWasm)
       throw new UserError(
         UserErrorCode.PROVIDER_NOT_INITIALIZED,
         "constructor",
@@ -168,7 +166,7 @@ export class User {
       for (const [key, utxo] of tokenBalance.utxos) {
         const nullifierAccountInfo = await fetchNullifierAccountInfo(
           utxo.getNullifier({
-            hasher: this.provider.hasher,
+            lightWasm: this.provider.lightWasm,
             account: this.account,
           })!,
           this.provider.provider.connection,
@@ -189,8 +187,7 @@ export class User {
       ? getPrefixes(
           this.account,
           merkleTreePdaPublicKey,
-          100,
-          this.provider.hasher,
+          100
         )
       : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
     const indexedTransactions = await this.provider.relayer.getEventsByIdBatch(
@@ -222,7 +219,7 @@ export class User {
           index: leftLeafIndex,
           commitment: Buffer.from([...leafLeft]),
           account: this.account,
-          hasher: this.provider.hasher,
+          lightWasm: this.provider.lightWasm,
           connection: this.provider.provider.connection,
           balance,
           merkleTreePdaPublicKey,
@@ -241,7 +238,7 @@ export class User {
           index: leftLeafIndex + 1,
           commitment: Buffer.from([...leafRight]),
           account: this.account,
-          hasher: this.provider.hasher,
+          lightWasm: this.provider.lightWasm,
           connection: this.provider.provider.connection,
           balance,
           merkleTreePdaPublicKey,
@@ -448,7 +445,6 @@ export class User {
         : [SystemProgram.programId];
       outUtxos.push(
         new Utxo({
-          hasher: this.provider.hasher,
           assets,
           amounts,
           publicKey: recipient.keypair.publicKey,
@@ -458,6 +454,7 @@ export class User {
           includeAppData: appUtxo?.includeAppData,
           appData: appUtxo?.appData,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
+          lightWasm: this.provider.lightWasm,
         }),
       );
       utxos = [];
@@ -530,7 +527,7 @@ export class User {
     }
     const systemProofInputs = createSystemProofInputs({
       transaction: this.recentTransactionParameters,
-      hasher: this.provider.hasher,
+      lightWasm: this.provider.lightWasm,
       account: this.account,
       root,
     });
@@ -715,7 +712,7 @@ export class User {
     confirmOptions?: ConfirmOptions;
   }) {
     const recipientAccount = recipient
-      ? Account.fromPubkey(recipient, this.provider.hasher)
+      ? Account.fromPubkey(recipient, this.provider.lightWasm)
       : undefined;
 
     const txParams = await this.createShieldTransactionParameters({
@@ -900,7 +897,7 @@ export class User {
       );
     const recipientAccount = Account.fromPubkey(
       recipient,
-      this.provider.hasher,
+      this.provider.lightWasm,
     );
 
     const txParams = await this.createTransferTransactionParameters({
@@ -1006,10 +1003,8 @@ export class User {
             appUtxo,
           },
         ],
-        hasher: this.provider.hasher,
         assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-        verifierProgramLookupTable:
-          this.provider.lookUpTables.verifierProgramLookupTable,
+        lightWasm: this.provider.lightWasm,
       });
     }
 
@@ -1129,11 +1124,11 @@ export class User {
         );
       if (!seed && !account && provider.wallet) {
         account = await Account.createFromBrowserWallet(
-          provider.hasher,
+          provider.lightWasm,
           provider.wallet,
         );
       } else if (!account && seed) {
-        account = Account.createFromSeed(provider.hasher, seed);
+        account = Account.createFromSeed(provider.lightWasm, seed);
       } else if (!account) {
         throw new UserError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
@@ -1369,8 +1364,7 @@ export class User {
       ? getPrefixes(
           this.account,
           merkleTreePdaPublicKey,
-          100,
-          this.provider.hasher,
+          100
         )
       : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
     const indexedTransactions = await this.provider.relayer.getEventsByIdBatch(
@@ -1414,7 +1408,7 @@ export class User {
         for (const [, leaf] of data.transaction.leaves.entries()) {
           try {
             decryptedUtxo = await Utxo.decryptUnchecked({
-              hasher: this.provider.hasher,
+              lightWasm: this.provider.lightWasm,
               account: this.account,
               encBytes: Uint8Array.from(data.transaction.message),
               appDataIdl: idl,
@@ -1432,7 +1426,7 @@ export class User {
               const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
                 utxo.getNullifier({
-                  hasher: this.provider.hasher,
+                  lightWasm: this.provider.lightWasm,
                   account: this.account,
                 })!,
                 this.provider.provider?.connection,
@@ -1477,7 +1471,7 @@ export class User {
       }
       this.balance.programBalances
         .get(verifierAddress)!
-        .addUtxo(utxo.getCommitment(this.provider.hasher), utxo, "utxos");
+        .addUtxo(utxo.getCommitment(this.provider.lightWasm), utxo, "utxos");
     }
 
     for (const utxo of spentUtxos) {
@@ -1490,14 +1484,14 @@ export class User {
       }
       this.balance.programBalances
         .get(verifierAddress)!
-        .addUtxo(utxo.getCommitment(this.provider.hasher), utxo, "spentUtxos");
+        .addUtxo(utxo.getCommitment(this.provider.lightWasm), utxo, "spentUtxos");
     }
     for (const [, programBalance] of this.balance.programBalances) {
       for (const [, tokenBalance] of programBalance.tokenBalances) {
         for (const [key, utxo] of tokenBalance.utxos) {
           const nullifierAccountInfo = await fetchNullifierAccountInfo(
             utxo.getNullifier({
-              hasher: this.provider.hasher,
+              lightWasm: this.provider.lightWasm,
               account: this.account,
             })!,
             this.provider.provider!.connection,
@@ -1683,8 +1677,7 @@ export class User {
 export const getPrefixes = (
   account: Account,
   merkleTreePdaPublicKey: PublicKey,
-  no: number,
-  hasher: Hasher,
+  no: number
 ) => {
   const prefixes: string[] = [];
   for (let i = 0; i < no; i++) {

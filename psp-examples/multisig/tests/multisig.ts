@@ -15,7 +15,7 @@ import { Keypair } from "@solana/web3.js";
 import { IDL } from "../target/types/multisig";
 import { buildEddsa, buildPoseidonOpt } from "circomlibjs";
 import { MultiSigClient, printUtxo } from "../src";
-import { WasmHasher } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/account.rs";
 
 // let circomlibjs = require("circomlibjs");
 // const path = require("path");
@@ -33,7 +33,7 @@ describe("Test multisig", () => {
   anchor.setProvider(provider);
 
   it.skip("Test Withdrawal Multisig", async () => {
-    const hasher = await WasmHasher.getInstance();
+    const hasher = await WasmFactory.getInstance();
     const poseidon = await buildPoseidonOpt();
     let eddsa = await buildEddsa();
 

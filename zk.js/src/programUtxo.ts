@@ -18,7 +18,7 @@ import {
   UtxoErrorCode,
   UtxoNew,
 } from "./index";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
 
@@ -37,7 +37,7 @@ export function createProgramOutUtxo({
   amounts,
   assets,
   blinding,
-  hasher,
+                                       lightWasm,
   pspId,
   pspIdl,
   includeUtxoData = true,
@@ -49,7 +49,7 @@ export function createProgramOutUtxo({
   amounts: BN[];
   assets: PublicKey[];
   blinding?: BN;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   pspId: PublicKey;
   pspIdl: Idl;
   includeUtxoData?: boolean;
@@ -57,7 +57,7 @@ export function createProgramOutUtxo({
   utxoName: string;
 }): ProgramOutUtxo {
   checkUtxoData(utxoData, pspIdl, utxoName + "OutUtxo");
-  const utxoDataHash = createUtxoDataHash(utxoData, hasher);
+  const utxoDataHash = createUtxoDataHash(utxoData, lightWasm);
 
   const outUtxo = createOutUtxo({
     publicKey,
@@ -66,7 +66,7 @@ export function createProgramOutUtxo({
     assets,
     blinding,
     isFillingUtxo: false,
-    hasher,
+    lightWasm,
     utxoDataHash,
     verifierAddress: pspId,
   });
@@ -117,7 +117,7 @@ export const checkUtxoData = (utxoData: any, idl: any, circuitName: string) => {
 };
 
 // TODO: make general for unlimited lengths
-export const createUtxoDataHash = (utxoData: any, hasher: Hasher): BN => {
+export const createUtxoDataHash = (utxoData: any, lightWasm: LightWasm): BN => {
   let hashArray: any[] = [];
   for (const attribute in utxoData) {
     hashArray.push(utxoData[attribute]);
@@ -131,7 +131,7 @@ export const createUtxoDataHash = (utxoData: any, hasher: Hasher): BN => {
       "utxoData length exceeds 16",
     );
   }
-  const utxoDataHash = new BN(hasher.poseidonHash(hashArray), undefined, "be");
+  const utxoDataHash = new BN(lightWasm.poseidonHash(hashArray), undefined, "be");
   return utxoDataHash;
 };
 
@@ -186,7 +186,7 @@ export function programOutUtxoFromBytes({
   account,
   assetLookupTable,
   compressed = false,
-  hasher,
+                                          lightWasm,
   pspId,
   pspIdl,
   utxoName,
@@ -196,7 +196,7 @@ export function programOutUtxoFromBytes({
   account?: Account;
   assetLookupTable: string[];
   compressed?: boolean;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   pspId: PublicKey;
   pspIdl: Idl;
   utxoName: string;
@@ -250,7 +250,7 @@ export function programOutUtxoFromBytes({
     amounts: decodedUtxoData.amounts,
     assets,
     blinding: decodedUtxoData.blinding,
-    hasher,
+    lightWasm,
     pspId,
     pspIdl,
     includeUtxoData,
@@ -264,7 +264,7 @@ export function programOutUtxoFromString(
   string: string,
   assetLookupTable: string[],
   account: Account,
-  hasher: Hasher,
+  lightWasm: LightWasm,
   compressed: boolean = false,
   pspId: PublicKey,
   pspIdl: Idl,
@@ -275,7 +275,7 @@ export function programOutUtxoFromString(
     assetLookupTable,
     account,
     compressed,
-    hasher,
+    lightWasm,
     pspId,
     pspIdl,
     utxoName,
@@ -297,14 +297,14 @@ export async function programOutUtxoToString(
 
 export async function encryptProgramOutUtxo({
   utxo,
-  hasher,
+                                              lightWasm,
   account,
   merkleTreePdaPublicKey,
   compressed = false,
   assetLookupTable,
 }: {
   utxo: ProgramOutUtxo;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   account?: Account;
   merkleTreePdaPublicKey?: PublicKey;
   compressed?: boolean;
@@ -316,7 +316,7 @@ export async function encryptProgramOutUtxo({
   const encryptedUtxo = await encryptOutUtxoInternal({
     bytes,
     utxoHash,
-    hasher,
+    lightWasm,
     account,
     merkleTreePdaPublicKey,
     compressed,
@@ -327,7 +327,7 @@ export async function encryptProgramOutUtxo({
 }
 
 export async function decryptProgramOutUtxo({
-  hasher,
+                                              lightWasm,
   encBytes,
   account,
   merkleTreePdaPublicKey,
@@ -339,7 +339,7 @@ export async function decryptProgramOutUtxo({
   pspIdl,
   utxoName,
 }: {
-  hasher: Hasher;
+  lightWasm: LightWasm;
   encBytes: Uint8Array;
   account: Account;
   merkleTreePdaPublicKey: PublicKey;
@@ -352,7 +352,7 @@ export async function decryptProgramOutUtxo({
   utxoName: string;
 }): Promise<Result<ProgramOutUtxo | null, UtxoError>> {
   const cleartext = await decryptOutUtxoInternal({
-    hasher,
+    lightWasm,
     encBytes,
     account,
     merkleTreePdaPublicKey,
@@ -365,7 +365,7 @@ export async function decryptProgramOutUtxo({
 
   return Result.Ok(
     programOutUtxoFromBytes({
-      hasher,
+      lightWasm,
       bytes,
       account,
       assetLookupTable,
@@ -389,7 +389,7 @@ export type ProgramUtxo = {
 export function createProgramUtxo({
   createUtxoInputs,
   account,
-  hasher,
+                                    lightWasm,
   pspId,
   pspIdl,
   includeUtxoData = true,
@@ -397,7 +397,7 @@ export function createProgramUtxo({
   utxoName,
 }: {
   createUtxoInputs: CreateUtxoInputs;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   pspId: PublicKey;
   pspIdl: Idl;
   includeUtxoData?: boolean;
@@ -407,11 +407,11 @@ export function createProgramUtxo({
 }): ProgramUtxo {
   const utxoDataInternal = utxoData;
   checkUtxoData(utxoDataInternal, pspIdl, utxoName + "OutUtxo");
-  const utxoDataHash = createUtxoDataHash(utxoDataInternal, hasher);
+  const utxoDataHash = createUtxoDataHash(utxoDataInternal, lightWasm);
   createUtxoInputs["utxoDataHash"] = utxoDataHash.toString();
   createUtxoInputs["verifierAddress"] = pspId;
 
-  const utxo = createUtxo(hasher, account, createUtxoInputs, false);
+  const utxo = createUtxo(lightWasm, account, createUtxoInputs, false);
   const programOutUtxo: ProgramUtxo = {
     utxo,
     pspId,
@@ -429,7 +429,7 @@ export interface DecryptProgramUtxoParams {
   merkleTreePdaPublicKey: PublicKey;
   aes: boolean;
   utxoHash: Uint8Array;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   compressed?: boolean;
   merkleProof: string[];
   merkleTreeLeafIndex: number;
@@ -445,7 +445,7 @@ export async function decryptProgramUtxo({
   merkleTreePdaPublicKey,
   aes,
   utxoHash,
-  hasher,
+                                           lightWasm,
   compressed = true,
   merkleProof,
   merkleTreeLeafIndex,
@@ -460,7 +460,7 @@ export async function decryptProgramUtxo({
     merkleTreePdaPublicKey,
     aes,
     utxoHash,
-    hasher,
+    lightWasm,
     compressed,
     assetLookupTable,
     pspId,
@@ -476,7 +476,7 @@ export async function decryptProgramUtxo({
       decryptedProgramOutUtxo.value,
       merkleProof,
       merkleTreeLeafIndex,
-      hasher,
+        lightWasm,
       account,
     ),
   );
@@ -486,7 +486,7 @@ export function programOutUtxoToProgramUtxo(
   programOutUtxo: ProgramOutUtxo,
   merkleProof: string[],
   merkleTreeLeafIndex: number,
-  hasher: Hasher,
+  lightWasm: LightWasm,
   account: Account,
 ): ProgramUtxo {
   const inputs: CreateUtxoInputs = {
@@ -500,7 +500,7 @@ export function programOutUtxoToProgramUtxo(
   return createProgramUtxo({
     createUtxoInputs: inputs,
     account,
-    hasher,
+    lightWasm,
     pspId: programOutUtxo.pspId,
     pspIdl: programOutUtxo.pspIdl,
     includeUtxoData: programOutUtxo.includeUtxoData,

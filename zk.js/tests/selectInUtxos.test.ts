@@ -26,7 +26,7 @@ import {
   BN_0,
   BN_1,
 } from "../src";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -38,7 +38,7 @@ const numberMaxOutUtxos = 2;
 // TODO: add more tests with different numbers of utxos
 // TODO: add a randomized test
 describe("Test selectInUtxos Functional", () => {
-  let hasher: Hasher;
+  let lightWasm: LightWasm;
 
   let splAmount,
     token,
@@ -53,10 +53,10 @@ describe("Test selectInUtxos Functional", () => {
   before(async () => {
     lightProvider = await Provider.loadMock();
 
-    hasher = await WasmHasher.getInstance();
-    utxo1Burner = Account.createFromSeed(hasher, seed32);
-    utxo2Burner = Account.createBurner(hasher, seed32, new anchor.BN("0"));
-    utxoSolBurner = Account.createBurner(hasher, seed32, new anchor.BN("1"));
+    lightWasm = await WasmFactory.getInstance();
+    utxo1Burner = Account.createFromSeed(lightWasm, seed32);
+    utxo2Burner = Account.createBurner(lightWasm, seed32, new anchor.BN("0"));
+    utxoSolBurner = Account.createBurner(lightWasm, seed32, new anchor.BN("1"));
 
     splAmount = new BN(3);
     token = "USDC";
@@ -64,7 +64,7 @@ describe("Test selectInUtxos Functional", () => {
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = new Utxo({
-      hasher,
+      lightWasm,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals.toNumber())],
       index: 0,
@@ -72,7 +72,7 @@ describe("Test selectInUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     utxo2 = new Utxo({
-      hasher,
+      lightWasm,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
@@ -80,7 +80,7 @@ describe("Test selectInUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     utxoSol = new Utxo({
-      hasher,
+      lightWasm,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
       index: 1,
@@ -96,13 +96,13 @@ describe("Test selectInUtxos Functional", () => {
       publicMint: utxo1.assets[1],
       relayerFee: RELAYER_FEE,
       publicAmountSpl: BN_1,
-      hasher,
+      lightWasm,
       utxos: inUtxos,
       action: Action.UNSHIELD,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
-    Utxo.equal(hasher, selectedUtxo[0], utxo1);
+    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Unshield select sol", async () => {
@@ -112,13 +112,13 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       relayerFee: RELAYER_FEE,
       publicAmountSol: new BN(1e7),
-      hasher,
+      lightWasm,
       action: Action.UNSHIELD,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(hasher, selectedUtxo[0], utxoSol);
+    Utxo.equal(selectedUtxo[0], utxoSol, lightWasm);
     assert.equal(selectInUtxos.length, 1);
   });
 
@@ -129,7 +129,7 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.UNSHIELD,
       relayerFee: RELAYER_FEE,
-      hasher,
+      lightWasm,
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
       publicAmountSpl: BN_1,
@@ -137,8 +137,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(hasher, selectedUtxo[1], utxoSol);
-    Utxo.equal(hasher, selectedUtxo[0], utxo1);
+    Utxo.equal(selectedUtxo[1], utxoSol, lightWasm);
+    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Transfer select sol & spl", async () => {
@@ -149,27 +149,25 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
       ],
-      hasher,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      lightWasm,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
 
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
-      hasher,
+      lightWasm,
       outUtxos,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(hasher, selectedUtxo[1], utxoSol);
-    Utxo.equal(hasher, selectedUtxo[0], utxo1);
+    Utxo.equal(selectedUtxo[1], utxoSol, lightWasm);
+    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Transfer select sol", async () => {
@@ -180,26 +178,24 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_0,
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
       ],
-      hasher,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      lightWasm,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
-      hasher,
+      lightWasm,
       outUtxos,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(hasher, selectedUtxo[0], utxoSol);
-    Utxo.equal(hasher, selectedUtxo[1], utxo1);
+    Utxo.equal(selectedUtxo[0], utxoSol, lightWasm);
+    Utxo.equal(selectedUtxo[1], utxo1, lightWasm);
   });
 
   it("Transfer select spl", async () => {
@@ -210,26 +206,24 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: BN_0,
           splAmount: BN_1,
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
       ],
-      hasher,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      lightWasm,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
 
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
-      hasher,
+      lightWasm,
       outUtxos,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(hasher, selectedUtxo[0], utxo1);
+    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Shield select sol & spl", async () => {
@@ -240,13 +234,13 @@ describe("Test selectInUtxos Functional", () => {
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
-      hasher,
+      lightWasm,
       publicAmountSpl: BN_1,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(hasher, selectedUtxo[0], utxo1);
+    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Shield select sol", async () => {
@@ -255,14 +249,14 @@ describe("Test selectInUtxos Functional", () => {
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.SHIELD,
-      hasher,
+      lightWasm,
       publicAmountSol: new BN(1e7),
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(hasher, selectedUtxo[0], utxoSol);
-    Utxo.equal(hasher, selectedUtxo[1], utxo1);
+    Utxo.equal(selectedUtxo[0], utxoSol, lightWasm);
+    Utxo.equal(selectedUtxo[1], utxo1, lightWasm);
   });
 
   it("Shield select spl", async () => {
@@ -272,13 +266,13 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
-      hasher,
+      lightWasm,
       publicAmountSpl: BN_1,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(hasher, selectedUtxo[0], utxo1);
+    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
     assert.equal(selectedUtxo.length, 1);
   });
 
@@ -290,32 +284,30 @@ describe("Test selectInUtxos Functional", () => {
           mint: utxo1.assets[1],
           solAmount: utxo2.amounts[0],
           splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
       ],
-      hasher,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      lightWasm,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
 
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: RELAYER_FEE,
-      hasher,
+      lightWasm,
       outUtxos,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
 
-    Utxo.equal(hasher, selectedUtxo[0], utxo1);
-    Utxo.equal(hasher, selectedUtxo[1], utxo2);
+    Utxo.equal(selectedUtxo[0], utxo1, lightWasm);
+    Utxo.equal(selectedUtxo[1], utxo2, lightWasm);
   });
 });
 
 describe("Test selectInUtxos Errors", () => {
-  let hasher: Hasher;
+  let lightWasm: LightWasm;
   let splAmount,
     token,
     tokenCtx,
@@ -327,15 +319,15 @@ describe("Test selectInUtxos Errors", () => {
 
   before(async () => {
     lightProvider = await Provider.loadMock();
-    hasher = await WasmHasher.getInstance();
+    lightWasm = await WasmFactory.getInstance();
     splAmount = new BN(3);
     token = "USDC";
     tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
-    account = Account.random(hasher);
+    account = Account.random(lightWasm);
     utxo1 = new Utxo({
-      hasher,
+      lightWasm,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
@@ -343,7 +335,7 @@ describe("Test selectInUtxos Errors", () => {
       publicKey: account.keypair.publicKey,
     });
     utxo2 = new Utxo({
-      hasher,
+      lightWasm,
       assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals.toNumber())],
       index: 0,
@@ -351,7 +343,7 @@ describe("Test selectInUtxos Errors", () => {
       publicKey: account.keypair.publicKey,
     });
     utxoSol = new Utxo({
-      hasher,
+      lightWasm,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
       index: 1,
@@ -368,19 +360,17 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
       ],
-      hasher,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      lightWasm,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
-        hasher,
+        lightWasm,
         outUtxos,
         numberMaxInUtxos,
         numberMaxOutUtxos,
@@ -401,7 +391,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.UNSHIELD,
         relayerFee: RELAYER_FEE,
-        hasher,
+        lightWasm,
         publicAmountSol: new BN(1e7),
         publicAmountSpl: BN_1,
         numberMaxInUtxos,
@@ -423,7 +413,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.UNSHIELD,
         relayerFee: RELAYER_FEE,
-        hasher,
+        lightWasm,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         numberMaxInUtxos,
@@ -444,7 +434,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
-        hasher,
+        lightWasm,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: BN_1,
@@ -466,7 +456,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        hasher,
+        lightWasm,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: BN_1,
@@ -489,7 +479,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.SHIELD,
         relayerFee: RELAYER_FEE,
-        hasher,
+        lightWasm,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: BN_1,
@@ -509,7 +499,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
-        hasher,
+        lightWasm,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: BN_1,
@@ -533,29 +523,27 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
         {
           mint,
           solAmount: new BN(1e7),
           splAmount: BN_1,
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
       ],
-      hasher,
+      lightWasm,
       assetLookupTable: [
         ...lightProvider.lookUpTables.assetLookupTable,
         ...[mint.toBase58()],
-      ],
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      ]
     });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
-        hasher,
+        lightWasm,
         outUtxos,
         numberMaxInUtxos,
         numberMaxOutUtxos,
@@ -576,20 +564,18 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: new BN(2e10),
           splAmount: BN_1,
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
       ],
-      hasher,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      lightWasm,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
-        hasher,
+        lightWasm,
         outUtxos,
         numberMaxInUtxos,
         numberMaxOutUtxos,
@@ -610,20 +596,18 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: BN_0,
           splAmount: new BN(1e10),
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
       ],
-      hasher,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      lightWasm,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
-        hasher,
+        lightWasm,
         outUtxos,
         numberMaxInUtxos,
         numberMaxOutUtxos,
@@ -644,20 +628,18 @@ describe("Test selectInUtxos Errors", () => {
           mint: utxo1.assets[1],
           solAmount: utxo2.amounts[0].add(utxo1.amounts[0]),
           splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-          account: Account.random(hasher),
+          account: Account.random(lightWasm),
         },
       ],
-      hasher,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      verifierProgramLookupTable:
-        lightProvider.lookUpTables.verifierProgramLookupTable,
+      lightWasm,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable
     });
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: RELAYER_FEE,
-        hasher,
+        lightWasm,
         outUtxos,
         numberMaxInUtxos,
         numberMaxOutUtxos,

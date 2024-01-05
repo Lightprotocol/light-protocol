@@ -17,7 +17,7 @@ import {
   UtxoError,
   UtxoErrorCode,
 } from "./index";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
 
@@ -49,8 +49,7 @@ export function createOutUtxo({
   amounts,
   assets,
   blinding = new BN(randomBN(), 31, "be"),
-  isFillingUtxo = false,
-  hasher,
+  isFillingUtxo = false, lightWasm,
   verifierAddress = SystemProgram.programId,
   utxoDataHash = BN_0,
 }: {
@@ -60,7 +59,7 @@ export function createOutUtxo({
   assets: PublicKey[];
   blinding?: BN;
   isFillingUtxo?: boolean;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   verifierAddress?: PublicKey;
   utxoDataHash?: BN;
 }): OutUtxo {
@@ -82,7 +81,7 @@ export function createOutUtxo({
     utxoDataHash: utxoDataHash.toString(),
     verifierAddressCircuit,
   };
-  const utxoHash = getUtxoHash(hasher, utxoHashInputs);
+  const utxoHash = getUtxoHash(lightWasm, utxoHashInputs);
   const outUtxo: OutUtxo = {
     publicKey: utxoHashInputs.publicKey,
     encryptionPublicKey,
@@ -113,7 +112,7 @@ type UtxoHashInputs = {
 };
 
 export function getUtxoHash(
-  hasher: Hasher,
+  lightWasm: LightWasm,
   utxoHashInputs: UtxoHashInputs,
 ): string {
   const {
@@ -126,8 +125,8 @@ export function getUtxoHash(
     utxoDataHash,
     verifierAddressCircuit,
   } = utxoHashInputs;
-  const amountHash = hasher.poseidonHashString(amounts);
-  const assetHash = hasher.poseidonHashString(
+  const amountHash = lightWasm.poseidonHashString(amounts);
+  const assetHash = lightWasm.poseidonHashString(
     assetsCircuit.map((x) => x.toString()),
   );
 
@@ -139,7 +138,7 @@ export function getUtxoHash(
     );
   }
 
-  return hasher.poseidonHashString([
+  return lightWasm.poseidonHashString([
     transactionVersion,
     amountHash,
     publicKey.toString(),
@@ -195,13 +194,13 @@ export function outUtxoFromBytes({
   account,
   assetLookupTable,
   compressed = false,
-  hasher,
+                                   lightWasm,
 }: {
   bytes: Buffer;
   account?: Account;
   assetLookupTable: string[];
   compressed?: boolean;
-  hasher: Hasher;
+  lightWasm: LightWasm;
 }): OutUtxo {
   // if it is compressed and adds 64 0 bytes padding
   if (compressed) {
@@ -240,7 +239,7 @@ export function outUtxoFromBytes({
     amounts: decodedUtxoData.amounts,
     assets,
     blinding: new BN(decodedUtxoData.blinding),
-    hasher,
+    lightWasm,
   });
   return outUtxo;
 }
@@ -249,7 +248,7 @@ export function outUtxoFromString(
   string: string,
   assetLookupTable: string[],
   account: Account,
-  hasher: Hasher,
+  lightWasm: LightWasm,
   compressed: boolean = false,
 ): OutUtxo {
   return outUtxoFromBytes({
@@ -257,7 +256,7 @@ export function outUtxoFromString(
     assetLookupTable,
     account,
     compressed,
-    hasher,
+    lightWasm,
   });
 }
 
@@ -276,14 +275,14 @@ export async function outUtxoToString(
 
 export async function encryptOutUtxo({
   utxo,
-  hasher,
+                                       lightWasm,
   account,
   merkleTreePdaPublicKey,
   compressed = false,
   assetLookupTable,
 }: {
   utxo: OutUtxo;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   account?: Account;
   merkleTreePdaPublicKey?: PublicKey;
   compressed?: boolean;
@@ -295,7 +294,7 @@ export async function encryptOutUtxo({
   const encryptedUtxo = await encryptOutUtxoInternal({
     bytes: byteArray,
     utxoHash,
-    hasher,
+    lightWasm,
     account,
     merkleTreePdaPublicKey,
     compressed,
@@ -307,7 +306,7 @@ export async function encryptOutUtxo({
 
 export async function encryptOutUtxoInternal({
   bytes,
-  hasher,
+                                               lightWasm,
   account,
   merkleTreePdaPublicKey,
   compressed = false,
@@ -317,7 +316,7 @@ export async function encryptOutUtxoInternal({
   utxoHash,
 }: {
   bytes: Uint8Array;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   account?: Account;
   merkleTreePdaPublicKey?: PublicKey;
   compressed?: boolean;
@@ -327,7 +326,7 @@ export async function encryptOutUtxoInternal({
   utxoHash: Uint8Array;
 }): Promise<Uint8Array> {
   if (encryptionPublicKey) {
-    const ciphertext = hasher.encryptNaclUtxo(
+    const ciphertext = lightWasm.encryptNaclUtxo(
       encryptionPublicKey,
       bytes,
       utxoHash,
@@ -382,7 +381,7 @@ export async function encryptOutUtxoInternal({
   }
 }
 export async function decryptOutUtxo({
-  hasher,
+                                       lightWasm,
   encBytes,
   account,
   merkleTreePdaPublicKey,
@@ -391,7 +390,7 @@ export async function decryptOutUtxo({
   compressed = false,
   assetLookupTable,
 }: {
-  hasher: Hasher;
+  lightWasm: LightWasm;
   encBytes: Uint8Array;
   account: Account;
   merkleTreePdaPublicKey: PublicKey;
@@ -401,7 +400,7 @@ export async function decryptOutUtxo({
   assetLookupTable: string[];
 }): Promise<Result<OutUtxo | null, UtxoError>> {
   const cleartext = await decryptOutUtxoInternal({
-    hasher,
+    lightWasm,
     encBytes,
     account,
     merkleTreePdaPublicKey,
@@ -414,7 +413,7 @@ export async function decryptOutUtxo({
 
   return Result.Ok(
     outUtxoFromBytes({
-      hasher,
+      lightWasm,
       bytes,
       account,
       assetLookupTable,
@@ -424,7 +423,7 @@ export async function decryptOutUtxo({
 }
 
 export async function decryptOutUtxoInternal({
-  hasher,
+                                               lightWasm,
   encBytes,
   account,
   merkleTreePdaPublicKey,
@@ -432,7 +431,7 @@ export async function decryptOutUtxoInternal({
   utxoHash,
   compressed = false,
 }: {
-  hasher: Hasher;
+  lightWasm: LightWasm;
   encBytes: Uint8Array;
   account: Account;
   merkleTreePdaPublicKey: PublicKey;
@@ -505,7 +504,7 @@ export async function decryptUtxo(
   merkleTreePdaPublicKey: PublicKey,
   aes: boolean,
   utxoHash: Uint8Array,
-  hasher: Hasher,
+  lightWasm: LightWasm,
   compressed: boolean = true,
   merkleProof: string[],
   merkleTreeLeafIndex: number,
@@ -517,7 +516,7 @@ export async function decryptUtxo(
     merkleTreePdaPublicKey,
     aes,
     utxoHash,
-    hasher,
+    lightWasm,
     compressed,
     assetLookupTable,
   });
@@ -530,7 +529,7 @@ export async function decryptUtxo(
       decryptedOutUtxo.value,
       merkleProof,
       merkleTreeLeafIndex,
-      hasher,
+        lightWasm,
       account,
     ),
   );
@@ -540,7 +539,7 @@ export function outUtxoToUtxo(
   outUtxo: OutUtxo,
   merkleProof: string[],
   merkleTreeLeafIndex: number,
-  hasher: Hasher,
+  hasher: LightWasm,
   account: Account,
 ): UtxoNew {
   const inputs: CreateUtxoInputs = {
@@ -555,7 +554,7 @@ export function outUtxoToUtxo(
 }
 
 export function createUtxo(
-  hasher: Hasher,
+    lightWasm: LightWasm,
   account: Account,
   createUtxoInputs: CreateUtxoInputs,
   isFillingUtxo: boolean,
@@ -602,7 +601,7 @@ export function createUtxo(
     utxoHash,
     merkleTreeLeafIndex: merkleTreeLeafIndexInternal.toString(),
   };
-  const nullifier = getNullifier(hasher, nullifierInputs);
+  const nullifier = getNullifier(lightWasm, nullifierInputs);
   const utxo: UtxoNew = {
     publicKey: account.keypair.publicKey.toString(),
     amounts,
@@ -625,8 +624,8 @@ export function createUtxo(
   return utxo;
 }
 
-export function getNullifier(hasher: Hasher, inputs: NullifierInputs): string {
-  return hasher.poseidonHashString([
+export function getNullifier(lightWasm: LightWasm, inputs: NullifierInputs): string {
+  return lightWasm.poseidonHashString([
     inputs.utxoHash,
     inputs.merkleTreeLeafIndex,
     inputs.signature,

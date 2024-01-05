@@ -45,7 +45,7 @@ import {
   UnshieldTransactionInput,
   syncInputUtxosMerkleProofs,
 } from "../../src";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import {
   getAssociatedTokenAddress,
@@ -53,7 +53,7 @@ import {
 } from "@solana/spl-token";
 import { assert } from "chai";
 
-let HASHER: Hasher;
+let WASM: LightWasm;
 let RELAYER: TestRelayer;
 let ACCOUNT: Account;
 
@@ -72,9 +72,9 @@ describe("verifier_program", () => {
   before("init test setup Merkle tree lookup table etc", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    HASHER = await WasmHasher.getInstance();
+    WASM = await WasmFactory.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
-    ACCOUNT = Account.createFromSeed(HASHER, seed);
+    ACCOUNT = Account.createFromSeed(WASM, seed);
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
@@ -86,7 +86,7 @@ describe("verifier_program", () => {
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
-      hasher: HASHER,
+      lightWasm: WASM,
     });
   });
 
@@ -116,7 +116,7 @@ describe("verifier_program", () => {
       mockKeypair.publicKey.toBase58(),
     );
     assert.equal(lightProviderMock.url, "http://127.0.0.1:8899");
-    assert(lightProviderMock.hasher);
+    assert(lightProviderMock.lightWasm);
   });
 
   it("Shield (verifier one)", async () => {
@@ -185,7 +185,7 @@ describe("verifier_program", () => {
     await performUnshield({
       outputUtxos: [
         new Utxo({
-          hasher: HASHER,
+          lightWasm: WASM,
           publicKey: inputUtxos[0].publicKey,
           assets: inputUtxos[0].assets,
           amounts: [BN_0, inputUtxos[0].amounts[1]],
@@ -250,7 +250,7 @@ describe("verifier_program", () => {
 
     const shieldUtxo = spl
       ? new Utxo({
-          hasher: HASHER,
+          lightWasm: WASM,
           assets: [FEE_ASSET, MINT],
           amounts: [
             new anchor.BN(shieldFeeAmount),
@@ -260,14 +260,14 @@ describe("verifier_program", () => {
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         })
       : new Utxo({
-          hasher: HASHER,
+          lightWasm: WASM,
           amounts: [new anchor.BN(shieldFeeAmount)],
           publicKey: ACCOUNT.keypair.publicKey,
           assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         });
 
     const shieldTransactionInput: ShieldTransactionInput = {
-      hasher: HASHER,
+      lightWasm: WASM,
       mint: shieldAmount > 0 ? MINT : undefined,
       message,
       transactionMerkleTreePubkey:
@@ -289,7 +289,7 @@ describe("verifier_program", () => {
     const systemProofInputs = createSystemProofInputs({
       root,
       transaction: shieldTransaction,
-      hasher: HASHER,
+      lightWasm: WASM,
       account: ACCOUNT,
     });
     const systemProof = await getSystemProof({
@@ -327,8 +327,7 @@ describe("verifier_program", () => {
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },
       remainingSolanaAccounts,
-      systemProofInputs,
-      ACCOUNT,
+      systemProofInputs
     );
   };
 
@@ -380,7 +379,7 @@ describe("verifier_program", () => {
     });
     // Running into memory issues with verifier one (10in2out) unshielding spl
     const unshieldTransactionInput: UnshieldTransactionInput = {
-      hasher: HASHER,
+      lightWasm: WASM,
       mint: spl ? MINT : undefined,
       message,
       transactionMerkleTreePubkey:
@@ -402,7 +401,7 @@ describe("verifier_program", () => {
 
     const systemProofInputs = createSystemProofInputs({
       transaction: unshieldTransaction,
-      hasher: HASHER,
+      lightWasm: WASM,
       account: ACCOUNT,
       root,
     });
@@ -443,8 +442,7 @@ describe("verifier_program", () => {
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },
       remainingSolanaAccounts,
-      systemProofInputs,
-      ACCOUNT,
+      systemProofInputs
     );
   };
 });

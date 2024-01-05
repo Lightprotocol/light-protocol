@@ -35,7 +35,7 @@ export async function getEventById(
     const provider: Provider = await getLightProvider();
     const merkleTree = await SolMerkleTree.build({
       pubkey: merkleTreePdaPublicKey,
-      hasher: provider.hasher,
+      lightWasm: provider.lightWasm,
       indexedTransactions: indexedTransactions.map((trx) => trx.transaction),
       provider: provider.provider,
     });
@@ -76,7 +76,7 @@ export async function getEventsByIdBatch(
     const provider: Provider = await getLightProvider();
     const merkleTree = await SolMerkleTree.build({
       pubkey: merkleTreePdaPublicKey,
-      hasher: provider.hasher,
+      lightWasm: provider.lightWasm,
       indexedTransactions: indexedTransactions.map((trx) => trx.transaction),
       provider: provider.provider,
     });

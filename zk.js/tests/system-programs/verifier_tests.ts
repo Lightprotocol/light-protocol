@@ -37,7 +37,7 @@
 //   Provider,
 //   airdropSol,
 // } from "../../src";
-// import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
+// import { Hasher, WasmFactory } from "@lightprotocol/account.rs";
 // import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 // let HASHER: Hasher, ACCOUNT, RELAYER, shieldUtxo1;
@@ -64,7 +64,7 @@
 //   before(async () => {
 //     await createTestAccounts(provider.connection, userTokenAccount);
 
-//     HASHER = await WasmHasher.getInstance();
+//     HASHER = await WasmFactory.getInstance();
 
 //     ACCOUNT = new Account({
 //       hasher: HASHER,

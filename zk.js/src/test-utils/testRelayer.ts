@@ -27,7 +27,7 @@ import {
   TransactionErrorCode,
   merkleTreeProgramId,
 } from "../index";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export class TestRelayer extends Relayer {
@@ -36,7 +36,7 @@ export class TestRelayer extends Relayer {
   relayerKeypair: Keypair;
   connection: Connection;
   merkleTrees: SolMerkleTree[] = [];
-  hasher: Hasher;
+  lightWasm: LightWasm;
   merkleTreeProgram: Program<LightMerkleTreeProgram>;
   constructor({
     relayerPubkey,
@@ -45,7 +45,7 @@ export class TestRelayer extends Relayer {
     highRelayerFee,
     payer,
     connection,
-    hasher,
+                lightWasm,
   }: {
     relayerPubkey: PublicKey;
     relayerRecipientSol?: PublicKey;
@@ -53,7 +53,7 @@ export class TestRelayer extends Relayer {
     highRelayerFee?: BN;
     payer: Keypair;
     connection: Connection;
-    hasher: Hasher;
+    lightWasm: LightWasm;
   }) {
     super(relayerPubkey, relayerRecipientSol, relayerFee, highRelayerFee);
     if (payer.publicKey.toBase58() != relayerPubkey.toBase58())
@@ -63,11 +63,11 @@ export class TestRelayer extends Relayer {
     this.relayerKeypair = payer;
     this.connection = connection;
     const solMerkleTree = new SolMerkleTree({
-      hasher,
+      lightWasm,
       pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
     this.merkleTrees.push(solMerkleTree);
-    this.hasher = hasher;
+    this.lightWasm = lightWasm;
     this.merkleTreeProgram = new Program(
       IDL_LIGHT_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
@@ -158,8 +158,8 @@ export class TestRelayer extends Relayer {
       tree.pubkey.equals(merkleTreePubkey),
     );
     const rebuiltMt = await SolMerkleTree.build({
+      lightWasm: this.lightWasm,
       pubkey: merkleTreePubkey,
-      hasher: this.hasher,
       indexedTransactions,
     });
     this.merkleTrees[solMerkleTreeIndex] = rebuiltMt;

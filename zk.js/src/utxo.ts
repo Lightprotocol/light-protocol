@@ -22,7 +22,7 @@ import {
   UtxoError,
   UtxoErrorCode,
 } from "./index";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
 
@@ -92,7 +92,6 @@ export class Utxo {
    * @param {appData} appData array of application data, is used to compute the instructionDataHash.
    */
   constructor({
-    hasher,
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
     assets = [SystemProgram.programId],
     amounts = [BN_0],
@@ -108,9 +107,8 @@ export class Utxo {
     assetLookupTable,
     isFillingUtxo = false,
     encryptionPublicKey,
-    merkleProof,
+    merkleProof, lightWasm
   }: {
-    hasher: Hasher;
     assets?: PublicKey[];
     amounts?: BN[];
     publicKey: BN;
@@ -126,6 +124,7 @@ export class Utxo {
     isFillingUtxo?: boolean;
     encryptionPublicKey?: Uint8Array;
     merkleProof?: string[];
+    lightWasm: LightWasm;
   }) {
     if (!blinding.eq(blinding.mod(FIELD_SIZE))) {
       throw new UtxoError(
@@ -361,7 +360,7 @@ export class Utxo {
         );
       }
       this.appDataHash = new BN(
-        hasher.poseidonHash(hashArray),
+        lightWasm.poseidonHash(hashArray),
         undefined,
         "be",
       );
@@ -435,7 +434,6 @@ export class Utxo {
   // TODO: find a better solution to get the private key in
   // TODO: take array of idls as input and select the idl with the correct verifierIndex
   static fromBytes({
-    hasher,
     bytes,
     account,
     includeAppData = true,
@@ -443,8 +441,8 @@ export class Utxo {
     appDataIdl,
     assetLookupTable,
     merkleProof,
+                     lightWasm,
   }: {
-    hasher: Hasher;
     bytes: Buffer;
     account?: Account;
     includeAppData?: boolean;
@@ -452,6 +450,8 @@ export class Utxo {
     appDataIdl?: Idl;
     assetLookupTable: string[];
     merkleProof?: string[];
+    lightWasm: LightWasm;
+
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding
     if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
@@ -502,6 +502,7 @@ export class Utxo {
     ];
 
     return new Utxo({
+      lightWasm,
       assets,
       publicKey: !account
         ? decodedUtxoData.accountShieldedPublicKey
@@ -512,7 +513,6 @@ export class Utxo {
         ? undefined
         : new Uint8Array(decodedUtxoData.accountEncryptionPublicKey),
       index,
-      hasher,
       appDataIdl,
       includeAppData,
       appData,
@@ -528,9 +528,9 @@ export class Utxo {
    * @description PoseidonHash(amountHash, shieldedPubkey, blinding, assetHash, appDataHash, poolType, verifierAddressCircuit)
    * @returns {string}
    */
-  getCommitment(hasher: Hasher): string {
-    const amountHash = hasher.poseidonHashString(this.amounts);
-    const assetHash = hasher.poseidonHashString(
+  getCommitment(lightWasm: LightWasm): string {
+    const amountHash = lightWasm.poseidonHashString(this.amounts);
+    const assetHash = lightWasm.poseidonHashString(
       this.assetsCircuit.map((x) => x.toString()),
     );
 
@@ -549,7 +549,7 @@ export class Utxo {
     // console.log("assetHash ", assetHash.toString());
     // console.log("this.appDataHash ", this.appDataHash.toString());
     // console.log("this.poolType ", this.poolType.toString());
-    const commitment = hasher.poseidonHashString([
+    const commitment = lightWasm.poseidonHashString([
       this.transactionVersion,
       amountHash,
       this.publicKey.toString(),
@@ -573,11 +573,11 @@ export class Utxo {
    * @returns {string}
    */
   getNullifier({
-    hasher,
+                 lightWasm,
     account,
     index,
   }: {
-    hasher: Hasher;
+    lightWasm: LightWasm;
     account: Account;
     index?: number | undefined;
   }): string {
@@ -602,10 +602,10 @@ export class Utxo {
       );
 
     const signature = account
-      .sign(this.getCommitment(hasher), this.index || 0)
+      .sign(this.getCommitment(lightWasm), this.index || 0)
       .toString();
-    this._nullifier = hasher.poseidonHashString([
-      this.getCommitment(hasher),
+    this._nullifier = lightWasm.poseidonHashString([
+      this.getCommitment(lightWasm),
       this.index.toString() || "0",
       signature,
     ]);
@@ -620,25 +620,25 @@ export class Utxo {
    * @returns {Uint8Array} with the first 24 bytes being the nonce
    */
   async encrypt({
-    hasher,
     account,
     merkleTreePdaPublicKey,
     compressed = true,
+                  lightWasm,
   }: {
-    hasher: Hasher;
     account?: Account;
     merkleTreePdaPublicKey?: PublicKey;
     compressed?: boolean;
+    lightWasm: LightWasm;
   }): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(compressed);
-    const commitment = new BN(this.getCommitment(hasher)).toArrayLike(
+    const commitment = new BN(this.getCommitment(lightWasm)).toArrayLike(
       Buffer,
       "be",
       32,
     );
 
     if (this.encryptionPublicKey) {
-      const ciphertext = hasher.encryptNaclUtxo(
+      const ciphertext = lightWasm.encryptNaclUtxo(
         this.encryptionPublicKey,
         bytes_message,
         commitment,
@@ -692,7 +692,7 @@ export class Utxo {
    * @returns {Utxo | null}
    */
   static async decryptUnchecked({
-    hasher,
+                                  lightWasm,
     encBytes,
     account,
     index,
@@ -704,7 +704,7 @@ export class Utxo {
     assetLookupTable,
     merkleProof,
   }: {
-    hasher: Hasher;
+    lightWasm: LightWasm;
     encBytes: Uint8Array;
     account: Account;
     index: number;
@@ -743,7 +743,7 @@ export class Utxo {
 
     return Result.Ok(
       Utxo.fromBytes({
-        hasher,
+        lightWasm,
         bytes,
         account,
         index,
@@ -761,14 +761,14 @@ export class Utxo {
    * @returns {Utxo} The newly created Utxo.
    */
   static fromString(
-    string: string,
-    hasher: Hasher,
+      string: string,
     assetLookupTable: string[],
+      lightWasm: LightWasm,
   ): Utxo {
     return Utxo.fromBytes({
       bytes: bs58.decode(string),
-      hasher,
       assetLookupTable,
+      lightWasm,
     });
   }
 
@@ -788,9 +788,9 @@ export class Utxo {
    * @param {Utxo} utxo1
    */
   static equal(
-    hasher: Hasher,
     utxo0: Utxo,
     utxo1: Utxo,
+    lightWasm: LightWasm,
     skipNullifier: boolean = false,
     account0?: Account,
     account1?: Account,
@@ -863,13 +863,13 @@ export class Utxo {
     }
 
     if (
-      utxo0.getCommitment(hasher)?.toString() !==
-      utxo1.getCommitment(hasher)?.toString()
+      utxo0.getCommitment(lightWasm)?.toString() !==
+      utxo1.getCommitment(lightWasm)?.toString()
     ) {
       throw new Error(
         `commitment not equal: ${utxo0
-          .getCommitment(hasher)
-          ?.toString()} vs ${utxo1.getCommitment(hasher)?.toString()}`,
+          .getCommitment(lightWasm)
+          ?.toString()} vs ${utxo1.getCommitment(lightWasm)?.toString()}`,
       );
     }
 
@@ -877,10 +877,10 @@ export class Utxo {
       if (utxo0.index || utxo1.index) {
         if (account0 && account1) {
           const utxo0nullifier = utxo0
-            .getNullifier({ hasher, account: account0 })
+            .getNullifier({ lightWasm, account: account0 })
             ?.toString();
           const utxo1nullifier = utxo1
-            .getNullifier({ hasher, account: account1 })
+            .getNullifier({ lightWasm, account: account1 })
             ?.toString();
           if (utxo0nullifier !== utxo1nullifier) {
             throw new Error(

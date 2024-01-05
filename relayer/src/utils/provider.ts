@@ -8,7 +8,7 @@ import {
   TOKEN_ACCOUNT_FEE,
   useWallet,
 } from "@lightprotocol/zk.js";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import {
   EnvironmentVariableError,
   EnvironmentVariableErrorCode,
@@ -50,16 +50,16 @@ export const getLightProvider = async () => {
 
     try {
       const anchorProvider = await getAnchorProvider();
-      const hasher: Hasher = await WasmHasher.getInstance();
+      const lightWasm: LightWasm = await WasmFactory.getInstance();
 
       provider = new Provider({
+        lightWasm,
         wallet: useWallet(getKeyPairFromEnv("KEY_PAIR")),
         relayer,
         connection: anchorProvider.connection,
         url: process.env.RPC_URL!,
         versionedTransactionLookupTable: RELAYER_LOOK_UP_TABLE,
-        anchorProvider,
-        hasher,
+        anchorProvider
       });
     } catch (e) {
       if (e.message.includes("LOOK_UP_TABLE_NOT_INITIALIZED")) {

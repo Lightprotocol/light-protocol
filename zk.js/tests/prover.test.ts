@@ -26,7 +26,7 @@ import {
   createSystemProofInputs,
   getSystemProof,
 } from "../../zk.js/src";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -43,16 +43,16 @@ describe("Prover Functionality Tests", () => {
   let lightProvider: LightProvider;
   let shieldUtxo: Utxo;
   let account: Account;
-  let hasher: Hasher;
+  let lightWasm: LightWasm;
   let shieldTransaction: ShieldTransaction;
   let merkleTree: MerkleTree;
   before(async () => {
-    hasher = await WasmHasher.getInstance();
+    lightWasm = await WasmFactory.getInstance();
     lightProvider = await LightProvider.loadMock();
-    account = Account.random(hasher);
+    account = Account.random(lightWasm);
 
     shieldUtxo = new Utxo({
-      hasher,
+      lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
       publicKey: account.keypair.publicKey,
@@ -60,7 +60,7 @@ describe("Prover Functionality Tests", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     const shieldTransactionInput: ShieldTransactionInput = {
-      hasher,
+      lightWasm,
       mint: MINT,
       transactionMerkleTreePubkey:
         MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -73,9 +73,9 @@ describe("Prover Functionality Tests", () => {
 
     shieldTransaction = await createShieldTransaction(shieldTransactionInput);
 
-    merkleTree = new MerkleTree(18, hasher, [shieldUtxo.getCommitment(hasher)]);
+    merkleTree = new MerkleTree(18, lightWasm, [shieldUtxo.getCommitment(lightWasm)]);
 
-    assert.equal(merkleTree.indexOf(shieldUtxo.getCommitment(hasher)), 0);
+    assert.equal(merkleTree.indexOf(shieldUtxo.getCommitment(lightWasm)), 0);
   });
 
   after(async () => {
@@ -86,7 +86,7 @@ describe("Prover Functionality Tests", () => {
   it("Verifies Prover with VerifierZero", async () => {
     const systemProofInputs = createSystemProofInputs({
       transaction: shieldTransaction,
-      hasher,
+      lightWasm,
       account,
       root: merkleTree.root(),
     });
@@ -131,7 +131,7 @@ describe("Prover Functionality Tests", () => {
   it("Checks identical public inputs with different randomness", async () => {
     const proofInput = createSystemProofInputs({
       transaction: shieldTransaction,
-      hasher,
+      lightWasm,
       account,
       root: merkleTree.root(),
     });

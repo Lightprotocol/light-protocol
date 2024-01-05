@@ -1,4 +1,4 @@
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 
 export const DEFAULT_ZERO = "0";
 
@@ -22,20 +22,15 @@ export class MerkleTree {
   levels: number;
   capacity: number;
   zeroElement;
-  _hasher: Hasher;
   _zeros: string[];
   _layers: string[][];
+  _lightWasm: LightWasm;
 
-  constructor(
-    levels: number,
-    hasher: Hasher,
-    elements: string[] = [],
-    { zeroElement = DEFAULT_ZERO } = {},
-  ) {
+  constructor(levels: number, lightWasm: LightWasm, elements: string[] = [],  { zeroElement = DEFAULT_ZERO } = {}) {
     this.levels = levels;
     this.capacity = 2 ** levels;
     this.zeroElement = zeroElement;
-    this._hasher = hasher;
+    this._lightWasm = lightWasm;
     if (elements.length > this.capacity) {
       throw new Error("Tree is full");
     }
@@ -45,7 +40,7 @@ export class MerkleTree {
     this._zeros[0] = this.zeroElement;
 
     for (let i = 1; i <= levels; i++) {
-      this._zeros[i] = this._hasher.poseidonHashString([
+      this._zeros[i] = this._lightWasm.poseidonHashString([
         this._zeros[i - 1],
         this._zeros[i - 1],
       ]);
@@ -57,7 +52,7 @@ export class MerkleTree {
     for (let level = 1; level <= this.levels; level++) {
       this._layers[level] = [];
       for (let i = 0; i < Math.ceil(this._layers[level - 1].length / 2); i++) {
-        this._layers[level][i] = this._hasher.poseidonHashString([
+        this._layers[level][i] = this._lightWasm.poseidonHashString([
           this._layers[level - 1][i * 2],
           i * 2 + 1 < this._layers[level - 1].length
             ? this._layers[level - 1][i * 2 + 1]
@@ -120,7 +115,7 @@ export class MerkleTree {
     this._layers[0][index] = element;
     for (let level = 1; level <= this.levels; level++) {
       index >>= 1;
-      this._layers[level][index] = this._hasher.poseidonHashString([
+      this._layers[level][index] = this._lightWasm.poseidonHashString([
         this._layers[level - 1][index * 2],
         index * 2 + 1 < this._layers[level - 1].length
           ? this._layers[level - 1][index * 2 + 1]

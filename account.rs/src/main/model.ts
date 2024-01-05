@@ -3,7 +3,7 @@ import { Account } from "./wasm/account_wasm";
 
 export { Account } from "./wasm/account_wasm";
 
-export interface Hasher {
+export interface LightWasm {
     blakeHash(input: string|Uint8Array, hashLength: number): Uint8Array;
     poseidonHash(input: string[] | BN[]): Uint8Array;
     poseidonHashString(input: string[] | BN[]): string;
@@ -17,8 +17,8 @@ export interface Hasher {
     encryptNaclUtxo(public_key: Uint8Array, message: Uint8Array, commitment: Uint8Array): Uint8Array;
 }
 
-export interface HashCreator {
-    create(): Hasher;
+export interface LightWasmCreator {
+    create(): LightWasm;
 }
 
 /**

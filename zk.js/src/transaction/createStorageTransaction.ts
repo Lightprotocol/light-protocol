@@ -15,7 +15,7 @@ import {
   getVerifierProgramId,
   syncInputUtxosMerkleProofs,
 } from "./pspTransaction";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 import {
   Relayer,
   TransactionParametersError,
@@ -49,7 +49,7 @@ export async function prepareStoreProgramUtxo({
   stringUtxo,
   appUtxoConfig,
   account,
-  hasher,
+                                                lightWasm,
   assetLookupTable,
 }: {
   token?: string;
@@ -61,7 +61,7 @@ export async function prepareStoreProgramUtxo({
   stringUtxo?: string;
   appUtxoConfig?: AppUtxoConfig;
   account: Account;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   assetLookupTable: string[];
 }) {
   if (!appUtxo) {
@@ -88,10 +88,9 @@ export async function prepareStoreProgramUtxo({
           "prepareStoreProgramUtxo",
         );
       const recipientAccount = recipientPublicKey
-        ? Account.fromPubkey(recipientPublicKey!, hasher)
+        ? Account.fromPubkey(recipientPublicKey, lightWasm)
         : undefined;
       appUtxo = new Utxo({
-        hasher,
         amounts: [amountSol, amountSpl],
         assets: [SystemProgram.programId, tokenCtx.mint],
         ...appUtxoConfig,
@@ -102,9 +101,10 @@ export async function prepareStoreProgramUtxo({
           ? recipientAccount.encryptionKeypair.publicKey
           : undefined,
         assetLookupTable,
+        lightWasm
       });
     } else if (stringUtxo) {
-      appUtxo = Utxo.fromString(stringUtxo, hasher, assetLookupTable);
+      appUtxo = Utxo.fromString(stringUtxo, assetLookupTable, lightWasm);
     } else {
       throw new UserError(
         UserErrorCode.APP_UTXO_UNDEFINED,
@@ -136,10 +136,10 @@ export async function prepareStoreProgramUtxo({
 
   const message = Buffer.from(
     await appUtxo.encrypt({
-      hasher: hasher,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       compressed: false,
       account,
+      lightWasm
     }),
   );
 
@@ -206,8 +206,8 @@ export async function shieldProgramUtxo({
     stringUtxo,
     appUtxoConfig,
     account,
-    hasher: provider.hasher,
     assetLookupTable: provider.lookUpTables.assetLookupTable,
+    lightWasm: provider.lightWasm,
   });
 
   const transaction = await createShieldTransaction({
@@ -218,15 +218,15 @@ export async function shieldProgramUtxo({
     senderSpl: userSplAccount,
     outputUtxos: [utxo],
     signer: provider.wallet.publicKey,
-    hasher: provider.hasher,
     systemPspId: getVerifierProgramId(verifierIdl),
     account,
+    lightWasm: provider.lightWasm,
   });
   const instructions = await proveAndCreateInstructions({
     transaction,
     relayer: provider.relayer,
-    hasher: provider.hasher,
     account,
+    lightWasm: provider.lightWasm,
   });
   const txResult = await provider.sendAndConfirmTransaction(instructions);
   return txResult;
@@ -235,13 +235,13 @@ export async function shieldProgramUtxo({
 export async function proveAndCreateInstructions({
   transaction,
   relayer,
-  hasher,
   account,
+    lightWasm
 }: {
   transaction: ShieldTransaction | Transaction | UnshieldTransaction;
   relayer: Relayer;
-  hasher: Hasher;
   account: Account;
+  lightWasm: LightWasm;
 }): Promise<TransactionInstruction[]> {
   if (!transaction)
     throw new UserError(
@@ -283,9 +283,9 @@ export async function proveAndCreateInstructions({
   }
   const systemProofInputs = createSystemProofInputs({
     transaction: transaction,
-    hasher: hasher,
-    account: account,
     root,
+    account,
+    lightWasm,
   });
   const systemProof = await getSystemProof({
     account: account,

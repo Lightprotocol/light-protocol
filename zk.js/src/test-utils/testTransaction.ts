@@ -1,5 +1,4 @@
 import {
-  ProviderErrorCode,
   TransactionError,
   TransactionErrorCode,
 } from "../errors";
@@ -8,17 +7,14 @@ import {
   Provider,
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   checkRentExemption,
-  Utxo,
   FIELD_SIZE,
   Action,
   merkleTreeProgramId,
   fetchRecentTransactions,
-  MerkleTreeConfig,
   lightAccounts,
   Transaction,
   ShieldTransaction,
-  UnshieldTransaction,
-  TestRelayer,
+  UnshieldTransaction
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
@@ -130,8 +126,7 @@ export class TestTransaction {
   async checkBalances(
     transactionInputs: any,
     remainingAccounts: any,
-    proofInput: any,
-    account?: Account,
+    proofInput: any
   ) {
     if (!transactionInputs.publicInputs)
       throw new TransactionError(
@@ -410,7 +405,7 @@ export class TestTransaction {
           relayer.solMerkleTree!.merkleTree.elements()[
             relayer.solMerkleTree!.merkleTree.indexOf(
               this.transaction.private.outputUtxos[0].getCommitment(
-                this.provider.hasher,
+                this.provider.lightWasm,
               ),
             )
           ],

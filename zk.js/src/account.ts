@@ -12,7 +12,7 @@ import {
   UtxoErrorCode,
   Wallet,
 } from "./index";
-import { Hasher, WasmAccount } from "@lightprotocol/account.rs";
+import { LightWasm, WasmAccount } from "@lightprotocol/account.rs";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
@@ -67,7 +67,7 @@ export class Account {
   static readonly hashLength = 32;
 
   private constructor({
-    hasher,
+                        lightWasm,
     seed = bs58.encode(nacl.randomBytes(32)),
     burner = false,
     burnerIndex = "",
@@ -80,7 +80,7 @@ export class Account {
     solanaPublicKey,
     prefixCounter,
   }: {
-    hasher: Hasher;
+    lightWasm: LightWasm;
     seed?: string;
     burner?: boolean;
     burnerIndex?: string;
@@ -94,7 +94,7 @@ export class Account {
     prefixCounter?: BN;
   }) {
     if (aesSecret && !privateKey) {
-      this.wasmAccount = hasher.aesAccount(aesSecret);
+      this.wasmAccount = lightWasm.aesAccount(aesSecret);
     }
     // creates a burner utxo by using the index for domain separation
     else if (burner) {
@@ -113,18 +113,18 @@ export class Account {
         );
       }
       if (burnerSeed) {
-        this.wasmAccount = hasher.burnerSeedAccount(seed);
+        this.wasmAccount = lightWasm.burnerSeedAccount(seed);
       } else {
-        this.wasmAccount = hasher.burnerAccount(seed, burnerIndex);
+        this.wasmAccount = lightWasm.burnerAccount(seed, burnerIndex);
       }
     } else if (privateKey && encryptionPrivateKey && aesSecret) {
-      this.wasmAccount = hasher.privateKeyAccount(
+      this.wasmAccount = lightWasm.privateKeyAccount(
         Uint8Array.from([...privateKey.toArray("be", 32)]),
         encryptionPrivateKey,
         aesSecret,
       );
     } else if (publicKey) {
-      this.wasmAccount = hasher.publicKeyAccount(
+      this.wasmAccount = lightWasm.publicKeyAccount(
         Uint8Array.from([...publicKey.toArray("be", 32)]),
         encryptionPublicKey,
       );
@@ -143,7 +143,7 @@ export class Account {
           "Seed length is less than 32",
         );
       }
-      this.wasmAccount = hasher.seedAccount(seed);
+      this.wasmAccount = lightWasm.seedAccount(seed);
     }
 
     this.wasmAccount.setSolanaPublicKey(solanaPublicKey);
@@ -152,54 +152,54 @@ export class Account {
 
   // constructors
 
-  static random(hasher: Hasher): Account {
-    return new Account({ hasher });
+  static random(lightWasm: LightWasm): Account {
+    return new Account({ lightWasm });
   }
-  static createFromSeed(hasher: Hasher, seed: string): Account {
-    return new Account({ hasher, seed });
+  static createFromSeed(lightWasm: LightWasm, seed: string): Account {
+    return new Account({ lightWasm, seed });
   }
 
-  static createFromSolanaKeypair(hasher: Hasher, keypair: Keypair): Account {
+  static createFromSolanaKeypair(lightWasm: LightWasm, keypair: Keypair): Account {
     const encodedMessage = utils.bytes.utf8.encode(SIGN_MESSAGE);
     const signature: Uint8Array = sign.detached(
       encodedMessage,
       keypair.secretKey,
     );
     return new Account({
-      hasher,
+      lightWasm,
       seed: bs58.encode(signature),
       solanaPublicKey: keypair.publicKey,
     });
   }
 
   static async createFromBrowserWallet(
-    hasher: Hasher,
+    lightWasm: LightWasm,
     wallet: Wallet,
   ): Promise<Account> {
     const encodedMessage = utils.bytes.utf8.encode(SIGN_MESSAGE);
     const signature: Uint8Array = await wallet.signMessage(encodedMessage);
     return new Account({
-      hasher,
+      lightWasm,
       seed: bs58.encode(signature),
       solanaPublicKey: wallet.publicKey,
     });
   }
 
-  static createBurner(hasher: Hasher, seed: string, burnerIndex: BN): Account {
+  static createBurner(lightWasm: LightWasm, seed: string, burnerIndex: BN): Account {
     return new Account({
-      hasher,
+      lightWasm,
       seed,
       burner: true,
       burnerIndex: burnerIndex.toString(),
     });
   }
 
-  static fromBurnerSeed(hasher: Hasher, seed: string): Account {
-    return new Account({ hasher, seed, burnerSeed: true, burner: true });
+  static fromBurnerSeed(lightWasm: LightWasm, seed: string): Account {
+    return new Account({ lightWasm, seed, burnerSeed: true, burner: true });
   }
 
   static fromPrivkey(
-    hasher: Hasher,
+      lightWasm: LightWasm,
     privateKey: string,
     encryptionPrivateKey: string,
     aesSecret: string,
@@ -227,14 +227,14 @@ export class Account {
     const privkey = new BN(bs58.decode(privateKey));
 
     return new Account({
-      hasher,
+      lightWasm,
       privateKey: privkey,
       encryptionPrivateKey: bs58.decode(encryptionPrivateKey),
       aesSecret: bs58.decode(aesSecret),
     });
   }
 
-  static fromPubkey(publicKey: string, hasher: Hasher): Account {
+  static fromPubkey(publicKey: string, lightWasm: LightWasm): Account {
     const decoded = bs58.decode(publicKey);
     if (decoded.length != 64)
       throw new AccountError(
@@ -248,7 +248,7 @@ export class Account {
     return new Account({
       publicKey: pubKey,
       encryptionPublicKey: decoded.subarray(32, 64),
-      hasher,
+      lightWasm,
     });
   }
 

@@ -15,7 +15,7 @@ import {
   TestRelayer,
   RELAYER_FEE,
 } from "../../src";
-import { WasmHasher } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/account.rs";
 import {
   Keypair as SolanaKeypair,
   PublicKey,
@@ -43,9 +43,9 @@ describe("User registry", () => {
   before("Create user", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
-    const hasher = await WasmHasher.getInstance();
+    const lightWasm = await WasmFactory.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
-    ACCOUNT = Account.createFromSeed(hasher, seed);
+    ACCOUNT = Account.createFromSeed(lightWasm, seed);
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
     await provider.connection.requestAirdrop(
@@ -59,7 +59,7 @@ describe("User registry", () => {
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
-      hasher,
+      lightWasm,
     });
 
     await Provider.init({

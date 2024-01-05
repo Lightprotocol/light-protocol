@@ -26,7 +26,7 @@ import {
   getVerifierProgramId,
   shieldProgramUtxo,
 } from "@lightprotocol/zk.js";
-import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
+import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import {
   Keypair as SolanaKeypair,
   Keypair,
@@ -41,7 +41,7 @@ const path = require("path");
 const verifierProgramId = new PublicKey(
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
-let HASHER: Hasher;
+let WASM: LightWasm;
 
 const RPC_URL = "http://127.0.0.1:8899";
 const USERS_COUNT = 3;
@@ -62,7 +62,7 @@ describe("Streaming Payments tests", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    HASHER = await WasmHasher.getInstance();
+    WASM = await WasmFactory.getInstance();
   });
 
   it("Create and Spend Program Utxo for one user", async () => {
@@ -120,7 +120,7 @@ describe("Streaming Payments tests", () => {
       relayerFee: new BN(100_000),
       payer: wallet,
       connection: provider.connection,
-      hasher: HASHER,
+      lightWasm: WASM,
     });
 
     // The light provider is a connection and wallet abstraction.
@@ -134,7 +134,7 @@ describe("Streaming Payments tests", () => {
     const lightUser: User = await User.init({ provider: lightProvider });
 
     const outputUtxoSol = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       assets: [SystemProgram.programId],
       publicKey: lightUser.account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
@@ -158,12 +158,12 @@ describe("Streaming Payments tests", () => {
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await lightUser.syncStorage(IDL);
     const shieldedUtxoCommitmentHash =
-      testInputsShield.utxo.getCommitment(HASHER);
+      testInputsShield.utxo.getCommitment(WASM);
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())
       .tokenBalances.get(testInputsShield.utxo.assets[0].toBase58())
       .utxos.get(shieldedUtxoCommitmentHash);
-    Utxo.equal(HASHER, inputUtxo, testInputsShield.utxo, false);
+    Utxo.equal(inputUtxo, testInputsShield.utxo, WASM, false);
 
     const circuitPath = path.join(
       "build-circuit/streaming-payments/streamingPayments",
@@ -188,7 +188,7 @@ describe("Streaming Payments tests", () => {
         new BN(0),
       ),
       relayerPublicKey: relayer.accounts.relayerPubkey,
-      hasher: HASHER,
+      lightWasm: WASM,
       relayerFee: relayer.relayerFee,
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
@@ -199,7 +199,7 @@ describe("Streaming Payments tests", () => {
       MerkleTreeConfig.getTransactionMerkleTreePda(),
     ))!;
     const proofInputs = createProofInputs({
-      hasher: HASHER,
+      lightWasm: WASM,
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: lightUser.account,
@@ -268,7 +268,7 @@ describe("Streaming Payments tests", () => {
       relayerFee: new BN(100_000),
       payer: wallet,
       connection: provider.connection,
-      hasher: HASHER,
+      lightWasm: WASM,
     });
 
     // The light provider is a connection and wallet abstraction.
@@ -283,7 +283,7 @@ describe("Streaming Payments tests", () => {
 
     let client: PaymentStreamClient = new PaymentStreamClient(
       IDL,
-      HASHER,
+      WASM,
       circuitPath,
       lightProvider,
     );
@@ -299,7 +299,7 @@ describe("Streaming Payments tests", () => {
     const testInputsSol1 = {
       utxo: streamInitUtxo,
       action: Action.SHIELD,
-      hasher: HASHER,
+      hasher: WASM,
     };
 
     console.log("storing streamInitUtxo");
@@ -314,7 +314,7 @@ describe("Streaming Payments tests", () => {
 
     const utxo = (await lightUser.getUtxo(commitment))!;
     assert.equal(utxo.status, "ready");
-    Utxo.equal(HASHER, utxo.utxo, testInputsSol1.utxo, true);
+    Utxo.equal(utxo.utxo, testInputsSol1.utxo, WASM,true);
     const currentSlot1 = await provider.connection.getSlot("confirmed");
 
     await lightUser.getBalance();
@@ -343,7 +343,7 @@ describe("Streaming Payments tests", () => {
       outUtxo.amounts[0].toString(),
       balance.totalSolBalance.toString(),
     );
-    console.log("inUtxo commitment: ", inUtxo.getCommitment(HASHER));
+    console.log("inUtxo commitment: ", inUtxo.getCommitment(WASM));
 
     const spentCommitment = testInputsSol1.utxo.getCommitment(
       testInputsSol1.hasher,
@@ -363,13 +363,13 @@ class PaymentStreamClient {
   endSlot?: BN;
   streamInitUtxo?: Utxo;
   latestStreamUtxo?: Utxo;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   circuitPath: string;
   lightProvider: LightProvider;
 
   constructor(
     idl: anchor.Idl,
-    hasher: Hasher,
+    lightWasm: LightWasm,
     circuitPath: string,
     lightProvider: LightProvider,
     streamInitUtxo?: Utxo,
@@ -379,7 +379,7 @@ class PaymentStreamClient {
     this.streamInitUtxo = streamInitUtxo;
     this.endSlot = streamInitUtxo?.appData.endSlot;
     this.latestStreamUtxo = latestStreamUtxo;
-    this.hasher = hasher;
+    this.lightWasm = lightWasm;
     this.circuitPath = circuitPath;
     this.lightProvider = lightProvider;
   }
@@ -407,7 +407,7 @@ class PaymentStreamClient {
       rate,
     };
     const streamInitUtxo = new Utxo({
-      hasher: this.hasher,
+      lightWasm: this.lightWasm,
       assets: [SystemProgram.programId],
       publicKey: account.keypair.publicKey,
       amounts: [amount],
@@ -445,7 +445,7 @@ class PaymentStreamClient {
       };
 
       const index = merkleTree.indexOf(
-        this.latestStreamUtxo?.getCommitment(this.hasher),
+        this.latestStreamUtxo?.getCommitment(this.lightWasm),
       );
       this.latestStreamUtxo.index = index;
       const inUtxo = this.latestStreamUtxo;
@@ -454,7 +454,7 @@ class PaymentStreamClient {
           assets: inUtxo.assets,
           amounts: [inUtxo.amounts[0].sub(new BN(100_000)), inUtxo.amounts[1]],
           publicKey: inUtxo.publicKey,
-          hasher: this.hasher,
+          lightWasm: this.lightWasm,
           assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
         });
         return { programParameters, inUtxo, outUtxo, action };
@@ -480,7 +480,7 @@ class PaymentStreamClient {
       };
       const inUtxo = this.latestStreamUtxo;
       const outUtxo = new Utxo({
-        hasher: this.hasher,
+        lightWasm: this.lightWasm,
         assets: [SystemProgram.programId],
         publicKey: inUtxo.publicKey,
         amounts: [remainingAmount],

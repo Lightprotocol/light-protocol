@@ -30,7 +30,7 @@ import {
   createAssociatedTokenAccount,
 } from "@solana/spl-token";
 import { assert } from "chai";
-import { WasmHasher } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/account.rs";
 
 function generateRandomTestAmount(
   min: number = 0.2,
@@ -454,7 +454,7 @@ describe("Test User", () => {
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: anchorProvider.connection,
-      hasher: await WasmHasher.getInstance(),
+      lightWasm: await WasmFactory.getInstance(),
     });
 
     const testUsers: { user: User; wallet: Keypair }[] = [];
