@@ -25,6 +25,7 @@ num-bigint = "0.4.4"
 num-traits = "0.2"
 console_error_panic_hook = "0.1.7"
 getrandom = { version = "0.2", features = ["js"] }
+thiserror = "1.0.56"
 
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"
