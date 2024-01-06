@@ -40,11 +40,11 @@ pub enum AccountError {
     #[error("aes encryption error `{0}`")]
     AesGcmSiv(aes_gcm_siv::aead::Error),
 
-    #[error("can't decrypt nacl")]
-    NaclDecryptionError,
+    #[error("can't decrypt nacl: `{0}`")]
+    NaclDecryptionError(crypto_box::aead::Error),
 
-    #[error("can't encrypt nacl")]
-    NaclEncryptionError,
+    #[error("can't encrypt nacl: `{0}`")]
+    NaclEncryptionError(crypto_box::aead::Error),
 
     #[error("account error `{0}`")]
     Generic(String),
@@ -359,13 +359,16 @@ impl Account {
             ));
         }
 
+        let mut cipher = ciphertext.clone();
+        cipher.extend(vec![0, 1, 2, 3]);
+
         let nonce = GenericArray::from_slice(&commitment[0..24]);
         let signer_pub_key = SecretKey::from(SECRET_KEY).public_key();
         let private_key = SecretKey::from(self.encryption_private_key);
         let nacl_box = Box::new(&signer_pub_key, &private_key);
         let decrypted_message = nacl_box
-            .decrypt(nonce, &ciphertext[..])
-            .map_err(|_| AccountError::NaclDecryptionError)?;
+            .decrypt(nonce, &cipher[..])
+            .map_err(AccountError::NaclDecryptionError)?;
 
         Ok(decrypted_message)
     }
@@ -410,7 +413,7 @@ impl Account {
 
         let encrypted_message = nacl_box
             .encrypt(nonce, &message[..])
-            .map_err(|_| AccountError::NaclEncryptionError)?;
+            .map_err(AccountError::NaclEncryptionError)?;
 
         Ok(encrypted_message)
     }
