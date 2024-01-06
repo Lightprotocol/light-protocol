@@ -359,15 +359,12 @@ impl Account {
             ));
         }
 
-        let mut cipher = ciphertext.clone();
-        cipher.extend(vec![0, 1, 2, 3]);
-
         let nonce = GenericArray::from_slice(&commitment[0..24]);
         let signer_pub_key = SecretKey::from(SECRET_KEY).public_key();
         let private_key = SecretKey::from(self.encryption_private_key);
         let nacl_box = Box::new(&signer_pub_key, &private_key);
         let decrypted_message = nacl_box
-            .decrypt(nonce, &cipher[..])
+            .decrypt(nonce, &ciphertext[..])
             .map_err(AccountError::NaclDecryptionError)?;
 
         Ok(decrypted_message)
