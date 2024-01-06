@@ -12,8 +12,8 @@ import {
   confirmConfig,
   confirmTransaction,
   RELAYER_FEE,
-  Relayer,
 } from "../index";
+import { WasmFactory } from "@lightprotocol/account.rs";
 
 export async function airdropShieldedSol({
   provider,
@@ -39,7 +39,7 @@ export async function airdropShieldedSol({
     relayerFee: RELAYER_FEE,
     payer: ADMIN_AUTH_KEYPAIR,
     connection,
-    hasher: provider!.hasher,
+    lightWasm: provider ? provider.lightWasm : await WasmFactory.getInstance(),
   });
 
   const userKeypair = Keypair.generate();
@@ -100,7 +100,7 @@ export async function airdropShieldedMINTSpl({
     relayerFee: RELAYER_FEE,
     payer: ADMIN_AUTH_KEYPAIR,
     connection,
-    hasher: provider!.hasher,
+    lightWasm: provider ? provider.lightWasm : await WasmFactory.getInstance(),
   });
   if (!provider) {
     provider = await Provider.init({

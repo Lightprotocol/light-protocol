@@ -33,11 +33,11 @@ import {
   Utxo,
   syncInputUtxosMerkleProofs,
 } from "../../src";
-import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
+import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Address } from "@coral-xyz/anchor";
 
-let HASHER: Hasher, RELAYER;
+let WASM: LightWasm, RELAYER;
 
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
@@ -59,7 +59,7 @@ describe("Merkle Tree Tests", () => {
     lightProvider: Provider,
     merkleTreeConfig: MerkleTreeConfig;
   before(async () => {
-    HASHER = await WasmHasher.getInstance();
+    WASM = await WasmFactory.getInstance();
     await createTestAccounts(provider.connection, userTokenAccount);
 
     const merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
@@ -92,7 +92,7 @@ describe("Merkle Tree Tests", () => {
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
-      hasher: HASHER,
+      lightWasm: WASM,
     });
     await airdropSol({
       connection: provider.connection,
@@ -529,12 +529,12 @@ describe("Merkle Tree Tests", () => {
     );
     const recipientSpl = tokenAccount.address;
 
-    const { transactionMerkleTree, eventMerkleTree, index } =
+    const { transactionMerkleTree, eventMerkleTree } =
       await merkleTreeConfig.initializeNewMerkleTrees();
 
     const verifierIdl = IDL_LIGHT_PSP2IN2OUT;
     const unshieldTransactionInput: UnshieldTransactionInput = {
-      hasher: HASHER,
+      lightWasm: WASM,
       mint: MINT,
       transactionMerkleTreePubkey:
         MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -554,7 +554,7 @@ describe("Merkle Tree Tests", () => {
 
     const systemProofInputs = createSystemProofInputs({
       transaction: unshieldTransaction,
-      hasher: HASHER,
+      lightWasm: WASM,
       account: user.account,
       root,
     });

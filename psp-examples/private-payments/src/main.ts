@@ -51,7 +51,7 @@ const main = async () => {
     relayerFee: new BN(100_000),
     payer: senders[0].keypair,
     connection: provider.connection,
-    hasher: lightProvider.hasher,
+    lightWasm: lightProvider.lightWasm,
   });
   lightProvider.relayer = relayer;
   log("initializing light provider...");
@@ -91,7 +91,7 @@ const main = async () => {
       relayerFee: new BN(100_000),
       payer: sender,
       connection: provider.connection,
-      hasher: lightProvider.hasher,
+      lightWasm: lightProvider.lightWasm,
     });
     lightProvider.relayer = relayer;
 
@@ -124,7 +124,7 @@ const main = async () => {
       relayerFee: new BN(100_000),
       payer: sender,
       connection: provider.connection,
-      hasher: lightProvider.hasher,
+      lightWasm: lightProvider.lightWasm,
     });
     lightProvider.relayer = relayer;
 

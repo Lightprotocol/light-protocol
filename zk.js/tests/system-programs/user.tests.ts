@@ -30,11 +30,11 @@ import {
   RELAYER_FEE,
   BN_1,
 } from "../../src";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { expect } from "chai";
 
-let HASHER: Hasher, RELAYER: TestRelayer, provider: Provider, user: User;
+let WASM: LightWasm, RELAYER: TestRelayer, provider: Provider, user: User;
 
 describe("Test User", () => {
   // Configure the client to use the local cluster.
@@ -50,7 +50,7 @@ describe("Test User", () => {
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(anchorProvider.connection);
-    HASHER = await WasmHasher.getInstance();
+    WASM = await WasmFactory.getInstance();
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     await anchorProvider.connection.requestAirdrop(
@@ -70,7 +70,7 @@ describe("Test User", () => {
       highRelayerFee: TOKEN_ACCOUNT_FEE,
       payer: relayer,
       connection: anchorProvider.connection,
-      hasher: HASHER,
+      lightWasm: WASM,
     });
 
     provider = await Provider.init({
@@ -113,7 +113,7 @@ describe("Test User", () => {
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: anchorProvider.connection,
-      hasher: HASHER,
+      lightWasm: WASM,
     });
     const providerExternalSeed = await Provider.init({
       relayer: testRelayer,
@@ -239,7 +239,7 @@ describe("Test User", () => {
     };
 
     const recipientAccount = Account.createFromSeed(
-      HASHER,
+      WASM,
       testInputs.recipientSeed,
     );
 
@@ -351,7 +351,7 @@ describe("Test User Errors", () => {
       await createTestAccounts(providerAnchor.connection);
     }
 
-    HASHER = await WasmHasher.getInstance();
+    WASM = await WasmFactory.getInstance();
     amount = 20;
     token = "USDC";
 
@@ -381,7 +381,7 @@ describe("Test User Errors", () => {
       highRelayerFee: TOKEN_ACCOUNT_FEE,
       payer: relayer,
       connection: anchorProvider.connection,
-      hasher: HASHER,
+      lightWasm: WASM,
     });
     provider = await Provider.init({
       wallet: userKeypair,
@@ -504,7 +504,7 @@ describe("Test User Errors", () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({
-        recipient: Account.random(HASHER).getPublicKey(),
+        recipient: Account.random(WASM).getPublicKey(),
         amountSol: BN_1,
         token: "SPL",
       }),
@@ -524,7 +524,7 @@ describe("Test User Errors", () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({
-        recipient: Account.random(HASHER).getPublicKey(),
+        recipient: Account.random(WASM).getPublicKey(),
       }),
       UserErrorCode.NO_AMOUNTS_PROVIDED,
     );

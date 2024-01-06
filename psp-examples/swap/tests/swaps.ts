@@ -26,7 +26,7 @@ import {
 } from "@lightprotocol/zk.js";
 
 import { SystemProgram, PublicKey, Keypair, Connection } from "@solana/web3.js";
-import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
+import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/swaps";
 const path = require("path");
@@ -36,7 +36,7 @@ const verifierProgramId = new PublicKey(
 );
 import { assert } from "chai";
 
-let HASHER: Hasher, RELAYER: TestRelayer;
+let WASM: LightWasm, RELAYER: TestRelayer;
 const RPC_URL = "http://127.0.0.1:8899";
 
 const createTestUser = async (
@@ -76,7 +76,7 @@ describe("Test swaps", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    HASHER = await WasmHasher.getInstance();
+    WASM = await WasmFactory.getInstance();
     const relayerWallet = Keypair.generate();
     await airdropSol({
       connection: provider.connection,
@@ -89,7 +89,7 @@ describe("Test swaps", () => {
       relayerFee: new BN(100000),
       payer: relayerWallet,
       connection: provider.connection,
-      hasher: HASHER,
+      lightWasm: WASM,
     });
   });
 
@@ -112,7 +112,7 @@ describe("Test swaps", () => {
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
     let offerUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
@@ -149,7 +149,7 @@ describe("Test swaps", () => {
     // TODO: I need a standard public key flag
     fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     offerUtxo.index = fetchedOfferUtxo.index;
-    Utxo.equal(HASHER, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
+    Utxo.equal(offerUtxo, fetchedOfferUtxo, WASM); // , false, sellerUser.account, buyerUser.account
 
     console.log(
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
@@ -160,7 +160,7 @@ describe("Test swaps", () => {
 
     // TODO: throw error if the pubkey is not mine and there is no encryption key specified
     const offerRewardUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       publicKey: fetchedOfferUtxo.appData.recipient,
       encryptionPublicKey: sellerUser.account.encryptionKeypair.publicKey,
       // TODO: Make this utxo works with:
@@ -181,7 +181,7 @@ describe("Test swaps", () => {
       offerRewardUtxo.blinding.toString(),
     );
     const tradeOutputUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
       amounts: [new BN(1e9)],
@@ -194,7 +194,7 @@ describe("Test swaps", () => {
 
     // TODO: add function to create change utxo
     const changeUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: buyerUser.provider.lookUpTables.assetLookupTable,
       amounts: [changeAmountSol],
@@ -234,7 +234,7 @@ describe("Test swaps", () => {
         new BN(0),
       ),
       relayerPublicKey: RELAYER.accounts.relayerPubkey,
-      hasher: HASHER,
+      lightWasm: WASM,
       relayerFee: RELAYER.relayerFee,
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
@@ -247,7 +247,7 @@ describe("Test swaps", () => {
      */
 
     const proofInputs = createProofInputs({
-      hasher: HASHER,
+      lightWasm: WASM,
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: buyerUser.account,
@@ -306,9 +306,9 @@ describe("Test swaps", () => {
 
     await buyerUser.getBalance();
     // check that the utxos are part of the users balance now
-    assert(buyerUser.getUtxo(changeUtxo.getCommitment(HASHER)) !== undefined);
+    assert(buyerUser.getUtxo(changeUtxo.getCommitment(WASM)) !== undefined);
     assert(
-      buyerUser.getUtxo(tradeOutputUtxo.getCommitment(HASHER)) !== undefined,
+      buyerUser.getUtxo(tradeOutputUtxo.getCommitment(WASM)) !== undefined,
     );
     let sellerUtxoInbox = await sellerUser.getUtxoInbox();
     console.log("seller utxo inbox ", sellerUtxoInbox);
@@ -342,7 +342,7 @@ describe("Test swaps", () => {
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
     let offerUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
@@ -381,7 +381,7 @@ describe("Test swaps", () => {
     // TODO: I need a standard public key flag
     fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     offerUtxo.index = fetchedOfferUtxo.index;
-    Utxo.equal(HASHER, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
+    Utxo.equal(offerUtxo, fetchedOfferUtxo, WASM); // , false, sellerUser.account, buyerUser.account
 
     console.log(
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
@@ -392,7 +392,7 @@ describe("Test swaps", () => {
      */
 
     let counterOfferUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       encryptionPublicKey: sellerUser.account.encryptionKeypair.publicKey,
@@ -430,7 +430,7 @@ describe("Test swaps", () => {
     // TODO: I need a standard public key flag
     fetchedCounterOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     counterOfferUtxo.index = fetchedCounterOfferUtxo.index;
-    Utxo.equal(HASHER, counterOfferUtxo, fetchedCounterOfferUtxo);
+    Utxo.equal(counterOfferUtxo, fetchedCounterOfferUtxo, WASM);
     console.log(
       `Successfully fetched and decrypted counter offer: priceSol ${fetchedCounterOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedCounterOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedCounterOfferUtxo.appData.recipient.toString()}`,
     );
@@ -441,7 +441,7 @@ describe("Test swaps", () => {
 
     // TODO: throw error if the pubkey is not mine and there is no encryption key specified
     const counterOfferRewardUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       publicKey: fetchedCounterOfferUtxo.appData.recipient,
       encryptionPublicKey: buyerUser.account.encryptionKeypair.publicKey,
       // TODO: Make this utxo works with:
@@ -462,7 +462,7 @@ describe("Test swaps", () => {
       counterOfferRewardUtxo.blinding.toString(),
     );
     const tradeOutputUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       publicKey: sellerUser.account.keypair.publicKey,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [
@@ -524,7 +524,7 @@ describe("Test swaps", () => {
         new BN(0),
       ),
       relayerPublicKey: RELAYER.accounts.relayerPubkey,
-      hasher: HASHER,
+      lightWasm: WASM,
       relayerFee: RELAYER.relayerFee,
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
@@ -536,7 +536,7 @@ describe("Test swaps", () => {
      */
 
     const proofInputs = createProofInputs({
-      hasher: HASHER,
+      lightWasm: WASM,
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
@@ -597,7 +597,7 @@ describe("Test swaps", () => {
     let sellerBalance = await sellerUser.getBalance();
     // check that the utxos are part of the users balance now
     assert(
-      sellerUser.getUtxo(tradeOutputUtxo.getCommitment(HASHER)) !== undefined,
+      sellerUser.getUtxo(tradeOutputUtxo.getCommitment(WASM)) !== undefined,
     );
     assert.equal(
       sellerBalance.totalSolBalance.toNumber(),
@@ -632,7 +632,7 @@ describe("Test swaps", () => {
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
     let offerUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       assets: [SystemProgram.programId],
       publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
       encryptionPublicKey: sellerUser.account.encryptionKeypair.publicKey,
@@ -670,7 +670,7 @@ describe("Test swaps", () => {
     // TODO: I need a standard public key flag
     fetchedOfferUtxo.publicKey = STANDARD_SHIELDED_PUBLIC_KEY;
     offerUtxo.index = fetchedOfferUtxo.index;
-    Utxo.equal(HASHER, offerUtxo, fetchedOfferUtxo); // , false, sellerUser.account, buyerUser.account
+    Utxo.equal(offerUtxo, fetchedOfferUtxo, WASM); // , false, sellerUser.account, buyerUser.account
 
     console.log(
       `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.appData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.appData.recipient.toString()}`,
@@ -678,7 +678,7 @@ describe("Test swaps", () => {
     const circuitPath = path.join("build-circuit/swaps/swaps");
 
     const cancelOutputUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       publicKey: fetchedOfferUtxo.appData.recipient,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [
@@ -688,7 +688,7 @@ describe("Test swaps", () => {
     });
 
     const emptySignerUtxo = new Utxo({
-      hasher: HASHER,
+      lightWasm: WASM,
       publicKey: sellerUser.account.keypair.publicKey,
       assetLookupTable: sellerUser.provider.lookUpTables.assetLookupTable,
       amounts: [BN_0],
@@ -731,7 +731,7 @@ describe("Test swaps", () => {
         new BN(0),
       ),
       relayerPublicKey: RELAYER.accounts.relayerPubkey,
-      hasher: HASHER,
+      lightWasm: WASM,
       relayerFee: RELAYER.relayerFee,
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
@@ -743,7 +743,7 @@ describe("Test swaps", () => {
      */
 
     const proofInputs = createProofInputs({
-      hasher: HASHER,
+      lightWasm: WASM,
       transaction: shieldedTransaction,
       pspTransaction: pspTransactionInput,
       account: sellerUser.account,
@@ -805,7 +805,7 @@ describe("Test swaps", () => {
     const balance = await sellerUser.getBalance();
     // check that the utxos are part of the users balance now
     assert(
-      sellerUser.getUtxo(cancelOutputUtxo.getCommitment(HASHER)) !== undefined,
+      sellerUser.getUtxo(cancelOutputUtxo.getCommitment(WASM)) !== undefined,
     );
     assert.equal(
       balance.totalSolBalance.toNumber(),

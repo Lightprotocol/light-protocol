@@ -15,7 +15,7 @@ import {
   BN_2,
   getAssetPubkeys,
 } from "../index";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
 
 export type Recipient = {
@@ -83,7 +83,6 @@ export const getRecipientsAmount = (
 // --------------------------------------------------------------------------
 
 export function createOutUtxos({
-  hasher,
   inUtxos,
   outUtxos = [],
   publicMint,
@@ -96,13 +95,13 @@ export function createOutUtxos({
   numberMaxOutUtxos,
   assetLookupTable,
   separateSolUtxo = false,
+  lightWasm,
 }: {
   inUtxos?: Utxo[];
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
   relayerFee?: BN;
-  hasher: Hasher;
   changeUtxoAccount: Account;
   outUtxos?: Utxo[];
   action: Action;
@@ -111,8 +110,9 @@ export function createOutUtxos({
   assetLookupTable: string[];
   verifierProgramLookupTable: string[];
   separateSolUtxo?: boolean;
+  lightWasm: LightWasm;
 }) {
-  if (!hasher)
+  if (!lightWasm)
     throw new CreateUtxoError(
       TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
       "createOutUtxos",
@@ -309,7 +309,6 @@ export function createOutUtxos({
     assets[publicSolAssetIndex].sumIn =
       assets[publicSolAssetIndex].sumIn.sub(solAmount);
     const solChangeUtxo = new Utxo({
-      hasher,
       assets: [SystemProgram.programId],
       amounts: [solAmount],
       publicKey: changeUtxoAccount.keypair.publicKey,
@@ -318,6 +317,7 @@ export function createOutUtxos({
       includeAppData: appUtxo?.includeAppData,
       verifierAddress: appUtxo?.verifierAddress,
       assetLookupTable,
+      lightWasm,
     });
     outputUtxos.push(solChangeUtxo);
   }
@@ -338,7 +338,6 @@ export function createOutUtxos({
     if (solAmount.isZero() && splAmount.isZero()) continue;
 
     const changeUtxo = new Utxo({
-      hasher,
       assets: [SystemProgram.programId, splAsset],
       amounts: [solAmount, splAmount],
       publicKey: changeUtxoAccount.keypair.publicKey,
@@ -347,6 +346,7 @@ export function createOutUtxos({
       includeAppData: appUtxo?.includeAppData,
       verifierAddress: appUtxo?.verifierAddress,
       assetLookupTable,
+      lightWasm,
     });
 
     outputUtxos.push(changeUtxo);
@@ -373,13 +373,12 @@ export function createOutUtxos({
  */
 export function createRecipientUtxos({
   recipients,
-  hasher,
   assetLookupTable,
+  lightWasm,
 }: {
   recipients: Recipient[];
-  hasher: Hasher;
   assetLookupTable: string[];
-  verifierProgramLookupTable: string[];
+  lightWasm: LightWasm;
 }): Utxo[] {
   const outputUtxos: Utxo[] = [];
 
@@ -400,7 +399,6 @@ export function createRecipientUtxos({
       : SystemProgram.programId;
 
     const recipientUtxo = new Utxo({
-      hasher,
       assets: [SystemProgram.programId, splMint],
       amounts: [solAmount, splAmount],
       publicKey: recipients[j].account.keypair.publicKey,
@@ -410,6 +408,7 @@ export function createRecipientUtxos({
       appDataHash: recipients[j].appUtxo?.appDataHash,
       verifierAddress: recipients[j].appUtxo?.verifierAddress,
       assetLookupTable,
+      lightWasm,
     });
 
     outputUtxos.push(recipientUtxo);

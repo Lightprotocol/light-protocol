@@ -22,7 +22,7 @@ import {
   BN_0,
   UTXO_PREFIX_LENGTH,
 } from "../src";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -33,16 +33,16 @@ describe("Utxo Functional", () => {
   const shieldAmount = 20_000;
   const shieldFeeAmount = 10_000;
 
-  let hasher: Hasher,
+  let lightWasm: LightWasm,
     lightProvider: LightProvider,
     shieldUtxo1: Utxo,
     account: Account;
   before(async () => {
-    hasher = await WasmHasher.getInstance();
-    account = Account.createFromSeed(hasher, seed32);
+    lightWasm = await WasmFactory.getInstance();
+    account = Account.createFromSeed(lightWasm, seed32);
     lightProvider = await LightProvider.loadMock();
     shieldUtxo1 = new Utxo({
-      hasher,
+      lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       publicKey: account.keypair.publicKey,
@@ -68,12 +68,12 @@ describe("Utxo Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.addUtxo(shieldUtxo1.getCommitment(hasher), shieldUtxo1, "utxos");
+      ?.addUtxo(shieldUtxo1.getCommitment(lightWasm), shieldUtxo1, "utxos");
 
     const utxo = balance.tokenBalances
       .get(MINT.toBase58())
-      ?.utxos.get(shieldUtxo1.getCommitment(hasher));
-    Utxo.equal(hasher, utxo!, shieldUtxo1);
+      ?.utxos.get(shieldUtxo1.getCommitment(lightWasm));
+    Utxo.equal(utxo!, shieldUtxo1, lightWasm);
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       shieldUtxo1.amounts[0].toString(),
@@ -90,7 +90,7 @@ describe("Utxo Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.moveToSpentUtxos(shieldUtxo1.getCommitment(hasher));
+      ?.moveToSpentUtxos(shieldUtxo1.getCommitment(lightWasm));
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       "0",
@@ -108,15 +108,15 @@ describe("Utxo Functional", () => {
 
     const _shieldUtxo1 = balance.tokenBalances
       .get(MINT.toBase58())
-      ?.spentUtxos.get(shieldUtxo1.getCommitment(hasher));
-    Utxo.equal(hasher, _shieldUtxo1!, shieldUtxo1);
+      ?.spentUtxos.get(shieldUtxo1.getCommitment(lightWasm));
+    Utxo.equal(_shieldUtxo1!, shieldUtxo1, lightWasm);
   });
 
   // this test is mock of the syncState function
   it("Test Decrypt Balance 2 and 4 utxos", async () => {
     const provider = await LightProvider.loadMock();
     const assetLookupTable = provider.lookUpTables.assetLookupTable;
-    const account = Account.createFromSeed(hasher, seed32);
+    const account = Account.createFromSeed(lightWasm, seed32);
     for (let j = 2; j < 4; j += 2) {
       const utxos: Utxo[] = [];
       let encryptedUtxos: any[] = [];
@@ -124,7 +124,7 @@ describe("Utxo Functional", () => {
         const shieldAmount = index;
         const shieldFeeAmount = index;
         const utxo = new Utxo({
-          hasher,
+          lightWasm,
           assets: [FEE_ASSET, MINT],
           amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
           publicKey: account.keypair.publicKey,
@@ -134,7 +134,7 @@ describe("Utxo Functional", () => {
         });
         utxos.push(utxo);
         const encryptedUtxo = await utxo.encrypt({
-          hasher,
+          lightWasm,
           account,
           merkleTreePdaPublicKey:
             MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -145,7 +145,7 @@ describe("Utxo Functional", () => {
       const indexedTransactions = [
         {
           leaves: utxos.map((utxo) =>
-            new BN(utxo.getCommitment(hasher)).toBuffer("be", 32),
+            new BN(utxo.getCommitment(lightWasm)).toBuffer("be", 32),
           ),
           firstLeafIndex: "0",
           encryptedUtxos,
@@ -167,7 +167,7 @@ describe("Utxo Functional", () => {
             trx.encryptedUtxos.slice(indexFrom, indexTo),
           );
           let decryptedUtxo = await Utxo.decryptUnchecked({
-            hasher,
+            lightWasm,
             encBytes,
             account,
             index: leftLeafIndex + index,
@@ -193,7 +193,7 @@ describe("Utxo Functional", () => {
 
           encBytes = Buffer.from(trx.encryptedUtxos.slice(indexFrom, indexTo));
           decryptedUtxo = await Utxo.decryptUnchecked({
-            hasher,
+            lightWasm,
             encBytes,
             account,
             index: leftLeafIndex + index + 1,
@@ -211,7 +211,7 @@ describe("Utxo Functional", () => {
         }
       }
       utxos.map((utxo, index) => {
-        Utxo.equal(hasher, utxo, decryptedUtxos[index]!);
+        Utxo.equal(utxo, decryptedUtxos[index]!, lightWasm);
       });
     }
   });

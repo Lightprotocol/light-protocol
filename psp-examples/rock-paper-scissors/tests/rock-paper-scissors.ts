@@ -19,7 +19,7 @@ import {
   User,
   Utxo,
 } from "@lightprotocol/zk.js";
-import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
+import { Hasher, WasmFactory } from "@lightprotocol/account.rs";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { IDL, RockPaperScissors } from "../target/types/rock_paper_scissors";
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
@@ -520,7 +520,7 @@ describe("Test rock-paper-scissors", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    HASHER = await WasmHasher.getInstance();
+    HASHER = await WasmFactory.getInstance();
 
     const relayerWallet = Keypair.generate();
     await airdropSol({

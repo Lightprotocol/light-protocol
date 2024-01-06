@@ -23,7 +23,7 @@
 //   BN_0,
 //   BN_1,
 // } from "../src";
-// import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+// import { WasmFactory, Hasher } from "@lightprotocol/account.rs";
 // import { IDL } from "./testData/tmp_test_psp";
 // import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 // import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -51,7 +51,7 @@
 // describe("Masp circuit tests", () => {
 //   before(async () => {
 //     lightProvider = await LightProvider.loadMock();
-//     hasher = await WasmHasher.getInstance();
+//     hasher = await WasmFactory.getInstance();
 //     account = new Account({ hasher, seed: seed32 });
 //     await account.getEddsaPublicKey();
 //     const shieldAmount = 20_000;
@@ -688,7 +688,7 @@
 //   let lightProvider: LightProvider;
 //   before(async () => {
 //     lightProvider = await LightProvider.loadMock();
-//     hasher = await WasmHasher.getInstance();
+//     hasher = await WasmFactory.getInstance();
 //     account = new Account({ hasher, seed: seed32 });
 //     await account.getEddsaPublicKey();
 //     const shieldAmount = 20_000;

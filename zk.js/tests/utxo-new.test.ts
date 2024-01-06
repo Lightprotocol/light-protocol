@@ -17,7 +17,7 @@ import {
   decryptOutUtxo,
   decryptUtxo,
 } from "../src";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -28,11 +28,11 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const seed32 = new Uint8Array(32).fill(1).toString();
 let account: Account;
 describe("Utxo Functional", () => {
-  let hasher: Hasher, lightProvider: LightProvider;
+  let lightWasm: LightWasm, lightProvider: LightProvider;
   before(async () => {
-    hasher = await WasmHasher.getInstance();
+    lightWasm = await WasmFactory.getInstance();
     lightProvider = await LightProvider.loadMock();
-    account = Account.createFromSeed(hasher, seed32);
+    account = Account.createFromSeed(lightWasm, seed32);
   });
 
   it("create out utxo", async () => {
@@ -41,7 +41,7 @@ describe("Utxo Functional", () => {
         publicKey: account.keypair.publicKey,
         amounts: [new BN(123), new BN(456)],
         assets: [SystemProgram.programId, MINT],
-        hasher,
+        lightWasm,
       });
       const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
       const bytes = await outUtxoToBytes(outUtxo, assetLookupTable);
@@ -49,7 +49,7 @@ describe("Utxo Functional", () => {
         bytes: Buffer.from(bytes),
         account,
         assetLookupTable,
-        hasher,
+        lightWasm,
       });
       compareOutUtxos(fromBytesOutUtxo, outUtxo);
 
@@ -62,7 +62,7 @@ describe("Utxo Functional", () => {
         bytes: Buffer.from(compressedBytes),
         account,
         assetLookupTable,
-        hasher,
+        lightWasm,
         compressed: true,
       });
       compareOutUtxos(fromBytesCompressedOutUtxo, outUtxo);
@@ -70,14 +70,14 @@ describe("Utxo Functional", () => {
       const encryptedBytes = await encryptOutUtxo({
         utxo: outUtxo,
         account,
-        hasher,
+        lightWasm,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         assetLookupTable,
       });
       const decryptedUtxo = await decryptOutUtxo({
         encBytes: encryptedBytes,
         account,
-        hasher,
+        lightWasm,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         assetLookupTable,
         aes: true,
@@ -90,20 +90,20 @@ describe("Utxo Functional", () => {
         encryptionPublicKey: account.encryptionKeypair.publicKey,
         amounts: [new BN(123), new BN(456)],
         assets: [SystemProgram.programId, MINT],
-        hasher,
+        lightWasm,
       });
 
       const encryptedBytesNacl = await encryptOutUtxo({
         utxo: asymOutUtxo,
         account,
-        hasher,
+        lightWasm,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         assetLookupTable,
       });
       const decryptedUtxoNacl = await decryptOutUtxo({
         encBytes: encryptedBytesNacl,
         account,
-        hasher,
+        lightWasm,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         assetLookupTable,
         aes: false,
@@ -124,7 +124,7 @@ describe("Utxo Functional", () => {
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
     const inputs = {
-      keypair: Account.createFromSeed(hasher, seed32),
+      keypair: Account.createFromSeed(lightWasm, seed32),
       amountFee,
       amountToken,
       assetPubkey,
@@ -140,7 +140,7 @@ describe("Utxo Functional", () => {
       amounts: inputs.amounts,
       assets: inputs.assets,
       blinding: inputs.blinding,
-      hasher,
+      lightWasm,
     });
 
     // functional
@@ -175,7 +175,7 @@ describe("Utxo Functional", () => {
     const bytes = await outUtxoToBytes(outUtxo, assetLookupTable);
     // fromBytes
     const utxo1 = outUtxoFromBytes({
-      hasher,
+      lightWasm,
       account: inputs.keypair,
       bytes: Buffer.from(bytes),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -186,7 +186,7 @@ describe("Utxo Functional", () => {
     // encrypt
     const encBytes = await encryptOutUtxo({
       utxo: outUtxo,
-      hasher,
+      lightWasm,
       account: inputs.keypair,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       assetLookupTable,
@@ -195,7 +195,7 @@ describe("Utxo Functional", () => {
 
     // decrypt
     const utxo3 = await decryptOutUtxo({
-      hasher,
+      lightWasm,
       encBytes,
       account: inputs.keypair,
       aes: true,
@@ -218,7 +218,7 @@ describe("Utxo Functional", () => {
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       true,
       new BN(outUtxo.utxoHash).toArrayLike(Buffer, "be", 32),
-      hasher,
+      lightWasm,
       true,
       ["1", "2", "3"],
       inputs.index,
@@ -264,20 +264,20 @@ describe("Utxo Functional", () => {
       amounts: inputs.amounts,
       assets: inputs.assets,
       blinding: inputs.blinding,
-      hasher,
+      lightWasm,
     });
 
     // encrypt
     const encBytesNacl = await encryptOutUtxo({
       utxo: outUtxoNacl,
-      hasher,
+      lightWasm,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       assetLookupTable,
     });
 
     // decrypt
     const receivingUtxo1Unchecked = await decryptOutUtxo({
-      hasher,
+      lightWasm,
       encBytes: encBytesNacl,
       account: inputs.keypair,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),

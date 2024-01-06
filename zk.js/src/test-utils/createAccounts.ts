@@ -40,7 +40,7 @@ import {
   confirmTransaction,
   BN_0,
 } from "../index";
-import { WasmHasher } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/account.rs";
 import { Program } from "@coral-xyz/anchor";
 
 // TODO: check whether we need all of these functions
@@ -341,11 +341,11 @@ export async function createTestAccounts(
     /* empty */
   }
 
-  const HASHER = await WasmHasher.getInstance();
-  const ACCOUNT = Account.createFromSeed(HASHER, KEYPAIR_PRIVKEY.toString());
+  const WASM = await WasmFactory.getInstance();
+  const ACCOUNT = Account.createFromSeed(WASM, KEYPAIR_PRIVKEY.toString());
   const RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
   return {
-    HASHER,
+    WASM,
     ACCOUNT,
     RELAYER_RECIPIENT,
   };

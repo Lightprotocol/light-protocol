@@ -1,7 +1,7 @@
 import type {
-    HashCreator,
+    LightWasmCreator,
     AccountLoadOptions,
-    Hasher,
+    LightWasm,
     InitInput,
     WasmInput,
 } from "./model.js";
@@ -46,10 +46,10 @@ const isWasmInput = (
 /**
  * account.rs implemented in Web assembly.
  */
-export class WasmHasher {
+export class WasmFactory {
     static async loadModule(
         options?: Partial<AccountLoadOptions>
-    ): Promise<HashCreator> {
+    ): Promise<LightWasmCreator> {
         if (isWasmInput(options?.wasm)) {
             const useSimd = options?.simd ?? hasSimd();
             if (!useSimd) {
@@ -64,8 +64,8 @@ export class WasmHasher {
 
     static async loadAccount(
         options?: Partial<AccountLoadOptions>
-    ): Promise<Hasher> {
-        const module = await WasmHasher.loadModule(options);
+    ): Promise<LightWasm> {
+        const module = await WasmFactory.loadModule(options);
         return module.create();
     }
 
@@ -75,8 +75,8 @@ export class WasmHasher {
     }
 
 
-    static async getInstance(): Promise<Hasher> {
-        return (await WasmHasher.loadModule()).create();
+    static async getInstance(): Promise<LightWasm> {
+        return (await WasmFactory.loadModule()).create();
     }
 }
 
@@ -94,8 +94,8 @@ interface HashStrategy {
 }
 
 
-function wasmAccount(hasher: HashStrategy): HashCreator {
-    const WasmHasher = class implements Hasher {
+function wasmAccount(hasher: HashStrategy): LightWasmCreator {
+    const WasmFactory = class implements LightWasm {
         blakeHash(input: string | Uint8Array, hashLength: number): Uint8Array {
             if (typeof input === 'string') {
                 return hasher.blake2str(input, hashLength);
@@ -148,12 +148,12 @@ function wasmAccount(hasher: HashStrategy): HashCreator {
     };
 
     return {
-        create: () => new WasmHasher(),
+        create: () => new WasmFactory(),
     };
 }
 
-let sisdMemory: Promise<HashCreator> | undefined;
-let simdMemory: Promise<HashCreator> | undefined;
+let sisdMemory: Promise<LightWasmCreator> | undefined;
+let simdMemory: Promise<LightWasmCreator> | undefined;
 const loadWasmSimd = async (module?: InitInput) => {
     if (simdMemory === undefined) {
         simdMemory = simdInit(module ?? wasmSimdInit?.()).then((x) => {

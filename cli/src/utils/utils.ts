@@ -120,7 +120,7 @@ export const getRelayer = async (localTestRelayer?: boolean) => {
         highRelayerFee: TOKEN_ACCOUNT_FEE,
         payer: wallet,
         connection: new solana.Connection(getRpcUrl(), "confirmed"),
-        hasher: (await getLightProvider()).hasher,
+        lightWasm: (await getLightProvider()).lightWasm,
       });
       return relayer;
     } else {

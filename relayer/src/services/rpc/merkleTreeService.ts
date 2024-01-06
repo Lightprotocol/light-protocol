@@ -33,7 +33,7 @@ export const getMerkleRoot = async (req: any, res: any) => {
     );
     const merkleTree = await SolMerkleTree.build({
       pubkey: merkleTreePdaPublicKey,
-      hasher: provider.hasher,
+      lightWasm: provider.lightWasm,
       indexedTransactions: indexedTransactions.map((trx) => trx.transaction),
       provider: provider.provider,
     });
@@ -76,7 +76,7 @@ export const getMerkleProofByIndexBatch = async (req: any, res: any) => {
     );
     const merkleTree = await SolMerkleTree.build({
       pubkey: merkleTreePdaPublicKey,
-      hasher: provider.hasher,
+      lightWasm: provider.lightWasm,
       indexedTransactions: indexedTransactions.map((trx) => trx.transaction),
       provider: provider.provider,
     });

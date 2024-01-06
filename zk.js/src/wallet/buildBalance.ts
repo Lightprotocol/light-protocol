@@ -19,7 +19,7 @@ import {
   UserErrorCode,
   BN_0,
 } from "../index";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 // mint | programAddress for programUtxos
 export type Balance = {
   tokenBalances: Map<string, TokenUtxoBalance>;
@@ -176,7 +176,7 @@ export async function decryptAddUtxoToBalance({
   encBytes,
   index,
   commitment,
-  hasher,
+  lightWasm,
   connection,
   balance,
   merkleTreePdaPublicKey,
@@ -190,7 +190,7 @@ export async function decryptAddUtxoToBalance({
   commitment: Uint8Array;
   account: Account;
   merkleTreePdaPublicKey: PublicKey;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   connection: Connection;
   balance: Balance;
   leftLeaf: Uint8Array;
@@ -199,7 +199,7 @@ export async function decryptAddUtxoToBalance({
   merkleProof: string[];
 }): Promise<void> {
   const decryptedUtxo = await Utxo.decryptUnchecked({
-    hasher,
+    lightWasm,
     encBytes: encBytes,
     account: account,
     index: index,
@@ -213,7 +213,7 @@ export async function decryptAddUtxoToBalance({
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo.value || decryptedUtxo.error) return;
   const utxo = decryptedUtxo.value;
-  const nullifier = utxo.getNullifier({ hasher, account });
+  const nullifier = utxo.getNullifier({ lightWasm, account });
   if (!nullifier) return;
 
   const nullifierExists = await fetchNullifierAccountInfo(
@@ -259,6 +259,6 @@ export async function decryptAddUtxoToBalance({
 
     balance.tokenBalances
       .get(assetKey)
-      ?.addUtxo(utxo.getCommitment(hasher), utxo, utxoType);
+      ?.addUtxo(utxo.getCommitment(lightWasm), utxo, utxoType);
   }
 }

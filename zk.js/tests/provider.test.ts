@@ -26,7 +26,7 @@ describe("Test Provider Functional", () => {
       ADMIN_AUTH_KEYPAIR.publicKey.toBase58(),
     );
     assert.equal(lightProviderMock.url, "mock");
-    assert(lightProviderMock.hasher);
+    assert(lightProviderMock.lightWasm);
     assert(lightProviderMock.lookUpTables.versionedTransactionLookupTable);
     const additionalMint = SolanaKeypair.generate().publicKey;
     assert.equal(
