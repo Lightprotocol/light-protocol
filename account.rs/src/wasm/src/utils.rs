@@ -16,10 +16,6 @@ pub fn vec_to_key(vec: &[u8]) -> Result<[u8; 32], AccountError> {
         .map_err(|_| AccountError::Generic(String::from("Expected a Vec of length 32")))
 }
 
-pub fn key_to_vec(key: [u8; 32]) -> Vec<u8> {
-    key.to_vec()
-}
-
 pub fn vec_to_string(vec: &[u8]) -> String {
     vec.iter()
         .map(|&value| value.to_string())

@@ -4,6 +4,7 @@ use aes_gcm_siv::{
 };
 use crypto_box::{aead::generic_array::GenericArray, Box, PublicKey, SecretKey};
 use light_poseidon::PoseidonError;
+use thiserror::Error;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 extern crate console_error_panic_hook;
@@ -16,44 +17,45 @@ use crate::{
         blake2::{blake2, blake2_string},
         poseidon::poseidon_hash,
     },
-    utils::{key_to_vec, vec_to_key, vec_to_string},
+    utils::{vec_to_key, vec_to_string},
 };
 
-pub const UTXO_PREFIX_LENGTH: usize = 4;
-pub const SECRET_KEY: [u8; 32] = [
+const UTXO_PREFIX_LENGTH: usize = 4;
+
+const SECRET_KEY: [u8; 32] = [
     155, 249, 234, 55, 8, 49, 0, 14, 84, 72, 10, 224, 21, 139, 87, 102, 115, 88, 217, 72, 137, 38,
     0, 179, 93, 202, 220, 31, 143, 79, 247, 200,
 ];
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum AccountError {
+    #[error("invalid seed")]
+    InvalidSeed,
+
+    #[error("invalid key size")]
+    InvalidKeySize,
+
+    #[error("poseidon error `{0}`")]
     Poseidon(PoseidonError),
+    #[error("aes encryption error `{0}`")]
     AesGcmSiv(aes_gcm_siv::aead::Error),
+
+    #[error("can't decrypt nacl")]
+    NaclDecryptionError,
+
+    #[error("can't encrypt nacl")]
+    NaclEncryptionError,
+
+    #[error("account error `{0}`")]
     Generic(String),
-}
-
-impl From<PoseidonError> for AccountError {
-    fn from(error: PoseidonError) -> Self {
-        AccountError::Poseidon(error)
-    }
-}
-
-impl From<aes_gcm_siv::aead::Error> for AccountError {
-    fn from(error: aes_gcm_siv::aead::Error) -> Self {
-        AccountError::AesGcmSiv(error)
-    }
 }
 
 impl From<AccountError> for JsValue {
     fn from(error: AccountError) -> Self {
-        let error_message = match error {
-            AccountError::Poseidon(e) => format!("{}", e),
-            AccountError::AesGcmSiv(e) => format!("{}", e),
-            AccountError::Generic(e) => e,
-        };
-        JsError::new(&error_message).into()
+        JsError::new(&error.to_string()).into()
     }
 }
+
 const ACCOUNT_HASH_LENGTH: usize = 32;
 
 #[wasm_bindgen]
@@ -131,7 +133,7 @@ impl Account {
     pub fn from_burner_seed(burner_seed: &str) -> Result<Account, AccountError> {
         let burner_seed_vec = bs58::decode(burner_seed)
             .into_vec()
-            .map_err(|_| AccountError::Generic("Invalid burner seed".to_string()))?;
+            .map_err(|_| AccountError::InvalidSeed)?;
         let burner_arr = vec_to_key(&burner_seed_vec)?;
         let burner_arr_string = vec_to_string(&burner_seed_vec);
 
@@ -351,32 +353,50 @@ impl Account {
         ciphertext: Vec<u8>,
         commitment: Vec<u8>,
     ) -> Result<Vec<u8>, AccountError> {
+        if commitment.len() != 32 {
+            return Err(AccountError::Generic(
+                "Commitment hash must be 32 bytes".to_string(),
+            ));
+        }
+
         let nonce = GenericArray::from_slice(&commitment[0..24]);
         let signer_pub_key = SecretKey::from(SECRET_KEY).public_key();
         let private_key = SecretKey::from(self.encryption_private_key);
         let nacl_box = Box::new(&signer_pub_key, &private_key);
         let decrypted_message = nacl_box
             .decrypt(nonce, &ciphertext[..])
-            .map_err(|_| AccountError::Generic("can't decrypt nacl".to_string()))?;
+            .map_err(|_| AccountError::NaclDecryptionError)?;
 
         Ok(decrypted_message)
     }
 
-/// Encrypts UTXO bytes to a public key using a nonce and a standardized secret for HMAC.
-///
-/// # Arguments
-/// * `public_key` - The public key to encrypt to.
-/// * `bytes_message` - The message to be encrypted.
-/// * `commitment` - The commitment used to generate the nonce.
-///
-/// # Returns
-/// The encrypted `Uint8Array`.
+    /// Encrypts UTXO bytes to a public key using a nonce and a standardized secret for HMAC.
+    ///
+    /// # Arguments
+    /// * `public_key` - The public key to encrypt to.
+    /// * `bytes_message` - The message to be encrypted.
+    /// * `commitment` - The commitment used to generate the nonce.
+    ///
+    /// # Returns
+    /// The encrypted `Uint8Array`.
     #[wasm_bindgen(js_name = encryptNaclUtxo)]
     pub fn encrypt_nacl_utxo(
         public_key: Vec<u8>,
         message: Vec<u8>,
         commitment: Vec<u8>,
     ) -> Result<Vec<u8>, AccountError> {
+        if public_key.len() != 32 {
+            return Err(AccountError::InvalidKeySize);
+        }
+        if commitment.len() != 32 {
+            return Err(AccountError::Generic(
+                "Commitment hash must be 32 bytes".to_string(),
+            ));
+        }
+        if message.is_empty() {
+            return Err(AccountError::Generic("Message can't be empty".to_string()));
+        }
+
         let pub_key_array: [u8; 32] = vec_to_key(&public_key)?;
         let pub_key = PublicKey::from(pub_key_array);
         let nonce = GenericArray::from_slice(&commitment[0..24]);
@@ -390,7 +410,7 @@ impl Account {
 
         let encrypted_message = nacl_box
             .encrypt(nonce, &message[..])
-            .map_err(|_| AccountError::Generic("can't encrypt nacl".to_string()))?;
+            .map_err(|_| AccountError::NaclEncryptionError)?;
 
         Ok(encrypted_message)
     }
@@ -471,7 +491,7 @@ impl Account {
 
     #[wasm_bindgen(js_name = getPublicKey)]
     pub fn get_public_key(&self) -> Vec<u8> {
-        key_to_vec(self.public_key)
+        self.public_key.to_vec()
     }
 
     fn get_hashing_secret_string(&self) -> Result<String, AccountError> {
@@ -502,17 +522,17 @@ impl Account {
     #[wasm_bindgen(js_name = getEncryptionPrivateKey)]
 
     pub fn get_encryption_private_key(&self) -> Vec<u8> {
-        key_to_vec(self.encryption_private_key)
+        self.encryption_private_key.to_vec()
     }
 
     #[wasm_bindgen(js_name = getEncryptionPublicKey)]
     pub fn get_encryption_public_key(&self) -> Vec<u8> {
-        key_to_vec(self.encryption_public_key)
+        self.encryption_public_key.to_vec()
     }
 
     #[wasm_bindgen(js_name = getAesSecret)]
     pub fn get_aes_secret(&self) -> Vec<u8> {
-        key_to_vec(self.aes_secret)
+        self.aes_secret.to_vec()
     }
 
     #[wasm_bindgen(js_name = getSolanaPublicKey)]
