@@ -22,11 +22,10 @@ import {
   RelayerSendTransactionsResponse,
   sendVersionedTransactions,
   SendVersionedTransactionsResult,
-  TestRelayer,
   TOKEN_ACCOUNT_FEE,
   useWallet,
 } from "../index";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 const axios = require("axios");
 
 /**
@@ -46,10 +45,10 @@ export type Wallet = {
  */
 // TODO: add relayer here; default deriv, if passed in can choose custom relayer.
 export class Provider {
+  lightWasm: LightWasm;
   connection?: Connection;
   wallet: Wallet;
   confirmConfig: ConfirmOptions;
-  hasher: Hasher;
   provider: AnchorProvider;
   url?: string;
   minimumLamports: BN;
@@ -65,6 +64,7 @@ export class Provider {
    * Optionally provide confirmConfig, Default = 'confirmed'.
    */
   constructor({
+    lightWasm,
     wallet,
     confirmConfig,
     connection,
@@ -75,8 +75,8 @@ export class Provider {
     assetLookupTable,
     versionedTransactionLookupTable,
     anchorProvider,
-    hasher,
   }: {
+    lightWasm: LightWasm;
     wallet: Wallet;
     confirmConfig?: ConfirmOptions;
     connection?: Connection;
@@ -87,7 +87,6 @@ export class Provider {
     assetLookupTable?: PublicKey[];
     versionedTransactionLookupTable: PublicKey;
     anchorProvider: AnchorProvider;
-    hasher: Hasher;
   }) {
     if (!wallet)
       throw new ProviderError(
@@ -131,17 +130,17 @@ export class Provider {
       ],
       versionedTransactionLookupTable,
     };
-    this.hasher = hasher;
+    this.lightWasm = lightWasm;
   }
 
   static async loadMock(): Promise<Provider> {
-    const hasher = await WasmHasher.getInstance();
+    const lightWasm = await WasmFactory.getInstance();
     // @ts-ignore: @ananas-block ignoring errors to not pass anchorProvider
     const mockProvider = new Provider({
+      lightWasm,
       wallet: useWallet(ADMIN_AUTH_KEYPAIR),
       url: "mock",
       versionedTransactionLookupTable: PublicKey.default,
-      hasher,
     });
 
     return mockProvider;
@@ -271,8 +270,9 @@ export class Provider {
         "Initializing lookup table in node.js or fetching it from relayer in browser failed",
       );
 
-    const hasher = await WasmHasher.getInstance();
+    const lightWasm = await WasmFactory.getInstance();
     return new Provider({
+      lightWasm,
       wallet,
       confirmConfig,
       connection,
@@ -282,7 +282,6 @@ export class Provider {
       verifierProgramLookupTable,
       versionedTransactionLookupTable,
       anchorProvider,
-      hasher,
     });
   }
 

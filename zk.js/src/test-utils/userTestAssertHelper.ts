@@ -406,14 +406,14 @@ export class UserTestAssertHelper {
       for (const [, utxo] of tokenBalance.utxos.entries()) {
         if (
           !utxo.getNullifier({
-            hasher: this.provider.hasher,
+            lightWasm: this.provider.lightWasm,
             account: user.account,
           })
         )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         await this.assertNullifierAccountDoesNotExist(
           utxo.getNullifier({
-            hasher: user.provider.hasher,
+            lightWasm: user.provider.lightWasm,
             account: user.account,
           })!,
         );
@@ -423,14 +423,14 @@ export class UserTestAssertHelper {
       for (const utxo of tokenBalance.spentUtxos.values()) {
         if (
           !utxo.getNullifier({
-            hasher: this.provider.hasher,
+            lightWasm: this.provider.lightWasm,
             account: user.account,
           })
         )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountExists(
           utxo.getNullifier({
-            hasher: this.provider.hasher,
+            lightWasm: this.provider.lightWasm,
             account: user.account,
           })!,
         );
@@ -446,14 +446,14 @@ export class UserTestAssertHelper {
       for (const utxo of tokenBalance.spentUtxos.values()) {
         if (
           !utxo.getNullifier({
-            hasher: this.provider.hasher,
+            lightWasm: this.provider.lightWasm,
             account: user.account,
           })
         )
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
         this.assertNullifierAccountExists(
           utxo.getNullifier({
-            hasher: this.provider.hasher,
+            lightWasm: this.provider.lightWasm,
             account: user.account,
           })!,
         );
@@ -475,7 +475,7 @@ export class UserTestAssertHelper {
         if (
           await fetchNullifierAccountInfo(
             utxo.getNullifier({
-              hasher: this.provider.hasher,
+              lightWasm: this.provider.lightWasm,
               account: this.sender.user.account,
             })!,
             this.provider.provider?.connection,
@@ -747,7 +747,7 @@ export class UserTestAssertHelper {
         ?.utxos.values()
         .next()!
         .value.getNullifier({
-          hasher: this.provider.hasher,
+          lightWasm: this.provider.lightWasm,
           account: this.recipient.user.account,
         }),
     );

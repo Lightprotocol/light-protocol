@@ -23,20 +23,20 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RPC_URL } from "../src/config";
 import { getRelayer } from "../src/utils/provider";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 
 chai.use(chaiHttp);
 
 describe("Browser tests", () => {
   let RELAYER: Relayer;
-  let hasher: Hasher;
+  let lightWasm: LightWasm;
   let provider: Provider;
   let user: User;
   const walletMock = useWallet(ADMIN_AUTH_KEYPAIR, RPC_URL);
   const connection = new Connection(RPC_URL, "confirmed");
 
   before(async () => {
-    hasher = await WasmHasher.getInstance();
+    lightWasm = await WasmFactory.getInstance();
 
     await createTestAccounts(connection);
 
@@ -163,7 +163,7 @@ describe("Browser tests", () => {
     };
 
     const recipientAccount = Account.createFromSeed(
-      hasher,
+      lightWasm,
       testInputs.recipientSeed,
     );
 

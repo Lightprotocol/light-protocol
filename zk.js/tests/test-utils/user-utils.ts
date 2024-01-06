@@ -8,11 +8,12 @@ import {
   TestInputs,
   confirmConfig,
 } from "../../src";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
+
 export type EnvironmentConfig = {
   relayer?: TestRelayer;
   providerSolanaKeypair?: Keypair;
-  hasher?: Hasher;
+  lightWasm?: LightWasm;
   lookUpTable?: PublicKey;
 };
 

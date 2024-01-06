@@ -12,7 +12,7 @@ import {
   TOKEN_REGISTRY,
   BN_0,
 } from "../index";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 // TODO: turn these into static user.class methods
 export const getAmount = (u: Utxo, asset: PublicKey) => {
   return u.amounts[u.assets.indexOf(asset)];
@@ -114,11 +114,11 @@ const selectBiggestSmallest = (
 // TODO: enable users to pass in this function to use their own selection strategies
 // TODO: add option how many utxos to select
 export function selectInUtxos({
+  lightWasm,
   utxos,
   publicMint,
   publicAmountSpl,
   publicAmountSol,
-  hasher,
   relayerFee,
   inUtxos,
   outUtxos = [],
@@ -126,10 +126,10 @@ export function selectInUtxos({
   numberMaxInUtxos,
   numberMaxOutUtxos,
 }: {
+  lightWasm: LightWasm;
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
-  hasher: Hasher;
   relayerFee?: BN;
   utxos?: Utxo[];
   inUtxos?: Utxo[];
@@ -260,8 +260,8 @@ export function selectInUtxos({
         // exclude the utxo which is already selected and utxos which hold other assets than only sol
         const reFilteredUtxos = utxos.filter(
           (utxo) =>
-            utxo.getCommitment(hasher) !=
-              selectedUtxosR[0].getCommitment(hasher) &&
+            utxo.getCommitment(lightWasm) !=
+              selectedUtxosR[0].getCommitment(lightWasm) &&
             utxo.assets[1].toBase58() === SystemProgram.programId.toBase58(),
         );
 

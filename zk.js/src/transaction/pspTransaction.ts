@@ -32,7 +32,7 @@ import {
   selectInUtxos,
   createOutUtxos,
 } from "../index";
-import { Hasher } from "@lightprotocol/account.rs";
+import { LightWasm } from "@lightprotocol/account.rs";
 import { getIndices3D } from "@lightprotocol/circuit-lib.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { sha256 } from "@noble/hashes/sha256";
@@ -111,13 +111,13 @@ type compiledProofInputs = {
 // 4. compile app parameters
 // 5. compile and prove etc.
 export const createUtxoIndices = (
-  hasher: Hasher,
   utxos: Utxo[],
   commitHashUtxo: string,
+  lightWasm: LightWasm,
 ) => {
   const isAppInUtxo = new Array(4).fill(new BN(0));
   for (const i in utxos) {
-    if (utxos[i].getCommitment(hasher) === commitHashUtxo) {
+    if (utxos[i].getCommitment(lightWasm) === commitHashUtxo) {
       isAppInUtxo[i] = new BN(1);
     }
   }
@@ -125,7 +125,7 @@ export const createUtxoIndices = (
 };
 
 export const createPspProofInputs = (
-  hasher: Hasher,
+  lightWasm: LightWasm,
   pspTransaction: PspTransactionInput,
   inputUtxos: Utxo[],
   outputUtxos: Utxo[],
@@ -140,9 +140,9 @@ export const createPspProofInputs = (
     }
 
     const isAppUtxo = createUtxoIndices(
-      hasher,
       inputUtxos,
-      utxo.getCommitment(hasher),
+      utxo.getCommitment(lightWasm),
+      lightWasm,
     );
     // @ts-ignore
     inUtxosInputs[`isInAppUtxo${upperCamelCase(utxoName)}`] = isAppUtxo;
@@ -169,9 +169,9 @@ export const createPspProofInputs = (
       }
 
       const isAppUtxoIndices = createUtxoIndices(
-        hasher,
         outputUtxos,
-        utxo.getCommitment(hasher),
+        utxo.getCommitment(lightWasm),
+        lightWasm,
       );
       // @ts-ignore
       outUtxosInputs[`isOutAppUtxo${upperCamelCase(utxoName)}`] =
@@ -232,13 +232,13 @@ export async function getSystemProof({
 export function createSystemProofInputs({
   transaction,
   root,
-  hasher,
   account,
+  lightWasm,
 }: {
   transaction: Transaction;
-  hasher: Hasher;
-  account: Account;
   root: string;
+  account: Account;
+  lightWasm: LightWasm;
 }) {
   if (!transaction.public.txIntegrityHash)
     throw new TransactionError(
@@ -250,14 +250,14 @@ export function createSystemProofInputs({
     let _account = account;
     if (x.publicKey.eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
       _account = Account.fromPrivkey(
-        hasher,
+        lightWasm,
         bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
         bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
         bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
       );
     }
     return x.getNullifier({
-      hasher: hasher,
+      lightWasm,
       account: _account,
     });
   });
@@ -273,7 +273,7 @@ export function createSystemProofInputs({
     transactionVersion: "0",
     txIntegrityHash: transaction.public.txIntegrityHash.toString(),
     outputCommitment: transaction.private.outputUtxos.map((x) =>
-      x.getCommitment(hasher),
+      x.getCommitment(lightWasm),
     ),
     inAmount: transaction.private.inputUtxos?.map((x) => x.amounts),
     inBlinding: transaction.private.inputUtxos?.map((x) => x.blinding),
@@ -357,24 +357,24 @@ export async function syncInputUtxosMerkleProofs({
 export function createProofInputs({
   transaction,
   root,
-  hasher,
+  lightWasm,
   account,
   pspTransaction,
 }: {
   transaction: Transaction;
   root: string;
   pspTransaction: PspTransactionInput;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   account: Account;
 }): compiledProofInputs {
   const systemProofInputs = createSystemProofInputs({
     transaction,
     root,
-    hasher,
+    lightWasm,
     account,
   });
   const pspProofInputs = createPspProofInputs(
-    hasher,
+    lightWasm,
     pspTransaction,
     transaction.private.inputUtxos,
     transaction.private.outputUtxos,
@@ -551,13 +551,13 @@ export function getVerifierConfig(verifierIdl: Idl): VerifierConfig {
 export function addEmptyUtxos(
   utxos: Utxo[] = [],
   len: number,
-  hasher: Hasher,
+  lightWasm: LightWasm,
   publicKey: BN,
 ): Utxo[] {
   while (utxos.length < len) {
     utxos.push(
       new Utxo({
-        hasher: hasher,
+        lightWasm,
         publicKey,
         assetLookupTable: [SystemProgram.programId.toBase58()],
         isFillingUtxo: true,
@@ -871,11 +871,11 @@ export function getTxIntegrityHash(
 
 // pspTransaction
 export async function encryptOutUtxos(
-  hasher: Hasher,
   account: Account,
   outputUtxos: Utxo[],
   transactionMerkleTree: PublicKey,
   verifierConfig: VerifierConfig,
+  lightWasm: LightWasm,
 ): Promise<Uint8Array> {
   let encryptedOutputs = new Array<any>();
   for (const utxo in outputUtxos) {
@@ -890,7 +890,7 @@ export async function encryptOutUtxos(
 
     encryptedOutputs.push(
       await outputUtxos[utxo].encrypt({
-        hasher,
+        lightWasm,
         account: account,
         merkleTreePdaPublicKey: transactionMerkleTree,
       }),
@@ -919,19 +919,19 @@ export async function encryptOutUtxos(
 
 // pspTransaction
 export function getTransactionHash(
-  hasher: Hasher,
   inputUtxos: Utxo[],
   outputUtxos: Utxo[],
   txIntegrityHash: BN,
+  lightWasm: LightWasm,
 ): string {
-  const inputHasher = hasher.poseidonHashString(
-    inputUtxos?.map((utxo) => utxo.getCommitment(hasher)),
+  const inputHasher = lightWasm.poseidonHashString(
+    inputUtxos?.map((utxo) => utxo.getCommitment(lightWasm)),
   );
-  const outputHasher = hasher.poseidonHashString(
-    outputUtxos?.map((utxo) => utxo.getCommitment(hasher)),
+  const outputHasher = lightWasm.poseidonHashString(
+    outputUtxos?.map((utxo) => utxo.getCommitment(lightWasm)),
   );
 
-  return hasher.poseidonHashString([
+  return lightWasm.poseidonHashString([
     inputHasher,
     outputHasher,
     txIntegrityHash.toString(),
@@ -945,7 +945,7 @@ export type ShieldTransactionInput = {
   inputUtxos?: Utxo[];
   outputUtxos?: Utxo[];
   signer: PublicKey;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   systemPspId: PublicKey;
   pspId?: PublicKey;
   account: Account;
@@ -963,10 +963,10 @@ export async function createShieldTransaction(
     inputUtxos,
     outputUtxos,
     signer,
-    hasher,
     systemPspId,
     pspId,
     account,
+    lightWasm,
   } = shieldTransactionInput;
 
   const action = Action.SHIELD;
@@ -976,7 +976,7 @@ export async function createShieldTransaction(
   const privateVars = createPrivateTransactionVariables({
     inputUtxos,
     outputUtxos,
-    hasher,
+    lightWasm,
     account,
     verifierConfig,
   });
@@ -1006,11 +1006,11 @@ export async function createShieldTransaction(
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
   const encryptedUtxos = await encryptOutUtxos(
-    hasher,
     account,
     privateVars.outputUtxos,
     transactionMerkleTreePubkey,
     verifierConfig,
+    lightWasm,
   );
   const txIntegrityHash = getTxIntegrityHash(
     BN_0,
@@ -1022,10 +1022,10 @@ export async function createShieldTransaction(
   );
 
   const transactionHash = getTransactionHash(
-    hasher,
     privateVars.inputUtxos,
     privateVars.outputUtxos,
     txIntegrityHash,
+    lightWasm,
   );
 
   const transaction: ShieldTransaction = {
@@ -1056,26 +1056,26 @@ export async function createShieldTransaction(
 export function createPrivateTransactionVariables({
   inputUtxos,
   outputUtxos,
-  hasher,
+  lightWasm,
   account,
   verifierConfig,
 }: {
   inputUtxos?: Utxo[];
   outputUtxos?: Utxo[];
-  hasher: Hasher;
+  lightWasm: LightWasm;
   account: Account;
   verifierConfig: VerifierConfig;
 }): PrivateTransactionVariables {
   const filledInputUtxos = addEmptyUtxos(
     inputUtxos,
     verifierConfig.in,
-    hasher,
+    lightWasm,
     account.keypair.publicKey,
   );
   const filledOutputUtxos = addEmptyUtxos(
     outputUtxos,
     verifierConfig.out,
-    hasher,
+    lightWasm,
     account.keypair.publicKey,
   );
 
@@ -1100,7 +1100,7 @@ export type UnshieldTransactionInput = {
   inputUtxos?: Utxo[];
   outputUtxos?: Utxo[];
   relayerPublicKey: PublicKey;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   systemPspId: PublicKey;
   pspId?: PublicKey;
   account: Account;
@@ -1121,7 +1121,7 @@ export async function createUnshieldTransaction(
     inputUtxos,
     outputUtxos,
     relayerPublicKey,
-    hasher,
+    lightWasm,
     systemPspId,
     pspId,
     account,
@@ -1136,7 +1136,7 @@ export async function createUnshieldTransaction(
   const privateVars = createPrivateTransactionVariables({
     inputUtxos,
     outputUtxos,
-    hasher,
+    lightWasm,
     account,
     verifierConfig,
   });
@@ -1169,11 +1169,11 @@ export async function createUnshieldTransaction(
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
   const encryptedUtxos = await encryptOutUtxos(
-    hasher,
     account,
     privateVars.outputUtxos,
     transactionMerkleTreePubkey,
     verifierConfig,
+    lightWasm,
   );
   const txIntegrityHash = getTxIntegrityHash(
     relayerFee,
@@ -1185,10 +1185,10 @@ export async function createUnshieldTransaction(
   );
 
   const transactionHash = getTransactionHash(
-    hasher,
     privateVars.inputUtxos,
     privateVars.outputUtxos,
     txIntegrityHash,
+    lightWasm,
   );
 
   const transaction: UnshieldTransaction = {
@@ -1219,7 +1219,7 @@ export type TransactionInput = {
   inputUtxos?: Utxo[];
   outputUtxos?: Utxo[];
   relayerPublicKey: PublicKey;
-  hasher: Hasher;
+  lightWasm: LightWasm;
   systemPspId: PublicKey;
   pspId?: PublicKey;
   account: Account;
@@ -1235,7 +1235,7 @@ export async function createTransaction(
     inputUtxos,
     outputUtxos,
     relayerPublicKey,
-    hasher,
+    lightWasm,
     pspId,
     systemPspId,
     account,
@@ -1248,7 +1248,7 @@ export async function createTransaction(
   const privateVars = createPrivateTransactionVariables({
     inputUtxos,
     outputUtxos,
-    hasher,
+    lightWasm,
     account,
     verifierConfig,
   });
@@ -1268,11 +1268,11 @@ export async function createTransaction(
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
   const encryptedUtxos = await encryptOutUtxos(
-    hasher,
     account,
     privateVars.outputUtxos,
     transactionMerkleTreePubkey,
     verifierConfig,
+    lightWasm,
   );
 
   const txIntegrityHash = getTxIntegrityHash(
@@ -1285,10 +1285,10 @@ export async function createTransaction(
   );
 
   const transactionHash = getTransactionHash(
-    hasher,
     privateVars.inputUtxos,
     privateVars.outputUtxos,
     txIntegrityHash,
+    lightWasm,
   );
 
   const transaction: Transaction = {
@@ -1415,7 +1415,7 @@ export async function getTxParams({
       publicMint: tokenCtx.mint,
       publicAmountSpl,
       publicAmountSol,
-      hasher: provider.hasher,
+      lightWasm: provider.lightWasm,
       inUtxos,
       outUtxos,
       utxos,
@@ -1434,7 +1434,7 @@ export async function getTxParams({
       publicAmountSpl,
       inUtxos: inputUtxos,
       publicAmountSol, // TODO: add support for extra sol for unshield & transfer
-      hasher: provider.hasher,
+      lightWasm: provider.lightWasm,
       relayerFee:
         action == Action.SHIELD
           ? undefined
@@ -1463,9 +1463,9 @@ export async function getTxParams({
       inputUtxos,
       outputUtxos,
       signer: provider.wallet.publicKey,
-      hasher: provider.hasher,
       systemPspId: getVerifierProgramId(verifierIdl),
       account,
+      lightWasm: provider.lightWasm,
     });
   } else if (action == Action.UNSHIELD) {
     return createUnshieldTransaction({
@@ -1480,7 +1480,7 @@ export async function getTxParams({
       recipientSpl: recipientSplAddress,
       inputUtxos,
       outputUtxos,
-      hasher: provider.hasher,
+      lightWasm: provider.lightWasm,
       systemPspId: getVerifierProgramId(verifierIdl),
       account,
       ataCreationFee: ataCreationFee ? true : false,
@@ -1494,7 +1494,7 @@ export async function getTxParams({
         MerkleTreeConfig.getTransactionMerkleTreePda(),
       inputUtxos,
       outputUtxos,
-      hasher: provider.hasher,
+      lightWasm: provider.lightWasm,
       systemPspId: getVerifierProgramId(verifierIdl),
       account,
       relayerPublicKey: relayer!.accounts.relayerPubkey,

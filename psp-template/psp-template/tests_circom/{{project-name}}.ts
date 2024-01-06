@@ -5,7 +5,6 @@ import { Prover } from "@lightprotocol/prover.js";
 import { IDL } from "../target/types/{{rust-name}}";
 const circomlibjs = require("circomlibjs");
 
-
 const RPC_URL = "http://127.0.0.1:8899";
 
 describe("Test {{project-name}}", () => {

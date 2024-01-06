@@ -15,7 +15,7 @@ import {
   RELAYER_FEE,
   airdropSol,
 } from "../../src";
-import { WasmHasher } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/account.rs";
 import {
   performShielding,
   EnvironmentConfig,
@@ -47,7 +47,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     environmentConfig.lookUpTable =
       await initLookUpTableFromFile(anchorProvider);
 
-    environmentConfig.hasher = await WasmHasher.getInstance();
+    environmentConfig.lightWasm = await WasmFactory.getInstance();
     // this keypair is used to derive the shielded account seed from the light message signature
     environmentConfig.providerSolanaKeypair = ADMIN_AUTH_KEYPAIR;
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
@@ -60,7 +60,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       relayerFee: RELAYER_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: anchorProvider.connection,
-      hasher: environmentConfig.hasher,
+      lightWasm: environmentConfig.lightWasm,
     });
     provider = await Provider.init({
       wallet: environmentConfig.providerSolanaKeypair!,

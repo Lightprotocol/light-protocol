@@ -89,6 +89,6 @@ function createRelayer(wallet: Keypair, lightProvider: Provider): TestRelayer {
     relayerFee: new BN(100_000),
     payer: wallet,
     connection: lightProvider.provider.connection,
-    hasher: lightProvider.hasher,
+    lightWasm: lightProvider.lightWasm,
   });
 }

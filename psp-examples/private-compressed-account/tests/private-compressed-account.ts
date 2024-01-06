@@ -8,7 +8,7 @@ import {
   User,
   airdropSol,
 } from "@lightprotocol/zk.js";
-import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
+import { Hasher, WasmFactory } from "@lightprotocol/account.rs";
 
 import { Keypair } from "@solana/web3.js";
 
@@ -31,7 +31,7 @@ describe("Test private-compressed-account", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    HASHER = await WasmHasher.getInstance();
+    HASHER = await WasmFactory.getInstance();
   });
 
   it.skip("Merkle Tree Update Circuits, 100 rounds", async () => {

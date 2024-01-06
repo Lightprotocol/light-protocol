@@ -1,7 +1,7 @@
 import {beforeAll} from "vitest";
 const { blake2b } = require("@noble/hashes/blake2b");
 import * as circomlibjs from "circomlibjs";
-import { AccountHasher, WasmHasher } from "..";
+import { AccountHasher, WasmFactory } from "..";
 import {BN} from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Account as AccountWasm } from "../src/main/wasm/account_wasm";
@@ -19,7 +19,7 @@ describe("Test Account Functional", () => {
     let poseidon: any;
 
     beforeEach(() => {
-        WasmHasher.resetModule();
+        WasmFactory.resetModule();
         AccountHasher.resetModule();
     });
 
@@ -29,9 +29,9 @@ describe("Test Account Functional", () => {
 
     it("choose hash implementation depending on platform", () => {
         if (isNode()) {
-            expect(WasmHasher.name).toEqual("WasmHasher");
+            expect(WasmFactory.name).toEqual("WasmFactory");
         } else {
-            expect(WasmHasher.name).toContain("WasmAccountHash");
+            expect(WasmFactory.name).toContain("WasmAccountHash");
         }
     });
 
@@ -40,7 +40,7 @@ describe("Test Account Functional", () => {
             return bs58.encode(new Uint8Array(32).fill(1));
         };
 
-        const mod = await WasmHasher.loadModule();
+        const mod = await WasmFactory.loadModule();
         const hash = mod.create();
 
         const account: AccountWasm = hash.seedAccount(seed32());
@@ -62,7 +62,7 @@ describe("Test Account Functional", () => {
         const circomOutput = new BN(poseidon.F.toString(poseidon([input]))).toArray("be", 32);
         assert.equal(circomOutput.toString(), expected.toString());
 
-        const mod = await WasmHasher.loadModule();
+        const mod = await WasmFactory.loadModule();
         const hash = mod.create();
         const wasmOutput = new BN(hash.poseidonHash([input])).toArray("be", 32);
 
@@ -73,7 +73,7 @@ describe("Test Account Functional", () => {
         const input = "foobar";
         const tsBlake = blake2b.create({ dkLen: 32 }).update(input).digest().toString()
 
-        const mod = await WasmHasher.loadModule();
+        const mod = await WasmFactory.loadModule();
         const hash = mod.create();
         const wasmBlake = hash.blakeHash(input, 32).toString();
         assert.equal(tsBlake, wasmBlake);
@@ -83,7 +83,7 @@ describe("Test Account Functional", () => {
         const inputs = new BN(1).toString();
         const tsHash = new BN(poseidon.F.toString(poseidon([inputs]))).toArray();
 
-        const mod = await WasmHasher.loadModule();
+        const mod = await WasmFactory.loadModule();
         const hash = mod.create();
         const rsHash = hash.poseidonHash([inputs]);
 
@@ -147,7 +147,7 @@ describe("Test Account Functional", () => {
 
         for (let i = 0; i < TEST_CASES.length; i++) {
             inputs.push(value);
-            const mod = await WasmHasher.loadModule();
+            const mod = await WasmFactory.loadModule();
             const hash = mod.create();
             const rsHash = hash.poseidonHash(inputs);
             assert.equal(TEST_CASES[i].toString(), Array.from(rsHash).toString());
@@ -157,7 +157,7 @@ describe("Test Account Functional", () => {
         value = new BN(2);
         for (let i = 0; i < TEST_CASES.length; i++) {
             inputs.push(value);
-            const mod = await WasmHasher.loadModule();
+            const mod = await WasmFactory.loadModule();
             const hash = mod.create();
             const rsHash = hash.poseidonHash(inputs);
             assert.notEqual(TEST_CASES[i].toString(), Array.from(rsHash).toString());

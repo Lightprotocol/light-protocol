@@ -24,7 +24,7 @@ import {
   lightPsp4in4outAppStorageId,
   CreateUtxoErrorCode,
 } from "../src";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const chai = require("chai");
@@ -35,9 +35,9 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Utxo Functional", () => {
-  let hasher: Hasher, lightProvider: LightProvider;
+  let lightWasm: LightWasm, lightProvider: LightProvider;
   before(async () => {
-    hasher = await WasmHasher.getInstance();
+    lightWasm = await WasmFactory.getInstance();
     // TODO: make fee mandatory
     lightProvider = await LightProvider.loadMock();
   });
@@ -45,9 +45,9 @@ describe("Utxo Functional", () => {
   it("rnd utxo functional loop 100", async () => {
     for (let i = 0; i < 100; i++) {
       // try basic tests for rnd empty utxo
-      const utxo4Account = Account.random(hasher);
+      const utxo4Account = Account.random(lightWasm);
       const utxo4 = new Utxo({
-        hasher,
+        lightWasm,
         amounts: [new BN(123)],
         publicKey: utxo4Account.keypair.publicKey,
         appDataHash: new BN(lightPsp4in4outAppStorageId.toBuffer()),
@@ -60,34 +60,34 @@ describe("Utxo Functional", () => {
 
       // fromBytes
       const utxo40 = Utxo.fromBytes({
-        hasher,
+        lightWasm,
         bytes: bytes4,
         index: 0,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       });
-      Utxo.equal(hasher, utxo4, utxo40);
+      Utxo.equal(utxo4, utxo40, lightWasm);
 
       // toBytes
       const bytes4Compressed = await utxo4.toBytes(true);
 
       // fromBytes
       const utxo40Compressed = Utxo.fromBytes({
-        hasher,
+        lightWasm,
         account: utxo4Account,
         bytes: bytes4Compressed,
         index: 0,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       });
-      Utxo.equal(hasher, utxo4, utxo40Compressed);
+      Utxo.equal(utxo4, utxo40Compressed, lightWasm);
 
       // encrypt
       const encBytes4 = await utxo4.encrypt({
-        hasher,
+        lightWasm,
         account: utxo4Account,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       });
       const encBytes41 = await utxo4.encrypt({
-        hasher,
+        lightWasm,
         account: utxo4Account,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       });
@@ -98,13 +98,13 @@ describe("Utxo Functional", () => {
 
       // decrypt checked
       const utxo41 = await Utxo.decryptUnchecked({
-        hasher,
+        lightWasm,
         encBytes: encBytes4,
         account: utxo4Account,
         aes: true,
         index: 0,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-        commitment: new BN(utxo4.getCommitment(hasher)).toArrayLike(
+        commitment: new BN(utxo4.getCommitment(lightWasm)).toArrayLike(
           Buffer,
           "be",
           32,
@@ -114,26 +114,26 @@ describe("Utxo Functional", () => {
       });
 
       if (utxo41.value) {
-        Utxo.equal(hasher, utxo4, utxo41.value);
+        Utxo.equal(utxo4, utxo41.value, lightWasm);
       } else {
         throw new Error(`decrypt failed: ${utxo41.error?.toString()}`);
       }
 
       // decrypt unchecked
       const utxo41u = await Utxo.decryptUnchecked({
-        hasher,
+        lightWasm,
         encBytes: encBytes4,
         account: utxo4Account,
         aes: true,
         index: 0,
         merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-        commitment: new BN(utxo4.getCommitment(hasher)).toBuffer("be", 32),
+        commitment: new BN(utxo4.getCommitment(lightWasm)).toBuffer("be", 32),
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         merkleProof: [],
       });
 
       if (utxo41u.value !== null) {
-        Utxo.equal(hasher, utxo4, utxo41u.value);
+        Utxo.equal(utxo4, utxo41u.value, lightWasm);
       } else {
         throw new Error("decrypt unchecked failed");
       }
@@ -146,7 +146,7 @@ describe("Utxo Functional", () => {
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
     const inputs = {
-      keypair: Account.createFromSeed(hasher, seed32),
+      keypair: Account.createFromSeed(lightWasm, seed32),
       amountFee,
       amountToken,
       assetPubkey,
@@ -157,7 +157,7 @@ describe("Utxo Functional", () => {
     };
 
     const utxo0 = new Utxo({
-      hasher,
+      lightWasm,
       assets: inputs.assets,
       amounts: inputs.amounts,
       publicKey: inputs.keypair.keypair.publicKey,
@@ -169,11 +169,11 @@ describe("Utxo Functional", () => {
     const string = await utxo0.toString();
     const utxo1 = Utxo.fromString(
       string,
-      hasher,
       lightProvider.lookUpTables.assetLookupTable,
+      lightWasm,
     );
     // cannot compute nullifier in utxo1 because no privkey is serialized with toString()
-    Utxo.equal(hasher, utxo0, utxo1, true);
+    Utxo.equal(utxo0, utxo1, lightWasm, true);
   });
 
   it("encryption", async () => {
@@ -182,7 +182,7 @@ describe("Utxo Functional", () => {
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
     const inputs = {
-      account: Account.createFromSeed(hasher, seed32),
+      account: Account.createFromSeed(lightWasm, seed32),
       amountFee,
       amountToken,
       assetPubkey,
@@ -193,7 +193,7 @@ describe("Utxo Functional", () => {
     };
 
     const utxo0 = new Utxo({
-      hasher,
+      lightWasm,
       assets: inputs.assets,
       amounts: inputs.amounts,
       publicKey: inputs.account.keypair.publicKey,
@@ -226,12 +226,12 @@ describe("Utxo Functional", () => {
     );
     assert.equal(utxo0.verifierAddressCircuit.toString(), "0");
     assert.equal(
-      utxo0.getCommitment(hasher)?.toString(),
+      utxo0.getCommitment(lightWasm)?.toString(),
       "10253777838998756860614944496033986881757496982016254670361237551864044449818",
     );
 
     assert.equal(
-      utxo0.getNullifier({ hasher, account: inputs.account })?.toString(),
+      utxo0.getNullifier({ lightWasm, account: inputs.account })?.toString(),
       "20156180646641338299834793922899381259815381519712122415534487127198510064334",
     );
 
@@ -239,30 +239,30 @@ describe("Utxo Functional", () => {
     const bytes = await utxo0.toBytes();
     // fromBytes
     const utxo1 = Utxo.fromBytes({
-      hasher,
+      lightWasm,
       account: inputs.account,
       bytes,
       index: inputs.index,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
-    Utxo.equal(hasher, utxo0, utxo1);
+    Utxo.equal(utxo0, utxo1, lightWasm);
 
     // encrypt
     const encBytes = await utxo1.encrypt({
-      hasher,
+      lightWasm,
       account: inputs.account,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
 
     // decrypt
     const utxo3 = await Utxo.decryptUnchecked({
-      hasher,
+      lightWasm,
       encBytes,
       account: inputs.account,
       aes: true,
       index: inputs.index,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      commitment: new BN(utxo1.getCommitment(hasher)).toArrayLike(
+      commitment: new BN(utxo1.getCommitment(lightWasm)).toArrayLike(
         Buffer,
         "be",
         32,
@@ -271,7 +271,7 @@ describe("Utxo Functional", () => {
       merkleProof: [],
     });
     if (utxo3.value) {
-      Utxo.equal(hasher, utxo0, utxo3.value);
+      Utxo.equal(utxo0, utxo3.value, lightWasm);
     } else {
       throw new Error("decrypt failed");
     }
@@ -279,11 +279,11 @@ describe("Utxo Functional", () => {
     const publicKey = inputs.account.getPublicKey();
     // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
     const receivingUtxo = new Utxo({
-      hasher,
+      lightWasm,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      publicKey: Account.fromPubkey(publicKey, hasher).keypair.publicKey,
-      encryptionPublicKey: Account.fromPubkey(publicKey, hasher)
+      publicKey: Account.fromPubkey(publicKey, lightWasm).keypair.publicKey,
+      encryptionPublicKey: Account.fromPubkey(publicKey, lightWasm)
         .encryptionKeypair.publicKey,
       blinding: inputs.blinding,
       index: inputs.index,
@@ -292,19 +292,19 @@ describe("Utxo Functional", () => {
 
     // encrypt
     const encBytesNacl = await receivingUtxo.encrypt({
-      hasher,
+      lightWasm,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
 
     // decrypt
     const receivingUtxo1Unchecked = await Utxo.decryptUnchecked({
-      hasher,
+      lightWasm,
       encBytes: encBytesNacl,
       account: inputs.account,
       index: inputs.index,
       merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       aes: false,
-      commitment: new BN(receivingUtxo.getCommitment(hasher)).toArrayLike(
+      commitment: new BN(receivingUtxo.getCommitment(lightWasm)).toArrayLike(
         Buffer,
         "be",
         32,
@@ -313,17 +313,17 @@ describe("Utxo Functional", () => {
       merkleProof: [],
     });
     if (receivingUtxo1Unchecked.value !== null) {
-      Utxo.equal(hasher, receivingUtxo, receivingUtxo1Unchecked.value, true);
+      Utxo.equal(receivingUtxo, receivingUtxo1Unchecked.value, lightWasm, true);
     } else {
       throw new Error("decrypt unchecked failed");
     }
 
     const receivingUtxoNoAes = new Utxo({
-      hasher,
+      lightWasm,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      publicKey: Account.fromPubkey(publicKey, hasher).keypair.publicKey,
-      encryptionPublicKey: Account.fromPubkey(publicKey, hasher)
+      publicKey: Account.fromPubkey(publicKey, lightWasm).keypair.publicKey,
+      encryptionPublicKey: Account.fromPubkey(publicKey, lightWasm)
         .encryptionKeypair.publicKey,
       blinding: inputs.blinding,
       index: inputs.index,
@@ -337,9 +337,9 @@ describe("Utxo Functional", () => {
     );
 
     const seed = bs58.encode(new Uint8Array(32).fill(1));
-    const account = Account.createFromSeed(hasher, seed);
+    const account = Account.createFromSeed(lightWasm, seed);
     const outputUtxo = new Utxo({
-      hasher,
+      lightWasm,
       assets: [SystemProgram.programId],
       publicKey: account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
@@ -352,14 +352,14 @@ describe("Utxo Functional", () => {
     const bytes = await outputUtxo.toBytes();
 
     const utxo1 = Utxo.fromBytes({
-      hasher,
+      lightWasm,
       bytes,
       index: 0,
       account,
       appDataIdl: TEST_PSP_IDL,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
-    Utxo.equal(hasher, outputUtxo, utxo1);
+    Utxo.equal(outputUtxo, utxo1, lightWasm);
     assert.equal(
       utxo1.verifierAddress.toBase58(),
       "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
@@ -393,7 +393,7 @@ describe("Utxo Functional", () => {
 describe("Utxo Errors", () => {
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
-  let hasher: Hasher, inputs: any, keypair: Account;
+  let lightWasm: LightWasm, inputs: any, keypair: Account;
 
   const amountFee = "1";
   const amountToken = "2";
@@ -401,10 +401,10 @@ describe("Utxo Errors", () => {
   let lightProvider: LightProvider;
   before(async () => {
     lightProvider = await LightProvider.loadMock();
-    hasher = await WasmHasher.getInstance();
-    keypair = Account.createFromSeed(hasher, seed32);
+    lightWasm = await WasmFactory.getInstance();
+    keypair = Account.createFromSeed(lightWasm, seed32);
     inputs = {
-      keypair: Account.createFromSeed(hasher, seed32),
+      keypair: Account.createFromSeed(lightWasm, seed32),
       amountFee,
       amountToken,
       assetPubkey,
@@ -416,16 +416,16 @@ describe("Utxo Errors", () => {
 
   it("get nullifier without index", async () => {
     const publicKey = keypair.getPublicKey();
-    const account = Account.fromPubkey(publicKey, hasher);
+    const account = Account.fromPubkey(publicKey, lightWasm);
     const pubkeyUtxo = new Utxo({
-      hasher,
+      lightWasm,
       amounts: [BN_1],
       publicKey: account.keypair.publicKey,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
 
     expect(() => {
-      pubkeyUtxo.getNullifier({ hasher, account });
+      pubkeyUtxo.getNullifier({ lightWasm, account });
     })
       .throw(UtxoError)
       .include({
@@ -437,9 +437,9 @@ describe("Utxo Errors", () => {
   it("get nullifier without private key", async () => {
     const publicKey = keypair.getPublicKey();
 
-    const account = Account.fromPubkey(publicKey, hasher);
+    const account = Account.fromPubkey(publicKey, lightWasm);
     const pubkeyUtxo = new Utxo({
-      hasher,
+      lightWasm,
       amounts: [BN_1],
       publicKey: account.keypair.publicKey,
       index: 1,
@@ -448,7 +448,7 @@ describe("Utxo Errors", () => {
 
     expect(() => {
       // @ts-ignore
-      pubkeyUtxo.getNullifier({ hasher });
+      pubkeyUtxo.getNullifier({ lightWasm });
     })
       .throw(UtxoError)
       .include({
@@ -460,7 +460,7 @@ describe("Utxo Errors", () => {
   it("INVALID_ASSET_OR_AMOUNTS_LENGTH", () => {
     expect(() => {
       new Utxo({
-        hasher,
+        lightWasm,
         assets: [inputs.assets[1]],
         amounts: inputs.amounts,
         publicKey: inputs.keypair.pubkey,
@@ -478,7 +478,7 @@ describe("Utxo Errors", () => {
   it("EXCEEDED_MAX_ASSETS", () => {
     expect(() => {
       new Utxo({
-        hasher,
+        lightWasm,
         assets: [MINT, MINT, MINT],
         amounts: [BN_1, BN_1, BN_1],
         publicKey: inputs.keypair.pubkey,
@@ -496,7 +496,7 @@ describe("Utxo Errors", () => {
   it("NEGATIVE_AMOUNT", () => {
     expect(() => {
       new Utxo({
-        hasher,
+        lightWasm,
         assets: inputs.assets,
         amounts: [inputs.amounts[0], new BN(-1)],
         publicKey: inputs.keypair.pubkey,
@@ -514,7 +514,7 @@ describe("Utxo Errors", () => {
   it("APP_DATA_IDL_UNDEFINED", () => {
     expect(() => {
       new Utxo({
-        hasher,
+        lightWasm,
         assets: inputs.assets,
         amounts: inputs.amounts,
         publicKey: inputs.keypair.keypair.publicKey,
@@ -533,7 +533,7 @@ describe("Utxo Errors", () => {
   it("ASSET_NOT_FOUND", async () => {
     expect(() => {
       new Utxo({
-        hasher,
+        lightWasm,
         assets: [SystemProgram.programId, SolanaKeypair.generate().publicKey],
         amounts: inputs.amounts,
         publicKey: inputs.keypair.pubkey,
@@ -551,7 +551,7 @@ describe("Utxo Errors", () => {
   it("BLINDING_EXCEEDS_FIELD_SIZE", async () => {
     expect(() => {
       new Utxo({
-        hasher,
+        lightWasm,
         assets: [SystemProgram.programId, SolanaKeypair.generate().publicKey],
         amounts: inputs.amounts,
         publicKey: inputs.keypair.pubkey,
@@ -564,13 +564,5 @@ describe("Utxo Errors", () => {
         code: UtxoErrorCode.BLINDING_EXCEEDS_FIELD_SIZE,
         functionName: "constructor",
       });
-  });
-});
-
-describe("Utxo Benchmark", () => {
-  let hasher: Hasher, lightProvider: LightProvider;
-  before(async () => {
-    hasher = await WasmHasher.getInstance();
-    lightProvider = await LightProvider.loadMock();
   });
 });

@@ -34,7 +34,7 @@ import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
 import { RELAYER_URL } from "../src/config";
-import { WasmHasher, Hasher } from "@lightprotocol/account.rs";
+import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
@@ -42,7 +42,7 @@ const expect = chai.expect;
 const server = RELAYER_URL;
 
 describe("API tests", () => {
-  let hasher: Hasher;
+  let lightWasm: LightWasm;
   let userKeypair = Keypair.generate();
   let provider: Provider,
     user: User,
@@ -56,7 +56,7 @@ describe("API tests", () => {
       "http://127.0.0.1:8899",
       confirmConfig,
     );
-    hasher = await WasmHasher.getInstance();
+    lightWasm = await WasmFactory.getInstance();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 9e8,
@@ -190,7 +190,7 @@ describe("API tests", () => {
         assert.equal(res.body.data.transaction.publicAmountSpl, "0");
         assert.equal(
           new BN(res.body.data.transaction.leaves[0]).toString(),
-          utxo.getCommitment(hasher),
+          utxo.getCommitment(lightWasm),
         );
         assert.equal(res.body.data.transaction.firstLeafIndex, "0");
         // don't assert nullifiers since we shielded
@@ -253,7 +253,7 @@ describe("API tests", () => {
         assert.equal(res.body.data[0].transaction.publicAmountSpl, "0");
         assert.equal(
           new BN(res.body.data[0].transaction.leaves[0]).toString(),
-          utxo.getCommitment(hasher),
+          utxo.getCommitment(lightWasm),
         );
         assert.equal(res.body.data[0].transaction.firstLeafIndex, "0");
         // don't assert nullifiers since we shielded
@@ -473,7 +473,7 @@ describe("API tests", () => {
     };
 
     const recipientAccount = Account.createFromSeed(
-      hasher,
+      lightWasm,
       testInputs.recipientSeed,
     );
 
@@ -518,7 +518,7 @@ describe("API tests", () => {
 
   // Test to debug flakyness in unshield test
   it.skip("debug should unshield SOL", async () => {
-    for (var i = 0; i < 20; i++) {
+    for (let i = 0; i < 20; i++) {
       let testInputs = {
         amountSol: 0.3,
         token: "SOL",

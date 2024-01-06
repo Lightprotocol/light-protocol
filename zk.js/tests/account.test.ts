@@ -12,7 +12,7 @@ import {
   useWallet,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Hasher, WasmHasher } from "@lightprotocol/account.rs";
+import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -36,7 +36,7 @@ const keypairReferenceAccount = {
 };
 
 describe("Test Account Functional", () => {
-  let hasher: Hasher,
+  let lightWasm: LightWasm,
     babyJub,
     F: any,
     k0: Account,
@@ -44,12 +44,12 @@ describe("Test Account Functional", () => {
     kBurner: Account;
 
   before(async () => {
-    hasher = await WasmHasher.getInstance();
+    lightWasm = await WasmFactory.getInstance();
     babyJub = await buildBabyjub();
     F = babyJub.F;
-    k0 = Account.createFromSeed(hasher, seed32);
-    k00 = Account.createFromSeed(hasher, seed32);
-    kBurner = Account.createBurner(hasher, seed32, new BN("0"));
+    k0 = Account.createFromSeed(lightWasm, seed32);
+    k00 = Account.createFromSeed(lightWasm, seed32);
+    kBurner = Account.createBurner(lightWasm, seed32, new BN("0"));
   });
 
   it("compare wasm account keypairs to the ref", () => {
@@ -65,11 +65,11 @@ describe("Test Account Functional", () => {
 
   it("Test blake2 Domain separation", () => {
     const seed = bs58.encode([1, 2, 3]);
-    const seedHash = hasher.blakeHash(seed, Account.hashLength);
+    const seedHash = lightWasm.blakeHash(seed, Account.hashLength);
     const encSeed = seedHash + "encryption";
     const privkeySeed = seedHash + "privkey";
-    const privkeyHash = hasher.blakeHash(privkeySeed, Account.hashLength);
-    const encHash = hasher.blakeHash(encSeed, Account.hashLength);
+    const privkeyHash = lightWasm.blakeHash(privkeySeed, Account.hashLength);
+    const encHash = lightWasm.blakeHash(encSeed, Account.hashLength);
 
     assert.notEqual(encHash, seedHash);
     assert.notEqual(privkeyHash, seedHash);
@@ -79,7 +79,7 @@ describe("Test Account Functional", () => {
   it("Test poseidon", async () => {
     let x = new Array(30).fill(1);
     let y = new Array(30).fill(2);
-    const hasher = await WasmHasher.getInstance();
+    const hasher = await WasmFactory.getInstance();
     const hash = hasher.poseidonHashString([
       new BN(x).toString(),
       new BN(y).toString(),
@@ -97,7 +97,7 @@ describe("Test Account Functional", () => {
   });
 
   it("Test wasm poseidon", async () => {
-    const hasher = await WasmHasher.getInstance();
+    const hasher = await WasmFactory.getInstance();
     let x = new Array(30).fill(1);
     let y = new Array(30).fill(2);
 
@@ -211,17 +211,17 @@ describe("Test Account Functional", () => {
     await compareAccountToReference(k0, referenceAccount);
 
     const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    const k1 = Account.createFromSeed(hasher, seedDiff32);
+    const k1 = Account.createFromSeed(lightWasm, seedDiff32);
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(k0, k1);
 
-    const k2 = Account.createFromSeed(hasher, seed32);
+    const k2 = Account.createFromSeed(lightWasm, seed32);
     compareKeypairsEqual(k0, k2);
   });
 
   it("createFromSolanaKeypair Functional", async () => {
     const solanaKeypairAccount = Account.createFromSolanaKeypair(
-      hasher,
+      lightWasm,
       ADMIN_AUTH_KEYPAIR,
     );
     await compareAccountToReference(
@@ -230,16 +230,16 @@ describe("Test Account Functional", () => {
     );
 
     const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    const k1 = Account.createFromSeed(hasher, seedDiff32);
+    const k1 = Account.createFromSeed(lightWasm, seedDiff32);
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(solanaKeypairAccount, k1);
   });
 
-  it.skip("createFromBrowserWallet Functional", async () => {
+  it("createFromBrowserWallet Functional", async () => {
     const wallet = useWallet(ADMIN_AUTH_KEYPAIR);
 
     const solanaWalletAccount = await Account.createFromBrowserWallet(
-      hasher,
+      lightWasm,
       wallet,
     );
     await compareAccountToReference(
@@ -248,7 +248,7 @@ describe("Test Account Functional", () => {
     );
 
     const seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
-    const k1 = Account.createFromSeed(hasher, seedDiff32);
+    const k1 = Account.createFromSeed(lightWasm, seedDiff32);
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(solanaWalletAccount, k1);
   });
@@ -271,22 +271,22 @@ describe("Test Account Functional", () => {
 
     const burnerSeed = kBurner.wasmAccount.getBurnerSeed();
     const seed2 = bs58.encode(burnerSeed);
-    const kBurner2 = Account.fromBurnerSeed(hasher, seed2);
+    const kBurner2 = Account.fromBurnerSeed(lightWasm, seed2);
     compareKeypairsEqual(kBurner2, kBurner);
     compareKeypairsNotEqual(k0, kBurner2, true);
   });
 
   it("Burner same index & keypair eq", () => {
-    const kBurner0 = Account.createBurner(hasher, seed32, new BN("0"));
+    const kBurner0 = Account.createBurner(lightWasm, seed32, new BN("0"));
     // burners with the same index from the same seed are the equal
     compareKeypairsEqual(kBurner0, kBurner);
   });
 
   it("Burner diff index & keypair neq", () => {
-    const kBurner0 = Account.createBurner(hasher, seed32, new BN("0"));
+    const kBurner0 = Account.createBurner(lightWasm, seed32, new BN("0"));
     // burners with the same index from the same seed are the equal
     compareKeypairsEqual(kBurner0, kBurner);
-    const kBurner1 = Account.createBurner(hasher, seed32, new BN("1"));
+    const kBurner1 = Account.createBurner(lightWasm, seed32, new BN("1"));
     // burners with incrementing index are not equal
     compareKeypairsNotEqual(kBurner1, kBurner0, true);
   });
@@ -295,7 +295,7 @@ describe("Test Account Functional", () => {
     if (!k0.aesSecret) throw new Error("Aes key is undefined");
     const { privateKey, aesSecret, encryptionPrivateKey } = k0.getPrivateKeys();
     const k0Privkey = Account.fromPrivkey(
-      hasher,
+      lightWasm,
       privateKey,
       encryptionPrivateKey,
       aesSecret,
@@ -305,7 +305,7 @@ describe("Test Account Functional", () => {
 
   it("fromPubkey", () => {
     const pubKey = k0.getPublicKey();
-    const k0Pubkey = Account.fromPubkey(pubKey, hasher);
+    const k0Pubkey = Account.fromPubkey(pubKey, lightWasm);
     assert.equal(
       k0Pubkey.keypair.publicKey.toString(),
       k0.keypair.publicKey.toString(),
@@ -387,15 +387,15 @@ describe("Test Account Functional", () => {
 });
 
 describe("Test Account Errors", () => {
-  let hasher: Hasher, k0: Account;
+  let lightWasm: LightWasm, k0: Account;
   before(async () => {
-    hasher = await WasmHasher.getInstance();
-    k0 = Account.createFromSeed(hasher, seed32);
+    lightWasm = await WasmFactory.getInstance();
+    k0 = Account.createFromSeed(lightWasm, seed32);
   });
 
   it("INVALID_SEED_SIZE", async () => {
     expect(() => {
-      Account.createFromSeed(hasher, bs58.encode([1, 2, 3]));
+      Account.createFromSeed(lightWasm, bs58.encode([1, 2, 3]));
     })
       .to.throw(AccountError)
       .includes({
@@ -406,7 +406,7 @@ describe("Test Account Errors", () => {
 
   it("INVALID_SEED_SIZE burner", async () => {
     expect(() => {
-      Account.fromBurnerSeed(hasher, "123");
+      Account.fromBurnerSeed(lightWasm, "123");
     })
       .to.throw(AccountError)
       .includes({
@@ -419,7 +419,7 @@ describe("Test Account Errors", () => {
     expect(() => {
       // @ts-ignore
       Account.fromPrivkey(
-        hasher,
+        lightWasm,
         bs58.encode(k0.keypair.privateKey.toArrayLike(Buffer, "be", 32)),
       );
     })
@@ -435,7 +435,7 @@ describe("Test Account Errors", () => {
 
     expect(() => {
       // @ts-ignore
-      Account.fromPrivkey(hasher, privateKey, encryptionPrivateKey);
+      Account.fromPrivkey(lightWasm, privateKey, encryptionPrivateKey);
     })
       .to.throw(AccountError)
       .includes({

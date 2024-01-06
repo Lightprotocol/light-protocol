@@ -1,3 +1,2 @@
-export type { Hasher, HashCreator, AccountLoadOptions } from "./model.js";
-export { WasmHasher, hasSimd as hasWasmSimd } from "./wasm.js";
-export { WasmHasher as AccountHasher } from "./wasm.js";
+export type { LightWasm, LightWasmCreator, AccountLoadOptions } from "./model.js";
+export { WasmFactory, hasSimd as hasWasmSimd } from "./wasm.js";
