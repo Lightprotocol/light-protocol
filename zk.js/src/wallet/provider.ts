@@ -51,7 +51,8 @@ export type Wallet = {
   publicKey: PublicKey;
   isNodeWallet?: boolean;
   getProof?: (transaction: any) => Promise<any>;
-  getCompressedBalance?: () => Promise<SerializedBalance>;
+  getAssetBalances?: () => Promise<SerializedBalance>;
+  decryptState?: (encryptedState: Uint8Array) => Promise<Uint8Array>;
 };
 
 /**

@@ -71,7 +71,9 @@ class Wallet {
   /** This mocks the interface, the wallet would implement this themselves inside their wallet */
   getProof = async (tx: Transaction): Promise<any> => {};
 
-  getCompressedBalance = async (): Promise<any> => {
+  /** Decrypt a batch of UTXOs (byte arrays) */
+  decryptState = async (encryptedState: Uint8Array): Promise<any> => {};
+  getAssetBalances = async (): Promise<any> => {
     /// wallets should cache/persist this
     const hasher = await WasmHasher.getInstance();
     /// wallets should cache/persist this
@@ -81,6 +83,10 @@ class Wallet {
 
     const assetLookupTable = [];
 
+    /**
+     * The wallet periodically sync it's balance with the latest merkletree state
+     * Ideally, RPC providers will expose getAssetsByOwner
+     */
     const balance = await syncBalance({
       connection: this._connection,
       relayer,
@@ -120,7 +126,8 @@ export const useWallet = (
     signAllTransactions: wallet.signAllTransactions,
     isNodeWallet,
     getProof: wallet.getProof,
-    getCompressedBalance: wallet.getCompressedBalance,
+    getAssetBalances: wallet.getAssetBalances,
+    decryptState: wallet.decryptState,
   };
 };
 

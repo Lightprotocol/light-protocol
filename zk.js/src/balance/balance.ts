@@ -16,6 +16,10 @@ import {
   TokenData,
   SerializedTokenBalance,
   SerializedBalance,
+  PublicUtxo,
+  DefaultUtxo,
+  UtxoNewNew,
+  ProgramUtxo,
 } from "../types/balance";
 import {
   ProgramUtxoBalanceError,
@@ -31,7 +35,7 @@ import {
   ParsedIndexedTransaction,
   Relayer,
 } from "../index";
-import { BN } from "@coral-xyz/anchor";
+import { BN, Program } from "@coral-xyz/anchor";
 import { Hasher } from "@lightprotocol/account.rs";
 
 export const isSPLUtxo = (utxo: Utxo): boolean => {
@@ -41,14 +45,20 @@ export const isSPLUtxo = (utxo: Utxo): boolean => {
 /**
  * Sorts biggest to smallest by amount of the mint.
  * Worst-case: O(n log n) complexity, which is fine for small n.
- * for 1000 utxos = 10k operations = roughly .01ms
+ * for 1000 utxos  10k operations = roughly .01ms
  * If we eventually need to optimize, we can use a heap to get O(log n).
- * @param utxos
- * @returns sorted utxos
  */
-export function sortUtxos(utxos: Utxo[]): Utxo[] {
-  const mint = utxos[0].assets[UTXO_ASSET_SPL_INDEX];
-  for (const utxo of utxos) {
+function sortUtxoLike<T extends ProgramUtxo | UtxoNewNew>(
+  utxoLikeArray: T[],
+  getUtxo: (utxoLike: T) => UtxoNewNew,
+): T[] {
+  if (utxoLikeArray.length === 0) {
+    return utxoLikeArray;
+  }
+
+  const mint = getUtxo(utxoLikeArray[0]).assets[UTXO_ASSET_SPL_INDEX];
+  for (const utxoLike of utxoLikeArray) {
+    const utxo = getUtxo(utxoLike);
     if (!utxo.assets[UTXO_ASSET_SPL_INDEX].equals(mint)) {
       throw new ProgramUtxoBalanceError(
         ProgramUtxoBalanceErrorCode.INVALID_UTXO_MINT,
@@ -59,16 +69,27 @@ export function sortUtxos(utxos: Utxo[]): Utxo[] {
       );
     }
   }
-  return utxos.sort((a, b) => {
-    const aAmount = a.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0;
-    const bAmount = b.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0;
+
+  return utxoLikeArray.sort((a, b) => {
+    const aUtxo = getUtxo(a);
+    const bUtxo = getUtxo(b);
+    const aAmount = aUtxo.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0;
+    const bAmount = bUtxo.amounts[UTXO_ASSET_SPL_INDEX] ?? BN_0;
     if (aAmount.isZero() && bAmount.isZero()) {
-      return b.amounts[UTXO_ASSET_SOL_INDEX].cmp(
-        a.amounts[UTXO_ASSET_SOL_INDEX],
+      return bUtxo.amounts[UTXO_ASSET_SOL_INDEX].cmp(
+        aUtxo.amounts[UTXO_ASSET_SOL_INDEX],
       );
     }
     return bAmount.cmp(aAmount);
   });
+}
+
+export function sortUtxos(utxos: UtxoNewNew[]): UtxoNewNew[] {
+  return sortUtxoLike(utxos, (utxo) => utxo);
+}
+
+export function sortProgramUtxos(programUtxos: ProgramUtxo[]): ProgramUtxo[] {
+  return sortUtxoLike(programUtxos, (programUtxo) => programUtxo.utxo);
 }
 
 /**
@@ -105,7 +126,8 @@ export function getTokenDataByMint(
  */
 export function initTokenBalance(
   tokenData: TokenData,
-  utxos?: Utxo[],
+  utxos?: DefaultUtxo[],
+  publicUtxos?: PublicUtxo[],
 ): TokenBalance {
   let splAmount = BN_0;
   let lamports = BN_0;
@@ -129,6 +151,8 @@ export function initTokenBalance(
     lamports,
     tokenData,
     utxos: utxos ? sortUtxos(utxos) : [],
+    publicUtxos: publicUtxos ? sortUtxos(publicUtxos) : [],
+    contextSlot: 0, // Assuming a default value of 0 is acceptable
   } as TokenBalance;
 }
 
@@ -142,7 +166,7 @@ export function initTokenBalance(
  * @returns boolean indicating if the utxo was added to the tokenBalance
  */
 export function updateTokenBalanceWithUtxo(
-  utxo: Utxo,
+  utxo: UtxoNewNew,
   tokenBalance: TokenBalance,
   poseidon: Poseidon,
 ): boolean {
@@ -151,7 +175,7 @@ export function updateTokenBalanceWithUtxo(
   // but if we need commitments for other purposes, we should consider moving it out.
   const utxoExists = tokenBalance.utxos.some(
     (existingUtxo) =>
-      existingUtxo.getCommitment(poseidon) === utxo.getCommitment(poseidon),
+      existingUtxo.utxoHash === utxo. (poseidon),
   );
   if (utxoExists) return false;
 
@@ -283,6 +307,7 @@ function deserializeTokenBalance(
       return utxo;
     }),
   );
+  
 
   return initTokenBalance(tokenData, utxos);
 }
@@ -346,6 +371,7 @@ export function deserializeBalance(
 }
 
 /**
+ *
  * syncs balance with the blockchain. currently fetches all events. creates a new balance if none is provided.
  */
 // until is either empty, accountcreationslot, or lastsyncedslot
