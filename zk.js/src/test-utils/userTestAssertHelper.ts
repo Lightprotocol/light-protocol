@@ -20,9 +20,9 @@ import {
   BN_0,
   lightPsp10in2outId,
   lightPsp2in2outId,
-  Utxo,
   MerkleTreeConfig,
   getEscrowPda,
+  Utxo,
 } from "../index";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
@@ -404,36 +404,16 @@ export class UserTestAssertHelper {
     for (const [asset, tokenBalance] of user.balance.tokenBalances.entries()) {
       // nullifier is not inserted
       for (const [, utxo] of tokenBalance.utxos.entries()) {
-        if (
-          !utxo.getNullifier({
-            lightWasm: this.provider.lightWasm,
-            account: user.account,
-          })
-        )
+        if (!utxo.nullifier)
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
-        await this.assertNullifierAccountDoesNotExist(
-          utxo.getNullifier({
-            lightWasm: user.provider.lightWasm,
-            account: user.account,
-          })!,
-        );
+        await this.assertNullifierAccountDoesNotExist(utxo.nullifier);
         checkCategorizationByAsset(asset, utxo);
       }
       // nullifier of utxo is inserted
       for (const utxo of tokenBalance.spentUtxos.values()) {
-        if (
-          !utxo.getNullifier({
-            lightWasm: this.provider.lightWasm,
-            account: user.account,
-          })
-        )
+        if (!utxo.nullifier)
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
-        this.assertNullifierAccountExists(
-          utxo.getNullifier({
-            lightWasm: this.provider.lightWasm,
-            account: user.account,
-          })!,
-        );
+        this.assertNullifierAccountExists(utxo.nullifier);
         checkCategorizationByAsset(asset, utxo);
       }
     }
@@ -444,19 +424,9 @@ export class UserTestAssertHelper {
     for (const tokenBalance of user.inboxBalance.tokenBalances.values()) {
       // nullifier of utxo is inserted
       for (const utxo of tokenBalance.spentUtxos.values()) {
-        if (
-          !utxo.getNullifier({
-            lightWasm: this.provider.lightWasm,
-            account: user.account,
-          })
-        )
+        if (!utxo.nullifier)
           throw new Error(`nullifier of utxo undefined, ${utxo}`);
-        this.assertNullifierAccountExists(
-          utxo.getNullifier({
-            lightWasm: this.provider.lightWasm,
-            account: user.account,
-          })!,
-        );
+        this.assertNullifierAccountExists(utxo.nullifier);
       }
     }
   }
@@ -474,10 +444,7 @@ export class UserTestAssertHelper {
       for (const [commitment, utxo] of tokenBalance.utxos.entries()) {
         if (
           await fetchNullifierAccountInfo(
-            utxo.getNullifier({
-              lightWasm: this.provider.lightWasm,
-              account: this.sender.user.account,
-            })!,
+            utxo.nullifier,
             this.provider.provider?.connection,
           )
         ) {
@@ -745,11 +712,7 @@ export class UserTestAssertHelper {
       this.recipient.user.balance.tokenBalances
         .get(this.tokenCtx.mint.toBase58())
         ?.utxos.values()
-        .next()!
-        .value.getNullifier({
-          lightWasm: this.provider.lightWasm,
-          account: this.recipient.user.account,
-        }),
+        .next()!.value.nullifier,
     );
   }
 

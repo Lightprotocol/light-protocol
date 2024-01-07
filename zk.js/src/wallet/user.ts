@@ -45,7 +45,6 @@ import {
   UserError,
   UserErrorCode,
   UserIndexedTransaction,
-  Utxo,
   UtxoError,
   Result,
   createSystemProofInputs,
@@ -60,6 +59,11 @@ import {
   TransactionParametersError,
   TransactionParametersErrorCode,
   RpcIndexedTransaction,
+  Utxo,
+  OutUtxo,
+  createOutUtxo,
+  ProgramUtxo,
+  decryptProgramUtxo,
 } from "../index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -168,10 +172,7 @@ export class User {
     for (const [, tokenBalance] of balance.tokenBalances) {
       for (const [key, utxo] of tokenBalance.utxos) {
         const nullifierAccountInfo = await fetchNullifierAccountInfo(
-          utxo.getNullifier({
-            lightWasm: this.provider.lightWasm,
-            account: this.account,
-          })!,
+          utxo.nullifier,
           this.provider.provider.connection,
         );
         if (nullifierAccountInfo !== null) {
@@ -326,7 +327,6 @@ export class User {
     publicAmountSol,
     senderTokenAccount,
     minimumLamports = true,
-    appUtxo,
     mergeExistingUtxos = true,
     verifierIdl,
     message,
@@ -339,12 +339,11 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
     senderTokenAccount?: PublicKey;
-    appUtxo?: AppUtxoConfig;
     mergeExistingUtxos?: boolean;
     verifierIdl?: Idl;
     message?: Buffer;
     skipDecimalConversions?: boolean;
-    utxo?: Utxo;
+    utxo?: OutUtxo;
   }): Promise<Transaction> {
     // TODO: add errors for if appUtxo appDataHash or appData, no verifierAddress
     if (publicAmountSpl && token === "SOL")
@@ -434,7 +433,7 @@ export class User {
       ?.utxos.values();
     let utxos: Utxo[] =
       utxosEntries && mergeExistingUtxos ? Array.from(utxosEntries) : [];
-    const outUtxos: Utxo[] = [];
+    const outUtxos: OutUtxo[] = [];
     if (recipient) {
       const amounts: BN[] = publicAmountSpl
         ? [publicAmountSol, publicAmountSpl]
@@ -443,17 +442,12 @@ export class User {
         ? [SystemProgram.programId, tokenCtx.mint]
         : [SystemProgram.programId];
       outUtxos.push(
-        new Utxo({
+        createOutUtxo({
+          lightWasm: this.provider.lightWasm,
           assets,
           amounts,
           publicKey: recipient.keypair.publicKey,
           encryptionPublicKey: recipient.encryptionKeypair.publicKey,
-          appDataHash: appUtxo?.appDataHash,
-          verifierAddress: appUtxo?.verifierAddress,
-          includeAppData: appUtxo?.includeAppData,
-          appData: appUtxo?.appData,
-          assetLookupTable: this.provider.lookUpTables.assetLookupTable,
-          lightWasm: this.provider.lightWasm,
         }),
       );
       utxos = [];
@@ -468,7 +462,6 @@ export class User {
       publicAmountSpl,
       userSplAccount,
       provider: this.provider,
-      appUtxo,
       verifierIdl: verifierIdl ? verifierIdl : this.verifierIdl,
       outUtxos,
       addInUtxos: !recipient,
@@ -696,7 +689,6 @@ export class User {
     publicAmountSol,
     senderTokenAccount,
     minimumLamports = true,
-    appUtxo,
     skipDecimalConversions = false,
     confirmOptions = ConfirmOptions.spendable,
   }: {
@@ -706,7 +698,6 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
     senderTokenAccount?: PublicKey;
-    appUtxo?: AppUtxoConfig;
     skipDecimalConversions?: boolean;
     confirmOptions?: ConfirmOptions;
   }) {
@@ -721,7 +712,6 @@ export class User {
       publicAmountSol,
       senderTokenAccount,
       minimumLamports,
-      appUtxo,
       skipDecimalConversions,
     });
     return await this.transactWithParameters({ txParams, confirmOptions });
@@ -939,7 +929,7 @@ export class User {
     appUtxo?: AppUtxoConfig;
     message?: Buffer;
     inUtxos?: Utxo[];
-    outUtxos?: Utxo[];
+    outUtxos?: OutUtxo[];
     verifierIdl?: Idl;
     skipDecimalConversions?: boolean;
     addInUtxos?: boolean;
@@ -990,7 +980,7 @@ export class User {
         "createTransferTransactionParameters",
       );
 
-    let _outUtxos: Utxo[] = [];
+    let _outUtxos: OutUtxo[] = [];
     if (recipient) {
       _outUtxos = createRecipientUtxos({
         recipients: [
@@ -1395,21 +1385,23 @@ export class User {
       assetLookupTable: string[],
       aes: boolean,
     ) => {
-      const decryptedStorageUtxos: Utxo[] = [];
-      const spentUtxos: Utxo[] = [];
+      const decryptedStorageUtxos: ProgramUtxo[] = [];
+      const spentUtxos: ProgramUtxo[] = [];
       for (const data of indexedTransactions) {
-        let decryptedUtxo: Result<Utxo | null, UtxoError>;
+        let decryptedUtxo: Result<ProgramUtxo | null, UtxoError>;
         let index = new BN(data.transaction.firstLeafIndex, "hex").toNumber();
         for (const [, leaf] of data.transaction.leaves.entries()) {
           try {
-            decryptedUtxo = await Utxo.decryptUnchecked({
+            decryptedUtxo = await decryptProgramUtxo({
               lightWasm: this.provider.lightWasm,
               account: this.account,
               encBytes: Uint8Array.from(data.transaction.message),
-              appDataIdl: idl,
+              pspIdl: idl,
+              pspId: getVerifierProgramId(idl),
+              utxoName: "utxo", // TODO: try all accounts which are appended with OutUtxo from idl
               aes,
-              index: index,
-              commitment: Uint8Array.from(leaf),
+              merkleTreeLeafIndex: index,
+              utxoHash: Uint8Array.from(leaf),
               merkleTreePdaPublicKey:
                 MerkleTreeConfig.getTransactionMerkleTreePda(),
               compressed: false,
@@ -1420,10 +1412,7 @@ export class User {
             if (decryptedUtxo.value) {
               const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
-                utxo.getNullifier({
-                  lightWasm: this.provider.lightWasm,
-                  account: this.account,
-                })!,
+                utxo.utxo.nullifier,
                 this.provider.provider?.connection,
               );
 
@@ -1457,42 +1446,35 @@ export class User {
     );
 
     for (const utxo of decryptedStorageUtxos) {
-      const verifierAddress = utxo.verifierAddress.toBase58();
+      const verifierAddress = utxo.utxo.verifierAddress.toBase58();
       if (!this.balance.programBalances.get(verifierAddress)) {
         this.balance.programBalances.set(
           verifierAddress,
-          new ProgramUtxoBalance(utxo.verifierAddress, idl),
+          new ProgramUtxoBalance(utxo.utxo.verifierAddress, idl),
         );
       }
       this.balance.programBalances
         .get(verifierAddress)!
-        .addUtxo(utxo.getCommitment(this.provider.lightWasm), utxo, "utxos");
+        .addUtxo(utxo.utxo.utxoHash, utxo, "utxos");
     }
 
     for (const utxo of spentUtxos) {
-      const verifierAddress = utxo.verifierAddress.toBase58();
+      const verifierAddress = utxo.utxo.verifierAddress.toBase58();
       if (!this.balance.programBalances.get(verifierAddress)) {
         this.balance.programBalances.set(
           verifierAddress,
-          new ProgramUtxoBalance(utxo.verifierAddress, idl),
+          new ProgramUtxoBalance(utxo.utxo.verifierAddress, idl),
         );
       }
       this.balance.programBalances
         .get(verifierAddress)!
-        .addUtxo(
-          utxo.getCommitment(this.provider.lightWasm),
-          utxo,
-          "spentUtxos",
-        );
+        .addUtxo(utxo.utxo.utxoHash, utxo, "spentUtxos");
     }
     for (const [, programBalance] of this.balance.programBalances) {
       for (const [, tokenBalance] of programBalance.tokenBalances) {
         for (const [key, utxo] of tokenBalance.utxos) {
           const nullifierAccountInfo = await fetchNullifierAccountInfo(
-            utxo.getNullifier({
-              lightWasm: this.provider.lightWasm,
-              account: this.account,
-            })!,
+            utxo.nullifier,
             this.provider.provider!.connection,
           );
           if (nullifierAccountInfo !== null) {

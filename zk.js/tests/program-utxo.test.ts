@@ -205,7 +205,7 @@ describe("Program Utxo Functional", () => {
     assert.equal(programOutUtxo.outUtxo.poolType.toString(), "0");
     assert.equal(
       programOutUtxo.outUtxo.verifierAddress.toString(),
-      SystemProgram.programId.toString(),
+      pspId.toString(),
     );
     assert.equal(
       programOutUtxo.outUtxo.verifierAddressCircuit.toString(),

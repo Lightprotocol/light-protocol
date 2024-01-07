@@ -1,21 +1,17 @@
 import nacl from "tweetnacl";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import {
   Account,
   BN_0,
-  BN_1,
   COMPRESSED_UTXO_BYTES_LENGTH,
-  createAccountObject,
+  createUtxoDataHash,
   CreateUtxoErrorCode,
   ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   fetchAssetByIdLookUp,
-  FIELD_SIZE,
-  getAssetIndex,
-  getVerifierProgramId,
   hashAndTruncateToCircuit,
   IDL_LIGHT_PSP2IN2OUT,
-  N_ASSETS,
+  MERKLE_TREE_HEIGHT,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
   UTXO_PREFIX_LENGTH,
@@ -26,882 +22,734 @@ import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
 
-const randomBN = (nbytes = 30) => {
-  return new anchor.BN(nacl.randomBytes(nbytes));
+export const randomBN = (nbytes = 30) => {
+  return new BN(nacl.randomBytes(nbytes));
 };
-const anchor = require("@coral-xyz/anchor");
-
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const randomPrefixBytes = () => nacl.randomBytes(UTXO_PREFIX_LENGTH);
 
-// TODO: Idl support for U256
-// TODO: add static createSolUtxo()
-// TODO: remove account as attribute and from constructor, replace with shieldedPublicKey
-export class Utxo {
-  /**
-   * @param {BN[]} amounts array of utxo amounts, amounts[0] is the sol amount amounts[1] is the spl amount
-   * @param {PublicKey[]} assets  array of utxo assets, assets[0] is the sol asset assets[1] is the spl asset
-   * @param {BN} blinding Blinding factor, a 31 bytes big number, to add randomness to the commitment hash.
-   * @param {Account} account the account owning the utxo.
-   * @param {index} index? the index of the utxo's commitment hash in the Merkle tree.
-   * @param {Array<any>} appData application data of app utxos not provided for normal utxos.
-   * @param {PublicKey} verifierAddress the solana address of the verifier, SystemProgramId/BN(0) for system verifiers.
-   * @param {BN} verifierAddressCircuit hashAndTruncateToCircuit(verifierAddress) to fit into 254 bit field size of bn254.
-   * @param {BN} appDataHash is the poseidon hash of app utxo data. This compresses the app data and ties it to the app utxo.
-   * @param {BN} poolType is the pool type domain of the utxo default is [0;32].
-   * @param {boolean} includeAppData flag whether to include app data when serializing utxo to bytes.
-   * @param {string} _commitment cached commitment hash to avoid recomputing.
-   * @param {string} _nullifier cached nullifier hash to avoid recomputing.
-   */
+export type OutUtxo = {
+  publicKey: string;
+  encryptionPublicKey?: Uint8Array; // is only set if the utxo should be sent to another public key and thus be encrypted asymetrically
   amounts: BN[];
   assets: PublicKey[];
-  assetsCircuit: BN[] = [];
+  assetsCircuit: string[];
   blinding: BN;
+  poolType: string;
+  utxoHash: string;
+  transactionVersion: string;
+  verifierAddress: PublicKey;
+  verifierAddressCircuit: string;
+  isFillingUtxo: boolean;
+  utxoDataHash: BN;
+  utxoData?: any;
+};
+
+export function createFillingOutUtxo({
+  lightWasm,
+  publicKey,
+}: {
+  lightWasm: LightWasm;
+  publicKey: BN;
+}): OutUtxo {
+  return createOutUtxo({
+    publicKey,
+    amounts: [BN_0],
+    assets: [SystemProgram.programId],
+    isFillingUtxo: true,
+    lightWasm,
+  });
+}
+
+export function createOutUtxo({
+  publicKey,
+  encryptionPublicKey,
+  amounts,
+  assets,
+  blinding = new BN(randomBN(), 31, "be"),
+  isFillingUtxo = false,
+  lightWasm,
+  verifierAddress = SystemProgram.programId,
+  utxoData,
+}: {
   publicKey: BN;
   encryptionPublicKey?: Uint8Array;
-  index?: number;
-  appData: any;
-  verifierAddress: PublicKey;
-  verifierAddressCircuit: BN;
-  appDataHash: BN;
-  poolType: BN;
-  _commitment?: string;
-  _nullifier?: string;
-  includeAppData: boolean;
-  transactionVersion: string;
-  appDataIdl?: Idl;
-  splAssetIndex: BN;
-  verifierProgramIndex: BN;
-  isFillingUtxo: boolean;
-  merkleProof?: string[];
-
-  /**
-   * @description Initialize a new utxo - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
-   *
-   * @param {BN[]} amounts array of utxo amounts, amounts[0] is the sol amount amounts[1] is the spl amount
-   * @param {PublicKey[]} assets  array of utxo assets, assets[0] is the sol asset assets[1] is the spl asset
-   * @param {BN} blinding Blinding factor, a 31 bytes big number, to add randomness to the commitment hash.
-   * @param {BN} publicKey the shielded public key owning the utxo.
-   * @param {index} index? the index of the utxo's commitment hash in the Merkle tree.
-   * @param {Array<any>} appData application data of app utxos not provided for normal utxos.
-   * @param {PublicKey} verifierAddress the solana address of the verifier, SystemProgramId/BN(0) for system verifiers.
-   * @param {BN} appDataHash is the poseidon hash of app utxo data. This compresses the app data and ties it to the app utxo.
-   * @param {any} poseidon poseidon hasher instance.
-   * @param {boolean} includeAppData flag whether to include app data when serializing utxo to bytes.
-   * @param {function} appDataFromBytesFn function to deserialize appData from bytes.
-   * @param {appData} appData array of application data, is used to compute the instructionDataHash.
-   */
-  constructor({
-    // TODO: reduce to one (the first will always be 0 and the third is not necessary)
-    assets = [SystemProgram.programId],
-    amounts = [BN_0],
-    publicKey,
-    blinding = new BN(randomBN(), 31, "be"),
-    poolType = BN_0,
-    verifierAddress = SystemProgram.programId,
-    index,
-    appDataHash,
-    appData,
-    appDataIdl,
-    includeAppData = true,
-    assetLookupTable,
-    isFillingUtxo = false,
-    encryptionPublicKey,
-    merkleProof,
-    lightWasm,
-  }: {
-    assets?: PublicKey[];
-    amounts?: BN[];
-    publicKey: BN;
-    blinding?: BN;
-    poolType?: BN;
-    verifierAddress?: PublicKey;
-    index?: number;
-    appData?: any;
-    appDataIdl?: Idl;
-    includeAppData?: boolean;
-    appDataHash?: BN;
-    assetLookupTable: string[];
-    isFillingUtxo?: boolean;
-    encryptionPublicKey?: Uint8Array;
-    merkleProof?: string[];
-    lightWasm: LightWasm;
-  }) {
-    if (!blinding.eq(blinding.mod(FIELD_SIZE))) {
-      throw new UtxoError(
-        UtxoErrorCode.BLINDING_EXCEEDS_FIELD_SIZE,
-        "constructor",
-        `Blinding ${blinding}, exceeds field size.`,
-      );
-    }
-    if (assets.length != amounts.length) {
-      throw new UtxoError(
-        UtxoErrorCode.INVALID_ASSET_OR_AMOUNTS_LENGTH,
-        "constructor",
-
-        `Length mismatch assets: ${assets.length} != amounts: ${amounts.length}`,
-      );
-    }
-    if (assets.length > N_ASSETS) {
-      throw new UtxoError(
-        UtxoErrorCode.EXCEEDED_MAX_ASSETS,
-        "constructor",
-
-        `assets.length ${assets.length} > N_ASSETS ${N_ASSETS}`,
-      );
-    }
-
-    if (assets.findIndex((asset) => !asset) !== -1) {
-      throw new UtxoError(
-        UtxoErrorCode.ASSET_UNDEFINED,
-        "constructor",
-        `asset in index ${index} is undefined. All assets: ${assets}`,
-      );
-    }
-
-    if (assets.findIndex((asset) => !asset) !== -1) {
-      throw new UtxoError(
-        UtxoErrorCode.ASSET_UNDEFINED,
-        "constructor",
-        `asset in index ${index} is undefined. All assets: ${assets}`,
-      );
-    }
-
-    while (assets.length < N_ASSETS) {
-      assets.push(SystemProgram.programId);
-    }
-
-    let i = 0;
-    while (i < N_ASSETS) {
-      const amount = amounts[i];
-      if (amount?.lt?.(BN_0)) {
-        throw new UtxoError(
-          UtxoErrorCode.NEGATIVE_AMOUNT,
-          "constructor",
-          `amount cannot be negative, amounts[${i}] = ${amount ?? "undefined"}`,
-        );
-      }
-      i++;
-    }
-
-    while (amounts.length < N_ASSETS) {
-      amounts.push(BN_0);
-    }
-
-    // TODO: check that this does not lead to hiccups since publicAmountSpl
-    // cannot unshield the fee asset sol
-    if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
-      amounts[0] = amounts[0].add(amounts[1]);
-      amounts[1] = BN_0;
-    }
-
-    // checks that amounts are U64
-    this.amounts = amounts.map((x) => {
-      try {
-        x.toArray("be", 8);
-      } catch (_) {
-        throw new UtxoError(
-          UtxoErrorCode.NOT_U64,
-          "constructor",
-          `amount ${x} not a u64`,
-        );
-      }
-      return new BN(x.toString());
-    });
-
-    this.encryptionPublicKey = encryptionPublicKey;
-    this.isFillingUtxo = isFillingUtxo;
-    this.publicKey = publicKey;
-    this.blinding = blinding;
-    this.index = index;
-    this.assets = assets;
-    this.appData = appData;
-    this.verifierAddress = verifierAddress;
-    this.poolType = poolType;
-    this.includeAppData = includeAppData;
-    this.transactionVersion = "0";
-    this.merkleProof = isFillingUtxo ? new Array(18).fill("0") : merkleProof;
-    this.index = isFillingUtxo ? 0 : index;
-
-    if (
-      assets[1].toBase58() === SystemProgram.programId.toBase58() &&
-      !amounts[1].isZero()
-    ) {
-      throw new UtxoError(
-        UtxoErrorCode.POSITIVE_AMOUNT,
-        "constructor",
-        `spl amount cannot be positive, amounts[1] = ${
-          amounts[1] ?? "undefined"
-        }`,
-      );
-    }
-    // TODO: make variable length
-    else if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
-      this.assetsCircuit = [
-        hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
-        hashAndTruncateToCircuit(this.assets[1].toBytes()),
-      ];
-    } else if (this.amounts[0].isZero()) {
-      this.assetsCircuit = [BN_0, BN_0];
-    }
-    // else if (!this.amounts[0].isZero()) {
-    //   throw new UtxoError(
-    //     UtxoErrorCode.NON_ZERO_AMOUNT,
-    //     "constructor",
-    //     `amount not zero, amounts[0] = ${this.amounts[0] ?? "undefined"}`,
-    //   );
-    // }
-    else {
-      this.assetsCircuit = [
-        hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
-        BN_0,
-      ];
-    }
-
-    if (verifierAddress.toBase58() == SystemProgram.programId.toBase58()) {
-      this.verifierAddressCircuit = BN_0;
-      this.verifierProgramIndex = BN_0;
-    } else {
-      this.verifierAddressCircuit = hashAndTruncateToCircuit(
-        verifierAddress.toBytes(),
-      );
-
-      // NOTE(vadorovsky): Currently we don't use the `verifierProgramIndex`,
-      // but we might revisit it and implement a registry for verifiers,
-      // where each system verifier and registered PSP would have an unique
-      // ID in the whole protocol. It's not certain though.
-      //
-      // For now, assign 0 to UTXOs coming from system verifier zero and
-      // 1 to UTXOs coming from PSPs through other verifiers.
-      if (appDataIdl) {
-        this.verifierProgramIndex = BN_1;
-      } else {
-        this.verifierProgramIndex = BN_0;
-      }
-      if (this.verifierProgramIndex.isNeg())
-        throw new UtxoError(
-          UtxoErrorCode.VERIFIER_INDEX_NOT_FOUND,
-          "constructor",
-          `verifier pubkey ${this.verifierAddress}, not found in lookup table`,
-        );
-    }
-    this.splAssetIndex = getAssetIndex(this.assets[1], assetLookupTable);
-    if (this.splAssetIndex.isNeg())
-      throw new UtxoError(
-        UtxoErrorCode.ASSET_NOT_FOUND,
-        "constructor",
-        `asset pubkey ${this.assets[1]}, not found in lookup table`,
-      );
-    // if appDataBytes parse appData from bytes
-    if (appData) {
-      if (!appDataIdl)
-        throw new UtxoError(
-          UtxoErrorCode.APP_DATA_IDL_UNDEFINED,
-          "constructor",
-          "",
-        );
-      if (!appDataIdl.accounts)
-        throw new UtxoError(
-          UtxoErrorCode.APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS,
-          "APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS",
-        );
-      const i = appDataIdl.accounts.findIndex((acc) => {
-        return acc.name === "utxo";
-      });
-      if (i === -1)
-        throw new UtxoError(
-          UtxoErrorCode.UTXO_APP_DATA_NOT_FOUND_IN_IDL,
-          "constructor",
-        );
-      // TODO: add inputs type check
-      // TODO: unify with Prover.ts
-      // perform type check that appData has all the attributes
-      const checkAppData = (appData: any, idl: any) => {
-        const circuitName = "utxoAppData";
-        const circuitIdlObject = idl.accounts!.find(
-          (account: any) => account.name === circuitName,
-        );
-
-        if (!circuitIdlObject) {
-          throw new Error(`${circuitName} does not exist in anchor idl`);
-        }
-
-        const fieldNames = circuitIdlObject.type.fields.map(
-          (field: { name: string }) => field.name,
-        );
-        const inputKeys: string[] = [];
-
-        fieldNames.forEach((fieldName: string) => {
-          inputKeys.push(fieldName);
-        });
-
-        const inputsObject: { [key: string]: any } = {};
-
-        inputKeys.forEach((key) => {
-          inputsObject[key] = appData[key];
-          if (!inputsObject[key])
-            throw new Error(
-              `Missing input --> ${key.toString()} in circuit ==> ${circuitName}`,
-            );
-        });
-      };
-      checkAppData(appData, appDataIdl);
-      let hashArray: any[] = [];
-      for (const attribute in appData) {
-        hashArray.push(appData[attribute]);
-      }
-      hashArray = hashArray.flat();
-      hashArray = hashArray.map((val) => val.toString());
-
-      if (hashArray.length > 16) {
-        throw new UtxoError(
-          UtxoErrorCode.INVALID_APP_DATA,
-          "constructor",
-          "appData length exceeds 16",
-        );
-      }
-      this.appDataHash = new BN(
-        lightWasm.poseidonHash(hashArray),
-        undefined,
-        "be",
-      );
-
-      if (appDataHash && appDataHash.toString() !== this.appDataHash.toString())
-        throw new UtxoError(
-          UtxoErrorCode.INVALID_APP_DATA,
-          "constructor",
-          `appDataHash and appData are inconsistent, appData produced a different hash than appDataHash appData: ${JSON.stringify(
-            appData,
-          )}`,
-        );
-      this.appData = appData;
-      this.appDataIdl = appDataIdl;
-    } else if (appDataHash) {
-      this.appDataHash = appDataHash;
-    } else {
-      this.appDataHash = BN_0;
-    }
-  }
-
-  /**
-   * @description Parses a utxo to bytes.
-   * @returns {Uint8Array}
-   */
-  async toBytes(compressed: boolean = false) {
-    let serializeObject = {
-      ...this,
-      accountShieldedPublicKey: this.publicKey,
-      accountEncryptionPublicKey: this.encryptionPublicKey
-        ? this.encryptionPublicKey
-        : new Uint8Array(32).fill(0),
-      verifierAddressIndex: this.verifierProgramIndex,
-    };
-    let serializedData;
-    if (!this.appDataIdl || !this.includeAppData) {
-      const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
-      serializedData = await coder.encode("utxo", serializeObject);
-    } else if (this.appDataIdl) {
-      const coder = new BorshAccountsCoder(this.appDataIdl);
-      serializeObject = {
-        ...serializeObject,
-        ...this.appData,
-        verifierAddressIndex: this.verifierProgramIndex,
-      };
-      serializedData = await coder.encode("utxo", serializeObject);
-    } else {
-      throw new UtxoError(
-        UtxoErrorCode.APP_DATA_IDL_UNDEFINED,
-        "constructor",
-        "Should include app data but no appDataIdl provided",
-      );
-    }
-    // Compressed serialization does not store the account since for an encrypted utxo
-    // we assume that the user who is able to decrypt the utxo knows the corresponding account.
-    return compressed
-      ? serializedData.subarray(0, COMPRESSED_UTXO_BYTES_LENGTH)
-      : serializedData;
-  }
-
-  /**
-   * @description Parses an utxo from bytes.
-   * @param hasher hasher instance
-   * @param bytes byte array of a serialized utxo
-   * @param account account of the utxo
-   * @param appDataFromBytesFn function to parse app data from bytes
-   * @param includeAppData whether to include app data when encrypting or not
-   * @returns {Utxo}
-   */
-  // TODO: make robust and versatile for any combination of filled in fields or not
-  // TODO: find a better solution to get the private key in
-  // TODO: take array of idls as input and select the idl with the correct verifierIndex
-  static fromBytes({
-    bytes,
-    account,
-    includeAppData = true,
-    index,
-    appDataIdl,
-    assetLookupTable,
-    merkleProof,
-    lightWasm,
-  }: {
-    bytes: Buffer;
-    account?: Account;
-    includeAppData?: boolean;
-    index?: number;
-    appDataIdl?: Idl;
-    assetLookupTable: string[];
-    merkleProof?: string[];
-    lightWasm: LightWasm;
-  }): Utxo {
-    // assumes it is compressed and adds 64 0 bytes padding
-    if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
-      const tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
-      bytes = Buffer.from([
-        ...tmp,
-        ...new Uint8Array(
-          UNCOMPRESSED_UTXO_BYTES_LENGTH - COMPRESSED_UTXO_BYTES_LENGTH,
-        ).fill(0),
-      ]);
-      includeAppData = false;
-      if (!account)
-        throw new UtxoError(
-          CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-          "fromBytes",
-          "For deserializing a compressed utxo an account is required.",
-        );
-    }
-
-    let decodedUtxoData: any;
-    let appData: any = undefined;
-    let verifierAddress: PublicKey;
-    // TODO: should I check whether an account is passed or not?
-    if (!appDataIdl) {
-      const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
-      decodedUtxoData = coder.decode("utxo", bytes);
-      verifierAddress = SystemProgram.programId;
-    } else {
-      if (!appDataIdl.accounts)
-        throw new UtxoError(
-          UtxoErrorCode.APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS,
-          "fromBytes",
-        );
-
-      const coder = new BorshAccountsCoder(appDataIdl);
-      decodedUtxoData = coder.decode("utxo", bytes);
-      appData = createAccountObject(
-        decodedUtxoData,
-        appDataIdl.accounts,
-        "utxoAppData",
-      );
-
-      verifierAddress = getVerifierProgramId(appDataIdl);
-    }
-    const assets = [
-      SystemProgram.programId,
-      fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
-    ];
-
-    return new Utxo({
-      lightWasm,
-      assets,
-      publicKey: !account
-        ? decodedUtxoData.accountShieldedPublicKey
-        : account.keypair.publicKey,
-      encryptionPublicKey: new BN(
-        decodedUtxoData.accountEncryptionPublicKey,
-      ).eq(BN_0)
-        ? undefined
-        : new Uint8Array(decodedUtxoData.accountEncryptionPublicKey),
-      index,
-      appDataIdl,
-      includeAppData,
-      appData,
-      verifierAddress,
-      ...decodedUtxoData,
-      assetLookupTable,
-      merkleProof,
-    });
-  }
-
-  /**
-   * @description Returns commitment for this utxo
-   * @description PoseidonHash(amountHash, shieldedPubkey, blinding, assetHash, appDataHash, poolType, verifierAddressCircuit)
-   * @returns {string}
-   */
-  getCommitment(lightWasm: LightWasm): string {
-    const amountHash = lightWasm.poseidonHashString(this.amounts);
-    const assetHash = lightWasm.poseidonHashString(
-      this.assetsCircuit.map((x) => x.toString()),
+  amounts: BN[];
+  assets: PublicKey[];
+  blinding?: BN;
+  isFillingUtxo?: boolean;
+  lightWasm: LightWasm;
+  verifierAddress?: PublicKey;
+  utxoData?: any;
+}): OutUtxo {
+  const poolType = BN_0;
+  const transactionVersion = BN_0;
+  const verifierAddressCircuit =
+    verifierAddress.toBase58() === SystemProgram.programId.toBase58()
+      ? "0"
+      : hashAndTruncateToCircuit(verifierAddress.toBytes()).toString();
+  if (assets.length !== amounts.length) {
+    throw new UtxoError(
+      UtxoErrorCode.ASSETS_AMOUNTS_LENGTH_MISMATCH,
+      "createOutUtxo",
+      "Assets and amounts length mismatch",
     );
-
-    if (!this.publicKey) {
-      throw new UtxoError(
-        CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-        "getCommitment",
-        "Neither Account nor shieldedPublicKey was provided",
-      );
-    }
-    // console.log("this.assetsCircuit ", this.assetsCircuit);
-
-    // console.log("amountHash ", amountHash.toString());
-    // console.log("this.keypair.pubkey ", this.publicKey.toString());
-    // console.log("this.blinding ", this.blinding.toString());
-    // console.log("assetHash ", assetHash.toString());
-    // console.log("this.appDataHash ", this.appDataHash.toString());
-    // console.log("this.poolType ", this.poolType.toString());
-    const commitment = lightWasm.poseidonHashString([
-      this.transactionVersion,
-      amountHash,
-      this.publicKey.toString(),
-      this.blinding.toString(),
-      assetHash.toString(),
-      this.appDataHash.toString(),
-      this.poolType.toString(),
-      this.verifierAddressCircuit.toString(),
-    ]);
-    this._commitment = commitment;
-    return commitment;
+  }
+  while (assets.length < 2) {
+    assets.push(SystemProgram.programId);
+    amounts.push(BN_0);
   }
 
-  /**
-   * @description Computes the nullifier for this utxo.
-   * @description PoseidonHash(commitment, index, signature)
-   * @param poseidon
-   * @param account
-   * @param {number} index Merkle tree index of the utxo commitment (Optional)
-   *
-   * @returns {string}
-   */
-  getNullifier({
-    lightWasm,
-    account,
-    index,
-  }: {
-    lightWasm: LightWasm;
-    account: Account;
-    index?: number | undefined;
-  }): string {
-    if (this.index === undefined) {
-      if (index != undefined) {
-        this.index = index;
-      } else if (this.amounts[0].isZero() && this.amounts[1].isZero()) {
-        this.index = 0;
-      } else {
-        throw new UtxoError(
-          UtxoErrorCode.INDEX_NOT_PROVIDED,
-          "getNullifier",
-          "The index of a UTXO in the Merkle tree is required to compute the nullifier hash.",
-        );
-      }
-    }
+  const utxoDataHash = utxoData
+    ? createUtxoDataHash(utxoData, lightWasm)
+    : BN_0;
+
+  const utxoHashInputs: UtxoHashInputs = {
+    publicKey: publicKey.toString(),
+    amounts: amounts.map((amount) => amount.toString()),
+    assetsCircuit: assets.map((asset, index) => {
+      if (
+        index !== 0 &&
+        asset.toBase58() === SystemProgram.programId.toBase58()
+      )
+        return "0";
+      return hashAndTruncateToCircuit(asset.toBytes()).toString();
+    }),
+    blinding: blinding.toString(),
+    poolType: poolType.toString(),
+    transactionVersion: transactionVersion.toString(),
+    utxoDataHash: utxoDataHash.toString(),
+    verifierAddressCircuit,
+  };
+  const utxoHash = getUtxoHash(lightWasm, utxoHashInputs);
+  const outUtxo: OutUtxo = {
+    publicKey: utxoHashInputs.publicKey,
+    encryptionPublicKey,
+    amounts,
+    assets,
+    assetsCircuit: utxoHashInputs.assetsCircuit,
+    blinding: blinding,
+    poolType: utxoHashInputs.poolType,
+    utxoHash,
+    transactionVersion: utxoHashInputs.transactionVersion,
+    isFillingUtxo,
+    verifierAddress,
+    verifierAddressCircuit: utxoHashInputs.verifierAddressCircuit,
+    utxoDataHash,
+    utxoData,
+  };
+  return outUtxo;
+}
+
+type UtxoHashInputs = {
+  publicKey: string;
+  amounts: string[];
+  assetsCircuit: string[];
+  blinding: string;
+  poolType: string;
+  transactionVersion: string;
+  utxoDataHash: string;
+  verifierAddressCircuit: string;
+};
+
+export function getUtxoHash(
+  lightWasm: LightWasm,
+  utxoHashInputs: UtxoHashInputs,
+): string {
+  const {
+    publicKey,
+    amounts,
+    assetsCircuit,
+    blinding,
+    poolType,
+    transactionVersion,
+    utxoDataHash,
+    verifierAddressCircuit,
+  } = utxoHashInputs;
+  const amountHash = lightWasm.poseidonHashString(amounts);
+  const assetHash = lightWasm.poseidonHashString(
+    assetsCircuit.map((x) => x.toString()),
+  );
+
+  if (!publicKey) {
+    throw new UtxoError(
+      CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
+      "getCommitment",
+      "Neither Account nor shieldedPublicKey was provided",
+    );
+  }
+
+  return lightWasm.poseidonHashString([
+    transactionVersion,
+    amountHash,
+    publicKey.toString(),
+    blinding.toString(),
+    assetHash.toString(),
+    utxoDataHash.toString(),
+    poolType.toString(),
+    verifierAddressCircuit.toString(),
+  ]);
+}
+
+/**
+ * @description Parses a utxo to bytes.
+ * @returns {Uint8Array}
+ */
+export async function outUtxoToBytes(
+  outUtxo: OutUtxo,
+  assetLookupTable: string[],
+  compressed: boolean = false,
+): Promise<Uint8Array> {
+  const serializeObject = {
+    ...outUtxo,
+    accountShieldedPublicKey: new BN(outUtxo.publicKey),
+    accountEncryptionPublicKey: outUtxo.encryptionPublicKey
+      ? outUtxo.encryptionPublicKey
+      : new Uint8Array(32).fill(0),
+    splAssetIndex: new BN(
+      assetLookupTable.findIndex(
+        (asset) => asset === outUtxo.assets[1].toBase58(),
+      ),
+    ),
+  };
+  if (serializeObject.splAssetIndex.toString() === "-1") {
+    throw new UtxoError(
+      UtxoErrorCode.ASSET_NOT_FOUND,
+      "outUtxoToBytes",
+      `asset pubkey ${serializeObject.assets[1]}, not found in lookup table`,
+    );
+  }
+  const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
+  const serializedData = await coder.encode("outUtxo", serializeObject);
+
+  // Compressed serialization does not store the account since for an encrypted utxo
+  // we assume that the user who is able to decrypt the utxo knows the corresponding account.
+  return compressed
+    ? serializedData.subarray(0, COMPRESSED_UTXO_BYTES_LENGTH)
+    : serializedData;
+}
+
+export function outUtxoFromBytes({
+  bytes,
+  account,
+  assetLookupTable,
+  compressed = false,
+  lightWasm,
+}: {
+  bytes: Buffer;
+  account?: Account;
+  assetLookupTable: string[];
+  compressed?: boolean;
+  lightWasm: LightWasm;
+}): OutUtxo | null {
+  // if it is compressed and adds 64 0 bytes padding
+  if (compressed) {
+    const tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
+    bytes = Buffer.from([
+      ...tmp,
+      ...new Uint8Array(
+        UNCOMPRESSED_UTXO_BYTES_LENGTH - COMPRESSED_UTXO_BYTES_LENGTH,
+      ).fill(0),
+    ]);
     if (!account)
       throw new UtxoError(
         CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-        "getNullifier",
-        "Account is required to compute the nullifier hash.",
+        "fromBytes",
+        "For deserializing a compressed utxo an account is required.",
       );
-
-    const signature = account
-      .sign(this.getCommitment(lightWasm), this.index || 0)
-      .toString();
-    this._nullifier = lightWasm.poseidonHashString([
-      this.getCommitment(lightWasm),
-      this.index.toString() || "0",
-      signature,
-    ]);
-
-    return this._nullifier!;
   }
+  const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
+  const decodedUtxoData = coder.decode("outUtxo", bytes);
 
-  // TODO: evaluate whether to add a flag to encrypt asymmetrically
-  /**
-   * @description Encrypts the utxo to the utxo's accounts public key with nacl.box.
-   *
-   * @returns {Uint8Array} with the first 24 bytes being the nonce
-   */
-  async encrypt({
-    account,
-    merkleTreePdaPublicKey,
-    compressed = true,
-    lightWasm,
-  }: {
-    account?: Account;
-    merkleTreePdaPublicKey?: PublicKey;
-    compressed?: boolean;
-    lightWasm: LightWasm;
-  }): Promise<Uint8Array> {
-    const bytes_message = await this.toBytes(compressed);
-    const commitment = new BN(this.getCommitment(lightWasm)).toArrayLike(
-      Buffer,
-      "be",
-      32,
-    );
-
-    if (this.encryptionPublicKey) {
-      const ciphertext = lightWasm.encryptNaclUtxo(
-        this.encryptionPublicKey,
-        bytes_message,
-        commitment,
-      );
-      // TODO: add option to use random or dedicated prefix for asymmetrically encrypted utxos which are sent to another party
-      const prefix = !this.isFillingUtxo
-        ? this.encryptionPublicKey.slice(0, 4)
-        : randomPrefixBytes();
-      return Uint8Array.from([...prefix, ...ciphertext]);
-    } else if (account) {
-      if (!merkleTreePdaPublicKey)
-        throw new UtxoError(
-          UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
-          "encrypt",
-          "For aes encryption the merkle tree pda publickey is necessary to derive the viewingkey",
-        );
-
-      const ciphertext = account.encryptAesUtxo(
-        bytes_message,
-        merkleTreePdaPublicKey,
-        commitment,
-      );
-
-      // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
-      // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
-      const prefix = !this.isFillingUtxo
-        ? account.generateLatestUtxoPrefixHash(merkleTreePdaPublicKey)
-        : randomPrefixBytes();
-      if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
-
-      // adding the 4 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of (120 + PREFIX_LENGTH) bytes
-      return Uint8Array.from([...prefix, ...ciphertext]);
-    } else {
-      throw new UtxoError(
-        CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-        "encrypt",
-        "Neither account nor this.encryptionPublicKey is defined",
-      );
-    }
+  const assets = [
+    SystemProgram.programId,
+    fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
+  ];
+  const publicKey = compressed
+    ? account?.keypair.publicKey
+    : decodedUtxoData.accountShieldedPublicKey;
+  // TODO: evaluate whether there is a better way to handle the case of a compressed program utxo which currently not deserialized correctly when taken from encrypted utxos
+  if (decodedUtxoData.utxoDataHash.toString() !== "0") {
+    return null;
   }
-
-  // TODO: add method decryptWithViewingKey(viewingkey, bytes, commithash, aes) (issue is right now it's difficult to give a viewing key to another party and for this party to decrypt)
-  /**
-   * @description Decrypts an utxo from an array of bytes without checking the UTXO prefix hash.
-   * The prefix hash is assumed exist and to be the first 4 bytes.
-   * Thus, the first 4 bytes are ignored. The first by 16 / 24 bytes of the commitment are the IV / nonce.
-   * @param {any} poseidon
-   * @param {Uint8Array} encBytes
-   * @param {Account} account
-   * @param {number} index
-   * @returns {Utxo | null}
-   */
-  static async decryptUnchecked({
+  const outUtxo = createOutUtxo({
+    publicKey: new BN(publicKey),
+    encryptionPublicKey: new BN(decodedUtxoData.accountEncryptionPublicKey).eq(
+      BN_0,
+    )
+      ? undefined
+      : decodedUtxoData.accountEncryptionPublicKey,
+    amounts: decodedUtxoData.amounts,
+    assets,
+    blinding: new BN(decodedUtxoData.blinding),
     lightWasm,
-    encBytes,
-    account,
-    index,
-    merkleTreePdaPublicKey,
-    aes,
-    commitment,
-    appDataIdl,
-    compressed = true,
+  });
+  return outUtxo;
+}
+
+export function outUtxoFromString(
+  string: string,
+  assetLookupTable: string[],
+  account: Account,
+  lightWasm: LightWasm,
+  compressed: boolean = false,
+): OutUtxo | null {
+  return outUtxoFromBytes({
+    bytes: bs58.decode(string),
     assetLookupTable,
-    merkleProof,
-  }: {
-    lightWasm: LightWasm;
-    encBytes: Uint8Array;
-    account: Account;
-    index: number;
-    merkleTreePdaPublicKey: PublicKey;
-    aes: boolean;
-    commitment: Uint8Array;
-    appDataIdl?: Idl;
-    compressed?: boolean;
-    assetLookupTable: string[];
-    merkleProof: string[];
-  }): Promise<Result<Utxo | null, UtxoError>> {
-    // Remove UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
-    encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
+    account,
+    compressed,
+    lightWasm,
+  });
+}
 
-    if (aes && !merkleTreePdaPublicKey) {
+/**
+ * Converts the Utxo instance into a base58 encoded string.
+ * @async
+ * @returns {Promise<string>} A promise that resolves to the base58 encoded string representation of the Utxo.
+ */
+export async function outUtxoToString(
+  utxo: OutUtxo,
+  assetLookupTable: string[],
+): Promise<string> {
+  const bytes = await outUtxoToBytes(utxo, assetLookupTable);
+  return bs58.encode(bytes);
+}
+
+export async function encryptOutUtxo({
+  utxo,
+  lightWasm,
+  account,
+  merkleTreePdaPublicKey,
+  compressed = false,
+  assetLookupTable,
+}: {
+  utxo: OutUtxo;
+  lightWasm: LightWasm;
+  account?: Account;
+  merkleTreePdaPublicKey?: PublicKey;
+  compressed?: boolean;
+  assetLookupTable: string[];
+}): Promise<Uint8Array> {
+  const bytes = await outUtxoToBytes(utxo, assetLookupTable, compressed);
+  const byteArray = new Uint8Array(bytes);
+  const utxoHash = new BN(utxo.utxoHash).toArrayLike(Buffer, "be", 32);
+  const encryptedUtxo = await encryptOutUtxoInternal({
+    bytes: byteArray,
+    utxoHash,
+    lightWasm,
+    account,
+    merkleTreePdaPublicKey,
+    compressed,
+    publicKey: utxo.publicKey,
+    encryptionPublicKey: utxo.encryptionPublicKey,
+  });
+  return encryptedUtxo;
+}
+
+export async function encryptOutUtxoInternal({
+  bytes,
+  lightWasm,
+  account,
+  merkleTreePdaPublicKey,
+  compressed = false,
+  isFillingUtxo = false,
+  encryptionPublicKey,
+  publicKey,
+  utxoHash,
+}: {
+  bytes: Uint8Array;
+  lightWasm: LightWasm;
+  account?: Account;
+  merkleTreePdaPublicKey?: PublicKey;
+  compressed?: boolean;
+  isFillingUtxo?: boolean;
+  encryptionPublicKey?: Uint8Array;
+  publicKey: string;
+  utxoHash: Uint8Array;
+}): Promise<Uint8Array> {
+  if (encryptionPublicKey) {
+    const ciphertext = lightWasm.encryptNaclUtxo(
+      encryptionPublicKey,
+      bytes,
+      utxoHash,
+    );
+    // TODO: add option to use random or dedicated prefix for asynmetrically encrypted utxos which are sent to another party
+    const prefix = !isFillingUtxo
+      ? new BN(encryptionPublicKey).toArray("be", 32).slice(0, 4)
+      : randomPrefixBytes();
+    return Uint8Array.from([...prefix, ...ciphertext]);
+  } else if (account) {
+    if (!merkleTreePdaPublicKey)
       throw new UtxoError(
         UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
         "encrypt",
-        "Merkle tree pda public key is necessary for AES decryption",
+        "For aes encryption the merkle tree pda publickey is necessary to derive the viewingkey",
       );
-    }
 
-    if (compressed) {
-      const length = aes
-        ? ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH
-        : NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH;
-      encBytes = encBytes.slice(0, length);
-    }
-    const cleartext = aes
-      ? account.decryptAesUtxo(encBytes, merkleTreePdaPublicKey, commitment)
-      : account.decryptNaclUtxo(encBytes, commitment);
+    const ciphertext = account.encryptAesUtxo(
+      bytes,
+      merkleTreePdaPublicKey,
+      utxoHash,
+    );
+    // If utxo is filling utxo we don't want to decrypt it in the future, so we use a random prefix
+    // we still want to encrypt it properly to be able to decrypt it if necessary as a safeguard.
+    const prefix = !isFillingUtxo
+      ? account.generateLatestUtxoPrefixHash(merkleTreePdaPublicKey)
+      : randomPrefixBytes();
+    if (!compressed) return Uint8Array.from([...prefix, ...ciphertext]);
 
-    if (!cleartext || cleartext.error || !cleartext.value)
-      return Result.Ok(null);
-    const bytes = Buffer.from(cleartext.value || cleartext);
+    // adding the 8 bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts of (120 + PREFIX_LENGTH) bytes
+    return Uint8Array.from([...prefix, ...ciphertext]);
+  } else {
+    throw new UtxoError(
+      CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
+      "encrypt",
+      "Neither account nor this.encryptionPublicKey is defined",
+    );
+  }
+}
+export async function decryptOutUtxo({
+  lightWasm,
+  encBytes,
+  account,
+  merkleTreePdaPublicKey,
+  aes,
+  utxoHash,
+  compressed = false,
+  assetLookupTable,
+}: {
+  lightWasm: LightWasm;
+  encBytes: Uint8Array;
+  account: Account;
+  merkleTreePdaPublicKey: PublicKey;
+  aes: boolean;
+  utxoHash: Uint8Array;
+  compressed?: boolean;
+  assetLookupTable: string[];
+}): Promise<Result<OutUtxo | null, UtxoError>> {
+  const cleartext = await decryptOutUtxoInternal({
+    lightWasm,
+    encBytes,
+    account,
+    merkleTreePdaPublicKey,
+    aes,
+    utxoHash,
+    compressed,
+  });
+  if (!cleartext || cleartext.error || !cleartext.value) return Result.Ok(null);
+  const bytes = Buffer.from(cleartext.value);
+  const outUtxo = outUtxoFromBytes({
+    lightWasm,
+    bytes,
+    account,
+    assetLookupTable,
+    compressed,
+  });
 
-    return Result.Ok(
-      Utxo.fromBytes({
-        lightWasm,
-        bytes,
-        account,
-        index,
-        appDataIdl,
-        assetLookupTable,
-        merkleProof,
-      }),
+  return Result.Ok(outUtxo);
+}
+
+export async function decryptOutUtxoInternal({
+  lightWasm,
+  encBytes,
+  account,
+  merkleTreePdaPublicKey,
+  aes,
+  utxoHash,
+  compressed = false,
+}: {
+  lightWasm: LightWasm;
+  encBytes: Uint8Array;
+  account: Account;
+  merkleTreePdaPublicKey: PublicKey;
+  aes: boolean;
+  utxoHash: Uint8Array;
+  compressed?: boolean;
+}): Promise<Result<Uint8Array | null, Error>> {
+  // Remove UTXO prefix with length of UTXO_PREFIX_LENGTH from the encrypted bytes
+  encBytes = encBytes.slice(UTXO_PREFIX_LENGTH);
+
+  if (aes && !merkleTreePdaPublicKey) {
+    throw new UtxoError(
+      UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
+      "encrypt",
+      "Merkle tree pda public key is necessary for AES decryption",
     );
   }
 
-  /**
-   * Creates a new Utxo from a given base58 encoded string.
-   * @static
-   * @param {string} string - The base58 encoded string representation of the Utxo.
-   * @returns {Utxo} The newly created Utxo.
-   */
-  static fromString(
-    string: string,
-    assetLookupTable: string[],
-    lightWasm: LightWasm,
-  ): Utxo {
-    return Utxo.fromBytes({
-      bytes: bs58.decode(string),
-      assetLookupTable,
+  if (compressed) {
+    const length = aes
+      ? ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH
+      : NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH;
+    encBytes = encBytes.slice(0, length);
+  }
+  const cleartext = aes
+    ? account.decryptAesUtxo(encBytes, merkleTreePdaPublicKey, utxoHash)
+    : await account.decryptNaclUtxo(encBytes, utxoHash);
+
+  return cleartext;
+}
+
+export type Utxo = {
+  publicKey: string;
+  amounts: BN[];
+  assets: PublicKey[];
+  assetsCircuit: string[];
+  blinding: string;
+  poolType: string;
+  utxoHash: string;
+  transactionVersion: string;
+  verifierAddress: PublicKey;
+  verifierAddressCircuit: string;
+  isFillingUtxo: boolean; // should I serialize this as well?
+  nullifier: string;
+  merkleTreeLeafIndex: number;
+  merkleProof: string[];
+  utxoDataHash: string;
+  utxoData: any;
+  utxoName: string;
+};
+
+export type NullifierInputs = {
+  signature: string;
+  utxoHash: string;
+  merkleTreeLeafIndex: string;
+};
+
+export type CreateUtxoInputs = {
+  utxoHash: string;
+  blinding: string;
+  amounts: BN[];
+  assets: PublicKey[];
+  merkleTreeLeafIndex?: number;
+  merkleProof: string[];
+  verifierAddress?: PublicKey;
+  utxoDataHash?: string;
+  utxoData?: any;
+  utxoName?: string;
+};
+
+export function createFillingUtxo({
+  lightWasm,
+  account,
+}: {
+  lightWasm: LightWasm;
+  account: Account;
+}): Utxo {
+  const outFillingUtxo = createFillingOutUtxo({
+    lightWasm,
+    publicKey: account.keypair.publicKey,
+  });
+  return outUtxoToUtxo(
+    outFillingUtxo,
+    new Array(MERKLE_TREE_HEIGHT).fill("0"),
+    0,
+    lightWasm,
+    account,
+  );
+}
+
+export async function decryptUtxo(
+  encBytes: Uint8Array,
+  account: Account,
+  merkleTreePdaPublicKey: PublicKey,
+  aes: boolean,
+  utxoHash: Uint8Array,
+  lightWasm: LightWasm,
+  compressed: boolean = true,
+  merkleProof: string[],
+  merkleTreeLeafIndex: number,
+  assetLookupTable: string[],
+): Promise<Result<Utxo | null, UtxoError>> {
+  const decryptedOutUtxo = await decryptOutUtxo({
+    encBytes,
+    account,
+    merkleTreePdaPublicKey,
+    aes,
+    utxoHash,
+    lightWasm,
+    compressed,
+    assetLookupTable,
+  });
+  if (!decryptedOutUtxo.value) {
+    return decryptedOutUtxo as Result<Utxo | null, UtxoError>;
+  }
+
+  return Result.Ok(
+    outUtxoToUtxo(
+      decryptedOutUtxo.value,
+      merkleProof,
+      merkleTreeLeafIndex,
       lightWasm,
-    });
+      account,
+    ),
+  );
+}
+
+export function outUtxoToUtxo(
+  outUtxo: OutUtxo,
+  merkleProof: string[],
+  merkleTreeLeafIndex: number,
+  lightWasm: LightWasm,
+  account: Account,
+): Utxo {
+  const inputs: CreateUtxoInputs = {
+    utxoHash: outUtxo.utxoHash,
+    blinding: outUtxo.blinding.toString(),
+    amounts: outUtxo.amounts,
+    assets: outUtxo.assets,
+    merkleProof,
+    merkleTreeLeafIndex,
+    verifierAddress:
+      outUtxo.verifierAddress.toBase58() === SystemProgram.programId.toBase58()
+        ? undefined
+        : outUtxo.verifierAddress,
+  };
+  return createUtxo(lightWasm, account, inputs, outUtxo.isFillingUtxo);
+}
+
+export function createTestInUtxo({
+  account,
+  encryptionPublicKey,
+  amounts,
+  assets,
+  blinding,
+  isFillingUtxo,
+  lightWasm,
+  verifierAddress,
+  merkleProof = ["1"],
+  merkleTreeLeafIndex = 0,
+}: {
+  account: Account;
+  encryptionPublicKey?: Uint8Array;
+  amounts: BN[];
+  assets: PublicKey[];
+  blinding?: BN;
+  isFillingUtxo?: boolean;
+  lightWasm: LightWasm;
+  verifierAddress?: PublicKey;
+  merkleProof?: string[];
+  merkleTreeLeafIndex?: number;
+}): Utxo {
+  const outUtxo = createOutUtxo({
+    publicKey: account.keypair.publicKey,
+    encryptionPublicKey,
+    amounts,
+    assets,
+    blinding,
+    isFillingUtxo,
+    lightWasm,
+    verifierAddress,
+  });
+  return outUtxoToUtxo(
+    outUtxo,
+    merkleProof,
+    merkleTreeLeafIndex,
+    lightWasm,
+    account,
+  );
+}
+
+export function createUtxo(
+  lightWasm: LightWasm,
+  account: Account,
+  createUtxoInputs: CreateUtxoInputs,
+  isFillingUtxo: boolean,
+): Utxo {
+  const {
+    merkleTreeLeafIndex,
+    utxoHash,
+    blinding,
+    amounts,
+    assets,
+    merkleProof,
+    verifierAddress: verifierAddressInput,
+    utxoDataHash: utxoDataHashInput,
+    utxoData,
+    utxoName,
+  } = createUtxoInputs;
+  while (assets.length < 2) {
+    assets.push(SystemProgram.programId);
+    amounts.push(BN_0);
   }
 
-  /**
-   * Converts the Utxo instance into a base58 encoded string.
-   * @async
-   * @returns {Promise<string>} A promise that resolves to the base58 encoded string representation of the Utxo.
-   */
-  async toString(): Promise<string> {
-    const bytes = await this.toBytes();
-    return bs58.encode(bytes);
+  const utxoNameInternal = utxoName ? utxoName : "native";
+  const poolType = "0";
+  const transactionVersion = "0";
+  const merkleTreeLeafIndexInternal = isFillingUtxo ? 0 : merkleTreeLeafIndex;
+  const merkleProofInternal = isFillingUtxo
+    ? new Array(18).fill("0")
+    : merkleProof;
+  const verifierAddress = verifierAddressInput
+    ? verifierAddressInput
+    : SystemProgram.programId;
+  const verifierAddressCircuit = verifierAddressInput
+    ? hashAndTruncateToCircuit(verifierAddressInput.toBytes()).toString()
+    : "0";
+  const utxoDataHash = utxoDataHashInput ? utxoDataHashInput : "0";
+  if (utxoDataHashInput && !utxoData) {
+    throw new UtxoError(
+      CreateUtxoErrorCode.UTXO_DATA_UNDEFINED,
+      "createUtxo",
+      "Utxo data is undefined",
+    );
   }
 
-  /**
-   * @description Compares two Utxos.
-   * @param {Utxo} utxo0
-   * @param {Utxo} utxo1
-   */
-  static equal(
-    utxo0: Utxo,
-    utxo1: Utxo,
-    lightWasm: LightWasm,
-    skipNullifier: boolean = false,
-    account0?: Account,
-    account1?: Account,
-  ) {
-    if (utxo0.amounts[0].toString() !== utxo1.amounts[0].toString()) {
-      throw new Error(
-        `solAmount not equal: ${utxo0.amounts[0].toString()} vs ${utxo1.amounts[0].toString()}`,
-      );
-    }
-
-    if (utxo0.amounts[1].toString() !== utxo1.amounts[1].toString()) {
-      throw new Error(
-        `splAmount not equal: ${utxo0.amounts[1].toString()} vs ${utxo1.amounts[1].toString()}`,
-      );
-    }
-
-    if (utxo0.assets[0].toBase58() !== utxo1.assets[0].toBase58()) {
-      throw new Error(
-        `solAsset not equal: ${utxo0.assets[0].toBase58()} vs ${utxo1.assets[0].toBase58()}`,
-      );
-    }
-
-    if (utxo0.assets[1].toBase58() !== utxo1.assets[1].toBase58()) {
-      throw new Error(
-        `splAsset not equal: ${utxo0.assets[1].toBase58()} vs ${utxo1.assets[1].toBase58()}`,
-      );
-    }
-
-    if (
-      utxo0.assetsCircuit[0].toString() !== utxo1.assetsCircuit[0].toString()
-    ) {
-      throw new Error(
-        `solAsset circuit not equal: ${utxo0.assetsCircuit[0].toString()} vs ${utxo1.assetsCircuit[0].toString()}`,
-      );
-    }
-
-    if (
-      utxo0.assetsCircuit[1].toString() !== utxo1.assetsCircuit[1].toString()
-    ) {
-      throw new Error(
-        `splAsset circuit not equal: ${utxo0.assetsCircuit[1].toString()} vs ${utxo1.assetsCircuit[1].toString()}`,
-      );
-    }
-
-    if (utxo0.appDataHash.toString() !== utxo1.appDataHash.toString()) {
-      throw new Error(
-        `appDataHash not equal: ${utxo0.appDataHash.toString()} vs ${utxo1.appDataHash.toString()}`,
-      );
-    }
-
-    if (utxo0.poolType.toString() !== utxo1.poolType.toString()) {
-      throw new Error(
-        `poolType not equal: ${utxo0.poolType.toString()} vs ${utxo1.poolType.toString()}`,
-      );
-    }
-
-    if (utxo0.verifierAddress.toString() !== utxo1.verifierAddress.toString()) {
-      throw new Error(
-        `verifierAddress not equal: ${utxo0.verifierAddress.toString()} vs ${utxo1.verifierAddress.toString()}`,
-      );
-    }
-
-    if (
-      utxo0.verifierAddressCircuit.toString() !==
-      utxo1.verifierAddressCircuit.toString()
-    ) {
-      throw new Error(
-        `verifierAddressCircuit not equal: ${utxo0.verifierAddressCircuit.toString()} vs ${utxo1.verifierAddressCircuit.toString()}`,
-      );
-    }
-
-    if (
-      utxo0.getCommitment(lightWasm)?.toString() !==
-      utxo1.getCommitment(lightWasm)?.toString()
-    ) {
-      throw new Error(
-        `commitment not equal: ${utxo0
-          .getCommitment(lightWasm)
-          ?.toString()} vs ${utxo1.getCommitment(lightWasm)?.toString()}`,
-      );
-    }
-
-    if (!skipNullifier) {
-      if (utxo0.index || utxo1.index) {
-        if (account0 && account1) {
-          const utxo0nullifier = utxo0
-            .getNullifier({ lightWasm, account: account0 })
-            ?.toString();
-          const utxo1nullifier = utxo1
-            .getNullifier({ lightWasm, account: account1 })
-            ?.toString();
-          if (utxo0nullifier !== utxo1nullifier) {
-            throw new Error(
-              `nullifier not equal: ${utxo0nullifier} vs ${utxo1nullifier}`,
-            );
-          }
-          throw new Error("Account0 or Account1 not defined");
-        }
-      }
-    }
+  if (merkleTreeLeafIndexInternal === undefined) {
+    throw new UtxoError(
+      CreateUtxoErrorCode.MERKLE_TREE_INDEX_UNDEFINED,
+      "createUtxo",
+      "Merkle tree index is undefined",
+    );
   }
 
-  static getAppInUtxoIndices(appUtxos: Utxo[]) {
-    const isAppInUtxo: BN[][] = [];
-    for (const i in appUtxos) {
-      const array = new Array(4).fill(new BN(0));
-      if (appUtxos[i].appData) {
-        array[i] = new BN(1);
-        isAppInUtxo.push(array);
-      }
-    }
-    return isAppInUtxo;
-  }
+  const signature = account
+    .sign(utxoHash, merkleTreeLeafIndexInternal)
+    .toString();
+
+  const nullifierInputs: NullifierInputs = {
+    signature,
+    utxoHash,
+    merkleTreeLeafIndex: merkleTreeLeafIndexInternal.toString(),
+  };
+  const nullifier = getNullifier(lightWasm, nullifierInputs);
+  const utxo: Utxo = {
+    publicKey: account.keypair.publicKey.toString(),
+    amounts,
+    assets,
+    assetsCircuit: assets.map((asset, index) => {
+      if (
+        index !== 0 &&
+        asset.toBase58() === SystemProgram.programId.toBase58()
+      )
+        return "0";
+      return hashAndTruncateToCircuit(asset.toBytes()).toString();
+    }),
+    blinding,
+    poolType,
+    utxoHash,
+    transactionVersion,
+    verifierAddress,
+    verifierAddressCircuit,
+    isFillingUtxo,
+    nullifier,
+    merkleTreeLeafIndex: merkleTreeLeafIndexInternal,
+    merkleProof: merkleProofInternal,
+    utxoDataHash,
+    utxoName: utxoNameInternal,
+    utxoData,
+  };
+  return utxo;
+}
+
+export function getNullifier(
+  lightWasm: LightWasm,
+  inputs: NullifierInputs,
+): string {
+  return lightWasm.poseidonHashString([
+    inputs.utxoHash,
+    inputs.merkleTreeLeafIndex,
+    inputs.signature,
+  ]);
 }

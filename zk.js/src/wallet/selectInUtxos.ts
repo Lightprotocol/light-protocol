@@ -8,9 +8,10 @@ import {
   TransactionErrorCode,
   Action,
   getUtxoArrayAmount,
-  Utxo,
   TOKEN_REGISTRY,
   BN_0,
+  Utxo,
+  OutUtxo,
 } from "../index";
 import { LightWasm } from "@lightprotocol/account.rs";
 // TODO: turn these into static user.class methods
@@ -133,7 +134,7 @@ export function selectInUtxos({
   relayerFee?: BN;
   utxos?: Utxo[];
   inUtxos?: Utxo[];
-  outUtxos?: Utxo[];
+  outUtxos?: OutUtxo[];
   action: Action;
   numberMaxInUtxos: number;
   numberMaxOutUtxos: number;
@@ -260,8 +261,7 @@ export function selectInUtxos({
         // exclude the utxo which is already selected and utxos which hold other assets than only sol
         const reFilteredUtxos = utxos.filter(
           (utxo) =>
-            utxo.getCommitment(lightWasm) !=
-              selectedUtxosR[0].getCommitment(lightWasm) &&
+            utxo.utxoHash != selectedUtxosR[0].utxoHash &&
             utxo.assets[1].toBase58() === SystemProgram.programId.toBase58(),
         );
 

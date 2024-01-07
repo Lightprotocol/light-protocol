@@ -25,8 +25,10 @@ import {
   lightPsp4in4outAppStorageId,
   getVerifierProgramId,
   shieldProgramUtxo,
+  createProgramOutUtxo,
 } from "@lightprotocol/zk.js";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
+import { compareOutUtxos } from "../../../zk.js/tests/test-utils/compareUtxos";
 import {
   Keypair as SolanaKeypair,
   Keypair,
@@ -133,16 +135,18 @@ describe("Streaming Payments tests", () => {
     });
     const lightUser: User = await User.init({ provider: lightProvider });
 
-    const outputUtxoSol = new Utxo({
+    // Issue is that we add + OutUtxo to utxoName
+    // -> need to change that in macro circom
+    // add function which iterates over all accounts trying to match the discriminator
+    const outputUtxoSol = createProgramOutUtxo({
       lightWasm: WASM,
       assets: [SystemProgram.programId],
       publicKey: lightUser.account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
-      appData: { endSlot: new BN(1), rate: new BN(1) },
-      appDataIdl: IDL,
-      verifierAddress: verifierProgramId,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      includeAppData: true,
+      utxoData: { endSlot: new BN(1), rate: new BN(1) },
+      pspIdl: IDL,
+      pspId: verifierProgramId,
+      utxoName: "utxo",
     });
     const testInputsShield = {
       utxo: outputUtxoSol,
@@ -157,14 +161,12 @@ describe("Streaming Payments tests", () => {
     console.log("storeProgramUtxoResult: ", storeProgramUtxoResult);
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await lightUser.syncStorage(IDL);
-    const shieldedUtxoCommitmentHash =
-      testInputsShield.utxo.getCommitment(WASM);
+    const shieldedUtxoCommitmentHash = testInputsShield.utxo.outUtxo.utxoHash;
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())
-      .tokenBalances.get(testInputsShield.utxo.assets[0].toBase58())
+      .tokenBalances.get(testInputsShield.utxo.outUtxo.assets[0].toBase58())
       .utxos.get(shieldedUtxoCommitmentHash);
-    Utxo.equal(inputUtxo, testInputsShield.utxo, WASM, false);
-
+    compareOutUtxos(inputUtxo!, testInputsShield.utxo.outUtxo);
     const circuitPath = path.join(
       "build-circuit/streaming-payments/streamingPayments",
     );

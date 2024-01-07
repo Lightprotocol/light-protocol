@@ -8,8 +8,8 @@ import {
   STANDARD_SHIELDED_PRIVATE_KEY,
   STANDARD_SHIELDED_PUBLIC_KEY,
   TransactionErrorCode,
-  Utxo,
   UtxoErrorCode,
+  Utxo,
   Wallet,
 } from "./index";
 import { LightWasm, WasmAccount } from "@lightprotocol/account.rs";
@@ -247,7 +247,7 @@ export class Account {
       throw new AccountError(
         AccountErrorCode.INVALID_PUBLIC_KEY_SIZE,
         "fromPubkey",
-        `Invalid length: ${decoded.length} bytes. Expected 64 bytes for publicKey, 
+        `Invalid length: ${decoded.length} bytes. Expected 64 bytes for publicKey,
           where the first 32 are the shielded key and the second 32 are the encryption key.`,
       );
 
@@ -410,10 +410,10 @@ export class Account {
 
   private addPrivateKey(proofInput: any, inputUtxos: Utxo[]) {
     proofInput["inPrivateKey"] = inputUtxos.map((utxo: Utxo) => {
-      if (utxo.publicKey.eq(this.keypair.publicKey)) {
+      if (utxo.publicKey === this.keypair.publicKey.toString()) {
         return this.keypair.privateKey;
       }
-      if (STANDARD_SHIELDED_PUBLIC_KEY.eq(utxo.publicKey)) {
+      if (utxo.publicKey === STANDARD_SHIELDED_PUBLIC_KEY.toString()) {
         return STANDARD_SHIELDED_PRIVATE_KEY;
       }
     });
