@@ -25,6 +25,8 @@ import {
   getVerifierProgramId,
   createSystemProofInputs,
   getSystemProof,
+  createOutUtxo,
+  OutUtxo,
 } from "../../zk.js/src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -41,7 +43,7 @@ describe("Prover Functionality Tests", () => {
   const path = require("path");
   const firstPath = path.resolve(__dirname, "../build-circuits/");
   let lightProvider: LightProvider;
-  let shieldUtxo: Utxo;
+  let shieldUtxo: OutUtxo;
   let account: Account;
   let lightWasm: LightWasm;
   let shieldTransaction: ShieldTransaction;
@@ -51,13 +53,12 @@ describe("Prover Functionality Tests", () => {
     lightProvider = await LightProvider.loadMock();
     account = Account.random(lightWasm);
 
-    shieldUtxo = new Utxo({
+    shieldUtxo = createOutUtxo({
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
       publicKey: account.keypair.publicKey,
       blinding: new anchor.BN(new Array(31).fill(1)),
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     const shieldTransactionInput: ShieldTransactionInput = {
       lightWasm,
@@ -73,11 +74,9 @@ describe("Prover Functionality Tests", () => {
 
     shieldTransaction = await createShieldTransaction(shieldTransactionInput);
 
-    merkleTree = new MerkleTree(18, lightWasm, [
-      shieldUtxo.getCommitment(lightWasm),
-    ]);
+    merkleTree = new MerkleTree(18, lightWasm, [shieldUtxo.utxoHash]);
 
-    assert.equal(merkleTree.indexOf(shieldUtxo.getCommitment(lightWasm)), 0);
+    assert.equal(merkleTree.indexOf(shieldUtxo.utxoHash), 0);
   });
 
   after(async () => {

@@ -44,6 +44,8 @@ import {
   createUnshieldTransaction,
   UnshieldTransactionInput,
   syncInputUtxosMerkleProofs,
+  createOutUtxo,
+  OutUtxo,
 } from "../../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -182,16 +184,16 @@ describe("verifier_program", () => {
       user.balance.tokenBalances.get(MINT.toBase58())!.utxos.values().next()
         .value,
     ];
+
+    const utxo = createOutUtxo({
+      lightWasm: WASM,
+      publicKey: inputUtxos[0].publicKey,
+      assets: inputUtxos[0].assets,
+      amounts: [BN_0, inputUtxos[0].amounts[1]],
+    });
+
     await performUnshield({
-      outputUtxos: [
-        new Utxo({
-          lightWasm: WASM,
-          publicKey: inputUtxos[0].publicKey,
-          assets: inputUtxos[0].assets,
-          amounts: [BN_0, inputUtxos[0].amounts[1]],
-          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-        }),
-      ],
+      outputUtxos: [utxo],
       tokenProgram: MINT,
       shuffleEnabled: true,
       verifierIdl: IDL_LIGHT_PSP10IN2OUT,
@@ -249,7 +251,7 @@ describe("verifier_program", () => {
     });
 
     const shieldUtxo = spl
-      ? new Utxo({
+      ? createOutUtxo({
           lightWasm: WASM,
           assets: [FEE_ASSET, MINT],
           amounts: [
@@ -257,13 +259,12 @@ describe("verifier_program", () => {
             new anchor.BN(shieldAmount),
           ],
           publicKey: ACCOUNT.keypair.publicKey,
-          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         })
-      : new Utxo({
+      : createOutUtxo({
           lightWasm: WASM,
           amounts: [new anchor.BN(shieldFeeAmount)],
           publicKey: ACCOUNT.keypair.publicKey,
-          assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+          assets: [FEE_ASSET],
         });
 
     const shieldTransactionInput: ShieldTransactionInput = {
@@ -324,6 +325,8 @@ describe("verifier_program", () => {
     });
     await transactionTester.getTestValues();
     await lightProvider.sendAndConfirmShieldedTransaction(instructions);
+
+    // TODO: check why encryptedUtxo check doesn't work
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },
       remainingSolanaAccounts,
@@ -339,7 +342,7 @@ describe("verifier_program", () => {
     shuffleEnabled = true,
     verifierIdl,
   }: {
-    outputUtxos: Array<Utxo>;
+    outputUtxos: Array<OutUtxo>;
     tokenProgram: anchor.web3.PublicKey;
     message?: Buffer;
     spl?: boolean;

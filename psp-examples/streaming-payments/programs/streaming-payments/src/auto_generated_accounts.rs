@@ -25,7 +25,7 @@ pub struct InstructionDataLightInstructionSecond {
 #[allow(non_snake_case)]
 #[derive(Debug, Copy, PartialEq)]
 #[account]
-pub struct Utxo {
+pub struct UtxoOutUtxo {
     pub amounts: [u64; 2],
     pub spl_asset_index: u64,
     pub verifier_address_index: u64,
@@ -40,7 +40,7 @@ pub struct Utxo {
 #[allow(non_snake_case)]
 #[account]
 #[derive(Debug, Copy, PartialEq)]
-pub struct UtxoAppData {
+pub struct UtxoOutUtxoAppData {
     pub endSlot: u256,
     pub rate: u256,
 }

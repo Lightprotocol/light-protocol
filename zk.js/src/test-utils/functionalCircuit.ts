@@ -3,7 +3,6 @@ import {
   Account,
   Provider as LightProvider,
   MINT,
-  Utxo,
   IDL_LIGHT_PSP2IN2OUT,
   createTransaction,
   TransactionInput,
@@ -13,6 +12,10 @@ import {
   hashAndTruncateToCircuit,
   BN_0,
   getTransactionHash,
+  createOutUtxo,
+  outUtxoToUtxo,
+  OutUtxo,
+  Utxo,
 } from "../index";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { BN } from "@coral-xyz/anchor";
@@ -34,22 +37,23 @@ export async function functionalCircuitTest(
   const shieldAmount = 20_000;
   const shieldFeeAmount = 10_000;
   const relayerFee = new BN(5000);
-  const inputUtxo = new Utxo({
+  let inputUtxo: OutUtxo | Utxo = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
     publicKey: account.keypair.publicKey,
-    assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-    index: 0,
     verifierAddress: app ? mockPubkey : undefined,
   });
 
-  const merkleTree = new MerkleTree(18, lightWasm, [
-    inputUtxo.getCommitment(lightWasm),
-  ]);
-  inputUtxo.merkleProof = merkleTree.path(0).pathElements;
-
-  const outputUtxo1 = new Utxo({
+  const merkleTree = new MerkleTree(18, lightWasm, [inputUtxo.utxoHash]);
+  inputUtxo = outUtxoToUtxo(
+    inputUtxo,
+    merkleTree.path(0).pathElements,
+    0,
+    lightWasm,
+    account,
+  );
+  const outputUtxo1 = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [
@@ -57,15 +61,13 @@ export async function functionalCircuitTest(
       new BN(shieldAmount / 2),
     ],
     publicKey: account.keypair.publicKey,
-    assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
   });
 
-  const outputUtxo2 = new Utxo({
+  const outputUtxo2 = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(shieldFeeAmount / 2), new BN(shieldAmount / 2)],
     publicKey: account.keypair.publicKey,
-    assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
   });
 
   const txInput: TransactionInput = {

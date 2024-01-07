@@ -5,7 +5,7 @@ extern crate syn;
 
 use super::utxo_type::UtxoType;
 use crate::Instance;
-
+// TODO: make Utxo dynamic with utxo_name, currently it's hardcoded to Utxo with OutUtxo suffix
 pub const AUTO_GENERATED_ACCOUNTS_TEMPLATE: &str = "
 use anchor_lang::prelude::*;
 
@@ -36,7 +36,7 @@ pub struct InstructionDataLightInstructionSecond {
 #[allow(non_snake_case)]
 #[derive(Debug, Copy, PartialEq)]
 #[account]
-pub struct Utxo {
+pub struct UtxoOutUtxo {
     pub amounts: [u64; 2],
     pub spl_asset_index: u64,
     pub verifier_address_index: u64,
@@ -52,7 +52,7 @@ pub struct Utxo {
 #[allow(non_snake_case)]
 #[account]
 #[derive(Debug, Copy, PartialEq)]
-pub struct UtxoAppData {
+pub struct UtxoOutUtxoAppData {
     {{#each utxo_inputs}}
     pub {{this}}: u256,
     {{/each}}

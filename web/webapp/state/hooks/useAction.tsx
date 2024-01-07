@@ -78,7 +78,6 @@ export const shieldState = atom(
       recipient = undefined,
       publicAmountSpl = undefined,
       publicAmountSol = undefined,
-      appUtxo = undefined,
       confirmOptions = undefined,
       senderTokenAccount = undefined,
     }: {
@@ -86,7 +85,6 @@ export const shieldState = atom(
       recipient?: string | undefined;
       publicAmountSol?: string | undefined;
       publicAmountSpl?: string | undefined;
-      appUtxo?: AppUtxoConfig | undefined;
       confirmOptions?: ConfirmOptions | undefined;
       senderTokenAccount?: PublicKey | undefined;
     }
@@ -103,7 +101,6 @@ export const shieldState = atom(
         recipient,
         publicAmountSpl,
         publicAmountSol,
-        appUtxo,
         confirmOptions,
         senderTokenAccount,
       });

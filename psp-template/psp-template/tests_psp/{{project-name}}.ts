@@ -19,7 +19,9 @@ import {
   SolanaTransactionInputs,
   sendAndConfirmShieldedTransaction,
   getVerifierProgramId,
-  shieldProgramUtxo
+  shieldProgramUtxo,
+  createProgramOutUtxo,
+  createOutUtxo,
 } from "@lightprotocol/zk.js";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import {
@@ -77,15 +79,15 @@ describe("Test {{project-name}}", () => {
 
     const user: User = await User.init({ provider: lightProvider });
 
-    const outputUtxoSol = new Utxo({
+    const outputUtxoSol = createProgramOutUtxo({
       lightWasm: WASM,
       assets: [SystemProgram.programId],
       publicKey: user.account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
-      appData: { x: new BN(1), y: new BN(1) },
-      appDataIdl: IDL,
-      verifierAddress: verifierProgramId,
-      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      utxoData: { x: new BN(1), y: new BN(2) },
+      pspIdl: IDL,
+      pspId: verifierProgramId,
+      utxoName: "utxo",
     });
 
     const testInputsShield = {
@@ -98,24 +100,25 @@ describe("Test {{project-name}}", () => {
       appUtxo: testInputsShield.utxo,
       provider: user.provider,
     })
-    console.log("store program utxo transaction hash ", storeTransaction.signatures);
+    console.log("store program utxo transaction hash ", storeTransaction);
 
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await user.syncStorage(IDL);
     const shieldedUtxoCommitmentHash =
-      testInputsShield.utxo.getCommitment(WASM);
+      testInputsShield.utxo.outUtxo.utxoHash;
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())!
-      .tokenBalances.get(testInputsShield.utxo.assets[1].toBase58())!
+      .tokenBalances.get(testInputsShield.utxo.outUtxo.assets[1].toBase58())!
       .utxos.get(shieldedUtxoCommitmentHash)!;
-
-    Utxo.equal(inputUtxo, testInputsShield.utxo, WASM, true);
+    assert.equal(inputUtxo.utxoHash, shieldedUtxoCommitmentHash);
+    assert.equal(inputUtxo.utxoData.x.toString(), "1");
+    assert.equal(inputUtxo.utxoData.y.toString(), "2");
 
     const circuitPath = path.join(`build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`);
 
     const pspTransactionInput: PspTransactionInput = {
       proofInputs: {
-        publicZ: inputUtxo.appData.x.add(inputUtxo.appData.y),
+        publicZ: inputUtxo.utxoData.x.add(inputUtxo.utxoData.y),
       },
       path: circuitPath,
       verifierIdl: IDL,
@@ -123,11 +126,11 @@ describe("Test {{project-name}}", () => {
       checkedInUtxos: [{ utxoName: "inputUtxo", utxo: inputUtxo }],
     };
     const changeAmountSol = inputUtxo.amounts[0]
-      .sub(relayer.relayerFee);
-    const changeUtxo = new Utxo({
+      .sub(relayer.getRelayerFee());
+
+    const changeUtxo = createOutUtxo({
       lightWasm: WASM,
-      publicKey: inputUtxo.publicKey,
-      assetLookupTable: user.provider.lookUpTables.assetLookupTable,
+      publicKey: new BN(inputUtxo.publicKey),
       amounts: [changeAmountSol],
       assets: [SystemProgram.programId],
     });
@@ -141,7 +144,7 @@ describe("Test {{project-name}}", () => {
       ),
       relayerPublicKey: relayer.accounts.relayerPubkey,
       lightWasm: WASM,
-      relayerFee: relayer.relayerFee,
+      relayerFee: relayer.getRelayerFee(),
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: user.account,
@@ -190,8 +193,7 @@ describe("Test {{project-name}}", () => {
     });
 
     console.log("transaction hash ", txHash);
-    const utxoSpent = await user.getUtxo(inputUtxo.getCommitment(WASM), true, MerkleTreeConfig.getTransactionMerkleTreePda(),IDL);
+    const utxoSpent = await user.getUtxo(inputUtxo.utxoHash, true, MerkleTreeConfig.getTransactionMerkleTreePda(),IDL);
     assert.equal(utxoSpent!.status, "spent");
-    Utxo.equal(utxoSpent!.utxo, inputUtxo, WASM, true);
   });
 });

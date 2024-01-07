@@ -7,13 +7,15 @@ import {
   TransactionParametersErrorCode,
   Action,
   Account,
-  Utxo,
   AppUtxoConfig,
   MINIMUM_LAMPORTS,
   BN_0,
   BN_1,
   BN_2,
   getAssetPubkeys,
+  createOutUtxo,
+  OutUtxo,
+  Utxo,
 } from "../index";
 import { LightWasm } from "@lightprotocol/account.rs";
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
@@ -25,8 +27,12 @@ export type Recipient = {
   mint: PublicKey;
   appUtxo?: AppUtxoConfig;
 };
+
 // mint: PublicKey, expectedAmount: BN,
-export const getUtxoArrayAmount = (mint: PublicKey, inUtxos: Utxo[]) => {
+export const getUtxoArrayAmount = (
+  mint: PublicKey,
+  inUtxos: Utxo[] | OutUtxo[],
+) => {
   let inAmount = BN_0;
   inUtxos.forEach((inUtxo) => {
     inUtxo.assets.forEach((asset, i) => {
@@ -103,7 +109,7 @@ export function createOutUtxos({
   publicAmountSol?: BN;
   relayerFee?: BN;
   changeUtxoAccount: Account;
-  outUtxos?: Utxo[];
+  outUtxos?: OutUtxo[];
   action: Action;
   appUtxo?: AppUtxoConfig;
   numberMaxOutUtxos: number;
@@ -131,7 +137,7 @@ export function createOutUtxos({
           SystemProgram.programId,
           publicMint ? publicMint : SystemProgram.programId,
         ]
-      : getAssetPubkeys(inUtxos).assetPubkeys;
+      : getAssetPubkeys(inUtxos)?.assetPubkeys;
 
   if (!assetPubkeys)
     throw new CreateUtxoError(
@@ -250,7 +256,7 @@ export function createOutUtxos({
       assets[publicSolAssetIndex].sumIn.sub(publicAmountSol);
   }
 
-  const outputUtxos: Utxo[] = [...outUtxos];
+  const outputUtxos: OutUtxo[] = [...outUtxos];
 
   // create recipient output utxos, one for each defined recipient
   for (const j in outUtxos) {
@@ -308,16 +314,12 @@ export function createOutUtxos({
       : preliminarySolAmount;
     assets[publicSolAssetIndex].sumIn =
       assets[publicSolAssetIndex].sumIn.sub(solAmount);
-    const solChangeUtxo = new Utxo({
+    const solChangeUtxo = createOutUtxo({
+      lightWasm,
       assets: [SystemProgram.programId],
       amounts: [solAmount],
       publicKey: changeUtxoAccount.keypair.publicKey,
-      appData: appUtxo?.appData,
-      appDataHash: appUtxo?.appDataHash,
-      includeAppData: appUtxo?.includeAppData,
       verifierAddress: appUtxo?.verifierAddress,
-      assetLookupTable,
-      lightWasm,
     });
     outputUtxos.push(solChangeUtxo);
   }
@@ -337,16 +339,11 @@ export function createOutUtxos({
 
     if (solAmount.isZero() && splAmount.isZero()) continue;
 
-    const changeUtxo = new Utxo({
+    const changeUtxo = createOutUtxo({
+      lightWasm,
       assets: [SystemProgram.programId, splAsset],
       amounts: [solAmount, splAmount],
       publicKey: changeUtxoAccount.keypair.publicKey,
-      appData: appUtxo?.appData,
-      appDataHash: appUtxo?.appDataHash,
-      includeAppData: appUtxo?.includeAppData,
-      verifierAddress: appUtxo?.verifierAddress,
-      assetLookupTable,
-      lightWasm,
     });
 
     outputUtxos.push(changeUtxo);
@@ -379,8 +376,8 @@ export function createRecipientUtxos({
   recipients: Recipient[];
   assetLookupTable: string[];
   lightWasm: LightWasm;
-}): Utxo[] {
-  const outputUtxos: Utxo[] = [];
+}): OutUtxo[] {
+  const outputUtxos: OutUtxo[] = [];
 
   // create recipient output utxos, one for each defined recipient
   for (const j in recipients) {
@@ -398,17 +395,12 @@ export function createRecipientUtxos({
       ? recipients[j].mint
       : SystemProgram.programId;
 
-    const recipientUtxo = new Utxo({
+    const recipientUtxo = createOutUtxo({
+      lightWasm,
       assets: [SystemProgram.programId, splMint],
       amounts: [solAmount, splAmount],
       publicKey: recipients[j].account.keypair.publicKey,
       encryptionPublicKey: recipients[j].account.encryptionKeypair.publicKey,
-      appData: recipients[j].appUtxo?.appData,
-      includeAppData: recipients[j].appUtxo?.includeAppData,
-      appDataHash: recipients[j].appUtxo?.appDataHash,
-      verifierAddress: recipients[j].appUtxo?.verifierAddress,
-      assetLookupTable,
-      lightWasm,
     });
 
     outputUtxos.push(recipientUtxo);
@@ -435,7 +427,7 @@ export function validateUtxoAmounts({
 }: {
   assetPubkeys: PublicKey[];
   inUtxos?: Utxo[];
-  outUtxos: Utxo[];
+  outUtxos: OutUtxo[];
   publicAmountSol?: BN;
   publicAmountSpl?: BN;
   action?: Action;

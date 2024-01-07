@@ -850,58 +850,6 @@ importers:
         specifier: 5.3.2
         version: 5.3.2
 
-  psp-examples/tmp-test-circom:
-    dependencies:
-      '@coral-xyz/anchor':
-        specifier: ^0.28.0
-        version: 0.28.0
-      '@lightprotocol/account.rs':
-        specifier: workspace:*
-        version: link:../../account.rs
-      '@lightprotocol/circuit-lib.circom':
-        specifier: 0.1.0-alpha.1
-        version: link:../../circuit-lib/circuit-lib.circom
-      '@lightprotocol/prover.js':
-        specifier: 0.1.0-alpha.3
-        version: link:../../prover.js
-      '@lightprotocol/zk.js':
-        specifier: 0.3.2-alpha.16
-        version: link:../../zk.js
-      '@project-serum/anchor':
-        specifier: ^0.26.0
-        version: 0.26.0
-      circomlib:
-        specifier: ^2.0.5
-        version: 2.0.5
-      circomlibjs:
-        specifier: ^0.1.7
-        version: 0.1.7
-    devDependencies:
-      '@types/bn.js':
-        specifier: ^5.1.0
-        version: 5.1.2
-      '@types/chai':
-        specifier: ^4.3.0
-        version: 4.3.9
-      '@types/mocha':
-        specifier: ^9.0.0
-        version: 9.1.1
-      chai:
-        specifier: ^4.3.4
-        version: 4.3.10
-      mocha:
-        specifier: ^9.0.3
-        version: 9.2.2
-      prettier:
-        specifier: ^2.6.2
-        version: 2.8.8
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@9.2.2)
-      typescript:
-        specifier: ^4.3.5
-        version: 4.9.5
-
   psp-examples/tmp-test-psp:
     dependencies:
       '@coral-xyz/anchor':

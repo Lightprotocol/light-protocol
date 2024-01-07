@@ -377,7 +377,7 @@ export type TmpTestPsp = {
       };
     },
     {
-      name: "utxoAppData";
+      name: "utxoOutUtxoAppData";
       type: {
         kind: "struct";
         fields: [
@@ -949,7 +949,7 @@ export const IDL: TmpTestPsp = {
       },
     },
     {
-      name: "utxoAppData",
+      name: "utxoOutUtxoAppData",
       type: {
         kind: "struct",
         fields: [

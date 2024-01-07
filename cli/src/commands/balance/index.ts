@@ -176,7 +176,7 @@ class BalanceCommand extends Command {
           const amountSol = iterator.amounts[0].toString();
 
           const symbol = tokenBalance[1].tokenData.symbol;
-          const commitmentHash = iterator._commitment;
+          const commitmentHash = iterator.utxoHash;
 
           tableData.push(
             { prop: "Utxo No", value: i },
@@ -208,7 +208,7 @@ class BalanceCommand extends Command {
 
           const symbol = tokenBalance[1].tokenData.symbol;
           const mint = tokenBalance[1].tokenData.mint.toString();
-          const commitmentHash = iterator._commitment;
+          const commitmentHash = iterator.utxoHash;
 
           tableData.push(
             { prop: "Utxo No", value: i },
@@ -290,7 +290,7 @@ class BalanceCommand extends Command {
         const amountSol = iterator.amounts[0].toString();
         const symbol = tokenBalance.tokenData.symbol;
         const mint = tokenBalance.tokenData.mint.toString();
-        const commitmentHash = iterator._commitment;
+        const commitmentHash = iterator.utxoHash;
         tableData.push(
           { prop: "Utxo No", value: i },
           { prop: "Token", value: symbol },

@@ -401,9 +401,7 @@ export class TestTransaction {
         new BN(
           relayer.solMerkleTree!.merkleTree.elements()[
             relayer.solMerkleTree!.merkleTree.indexOf(
-              this.transaction.private.outputUtxos[0].getCommitment(
-                this.provider.lightWasm,
-              ),
+              this.transaction.private.outputUtxos[0].utxoHash,
             )
           ],
         )
