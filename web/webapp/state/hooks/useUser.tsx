@@ -27,7 +27,7 @@ export const initializedUser = atom(
 
     try {
       const relayer = await Relayer.initFromUrl(
-        process.env.NEXT_PUBLIC_RELAYER_URL!
+        process.env.NEXT_PUBLIC_LIGHT_RPC_URL!
       );
 
       const provider = await Provider.init({

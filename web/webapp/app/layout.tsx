@@ -12,8 +12,8 @@ import { Notifications } from "@mantine/notifications";
 import { theme } from "../styles/theme";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  console.log("process.env.rpc", process.env.NEXT_PUBLIC_RPC!);
-  const endpoint = useMemo(() => process.env.NEXT_PUBLIC_RPC!, []);
+  console.log("process.env.rpc", process.env.NEXT_PUBLIC_SOLANA_RPC_URL!);
+  const endpoint = useMemo(() => process.env.NEXT_PUBLIC_SOLANA_RPC_URL!, []);
 
   return (
     <html lang="en">
