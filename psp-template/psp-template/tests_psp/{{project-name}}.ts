@@ -6,7 +6,7 @@ import {
   Provider as LightProvider,
   confirmConfig,
   Action,
-  TestRelayer,
+  TestRpc,
   User,
   ProgramUtxoBalance,
   airdropSol,
@@ -24,20 +24,13 @@ import {
   createOutUtxo,
 } from "@lightprotocol/zk.js";
 import { WasmFactory } from "@lightprotocol/account.rs";
-import {
-  SystemProgram,
-  PublicKey,
-  Keypair,
-} from "@solana/web3.js";
-
+import { SystemProgram, PublicKey, Keypair } from "@solana/web3.js";
 
 import { BN } from "@coral-xyz/anchor";
 import { IDL } from "../target/types/{{rust-name}}";
 const path = require("path");
 
-const verifierProgramId = new PublicKey(
-  "{{program-id}}",
-);
+const verifierProgramId = new PublicKey("{{program-id}}");
 let WASM;
 
 const RPC_URL = "http://127.0.0.1:8899";
@@ -54,7 +47,6 @@ describe("Test {{project-name}}", () => {
     WASM = await WasmFactory.getInstance();
   });
 
-
   it("Create and Spend Program Utxo ", async () => {
     const wallet = Keypair.generate();
     await airdropSol({
@@ -63,10 +55,10 @@ describe("Test {{project-name}}", () => {
       recipientPublicKey: wallet.publicKey,
     });
 
-    let relayer = new TestRelayer({
-      relayerPubkey: wallet.publicKey,
-      relayerRecipientSol:  wallet.publicKey,
-      relayerFee: new BN(100000),
+    let rpc = new TestRpc({
+      rpcPubkey: wallet.publicKey,
+      rpcRecipientSol: wallet.publicKey,
+      rpcFee: new BN(100000),
       payer: wallet,
       connection: provider.connection,
       lightWasm: WASM,
@@ -74,8 +66,15 @@ describe("Test {{project-name}}", () => {
 
     // The light provider is a connection and wallet abstraction.
     // The wallet is used to derive the seed for your shielded keypair with a signature.
-    var lightProvider = await LightProvider.init({ wallet, url: RPC_URL, relayer, confirmConfig });
-    lightProvider.addVerifierProgramPublickeyToLookUpTable(getVerifierProgramId(IDL));
+    var lightProvider = await LightProvider.init({
+      wallet,
+      url: RPC_URL,
+      rpc,
+      confirmConfig,
+    });
+    lightProvider.addVerifierProgramPublickeyToLookUpTable(
+      getVerifierProgramId(IDL),
+    );
 
     const user: User = await User.init({ provider: lightProvider });
 
@@ -93,19 +92,18 @@ describe("Test {{project-name}}", () => {
     const testInputsShield = {
       utxo: outputUtxoSol,
       action: Action.SHIELD,
-    }
+    };
 
     let storeTransaction = await shieldProgramUtxo({
       account: user.account,
       appUtxo: testInputsShield.utxo,
       provider: user.provider,
-    })
+    });
     console.log("store program utxo transaction hash ", storeTransaction);
 
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await user.syncStorage(IDL);
-    const shieldedUtxoCommitmentHash =
-      testInputsShield.utxo.outUtxo.utxoHash;
+    const shieldedUtxoCommitmentHash = testInputsShield.utxo.outUtxo.utxoHash;
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())!
       .tokenBalances.get(testInputsShield.utxo.outUtxo.assets[1].toBase58())!
@@ -114,7 +112,9 @@ describe("Test {{project-name}}", () => {
     assert.equal(inputUtxo.utxoData.x.toString(), "1");
     assert.equal(inputUtxo.utxoData.y.toString(), "2");
 
-    const circuitPath = path.join(`build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`);
+    const circuitPath = path.join(
+      `build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`,
+    );
 
     const pspTransactionInput: PspTransactionInput = {
       proofInputs: {
@@ -125,8 +125,7 @@ describe("Test {{project-name}}", () => {
       circuitName: "{{circom-name-camel-case}}",
       checkedInUtxos: [{ utxoName: "inputUtxo", utxo: inputUtxo }],
     };
-    const changeAmountSol = inputUtxo.amounts[0]
-      .sub(relayer.getRelayerFee());
+    const changeAmountSol = inputUtxo.amounts[0].sub(rpc.getRpcFee());
 
     const changeUtxo = createOutUtxo({
       lightWasm: WASM,
@@ -142,15 +141,15 @@ describe("Test {{project-name}}", () => {
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      relayerPublicKey: relayer.accounts.relayerPubkey,
+      rpcPublicKey: rpc.accounts.rpcPubkey,
       lightWasm: WASM,
-      relayerFee: relayer.getRelayerFee(),
+      rpcFee: rpc.getRpcFee(),
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: user.account,
     });
 
-    const { root, index: rootIndex } = (await relayer.getMerkleRoot(
+    const { root, index: rootIndex } = (await rpc.getMerkleRoot(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
     ))!;
 
@@ -181,19 +180,24 @@ describe("Test {{project-name}}", () => {
       pspProof,
       publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
-      relayerRecipientSol: relayer.accounts.relayerRecipientSol,
+      rpcRecipientSol: rpc.accounts.rpcRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       rootIndex,
     };
 
-    const {txHash} = await sendAndConfirmShieldedTransaction({
+    const { txHash } = await sendAndConfirmShieldedTransaction({
       solanaTransactionInputs,
       provider: user.provider,
     });
 
     console.log("transaction hash ", txHash);
-    const utxoSpent = await user.getUtxo(inputUtxo.utxoHash, true, MerkleTreeConfig.getTransactionMerkleTreePda(),IDL);
+    const utxoSpent = await user.getUtxo(
+      inputUtxo.utxoHash,
+      true,
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      IDL,
+    );
     assert.equal(utxoSpent!.status, "spent");
   });
 });

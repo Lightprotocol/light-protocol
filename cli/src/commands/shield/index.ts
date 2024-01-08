@@ -86,7 +86,7 @@ class ShieldCommand extends Command {
     try {
       const user: User = await getUser({
         skipFetchBalance,
-        localTestRelayer: flags["localTestRelayer"],
+        localTestRpc: flags["localTestRpc"],
       });
       const response = await user.shield({
         token,

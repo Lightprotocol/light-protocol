@@ -1,7 +1,7 @@
 "use client";
 import {
   Provider,
-  Relayer,
+  Rpc,
   User,
   Wallet,
   confirmConfig,
@@ -21,22 +21,20 @@ export const initializedUser = atom(
   async (
     _get,
     set,
-    { connection, wallet }: { connection: Connection; wallet: Wallet }
+    { connection, wallet }: { connection: Connection; wallet: Wallet },
   ) => {
     set(loadingState, true);
 
     try {
-      const relayer = await Relayer.initFromUrl(
-        process.env.NEXT_PUBLIC_RELAYER_URL!
-      );
+      const rpc = await Rpc.initFromUrl(process.env.NEXT_PUBLIC_RPC_URL!);
 
       const provider = await Provider.init({
-        relayer,
+        rpc,
         wallet,
         confirmConfig,
         url: connection.rpcEndpoint,
         versionedTransactionLookupTable: new PublicKey(
-          process.env.NEXT_PUBLIC_LOOK_UP_TABLE!
+          process.env.NEXT_PUBLIC_LOOK_UP_TABLE!,
         ),
       });
       const user = await User.init({ provider, skipFetchBalance: true });
@@ -51,7 +49,7 @@ export const initializedUser = atom(
       set(errorState, e);
       set(loadingState, false);
     }
-  }
+  },
 );
 
 export function useUser() {

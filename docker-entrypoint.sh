@@ -1,2 +1,2 @@
 #!/bin/sh
-exec node /usr/src/relayer/lib/index.js
+exec node /usr/src/rpc/lib/index.js

@@ -28,7 +28,7 @@ pub struct InstructionDataLightInstructionFirst {
     pub public_amount_sol: [u8; 32],
     pub transaction_hash: [u8; 32],
     pub root_index: u64,
-    pub relayer_fee: u64,
+    pub rpc_fee: u64,
     pub encrypted_utxos: Vec<u8>,
 }
 
@@ -69,13 +69,13 @@ pub struct LightInstructionThird<'info, const NR_CHECKED_INPUTS: usize> {
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
     pub recipient_sol: UncheckedAccount<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
+    /// CHECK:` Is not checked the rpc has complete freedom.
     #[account(mut)]
-    pub relayer_recipient_sol: UncheckedAccount<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
+    pub rpc_recipient_sol: UncheckedAccount<'info>,
+    /// CHECK:` Is not checked the rpc has complete freedom.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program=LightMerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,
-    /// CHECK: Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
+    /// CHECK: Verifier config pda which needs ot exist Is not checked the rpc has complete freedom.
     #[account(mut, seeds= [LightPsp4in4outAppStorage::id().to_bytes().as_ref()], bump, seeds::program=LightMerkleTreeProgram::id())]
     pub registered_verifier_pda: UncheckedAccount<'info>, //Account<'info, RegisteredVerifier>,
     pub verifier_program: Program<'info, LightPsp4in4outAppStorage>,

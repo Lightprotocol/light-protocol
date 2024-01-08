@@ -6,7 +6,7 @@ export * from "./constants";
 export * from "./wallet";
 export * from "./utils";
 export * from "./idls";
-export * from "./relayer";
+export * from "./rpc";
 export * from "./merkleTree";
 export * from "./errors";
 export * from "./types";

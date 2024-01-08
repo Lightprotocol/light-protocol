@@ -11,18 +11,18 @@ import {
   BN_1,
   MerkleTreeConfig,
   ParsedIndexedTransaction,
-  RELAYER_FEE,
-  Relayer,
-  RelayerError,
-  RelayerErrorCode,
+  RPC_FEE,
+  Rpc,
+  RpcError,
+  RpcErrorCode,
   SolMerkleTree,
   TOKEN_ACCOUNT_FEE,
-  TestRelayer,
+  TestRpc,
   Utxo,
   VerifierConfig,
   confirmConfig,
   createOutUtxo,
-  createRpcIndexedTransaction,
+  createRpcIndexedTransactionResponse,
   encryptOutUtxos,
   getIdsFromEncryptedUtxos,
   Account,
@@ -36,89 +36,78 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 const mockKeypair = SolanaKeypair.generate();
 const mockKeypair1 = SolanaKeypair.generate();
-const relayerFee = new BN("123214");
-const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+const rpcFee = new BN("123214");
+const rpcRecipientSol = SolanaKeypair.generate().publicKey;
 const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
-describe("Test Relayer Functional", () => {
-  it("Relayer Shield", () => {
-    const relayer = new Relayer(
-      mockKeypair.publicKey,
-      mockKeypair1.publicKey,
-      BN_1,
-    );
+describe("Test Rpc Functional", () => {
+  it("Rpc Shield", () => {
+    const rpc = new Rpc(mockKeypair.publicKey, mockKeypair1.publicKey, BN_1);
     assert.equal(
-      relayer.accounts.relayerRecipientSol.toBase58(),
+      rpc.accounts.rpcRecipientSol.toBase58(),
       mockKeypair1.publicKey.toBase58(),
     );
     assert.equal(
-      relayer.accounts.relayerPubkey.toBase58(),
+      rpc.accounts.rpcPubkey.toBase58(),
       mockKeypair.publicKey.toBase58(),
     );
-    assert.equal(relayer.relayerFee.toString(), "1");
+    assert.equal(rpc.rpcFee.toString(), "1");
   });
 
-  it("Relayer Transfer/Unshield", () => {
-    const relayer = new Relayer(
-      mockKeypair.publicKey,
-      relayerRecipientSol,
-      relayerFee,
-    );
+  it("Rpc Transfer/Unshield", () => {
+    const rpc = new Rpc(mockKeypair.publicKey, rpcRecipientSol, rpcFee);
     assert.equal(
-      relayer.accounts.relayerPubkey.toBase58(),
+      rpc.accounts.rpcPubkey.toBase58(),
       mockKeypair.publicKey.toBase58(),
     );
-    assert.equal(relayer.relayerFee.toString(), relayerFee.toString());
+    assert.equal(rpc.rpcFee.toString(), rpcFee.toString());
     assert.equal(
-      relayer.accounts.relayerRecipientSol.toBase58(),
-      relayerRecipientSol.toBase58(),
+      rpc.accounts.rpcRecipientSol.toBase58(),
+      rpcRecipientSol.toBase58(),
     );
   });
 
-  it("Relayer ataCreationFee", () => {
-    const relayer = new Relayer(mockKeypair.publicKey);
-    assert.equal(relayer.relayerFee.toString(), "0");
-    assert.equal(
-      TOKEN_ACCOUNT_FEE.toNumber(),
-      relayer.getRelayerFee(true).toNumber(),
-    );
-    assert.equal(BN_0.toNumber(), relayer.getRelayerFee(false).toNumber());
+  it("Rpc ataCreationFee", () => {
+    const rpc = new Rpc(mockKeypair.publicKey);
+    assert.equal(rpc.rpcFee.toString(), "0");
+    assert.equal(TOKEN_ACCOUNT_FEE.toNumber(), rpc.getRpcFee(true).toNumber());
+    assert.equal(BN_0.toNumber(), rpc.getRpcFee(false).toNumber());
   });
 });
 
-describe("Test Relayer Errors", () => {
-  it("RELAYER_PUBKEY_UNDEFINED", () => {
+describe("Test Rpc Errors", () => {
+  it("RPC_PUBKEY_UNDEFINED", () => {
     expect(() => {
       // @ts-ignore
-      new Relayer();
+      new Rpc();
     })
-      .to.throw(RelayerError)
+      .to.throw(RpcError)
       .includes({
-        code: RelayerErrorCode.RELAYER_PUBKEY_UNDEFINED,
+        code: RpcErrorCode.RPC_PUBKEY_UNDEFINED,
         functionName: "constructor",
       });
   });
 
-  it("RELAYER_FEE_UNDEFINED", () => {
+  it("RPC_FEE_UNDEFINED", () => {
     expect(() => {
       // @ts-ignore
-      new Relayer(mockKeypair.publicKey, relayerRecipientSol);
+      new Rpc(mockKeypair.publicKey, rpcRecipientSol);
     })
-      .to.throw(RelayerError)
+      .to.throw(RpcError)
       .includes({
-        code: RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+        code: RpcErrorCode.RPC_FEE_UNDEFINED,
         functionName: "constructor",
       });
   });
 
-  it("RELAYER_RECIPIENT_UNDEFINED", () => {
+  it("RPC_RECIPIENT_UNDEFINED", () => {
     expect(() => {
       // @ts-ignore
-      new Relayer(mockKeypair.publicKey, undefined, relayerFee);
+      new Rpc(mockKeypair.publicKey, undefined, rpcFee);
     })
-      .to.throw(RelayerError)
+      .to.throw(RpcError)
       .includes({
-        code: RelayerErrorCode.RELAYER_RECIPIENT_UNDEFINED,
+        code: RpcErrorCode.RPC_RECIPIENT_UNDEFINED,
         functionName: "constructor",
       });
   });
@@ -220,7 +209,7 @@ describe("Test Relayer Errors", () => {
       toSpl: mockKeypair.publicKey.toBase58(),
       fromSpl: mockKeypair.publicKey.toBase58(),
       verifier: mockKeypair.publicKey.toBase58(),
-      relayerRecipientSol: mockKeypair.publicKey.toBase58(),
+      rpcRecipientSol: mockKeypair.publicKey.toBase58(),
       type: Action.SHIELD,
       changeSolAmount: "0",
       publicAmountSol: "0",
@@ -232,47 +221,50 @@ describe("Test Relayer Errors", () => {
       ],
       firstLeafIndex: "0",
       nullifiers: [Array(32).fill(1), Array(32).fill(2)],
-      relayerFee: "0",
+      rpcFee: "0",
       message: Array<number>(),
     };
-    const rpcIndexedTransaction = createRpcIndexedTransaction(
+    const rpcIndexedTransactionResponse = createRpcIndexedTransactionResponse(
       indexedTransaction,
       solMerkleTree,
     );
 
-    assert.deepEqual(rpcIndexedTransaction.transaction, indexedTransaction);
     assert.deepEqual(
-      rpcIndexedTransaction.merkleProofs[0],
+      rpcIndexedTransactionResponse.transaction,
+      indexedTransaction,
+    );
+    assert.deepEqual(
+      rpcIndexedTransactionResponse.merkleProofs[0],
       solMerkleTree.merkleTree.path(0).pathElements,
     );
     assert.deepEqual(
-      rpcIndexedTransaction.merkleProofs[1],
+      rpcIndexedTransactionResponse.merkleProofs[1],
       solMerkleTree.merkleTree.path(1).pathElements,
     );
-    assert.equal(rpcIndexedTransaction.leavesIndexes[0], 0);
-    assert.equal(rpcIndexedTransaction.leavesIndexes[1], 1);
+    assert.equal(rpcIndexedTransactionResponse.leavesIndexes[0], 0);
+    assert.equal(rpcIndexedTransactionResponse.leavesIndexes[1], 1);
   });
 
   it.skip("Index transaction", async () => {
     const WASM = await WasmFactory.getInstance();
-    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+    const rpcRecipientSol = SolanaKeypair.generate().publicKey;
     const provider = AnchorProvider.local(
       "http://127.0.0.1:8899",
       confirmConfig,
     );
-    await provider.connection.requestAirdrop(relayerRecipientSol, 2e9);
+    await provider.connection.requestAirdrop(rpcRecipientSol, 2e9);
 
-    const RELAYER = new TestRelayer({
-      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      relayerRecipientSol,
-      relayerFee: RELAYER_FEE,
+    const RPC = new TestRpc({
+      rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      rpcRecipientSol,
+      rpcFee: RPC_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
       lightWasm: WASM,
     });
     // prefix  4DyKUQ
     // prefix  3pvhXa
-    const eventIdUtxo1 = await RELAYER.getEventById(
+    const eventIdUtxo1 = await RPC.getEventById(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       "4DyKUQ",
       1,
@@ -284,7 +276,7 @@ describe("Test Relayer Errors", () => {
       "4DyKUQ",
     );
 
-    const eventIdUtxo2 = await RELAYER.getEventById(
+    const eventIdUtxo2 = await RPC.getEventById(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       "3pvhXa",
       1,

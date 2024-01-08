@@ -27,7 +27,7 @@ export const ShieldForm = () => {
         throw e;
       }
     },
-    [shield]
+    [shield],
   );
 
   return (
@@ -43,7 +43,7 @@ export const ShieldForm = () => {
               </Group>
               <Group w="100%" px="20px" justify="space-between">
                 <Text size="sm">Network fee</Text>
-                {/* TODO: calculate the actual value from relayerInfo */}
+                {/* TODO: calculate the actual value from rpcInfo */}
                 <Text size="sm">0.001 SOL</Text>
               </Group>
               <Group w="100%" px="20px" justify="space-between">

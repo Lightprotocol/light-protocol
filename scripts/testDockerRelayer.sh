@@ -1,8 +1,8 @@
 #!/bin/bash
 
-. ./scripts/buildDockerRelayer.sh
+. ./scripts/buildDockerRpc.sh
 
-if [[ "$(docker images -q relayer-app:latest 2> /dev/null)" == "" ]]; then
+if [[ "$(docker images -q rpc-app:latest 2> /dev/null)" == "" ]]; then
     echo "Test failed: Docker image was not built."
 
 trap cleanup EXIT

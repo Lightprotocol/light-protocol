@@ -9,9 +9,9 @@ import {
   ConfirmOptions,
   MerkleTreeConfig,
   Provider,
-  Relayer,
-  RELAYER_FEE,
-  TestRelayer,
+  Rpc,
+  RPC_FEE,
+  TestRpc,
   TOKEN_ACCOUNT_FEE,
   User,
 } from "@lightprotocol/zk.js";
@@ -21,7 +21,7 @@ import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
 require("dotenv").config();
 
 let provider: Provider;
-let relayer: Relayer;
+let rpc: Rpc;
 
 export const createNewWallet = () => {
   const keypair: solana.Keypair = solana.Keypair.generate();
@@ -65,8 +65,8 @@ export const readWalletFromFile = () => {
 
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  process.env.ANCHOR_PROVIDER_URL = getRpcUrl();
-  const connection = new solana.Connection(getRpcUrl(), "confirmed");
+  process.env.ANCHOR_PROVIDER_URL = getSolanaRpcUrl();
+  const connection = new solana.Connection(getSolanaRpcUrl(), "confirmed");
   const anchorProvider = new anchor.AnchorProvider(
     connection,
     new anchor.Wallet(getPayer()),
@@ -78,16 +78,16 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   return anchorProvider;
 };
 
-export const getLightProvider = async (localTestRelayer?: boolean) => {
+export const getLightProvider = async (localTestRpc?: boolean) => {
   if (!provider) {
-    const relayer = await getRelayer(localTestRelayer);
+    const rpc = await getRpc(localTestRpc);
 
     await setAnchorProvider();
 
     provider = await Provider.init({
       wallet: readWalletFromFile(),
-      relayer,
-      url: getRpcUrl(),
+      rpc,
+      url: getSolanaRpcUrl(),
       confirmConfig,
       versionedTransactionLookupTable: getLookUpTable(),
     });
@@ -98,55 +98,64 @@ export const getLightProvider = async (localTestRelayer?: boolean) => {
 
 export const getUser = async ({
   skipFetchBalance,
-  localTestRelayer,
+  localTestRpc,
 }: {
   skipFetchBalance?: boolean;
-  localTestRelayer?: boolean;
+  localTestRpc?: boolean;
 }): Promise<User> => {
-  const provider = await getLightProvider(localTestRelayer);
+  const provider = await getLightProvider(localTestRpc);
   const user = await User.init({ provider, skipFetchBalance });
   return user;
 };
 
-export const getRelayer = async (localTestRelayer?: boolean) => {
-  if (!relayer) {
-    if (localTestRelayer) {
+export const getRpc = async (localTestRpc?: boolean) => {
+  if (!rpc) {
+    if (localTestRpc) {
       const wallet = readWalletFromFile();
 
-      relayer = new TestRelayer({
-        relayerPubkey: wallet.publicKey,
-        relayerRecipientSol: wallet.publicKey,
-        relayerFee: RELAYER_FEE,
-        highRelayerFee: TOKEN_ACCOUNT_FEE,
+      rpc = new TestRpc({
+        rpcPubkey: wallet.publicKey,
+        rpcRecipientSol: wallet.publicKey,
+        rpcFee: RPC_FEE,
+        highRpcFee: TOKEN_ACCOUNT_FEE,
         payer: wallet,
-        connection: new solana.Connection(getRpcUrl(), "confirmed"),
+        connection: new solana.Connection(getSolanaRpcUrl(), "confirmed"),
         lightWasm: (await getLightProvider()).lightWasm,
       });
-      return relayer;
+      return rpc;
     } else {
       const config = getConfig();
-      relayer = new Relayer(
-        new solana.PublicKey(config.relayerPublicKey),
-        new solana.PublicKey(config.relayerRecipient),
-        new BN(config.relayerFee),
-        new BN(config.highRelayerFee),
-        config.relayerUrl,
+      rpc = new Rpc(
+        new solana.PublicKey(config.rpcPublicKey),
+        new solana.PublicKey(config.rpcRecipient),
+        new BN(config.rpcFee),
+        new BN(config.highRpcFee),
+        config.rpcUrl,
       );
     }
   }
-  return relayer;
+  return rpc;
 };
 
 type Config = {
+  solanaRpcUrl: string;
   rpcUrl: string;
-  relayerUrl: string;
   secretKey: string;
-  relayerRecipient: string;
-  relayerPublicKey: string;
-  relayerFee: string;
-  highRelayerFee: string;
+  rpcRecipient: string;
+  rpcPublicKey: string;
+  rpcFee: string;
+  highRpcFee: string;
   payer: string;
   lookUpTable: string;
+};
+
+export const getSolanaRpcUrl = (): string => {
+  const config = getConfig();
+  return config.solanaRpcUrl;
+};
+
+export const setsolanaRpcUrl = (url: string): void => {
+  setConfig({ solanaRpcUrl: url });
 };
 
 export const getRpcUrl = (): string => {
@@ -154,17 +163,8 @@ export const getRpcUrl = (): string => {
   return config.rpcUrl;
 };
 
-export const setrpcUrl = (url: string): void => {
+export const setRpcUrl = (url: string): void => {
   setConfig({ rpcUrl: url });
-};
-
-export const getRelayerUrl = (): string => {
-  const config = getConfig();
-  return config.relayerUrl;
-};
-
-export const setRelayerUrl = (url: string): void => {
-  setConfig({ relayerUrl: url });
 };
 
 export const getSecretKey = () => {
@@ -176,28 +176,28 @@ export const setSecretKey = (key: string) => {
   setConfig({ secretKey: key });
 };
 
-export const getRelayerRecipient = () => {
+export const getRpcRecipient = () => {
   const config = getConfig();
-  return new solana.PublicKey(config.relayerRecipient);
+  return new solana.PublicKey(config.rpcRecipient);
 };
 
-export const setRelayerRecipient = (address: string) => {
-  setConfig({ relayerRecipient: address });
+export const setRpcRecipient = (address: string) => {
+  setConfig({ rpcRecipient: address });
 };
 
-export const getRelayerPublicKey = () => {
+export const getRpcPublicKey = () => {
   const config = getConfig();
-  return new solana.PublicKey(config.relayerPublicKey);
+  return new solana.PublicKey(config.rpcPublicKey);
 };
 
-export const setRelayerPublicKey = (address: string): void => {
-  setConfig({ relayerPublicKey: address });
+export const setRpcPublicKey = (address: string): void => {
+  setConfig({ rpcPublicKey: address });
 };
 
 export const getLookUpTable = () => {
   const config = getConfig();
 
-  if (config.rpcUrl.includes(":8899")) {
+  if (config.solanaRpcUrl.includes(":8899")) {
     console.log("CLI on localhost: creating new LookUpTable");
     return undefined;
   }

@@ -1,10 +1,10 @@
 {
-  "relayerUrl": "http://localhost:3332",
-  "relayerRecipient": "AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44",
-  "rpcUrl": "http://127.0.0.1:8899",
-  "relayerPublicKey": "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
+  "rpcUrl": "http://localhost:3332",
+  "rpcRecipient": "AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44",
+  "solanaRpcUrl": "http://127.0.0.1:8899",
+  "rpcPublicKey": "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
   "lookupTable": "8SezKuv7wMNPd574Sq4rQ1wvVrxa22xPYtkeruJRjrhG",
-  "relayerFee": "100000",
-  "highRelayerFee": "1466600",
+  "rpcFee": "100000",
+  "highRpcFee": "1466600",
   "secretKey": "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8"
 }

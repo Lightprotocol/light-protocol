@@ -126,7 +126,7 @@ export type LightPsp2in2outStorage = {
           "isSigner": false
         },
         {
-          "name": "relayerRecipientSol",
+          "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -271,7 +271,7 @@ export type LightPsp2in2outStorage = {
             "type": "u64"
           },
           {
-            "name": "relayerFee",
+            "name": "rpcFee",
             "type": "u64"
           },
           {
@@ -803,7 +803,7 @@ export const IDL: LightPsp2in2outStorage = {
           "isSigner": false
         },
         {
-          "name": "relayerRecipientSol",
+          "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -948,7 +948,7 @@ export const IDL: LightPsp2in2outStorage = {
             "type": "u64"
           },
           {
-            "name": "relayerFee",
+            "name": "rpcFee",
             "type": "u64"
           },
           {

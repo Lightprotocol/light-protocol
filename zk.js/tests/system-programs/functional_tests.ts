@@ -22,7 +22,7 @@ import {
   FEE_ASSET,
   confirmConfig,
   User,
-  TestRelayer,
+  TestRpc,
   TestTransaction,
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP10IN2OUT,
@@ -30,7 +30,7 @@ import {
   Account,
   airdropSol,
   MerkleTreeConfig,
-  RELAYER_FEE,
+  RPC_FEE,
   BN_0,
   airdropSplToAssociatedTokenAccount,
   getSystemProof,
@@ -56,7 +56,7 @@ import {
 import { assert } from "chai";
 
 let WASM: LightWasm;
-let RELAYER: TestRelayer;
+let RPC: TestRpc;
 let ACCOUNT: Account;
 
 // TODO: remove deprecated function calls
@@ -78,14 +78,14 @@ describe("verifier_program", () => {
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     ACCOUNT = Account.createFromSeed(WASM, seed);
 
-    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+    const rpcRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(relayerRecipientSol, 2e9);
+    await provider.connection.requestAirdrop(rpcRecipientSol, 2e9);
 
-    RELAYER = new TestRelayer({
-      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      relayerRecipientSol,
-      relayerFee: RELAYER_FEE,
+    RPC = new TestRpc({
+      rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      rpcRecipientSol,
+      rpcFee: RPC_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
       lightWasm: WASM,
@@ -109,7 +109,7 @@ describe("verifier_program", () => {
     });
     const lightProviderMock = await Provider.init({
       wallet: mockKeypair,
-      relayer: RELAYER,
+      rpc: RPC,
       confirmConfig,
     });
     assert.equal(lightProviderMock.wallet.isNodeWallet, true);
@@ -173,7 +173,7 @@ describe("verifier_program", () => {
   it("Unshield (verifier one)", async () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
+      rpc: RPC,
       confirmConfig,
     });
     const user: User = await User.init({
@@ -246,7 +246,7 @@ describe("verifier_program", () => {
     const senderSpl = spl ? tokenAccount.address : undefined;
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
+      rpc: RPC,
       confirmConfig,
     });
 
@@ -283,7 +283,7 @@ describe("verifier_program", () => {
     const shieldTransaction = await createShieldTransaction(
       shieldTransactionInput,
     );
-    const { root, index: rootIndex } = (await RELAYER.getMerkleRoot(
+    const { root, index: rootIndex } = (await RPC.getMerkleRoot(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
     ))!;
 
@@ -351,7 +351,7 @@ describe("verifier_program", () => {
   }) => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
+      rpc: RPC,
       confirmConfig,
     });
     const user = await User.init({
@@ -378,7 +378,7 @@ describe("verifier_program", () => {
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [unshieldUtxo],
       merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      relayer: RELAYER,
+      rpc: RPC,
     });
     // Running into memory issues with verifier one (10in2out) unshielding spl
     const unshieldTransactionInput: UnshieldTransactionInput = {
@@ -389,12 +389,12 @@ describe("verifier_program", () => {
         MerkleTreeConfig.getTransactionMerkleTreePda(),
       recipientSpl: spl ? ata : undefined,
       recipientSol: origin.publicKey,
-      relayerPublicKey: lightProvider.relayer.accounts.relayerPubkey,
+      rpcPublicKey: lightProvider.rpc.accounts.rpcPubkey,
       systemPspId: getVerifierProgramId(verifierIdl),
       account: ACCOUNT,
       inputUtxos: syncedUtxos,
       outputUtxos,
-      relayerFee: user.provider.relayer.getRelayerFee(true),
+      rpcFee: user.provider.rpc.getRpcFee(true),
       ataCreationFee: spl ? spl : false,
     };
 
@@ -421,8 +421,8 @@ describe("verifier_program", () => {
     const accounts = prepareAccounts({
       transactionAccounts: unshieldTransaction.public.accounts,
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
-      relayerRecipientSol: lightProvider.relayer.accounts.relayerRecipientSol,
-      signer: lightProvider.relayer.accounts.relayerPubkey,
+      rpcRecipientSol: lightProvider.rpc.accounts.rpcRecipientSol,
+      signer: lightProvider.rpc.accounts.rpcPubkey,
     });
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({

@@ -1,8 +1,8 @@
 {
-  "relayerUrl": "http://localhost:3331",
+  "rpcUrl": "http://localhost:3331",
   "secretKey": "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8",
-  "relayerRecipient": "AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44",
+  "rpcRecipient": "AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44",
   "rpcUrl": "https://api.devnet.solana.com",
-  "relayerPublicKey": "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
+  "rpcPublicKey": "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
   "lookupTable": "8SezKuv7wMNPd574Sq4rQ1wvVrxa22xPYtkeruJRjrhG"
 }

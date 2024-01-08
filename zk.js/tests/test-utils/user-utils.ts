@@ -2,7 +2,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import {
   Action,
   Provider,
-  TestRelayer,
+  TestRpc,
   UserTestAssertHelper,
   User,
   TestInputs,
@@ -11,7 +11,7 @@ import {
 import { LightWasm } from "@lightprotocol/account.rs";
 
 export type EnvironmentConfig = {
-  relayer?: TestRelayer;
+  rpc?: TestRpc;
   providerSolanaKeypair?: Keypair;
   lightWasm?: LightWasm;
   lookUpTable?: PublicKey;
@@ -31,7 +31,7 @@ export async function performShielding({
   for (let i = 0; i < numberOfShields; i++) {
     const provider = await Provider.init({
       wallet: environmentConfig.providerSolanaKeypair!,
-      relayer: environmentConfig.relayer,
+      rpc: environmentConfig.rpc,
       confirmConfig,
     });
     const userSender = await User.init({
@@ -90,7 +90,7 @@ export async function performMergeAll({
     throw new Error("testinputs recipientSeed is undefined");
   const provider = await Provider.init({
     wallet: environmentConfig.providerSolanaKeypair!,
-    relayer: environmentConfig.relayer,
+    rpc: environmentConfig.rpc,
     confirmConfig,
   });
 
@@ -132,7 +132,7 @@ export async function performMergeUtxos({
 
   const provider = await Provider.init({
     wallet: environmentConfig.providerSolanaKeypair!,
-    relayer: environmentConfig.relayer,
+    rpc: environmentConfig.rpc,
     confirmConfig,
   });
 

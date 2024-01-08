@@ -115,7 +115,7 @@ pub struct TransactionInput<
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
     pub leaves: &'a [[u8; 32]; NR_LEAVES],
     pub encrypted_utxos: &'a Vec<u8>,
-    pub relayer_fee: u64,
+    pub rpc_fee: u64,
     pub merkle_root_index: usize,
     pub pool_type: &'a [u8; 32],
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
@@ -194,7 +194,7 @@ impl<
             leaves: &self.input.leaves.to_vec(),
             public_amount_sol: self.input.public_amount.sol,
             public_amount_spl: self.input.public_amount.spl,
-            relayer_fee: self.input.relayer_fee,
+            rpc_fee: self.input.rpc_fee,
             encrypted_utxos: self.input.encrypted_utxos.clone(),
             nullifiers: self.input.nullifiers.to_vec(),
             first_leaf_index,
@@ -248,7 +248,7 @@ impl<
             leaves_hash.to_bytes().as_slice(),
             self.input.public_amount.spl.as_slice(),
             self.input.public_amount.sol.as_slice(),
-            self.input.relayer_fee.to_le_bytes().as_slice(),
+            self.input.rpc_fee.to_le_bytes().as_slice(),
             encrypted_utxos_hash.to_bytes().as_slice(),
             nullifiers_hash.to_bytes().as_slice(),
             first_leaf_index.to_le_bytes().as_slice(),
@@ -378,8 +378,8 @@ impl<
     }
 
     /// Computes the integrity hash of the transaction. This hash is an input to the ZKP, and
-    /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
-    /// H(recipient_spl||recipient_sol||signer||relayer_fee||encrypted_utxos).
+    /// ensures that the rpc cannot change parameters of the internal or unshield transaction.
+    /// H(recipient_spl||recipient_sol||signer||rpc_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
         let message_hash = match self.input.message {
             Some(message) => message.hash,
@@ -408,7 +408,7 @@ impl<
                 .get_signing_address()
                 .key()
                 .to_bytes(),
-            &self.input.relayer_fee.to_be_bytes(),
+            &self.input.rpc_fee.to_be_bytes(),
             self.input.encrypted_utxos,
         ]);
         // msg!("message_hash: {:?}", message_hash.to_vec());
@@ -436,10 +436,10 @@ impl<
         //         .to_vec()
         // );
         // msg!(
-        //     "relayer_fee: {:?}",
-        //     self.input.relayer_fee.to_be_bytes().to_vec()
+        //     "rpc_fee: {:?}",
+        //     self.input.rpc_fee.to_be_bytes().to_vec()
         // );
-        // msg!("relayer_fee {}", self.input.relayer_fee);
+        // msg!("rpc_fee {}", self.input.rpc_fee);
         // msg!("encrypted_utxos: {:?}", self.input.encrypted_utxos);
 
         self.tx_integrity_hash = truncate_to_circuit(&tx_integrity_hash.to_bytes());
@@ -773,7 +773,7 @@ impl<
         Ok(())
     }
 
-    /// Transfers the relayer fee  to or from a merkle tree liquidity pool.
+    /// Transfers the rpc fee  to or from a merkle tree liquidity pool.
     pub fn transfer_fee(&self) -> Result<()> {
         if !self.verified_proof {
             msg!("Tried to transfer fees without verifying the proof.");
@@ -781,8 +781,8 @@ impl<
         }
 
         // check that it is the native token pool
-        let (fee_amount_checked, relayer_fee) = self.check_amount(
-            self.input.relayer_fee,
+        let (fee_amount_checked, rpc_fee) = self.check_amount(
+            self.input.rpc_fee,
             change_endianness(&self.input.public_amount.sol),
         )?;
         msg!("fee amount {} ", fee_amount_checked);
@@ -862,8 +862,8 @@ impl<
                 msg!("unshielded sol for the user");
             }
         }
-        if !self.is_shield_sol() && relayer_fee > 0 {
-            // pays the relayer fee
+        if !self.is_shield_sol() && rpc_fee > 0 {
+            // pays the rpc fee
             unshield_sol_cpi(
                 self.input.ctx.program_id,
                 &self
@@ -885,7 +885,7 @@ impl<
                     .input
                     .ctx
                     .accounts
-                    .get_relayer_recipient_sol()
+                    .get_rpc_recipient_sol()
                     .as_ref()
                     .to_account_info(),
                 &self
@@ -894,7 +894,7 @@ impl<
                     .accounts
                     .get_registered_verifier_pda()
                     .to_account_info(),
-                relayer_fee,
+                rpc_fee,
             )?;
         }
 
@@ -1102,7 +1102,7 @@ impl<
     }
 
     #[allow(clippy::comparison_chain)]
-    pub fn check_amount(&self, relayer_fee: u64, amount: [u8; 32]) -> Result<(u64, u64)> {
+    pub fn check_amount(&self, rpc_fee: u64, amount: [u8; 32]) -> Result<(u64, u64)> {
         // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
         // Big integers are stored in 4 u64 limbs, if the number is <= U64::max() and encoded in little endian,
@@ -1114,8 +1114,8 @@ impl<
             && pub_amount.0[2] == 0
             && pub_amount.0[3] == 0
         {
-            if relayer_fee != 0 {
-                msg!("relayer_fee {}", relayer_fee);
+            if rpc_fee != 0 {
+                msg!("rpc_fee {}", rpc_fee);
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
             Ok((pub_amount.0[0], 0))
@@ -1130,16 +1130,16 @@ impl<
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
 
-            if field.0[0] < relayer_fee {
+            if field.0[0] < rpc_fee {
                 msg!(
-                    "Unshield invalid relayer_fee: pub amount {} < {} fee",
+                    "Unshield invalid rpc_fee: pub amount {} < {} fee",
                     field.0[0],
-                    relayer_fee
+                    rpc_fee
                 );
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
 
-            Ok((field.0[0].saturating_sub(relayer_fee), relayer_fee))
+            Ok((field.0[0].saturating_sub(rpc_fee), rpc_fee))
         } else if pub_amount.0[0] == 0
             && pub_amount.0[1] == 0
             && pub_amount.0[2] == 0

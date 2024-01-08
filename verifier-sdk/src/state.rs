@@ -27,7 +27,7 @@ pub struct VerifierState10Ins<
     pub mint_pubkey: [u8; 32],
     pub merkle_root: [u8; 32],
     pub tx_integrity_hash: [u8; 32],
-    pub relayer_fee: u64,
+    pub rpc_fee: u64,
     // TODO(vadorovsky): Use an array.
     // NOTE(vadorovsky): We are probably facing some anchor/borsh/bytemuch bug
     // here. We are always passing no more than 512 bytes, but for some reason,
@@ -94,7 +94,7 @@ pub struct TransactionIndexerEvent<'a> {
     pub leaves: &'a Vec<[u8; 32]>,
     pub public_amount_spl: [u8; 32],
     pub public_amount_sol: [u8; 32],
-    pub relayer_fee: u64,
+    pub rpc_fee: u64,
     pub encrypted_utxos: Vec<u8>,
     pub nullifiers: Vec<[u8; 32]>,
     pub first_leaf_index: u64,

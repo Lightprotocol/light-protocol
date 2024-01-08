@@ -69,7 +69,7 @@ class BalanceCommand extends Command {
     try {
       const user: User = await getUser({
         skipFetchBalance: flags["skipFetchBalance"],
-        localTestRelayer: flags["localTestRelayer"],
+        localTestRpc: flags["localTestRpc"],
       });
       const balances = user.balance;
       const inboxBalances = await user.getUtxoInbox(latest);

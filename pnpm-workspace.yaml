@@ -6,8 +6,7 @@ packages:
   - "zk.js/**"
   - "account.rs/**"
   - "cli/**"
-  - "relayer/**"
+  - "rpc/**"
   - "psp-examples/**"
   - "tmp-test-psp/**"
   - "web/webapp/**"
-

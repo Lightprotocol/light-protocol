@@ -19,7 +19,7 @@ const assert = require("assert");
 export class TestTransaction {
   testValues?: {
     recipientBalancePriorTx?: BN;
-    relayerRecipientAccountBalancePriorLastTx?: BN;
+    rpcRecipientAccountBalancePriorLastTx?: BN;
     txIntegrityHash?: BN;
     senderFeeBalancePriorTx?: BN;
     recipientFeeBalancePriorTx?: BN;
@@ -59,7 +59,7 @@ export class TestTransaction {
   }
 
   // send transaction should be the same for both shiel and unshield
-  // the function should just send the tx to the rpc or relayer respectively
+  // the function should just send the tx to the rpc or rpc respectively
   // in case there is more than one transaction to be sent to the verifier these can be sent separately
   // TODO: make optional and default no
   async getTestValues() {
@@ -113,9 +113,9 @@ export class TestTransaction {
       );
     }
 
-    this.testValues.relayerRecipientAccountBalancePriorLastTx = new BN(
+    this.testValues.rpcRecipientAccountBalancePriorLastTx = new BN(
       await this.provider.provider.connection.getBalance(
-        this.accounts.relayerRecipientSol,
+        this.accounts.rpcRecipientSol,
       ),
     );
   }
@@ -172,9 +172,9 @@ export class TestTransaction {
       throw new Error("test values recipientFeeBalancePriorTx undefined");
     }
 
-    if (!this.testValues.relayerRecipientAccountBalancePriorLastTx) {
+    if (!this.testValues.rpcRecipientAccountBalancePriorLastTx) {
       throw new Error(
-        "test values relayerRecipientAccountBalancePriorLastTx undefined",
+        "test values rpcRecipientAccountBalancePriorLastTx undefined",
       );
     }
 
@@ -282,8 +282,8 @@ export class TestTransaction {
         senderFeeAccountBalance.toString(),
       );
     } else if (this.action == "UNSHIELD" && !this.testValues.is_token) {
-      const relayerAccount = await this.provider.provider.connection.getBalance(
-        this.accounts.relayerRecipientSol,
+      const rpcAccount = await this.provider.provider.connection.getBalance(
+        this.accounts.rpcRecipientSol,
         "confirmed",
       );
 
@@ -295,7 +295,7 @@ export class TestTransaction {
 
       assert.equal(
         new BN(recipientFeeAccount)
-          .add(this.transaction.public.relayerFee)
+          .add(this.transaction.public.rpcFee)
           .toString(),
         new BN(this.testValues.recipientFeeBalancePriorTx)
           .sub(
@@ -306,10 +306,8 @@ export class TestTransaction {
           .toString(),
       );
       assert.equal(
-        new BN(relayerAccount)
-          .sub(this.transaction.public.relayerFee)
-          .toString(),
-        this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
+        new BN(rpcAccount).sub(this.transaction.public.rpcFee).toString(),
+        this.testValues.rpcRecipientAccountBalancePriorLastTx?.toString(),
       );
     } else if (this.action == "UNSHIELD" && this.testValues.is_token) {
       await getAccount(
@@ -334,8 +332,8 @@ export class TestTransaction {
         "amount not transferred correctly",
       );
 
-      const relayerAccount = await this.provider.provider.connection.getBalance(
-        this.accounts.relayerRecipientSol,
+      const rpcAccount = await this.provider.provider.connection.getBalance(
+        this.accounts.rpcRecipientSol,
         "confirmed",
       );
 
@@ -347,7 +345,7 @@ export class TestTransaction {
 
       assert.equal(
         new BN(recipientFeeAccount)
-          .add(this.transaction.public.relayerFee)
+          .add(this.transaction.public.rpcFee)
           .toString(),
         new BN(this.testValues.recipientFeeBalancePriorTx)
           .sub(
@@ -359,11 +357,11 @@ export class TestTransaction {
       );
 
       assert.equal(
-        new BN(relayerAccount)
-          .sub(this.transaction.public.relayerFee)
+        new BN(rpcAccount)
+          .sub(this.transaction.public.rpcFee)
           // .add(new BN("5000"))
           .toString(),
-        this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
+        this.testValues.rpcRecipientAccountBalancePriorLastTx?.toString(),
       );
     } else if (this.action === Action.TRANSFER) {
       console.log("balance check for transfer not implemented");
@@ -394,13 +392,13 @@ export class TestTransaction {
    * tree.
    */
   async checkMerkleTreeLeaves(transactionInputs: any) {
-    // using any because TestRelayer has solMerkleTree property but Relayer doesn't
-    const relayer = this.provider.relayer as any;
+    // using any because TestRpc has solMerkleTree property but Rpc doesn't
+    const rpc = this.provider.rpc as any;
     for (let i = 0; i < 2; i++) {
       assert.deepEqual(
         new BN(
-          relayer.solMerkleTree!.merkleTree.elements()[
-            relayer.solMerkleTree!.merkleTree.indexOf(
+          rpc.solMerkleTree!.merkleTree.elements()[
+            rpc.solMerkleTree!.merkleTree.indexOf(
               this.transaction.private.outputUtxos[0].utxoHash,
             )
           ],

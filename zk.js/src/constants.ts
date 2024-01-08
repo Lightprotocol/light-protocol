@@ -164,7 +164,7 @@ export const UTXO_FEE_ASSET_MINIMUM = 100_000;
 export const SIGN_MESSAGE: string =
   "IMPORTANT:\nThe application will be able to spend \nyour shielded assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
 
-export const RELAYER_FEE = new anchor.BN(100_000);
+export const RPC_FEE = new anchor.BN(100_000);
 
 // TODO: change once we have adapted getInstructions for repeating instructions
 export const MAX_MESSAGE_SIZE = 800;

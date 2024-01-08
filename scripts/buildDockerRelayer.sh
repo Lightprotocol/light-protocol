@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # 1. builds zk.js with local circuit-lib and prover.js instead of workspace dependencies
-# 2. builds relayer with local zk.js instead of workspace dependency
-# 3. builds docker image (consumed in deployRelayer.sh)
+# 2. builds rpc with local zk.js instead of workspace dependency
+# 3. builds docker image (consumed in deployRpc.sh)
 
 set -eux
 
@@ -40,8 +40,8 @@ cleanup() {
       mv -f $top_dir/zk.js/package.json.bak $top_dir/zk.js/package.json
     fi
 
-    if [ -f $top_dir/relayer/package.json.bak ]; then
-      mv -f $top_dir/relayer/package.json.bak $top_dir/relayer/package.json
+    if [ -f $top_dir/rpc/package.json.bak ]; then
+      mv -f $top_dir/rpc/package.json.bak $top_dir/rpc/package.json
     fi
 
     if [ -f $top_dir/account.rs/package.json.bak ]; then
@@ -55,14 +55,14 @@ cleanup() {
     echo "Deleting node_modules, cached files, and lock files..."
 
     rm -rf $top_dir/zk.js/node_modules
-    rm -rf $top_dir/relayer/node_modules
+    rm -rf $top_dir/rpc/node_modules
     rm -rf $top_dir/account.rs/node_modules
     rm -rf $top_dir/circuit-lib/circuit-lib.js/node_modules
     rm -f $top_dir/pnpm-lock.yaml
 
     echo "Deleting NPM artifacts..."
     rm -rf $top_dir/zk.js/package-lock.json
-    rm -rf $top_dir/relayer/package-lock.json
+    rm -rf $top_dir/rpc/package-lock.json
     rm -rf $top_dir/account.rs/package-lock.json
     rm -rf $top_dir/circuit-lib/circuit-lib.js/package-lock.json
     rm -rf $top_dir/pnpm-lock.yaml
@@ -83,16 +83,16 @@ mv $top_dir/zk.js/temp.package.json $top_dir/zk.js/package.json
 (cd $top_dir/zk.js && pnpm install --no-frozen-lockfile && pnpm build && pnpm pack)
 zkjs_tgz=$(ls $top_dir/zk.js/*.tgz)
 
-# build relayer with altered zk.js
-generate_temp_package_json $top_dir/relayer "@lightprotocol/zk.js" "file:$zkjs_tgz"  "@lightprotocol/circuit-lib.js" "file:$circuit_lib_tgz" "@lightprotocol/account.rs" "file:$account_rs_tgz"
+# build rpc with altered zk.js
+generate_temp_package_json $top_dir/rpc "@lightprotocol/zk.js" "file:$zkjs_tgz"  "@lightprotocol/circuit-lib.js" "file:$circuit_lib_tgz" "@lightprotocol/account.rs" "file:$account_rs_tgz"
 
-mv $top_dir/relayer/package.json $top_dir/relayer/package.json.bak
-mv $top_dir/relayer/temp.package.json $top_dir/relayer/package.json
+mv $top_dir/rpc/package.json $top_dir/rpc/package.json.bak
+mv $top_dir/rpc/temp.package.json $top_dir/rpc/package.json
 
-(cd $top_dir/relayer && rm -rf node_modules && npm install)
+(cd $top_dir/rpc && rm -rf node_modules && npm install)
 
 docker buildx create --name mybuilder
 docker buildx use mybuilder
 docker run --privileged --rm tonistiigi/binfmt --install all
-docker buildx build --platform linux/amd64 -t relayer-app:latest . --load
-docker tag relayer-app:latest registry.digitalocean.com/v3-relayer/relayer-app:latest
+docker buildx build --platform linux/amd64 -t rpc-app:latest . --load
+docker tag rpc-app:latest registry.digitalocean.com/v3-rpc/rpc-app:latest

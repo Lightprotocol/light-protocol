@@ -10,7 +10,7 @@ import {
   createTestAccounts,
   confirmConfig,
   User,
-  TestRelayer,
+  TestRpc,
   Action,
   UserTestAssertHelper,
   airdropSol,
@@ -18,7 +18,7 @@ import {
   convertAndComputeDecimals,
   TOKEN_REGISTRY,
   ADMIN_AUTH_KEYPAIR,
-  RELAYER_FEE,
+  RPC_FEE,
   BN_0,
 } from "../../src";
 
@@ -66,7 +66,7 @@ const calculateAmounts = async (
 ) => {
   const balance = await user.getBalance();
 
-  const relayerFee = user.provider.relayer.getRelayerFee().toNumber();
+  const rpcFee = user.provider.rpc.getRpcFee().toNumber();
   let totalSolBalance = balance.tokenBalances.get(mint.toBase58())
     ? balance.tokenBalances.get(mint.toBase58())?.totalBalanceSol.toNumber()
     : 0;
@@ -82,7 +82,7 @@ const calculateAmounts = async (
     isSol || sol
       ? generateRandomTestAmount(
           0.01,
-          (totalSolBalance - relayerFee) / 1e9,
+          (totalSolBalance - rpcFee) / 1e9,
           9,
           rng,
         )
@@ -351,7 +351,7 @@ const mergeAllInboxUtxos = async (user: User, token: string) => {
 
 const createTestUser = async (
   anchorProvider: anchor.AnchorProvider,
-  relayer: TestRelayer,
+  rpc: TestRpc,
 ): Promise<{ user: User; wallet: Keypair }> => {
   const wallet = SolanaKeypair.generate();
   await airdropSol({
@@ -361,13 +361,13 @@ const createTestUser = async (
   });
   const provider = await Provider.init({
     wallet,
-    relayer,
+    rpc,
     confirmConfig,
   });
   return { user: await User.init({ provider }), wallet };
 };
 
-const checkSolBalanceGtRelayerFee = async (
+const checkSolBalanceGtRpcFee = async (
   user: User,
   tokenMint: PublicKey,
 ) => {
@@ -384,7 +384,7 @@ const checkSolBalanceGtRelayerFee = async (
   return (
     solBalance &&
     solBalance.toNumber() >
-      user.provider.relayer.getRelayerFee().toNumber() + 1e9
+      user.provider.rpc.getRpcFee().toNumber() + 1e9
   );
 };
 
@@ -394,7 +394,7 @@ const selectRandomAction = async (
   tokenMint: PublicKey,
 ) => {
   const randomNumber = rng();
-  const unshieldingPossible = await checkSolBalanceGtRelayerFee(
+  const unshieldingPossible = await checkSolBalanceGtRpcFee(
     user,
     tokenMint,
   );
@@ -432,26 +432,26 @@ describe("Test User", () => {
   ) {
     await createTestAccounts(anchorProvider.connection);
 
-    const relayerKeypair = SolanaKeypair.generate();
-    const relayerRecipientSol = SolanaKeypair.generate();
+    const rpcKeypair = SolanaKeypair.generate();
+    const rpcRecipientSol = SolanaKeypair.generate();
 
-    // funding relayer
+    // funding rpc
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 1e9,
-      recipientPublicKey: relayerKeypair.publicKey,
+      recipientPublicKey: rpcKeypair.publicKey,
     });
-    // funding relayer relayerRecipientSol
+    // funding rpc rpcRecipientSol
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 1e9,
-      recipientPublicKey: relayerRecipientSol.publicKey,
+      recipientPublicKey: rpcRecipientSol.publicKey,
     });
 
-    const relayer = new TestRelayer({
-      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      relayerRecipientSol: relayerRecipientSol.publicKey,
-      relayerFee: RELAYER_FEE,
+    const rpc = new TestRpc({
+      rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      rpcRecipientSol: rpcRecipientSol.publicKey,
+      rpcFee: RPC_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: anchorProvider.connection,
       lightWasm: await WasmFactory.getInstance(),
@@ -459,7 +459,7 @@ describe("Test User", () => {
 
     const testUsers: { user: User; wallet: Keypair }[] = [];
     for (let user = 0; user < noUsers; user++) {
-      testUsers.push(await createTestUser(anchorProvider, relayer));
+      testUsers.push(await createTestUser(anchorProvider, rpc));
     }
 
     /**
@@ -495,7 +495,7 @@ describe("Test User", () => {
           const createNewUser = rng();
           let recipientUser: { user: User; wallet: Keypair };
           if (remainingTestUsers.length == 0 || createNewUser < 0.5 / noUsers) {
-            recipientUser = await createTestUser(anchorProvider, relayer);
+            recipientUser = await createTestUser(anchorProvider, rpc);
             testUsers.push(recipientUser);
           } else {
             recipientUser = getRandomObject(remainingTestUsers)!;

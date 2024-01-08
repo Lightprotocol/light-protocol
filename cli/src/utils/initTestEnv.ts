@@ -9,7 +9,7 @@ import {
 import {
   setAnchorProvider,
   setLookUpTable,
-  setRelayerRecipient,
+  setRpcRecipient,
 } from "./utils";
 import { Keypair } from "@solana/web3.js";
 import {
@@ -55,12 +55,12 @@ export async function initTestEnv({
 
     setLookUpTable(lookupTable.toString());
 
-    const relayerRecipientSol = Keypair.generate().publicKey;
+    const rpcRecipientSol = Keypair.generate().publicKey;
 
-    setRelayerRecipient(relayerRecipientSol.toString());
+    setRpcRecipient(rpcRecipientSol.toString());
 
     await anchorProvider.connection.requestAirdrop(
-      relayerRecipientSol,
+      rpcRecipientSol,
       2_000_000_000,
     );
   };

@@ -2,7 +2,7 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import {
   CreateUtxoErrorCode,
-  RelayerErrorCode,
+  RpcErrorCode,
   SelectInUtxosError,
   SelectInUtxosErrorCode,
   TransactionErrorCode,
@@ -120,7 +120,7 @@ export function selectInUtxos({
   publicMint,
   publicAmountSpl,
   publicAmountSol,
-  relayerFee,
+  rpcFee,
   inUtxos,
   outUtxos = [],
   action,
@@ -131,7 +131,7 @@ export function selectInUtxos({
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
-  relayerFee?: BN;
+  rpcFee?: BN;
   utxos?: Utxo[];
   inUtxos?: Utxo[];
   outUtxos?: OutUtxo[];
@@ -157,17 +157,17 @@ export function selectInUtxos({
       "selectInUtxos",
       "No public amounts defined",
     );
-  if (action === Action.UNSHIELD && !relayerFee)
+  if (action === Action.UNSHIELD && !rpcFee)
     throw new SelectInUtxosError(
-      RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+      RpcErrorCode.RPC_FEE_UNDEFINED,
       "selectInUtxos",
-      "Relayer fee undefined",
+      "Rpc fee undefined",
     );
-  if (action === Action.TRANSFER && !relayerFee)
+  if (action === Action.TRANSFER && !rpcFee)
     throw new SelectInUtxosError(
-      RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+      RpcErrorCode.RPC_FEE_UNDEFINED,
       "selectInUtxos",
-      "Relayer fee undefined",
+      "Rpc fee undefined",
     );
 
   if ((!utxos || utxos.length === 0) && action === Action.SHIELD) return [];
@@ -178,11 +178,11 @@ export function selectInUtxos({
       `No utxos defined for ${action}`,
     );
 
-  if (action === Action.SHIELD && relayerFee)
+  if (action === Action.SHIELD && rpcFee)
     throw new SelectInUtxosError(
-      CreateUtxoErrorCode.RELAYER_FEE_DEFINED,
+      CreateUtxoErrorCode.RPC_FEE_DEFINED,
       "selectInUtxos",
-      "Relayer fee should not be defined with shield",
+      "Rpc fee should not be defined with shield",
     );
   // TODO: evaluate whether this is too much of a footgun
   if (action === Action.SHIELD) {
@@ -215,7 +215,7 @@ export function selectInUtxos({
   let filteredUtxos: Utxo[];
   let sumOutSpl = publicAmountSpl ? publicAmountSpl : BN_0;
   let sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
-  if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
+  if (rpcFee) sumOutSol = sumOutSol.add(rpcFee);
   if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
   if (mint) {
     filteredUtxos = utxos.filter((utxo) =>

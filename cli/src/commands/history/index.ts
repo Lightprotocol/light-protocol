@@ -14,11 +14,11 @@ type TransactionHistory = {
   Signature: string;
   From: string;
   To: string;
-  RelayerRecipientSOL: string;
+  RpcRecipientSOL: string;
   Type: string;
   PublicAmountSOL: number;
   PublicAmountSPL: number;
-  RelayerFeeSOL: number;
+  RpcFeeSOL: number;
 };
 class TransactionHistoryCommand extends Command {
   static description = "Show user transaction history";
@@ -37,7 +37,7 @@ class TransactionHistoryCommand extends Command {
 
       const user = await getUser({
         skipFetchBalance: flags["skipFetchBalance"],
-        localTestRelayer: flags["localTestRelayer"],
+        localTestRpc: flags["localTestRpc"],
       });
       const transactions: ParsedIndexedTransaction[] =
         await user.getTransactionHistory(false);
@@ -60,9 +60,9 @@ class TransactionHistoryCommand extends Command {
           ).toNumber(),
           From: transaction.from.toString(),
           To: transaction.to.toString(),
-          RelayerRecipientSOL: transaction.relayerRecipientSol.toString(),
-          RelayerFeeSOL: convertAndComputeDecimals(
-            transaction.relayerFee,
+          RpcRecipientSOL: transaction.rpcRecipientSol.toString(),
+          RpcFeeSOL: convertAndComputeDecimals(
+            transaction.rpcFee,
             SOL_DECIMALS,
           ).toNumber(),
           Signer: transaction.signer.toString(),
@@ -72,10 +72,10 @@ class TransactionHistoryCommand extends Command {
         switch (transaction.type) {
           case "SHIELD":
             this.logTransaction(transactionHistory, [
-              "RelayerFee",
-              "RelayerFeeSOL",
+              "RpcFee",
+              "RpcFeeSOL",
               "To",
-              "RelayerRecipientSOL",
+              "RpcRecipientSOL",
               "From",
             ]);
             break;
@@ -83,7 +83,7 @@ class TransactionHistoryCommand extends Command {
             this.logTransaction(transactionHistory, [
               "From",
               "To",
-              "RelayerFee",
+              "RpcFee",
             ]);
             break;
           case "TRANSFER":
@@ -127,7 +127,7 @@ class TransactionHistoryCommand extends Command {
         if (capitalizedKey === "Transaction Number")
           capitalizedKey = "Transaction Number   ";
         if (capitalizedKey === "Signer" && actionCheck) {
-          capitalizedKey = "Relayer Signer";
+          capitalizedKey = "Rpc Signer";
         }
         tableData.push({ prop: `\x1b[34m${capitalizedKey}\x1b[0m`, value });
       }

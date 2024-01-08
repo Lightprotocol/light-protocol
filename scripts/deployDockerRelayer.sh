@@ -1,6 +1,6 @@
 #!/bin/bash
 
-bash $(dirname $0)/buildDockerRelayer.sh
+bash $(dirname $0)/buildDockerRpc.sh
 
 cleanupDeploy() {
     echo "Deleting builder instance..."
@@ -10,5 +10,5 @@ cleanupDeploy() {
 trap cleanupDeploy EXIT
 
 doctl registry login
-docker push registry.digitalocean.com/v3-relayer/relayer-app:latest
+docker push registry.digitalocean.com/v3-rpc/rpc-app:latest
 
