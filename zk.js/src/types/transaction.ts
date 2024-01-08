@@ -81,7 +81,7 @@ export type ParsedIndexedTransaction = {
   message: number[];
 };
 
-// Rpc internal type // WAS RELAYER
+// Rpc internal type // WAS RPC
 export type RpcIndexedTransaction = {
   transaction: ParsedIndexedTransaction;
   IDs: string[];

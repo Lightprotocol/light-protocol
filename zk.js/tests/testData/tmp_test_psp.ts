@@ -147,7 +147,7 @@ export type TmpTestPsp = {
           isSigner: false;
         },
         {
-          name: "relayerRecipientSol";
+          name: "rpcRecipientSol";
           isMut: true;
           isSigner: false;
         },
@@ -250,7 +250,7 @@ export type TmpTestPsp = {
             type: "u64";
           },
           {
-            name: "relayerFee";
+            name: "rpcFee";
             type: "u64";
           },
           {
@@ -719,7 +719,7 @@ export const IDL: TmpTestPsp = {
           isSigner: false,
         },
         {
-          name: "relayerRecipientSol",
+          name: "rpcRecipientSol",
           isMut: true,
           isSigner: false,
         },
@@ -822,7 +822,7 @@ export const IDL: TmpTestPsp = {
             type: "u64",
           },
           {
-            name: "relayerFee",
+            name: "rpcFee",
             type: "u64",
           },
           {

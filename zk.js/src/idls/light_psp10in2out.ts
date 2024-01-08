@@ -85,7 +85,7 @@ export type LightPsp10in2out = {
           "isSigner": false
         },
         {
-          "name": "relayerRecipientSol",
+          "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -227,7 +227,7 @@ export type LightPsp10in2out = {
             "type": "u64"
           },
           {
-            "name": "relayerFee",
+            "name": "rpcFee",
             "type": "u64"
           },
           {
@@ -731,7 +731,7 @@ export const IDL: LightPsp10in2out = {
           "isSigner": false
         },
         {
-          "name": "relayerRecipientSol",
+          "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -873,7 +873,7 @@ export const IDL: LightPsp10in2out = {
             "type": "u64"
           },
           {
-            "name": "relayerFee",
+            "name": "rpcFee",
             "type": "u64"
           },
           {

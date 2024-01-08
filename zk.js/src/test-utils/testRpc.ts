@@ -14,7 +14,7 @@ import {
 import {
   ParsedIndexedTransaction,
   RpcIndexedTransactionResponse,
-  RpcIndexedTransaction, // internal -> relayerIndexedTransaction
+  RpcIndexedTransaction,
 } from "../types";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,

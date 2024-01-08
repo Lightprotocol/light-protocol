@@ -48,7 +48,7 @@ export type LightPsp4in4outAppStorage = {
           "isSigner": false
         },
         {
-          "name": "relayerRecipientSol",
+          "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -205,7 +205,7 @@ export type LightPsp4in4outAppStorage = {
             }
           },
           {
-            "name": "relayerFee",
+            "name": "rpcFee",
             "type": "u64"
           },
           {
@@ -687,7 +687,7 @@ export const IDL: LightPsp4in4outAppStorage = {
           "isSigner": false
         },
         {
-          "name": "relayerRecipientSol",
+          "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
         },
@@ -844,7 +844,7 @@ export const IDL: LightPsp4in4outAppStorage = {
             }
           },
           {
-            "name": "relayerFee",
+            "name": "rpcFee",
             "type": "u64"
           },
           {
