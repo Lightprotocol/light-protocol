@@ -15,7 +15,7 @@ export type lightAccounts = {
   signingAddress: PublicKey;
   programMerkleTree: PublicKey;
   logWrapper: PublicKey;
-  relayerRecipientSol: PublicKey;
+  rpcRecipientSol: PublicKey;
   verifierProgram?: PublicKey;
   verifierState?: PublicKey;
 };

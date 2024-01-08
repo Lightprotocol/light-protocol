@@ -94,7 +94,7 @@ export function createOutUtxos({
   publicMint,
   publicAmountSpl,
   publicAmountSol,
-  relayerFee,
+  rpcFee,
   changeUtxoAccount,
   action,
   appUtxo,
@@ -107,7 +107,7 @@ export function createOutUtxos({
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
-  relayerFee?: BN;
+  rpcFee?: BN;
   changeUtxoAccount: Account;
   outUtxos?: OutUtxo[];
   action: Action;
@@ -125,10 +125,8 @@ export function createOutUtxos({
       "Poseidon not initialized",
     );
 
-  if (relayerFee) {
-    publicAmountSol = publicAmountSol
-      ? publicAmountSol.add(relayerFee)
-      : relayerFee;
+  if (rpcFee) {
+    publicAmountSol = publicAmountSol ? publicAmountSol.add(rpcFee) : rpcFee;
   }
 
   const assetPubkeys =
@@ -224,11 +222,11 @@ export function createOutUtxos({
       assets[publicSolAssetIndex].sumIn.sub(publicAmountSol);
     // add public amounts to sumIns
   } else if (action === Action.SHIELD) {
-    if (relayerFee)
+    if (rpcFee)
       throw new CreateUtxoError(
-        CreateUtxoErrorCode.RELAYER_FEE_DEFINED,
+        CreateUtxoErrorCode.RPC_FEE_DEFINED,
         "createOutUtxos",
-        "Shield and relayer fee defined",
+        "Shield and rpc fee defined",
       );
     if (!publicAmountSpl) publicAmountSpl = BN_0;
     if (!publicAmountSol) publicAmountSol = BN_0;
@@ -302,7 +300,7 @@ export function createOutUtxos({
     /**
      * Problem:
      * - we want to keep the majority of sol holdings in a single sol utxo, but we want to keep a small amount of sol in every spl utxo as well
-     * - for example when merging incoming spl utxos we might have no sol in any of these utxos to pay the relayer
+     * - for example when merging incoming spl utxos we might have no sol in any of these utxos to pay the rpc
      *   -> we need an existing sol utxo but we don't want to merge it into the spl utxos
      * - sol amount should leave a minimum amount in spl utxos if possible
      */

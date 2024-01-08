@@ -1,6 +1,6 @@
 import { BN, Idl, Provider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import { Relayer } from "../relayer";
+import { Rpc } from "../rpc";
 import { Utxo } from "../utxo";
 
 export type AppUtxoConfig = {
@@ -23,7 +23,7 @@ export type transactionParameters = {
     verifierState?: PublicKey;
     tokenAuthority?: PublicKey;
   };
-  relayer?: Relayer;
+  rpc?: Rpc;
   encryptedUtxos?: Uint8Array;
   nullifierPdaPubkeys?: {
     isSigner: boolean;
@@ -46,7 +46,7 @@ export type IndexedTransaction = {
   toSpl: PublicKey;
   fromSpl: PublicKey;
   verifier: PublicKey;
-  relayerRecipientSol: PublicKey;
+  rpcRecipientSol: PublicKey;
   type: Action;
   changeSolAmount: string;
   publicAmountSol: string;
@@ -55,7 +55,7 @@ export type IndexedTransaction = {
   leaves: number[][];
   firstLeafIndex: string;
   nullifiers: number[][];
-  relayerFee: string;
+  rpcFee: string;
   message: Buffer;
 };
 
@@ -68,7 +68,7 @@ export type ParsedIndexedTransaction = {
   toSpl: string;
   fromSpl: string;
   verifier: string;
-  relayerRecipientSol: string;
+  rpcRecipientSol: string;
   type: Action;
   changeSolAmount: string;
   publicAmountSol: string;
@@ -77,19 +77,19 @@ export type ParsedIndexedTransaction = {
   leaves: number[][];
   firstLeafIndex: string;
   nullifiers: number[][];
-  relayerFee: string;
+  rpcFee: string;
   message: number[];
 };
 
-// Relayer internal type
-export type RelayerIndexedTransaction = {
+// Rpc internal type // WAS RELAYER
+export type RpcIndexedTransaction = {
   transaction: ParsedIndexedTransaction;
   IDs: string[];
   merkleTreePublicKey: string;
 };
 
-// RPC response type
-export type RpcIndexedTransaction = {
+// RPC response type // WAS RPC
+export type RpcIndexedTransactionResponse = {
   transaction: ParsedIndexedTransaction;
   merkleProofs: string[][];
   leavesIndexes: number[];

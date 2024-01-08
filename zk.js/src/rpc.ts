@@ -7,86 +7,79 @@ import {
 import { BN } from "@coral-xyz/anchor";
 import axios from "axios";
 import {
-  RelayerError,
-  RelayerErrorCode,
+  RpcError,
+  RpcErrorCode,
   Provider,
   IndexedTransaction,
   TOKEN_ACCOUNT_FEE,
   SendVersionedTransactionsResult,
   BN_0,
+  RpcIndexedTransactionResponse,
   RpcIndexedTransaction,
-  RelayerIndexedTransaction,
 } from "./index";
 
-export type RelayerSendTransactionsResponse =
-  SendVersionedTransactionsResult & {
-    transactionStatus: string;
-    rpcResponse?: RpcResponseAndContext<SignatureResult>;
-  };
+export type RpcSendTransactionsResponse = SendVersionedTransactionsResult & {
+  transactionStatus: string;
+  rpcResponse?: RpcResponseAndContext<SignatureResult>;
+};
 
-export class Relayer {
+export class Rpc {
   accounts: {
-    relayerPubkey: PublicKey; // signs the transaction
-    relayerRecipientSol: PublicKey; // receives the fees
+    rpcPubkey: PublicKey; // signs the transaction
+    rpcRecipientSol: PublicKey; // receives the fees
   };
-  relayerFee: BN;
-  highRelayerFee: BN;
+  rpcFee: BN;
+  highRpcFee: BN;
   url: string;
 
   /**
    *
-   * @param relayerPubkey Signs the transaction
-   * @param relayerRecipientSol Recipient account for SOL fees
-   * @param relayerFee Fee amount
-   * @param highRelayerFee
+   * @param rpcPubkey Signs the transaction
+   * @param rpcRecipientSol Recipient account for SOL fees
+   * @param rpcFee Fee amount
+   * @param highRpcFee
    * @param url
    */
   constructor(
-    relayerPubkey: PublicKey,
-    relayerRecipientSol?: PublicKey,
-    relayerFee: BN = BN_0,
-    highRelayerFee: BN = TOKEN_ACCOUNT_FEE,
+    rpcPubkey: PublicKey,
+    rpcRecipientSol?: PublicKey,
+    rpcFee: BN = BN_0,
+    highRpcFee: BN = TOKEN_ACCOUNT_FEE,
     url: string = "http://localhost:3332",
   ) {
-    if (!relayerPubkey) {
-      throw new RelayerError(
-        RelayerErrorCode.RELAYER_PUBKEY_UNDEFINED,
+    if (!rpcPubkey) {
+      throw new RpcError(RpcErrorCode.RPC_PUBKEY_UNDEFINED, "constructor");
+    }
+    if (rpcRecipientSol && rpcFee.eq(BN_0)) {
+      throw new RpcError(
+        RpcErrorCode.RPC_FEE_UNDEFINED,
         "constructor",
+        "If rpcRecipientSol is defined, rpcFee must be defined and non zero.",
       );
     }
-    if (relayerRecipientSol && relayerFee.eq(BN_0)) {
-      throw new RelayerError(
-        RelayerErrorCode.RELAYER_FEE_UNDEFINED,
-        "constructor",
-        "If relayerRecipientSol is defined, relayerFee must be defined and non zero.",
-      );
+    if (rpcFee.toString() !== "0" && !rpcRecipientSol) {
+      throw new RpcError(RpcErrorCode.RPC_RECIPIENT_UNDEFINED, "constructor");
     }
-    if (relayerFee.toString() !== "0" && !relayerRecipientSol) {
-      throw new RelayerError(
-        RelayerErrorCode.RELAYER_RECIPIENT_UNDEFINED,
-        "constructor",
-      );
-    }
-    if (relayerRecipientSol) {
+    if (rpcRecipientSol) {
       this.accounts = {
-        relayerPubkey,
-        relayerRecipientSol,
+        rpcPubkey,
+        rpcRecipientSol,
       };
     } else {
       this.accounts = {
-        relayerPubkey,
-        relayerRecipientSol: relayerPubkey,
+        rpcPubkey,
+        rpcRecipientSol: rpcPubkey,
       };
     }
-    this.highRelayerFee = highRelayerFee;
-    this.relayerFee = relayerFee;
+    this.highRpcFee = highRpcFee;
+    this.rpcFee = rpcFee;
     this.url = url;
   }
 
   async sendTransactions(
     instructions: any[],
     _provider: Provider,
-  ): Promise<RelayerSendTransactionsResponse> {
+  ): Promise<RpcSendTransactionsResponse> {
     try {
       const response = await axios.post(this.url + "/relayTransaction", {
         instructions,
@@ -98,18 +91,18 @@ export class Relayer {
     }
   }
 
-  getRelayerFee(ataCreationFee?: boolean): BN {
-    return ataCreationFee ? this.highRelayerFee : this.relayerFee;
+  getRpcFee(ataCreationFee?: boolean): BN {
+    return ataCreationFee ? this.highRpcFee : this.rpcFee;
   }
 
   async getIndexedTransactions(
-    /* We must keep the param for type equality with TestRelayer */
+    /* We must keep the param for type equality with TestRpc */
     _connection: Connection,
-  ): Promise<RelayerIndexedTransaction[]> {
+  ): Promise<RpcIndexedTransaction[]> {
     try {
       const response = await axios.get(this.url + "/indexedTransactions");
 
-      const indexedTransactions: RelayerIndexedTransaction[] =
+      const indexedTransactions: RpcIndexedTransaction[] =
         response.data.data.map((trx: IndexedTransaction) => {
           return {
             ...trx,
@@ -119,12 +112,12 @@ export class Relayer {
             toSpl: new PublicKey(trx.toSpl),
             fromSpl: new PublicKey(trx.fromSpl),
             verifier: new PublicKey(trx.verifier),
-            relayerRecipientSol: new PublicKey(trx.relayerRecipientSol),
+            rpcRecipientSol: new PublicKey(trx.rpcRecipientSol),
             firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
             publicAmountSol: new BN(trx.publicAmountSol, "hex"),
             publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
             changeSolAmount: new BN(trx.changeSolAmount, "hex"),
-            relayerFee: new BN(trx.relayerFee, "hex"),
+            rpcFee: new BN(trx.rpcFee, "hex"),
           };
         });
 
@@ -135,23 +128,23 @@ export class Relayer {
     }
   }
 
-  async syncRelayerInfo(): Promise<void> {
-    const response = await axios.get(this.url + "/getRelayerInfo");
+  async syncRpcInfo(): Promise<void> {
+    const response = await axios.get(this.url + "/getRpcInfo");
     const data = response.data.data;
-    this.accounts.relayerPubkey = new PublicKey(data.relayerPubkey);
-    this.accounts.relayerRecipientSol = new PublicKey(data.relayerRecipientSol);
-    this.relayerFee = new BN(data.relayerFee);
-    this.highRelayerFee = new BN(data.highRelayerFee);
+    this.accounts.rpcPubkey = new PublicKey(data.rpcPubkey);
+    this.accounts.rpcRecipientSol = new PublicKey(data.rpcRecipientSol);
+    this.rpcFee = new BN(data.rpcFee);
+    this.highRpcFee = new BN(data.highRpcFee);
   }
 
-  static async initFromUrl(url: string): Promise<Relayer> {
-    const response = await axios.get(url + "/getRelayerInfo");
+  static async initFromUrl(url: string): Promise<Rpc> {
+    const response = await axios.get(url + "/getRpcInfo");
     const data = response.data.data;
-    return new Relayer(
-      new PublicKey(data.relayerPubkey),
-      new PublicKey(data.relayerRecipientSol),
-      new BN(data.relayerFee),
-      new BN(data.highRelayerFee),
+    return new Rpc(
+      new PublicKey(data.rpcPubkey),
+      new PublicKey(data.rpcRecipientSol),
+      new BN(data.rpcFee),
+      new BN(data.highRpcFee),
       url,
     );
   }
@@ -160,7 +153,7 @@ export class Relayer {
     merkleTreePdaPublicKey: PublicKey,
     id: string,
     variableNameID: number,
-  ): Promise<RpcIndexedTransaction | undefined> {
+  ): Promise<RpcIndexedTransactionResponse | undefined> {
     try {
       const response = await axios.post(this.url + "/getEventById", {
         id,
@@ -178,7 +171,7 @@ export class Relayer {
     merkleTreePdaPublicKey: PublicKey,
     ids: string[],
     variableNameID: number,
-  ): Promise<RpcIndexedTransaction[] | undefined> {
+  ): Promise<RpcIndexedTransactionResponse[] | undefined> {
     if (ids.length === 0) return [];
     try {
       const response = await axios.post(this.url + "/getEventsByIdBatch", {

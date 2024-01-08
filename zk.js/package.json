@@ -15,7 +15,7 @@
     "test-transaction": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/transaction.test.ts --exit",
     "test-prover": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/prover.test.ts --exit",
     "test-account": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/account.test.ts --exit",
-    "test-relayer": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/relayer.test.ts --exit",
+    "test-rpc": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/rpc.test.ts --exit",
     "test-createOutUtxos": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/createOutUtxos.test.ts --exit",
     "test-provider": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/provider.test.ts --exit",
     "test-selectInUtxos": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/selectInUtxos.test.ts --exit",

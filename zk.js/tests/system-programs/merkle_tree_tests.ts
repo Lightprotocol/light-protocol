@@ -18,8 +18,8 @@ import {
   POOL_TYPE,
   IDL_LIGHT_PSP2IN2OUT,
   Provider,
-  TestRelayer,
-  RELAYER_FEE,
+  TestRpc,
+  RPC_FEE,
   User,
   airdropSol,
   createSolanaInstructions,
@@ -37,7 +37,7 @@ import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Address } from "@coral-xyz/anchor";
 
-let WASM: LightWasm, RELAYER;
+let WASM: LightWasm, RPC;
 
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
@@ -79,17 +79,14 @@ describe("Merkle Tree Tests", () => {
       merkleTreeProgram.programId,
     )[0];
 
-    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+    const rpcRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(
-      relayerRecipientSol,
-      2_000_000_000,
-    );
+    await provider.connection.requestAirdrop(rpcRecipientSol, 2_000_000_000);
 
-    RELAYER = new TestRelayer({
-      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      relayerRecipientSol,
-      relayerFee: RELAYER_FEE,
+    RPC = new TestRpc({
+      rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      rpcRecipientSol,
+      rpcFee: RPC_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
       lightWasm: WASM,
@@ -101,7 +98,7 @@ describe("Merkle Tree Tests", () => {
     });
     lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
+      rpc: RPC,
       confirmConfig,
     });
     merkleTreeConfig = new MerkleTreeConfig({
@@ -518,7 +515,7 @@ describe("Merkle Tree Tests", () => {
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [unshieldUtxo],
       merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      relayer: lightProvider.relayer,
+      rpc: lightProvider.rpc,
     });
 
     const tokenAccount = await getOrCreateAssociatedTokenAccount(
@@ -540,11 +537,11 @@ describe("Merkle Tree Tests", () => {
         MerkleTreeConfig.getTransactionMerkleTreePda(),
       recipientSpl,
       recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
-      relayerPublicKey: lightProvider.relayer.accounts.relayerPubkey,
+      rpcPublicKey: lightProvider.rpc.accounts.rpcPubkey,
       systemPspId: getVerifierProgramId(verifierIdl),
       account: user.account,
       inputUtxos,
-      relayerFee: lightProvider.relayer.getRelayerFee(false),
+      rpcFee: lightProvider.rpc.getRpcFee(false),
       ataCreationFee: false,
     };
 
@@ -586,8 +583,8 @@ describe("Merkle Tree Tests", () => {
     const accounts = prepareAccounts({
       transactionAccounts: unshieldTransaction.public.accounts,
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
-      relayerRecipientSol: lightProvider.relayer.accounts.relayerRecipientSol,
-      signer: lightProvider.relayer.accounts.relayerPubkey,
+      rpcRecipientSol: lightProvider.rpc.accounts.rpcRecipientSol,
+      signer: lightProvider.rpc.accounts.rpcPubkey,
     });
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({

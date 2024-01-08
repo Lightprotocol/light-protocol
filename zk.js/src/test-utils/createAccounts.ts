@@ -343,10 +343,10 @@ export async function createTestAccounts(
 
   const WASM = await WasmFactory.getInstance();
   const ACCOUNT = Account.createFromSeed(WASM, KEYPAIR_PRIVKEY.toString());
-  const RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
+  const RPC_RECIPIENT = new anchor.web3.Account().publicKey;
   return {
     WASM,
     ACCOUNT,
-    RELAYER_RECIPIENT,
+    RPC_RECIPIENT,
   };
 }

@@ -5,7 +5,7 @@ import {
   BorshAccountsCoder,
   Program,
 } from "@coral-xyz/anchor";
-import { Relayer, RelayerSendTransactionsResponse } from "../relayer";
+import { Rpc, RpcSendTransactionsResponse } from "../rpc";
 import { Provider, useWallet } from "../wallet";
 import {
   fetchRecentTransactions,
@@ -13,8 +13,8 @@ import {
 } from "../transaction";
 import {
   ParsedIndexedTransaction,
-  RelayerIndexedTransaction,
-  RpcIndexedTransaction,
+  RpcIndexedTransactionResponse,
+  RpcIndexedTransaction, // internal -> relayerIndexedTransaction
 } from "../types";
 import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
@@ -23,44 +23,44 @@ import {
   SolMerkleTree,
   UTXO_PREFIX_LENGTH,
   LightMerkleTreeProgram,
-  RelayerError,
+  RpcError,
   TransactionErrorCode,
   merkleTreeProgramId,
 } from "../index";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
-export class TestRelayer extends Relayer {
+export class TestRpc extends Rpc {
   // @ts-ignore
-  indexedTransactions: RelayerIndexedTransaction[] = [];
-  relayerKeypair: Keypair;
+  indexedTransactions: RpcIndexedTransaction[] = [];
+  rpcKeypair: Keypair;
   connection: Connection;
   merkleTrees: SolMerkleTree[] = [];
   lightWasm: LightWasm;
   merkleTreeProgram: Program<LightMerkleTreeProgram>;
   constructor({
-    relayerPubkey,
-    relayerRecipientSol,
-    relayerFee = BN_0,
-    highRelayerFee,
+    rpcPubkey,
+    rpcRecipientSol,
+    rpcFee = BN_0,
+    highRpcFee,
     payer,
     connection,
     lightWasm,
   }: {
-    relayerPubkey: PublicKey;
-    relayerRecipientSol?: PublicKey;
-    relayerFee: BN;
-    highRelayerFee?: BN;
+    rpcPubkey: PublicKey;
+    rpcRecipientSol?: PublicKey;
+    rpcFee: BN;
+    highRpcFee?: BN;
     payer: Keypair;
     connection: Connection;
     lightWasm: LightWasm;
   }) {
-    super(relayerPubkey, relayerRecipientSol, relayerFee, highRelayerFee);
-    if (payer.publicKey.toBase58() != relayerPubkey.toBase58())
+    super(rpcPubkey, rpcRecipientSol, rpcFee, highRpcFee);
+    if (payer.publicKey.toBase58() != rpcPubkey.toBase58())
       throw new Error(
-        `Payer public key ${payer.publicKey.toBase58()} does not match relayer public key ${relayerPubkey.toBase58()}`,
+        `Payer public key ${payer.publicKey.toBase58()} does not match rpc public key ${rpcPubkey.toBase58()}`,
       );
-    this.relayerKeypair = payer;
+    this.rpcKeypair = payer;
     this.connection = connection;
     const solMerkleTree = new SolMerkleTree({
       lightWasm,
@@ -78,12 +78,12 @@ export class TestRelayer extends Relayer {
   async sendTransactions(
     instructions: any[],
     provider: Provider,
-  ): Promise<RelayerSendTransactionsResponse> {
+  ): Promise<RpcSendTransactionsResponse> {
     const res = await sendVersionedTransactions(
       instructions,
       provider.provider!.connection!,
       provider.lookUpTables.versionedTransactionLookupTable,
-      useWallet(this.relayerKeypair),
+      useWallet(this.rpcKeypair),
     );
     if (res.error) return { transactionStatus: "error", ...res };
     else return { transactionStatus: "confirmed", ...res };
@@ -93,14 +93,14 @@ export class TestRelayer extends Relayer {
    * Indexes light transactions by:
    * - getting all signatures the merkle tree was involved in
    * - trying to extract and parse event cpi for every signature's transaction
-   * - if there are indexed transactions already in the relayer object only transactions after the last indexed event are indexed
+   * - if there are indexed transactions already in the rpc object only transactions after the last indexed event are indexed
    * @param connection
    * @returns
    */
   // @ts-ignore
   async getIndexedTransactions(
     connection: Connection,
-  ): Promise<RelayerIndexedTransaction[]> {
+  ): Promise<RpcIndexedTransaction[]> {
     const merkleTreeAccountInfo = await connection.getAccountInfo(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       "confirmed",
@@ -170,7 +170,7 @@ export class TestRelayer extends Relayer {
     merkleTreePdaPublicKey: PublicKey,
     id: string,
     variableNameID: number,
-  ): Promise<RpcIndexedTransaction | undefined> {
+  ): Promise<RpcIndexedTransactionResponse | undefined> {
     const indexedTransactions = await this.getIndexedTransactions(
       this.connection,
     );
@@ -189,7 +189,7 @@ export class TestRelayer extends Relayer {
     merkleTreePdaPublicKey: PublicKey,
     ids: string[],
     variableNameID: number,
-  ): Promise<RpcIndexedTransaction[] | undefined> {
+  ): Promise<RpcIndexedTransactionResponse[] | undefined> {
     const indexedTransactions = await this.getIndexedTransactions(
       this.connection,
     );
@@ -273,7 +273,7 @@ export async function getRootIndex(
   });
 
   if (rootIndex === undefined) {
-    throw new RelayerError(
+    throw new RpcError(
       TransactionErrorCode.ROOT_NOT_FOUND,
       "getRootIndex",
       `Root index not found for root${root}`,
@@ -285,14 +285,14 @@ export async function getRootIndex(
 export const createRpcIndexedTransaction = (
   indexedTransaction: ParsedIndexedTransaction,
   merkleTree: SolMerkleTree,
-): RpcIndexedTransaction => {
+): RpcIndexedTransactionResponse => {
   const leavesIndexes = indexedTransaction.leaves.map((leaf) =>
     merkleTree.merkleTree.indexOf(new BN(leaf).toString()),
   );
   const merkleProofs = leavesIndexes.map(
     (index) => merkleTree.merkleTree.path(index).pathElements,
   );
-  const rpcIndexedTransaction: RpcIndexedTransaction = {
+  const rpcIndexedTransaction: RpcIndexedTransactionResponse = {
     transaction: indexedTransaction,
     leavesIndexes,
     merkleProofs,

@@ -182,7 +182,7 @@ export class SolMerkleTree {
     return filteredLeaves;
   }
 
-  static async getUninsertedLeavesRelayer(
+  static async getUninsertedLeavesRpc(
     merkleTreePubkey: PublicKey,
     provider?: Provider,
   ) {

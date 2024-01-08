@@ -5,7 +5,7 @@ export * from "./initLookUpTable";
 export * from "./constants_market_place";
 export * from "./functionalCircuit";
 export * from "./constants_system_verifier";
-export * from "./testRelayer";
+export * from "./testRpc";
 export * from "./userTestAssertHelper";
 export * from "./testTransaction";
 export * from "./airdrop";

@@ -35,7 +35,7 @@ import {
   ProgramUtxoBalance,
   Provider,
   ProviderErrorCode,
-  RelayerErrorCode,
+  RpcErrorCode,
   SelectInUtxosErrorCode,
   TOKEN_PUBKEY_SYMBOL,
   TOKEN_REGISTRY,
@@ -58,12 +58,12 @@ import {
   syncInputUtxosMerkleProofs,
   TransactionParametersError,
   TransactionParametersErrorCode,
-  RpcIndexedTransaction,
   Utxo,
   OutUtxo,
   createOutUtxo,
   ProgramUtxo,
   decryptProgramUtxo,
+  RpcIndexedTransactionResponse,
 } from "../index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -190,7 +190,7 @@ export class User {
     const prefixes = aes
       ? getPrefixes(this.account, merkleTreePdaPublicKey, 100)
       : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
-    const indexedTransactions = await this.provider.relayer.getEventsByIdBatch(
+    const indexedTransactions = await this.provider.rpc.getEventsByIdBatch(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       prefixes,
       0,
@@ -298,7 +298,7 @@ export class User {
       );
     if (!this.provider.lookUpTables.verifierProgramLookupTable)
       throw new UserError(
-        RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
+        RpcErrorCode.LOOK_UP_TABLE_UNDEFINED,
         "getBalance",
         "Look up table not initialized",
       );
@@ -470,7 +470,7 @@ export class User {
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         this.provider.lookUpTables.verifierProgramLookupTable,
-      relayer: this.provider.relayer,
+      rpc: this.provider.rpc,
     });
     this.recentTransactionParameters = txParams;
     return txParams;
@@ -498,13 +498,13 @@ export class User {
       } = await syncInputUtxosMerkleProofs({
         inputUtxos: this.recentTransactionParameters.private.inputUtxos,
         merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-        relayer: this.provider.relayer,
+        rpc: this.provider.rpc,
       });
       this.recentTransactionParameters.private.inputUtxos = syncedUtxos;
       root = fetchedRoot;
       rootIndex = index;
     } else {
-      const res = (await this.provider.relayer!.getMerkleRoot(
+      const res = (await this.provider.rpc!.getMerkleRoot(
         MerkleTreeConfig.getTransactionMerkleTreePda(),
       ))!;
       root = res.root;
@@ -514,7 +514,7 @@ export class User {
       throw new TransactionParametersError(
         TransactionParametersErrorCode.FETCHING_ROOT_FAILED,
         "getTxParams",
-        "Fetching root from relayer failed.",
+        "Fetching root from rpc failed.",
       );
     }
     const systemProofInputs = createSystemProofInputs({
@@ -539,8 +539,8 @@ export class User {
     const accounts = prepareAccounts({
       transactionAccounts: this.recentTransactionParameters.public.accounts,
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
-      relayerRecipientSol: this.provider.relayer.accounts.relayerRecipientSol,
-      signer: this.recentTransactionParameters.public.accounts.relayerPublicKey,
+      rpcRecipientSol: this.provider.rpc.accounts.rpcRecipientSol,
+      signer: this.recentTransactionParameters.public.accounts.rpcPublicKey,
     });
 
     this.recentInstructions = await createSolanaInstructions({
@@ -850,7 +850,7 @@ export class User {
       recipientSol: recipient,
       recipientSplAddress: recipientSpl,
       provider: this.provider,
-      relayer: this.provider.relayer,
+      rpc: this.provider.rpc,
       ataCreationFee,
       appUtxo: this.appUtxoConfig,
       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
@@ -1027,7 +1027,7 @@ export class User {
       inUtxos,
       outUtxos: _outUtxos,
       provider: this.provider,
-      relayer: this.provider.relayer,
+      rpc: this.provider.rpc,
       verifierIdl: verifierIdl ? verifierIdl : this.verifierIdl,
       appUtxo: this.appUtxoConfig,
       message,
@@ -1058,15 +1058,15 @@ export class User {
     await this.approve();
     this.approved = true;
 
-    // we send an array of instructions to the relayer and the relayer sends 3 transaction
+    // we send an array of instructions to the rpc and the rpc sends 3 transaction
     const txHash = await this.sendTransaction();
 
-    const relayerMerkleTreeUpdateResponse = "success";
+    const rpcMerkleTreeUpdateResponse = "success";
 
     await this.getBalance();
 
     this.resetTxState();
-    return { txHash, response: relayerMerkleTreeUpdateResponse };
+    return { txHash, response: rpcMerkleTreeUpdateResponse };
   }
 
   // @ts-ignore
@@ -1210,7 +1210,7 @@ export class User {
       separateSolUtxo: true,
       account: this.account,
       mergeUtxos: true,
-      relayer: this.provider.relayer,
+      rpc: this.provider.rpc,
       verifierIdl: IDL_LIGHT_PSP10IN2OUT,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1290,7 +1290,7 @@ export class User {
       addOutUtxos: true,
       account: this.account,
       mergeUtxos: true,
-      relayer: this.provider.relayer,
+      rpc: this.provider.rpc,
       verifierIdl: IDL_LIGHT_PSP10IN2OUT,
       assetLookupTable: this.provider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -1336,7 +1336,7 @@ export class User {
     aes: boolean = true,
     merkleTreePdaPublicKey: PublicKey = MerkleTreeConfig.getTransactionMerkleTreePda(),
   ) {
-    // TODO: move to relayer
+    // TODO: move to rpc
     // TODO: implement the following
     /**
      * get all transactions of the storage verifier and filter for the ones including noop program
@@ -1352,7 +1352,7 @@ export class User {
     const prefixes = aes
       ? getPrefixes(this.account, merkleTreePdaPublicKey, 100)
       : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
-    const indexedTransactions = await this.provider.relayer.getEventsByIdBatch(
+    const indexedTransactions = await this.provider.rpc.getEventsByIdBatch(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
       prefixes,
       0,
@@ -1361,7 +1361,7 @@ export class User {
       throw new UserError(
         UserErrorCode.FETCHING_INDEXED_TRANSACTIONS_FAILED,
         "syncStorage",
-        "Fetching indexed transactions from relayer failed!",
+        "Fetching indexed transactions from rpc failed!",
       );
 
     const indexedStorageVerifierTransactionsFiltered =
@@ -1381,7 +1381,7 @@ export class User {
      */
     // TODO: support decryption of multiple messages in one transaction, the first 8 bytes should be the length of the message
     const decryptIndexStorage = async (
-      indexedTransactions: RpcIndexedTransaction[],
+      indexedTransactions: RpcIndexedTransactionResponse[],
       assetLookupTable: string[],
       aes: boolean,
     ) => {
@@ -1551,7 +1551,7 @@ export class User {
         account: this.account,
         inUtxos,
         provider: this.provider,
-        relayer: this.provider.relayer,
+        rpc: this.provider.rpc,
         appUtxo: this.appUtxoConfig,
         message,
         mergeUtxos: true,
