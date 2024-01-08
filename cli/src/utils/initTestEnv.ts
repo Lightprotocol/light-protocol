@@ -6,11 +6,7 @@ import {
   initLookUpTableFromFile,
   sleep,
 } from "@lightprotocol/zk.js";
-import {
-  setAnchorProvider,
-  setLookUpTable,
-  setRpcRecipient,
-} from "./utils";
+import { setAnchorProvider, setLookUpTable, setRpcRecipient } from "./utils";
 import { Keypair } from "@solana/web3.js";
 import {
   LIGHT_MERKLE_TREE_PROGRAM_TAG,

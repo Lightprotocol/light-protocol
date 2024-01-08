@@ -12,10 +12,7 @@ import { RpcIndexedTransaction } from "@lightprotocol/zk.js";
 export async function sendTransaction(req: any, res: any) {
   try {
     if (!req.body.instructions)
-      throw new Rpcror(
-        RpcrorCode.NO_INSTRUCTIONS_PROVIDED,
-        "sendTransaction",
-      );
+      throw new Rpcror(RpcrorCode.NO_INSTRUCTIONS_PROVIDED, "sendTransaction");
     const provider = await getLightProvider();
 
     if (!provider.provider)

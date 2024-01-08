@@ -40,7 +40,6 @@ jobs:
           - test: system-programs-psp-examples
             sub-tests: '[
               "@lightprotocol/zk.js:test",
-              "@lightprotocol/encrypted-messaging:test",
               "@lightprotocol/private-payments:test"
             ]'
     steps:

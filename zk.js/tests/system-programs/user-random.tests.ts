@@ -80,12 +80,7 @@ const calculateAmounts = async (
 
   const amountSol =
     isSol || sol
-      ? generateRandomTestAmount(
-          0.01,
-          (totalSolBalance - rpcFee) / 1e9,
-          9,
-          rng,
-        )
+      ? generateRandomTestAmount(0.01, (totalSolBalance - rpcFee) / 1e9, 9, rng)
       : undefined;
   const amountSpl = !isSol
     ? generateRandomTestAmount(0.01, totalSplBalance / 1e2, 2, rng)
@@ -367,10 +362,7 @@ const createTestUser = async (
   return { user: await User.init({ provider }), wallet };
 };
 
-const checkSolBalanceGtRpcFee = async (
-  user: User,
-  tokenMint: PublicKey,
-) => {
+const checkSolBalanceGtRpcFee = async (user: User, tokenMint: PublicKey) => {
   const balance = await user.getBalance();
   const solBalance = balance.tokenBalances.get(tokenMint.toBase58())
     ?.totalBalanceSol;
@@ -383,8 +375,7 @@ const checkSolBalanceGtRpcFee = async (
     return false;
   return (
     solBalance &&
-    solBalance.toNumber() >
-      user.provider.rpc.getRpcFee().toNumber() + 1e9
+    solBalance.toNumber() > user.provider.rpc.getRpcFee().toNumber() + 1e9
   );
 };
 
@@ -394,10 +385,7 @@ const selectRandomAction = async (
   tokenMint: PublicKey,
 ) => {
   const randomNumber = rng();
-  const unshieldingPossible = await checkSolBalanceGtRpcFee(
-    user,
-    tokenMint,
-  );
+  const unshieldingPossible = await checkSolBalanceGtRpcFee(user, tokenMint);
   console.log("unshielding possible ", unshieldingPossible);
 
   if (randomNumber < 0.33 && unshieldingPossible) {

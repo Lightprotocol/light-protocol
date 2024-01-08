@@ -65,8 +65,7 @@ export async function parseReqParams(reqInstructions: any) {
     });
     // checking that rpc is signer and writable
     if (
-      accounts[0].pubkey.toBase58() !==
-        rpc.accounts.rpcPubkey.toBase58() ||
+      accounts[0].pubkey.toBase58() !== rpc.accounts.rpcPubkey.toBase58() ||
       accounts[0].isSigner != true ||
       accounts[0].isWritable != true
     )
@@ -77,8 +76,7 @@ export async function parseReqParams(reqInstructions: any) {
       );
     console.log(
       "account 0",
-      accounts[0].pubkey.toBase58() ===
-        rpc.accounts.rpcPubkey.toBase58(),
+      accounts[0].pubkey.toBase58() === rpc.accounts.rpcPubkey.toBase58(),
     );
     const newInstruction = new TransactionInstruction({
       keys: accounts,

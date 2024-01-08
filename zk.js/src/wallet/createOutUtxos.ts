@@ -126,9 +126,7 @@ export function createOutUtxos({
     );
 
   if (rpcFee) {
-    publicAmountSol = publicAmountSol
-      ? publicAmountSol.add(rpcFee)
-      : rpcFee;
+    publicAmountSol = publicAmountSol ? publicAmountSol.add(rpcFee) : rpcFee;
   }
 
   const assetPubkeys =

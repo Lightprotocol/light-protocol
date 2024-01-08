@@ -15,17 +15,11 @@ export async function fundRpc() {
   const rpcRecipient = rpc.accounts.rpcRecipientSol;
   rpc.rpcFee = RPC_FEE;
 
-  const keyPairBalance =
-    await anchorProvider.connection.getBalance(rpcPubkey);
-  const rpcBalance =
-    await anchorProvider.connection.getBalance(rpcRecipient);
+  const keyPairBalance = await anchorProvider.connection.getBalance(rpcPubkey);
+  const rpcBalance = await anchorProvider.connection.getBalance(rpcRecipient);
 
   // print balances
-  console.log(
-    "Rpc Feepayer balance:",
-    keyPairBalance,
-    rpcPubkey.toBase58(),
-  );
+  console.log("Rpc Feepayer balance:", keyPairBalance, rpcPubkey.toBase58());
   console.log(
     "Rpc Recipient (SOL) balance:",
     rpcBalance,
@@ -58,9 +52,7 @@ export async function fundRpc() {
         console.log(
           `${accountName} funded:`,
           (
-            rpc.accounts[
-              accountName as keyof typeof rpc.accounts
-            ] as PublicKey
+            rpc.accounts[accountName as keyof typeof rpc.accounts] as PublicKey
           ).toBase58(),
         );
       } catch (e) {

@@ -1,178 +1,74 @@
-import * as light from "@lightprotocol/zk.js";
-import * as anchor from "@coral-xyz/anchor";
-import { airdropSol, confirmConfig, TestRpc, User } from "@lightprotocol/zk.js";
-import { BN } from "@coral-xyz/anchor";
+import { utils } from "@coral-xyz/anchor";
+import {
+  ConfirmOptions,
+  CONSTANT_SECRET_AUTHKEY,
+  SendVersionedTransactionsResult,
+  User,
+} from "@lightprotocol/zk.js";
+import nacl from "tweetnacl";
+export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
+export class MessageClient {
+  constructor(public user: User) {}
 
-process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-const provider = anchor.AnchorProvider.local(
-  "http://127.0.0.1:8899",
-  confirmConfig
-);
+  async encryptAndStoreForRecipient(
+    message: string,
+    recipient: Uint8Array
+  ): Promise<SendVersionedTransactionsResult> {
+    const buf = this.str2buf(message);
+    const nonce = newNonce();
+    const ciphertext = nacl.box(buf, nonce, recipient, CONSTANT_SECRET_AUTHKEY);
 
-const log = console.log;
-
-const main = async () => {
-  const PARTICIPANTS_COUNT = 2;
-  const recipients = new Array(PARTICIPANTS_COUNT).fill(null).map(() => {
-    return {
-      keypair: anchor.web3.Keypair.generate(),
-    };
-  });
-
-  const senders = new Array(PARTICIPANTS_COUNT).fill(null).map(() => {
-    return {
-      keypair: anchor.web3.Keypair.generate(),
-    };
-  });
-
-  const logLabel = `async private payments for ${PARTICIPANTS_COUNT} recipients`;
-  console.time(logLabel);
-  let calls = [];
-
-  for (let i = 0; i < PARTICIPANTS_COUNT; i++) {
-    const sender = senders[i];
-    const recipient = recipients[i];
-    calls.push(makeShield(sender.keypair, recipient.keypair));
-  }
-  await Promise.all(calls);
-  const lightProvider = await light.Provider.init({
-    wallet: senders[0].keypair,
-    confirmConfig,
-  });
-  const rpc = new TestRpc({
-    rpcPubkey: senders[0].keypair.publicKey,
-    rpcRecipientSol: senders[0].keypair.publicKey,
-    rpcFee: new BN(100_000),
-    payer: senders[0].keypair,
-    connection: provider.connection,
-    lightWasm: lightProvider.lightWasm,
-  });
-  lightProvider.rpc = rpc;
-  log("initializing light provider...");
-
-  calls = [];
-  for (let i = 0; i < PARTICIPANTS_COUNT; i++) {
-    const sender = senders[i];
-    const recipient = recipients[i];
-    calls.push(makeTransfer(sender.keypair, recipient.keypair));
-  }
-  await Promise.all(calls);
-
-  console.timeEnd(logLabel);
-
-  async function makeShield(
-    sender: anchor.web3.Keypair,
-    recipient: anchor.web3.Keypair
-  ) {
-    log("requesting airdrop...");
-    await airdropSol({
-      connection: provider.connection,
-      lamports: 1e12,
-      recipientPublicKey: sender.publicKey,
-    });
-
-    log("initializing Solana wallet...");
-
-    log("initializing light provider...");
-    const lightProvider = await light.Provider.init({
-      wallet: sender,
-      confirmConfig,
-    });
-    log("setting-up test rpc...");
-    const rpc = new TestRpc({
-      rpcPubkey: sender.publicKey,
-      rpcRecipientSol: sender.publicKey,
-      rpcFee: new BN(100_000),
-      payer: sender,
-      connection: provider.connection,
-      lightWasm: lightProvider.lightWasm,
-    });
-    lightProvider.rpc = rpc;
-
-    log("initializing user...");
-    const user = await light.User.init({ provider: lightProvider });
-
-    try {
-      await user.shield({
-        publicAmountSol: "1",
-        token: "SOL",
-        confirmOptions: light.ConfirmOptions.finalized,
-      });
-    } catch (e) {}
+    const res = Uint8Array.from([...nonce, ...ciphertext]);
+    return this.store(Buffer.from(res));
   }
 
-  async function makeTransfer(
-    sender: anchor.web3.Keypair,
-    recipient: anchor.web3.Keypair
-  ) {
-    log("initializing light provider...");
-    const lightProvider = await light.Provider.init({
-      wallet: sender,
-      confirmConfig,
-    });
-    log("initializing Solana wallet...");
-    log("setting-up test rpc...");
-    const rpc = new TestRpc({
-      rpcPubkey: sender.publicKey,
-      rpcRecipientSol: sender.publicKey,
-      rpcFee: new BN(100_000),
-      payer: sender,
-      connection: provider.connection,
-      lightWasm: lightProvider.lightWasm,
-    });
-    lightProvider.rpc = rpc;
-
-    log("initializing user...");
-    const user = await light.User.init({ provider: lightProvider });
-
-    log("getting user balance...");
-    log(await user.getBalance());
-
-    log("requesting airdrop...");
-    await airdropSol({
-      connection: provider.connection,
-      lamports: 2e9,
-      recipientPublicKey: recipient.publicKey,
-    });
-
-    log("initializing light provider recipient...");
-    const lightProviderRecipient = await light.Provider.init({
-      wallet: recipient,
-      rpc,
-      confirmConfig,
-    });
-
-    log("initializing light user recipient...");
-    const testRecipient: User = await light.User.init({
-      provider: lightProviderRecipient,
-    });
-
-    log("executing transfer...");
-    try {
-      const response = await user.transfer({
-        amountSol: "0.25",
-        token: "SOL",
-        recipient: testRecipient.account.getPublicKey(),
-        confirmOptions: light.ConfirmOptions.finalized,
-      });
-      log("getting tx hash...");
-      log(response.txHash);
-    } catch (e) {}
-    log("getting UTXO inbox...");
-    log(await testRecipient.getUtxoInbox());
+  async storeString(message: string): Promise<SendVersionedTransactionsResult> {
+    const buf = this.str2buf(message);
+    return this.store(buf);
   }
-};
 
-log("running program...");
-main()
-  .then(() => {
-    log("running complete.");
-  })
-  .catch((e) => {
-    console.trace(e);
-  })
-  .finally(() => {
-    log("exiting program.");
-    process.exit(0);
-  });
+  async store(
+    message: Buffer,
+    anonymousSender: boolean = false
+  ): Promise<SendVersionedTransactionsResult> {
+    let res = await this.user.storeData(
+      message,
+      ConfirmOptions.spendable,
+      !anonymousSender
+    );
+    console.log("store program utxo transaction hash ", res.txHash);
+    return res.txHash;
+  }
+
+  async getMessages() {
+    let transactions = await this.user.provider.rpc.getIndexedTransactions(
+      this.user.provider.connection
+    );
+    for (let tx of transactions) {
+      if (tx.message != undefined) {
+        let decryptedMessage = this.decryptMessage(tx.message);
+        if (decryptedMessage == null) {
+          decryptedMessage = utils.bytes.utf8.decode(tx.message);
+        }
+        console.log(decryptedMessage);
+      }
+    }
+  }
+
+  decryptMessage(message: Buffer): string | null {
+    const cleartext = nacl.box.open(
+      Uint8Array.from(message).slice(nacl.box.nonceLength),
+      Uint8Array.from(message).slice(0, nacl.box.nonceLength),
+      nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
+      this.user.account.encryptionKeypair.secretKey
+    );
+    if (cleartext == null) {
+      return null;
+    }
+    return utils.bytes.utf8.decode(Buffer.from(cleartext));
+  }
+
+  private str2buf(message: string) {
+    return Buffer.from(utils.bytes.utf8.encode(message));
+  }
+}

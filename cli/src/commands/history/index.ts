@@ -80,11 +80,7 @@ class TransactionHistoryCommand extends Command {
             ]);
             break;
           case "UNSHIELD":
-            this.logTransaction(transactionHistory, [
-              "From",
-              "To",
-              "RpcFee",
-            ]);
+            this.logTransaction(transactionHistory, ["From", "To", "RpcFee"]);
             break;
           case "TRANSFER":
             this.logTransaction(transactionHistory, [
