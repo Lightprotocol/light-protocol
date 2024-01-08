@@ -33,13 +33,13 @@ import {
 import { getUidFromIxs } from "../src/services";
 import { getKeyPairFromEnv } from "../src/utils/provider";
 import { waitForBalanceUpdate } from "./test-utils/waitForBalanceUpdate";
-import { SOLANA_RPC_URL } from "../src/config";
+import { LIGHT_RPC_URL } from "../src/config";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 const bs58 = require("bs58");
 
 chai.use(chaiHttp);
 const expect = chai.expect;
-const server = SOLANA_RPC_URL;
+const server = LIGHT_RPC_URL;
 
 describe("API tests", () => {
   let lightWasm: LightWasm;
@@ -66,7 +66,7 @@ describe("API tests", () => {
       recipientPublicKey: userKeypair.publicKey,
     });
 
-    const rpc = await Rpc.initFromUrl(SOLANA_RPC_URL);
+    const rpc = await Rpc.initFromUrl(LIGHT_RPC_URL);
 
     provider = await Provider.init({
       wallet: userKeypair,
@@ -84,7 +84,7 @@ describe("API tests", () => {
   });
 
   it("initFromUrl with rpcInfo", async () => {
-    rpc = await Rpc.initFromUrl(SOLANA_RPC_URL);
+    rpc = await Rpc.initFromUrl(LIGHT_RPC_URL);
     console.log("rpc", rpc);
     assert.equal(
       rpc.accounts.rpcRecipientSol.toBase58(),
@@ -312,7 +312,7 @@ describe("API tests", () => {
       Keypair.generate().publicKey,
       RPC_FEE,
       TOKEN_ACCOUNT_FEE,
-      SOLANA_RPC_URL!,
+      LIGHT_RPC_URL!,
     );
     const provider = await Provider.init({
       wallet: userKeypair,

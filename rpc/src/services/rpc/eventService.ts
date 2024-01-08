@@ -1,8 +1,7 @@
 import {
   RpcIndexedTransaction,
-  RpcIndexedTransaction,
   SolMerkleTree,
-  createRpcIndexedTransaction,
+  createRpcIndexedTransactionResponse,
   Provider,
 } from "@lightprotocol/zk.js";
 import { DB_VERSION } from "../../config";
@@ -41,7 +40,7 @@ export async function getEventById(
     });
 
     return res.status(200).json({
-      data: createRpcIndexedTransaction(indexedTransaction, merkleTree),
+      data: createRpcIndexedTransactionResponse(indexedTransaction, merkleTree),
     });
   } catch (e) {
     console.log(e);
@@ -84,7 +83,7 @@ export async function getEventsByIdBatch(
       trx.IDs.some((id: string) => ids.includes(id)),
     );
     const rpcIndexedTransactions = await indexedTransactionsById.map((trx) =>
-      createRpcIndexedTransaction(trx.transaction, merkleTree),
+      createRpcIndexedTransactionResponse(trx.transaction, merkleTree),
     );
     return res.status(200).json({ data: rpcIndexedTransactions });
   } catch (e) {

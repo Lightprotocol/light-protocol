@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair } from "@solana/web3.js";
-import { RPC_LOOK_UP_TABLE, SOLANA_RPC_URL, rpcFee } from "../config";
+import { RPC_LOOK_UP_TABLE, LIGHT_RPC_URL, rpcFee } from "../config";
 import {
   confirmConfig,
   Provider,
@@ -79,7 +79,7 @@ export function getRpc(): Rpc {
       getKeyPairFromEnv("RPC_RECIPIENT").publicKey,
       rpcFee,
       TOKEN_ACCOUNT_FEE,
-      SOLANA_RPC_URL!,
+      LIGHT_RPC_URL!,
     );
 
     return rpc;

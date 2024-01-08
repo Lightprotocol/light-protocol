@@ -42,8 +42,8 @@ export const WORKER_RETRIES_PER_JOB = 1;
 export const MIN_INDEXER_SLOT = 1693523214000; //arbitrary, based on "deployment version". is actually unix timestamp
 export const rpcFee = RPC_FEE;
 export const port = Number(process.env.PORT) || 3332;
-export const SOLANA_RPC_URL =
-  process.env.SOLANA_RPC_URL || `http://127.0.0.1:${port}`;
+export const LIGHT_RPC_URL =
+  process.env.LIGHT_RPC_URL || `http://127.0.0.1:${port}`;
 export const SECONDS = 1000;
 export const MINUTE = 60 * SECONDS;
 export const HOUR = 60 * MINUTE;
