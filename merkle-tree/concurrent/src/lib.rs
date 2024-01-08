@@ -51,8 +51,8 @@ pub struct ConcurrentMerkleTree<
     _hasher: PhantomData<H>,
 }
 
-impl<H, const MAX_HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Default
-    for ConcurrentMerkleTree<H, MAX_HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Default
+    for ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
 where
     H: Hasher,
 {
@@ -62,7 +62,7 @@ where
             current_changelog_index: 0,
             roots: [[0u8; 32]; MAX_ROOTS],
             current_root_index: 0,
-            rightmost_proof: [[0u8; 32]; MAX_HEIGHT],
+            rightmost_proof: [[0u8; 32]; HEIGHT],
             rightmost_index: 0,
             rightmost_leaf: [0u8; 32],
             _hasher: PhantomData,
@@ -70,16 +70,16 @@ where
     }
 }
 
-impl<H, const MAX_HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>
-    ConcurrentMerkleTree<H, MAX_HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>
+    ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
 where
     H: Hasher,
 {
     /// Initializes the Merkle tree.
     pub fn init(&mut self) -> Result<(), HasherError> {
         // Initialize changelog.
-        let root = H::zero_bytes()[MAX_HEIGHT];
-        let mut changelog_path = [[0u8; 32]; MAX_HEIGHT];
+        let root = H::zero_bytes()[HEIGHT];
+        let mut changelog_path = [[0u8; 32]; HEIGHT];
         for (i, node) in changelog_path.iter_mut().enumerate() {
             *node = H::zero_bytes()[i];
         }
@@ -148,11 +148,11 @@ where
     ///
     /// 2 ^ 4 = 0b_0010 ^ 0b_0100 = 0b_0110 = 6
     fn intersection_index(&self, leaf_index: usize, changelog_entry_index: usize) -> usize {
-        let padding = 64 - MAX_HEIGHT;
+        let padding = 64 - HEIGHT;
         let common_path_len =
             ((leaf_index ^ changelog_entry_index) << padding).leading_zeros() as usize;
 
-        (MAX_HEIGHT - 1) - common_path_len
+        (HEIGHT - 1) - common_path_len
     }
 
     /// Returns an updated Merkle proof.
@@ -177,8 +177,8 @@ where
         &self,
         changelog_index: usize,
         leaf_index: usize,
-        proof: &[[u8; 32]; MAX_HEIGHT],
-    ) -> Result<[[u8; 32]; MAX_HEIGHT], HasherError> {
+        proof: &[[u8; 32]; HEIGHT],
+    ) -> Result<[[u8; 32]; HEIGHT], HasherError> {
         let mut updated_proof = proof.to_owned();
         let mut k = changelog_index;
 
@@ -217,10 +217,10 @@ where
         &mut self,
         new_leaf: &[u8; 32],
         leaf_index: usize,
-        proof: &[[u8; 32]; MAX_HEIGHT],
+        proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), HasherError> {
         let mut node = *new_leaf;
-        let mut changelog_path = [[0u8; 32]; MAX_HEIGHT];
+        let mut changelog_path = [[0u8; 32]; HEIGHT];
 
         for (j, sibling) in proof.iter().enumerate() {
             changelog_path[j] = node;
@@ -259,11 +259,11 @@ where
         old_leaf: &[u8; 32],
         new_leaf: &[u8; 32],
         leaf_index: usize,
-        proof: &[[u8; 32]; MAX_HEIGHT],
+        proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), HasherError> {
         let updated_proof = self.update_proof(changelog_index, leaf_index, proof)?;
 
-        validate_proof::<H, MAX_HEIGHT>(
+        validate_proof::<H, HEIGHT>(
             &self.roots[self.current_root_index as usize],
             old_leaf,
             leaf_index,
@@ -274,11 +274,11 @@ where
 
     /// Appends a new leaf to the tree.
     pub fn append(&mut self, leaf: &[u8; 32]) -> Result<(), HasherError> {
-        if self.rightmost_index >= 1 << MAX_HEIGHT {
+        if self.rightmost_index >= 1 << HEIGHT {
             return Err(HasherError::TreeFull);
         }
 
-        let mut changelog_path = [[0u8; 32]; MAX_HEIGHT];
+        let mut changelog_path = [[0u8; 32]; HEIGHT];
         let mut intersection_node = self.rightmost_leaf;
         let intersection_index = self.rightmost_index.trailing_zeros() as usize;
 
