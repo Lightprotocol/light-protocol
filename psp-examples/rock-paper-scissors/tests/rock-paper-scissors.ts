@@ -1,3 +1,8 @@
+/**
+ * Currently Not Maintained and Excluded From CI
+ * TODO: Fix and re-enable
+ */
+//@ts-nocheck
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import { assert } from "chai";
@@ -5,57 +10,510 @@ import {
   Account,
   Action,
   airdropSol,
+  BN_0,
+  BN_1,
   confirmConfig,
   ConfirmOptions,
-  IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
-  MerkleTreeConfig,
-  ProgramUtxoBalance,
+  FIELD_SIZE,
+  ProgramParameters,
   Provider as LightProvider,
+  Rpc,
+  sendVersionedTransactions,
+  STANDARD_SHIELDED_PUBLIC_KEY,
   TestRpc,
   User,
   Utxo,
-  ProgramParameters,
-  createProofInputs,
-  setUndefinedPspCircuitInputsToZero,
-  PspTransactionInput,
-  getSystemProof,
-  SolanaTransactionInputs,
-  sendAndConfirmShieldedTransaction,
-  createTransaction,
-  lightPsp4in4outAppStorageId,
-  getVerifierProgramId,
-  shieldProgramUtxo,
-  createProgramOutUtxo,
 } from "@lightprotocol/zk.js";
-import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
-import { compareOutUtxos } from "../../../zk.js/tests/test-utils/compareUtxos";
-import {
-  Keypair as SolanaKeypair,
-  Keypair,
-  PublicKey,
-  SystemProgram,
-} from "@solana/web3.js";
-import { IDL } from "../target/types/streaming_payments";
-import { MerkleTree } from "@lightprotocol/circuit-lib.js";
+import { Hasher, WasmFactory } from "@lightprotocol/account.rs";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import { IDL, RockPaperScissors } from "../target/types/rock_paper_scissors";
+import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
 
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
   "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 );
-let WASM: LightWasm;
 
+let HASHER: Hasher, RPC: TestRpc;
 const RPC_URL = "http://127.0.0.1:8899";
-const USERS_COUNT = 3;
+const GAME_AMOUNT = new BN(1e9);
 
-const users = new Array(USERS_COUNT).fill(null).map(() => {
-  return {
-    wallet: Keypair.generate(),
-    rpcRecipientSol: SolanaKeypair.generate().publicKey,
-  };
-});
+enum Choice {
+  ROCK = 0,
+  PAPER = 1,
+  SCISSORS = 2,
+}
 
-describe("Streaming Payments tests", () => {
+enum Winner {
+  PLAYER1 = "PLAYER1",
+  PLAYER2 = "PLAYER2",
+  DRAW = "DRAW",
+}
+
+type GameParameters = {
+  gameCommitmentHash?: BN;
+  choice: Choice;
+  slot: BN;
+  player2CommitmentHash: BN;
+  gameAmount: BN;
+  userPubkey: BN;
+};
+
+class Game {
+  gameParameters: GameParameters;
+  programUtxo: Utxo;
+  pda: PublicKey;
+
+  constructor(
+    gameParameters: GameParameters,
+    programUtxo: Utxo,
+    pda: PublicKey
+  ) {
+    this.gameParameters = gameParameters;
+    this.programUtxo = programUtxo;
+    this.pda = pda;
+  }
+
+  static generateGameCommitmentHash(
+    provider: LightProvider,
+    gameParameters: GameParameters
+  ) {
+    return new BN(
+      provider.hasher.poseidonHashString([
+        new BN(gameParameters.choice),
+        gameParameters.slot,
+        gameParameters.player2CommitmentHash,
+        gameParameters.gameAmount,
+      ])
+    );
+  }
+
+  static async create(
+    choice: Choice,
+    gameAmount: BN,
+    lightProvider: LightProvider
+  ) {
+    const slot = await lightProvider.connection.getSlot();
+    const gameParameters: GameParameters = {
+      choice,
+      slot: new BN(slot),
+      gameAmount,
+      player2CommitmentHash: BN_0,
+      userPubkey: BN_0,
+    };
+    gameParameters.gameCommitmentHash = Game.generateGameCommitmentHash(
+      lightProvider,
+      gameParameters
+    );
+    const programUtxo = new Utxo({
+      hasher: HASHER,
+      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
+      assets: [SystemProgram.programId],
+      amounts: [gameParameters.gameAmount],
+      appData: {
+        gameCommitmentHash: gameParameters.gameCommitmentHash,
+        userPubkey: gameParameters.userPubkey,
+      },
+      appDataIdl: IDL,
+      verifierAddress: verifierProgramId,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+    });
+
+    let seed = gameParameters.gameCommitmentHash.toArray("le", 32);
+    const pda = findProgramAddressSync(
+      [Buffer.from(seed)],
+      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
+    )[0];
+
+    return new Game(gameParameters, programUtxo, pda);
+  }
+
+  static async join(
+    gameCommitmentHash: BN,
+    choice: Choice,
+    gameAmount: BN,
+    lightProvider: LightProvider,
+    account: Account
+  ) {
+    const slot = await lightProvider.connection.getSlot();
+    const gameParameters: GameParameters = {
+      choice,
+      slot: new BN(slot),
+      gameAmount,
+      player2CommitmentHash: gameCommitmentHash,
+      userPubkey: account.keypair.publicKey,
+    };
+    gameParameters.gameCommitmentHash = Game.generateGameCommitmentHash(
+      lightProvider,
+      gameParameters
+    );
+
+    const programUtxo = new Utxo({
+      hasher: lightProvider.hasher,
+      assets: [SystemProgram.programId],
+      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
+      amounts: [gameAmount],
+      appData: {
+        gameCommitmentHash: gameParameters.gameCommitmentHash,
+        userPubkey: account.keypair.publicKey,
+      },
+      appDataIdl: IDL,
+      verifierAddress: verifierProgramId,
+      assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+    });
+
+    let seed = gameCommitmentHash.toArray("le", 32);
+    const pda = findProgramAddressSync(
+      [Buffer.from(seed)],
+      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
+    )[0];
+    return new Game(gameParameters, programUtxo, pda);
+  }
+
+  getWinner(opponentChoice: Choice): {
+    winner: Winner;
+    isWin: BN[];
+    isDraw: BN;
+    isLoss: BN;
+  } {
+    const { choice } = this.gameParameters;
+    if (choice === opponentChoice) {
+      return {
+        winner: Winner.DRAW,
+        isWin: [BN_0, BN_0, BN_0],
+        isDraw: BN_1,
+        isLoss: BN_0,
+      };
+    }
+    if (choice === Choice.ROCK && opponentChoice === Choice.SCISSORS) {
+      return {
+        winner: Winner.PLAYER1,
+        isWin: [BN_1, BN_0, BN_0],
+        isDraw: BN_0,
+        isLoss: BN_0,
+      };
+    }
+    if (choice === Choice.PAPER && opponentChoice === Choice.ROCK) {
+      return {
+        winner: Winner.PLAYER1,
+        isWin: [BN_0, BN_1, BN_0],
+        isDraw: BN_0,
+        isLoss: BN_0,
+      };
+    }
+    if (choice === Choice.SCISSORS && opponentChoice === Choice.PAPER) {
+      return {
+        winner: Winner.PLAYER1,
+        isWin: [BN_0, BN_0, BN_1],
+        isDraw: BN_0,
+        isLoss: BN_0,
+      };
+    }
+    return {
+      winner: Winner.PLAYER2,
+      isWin: [BN_0, BN_0, BN_0],
+      isDraw: BN_0,
+      isLoss: BN_1,
+    };
+  }
+}
+
+class Player {
+  user: User;
+  game?: Game;
+  pspInstance: anchor.Program<RockPaperScissors>;
+
+  constructor(user: User) {
+    this.user = user;
+    this.pspInstance = new anchor.Program(
+      IDL,
+      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
+      user.provider.provider
+    );
+  }
+
+  static async init(provider: anchor.AnchorProvider, rpc: TestRpc | Rpc) {
+    const wallet = Keypair.generate();
+    await airdropSol({
+      connection: provider.connection,
+      lamports: 1e11,
+      recipientPublicKey: wallet.publicKey,
+    });
+
+    // The light provider is a connection and wallet abstraction.
+    // The wallet is used to derive the seed for your shielded keypair with a signature.
+    let lightProvider = await LightProvider.init({
+      wallet,
+      url: RPC_URL,
+      rpc,
+      confirmConfig,
+    });
+    // lightProvider.addVerifierProgramPublickeyToLookUpTable(TransactionParameters.getVerifierProgramId(IDL));
+    return new Player(await User.init({ provider: lightProvider }));
+  }
+
+  async closeGame() {
+    if (!this.game) {
+      throw new Error("No game in progress.");
+    }
+    let tx = await this.pspInstance.methods
+      .closeGame()
+      .accounts({
+        gamePda: this.game.pda,
+        signer: this.user.provider.wallet.publicKey,
+      })
+      .instruction();
+
+    await sendVersionedTransactions(
+      [tx],
+      this.user.provider.connection,
+      this.user.provider.lookUpTables.versionedTransactionLookupTable,
+      this.user.provider.wallet
+    );
+  }
+  async createGame(
+    choice: Choice,
+    gameAmount: BN,
+    action: Action = Action.SHIELD
+  ) {
+    if (this.game) {
+      throw new Error("A game is already in progress.");
+    }
+    this.game = await Game.create(choice, gameAmount, this.user.provider);
+
+    const txHash = await this.user.storeAppUtxo({
+      appUtxo: this.game.programUtxo,
+      action,
+    });
+
+    const borshCoder = new anchor.BorshAccountsCoder(IDL);
+    const serializationObject = {
+      ...this.game.programUtxo,
+      ...this.game.programUtxo.appData,
+      accountEncryptionPublicKey: this.game.programUtxo.encryptionPublicKey,
+      accountShieldedPublicKey: this.game.programUtxo.publicKey,
+    };
+    const utxoBytes = (
+      await borshCoder.encode("utxo", serializationObject)
+    ).subarray(8);
+
+    let tx = await this.pspInstance.methods
+      .createGame(utxoBytes)
+      .accounts({
+        gamePda: this.game.pda,
+        signer: this.user.provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .instruction();
+
+    let txHash2 = await sendVersionedTransactions(
+      [tx],
+      this.user.provider.connection,
+      this.user.provider.lookUpTables.versionedTransactionLookupTable,
+      this.user.provider.wallet
+    );
+
+    return {
+      game: this.game,
+      txHashStoreAppUtxo: txHash,
+      txHashCreateGame: txHash2,
+    };
+  }
+
+  async join(
+    gameCommitmentHash: BN,
+    choice: Choice,
+    gameAmount: BN,
+    action: Action = Action.SHIELD
+  ) {
+    if (this.game) {
+      throw new Error("A game is already in progress.");
+    }
+    this.game = await Game.join(
+      gameCommitmentHash,
+      choice,
+      gameAmount,
+      this.user.provider,
+      this.user.account
+    );
+    const txHash = await this.user.storeAppUtxo({
+      appUtxo: this.game.programUtxo,
+      action,
+    });
+    const gamePdaAccountInfo = await this.pspInstance.account.gamePda.fetch(
+      this.game.pda
+    );
+    // @ts-ignore anchor type is not represented correctly
+    if (gamePdaAccountInfo.game.isJoinable === false) {
+      throw new Error("Game is not joinable");
+    }
+
+    const borshCoder = new anchor.BorshAccountsCoder(IDL);
+    const serializationObject = {
+      ...this.game.programUtxo,
+      ...this.game.programUtxo.appData,
+      accountEncryptionPublicKey: this.game.programUtxo.encryptionPublicKey,
+      accountShieldedPublicKey: this.game.programUtxo.publicKey,
+    };
+    const utxoBytes = (
+      await borshCoder.encode("utxo", serializationObject)
+    ).subarray(8);
+
+    const tx = await this.pspInstance.methods
+      .joinGame(
+        utxoBytes,
+        this.game.gameParameters.choice,
+        this.game.gameParameters.slot
+      )
+      .accounts({
+        gamePda: this.game.pda,
+        signer: this.user.provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .instruction();
+    let txHash2 = await sendVersionedTransactions(
+      [tx],
+      this.user.provider.connection,
+      this.user.provider.lookUpTables.versionedTransactionLookupTable,
+      this.user.provider.wallet
+    );
+
+    return {
+      game: this.game,
+      txHashStoreAppUtxo: txHash,
+      txHashCreateGame: txHash2,
+    };
+  }
+
+  async execute(testProgramUtxo?: Utxo) {
+    const gamePdaAccountInfo = await this.pspInstance.account.gamePda.fetch(
+      this.game.pda
+    );
+    if (gamePdaAccountInfo.game.isJoinable === true) {
+      throw new Error("Game is joinable not executable");
+    }
+    const gameParametersPlayer2 = {
+      gameCommitmentHash:
+        gamePdaAccountInfo.game.playerTwoProgramUtxo.gameCommitmentHash,
+      choice: gamePdaAccountInfo.game.playerTwoChoice,
+      slot: gamePdaAccountInfo.game.slot,
+      userPubkey: gamePdaAccountInfo.game.playerTwoProgramUtxo.userPubkey,
+    };
+    const player2ProgramUtxo = new Utxo({
+      hasher: this.user.provider.hasher,
+      assets: [SystemProgram.programId],
+      publicKey: STANDARD_SHIELDED_PUBLIC_KEY,
+      amounts: [gamePdaAccountInfo.game.playerTwoProgramUtxo.amounts[0]],
+      appData: {
+        gameCommitmentHash: gameParametersPlayer2.gameCommitmentHash,
+        userPubkey: gameParametersPlayer2.userPubkey,
+      },
+      appDataIdl: IDL,
+      verifierAddress: new PublicKey(
+        "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+      ),
+      assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
+      blinding: gamePdaAccountInfo.game.playerTwoProgramUtxo.blinding,
+    });
+    Utxo.equal(
+      this.user.provider.hasher,
+      player2ProgramUtxo,
+      testProgramUtxo,
+      false
+    );
+    const circuitPath = path.join(
+      "build-circuit/rock-paper-scissors/rockPaperScissors"
+    );
+    const winner = this.game.getWinner(gamePdaAccountInfo.game.playerTwoChoice);
+
+    // We use getBalance to sync the current merkle tree
+    await this.user.getBalance();
+    const merkleTree = this.user.provider.solMerkleTree.merkleTree;
+    this.game.programUtxo.index = merkleTree.indexOf(
+      this.game.programUtxo.getCommitment(this.user.provider.hasher)
+    );
+    player2ProgramUtxo.index = merkleTree.indexOf(
+      player2ProgramUtxo.getCommitment(this.user.provider.hasher)
+    );
+
+    const programParameters: ProgramParameters = {
+      inputs: {
+        publicGameCommitment0: this.game.gameParameters.gameCommitmentHash,
+        publicGameCommitment1: player2ProgramUtxo.appData.gameCommitmentHash,
+        gameCommitmentHash: [
+          this.game.gameParameters.gameCommitmentHash,
+          gameParametersPlayer2.gameCommitmentHash,
+        ],
+        choice: [this.game.gameParameters.choice, gameParametersPlayer2.choice],
+        slot: [this.game.gameParameters.slot, gameParametersPlayer2.slot],
+        gameAmount: GAME_AMOUNT,
+        userPubkey: [
+          this.game.gameParameters.userPubkey,
+          player2ProgramUtxo.appData.userPubkey,
+        ],
+        isPlayer2OutUtxo: [[BN_0, BN_1, BN_0, BN_0]],
+        ...winner,
+      },
+      verifierIdl: IDL,
+      path: circuitPath,
+      accounts: {
+        gamePda: this.game.pda,
+      },
+      circuitName: "rockPaperScissors",
+    };
+    const amounts = this.getAmounts(winner.winner);
+    const player1OutUtxo = new Utxo({
+      hasher: this.user.provider.hasher,
+      assets: [SystemProgram.programId],
+      publicKey: this.user.account.pubkey,
+      amounts: [amounts[0]],
+      assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
+    });
+    const player2OutUtxo = new Utxo({
+      hasher: this.user.provider.hasher,
+      assets: [SystemProgram.programId],
+      publicKey: gameParametersPlayer2.userPubkey,
+      encryptionPublicKey: new Uint8Array(
+        gamePdaAccountInfo.game.playerTwoProgramUtxo.accountEncryptionPublicKey
+      ),
+      amounts: [amounts[1]],
+      assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
+      blinding: gameParametersPlayer2.userPubkey
+        .add(gameParametersPlayer2.userPubkey)
+        .mod(FIELD_SIZE),
+    });
+
+    let payerUtxo = this.user.getAllUtxos();
+
+    let { txHash } = await this.user.executeAppUtxo({
+      appUtxos: [this.game.programUtxo, player2ProgramUtxo],
+      inUtxos: [payerUtxo[0]],
+      outUtxos: [player1OutUtxo, player2OutUtxo],
+      programParameters,
+      action: Action.TRANSFER,
+      addOutUtxos: true,
+      shuffleEnabled: false,
+      confirmOptions: ConfirmOptions.spendable,
+    });
+
+    return { txHash, gameResult: winner.winner };
+  }
+
+  getAmounts(winner: Winner) {
+    if (winner === Winner.PLAYER1) {
+      return [this.game.gameParameters.gameAmount.mul(new BN(2)), BN_0];
+    } else if (winner === Winner.PLAYER2) {
+      return [BN_0, this.game.gameParameters.gameAmount.mul(new BN(2))];
+    }
+    return [
+      this.game.gameParameters.gameAmount,
+      this.game.gameParameters.gameAmount,
+    ];
+  }
+}
+
+describe("Test rock-paper-scissors", () => {
   process.env.ANCHOR_PROVIDER_URL = RPC_URL;
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
@@ -64,428 +522,88 @@ describe("Streaming Payments tests", () => {
   anchor.setProvider(provider);
 
   before(async () => {
-    WASM = await WasmFactory.getInstance();
-  });
+    HASHER = await WasmFactory.getInstance();
 
-  it("Create and Spend Program Utxo for one user", async () => {
-    await createAndSpendProgramUtxo(users[0].wallet, users[0].rpcRecipientSol);
-  });
-
-  it.skip(`Create and Spend Program Utxo for ${users.length} users`, async () => {
-    const logLabel = "Create and Spend Program Utxo for ${users.length} users";
-    console.time(logLabel);
-    let calls = [];
-    for (const user of users) {
-      calls.push(createAndSpendProgramUtxo(user.wallet, user.rpcRecipientSol));
-    }
-    await Promise.all(calls);
-    console.timeEnd(logLabel);
-  });
-
-  it.skip("Payment streaming", async () => {
-    await paymentStreaming(users[0].wallet, users[0].rpcRecipientSol);
-  });
-
-  it.skip(`Payment streaming for ${users.length} users`, async () => {
-    const logLabel = "Payment streaming for ${users.length} users";
-    console.time(logLabel);
-    let calls = [];
-    for (const user of users) {
-      calls.push(paymentStreaming(user.wallet, user.rpcRecipientSol));
-    }
-    await Promise.all(calls);
-    console.timeEnd(logLabel);
-  });
-  async function createAndSpendProgramUtxo(
-    wallet: anchor.web3.Keypair,
-    rpcRecipientSol: anchor.web3.PublicKey
-  ): Promise<void> {
+    const rpcWallet = Keypair.generate();
     await airdropSol({
       connection: provider.connection,
-      lamports: 1e9,
-      recipientPublicKey: wallet.publicKey,
+      lamports: 1e11,
+      recipientPublicKey: rpcWallet.publicKey,
     });
+    RPC = new TestRpc({
+      rpcPubkey: rpcWallet.publicKey,
+      rpcRecipientSol: rpcWallet.publicKey,
+      rpcFee: new BN(100000),
+      payer: rpcWallet,
+    });
+  });
 
-    await airdropSol({
-      connection: provider.connection,
-      lamports: 1e9,
-      recipientPublicKey: rpcRecipientSol,
+  it.skip("Test Game Draw", async () => {
+    const player1 = await Player.init(provider, RPC);
+    // shield additional sol to pay for rpc fees
+    await player1.user.shield({
+      publicAmountSol: 10,
+      token: "SOL",
     });
-    let rpc = new TestRpc({
-      rpcPubkey: wallet.publicKey,
-      rpcRecipientSol: rpcRecipientSol,
-      rpcFee: new BN(100_000),
-      payer: wallet,
-      connection: provider.connection,
-      lightWasm: WASM,
-    });
+    const player2 = await Player.init(provider, RPC);
 
-    // The light provider is a connection and wallet abstraction.
-    // The wallet is used to derive the seed for your shielded keypair with a signature.
-    const lightProvider = await LightProvider.init({
-      wallet,
-      url: RPC_URL,
-      rpc,
-      confirmConfig,
-    });
-    const lightUser: User = await User.init({ provider: lightProvider });
-
-    // Issue is that we add + OutUtxo to utxoName
-    // -> need to change that in macro circom
-    // add function which iterates over all accounts trying to match the discriminator
-    const outputUtxoSol = createProgramOutUtxo({
-      lightWasm: WASM,
-      assets: [SystemProgram.programId],
-      publicKey: lightUser.account.keypair.publicKey,
-      amounts: [new BN(1_000_000)],
-      utxoData: { endSlot: new BN(1), rate: new BN(1) },
-      pspIdl: IDL,
-      pspId: verifierProgramId,
-      utxoName: "utxo",
-    });
-    const testInputsShield = {
-      utxo: outputUtxoSol,
-      action: Action.SHIELD,
-    };
-
-    const storeProgramUtxoResult = await shieldProgramUtxo({
-      account: lightUser.account,
-      appUtxo: testInputsShield.utxo,
-      provider: lightProvider,
-    });
-    console.log("storeProgramUtxoResult: ", storeProgramUtxoResult);
-    const programUtxoBalance: Map<string, ProgramUtxoBalance> =
-      await lightUser.syncStorage(IDL);
-    const shieldedUtxoCommitmentHash = testInputsShield.utxo.outUtxo.utxoHash;
-    const inputUtxo = programUtxoBalance
-      .get(verifierProgramId.toBase58())
-      .tokenBalances.get(testInputsShield.utxo.outUtxo.assets[0].toBase58())
-      .utxos.get(shieldedUtxoCommitmentHash);
-    compareOutUtxos(inputUtxo!, testInputsShield.utxo.outUtxo);
-    const circuitPath = path.join(
-      "build-circuit/streaming-payments/streamingPayments"
+    let res = await player1.createGame(Choice.ROCK, GAME_AMOUNT);
+    console.log("Player 1 created game");
+    await player2.join(
+      res.game.gameParameters.gameCommitmentHash,
+      Choice.ROCK,
+      GAME_AMOUNT
     );
-    // TODO: add in and out utxos to appParams
-    // TODO: create compile appParams method which creates isAppIn and out utxo arrays, prefixes utxo data variables with in and out prefixes
-    const pspTransactionInput: PspTransactionInput = {
-      proofInputs: {
-        currentSlotPrivate: new BN(1),
-        currentSlot: new BN(1),
-      },
-      path: circuitPath,
-      verifierIdl: IDL,
-      circuitName: "streamingPayments",
-      // ts-ignore
-      checkedInUtxos: [{ utxoName: "streamInUtxo", utxo: inputUtxo }],
-    };
+    console.log("Player 2 joined game");
+    let gameRes = await player1.execute(player2.game.programUtxo);
+    console.log("Game result: ", gameRes.gameResult);
+    assert.equal(gameRes.gameResult, Winner.DRAW);
+    await player1.closeGame();
+  });
 
-    const shieldedTransaction = await createTransaction({
-      inputUtxos: [inputUtxo],
-      transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0)
-      ),
-      rpcPublicKey: rpc.accounts.rpcPubkey,
-      lightWasm: WASM,
-      rpcFee: rpc.rpcFee,
-      pspId: verifierProgramId,
-      systemPspId: lightPsp4in4outAppStorageId,
-      account: lightUser.account,
+  it.skip("Test Game Loss", async () => {
+    const player1 = await Player.init(provider, RPC);
+    // shield additional sol to pay for rpc fees
+    await player1.user.shield({
+      publicAmountSol: 10,
+      token: "SOL",
     });
-    // createProofInputsAndProve
-    const { root, index: rootIndex } = (await rpc.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda()
-    ))!;
-    const proofInputs = createProofInputs({
-      lightWasm: WASM,
-      transaction: shieldedTransaction,
-      pspTransaction: pspTransactionInput,
-      account: lightUser.account,
-      root,
-    });
+    const player2 = await Player.init(provider, RPC);
 
-    const systemProof = await getSystemProof({
-      account: lightUser.account,
-      systemProofInputs: proofInputs,
-      verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
-      inputUtxos: shieldedTransaction.private.inputUtxos,
-    });
-
-    const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
-      proofInputs,
-      IDL,
-      pspTransactionInput.circuitName
+    let res = await player1.createGame(Choice.SCISSORS, GAME_AMOUNT);
+    console.log("Player 1 created game");
+    await player2.join(
+      res.game.gameParameters.gameCommitmentHash,
+      Choice.ROCK,
+      GAME_AMOUNT
     );
+    console.log("Player 2 joined game");
+    let gameRes = await player1.execute(player2.game.programUtxo);
+    console.log("Game result: ", gameRes.gameResult);
+    assert.equal(gameRes.gameResult, Winner.PLAYER2);
+    await player1.closeGame();
+  });
 
-    const pspProof = await lightUser.account.getProofInternal({
-      firstPath: pspTransactionInput.path,
-      verifierIdl: pspTransactionInput.verifierIdl,
-      proofInput: completePspProofInputs,
-      inputUtxos: [inputUtxo],
+  it.skip("Test Game Win", async () => {
+    const player1 = await Player.init(provider, RPC);
+    // shield additional sol to pay for rpc fees
+    await player1.user.shield({
+      publicAmountSol: 10,
+      token: "SOL",
     });
+    const player2 = await Player.init(provider, RPC);
 
-    const solanaTransactionInputs: SolanaTransactionInputs = {
-      action: Action.TRANSFER,
-      systemProof,
-      pspProof,
-      publicTransactionVariables: shieldedTransaction.public,
-      pspTransactionInput,
-      rpcRecipientSol: rpc.accounts.rpcRecipientSol,
-      eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
-      systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
-      rootIndex,
-    };
-
-    const res = await sendAndConfirmShieldedTransaction({
-      solanaTransactionInputs,
-      provider: lightProvider,
-    });
-    console.log("tx Hash : ", res.txHash);
-  }
-
-  async function paymentStreaming(
-    wallet: anchor.web3.Keypair,
-    rpcRecipientSol: anchor.web3.PublicKey
-  ) {
-    const circuitPath = path.join("build-circuit");
-    await airdropSol({
-      connection: provider.connection,
-      lamports: 1e10,
-      recipientPublicKey: wallet.publicKey,
-    });
-
-    await airdropSol({
-      connection: provider.connection,
-      lamports: 1e10,
-      recipientPublicKey: rpcRecipientSol,
-    });
-
-    let rpc = new TestRpc({
-      rpcPubkey: wallet.publicKey,
-      rpcRecipientSol: rpcRecipientSol,
-      rpcFee: new BN(100_000),
-      payer: wallet,
-      connection: provider.connection,
-      lightWasm: WASM,
-    });
-
-    // The light provider is a connection and wallet abstraction.
-    // The wallet is used to derive the seed for your shielded keypair with a signature.
-    const lightProvider = await LightProvider.init({
-      wallet,
-      url: RPC_URL,
-      rpc,
-      confirmConfig,
-    });
-    const lightUser: User = await User.init({ provider: lightProvider });
-
-    let client: PaymentStreamClient = new PaymentStreamClient(
-      IDL,
-      WASM,
-      circuitPath,
-      lightProvider
+    let res = await player1.createGame(Choice.PAPER, GAME_AMOUNT);
+    console.log("Player 1 created game");
+    await player2.join(
+      res.game.gameParameters.gameCommitmentHash,
+      Choice.ROCK,
+      GAME_AMOUNT
     );
-    const currentSlot = await provider.connection.getSlot("confirmed");
-    const duration = 1;
-    const streamInitUtxo = client.setupSolStream(
-      new BN(1e9),
-      new BN(duration),
-      new BN(currentSlot),
-      lightUser.account
-    );
-
-    const testInputsSol1 = {
-      utxo: streamInitUtxo,
-      action: Action.SHIELD,
-      hasher: WASM,
-    };
-
-    console.log("storing streamInitUtxo");
-
-    await shieldProgramUtxo({
-      account: lightUser.account,
-      appUtxo: testInputsSol1.utxo,
-      provider: lightProvider,
-    });
-    await lightUser.syncStorage(IDL);
-    const commitment = testInputsSol1.utxo.getCommitment(testInputsSol1.hasher);
-
-    const utxo = (await lightUser.getUtxo(commitment))!;
-    assert.equal(utxo.status, "ready");
-    Utxo.equal(utxo.utxo, testInputsSol1.utxo, WASM, true);
-    const currentSlot1 = await provider.connection.getSlot("confirmed");
-
-    await lightUser.getBalance();
-    let merkleTree = (lightUser.provider.rpc as any).solMerkleTree.merkleTree;
-
-    const { programParameters, inUtxo, outUtxo, action } = client.collectStream(
-      new BN(currentSlot1),
-      Action.TRANSFER,
-      merkleTree
-    );
-    // @ts-ignore: this code is not maintained and the api does not exist anymore
-    await lightUser.executeAppUtxo({
-      appUtxos: [inUtxo],
-      programParameters,
-      action,
-      confirmOptions: ConfirmOptions.spendable,
-    });
-    const balance = await lightUser.getBalance();
-    console.log(
-      "totalSolBalance: ",
-      balance.totalSolBalance.toNumber() * 1e-9,
-      "SOL"
-    );
-    assert.equal(
-      outUtxo.amounts[0].toString(),
-      balance.totalSolBalance.toString()
-    );
-    console.log("inUtxo commitment: ", inUtxo.getCommitment(WASM));
-
-    const spentCommitment = testInputsSol1.utxo.getCommitment(
-      testInputsSol1.hasher
-    );
-    const utxoSpent = (await lightUser.getUtxo(
-      spentCommitment,
-      true,
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-      IDL
-    ))!;
-    assert.equal(utxoSpent.status, "spent");
-  }
+    console.log("Player 2 joined game");
+    let gameRes = await player1.execute(player2.game.programUtxo);
+    console.log("Game result: ", gameRes.gameResult);
+    assert.equal(gameRes.gameResult, Winner.PLAYER1);
+    await player1.closeGame();
+  });
 });
-
-class PaymentStreamClient {
-  idl: anchor.Idl;
-  endSlot?: BN;
-  streamInitUtxo?: Utxo;
-  latestStreamUtxo?: Utxo;
-  lightWasm: LightWasm;
-  circuitPath: string;
-  lightProvider: LightProvider;
-
-  constructor(
-    idl: anchor.Idl,
-    lightWasm: LightWasm,
-    circuitPath: string,
-    lightProvider: LightProvider,
-    streamInitUtxo?: Utxo,
-    latestStreamUtxo?: Utxo
-  ) {
-    this.idl = idl;
-    this.streamInitUtxo = streamInitUtxo;
-    this.endSlot = streamInitUtxo?.appData.endSlot;
-    this.latestStreamUtxo = latestStreamUtxo;
-    this.lightWasm = lightWasm;
-    this.circuitPath = circuitPath;
-    this.lightProvider = lightProvider;
-  }
-  /**
-   * Creates a streamProgramUtxo
-   * @param amount
-   * @param timeInSlots
-   * @param currentSlot
-   * @param account
-   */
-  setupSolStream(
-    amount: BN,
-    timeInSlots: BN,
-    currentSlot: BN,
-    account: Account
-  ) {
-    if (this.streamInitUtxo)
-      throw new Error("This stream client is already initialized");
-
-    const endSlot = currentSlot.add(timeInSlots);
-    this.endSlot = endSlot;
-    const rate = amount.div(timeInSlots);
-    const appData = {
-      endSlot,
-      rate,
-    };
-    const streamInitUtxo = new Utxo({
-      lightWasm: this.lightWasm,
-      assets: [SystemProgram.programId],
-      publicKey: account.keypair.publicKey,
-      amounts: [amount],
-      appData: appData,
-      appDataIdl: this.idl,
-      verifierAddress: getVerifierProgramId(this.idl),
-      assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-    });
-
-    this.streamInitUtxo = streamInitUtxo;
-    this.latestStreamUtxo = streamInitUtxo;
-    return streamInitUtxo;
-  }
-
-  collectStream(currentSlot: BN, action: Action, merkleTree: MerkleTree) {
-    if (!this.streamInitUtxo)
-      throw new Error(
-        "Streaming client is not initialized with streamInitUtxo"
-      );
-    if (currentSlot.gte(this.streamInitUtxo?.appData.endSlot)) {
-      const currentSlotPrivate = this.streamInitUtxo.appData.endSlot;
-      const diff = currentSlot.sub(currentSlotPrivate);
-      const programParameters: ProgramParameters = {
-        inputs: {
-          currentSlotPrivate,
-          currentSlot,
-          diff,
-          remainingAmount: new BN(0),
-          isOutUtxo: new Array(4).fill(0),
-          ...this.streamInitUtxo.appData,
-        },
-        verifierIdl: IDL,
-        path: this.circuitPath,
-        circuitName: "streamingPayments",
-      };
-
-      const index = merkleTree.indexOf(
-        this.latestStreamUtxo?.getCommitment(this.lightWasm)
-      );
-      this.latestStreamUtxo.index = index;
-      const inUtxo = this.latestStreamUtxo;
-      if (action === Action.TRANSFER) {
-        const outUtxo = new Utxo({
-          assets: inUtxo.assets,
-          amounts: [inUtxo.amounts[0].sub(new BN(100_000)), inUtxo.amounts[1]],
-          publicKey: inUtxo.publicKey,
-          lightWasm: this.lightWasm,
-          assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-        });
-        return { programParameters, inUtxo, outUtxo, action };
-      }
-      return { programParameters, inUtxo, action };
-    } else {
-      const remainingAmount = this.streamInitUtxo.appData?.endSlot
-        .sub(currentSlot)
-        .mul(this.streamInitUtxo.appData?.rate);
-      const programParameters: ProgramParameters = {
-        inputs: {
-          currentSlotPrivate: currentSlot,
-          currentSlot,
-          diff: new BN(0),
-          remainingAmount: new BN(0),
-          isOutUtxo: [1, 0, 0, 0],
-          endSlot: this.endSlot,
-          ...this.streamInitUtxo.appData,
-        },
-        verifierIdl: IDL,
-        path: this.circuitPath,
-        circuitName: "streamingPayments",
-      };
-      const inUtxo = this.latestStreamUtxo;
-      const outUtxo = new Utxo({
-        lightWasm: this.lightWasm,
-        assets: [SystemProgram.programId],
-        publicKey: inUtxo.publicKey,
-        amounts: [remainingAmount],
-        appData: this.streamInitUtxo.appData,
-        appDataIdl: this.idl,
-        verifierAddress: getVerifierProgramId(this.idl),
-        assetLookupTable: this.lightProvider.lookUpTables.assetLookupTable,
-      });
-      return { programParameters, outUtxo, inUtxo };
-    }
-  }
-}

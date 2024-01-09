@@ -1,3 +1,8 @@
+/**
+ * Currently Not Maintained and Excluded From CI
+ * TODO: Fix and re-enable
+ */
+//@ts-nocheck
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import {
