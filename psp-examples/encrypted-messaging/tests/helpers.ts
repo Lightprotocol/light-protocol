@@ -12,7 +12,7 @@ export class MessageClient {
 
   async encryptAndStoreForRecipient(
     message: string,
-    recipient: Uint8Array
+    recipient: Uint8Array,
   ): Promise<SendVersionedTransactionsResult> {
     const buf = this.str2buf(message);
     const nonce = newNonce();
@@ -29,12 +29,12 @@ export class MessageClient {
 
   async store(
     message: Buffer,
-    anonymousSender: boolean = false
+    anonymousSender: boolean = false,
   ): Promise<SendVersionedTransactionsResult> {
     let res = await this.user.storeData(
       message,
       ConfirmOptions.spendable,
-      !anonymousSender
+      !anonymousSender,
     );
     console.log("store program utxo transaction hash ", res.txHash);
     return res.txHash;
@@ -42,7 +42,7 @@ export class MessageClient {
 
   async getMessages() {
     let transactions = await this.user.provider.rpc.getIndexedTransactions(
-      this.user.provider.connection
+      this.user.provider.connection,
     );
     for (let tx of transactions) {
       if (tx.message != undefined) {
@@ -60,7 +60,7 @@ export class MessageClient {
       Uint8Array.from(message).slice(nacl.box.nonceLength),
       Uint8Array.from(message).slice(0, nacl.box.nonceLength),
       nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
-      this.user.account.encryptionKeypair.secretKey
+      this.user.account.encryptionKeypair.secretKey,
     );
     if (cleartext == null) {
       return null;
