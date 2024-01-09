@@ -71,8 +71,8 @@ export class QueuedTransaction {
           this.transactionParams.inputUtxos[utxo],
           poseidon,
           Number(utxo) + 1,
-          "input",
-        ),
+          "input"
+        )
       );
     }
     console.log("\n\n");
@@ -84,8 +84,8 @@ export class QueuedTransaction {
           this.transactionParams.outputUtxos[utxo],
           poseidon,
           Number(utxo) + 1,
-          "output",
-        ),
+          "output"
+        )
       );
     }
     console.log("\n\n");
@@ -99,14 +99,10 @@ export class QueuedTransaction {
       this.transactionParams.accounts.recipientSol.toBase58() +
       "\n";
     print +=
-      "relayer " +
-      this.transactionParams.relayer.accounts.relayerPubkey.toBase58() +
-      "\n";
+      "rpc " + this.transactionParams.rpc.accounts.rpcPubkey.toBase58() + "\n";
     print +=
-      "relayer fee " +
-      this.transactionParams.relayer.relayerFee
-        .div(new BN(1_000_000_000))
-        .toString() +
+      "rpc fee " +
+      this.transactionParams.rpc.rpcFee.div(new BN(1_000_000_000)).toString() +
       "\n";
     print +=
       "encrypted utxos length " +
@@ -126,7 +122,7 @@ export class QueuedTransaction {
     });
 
     const connectingHash = this.transactionParams.getTransactionHash(
-      provider.hasher,
+      provider.hasher
     );
 
     console.log(`-------------- Shielded Transaction Hash --------------\n`);

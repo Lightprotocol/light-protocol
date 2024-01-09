@@ -23,10 +23,10 @@ import {
   MerkleTreeConfig,
   TokenData,
   Provider,
-  Relayer,
+  Rpc,
   AppUtxoConfig,
   UserErrorCode,
-  RelayerErrorCode,
+  RpcErrorCode,
   CreateUtxoErrorCode,
   selectInUtxos,
   createOutUtxos,
@@ -324,23 +324,20 @@ export function getTransactionMint(transaction: Transaction) {
 // TODO: implement privacy preserving fetching, this fetching strategy is not priaacy preserving for the rpc
 export async function syncInputUtxosMerkleProofs({
   inputUtxos,
-  relayer,
+  rpc,
   merkleTreePublicKey,
 }: {
   inputUtxos: Utxo[];
   merkleTreePublicKey: PublicKey;
-  relayer: Relayer;
+  rpc: Rpc;
 }): Promise<{ syncedUtxos: Utxo[]; root: string; index: number }> {
   // skip empty utxos
-  const { merkleProofs, root, index } =
-    (await relayer.getMerkleProofByIndexBatch(
-      merkleTreePublicKey,
-      inputUtxos
-        .filter(
-          (utxo) => !utxo.amounts[0].eq(BN_0) || !utxo.amounts[1].eq(BN_0),
-        )
-        .map((utxo) => utxo.merkleTreeLeafIndex),
-    ))!;
+  const { merkleProofs, root, index } = (await rpc.getMerkleProofByIndexBatch(
+    merkleTreePublicKey,
+    inputUtxos
+      .filter((utxo) => !utxo.amounts[0].eq(BN_0) || !utxo.amounts[1].eq(BN_0))
+      .map((utxo) => utxo.merkleTreeLeafIndex),
+  ))!;
   let tmpIndex = 0;
   const syncedUtxos = inputUtxos?.map((utxo) => {
     // skip empty utxos
@@ -393,7 +390,7 @@ export type VerifierConfig = {
 export type UnshieldAccounts = {
   recipientSol: PublicKey;
   recipientSpl: PublicKey;
-  relayerPublicKey: PublicKey;
+  rpcPublicKey: PublicKey;
 };
 
 // TODO: make all inputs part of integrity hash
@@ -402,7 +399,7 @@ export type TransactionAccounts = {
   senderSol: PublicKey;
   recipientSpl: PublicKey;
   recipientSol: PublicKey;
-  relayerPublicKey: PublicKey;
+  rpcPublicKey: PublicKey;
   transactionMerkleTree: PublicKey;
   systemPspId: PublicKey;
   pspId?: PublicKey;
@@ -412,7 +409,7 @@ export type PublicTransactionVariables = {
   accounts: TransactionAccounts;
   publicAmountSpl: BN;
   publicAmountSol: BN;
-  relayerFee: BN;
+  rpcFee: BN;
   ataCreationFee: boolean;
   encryptedUtxos: Uint8Array;
   publicMintPubkey: string;
@@ -806,35 +803,35 @@ export function getExternalAmount(
 
 /**
  * Computes the integrity Poseidon hash over transaction inputs that are not part of
- * the proof, but are included to prevent the relayer from changing any input of the
+ * the proof, but are included to prevent the rpc from changing any input of the
  * transaction.
  *
  * The hash is computed over the following inputs in the given order:
  * 1. Recipient SPL Account
  * 2. Recipient Solana Account
- * 3. Relayer Public Key
- * 4. Relayer Fee
+ * 3. Rpc Public Key
+ * 4. Rpc Fee
  * 5. Encrypted UTXOs (limited to 512 bytes)
  *
  * @param {any} poseidon - Poseidon hash function instance.
  * @returns {Promise<BN>} A promise that resolves to the computed transaction integrity hash.
- * @throws {TransactionError} Throws an error if the relayer, recipient SPL or Solana accounts,
- * relayer fee, or encrypted UTXOs are undefined, or if the encryption of UTXOs fails.
+ * @throws {TransactionError} Throws an error if the rpc, recipient SPL or Solana accounts,
+ * rpc fee, or encrypted UTXOs are undefined, or if the encryption of UTXOs fails.
  *
  * @example
  * const integrityHash = await getTxIntegrityHash(poseidonInstance);
  */
 export function getTxIntegrityHash(
-  relayerFee: BN,
+  rpcFee: BN,
   encryptedUtxos: Uint8Array,
   accounts: UnshieldAccounts,
   verifierConfig: VerifierConfig,
   verifierProgramId: PublicKey,
   message?: Uint8Array,
 ): BN {
-  if (!relayerFee)
+  if (!rpcFee)
     throw new TransactionError(
-      TransactionErrorCode.RELAYER_UNDEFINED,
+      TransactionErrorCode.RPC_UNDEFINED,
       "getTxIntegrityHash",
       "",
     );
@@ -876,8 +873,8 @@ export function getTxIntegrityHash(
     .update(messageHash)
     .update(recipientSpl)
     .update(accounts.recipientSol.toBytes())
-    .update(accounts.relayerPublicKey.toBytes())
-    .update(relayerFee.toArrayLike(Buffer, "be", 8)) // TODO: make be
+    .update(accounts.rpcPublicKey.toBytes())
+    .update(rpcFee.toArrayLike(Buffer, "be", 8)) // TODO: make be
     .update(encryptedUtxos)
     .digest();
   const txIntegrityHash = truncateToCircuit(hash);
@@ -1020,7 +1017,7 @@ export async function createShieldTransaction(
   );
   const completeAccounts = {
     ...accounts,
-    relayerPublicKey: signer,
+    rpcPublicKey: signer,
     pspId,
   };
 
@@ -1064,7 +1061,7 @@ export async function createShieldTransaction(
       },
       publicAmountSpl,
       publicAmountSol,
-      relayerFee: BN_0,
+      rpcFee: BN_0,
       ataCreationFee: false,
       encryptedUtxos,
       message,
@@ -1120,12 +1117,12 @@ export type UnshieldTransactionInput = {
   recipientSol?: PublicKey;
   inputUtxos?: Utxo[];
   outputUtxos?: OutUtxo[];
-  relayerPublicKey: PublicKey;
+  rpcPublicKey: PublicKey;
   lightWasm: LightWasm;
   systemPspId: PublicKey;
   pspId?: PublicKey;
   account: Account;
-  relayerFee: BN;
+  rpcFee: BN;
   ataCreationFee: boolean;
   assetLookUpTable?: string[];
 };
@@ -1142,12 +1139,12 @@ export async function createUnshieldTransaction(
     recipientSol,
     inputUtxos,
     outputUtxos,
-    relayerPublicKey,
+    rpcPublicKey,
     lightWasm,
     systemPspId,
     pspId,
     account,
-    relayerFee,
+    rpcFee,
     ataCreationFee,
   } = unshieldTransactionInput;
   const assetLookUpTable = unshieldTransactionInput.assetLookUpTable
@@ -1186,7 +1183,7 @@ export async function createUnshieldTransaction(
   );
   const completeAccounts = {
     ...accounts,
-    relayerPublicKey,
+    rpcPublicKey,
     systemPspId,
     pspId,
     transactionMerkleTree: transactionMerkleTreePubkey,
@@ -1202,7 +1199,7 @@ export async function createUnshieldTransaction(
     lightWasm,
   );
   const txIntegrityHash = getTxIntegrityHash(
-    relayerFee,
+    rpcFee,
     encryptedUtxos,
     completeAccounts,
     verifierConfig,
@@ -1229,7 +1226,7 @@ export async function createUnshieldTransaction(
       accounts: completeAccounts,
       publicAmountSpl,
       publicAmountSol,
-      relayerFee,
+      rpcFee,
       ataCreationFee,
       encryptedUtxos,
       message,
@@ -1244,12 +1241,12 @@ export type TransactionInput = {
   transactionMerkleTreePubkey: PublicKey;
   inputUtxos?: Utxo[];
   outputUtxos?: OutUtxo[];
-  relayerPublicKey: PublicKey;
+  rpcPublicKey: PublicKey;
   lightWasm: LightWasm;
   systemPspId: PublicKey;
   pspId?: PublicKey;
   account: Account;
-  relayerFee: BN;
+  rpcFee: BN;
   assetLookUpTable?: string[];
 };
 
@@ -1261,12 +1258,12 @@ export async function createTransaction(
     transactionMerkleTreePubkey,
     inputUtxos,
     outputUtxos,
-    relayerPublicKey,
+    rpcPublicKey,
     lightWasm,
     pspId,
     systemPspId,
     account,
-    relayerFee,
+    rpcFee,
   } = transactionInput;
   const assetLookUpTable = transactionInput.assetLookUpTable
     ? transactionInput.assetLookUpTable
@@ -1293,7 +1290,7 @@ export async function createTransaction(
     senderSpl: AUTHORITY,
     recipientSol: AUTHORITY,
     recipientSpl: AUTHORITY,
-    relayerPublicKey,
+    rpcPublicKey,
   };
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
@@ -1307,7 +1304,7 @@ export async function createTransaction(
   );
 
   const txIntegrityHash = getTxIntegrityHash(
-    relayerFee,
+    rpcFee,
     encryptedUtxos,
     completeAccounts,
     verifierConfig,
@@ -1336,7 +1333,7 @@ export async function createTransaction(
       },
       publicAmountSpl: BN_0,
       publicAmountSol,
-      relayerFee,
+      rpcFee,
       ataCreationFee: false,
       encryptedUtxos,
       message,
@@ -1372,7 +1369,7 @@ export async function getTxParams({
   recipientSplAddress,
   // for transfer
   outUtxos,
-  relayer,
+  rpc,
   provider,
   ataCreationFee, // associatedTokenAccount = ata
   appUtxo,
@@ -1397,7 +1394,7 @@ export async function getTxParams({
   outUtxos?: OutUtxo[];
   action: Action;
   provider: Provider;
-  relayer: Relayer;
+  rpc: Rpc;
   ataCreationFee?: boolean;
   appUtxo?: AppUtxoConfig;
   addInUtxos?: boolean;
@@ -1415,19 +1412,19 @@ export async function getTxParams({
       "getTxParams",
       "Recipient outUtxo not provided for transfer",
     );
-  if (!relayer) {
+  if (!rpc) {
     throw new TransactionParametersError(
-      TransactionErrorCode.RELAYER_UNDEFINED,
+      TransactionErrorCode.RPC_UNDEFINED,
       "getTxParams",
-      "Fetching root from relayer failed.",
+      "Fetching root from rpc failed.",
     );
   }
-  if (action !== Action.SHIELD && !relayer.getRelayerFee(ataCreationFee)) {
+  if (action !== Action.SHIELD && !rpc.getRpcFee(ataCreationFee)) {
     // TODO: could make easier to read by adding separate if/cases
     throw new TransactionParametersError(
-      RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+      RpcErrorCode.RPC_FEE_UNDEFINED,
       "getTxParams",
-      `No relayerFee provided for ${action.toLowerCase()}}`,
+      `No rpcFee provided for ${action.toLowerCase()}}`,
     );
   }
   if (!account) {
@@ -1450,10 +1447,8 @@ export async function getTxParams({
       inUtxos,
       outUtxos,
       utxos,
-      relayerFee:
-        action == Action.SHIELD
-          ? undefined
-          : relayer.getRelayerFee(ataCreationFee),
+      rpcFee:
+        action == Action.SHIELD ? undefined : rpc.getRpcFee(ataCreationFee),
       action,
       numberMaxInUtxos: getVerifierConfig(verifierIdl).in,
       numberMaxOutUtxos: getVerifierConfig(verifierIdl).out,
@@ -1466,10 +1461,8 @@ export async function getTxParams({
       inUtxos: inputUtxos,
       publicAmountSol, // TODO: add support for extra sol for unshield & transfer
       lightWasm: provider.lightWasm,
-      relayerFee:
-        action == Action.SHIELD
-          ? undefined
-          : relayer.getRelayerFee(ataCreationFee),
+      rpcFee:
+        action == Action.SHIELD ? undefined : rpc.getRpcFee(ataCreationFee),
       changeUtxoAccount: account,
       outUtxos,
       action,
@@ -1515,8 +1508,8 @@ export async function getTxParams({
       systemPspId: getVerifierProgramId(verifierIdl),
       account,
       ataCreationFee: ataCreationFee ? true : false,
-      relayerPublicKey: relayer!.accounts.relayerPubkey,
-      relayerFee: relayer.getRelayerFee(ataCreationFee),
+      rpcPublicKey: rpc!.accounts.rpcPubkey,
+      rpcFee: rpc.getRpcFee(ataCreationFee),
     });
   } else if (action == Action.TRANSFER) {
     return createTransaction({
@@ -1528,8 +1521,8 @@ export async function getTxParams({
       lightWasm: provider.lightWasm,
       systemPspId: getVerifierProgramId(verifierIdl),
       account,
-      relayerPublicKey: relayer!.accounts.relayerPubkey,
-      relayerFee: relayer.getRelayerFee(ataCreationFee),
+      rpcPublicKey: rpc!.accounts.rpcPubkey,
+      rpcFee: rpc.getRpcFee(ataCreationFee),
     });
   } else {
     throw new TransactionParametersError(

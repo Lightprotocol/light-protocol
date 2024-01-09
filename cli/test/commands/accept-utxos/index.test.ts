@@ -18,7 +18,7 @@ describe("accept-utxos", () => {
     await initTestEnvIfNeeded();
     const configWallet = readWalletFromFile();
     const config = getConfig();
-    const connection = new Connection(config.rpcUrl, "confirmed");
+    const connection = new Connection(config.solanaRpcUrl, "confirmed");
     const provider = await getLightProvider(true);
     await airdropSol({
       connection,
@@ -46,7 +46,7 @@ describe("accept-utxos", () => {
 
   test
     .stdout({ print: true })
-    .command(["accept-utxos", "--token=SOL", "--all", "--localTestRelayer"])
+    .command(["accept-utxos", "--token=SOL", "--all", "--localTestRpc"])
     .it("accept all SOL inbox utxos", (ctx: any) => {
       expect(ctx.stdout).to.contain("Accepted SOL inbox utxos successfully ✔");
     });
@@ -54,7 +54,7 @@ describe("accept-utxos", () => {
   test
 
     .stdout({ print: true })
-    .command(["accept-utxos", "--token=USDC", "--all", "--localTestRelayer"])
+    .command(["accept-utxos", "--token=USDC", "--all", "--localTestRpc"])
     .it("accept all USDC inbox utxos", (ctx: any) => {
       expect(ctx.stdout).to.contain(
         "Accepted USDC inbox utxos successfully ✔",

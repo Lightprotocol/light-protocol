@@ -10,7 +10,7 @@ pub struct MerkleTreeUpdateState {
     pub node_right: [u8; 32],
     pub leaf_left: [u8; 32],
     pub leaf_right: [u8; 32],
-    pub relayer: Pubkey,
+    pub rpc: Pubkey,
     pub merkle_tree_pda_pubkey: Pubkey,
     //
     pub state: [u8; 96],

@@ -1,11 +1,6 @@
 import * as light from "@lightprotocol/zk.js";
 import * as anchor from "@coral-xyz/anchor";
-import {
-  airdropSol,
-  confirmConfig,
-  TestRelayer,
-  User,
-} from "@lightprotocol/zk.js";
+import { airdropSol, confirmConfig, TestRpc, User } from "@lightprotocol/zk.js";
 import { BN } from "@coral-xyz/anchor";
 
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -45,15 +40,15 @@ const main = async () => {
     wallet: senders[0].keypair,
     confirmConfig,
   });
-  const relayer = new TestRelayer({
-    relayerPubkey: senders[0].keypair.publicKey,
-    relayerRecipientSol: senders[0].keypair.publicKey,
-    relayerFee: new BN(100_000),
+  const rpc = new TestRpc({
+    rpcPubkey: senders[0].keypair.publicKey,
+    rpcRecipientSol: senders[0].keypair.publicKey,
+    rpcFee: new BN(100_000),
     payer: senders[0].keypair,
     connection: provider.connection,
     lightWasm: lightProvider.lightWasm,
   });
-  lightProvider.relayer = relayer;
+  lightProvider.rpc = rpc;
   log("initializing light provider...");
 
   calls = [];
@@ -84,16 +79,16 @@ const main = async () => {
       wallet: sender,
       confirmConfig,
     });
-    log("setting-up test relayer...");
-    const relayer = new TestRelayer({
-      relayerPubkey: sender.publicKey,
-      relayerRecipientSol: sender.publicKey,
-      relayerFee: new BN(100_000),
+    log("setting-up test rpc...");
+    const rpc = new TestRpc({
+      rpcPubkey: sender.publicKey,
+      rpcRecipientSol: sender.publicKey,
+      rpcFee: new BN(100_000),
       payer: sender,
       connection: provider.connection,
       lightWasm: lightProvider.lightWasm,
     });
-    lightProvider.relayer = relayer;
+    lightProvider.rpc = rpc;
 
     log("initializing user...");
     const user = await light.User.init({ provider: lightProvider });
@@ -117,16 +112,16 @@ const main = async () => {
       confirmConfig,
     });
     log("initializing Solana wallet...");
-    log("setting-up test relayer...");
-    const relayer = new TestRelayer({
-      relayerPubkey: sender.publicKey,
-      relayerRecipientSol: sender.publicKey,
-      relayerFee: new BN(100_000),
+    log("setting-up test rpc...");
+    const rpc = new TestRpc({
+      rpcPubkey: sender.publicKey,
+      rpcRecipientSol: sender.publicKey,
+      rpcFee: new BN(100_000),
       payer: sender,
       connection: provider.connection,
       lightWasm: lightProvider.lightWasm,
     });
-    lightProvider.relayer = relayer;
+    lightProvider.rpc = rpc;
 
     log("initializing user...");
     const user = await light.User.init({ provider: lightProvider });
@@ -144,7 +139,7 @@ const main = async () => {
     log("initializing light provider recipient...");
     const lightProviderRecipient = await light.Provider.init({
       wallet: recipient,
-      relayer,
+      rpc,
       confirmConfig,
     });
 

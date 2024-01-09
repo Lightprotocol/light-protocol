@@ -85,7 +85,7 @@ pub mod light_psp4in4out_app_storage {
             nullifiers: &nullifiers,
             leaves: &verifier_state.leaves,
             encrypted_utxos: &verifier_state.encrypted_utxos.to_vec(),
-            relayer_fee: verifier_state.relayer_fee,
+            rpc_fee: verifier_state.rpc_fee,
             merkle_root_index: verifier_state.merkle_root_index as usize,
             pool_type: &pool_type,
             verifyingkey: &VERIFYINGKEY_TRANSACTION_APP4_MAIN,
@@ -109,7 +109,7 @@ pub struct Psp4In4OutAppStorageVerifierState {
     pub leaves: [[u8; 32]; 4],
     pub public_amount_spl: [u8; 32],
     pub public_amount_sol: [u8; 32],
-    pub relayer_fee: u64,
+    pub rpc_fee: u64,
     pub encrypted_utxos: [u8; 512],
     pub merkle_root_index: u64,
 }

@@ -32,7 +32,7 @@ import {
   UserIndexedTransaction,
   IndexedTransactionData,
   ParsedIndexedTransaction,
-  RelayerIndexedTransaction,
+  RpcIndexedTransaction,
 } from "../types";
 import { TokenUtxoBalance, Provider } from "../wallet";
 
@@ -41,7 +41,7 @@ export class TransactionIndexerEvent {
     borsh.vec(borsh.array(borsh.u8(), 32), "leaves"),
     borsh.array(borsh.u8(), 32, "publicAmountSpl"),
     borsh.array(borsh.u8(), 32, "publicAmountSol"),
-    borsh.u64("relayerFee"),
+    borsh.u64("rpcFee"),
     borsh.vec(borsh.u8(), "encryptedUtxos"),
     borsh.vec(borsh.array(borsh.u8(), 32), "nullifiers"),
     borsh.u64("firstLeafIndex"),
@@ -155,14 +155,14 @@ export const findMatchingInstruction = (
  */
 async function enrichParsedTransactionEvents(
   event: IndexedTransactionData,
-  transactions: RelayerIndexedTransaction[],
+  transactions: RpcIndexedTransaction[],
 ) {
   // check if transaction contains the meta data or not , else return without processing transaction
   const {
     tx,
     publicAmountSol,
     publicAmountSpl,
-    relayerFee,
+    rpcFee,
     firstLeafIndex,
     leaves,
     encryptedUtxos,
@@ -202,11 +202,7 @@ async function enrichParsedTransactionEvents(
     const solIsU64 = amountSol.lte(MAX_U64);
     if (!splIsU64 || !solIsU64) {
       amountSpl = amountSpl.sub(FIELD_SIZE).mod(FIELD_SIZE).abs();
-      amountSol = amountSol
-        .sub(FIELD_SIZE)
-        .mod(FIELD_SIZE)
-        .abs()
-        .sub(relayerFee);
+      amountSol = amountSol.sub(FIELD_SIZE).mod(FIELD_SIZE).abs().sub(rpcFee);
       type =
         amountSpl.eq(BN_0) && amountSol.eq(BN_0)
           ? Action.TRANSFER
@@ -228,7 +224,7 @@ async function enrichParsedTransactionEvents(
   // 2: programMerkleTree
   // 3: transactionMerkleTree
   // 4: authority
-  // 5: relayerRecipientSol
+  // 5: rpcRecipientSol
   // 6: senderSol
   // 7: recipientSol
   // 8: tokenProgram
@@ -238,7 +234,7 @@ async function enrichParsedTransactionEvents(
   // 12: registeredVerifierPda
   // 13: logWrapper
   // 14: eventMerkleTree
-  const relayerRecipientSol = accountKeys[5];
+  const rpcRecipientSol = accountKeys[5];
   const from = accountKeys[6];
   const to = accountKeys[7];
   const fromSpl = accountKeys[10];
@@ -252,7 +248,7 @@ async function enrichParsedTransactionEvents(
       tx.meta.preBalances[solTokenPoolIndex],
   );
   changeSolAmount = changeSolAmount.lt(BN_0)
-    ? changeSolAmount.abs().sub(relayerFee)
+    ? changeSolAmount.abs().sub(rpcFee)
     : changeSolAmount;
   const IDs = getIdsFromEncryptedUtxos(
     Buffer.from(encryptedUtxos),
@@ -273,7 +269,7 @@ async function enrichParsedTransactionEvents(
       toSpl,
       fromSpl,
       verifier: verifier.toBase58(),
-      relayerRecipientSol,
+      rpcRecipientSol,
       type,
       changeSolAmount: changeSolAmount.toString("hex"),
       publicAmountSol: amountSol.toString("hex"),
@@ -281,7 +277,7 @@ async function enrichParsedTransactionEvents(
       encryptedUtxos: encryptedUtxos,
       leaves,
       nullifiers,
-      relayerFee: relayerFee.toString("hex"),
+      rpcFee: rpcFee.toString("hex"),
       firstLeafIndex: firstLeafIndex.toString("hex"),
       message: message,
     },
@@ -353,7 +349,7 @@ async function getTransactionsBatch({
   connection: Connection;
   merkleTreeProgramId: PublicKey;
   batchOptions: ConfirmedSignaturesForAddress2Options;
-  transactions: RelayerIndexedTransaction[];
+  transactions: RpcIndexedTransaction[];
 }): Promise<ConfirmedSignatureInfo> {
   const signatures = await connection.getConfirmedSignaturesForAddress2(
     new PublicKey(merkleTreeProgramId),
@@ -429,9 +425,9 @@ export async function fetchRecentTransactions({
 }: {
   connection: Connection;
   batchOptions: ConfirmedSignaturesForAddress2Options;
-  transactions?: RelayerIndexedTransaction[];
+  transactions?: RpcIndexedTransaction[];
 }): Promise<{
-  transactions: RelayerIndexedTransaction[];
+  transactions: RpcIndexedTransaction[];
   oldestFetchedSignature: string;
 }> {
   const batchSize = 1000;

@@ -9,8 +9,8 @@ describe("config", () => {
   });
   test
     .stdout()
-    .command(["config", "--relayerUrl=http://localhost:3332"])
-    .it("runs relayer url update cmd", (ctx) => {
+    .command(["config", "--rpcUrl=http://localhost:3332"])
+    .it("runs rpc url update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
         "Configuration values updated successfully",
       );
@@ -30,8 +30,8 @@ describe("config", () => {
 
   test
     .stdout()
-    .command(["config", "--rpcUrl=http://127.0.0.1:8899"])
-    .it("runs rpc url update cmd", (ctx) => {
+    .command(["config", "--solanaRpcUrl=http://127.0.0.1:8899"])
+    .it("runs solana rpc url update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
         "Configuration values updated successfully",
       );
@@ -55,8 +55,8 @@ describe("config with env variable", () => {
 
   test
     .stdout({ print: true })
-    .command(["config", "--rpcUrl=http://127.0.0.1:8899"])
-    .it("runs rpc url update cmd", (ctx) => {
+    .command(["config", "--solanaRpcUrl=http://127.0.0.1:8899"])
+    .it("runs solana rpc url update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
         `reading config from custom path ${filePath}`,
       );

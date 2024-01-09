@@ -63,7 +63,7 @@ pub mod light_psp10in2out {
             mint_pubkey: [0u8; 32],
             merkle_root: [0u8; 32],
             tx_integrity_hash: [0u8; 32],
-            relayer_fee: inputs.relayer_fee,
+            rpc_fee: inputs.rpc_fee,
             encrypted_utxos: enc_utxos,
             checked_public_inputs: [],
             proof_a: [0u8; 64],
@@ -123,7 +123,7 @@ pub mod light_psp10in2out {
             nullifiers: &nullifier,
             leaves: &leaves,
             encrypted_utxos: &ctx.accounts.verifier_state.encrypted_utxos,
-            relayer_fee: ctx.accounts.verifier_state.relayer_fee,
+            rpc_fee: ctx.accounts.verifier_state.rpc_fee,
             merkle_root_index: ctx
                 .accounts
                 .verifier_state
@@ -183,7 +183,7 @@ pub struct InstructionDataShieldedTransferFirst {
     output_commitment: [[u8; 32]; 2],
     public_amount_sol: [u8; 32],
     root_index: u64,
-    relayer_fee: u64,
+    rpc_fee: u64,
     encrypted_utxos: Vec<u8>,
 }
 

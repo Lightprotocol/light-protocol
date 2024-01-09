@@ -18,7 +18,7 @@ import {
   UserErrorCode,
   TransactionErrorCode,
   ADMIN_AUTH_KEY,
-  TestRelayer,
+  TestRpc,
   Action,
   UserTestAssertHelper,
   generateRandomTestAmount,
@@ -27,14 +27,14 @@ import {
   airdropShieldedSol,
   TOKEN_ACCOUNT_FEE,
   useWallet,
-  RELAYER_FEE,
+  RPC_FEE,
   BN_1,
 } from "../../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { expect } from "chai";
 
-let WASM: LightWasm, RELAYER: TestRelayer, provider: Provider, user: User;
+let WASM: LightWasm, RPC: TestRpc, provider: Provider, user: User;
 
 describe("Test User", () => {
   // Configure the client to use the local cluster.
@@ -52,30 +52,30 @@ describe("Test User", () => {
     await createTestAccounts(anchorProvider.connection);
     WASM = await WasmFactory.getInstance();
 
-    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+    const rpcRecipientSol = SolanaKeypair.generate().publicKey;
     await anchorProvider.connection.requestAirdrop(
-      relayerRecipientSol,
+      rpcRecipientSol,
       2_000_000_000,
     );
-    const relayer = Keypair.generate();
+    const rpc = Keypair.generate();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 2_000_000_000,
-      recipientPublicKey: relayer.publicKey,
+      recipientPublicKey: rpc.publicKey,
     });
-    RELAYER = new TestRelayer({
-      relayerPubkey: relayer.publicKey,
-      relayerRecipientSol,
-      relayerFee: RELAYER_FEE,
-      highRelayerFee: TOKEN_ACCOUNT_FEE,
-      payer: relayer,
+    RPC = new TestRpc({
+      rpcPubkey: rpc.publicKey,
+      rpcRecipientSol,
+      rpcFee: RPC_FEE,
+      highRpcFee: TOKEN_ACCOUNT_FEE,
+      payer: rpc,
       connection: anchorProvider.connection,
       lightWasm: WASM,
     });
 
     provider = await Provider.init({
       wallet: userKeypair,
-      relayer: RELAYER,
+      rpc: RPC,
       confirmConfig,
     });
     await airdropSol({
@@ -107,21 +107,21 @@ describe("Test User", () => {
     )
       throw new Error("Invalid signature!");
 
-    const testRelayer = new TestRelayer({
-      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      relayerRecipientSol: Keypair.generate().publicKey,
-      relayerFee: RELAYER_FEE,
+    const testRpc = new TestRpc({
+      rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      rpcRecipientSol: Keypair.generate().publicKey,
+      rpcFee: RPC_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: anchorProvider.connection,
       lightWasm: WASM,
     });
     const providerExternalSeed = await Provider.init({
-      relayer: testRelayer,
+      rpc: testRpc,
       wallet: walletMock,
       confirmConfig,
     });
     const providerInternalSeed = await Provider.init({
-      relayer: testRelayer,
+      rpc: testRpc,
       wallet: walletMock,
       confirmConfig,
     });
@@ -342,7 +342,7 @@ describe("Test User Errors", () => {
   const userKeypair = ADMIN_AUTH_KEYPAIR;
   let amount: number,
     token: string,
-    relayer: TestRelayer,
+    rpc: TestRpc,
     provider: Provider,
     user: User;
 
@@ -361,31 +361,31 @@ describe("Test User Errors", () => {
     );
     setProvider(anchorProvider);
 
-    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+    const rpcRecipientSol = SolanaKeypair.generate().publicKey;
     await anchorProvider.connection.requestAirdrop(
-      relayerRecipientSol,
+      rpcRecipientSol,
       2_000_000_000,
     );
 
-    const relayer = Keypair.generate();
+    const rpc = Keypair.generate();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 2_000_000_000,
-      recipientPublicKey: relayer.publicKey,
+      recipientPublicKey: rpc.publicKey,
     });
 
-    RELAYER = new TestRelayer({
-      relayerPubkey: relayer.publicKey,
-      relayerRecipientSol,
-      relayerFee: RELAYER_FEE,
-      highRelayerFee: TOKEN_ACCOUNT_FEE,
-      payer: relayer,
+    RPC = new TestRpc({
+      rpcPubkey: rpc.publicKey,
+      rpcRecipientSol,
+      rpcFee: RPC_FEE,
+      highRpcFee: TOKEN_ACCOUNT_FEE,
+      payer: rpc,
       connection: anchorProvider.connection,
       lightWasm: WASM,
     });
     provider = await Provider.init({
       wallet: userKeypair,
-      relayer: RELAYER,
+      rpc: RPC,
       confirmConfig,
     });
 

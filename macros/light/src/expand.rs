@@ -249,9 +249,9 @@ pub(crate) fn light_verifier_accounts(
             )]
             pub authority: UncheckedAccount<'info>,
 
-            /// CHECK: Is not checked the relayer has complete freedom.
+            /// CHECK: Is not checked the rpc has complete freedom.
             #[account(mut)]
-            pub relayer_recipient_sol: UncheckedAccount<'info>,
+            pub rpc_recipient_sol: UncheckedAccount<'info>,
 
             #sol_fields
 
@@ -376,8 +376,8 @@ pub(crate) fn light_verifier_accounts(
                 &self.authority
             }
 
-            fn get_relayer_recipient_sol(&self) -> &UncheckedAccount<'info> {
-                &self.relayer_recipient_sol
+            fn get_rpc_recipient_sol(&self) -> &UncheckedAccount<'info> {
+                &self.rpc_recipient_sol
             }
 
             #sol_getters

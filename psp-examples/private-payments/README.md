@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This script is an example implementation of a shielded transfer using the Light Protocol and **Solana** blockchain. It demonstrates how to initialize a **Solana** wallet, request an airdrop of SOL tokens, set up a test relayer, perform a shield operation, transfer tokens to a recipient, and retrieve transaction information.
+This script is an example implementation of a shielded transfer using the Light Protocol and **Solana** blockchain. It demonstrates how to initialize a **Solana** wallet, request an airdrop of SOL tokens, set up a test rpc, perform a shield operation, transfer tokens to a recipient, and retrieve transaction information.
 
 ## Prerequisites
 
@@ -45,7 +45,7 @@ Before running the script, you may need to modify the following configuration op
 
 - `SOLANA_PORT` (default: `"8899"`): The port on which the local **Solana** node is running. If your node is running on a different port, update this value accordingly.
 - `process.env.ANCHOR_WALLET`: The path to the **Solana** wallet file. By default, it is set to `~/.config/solana/id.json`. If your wallet file is located elsewhere, modify this value accordingly.
-- `LOOK_UP_TABLE`: The lookup table used for the test relayer. If the provided lookup table doesn't exist a new one will be created.
+- `LOOK_UP_TABLE`: The lookup table used for the test rpc. If the provided lookup table doesn't exist a new one will be created.
 
 ## Run
 
@@ -71,14 +71,14 @@ The script performs the following steps:
 
 - Initializes the **Solana** wallet.
 - Requests an airdrop of SOL tokens to the wallet.
-- Sets up a test relayer.
-- Initializes the Light Protocol provider using the **Solana** wallet and the test relayer.
+- Sets up a test rpc.
+- Initializes the Light Protocol provider using the **Solana** wallet and the test rpc.
 - Initializes a Light Protocol user using the provider.
 - Performs a shield operation to shield 1 SOL.
 - Retrieves the user's balance.
 - Generates a test recipient keypair.
 - Requests an airdrop of SOL tokens to the recipient's public key.
-- Initializes a Light Protocol provider for the recipient using the recipient's keypair and the test relayer.
+- Initializes a Light Protocol provider for the recipient using the recipient's keypair and the test rpc.
 - Initializes a Light Protocol user for the recipient using the provider.
 - Executes a transfer of 0.25 SOL from the user to the recipient.
 - Retrieves and logs the transaction hash of the transfer.

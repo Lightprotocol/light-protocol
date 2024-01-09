@@ -11,7 +11,7 @@ import {
   MerkleTreeConfig,
   ProgramUtxoBalance,
   Provider as LightProvider,
-  TestRelayer,
+  TestRpc,
   User,
   Utxo,
   ProgramParameters,
@@ -51,7 +51,7 @@ const USERS_COUNT = 3;
 const users = new Array(USERS_COUNT).fill(null).map(() => {
   return {
     wallet: Keypair.generate(),
-    relayerRecipientSol: SolanaKeypair.generate().publicKey,
+    rpcRecipientSol: SolanaKeypair.generate().publicKey,
   };
 });
 
@@ -68,10 +68,7 @@ describe("Streaming Payments tests", () => {
   });
 
   it("Create and Spend Program Utxo for one user", async () => {
-    await createAndSpendProgramUtxo(
-      users[0].wallet,
-      users[0].relayerRecipientSol,
-    );
+    await createAndSpendProgramUtxo(users[0].wallet, users[0].rpcRecipientSol);
   });
 
   it.skip(`Create and Spend Program Utxo for ${users.length} users`, async () => {
@@ -79,16 +76,14 @@ describe("Streaming Payments tests", () => {
     console.time(logLabel);
     let calls = [];
     for (const user of users) {
-      calls.push(
-        createAndSpendProgramUtxo(user.wallet, user.relayerRecipientSol),
-      );
+      calls.push(createAndSpendProgramUtxo(user.wallet, user.rpcRecipientSol));
     }
     await Promise.all(calls);
     console.timeEnd(logLabel);
   });
 
   it.skip("Payment streaming", async () => {
-    await paymentStreaming(users[0].wallet, users[0].relayerRecipientSol);
+    await paymentStreaming(users[0].wallet, users[0].rpcRecipientSol);
   });
 
   it.skip(`Payment streaming for ${users.length} users`, async () => {
@@ -96,14 +91,14 @@ describe("Streaming Payments tests", () => {
     console.time(logLabel);
     let calls = [];
     for (const user of users) {
-      calls.push(paymentStreaming(user.wallet, user.relayerRecipientSol));
+      calls.push(paymentStreaming(user.wallet, user.rpcRecipientSol));
     }
     await Promise.all(calls);
     console.timeEnd(logLabel);
   });
   async function createAndSpendProgramUtxo(
     wallet: anchor.web3.Keypair,
-    relayerRecipientSol: anchor.web3.PublicKey,
+    rpcRecipientSol: anchor.web3.PublicKey,
   ): Promise<void> {
     await airdropSol({
       connection: provider.connection,
@@ -114,12 +109,12 @@ describe("Streaming Payments tests", () => {
     await airdropSol({
       connection: provider.connection,
       lamports: 1e9,
-      recipientPublicKey: relayerRecipientSol,
+      recipientPublicKey: rpcRecipientSol,
     });
-    let relayer = new TestRelayer({
-      relayerPubkey: wallet.publicKey,
-      relayerRecipientSol: relayerRecipientSol,
-      relayerFee: new BN(100_000),
+    let rpc = new TestRpc({
+      rpcPubkey: wallet.publicKey,
+      rpcRecipientSol: rpcRecipientSol,
+      rpcFee: new BN(100_000),
       payer: wallet,
       connection: provider.connection,
       lightWasm: WASM,
@@ -130,7 +125,7 @@ describe("Streaming Payments tests", () => {
     const lightProvider = await LightProvider.init({
       wallet,
       url: RPC_URL,
-      relayer,
+      rpc,
       confirmConfig,
     });
     const lightUser: User = await User.init({ provider: lightProvider });
@@ -189,15 +184,15 @@ describe("Streaming Payments tests", () => {
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      relayerPublicKey: relayer.accounts.relayerPubkey,
+      rpcPublicKey: rpc.accounts.rpcPubkey,
       lightWasm: WASM,
-      relayerFee: relayer.relayerFee,
+      rpcFee: rpc.rpcFee,
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: lightUser.account,
     });
     // createProofInputsAndProve
-    const { root, index: rootIndex } = (await relayer.getMerkleRoot(
+    const { root, index: rootIndex } = (await rpc.getMerkleRoot(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
     ))!;
     const proofInputs = createProofInputs({
@@ -234,7 +229,7 @@ describe("Streaming Payments tests", () => {
       pspProof,
       publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
-      relayerRecipientSol: relayer.accounts.relayerRecipientSol,
+      rpcRecipientSol: rpc.accounts.rpcRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       rootIndex,
@@ -249,7 +244,7 @@ describe("Streaming Payments tests", () => {
 
   async function paymentStreaming(
     wallet: anchor.web3.Keypair,
-    relayerRecipientSol: anchor.web3.PublicKey,
+    rpcRecipientSol: anchor.web3.PublicKey,
   ) {
     const circuitPath = path.join("build-circuit");
     await airdropSol({
@@ -261,13 +256,13 @@ describe("Streaming Payments tests", () => {
     await airdropSol({
       connection: provider.connection,
       lamports: 1e10,
-      recipientPublicKey: relayerRecipientSol,
+      recipientPublicKey: rpcRecipientSol,
     });
 
-    let relayer = new TestRelayer({
-      relayerPubkey: wallet.publicKey,
-      relayerRecipientSol: relayerRecipientSol,
-      relayerFee: new BN(100_000),
+    let rpc = new TestRpc({
+      rpcPubkey: wallet.publicKey,
+      rpcRecipientSol: rpcRecipientSol,
+      rpcFee: new BN(100_000),
       payer: wallet,
       connection: provider.connection,
       lightWasm: WASM,
@@ -278,7 +273,7 @@ describe("Streaming Payments tests", () => {
     const lightProvider = await LightProvider.init({
       wallet,
       url: RPC_URL,
-      relayer,
+      rpc,
       confirmConfig,
     });
     const lightUser: User = await User.init({ provider: lightProvider });
@@ -320,8 +315,7 @@ describe("Streaming Payments tests", () => {
     const currentSlot1 = await provider.connection.getSlot("confirmed");
 
     await lightUser.getBalance();
-    let merkleTree = (lightUser.provider.relayer as any).solMerkleTree
-      .merkleTree;
+    let merkleTree = (lightUser.provider.rpc as any).solMerkleTree.merkleTree;
 
     const { programParameters, inUtxo, outUtxo, action } = client.collectStream(
       new BN(currentSlot1),

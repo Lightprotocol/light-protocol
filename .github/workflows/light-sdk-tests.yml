@@ -25,7 +25,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: sdk-tests-light-relayer-cli
+          - name: sdk-tests-light-rpc-cli
             sub-tests: '[
               "@lightprotocol/cli:test",
               "@lightprotocol/prover.js:test"
@@ -34,7 +34,7 @@ jobs:
             sub-tests: '[
               "@lightprotocol/circuit-lib.js:test",
               "@lightprotocol/circuit-lib.circom:test",
-              "@lightprotocol/relayer:test"]'
+              "@lightprotocol/rpc:test"]'
     services:
       redis:
         image: redis
@@ -72,9 +72,9 @@ jobs:
           done
 
 
-      - name: Run Relayer Docker build test
+      - name: Run Rpc Docker build test
         if: matrix.name == 'circuit-tests'
-        run: ./scripts/testDockerRelayer.sh
+        run: ./scripts/testDockerRpc.sh
 
       - name: Log out
         run: docker logout

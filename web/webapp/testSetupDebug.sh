@@ -28,28 +28,28 @@ trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${
 
 
 
-# Load the environment variables from the relayer's .env file
-echo "building and starting relayer server"
+# Load the environment variables from the rpc's .env file
+echo "building and starting rpc server"
 kill $(lsof -ti :3332) > /dev/null  || true
 sleep 1
 echo "Current directory: $(pwd)"
 ls -la
 echo "perms:"
-ls -l ./../../relayer/.env.example
-chmod +r ./../../relayer/.env.example
-. ./../../relayer/.env.example
+ls -l ./../../rpc/.env.example
+chmod +r ./../../rpc/.env.example
+. ./../../rpc/.env.example
 
-# build the relayer
-cd ./../../relayer
+# build the rpc
+cd ./../../rpc
 pnpm install
 pnpm build
 
-node ./lib/index.js > ../web/webapp/.logs/relayer-logs.txt &
+node ./lib/index.js > ../web/webapp/.logs/rpc-logs.txt &
 cd ../web/webapp
-PID_RELAYER="${!}"
+PID_RPC="${!}"
 sleep 15
 echo "running"
-trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${PID_VALIDATOR} > /dev/null; then kill ${PID_VALIDATOR}; fi; if ps -p ${PID_RELAYER} > /dev/null; then kill ${PID_RELAYER}; fi' EXIT
+trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${PID_VALIDATOR} > /dev/null; then kill ${PID_VALIDATOR}; fi; if ps -p ${PID_RPC} > /dev/null; then kill ${PID_RPC}; fi' EXIT
 
 
 
@@ -64,7 +64,7 @@ PID_WEBAPP="${!}"
 echo "waiting 90s for server to start"
 sleep 90
 
-trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${PID_VALIDATOR} > /dev/null; then kill ${PID_VALIDATOR}; fi; if ps -p ${PID_RELAYER} > /dev/null; then kill ${PID_RELAYER}; fi; if ps -p ${PID_WEBAPP} > /dev/null; then kill ${PID_WEBAPP}; fi' EXIT
+trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${PID_VALIDATOR} > /dev/null; then kill ${PID_VALIDATOR}; fi; if ps -p ${PID_RPC} > /dev/null; then kill ${PID_RPC}; fi; if ps -p ${PID_WEBAPP} > /dev/null; then kill ${PID_WEBAPP}; fi' EXIT
 
 # Check server logs
 echo ">>>>>>> server logs:"

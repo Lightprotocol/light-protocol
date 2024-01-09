@@ -15,7 +15,7 @@
 //   hashAndTruncateToCircuit,
 //   Provider as LightProvider,
 //   MINT,
-//   Relayer,
+//   Rpc,
 //   TransactionErrorCode,
 //   Action,
 //   IDL_LIGHT_PSP2IN2OUT,
@@ -44,7 +44,7 @@
 //   txParamsSol: TransactionParameters,
 //   paramsUnshield: TransactionParameters,
 //   appData: any,
-//   relayer: Relayer;
+//   rpc: Rpc;
 // const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 // // TODO: check more specific errors in tests
@@ -111,7 +111,7 @@
 //       ),
 //       0,
 //     );
-//     relayer = new Relayer(mockPubkey3, mockPubkey, new BN(5000));
+//     rpc = new Rpc(mockPubkey3, mockPubkey, new BN(5000));
 //     paramsUnshield = new TransactionParameters({
 //       inputUtxos: [shieldUtxo1],
 //       eventMerkleTreePubkey: mockPubkey2,
@@ -120,7 +120,7 @@
 //       recipientSpl: mockPubkey,
 //       recipientSol: lightProvider.wallet.publicKey,
 //       action: Action.UNSHIELD,
-//       relayer,
+//       rpc,
 //       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
 //       account,
 //     });
@@ -142,7 +142,7 @@
 //       senderSol: lightProvider.wallet.publicKey,
 //       action: Action.UNSHIELD,
 //       hasher,
-//       relayer,
+//       rpc,
 //       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
 //       account,
 //     });
@@ -162,7 +162,7 @@
 //       senderSol: lightProvider.wallet.publicKey,
 //       action: Action.UNSHIELD,
 //       hasher,
-//       relayer,
+//       rpc,
 //       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
 //       account,
 //     });
@@ -181,7 +181,7 @@
 //       senderSol: lightProvider.wallet.publicKey,
 //       action: Action.UNSHIELD,
 //       hasher,
-//       relayer,
+//       rpc,
 //       verifierIdl: IDL_LIGHT_PSP2IN2OUT,
 //       account,
 //     });
@@ -701,7 +701,7 @@
 //       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
 //     });
 //     mockPubkey = SolanaKeypair.generate().publicKey;
-//     const relayerPubkey = SolanaKeypair.generate().publicKey;
+//     const rpcPubkey = SolanaKeypair.generate().publicKey;
 
 //     lightProvider = await LightProvider.loadMock();
 //     txParams = new TransactionParameters({
@@ -716,7 +716,7 @@
 //       account,
 //     });
 
-//     relayer = new Relayer(relayerPubkey, mockPubkey, new BN(5000));
+//     rpc = new Rpc(rpcPubkey, mockPubkey, new BN(5000));
 //     txParamsApp = new TransactionParameters({
 //       inputUtxos: [
 //         new Utxo({
@@ -733,7 +733,7 @@
 //       senderSol: lightProvider.wallet.publicKey,
 //       action: Action.UNSHIELD,
 //       hasher,
-//       relayer,
+//       rpc,
 //       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
 //       account,
 //     });

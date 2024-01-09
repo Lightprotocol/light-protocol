@@ -12,8 +12,8 @@ import {
   userTokenAccount,
   Account,
   Provider,
-  TestRelayer,
-  RELAYER_FEE,
+  TestRpc,
+  RPC_FEE,
 } from "../../src";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import {
@@ -24,7 +24,7 @@ import {
 } from "@solana/web3.js";
 import { assert } from "chai";
 
-let ACCOUNT: Account, RELAYER: TestRelayer;
+let ACCOUNT: Account, RPC: TestRpc;
 
 describe("User registry", () => {
   // Configure the client to use the local cluster.
@@ -46,17 +46,14 @@ describe("User registry", () => {
     const lightWasm = await WasmFactory.getInstance();
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     ACCOUNT = Account.createFromSeed(lightWasm, seed);
-    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+    const rpcRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(
-      relayerRecipientSol,
-      2_000_000_000,
-    );
+    await provider.connection.requestAirdrop(rpcRecipientSol, 2_000_000_000);
 
-    RELAYER = new TestRelayer({
-      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      relayerRecipientSol,
-      relayerFee: RELAYER_FEE,
+    RPC = new TestRpc({
+      rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      rpcRecipientSol,
+      rpcFee: RPC_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
       lightWasm,
@@ -64,7 +61,7 @@ describe("User registry", () => {
 
     await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: RELAYER,
+      rpc: RPC,
       confirmConfig,
     });
   });

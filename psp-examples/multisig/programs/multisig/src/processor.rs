@@ -40,7 +40,7 @@ pub fn process_psp_instruction_first<
     encrypted_utxos: &'a Vec<u8>,
     pool_type: &'a [u8; 32],
     root_index: &'a u64,
-    relayer_fee: &'a u64,
+    rpc_fee: &'a u64,
 ) -> Result<()> {
     let output_commitment = [
         [output_commitment[0], output_commitment[1]],
@@ -53,7 +53,7 @@ pub fn process_psp_instruction_first<
         nullifiers: input_nullifier,
         leaves: &output_commitment,
         encrypted_utxos,
-        relayer_fee: *relayer_fee,
+        rpc_fee: *rpc_fee,
         merkle_root_index: (*root_index).try_into().unwrap(),
         pool_type,
         checked_public_inputs,
@@ -105,8 +105,8 @@ pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
             recipient_spl: ctx.accounts.recipient_spl.to_account_info(),
             sender_sol: ctx.accounts.sender_sol.to_account_info(),
             recipient_sol: ctx.accounts.recipient_sol.to_account_info(),
-            // relayer recipient and escrow will never be used in the same transaction
-            relayer_recipient_sol: ctx.accounts.relayer_recipient_sol.to_account_info(),
+            // rpc recipient and escrow will never be used in the same transaction
+            rpc_recipient_sol: ctx.accounts.rpc_recipient_sol.to_account_info(),
             token_authority: ctx.accounts.token_authority.to_account_info(),
             log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
             event_merkle_tree: ctx.accounts.event_merkle_tree.to_account_info(),

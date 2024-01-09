@@ -1,7 +1,7 @@
 "use client";
 import {
   Provider,
-  Relayer,
+  Rpc,
   User,
   Wallet,
   confirmConfig,
@@ -26,12 +26,10 @@ export const initializedUser = atom(
     set(loadingState, true);
 
     try {
-      const relayer = await Relayer.initFromUrl(
-        process.env.NEXT_PUBLIC_RELAYER_URL!
-      );
+      const rpc = await Rpc.initFromUrl(process.env.NEXT_PUBLIC_LIGHT_RPC_URL!);
 
       const provider = await Provider.init({
-        relayer,
+        rpc,
         wallet,
         confirmConfig,
         url: connection.rpcEndpoint,

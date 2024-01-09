@@ -22,14 +22,14 @@ describe("shield:spl sub-cli", () => {
 
   test
     .stdout({ print: true })
-    .command(["shield:spl", "10", "USDC", "--localTestRelayer"])
+    .command(["shield:spl", "10", "USDC", "--localTestRpc"])
     .it("shielding 1 USDC", (ctx) => {
       expect(ctx.stdout).to.contain("Successfully shielded 10 USDC ✔");
     });
 
   test
     .stdout({ print: true })
-    .command(["shield:spl", "123", "USDC", "-d", "--localTestRelayer"])
+    .command(["shield:spl", "123", "USDC", "-d", "--localTestRpc"])
     .it("shielding 1.23 USDC taking absolute input with the subcli", (ctx) => {
       expect(ctx.stdout).to.contain("Successfully shielded 1.23 USDC ✔");
     });
@@ -41,7 +41,7 @@ describe("shield:spl sub-cli", () => {
       "shield:spl",
       "10000000000000000000000000000000000000000",
       "USDC",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .exit(2)
     .it("Should fail shield of unsufficient SPL amount");
@@ -54,7 +54,7 @@ describe("shield:spl sub-cli", () => {
       "10",
       "USDC",
       "--recipient=HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84qFAIL",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .exit(2)
     .it("Should fail shield SPL to an invalid shielded recipient address");

@@ -5,14 +5,14 @@ import {
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,
   confirmConfig,
-  TestRelayer,
+  TestRpc,
   Action,
   Provider,
   User,
   MINT,
   airdropShieldedSol,
   airdropShieldedMINTSpl,
-  RELAYER_FEE,
+  RPC_FEE,
   airdropSol,
 } from "../../src";
 import { WasmFactory } from "@lightprotocol/account.rs";
@@ -50,21 +50,21 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     environmentConfig.lightWasm = await WasmFactory.getInstance();
     // this keypair is used to derive the shielded account seed from the light message signature
     environmentConfig.providerSolanaKeypair = ADMIN_AUTH_KEYPAIR;
-    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+    const rpcRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await anchorProvider.connection.requestAirdrop(relayerRecipientSol, 2e9);
+    await anchorProvider.connection.requestAirdrop(rpcRecipientSol, 2e9);
 
-    environmentConfig.relayer = new TestRelayer({
-      relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      relayerRecipientSol,
-      relayerFee: RELAYER_FEE,
+    environmentConfig.rpc = new TestRpc({
+      rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      rpcRecipientSol,
+      rpcFee: RPC_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: anchorProvider.connection,
       lightWasm: environmentConfig.lightWasm,
     });
     provider = await Provider.init({
       wallet: environmentConfig.providerSolanaKeypair!,
-      relayer: environmentConfig.relayer,
+      rpc: environmentConfig.rpc,
       confirmConfig,
     });
     await airdropSol({
@@ -169,7 +169,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   it("Merge one spl (existing utxos)", async () => {
     const provider = await Provider.init({
       wallet: userKeypair,
-      relayer: environmentConfig.relayer,
+      rpc: environmentConfig.rpc,
       confirmConfig,
     });
     await airdropShieldedMINTSpl({
@@ -261,7 +261,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   it("Merge one sol (existing utxos)", async () => {
     const provider = await Provider.init({
       wallet: userKeypair,
-      relayer: environmentConfig.relayer,
+      rpc: environmentConfig.rpc,
       confirmConfig,
     });
     await airdropShieldedSol({

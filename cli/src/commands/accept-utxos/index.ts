@@ -51,7 +51,7 @@ class MergeUtxosCommand extends Command {
     try {
       const user: User = await getUser({
         skipFetchBalance: flags["skipFetchBalance"],
-        localTestRelayer: flags["localTestRelayer"],
+        localTestRpc: flags["localTestRpc"],
       });
       const tokenCtx = TOKEN_REGISTRY.get(token);
 

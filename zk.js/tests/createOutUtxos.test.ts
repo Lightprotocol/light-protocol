@@ -26,7 +26,7 @@ import {
   createRecipientUtxos,
   Provider,
   TokenData,
-  RELAYER_FEE,
+  RPC_FEE,
   BN_0,
   BN_1,
   BN_2,
@@ -52,7 +52,7 @@ describe("Test createOutUtxos Functional", () => {
     token,
     tokenCtx: TokenData,
     utxo1: Utxo,
-    relayerFee: BN,
+    rpcFee: BN,
     utxoSol: Utxo,
     recipientAccount: Account,
     lightProvider: Provider;
@@ -93,7 +93,7 @@ describe("Test createOutUtxos Functional", () => {
       },
       false,
     );
-    relayerFee = RELAYER_FEE;
+    rpcFee = RPC_FEE;
 
     const recipientAccountRoot = Account.createFromSeed(
       lightWasm,
@@ -253,14 +253,14 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield SPL - no relayer fee", async () => {
+  it("unshield SPL - no rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       publicAmountSol: BN_0,
       lightWasm,
-      relayerFee: BN_0,
+      rpcFee: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -284,14 +284,14 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield SPL - with relayer fee", async () => {
+  it("unshield SPL - with rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       publicAmountSol: BN_0,
       lightWasm,
-      relayerFee,
+      rpcFee,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -302,7 +302,7 @@ describe("Test createOutUtxos Functional", () => {
 
     assert.equal(
       outUtxos[0].amounts[0].toString(),
-      utxo1.amounts[0].sub(relayerFee).toString(),
+      utxo1.amounts[0].sub(rpcFee).toString(),
       `${outUtxos[0].amounts[0]} fee != ${utxo1.amounts[0]}`,
     );
     assert.equal(
@@ -315,14 +315,14 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield sol - no relayer fee", async () => {
+  it("unshield sol - no rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
       lightWasm,
-      relayerFee: BN_0,
+      rpcFee: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -346,14 +346,14 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield sol - with relayer fee", async () => {
+  it("unshield sol - with rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
       lightWasm,
-      relayerFee,
+      rpcFee,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -364,7 +364,7 @@ describe("Test createOutUtxos Functional", () => {
 
     assert.equal(
       outUtxos[0].amounts[0].toString(),
-      utxo1.amounts[0].sub(relayerFee).sub(solAmount).toString(),
+      utxo1.amounts[0].sub(rpcFee).sub(solAmount).toString(),
       `${outUtxos[0].amounts[0]} fee != ${utxo1.amounts[0]}`,
     );
     assert.equal(
@@ -377,14 +377,14 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield spl & sol - no relayer fee", async () => {
+  it("unshield spl & sol - no rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       publicAmountSol: solAmount,
       lightWasm,
-      relayerFee: BN_0,
+      rpcFee: BN_0,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -408,14 +408,14 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield spl & sol - with relayer fee", async () => {
+  it("unshield spl & sol - with rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
       publicAmountSol: solAmount,
       lightWasm,
-      relayerFee,
+      rpcFee,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
       numberMaxOutUtxos,
@@ -426,7 +426,7 @@ describe("Test createOutUtxos Functional", () => {
 
     assert.equal(
       outUtxos[0].amounts[0].toString(),
-      utxo1.amounts[0].sub(relayerFee).sub(solAmount).toString(),
+      utxo1.amounts[0].sub(rpcFee).sub(solAmount).toString(),
       `${outUtxos[0].amounts[0]} fee != ${utxo1.amounts[0]}`,
     );
     assert.equal(
@@ -520,7 +520,7 @@ describe("Test createOutUtxos Functional", () => {
       publicAmountSpl: BN_0,
       inUtxos: [utxo1],
       outUtxos,
-      relayerFee,
+      rpcFee,
       publicAmountSol: BN_0,
       lightWasm,
       changeUtxoAccount: k0,
@@ -534,11 +534,11 @@ describe("Test createOutUtxos Functional", () => {
     assert.equal(
       outUtxos[1].amounts[0].toNumber(),
       utxo1.amounts[0].toNumber() -
-        relayerFee.toNumber() -
+        rpcFee.toNumber() -
         outUtxos[0].amounts[0].toNumber(),
       `${outUtxos[1].amounts[0]} fee != ${
         utxo1.amounts[0].toNumber() -
-        relayerFee.toNumber() -
+        rpcFee.toNumber() -
         outUtxos[0].amounts[0].toNumber()
       }`,
     );
@@ -893,7 +893,7 @@ describe("Test createOutUtxos Errors", () => {
         lightWasm: lightWasm,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
-        relayerFee: BN_1,
+        rpcFee: BN_1,
       });
     })
       .to.throw(CreateUtxoError)

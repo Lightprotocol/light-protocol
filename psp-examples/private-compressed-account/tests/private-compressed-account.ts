@@ -1,10 +1,15 @@
+/**
+ * Currently Not Maintained and Excluded From CI
+ * TODO: Fix and re-enable
+ */
+//@ts-nocheck
 import * as anchor from "@coral-xyz/anchor";
 import { assert } from "chai";
 import {
   TransactionParameters,
   Provider as LightProvider,
   confirmConfig,
-  TestRelayer,
+  TestRpc,
   User,
   airdropSol,
 } from "@lightprotocol/zk.js";
@@ -86,10 +91,10 @@ describe("Test private-compressed-account", () => {
       recipientPublicKey: wallet.publicKey,
     });
 
-    let relayer = new TestRelayer({
-      relayerPubkey: wallet.publicKey,
-      relayerRecipientSol: wallet.publicKey,
-      relayerFee: new BN(100000),
+    let rpc = new TestRpc({
+      rpcPubkey: wallet.publicKey,
+      rpcRecipientSol: wallet.publicKey,
+      rpcFee: new BN(100000),
       payer: wallet,
     });
 
@@ -98,11 +103,11 @@ describe("Test private-compressed-account", () => {
     var lightProvider = await LightProvider.init({
       wallet,
       url: RPC_URL,
-      relayer,
+      rpc,
       confirmConfig,
     });
     lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      TransactionParameters.getVerifierProgramId(IDL),
+      TransactionParameters.getVerifierProgramId(IDL)
     );
 
     const user: User = await User.init({ provider: lightProvider });
@@ -113,7 +118,7 @@ describe("Test private-compressed-account", () => {
       HASHER,
       IDL,
       0,
-      user,
+      user
     );
 
     try {

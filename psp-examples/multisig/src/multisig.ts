@@ -10,7 +10,7 @@ import {
   airdropSol,
   confirmConfig,
   Provider as LightProvider,
-  TestRelayer,
+  TestRpc,
   TransactionParameters,
   User,
   Utxo,
@@ -51,20 +51,20 @@ export class Multisig {
       recipientPublicKey: wallet.publicKey,
     });
 
-    let relayer = new TestRelayer({
-      relayerPubkey: wallet.publicKey,
-      relayerRecipientSol: wallet.publicKey,
-      relayerFee: new BN(100000),
+    let rpc = new TestRpc({
+      rpcPubkey: wallet.publicKey,
+      rpcRecipientSol: wallet.publicKey,
+      rpcFee: new BN(100000),
       payer: wallet,
     });
     let lightProvider = await LightProvider.init({
       wallet,
       url: RPC_URL,
-      relayer,
+      rpc,
       confirmConfig,
     });
     lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      TransactionParameters.getVerifierProgramId(IDL),
+      TransactionParameters.getVerifierProgramId(IDL)
     );
 
     const user: User = await User.init({ provider: lightProvider });
@@ -84,7 +84,7 @@ export class Multisig {
       hasher,
       poseidon,
       eddsa,
-      lightProvider,
+      lightProvider
     );
 
     const multisig = new Multisig(client);

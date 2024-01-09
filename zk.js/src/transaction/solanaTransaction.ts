@@ -220,7 +220,7 @@ export async function createSolanaInstructions({
     ...instructionInputs.proofBytes,
     ...instructionInputs.publicInputs,
     rootIndex: new BN(instructionInputs.rootIndex!),
-    relayerFee: publicTransactionVariables.relayerFee,
+    rpcFee: publicTransactionVariables.rpcFee,
     encryptedUtxos: Buffer.from(instructionInputs.encryptedUtxos!),
   };
   if (pspTransactionInput) {
@@ -317,7 +317,7 @@ export type SolanaTransactionInputs = {
   systemProof: { parsedProof: any; parsedPublicInputsObject: any };
   pspTransactionInput?: PspTransactionInput;
   pspProof?: { parsedProof: any; parsedPublicInputsObject: any };
-  relayerRecipientSol?: PublicKey;
+  rpcRecipientSol?: PublicKey;
   systemPspIdl: Idl;
   rootIndex: number;
 };
@@ -364,8 +364,8 @@ export async function sendAndConfirmShieldTransaction({
   });
 
   const txHash = await provider.sendAndConfirmTransaction(instructions);
-  const relayerMerkleTreeUpdateResponse = "notPinged";
-  return { txHash, response: relayerMerkleTreeUpdateResponse };
+  const rpcMerkleTreeUpdateResponse = "notPinged";
+  return { txHash, response: rpcMerkleTreeUpdateResponse };
 }
 
 // pspProof, systemProof,pspTransactionInput, txParams
@@ -383,7 +383,7 @@ export async function sendAndConfirmShieldedTransaction({
     pspProof,
     pspTransactionInput,
     systemProof,
-    relayerRecipientSol,
+    rpcRecipientSol,
     systemPspIdl,
     rootIndex,
   } = solanaTransactionInputs;
@@ -394,11 +394,11 @@ export async function sendAndConfirmShieldedTransaction({
       `Action ${action} is SHIELD use sendAndConfirmShieldTransaction.`,
     );
   }
-  if (!relayerRecipientSol) {
+  if (!rpcRecipientSol) {
     throw new SolanaTransactionError(
-      SolanaTransactionErrorCode.RELAYER_RECIPIENT_SOL_UNDEFINED,
+      SolanaTransactionErrorCode.RPC_RECIPIENT_SOL_UNDEFINED,
       "sendAndConfirmShieldedTransaction",
-      `Relayer recipient sol is undefined.`,
+      `Rpc recipient sol is undefined.`,
     );
   }
 
@@ -408,8 +408,8 @@ export async function sendAndConfirmShieldedTransaction({
   const accounts = prepareAccounts({
     transactionAccounts: publicTransactionVariables.accounts,
     eventMerkleTreePubkey: eventMerkleTree,
-    relayerRecipientSol,
-    signer: publicTransactionVariables.accounts.relayerPublicKey,
+    rpcRecipientSol,
+    signer: publicTransactionVariables.accounts.rpcPublicKey,
   });
 
   // createSolanaInstructionsWithAccounts
@@ -427,9 +427,9 @@ export async function sendAndConfirmShieldedTransaction({
   });
 
   const txHash = await provider.sendAndConfirmShieldedTransaction(instructions);
-  const relayerMerkleTreeUpdateResponse = "notPinged";
+  const rpcMerkleTreeUpdateResponse = "notPinged";
 
-  return { txHash, response: relayerMerkleTreeUpdateResponse };
+  return { txHash, response: rpcMerkleTreeUpdateResponse };
 }
 
 // TODO: unify event Merkle tree and transaction Merkle tree so that only one is passed
@@ -437,13 +437,13 @@ export function prepareAccounts({
   transactionAccounts,
   eventMerkleTreePubkey,
   signer,
-  relayerRecipientSol,
+  rpcRecipientSol,
   verifierState,
 }: {
   transactionAccounts: TransactionAccounts;
   eventMerkleTreePubkey: PublicKey;
   signer?: PublicKey;
-  relayerRecipientSol?: PublicKey;
+  rpcRecipientSol?: PublicKey;
   verifierState?: PublicKey;
 }): lightAccounts {
   const {
@@ -451,13 +451,13 @@ export function prepareAccounts({
     senderSpl,
     recipientSol,
     recipientSpl,
-    relayerPublicKey,
+    rpcPublicKey,
     pspId,
     systemPspId,
   } = transactionAccounts;
   const verifierProgramId = pspId ? pspId : systemPspId;
   if (!signer) {
-    signer = relayerPublicKey;
+    signer = rpcPublicKey;
   }
   if (!verifierState) {
     verifierState = getVerifierStatePda(verifierProgramId, signer);
@@ -481,7 +481,7 @@ export function prepareAccounts({
     tokenAuthority: getTokenAuthorityPda(),
     verifierProgram: pspId ? systemPspId : undefined,
     signingAddress: signer,
-    relayerRecipientSol: relayerRecipientSol ? relayerRecipientSol : AUTHORITY,
+    rpcRecipientSol: rpcRecipientSol ? rpcRecipientSol : AUTHORITY,
     verifierState,
   };
   return accounts;

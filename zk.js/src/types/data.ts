@@ -6,7 +6,7 @@ export type IndexedTransactionData = {
   leaves: number[][];
   encryptedUtxos: number[];
   nullifiers: number[][];
-  relayerFee: BN;
+  rpcFee: BN;
   firstLeafIndex: BN;
   tx: any;
   message: number[];
