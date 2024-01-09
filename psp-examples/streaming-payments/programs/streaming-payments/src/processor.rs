@@ -2,7 +2,7 @@ use crate::verifying_key_streaming_payments::VERIFYINGKEY_STREAMING_PAYMENTS;
 use crate::LightInstructionThird;
 use anchor_lang::prelude::*;
 use light_macros::pubkey;
-use light_verifier_sdk::light_transaction::Proof;
+use light_verifier_sdk::light_transaction::ProofCompressed;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use light_verifier_sdk::{light_app_transaction::AppTransaction, light_transaction::Config};
 
@@ -16,10 +16,10 @@ pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
     ctx: &'a Context<'a, 'b, 'c, 'info, LightInstructionThird<'info, NR_CHECKED_INPUTS>>,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
-    let proof_verifier = Proof {
-        a: inputs[256..256 + 64].try_into().unwrap(),
-        b: inputs[256 + 64..256 + 192].try_into().unwrap(),
-        c: inputs[256 + 192..256 + 256].try_into().unwrap(),
+    let proof_verifier = ProofCompressed {
+        a: inputs[128..128 + 32].try_into().unwrap(),
+        b: inputs[128 + 32..128 + 96].try_into().unwrap(),
+        c: inputs[128 + 96..128 + 128].try_into().unwrap(),
     };
     let verifier_state = ctx.accounts.verifier_state.load()?;
 
@@ -79,10 +79,10 @@ pub fn verify_program_proof<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let verifier_state = ctx.accounts.verifier_state.load()?;
-    let proof_app = Proof {
-        a: inputs[0..64].try_into().unwrap(),
-        b: inputs[64..192].try_into().unwrap(),
-        c: inputs[192..256].try_into().unwrap(),
+    let proof_app = ProofCompressed {
+        a: inputs[0..32].try_into().unwrap(),
+        b: inputs[32..96].try_into().unwrap(),
+        c: inputs[96..128].try_into().unwrap(),
     };
     // Is necessary otherwise the const generic throws an error
     const NR_CHECKED_INPUTS: usize = VERIFYINGKEY_STREAMING_PAYMENTS.nr_pubinputs;

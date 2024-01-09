@@ -1,15 +1,14 @@
-use std::ops::Neg;
-
 use anchor_lang::{prelude::*, solana_program::msg};
-use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_std::marker::PhantomData;
-use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
-use light_utils::change_endianness;
+use groth16_solana::{
+    decompression::{decompress_g1, decompress_g2},
+    groth16::{Groth16Verifier, Groth16Verifyingkey},
+};
 
-use crate::{errors::VerifierSdkError, light_transaction::Proof};
-
-type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
-use crate::light_transaction::Config;
+use crate::{
+    errors::VerifierSdkError,
+    light_transaction::{Config, Proof, ProofCompressed},
+};
 
 pub struct AppTransaction<'a, const NR_CHECKED_INPUTS: usize, T: Config> {
     pub checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
@@ -22,23 +21,17 @@ pub struct AppTransaction<'a, const NR_CHECKED_INPUTS: usize, T: Config> {
 
 impl<'a, const NR_CHECKED_INPUTS: usize, T: Config> AppTransaction<'a, NR_CHECKED_INPUTS, T> {
     pub fn new(
-        proof: &'a Proof,
+        proof: &'a ProofCompressed,
         checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
         verifyingkey: &'a Groth16Verifyingkey<'a>,
     ) -> AppTransaction<'a, NR_CHECKED_INPUTS, T> {
-        let proof_a_neg_g1: G1 =
-            <G1 as FromBytes>::read(&*[&change_endianness(&proof.a)[..], &[0u8][..]].concat())
-                .unwrap();
-        let mut proof_a_neg_buf = [0u8; 65];
-        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg_buf[..]).unwrap();
-        let mut proof_a_neg = [0u8; 64];
-        proof_a_neg.copy_from_slice(&proof_a_neg_buf[..64]);
-
-        let proof_a_neg: [u8; 64] = change_endianness(&proof_a_neg);
+        let proof_a = decompress_g1(&proof.a).unwrap();
+        let proof_b = decompress_g2(&proof.b).unwrap();
+        let proof_c = decompress_g1(&proof.c).unwrap();
         let proof = Proof {
-            a: proof_a_neg,
-            b: proof.b,
-            c: proof.c,
+            a: proof_a,
+            b: proof_b,
+            c: proof_c,
         };
 
         AppTransaction {

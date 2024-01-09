@@ -191,20 +191,24 @@ export class Prover<
           }
         }
       }
+
       if (compressed) {
-        let proofA = mydata.pi_a[0];
+        const proofA = mydata.pi_a[0];
+        // negate proof by reversing the bitmask
         const proofAIsPositive = Prover.yElementIsPositiveG1(
           new BN(mydata.pi_a[1]),
-        );
+        )
+          ? false
+          : true;
         proofA[0] = Prover.addBitmaskToByte(proofA[0], proofAIsPositive);
-        let proofB = mydata.pi_b[0].flat().reverse();
-        let proofBY = mydata.pi_b[1].flat().reverse();
+        const proofB = mydata.pi_b[0].flat().reverse();
+        const proofBY = mydata.pi_b[1].flat().reverse();
         const proofBIsPositive = Prover.yElementIsPositiveG2(
           new BN(proofBY.slice(0, 32)),
           new BN(proofBY.slice(32, 64)),
         );
         proofB[0] = Prover.addBitmaskToByte(proofB[0], proofBIsPositive);
-        let proofC = mydata.pi_c[0];
+        const proofC = mydata.pi_c[0];
         const proofCIsPositive = Prover.yElementIsPositiveG1(
           new BN(mydata.pi_c[1]),
         );
@@ -249,17 +253,37 @@ export class Prover<
       throw error;
     }
   }
+
   static yElementIsPositiveG1(yElement: BN): boolean {
     return yElement.lte(FIELD_SIZE.sub(yElement));
   }
 
   static yElementIsPositiveG2(yElement1: BN, yElement2: BN): boolean {
-    return (
-      yElement1.lte(FIELD_SIZE.sub(yElement1)) &&
-      yElement2.lte(FIELD_SIZE.sub(yElement2))
-    );
+    const fieldMidpoint = FIELD_SIZE.div(new BN(2));
+
+    // Compare the first component of the y coordinate
+    if (yElement1.lt(fieldMidpoint)) {
+      return true;
+    } else if (yElement1.gt(fieldMidpoint)) {
+      return false;
+    }
+
+    // If the first component is equal to the midpoint, compare the second component
+    return yElement2.lt(fieldMidpoint);
   }
 
+  // bitmask compatible with solana altbn128 compression syscall and arkworks' implementation
+  // https://github.com/arkworks-rs/algebra/blob/master/ff/src/fields/models/fp/mod.rs#L580
+  // https://github.com/arkworks-rs/algebra/blob/master/serialize/src/flags.rs#L18
+  // fn u8_bitmask(value: u8, inf: bool, neg: bool) -> u8 {
+  //     let mut mask = 0;
+  //     match self {
+  //         inf => mask |= 1 << 6,
+  //         neg => mask |= 1 << 7,
+  //         _ => (),
+  //     }
+  //     mask
+  // }
   static addBitmaskToByte(byte: number, yIsPositive: boolean): number {
     if (!yIsPositive) {
       return (byte |= 1 << 7);

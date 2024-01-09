@@ -21,6 +21,6 @@ ark-bn254 = "0.3.0"
 ark-std = { version = "^0.3.0", default-features = false }
 spl-token = "3.3.0"
 borsh = "0.9.3"
-groth16-solana = "0.0.2"
+groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
 light-utils = { path = "../utils", version = "0.1.0" }
 light-sparse-merkle-tree = { path = "../merkle-tree/sparse", version = "0.1.1" }

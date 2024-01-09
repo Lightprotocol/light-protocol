@@ -2,7 +2,7 @@ use crate::verifying_key_{{circom-name}}::VERIFYINGKEY_{{VERIFYING_KEY_NAME}};
 use crate::LightInstructionThird;
 use anchor_lang::prelude::*;
 use light_macros::pubkey;
-use light_verifier_sdk::light_transaction::Proof;
+use light_verifier_sdk::light_transaction::ProofCompressed;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use light_verifier_sdk::{
     light_app_transaction::AppTransaction,
@@ -32,10 +32,10 @@ pub fn cpi_system_verifier<
     >,
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
-    let proof_verifier = Proof {
-        a: inputs[256..256 + 64].try_into().unwrap(),
-        b: inputs[256 + 64..256 + 192].try_into().unwrap(),
-        c: inputs[256 + 192..256 + 256].try_into().unwrap(),
+    let proof_verifier = ProofCompressed {
+        a: inputs[128..128 +32].try_into().unwrap(),
+        b: inputs[128 + 32..128 + 96].try_into().unwrap(),
+        c: inputs[128 + 96..128 + 128].try_into().unwrap(),
     };
 
     let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
@@ -93,6 +93,7 @@ pub fn cpi_system_verifier<
         memoffset::offset_of!(crate::psp_accounts::VerifierState, verifier_state_data),
     )
 }
+
 #[inline(never)]
 pub fn verify_program_proof<
     'a,
@@ -111,10 +112,10 @@ pub fn verify_program_proof<
     inputs: &'a Vec<u8>,
 ) -> Result<()> {
     let verifier_state = ctx.accounts.verifier_state.load()?;
-    let proof_app = Proof {
-        a: inputs[0..64].try_into().unwrap(),
-        b: inputs[64..192].try_into().unwrap(),
-        c: inputs[192..256].try_into().unwrap(),
+    let proof_app = ProofCompressed {
+        a: inputs[0..32].try_into().unwrap(),
+        b: inputs[32..96].try_into().unwrap(),
+        c: inputs[96..128].try_into().unwrap(),
     };
     const NR_CHECKED_INPUTS: usize = VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs;
     let mut app_verifier = AppTransaction::<NR_CHECKED_INPUTS, TransactionsConfig>::new(

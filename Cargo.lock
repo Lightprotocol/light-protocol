@@ -2253,9 +2253,12 @@ dependencies = [
 [[package]]
 name = "groth16-solana"
 version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5650595f0c8cf8b45ddaa0d9ede9ae54b45f36352afde98e0face95ccee4854c"
+source = "git+https://github.com/Lightprotocol/groth16-solana?branch=master#d1165a03aed6150576c38160797c9f9a1ae630a1"
 dependencies = [
+ "ark-bn254 0.4.0",
+ "ark-ec 0.4.2",
+ "ark-ff 0.4.2",
+ "ark-serialize 0.4.2",
  "solana-program",
  "thiserror",
 ]

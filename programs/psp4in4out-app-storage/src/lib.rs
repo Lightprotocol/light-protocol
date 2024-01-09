@@ -2,7 +2,7 @@ use anchor_lang::{prelude::*, solana_program::hash::hash};
 use bytemuck::{Pod, Zeroable};
 use light_macros::{light_verifier_accounts, pubkey};
 use light_verifier_sdk::light_transaction::{
-    Amounts, Config, Proof, Transaction, TransactionInput,
+    Amounts, Config, ProofCompressed, Transaction, TransactionInput,
 };
 
 pub mod verifying_key;
@@ -42,13 +42,13 @@ pub mod light_psp4in4out_app_storage {
     /// This instruction is used to invoke this system verifier and can only be invoked via cpi.
     pub fn compressed_transfer_inputs<'info>(
         ctx: Context<'_, '_, '_, 'info, LightInstruction<'info>>,
-        proof_a: [u8; 64],
-        proof_b: [u8; 128],
-        proof_c: [u8; 64],
+        proof_a: [u8; 32],
+        proof_b: [u8; 64],
+        proof_c: [u8; 32],
         connecting_hash: [u8; 32],
         start_offset: usize,
     ) -> Result<()> {
-        let proof = Proof {
+        let proof = ProofCompressed {
             a: proof_a,
             b: proof_b,
             c: proof_c,
@@ -56,9 +56,9 @@ pub mod light_psp4in4out_app_storage {
         // + 8 to account for the discriminator
         let end_offset =
             start_offset + 8 + std::mem::size_of::<Psp4In4OutAppStorageVerifierState>();
-
         let verifier_state = Psp4In4OutAppStorageVerifierState::try_deserialize_unchecked(
-            &mut &ctx.accounts.verifier_state.to_account_info().data.borrow()[32..end_offset],
+            &mut &ctx.accounts.verifier_state.to_account_info().data.borrow()
+                [start_offset..end_offset],
         )?;
 
         let public_amount = Amounts {

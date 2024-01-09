@@ -88,7 +88,7 @@ describe("Prover Functionality Tests", () => {
       209, 202, 218, 104, 148, 8, 32, 254, 243, 191, 218, 122, 42, 81, 193, 84,
     ];
 
-    let proofACompressed = proofA.slice(0, 32);
+    const proofACompressed = proofA.slice(0, 32);
     const proofAY = new BN(proofACompressed.slice(32), 32, "be");
     const proofAYIsPositive = Prover.yElementIsPositiveG1(proofAY);
     assert.isTrue(proofAYIsPositive);
@@ -104,7 +104,7 @@ describe("Prover Functionality Tests", () => {
       37, 25, 83, 61, 252, 42, 181, 243, 16, 21, 2, 199, 123, 96, 218, 151, 253,
       86, 69, 181, 202, 109, 64, 129, 124, 254, 192, 25, 177, 199, 26, 50,
     ];
-    let proofCCompressed = proofC.slice(0, 32);
+    const proofCCompressed = proofC.slice(0, 32);
     const proofCY = new BN(proofC.slice(32, 64), 32, "be");
     const proofCYIsPositive = Prover.yElementIsPositiveG1(proofCY);
     assert.isNotTrue(proofCYIsPositive);
@@ -124,7 +124,7 @@ describe("Prover Functionality Tests", () => {
       129, 168, 6, 80, 246, 254, 100, 218, 131, 94, 49, 247, 211, 3, 245, 22,
       200, 177, 91, 60, 144, 147, 174, 90, 17, 19, 189, 62, 147, 152, 18,
     ];
-    let proofBCompressed = proofB.slice(0, 64);
+    const proofBCompressed = proofB.slice(0, 64);
     const proofBY = [
       new BN(proofB.slice(64, 96), 32, "be"),
       new BN(proofB.slice(96, 128), 32, "be"),
