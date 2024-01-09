@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import {
   Provider as LightProvider,
   confirmConfig,
-  TestRelayer,
+  TestRpc,
   User,
   airdropSol,
   lightPsp2in2outStorageId,
@@ -36,8 +36,8 @@ describe("Test foobar", () => {
       url: RPC_URL,
       confirmConfig: confirmConfig,
     });
-    const relayer = createRelayer(wallet, lightProvider);
-    lightProvider.relayer = relayer;
+    const rpc = createRpc(wallet, lightProvider);
+    lightProvider.rpc = rpc;
 
     const user: User = await User.init({ provider: lightProvider });
 
@@ -82,11 +82,11 @@ async function createWalletAndAirdropSol(
   return wallet;
 }
 
-function createRelayer(wallet: Keypair, lightProvider: Provider): TestRelayer {
-  return new TestRelayer({
-    relayerPubkey: wallet.publicKey,
-    relayerRecipientSol: wallet.publicKey,
-    relayerFee: new BN(100_000),
+function createRpc(wallet: Keypair, lightProvider: Provider): TestRpc {
+  return new TestRpc({
+    rpcPubkey: wallet.publicKey,
+    rpcRecipientSol: wallet.publicKey,
+    rpcFee: new BN(100_000),
     payer: wallet,
     connection: lightProvider.provider.connection,
     lightWasm: lightProvider.lightWasm,

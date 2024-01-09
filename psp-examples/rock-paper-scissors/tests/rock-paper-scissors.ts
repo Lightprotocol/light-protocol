@@ -1,3 +1,8 @@
+/**
+ * Currently Not Maintained and Excluded From CI
+ * TODO: Fix and re-enable
+ */
+//@ts-nocheck
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import { assert } from "chai";
@@ -12,10 +17,10 @@ import {
   FIELD_SIZE,
   ProgramParameters,
   Provider as LightProvider,
-  Relayer,
+  Rpc,
   sendVersionedTransactions,
   STANDARD_SHIELDED_PUBLIC_KEY,
-  TestRelayer,
+  TestRpc,
   User,
   Utxo,
 } from "@lightprotocol/zk.js";
@@ -27,10 +32,10 @@ import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pub
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 );
 
-let HASHER: Hasher, RELAYER: TestRelayer;
+let HASHER: Hasher, RPC: TestRpc;
 const RPC_URL = "http://127.0.0.1:8899";
 const GAME_AMOUNT = new BN(1e9);
 
@@ -63,7 +68,7 @@ class Game {
   constructor(
     gameParameters: GameParameters,
     programUtxo: Utxo,
-    pda: PublicKey,
+    pda: PublicKey
   ) {
     this.gameParameters = gameParameters;
     this.programUtxo = programUtxo;
@@ -72,7 +77,7 @@ class Game {
 
   static generateGameCommitmentHash(
     provider: LightProvider,
-    gameParameters: GameParameters,
+    gameParameters: GameParameters
   ) {
     return new BN(
       provider.hasher.poseidonHashString([
@@ -80,14 +85,14 @@ class Game {
         gameParameters.slot,
         gameParameters.player2CommitmentHash,
         gameParameters.gameAmount,
-      ]),
+      ])
     );
   }
 
   static async create(
     choice: Choice,
     gameAmount: BN,
-    lightProvider: LightProvider,
+    lightProvider: LightProvider
   ) {
     const slot = await lightProvider.connection.getSlot();
     const gameParameters: GameParameters = {
@@ -99,7 +104,7 @@ class Game {
     };
     gameParameters.gameCommitmentHash = Game.generateGameCommitmentHash(
       lightProvider,
-      gameParameters,
+      gameParameters
     );
     const programUtxo = new Utxo({
       hasher: HASHER,
@@ -118,7 +123,7 @@ class Game {
     let seed = gameParameters.gameCommitmentHash.toArray("le", 32);
     const pda = findProgramAddressSync(
       [Buffer.from(seed)],
-      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
+      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
     )[0];
 
     return new Game(gameParameters, programUtxo, pda);
@@ -129,7 +134,7 @@ class Game {
     choice: Choice,
     gameAmount: BN,
     lightProvider: LightProvider,
-    account: Account,
+    account: Account
   ) {
     const slot = await lightProvider.connection.getSlot();
     const gameParameters: GameParameters = {
@@ -141,7 +146,7 @@ class Game {
     };
     gameParameters.gameCommitmentHash = Game.generateGameCommitmentHash(
       lightProvider,
-      gameParameters,
+      gameParameters
     );
 
     const programUtxo = new Utxo({
@@ -161,7 +166,7 @@ class Game {
     let seed = gameCommitmentHash.toArray("le", 32);
     const pda = findProgramAddressSync(
       [Buffer.from(seed)],
-      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
+      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
     )[0];
     return new Game(gameParameters, programUtxo, pda);
   }
@@ -224,14 +229,11 @@ class Player {
     this.pspInstance = new anchor.Program(
       IDL,
       new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"),
-      user.provider.provider,
+      user.provider.provider
     );
   }
 
-  static async init(
-    provider: anchor.AnchorProvider,
-    relayer: TestRelayer | Relayer,
-  ) {
+  static async init(provider: anchor.AnchorProvider, rpc: TestRpc | Rpc) {
     const wallet = Keypair.generate();
     await airdropSol({
       connection: provider.connection,
@@ -244,7 +246,7 @@ class Player {
     let lightProvider = await LightProvider.init({
       wallet,
       url: RPC_URL,
-      relayer,
+      rpc,
       confirmConfig,
     });
     // lightProvider.addVerifierProgramPublickeyToLookUpTable(TransactionParameters.getVerifierProgramId(IDL));
@@ -267,13 +269,13 @@ class Player {
       [tx],
       this.user.provider.connection,
       this.user.provider.lookUpTables.versionedTransactionLookupTable,
-      this.user.provider.wallet,
+      this.user.provider.wallet
     );
   }
   async createGame(
     choice: Choice,
     gameAmount: BN,
-    action: Action = Action.SHIELD,
+    action: Action = Action.SHIELD
   ) {
     if (this.game) {
       throw new Error("A game is already in progress.");
@@ -309,7 +311,7 @@ class Player {
       [tx],
       this.user.provider.connection,
       this.user.provider.lookUpTables.versionedTransactionLookupTable,
-      this.user.provider.wallet,
+      this.user.provider.wallet
     );
 
     return {
@@ -323,7 +325,7 @@ class Player {
     gameCommitmentHash: BN,
     choice: Choice,
     gameAmount: BN,
-    action: Action = Action.SHIELD,
+    action: Action = Action.SHIELD
   ) {
     if (this.game) {
       throw new Error("A game is already in progress.");
@@ -333,14 +335,14 @@ class Player {
       choice,
       gameAmount,
       this.user.provider,
-      this.user.account,
+      this.user.account
     );
     const txHash = await this.user.storeAppUtxo({
       appUtxo: this.game.programUtxo,
       action,
     });
     const gamePdaAccountInfo = await this.pspInstance.account.gamePda.fetch(
-      this.game.pda,
+      this.game.pda
     );
     // @ts-ignore anchor type is not represented correctly
     if (gamePdaAccountInfo.game.isJoinable === false) {
@@ -362,7 +364,7 @@ class Player {
       .joinGame(
         utxoBytes,
         this.game.gameParameters.choice,
-        this.game.gameParameters.slot,
+        this.game.gameParameters.slot
       )
       .accounts({
         gamePda: this.game.pda,
@@ -374,7 +376,7 @@ class Player {
       [tx],
       this.user.provider.connection,
       this.user.provider.lookUpTables.versionedTransactionLookupTable,
-      this.user.provider.wallet,
+      this.user.provider.wallet
     );
 
     return {
@@ -386,7 +388,7 @@ class Player {
 
   async execute(testProgramUtxo?: Utxo) {
     const gamePdaAccountInfo = await this.pspInstance.account.gamePda.fetch(
-      this.game.pda,
+      this.game.pda
     );
     if (gamePdaAccountInfo.game.isJoinable === true) {
       throw new Error("Game is joinable not executable");
@@ -409,7 +411,7 @@ class Player {
       },
       appDataIdl: IDL,
       verifierAddress: new PublicKey(
-        "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+        "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
       ),
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
       blinding: gamePdaAccountInfo.game.playerTwoProgramUtxo.blinding,
@@ -418,10 +420,10 @@ class Player {
       this.user.provider.hasher,
       player2ProgramUtxo,
       testProgramUtxo,
-      false,
+      false
     );
     const circuitPath = path.join(
-      "build-circuit/rock-paper-scissors/rockPaperScissors",
+      "build-circuit/rock-paper-scissors/rockPaperScissors"
     );
     const winner = this.game.getWinner(gamePdaAccountInfo.game.playerTwoChoice);
 
@@ -429,10 +431,10 @@ class Player {
     await this.user.getBalance();
     const merkleTree = this.user.provider.solMerkleTree.merkleTree;
     this.game.programUtxo.index = merkleTree.indexOf(
-      this.game.programUtxo.getCommitment(this.user.provider.hasher),
+      this.game.programUtxo.getCommitment(this.user.provider.hasher)
     );
     player2ProgramUtxo.index = merkleTree.indexOf(
-      player2ProgramUtxo.getCommitment(this.user.provider.hasher),
+      player2ProgramUtxo.getCommitment(this.user.provider.hasher)
     );
 
     const programParameters: ProgramParameters = {
@@ -473,7 +475,7 @@ class Player {
       assets: [SystemProgram.programId],
       publicKey: gameParametersPlayer2.userPubkey,
       encryptionPublicKey: new Uint8Array(
-        gamePdaAccountInfo.game.playerTwoProgramUtxo.accountEncryptionPublicKey,
+        gamePdaAccountInfo.game.playerTwoProgramUtxo.accountEncryptionPublicKey
       ),
       amounts: [amounts[1]],
       assetLookupTable: this.user.provider.lookUpTables.assetLookupTable,
@@ -522,35 +524,35 @@ describe("Test rock-paper-scissors", () => {
   before(async () => {
     HASHER = await WasmFactory.getInstance();
 
-    const relayerWallet = Keypair.generate();
+    const rpcWallet = Keypair.generate();
     await airdropSol({
       connection: provider.connection,
       lamports: 1e11,
-      recipientPublicKey: relayerWallet.publicKey,
+      recipientPublicKey: rpcWallet.publicKey,
     });
-    RELAYER = new TestRelayer({
-      relayerPubkey: relayerWallet.publicKey,
-      relayerRecipientSol: relayerWallet.publicKey,
-      relayerFee: new BN(100000),
-      payer: relayerWallet,
+    RPC = new TestRpc({
+      rpcPubkey: rpcWallet.publicKey,
+      rpcRecipientSol: rpcWallet.publicKey,
+      rpcFee: new BN(100000),
+      payer: rpcWallet,
     });
   });
 
   it.skip("Test Game Draw", async () => {
-    const player1 = await Player.init(provider, RELAYER);
-    // shield additional sol to pay for relayer fees
+    const player1 = await Player.init(provider, RPC);
+    // shield additional sol to pay for rpc fees
     await player1.user.shield({
       publicAmountSol: 10,
       token: "SOL",
     });
-    const player2 = await Player.init(provider, RELAYER);
+    const player2 = await Player.init(provider, RPC);
 
     let res = await player1.createGame(Choice.ROCK, GAME_AMOUNT);
     console.log("Player 1 created game");
     await player2.join(
       res.game.gameParameters.gameCommitmentHash,
       Choice.ROCK,
-      GAME_AMOUNT,
+      GAME_AMOUNT
     );
     console.log("Player 2 joined game");
     let gameRes = await player1.execute(player2.game.programUtxo);
@@ -560,20 +562,20 @@ describe("Test rock-paper-scissors", () => {
   });
 
   it.skip("Test Game Loss", async () => {
-    const player1 = await Player.init(provider, RELAYER);
-    // shield additional sol to pay for relayer fees
+    const player1 = await Player.init(provider, RPC);
+    // shield additional sol to pay for rpc fees
     await player1.user.shield({
       publicAmountSol: 10,
       token: "SOL",
     });
-    const player2 = await Player.init(provider, RELAYER);
+    const player2 = await Player.init(provider, RPC);
 
     let res = await player1.createGame(Choice.SCISSORS, GAME_AMOUNT);
     console.log("Player 1 created game");
     await player2.join(
       res.game.gameParameters.gameCommitmentHash,
       Choice.ROCK,
-      GAME_AMOUNT,
+      GAME_AMOUNT
     );
     console.log("Player 2 joined game");
     let gameRes = await player1.execute(player2.game.programUtxo);
@@ -583,20 +585,20 @@ describe("Test rock-paper-scissors", () => {
   });
 
   it.skip("Test Game Win", async () => {
-    const player1 = await Player.init(provider, RELAYER);
-    // shield additional sol to pay for relayer fees
+    const player1 = await Player.init(provider, RPC);
+    // shield additional sol to pay for rpc fees
     await player1.user.shield({
       publicAmountSol: 10,
       token: "SOL",
     });
-    const player2 = await Player.init(provider, RELAYER);
+    const player2 = await Player.init(provider, RPC);
 
     let res = await player1.createGame(Choice.PAPER, GAME_AMOUNT);
     console.log("Player 1 created game");
     await player2.join(
       res.game.gameParameters.gameCommitmentHash,
       Choice.ROCK,
-      GAME_AMOUNT,
+      GAME_AMOUNT
     );
     console.log("Player 2 joined game");
     let gameRes = await player1.execute(player2.game.programUtxo);

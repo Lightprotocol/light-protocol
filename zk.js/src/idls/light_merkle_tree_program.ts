@@ -853,7 +853,7 @@ export type LightMerkleTreeProgram = {
             }
           },
           {
-            "name": "relayer",
+            "name": "rpc",
             "type": "publicKey"
           },
           {
@@ -2151,7 +2151,7 @@ export const IDL: LightMerkleTreeProgram = {
             }
           },
           {
-            "name": "relayer",
+            "name": "rpc",
             "type": "publicKey"
           },
           {

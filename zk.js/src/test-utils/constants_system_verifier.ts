@@ -52,7 +52,7 @@ export const PRIVATE_KEY = [
   176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
 ];
 
-export const PRIVATE_KEY_RELAYER = [
+export const PRIVATE_KEY_RPC = [
   79, 149, 114, 205, 153, 39, 179, 25, 52, 107, 164, 75, 124, 102, 73, 91, 112,
   61, 152, 70, 250, 208, 134, 24, 159, 176, 52, 177, 183, 99, 151, 146, 140,
   232, 23, 147, 47, 68, 206, 56, 135, 249, 23, 34, 252, 245, 228, 51, 240, 38,
@@ -72,8 +72,8 @@ export const ADMIN_AUTH_KEYPAIR: Keypair = Keypair.fromSecretKey(
   new Uint8Array(PRIVATE_KEY),
 );
 
-export const RELAYER_RECIPIENT_KEYPAIR: Keypair = Keypair.fromSecretKey(
-  new Uint8Array(PRIVATE_KEY_RELAYER),
+export const RPC_RECIPIENT_KEYPAIR: Keypair = Keypair.fromSecretKey(
+  new Uint8Array(PRIVATE_KEY_RPC),
 );
 
 export const userTokenAccount = new PublicKey(

@@ -4,7 +4,7 @@ import {
   confirmConfig,
   Provider,
   REGISTERED_POOL_PDA_SOL,
-  Relayer,
+  Rpc,
   SolMerkleTree,
   LegacyTransaction as Transaction,
   TransactionParameters,
@@ -38,8 +38,8 @@ import { Hasher } from "@lightprotocol/account.rs";
  * - encryptedUtxos up to 512
  * - recipientSpl 32
  * - recipientSol 32
- * - relayerPubkey 32
- * - relayerFee 8
+ * - rpcPubkey 32
+ * - rpcFee 8
  */
 export class MultiSigClient {
   signer: Account;
@@ -100,7 +100,7 @@ export class MultiSigClient {
 
     this.provider.solMerkleTree!.getMerkleProofs(
       this.hasher,
-      this.queuedTransactions[index].transactionParams.inputUtxos,
+      this.queuedTransactions[index].transactionParams.inputUtxos
     );
     const integrityHash = await this.queuedTransactions[
       index
@@ -112,7 +112,7 @@ export class MultiSigClient {
 
     const publicKey = await this.signer.getEddsaPublicKey();
     const signature = await this.signer.signEddsa(
-      this.poseidon.F.e(Scalar.e(connectingHash)),
+      this.poseidon.F.e(Scalar.e(connectingHash))
     );
     const approval = new Approval({
       signerIndex: index,
@@ -124,7 +124,7 @@ export class MultiSigClient {
     console.log("\t Approved Multisig Transaction ");
     console.log("------------------------------------------");
     console.log(
-      "The Approval is encrypted to the shared encryption key and stored in a (compressed) account on Solana.\n",
+      "The Approval is encrypted to the shared encryption key and stored in a (compressed) account on Solana.\n"
     );
     console.log(
       "Signer: ",
@@ -137,9 +137,9 @@ export class MultiSigClient {
             ...this.queuedTransactions[index].approvals[
               this.queuedTransactions[index].approvals.length - 1
             ].publicKey[1],
-          ]).flat(),
-        ),
-      ),
+          ]).flat()
+        )
+      )
     );
     console.log("Shielded transaction hash: ", connectingHash.toString());
     console.log(
@@ -148,9 +148,9 @@ export class MultiSigClient {
         Buffer.from(
           this.queuedTransactions[index].approvals[
             this.queuedTransactions[index].approvals.length - 1
-          ].signature,
-        ),
-      ),
+          ].signature
+        )
+      )
     );
     console.log("------------------------------------------\n");
 
@@ -166,7 +166,7 @@ export class MultiSigClient {
     hasher: Hasher,
     poseidon: any | undefined,
     eddsa: any | undefined,
-    provider: Provider,
+    provider: Provider
   ) {
     const multisig = await MultisigParams.createNewMultiSig({
       hasher,
@@ -196,10 +196,10 @@ export class MultiSigClient {
       threshold: this.multiSigParams.threshold,
       nrSigners: this.multiSigParams.nrSigners,
       publicKeyX: this.multiSigParams.publicKeyX.map(
-        (s) => new BN(this.poseidon.F.toString(s)), //.toArrayLike(Buffer, "be", 32)
+        (s) => new BN(this.poseidon.F.toString(s)) //.toArrayLike(Buffer, "be", 32)
       ),
       publicKeyY: this.multiSigParams.publicKeyY.map(
-        (s) => new BN(this.poseidon.F.toString(s)), //.toArrayLike(Buffer, "be", 32)
+        (s) => new BN(this.poseidon.F.toString(s)) //.toArrayLike(Buffer, "be", 32)
       ),
     };
 
@@ -238,7 +238,7 @@ export class MultiSigClient {
   async createMultiSigTransaction({
     inputUtxos,
     outputUtxos,
-    relayer,
+    rpc,
     recipientSpl = SolanaKeypair.generate().publicKey,
     recipientSol = SolanaKeypair.generate().publicKey,
     sender = SolanaKeypair.generate().publicKey,
@@ -249,7 +249,7 @@ export class MultiSigClient {
     recipientSol?: PublicKey;
     inputUtxos: Utxo[];
     outputUtxos: Utxo[];
-    relayer: Relayer;
+    rpc: Rpc;
     action: Action;
   }) {
     let encryptedUtxos = [];
@@ -262,14 +262,14 @@ export class MultiSigClient {
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0),
+        new BN(0)
       ),
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(new BN(0)),
       recipientSol,
       recipientSpl,
       action,
       hasher: this.hasher,
-      relayer,
+      rpc,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       encryptedUtxos: new Uint8Array([
         ...encryptedUtxos.flat(),
@@ -308,7 +308,7 @@ export class MultiSigClient {
           signerIndex: index, //TODO: fix this
           publicKey: pubkeyDummy,
           signature: signatureDummy,
-        }),
+        })
       );
     }
 
@@ -321,26 +321,26 @@ export class MultiSigClient {
         nrSigners: this.multiSigParams.nrSigners.toString(),
         signerPubkeysX: this.queuedTransactions[index].approvals.map(
           (approval) =>
-            this.poseidon.F.toObject(approval.publicKey[0]).toString(),
+            this.poseidon.F.toObject(approval.publicKey[0]).toString()
         ),
         signerPubkeysY: this.queuedTransactions[index].approvals.map(
           (approval) =>
-            this.poseidon.F.toObject(approval.publicKey[1]).toString(),
+            this.poseidon.F.toObject(approval.publicKey[1]).toString()
         ),
         enabled: [1, 1, ...new Array(MAX_SIGNERS - 2).fill(0)],
         signatures: this.queuedTransactions[index].approvals.map(
-          (approval) => this.eddsa.unpackSignature(approval.signature).S,
+          (approval) => this.eddsa.unpackSignature(approval.signature).S
         ),
 
         r8x: this.queuedTransactions[index].approvals.map((approval) =>
           this.poseidon.F.toObject(
-            this.eddsa.unpackSignature(approval.signature).R8[0],
-          ),
+            this.eddsa.unpackSignature(approval.signature).R8[0]
+          )
         ),
         r8y: this.queuedTransactions[index].approvals.map((approval) =>
           this.poseidon.F.toObject(
-            this.eddsa.unpackSignature(approval.signature).R8[1],
-          ),
+            this.eddsa.unpackSignature(approval.signature).R8[1]
+          )
         ),
       },
       verifierIdl: IDL,
@@ -365,7 +365,7 @@ export class MultiSigClient {
     const appParams = await this.createAppParams(index);
     let params = this.queuedTransactions[0].transactionParams;
     appParams.inputs.isAppInUtxo = MultiSigClient.getAppInUtxoIndices(
-      params.inputUtxos,
+      params.inputUtxos
     );
 
     let { rootIndex, remainingAccounts } = await this.provider.getRootIndex();
@@ -380,7 +380,7 @@ export class MultiSigClient {
 
     const instructions = await tx.compileAndProve(
       this.poseidon,
-      params.account,
+      params.account
     );
     await this.provider.sendAndConfirmTransaction(instructions);
 
@@ -392,7 +392,7 @@ export const printUtxo = (
   utxo: Utxo,
   poseidon: any,
   index: number,
-  input: string,
+  input: string
 ) => {
   let string = `-------------- ${input} Utxo ${index} --------------\n`;
   string += `Amount sol: ${utxo.amounts[0]} \n`;

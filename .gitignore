@@ -25,12 +25,12 @@
 **/target/
 
 /**/dist/
-# relayer
-/relayer/node_modules/
-/relayer/dist/
-/relayer/lib/
-/relayer/lookUpTable.txt
-/relayer/test-ledger/
+# rpc
+/rpc/node_modules/
+/rpc/dist/
+/rpc/lib/
+/rpc/lookUpTable.txt
+/rpc/test-ledger/
 */yarn-error.log
 **/yarn-error.log
 

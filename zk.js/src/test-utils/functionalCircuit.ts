@@ -36,7 +36,7 @@ export async function functionalCircuitTest(
   const account = Account.createFromSeed(lightWasm, seed32);
   const shieldAmount = 20_000;
   const shieldFeeAmount = 10_000;
-  const relayerFee = new BN(5000);
+  const rpcFee = new BN(5000);
   let inputUtxo: OutUtxo | Utxo = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
@@ -57,7 +57,7 @@ export async function functionalCircuitTest(
     lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [
-      new BN(shieldFeeAmount / 2).sub(relayerFee),
+      new BN(shieldFeeAmount / 2).sub(rpcFee),
       new BN(shieldAmount / 2),
     ],
     publicKey: account.keypair.publicKey,
@@ -76,9 +76,9 @@ export async function functionalCircuitTest(
     transactionMerkleTreePubkey: mockPubkey,
     lightWasm,
     account,
-    relayerFee,
+    rpcFee,
     systemPspId: getVerifierProgramId(verifierIdl),
-    relayerPublicKey: lightProvider.relayer.accounts.relayerPubkey,
+    rpcPublicKey: lightProvider.rpc.accounts.rpcPubkey,
     pspId: app ? getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT) : undefined,
   };
 

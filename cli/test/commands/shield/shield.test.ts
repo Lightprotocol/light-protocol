@@ -33,14 +33,14 @@ describe("shield SOL & SPL separately with the main command", () => {
 
   test
     .stdout()
-    .command(["shield", "--amount-sol=7", "--localTestRelayer"])
+    .command(["shield", "--amount-sol=7", "--localTestRpc"])
     .it("Shielding 7 SOL", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully shielded 7 SOL ✔");
     });
 
   test
     .stdout({ print: true })
-    .command(["shield", "--amount-spl=9", "--token=USDC", "--localTestRelayer"])
+    .command(["shield", "--amount-spl=9", "--token=USDC", "--localTestRpc"])
     .it("Shielding 9 SPL:USDC", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully shielded 9 USDC ✔");
     });
@@ -51,7 +51,7 @@ describe("shield SOL & SPL separately with the main command", () => {
     .command([
       "shield",
       "--amount-sol=22222222222222222222222222222222",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .exit(2)
     .it("Should fail shield of unsufficient SOL amount");
@@ -63,7 +63,7 @@ describe("shield SOL & SPL separately with the main command", () => {
       "shield",
       "--amount-spl=5555555555555555555555555555555",
       "--token=USDC",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .exit(2)
     .it("Should fail shield of unsufficient SPL amount");
@@ -75,7 +75,7 @@ describe("shield SOL & SPL separately with the main command", () => {
       "shield",
       "--amount-sol=0.2",
       "--recipient=TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .exit(2)
     .it("Should fail shield to invalid shielded recipient address");
@@ -83,7 +83,7 @@ describe("shield SOL & SPL separately with the main command", () => {
   test
     .stdout()
     .stderr()
-    .command(["shield", "--amount-spl=3", "--token=LFG", "--localTestRelayer"])
+    .command(["shield", "--amount-spl=3", "--token=LFG", "--localTestRpc"])
     .exit(2)
     .it("Should fail shield of unregistered SPL token");
 });
@@ -96,7 +96,7 @@ describe("shield SOL & SPL at the same time with the main command", () => {
       "--amount-sol=5",
       "--amount-spl=1",
       "--token=USDC",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .it(
       "Shielding 5 SOL & 1 SPL:USDC at the same time with the main cli",
@@ -115,7 +115,7 @@ describe("shield SOL & SPL at the same time with the main command", () => {
       "--amount-sol=222222222222222222222222222222222",
       "--amount-spl=3",
       "--token=USDC",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .exit(2)
     .it("Should fail shield of unsufficient SOL amount");
@@ -128,7 +128,7 @@ describe("shield SOL & SPL at the same time with the main command", () => {
       "--amount-sol=0.2",
       "--amount-spl=33333333333333333333333333333333",
       "--token=USDC",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .exit(2)
     .it("Should fail shield of unsufficient SPL amount");
@@ -142,7 +142,7 @@ describe("shield SOL & SPL at the same time with the main command", () => {
       "--amount-spl=33",
       "--token=USDC",
       "--recipient=TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .exit(2)
     .it("Should fail shield to invalid shielded recipient address");
@@ -155,7 +155,7 @@ describe("shield SOL & SPL at the same time with the main command", () => {
       "--amount-sol=0.2",
       "--amount-spl=3",
       "--token=LFG",
-      "--localTestRelayer",
+      "--localTestRpc",
     ])
     .exit(2)
     .it("Should fail shield of unregistered SPL token");

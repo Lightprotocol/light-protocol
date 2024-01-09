@@ -8,8 +8,8 @@ export const standardFlags = {
     default: false,
     parse: async () => true,
   }),
-  localTestRelayer: Flags.boolean({
-    description: "Using a local test relayer",
+  localTestRpc: Flags.boolean({
+    description: "Using a local test rpc",
     aliases: ["lr"],
     required: false,
     default: false,

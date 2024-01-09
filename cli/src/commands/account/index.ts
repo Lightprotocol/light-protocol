@@ -10,7 +10,7 @@ class AccountCommand extends Command {
     // TODO: replace with Account.deriveFromKeypair() so that no rpc connection is required
     const user = await getUser({
       skipFetchBalance: true,
-      localTestRelayer: true,
+      localTestRpc: true,
     });
     this.log(
       `\n\x1b[1mShielded Public Key:\x1b[0m ${user.account.getPublicKey()}`,

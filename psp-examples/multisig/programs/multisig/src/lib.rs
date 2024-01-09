@@ -61,7 +61,7 @@ pub mod multisig {
             &inputs_des.encrypted_utxos,
             &pool_type,
             &inputs_des.root_index,
-            &inputs_des.relayer_fee,
+            &inputs_des.rpc_fee,
         )
     }
 

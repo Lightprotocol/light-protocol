@@ -23,7 +23,7 @@
 //   newAccountWithTokens,
 //   Action,
 //   useWallet,
-//   TestRelayer,
+//   TestRpc,
 //   IDL_LIGHT_PSP2IN2OUT,
 //   IDL_LIGHT_PSP10IN2OUT,
 //   MerkleTreeConfig,
@@ -31,7 +31,7 @@
 //   sleep,
 //   getSystem,
 //   System,
-//   RELAYER_FEE,
+//   RPC_FEE,
 //   BN_0,
 //   closeVerifierState,
 //   Provider,
@@ -40,7 +40,7 @@
 // import { Hasher, WasmFactory } from "@lightprotocol/account.rs";
 // import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
-// let HASHER: Hasher, ACCOUNT, RELAYER, shieldUtxo1;
+// let HASHER: Hasher, ACCOUNT, RPC, shieldUtxo1;
 // let SLEEP_BUFFER = 0;
 // const system = getSystem();
 // if (system === System.MacOsArm64) SLEEP_BUFFER = 400;
@@ -71,17 +71,17 @@
 //       seed: KEYPAIR_PRIVKEY.toString(),
 //     });
 
-//     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+//     const rpcRecipientSol = SolanaKeypair.generate().publicKey;
 
 //     await provider.connection.requestAirdrop(
-//       relayerRecipientSol,
+//       rpcRecipientSol,
 //       2_000_000_000,
 //     );
 
-//     RELAYER = new TestRelayer({
-//       relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-//       relayerRecipientSol,
-//       relayerFee: RELAYER_FEE,
+//     RPC = new TestRpc({
+//       rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+//       rpcRecipientSol,
+//       rpcFee: RPC_FEE,
 //       payer: ADMIN_AUTH_KEYPAIR,
 //     });
 
@@ -117,7 +117,7 @@
 
 //       lightProvider = await LightProvider.init({
 //         wallet: ADMIN_AUTH_KEYPAIR,
-//         relayer: RELAYER,
+//         rpc: RPC,
 //         confirmConfig,
 //       });
 
@@ -199,13 +199,13 @@
 
 //       const lightProviderUnshield = await LightProvider.init({
 //         wallet: ADMIN_AUTH_KEYPAIR,
-//         relayer: RELAYER,
+//         rpc: RPC,
 //         confirmConfig,
 //       });
 
-//       const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+//       const rpcRecipientSol = SolanaKeypair.generate().publicKey;
 //       await provider.connection.confirmTransaction(
-//         await provider.connection.requestAirdrop(relayerRecipientSol, 10000000),
+//         await provider.connection.requestAirdrop(rpcRecipientSol, 10000000),
 //       );
 
 //       const user: User = await User.init({
@@ -224,7 +224,7 @@
 //           MerkleTreeConfig.getTransactionMerkleTreePda(),
 //         recipientSpl: tokenRecipient,
 //         recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
-//         relayer: RELAYER,
+//         rpc: RPC,
 //         hasher: HASHER,
 //         action: Action.UNSHIELD,
 //         verifierIdl: VERIFIER_IDLS[verifier],
@@ -319,7 +319,7 @@
 //   it("Wrong Mint", async () => {
 //     for (const tx of transactions) {
 //       const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
-//       const relayer = SolanaKeypair.generate();
+//       const rpc = SolanaKeypair.generate();
 //       const newMintKeypair = SolanaKeypair.generate();
 //       await createMintWrapper({
 //         authorityKeypair: ADMIN_AUTH_KEYPAIR,
@@ -330,7 +330,7 @@
 //         connection: provider.connection,
 //         MINT: newMintKeypair.publicKey,
 //         ADMIN_AUTH_KEYPAIR,
-//         userAccount: relayer,
+//         userAccount: rpc,
 //         amount: BN_0,
 //       });
 //       await sendTestTx(tmp_tx, "ProofVerificationFails");
@@ -345,10 +345,10 @@
 //     }
 //   });
 
-//   it("Wrong relayerFee", async () => {
+//   it("Wrong rpcFee", async () => {
 //     for (const tx of transactions) {
 //       const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
-//       tmp_tx.params.relayer.relayerFee = new anchor.BN("9000");
+//       tmp_tx.params.rpc.rpcFee = new anchor.BN("9000");
 //       await sendTestTx(tmp_tx, "ProofVerificationFails");
 //     }
 //   });
@@ -392,7 +392,7 @@
 //         "confirmed",
 //       );
 //       lightProvider.wallet = useWallet(wrongSinger);
-//       tmp_tx.params.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
+//       tmp_tx.params.rpc.accounts.rpcPubkey = wrongSinger.publicKey;
 //       await sendTestTx(tmp_tx, "ProofVerificationFails");
 //     }
 //   });

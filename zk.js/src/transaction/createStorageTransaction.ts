@@ -17,7 +17,7 @@ import {
 } from "./pspTransaction";
 import { LightWasm } from "@lightprotocol/account.rs";
 import {
-  Relayer,
+  Rpc,
   TransactionParametersError,
   TransactionParametersErrorCode,
   UserError,
@@ -226,7 +226,7 @@ export async function shieldProgramUtxo({
   });
   const instructions = await proveAndCreateInstructions({
     transaction,
-    relayer: provider.relayer,
+    rpc: provider.rpc,
     account,
     lightWasm: provider.lightWasm,
   });
@@ -236,12 +236,12 @@ export async function shieldProgramUtxo({
 
 export async function proveAndCreateInstructions({
   transaction,
-  relayer,
+  rpc,
   account,
   lightWasm,
 }: {
   transaction: ShieldTransaction | Transaction | UnshieldTransaction;
-  relayer: Relayer;
+  rpc: Rpc;
   account: Account;
   lightWasm: LightWasm;
 }): Promise<TransactionInstruction[]> {
@@ -264,13 +264,13 @@ export async function proveAndCreateInstructions({
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: transaction.private.inputUtxos,
       merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
-      relayer,
+      rpc,
     });
     transaction.private.inputUtxos = syncedUtxos;
     root = fetchedRoot;
     rootIndex = index;
   } else {
-    const res = (await relayer.getMerkleRoot(
+    const res = (await rpc.getMerkleRoot(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
     ))!;
     root = res.root;
@@ -280,7 +280,7 @@ export async function proveAndCreateInstructions({
     throw new TransactionParametersError(
       TransactionParametersErrorCode.FETCHING_ROOT_FAILED,
       "getTxParams",
-      "Fetching root from relayer failed.",
+      "Fetching root from rpc failed.",
     );
   }
   const systemProofInputs = createSystemProofInputs({
@@ -303,8 +303,8 @@ export async function proveAndCreateInstructions({
   const accounts = prepareAccounts({
     transactionAccounts: transaction.public.accounts,
     eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
-    relayerRecipientSol: relayer.accounts.relayerRecipientSol,
-    signer: transaction.public.accounts.relayerPublicKey,
+    rpcRecipientSol: rpc.accounts.rpcRecipientSol,
+    signer: transaction.public.accounts.rpcPublicKey,
   });
 
   const instructions = await createSolanaInstructions({

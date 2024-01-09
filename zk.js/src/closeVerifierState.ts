@@ -10,7 +10,7 @@ import { Provider, getVerifierProgram } from "./index";
 import { Idl } from "@coral-xyz/anchor";
 
 // TODO: add test
-// This is used by applications not the relayer
+// This is used by applications not the rpc
 export async function closeVerifierState(
   provider: Provider,
   verifierIdl: Idl,

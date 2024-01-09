@@ -106,7 +106,7 @@ pub mod light_psp2in2out_storage {
             leaves: &inputs.output_commitment,
             encrypted_utxos: &inputs.encrypted_utxos.to_vec(),
             merkle_root_index: inputs.root_index as usize,
-            relayer_fee: inputs.relayer_fee,
+            rpc_fee: inputs.rpc_fee,
             checked_public_inputs: &[],
             pool_type: &[0u8; 32],
             verifyingkey: &VERIFYINGKEY_TRANSACTION_MASP2_MAIN,
@@ -175,6 +175,6 @@ pub struct InstructionDataShieldedTransferSecond {
     output_commitment: [[u8; 32]; 2],
     public_amount_sol: [u8; 32],
     root_index: u64,
-    relayer_fee: u64,
+    rpc_fee: u64,
     encrypted_utxos: [u8; 256],
 }

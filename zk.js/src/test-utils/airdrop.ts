@@ -6,12 +6,12 @@ import {
   ConfirmOptions,
   MINT,
   Provider,
-  TestRelayer,
+  TestRpc,
   TOKEN_PUBKEY_SYMBOL,
   User,
   confirmConfig,
   confirmTransaction,
-  RELAYER_FEE,
+  RPC_FEE,
 } from "../index";
 import { WasmFactory } from "@lightprotocol/account.rs";
 
@@ -33,10 +33,10 @@ export async function airdropShieldedSol({
     throw new Error(
       "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
     );
-  const relayer = new TestRelayer({
-    relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-    relayerRecipientSol: Keypair.generate().publicKey,
-    relayerFee: RELAYER_FEE,
+  const rpc = new TestRpc({
+    rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+    rpcRecipientSol: Keypair.generate().publicKey,
+    rpcFee: RPC_FEE,
     payer: ADMIN_AUTH_KEYPAIR,
     connection,
     lightWasm: provider ? provider.lightWasm : await WasmFactory.getInstance(),
@@ -94,10 +94,10 @@ export async function airdropShieldedMINTSpl({
     );
   const connection = provider?.provider?.connection;
   if (!connection) throw new Error("connection undefined");
-  const relayer = new TestRelayer({
-    relayerPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-    relayerRecipientSol: Keypair.generate().publicKey,
-    relayerFee: RELAYER_FEE,
+  const rpc = new TestRpc({
+    rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+    rpcRecipientSol: Keypair.generate().publicKey,
+    rpcFee: RPC_FEE,
     payer: ADMIN_AUTH_KEYPAIR,
     connection,
     lightWasm: provider ? provider.lightWasm : await WasmFactory.getInstance(),
@@ -105,7 +105,7 @@ export async function airdropShieldedMINTSpl({
   if (!provider) {
     provider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
-      relayer: relayer,
+      rpc: rpc,
       confirmConfig,
     });
   }

@@ -16,10 +16,10 @@ import {
   MINT,
   ProviderError,
   ProviderErrorCode,
-  Relayer,
-  RELAYER_FEE,
-  RELAYER_RECIPIENT_KEYPAIR,
-  RelayerSendTransactionsResponse,
+  Rpc,
+  RPC_FEE,
+  RPC_RECIPIENT_KEYPAIR,
+  RpcSendTransactionsResponse,
   sendVersionedTransactions,
   SendVersionedTransactionsResult,
   TOKEN_ACCOUNT_FEE,
@@ -43,7 +43,7 @@ export type Wallet = {
 /**
  * Provides: wallets, connection, latest SolMerkleTree, LookupTable, confirmConfig, poseidon
  */
-// TODO: add relayer here; default deriv, if passed in can choose custom relayer.
+// TODO: add rpc here; default deriv, if passed in can choose custom rpc.
 export class Provider {
   lightWasm: LightWasm;
   connection?: Connection;
@@ -52,7 +52,7 @@ export class Provider {
   provider: AnchorProvider;
   url?: string;
   minimumLamports: BN;
-  relayer: Relayer;
+  rpc: Rpc;
   lookUpTables: {
     assetLookupTable: string[];
     verifierProgramLookupTable: string[];
@@ -70,7 +70,7 @@ export class Provider {
     connection,
     url,
     minimumLamports = MINIMUM_LAMPORTS,
-    relayer,
+    rpc,
     verifierProgramLookupTable,
     assetLookupTable,
     versionedTransactionLookupTable,
@@ -82,7 +82,7 @@ export class Provider {
     connection?: Connection;
     url: string;
     minimumLamports?: BN;
-    relayer?: Relayer;
+    rpc?: Rpc;
     verifierProgramLookupTable?: PublicKey[];
     assetLookupTable?: PublicKey[];
     versionedTransactionLookupTable: PublicKey;
@@ -100,13 +100,13 @@ export class Provider {
     this.minimumLamports = minimumLamports;
     this.url = url;
     this.connection = connection;
-    if (relayer) {
-      this.relayer = relayer;
+    if (rpc) {
+      this.rpc = rpc;
     } else {
-      this.relayer = new Relayer(
+      this.rpc = new Rpc(
         this.wallet.publicKey,
-        RELAYER_RECIPIENT_KEYPAIR.publicKey,
-        RELAYER_FEE,
+        RPC_RECIPIENT_KEYPAIR.publicKey,
+        RPC_FEE,
         TOKEN_ACCOUNT_FEE,
       );
     }
@@ -149,21 +149,19 @@ export class Provider {
   static async fetchLookupTable(
     wallet: Wallet,
     provider: AnchorProvider,
-    relayerUrl?: string,
+    rpcUrl?: string,
   ): Promise<PublicKey | undefined> {
     if (wallet.isNodeWallet) {
       return await initLookUpTable(wallet, provider);
-    } else if (relayerUrl) {
-      const response = await axios.get(relayerUrl + "/lookuptable");
+    } else if (rpcUrl) {
+      const response = await axios.get(rpcUrl + "/lookuptable");
       return new PublicKey(response.data.data);
     }
   }
 
   async sendAndConfirmTransaction(
     instructions: TransactionInstruction[],
-  ): Promise<
-    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
-  > {
+  ): Promise<RpcSendTransactionsResponse | SendVersionedTransactionsResult> {
     const response = await sendVersionedTransactions(
       instructions,
       this.provider.connection,
@@ -176,10 +174,8 @@ export class Provider {
 
   async sendAndConfirmShieldedTransaction(
     instructions: TransactionInstruction[],
-  ): Promise<
-    RelayerSendTransactionsResponse | SendVersionedTransactionsResult
-  > {
-    const response = await this.relayer.sendTransactions(instructions, this);
+  ): Promise<RpcSendTransactionsResponse | SendVersionedTransactionsResult> {
+    const response = await this.rpc.sendTransactions(instructions, this);
     if (response.error) throw response.error;
     return response;
   }
@@ -196,7 +192,7 @@ export class Provider {
     connection,
     confirmConfig,
     url = "http://127.0.0.1:8899",
-    relayer,
+    rpc,
     assetLookupTable,
     verifierProgramLookupTable,
     versionedTransactionLookupTable,
@@ -205,7 +201,7 @@ export class Provider {
     connection?: Connection;
     confirmConfig: ConfirmOptions;
     url?: string;
-    relayer?: Relayer;
+    rpc?: Rpc;
     assetLookupTable?: PublicKey[];
     verifierProgramLookupTable?: PublicKey[];
     versionedTransactionLookupTable?: PublicKey;
@@ -234,11 +230,11 @@ export class Provider {
       confirmConfig,
     );
     if (!versionedTransactionLookupTable) {
-      // initializing lookup table or fetching one from relayer in case of browser wallet
+      // initializing lookup table or fetching one from rpc in case of browser wallet
       versionedTransactionLookupTable = await Provider.fetchLookupTable(
         wallet,
         anchorProvider,
-        relayer?.url,
+        rpc?.url,
       );
     } else {
       // checking that lookup table is initialized
@@ -267,7 +263,7 @@ export class Provider {
       throw new ProviderError(
         ProviderErrorCode.LOOK_UP_TABLE_NOT_INITIALIZED,
         "init",
-        "Initializing lookup table in node.js or fetching it from relayer in browser failed",
+        "Initializing lookup table in node.js or fetching it from rpc in browser failed",
       );
 
     const lightWasm = await WasmFactory.getInstance();
@@ -277,7 +273,7 @@ export class Provider {
       confirmConfig,
       connection,
       url,
-      relayer,
+      rpc,
       assetLookupTable,
       verifierProgramLookupTable,
       versionedTransactionLookupTable,

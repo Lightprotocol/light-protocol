@@ -3,7 +3,7 @@ import * as fs from "fs";
 import {
   CustomLoader,
   getConfig,
-  getRelayerUrl,
+  getRpcUrl,
   isValidBase58SecretKey,
   isValidURL,
   readWalletFromFile,
@@ -11,47 +11,47 @@ import {
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
 import { CONFIG_FILE_NAME, CONFIG_PATH } from "../../psp-utils";
-import { Relayer } from "@lightprotocol/zk.js";
+import { Rpc } from "@lightprotocol/zk.js";
 
 class ConfigCommand extends Command {
   static description =
     "Initialize or update the configuration values. The default config path is ~/.config/light/config.json you can set up a custom path with an environment variable export LIGHT_PROTOCOL_CONFIG=path/to/config.json";
   static examples = [
-    "$ light config --rpcUrl https://solana-api.example.com",
-    "$ light config --relayerUrl https://relayer.example.com",
+    "$ light config --solanaRpcUrl https://solana-api.example.com",
+    "$ light config --rpcUrl https://rpc.example.com",
     "$ light config --secretKey your <SOLANA_SECRET_KEY>",
     "$ light config --lookUpTable <LOOKUP_TABLE>",
-    "$ light config --relayerRecipient <RECIPIENT_ADDRESS>",
-    "$ light config --relayerPublicKey <RELAYER_PUBLIC_KEY>",
+    "$ light config --rpcRecipient <RECIPIENT_ADDRESS>",
+    "$ light config --rpcPublicKey <RPC_PUBLIC_KEY>",
   ];
 
   static flags = {
-    rpcUrl: Flags.string({
+    solanaRpcUrl: Flags.string({
       char: "r",
       description: "Solana rpc url.",
     }),
-    relayerUrl: Flags.string({
+    rpcUrl: Flags.string({
       char: "l",
-      description: "Relayer url.",
+      description: "Rpc url.",
     }),
     secretKey: Flags.string({
       char: "s",
       description: "Solana keypair secretkey in base58 string format.",
     }),
-    relayerRecipient: Flags.string({
+    rpcRecipient: Flags.string({
       char: "u",
-      description: "Relayer recipient",
+      description: "Rpc recipient",
     }),
     lookUpTable: Flags.string({
       char: "t",
       description: "Lookup Table for versioned transactions.",
     }),
-    relayerPublicKey: Flags.string({
+    rpcPublicKey: Flags.string({
       alias: "rp",
-      description: "Relayer public key.",
+      description: "Rpc public key.",
     }),
-    syncRelayer: Flags.boolean({
-      description: "Syncs the relayer and updates it's public keys.",
+    syncRpc: Flags.boolean({
+      description: "Syncs the rpc and updates it's public keys.",
       required: false,
     }),
     get: Flags.boolean({
@@ -64,14 +64,14 @@ class ConfigCommand extends Command {
   async run() {
     const { flags } = await this.parse(ConfigCommand);
     const {
+      solanaRpcUrl,
       rpcUrl,
-      relayerUrl,
       secretKey,
-      relayerRecipient,
-      relayerPublicKey,
+      rpcRecipient,
+      rpcPublicKey,
       get,
       lookUpTable,
-      syncRelayer,
+      syncRpc,
     } = flags;
 
     try {
@@ -82,19 +82,19 @@ class ConfigCommand extends Command {
       }
       const loader = new CustomLoader("Updating configuration...");
       loader.start();
-      // TODO: refactor this into accepting default values like localhost, test-relayer, testnet, devnet, mainnet in addition to raw urls
+      // TODO: refactor this into accepting default values like localhost, test-rpc, testnet, devnet, mainnet in addition to raw urls
       // http://127.0.0.1:8899
-      if (rpcUrl) {
-        if (isValidURL(rpcUrl)) {
-          config.rpcUrl = rpcUrl;
+      if (solanaRpcUrl) {
+        if (isValidURL(solanaRpcUrl)) {
+          config.solanaRpcUrl = solanaRpcUrl;
         } else {
           this.error(`\nInvalid URL format`);
         }
       }
       // http://localhost:3332
-      if (relayerUrl) {
-        if (isValidURL(relayerUrl)) {
-          config.relayerUrl = relayerUrl;
+      if (rpcUrl) {
+        if (isValidURL(rpcUrl)) {
+          config.rpcUrl = rpcUrl;
         } else {
           this.error(`\nInvalid URL format`);
         }
@@ -107,28 +107,26 @@ class ConfigCommand extends Command {
         }
       }
 
-      if (syncRelayer) {
-        const fetchedRelayer = await Relayer.initFromUrl(getRelayerUrl());
-        config.relayerPublicKey =
-          fetchedRelayer.accounts.relayerPubkey.toBase58();
-        config.relayerRecipient =
-          fetchedRelayer.accounts.relayerRecipientSol.toBase58();
-        config.relayerFee = fetchedRelayer.relayerFee.toString();
-        config.highRelayerFee = fetchedRelayer.highRelayerFee.toString();
+      if (syncRpc) {
+        const fetchedRpc = await Rpc.initFromUrl(getRpcUrl());
+        config.rpcPublicKey = fetchedRpc.accounts.rpcPubkey.toBase58();
+        config.rpcRecipient = fetchedRpc.accounts.rpcRecipientSol.toBase58();
+        config.rpcFee = fetchedRpc.rpcFee.toString();
+        config.highRpcFee = fetchedRpc.highRpcFee.toString();
       }
-      // TODO: remove this from config and fetch this from the relayer, use the signer as relayer recipient when using a test relayer
-      if (relayerRecipient) {
+      // TODO: remove this from config and fetch this from the rpc, use the signer as rpc recipient when using a test rpc
+      if (rpcRecipient) {
         // eslint-disable-next-line
-        if (new PublicKey(relayerRecipient)) {
-          config.relayerRecipient = relayerRecipient;
+        if (new PublicKey(rpcRecipient)) {
+          config.rpcRecipient = rpcRecipient;
         } else {
           this.error(`\nInvalid publickey format`);
         }
       }
-      if (relayerPublicKey) {
+      if (rpcPublicKey) {
         // eslint-disable-next-line
-        if (new PublicKey(relayerPublicKey)) {
-          config.relayerPublicKey = relayerPublicKey;
+        if (new PublicKey(rpcPublicKey)) {
+          config.rpcPublicKey = rpcPublicKey;
         } else {
           this.error(`\nInvalid publickey format`);
         }
@@ -162,8 +160,8 @@ function logConfig(config: any) {
     value: readWalletFromFile().publicKey.toBase58(),
   });
   tableData.push({
-    name: "rpc url",
-    value: config.rpcUrl,
+    name: "solana rpc url",
+    value: config.solanaRpcUrl,
   });
 
   tableData.push({
@@ -172,17 +170,17 @@ function logConfig(config: any) {
   });
 
   tableData.push({
-    name: "relayer public key",
-    value: config.relayerPublicKey,
+    name: "rpc public key",
+    value: config.rpcPublicKey,
   });
 
   tableData.push({
-    name: "relayer url",
-    value: config.relayerUrl,
+    name: "rpc url",
+    value: config.rpcUrl,
   });
   tableData.push({
-    name: "relayer recipient",
-    value: config.relayerRecipient,
+    name: "rpc recipient",
+    value: config.rpcRecipient,
   });
 
   // space

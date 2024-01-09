@@ -13,14 +13,14 @@ function TransactionCard({
 }: {
   transaction: UserIndexedTransaction;
 }) {
-  const { type, blockTime, signature, relayerFee } = transaction;
+  const { type, blockTime, signature, rpcFee } = transaction;
   const typeIcons = {
     SHIELD: <IconArrowDown color="green" size={20} />,
     UNSHIELD: <IconArrowUp color="red" />,
     TRANSFER: <IconArrowRight color="blue" />,
   };
   const tokenCtx = TOKEN_REGISTRY.get("SOL")!;
-  const parsedRelayerFee = parseAmount(new BN(relayerFee, "hex"), tokenCtx);
+  const parsedRpcFee = parseAmount(new BN(rpcFee, "hex"), tokenCtx);
 
   return (
     <Stack mt={"xl"} gap="xs" w={300} data-testid="TransactionCard">
@@ -39,7 +39,7 @@ function TransactionCard({
             <Text size="sm">SOL</Text>
           </Group>
           <Text size="sm" c="gray">
-            Fees paid: {parsedRelayerFee} SOL
+            Fees paid: {parsedRpcFee} SOL
           </Text>
         </Stack>
       </Group>
@@ -67,19 +67,19 @@ export const Transactions = () => {
   const itemsPerPage = 4;
 
   const sortedTransactions = transactions!.sort(
-    (a, b) => new Date(b.blockTime).getTime() - new Date(a.blockTime).getTime()
+    (a, b) => new Date(b.blockTime).getTime() - new Date(a.blockTime).getTime(),
   );
 
   const currentPageTransactions = sortedTransactions.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   console.log(
     "TXS",
     currentPageTransactions?.map(
-      (tx) => `${tx.publicAmountSol} and spl ${tx.publicAmountSpl}`
-    )
+      (tx) => `${tx.publicAmountSol} and spl ${tx.publicAmountSpl}`,
+    ),
   );
 
   return (
@@ -89,7 +89,7 @@ export const Transactions = () => {
           {currentPageTransactions.map(
             (transaction: UserIndexedTransaction, index: number) => (
               <TransactionCard key={index} transaction={transaction} />
-            )
+            ),
           )}
           <Pagination
             p={6}

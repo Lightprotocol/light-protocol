@@ -53,7 +53,7 @@ pub mod private_compressed_account {
             leaves: inputs_des.output_commitment.try_into().unwrap(),
             public_amount_spl: inputs_des.public_amount_spl,
             public_amount_sol: inputs_des.public_amount_sol,
-            relayer_fee: inputs_des.relayer_fee,
+            rpc_fee: inputs_des.rpc_fee,
             encrypted_utxos: inputs_des.encrypted_utxos.try_into().unwrap(),
             merkle_root_index: inputs_des.root_index,
         };

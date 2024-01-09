@@ -11,7 +11,7 @@ pub trait LightAccounts<'info> {
     fn get_program_merkle_tree(&self) -> &Program<'info, LightMerkleTreeProgram>;
     fn get_transaction_merkle_tree(&self) -> &AccountLoader<'info, TransactionMerkleTree>;
     fn get_authority(&self) -> &UncheckedAccount<'info>;
-    fn get_relayer_recipient_sol(&self) -> &UncheckedAccount<'info>;
+    fn get_rpc_recipient_sol(&self) -> &UncheckedAccount<'info>;
     fn get_registered_verifier_pda(&self) -> &Account<'info, RegisteredVerifier>;
     fn get_sender_sol(&self) -> Option<&UncheckedAccount<'info>>;
     fn get_recipient_sol(&self) -> Option<&UncheckedAccount<'info>>;

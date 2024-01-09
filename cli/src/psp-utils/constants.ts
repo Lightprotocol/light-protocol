@@ -1,4 +1,4 @@
-import { RELAYER_FEE, TOKEN_ACCOUNT_FEE } from "@lightprotocol/zk.js";
+import { RPC_FEE, TOKEN_ACCOUNT_FEE } from "@lightprotocol/zk.js";
 
 export const PSP_TEMPLATE_TAG = "v0.1.3";
 
@@ -30,13 +30,13 @@ export const CONFIG_PATH = "/.config/light/";
 export const CONFIG_FILE_NAME = "config.json";
 
 export const DEFAULT_CONFIG = {
-  relayerUrl: "http://localhost:3332",
-  relayerRecipient: "AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44",
-  rpcUrl: "http://127.0.0.1:8899",
-  relayerPublicKey: "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
+  rpcUrl: "http://localhost:3332",
+  rpcRecipient: "AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44",
+  solanaRpcUrl: "http://127.0.0.1:8899",
+  rpcPublicKey: "EkXDLi1APzu6oxJbg5Hnjb24kfKauJp1xCb5FAUMxf9D",
   lookupTable: "8SezKuv7wMNPd574Sq4rQ1wvVrxa22xPYtkeruJRjrhG",
-  relayerFee: RELAYER_FEE.toString(),
-  highRelayerFee: TOKEN_ACCOUNT_FEE.toString(),
+  rpcFee: RPC_FEE.toString(),
+  highRpcFee: TOKEN_ACCOUNT_FEE.toString(),
 };
 
 // TODO: investigate why latest cargo-generate fails

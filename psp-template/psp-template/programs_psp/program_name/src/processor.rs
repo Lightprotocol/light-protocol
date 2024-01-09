@@ -66,8 +66,8 @@ pub fn cpi_system_verifier<
             recipient_spl: ctx.accounts.recipient_spl.to_account_info(),
             sender_sol: ctx.accounts.sender_sol.to_account_info(),
             recipient_sol: ctx.accounts.recipient_sol.to_account_info(),
-            // relayer recipient and escrow will never be used in the same transaction
-            relayer_recipient_sol: ctx.accounts.relayer_recipient_sol.to_account_info(),
+            // rpc recipient and escrow will never be used in the same transaction
+            rpc_recipient_sol: ctx.accounts.rpc_recipient_sol.to_account_info(),
             token_authority: ctx.accounts.token_authority.to_account_info(),
             log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
             event_merkle_tree: ctx.accounts.event_merkle_tree.to_account_info(),

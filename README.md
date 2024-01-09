@@ -25,7 +25,7 @@ It consists of the following:
 
 - [Macro Circom](https://github.com/Lightprotocol/light-protocol/tree/main/macro-circom) DSL for writing PSPs.
 - [CLI](https://github.com/Lightprotocol/light-protocol/tree/main/cli) for writing and testing full Applications
-- [RPC Node](https://github.com/Lightprotocol/light-protocol/tree/main/relayer) (relayer) - for indexing and forwarding Light transactions to the Solana network.
+- [RPC Node](https://github.com/Lightprotocol/light-protocol/tree/main/rpc) (rpc) - for indexing and forwarding Light transactions to the Solana network.
 - [zk.js](https://github.com/Lightprotocol/light-protocol/tree/main/zk.js) - web3.js-esque helpers to build transactions and interact with your PSP.
   
 Note: All these tools and the protocol are in active development and unaudited. You can currently test and deploy your PSP on Localnet, Testnet, and Devnet.
@@ -54,7 +54,7 @@ and development environment.
 
 First, install the dependencies (they will be installed in the `.local`
 directory inside your repository clone). If you want to install Redis (needed
-only for the relayer), use the  `--enable-redis` option.
+only for the rpc), use the  `--enable-redis` option.
 
 ```
 ./scripts/install.sh

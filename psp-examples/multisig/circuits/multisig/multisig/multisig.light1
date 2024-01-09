@@ -72,7 +72,7 @@ template multisig() {
 
 
     // we should store encrypted messages in compressed accounts
-    // we need a verifier that just pays the relayer and stores data in a compressed account that's almost free and the additional data needs to be included in 
+    // we need a verifier that just pays the rpc and stores data in a compressed account that's almost free and the additional data needs to be included in 
     // the integrity hash 
     // message is all utxos involved in the transaction encrypted with the symmetric key
     // Check signatures

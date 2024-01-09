@@ -58,7 +58,7 @@ class ShieldSplCommand extends Command {
 
       const user = await getUser({
         skipFetchBalance: flags["skipFetchBalance"],
-        localTestRelayer: flags["localTestRelayer"],
+        localTestRpc: flags["localTestRpc"],
       });
       const response = await user.shield({
         token,

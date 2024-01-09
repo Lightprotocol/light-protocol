@@ -63,7 +63,7 @@ export class UserTestAssertHelper {
   public recipient: TestUserBalances;
   public testInputs: TestInputs;
   public tokenCtx: TokenData;
-  public relayerPreSolBalance?: number;
+  public rpcPreSolBalance?: number;
   public recipientPreSolBalance?: number;
 
   constructor({
@@ -146,10 +146,9 @@ export class UserTestAssertHelper {
     };
     await saveUserState(this.sender);
     await saveUserState(this.recipient);
-    this.relayerPreSolBalance =
-      await this.provider.provider?.connection.getBalance(
-        this.provider.relayer.accounts.relayerRecipientSol,
-      );
+    this.rpcPreSolBalance = await this.provider.provider?.connection.getBalance(
+      this.provider.rpc.accounts.rpcRecipientSol,
+    );
     if (this.testInputs.recipient) {
       this.recipientPreSolBalance =
         await this.provider.provider?.connection.getBalance(
@@ -164,14 +163,14 @@ export class UserTestAssertHelper {
       to: PublicKey;
       from: PublicKey;
       verifier: PublicKey;
-      relayerRecipientSol: PublicKey;
+      rpcRecipientSol: PublicKey;
       type: Action;
       publicAmountSol: BN;
       publicAmountSpl: BN;
       encryptedUtxos?: Buffer | any[];
       leaves?: number[][];
       nullifiers?: BN[];
-      relayerFee: BN;
+      rpcFee: BN;
       message?: Buffer;
     };
 
@@ -215,14 +214,14 @@ export class UserTestAssertHelper {
         "Verifier mismatch",
       );
       assert.equal(
-        transaction.relayerRecipientSol,
-        reference.relayerRecipientSol.toBase58(),
-        "Relayer recipient SOL mismatch",
+        transaction.rpcRecipientSol,
+        reference.rpcRecipientSol.toBase58(),
+        "Rpc recipient SOL mismatch",
       );
       assert.equal(
-        transaction.relayerFee,
-        reference.relayerFee.toString(),
-        "Relayer fee mismatch",
+        transaction.rpcFee,
+        reference.rpcFee.toString(),
+        "Rpc fee mismatch",
       );
 
       if (reference.encryptedUtxos !== undefined)
@@ -283,14 +282,14 @@ export class UserTestAssertHelper {
             break;
           assertTransactionProperties(
             {
-              signer: this.provider.relayer.accounts.relayerPubkey,
+              signer: this.provider.rpc.accounts.rpcPubkey,
               publicAmountSpl: BN_0,
               publicAmountSol: BN_0,
-              relayerFee: this.sender.user.provider.relayer.getRelayerFee(),
+              rpcFee: this.sender.user.provider.rpc.getRpcFee(),
               to: AUTHORITY,
               from: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
-              relayerRecipientSol:
-                this.sender.user.provider.relayer.accounts.relayerRecipientSol,
+              rpcRecipientSol:
+                this.sender.user.provider.rpc.accounts.rpcRecipientSol,
               type: Action.TRANSFER,
               verifier: this.testInputs.isMerge
                 ? lightPsp10in2outId
@@ -313,8 +312,8 @@ export class UserTestAssertHelper {
               publicAmountSol: amountSol
                 ? convertAndComputeDecimals(amountSol, new BN(1e9))
                 : BN_0,
-              relayerFee: BN_0,
-              relayerRecipientSol: AUTHORITY,
+              rpcFee: BN_0,
+              rpcRecipientSol: AUTHORITY,
               type: Action.SHIELD,
               verifier: lightPsp2in2outId,
               message: undefined,
@@ -330,22 +329,22 @@ export class UserTestAssertHelper {
           // - invalid verifier
           assertTransactionProperties(
             {
-              signer: this.provider.relayer.accounts.relayerPubkey,
+              signer: this.provider.rpc.accounts.rpcPubkey,
               publicAmountSpl: amountSpl
                 ? convertAndComputeDecimals(amountSpl, this.tokenCtx!.decimals)
                 : BN_0,
               publicAmountSol: amountSol
                 ? convertAndComputeDecimals(amountSol, new BN(1e9))
                 : BN_0,
-              relayerFee:
+              rpcFee:
                 this.tokenCtx!.symbol != "SOL" &&
                 !this.recipient.preTokenBalance
-                  ? this.sender.user.provider.relayer.getRelayerFee(true)
-                  : this.sender.user.provider.relayer.getRelayerFee(),
+                  ? this.sender.user.provider.rpc.getRpcFee(true)
+                  : this.sender.user.provider.rpc.getRpcFee(),
               to: this.testInputs.recipient!,
               from: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
-              relayerRecipientSol:
-                this.sender.user.provider.relayer.accounts.relayerRecipientSol,
+              rpcRecipientSol:
+                this.sender.user.provider.rpc.accounts.rpcRecipientSol,
               type: Action.UNSHIELD,
               verifier: lightPsp2in2outId,
               message: undefined,
@@ -640,19 +639,19 @@ export class UserTestAssertHelper {
     // TODO: fix flakyness issues
     // await this.assertRecentTransactionIsIndexedCorrectly();
     if (this.testInputs.type !== Action.SHIELD) {
-      await this.assertRelayerFee();
+      await this.assertRpcFee();
     }
   }
-  async assertRelayerFee() {
-    // relayer recipient's sol balance should be increased by the relayer fee
+  async assertRpcFee() {
+    // rpc recipient's sol balance should be increased by the rpc fee
     await this.assertSolBalance(
       this.tokenCtx!.symbol !== "SOL" &&
         this.testInputs.type.toString() === Action.UNSHIELD.toString()
-        ? this.sender.user.provider.relayer.getRelayerFee(true).toNumber()
-        : this.sender.user.provider.relayer.getRelayerFee().toNumber(),
+        ? this.sender.user.provider.rpc.getRpcFee(true).toNumber()
+        : this.sender.user.provider.rpc.getRpcFee().toNumber(),
       0,
-      this.relayerPreSolBalance!,
-      this.sender.user.provider!.relayer.accounts.relayerRecipientSol,
+      this.rpcPreSolBalance!,
+      this.sender.user.provider!.rpc.accounts.rpcRecipientSol,
     );
   }
   /**
@@ -770,7 +769,7 @@ export class UserTestAssertHelper {
       convertAndComputeDecimals(
         this.testInputs.amountSol!,
         this.tokenCtx!.decimals,
-      ).toNumber() + this.provider.relayer.getRelayerFee().toNumber(),
+      ).toNumber() + this.provider.rpc.getRpcFee().toNumber(),
       this.sender,
       false,
     );
@@ -784,7 +783,7 @@ export class UserTestAssertHelper {
         this.testInputs.amountSol!,
         this.tokenCtx!.decimals,
       )
-        .add(this.provider.relayer.getRelayerFee())
+        .add(this.provider.rpc.getRpcFee())
         .toNumber(),
       this.sender,
       false,
@@ -828,7 +827,7 @@ export class UserTestAssertHelper {
         ? convertAndComputeDecimals(this.testInputs.amountSol, new BN(1e9))
         : MINIMUM_LAMPORTS;
     solDecreasedAmount = solDecreasedAmount.add(
-      this.provider.relayer.getRelayerFee(true),
+      this.provider.rpc.getRpcFee(true),
     );
     // assert that the user's sol shielded balance has decreased by fee
     await this.assertShieldedSolBalance(
@@ -845,7 +844,7 @@ export class UserTestAssertHelper {
    * This method performs the following checks:
    *
    * 1. Asserts that the user's shielded token balance has decreased by the amount transferred.
-   * 2. Asserts that the user's shielded SOL balance has decreased by the relayer fee.
+   * 2. Asserts that the user's shielded SOL balance has decreased by the rpc fee.
    * 3. Asserts that user UTXOs are spent and updated correctly.
    * 4. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
    * 5. Assert that the transfer has been received correctly by the shielded recipient's account.
@@ -876,7 +875,7 @@ export class UserTestAssertHelper {
             new BN(1e9),
           ).toNumber()
         : 0;
-    shieldedLamports += this.provider.relayer.getRelayerFee().toNumber();
+    shieldedLamports += this.provider.rpc.getRpcFee().toNumber();
     // assert that the user's sol shielded balance has decreased by fee
     await this.assertShieldedSolBalance(shieldedLamports, this.sender);
 
@@ -1010,7 +1009,7 @@ export class UserTestAssertHelper {
     const postBalance = this.tokenCtx.isNative
       ? this.recipient.user.balance.tokenBalances
           .get(this.tokenCtx.mint.toBase58())
-          ?.totalBalanceSol.add(this.provider.relayer.getRelayerFee(false))
+          ?.totalBalanceSol.add(this.provider.rpc.getRpcFee(false))
       : this.recipient.user.balance.tokenBalances.get(
           this.tokenCtx.mint.toBase58(),
         )?.totalBalanceSpl;
@@ -1046,11 +1045,11 @@ export class UserTestAssertHelper {
   }
 
   async assertStoredWithTransfer() {
-    // shielded sol balance is reduced by the relayer fee
+    // shielded sol balance is reduced by the rpc fee
     const postSolBalance = await (
       await this.recipient.user.getBalance()
     ).totalSolBalance
-      .add(this.provider.relayer.getRelayerFee())
+      .add(this.provider.rpc.getRpcFee())
       .toString();
     assert.strictEqual(
       this.recipient.preShieldedBalance?.totalSolBalance!.toString(),

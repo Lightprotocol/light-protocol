@@ -41,7 +41,7 @@ export class MessageClient {
   }
 
   async getMessages() {
-    let transactions = await this.user.provider.relayer.getIndexedTransactions(
+    let transactions = await this.user.provider.rpc.getIndexedTransactions(
       this.user.provider.connection,
     );
     for (let tx of transactions) {

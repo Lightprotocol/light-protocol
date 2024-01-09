@@ -3,7 +3,7 @@ import {
   Provider as LightProvider,
   confirmConfig,
   Action,
-  TestRelayer,
+  TestRpc,
   User,
   airdropSol,
   STANDARD_SHIELDED_PUBLIC_KEY,
@@ -38,7 +38,7 @@ const verifierProgramId = new PublicKey(
 );
 import { assert } from "chai";
 
-let WASM: LightWasm, RELAYER: TestRelayer;
+let WASM: LightWasm, RPC: TestRpc;
 const RPC_URL = "http://127.0.0.1:8899";
 const createTestUser = async (
   connection: Connection,
@@ -54,7 +54,7 @@ const createTestUser = async (
   const lightProvider: Provider = await LightProvider.init({
     wallet: sellerWallet,
     url: RPC_URL,
-    relayer: RELAYER,
+    rpc: RPC,
     confirmConfig,
   });
   let user: User = await User.init({ provider: lightProvider });
@@ -78,17 +78,17 @@ describe("Test swaps", () => {
 
   before(async () => {
     WASM = await WasmFactory.getInstance();
-    const relayerWallet = Keypair.generate();
+    const rpcWallet = Keypair.generate();
     await airdropSol({
       connection: provider.connection,
       lamports: 1e11,
-      recipientPublicKey: relayerWallet.publicKey,
+      recipientPublicKey: rpcWallet.publicKey,
     });
-    RELAYER = new TestRelayer({
-      relayerPubkey: relayerWallet.publicKey,
-      relayerRecipientSol: relayerWallet.publicKey,
-      relayerFee: new BN(100000),
-      payer: relayerWallet,
+    RPC = new TestRpc({
+      rpcPubkey: rpcWallet.publicKey,
+      rpcRecipientSol: rpcWallet.publicKey,
+      rpcFee: new BN(100000),
+      payer: rpcWallet,
       connection: provider.connection,
       lightWasm: WASM,
     });
@@ -190,7 +190,7 @@ describe("Test swaps", () => {
 
     const changeAmountSol = shieldUtxo.amounts[0]
       .sub(offerRewardUtxo.amounts[0])
-      .sub(RELAYER.relayerFee);
+      .sub(RPC.rpcFee);
 
     // TODO: add function to create change utxo
     const changeUtxo = createOutUtxo({
@@ -221,7 +221,7 @@ describe("Test swaps", () => {
       index: rootIndex,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [fetchedOfferUtxo, shieldUtxo],
-      relayer: RELAYER,
+      rpc: RPC,
       merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
     const outputUtxos = [changeUtxo, tradeOutputUtxo, offerRewardUtxo];
@@ -232,9 +232,9 @@ describe("Test swaps", () => {
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      relayerPublicKey: RELAYER.accounts.relayerPubkey,
+      rpcPublicKey: RPC.accounts.rpcPubkey,
       lightWasm: WASM,
-      relayerFee: RELAYER.relayerFee,
+      rpcFee: RPC.rpcFee,
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: buyerUser.account,
@@ -291,7 +291,7 @@ describe("Test swaps", () => {
       pspProof,
       publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
-      relayerRecipientSol: RELAYER.accounts.relayerRecipientSol,
+      rpcRecipientSol: RPC.accounts.rpcRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       rootIndex,
@@ -458,9 +458,7 @@ describe("Test swaps", () => {
       lightWasm: WASM,
       publicKey: sellerUser.account.keypair.publicKey,
       amounts: [
-        fetchedCounterOfferUtxo.amounts[0].sub(
-          sellerUser.provider.relayer.relayerFee,
-        ),
+        fetchedCounterOfferUtxo.amounts[0].sub(sellerUser.provider.rpc.rpcFee),
       ],
       assets: [SystemProgram.programId],
     });
@@ -489,7 +487,7 @@ describe("Test swaps", () => {
       index: rootIndex,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [fetchedOfferUtxo, fetchedCounterOfferUtxo],
-      relayer: RELAYER,
+      rpc: RPC,
       merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
     const outputUtxos = [tradeOutputUtxo, counterOfferRewardUtxo];
@@ -500,9 +498,9 @@ describe("Test swaps", () => {
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      relayerPublicKey: RELAYER.accounts.relayerPubkey,
+      rpcPublicKey: RPC.accounts.rpcPubkey,
       lightWasm: WASM,
-      relayerFee: RELAYER.relayerFee,
+      rpcFee: RPC.rpcFee,
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
@@ -559,7 +557,7 @@ describe("Test swaps", () => {
       pspProof,
       publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
-      relayerRecipientSol: RELAYER.accounts.relayerRecipientSol,
+      rpcRecipientSol: RPC.accounts.rpcRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       rootIndex,
@@ -577,7 +575,7 @@ describe("Test swaps", () => {
     assert.equal(
       sellerBalance.totalSolBalance.toNumber(),
       counterOfferUtxo.outUtxo.amounts[0]
-        .sub(sellerUser.provider.relayer.relayerFee)
+        .sub(sellerUser.provider.rpc.rpcFee)
         .toNumber(),
     );
 
@@ -656,9 +654,7 @@ describe("Test swaps", () => {
       lightWasm: WASM,
       publicKey: fetchedOfferUtxo.utxoData.recipient,
       amounts: [
-        offerUtxo.outUtxo.amounts[0].sub(
-          sellerUser.provider.relayer.relayerFee,
-        ),
+        offerUtxo.outUtxo.amounts[0].sub(sellerUser.provider.rpc.rpcFee),
       ],
       assets: [SystemProgram.programId],
     });
@@ -690,7 +686,7 @@ describe("Test swaps", () => {
       index: rootIndex,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [fetchedOfferUtxo, emptySignerUtxo],
-      relayer: RELAYER,
+      rpc: RPC,
       merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     });
 
@@ -702,9 +698,9 @@ describe("Test swaps", () => {
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0),
       ),
-      relayerPublicKey: RELAYER.accounts.relayerPubkey,
+      rpcPublicKey: RPC.accounts.rpcPubkey,
       lightWasm: WASM,
-      relayerFee: RELAYER.relayerFee,
+      rpcFee: RPC.rpcFee,
       pspId: verifierProgramId,
       systemPspId: lightPsp4in4outAppStorageId,
       account: sellerUser.account,
@@ -762,7 +758,7 @@ describe("Test swaps", () => {
       pspProof,
       publicTransactionVariables: shieldedTransaction.public,
       pspTransactionInput,
-      relayerRecipientSol: RELAYER.accounts.relayerRecipientSol,
+      rpcRecipientSol: RPC.accounts.rpcRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       rootIndex,

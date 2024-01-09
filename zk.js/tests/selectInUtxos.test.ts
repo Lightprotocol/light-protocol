@@ -17,12 +17,12 @@ import {
   CreateUtxoErrorCode,
   selectInUtxos,
   SelectInUtxosError,
-  RelayerErrorCode,
+  RpcErrorCode,
   SelectInUtxosErrorCode,
   Account,
   createRecipientUtxos,
   Provider,
-  RELAYER_FEE,
+  RPC_FEE,
   BN_0,
   BN_1,
   createTestInUtxo,
@@ -89,7 +89,7 @@ describe("Test selectInUtxos Functional", () => {
 
     const selectedUtxo = selectInUtxos({
       publicMint: utxo1.assets[1],
-      relayerFee: RELAYER_FEE,
+      rpcFee: RPC_FEE,
       publicAmountSpl: BN_1,
       lightWasm,
       utxos: inUtxos,
@@ -105,7 +105,7 @@ describe("Test selectInUtxos Functional", () => {
 
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
-      relayerFee: RELAYER_FEE,
+      rpcFee: RPC_FEE,
       publicAmountSol: new BN(1e7),
       lightWasm,
       action: Action.UNSHIELD,
@@ -123,7 +123,7 @@ describe("Test selectInUtxos Functional", () => {
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.UNSHIELD,
-      relayerFee: RELAYER_FEE,
+      rpcFee: RPC_FEE,
       lightWasm,
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
@@ -154,7 +154,7 @@ describe("Test selectInUtxos Functional", () => {
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
-      relayerFee: RELAYER_FEE,
+      rpcFee: RPC_FEE,
       lightWasm,
       outUtxos,
       numberMaxInUtxos,
@@ -182,7 +182,7 @@ describe("Test selectInUtxos Functional", () => {
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
-      relayerFee: RELAYER_FEE,
+      rpcFee: RPC_FEE,
       lightWasm,
       outUtxos,
       numberMaxInUtxos,
@@ -211,7 +211,7 @@ describe("Test selectInUtxos Functional", () => {
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
-      relayerFee: RELAYER_FEE,
+      rpcFee: RPC_FEE,
       lightWasm,
       outUtxos,
       numberMaxInUtxos,
@@ -289,7 +289,7 @@ describe("Test selectInUtxos Functional", () => {
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
-      relayerFee: RELAYER_FEE,
+      rpcFee: RPC_FEE,
       lightWasm,
       outUtxos,
       numberMaxInUtxos,
@@ -379,7 +379,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
-        relayerFee: RELAYER_FEE,
+        rpcFee: RPC_FEE,
         lightWasm,
         publicAmountSol: new BN(1e7),
         publicAmountSpl: BN_1,
@@ -401,7 +401,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
-        relayerFee: RELAYER_FEE,
+        rpcFee: RPC_FEE,
         lightWasm,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -416,7 +416,7 @@ describe("Test selectInUtxos Errors", () => {
       });
   });
 
-  it("RELAYER_FEE_UNDEFINED", async () => {
+  it("RPC_FEE_UNDEFINED", async () => {
     const inUtxos = [utxoSol, utxo1];
 
     expect(() => {
@@ -433,12 +433,12 @@ describe("Test selectInUtxos Errors", () => {
     })
       .to.throw(SelectInUtxosError)
       .includes({
-        code: RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+        code: RpcErrorCode.RPC_FEE_UNDEFINED,
         functionName: "selectInUtxos",
       });
   });
 
-  it("RELAYER_FEE_UNDEFINED", async () => {
+  it("RPC_FEE_UNDEFINED", async () => {
     const inUtxos = [utxoSol, utxo1];
 
     expect(() => {
@@ -455,19 +455,19 @@ describe("Test selectInUtxos Errors", () => {
     })
       .to.throw(SelectInUtxosError)
       .includes({
-        code: RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+        code: RpcErrorCode.RPC_FEE_UNDEFINED,
         functionName: "selectInUtxos",
       });
   });
 
-  it("RELAYER_FEE_DEFINED", async () => {
+  it("RPC_FEE_DEFINED", async () => {
     const inUtxos = [utxoSol, utxo1];
 
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.SHIELD,
-        relayerFee: RELAYER_FEE,
+        rpcFee: RPC_FEE,
         lightWasm,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -478,7 +478,7 @@ describe("Test selectInUtxos Errors", () => {
     })
       .to.throw(SelectInUtxosError)
       .includes({
-        code: CreateUtxoErrorCode.RELAYER_FEE_DEFINED,
+        code: CreateUtxoErrorCode.RPC_FEE_DEFINED,
         functionName: "selectInUtxos",
       });
   });
@@ -487,7 +487,7 @@ describe("Test selectInUtxos Errors", () => {
     expect(() => {
       selectInUtxos({
         action: Action.TRANSFER,
-        relayerFee: RELAYER_FEE,
+        rpcFee: RPC_FEE,
         lightWasm,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -531,7 +531,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        relayerFee: RELAYER_FEE,
+        rpcFee: RPC_FEE,
         lightWasm,
         outUtxos,
         numberMaxInUtxos,
@@ -563,7 +563,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        relayerFee: RELAYER_FEE,
+        rpcFee: RPC_FEE,
         lightWasm,
         outUtxos,
         numberMaxInUtxos,
@@ -595,7 +595,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        relayerFee: RELAYER_FEE,
+        rpcFee: RPC_FEE,
         lightWasm,
         outUtxos,
         numberMaxInUtxos,
@@ -627,7 +627,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
-        relayerFee: RELAYER_FEE,
+        rpcFee: RPC_FEE,
         lightWasm,
         outUtxos,
         numberMaxInUtxos,
