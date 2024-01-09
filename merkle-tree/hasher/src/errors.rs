@@ -18,6 +18,8 @@ pub enum HasherError {
     InvalidProof,
     #[msg("Attempting to update the leaf which was updated by an another newest change.")]
     CannotUpdateLeaf,
+    #[msg("Cannot update tree without changelog, only `append` is supported.")]
+    AppendOnly,
     #[msg("Invalid number of inputs.")]
     PoseidonInvalidNumberOfInputs,
     #[msg("Input is an empty slice.")]

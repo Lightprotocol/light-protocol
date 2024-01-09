@@ -135,26 +135,6 @@ where
             .map(|&value| value)
     }
 
-    /// Returns an intersection index in the changelog entry which affects the
-    ///
-    /// Determining it can be done by taking a XOR of the leaf index (which was
-    /// directly updated in the changelog entry) and the leaf index we are
-    /// trying to update.
-    ///
-    /// The number of bytes in the binary representations of the indexes is
-    /// determined by the height of the tree. For example, for the tree with
-    /// height 4, update attempt of leaf under index 2 and changelog affecting
-    /// index 4, critbit would be:
-    ///
-    /// 2 ^ 4 = 0b_0010 ^ 0b_0100 = 0b_0110 = 6
-    fn intersection_index(&self, leaf_index: usize, changelog_entry_index: usize) -> usize {
-        let padding = 64 - HEIGHT;
-        let common_path_len =
-            ((leaf_index ^ changelog_entry_index) << padding).leading_zeros() as usize;
-
-        (HEIGHT - 1) - common_path_len
-    }
-
     /// Returns an updated Merkle proof.
     ///
     /// The update is performed by checking whether there are any new changelog
@@ -171,31 +151,29 @@ where
     ///     (using the `critbit_index` method) and update it (copy the new
     ///     element from the changelog to our updated proof).
     ///   * If yes, it means that the same leaf we want to update was already
-    ///     updated. In such case, updating the proof is not possible and we
-    ///     return an error.
-    fn update_proof(
+    ///     updated. In such case, updating the proof is not possible.
+    fn update_proof_or_leaf(
         &self,
         changelog_index: usize,
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
-    ) -> Result<[[u8; 32]; HEIGHT], HasherError> {
+    ) -> Option<[[u8; 32]; HEIGHT]> {
         let mut updated_proof = proof.to_owned();
-        let mut k = changelog_index;
 
-        while k != self.current_changelog_index as usize {
-            let changelog_entry = self.changelog[k];
-            let changelog_entry_index = changelog_entry.index as usize;
-            if leaf_index != changelog_entry_index {
-                let intersection_index = self.intersection_index(leaf_index, changelog_entry_index);
-                updated_proof[intersection_index] = changelog_entry.path[intersection_index];
-            } else {
-                return Err(HasherError::CannotUpdateLeaf);
-            }
+        let mut i = changelog_index + 1;
 
-            k = (k + 1) % MAX_ROOTS;
+        while i != self.current_changelog_index as usize + 1 {
+            let changelog_entry = self.changelog[i];
+
+            updated_proof = match changelog_entry.update_proof(leaf_index, &updated_proof) {
+                Some(proof) => proof,
+                None => return None,
+            };
+
+            i = (i + 1) % MAX_ROOTS;
         }
 
-        Ok(updated_proof)
+        Some(updated_proof)
     }
 
     /// Updates the leaf under `leaf_index` with the `new_leaf` value.
@@ -242,9 +220,27 @@ where
             .get_mut(self.current_root_index as usize)
             .ok_or(HasherError::RootsZero)? = node;
 
-        if self.rightmost_index > 0 && leaf_index == self.rightmost_index as usize - 1 {
-            self.rightmost_proof.copy_from_slice(proof);
-            self.rightmost_leaf = *new_leaf;
+        // Update the rightmost proof. It has to be done only if tree is not full.
+        if self.rightmost_index < (1 << HEIGHT) {
+            if self.rightmost_index > 0 && leaf_index < self.rightmost_index as usize - 1 {
+                // Update the rightmost proof with the current changelog entry when:
+                //
+                // * `rightmost_index` is greater than 0 (tree is non-empty).
+                // * The updated leaf is non-rightmost.
+                if let Some(proof) = changelog_entry
+                    .update_proof(self.rightmost_index as usize - 1, &self.rightmost_proof)
+                {
+                    self.rightmost_proof = proof;
+                }
+            } else {
+                // Save the provided proof and leaf as the new rightmost under
+                // any of the following conditions:
+                //
+                // * Tree is empty (and this is the first `append`).
+                // * The rightmost leaf is updated.
+                self.rightmost_proof.copy_from_slice(proof);
+                self.rightmost_leaf = *new_leaf;
+            }
         }
 
         Ok(())
@@ -261,7 +257,23 @@ where
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), HasherError> {
-        let updated_proof = self.update_proof(changelog_index, leaf_index, proof)?;
+        let updated_proof = if self.rightmost_index > 0 && MAX_CHANGELOG > 0 {
+            match self.update_proof_or_leaf(changelog_index, leaf_index, proof) {
+                Some(proof) => proof,
+                // This case means that the leaf we are trying to update was
+                // already updated. Therefore, updating the proof is impossible.
+                // We need to return an error and request the caller
+                // to retry the update with a new proof.
+                None => {
+                    return Err(HasherError::CannotUpdateLeaf);
+                }
+            }
+        } else {
+            if leaf_index != self.rightmost_index as usize {
+                return Err(HasherError::AppendOnly);
+            }
+            proof.to_owned()
+        };
 
         validate_proof::<H, HEIGHT>(
             &self.roots[self.current_root_index as usize],
@@ -277,10 +289,6 @@ where
         if self.rightmost_index >= 1 << HEIGHT {
             return Err(HasherError::TreeFull);
         }
-
-        let mut changelog_path = [[0u8; 32]; HEIGHT];
-        let mut intersection_node = self.rightmost_leaf;
-        let intersection_index = self.rightmost_index.trailing_zeros() as usize;
 
         if self.rightmost_index == 0 {
             // NOTE(vadorovsky): This is not mentioned in the whitepaper, but
@@ -302,6 +310,9 @@ where
             self.update(0, &H::zero_bytes()[0], leaf, 0, &proof)?;
         } else {
             let mut current_node = *leaf;
+            let mut intersection_node = self.rightmost_leaf;
+            let intersection_index = self.rightmost_index.trailing_zeros() as usize;
+            let mut changelog_path = [[0u8; 32]; HEIGHT];
 
             for (i, item) in changelog_path.iter_mut().enumerate() {
                 *item = current_node;
@@ -320,7 +331,7 @@ where
                     }
                     Ordering::Equal => {
                         current_node = H::hashv(&[&intersection_node, &current_node])?;
-                        self.rightmost_proof[i] = intersection_node;
+                        self.rightmost_proof[intersection_index] = intersection_node;
                     }
                     Ordering::Greater => {
                         current_node = compute_parent_node::<H>(
