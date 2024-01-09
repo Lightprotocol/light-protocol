@@ -34,7 +34,7 @@ import { IDL } from "../target/types/swaps";
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
 import { assert } from "chai";
 
@@ -43,7 +43,7 @@ const RPC_URL = "http://127.0.0.1:8899";
 const createTestUser = async (
   connection: Connection,
   lamports: number,
-  shieldedSol?: number
+  shieldedSol?: number,
 ): Promise<User> => {
   let sellerWallet = Keypair.generate();
   await airdropSol({
@@ -108,7 +108,7 @@ describe("Test swaps", () => {
     const buyerUser: User = await createTestUser(provider.connection, 10e9, 5);
     console.log(
       "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
-      new BN(sellerUser.account.encryptionKeypair.publicKey)
+      new BN(sellerUser.account.encryptionKeypair.publicKey),
     );
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
@@ -124,7 +124,7 @@ describe("Test swaps", () => {
         splAsset: new BN(0),
         recipient: sellerUser.account.keypair.publicKey,
         recipientEncryptionPublicKey: hashAndTruncateToCircuit(
-          sellerUser.account.encryptionKeypair.publicKey
+          sellerUser.account.encryptionKeypair.publicKey,
         ),
       },
       pspIdl: IDL,
@@ -145,16 +145,16 @@ describe("Test swaps", () => {
       syncedStorage
         .get(verifierProgramId.toBase58())
         .tokenBalances.get(SystemProgram.programId.toBase58())
-        .utxos.values()
+        .utxos.values(),
     )[0];
 
     assert.deepEqual(
       JSON.stringify(offerUtxo.outUtxo.utxoData),
-      JSON.stringify(fetchedOfferUtxo.utxoData)
+      JSON.stringify(fetchedOfferUtxo.utxoData),
     );
 
     console.log(
-      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.utxoData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.utxoData.recipient.toString()}`
+      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.utxoData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.utxoData.recipient.toString()}`,
     );
     const circuitPath = path.join("build-circuit/swaps/swaps");
     await buyerUser.getBalance();
@@ -175,11 +175,11 @@ describe("Test swaps", () => {
     });
     console.log(
       "fetchedOfferUtxo blinding: ",
-      fetchedOfferUtxo.blinding.toString()
+      fetchedOfferUtxo.blinding.toString(),
     );
     console.log(
       "offerRewardUtxo blinding: ",
-      offerRewardUtxo.blinding.toString()
+      offerRewardUtxo.blinding.toString(),
     );
     const tradeOutputUtxo = createOutUtxo({
       lightWasm: WASM,
@@ -230,7 +230,7 @@ describe("Test swaps", () => {
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0)
+        new BN(0),
       ),
       rpcPublicKey: RPC.accounts.rpcPubkey,
       lightWasm: WASM,
@@ -267,7 +267,7 @@ describe("Test swaps", () => {
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
       proofInputs,
       IDL,
-      pspTransactionInput.circuitName
+      pspTransactionInput.circuitName,
     );
 
     const pspProof = await buyerUser.account.getProofInternal({
@@ -311,7 +311,7 @@ describe("Test swaps", () => {
     console.log("seller utxo inbox ", sellerUtxoInbox);
     assert.equal(
       sellerUtxoInbox.totalSolBalance.toNumber(),
-      offerUtxo.outUtxo.utxoData.priceSol.toNumber()
+      offerUtxo.outUtxo.utxoData.priceSol.toNumber(),
     );
   });
 
@@ -334,7 +334,7 @@ describe("Test swaps", () => {
     const buyerUser: User = await createTestUser(provider.connection, 110e9, 5);
     console.log(
       "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
-      new BN(sellerUser.account.encryptionKeypair.publicKey)
+      new BN(sellerUser.account.encryptionKeypair.publicKey),
     );
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
@@ -350,7 +350,7 @@ describe("Test swaps", () => {
         splAsset: new BN(0),
         recipient: sellerUser.account.keypair.publicKey,
         recipientEncryptionPublicKey: hashAndTruncateToCircuit(
-          sellerUser.account.encryptionKeypair.publicKey
+          sellerUser.account.encryptionKeypair.publicKey,
         ),
         // blinding: new BN(0),
       },
@@ -372,15 +372,15 @@ describe("Test swaps", () => {
       syncedStorage
         .get(verifierProgramId.toBase58())
         .tokenBalances.get(SystemProgram.programId.toBase58())
-        .utxos.values()
+        .utxos.values(),
     )[0];
 
     assert.deepEqual(
       JSON.stringify(offerUtxo.outUtxo.utxoData),
-      JSON.stringify(fetchedOfferUtxo.utxoData)
+      JSON.stringify(fetchedOfferUtxo.utxoData),
     );
     console.log(
-      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.utxoData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.utxoData.recipient.toString()}`
+      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.utxoData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.utxoData.recipient.toString()}`,
     );
     /**
      * Offer trade 1 sol for 2 sol
@@ -399,7 +399,7 @@ describe("Test swaps", () => {
         splAsset: new BN(0),
         recipient: buyerUser.account.keypair.publicKey,
         recipientEncryptionPublicKey: hashAndTruncateToCircuit(
-          buyerUser.account.encryptionKeypair.publicKey
+          buyerUser.account.encryptionKeypair.publicKey,
         ),
       },
       pspIdl: IDL,
@@ -420,15 +420,15 @@ describe("Test swaps", () => {
       syncedSellerStorage
         .get(verifierProgramId.toBase58())
         .tokenBalances.get(SystemProgram.programId.toBase58())
-        .utxos.values()
+        .utxos.values(),
     )[0];
 
     assert.deepEqual(
       JSON.stringify(counterOfferUtxo.outUtxo.utxoData),
-      JSON.stringify(fetchedCounterOfferUtxo.utxoData)
+      JSON.stringify(fetchedCounterOfferUtxo.utxoData),
     );
     console.log(
-      `Successfully fetched and decrypted counter offer: priceSol ${fetchedCounterOfferUtxo.utxoData.priceSol.toString()}, offer sol amount: ${fetchedCounterOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedCounterOfferUtxo.utxoData.recipient.toString()}`
+      `Successfully fetched and decrypted counter offer: priceSol ${fetchedCounterOfferUtxo.utxoData.priceSol.toString()}, offer sol amount: ${fetchedCounterOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedCounterOfferUtxo.utxoData.recipient.toString()}`,
     );
 
     const circuitPath = path.join("build-circuit/swaps/swaps");
@@ -448,11 +448,11 @@ describe("Test swaps", () => {
     });
     console.log(
       "fetchedOfferUtxo blinding: ",
-      fetchedCounterOfferUtxo.blinding.toString()
+      fetchedCounterOfferUtxo.blinding.toString(),
     );
     console.log(
       "offerRewardUtxo blinding: ",
-      counterOfferRewardUtxo.blinding.toString()
+      counterOfferRewardUtxo.blinding.toString(),
     );
     const tradeOutputUtxo = createOutUtxo({
       lightWasm: WASM,
@@ -496,7 +496,7 @@ describe("Test swaps", () => {
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0)
+        new BN(0),
       ),
       rpcPublicKey: RPC.accounts.rpcPubkey,
       lightWasm: WASM,
@@ -532,7 +532,7 @@ describe("Test swaps", () => {
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
       proofInputs,
       IDL,
-      pspTransactionInput.circuitName
+      pspTransactionInput.circuitName,
     );
 
     const pspProof = await sellerUser.account.getProofInternal({
@@ -576,14 +576,14 @@ describe("Test swaps", () => {
       sellerBalance.totalSolBalance.toNumber(),
       counterOfferUtxo.outUtxo.amounts[0]
         .sub(sellerUser.provider.rpc.rpcFee)
-        .toNumber()
+        .toNumber(),
     );
 
     let buyerUtxoInbox = await buyerUser.getUtxoInbox();
     console.log("buyer utxo inbox ", buyerUtxoInbox);
     assert.equal(
       buyerUtxoInbox.totalSolBalance.toNumber(),
-      offerUtxo.outUtxo.amounts[0].toNumber()
+      offerUtxo.outUtxo.amounts[0].toNumber(),
     );
   });
 
@@ -600,7 +600,7 @@ describe("Test swaps", () => {
     const sellerUser: User = await createTestUser(provider.connection, 10e9);
     console.log(
       "new BN(sellerUser.account.encryptionKeypair.publicKey) ",
-      new BN(sellerUser.account.encryptionKeypair.publicKey)
+      new BN(sellerUser.account.encryptionKeypair.publicKey),
     );
     // TODO: add sorting to compute utxo data hash consistently
     // TODO: remove include appdata
@@ -616,7 +616,7 @@ describe("Test swaps", () => {
         splAsset: new BN(0),
         recipient: sellerUser.account.keypair.publicKey,
         recipientEncryptionPublicKey: hashAndTruncateToCircuit(
-          sellerUser.account.encryptionKeypair.publicKey
+          sellerUser.account.encryptionKeypair.publicKey,
         ),
       },
       pspIdl: IDL,
@@ -638,15 +638,15 @@ describe("Test swaps", () => {
       syncedStorage
         .get(verifierProgramId.toBase58())
         .tokenBalances.get(SystemProgram.programId.toBase58())
-        .utxos.values()
+        .utxos.values(),
     )[0];
 
     assert.deepEqual(
       JSON.stringify(offerUtxo.outUtxo.utxoData),
-      JSON.stringify(fetchedOfferUtxo.utxoData)
+      JSON.stringify(fetchedOfferUtxo.utxoData),
     );
     console.log(
-      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.utxoData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.utxoData.recipient.toString()}`
+      `Successfully fetched and decrypted offer: priceSol ${fetchedOfferUtxo.utxoData.priceSol.toString()}, offer sol amount: ${fetchedOfferUtxo.amounts[0].toString()} \n recipient public key: ${fetchedOfferUtxo.utxoData.recipient.toString()}`,
     );
     const circuitPath = path.join("build-circuit/swaps/swaps");
 
@@ -696,7 +696,7 @@ describe("Test swaps", () => {
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0)
+        new BN(0),
       ),
       rpcPublicKey: RPC.accounts.rpcPubkey,
       lightWasm: WASM,
@@ -733,7 +733,7 @@ describe("Test swaps", () => {
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
       proofInputs,
       IDL,
-      pspTransactionInput.circuitName
+      pspTransactionInput.circuitName,
     );
 
     const pspProof = await sellerUser.account.getProofInternal({
@@ -775,7 +775,7 @@ describe("Test swaps", () => {
     assert(sellerUser.getUtxo(cancelOutputUtxo.utxoHash) !== undefined);
     assert.equal(
       balance.totalSolBalance.toNumber(),
-      cancelOutputUtxo.amounts[0].toNumber()
+      cancelOutputUtxo.amounts[0].toNumber(),
     );
   });
 });
