@@ -22,6 +22,7 @@ const verifiers = [
 describe("Verifier tests", () => {
   it("Test functional circuit", async () => {
     for (const verifier in verifiers) {
+      console.log("verifier");
       await functionalCircuitTest(
         verifiers[verifier].isApp,
         verifiers[verifier].verifierIdl,

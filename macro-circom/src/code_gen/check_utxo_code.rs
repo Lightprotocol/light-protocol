@@ -40,12 +40,12 @@ impl FieldSetter for UtxoChecks {
             "amountSol" => self.amount_sol = Some((comparator, value)),
             "amountSpl" => self.amount_spl = Some((comparator, value)),
             "assetSpl" => self.asset_spl = Some((comparator, value)),
-            "utxoDataHash" => self.utxo_data_hash = Some((comparator, value)),
+            "dataHash" => self.utxo_data_hash = Some((comparator, value)),
             "pspOwner" => self.psp_owner = Some((comparator, value)),
-            "txVersion" => self.tx_version = Some((comparator, value)),
-            "poolType" => self.pool_type = Some((comparator, value)),
+            "version" => self.tx_version = Some((comparator, value)),
+            "type" => self.pool_type = Some((comparator, value)),
             "blinding" => self.blinding = Some((comparator, value)),
-            "publicKey" => self.public_key = Some((comparator, value)),
+            "owner" => self.public_key = Some((comparator, value)),
             _ => return Err(MacroCircomError::UnknowField(field_name.to_string())),
         }
         Ok(())
@@ -131,30 +131,30 @@ impl Comparator {
 impl Utxo {
     fn generate_delare_code(&mut self) -> Result<(), MacroCircomError> {
         let template = r#"
-        signal input is{{is_In}}AppUtxo{{UtxoName}}[{{is_ins}}];
-        var sumIs{{is_In}}AppUtxo{{UtxoName}} = 0;
+        signal input is{{is_In}}ProgramUtxo{{UtxoName}}[{{is_ins}}];
+        var sumIs{{is_In}}ProgramUtxo{{UtxoName}} = 0;
         for (var i= 0; i < {{is_ins}}; i++) {
-            (1 - is{{is_In}}AppUtxo{{UtxoName}}[i]) * is{{is_In}}AppUtxo{{UtxoName}}[i] === 0;
-            sumIs{{is_In}}AppUtxo{{UtxoName}} += is{{is_In}}AppUtxo{{UtxoName}}[i];
+            (1 - is{{is_In}}ProgramUtxo{{UtxoName}}[i]) * is{{is_In}}ProgramUtxo{{UtxoName}}[i] === 0;
+            sumIs{{is_In}}ProgramUtxo{{UtxoName}} += is{{is_In}}ProgramUtxo{{UtxoName}}[i];
         }
-        sumIs{{is_In}}AppUtxo{{UtxoName}} === 1 * {{instruction}};
+        sumIs{{is_In}}ProgramUtxo{{UtxoName}} === 1 * {{instruction}};
         {{#if len_utxo_data_non_zero}}
         {{#with this}}{{#each utxoData}}
         signal input {{../../utxoName}}{{this.Input}};
         {{/each}}{{/with}}
 
-        component utxoDataHasher{{UtxoName}} = Poseidon({{utxo_data_length}});
+        component dataHasher{{UtxoName}} = Poseidon({{utxo_data_length}});
 
         {{#with this}}{{#each utxoData}}
-        utxoDataHasher{{../../UtxoName}}.inputs[{{@index}}] <== {{../../utxoName}}{{this.Input}};
+        dataHasher{{../../UtxoName}}.inputs[{{@index}}] <== {{../../utxoName}}{{this.Input}};
         {{/each}}{{/with}}
 
         component checkInstructionHash{{UtxoName}}[{{is_ins}}];
         for (var inUtxoIndex = 0; inUtxoIndex < {{is_ins}}; inUtxoIndex++) {
             checkInstructionHash{{UtxoName}}[inUtxoIndex] = ForceEqualIfEnabled();
-            checkInstructionHash{{UtxoName}}[inUtxoIndex].in[0] <== {{is_in}}AppDataHash[inUtxoIndex];
-            checkInstructionHash{{UtxoName}}[inUtxoIndex].in[1] <== utxoDataHasher{{UtxoName}}.out;
-            checkInstructionHash{{UtxoName}}[inUtxoIndex].enabled <== is{{is_In}}AppUtxo{{UtxoName}}[inUtxoIndex];
+            checkInstructionHash{{UtxoName}}[inUtxoIndex].in[0] <== {{is_in}}DataHash[inUtxoIndex];
+            checkInstructionHash{{UtxoName}}[inUtxoIndex].in[1] <== dataHasher{{UtxoName}}.out;
+            checkInstructionHash{{UtxoName}}[inUtxoIndex].enabled <== is{{is_In}}ProgramUtxo{{UtxoName}}[inUtxoIndex];
         }
         {{/if}}
         component {{utxoName}} = {{this.utxoType}}();
@@ -166,7 +166,7 @@ impl Utxo {
         signal input {{../../utxoName}}{{this.InputField}};
         {{../../utxoName}}.{{this.inputField}}In <== {{../../utxoName}}{{this.InputField}};
         {{/each}}{{/with}}
-        {{../../utxoName}}.utxoDataHashIn <== {{isAppUtxo}};
+        {{../../utxoName}}.dataHashIn <== {{isProgramUtxo}};
         
         component {{../../utxoName}}AmountHasher = Poseidon(2);
         {{../../utxoName}}AmountHasher.inputs[0] <== 0;
@@ -182,7 +182,7 @@ impl Utxo {
         {{../../utxoName}}UtxoCheckHasher.inputs[2] <== {{../../utxoName}}AssetHasher.out;
         {{../../utxoName}}UtxoCheckHasher.inputs[3] <== {{../../utxoName}}.blinding;
         {{../../utxoName}}UtxoCheckHasher.inputs[4] <== {{../../utxoName}}AssetHasher.out;
-        {{../../utxoName}}UtxoCheckHasher.inputs[5] <== {{../../utxoName}}.utxoDataHash;
+        {{../../utxoName}}UtxoCheckHasher.inputs[5] <== {{../../utxoName}}.dataHash;
         {{../../utxoName}}UtxoCheckHasher.inputs[6] <== 0;
         {{../../utxoName}}UtxoCheckHasher.inputs[7] <== {{../../utxoName}}.pspOwner;
 "#;
@@ -206,14 +206,14 @@ impl Utxo {
         };
 
         let native_utxo_fields = vec![
-            "publicKey",
+            "owner",
             "blinding",
             "pspOwner",
             "amountSol",
             "amountSpl",
             "assetSpl",
-            "txVersion",
-            "poolType",
+            "version",
+            "type",
         ];
         let mut native_utxo_fields_vec = Vec::<handlebars::JsonValue>::new();
         for utxo_field in &native_utxo_fields {
@@ -239,7 +239,7 @@ impl Utxo {
             "utxo_data_length": len_utxo_data,
             "len_utxo_data_non_zero": len_utxo_data > 0,
             "instruction":instruction,
-            "isAppUtxo": if self.type_name != "native" {format!("utxoDataHasher{}.out", self.name.to_upper_camel_case())} else {String::from("0")}
+            "isProgramUtxo": if self.type_name != "native" {format!("dataHasher{}.out", self.name.to_upper_camel_case())} else {String::from("0")}
         });
         let handlebars = handlebars::Handlebars::new();
 
@@ -272,7 +272,7 @@ for (var i = 0; i < {{is_ins}}; i++) {
     check{{is_In}}{{this.component}}{{../../UtxoName}}[i] = ForceEqualIfEnabled();
     check{{is_In}}{{this.component}}{{../../UtxoName}}[i].in[0] <== {{../../is_in}}{{this.hasher}}[i]{{this.input}};
     check{{is_In}}{{this.component}}{{../../UtxoName}}[i].in[1] <== {{this.comparison}};
-    check{{is_In}}{{this.component}}{{../../UtxoName}}[i].enabled <== is{{../../is_In}}AppUtxo{{../../UtxoName}}[i] * {{../../instruction}};
+    check{{is_In}}{{this.component}}{{../../UtxoName}}[i].enabled <== is{{../../is_In}}ProgramUtxo{{../../UtxoName}}[i] * {{../../instruction}};
 
 {{/each}}{{/with}}
 
@@ -283,7 +283,7 @@ for (var i = 0; i < {{is_ins}}; i++) {
     check{{this.component}}{{../../UtxoName}}[i] = ForceEqualIfEnabled();
     check{{this.component}}{{../../UtxoName}}[i].in[0] <== {{../../utxoName}}.{{this.input}};
     check{{this.component}}{{../../UtxoName}}[i].in[1] <== {{this.comparison}};
-    check{{this.component}}{{../../UtxoName}}[i].enabled <== is{{../../is_In}}AppUtxo{{../../UtxoName}}[i] * {{../../instruction}};
+    check{{this.component}}{{../../UtxoName}}[i].enabled <== is{{../../is_In}}ProgramUtxo{{../../UtxoName}}[i] * {{../../instruction}};
 
 {{/with}}{{/each}}
 {{/if}}
@@ -293,15 +293,15 @@ for (var i = 0; i < {{is_ins}}; i++) {
         let mut comparisons = vec![];
         if self.type_name == "native" {
             comparisons.push(serde_json::json!({
-                "component": "AppDataHash",
-                "hasher": "AppDataHash",
+                "component": "DataHash",
+                "hasher": "DataHash[i]",
                 "input": "",
                 "comparison": "0",
             }));
             comparisons.push(serde_json::json!({
                 "component": "PspOwner",
                 "hasher": "CommitmentHasher",
-                "input": ".inputs[7]",
+                "input": "PspOwner[i]",
                 "comparison": "0",
             }));
         }
@@ -310,8 +310,8 @@ for (var i = 0; i < {{is_ins}}; i++) {
             if let Some((_, value)) = &self.checks.as_ref().unwrap().amount_sol {
                 comparisons.push(serde_json::json!({
                     "component": "AmountSol",
-                    "hasher": "AmountsHasher",
-                    "input": ".inputs[0]",
+                    "hasher": "Amount",
+                    "input": "[0]",
                     "comparison": value,
                 }));
             }
@@ -319,8 +319,8 @@ for (var i = 0; i < {{is_ins}}; i++) {
             if let Some((_, value)) = &self.checks.as_ref().unwrap().amount_spl {
                 comparisons.push(serde_json::json!({
                     "component": "AmountSpl",
-                    "hasher": "AmountsHasher",
-                    "input": ".inputs[1]",
+                    "hasher": "Amount",
+                    "input": "[1]",
                     "comparison": value,
                 }));
             }
@@ -328,8 +328,8 @@ for (var i = 0; i < {{is_ins}}; i++) {
             if let Some((_, value)) = &self.checks.as_ref().unwrap().asset_spl {
                 comparisons.push(serde_json::json!({
                     "component": "AssetSpl",
-                    "hasher": "AssetsHasher",
-                    "input": ".inputs[1]",
+                    "hasher": "Asset",
+                    "input": "[1]",
                     "comparison": value,
                 }));
             }
@@ -337,28 +337,28 @@ for (var i = 0; i < {{is_ins}}; i++) {
             if let Some((_, value)) = &self.checks.as_ref().unwrap().blinding {
                 comparisons.push(serde_json::json!({
                     "component": "Blinding",
-                    "hasher": "CommitmentHasher",
-                    "input": ".inputs[3]",
+                    "hasher": "Blinding",
+                    "input": "",
                     "comparison": value,
                 }));
             }
 
             if let Some((_, value)) = &self.checks.as_ref().unwrap().public_key {
                 comparisons.push(serde_json::json!({
-                    "component": "PublicKey",
-                    "hasher": "CommitmentHasher",
-                    "input": ".inputs[2]",
+                    "component": "Owner",
+                    "hasher": "Owner",
+                    "input": "",
                     "comparison": value,
                 }));
             }
 
             if let Some((_, value)) = &self.checks.as_ref().unwrap().utxo_data_hash {
                 if self.type_name == "native" {
-                    panic!("UtxoDataHash == 0 is checked by default for native utxos.")
+                    panic!("DataHash == 0 is checked by default for native utxos.")
                 }
                 comparisons.push(serde_json::json!({
-                    "component": "AppDataHash",
-                    "hasher": "AppDataHash", // TODO: rename together with zk.js
+                    "component": "DataHash",
+                    "hasher": "DataHash", // TODO: rename together with zk.js
                     "input": "",
                     "comparison": value,
                 }));
@@ -370,8 +370,8 @@ for (var i = 0; i < {{is_ins}}; i++) {
                 }
                 comparisons.push(serde_json::json!({
                     "component": "PspOwner",
-                    "hasher": "CommitmentHasher",
-                    "input": ".inputs[7]",
+                    "hasher": "PspOwner",
+                    "input": "",
                     "comparison": value,
                 }));
             }
@@ -380,18 +380,18 @@ for (var i = 0; i < {{is_ins}}; i++) {
             // but implemented for completeness.
             if let Some((_, value)) = &self.checks.as_ref().unwrap().tx_version {
                 comparisons.push(serde_json::json!({
-                    "component": "TxVersion",
-                    "hasher": "CommitmentHasher",
-                    "input": ".inputs[0]",
+                    "component": "Version",
+                    "hasher": "Version",
+                    "input": "",
                     "comparison": value,
                 }));
                 unimplemented!("TxVersion has to be 0 and is checked automatically.");
             }
             if let Some((_, value)) = &self.checks.as_ref().unwrap().pool_type {
                 comparisons.push(serde_json::json!({
-                    "component": "PoolType",
-                    "hasher": "CommitmentHasher",
-                    "input": ".inputs[6]",
+                    "component": "Type",
+                    "hasher": "Type",
+                    "input": "",
                     "comparison": value,
                 }));
                 unimplemented!("Pool type has to be 0 and is checked automatically.");
@@ -546,30 +546,30 @@ mod tests_utxo {
         check_utxo.generate_delare_code()?;
 
         let expected_output = r#"
-    signal input isInAppUtxoUtxoName[nIns];
-    var sumIsInAppUtxoUtxoName = 0;
+    signal input isInProgramUtxoUtxoName[nIns];
+    var sumIsInProgramUtxoUtxoName = 0;
     for (var i= 0; i < nIns; i++) {
-        (1 - isInAppUtxoUtxoName[i]) * isInAppUtxoUtxoName[i] === 0;
-        sumIsInAppUtxoUtxoName += isInAppUtxoUtxoName[i];
+        (1 - isInProgramUtxoUtxoName[i]) * isInProgramUtxoUtxoName[i] === 0;
+        sumIsInProgramUtxoUtxoName += isInProgramUtxoUtxoName[i];
     }
-    sumIsInAppUtxoUtxoName === 1 * instruction;
+    sumIsInProgramUtxoUtxoName === 1 * instruction;
     
     signal input UtxoNameAttribute1;
 
     signal input UtxoNameAttribute2;
 
 
-    component utxoDataHasherUtxoName = Poseidon(2);
+    component dataHasherUtxoName = Poseidon(2);
 
-    utxoDataHasherUtxoName.inputs[0] <== UtxoNameAttribute1;
-    utxoDataHasherUtxoName.inputs[1] <== UtxoNameAttribute2;
+    dataHasherUtxoName.inputs[0] <== UtxoNameAttribute1;
+    dataHasherUtxoName.inputs[1] <== UtxoNameAttribute2;
 
     component checkInstructionHashUtxoName[nIns];
     for (var inUtxoIndex = 0; inUtxoIndex < nIns; inUtxoIndex++) {
         checkInstructionHashUtxoName[inUtxoIndex] = ForceEqualIfEnabled();
-        checkInstructionHashUtxoName[inUtxoIndex].in[0] <== inAppDataHash[inUtxoIndex];
-        checkInstructionHashUtxoName[inUtxoIndex].in[1] <== utxoDataHasherUtxoName.out;
-        checkInstructionHashUtxoName[inUtxoIndex].enabled <== isInAppUtxoUtxoName[inUtxoIndex];
+        checkInstructionHashUtxoName[inUtxoIndex].in[0] <== inDataHash[inUtxoIndex];
+        checkInstructionHashUtxoName[inUtxoIndex].in[1] <== dataHasherUtxoName.out;
+        checkInstructionHashUtxoName[inUtxoIndex].enabled <== isInProgramUtxoUtxoName[inUtxoIndex];
     }
     component UtxoName = UtxoType();
 
@@ -579,8 +579,8 @@ mod tests_utxo {
         UtxoName.attribute2In <== UtxoNameAttribute2;
         
         
-        signal input UtxoNamePublicKey;
-        UtxoName.publicKeyIn <== UtxoNamePublicKey;
+        signal input UtxoNameOwner;
+        UtxoName.ownerIn <== UtxoNameOwner;
         
         signal input UtxoNameBlinding;
         UtxoName.blindingIn <== UtxoNameBlinding;
@@ -597,13 +597,13 @@ mod tests_utxo {
         signal input UtxoNameAssetSpl;
         UtxoName.assetSplIn <== UtxoNameAssetSpl;
         
-        signal input UtxoNameTxVersion;
-        UtxoName.txVersionIn <== UtxoNameTxVersion;
+        signal input UtxoNameVersion;
+        UtxoName.versionIn <== UtxoNameVersion;
         
-        signal input UtxoNamePoolType;
-        UtxoName.poolTypeIn <== UtxoNamePoolType;
+        signal input UtxoNameType;
+        UtxoName.typeIn <== UtxoNameType;
         
-        UtxoName.utxoDataHashIn <== utxoDataHasherUtxoName.out;
+        UtxoName.dataHashIn <== dataHasherUtxoName.out;
         
         component UtxoNameAmountHasher = Poseidon(2);
         UtxoNameAmountHasher.inputs[0] <== 0;
@@ -619,7 +619,7 @@ mod tests_utxo {
         UtxoNameUtxoCheckHasher.inputs[2] <== UtxoNameAssetHasher.out;
         UtxoNameUtxoCheckHasher.inputs[3] <== UtxoName.blinding;
         UtxoNameUtxoCheckHasher.inputs[4] <== UtxoNameAssetHasher.out;
-        UtxoNameUtxoCheckHasher.inputs[5] <== UtxoName.utxoDataHash;
+        UtxoNameUtxoCheckHasher.inputs[5] <== UtxoName.dataHash;
         UtxoNameUtxoCheckHasher.inputs[6] <== 0;
         UtxoNameUtxoCheckHasher.inputs[7] <== UtxoName.pspOwner;
     "#;
@@ -677,51 +677,51 @@ component checkAmountSolUtxoName[nIns];
 component checkAmountSplUtxoName[nIns];
 component checkAssetSplUtxoName[nIns];
 component checkBlindingUtxoName[nIns];
-component checkPublicKeyUtxoName[nIns];
-component checkAppDataHashUtxoName[nIns];
+component checkOwnerUtxoName[nIns];
+component checkDataHashUtxoName[nIns];
 component checkPspOwnerUtxoName[nIns];
 
 for (var i = 0; i < nIns; i++) {
 
     checkAmountSolUtxoName[i] = ForceEqualIfEnabled();
-    checkAmountSolUtxoName[i].in[0] <== inAmountsHasher[i].inputs[0];
+    checkAmountSolUtxoName[i].in[0] <== inAmount[i][0];
     checkAmountSolUtxoName[i].in[1] <== sth;
-    checkAmountSolUtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction; 
+    checkAmountSolUtxoName[i].enabled <== isInProgramUtxoUtxoName[i] * instruction; 
 
     checkAmountSplUtxoName[i] = ForceEqualIfEnabled();
-    checkAmountSplUtxoName[i].in[0] <== inAmountsHasher[i].inputs[1];
+    checkAmountSplUtxoName[i].in[0] <== inAmount[i][1];
     checkAmountSplUtxoName[i].in[1] <== sth1;
-    checkAmountSplUtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction;
+    checkAmountSplUtxoName[i].enabled <== isInProgramUtxoUtxoName[i] * instruction;
 
     checkAssetSplUtxoName[i] = ForceEqualIfEnabled();
-    checkAssetSplUtxoName[i].in[0] <== inAssetsHasher[i].inputs[1];
+    checkAssetSplUtxoName[i].in[0] <== inAsset[i][1];
     checkAssetSplUtxoName[i].in[1] <== sth2;
-    checkAssetSplUtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction;
+    checkAssetSplUtxoName[i].enabled <== isInProgramUtxoUtxoName[i] * instruction;
 
     checkBlindingUtxoName[i] = ForceEqualIfEnabled();
-    checkBlindingUtxoName[i].in[0] <== inCommitmentHasher[i].inputs[3];
+    checkBlindingUtxoName[i].in[0] <== inBlinding[i];
     checkBlindingUtxoName[i].in[1] <== sthB;
-    checkBlindingUtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction;
+    checkBlindingUtxoName[i].enabled <== isInProgramUtxoUtxoName[i] * instruction;
 
-    checkPublicKeyUtxoName[i] = ForceEqualIfEnabled();
-    checkPublicKeyUtxoName[i].in[0] <== inCommitmentHasher[i].inputs[2];
-    checkPublicKeyUtxoName[i].in[1] <== sthPk;
-    checkPublicKeyUtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction;
+    checkOwnerUtxoName[i] = ForceEqualIfEnabled();
+    checkOwnerUtxoName[i].in[0] <== inOwner[i];
+    checkOwnerUtxoName[i].in[1] <== sthPk;
+    checkOwnerUtxoName[i].enabled <== isInProgramUtxoUtxoName[i] * instruction;
 
-    checkAppDataHashUtxoName[i] = ForceEqualIfEnabled();
-    checkAppDataHashUtxoName[i].in[0] <== inAppDataHash[i];
-    checkAppDataHashUtxoName[i].in[1] <== sth3;
-    checkAppDataHashUtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction;
+    checkDataHashUtxoName[i] = ForceEqualIfEnabled();
+    checkDataHashUtxoName[i].in[0] <== inDataHash[i];
+    checkDataHashUtxoName[i].in[1] <== sth3;
+    checkDataHashUtxoName[i].enabled <== isInProgramUtxoUtxoName[i] * instruction;
 
     checkPspOwnerUtxoName[i] = ForceEqualIfEnabled();
-    checkPspOwnerUtxoName[i].in[0] <== inCommitmentHasher[i].inputs[7];
+    checkPspOwnerUtxoName[i].in[0] <== inPspOwner[i];
     checkPspOwnerUtxoName[i].in[1] <== sthV;
-    checkPspOwnerUtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction;
+    checkPspOwnerUtxoName[i].enabled <== isInProgramUtxoUtxoName[i] * instruction;
 
     checkUtxoDataAttribute2UtxoName[i] = ForceEqualIfEnabled();
     checkUtxoDataAttribute2UtxoName[i].in[0] <== UtxoName.attribute2;
     checkUtxoDataAttribute2UtxoName[i].in[1] <== testComparison;
-    checkUtxoDataAttribute2UtxoName[i].enabled <== isInAppUtxoUtxoName[i] * instruction;
+    checkUtxoDataAttribute2UtxoName[i].enabled <== isInProgramUtxoUtxoName[i] * instruction;
 
 }
 "#;
@@ -751,7 +751,7 @@ for (var i = 0; i < nIns; i++) {
                     amountSol == sth,
                     amountSpl == sth1,
                     assetSpl == sth2,
-                    utxoDataHash == sth3,
+                    dataHash == sth3,
                     blinding == sth,
                 },
                 dataChecks: {
@@ -822,7 +822,7 @@ for (var i = 0; i < nIns; i++) {
                 amountSol == sthSol,
                 amountSpl == sthSpl,
                 assetSpl == sthAsset,
-                utxoDataHash == sthApp,
+                dataHash == sthApp,
                 pspOwner== sthV,
                 blinding == sthB,
             },
@@ -838,7 +838,7 @@ for (var i = 0; i < nIns; i++) {
                     amountSol == sth,
                     amountSpl == sth1,
                     assetSpl == sth2,
-                    utxoDataHash == sth3,
+                    dataHash == sth3,
                     blinding == sth,
                 },
                 dataChecks: {

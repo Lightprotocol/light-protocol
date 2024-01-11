@@ -1,19 +1,19 @@
-pragma circom 2.0.0;
+pragma circom 2.1.4;
 
-include "./transaction_masp.circom";
+include "./transaction.circom";
 
 // 2 in 2 out 3 assets (min to do a swap)
 component main {
 	public [
-		root,
-		inputNullifier,
-		outputCommitment,
+		publicRoot,
+		publicNullifier,
+		publicUtxoHash,
 		publicAmountSpl,
-		txIntegrityHash,
+		publicDataHash,
 		publicAmountSol,
-		publicMintPubkey
+		publicMintPublicKey
 	]
-} = TransactionAccount(
+} = PrivateTransaction(
 	18,
 	2,
 	2,

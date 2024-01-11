@@ -38,7 +38,7 @@ template multisig( nAppUtxos, levels, nIns, nOuts, feeAsset, indexFeeAsset, inde
     signal  input inIndices[nIns][nInAssets][nAssets];
 
     // data for transaction outputsAccount
-    signal  input outputCommitment[nOuts];
+    signal  input publicUtxoHash[nOuts];
     signal  input outAmount[nOuts][nOutAssets];
     signal  input outPubkey[nOuts];
     signal  input outBlinding[nOuts];
@@ -188,7 +188,7 @@ template multisig( nAppUtxos, levels, nIns, nOuts, feeAsset, indexFeeAsset, inde
         outCommitmentHasher[tx].inputs[5] <== outAppDataHash[tx];
         outCommitmentHasher[tx].inputs[6] <== outPoolType[tx];
         outCommitmentHasher[tx].inputs[7] <== outVerifierPubkey[tx];
-        outCommitmentHasher[tx].out === outputCommitment[tx];
+        outCommitmentHasher[tx].out === publicUtxoHash[tx];
 
         // ensure that all pool types are the same
         outPoolType[0] === outPoolType[tx];
@@ -326,7 +326,7 @@ checkThreshold.out === 1;
 *   inVerifierPubkey[nIns];
 *   inIndices[nIns][nInAssets][nAssets];
 * OutUtxos:
-*   outputCommitment[nOuts];
+*   publicUtxoHash[nOuts];
 *   outAmount[nOuts][nOutAssets];
 *   outPubkey[nOuts];
 *   outBlinding[nOuts];

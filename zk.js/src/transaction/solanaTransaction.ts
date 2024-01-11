@@ -62,7 +62,7 @@ export function getSolanaRemainingAccounts(
     nextEventMerkleTree?: remainingAccount;
   },
 ) {
-  const nullifiers = systemProofPublicInputs.inputNullifier;
+  const nullifiers = systemProofPublicInputs.publicNullifier;
   const remainingAccounts: SolanaRemainingAccounts = {
     ...remainingMerkleTreeAccounts,
   };
@@ -77,13 +77,13 @@ export function getSolanaRemainingAccounts(
 
   remainingAccounts["leavesPdaPubkeys"] = [];
 
-  for (let j = 0; j < systemProofPublicInputs.outputCommitment.length; j += 2) {
+  for (let j = 0; j < systemProofPublicInputs.publicUtxoHash.length; j += 2) {
     remainingAccounts.leavesPdaPubkeys.push({
       isSigner: false,
       isWritable: true,
       pubkey: PublicKey.findProgramAddressSync(
         [
-          Buffer.from(Array.from(systemProofPublicInputs.outputCommitment[j])),
+          Buffer.from(Array.from(systemProofPublicInputs.publicUtxoHash[j])),
           utils.bytes.utf8.encode("leaves"),
         ],
         merkleTreeProgramId,

@@ -136,7 +136,7 @@ export const createPspProofInputs = (
   pspTransaction: PspTransactionInput,
   inputUtxos: Utxo[],
   outputUtxos: OutUtxo[],
-  transactionHash: string,
+  publicTransactionHash: string,
 ): any => {
   const inUtxosInputs = {};
   pspTransaction.checkedInUtxos?.forEach(({ utxoName, utxo: programUtxo }) => {
@@ -149,17 +149,17 @@ export const createPspProofInputs = (
 
     const isAppUtxo = createUtxoIndices(inputUtxos, utxo.utxoHash);
     // @ts-ignore
-    inUtxosInputs[`isInAppUtxo${upperCamelCase(utxoName)}`] = isAppUtxo;
+    inUtxosInputs[`isInProgramUtxo${upperCamelCase(utxoName)}`] = isAppUtxo;
     inUtxosInputs[`${camelCase(utxoName)}Blinding`] = utxo.blinding;
     inUtxosInputs[`${camelCase(utxoName)}AmountSol`] = utxo.amounts[0];
     inUtxosInputs[`${camelCase(utxoName)}AmountSpl`] =
       utxo.amounts.length === 2 ? utxo.amounts[1] : BN_0;
     inUtxosInputs[`${camelCase(utxoName)}AssetSpl`] = utxo.assetsCircuit[1];
-    inUtxosInputs[`${camelCase(utxoName)}PublicKey`] = utxo.publicKey;
-    inUtxosInputs[`${camelCase(utxoName)}PoolType`] = utxo.poolType;
+    inUtxosInputs[`${camelCase(utxoName)}Owner`] = utxo.publicKey;
+    inUtxosInputs[`${camelCase(utxoName)}Type`] = utxo.poolType;
     inUtxosInputs[`${camelCase(utxoName)}PspOwner`] =
       utxo.verifierAddressCircuit;
-    inUtxosInputs[`${camelCase(utxoName)}TxVersion`] = BN_0;
+    inUtxosInputs[`${camelCase(utxoName)}Version`] = BN_0;
     // utxo data hash is calculated in the circuit
   });
 
@@ -176,32 +176,40 @@ export const createPspProofInputs = (
 
       const isAppUtxoIndices = createUtxoIndices(outputUtxos, utxo.utxoHash);
       // @ts-ignore
-      outUtxosInputs[`isOutAppUtxo${upperCamelCase(utxoName)}`] =
+      outUtxosInputs[`isOutProgramUtxo${upperCamelCase(utxoName)}`] =
         isAppUtxoIndices;
       inUtxosInputs[`${camelCase(utxoName)}Blinding`] = utxo.blinding;
       inUtxosInputs[`${camelCase(utxoName)}AmountSol`] = utxo.amounts[0];
       inUtxosInputs[`${camelCase(utxoName)}AmountSpl`] =
         utxo.amounts.length === 2 ? utxo.amounts[1] : BN_0;
       inUtxosInputs[`${camelCase(utxoName)}AssetSpl`] = utxo.assetsCircuit[1];
-      inUtxosInputs[`${camelCase(utxoName)}PublicKey`] = utxo.publicKey;
-      inUtxosInputs[`${camelCase(utxoName)}PoolType`] = utxo.poolType;
+      inUtxosInputs[`${camelCase(utxoName)}Owner`] = utxo.publicKey;
+      inUtxosInputs[`${camelCase(utxoName)}Type`] = utxo.poolType;
       inUtxosInputs[`${camelCase(utxoName)}PspOwner`] =
         utxo.verifierAddressCircuit;
-      inUtxosInputs[`${camelCase(utxoName)}TxVersion`] = BN_0;
+      inUtxosInputs[`${camelCase(utxoName)}Version`] = BN_0;
     },
   );
 
-  const publicAppVerifier = hashAndTruncateToCircuit(
+  const publicProgramId = hashAndTruncateToCircuit(
     getVerifierProgramId(pspTransaction.verifierIdl).toBuffer(),
   );
 
   const compiledProofInputs = {
     ...pspTransaction.proofInputs,
-    inPublicKey: inputUtxos?.map((utxo) => utxo.publicKey),
-    transactionHash,
-    publicAppVerifier,
+    inOwner: inputUtxos?.map((utxo) => utxo.publicKey),
+    publicTransactionHash,
+    publicProgramId,
     ...inUtxosInputs,
     ...outUtxosInputs,
+    inAsset: inputUtxos?.map((utxo) => [
+      utxo.assetsCircuit[0],
+      utxo.assetsCircuit[1],
+    ]),
+    outAsset: outputUtxos?.map((utxo) => [
+      utxo.assetsCircuit[0],
+      utxo.assetsCircuit[1],
+    ]),
   };
   return compiledProofInputs;
 };
@@ -249,7 +257,7 @@ export function createSystemProofInputs({
       "compile",
     );
 
-  const inputNullifier = transaction.private.inputUtxos.map((x) => {
+  const publicNullifier = transaction.private.inputUtxos.map((x) => {
     let _account = account;
     if (new BN(x.publicKey).eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
       _account = Account.fromPrivkey(
@@ -262,25 +270,24 @@ export function createSystemProofInputs({
     return x.nullifier;
   });
   const proofInput = {
-    root,
-    inputNullifier,
+    publicRoot: root,
+    publicNullifier,
     publicAmountSpl: transaction.public.publicAmountSpl.toString(),
     publicAmountSol: transaction.public.publicAmountSol.toString(),
-    publicMintPubkey: transaction.public.publicMintPubkey,
-    inPathIndices: transaction.private.inputUtxos?.map(
+    publicMintPublicKey: transaction.public.publicMintPubkey,
+    leafIndex: transaction.private.inputUtxos?.map(
       (x) => x.merkleTreeLeafIndex,
     ),
-    inPathElements: transaction.private.inputUtxos?.map((x) => x.merkleProof),
-    internalTxIntegrityHash: transaction.public.txIntegrityHash.toString(),
-    transactionVersion: "0",
-    txIntegrityHash: transaction.public.txIntegrityHash.toString(),
-    outputCommitment: transaction.private.outputUtxos.map((x) => x.utxoHash),
+    merkleProof: transaction.private.inputUtxos?.map((x) => x.merkleProof),
+    privatePublicDataHash: transaction.public.txIntegrityHash.toString(),
+    publicDataHash: transaction.public.txIntegrityHash.toString(),
+    publicUtxoHash: transaction.private.outputUtxos.map((x) => x.utxoHash),
     inAmount: transaction.private.inputUtxos?.map((x) => x.amounts),
     inBlinding: transaction.private.inputUtxos?.map((x) => x.blinding),
-    assetPubkeys: transaction.private.assetPubkeysCircuit,
+    assetPublicKeys: transaction.private.assetPubkeysCircuit,
     outAmount: transaction.private.outputUtxos?.map((x) => x.amounts),
     outBlinding: transaction.private.outputUtxos?.map((x) => x.blinding),
-    outPubkey: transaction.private.outputUtxos?.map((x) => x.publicKey),
+    outOwner: transaction.private.outputUtxos?.map((x) => x.publicKey),
     inIndices: getIndices3D(
       transaction.private.inputUtxos[0].assets.length,
       N_ASSET_PUBKEYS,
@@ -293,14 +300,12 @@ export function createSystemProofInputs({
       transaction.private.outputUtxos.map((utxo) => utxo.assetsCircuit),
       transaction.private.assetPubkeysCircuit,
     ),
-    inAppDataHash: transaction.private.inputUtxos?.map((x) => x.utxoDataHash),
-    outAppDataHash: transaction.private.outputUtxos?.map((x) => x.utxoDataHash),
-    inPoolType: transaction.private.inputUtxos?.map((x) => x.poolType),
-    outPoolType: transaction.private.outputUtxos?.map((x) => x.poolType),
-    inVerifierPubkey: transaction.private.inputUtxos?.map(
+    inDataHash: transaction.private.inputUtxos?.map((x) => x.utxoDataHash),
+    outDataHash: transaction.private.outputUtxos?.map((x) => x.utxoDataHash),
+    inVerifierPublicKey: transaction.private.inputUtxos?.map(
       (x) => x.verifierAddressCircuit,
     ),
-    outVerifierPubkey: transaction.private.outputUtxos?.map(
+    outVerifierPublicKey: transaction.private.outputUtxos?.map(
       (x) => x.verifierAddressCircuit,
     ),
   };
@@ -508,33 +513,33 @@ export function getVerifierConfig(verifierIdl: Idl): VerifierConfig {
   }
 
   const fields = resultElement.type.fields;
-  const inputNullifierField = fields.find(
-    (field) => field.name === "inputNullifier",
+  const publicNullifierField = fields.find(
+    (field) => field.name === "publicNullifier",
   ) as Field;
-  const outputCommitmentField = fields.find(
-    (field) => field.name === "outputCommitment",
+  const publicUtxoHashField = fields.find(
+    (field) => field.name === "publicUtxoHash",
   ) as Field;
 
-  if (!inputNullifierField || !inputNullifierField.type.array) {
+  if (!publicNullifierField || !publicNullifierField.type.array) {
     throw new TransactionError(
       TransactionErrorCode.FIELD_NOT_FOUND,
       "getVerifierIdl",
-      "inputNullifier field not found or has an incorrect type",
+      "publicNullifier field not found or has an incorrect type",
     );
   }
 
-  if (!outputCommitmentField || !outputCommitmentField.type.array) {
+  if (!publicUtxoHashField || !publicUtxoHashField.type.array) {
     throw new TransactionError(
       TransactionErrorCode.FIELD_NOT_FOUND,
       "getVerifierIdl",
-      "outputCommitment field not found or has an incorrect type",
+      "publicUtxoHash field not found or has an incorrect type",
     );
   }
 
-  const inputNullifierLength = inputNullifierField.type.array[1];
-  const outputCommitmentLength = outputCommitmentField.type.array[1];
+  const publicNullifierLength = publicNullifierField.type.array[1];
+  const publicUtxoHash = publicUtxoHashField.type.array[1];
 
-  return { in: inputNullifierLength, out: outputCommitmentLength };
+  return { in: publicNullifierLength, out: publicUtxoHash };
 }
 
 /**

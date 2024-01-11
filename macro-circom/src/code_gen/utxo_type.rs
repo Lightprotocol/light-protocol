@@ -32,15 +32,15 @@ template {{name}}() {
 
         let handlebars = handlebars::Handlebars::new();
         let mut utxo_fields = vec![
-            "publicKey",
+            "owner",
             "blinding",
             "pspOwner",
-            "utxoDataHash",
+            "dataHash",
             "amountSol",
             "amountSpl",
             "assetSpl",
-            "txVersion",
-            "poolType",
+            "version",
+            "type",
         ];
         // adding custom fields to native utxo fields
         for field in &self.fields {
@@ -102,18 +102,18 @@ mod tests {
 
         let expected_code = r#"
 template MyUtxo() {
-    signal input publicKeyIn;
-	signal output publicKey;
-	publicKey <== publicKeyIn;
+    signal input ownerIn;
+	signal output owner;
+	owner <== ownerIn;
 	signal input blindingIn;
 	signal output blinding;
 	blinding <== blindingIn;
 	signal input pspOwnerIn;
 	signal output pspOwner;
 	pspOwner <== pspOwnerIn;
-	signal input utxoDataHashIn;
-	signal output utxoDataHash;
-	utxoDataHash <== utxoDataHashIn;
+	signal input dataHashIn;
+	signal output dataHash;
+	dataHash <== dataHashIn;
 	signal input amountSolIn;
 	signal output amountSol;
 	amountSol <== amountSolIn;
@@ -123,12 +123,12 @@ template MyUtxo() {
 	signal input assetSplIn;
 	signal output assetSpl;
 	assetSpl <== assetSplIn;
-	signal input txVersionIn;
-	signal output txVersion;
-	txVersion <== txVersionIn;
-	signal input poolTypeIn;
-	signal output poolType;
-	poolType <== poolTypeIn;
+	signal input versionIn;
+	signal output version;
+	version <== versionIn;
+	signal input typeIn;
+	signal output type;
+	type <== typeIn;
     signal input field1In;
     signal output field1;
     field1 <== field1In;

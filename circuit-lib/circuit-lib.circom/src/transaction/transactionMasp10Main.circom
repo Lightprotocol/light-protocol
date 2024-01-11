@@ -1,18 +1,18 @@
 pragma circom 2.0.0;
 
-include "./transaction_masp.circom";
+include "./transaction.circom";
 
 component main {
 	public [
-		root,
-		inputNullifier,
-		outputCommitment,
+		publicRoot,
+		publicNullifier,
+		publicUtxoHash,
 		publicAmountSpl,
-		txIntegrityHash,
+		publicDataHash,
 		publicAmountSol,
-		publicMintPubkey
+		publicMintPublicKey
 	]
-} = TransactionAccount(
+} = PrivateTransaction(
 	18,
 	10,
 	2,

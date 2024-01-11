@@ -5,6 +5,7 @@ include "merkleProof.circom";
 include "keypair.circom";
 include "gates.circom";
 include "comparators.circom";
+include "transaction.circom";
 
 // will create a new instance of the circuit
 #[instance]
@@ -33,8 +34,8 @@ outUtxo remaingStreamUtxo {
     enabled: remainingAmount,
     checks: {
         amountSol == remainingAmount,
-        utxoDataHash == streamInUtxo.utxoDataHash,
-        pspOwner == publicAppVerifier,
+        dataHash == streamInUtxo.utxoDataHash,
+        pspOwner == publicProgramId,
     },
     dataChecks: {
         endSlot == streamInUtxo.endSlot,
@@ -117,7 +118,7 @@ template streaming_payments() {
 *   inVerifierPubkey[nIns];
 *   inIndices[nIns][nInAssets][nAssets];
 * OutUtxos:
-*   outputCommitment[nOuts];
+*   publicUtxoHash[nOuts];
 *   outAmount[nOuts][nOutAssets];
 *   outPubkey[nOuts];
 *   outBlinding[nOuts];
