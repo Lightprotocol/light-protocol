@@ -474,16 +474,16 @@ mod test {
     ///   after update it looks like: `[value = 30, next_index = 4]`.
     #[test]
     fn test_append() {
-        let mut nullifier_merkle_tree: IndexingArray<Poseidon, 8> = IndexingArray::default();
+        let mut indexing_array: IndexingArray<Poseidon, 8> = IndexingArray::default();
 
         let nullifier1: [u8; 32] = [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 30,
         ];
-        nullifier_merkle_tree.append(nullifier1).unwrap();
+        indexing_array.append(nullifier1).unwrap();
 
         assert_eq!(
-            nullifier_merkle_tree.elements[0],
+            indexing_array.elements[0],
             IndexingElement {
                 index: 0,
                 value: [0u8; 32],
@@ -495,7 +495,7 @@ mod test {
             },
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[1],
+            indexing_array.elements[1],
             IndexingElement {
                 index: 1,
                 value: [
@@ -511,10 +511,10 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 10,
         ];
-        nullifier_merkle_tree.append(nullifier2).unwrap();
+        indexing_array.append(nullifier2).unwrap();
 
         assert_eq!(
-            nullifier_merkle_tree.elements[0],
+            indexing_array.elements[0],
             IndexingElement {
                 index: 0,
                 value: [0u8; 32],
@@ -526,7 +526,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[1],
+            indexing_array.elements[1],
             IndexingElement {
                 index: 1,
                 value: [
@@ -538,7 +538,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[2],
+            indexing_array.elements[2],
             IndexingElement {
                 index: 2,
                 value: [
@@ -557,10 +557,10 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 20,
         ];
-        nullifier_merkle_tree.append(nullifier3).unwrap();
+        indexing_array.append(nullifier3).unwrap();
 
         assert_eq!(
-            nullifier_merkle_tree.elements[0],
+            indexing_array.elements[0],
             IndexingElement {
                 index: 0,
                 value: [0u8; 32],
@@ -572,7 +572,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[1],
+            indexing_array.elements[1],
             IndexingElement {
                 index: 1,
                 value: [
@@ -584,7 +584,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[2],
+            indexing_array.elements[2],
             IndexingElement {
                 index: 2,
                 value: [
@@ -599,7 +599,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[3],
+            indexing_array.elements[3],
             IndexingElement {
                 index: 3,
                 value: [
@@ -618,10 +618,10 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 50,
         ];
-        nullifier_merkle_tree.append(nullifier4).unwrap();
+        indexing_array.append(nullifier4).unwrap();
 
         assert_eq!(
-            nullifier_merkle_tree.elements[0],
+            indexing_array.elements[0],
             IndexingElement {
                 index: 0,
                 value: [0u8; 32],
@@ -633,7 +633,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[1],
+            indexing_array.elements[1],
             IndexingElement {
                 index: 1,
                 value: [
@@ -648,7 +648,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[2],
+            indexing_array.elements[2],
             IndexingElement {
                 index: 2,
                 value: [
@@ -663,7 +663,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[3],
+            indexing_array.elements[3],
             IndexingElement {
                 index: 3,
                 value: [
@@ -678,7 +678,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[4],
+            indexing_array.elements[4],
             IndexingElement {
                 index: 4,
                 value: [
@@ -694,7 +694,7 @@ mod test {
     /// Tests the same case as above, but inserts all nullifiers at once.
     #[test]
     fn test_insert_all_at_once() {
-        let mut nullifier_merkle_tree: IndexingArray<Poseidon, 8> = IndexingArray::default();
+        let mut indexing_array: IndexingArray<Poseidon, 8> = IndexingArray::default();
 
         let nullifiers: [[u8; 32]; 4] = [
             [
@@ -715,10 +715,10 @@ mod test {
             ],
         ];
 
-        nullifier_merkle_tree.try_extend(nullifiers).unwrap();
+        indexing_array.try_extend(nullifiers).unwrap();
 
         assert_eq!(
-            nullifier_merkle_tree.elements[0],
+            indexing_array.elements[0],
             IndexingElement {
                 index: 0,
                 value: [0u8; 32],
@@ -730,7 +730,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[1],
+            indexing_array.elements[1],
             IndexingElement {
                 index: 1,
                 value: [
@@ -745,7 +745,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[2],
+            indexing_array.elements[2],
             IndexingElement {
                 index: 2,
                 value: [
@@ -760,7 +760,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[3],
+            indexing_array.elements[3],
             IndexingElement {
                 index: 3,
                 value: [
@@ -775,7 +775,7 @@ mod test {
             }
         );
         assert_eq!(
-            nullifier_merkle_tree.elements[4],
+            indexing_array.elements[4],
             IndexingElement {
                 index: 4,
                 value: [
