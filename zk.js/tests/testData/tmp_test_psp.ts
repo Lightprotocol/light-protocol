@@ -212,7 +212,7 @@ export type TmpTestPsp = {
             };
           },
           {
-            name: "inputNullifier";
+            name: "publicNullifier";
             type: {
               array: [
                 {
@@ -223,7 +223,7 @@ export type TmpTestPsp = {
             };
           },
           {
-            name: "outputCommitment";
+            name: "publicUtxoHash";
             type: {
               array: [
                 {
@@ -467,7 +467,7 @@ export type TmpTestPsp = {
             };
           },
           {
-            name: "outputCommitment";
+            name: "publicUtxoHash";
             type: {
               array: ["u8", 4];
             };
@@ -784,7 +784,7 @@ export const IDL: TmpTestPsp = {
             },
           },
           {
-            name: "inputNullifier",
+            name: "publicNullifier",
             type: {
               array: [
                 {
@@ -795,7 +795,7 @@ export const IDL: TmpTestPsp = {
             },
           },
           {
-            name: "outputCommitment",
+            name: "publicUtxoHash",
             type: {
               array: [
                 {
@@ -1039,7 +1039,7 @@ export const IDL: TmpTestPsp = {
             },
           },
           {
-            name: "outputCommitment",
+            name: "publicUtxoHash",
             type: {
               array: ["u8", 4],
             },

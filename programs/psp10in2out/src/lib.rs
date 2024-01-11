@@ -56,8 +56,8 @@ pub mod light_psp10in2out {
         let state = VerifierState10Ins {
             merkle_root_index: inputs.root_index,
             signer: Pubkey::from([0u8; 32]),
-            nullifiers: inputs.input_nullifier.to_vec(),
-            leaves: vec![inputs.output_commitment[0], inputs.output_commitment[1]],
+            nullifiers: inputs.public_nullifier.to_vec(),
+            leaves: vec![inputs.public_utxo_hash[0], inputs.public_utxo_hash[1]],
             public_amount_spl: inputs.public_amount_spl,
             public_amount_sol: inputs.public_amount_sol,
             mint_pubkey: [0u8; 32],
@@ -179,8 +179,8 @@ pub struct LightInstructionFirst<
 #[account]
 pub struct InstructionDataShieldedTransferFirst {
     public_amount_spl: [u8; 32],
-    input_nullifier: [[u8; 32]; 10],
-    output_commitment: [[u8; 32]; 2],
+    public_nullifier: [[u8; 32]; 10],
+    public_utxo_hash: [[u8; 32]; 2],
     public_amount_sol: [u8; 32],
     root_index: u64,
     rpc_fee: u64,

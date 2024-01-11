@@ -135,7 +135,7 @@ template CheckIndices(n) {
 *   inVerifierPubkey[nIns];
 *   inIndices[nIns][nInAssets][nAssets];
 * OutUtxos:
-*   outputCommitment[nOuts];
+*   publicUtxoHash[nOuts];
 *   outAmount[nOuts][nOutAssets];
 *   outPubkey[nOuts];
 *   outBlinding[nOuts];

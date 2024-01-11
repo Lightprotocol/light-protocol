@@ -311,15 +311,15 @@ export async function createVerifyingkeyRsFileArgv() {
     circuitName = process.argv[4] ? `${process.argv[4]}` : "appTransaction";
   } else {
     if (nrInputs == "2") {
-      program = "verifier_program_zero";
-      const program_storage = "verifier_program_storage";
+      program = "psp2in2out";
+      const program_storage = "psp2in2out-storage";
       const vKeyRsPath_storage =
         "../../programs/" + program_storage + "/src/verifying_key.rs";
       paths.push(vKeyRsPath_storage);
     } else if (nrInputs == "10") {
-      program = "verifier_program_one";
+      program = "psp10in2out";
     } else if (nrInputs == "4") {
-      program = "verifier_program_two";
+      program = "psp4in4out-app-storage";
     } else {
       throw new Error("invalid nr of inputs");
     }

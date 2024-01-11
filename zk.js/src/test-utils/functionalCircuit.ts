@@ -90,7 +90,7 @@ export async function functionalCircuitTest(
     root: merkleTree.root(),
   });
 
-  const transactionHash = getTransactionHash(
+  const publicTransactionHash = getTransactionHash(
     transaction.private.inputUtxos,
     transaction.private.outputUtxos,
     BN_0, // is not checked in circuit
@@ -98,11 +98,12 @@ export async function functionalCircuitTest(
   );
   systemProofInputs = {
     ...systemProofInputs,
-    publicAppVerifier: hashAndTruncateToCircuit(mockPubkey.toBytes()),
-    transactionHash,
-    txIntegrityHash: "0",
-    internalTxIntegrityHash: "0",
+    publicProgramId: hashAndTruncateToCircuit(mockPubkey.toBytes()),
+    publicTransactionHash,
+    privatePublicDataHash: "0",
+    publicDataHash: "0",
   } as any;
+
   // we rely on the fact that the function throws an error if proof generation failed
   await getSystemProof({
     account,
@@ -126,7 +127,13 @@ export async function functionalCircuitTest(
     });
     x = false;
   } catch (error: any) {
-    if (!error.toString().includes("CheckIndices_3 line: 34")) {
+    if (!error.toString().includes("CheckIndices_3 line: 16") && !app) {
+      throw new Error(
+        "Expected error to be CheckIndices_3, but it was " + error.toString(),
+      );
+    }
+
+    if (!error.toString().includes("PrivateProgramTransaction_378") && app) {
       throw new Error(
         "Expected error to be CheckIndices_3, but it was " + error.toString(),
       );

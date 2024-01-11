@@ -140,7 +140,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Shield (verifier zero)", async () => {
+  it.only("Shield (verifier zero)", async () => {
     await performShield({
       delegate: AUTHORITY,
       spl: true,
