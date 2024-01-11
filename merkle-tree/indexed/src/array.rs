@@ -378,9 +378,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
     use light_hasher::Poseidon;
+
+    use super::*;
 
     /// Tests the insertion of elements to the indexing array.
     ///
