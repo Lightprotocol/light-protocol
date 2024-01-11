@@ -104,9 +104,8 @@ fn relayer_update<H>(
         };
 
         // Create new element from the dequeued value.
-        let low_nullifier_index = relayer_indexing_array
-            .find_low_element_index(&lowest_from_queue.value)
-            .unwrap();
+        let low_nullifier_index =
+            relayer_indexing_array.find_low_element_index(&lowest_from_queue.value);
         let (new_low_nullifier, nullifier) = relayer_indexing_array
             .new_element_with_low_element_index(low_nullifier_index, lowest_from_queue.value);
         let low_nullifier_proof = relayer_merkle_tree.get_proof_of_leaf(low_nullifier_index);
