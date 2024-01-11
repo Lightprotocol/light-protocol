@@ -85,7 +85,7 @@ where
         self.current_node_index
     }
 
-    pub fn empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.current_node_index == 0
     }
 
@@ -99,12 +99,9 @@ where
     }
 
     pub fn find_element(&self, value: &[u8; 32]) -> Option<&IndexingElement> {
-        for node in self.elements[..self.current_node_index + 1].iter() {
-            if node.value == *value {
-                return Some(node);
-            }
-        }
-        None
+        self.elements[..self.current_node_index + 1]
+            .iter()
+            .find(|&node| node.value == *value)
     }
 
     /// Returns the index of the low element for the given `value`, which

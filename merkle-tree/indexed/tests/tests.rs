@@ -95,7 +95,7 @@ fn relayer_update<H>(
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<H, MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS>::new().unwrap();
 
-    while !queue.empty() {
+    while !queue.is_empty() {
         let changelog_index = merkle_tree.changelog_index();
 
         let lowest_from_queue = match queue.lowest() {
@@ -104,13 +104,10 @@ fn relayer_update<H>(
         };
 
         // Create new element from the dequeued value.
-        let low_nullifier_index =
-            relayer_indexing_array.find_low_element_index(&lowest_from_queue.value);
+        let old_low_nullifier = relayer_indexing_array.find_low_element(&lowest_from_queue.value);
         let (new_low_nullifier, nullifier) = relayer_indexing_array
-            .new_element_with_low_element_index(low_nullifier_index, lowest_from_queue.value);
-        let low_nullifier_proof = relayer_merkle_tree.get_proof_of_leaf(low_nullifier_index);
-
-        let old_low_nullifier_leaf = relayer_merkle_tree.node(low_nullifier_index);
+            .new_element_with_low_element_index(old_low_nullifier.index, lowest_from_queue.value);
+        let low_nullifier_proof = relayer_merkle_tree.get_proof_of_leaf(old_low_nullifier.index);
 
         // Update on-chain tree.
         cpi_update(
@@ -119,9 +116,7 @@ fn relayer_update<H>(
             changelog_index as u16,
             lowest_from_queue.index as u16,
             nullifier,
-            old_low_nullifier_leaf,
-            new_low_nullifier,
-            low_nullifier_index as u16,
+            old_low_nullifier,
             low_nullifier_proof,
         );
 
@@ -152,9 +147,7 @@ fn cpi_update<H>(
     changelog_index: u16,
     queue_index: u16,
     new_nullifier: IndexingElement,
-    old_low_nullifier_leaf: [u8; 32],
-    new_low_nullifier: IndexingElement,
-    low_nullifier_index: u16,
+    old_low_nullifier: IndexingElement,
     low_nullifier_proof: [[u8; 32]; MERKLE_TREE_HEIGHT],
 ) where
     H: Hasher,
@@ -167,9 +160,7 @@ fn cpi_update<H>(
         .update(
             changelog_index as usize,
             new_nullifier,
-            &old_low_nullifier_leaf,
-            new_low_nullifier,
-            low_nullifier_index as usize,
+            old_low_nullifier,
             &low_nullifier_proof,
         )
         .unwrap();
