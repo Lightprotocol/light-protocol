@@ -1,5 +1,4 @@
 import { Prover } from "../src";
-import * as circomlibjs from "circomlibjs";
 import { IDL } from "./circuits/idl";
 import { describe, it, expect, afterAll } from "vitest";
 import { WasmFactory } from "@lightprotocol/account.rs";
