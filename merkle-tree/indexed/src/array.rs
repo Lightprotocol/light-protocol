@@ -49,6 +49,7 @@ where
 {
     pub(crate) elements: [IndexingElement; ELEMENTS],
     current_node_index: usize,
+    highest_element_index: usize,
 
     _hasher: PhantomData<H>,
 }
@@ -66,6 +67,7 @@ where
                 next_value: [0u8; 32],
             }),
             current_node_index: 0,
+            highest_element_index: 0,
             _hasher: PhantomData,
         }
     }
@@ -105,53 +107,58 @@ where
         None
     }
 
-    pub fn find_low_element_index(&self, value: &[u8; 32]) -> Result<usize, HasherError> {
+    /// Returns the index of the low element for the given `value`, which
+    /// **should not** be the part of the array.
+    ///
+    /// Low element is the greatest element which still has lower value than
+    /// the provided one.
+    ///
+    /// Low elements are used in non-membership proofs.
+    pub fn find_low_element_index(&self, value: &[u8; 32]) -> usize {
+        // Try to find element whose next element is higher than the provided
+        // value.
         for (i, node) in self.elements[..self.current_node_index + 1]
             .iter()
             .enumerate()
         {
-            if node.value == *value {
-                continue;
-            }
             if node.next_value > *value {
-                return Ok(i);
+                return i;
             }
         }
-        // let's store the 0 elem index in the struct
-        for (i, node) in self.elements[..self.current_node_index + 1]
-            .iter()
-            .enumerate()
-        {
-            if node.next_value == [0u8; 32] {
-                return Ok(i);
-            }
-        }
-        Err(HasherError::LowElementNotFound)
+        // If no such element was found, it means that our value is going to be
+        // the greatest in the array. This means that the currently greatest
+        // element is going to be the low element of our value.
+        self.highest_element_index
     }
 
-    pub fn find_low_element(&self, value: &[u8; 32]) -> Result<IndexingElement, HasherError> {
-        let low_element_index = self.find_low_element_index(value)?;
-        Ok(self.elements[low_element_index])
+    /// Returns the index of the low element for the given value.
+    ///
+    /// Low element is the greatest element which still has lower value than
+    /// the provided one.
+    ///
+    /// Low elements are used in non-membership proofs.
+    pub fn find_low_element(&self, value: &[u8; 32]) -> IndexingElement {
+        let low_element_index = self.find_low_element_index(value);
+        self.elements[low_element_index]
     }
 
-    pub fn find_low_element_index_existing(&self, value: &[u8; 32]) -> Result<usize, HasherError> {
+    /// Returns the index of the low element for the given `value`, which
+    /// **should** be the part of the array.
+    ///
+    /// Low element is the greatest element which still has lower value than
+    /// the provided one.
+    ///
+    /// Low elements are used in non-membership proofs.
+    pub fn find_low_element_index_for_existing_element(&self, value: &[u8; 32]) -> Option<usize> {
         for (i, node) in self.elements[..self.current_node_index + 1]
             .iter()
             .enumerate()
         {
             if node.next_value == *value {
-                return Ok(i);
+                return Some(i);
             }
         }
-        Err(HasherError::LowElementNotFound)
-    }
-
-    pub fn find_low_element_existing(
-        &self,
-        value: &[u8; 32],
-    ) -> Result<IndexingElement, HasherError> {
-        let low_element_index = self.find_low_element_index_existing(value)?;
-        Ok(self.elements[low_element_index])
+        None
     }
 
     /// Returns the hash of the given element. That hash consists of:
@@ -175,6 +182,8 @@ where
         ])
     }
 
+    /// Returns an updated low element and a new element, created based on the
+    /// provided `low_element_index` and `value`.
     pub fn new_element_with_low_element_index(
         &self,
         low_element_index: usize,
@@ -200,7 +209,7 @@ where
         &self,
         value: [u8; 32],
     ) -> Result<(IndexingElement, IndexingElement), HasherError> {
-        let low_element_index = self.find_low_element_index(&value)?;
+        let low_element_index = self.find_low_element_index(&value);
         let element = self.new_element_with_low_element_index(low_element_index, value);
 
         Ok(element)
@@ -212,25 +221,39 @@ where
         low_element_index: usize,
         value: [u8; 32],
     ) -> (IndexingElement, IndexingElement) {
+        let old_low_element = self.elements[low_element_index];
+
         // Create new node.
-        let (low_element, new_element) =
+        let (new_low_element, new_element) =
             self.new_element_with_low_element_index(low_element_index, value);
+
+        // If the old low element wasn't pointing to any element, it means that:
+        //
+        // * It used to be the highest element.
+        // * Our new element, which we are appending, is going the be the
+        //   highest element.
+        //
+        // Therefore, we need to save the new element index as the highest
+        // index.
+        if old_low_element.next_value == [0u8; 32] {
+            self.highest_element_index = new_element.index;
+        }
 
         // Insert new node.
         self.current_node_index = new_element.index;
         self.elements[self.current_node_index] = new_element;
 
         // Update low element.
-        self.elements[low_element_index] = low_element;
+        self.elements[low_element_index] = new_low_element;
 
-        (low_element, new_element)
+        (new_low_element, new_element)
     }
 
     pub fn append(
         &mut self,
         value: [u8; 32],
     ) -> Result<(IndexingElement, IndexingElement), HasherError> {
-        let low_element_index = self.find_low_element_index(&value)?;
+        let low_element_index = self.find_low_element_index(&value);
         let node = self.append_with_low_element_index(low_element_index, value);
 
         Ok(node)
@@ -240,6 +263,13 @@ where
         self.elements.get(1).cloned()
     }
 
+    /// Returns and removes the element from the given index.
+    ///
+    /// It also performs necessary updated of the remaning elements, to
+    /// preserve the integrity of the array.
+    ///
+    /// The low element under `low_element_index` is updated, to point to a new
+    /// next element instead of the one which is removed.
     pub fn dequeue_at_with_low_element_index(
         &mut self,
         low_element_index: usize,
@@ -279,10 +309,17 @@ where
         Some(removed_element)
     }
 
+    /// Returns and removes the element from the given index.
+    ///
+    /// It also performs necessary updates of the remaning elements, to
+    /// preserve the integrity of the array. It searches for the low element
+    /// and updates it, to point to a new next element instead of the one
     pub fn dequeue_at(&mut self, index: usize) -> Result<Option<IndexingElement>, HasherError> {
         match self.elements.get(index) {
             Some(node) => {
-                let low_element_index = self.find_low_element_index_existing(&node.value)?;
+                let low_element_index = self
+                    .find_low_element_index_for_existing_element(&node.value)
+                    .ok_or(HasherError::LowElementNotFound)?;
                 Ok(self.dequeue_at_with_low_element_index(low_element_index, index))
             }
             None => Ok(None),
