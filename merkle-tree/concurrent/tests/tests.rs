@@ -290,6 +290,8 @@ where
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [new_leaf1, h1, h3, h4];
+    // Update the proof with changed `h1`.
+    let expected_proof = [leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
 
     assert_eq!(merkle_tree.changelog_index(), 5);
     assert_eq!(
@@ -335,6 +337,8 @@ where
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [new_leaf2, h1, h3, h4];
+    // Update the proof with changed `h1`.
+    let expected_proof = [leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
 
     assert_eq!(merkle_tree.changelog_index(), 6);
     assert_eq!(
@@ -377,6 +381,8 @@ where
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [new_leaf3, h2, h3, h4];
+    // Update the proof with `new_leaf3` and changed `h1`.
+    let expected_proof = [new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
 
     assert_eq!(merkle_tree.changelog_index(), 7);
     assert_eq!(
@@ -472,7 +478,6 @@ where
     // Reference implementation of Merkle tree which Solana Labs uses for
     // testing (and therefore, we as well). We use it mostly to get the Merkle
     // proofs.
-    // let leaves = vec![spl_concurrent_merkle_tree::node::EMPTY; 1 << HEIGHT];
     let mut reference_tree =
         light_merkle_tree_reference::MerkleTree::<H, HEIGHT, ROOTS>::new().unwrap();
 
@@ -592,6 +597,7 @@ where
         reference_tree.update(&leaf, i).unwrap();
     }
 
+    // Try updating leaves. It should result in an error.
     for i in 0..32 {
         let new_leaf: [u8; 32] = Fr::rand(&mut rng)
             .into_bigint()
@@ -606,10 +612,10 @@ where
         let old_leaf = reference_tree.leaf(i);
         let proof = reference_tree.get_proof_of_leaf(i);
 
-        merkle_tree
-            .update(changelog_index, &old_leaf, &new_leaf, i, &proof)
-            .unwrap();
-        reference_tree.update(&new_leaf, i).unwrap();
+        assert!(matches!(
+            merkle_tree.update(changelog_index, &old_leaf, &new_leaf, i, &proof),
+            Err(HasherError::AppendOnly),
+        ));
     }
 }
 
@@ -668,6 +674,52 @@ fn test_without_changelog_keccak() {
     without_changelog::<Keccak>()
 }
 
+/// Compares the internal fields of concurrent Merkle tree implementations, to
+/// ensure their consistency.
+fn compare_trees<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>(
+    concurrent_mt: &ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>,
+    spl_concurrent_mt: &spl_concurrent_merkle_tree::concurrent_merkle_tree::ConcurrentMerkleTree<
+        HEIGHT,
+        MAX_ROOTS,
+    >,
+) where
+    H: Hasher,
+{
+    for i in 0..concurrent_mt.current_changelog_index as usize {
+        let changelog_entry = concurrent_mt.changelog[i];
+        let spl_changelog_entry = spl_concurrent_mt.change_logs[i];
+        assert_eq!(changelog_entry.root, spl_changelog_entry.root);
+        assert_eq!(changelog_entry.path, spl_changelog_entry.path);
+        assert_eq!(changelog_entry.index, spl_changelog_entry.index as u64);
+    }
+    assert_eq!(
+        concurrent_mt.current_changelog_index,
+        spl_concurrent_mt.active_index
+    );
+    for i in 0..concurrent_mt.current_root_index as usize {
+        assert_eq!(
+            concurrent_mt.roots[i],
+            spl_concurrent_mt.change_logs[i].root
+        );
+    }
+    assert_eq!(
+        concurrent_mt.current_root_index,
+        spl_concurrent_mt.active_index
+    );
+    assert_eq!(
+        concurrent_mt.rightmost_proof,
+        spl_concurrent_mt.rightmost_proof.proof
+    );
+    assert_eq!(
+        concurrent_mt.rightmost_index,
+        spl_concurrent_mt.rightmost_proof.index as u64
+    );
+    assert_eq!(
+        concurrent_mt.rightmost_leaf,
+        spl_concurrent_mt.rightmost_proof.leaf
+    );
+}
+
 /// Checks whether our `append` and `update` implementations are compatible
 /// with `append` and `set_leaf` from `spl-concurrent-merkle-tree` crate.
 #[tokio::test(flavor = "multi_thread")]
@@ -698,13 +750,40 @@ async fn test_spl_compat() {
             .to_bytes_be()
             .try_into()
             .unwrap();
+
         concurrent_mt.append(&leaf).unwrap();
         spl_concurrent_mt.append(leaf).unwrap();
         reference_tree.update(&leaf, i).unwrap();
 
-        let root = concurrent_mt.root().unwrap();
-        assert_eq!(root, spl_concurrent_mt.get_change_log().root,);
-        assert_eq!(root, reference_tree.root().unwrap());
+        compare_trees(&concurrent_mt, &spl_concurrent_mt);
+
+        // For every appended leaf with index greater than 0, update the leaf 0.
+        // This is done in indexed Merkle trees[0] and it's a great test case
+        // for rightmost proof updates.
+        //
+        // [0] https://docs.aztec.network/concepts/advanced/data_structures/indexed_merkle_tree
+        if i > 0 {
+            let new_leaf: [u8; 32] = Fr::rand(&mut rng)
+                .into_bigint()
+                .to_bytes_be()
+                .try_into()
+                .unwrap();
+
+            let root = concurrent_mt.root().unwrap();
+            let changelog_index = concurrent_mt.changelog_index();
+            let old_leaf = reference_tree.leaf(0);
+            let proof = reference_tree.get_proof_of_leaf(0);
+
+            concurrent_mt
+                .update(changelog_index, &old_leaf, &new_leaf, 0, &proof)
+                .unwrap();
+            spl_concurrent_mt
+                .set_leaf(root, old_leaf, new_leaf, proof.as_slice(), 0 as u32)
+                .unwrap();
+            reference_tree.update(&new_leaf, 0).unwrap();
+
+            compare_trees(&concurrent_mt, &spl_concurrent_mt);
+        }
     }
 
     for i in 0..(1 << HEIGHT) {
@@ -715,20 +794,18 @@ async fn test_spl_compat() {
             .unwrap();
 
         let root = concurrent_mt.root().unwrap();
-        let root_index = concurrent_mt.root_index();
+        let changelog_index = concurrent_mt.changelog_index();
         let old_leaf = reference_tree.leaf(i);
         let proof = reference_tree.get_proof_of_leaf(i);
 
         concurrent_mt
-            .update(root_index, &old_leaf, &new_leaf, i, &proof)
+            .update(changelog_index, &old_leaf, &new_leaf, i, &proof)
             .unwrap();
         spl_concurrent_mt
             .set_leaf(root, old_leaf, new_leaf, proof.as_slice(), i as u32)
             .unwrap();
         reference_tree.update(&new_leaf, i).unwrap();
 
-        let root = concurrent_mt.root().unwrap();
-        assert_eq!(root, spl_concurrent_mt.get_change_log().root,);
-        assert_eq!(root, reference_tree.root().unwrap());
+        compare_trees(&concurrent_mt, &spl_concurrent_mt);
     }
 }
