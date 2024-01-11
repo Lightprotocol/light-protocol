@@ -1,7 +1,5 @@
-import {beforeAll} from "vitest";
-const { blake2b } = require("@noble/hashes/blake2b");
-import * as circomlibjs from "circomlibjs";
-import { AccountHasher, WasmFactory } from "..";
+import { blake2b } from "@noble/hashes/blake2b";
+import { WasmFactory } from "..";
 import {BN} from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Account as AccountWasm } from "../src/main/wasm/account_wasm";
@@ -16,15 +14,8 @@ function isNode() {
 
 describe("Test Account Functional", () => {
 
-    let poseidon: any;
-
     beforeEach(() => {
         WasmFactory.resetModule();
-        AccountHasher.resetModule();
-    });
-
-    beforeAll(async () => {
-        poseidon = await circomlibjs.buildPoseidonOpt();
     });
 
     it("choose hash implementation depending on platform", () => {
@@ -59,9 +50,6 @@ describe("Test Account Functional", () => {
 
         const expected = [39,11,135,4,126,124,21,55,122,162,99,228,196,251,107,128,181,191,102,183,35,64,122,163,42,155,219,100,30,89,203,0];
 
-        const circomOutput = new BN(poseidon.F.toString(poseidon([input]))).toArray("be", 32);
-        assert.equal(circomOutput.toString(), expected.toString());
-
         const mod = await WasmFactory.loadModule();
         const hash = mod.create();
         const wasmOutput = new BN(hash.poseidonHash([input])).toArray("be", 32);
@@ -81,13 +69,19 @@ describe("Test Account Functional", () => {
 
     it("Test Poseidon", async () => {
         const inputs = new BN(1).toString();
-        const tsHash = new BN(poseidon.F.toString(poseidon([inputs]))).toArray();
+
+        const expectedHash = [
+            41,  23,  97,   0, 234, 169, 98, 189,
+            193, 254, 108, 101,  77, 106, 60,  19,
+            14, 150, 164, 209,  22, 139, 51, 132,
+            139, 137, 125, 197,   2, 130,  1,  51
+        ];
 
         const mod = await WasmFactory.loadModule();
         const hash = mod.create();
         const rsHash = hash.poseidonHash([inputs]);
 
-        assert.equal(tsHash.toString(), rsHash.toString());
+        assert.equal(expectedHash.toString(), rsHash.toString());
     });
 
     it("Test Poseidon 1..12", async() => {

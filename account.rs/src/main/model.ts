@@ -1,6 +1,5 @@
 import { BN } from "@coral-xyz/anchor";
 import { Account } from "./wasm/account_wasm";
-
 export { Account } from "./wasm/account_wasm";
 
 export interface LightWasm {
