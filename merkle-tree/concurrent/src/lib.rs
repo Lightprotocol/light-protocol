@@ -132,7 +132,7 @@ where
         self.roots
             .get(self.current_root_index as usize)
             .ok_or(HasherError::RootHigherThanMax)
-            .map(|&value| value)
+            .copied()
     }
 
     /// Returns an updated Merkle proof.

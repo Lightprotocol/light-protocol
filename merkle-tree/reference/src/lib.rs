@@ -6,7 +6,7 @@ pub fn build_root<H>(leaves: &[Rc<RefCell<TreeNode<H>>>]) -> Result<[u8; 32], Ha
 where
     H: Hasher,
 {
-    let mut tree = VecDeque::from_iter(leaves.iter().map(Rc::clone));
+    let mut tree = VecDeque::from_iter(leaves.iter().cloned());
     let mut seq_num = leaves.len();
     while tree.len() > 1 {
         let left = tree.pop_front().unwrap();
