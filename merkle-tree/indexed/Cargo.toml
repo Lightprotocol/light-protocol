@@ -13,3 +13,4 @@ light-merkle-tree-reference = { path = "../reference", version = "0.1.0" }
 ark-bn254 = "0.4"
 ark-ff = "0.4"
 num-bigint = "0.4"
+thiserror = "1.0"
