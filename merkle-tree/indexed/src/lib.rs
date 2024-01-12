@@ -60,48 +60,48 @@ where
         &mut self,
         changelog_index: usize,
         new_element: IndexingElement,
-        old_low_element: IndexingElement,
+        low_element: IndexingElement,
         low_leaf_proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), HasherError> {
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
-        if old_low_element.next_index == 0 {
+        if low_element.next_index == 0 {
             // In this case, the `old_low_element` is the greatest element.
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).
-            if new_element.value <= old_low_element.value {
+            if new_element.value <= low_element.value {
                 return Err(HasherError::LowElementGreaterOrEqualToNewElement);
             }
         } else {
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).
-            if new_element.value <= old_low_element.value {
+            if new_element.value <= low_element.value {
                 return Err(HasherError::LowElementGreaterOrEqualToNewElement);
             }
             // The value of `new_element` needs to be lower than the value of
             // next element pointed by `old_low_element`.
-            if new_element.value >= old_low_element.next_value {
+            if new_element.value >= low_element.next_value {
                 return Err(HasherError::NewElementGreaterOrEqualToNextElement);
             }
         }
 
         // Instantiate `new_low_element` - the low element with updated values.
         let new_low_element = IndexingElement {
-            index: old_low_element.index,
-            value: old_low_element.value,
+            index: low_element.index,
+            value: low_element.value,
             next_index: new_element.index,
             next_value: new_element.value,
         };
 
         // Update low element. If the `old_low_element` does not belong to the
-        // tree
-        let old_low_leaf = old_low_element.hash::<H>()?;
+        // tree, validating the proof is going to fail.
+        let old_low_leaf = low_element.hash::<H>()?;
         let new_low_leaf = new_low_element.hash::<H>()?;
         self.merkle_tree.update(
             changelog_index,
             &old_low_leaf,
             &new_low_leaf,
-            old_low_element.index,
+            low_element.index,
             low_leaf_proof,
         )?;
 

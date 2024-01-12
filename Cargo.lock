@@ -2797,6 +2797,7 @@ dependencies = [
  "light-hasher",
  "light-merkle-tree-reference",
  "num-bigint 0.4.4",
+ "thiserror",
 ]
 
 [[package]]

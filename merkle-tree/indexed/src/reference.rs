@@ -42,17 +42,16 @@ where
     pub fn update(
         &mut self,
         new_low_element: IndexingElement,
-        low_leaf_index: usize,
         new_element: IndexingElement,
-        leaf_index: usize,
     ) -> Result<(), HasherError> {
         // Update the low element.
         let new_low_leaf = new_low_element.hash::<H>()?;
-        self.merkle_tree.update(&new_low_leaf, low_leaf_index)?;
+        self.merkle_tree
+            .update(&new_low_leaf, new_low_element.index)?;
 
         // Append the new element.
         let new_leaf = new_element.hash::<H>()?;
-        self.merkle_tree.update(&new_leaf, leaf_index)?;
+        self.merkle_tree.update(&new_leaf, new_element.index)?;
 
         Ok(())
     }
