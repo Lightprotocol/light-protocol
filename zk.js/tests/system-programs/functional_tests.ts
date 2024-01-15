@@ -220,7 +220,8 @@ describe("verifier_program", () => {
     const compressAmount = spl
       ? 10_000 + Math.floor(Math.random() * 1_000_000_000)
       : 0;
-    const compressFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+    const compressFeeAmount =
+      10_000 + Math.floor(Math.random() * 1_000_000_000);
 
     await airdropSplToAssociatedTokenAccount(
       provider.connection,

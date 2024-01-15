@@ -41,7 +41,7 @@ import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
 let WASM: LightWasm;
 
@@ -98,7 +98,7 @@ describe("Streaming Payments tests", () => {
   });
   async function createAndSpendProgramUtxo(
     wallet: anchor.web3.Keypair,
-    rpcRecipientSol: anchor.web3.PublicKey
+    rpcRecipientSol: anchor.web3.PublicKey,
   ): Promise<void> {
     await airdropSol({
       connection: provider.connection,
@@ -164,7 +164,7 @@ describe("Streaming Payments tests", () => {
       .utxos.get(compressedUtxoCommitmentHash);
     compareOutUtxos(inputUtxo!, testInputsCompress.utxo.outUtxo);
     const circuitPath = path.join(
-      "build-circuit/streaming-payments/streamingPayments"
+      "build-circuit/streaming-payments/streamingPayments",
     );
     // TODO: add in and out utxos to appParams
     // TODO: create compile appParams method which creates isAppIn and out utxo arrays, prefixes utxo data variables with in and out prefixes
@@ -183,7 +183,7 @@ describe("Streaming Payments tests", () => {
     const compressedTransaction = await createTransaction({
       inputUtxos: [inputUtxo],
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0)
+        new BN(0),
       ),
       rpcPublicKey: rpc.accounts.rpcPubkey,
       lightWasm: WASM,
@@ -194,7 +194,7 @@ describe("Streaming Payments tests", () => {
     });
     // createProofInputsAndProve
     const { root, index: rootIndex } = (await rpc.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda()
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
     ))!;
     const proofInputs = createProofInputs({
       lightWasm: WASM,
@@ -214,7 +214,7 @@ describe("Streaming Payments tests", () => {
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
       proofInputs,
       IDL,
-      pspTransactionInput.circuitName
+      pspTransactionInput.circuitName,
     );
 
     const pspProof = await lightUser.account.getProofInternal({
@@ -245,7 +245,7 @@ describe("Streaming Payments tests", () => {
 
   async function paymentStreaming(
     wallet: anchor.web3.Keypair,
-    rpcRecipientSol: anchor.web3.PublicKey
+    rpcRecipientSol: anchor.web3.PublicKey,
   ) {
     const circuitPath = path.join("build-circuit");
     await airdropSol({
@@ -283,7 +283,7 @@ describe("Streaming Payments tests", () => {
       IDL,
       WASM,
       circuitPath,
-      lightProvider
+      lightProvider,
     );
     const currentSlot = await provider.connection.getSlot("confirmed");
     const duration = 1;
@@ -291,7 +291,7 @@ describe("Streaming Payments tests", () => {
       new BN(1e9),
       new BN(duration),
       new BN(currentSlot),
-      lightUser.account
+      lightUser.account,
     );
 
     const testInputsSol1 = {
@@ -321,7 +321,7 @@ describe("Streaming Payments tests", () => {
     const { programParameters, inUtxo, outUtxo, action } = client.collectStream(
       new BN(currentSlot1),
       Action.TRANSFER,
-      merkleTree
+      merkleTree,
     );
     // @ts-ignore: this code is not maintained and the api does not exist anymore
     await lightUser.executeAppUtxo({
@@ -334,22 +334,22 @@ describe("Streaming Payments tests", () => {
     console.log(
       "totalSolBalance: ",
       balance.totalSolBalance.toNumber() * 1e-9,
-      "SOL"
+      "SOL",
     );
     assert.equal(
       outUtxo.amounts[0].toString(),
-      balance.totalSolBalance.toString()
+      balance.totalSolBalance.toString(),
     );
     console.log("inUtxo commitment: ", inUtxo.getCommitment(WASM));
 
     const spentCommitment = testInputsSol1.utxo.getCommitment(
-      testInputsSol1.hasher
+      testInputsSol1.hasher,
     );
     const utxoSpent = (await lightUser.getUtxo(
       spentCommitment,
       true,
       MerkleTreeConfig.getTransactionMerkleTreePda(),
-      IDL
+      IDL,
     ))!;
     assert.equal(utxoSpent.status, "spent");
   }
@@ -370,7 +370,7 @@ class PaymentStreamClient {
     circuitPath: string,
     lightProvider: LightProvider,
     streamInitUtxo?: Utxo,
-    latestStreamUtxo?: Utxo
+    latestStreamUtxo?: Utxo,
   ) {
     this.idl = idl;
     this.streamInitUtxo = streamInitUtxo;
@@ -391,7 +391,7 @@ class PaymentStreamClient {
     amount: BN,
     timeInSlots: BN,
     currentSlot: BN,
-    account: Account
+    account: Account,
   ) {
     if (this.streamInitUtxo)
       throw new Error("This stream client is already initialized");
@@ -422,7 +422,7 @@ class PaymentStreamClient {
   collectStream(currentSlot: BN, action: Action, merkleTree: MerkleTree) {
     if (!this.streamInitUtxo)
       throw new Error(
-        "Streaming client is not initialized with streamInitUtxo"
+        "Streaming client is not initialized with streamInitUtxo",
       );
     if (currentSlot.gte(this.streamInitUtxo?.appData.endSlot)) {
       const currentSlotPrivate = this.streamInitUtxo.appData.endSlot;
@@ -442,7 +442,7 @@ class PaymentStreamClient {
       };
 
       const index = merkleTree.indexOf(
-        this.latestStreamUtxo?.getCommitment(this.lightWasm)
+        this.latestStreamUtxo?.getCommitment(this.lightWasm),
       );
       this.latestStreamUtxo.index = index;
       const inUtxo = this.latestStreamUtxo;
