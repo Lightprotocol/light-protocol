@@ -221,6 +221,10 @@ export enum SolanaTransactionErrorCode {
   RPC_RECIPIENT_SOL_UNDEFINED = "RPC_RECIPIENT_SOL_UNDEFINED",
 }
 
+export enum MerkleTreeErrorCode {
+  MERKLE_TREE_SET_SPACE_UNDEFINED = "MERKLE_TREE_SET_SPACE_UNDEFINED",
+}
+
 export class MetaError extends Error {
   code: string;
   functionName: string;
@@ -267,3 +271,5 @@ export class ProgramUtxoBalanceError extends MetaError {}
 export class SolMerkleTreeError extends MetaError {}
 
 export class SolanaTransactionError extends MetaError {}
+
+export class MerkleTreeError extends MetaError {}

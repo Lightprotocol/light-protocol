@@ -158,13 +158,16 @@ export const POOL_TYPE = new Array(32).fill(0);
 export const MERKLE_TREE_AUTHORITY_PDA = new PublicKey(
   "5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y",
 );
+export const MERKLE_TREE_SET = new PublicKey(
+  "BrY8P3ZuLWFptfY7qwvkRZkEaD88UEByz9wKRuXFEwhr",
+);
 
 export const TESTNET_LOOK_UP_TABLE = new PublicKey(
   "64Act4KKVEHFAnjaift46c4ZkutkmT4msN1esSnE6gaJ",
 );
 
 export const FEE_ASSET = anchor.web3.SystemProgram.programId;
-export const MERKLE_TREE_HEIGHT = 18;
+export const MERKLE_TREE_HEIGHT = 22;
 /** Threshold (per asset) at which new in-UTXOs get merged, in order to reduce UTXO pool size */
 export const UTXO_MERGE_THRESHOLD = 20; // 7
 export const UTXO_MERGE_MAXIMUM = 10;
@@ -218,10 +221,6 @@ export const TOKEN_PUBKEY_SYMBOL: Map<string, string> = new Map([
  */
 export const TRANSACTION_MERKLE_TREE_SWITCH_TRESHOLD = new anchor.BN(255_000);
 
-/**
- * Default lock duration of the Transacion Merkle Tree.
- */
-export const DEFAULT_MERKLE_TREE_LOCK_DURATION = new anchor.BN(50);
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 export const UTXO_PREFIX_LENGTH = 4;

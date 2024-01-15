@@ -1,6 +1,5 @@
 export * from "./create-accounts";
 export * from "./test-checks";
-export * from "./setup-merkle-tree";
 export * from "./init-lookuptable";
 export * from "./constants-marketplace";
 export * from "./functional-circuit";

@@ -16,7 +16,7 @@ import {
 } from "./types";
 import { RpcError, RpcErrorCode } from "./errors";
 import { Provider } from "./provider";
-import { BN_0, TOKEN_ACCOUNT_FEE } from "./constants";
+import { BN_0, MERKLE_TREE_SET, TOKEN_ACCOUNT_FEE } from "./constants";
 import { SendVersionedTransactionsResult } from "./transaction";
 
 export type RpcSendTransactionsResponse = SendVersionedTransactionsResult & {
@@ -28,6 +28,7 @@ export class Rpc {
   accounts: {
     rpcPubkey: PublicKey; // signs the transaction
     rpcRecipientSol: PublicKey; // receives the fees
+    merkleTreeSet: PublicKey; // the current Merkle tree set
   };
   rpcFee: BN;
   highRpcFee: BN;
@@ -41,13 +42,21 @@ export class Rpc {
    * @param highRpcFee
    * @param url
    */
-  constructor(
-    rpcPubkey: PublicKey,
-    rpcRecipientSol?: PublicKey,
-    rpcFee: BN = BN_0,
-    highRpcFee: BN = TOKEN_ACCOUNT_FEE,
-    url: string = "http://localhost:3332",
-  ) {
+  constructor({
+    rpcPubkey,
+    rpcRecipientSol,
+    merkleTreeSet = MERKLE_TREE_SET,
+    rpcFee = BN_0,
+    highRpcFee = TOKEN_ACCOUNT_FEE,
+    url = "http://localhost:3332",
+  }: {
+    rpcPubkey: PublicKey;
+    rpcRecipientSol?: PublicKey;
+    merkleTreeSet?: PublicKey;
+    rpcFee?: BN;
+    highRpcFee?: BN;
+    url?: string;
+  }) {
     if (!rpcPubkey) {
       throw new RpcError(RpcErrorCode.RPC_PUBKEY_UNDEFINED, "constructor");
     }
@@ -65,11 +74,13 @@ export class Rpc {
       this.accounts = {
         rpcPubkey,
         rpcRecipientSol,
+        merkleTreeSet,
       };
     } else {
       this.accounts = {
         rpcPubkey,
         rpcRecipientSol: rpcPubkey,
+        merkleTreeSet,
       };
     }
     this.highRpcFee = highRpcFee;
@@ -148,7 +159,6 @@ export class Rpc {
   }
 
   async getEventsByIdBatch(
-    _merkleTreePdaPublicKey: PublicKey,
     _ids: string[],
     _variableNameID: number,
   ): Promise<RpcIndexedTransactionResponse[] | undefined> {
@@ -160,7 +170,6 @@ export class Rpc {
   }
 
   async getMerkleProofByIndexBatch(
-    _merkleTreePdaPublicKey: PublicKey,
     _indexes: number[],
   ): Promise<
     { merkleProofs: string[][]; root: string; index: number } | undefined
@@ -172,9 +181,7 @@ export class Rpc {
     );
   }
 
-  async getMerkleRoot(
-    _merkleTreePdaPublicKey: PublicKey,
-  ): Promise<{ root: string; index: number } | undefined> {
+  async getMerkleRoot(): Promise<{ root: string; index: number } | undefined> {
     throw new RpcError(
       RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
       "getMerkleRoot",

@@ -42,7 +42,7 @@ export async function functionalCircuitTest(
     publicKey: account.keypair.publicKey,
   });
 
-  const merkleTree = new MerkleTree(18, lightWasm, [inputUtxo.utxoHash]);
+  const merkleTree = new MerkleTree(22, lightWasm, [inputUtxo.utxoHash]);
   inputUtxo = outUtxoToUtxo(
     inputUtxo,
     merkleTree.path(0).pathElements,
@@ -70,7 +70,7 @@ export async function functionalCircuitTest(
   const txInput: TransactionInput = {
     inputUtxos: [inputUtxo],
     outputUtxos: [outputUtxo1, outputUtxo2],
-    transactionMerkleTreePubkey: mockPubkey,
+    merkleTreeSetPubkey: mockPubkey,
     lightWasm,
     account,
     rpcFee,

@@ -21,6 +21,7 @@ import {
   CompressTransaction,
   createCompressTransaction,
   CompressTransactionInput,
+  MERKLE_TREE_SET,
   MerkleTreeConfig,
   getVerifierProgramId,
   createSystemProofInputs,
@@ -66,8 +67,7 @@ describe("Prover Functionality Tests", () => {
     const compressTransactionInput: CompressTransactionInput = {
       lightWasm,
       mint: MINT,
-      transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreeSetPubkey: MERKLE_TREE_SET,
       senderSpl: mockPubkey,
       signer: mockPubkey2,
       systemPspId: getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT),
@@ -79,7 +79,7 @@ describe("Prover Functionality Tests", () => {
       compressTransactionInput,
     );
 
-    merkleTree = new MerkleTree(18, lightWasm, [compressUtxo.utxoHash]);
+    merkleTree = new MerkleTree(22, lightWasm, [compressUtxo.utxoHash]);
 
     assert.equal(merkleTree.indexOf(compressUtxo.utxoHash), 0);
   });

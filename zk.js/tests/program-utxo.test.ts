@@ -9,6 +9,7 @@ import {
   BN_1,
   hashAndTruncateToCircuit,
   MerkleTreeConfig,
+  MERKLE_TREE_SET,
   MINT,
   Provider as LightProvider,
   createProgramOutUtxo,
@@ -81,14 +82,14 @@ describe("Program Utxo Functional", () => {
         utxo: programOutUtxo,
         account,
         lightWasm,
-        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        merkleTreePdaPublicKey: MERKLE_TREE_SET,
         assetLookupTable,
       });
       const decryptedUtxo = await decryptProgramOutUtxo({
         encBytes: encryptedBytes,
         account,
         lightWasm,
-        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        merkleTreePdaPublicKey: MERKLE_TREE_SET,
         assetLookupTable,
         aes: true,
         utxoHash: new BN(programOutUtxo.outUtxo.utxoHash).toArrayLike(
@@ -119,14 +120,14 @@ describe("Program Utxo Functional", () => {
         utxo: asymOutUtxo,
         account,
         lightWasm,
-        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        merkleTreePdaPublicKey: MERKLE_TREE_SET,
         assetLookupTable,
       });
       const decryptedUtxoNacl = await decryptProgramOutUtxo({
         encBytes: encryptedBytesNacl,
         account,
         lightWasm,
-        merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+        merkleTreePdaPublicKey: MERKLE_TREE_SET,
         assetLookupTable,
         aes: false,
         utxoHash: new BN(asymOutUtxo.outUtxo.utxoHash).toArrayLike(
@@ -250,7 +251,7 @@ describe("Program Utxo Functional", () => {
       utxo: programOutUtxo,
       lightWasm,
       account: inputs.keypair,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePdaPublicKey: MERKLE_TREE_SET,
       assetLookupTable,
     });
 
@@ -260,7 +261,7 @@ describe("Program Utxo Functional", () => {
       encBytes,
       account: inputs.keypair,
       aes: true,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePdaPublicKey: MERKLE_TREE_SET,
       utxoHash: new BN(programOutUtxo.outUtxo.utxoHash).toArrayLike(
         Buffer,
         "be",
@@ -295,7 +296,7 @@ describe("Program Utxo Functional", () => {
     const decryptedUtxo = await decryptProgramUtxo({
       encBytes,
       account: inputs.keypair,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePdaPublicKey: MERKLE_TREE_SET,
       aes: true,
       utxoHash: new BN(programOutUtxo.outUtxo.utxoHash).toArrayLike(
         Buffer,
@@ -379,7 +380,7 @@ describe("Program Utxo Functional", () => {
     const encBytesNacl = await encryptProgramOutUtxo({
       utxo: programOutUtxoNacl,
       lightWasm,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePdaPublicKey: MERKLE_TREE_SET,
       assetLookupTable,
     });
 
@@ -388,7 +389,7 @@ describe("Program Utxo Functional", () => {
       lightWasm,
       encBytes: encBytesNacl,
       account: inputs.keypair,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePdaPublicKey: MERKLE_TREE_SET,
       aes: false,
       utxoHash: new BN(programOutUtxoNacl.outUtxo.utxoHash).toArrayLike(
         Buffer,

@@ -46,6 +46,7 @@ import {
   syncInputUtxosMerkleProofs,
   createOutUtxo,
   OutUtxo,
+  MERKLE_TREE_SET,
 } from "../../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -272,8 +273,7 @@ describe("verifier_program", () => {
       lightWasm: WASM,
       mint: compressAmount > 0 ? MINT : undefined,
       message,
-      transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreeSetPubkey: MERKLE_TREE_SET,
       senderSpl,
       signer: ADMIN_AUTH_KEYPAIR.publicKey,
       systemPspId: getVerifierProgramId(verifierIdl),
@@ -284,9 +284,8 @@ describe("verifier_program", () => {
     const compressTransaction = await createCompressTransaction(
       compressTransactionInput,
     );
-    const { root, index: rootIndex } = (await RPC.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    ))!;
+    const { root, index: rootIndex } =
+      (await RPC.getMerkleRoot(MERKLE_TREE_SET))!;
 
     const systemProofInputs = createSystemProofInputs({
       root,
@@ -305,7 +304,7 @@ describe("verifier_program", () => {
     );
     const accounts = prepareAccounts({
       transactionAccounts: compressTransaction.public.accounts,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      eventMerkleTreePubkey: MERKLE_TREE_SET,
     });
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({
@@ -377,7 +376,7 @@ describe("verifier_program", () => {
       index: rootIndex,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [decompressUtxo],
-      merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePublicKey: MERKLE_TREE_SET,
       rpc: RPC,
     });
     // Running into memory issues with verifier one (10in2out) decompressing spl
@@ -385,8 +384,7 @@ describe("verifier_program", () => {
       lightWasm: WASM,
       mint: spl ? MINT : undefined,
       message,
-      transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreeSetPubkey: MERKLE_TREE_SET,
       recipientSpl: spl ? ata : undefined,
       recipientSol: origin.publicKey,
       rpcPublicKey: lightProvider.rpc.accounts.rpcPubkey,
@@ -420,7 +418,6 @@ describe("verifier_program", () => {
     );
     const accounts = prepareAccounts({
       transactionAccounts: decompressTransaction.public.accounts,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       rpcRecipientSol: lightProvider.rpc.accounts.rpcRecipientSol,
       signer: lightProvider.rpc.accounts.rpcPubkey,
     });

@@ -29,6 +29,7 @@ import {
   REGISTERED_VERIFIER_ONE_PDA,
   REGISTERED_VERIFIER_PDA,
   REGISTERED_VERIFIER_TWO_PDA,
+  MERKLE_TREE_SET,
 } from "../constants";
 
 // TODO: create cli function to create a lookup table for apps
@@ -120,8 +121,7 @@ export async function initLookUpTableTest(
       merkleTreeProgramId,
       DEFAULT_PROGRAMS.rent,
       SPL_NOOP_PROGRAM_ID,
-      MerkleTreeConfig.getEventMerkleTreePda(),
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MERKLE_TREE_SET,
       PRE_INSERTED_LEAVES_INDEX,
       AUTHORITY,
       TOKEN_PROGRAM_ID,

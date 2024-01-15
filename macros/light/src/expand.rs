@@ -237,7 +237,7 @@ pub(crate) fn light_verifier_accounts(
             pub program_merkle_tree: Program<'info, ::light_merkle_tree_program::program::LightMerkleTreeProgram>,
             /// CHECK: Is the same as in integrity hash.
             #[account(mut)]
-            pub transaction_merkle_tree: AccountLoader<'info, ::light_merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree>,
+            pub merkle_tree_set: AccountLoader<'info, ::light_merkle_tree_program::state::MerkleTreeSet>,
             /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
             #[account(
                 mut,
@@ -270,8 +270,6 @@ pub(crate) fn light_verifier_accounts(
             >,
             /// CHECK: It gets checked inside the event_call.
             pub log_wrapper: UncheckedAccount<'info>,
-            #[account(mut)]
-            pub event_merkle_tree: AccountLoader<'info, ::light_merkle_tree_program::event_merkle_tree::EventMerkleTree>,
         }
     };
 
@@ -365,11 +363,11 @@ pub(crate) fn light_verifier_accounts(
                 &self.program_merkle_tree
             }
 
-            fn get_transaction_merkle_tree(&self) -> &AccountLoader<
+            fn get_merkle_tree_set(&self) -> &AccountLoader<
                 'info,
-                ::light_merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree
+                ::light_merkle_tree_program::state::MerkleTreeSet
             > {
-                &self.transaction_merkle_tree
+                &self.merkle_tree_set
             }
 
             fn get_authority(&self) -> &UncheckedAccount<'info> {
@@ -392,13 +390,6 @@ pub(crate) fn light_verifier_accounts(
 
             fn get_log_wrapper(&self) -> &UncheckedAccount<'info> {
                 &self.log_wrapper
-            }
-
-            fn get_event_merkle_tree(&self) -> &AccountLoader<
-                'info,
-                ::light_merkle_tree_program::event_merkle_tree::EventMerkleTree
-            > {
-                &self.event_merkle_tree
             }
         }
     })
@@ -437,8 +428,7 @@ mod tests {
             .to_string();
 
         assert!(res_no_args.contains("pub program_merkle_tree"));
-        assert!(res_no_args.contains("pub transaction_merkle_tree"));
-        assert!(res_no_args.contains("pub event_merkle_tree"));
+        assert!(res_no_args.contains("pub merkle_tree_set"));
         assert!(res_no_args.contains("seeds = [__program_id . key () . to_bytes () . as_ref ()]"));
         assert!(!res_no_args.contains("pub sender_sol"));
         assert!(!res_no_args.contains("pub recipient_sol"));

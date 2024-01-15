@@ -10,6 +10,7 @@ import {
   BN_0,
   BN_1,
   MerkleTreeConfig,
+  MERKLE_TREE_SET,
   ParsedIndexedTransaction,
   RPC_FEE,
   Rpc,
@@ -42,7 +43,11 @@ const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test Rpc Functional", () => {
   it("Rpc Compress", () => {
-    const rpc = new Rpc(mockKeypair.publicKey, mockKeypair1.publicKey, BN_1);
+    const rpc = new Rpc({
+      rpcPubkey: mockKeypair.publicKey,
+      rpcRecipientSol: mockKeypair1.publicKey,
+      rpcFee: BN_1,
+    });
     assert.equal(
       rpc.accounts.rpcRecipientSol.toBase58(),
       mockKeypair1.publicKey.toBase58(),
@@ -55,7 +60,11 @@ describe("Test Rpc Functional", () => {
   });
 
   it("Rpc Transfer/Decompress", () => {
-    const rpc = new Rpc(mockKeypair.publicKey, rpcRecipientSol, rpcFee);
+    const rpc = new Rpc({
+      rpcPubkey: mockKeypair.publicKey,
+      rpcRecipientSol,
+      rpcFee,
+    });
     assert.equal(
       rpc.accounts.rpcPubkey.toBase58(),
       mockKeypair.publicKey.toBase58(),
@@ -68,7 +77,7 @@ describe("Test Rpc Functional", () => {
   });
 
   it("Rpc ataCreationFee", () => {
-    const rpc = new Rpc(mockKeypair.publicKey);
+    const rpc = new Rpc({ rpcPubkey: mockKeypair.publicKey });
     assert.equal(rpc.rpcFee.toString(), "0");
     assert.equal(TOKEN_ACCOUNT_FEE.toNumber(), rpc.getRpcFee(true).toNumber());
     assert.equal(BN_0.toNumber(), rpc.getRpcFee(false).toNumber());
@@ -79,7 +88,7 @@ describe("Test Rpc Errors", () => {
   it("RPC_PUBKEY_UNDEFINED", () => {
     expect(() => {
       // @ts-ignore
-      new Rpc();
+      new Rpc({ rpcPubkey: undefined });
     })
       .to.throw(RpcError)
       .includes({
@@ -91,7 +100,7 @@ describe("Test Rpc Errors", () => {
   it("RPC_FEE_UNDEFINED", () => {
     expect(() => {
       // @ts-ignore
-      new Rpc(mockKeypair.publicKey, rpcRecipientSol);
+      new Rpc({ rpcPubkey: mockKeypair.publicKey, rpcRecipientSol });
     })
       .to.throw(RpcError)
       .includes({
@@ -103,7 +112,7 @@ describe("Test Rpc Errors", () => {
   it("RPC_RECIPIENT_UNDEFINED", () => {
     expect(() => {
       // @ts-ignore
-      new Rpc(mockKeypair.publicKey, undefined, rpcFee);
+      new Rpc({ rpcPubkey: mockKeypair.publicKey, rpcFee });
     })
       .to.throw(RpcError)
       .includes({
@@ -135,7 +144,7 @@ describe("Test Rpc Errors", () => {
     const encryptedUtxos = await encryptOutUtxos(
       account,
       [utxo, utxo2],
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MERKLE_TREE_SET,
       verifierConfig,
       [SystemProgram.programId.toBase58()],
       WASM,
@@ -143,21 +152,11 @@ describe("Test Rpc Errors", () => {
     const ids = getIdsFromEncryptedUtxos(Buffer.from(encryptedUtxos), 2);
     assert.equal(
       ids[0],
-      bs58.encode(
-        account.generateUtxoPrefixHash(
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
-          0,
-        ),
-      ),
+      bs58.encode(account.generateUtxoPrefixHash(MERKLE_TREE_SET, 0)),
     );
     assert.equal(
       ids[1],
-      bs58.encode(
-        account.generateUtxoPrefixHash(
-          MerkleTreeConfig.getTransactionMerkleTreePda(),
-          1,
-        ),
-      ),
+      bs58.encode(account.generateUtxoPrefixHash(MERKLE_TREE_SET, 1)),
     );
   });
 
@@ -184,18 +183,18 @@ describe("Test Rpc Errors", () => {
     const encryptedUtxos = await encryptOutUtxos(
       account,
       [utxo, utxo2],
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MERKLE_TREE_SET,
       verifierConfig,
       [SystemProgram.programId.toBase58()],
       WASM,
     );
 
-    const merkleTree = new MerkleTree(18, WASM, [
+    const merkleTree = new MerkleTree(22, WASM, [
       utxo.utxoHash,
       utxo2.utxoHash,
     ]);
     const solMerkleTree = new SolMerkleTree({
-      pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      pubkey: MERKLE_TREE_SET,
       lightWasm: WASM,
       merkleTree,
     });
@@ -264,11 +263,7 @@ describe("Test Rpc Errors", () => {
     });
     // prefix  4DyKUQ
     // prefix  3pvhXa
-    const eventIdUtxo1 = await RPC.getEventById(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-      "4DyKUQ",
-      1,
-    );
+    const eventIdUtxo1 = await RPC.getEventById(MERKLE_TREE_SET, "4DyKUQ", 1);
     if (!eventIdUtxo1) throw new Error("Event undefined");
     assert.equal(eventIdUtxo1.transaction.type, Action.COMPRESS);
     assert.equal(
@@ -276,11 +271,7 @@ describe("Test Rpc Errors", () => {
       "4DyKUQ",
     );
 
-    const eventIdUtxo2 = await RPC.getEventById(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-      "3pvhXa",
-      1,
-    );
+    const eventIdUtxo2 = await RPC.getEventById(MERKLE_TREE_SET, "3pvhXa", 1);
     if (!eventIdUtxo2) throw new Error("Event undefined");
     assert.equal(eventIdUtxo2.transaction.type, Action.COMPRESS);
     assert.equal(
