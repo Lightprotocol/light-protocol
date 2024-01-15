@@ -30,9 +30,12 @@ describe("compress:spl sub-cli", () => {
   test
     .stdout({ print: true })
     .command(["compress:spl", "123", "USDC", "-d", "--localTestRpc"])
-    .it("compressing 1.23 USDC taking absolute input with the subcli", (ctx) => {
-      expect(ctx.stdout).to.contain("Successfully compressed 1.23 USDC ✔");
-    });
+    .it(
+      "compressing 1.23 USDC taking absolute input with the subcli",
+      (ctx) => {
+        expect(ctx.stdout).to.contain("Successfully compressed 1.23 USDC ✔");
+      },
+    );
 
   test
     .stdout()
@@ -53,7 +56,7 @@ describe("compress:spl sub-cli", () => {
       "compress:spl",
       "10",
       "USDC",
-      "--recipient=HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84qFAIL",
+      "--recipient=MermoccL1uomVSnDrptQaeRTeiPQtJRgGx98gnm5o39X6RrWPLFKg9wf97yfqKVCwaDDrVCmaFwerWaQ6JSmmicFAIL",
       "--localTestRpc",
     ])
     .exit(2)
