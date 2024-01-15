@@ -187,7 +187,7 @@ describe("API tests", () => {
           utxo.utxoHash,
         );
         assert.equal(res.body.data.transaction.firstLeafIndex, "0");
-        // don't assert nullifiers since we shielded
+        // don't assert nullifiers since we compressed
         // assert.deepEqual(res.body.data.transaction.nullifiers[0], new BN(utxo.getNullifier({hasher,account: user.account}).toString()).toArray("be", 32));
         assert.equal(res.body.data.transaction.rpcFee, "0");
 
@@ -250,7 +250,7 @@ describe("API tests", () => {
           utxo.utxoHash,
         );
         assert.equal(res.body.data[0].transaction.firstLeafIndex, "0");
-        // don't assert nullifiers since we shielded
+        // don't assert nullifiers since we compressed
         // assert.equal(new BN(res.body.data[0].transaction.nullifiers[0], 32, "be").toString(), utxo.getNullifier({hasher,account: user.account, index: 0}));
         assert.equal(res.body.data[0].transaction.rpcFee, "0");
 

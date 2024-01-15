@@ -605,9 +605,9 @@ export function assignAccountsUnshield(
   );
   const senderSol = MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
 
-  // AUTHORITY is used as placeholder in case no spl recipient is unshielded
+  // AUTHORITY is used as placeholder in case no spl recipient is decompressed
   const assignedRecipientSpl = recipientSpl ? recipientSpl : AUTHORITY;
-  // AUTHORITY is used as placeholder in case no sol recipient is unshielded
+  // AUTHORITY is used as placeholder in case no sol recipient is decompressed
   const assignedRecipientSol = recipientSol ? recipientSol : AUTHORITY;
   return {
     senderSol,
@@ -617,7 +617,7 @@ export function assignAccountsUnshield(
   };
 }
 
-// solanaTransaction assign accounts for shielded transfer
+// solanaTransaction assign accounts for compressed transfer
 export function assignAccounts(assetPubkeys: PublicKey[]): {
   senderSol: PublicKey;
   senderSpl: PublicKey;
@@ -636,9 +636,9 @@ export function assignAccounts(assetPubkeys: PublicKey[]): {
   );
   const senderSol = MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
 
-  // AUTHORITY is used as placeholder in case no spl recipient is unshielded
+  // AUTHORITY is used as placeholder in case no spl recipient is decompressed
   const assignedRecipientSpl = AUTHORITY;
-  // AUTHORITY is used as placeholder in case no sol recipient is unshielded
+  // AUTHORITY is used as placeholder in case no sol recipient is decompressed
   const assignedRecipientSol = AUTHORITY;
   return {
     senderSol,
@@ -658,7 +658,7 @@ export function assignAccountsShield(
     merkleTreeProgramId,
   );
   const recipientSol = MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
-  // AUTHORITY is used as placeholder in case no spl recipient is unshielded
+  // AUTHORITY is used as placeholder in case no spl recipient is decompressed
   const assignedSenderSpl = senderSpl ? senderSpl : AUTHORITY;
 
   const senderSol = getEscrowPda(systemPspId);

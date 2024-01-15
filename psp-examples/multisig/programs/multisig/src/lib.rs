@@ -77,7 +77,7 @@ pub mod multisig {
         Ok(())
     }
 
-    /// This instruction is the third step of a shielded transaction.
+    /// This instruction is the third step of a compressed transaction.
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
     pub fn light_instruction_third<'a, 'b, 'c, 'info>(

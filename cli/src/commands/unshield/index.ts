@@ -69,14 +69,14 @@ class UnshieldCommand extends Command {
 
       if (!amountSol || !amountSpl) {
         this.log(
-          `\nSuccessfully unshielded ${
+          `\nSuccessfully decompressed ${
             token === "SOL" ? amountSol : amountSpl
           } ${token}`,
           "\x1b[32m✔\x1b[0m",
         );
       } else {
         this.log(
-          `\nSuccessfully unshielded ${amountSol} SOL & ${amountSpl} ${token}`,
+          `\nSuccessfully decompressed ${amountSol} SOL & ${amountSpl} ${token}`,
           "\x1b[32m✔\x1b[0m",
         );
       }

@@ -68,7 +68,7 @@ class UnshieldCommand extends Command {
         ),
       );
       this.log(
-        `\nSuccessfully unshielded ${amountSol} SOL`,
+        `\nSuccessfully decompressed ${amountSol} SOL`,
         "\x1b[32m✔\x1b[0m",
       );
       loader.stop();

@@ -66,7 +66,7 @@ class ShieldSolCommand extends Command {
       const amount = skipDecimalConversions
         ? Number(amountSol) / 1_000_000_000
         : amountSol;
-      this.log(`\nSuccessfully shielded ${amount} SOL`, "\x1b[32m✔\x1b[0m");
+      this.log(`\nSuccessfully compressed ${amount} SOL`, "\x1b[32m✔\x1b[0m");
       loader.stop();
     } catch (error) {
       this.error(`Shielding tokens failed!\n${error}`);

@@ -19,7 +19,7 @@ pub const PROGRAM_ID: &str = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 pub mod swaps {
     use super::*;
 
-    /// This instruction is the first step of a shielded transaction.
+    /// This instruction is the first step of a compressed transaction.
     /// It creates and initializes a verifier state account to save state of a verification during
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
@@ -86,7 +86,7 @@ pub mod swaps {
         Ok(())
     }
 
-    /// This instruction is the third step of a shielded transaction.
+    /// This instruction is the third step of a compressed transaction.
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
     pub fn light_instruction_third<'a, 'b, 'c, 'info>(

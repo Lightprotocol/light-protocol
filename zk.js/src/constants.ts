@@ -162,7 +162,7 @@ export const UTXO_MERGE_THRESHOLD = 20; // 7
 export const UTXO_MERGE_MAXIMUM = 10;
 export const UTXO_FEE_ASSET_MINIMUM = 100_000;
 export const SIGN_MESSAGE: string =
-  "IMPORTANT:\nThe application will be able to spend \nyour shielded assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
+  "IMPORTANT:\nThe application will be able to spend \nyour compressed assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
 
 export const RPC_FEE = new anchor.BN(100_000);
 

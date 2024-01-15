@@ -89,7 +89,7 @@ describe("Test User", () => {
 
   it("externally supplied seed vs internal seed (user derivation)", async () => {
     const message =
-      "IMPORTANT:\nThe application will be able to spend \nyour shielded assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
+      "IMPORTANT:\nThe application will be able to spend \nyour compressed assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
 
     const walletMock = useWallet(ADMIN_AUTH_KEYPAIR);
     const walletMock2 = useWallet(Keypair.generate());

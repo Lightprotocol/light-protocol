@@ -1,146 +1,91 @@
-/**
- * Currently Not Maintained and Excluded From CI
- * TODO: Fix and re-enable
- */
-//@ts-nocheck
-import * as anchor from "@coral-xyz/anchor";
-import { assert } from "chai";
-import {
-  TransactionParameters,
-  Provider as LightProvider,
-  confirmConfig,
-  TestRpc,
-  User,
-  airdropSol,
-} from "@lightprotocol/zk.js";
-import { Hasher, WasmFactory } from "@lightprotocol/account.rs";
+# README
 
-import { Keypair } from "@solana/web3.js";
+## Introduction
 
-import { BN } from "@coral-xyz/anchor";
-import { IDL } from "../target/types/private_compressed_account";
-import { PoseidonCompressedAccount } from "../sdk";
-let HASHER: Hasher;
-const RPC_URL = "http://127.0.0.1:8899";
-const log = console.log;
+This script is an example implementation of a compressed transfer using the Light Protocol and **Solana** blockchain. It demonstrates how to initialize a **Solana** wallet, request an airdrop of SOL tokens, set up a test rpc, perform a shield operation, transfer tokens to a recipient, and retrieve transaction information.
 
-describe("Test private-compressed-account", () => {
-  let compressedAccount: PoseidonCompressedAccount;
-  let insertValue = "12";
+## Prerequisites
 
-  process.env.ANCHOR_PROVIDER_URL = RPC_URL;
-  process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+Before running this script, ensure that you have the following prerequisites:
 
-  // Configure the client to use the local cluster.
-  const provider = anchor.AnchorProvider.local(RPC_URL, confirmConfig);
-  anchor.setProvider(provider);
+1. **Node**.js and **npm** installed on your machine.
+2. A **Solana** wallet file (JSON format) located at `~/.config/solana/id.json`. If the file doesn't exist, the script will generate a new wallet for testing purposes.
 
-  before(async () => {
-    HASHER = await WasmFactory.getInstance();
-  });
+## Installation
 
-  it.skip("Merkle Tree Update Circuits, 100 rounds", async () => {
-    const compressedAccount = new PoseidonCompressedAccount(HASHER, IDL, 0);
-    let insertValue = "12";
-    let leafHash = HASHER.poseidonHashString([insertValue]);
-    await compressedAccount.generateUpdateProof({ leafHash });
-    for (let i = 0; i < 100; i++) {
-      log(`i ${i}`);
-      let insertValue1 = (i + 1).toString();
-      let leafHash = HASHER.poseidonHashString([insertValue1]);
-      console.time("fullProveAndParse");
-      await compressedAccount.generateUpdateProof({ leafHash });
-      console.timeEnd("fullProveAndParse");
-    }
-  });
-  it("Inclusion Gt Circuit should succeed", async () => {
-    compressedAccount = new PoseidonCompressedAccount(HASHER, IDL, 0);
-    let leafHash = HASHER.poseidonHashString([insertValue]);
-    await compressedAccount.generateUpdateProof({ leafHash });
+1. Clone the repository or create a new project directory.
+2. Open a terminal and navigate to the project directory.
+3. Run the following command to install the required dependencies:
 
-    log("insertValue 12, refValue 12");
-    await compressedAccount.generateInclusionProof({
-      leafInput: insertValue,
-      referenceValue: new BN("12"),
-    });
-    log("insertValue 12, refValue 11");
-    await compressedAccount.generateInclusionProof({
-      leafInput: insertValue,
-      referenceValue: new BN("11"),
-    });
-  });
-  it("Inclusion Gt Circuit should fail with Lt value", async () => {
-    let throwed = false;
-    try {
-      log("insertValue 12, refValue 13");
-      await compressedAccount.generateInclusionProof({
-        leafInput: insertValue,
-        referenceValue: new BN("13"),
-      });
-    } catch (error) {
-      console.error("expected error ", error);
-      throwed = true;
-    }
-    assert(throwed, "Should throw error");
-  });
-  it.skip("Create and Spend Program Utxo loop", async () => {
-    const wallet = Keypair.generate();
-    await airdropSol({
-      connection: provider.connection,
-      lamports: 1e10,
-      recipientPublicKey: wallet.publicKey,
-    });
+```shell
+npm install
+```
 
-    let rpc = new TestRpc({
-      rpcPubkey: wallet.publicKey,
-      rpcRecipientSol: wallet.publicKey,
-      rpcFee: new BN(100000),
-      payer: wallet,
-    });
+or
 
-    // The light provider is a connection and wallet abstraction.
-    // The wallet is used to derive the seed for your shielded keypair with a signature.
-    var lightProvider = await LightProvider.init({
-      wallet,
-      url: RPC_URL,
-      rpc,
-      confirmConfig,
-    });
-    lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      TransactionParameters.getVerifierProgramId(IDL)
-    );
+```shell
+yarn install
+```
 
-    const user: User = await User.init({ provider: lightProvider });
-    // User needs a shielded sol balance to pay for the transaction fees.
-    await user.shield({ token: "SOL", publicAmountSol: "1" });
+If you want to start your project from scratch, you can add dependencies by running:
 
-    const compressedAccount = new PoseidonCompressedAccount(
-      HASHER,
-      IDL,
-      0,
-      user
-    );
+```shell
+npm install @lightprotocol/zk.js @coral-xyz/anchor
+```
 
-    try {
-      await compressedAccount.initMerkleTreeAccount();
-    } catch (error) {
-      console.error("error ", error);
-      throw error;
-    }
-    log("merkle tree account initialized");
+or
 
-    let insertValue = "12";
-    let { txHash } = await compressedAccount.insertLeaf(insertValue);
-    log(`tx signatures: ${txHash.signatures}`);
+```shell
+yarn add @lightprotocol/zk.js @coral-xyz/anchor
+```
 
-    for (let i = 0; i < 10; i++) {
-      let insertValue1 = (i + 1).toString();
-      let { txHash } = await compressedAccount.insertLeaf(insertValue1);
-      log(`i: ${i}, tx signatures: ${txHash.signatures}`);
-      await compressedAccount.verifyInclusionGte({
-        leafInput: insertValue,
-        referenceValue: new BN("0"),
-      });
-    }
-  });
-});
+## Configuration
+
+Before running the script, you may need to modify the following configuration options:
+
+- `SOLANA_PORT` (default: `"8899"`): The port on which the local **Solana** node is running. If your node is running on a different port, update this value accordingly.
+- `process.env.ANCHOR_WALLET`: The path to the **Solana** wallet file. By default, it is set to `~/.config/solana/id.json`. If your wallet file is located elsewhere, modify this value accordingly.
+- `LOOK_UP_TABLE`: The lookup table used for the test rpc. If the provided lookup table doesn't exist a new one will be created.
+
+## Run
+
+To run the project, execute the following command in the terminal:
+
+```shell
+npm run test-local
+```
+
+or
+
+```shell
+yarn run test-local
+```
+
+The command above will start a local test validator with both Light Protocol's programs and accounts initialized.
+
+**NOTE:** `local-test` starts a **Solana** test-validator; if you want to handle a **Solana** test validator autonomously, you will need to initialize the Merkle tree and other accounts manually or using the `setMerkleTree script`;
+
+## Overview
+
+The script performs the following steps:
+
+- Initializes the **Solana** wallet.
+- Requests an airdrop of SOL tokens to the wallet.
+- Sets up a test rpc.
+- Initializes the Light Protocol provider using the **Solana** wallet and the test rpc.
+- Initializes a Light Protocol user using the provider.
+- Performs a shield operation to shield 1 SOL.
+- Retrieves the user's balance.
+- Generates a test recipient keypair.
+- Requests an airdrop of SOL tokens to the recipient's public key.
+- Initializes a Light Protocol provider for the recipient using the recipient's keypair and the test rpc.
+- Initializes a Light Protocol user for the recipient using the provider.
+- Executes a transfer of 0.25 SOL from the user to the recipient.
+- Retrieves and logs the transaction hash of the transfer.
+- Retrieves and logs the UTXO (Unspent Transaction Output) inbox for the test recipient.
+
+You can use it as a reference to integrate compressed transfers into your own applications or explore the capabilities of the Light Protocol and **Solana**.
+
+## Notes
+
+Please note that this README provides an overview of the script's functionality and assumes familiarity with the **Solana** blockchain, the `@lightprotocol/zk.js` library, and the `@coral-xyz/anchor` library. For detailed usage and understanding, refer to our documentation.

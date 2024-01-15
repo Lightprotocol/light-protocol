@@ -65,7 +65,7 @@ describe("Test {{project-name}}", () => {
     });
 
     // The light provider is a connection and wallet abstraction.
-    // The wallet is used to derive the seed for your shielded keypair with a signature.
+    // The wallet is used to derive the seed for your compressed keypair with a signature.
     var lightProvider = await LightProvider.init({
       wallet,
       url: RPC_URL,
@@ -73,7 +73,7 @@ describe("Test {{project-name}}", () => {
       confirmConfig,
     });
     lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      getVerifierProgramId(IDL),
+      getVerifierProgramId(IDL)
     );
 
     const user: User = await User.init({ provider: lightProvider });
@@ -113,7 +113,7 @@ describe("Test {{project-name}}", () => {
     assert.equal(inputUtxo.utxoData.y.toString(), "2");
 
     const circuitPath = path.join(
-      `build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`,
+      `build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`
     );
 
     const pspTransactionInput: PspTransactionInput = {
@@ -139,7 +139,7 @@ describe("Test {{project-name}}", () => {
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0),
+        new BN(0)
       ),
       rpcPublicKey: rpc.accounts.rpcPubkey,
       lightWasm: WASM,
@@ -150,7 +150,7 @@ describe("Test {{project-name}}", () => {
     });
 
     const { root, index: rootIndex } = (await rpc.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MerkleTreeConfig.getTransactionMerkleTreePda()
     ))!;
 
     const proofInputs = createProofInputs({
@@ -196,7 +196,7 @@ describe("Test {{project-name}}", () => {
       inputUtxo.utxoHash,
       true,
       MerkleTreeConfig.getTransactionMerkleTreePda(),
-      IDL,
+      IDL
     );
     assert.equal(utxoSpent!.status, "spent");
   });
