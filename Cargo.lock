@@ -2837,6 +2837,7 @@ dependencies = [
  "byteorder",
  "getrandom 0.2.10",
  "light-hasher",
+ "light-indexed-merkle-tree",
  "light-macros",
  "light-sparse-merkle-tree",
  "light-utils",

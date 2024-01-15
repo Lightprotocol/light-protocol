@@ -111,6 +111,10 @@ pub mod light_merkle_tree_program {
         process_insert_two_leaves_event(ctx, leaf_left, leaf_right)
     }
 
+    // pub fn insert_nullifiers<'info>(
+    //     ctx:
+    // )
+
     /// Unshields sol from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
     /// Can only be called from a registered verifier program.
@@ -139,6 +143,6 @@ pub mod light_merkle_tree_program {
         ctx: Context<'_, '_, '_, 'info, InitializeNullifiers<'info>>,
         nullifiers: Vec<[u8; 32]>,
     ) -> Result<()> {
-        process_insert_nullifiers(ctx, nullifiers)
+        process_initialize_nullifiers(ctx, nullifiers)
     }
 }

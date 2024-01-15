@@ -1,6 +1,7 @@
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_hasher::Poseidon;
+use light_indexed_merkle_tree::IndexedMerkleTree;
 use light_macros::pubkey;
 use light_sparse_merkle_tree::{config::MerkleTreeConfig, MerkleTree};
 
@@ -19,13 +20,14 @@ impl MerkleTreeConfig for TransactionMerkleTreeConfig {
 // light-merkle-tree crate.
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
-pub struct TransactionMerkleTree {
+pub struct MerkleTrees {
     pub merkle_tree_nr: u64,
     pub newest: u64,
-    pub merkle_tree: MerkleTree<Poseidon, TransactionMerkleTreeConfig>,
+    pub state_merkle_tree: MerkleTree<Poseidon, TransactionMerkleTreeConfig>,
+    pub nullifier_merkle_tree: IndexedMerkleTree<Poseidon, MAX_HEIGHT, MAX_CHANGELOG, MAX_ROOTS>,
 }
 
-impl_indexed_merkle_tree!(TransactionMerkleTree);
+impl_indexed_merkle_tree!(MerkleTrees);
 
 #[account]
 #[aligned_sized(anchor)]

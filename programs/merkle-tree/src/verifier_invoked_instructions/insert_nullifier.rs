@@ -19,7 +19,7 @@ pub struct InitializeNullifiers<'info> {
 }
 
 /// Inserts nullifiers, written in plain rust for memory optimization.
-pub fn process_insert_nullifiers<'info>(
+pub fn process_initialize_nullifiers<'info>(
     ctx: Context<'_, '_, '_, 'info, InitializeNullifiers<'info>>,
     nullifiers: Vec<[u8; 32]>,
 ) -> Result<()> {
@@ -43,3 +43,22 @@ pub fn process_insert_nullifiers<'info>(
     }
     Ok(())
 }
+
+#[derive(Accounts)]
+pub struct InsertNullifiers<'info> {
+    #[account(
+        mut,
+        seeds=[__program_id.to_bytes().as_ref()],
+        bump,
+        seeds::program=registered_verifier_pda.pubkey
+    )]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+    #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()], bump)]
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
+}
+
+pub fn process_insert_nullifiers<'info>(
+    ctx: Context<'_, '_, '_, 'ino, InsertNullifiers<'info>>,
+    nullifiers: Vec<[u8; 32]>,
+)
