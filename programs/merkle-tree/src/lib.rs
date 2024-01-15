@@ -111,7 +111,7 @@ pub mod light_merkle_tree_program {
         process_insert_two_leaves_event(ctx, leaf_left, leaf_right)
     }
 
-    /// Unshields sol from a liquidity pool.
+    /// Decompresses sol from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
     /// Can only be called from a registered verifier program.
     pub fn unshield_sol<'info>(
@@ -125,7 +125,7 @@ pub mod light_merkle_tree_program {
         )
     }
 
-    /// Unshields spl tokens from a liquidity pool.
+    /// Decompresses spl tokens from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
     /// Can only be called from a registered verifier program.
     pub fn unshield_spl<'info>(

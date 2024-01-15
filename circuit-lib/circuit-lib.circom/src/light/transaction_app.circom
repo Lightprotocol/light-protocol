@@ -54,7 +54,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     assert( nOutAssets <= nAssets);
 
     signal input root;
-    // extAmount = external amount used for shields and unshields
+    // extAmount = external amount used for compressions and decompressions
     // correct extAmount range is enforced on the smart contract
     // publicAmountSpl = extAmount - fee
     signal input publicAmountSpl;

@@ -1041,7 +1041,7 @@ impl<
         Ok(())
     }
 
-    /// Checks whether a transaction is a shield by inspecting the public amount.
+    /// Checks whether a transaction is a compression by inspecting the public amount.
     pub fn is_shield_spl(&self) -> bool {
         if self.input.public_amount.spl[24..] != [0u8; 8]
             && self.input.public_amount.spl[..24] == [0u8; 24]
@@ -1107,7 +1107,7 @@ impl<
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
         // Big integers are stored in 4 u64 limbs, if the number is <= U64::max() and encoded in little endian,
         // only the first limb is greater than 0.
-        // Amounts in shielded accounts are limited to 64bit therefore an unshield will always be greater
+        // Amounts in shielded accounts are limited to 64bit therefore a decompression will always be greater
         // than one U64::max().
         if pub_amount.0[0] > 0
             && pub_amount.0[1] == 0

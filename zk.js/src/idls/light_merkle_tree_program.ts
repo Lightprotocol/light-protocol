@@ -558,7 +558,7 @@ export type LightMerkleTreeProgram = {
     {
       "name": "unshieldSol",
       "docs": [
-        "Unshields sol from a liquidity pool.",
+        "Decompresses sol from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
         "Can only be called from a registered verifier program."
       ],
@@ -594,7 +594,7 @@ export type LightMerkleTreeProgram = {
     {
       "name": "unshieldSpl",
       "docs": [
-        "Unshields spl tokens from a liquidity pool.",
+        "Decompresses spl tokens from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
         "Can only be called from a registered verifier program."
       ],
@@ -1856,7 +1856,7 @@ export const IDL: LightMerkleTreeProgram = {
     {
       "name": "unshieldSol",
       "docs": [
-        "Unshields sol from a liquidity pool.",
+        "Decompresses sol from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
         "Can only be called from a registered verifier program."
       ],
@@ -1892,7 +1892,7 @@ export const IDL: LightMerkleTreeProgram = {
     {
       "name": "unshieldSpl",
       "docs": [
-        "Unshields spl tokens from a liquidity pool.",
+        "Decompresses spl tokens from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
         "Can only be called from a registered verifier program."
       ],

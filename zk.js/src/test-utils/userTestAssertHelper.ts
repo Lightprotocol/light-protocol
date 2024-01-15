@@ -655,7 +655,7 @@ export class UserTestAssertHelper {
     );
   }
   /**
-   * Asynchronously checks if token shielding has been performed correctly for a user.
+   * Asynchronously checks if token compression has been performed correctly for a user.
    * This method performs the following checks:
    *
    * 1. Asserts that the user's shielded token balance has increased by the amount shielded.
@@ -716,7 +716,7 @@ export class UserTestAssertHelper {
   }
 
   /**
-   * Asynchronously checks if SOL shielding has been performed correctly for a user.
+   * Asynchronously checks if SOL compression has been performed correctly for a user.
    * This method performs the following checks:
    *
    * 1. Asserts recipient user balance increased by shielded amount.
@@ -800,7 +800,7 @@ export class UserTestAssertHelper {
   }
 
   /**
-   * Asynchronously checks if token unshielding has been performed correctly for a user.
+   * Asynchronously checks if token decompression has been performed correctly for a user.
    * This method performs the following checks:
    *
    * 1. Asserts that the user's shielded token balance has decreased by the amount unshielded.
