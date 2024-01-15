@@ -56,6 +56,18 @@ where
         self.merkle_tree.root()
     }
 
+    /// Checks whether the given Merkle `proof` for the given `node` (with index
+    /// `i`) is valid. The proof is valid when computing parent node hashes using
+    /// the whole path of the proof gives the same result as the given `root`.
+    pub fn validate_proof(
+        &self,
+        leaf: &[u8; 32],
+        leaf_index: usize,
+        proof: &[[u8; 32]; HEIGHT],
+    ) -> Result<(), HasherError> {
+        self.merkle_tree.validate_proof(leaf, leaf_index, proof)
+    }
+
     pub fn update(
         &mut self,
         changelog_index: usize,
