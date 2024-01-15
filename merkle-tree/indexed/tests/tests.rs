@@ -118,7 +118,7 @@ where
             relayer_merkle_tree.get_proof_of_leaf(usize::from(old_low_nullifier.index));
 
         // Update on-chain tree.
-        if let Err(e) = program_update(
+        let update_successful = match program_update(
             queue,
             merkle_tree,
             changelog_index as u16,
@@ -130,8 +130,12 @@ where
             old_low_nullifier_next_value,
             low_nullifier_proof,
         ) {
-            update_errors.push(e);
-        }
+            Ok(_) => true,
+            Err(e) => {
+                update_errors.push(e);
+                false
+            }
+        };
 
         // Update off-chain tree.
         relayer_merkle_tree
@@ -141,6 +145,37 @@ where
                 nullifier_bundle.new_element_next_value,
             )
             .unwrap();
+
+        // Check if the on-chain Merkle tree was really updated.
+        if update_successful {
+            let low_nullifier_leaf = nullifier_bundle
+                .new_low_element
+                .hash::<H>(nullifier_bundle.new_element.value)
+                .unwrap();
+            let low_nullifier_proof =
+                relayer_merkle_tree.get_proof_of_leaf(nullifier_bundle.new_low_element.index());
+            merkle_tree
+                .validate_proof(
+                    &low_nullifier_leaf,
+                    nullifier_bundle.new_low_element.index(),
+                    &low_nullifier_proof,
+                )
+                .unwrap();
+
+            let new_nullifier_leaf = nullifier_bundle
+                .new_element
+                .hash::<H>(nullifier_bundle.new_element_next_value)
+                .unwrap();
+            let new_nullifier_proof =
+                relayer_merkle_tree.get_proof_of_leaf(nullifier_bundle.new_element.index());
+            merkle_tree
+                .validate_proof(
+                    &new_nullifier_leaf,
+                    nullifier_bundle.new_element.index(),
+                    &new_nullifier_proof,
+                )
+                .unwrap();
+        }
 
         // Insert the element to the indexing array.
         relayer_indexing_array
