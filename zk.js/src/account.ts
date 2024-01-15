@@ -57,6 +57,7 @@ export class Account {
         "getPrivateKeys",
       );
     }
+
     return {
       privateKey: bs58.encode(this.keypair.privateKey.toArray("be", 32)),
       encryptionPrivateKey: bs58.encode(this.encryptionKeypair.privateKey),
