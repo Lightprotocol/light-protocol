@@ -10,7 +10,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "1.5",
-      "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q",
+      "MermoccL1uomVSnDrptQaeRTeiPQtJRgGx98gnm5o39X6RrWPLFKg9wf97yfqKVCwaDDrVCmaFwerWaQ6JSmmic",
       "--localTestRpc",
     ])
     .it("transfer 1.5 SOL to a compressed account address", async (ctx) => {
@@ -22,7 +22,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "5",
-      "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q",
+      "MermoccL1uomVSnDrptQaeRTeiPQtJRgGx98gnm5o39X6RrWPLFKg9wf97yfqKVCwaDDrVCmaFwerWaQ6JSmmic",
       "--token=usdc",
       "--localTestRpc",
     ])
@@ -36,7 +36,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "5",
-      "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84qFAIL",
+      "MermoccL1uomVSnDrptQaeRTeiPQtJRgGx98gnm5o39X6RrWPLFKg9wf97yfqKVCwaDDrVCmaFwerWaQ6JSmmicFAIL",
       "--localTestRpc",
     ])
     .exit(2)
@@ -48,7 +48,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "550000000",
-      "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84qFAIL",
+      "MermoccL1uomVSnDrptQaeRTeiPQtJRgGx98gnm5o39X6RrWPLFKg9wf97yfqKVCwaDDrVCmaFwerWaQ6JSmmicFAIL",
       "--localTestRpc",
     ])
     .exit(2)
@@ -60,7 +60,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "550000",
-      "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84qFAIL",
+      "MermoccL1uomVSnDrptQaeRTeiPQtJRgGx98gnm5o39X6RrWPLFKg9wf97yfqKVCwaDDrVCmaFwerWaQ6JSmmicFAIL",
       "--token=usdc",
       "--localTestRpc",
     ])
@@ -73,7 +73,7 @@ describe("transfer", () => {
     .command([
       "transfer",
       "5",
-      "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q",
+      "MermoccL1uomVSnDrptQaeRTeiPQtJRgGx98gnm5o39X6RrWPLFKg9wf97yfqKVCwaDDrVCmaFwerWaQ6JSmmic",
       "--token=LFG",
       "--localTestRpc",
     ])

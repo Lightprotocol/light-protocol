@@ -11,7 +11,7 @@ describe("account", () => {
     .exit(0)
     .it("runs account cmd", ({ stdout }) => {
       expect(stdout).to.contain(
-        "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q",
+        "MermoccL1uomVSnDrptQaeRTeiPQtJRgGx98gnm5o39X6RrWPLFKg9wf97yfqKVCwaDDrVCmaFwerWaQ6JSmmic",
       );
     });
 });
