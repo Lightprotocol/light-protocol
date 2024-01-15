@@ -4,10 +4,9 @@ use light_hasher::{errors::HasherError, Hasher};
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct IndexingElement {
-    pub index: usize,
+    pub index: u16,
     pub value: [u8; 32],
-    pub next_index: usize,
-    pub next_value: [u8; 32],
+    pub next_index: u16,
 }
 
 impl PartialEq for IndexingElement {
@@ -31,16 +30,30 @@ impl Ord for IndexingElement {
 }
 
 impl IndexingElement {
-    pub fn hash<H>(&self) -> Result<[u8; 32], HasherError>
+    pub fn index(&self) -> usize {
+        self.index.into()
+    }
+
+    pub fn next_index(&self) -> usize {
+        self.next_index.into()
+    }
+
+    pub fn hash<H>(&self, next_value: [u8; 32]) -> Result<[u8; 32], HasherError>
     where
         H: Hasher,
     {
         H::hashv(&[
             self.value.as_slice(),
             self.next_index.to_le_bytes().as_slice(),
-            self.next_value.as_slice(),
+            next_value.as_slice(),
         ])
     }
+}
+
+pub struct IndexingElementBundle {
+    pub new_low_element: IndexingElement,
+    pub new_element: IndexingElement,
+    pub new_element_next_value: [u8; 32],
 }
 
 pub struct IndexingArray<H, const ELEMENTS: usize>
@@ -48,8 +61,8 @@ where
     H: Hasher,
 {
     pub(crate) elements: [IndexingElement; ELEMENTS],
-    pub current_node_index: usize,
-    highest_element_index: usize,
+    current_node_index: u16,
+    highest_element_index: u16,
 
     _hasher: PhantomData<H>,
 }
@@ -64,7 +77,6 @@ where
                 index: 0,
                 value: [0u8; 32],
                 next_index: 0,
-                next_value: [0u8; 32],
             }),
             current_node_index: 0,
             highest_element_index: 0,
@@ -82,7 +94,7 @@ where
     }
 
     pub fn len(&self) -> usize {
-        self.current_node_index
+        self.current_node_index.into()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -93,12 +105,12 @@ where
         IndexingArrayIter {
             indexing_array: self,
             front: 0,
-            back: self.current_node_index,
+            back: self.current_node_index.into(),
         }
     }
 
     pub fn find_element(&self, value: &[u8; 32]) -> Option<&IndexingElement> {
-        self.elements[..self.current_node_index + 1]
+        self.elements[..self.len() + 1]
             .iter()
             .find(|&node| node.value == *value)
     }
@@ -110,32 +122,36 @@ where
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element_index(&self, value: &[u8; 32]) -> usize {
+    pub fn find_low_element_index(&self, value: &[u8; 32]) -> Result<u16, HasherError> {
         // Try to find element whose next element is higher than the provided
         // value.
-        for (i, node) in self.elements[..self.current_node_index + 1]
-            .iter()
-            .enumerate()
-        {
-            if node.next_value > *value {
-                return i;
+        for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
+            if self.elements[node.next_index()].value > *value {
+                return i.try_into().map_err(|_| HasherError::IntegerOverflow);
             }
         }
         // If no such element was found, it means that our value is going to be
         // the greatest in the array. This means that the currently greatest
         // element is going to be the low element of our value.
-        self.highest_element_index
+        Ok(self.highest_element_index)
     }
 
-    /// Returns the index of the low element for the given value.
+    /// Returns the:
+    ///
+    /// * Low element for the given value.
+    /// * Next value for that low element.
     ///
     /// Low element is the greatest element which still has lower value than
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element(&self, value: &[u8; 32]) -> IndexingElement {
-        let low_element_index = self.find_low_element_index(value);
-        self.elements[low_element_index]
+    pub fn find_low_element(
+        &self,
+        value: &[u8; 32],
+    ) -> Result<(IndexingElement, [u8; 32]), HasherError> {
+        let low_element_index = self.find_low_element_index(value)?;
+        let low_element = self.elements[usize::from(low_element_index)];
+        Ok((low_element, self.elements[low_element.next_index()].value))
     }
 
     /// Returns the index of the low element for the given `value`, which
@@ -145,16 +161,17 @@ where
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element_index_for_existing_element(&self, value: &[u8; 32]) -> Option<usize> {
-        for (i, node) in self.elements[..self.current_node_index + 1]
-            .iter()
-            .enumerate()
-        {
-            if node.next_value == *value {
-                return Some(i);
+    pub fn find_low_element_index_for_existing_element(
+        &self,
+        value: &[u8; 32],
+    ) -> Result<Option<u16>, HasherError> {
+        for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
+            if self.elements[usize::from(node.next_index)].value == *value {
+                let i = i.try_into().map_err(|_| HasherError::IntegerOverflow)?;
+                return Ok(Some(i));
             }
         }
-        None
+        Ok(None)
     }
 
     /// Returns the hash of the given element. That hash consists of:
@@ -162,14 +179,14 @@ where
     /// * The value of the given element.
     /// * The `next_index` of the given element.
     /// * The value of the element pointed by `next_index`.
-    pub fn hash_element(&self, index: usize) -> Result<[u8; 32], HasherError> {
+    pub fn hash_element(&self, index: u16) -> Result<[u8; 32], HasherError> {
         let element = self
             .elements
-            .get(index)
+            .get(usize::from(index))
             .ok_or(HasherError::IndexHigherThanMax)?;
         let next_element = self
             .elements
-            .get(element.next_index)
+            .get(usize::from(element.next_index))
             .ok_or(HasherError::IndexHigherThanMax)?;
         H::hashv(&[
             element.value.as_slice(),
@@ -182,30 +199,31 @@ where
     /// provided `low_element_index` and `value`.
     pub fn new_element_with_low_element_index(
         &self,
-        low_element_index: usize,
+        low_element_index: u16,
         value: [u8; 32],
-    ) -> (IndexingElement, IndexingElement) {
-        let mut low_element = self.elements[low_element_index];
+    ) -> IndexingElementBundle {
+        let mut new_low_element = self.elements[usize::from(low_element_index)];
 
         let new_element_index = self.current_node_index + 1;
         let new_element = IndexingElement {
             index: new_element_index,
             value,
-            next_index: low_element.next_index,
-            next_value: low_element.next_value,
+            next_index: new_low_element.next_index,
         };
 
-        low_element.next_index = new_element_index;
-        low_element.next_value = value;
+        new_low_element.next_index = new_element_index;
 
-        (low_element, new_element)
+        let new_element_next_value = self.elements[usize::from(new_element.next_index)].value;
+
+        IndexingElementBundle {
+            new_low_element,
+            new_element,
+            new_element_next_value,
+        }
     }
 
-    pub fn new_element(
-        &self,
-        value: [u8; 32],
-    ) -> Result<(IndexingElement, IndexingElement), HasherError> {
-        let low_element_index = self.find_low_element_index(&value);
+    pub fn new_element(&self, value: [u8; 32]) -> Result<IndexingElementBundle, HasherError> {
+        let low_element_index = self.find_low_element_index(&value)?;
         let element = self.new_element_with_low_element_index(low_element_index, value);
 
         Ok(element)
@@ -214,10 +232,10 @@ where
     /// Appends the given `value` to the indexing array.
     pub fn append_with_low_element_index(
         &mut self,
-        low_element_index: usize,
+        low_element_index: u16,
         value: [u8; 32],
-    ) -> Result<(IndexingElement, IndexingElement), HasherError> {
-        let old_low_element = self.elements[low_element_index];
+    ) -> Result<IndexingElementBundle, HasherError> {
+        let old_low_element = self.elements[usize::from(low_element_index)];
 
         // Check that the `value` belongs to the range of `old_low_element`.
         if old_low_element.next_index == 0 {
@@ -235,14 +253,13 @@ where
             }
             // The value of `new_element` needs to be lower than the value of
             // next element pointed by `old_low_element`.
-            if value >= old_low_element.next_value {
+            if value >= self.elements[usize::from(old_low_element.next_index)].value {
                 return Err(HasherError::NewElementGreaterOrEqualToNextElement);
             }
         }
 
         // Create new node.
-        let (new_low_element, new_element) =
-            self.new_element_with_low_element_index(low_element_index, value);
+        let new_element_bundle = self.new_element_with_low_element_index(low_element_index, value);
 
         // If the old low element wasn't pointing to any element, it means that:
         //
@@ -252,28 +269,23 @@ where
         //
         // Therefore, we need to save the new element index as the highest
         // index.
-        if old_low_element.next_value == [0u8; 32] {
-            self.highest_element_index = new_element.index;
+        if old_low_element.next_index == 0 {
+            self.highest_element_index = new_element_bundle.new_element.index;
         }
 
         // Insert new node.
-        self.current_node_index = new_element.index;
-        self.elements[self.current_node_index] = new_element;
+        self.current_node_index = new_element_bundle.new_element.index;
+        self.elements[self.len()] = new_element_bundle.new_element;
 
         // Update low element.
-        self.elements[low_element_index] = new_low_element;
+        self.elements[usize::from(low_element_index)] = new_element_bundle.new_low_element;
 
-        Ok((new_low_element, new_element))
+        Ok(new_element_bundle)
     }
 
-    pub fn append(
-        &mut self,
-        value: [u8; 32],
-    ) -> Result<(IndexingElement, IndexingElement), HasherError> {
-        let low_element_index = self.find_low_element_index(&value);
-        let node = self.append_with_low_element_index(low_element_index, value)?;
-
-        Ok(node)
+    pub fn append(&mut self, value: [u8; 32]) -> Result<IndexingElementBundle, HasherError> {
+        let low_element_index = self.find_low_element_index(&value)?;
+        self.append_with_low_element_index(low_element_index, value)
     }
 
     pub fn lowest(&self) -> Option<IndexingElement> {
@@ -289,8 +301,8 @@ where
     /// next element instead of the one which is removed.
     pub fn dequeue_at_with_low_element_index(
         &mut self,
-        low_element_index: usize,
-        index: usize,
+        low_element_index: u16,
+        index: u16,
     ) -> Option<IndexingElement> {
         if index > self.current_node_index {
             // Index out of bounds.
@@ -298,29 +310,30 @@ where
         }
 
         // Save the element to be removed.
-        let removed_element = self.elements[index];
+        let removed_element = self.elements[usize::from(index)];
 
         // Update the lower element - point to the node which the currently
         // removed element is pointing to.
-        self.elements[low_element_index].next_index = removed_element.next_index;
-        self.elements[low_element_index].next_value = removed_element.next_value;
+        self.elements[usize::from(low_element_index)].next_index = removed_element.next_index;
 
-        let mut new_highest_element_index = 0;
+        let mut new_highest_element_index: u16 = 0;
         for i in 0..self.current_node_index {
             // Shift elements, which are on the right from the removed element,
             // to the left.
             if i >= index {
-                self.elements[i] = self.elements[i + 1];
-                self.elements[i].index -= 1;
+                self.elements[usize::from(i)] = self.elements[usize::from(i) + 1];
+                self.elements[usize::from(i)].index -= 1;
             }
             // If the `next_index` is greater than the index of the removed
             // element, decrement it. Elements on the right from the removed
             // element are going to be shifted left.
-            if self.elements[i].next_index >= index {
-                self.elements[i].next_index -= 1;
+            if self.elements[usize::from(i)].next_index >= index {
+                self.elements[usize::from(i)].next_index -= 1;
             }
 
-            if self.elements[i].value > self.elements[new_highest_element_index].value {
+            if self.elements[usize::from(i)].value
+                > self.elements[usize::from(new_highest_element_index)].value
+            {
                 new_highest_element_index = i;
             }
         }
@@ -338,11 +351,11 @@ where
     /// It also performs necessary updates of the remaning elements, to
     /// preserve the integrity of the array. It searches for the low element
     /// and updates it, to point to a new next element instead of the one
-    pub fn dequeue_at(&mut self, index: usize) -> Result<Option<IndexingElement>, HasherError> {
-        match self.elements.get(index) {
+    pub fn dequeue_at(&mut self, index: u16) -> Result<Option<IndexingElement>, HasherError> {
+        match self.elements.get(usize::from(index)) {
             Some(node) => {
                 let low_element_index = self
-                    .find_low_element_index_for_existing_element(&node.value)
+                    .find_low_element_index_for_existing_element(&node.value)?
                     .ok_or(HasherError::LowElementNotFound)?;
                 Ok(self.dequeue_at_with_low_element_index(low_element_index, index))
             }
@@ -437,10 +450,6 @@ mod test {
                 index: 0,
                 value: [0u8; 32],
                 next_index: 1,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30,
-                ],
             },
         );
         assert_eq!(
@@ -452,7 +461,6 @@ mod test {
                     0, 0, 0, 0, 0, 30,
                 ],
                 next_index: 0,
-                next_value: [0u8; 32],
             }
         );
 
@@ -486,10 +494,6 @@ mod test {
                 index: 0,
                 value: [0u8; 32],
                 next_index: 2,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10,
-                ],
             }
         );
         assert_eq!(
@@ -501,7 +505,6 @@ mod test {
                     0, 0, 0, 0, 0, 30
                 ],
                 next_index: 0,
-                next_value: [0u8; 32],
             }
         );
         assert_eq!(
@@ -513,10 +516,6 @@ mod test {
                     0, 0, 0, 0, 0, 10
                 ],
                 next_index: 1,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ]
             }
         );
 
@@ -547,10 +546,6 @@ mod test {
                 index: 0,
                 value: [0u8; 32],
                 next_index: 2,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ],
             }
         );
         assert_eq!(
@@ -562,7 +557,6 @@ mod test {
                     0, 0, 0, 0, 0, 30
                 ],
                 next_index: 0,
-                next_value: [0u8; 32],
             }
         );
         assert_eq!(
@@ -574,10 +568,6 @@ mod test {
                     0, 0, 0, 0, 0, 10
                 ],
                 next_index: 3,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 20
-                ],
             }
         );
         assert_eq!(
@@ -589,10 +579,6 @@ mod test {
                     0, 0, 0, 0, 0, 20
                 ],
                 next_index: 1,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ]
             }
         );
 
@@ -625,10 +611,6 @@ mod test {
                 index: 0,
                 value: [0u8; 32],
                 next_index: 2,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ]
             }
         );
         assert_eq!(
@@ -640,10 +622,6 @@ mod test {
                     0, 0, 0, 0, 0, 30
                 ],
                 next_index: 4,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 50
-                ],
             }
         );
         assert_eq!(
@@ -655,10 +633,6 @@ mod test {
                     0, 0, 0, 0, 0, 10
                 ],
                 next_index: 3,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 20
-                ],
             }
         );
         assert_eq!(
@@ -670,10 +644,6 @@ mod test {
                     0, 0, 0, 0, 0, 20
                 ],
                 next_index: 1,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ]
             }
         );
         assert_eq!(
@@ -685,7 +655,6 @@ mod test {
                     0, 0, 0, 0, 0, 50
                 ],
                 next_index: 0,
-                next_value: [0u8; 32],
             }
         );
     }
@@ -730,10 +699,6 @@ mod test {
                 index: 0,
                 value: [0u8; 32],
                 next_index: 1,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30,
-                ],
             },
         );
         assert_eq!(
@@ -745,7 +710,6 @@ mod test {
                     0, 0, 0, 0, 0, 30,
                 ],
                 next_index: 0,
-                next_value: [0u8; 32],
             }
         );
 
@@ -782,10 +746,6 @@ mod test {
                 index: 0,
                 value: [0u8; 32],
                 next_index: 2,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10,
-                ],
             }
         );
         assert_eq!(
@@ -797,7 +757,6 @@ mod test {
                     0, 0, 0, 0, 0, 30
                 ],
                 next_index: 0,
-                next_value: [0u8; 32],
             }
         );
         assert_eq!(
@@ -809,10 +768,6 @@ mod test {
                     0, 0, 0, 0, 0, 10
                 ],
                 next_index: 1,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ]
             }
         );
 
@@ -846,10 +801,6 @@ mod test {
                 index: 0,
                 value: [0u8; 32],
                 next_index: 2,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ],
             }
         );
         assert_eq!(
@@ -861,7 +812,6 @@ mod test {
                     0, 0, 0, 0, 0, 30
                 ],
                 next_index: 0,
-                next_value: [0u8; 32],
             }
         );
         assert_eq!(
@@ -873,10 +823,6 @@ mod test {
                     0, 0, 0, 0, 0, 10
                 ],
                 next_index: 3,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 20
-                ],
             }
         );
         assert_eq!(
@@ -888,10 +834,6 @@ mod test {
                     0, 0, 0, 0, 0, 20
                 ],
                 next_index: 1,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ]
             }
         );
 
@@ -927,10 +869,6 @@ mod test {
                 index: 0,
                 value: [0u8; 32],
                 next_index: 2,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ]
             }
         );
         assert_eq!(
@@ -942,10 +880,6 @@ mod test {
                     0, 0, 0, 0, 0, 30
                 ],
                 next_index: 4,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 50
-                ],
             }
         );
         assert_eq!(
@@ -957,10 +891,6 @@ mod test {
                     0, 0, 0, 0, 0, 10
                 ],
                 next_index: 3,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 20
-                ],
             }
         );
         assert_eq!(
@@ -972,10 +902,6 @@ mod test {
                     0, 0, 0, 0, 0, 20
                 ],
                 next_index: 1,
-                next_value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ]
             }
         );
         assert_eq!(
@@ -987,13 +913,12 @@ mod test {
                     0, 0, 0, 0, 0, 50
                 ],
                 next_index: 0,
-                next_value: [0u8; 32],
             }
         );
     }
 
     /// Tries to violate the integrity of the array by pointing to invalid low
-    /// nullifiers. Tests whether the range check works correctly and fisallows
+    /// nullifiers. Tests whether the range check works correctly and disallows
     /// the invalid appends from happening.
     #[test]
     fn test_append_with_low_element_index_invalid() {

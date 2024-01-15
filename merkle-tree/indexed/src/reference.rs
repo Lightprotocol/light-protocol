@@ -43,15 +43,17 @@ where
         &mut self,
         new_low_element: IndexingElement,
         new_element: IndexingElement,
+        new_element_next_value: [u8; 32],
     ) -> Result<(), HasherError> {
         // Update the low element.
-        let new_low_leaf = new_low_element.hash::<H>()?;
+        let new_low_leaf = new_low_element.hash::<H>(new_element.value)?;
         self.merkle_tree
-            .update(&new_low_leaf, new_low_element.index)?;
+            .update(&new_low_leaf, new_low_element.index as usize)?;
 
         // Append the new element.
-        let new_leaf = new_element.hash::<H>()?;
-        self.merkle_tree.update(&new_leaf, new_element.index)?;
+        let new_leaf = new_element.hash::<H>(new_element_next_value)?;
+        self.merkle_tree
+            .update(&new_leaf, new_element.index as usize)?;
 
         Ok(())
     }

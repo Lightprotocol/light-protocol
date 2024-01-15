@@ -56,25 +56,27 @@ fn program_update<H>(
     nullifier_next_index: u16,
     nullifier_next_value: [u8; 32],
     low_nullifier: IndexingElement,
+    low_nullifier_next_value: [u8; 32],
     low_nullifier_proof: [[u8; 32]; MERKLE_TREE_HEIGHT],
 ) -> Result<(), HasherError>
 where
     H: Hasher,
 {
     // Remove the nullifier from the queue.
-    let mut nullifier = queue.dequeue_at(queue_index as usize).unwrap().unwrap();
+    let mut nullifier = queue.dequeue_at(queue_index).unwrap().unwrap();
 
     // Update the nullifier with ranges adjusted to the Merkle tree state,
     // coming from relayer.
-    nullifier.index = nullifier_index as usize;
-    nullifier.next_index = nullifier_next_index as usize;
-    nullifier.next_value = nullifier_next_value;
+    nullifier.index = nullifier_index;
+    nullifier.next_index = nullifier_next_index;
 
     // Update the Merkle tree.
     merkle_tree.update(
-        changelog_index as usize,
+        usize::from(changelog_index),
         nullifier,
+        nullifier_next_value,
         low_nullifier,
+        low_nullifier_next_value,
         &low_nullifier_proof,
     )
 }
@@ -107,21 +109,25 @@ where
         };
 
         // Create new element from the dequeued value.
-        let old_low_nullifier = relayer_indexing_array.find_low_element(&lowest_from_queue.value);
-        let (new_low_nullifier, nullifier) = relayer_indexing_array
+        let (old_low_nullifier, old_low_nullifier_next_value) = relayer_indexing_array
+            .find_low_element(&lowest_from_queue.value)
+            .unwrap();
+        let nullifier_bundle = relayer_indexing_array
             .new_element_with_low_element_index(old_low_nullifier.index, lowest_from_queue.value);
-        let low_nullifier_proof = relayer_merkle_tree.get_proof_of_leaf(old_low_nullifier.index);
+        let low_nullifier_proof =
+            relayer_merkle_tree.get_proof_of_leaf(usize::from(old_low_nullifier.index));
 
         // Update on-chain tree.
         if let Err(e) = program_update(
             queue,
             merkle_tree,
             changelog_index as u16,
-            lowest_from_queue.index as u16,
-            nullifier.index as u16,
-            nullifier.next_index as u16,
-            nullifier.next_value,
+            lowest_from_queue.index,
+            nullifier_bundle.new_element.index,
+            nullifier_bundle.new_element.next_index,
+            nullifier_bundle.new_element_next_value,
             old_low_nullifier,
+            old_low_nullifier_next_value,
             low_nullifier_proof,
         ) {
             update_errors.push(e);
@@ -129,12 +135,19 @@ where
 
         // Update off-chain tree.
         relayer_merkle_tree
-            .update(new_low_nullifier, nullifier)
+            .update(
+                nullifier_bundle.new_low_element,
+                nullifier_bundle.new_element,
+                nullifier_bundle.new_element_next_value,
+            )
             .unwrap();
 
         // Insert the element to the indexing array.
         relayer_indexing_array
-            .append_with_low_element_index(new_low_nullifier.index, nullifier.value)
+            .append_with_low_element_index(
+                nullifier_bundle.new_low_element.index,
+                nullifier_bundle.new_element.value,
+            )
             .unwrap();
     }
 
@@ -303,13 +316,21 @@ where
     ];
     onchain_queue.borrow_mut().append(nullifier1).unwrap();
     onchain_queue.borrow_mut().append(nullifier2).unwrap();
-    let (new_low_nullifier, new_nullifier) = local_indexing_array.append(nullifier1).unwrap();
+    let nullifier_bundle = local_indexing_array.append(nullifier1).unwrap();
     local_merkle_tree
-        .update(new_low_nullifier, new_nullifier)
+        .update(
+            nullifier_bundle.new_low_element,
+            nullifier_bundle.new_element,
+            nullifier_bundle.new_element_next_value,
+        )
         .unwrap();
-    let (new_low_nullifier, new_nullifier) = local_indexing_array.append(nullifier2).unwrap();
+    let nullifier_bundle = local_indexing_array.append(nullifier2).unwrap();
     local_merkle_tree
-        .update(new_low_nullifier, new_nullifier)
+        .update(
+            nullifier_bundle.new_low_element,
+            nullifier_bundle.new_element,
+            nullifier_bundle.new_element_next_value,
+        )
         .unwrap();
     relayer_update(
         &mut onchain_queue.borrow_mut(),
@@ -336,6 +357,11 @@ where
     let nullifier_next_value = nullifier2;
     // (Invalid) low nullifier.
     let low_nullifier = local_indexing_array.get(1).cloned().unwrap();
+    let low_nullifier_next_value = local_indexing_array
+        .get(usize::from(low_nullifier.next_index))
+        .cloned()
+        .unwrap()
+        .value;
     let low_nullifier_proof = local_merkle_tree.get_proof_of_leaf(1);
     assert!(matches!(
         program_update(
@@ -347,6 +373,7 @@ where
             nullifier_next_index,
             nullifier_next_value,
             low_nullifier,
+            low_nullifier_next_value,
             low_nullifier_proof,
         ),
         Err(HasherError::LowElementGreaterOrEqualToNewElement)
@@ -370,6 +397,11 @@ where
     let nullifier_next_value = nullifier1;
     // (Invalid) low nullifier.
     let low_nullifier = local_indexing_array.get(0).cloned().unwrap();
+    let low_nullifier_next_value = local_indexing_array
+        .get(usize::from(low_nullifier.next_index))
+        .cloned()
+        .unwrap()
+        .value;
     let low_nullifier_proof = local_merkle_tree.get_proof_of_leaf(0);
     assert!(matches!(
         program_update(
@@ -381,6 +413,7 @@ where
             nullifier_next_index,
             nullifier_next_value,
             low_nullifier,
+            low_nullifier_next_value,
             low_nullifier_proof,
         ),
         Err(HasherError::NewElementGreaterOrEqualToNextElement)

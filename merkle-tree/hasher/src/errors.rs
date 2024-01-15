@@ -28,6 +28,8 @@ pub enum HasherError {
     LowElementGreaterOrEqualToNewElement,
     #[msg("The provided new element is greater or equal to the next element.")]
     NewElementGreaterOrEqualToNextElement,
+    #[msg("Integer overflow, value too large")]
+    IntegerOverflow,
     #[msg("Invalid number of inputs.")]
     PoseidonInvalidNumberOfInputs,
     #[msg("Input is an empty slice.")]

@@ -60,7 +60,9 @@ where
         &mut self,
         changelog_index: usize,
         new_element: IndexingElement,
+        new_element_next_value: [u8; 32],
         low_element: IndexingElement,
+        low_element_next_value: [u8; 32],
         low_leaf_proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), HasherError> {
         // Check that the value of `new_element` belongs to the range
@@ -80,7 +82,7 @@ where
             }
             // The value of `new_element` needs to be lower than the value of
             // next element pointed by `old_low_element`.
-            if new_element.value >= low_element.next_value {
+            if new_element.value >= low_element_next_value {
                 return Err(HasherError::NewElementGreaterOrEqualToNextElement);
             }
         }
@@ -90,23 +92,22 @@ where
             index: low_element.index,
             value: low_element.value,
             next_index: new_element.index,
-            next_value: new_element.value,
         };
 
         // Update low element. If the `old_low_element` does not belong to the
         // tree, validating the proof is going to fail.
-        let old_low_leaf = low_element.hash::<H>()?;
-        let new_low_leaf = new_low_element.hash::<H>()?;
+        let old_low_leaf = low_element.hash::<H>(low_element_next_value)?;
+        let new_low_leaf = new_low_element.hash::<H>(new_element.value)?;
         self.merkle_tree.update(
             changelog_index,
             &old_low_leaf,
             &new_low_leaf,
-            low_element.index,
+            low_element.index.into(),
             low_leaf_proof,
         )?;
 
         // Append new element.
-        let new_leaf = new_element.hash::<H>()?;
+        let new_leaf = new_element.hash::<H>(new_element_next_value)?;
         self.merkle_tree.append(&new_leaf)?;
 
         Ok(())
