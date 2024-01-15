@@ -31,8 +31,8 @@ use light_utils::{change_endianness, truncate_to_circuit};
 use crate::{
     accounts::LightAccounts,
     cpi_instructions::{
-        insert_nullifiers_cpi, insert_two_leaves_cpi, insert_two_leaves_event_cpi,
-        invoke_indexer_transaction_event, decompress_sol_cpi, decompress_spl_cpi,
+        decompress_sol_cpi, decompress_spl_cpi, insert_nullifiers_cpi, insert_two_leaves_cpi,
+        insert_two_leaves_event_cpi, invoke_indexer_transaction_event,
     },
     errors::VerifierSdkError,
     state::TransactionIndexerEvent,
