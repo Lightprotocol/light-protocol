@@ -96,11 +96,11 @@ describe("Browser tests", () => {
     }).to.throw("Provider local is not available on browser.");
   });
 
-  it("(browser) should shield and update merkle tree", async () => {
+  it("(browser) should compress and update merkle tree", async () => {
     const testInputs = {
       amountSol: 0.2,
       token: "SOL",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
     };
     const userTestAssertHelper = new UserTestAssertHelper({
@@ -111,7 +111,7 @@ describe("Browser tests", () => {
     });
     await userTestAssertHelper.fetchAndSaveState();
 
-    await user.shield({
+    await user.compress({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
       confirmOptions: ConfirmOptions.spendable,
@@ -121,13 +121,13 @@ describe("Browser tests", () => {
     await userTestAssertHelper.checkSolShielded();
   });
 
-  it("(browser) should unshield SOL and update merkle tree", async () => {
+  it("(browser) should decompress SOL and update merkle tree", async () => {
     const solRecipient = Keypair.generate();
 
     const testInputs = {
       amountSol: 0.05,
       token: "SOL",
-      type: Action.UNSHIELD,
+      type: Action.DECOMPRESS,
       recipient: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
@@ -141,7 +141,7 @@ describe("Browser tests", () => {
     // need to wait for balance update to fetch current utxos
     await user.getBalance();
     await userTestAssertHelper.fetchAndSaveState();
-    await user.unshield({
+    await user.decompress({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
       recipient: testInputs.recipient,

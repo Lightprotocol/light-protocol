@@ -70,7 +70,7 @@ class TransactionHistoryCommand extends Command {
         };
 
         switch (transaction.type) {
-          case "SHIELD":
+          case "COMPRESS":
             this.logTransaction(transactionHistory, [
               "RpcFee",
               "RpcFeeSOL",
@@ -79,7 +79,7 @@ class TransactionHistoryCommand extends Command {
               "From",
             ]);
             break;
-          case "UNSHIELD":
+          case "DECOMPRESS":
             this.logTransaction(transactionHistory, ["From", "To", "RpcFee"]);
             break;
           case "TRANSFER":

@@ -41,7 +41,7 @@ const rpcRecipientSol = SolanaKeypair.generate().publicKey;
 const seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test Rpc Functional", () => {
-  it("Rpc Shield", () => {
+  it("Rpc Compress", () => {
     const rpc = new Rpc(mockKeypair.publicKey, mockKeypair1.publicKey, BN_1);
     assert.equal(
       rpc.accounts.rpcRecipientSol.toBase58(),
@@ -54,7 +54,7 @@ describe("Test Rpc Functional", () => {
     assert.equal(rpc.rpcFee.toString(), "1");
   });
 
-  it("Rpc Transfer/Unshield", () => {
+  it("Rpc Transfer/Decompress", () => {
     const rpc = new Rpc(mockKeypair.publicKey, rpcRecipientSol, rpcFee);
     assert.equal(
       rpc.accounts.rpcPubkey.toBase58(),
@@ -210,7 +210,7 @@ describe("Test Rpc Errors", () => {
       fromSpl: mockKeypair.publicKey.toBase58(),
       verifier: mockKeypair.publicKey.toBase58(),
       rpcRecipientSol: mockKeypair.publicKey.toBase58(),
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       changeSolAmount: "0",
       publicAmountSol: "0",
       publicAmountSpl: "0",
@@ -270,7 +270,7 @@ describe("Test Rpc Errors", () => {
       1,
     );
     if (!eventIdUtxo1) throw new Error("Event undefined");
-    assert.equal(eventIdUtxo1.transaction.type, Action.SHIELD);
+    assert.equal(eventIdUtxo1.transaction.type, Action.COMPRESS);
     assert.equal(
       bs58.encode(eventIdUtxo1.transaction.encryptedUtxos.slice(0, 4)),
       "4DyKUQ",
@@ -282,7 +282,7 @@ describe("Test Rpc Errors", () => {
       1,
     );
     if (!eventIdUtxo2) throw new Error("Event undefined");
-    assert.equal(eventIdUtxo2.transaction.type, Action.SHIELD);
+    assert.equal(eventIdUtxo2.transaction.type, Action.COMPRESS);
     assert.equal(
       bs58.encode(eventIdUtxo2.transaction.encryptedUtxos.slice(124, 128)),
       "3pvhXa",

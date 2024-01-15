@@ -274,7 +274,7 @@
 //             pool_type: Vec::<u8>::new(),
 //         };
 //
-//         // shield
+//         // compress
 //         let new_bn = BigInteger256::new([123u64, 0, 0, 0]);
 //         let bytes = <BigInteger256 as BigInteger>::to_bytes_be(&new_bn);
 //         assert_eq!(
@@ -293,7 +293,7 @@
 //         assert_eq!(rpc_fee, 0);
 //         assert_eq!(amount, new_bn.0[0]);
 //
-//         // unshield
+//         // decompress
 //         let mut field = FrParameters::MODULUS;
 //         field.sub_noborrow(&new_bn);
 //         let bytes = <BigInteger256 as BigInteger>::to_bytes_be(&field);
@@ -302,7 +302,7 @@
 //         tx.public_amount_spl = bytes.clone();
 //         assert!(!tx.is_shield());
 //
-//         // fee less or equal than unshield amount
+//         // fee less or equal than decompress amount
 //         for i in 0..(new_bn.0[0] + 1) as u64 {
 //             let (amount, rpc_fee) = tx
 //                 .check_amount(i, change_endianness(&bytes).clone().try_into().unwrap())
@@ -311,7 +311,7 @@
 //             assert_eq!(rpc_fee, i);
 //         }
 //
-//         // fee larger than unshield amount
+//         // fee larger than decompress amount
 //         assert!(tx
 //             .check_amount(
 //                 new_bn.0[0] + 1,

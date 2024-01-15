@@ -1,14 +1,14 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 
-describe("unshield:spl", () => {
+describe("decompress:spl", () => {
   before(async () => {
     await initTestEnvIfNeeded();
   });
   test
     .stdout()
     .command([
-      "unshield:spl",
+      "decompress:spl",
       "0.5",
       "USDC",
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
@@ -22,24 +22,24 @@ describe("unshield:spl", () => {
     .stdout()
     .stderr()
     .command([
-      "unshield",
+      "decompress",
       "550000",
       "USDC",
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail unshield of insufficient SPL token amount");
+    .it("Should fail decompress of insufficient SPL token amount");
 
   test
     .stdout()
     .command([
-      "unshield",
+      "decompress",
       "0.5",
       "LFG",
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail unshield of unregistered SPL token");
+    .it("Should fail decompress of unregistered SPL token");
 });

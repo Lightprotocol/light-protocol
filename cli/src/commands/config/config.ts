@@ -165,7 +165,7 @@ function logConfig(config: any) {
   });
 
   tableData.push({
-    name: "default shield lookup table",
+    name: "default compress lookup table",
     value: config.lookUpTable,
   });
 

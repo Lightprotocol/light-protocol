@@ -9,9 +9,9 @@ import {
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
 class UnshieldCommand extends Command {
-  static summary = "Unshield SOL for a user.";
-  static usage = "unshield:SOL <AMOUNT> <RECIPIENT_ADDRESS> [FLAGS]";
-  static examples = ["$ light unshield:SOL 5 <RECIPIENT_ADDRESS>"];
+  static summary = "Decompress SOL for a user.";
+  static usage = "decompress:SOL <AMOUNT> <RECIPIENT_ADDRESS> [FLAGS]";
+  static examples = ["$ light decompress:SOL 5 <RECIPIENT_ADDRESS>"];
 
   static flags = {
     ...standardFlags,
@@ -19,7 +19,7 @@ class UnshieldCommand extends Command {
     "minimum-lamports": Flags.boolean({
       char: "m",
       description:
-        "Whether to use the minimum required lamports for the unshield transaction.",
+        "Whether to use the minimum required lamports for the decompress transaction.",
       default: false,
     }),
   };
@@ -27,7 +27,7 @@ class UnshieldCommand extends Command {
   static args = {
     amount: Args.string({
       name: "AMOUNT",
-      description: "The SOL amount to unshield.",
+      description: "The SOL amount to decompress.",
       required: true,
     }),
     recipient_address: Args.string({
@@ -43,7 +43,7 @@ class UnshieldCommand extends Command {
     const recipient = args.recipient_address;
     const minimumLamports = flags["minimum-lamports"];
 
-    const loader = new CustomLoader("Performing token unshield...\n");
+    const loader = new CustomLoader("Performing token decompress...\n");
     loader.start();
 
     try {
@@ -52,7 +52,7 @@ class UnshieldCommand extends Command {
         localTestRpc: flags["localTestRpc"],
       });
 
-      const response = await user.unshield({
+      const response = await user.decompress({
         token: "SOL",
         recipient: new PublicKey(recipient),
         publicAmountSol: amountSol,
@@ -73,7 +73,7 @@ class UnshieldCommand extends Command {
       );
       loader.stop();
     } catch (error) {
-      this.error(`Failed to unshield SOL!\n${error}`);
+      this.error(`Failed to decompress SOL!\n${error}`);
     }
   }
 }

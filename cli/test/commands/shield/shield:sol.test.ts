@@ -1,7 +1,7 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 
-describe("shield:sol sub-cli", () => {
+describe("compress:sol sub-cli", () => {
   before(async () => {
     await initTestEnvIfNeeded();
   });
@@ -16,7 +16,7 @@ describe("shield:sol sub-cli", () => {
     );
   test
     .stdout()
-    .command(["shield:sol", "2.3", "--localTestRpc"])
+    .command(["compress:sol", "2.3", "--localTestRpc"])
     .it("Shielding 2.3 SOL", async (ctx) => {
       console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("Successfully compressed 2.3 SOL ✔");
@@ -24,7 +24,7 @@ describe("shield:sol sub-cli", () => {
 
   test
     .stdout()
-    .command(["shield:sol", "123456789", "-d", "--localTestRpc"])
+    .command(["compress:sol", "123456789", "-d", "--localTestRpc"])
     .it("Shielding 123456789 LAMPORTS", async (ctx) => {
       expect(ctx.stdout).to.contain(
         "Successfully compressed 0.123456789 SOL ✔",
@@ -35,22 +35,22 @@ describe("shield:sol sub-cli", () => {
     .stdout()
     .stderr()
     .command([
-      "shield:sol",
+      "compress:sol",
       "2222222222222222222222222222222222222222",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield of unsufficient SOL amount");
+    .it("Should fail compress of unsufficient SOL amount");
 
   test
     .stdout()
     .stderr()
     .command([
-      "shield:sol",
+      "compress:sol",
       "0.5",
       "--localTestRpc",
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbcFAIL",
     ])
     .exit(2)
-    .it("Should fail shield SOL to an invalid compressed recipient address");
+    .it("Should fail compress SOL to an invalid compressed recipient address");
 });

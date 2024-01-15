@@ -11,11 +11,11 @@ import {
 import { shieldFlags, shieldSolFlags } from ".";
 
 class ShieldSplCommand extends Command {
-  static summary = "Shield SPL tokens for a user.";
+  static summary = "Compress SPL tokens for a user.";
 
   static examples = [
-    "$ light shield:SPL 10 USDC",
-    "$ light shield:SPL 13 USDT --recipient <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light compress:SPL 10 USDC",
+    "$ light compress:SPL 13 USDT --recipient <SHIELDED_RECIPIENT_ADDRESS>",
   ];
 
   static flags = {
@@ -29,7 +29,7 @@ class ShieldSplCommand extends Command {
   static args = {
     amount: Args.string({
       name: "AMOUNT",
-      description: "The SPL token amount to shield.",
+      description: "The SPL token amount to compress.",
       required: true,
     }),
     token: Args.string({
@@ -50,7 +50,7 @@ class ShieldSplCommand extends Command {
     const minimumLamports = flags["minimum-lamports"];
     const skipDecimalConversions = flags["skip-decimal-conversions"];
 
-    const loader = new CustomLoader("Performing shield operation...\n");
+    const loader = new CustomLoader("Performing compress operation...\n");
     loader.start();
 
     try {
@@ -60,7 +60,7 @@ class ShieldSplCommand extends Command {
         skipFetchBalance: flags["skipFetchBalance"],
         localTestRpc: flags["localTestRpc"],
       });
-      const response = await user.shield({
+      const response = await user.compress({
         token,
         recipient,
         publicAmountSpl: amountSpl,
@@ -86,7 +86,7 @@ class ShieldSplCommand extends Command {
       );
       loader.stop();
     } catch (error) {
-      this.error(`\nFailed to shield ${token}\n${error}`);
+      this.error(`\nFailed to compress ${token}\n${error}`);
     }
   }
 }

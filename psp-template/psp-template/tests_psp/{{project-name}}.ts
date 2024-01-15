@@ -91,7 +91,7 @@ describe("Test {{project-name}}", () => {
 
     const testInputsShield = {
       utxo: outputUtxoSol,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
     };
 
     let storeTransaction = await shieldProgramUtxo({

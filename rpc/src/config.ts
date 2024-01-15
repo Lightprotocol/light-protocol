@@ -65,8 +65,8 @@ export enum Environment {
 }
 
 export enum TransactionType {
-  SHIELD = "SHIELD",
-  UNSHIELD = "UNSHIELD",
+  COMPRESS = "COMPRESS",
+  DECOMPRESS = "DECOMPRESS",
   TRANSFER = "TRANSFER",
 }
 

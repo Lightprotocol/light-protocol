@@ -4,28 +4,28 @@ import { useState, SetStateAction } from "react";
 import { ShieldForm, SendForm } from "../Form";
 
 export const ModalContent = ({
-  initValue = "shield",
+  initValue = "compress",
 }: {
   initValue?: string; // TODO: enforce strict type checking
 }) => {
   const [value, setValue] = useState(initValue);
   return (
-    <Stack data-testid="shield-send-modal">
+    <Stack data-testid="compress-send-modal">
       <Box px={"md"}>
         <SegmentedControl
-          data-testid="shield-send-control"
+          data-testid="compress-send-control"
           value={value}
           fullWidth
           color="#0066FF"
           onChange={setValue}
           radius={"xl"}
           data={[
-            { label: "Shield", value: "shield" },
+            { label: "Compress", value: "compress" },
             { label: "Send", value: "send" },
           ]}
         />
       </Box>
-      {value === "shield" ? <ShieldForm /> : <SendForm />}
+      {value === "compress" ? <ShieldForm /> : <SendForm />}
     </Stack>
   );
 };
@@ -41,11 +41,11 @@ export const ShieldSendModal = () => {
             overlayProps: { backgroundOpacity: 0.2 },
             size: "sm",
             radius: "lg",
-            children: <ModalContent initValue="shield" />,
+            children: <ModalContent initValue="compress" />,
           });
         }}
       >
-        Shield & Send
+        Compress & Send
       </Button>
     </>
   );

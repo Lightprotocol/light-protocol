@@ -84,7 +84,7 @@ describe("Test selectInUtxos Functional", () => {
     });
   });
 
-  it("Unshield select spl", async () => {
+  it("Decompress select spl", async () => {
     const inUtxos: Utxo[] = [utxo1, utxoSol];
 
     const selectedUtxo = selectInUtxos({
@@ -93,14 +93,14 @@ describe("Test selectInUtxos Functional", () => {
       publicAmountSpl: BN_1,
       lightWasm,
       utxos: inUtxos,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
     compareUtxos(selectedUtxo[0], utxo1);
   });
 
-  it("Unshield select sol", async () => {
+  it("Decompress select sol", async () => {
     const inUtxos = [utxoSol, utxo1];
 
     const selectedUtxo = selectInUtxos({
@@ -108,7 +108,7 @@ describe("Test selectInUtxos Functional", () => {
       rpcFee: RPC_FEE,
       publicAmountSol: new BN(1e7),
       lightWasm,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
@@ -117,12 +117,12 @@ describe("Test selectInUtxos Functional", () => {
     assert.equal(selectInUtxos.length, 1);
   });
 
-  it("UNSHIELD select sol & spl", async () => {
+  it("DECOMPRESS select sol & spl", async () => {
     const inUtxos = [utxoSol, utxo1];
 
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       rpcFee: RPC_FEE,
       lightWasm,
       publicMint: utxo1.assets[1],
@@ -221,12 +221,12 @@ describe("Test selectInUtxos Functional", () => {
     compareUtxos(selectedUtxo[0], utxo1);
   });
 
-  it("Shield select sol & spl", async () => {
+  it("Compress select sol & spl", async () => {
     const inUtxos = [utxoSol, utxo1];
 
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
       lightWasm,
@@ -238,12 +238,12 @@ describe("Test selectInUtxos Functional", () => {
     compareUtxos(selectedUtxo[0], utxo1);
   });
 
-  it("Shield select sol", async () => {
+  it("Compress select sol", async () => {
     const inUtxos = [utxoSol, utxo1];
 
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       lightWasm,
       publicAmountSol: new BN(1e7),
       numberMaxInUtxos,
@@ -254,12 +254,12 @@ describe("Test selectInUtxos Functional", () => {
     compareUtxos(selectedUtxo[1], utxo1);
   });
 
-  it("Shield select spl", async () => {
+  it("Compress select spl", async () => {
     const inUtxos = [utxoSol, utxo1];
 
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       publicMint: utxo1.assets[1],
       lightWasm,
       publicAmountSpl: BN_1,
@@ -358,7 +358,7 @@ describe("Test selectInUtxos Errors", () => {
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
         lightWasm,
         outUtxos,
         numberMaxInUtxos,
@@ -378,7 +378,7 @@ describe("Test selectInUtxos Errors", () => {
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
         rpcFee: RPC_FEE,
         lightWasm,
         publicAmountSol: new BN(1e7),
@@ -400,7 +400,7 @@ describe("Test selectInUtxos Errors", () => {
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
         rpcFee: RPC_FEE,
         lightWasm,
         publicMint: utxo1.assets[1],
@@ -422,7 +422,7 @@ describe("Test selectInUtxos Errors", () => {
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
         lightWasm,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
@@ -466,7 +466,7 @@ describe("Test selectInUtxos Errors", () => {
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
-        action: Action.SHIELD,
+        action: Action.COMPRESS,
         rpcFee: RPC_FEE,
         lightWasm,
         publicMint: utxo1.assets[1],

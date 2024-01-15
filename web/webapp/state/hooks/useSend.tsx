@@ -4,14 +4,14 @@ import { PublicKey } from "@solana/web3.js";
 import { SendFormValues } from "../../components/Form";
 
 export function useSend() {
-  const { transfer, unshield } = useAction();
+  const { transfer, decompress } = useAction();
 
   const send = useCallback(
     async (values: SendFormValues, isUnshield: boolean) => {
       try {
         if (isUnshield) {
           console.log("unshielding");
-          await unshield({
+          await decompress({
             token: values.token,
             recipient: new PublicKey(values.recipient),
             publicAmountSol: values.token === "SOL" ? values.amount : undefined,
@@ -31,7 +31,7 @@ export function useSend() {
         throw e;
       }
     },
-    [unshield, transfer]
+    [decompress, transfer]
   );
 
   return send;

@@ -12,12 +12,12 @@ export const ShieldForm = () => {
   const form: UseFormReturnType<ShieldFormValues> = useForm({
     initialValues: { amount: "", token: "SOL" },
   });
-  const { shield, loading } = useAction();
+  const { compress, loading } = useAction();
 
   const handleSubmit = useCallback(
     async (values: ShieldFormValues) => {
       try {
-        await shield({
+        await compress({
           token: values.token,
           publicAmountSol: values.token === "SOL" ? values.amount : undefined,
           publicAmountSpl: values.token !== "SOL" ? values.amount : undefined,
@@ -27,7 +27,7 @@ export const ShieldForm = () => {
         throw e;
       }
     },
-    [shield],
+    [compress]
   );
 
   return (
@@ -47,7 +47,7 @@ export const ShieldForm = () => {
                 <Text size="sm">0.001 SOL</Text>
               </Group>
               <Group w="100%" px="20px" justify="space-between">
-                <Text size="sm">Shield time</Text>
+                <Text size="sm">Compress time</Text>
                 <Text size="sm">~3s</Text>
               </Group>
             </Stack>
@@ -61,7 +61,7 @@ export const ShieldForm = () => {
             type="submit"
             rightSection={<IconArrowRight />}
           >
-            Shield now
+            Compress now
           </Button>
         </Stack>
       </form>

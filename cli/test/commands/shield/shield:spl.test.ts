@@ -1,7 +1,7 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 
-describe("shield:spl sub-cli", () => {
+describe("compress:spl sub-cli", () => {
   before(async () => {
     await initTestEnvIfNeeded();
   });
@@ -22,14 +22,14 @@ describe("shield:spl sub-cli", () => {
 
   test
     .stdout({ print: true })
-    .command(["shield:spl", "10", "USDC", "--localTestRpc"])
+    .command(["compress:spl", "10", "USDC", "--localTestRpc"])
     .it("shielding 1 USDC", (ctx) => {
       expect(ctx.stdout).to.contain("Successfully compressed 10 USDC ✔");
     });
 
   test
     .stdout({ print: true })
-    .command(["shield:spl", "123", "USDC", "-d", "--localTestRpc"])
+    .command(["compress:spl", "123", "USDC", "-d", "--localTestRpc"])
     .it("shielding 1.23 USDC taking absolute input with the subcli", (ctx) => {
       expect(ctx.stdout).to.contain("Successfully compressed 1.23 USDC ✔");
     });
@@ -38,24 +38,24 @@ describe("shield:spl sub-cli", () => {
     .stdout()
     .stderr()
     .command([
-      "shield:spl",
+      "compress:spl",
       "10000000000000000000000000000000000000000",
       "USDC",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield of unsufficient SPL amount");
+    .it("Should fail compress of unsufficient SPL amount");
 
   test
     .stdout()
     .stderr()
     .command([
-      "shield:spl",
+      "compress:spl",
       "10",
       "USDC",
       "--recipient=HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84qFAIL",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield SPL to an invalid compressed recipient address");
+    .it("Should fail compress SPL to an invalid compressed recipient address");
 });

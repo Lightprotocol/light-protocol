@@ -145,7 +145,7 @@ describe("Streaming Payments tests", () => {
     });
     const testInputsShield = {
       utxo: outputUtxoSol,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
     };
 
     const storeProgramUtxoResult = await shieldProgramUtxo({
@@ -295,7 +295,7 @@ describe("Streaming Payments tests", () => {
 
     const testInputsSol1 = {
       utxo: streamInitUtxo,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       hasher: WASM,
     };
 

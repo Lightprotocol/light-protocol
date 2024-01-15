@@ -378,7 +378,7 @@ impl<
     }
 
     /// Computes the integrity hash of the transaction. This hash is an input to the ZKP, and
-    /// ensures that the rpc cannot change parameters of the internal or unshield transaction.
+    /// ensures that the rpc cannot change parameters of the internal or decompress transaction.
     /// H(recipient_spl||recipient_sol||signer||rpc_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
         let message_hash = match self.input.message {
@@ -699,7 +699,7 @@ impl<
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
 
-            // is a token shield or unshield
+            // is a token compress or decompress
             if self.is_shield_spl() {
                 self.shield_spl(pub_amount_checked, sender_spl, recipient_spl)?;
             } else {
@@ -788,7 +788,7 @@ impl<
         msg!("fee amount {} ", fee_amount_checked);
         if fee_amount_checked > 0 {
             if self.is_shield_sol() {
-                msg!("is shield");
+                msg!("is compress");
                 self.shield_sol(
                     fee_amount_checked,
                     &self
@@ -801,7 +801,7 @@ impl<
                         .to_account_info(),
                 )?;
             } else {
-                msg!("is unshield");
+                msg!("is decompress");
 
                 self.check_sol_pool_account_derivation(
                     &self
@@ -824,8 +824,8 @@ impl<
                         .try_borrow()
                         .unwrap(),
                 )?;
-                // Unshield sol for the user
-                msg!("unshield sol cpi");
+                // Decompress sol for the user
+                msg!("decompress sol cpi");
                 unshield_sol_cpi(
                     self.input.ctx.program_id,
                     &self
@@ -922,7 +922,7 @@ impl<
             .unwrap()
             .to_account_info();
 
-        msg!("is shield");
+        msg!("is compress");
         let rent = <Rent as sysvar::Sysvar>::get()?;
 
         create_and_check_pda(
@@ -1132,7 +1132,7 @@ impl<
 
             if field.0[0] < rpc_fee {
                 msg!(
-                    "Unshield invalid rpc_fee: pub amount {} < {} fee",
+                    "Decompress invalid rpc_fee: pub amount {} < {} fee",
                     field.0[0],
                     rpc_fee
                 );

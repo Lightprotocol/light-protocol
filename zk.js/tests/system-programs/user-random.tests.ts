@@ -88,7 +88,7 @@ const calculateAmounts = async (
 
   return { amountSol, amountSpl };
 };
-const shield = async (
+const compress = async (
   user: User,
   rng: any,
   sol: boolean,
@@ -101,7 +101,7 @@ const shield = async (
     amountSol: sol ? generateRandomTestAmount(1, 5000, 9, rng) : undefined,
     amountSpl: !isSol ? generateRandomTestAmount(1, 5000, 2, rng) : undefined,
     token,
-    type: Action.SHIELD,
+    type: Action.COMPRESS,
     expectedUtxoHistoryLength: 1,
   };
   console.log(
@@ -135,7 +135,7 @@ const shield = async (
   }
   await userTestAssertHelper.fetchAndSaveState();
 
-  const res = await user.shield({
+  const res = await user.compress({
     publicAmountSol: testInputs.amountSol,
     publicAmountSpl: testInputs.amountSpl,
     token: testInputs.token,
@@ -149,7 +149,7 @@ const shield = async (
   }
 };
 
-const unshield = async (
+const decompress = async (
   user: User,
   rng: any,
   sol: boolean,
@@ -168,7 +168,7 @@ const unshield = async (
 
   const testInputs = {
     token,
-    type: Action.UNSHIELD,
+    type: Action.DECOMPRESS,
     expectedUtxoHistoryLength: 0,
     amountSol,
     amountSpl,
@@ -189,7 +189,7 @@ const unshield = async (
     testInputs,
   });
   await userTestAssertHelper.fetchAndSaveState();
-  const res = await user.unshield({
+  const res = await user.decompress({
     publicAmountSol: testInputs.amountSol,
     publicAmountSpl: testInputs.amountSpl,
     token,
@@ -227,7 +227,7 @@ const unshield = async (
       splTransferRecipientKeypair.publicKey,
     );
     console.log(
-      "createSplTransferRecipientTx tx after unshield: ",
+      "createSplTransferRecipientTx tx after decompress: ",
       createSplTransferRecipientTx,
     );
 
@@ -244,7 +244,7 @@ const unshield = async (
         commitment: "confirmed",
       },
     );
-    console.log("spl transfer tx after unshield: ", transferTx);
+    console.log("spl transfer tx after decompress: ", transferTx);
     const splTransferRecipientTokenAccount = await getAccount(
       user.provider.provider.connection,
       splTransferRecipient,
@@ -391,9 +391,9 @@ const selectRandomAction = async (
   if (randomNumber < 0.33 && unshieldingPossible) {
     return Action.TRANSFER;
   } else if (randomNumber < 0.66 && unshieldingPossible) {
-    return Action.UNSHIELD;
+    return Action.DECOMPRESS;
   }
-  return Action.SHIELD;
+  return Action.COMPRESS;
 };
 
 describe("Test User", () => {
@@ -475,9 +475,9 @@ describe("Test User", () => {
       console.log("selected _token ", _token);
 
       try {
-        if (randomAction === Action.SHIELD) {
+        if (randomAction === Action.COMPRESS) {
           await mergeAllInboxUtxos(rndUser, _token);
-          await shield(rndUser, rng, true, _token, wallet);
+          await compress(rndUser, rng, true, _token, wallet);
         } else if (randomAction === Action.TRANSFER) {
           await mergeAllInboxUtxos(rndUser, _token);
           const createNewUser = rng();
@@ -496,7 +496,7 @@ describe("Test User", () => {
           await transfer(rndUser, recipientUser.user, rng, true, _token);
         } else {
           await mergeAllInboxUtxos(rndUser, _token);
-          await unshield(rndUser, rng, true, _token);
+          await decompress(rndUser, rng, true, _token);
         }
         transactions++;
       } catch (error) {

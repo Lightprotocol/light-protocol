@@ -106,14 +106,14 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("shield sol", async () => {
+  it("compress sol", async () => {
     const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: BN_0,
       publicAmountSol: solAmount,
       lightWasm,
       changeUtxoAccount: k0,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -135,14 +135,14 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("shield spl", async () => {
+  it("compress spl", async () => {
     const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: new BN(10),
       publicAmountSol: BN_0,
       lightWasm,
       changeUtxoAccount: k0,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -164,7 +164,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("shield sol with input utxo", async () => {
+  it("compress sol with input utxo", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
@@ -172,7 +172,7 @@ describe("Test createOutUtxos Functional", () => {
       publicAmountSol: solAmount,
       lightWasm,
       changeUtxoAccount: k0,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -194,7 +194,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("shield sol & spl with input utxo", async () => {
+  it("compress sol & spl with input utxo", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
@@ -202,7 +202,7 @@ describe("Test createOutUtxos Functional", () => {
       publicAmountSol: solAmount,
       lightWasm,
       changeUtxoAccount: k0,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -224,14 +224,14 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("shield sol & spl", async () => {
+  it("compress sol & spl", async () => {
     const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: new BN(10),
       publicAmountSol: solAmount,
       lightWasm,
       changeUtxoAccount: k0,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -253,7 +253,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield SPL - no rpc fee", async () => {
+  it("decompress SPL - no rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
@@ -262,7 +262,7 @@ describe("Test createOutUtxos Functional", () => {
       lightWasm,
       rpcFee: BN_0,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -284,7 +284,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield SPL - with rpc fee", async () => {
+  it("decompress SPL - with rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
@@ -293,7 +293,7 @@ describe("Test createOutUtxos Functional", () => {
       lightWasm,
       rpcFee,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -315,7 +315,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield sol - no rpc fee", async () => {
+  it("decompress sol - no rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
@@ -324,7 +324,7 @@ describe("Test createOutUtxos Functional", () => {
       lightWasm,
       rpcFee: BN_0,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -346,7 +346,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield sol - with rpc fee", async () => {
+  it("decompress sol - with rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
@@ -355,7 +355,7 @@ describe("Test createOutUtxos Functional", () => {
       lightWasm,
       rpcFee,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -377,7 +377,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield spl & sol - no rpc fee", async () => {
+  it("decompress spl & sol - no rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
@@ -386,7 +386,7 @@ describe("Test createOutUtxos Functional", () => {
       lightWasm,
       rpcFee: BN_0,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -408,7 +408,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield spl & sol - with rpc fee", async () => {
+  it("decompress spl & sol - with rpc fee", async () => {
     const outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.mint,
@@ -417,7 +417,7 @@ describe("Test createOutUtxos Functional", () => {
       lightWasm,
       rpcFee,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -439,7 +439,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield in:1SOL + 1SPL should merge 2-1", async () => {
+  it("decompress in:1SOL + 1SPL should merge 2-1", async () => {
     const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
@@ -447,7 +447,7 @@ describe("Test createOutUtxos Functional", () => {
       publicAmountSol: BN_0,
       lightWasm,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -470,7 +470,7 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
-  it("unshield in:1SPL + 1SPL should merge 2-1", async () => {
+  it("decompress in:1SPL + 1SPL should merge 2-1", async () => {
     const outUtxos = createOutUtxos({
       publicMint: tokenCtx.mint,
       publicAmountSpl: splAmount,
@@ -478,7 +478,7 @@ describe("Test createOutUtxos Functional", () => {
       publicAmountSol: BN_0,
       lightWasm,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
@@ -739,7 +739,7 @@ describe("Test createOutUtxos Errors", () => {
       inUtxos: [utxo1, utxoSol],
       publicAmountSol: BN_0,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       lightWasm: lightWasm,
       numberMaxOutUtxos,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
@@ -758,7 +758,7 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSol: BN_0,
         // poseidon,
         changeUtxoAccount: k0,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
       });
     })
       .to.throw(CreateUtxoError)
@@ -777,7 +777,7 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSol: BN_0,
         lightWasm: lightWasm,
         changeUtxoAccount: k0,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
         outUtxos: [
           createOutUtxo({
             lightWasm,
@@ -816,7 +816,7 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSol: BN_0,
         lightWasm: lightWasm,
         changeUtxoAccount: k0,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
         outUtxos: [
           createOutUtxo({
             lightWasm,
@@ -844,7 +844,7 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSol: BN_0,
         lightWasm: lightWasm,
         changeUtxoAccount: k0,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
         outUtxos: [
           createOutUtxo({
             lightWasm,
@@ -872,7 +872,7 @@ describe("Test createOutUtxos Errors", () => {
         // publicAmountSol: BN_0,
         lightWasm: lightWasm,
         changeUtxoAccount: k0,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
       });
     })
       .to.throw(CreateUtxoError)
@@ -892,7 +892,7 @@ describe("Test createOutUtxos Errors", () => {
         // publicAmountSol: BN_0,
         lightWasm: lightWasm,
         changeUtxoAccount: k0,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
         rpcFee: BN_1,
       });
     })
@@ -928,7 +928,7 @@ describe("Test createOutUtxos Errors", () => {
         publicAmountSol: BN_0,
         lightWasm: lightWasm,
         changeUtxoAccount: k0,
-        action: Action.UNSHIELD,
+        action: Action.DECOMPRESS,
         outUtxos: [
           createOutUtxo({
             lightWasm,
