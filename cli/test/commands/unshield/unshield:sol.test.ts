@@ -1,14 +1,14 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src";
 
-describe("unshield:sol", () => {
+describe("decompress:sol", () => {
   before(async () => {
     await initTestEnvIfNeeded();
   });
   test
     .stdout()
     .command([
-      "unshield:sol",
+      "decompress:sol",
       "0.2",
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
@@ -21,11 +21,11 @@ describe("unshield:sol", () => {
     .stdout()
     .stderr()
     .command([
-      "unshield:sol",
+      "decompress:sol",
       "300000",
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail unshield of unsufficient SOL amount");
+    .it("Should fail decompress of unsufficient SOL amount");
 });

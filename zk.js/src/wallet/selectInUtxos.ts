@@ -28,7 +28,7 @@ export const getUtxoSum = (utxos: Utxo[], asset: PublicKey) => {
  * Algorithm
  *
  * assumptions:
- * - transfer/unshield max 1 spl asset and sol
+ * - transfer/decompress max 1 spl asset and sol
  *
  * general strategy:
  * - merge biggest with smallest
@@ -151,13 +151,13 @@ export function selectInUtxos({
       "selectInUtxos",
       "Public spl amount not set but public mint",
     );
-  if (action === Action.UNSHIELD && !publicAmountSpl && !publicAmountSol)
+  if (action === Action.DECOMPRESS && !publicAmountSpl && !publicAmountSol)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
       "selectInUtxos",
       "No public amounts defined",
     );
-  if (action === Action.UNSHIELD && !rpcFee)
+  if (action === Action.DECOMPRESS && !rpcFee)
     throw new SelectInUtxosError(
       RpcErrorCode.RPC_FEE_UNDEFINED,
       "selectInUtxos",
@@ -170,7 +170,7 @@ export function selectInUtxos({
       "Rpc fee undefined",
     );
 
-  if ((!utxos || utxos.length === 0) && action === Action.SHIELD) return [];
+  if ((!utxos || utxos.length === 0) && action === Action.COMPRESS) return [];
   else if (!utxos || utxos.length === 0)
     throw new SelectInUtxosError(
       TransactionErrorCode.NO_UTXOS_PROVIDED,
@@ -178,14 +178,14 @@ export function selectInUtxos({
       `No utxos defined for ${action}`,
     );
 
-  if (action === Action.SHIELD && rpcFee)
+  if (action === Action.COMPRESS && rpcFee)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.RPC_FEE_DEFINED,
       "selectInUtxos",
-      "Rpc fee should not be defined with shield",
+      "Rpc fee should not be defined with compress",
     );
   // TODO: evaluate whether this is too much of a footgun
-  if (action === Action.SHIELD) {
+  if (action === Action.COMPRESS) {
     publicAmountSol = BN_0;
     publicAmountSpl = BN_0;
   }
@@ -344,7 +344,7 @@ export function selectInUtxos({
     );
 
   if (selectedUtxosR.length > 0) return selectedUtxosR;
-  else if (action === Action.SHIELD) return [];
+  else if (action === Action.COMPRESS) return [];
   else
     throw new SelectInUtxosError(
       SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,

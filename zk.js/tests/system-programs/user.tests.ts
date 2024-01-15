@@ -146,13 +146,13 @@ describe("Test User", () => {
     expect(externalKey2).to.not.deep.equal(internalKey);
   });
 
-  it("(user class) shield SPL", async () => {
+  it("(user class) compress SPL", async () => {
     const expectedSpentUtxosLength = 0;
     const expectedUtxoHistoryLength = 1;
     const testInputs = {
       amountSpl: generateRandomTestAmount(0, 100000, 2),
       token: "USDC",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength,
       expectedSpentUtxosLength,
     };
@@ -166,18 +166,18 @@ describe("Test User", () => {
 
     await testStateValidator.fetchAndSaveState();
 
-    await user.shield({
+    await user.compress({
       publicAmountSpl: testInputs.amountSpl,
       token: testInputs.token,
     });
     await testStateValidator.checkSplShielded();
   });
 
-  it("(user class) shield SOL", async () => {
+  it("(user class) compress SOL", async () => {
     const testInputs = {
       amountSol: 15,
       token: "SOL",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
     };
 
@@ -190,7 +190,7 @@ describe("Test User", () => {
 
     await testStateValidator.fetchAndSaveState();
 
-    await user.shield({
+    await user.compress({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
     });
@@ -198,13 +198,13 @@ describe("Test User", () => {
     await testStateValidator.checkSolShielded();
   });
 
-  it("(user class) unshield SPL", async () => {
+  it("(user class) decompress SPL", async () => {
     const solRecipient = SolanaKeypair.generate();
 
     const testInputs = {
       amountSpl: 1,
       token: "USDC",
-      type: Action.UNSHIELD,
+      type: Action.DECOMPRESS,
       recipient: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
@@ -218,7 +218,7 @@ describe("Test User", () => {
 
     await testStateValidator.fetchAndSaveState();
 
-    await user.unshield({
+    await user.decompress({
       publicAmountSpl: testInputs.amountSpl,
       token: testInputs.token,
       recipient: testInputs.recipient,
@@ -255,7 +255,7 @@ describe("Test User", () => {
       testInputs,
     });
 
-    await user.shield({
+    await user.compress({
       publicAmountSpl: testInputs.amountSpl,
       token: testInputs.token,
     });
@@ -272,12 +272,12 @@ describe("Test User", () => {
     await testStateValidator.checkSplTransferred();
   });
 
-  it("(user class) storage shield", async () => {
+  it("(user class) storage compress", async () => {
     const testInputs = {
       amountSpl: 0,
       amountSol: 0,
       token: "SOL",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       storage: true,
       message: Buffer.alloc(512).fill(1),
@@ -392,33 +392,33 @@ describe("Test User Errors", () => {
     user = await User.init({ provider });
   });
 
-  it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {
+  it("NO_PUBLIC_AMOUNTS_PROVIDED compress", async () => {
     await chai.assert.isRejected(
-      user.shield({ token }),
+      user.compress({ token }),
       CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
     );
   });
 
-  it("TOKEN_UNDEFINED shield", async () => {
+  it("TOKEN_UNDEFINED compress", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.shield({ publicAmountSpl: amount }),
+      user.compress({ publicAmountSpl: amount }),
       UserErrorCode.TOKEN_UNDEFINED,
     );
   });
 
-  it("INVALID_TOKEN shield", async () => {
+  it("INVALID_TOKEN compress", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.shield({ publicAmountSpl: amount, token: "SOL" }),
+      user.compress({ publicAmountSpl: amount, token: "SOL" }),
       UserErrorCode.INVALID_TOKEN,
     );
   });
 
-  it("TOKEN_ACCOUNT_DEFINED shield", async () => {
+  it("TOKEN_ACCOUNT_DEFINED compress", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.shield({
+      user.compress({
         publicAmountSol: amount,
         token: "SOL",
         senderTokenAccount: SolanaKeypair.generate().publicKey,
@@ -427,18 +427,18 @@ describe("Test User Errors", () => {
     );
   });
 
-  it("TOKEN_NOT_FOUND shield", async () => {
+  it("TOKEN_NOT_FOUND compress", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.shield({ publicAmountSol: amount, token: "SPL" }),
+      user.compress({ publicAmountSol: amount, token: "SPL" }),
       UserErrorCode.TOKEN_NOT_FOUND,
     );
   });
 
-  it("TOKEN_NOT_FOUND unshield", async () => {
+  it("TOKEN_NOT_FOUND decompress", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ amountSol: amount, token: "SPL" }),
+      user.decompress({ amountSol: amount, token: "SPL" }),
       UserErrorCode.TOKEN_NOT_FOUND,
     );
   });
@@ -446,36 +446,36 @@ describe("Test User Errors", () => {
   it("TOKEN_NOT_FOUND transfer", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ amountSol: amount, token: "SPL" }),
+      user.decompress({ amountSol: amount, token: "SPL" }),
       UserErrorCode.TOKEN_NOT_FOUND,
     );
   });
 
-  it("NO_PUBLIC_AMOUNTS_PROVIDED unshield", async () => {
+  it("NO_PUBLIC_AMOUNTS_PROVIDED decompress", async () => {
     await chai.assert.isRejected(
-      user.unshield({ token }),
+      user.decompress({ token }),
       CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
     );
   });
 
-  it("TOKEN_NOT_FOUND unshield", async () => {
+  it("TOKEN_NOT_FOUND decompress", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({}),
+      user.decompress({}),
       UserErrorCode.TOKEN_NOT_FOUND,
     );
   });
 
-  it("SOL_RECIPIENT_UNDEFINED unshield", async () => {
+  it("SOL_RECIPIENT_UNDEFINED decompress", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ token: "SOL", publicAmountSol: BN_1 }),
+      user.decompress({ token: "SOL", publicAmountSol: BN_1 }),
       TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
     );
 
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({
+      user.decompress({
         token,
         publicAmountSol: BN_1,
         publicAmountSpl: BN_1,
@@ -484,18 +484,18 @@ describe("Test User Errors", () => {
     );
   });
 
-  it("SPL_RECIPIENT_UNDEFINED unshield", async () => {
+  it("SPL_RECIPIENT_UNDEFINED decompress", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ token, publicAmountSpl: BN_1 }),
+      user.decompress({ token, publicAmountSpl: BN_1 }),
       TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
     );
   });
 
-  it("TOKEN_NOT_FOUND shield", async () => {
+  it("TOKEN_NOT_FOUND compress", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.shield({ publicAmountSol: SolanaKeypair.generate().publicKey }),
+      user.compress({ publicAmountSol: SolanaKeypair.generate().publicKey }),
       UserErrorCode.TOKEN_NOT_FOUND,
     );
   });

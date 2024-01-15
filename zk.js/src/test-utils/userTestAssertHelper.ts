@@ -300,7 +300,7 @@ export class UserTestAssertHelper {
           );
           break;
         }
-        case Action.SHIELD: {
+        case Action.COMPRESS: {
           assertTransactionProperties(
             {
               signer: this.sender.user.provider.wallet.publicKey,
@@ -314,7 +314,7 @@ export class UserTestAssertHelper {
                 : BN_0,
               rpcFee: BN_0,
               rpcRecipientSol: AUTHORITY,
-              type: Action.SHIELD,
+              type: Action.COMPRESS,
               verifier: lightPsp2in2outId,
               message: undefined,
             },
@@ -322,7 +322,7 @@ export class UserTestAssertHelper {
           );
           break;
         }
-        case Action.UNSHIELD: {
+        case Action.DECOMPRESS: {
           // index transaction is broken
           // - invalid recipient
           // - invalid sender
@@ -345,7 +345,7 @@ export class UserTestAssertHelper {
               from: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
               rpcRecipientSol:
                 this.sender.user.provider.rpc.accounts.rpcRecipientSol,
-              type: Action.UNSHIELD,
+              type: Action.DECOMPRESS,
               verifier: lightPsp2in2outId,
               message: undefined,
             },
@@ -499,7 +499,7 @@ export class UserTestAssertHelper {
       ).toFixed(this.tokenCtx.decimals.toString().length - 1),
       `Token compressed balance isSender ${
         userBalances.isSender
-      } after ${tokenBalanceAfter!} != token shield amount ${tokenBalancePre!.toNumber()} + ${
+      } after ${tokenBalanceAfter!} != token compress amount ${tokenBalancePre!.toNumber()} + ${
         amount * this.tokenCtx?.decimals.toNumber()
       }
        balance utxos: ${userBalances.user.balance.tokenBalances}`,
@@ -528,7 +528,7 @@ export class UserTestAssertHelper {
       ),
       `user is sender ${userBalances.isSender} token balance after ${
         postTokenBalance.value.uiAmount
-      } != user token balance before ${userBalances.preTokenBalance!} + shield amount ${amount}`,
+      } != user token balance before ${userBalances.preTokenBalance!} + compress amount ${amount}`,
     );
   }
 
@@ -544,7 +544,7 @@ export class UserTestAssertHelper {
     assert.equal(
       postSolBalance,
       preSolBalance! + lamports - transactionCost,
-      `user sol balance after ${postSolBalance} != user sol balance before ${preSolBalance} + shield amount ${lamports} sol`,
+      `user sol balance after ${postSolBalance} != user sol balance before ${preSolBalance} + compress amount ${lamports} sol`,
     );
   }
 
@@ -568,7 +568,7 @@ export class UserTestAssertHelper {
     assert.equal(
       solBalanceAfter!.toNumber(),
       solBalancePre!.toNumber() + lamports,
-      `compressed sol balance after ${solBalanceAfter!} != shield amount ${solBalancePre!.toNumber()} + ${lamports}`,
+      `compressed sol balance after ${solBalanceAfter!} != compress amount ${solBalancePre!.toNumber()} + ${lamports}`,
     );
   }
 
@@ -638,7 +638,7 @@ export class UserTestAssertHelper {
     await this.assertBalance(this.recipient.user);
     // TODO: fix flakyness issues
     // await this.assertRecentTransactionIsIndexedCorrectly();
-    if (this.testInputs.type !== Action.SHIELD) {
+    if (this.testInputs.type !== Action.COMPRESS) {
       await this.assertRpcFee();
     }
   }
@@ -646,7 +646,7 @@ export class UserTestAssertHelper {
     // rpc recipient's sol balance should be increased by the rpc fee
     await this.assertSolBalance(
       this.tokenCtx!.symbol !== "SOL" &&
-        this.testInputs.type.toString() === Action.UNSHIELD.toString()
+        this.testInputs.type.toString() === Action.DECOMPRESS.toString()
         ? this.sender.user.provider.rpc.getRpcFee(true).toNumber()
         : this.sender.user.provider.rpc.getRpcFee().toNumber(),
       0,
@@ -663,7 +663,7 @@ export class UserTestAssertHelper {
    * 3. Asserts that the user's sol compressed balance has increased by the additional sol amount.
    * 4. Asserts that the length of spent UTXOs matches the expected spent UTXOs length.
    * 5. Asserts that the nullifier account exists for the user's first UTXO.
-   * 6. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
+   * 6. Asserts that the recent indexed transaction is of type COMPRESS and has the correct values.
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
@@ -722,7 +722,7 @@ export class UserTestAssertHelper {
    * 1. Asserts recipient user balance increased by compressed amount.
    * 2. Asserts sender users sol balance decreased by compressed amount.
    * 3. Asserts that user UTXOs are spent and updated correctly.
-   * 4. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
+   * 4. Asserts that the recent indexed transaction is of type COMPRESS and has the correct values.
    *
    * Note: The temporary account cost calculation is not deterministic and may vary depending on whether the user has
    * compressed SPL tokens before. This needs to be handled carefully.
@@ -807,7 +807,7 @@ export class UserTestAssertHelper {
    * 2. Asserts that the recipient's token balance has increased by the amount decompressed.
    * 3. Asserts that the user's compressed SOL balance has decreased by the fee.
    * 4. Asserts that user UTXOs are spent and updated correctly.
-   * 5. Asserts that the recent indexed transaction is of type UNSHIELD and has the correct values.
+   * 5. Asserts that the recent indexed transaction is of type DECOMPRESS and has the correct values.
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
@@ -846,7 +846,7 @@ export class UserTestAssertHelper {
    * 1. Asserts that the user's compressed token balance has decreased by the amount transferred.
    * 2. Asserts that the user's compressed SOL balance has decreased by the rpc fee.
    * 3. Asserts that user UTXOs are spent and updated correctly.
-   * 4. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
+   * 4. Asserts that the recent indexed transaction is of type COMPRESS and has the correct values.
    * 5. Assert that the transfer has been received correctly by the compressed recipient's account.
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
@@ -1136,11 +1136,11 @@ export class UserTestAssertHelper {
         .size,
       1,
     );
-    if (this.testInputs.type === Action.SHIELD) {
+    if (this.testInputs.type === Action.COMPRESS) {
       await this.checkSplShielded();
     } else if (this.testInputs.type === Action.TRANSFER) {
       await this.checkSplTransferred();
-    } else if (this.testInputs.type === Action.UNSHIELD) {
+    } else if (this.testInputs.type === Action.DECOMPRESS) {
       await this.checkSplUnshielded();
     }
   }

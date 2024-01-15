@@ -1,7 +1,7 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 
-describe("shield SOL & SPL separately with the main command", () => {
+describe("compress SOL & SPL separately with the main command", () => {
   before(async () => {
     await initTestEnvIfNeeded();
   });
@@ -33,14 +33,14 @@ describe("shield SOL & SPL separately with the main command", () => {
 
   test
     .stdout()
-    .command(["shield", "--amount-sol=7", "--localTestRpc"])
+    .command(["compress", "--amount-sol=7", "--localTestRpc"])
     .it("Shielding 7 SOL", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully compressed 7 SOL ✔");
     });
 
   test
     .stdout({ print: true })
-    .command(["shield", "--amount-spl=9", "--token=USDC", "--localTestRpc"])
+    .command(["compress", "--amount-spl=9", "--token=USDC", "--localTestRpc"])
     .it("Shielding 9 SPL:USDC", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully compressed 9 USDC ✔");
     });
@@ -49,50 +49,50 @@ describe("shield SOL & SPL separately with the main command", () => {
     .stdout()
     .stderr()
     .command([
-      "shield",
+      "compress",
       "--amount-sol=22222222222222222222222222222222",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield of unsufficient SOL amount");
+    .it("Should fail compress of unsufficient SOL amount");
 
   test
     .stdout()
     .stderr()
     .command([
-      "shield",
+      "compress",
       "--amount-spl=5555555555555555555555555555555",
       "--token=USDC",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield of unsufficient SPL amount");
+    .it("Should fail compress of unsufficient SPL amount");
 
   test
     .stdout()
     .stderr()
     .command([
-      "shield",
+      "compress",
       "--amount-sol=0.2",
       "--recipient=TpqsASoGWfR96tVd6ePkN55S2VucK5gLjXJM2abywRU3darrKYkdYadyJsQ9vndp2khowVzuj5ZYduxxxrUun2eFAIL",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield to invalid compressed recipient address");
+    .it("Should fail compress to invalid compressed recipient address");
 
   test
     .stdout()
     .stderr()
-    .command(["shield", "--amount-spl=3", "--token=LFG", "--localTestRpc"])
+    .command(["compress", "--amount-spl=3", "--token=LFG", "--localTestRpc"])
     .exit(2)
-    .it("Should fail shield of unregistered SPL token");
+    .it("Should fail compress of unregistered SPL token");
 });
 
-describe("shield SOL & SPL at the same time with the main command", () => {
+describe("compress SOL & SPL at the same time with the main command", () => {
   test
     .stdout()
     .command([
-      "shield",
+      "compress",
       "--amount-sol=5",
       "--amount-spl=1",
       "--token=USDC",
@@ -111,33 +111,33 @@ describe("shield SOL & SPL at the same time with the main command", () => {
     .stdout()
     .stderr()
     .command([
-      "shield",
+      "compress",
       "--amount-sol=222222222222222222222222222222222",
       "--amount-spl=3",
       "--token=USDC",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield of unsufficient SOL amount");
+    .it("Should fail compress of unsufficient SOL amount");
 
   test
     .stdout()
     .stderr()
     .command([
-      "shield",
+      "compress",
       "--amount-sol=0.2",
       "--amount-spl=33333333333333333333333333333333",
       "--token=USDC",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield of unsufficient SPL amount");
+    .it("Should fail compress of unsufficient SPL amount");
 
   test
     .stdout()
     .stderr()
     .command([
-      "shield",
+      "compress",
       "--amount-sol=0.2",
       "--amount-spl=33",
       "--token=USDC",
@@ -145,18 +145,18 @@ describe("shield SOL & SPL at the same time with the main command", () => {
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield to invalid compressed recipient address");
+    .it("Should fail compress to invalid compressed recipient address");
 
   test
     .stdout()
     .stderr()
     .command([
-      "shield",
+      "compress",
       "--amount-sol=0.2",
       "--amount-spl=3",
       "--token=LFG",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield of unregistered SPL token");
+    .it("Should fail compress of unregistered SPL token");
 });

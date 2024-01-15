@@ -317,8 +317,8 @@ export class User {
    *
    * @param amount e.g. 1 SOL = 1, 2 USDC = 2
    * @param token "SOL", "USDC", "USDT",
-   * @param recipient optional, if not set, will shield to self
-   * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
+   * @param recipient optional, if not set, will compress to self
+   * @param senderTokenAccount optional, if set, will use this token account to compress from, else derives ATA
    */
   async createShieldTransactionParameters({
     token,
@@ -349,27 +349,27 @@ export class User {
     if (publicAmountSpl && token === "SOL")
       throw new UserError(
         UserErrorCode.INVALID_TOKEN,
-        "shield",
-        "No public amount provided. Shield needs a public amount.",
+        "compress",
+        "No public amount provided. Compress needs a public amount.",
       );
     if (!publicAmountSpl && !publicAmountSol)
       throw new UserError(
         CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
-        "shield",
-        "No public amounts provided. Shield needs a public amount.",
+        "compress",
+        "No public amounts provided. Compress needs a public amount.",
       );
 
     if (publicAmountSpl && !token)
       throw new UserError(
         UserErrorCode.TOKEN_UNDEFINED,
-        "shield",
-        "No public amounts provided. Shield needs a public amount.",
+        "compress",
+        "No public amounts provided. Compress needs a public amount.",
       );
 
     if (!this.provider)
       throw new UserError(
         UserErrorCode.PROVIDER_NOT_INITIALIZED,
-        "shield",
+        "compress",
         "Provider not set!",
       );
     const tokenCtx = TOKEN_REGISTRY.get(token);
@@ -377,13 +377,13 @@ export class User {
     if (!tokenCtx)
       throw new UserError(
         UserErrorCode.TOKEN_NOT_FOUND,
-        "shield",
+        "compress",
         "Token not supported!",
       );
     if (tokenCtx.isNative && senderTokenAccount)
       throw new UserError(
         UserErrorCode.TOKEN_ACCOUNT_DEFINED,
-        "shield",
+        "compress",
         "Cannot use senderTokenAccount for SOL!",
       );
     let userSplAccount: PublicKey | undefined = undefined;
@@ -455,7 +455,7 @@ export class User {
     if (utxo) outUtxos.push(utxo);
     const txParams = await getTxParams({
       tokenCtx,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
       account: this.account,
       utxos,
       publicAmountSol,
@@ -564,11 +564,11 @@ export class User {
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
         "compileAndProveTransaction",
-        "The method 'createShieldTransactionParameters' must be executed first to approve SPL funds before initiating a shield transaction.",
+        "The method 'createShieldTransactionParameters' must be executed first to approve SPL funds before initiating a compress transaction.",
       );
     if (
       this.recentTransactionParameters?.public.publicAmountSpl.gt(BN_0) &&
-      this.recentTransactionParameters["action"] === Action.SHIELD
+      this.recentTransactionParameters["action"] === Action.COMPRESS
     ) {
       const tokenAccountInfo =
         await this.provider.provider?.connection!.getAccountInfo(
@@ -578,7 +578,7 @@ export class User {
       if (!tokenAccountInfo)
         throw new UserError(
           UserErrorCode.ASSOCIATED_TOKEN_ACCOUNT_DOESNT_EXIST,
-          "shield",
+          "compress",
           "AssociatedTokenAccount doesn't exist!",
         );
       const tokenBalance = await splToken.getAccount(
@@ -593,7 +593,7 @@ export class User {
       )
         throw new UserError(
           UserErrorCode.INSUFFICIENT_BAlANCE,
-          "shield",
+          "compress",
           `Insufficient token balance! ${this.recentTransactionParameters?.public.publicAmountSpl.toString()} bal: ${tokenBalance!
             .amount!}`,
         );
@@ -617,7 +617,7 @@ export class User {
       } catch (e: any) {
         throw new UserError(
           UserErrorCode.APPROVE_ERROR,
-          "shield",
+          "compress",
           `Error approving token transfer! ${e.stack}`,
         );
       }
@@ -634,7 +634,7 @@ export class User {
         "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
       );
     if (
-      this.recentTransactionParameters["action"] === Action.SHIELD &&
+      this.recentTransactionParameters["action"] === Action.COMPRESS &&
       !this.approved
     )
       throw new UserError(
@@ -650,7 +650,7 @@ export class User {
       );
     let txResult;
     try {
-      if (this.recentTransactionParameters["action"] === Action.SHIELD) {
+      if (this.recentTransactionParameters["action"] === Action.COMPRESS) {
         txResult = await this.provider.sendAndConfirmTransaction(
           this.recentInstructions,
         );
@@ -662,7 +662,7 @@ export class User {
     } catch (e) {
       throw new UserError(
         TransactionErrorCode.SEND_TRANSACTION_FAILED,
-        "shield",
+        "compress",
         `Error in tx.sendTransaction ${e}`,
       );
     }
@@ -679,10 +679,10 @@ export class User {
    *
    * @param amount e.g. 1 SOL = 1, 2 USDC = 2
    * @param token "SOL", "USDC", "USDT",
-   * @param recipient optional, if not set, will shield to self
-   * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
+   * @param recipient optional, if not set, will compress to self
+   * @param senderTokenAccount optional, if set, will use this token account to compress from, else derives ATA
    */
-  async shield({
+  async compress({
     token,
     publicAmountSpl,
     recipient,
@@ -717,7 +717,7 @@ export class User {
     return await this.transactWithParameters({ txParams, confirmOptions });
   }
 
-  async unshield({
+  async decompress({
     token,
     publicAmountSpl,
     publicAmountSol,
@@ -768,14 +768,14 @@ export class User {
     if (!tokenCtx)
       throw new UserError(
         UserErrorCode.TOKEN_NOT_FOUND,
-        "unshield",
+        "decompress",
         "Token not supported!",
       );
 
     if (!publicAmountSpl && !publicAmountSol)
       throw new UserError(
         CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
-        "unshield",
+        "decompress",
         "Need to provide at least one amount for a decompression",
       );
     if (publicAmountSol && recipient.toBase58() == AUTHORITY.toBase58())
@@ -843,7 +843,7 @@ export class User {
     const txParams = await getTxParams({
       tokenCtx,
       publicAmountSpl: _publicSplAmount,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
       account: this.account,
       utxos,
       publicAmountSol: _publicSolAmount,
@@ -1318,7 +1318,7 @@ export class User {
 
   // TODO: add proof-of-origin call.
 
-  // getPrivacyScore() -> for unshield only, can separate into its own helper method
+  // getPrivacyScore() -> for decompress only, can separate into its own helper method
   // Fetch utxos should probably be a function such the user object is not occupied while fetching,
   // but it would probably be more logical to fetch utxos here as well
   addUtxos() {
@@ -1502,7 +1502,7 @@ export class User {
   async storeData(
     message: Buffer,
     confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
-    shield: boolean = false,
+    compress: boolean = false,
   ) {
     if (message.length > MAX_MESSAGE_SIZE)
       throw new UserError(
@@ -1510,7 +1510,7 @@ export class User {
         "storeData",
         `${message.length}/${MAX_MESSAGE_SIZE}`,
       );
-    if (shield) {
+    if (compress) {
       this.recentTransactionParameters =
         await this.createShieldTransactionParameters({
           token: "SOL",

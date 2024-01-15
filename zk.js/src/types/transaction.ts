@@ -102,9 +102,9 @@ export type UserIndexedTransaction = ParsedIndexedTransaction & {
 };
 
 export enum Action {
-  SHIELD = "SHIELD",
+  COMPRESS = "COMPRESS",
   TRANSFER = "TRANSFER",
-  UNSHIELD = "UNSHIELD",
+  DECOMPRESS = "DECOMPRESS",
 }
 
 export type PublicInputs = {

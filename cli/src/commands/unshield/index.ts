@@ -8,11 +8,11 @@ import {
 } from "../../utils/utils";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 class UnshieldCommand extends Command {
-  static summary = "Unshield tokens for a user.";
+  static summary = "Decompress tokens for a user.";
   static examples = [
-    "$ light unshield --amount-SOL 2.4 --recipient <RECIPIENT_ADDRESS>",
-    "$ light unshield --token USDC --amount-SPL 22 --recipient <RECIPIENT_ADDRESS>",
-    "$ light unshield --amount-SOL 1.2 --amount-SPL 12 --token USDC --recipient <RECIPIENT_ADDRESS>",
+    "$ light decompress --amount-SOL 2.4 --recipient <RECIPIENT_ADDRESS>",
+    "$ light decompress --token USDC --amount-SPL 22 --recipient <RECIPIENT_ADDRESS>",
+    "$ light decompress --amount-SOL 1.2 --amount-SPL 12 --token USDC --recipient <RECIPIENT_ADDRESS>",
   ];
 
   static flags = {
@@ -20,7 +20,7 @@ class UnshieldCommand extends Command {
     ...confirmOptionsFlags,
     token: Flags.string({
       char: "t",
-      description: "The token to unshield.",
+      description: "The token to decompress.",
       default: "SOL",
       parse: async (token: string) => token.toUpperCase(),
     }),
@@ -29,15 +29,15 @@ class UnshieldCommand extends Command {
       description: "The recipient SOL account address.",
     }),
     "amount-spl": Flags.string({
-      description: "The SPL token amount to unshield.",
+      description: "The SPL token amount to decompress.",
       dependsOn: ["token"],
     }),
     "amount-sol": Flags.string({
-      description: "The SOL amount to unshield.",
+      description: "The SOL amount to decompress.",
     }),
     "skip-minimum-lamports": Flags.boolean({
       description:
-        "Whether to use the minimum required lamports for the unshield transaction.",
+        "Whether to use the minimum required lamports for the decompress transaction.",
       default: false,
     }),
   };
@@ -50,7 +50,7 @@ class UnshieldCommand extends Command {
     const amountSpl = flags["amount-spl"];
     const minimumLamports = flags["minimum-lamports"];
 
-    const loader = new CustomLoader("Performing token unshield...");
+    const loader = new CustomLoader("Performing token decompress...");
     loader.start();
 
     try {
@@ -58,7 +58,7 @@ class UnshieldCommand extends Command {
         skipFetchBalance: flags["skipFetchBalance"],
         localTestRpc: flags["localTestRpc"],
       });
-      const response = await user.unshield({
+      const response = await user.decompress({
         token,
         recipient: recipient ? new PublicKey(recipient) : undefined,
         publicAmountSpl: amountSpl ? Number(amountSpl) : undefined,
@@ -89,7 +89,7 @@ class UnshieldCommand extends Command {
       );
       loader.stop();
     } catch (error) {
-      this.error(`Failed to unshield ${token}!\n${error}`);
+      this.error(`Failed to decompress ${token}!\n${error}`);
     }
   }
 }

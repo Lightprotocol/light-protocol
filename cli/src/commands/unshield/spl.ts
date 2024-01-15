@@ -9,9 +9,9 @@ import {
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
 class UnshieldCommand extends Command {
-  static description = "Unshield SPL tokens for a user.";
-  static usage = "unshield:SPL <AMOUNT> <TOKEN> <RECIPIENT_ADDRESS> [FLAGS]";
-  static examples = ["$ light unshield:SPL 15 USDC <RECIPIENT_ADDRESS>"];
+  static description = "Decompress SPL tokens for a user.";
+  static usage = "decompress:SPL <AMOUNT> <TOKEN> <RECIPIENT_ADDRESS> [FLAGS]";
+  static examples = ["$ light decompress:SPL 15 USDC <RECIPIENT_ADDRESS>"];
 
   static flags = {
     ...standardFlags,
@@ -19,7 +19,7 @@ class UnshieldCommand extends Command {
     "minimum-lamports": Flags.boolean({
       char: "m",
       description:
-        "Whether to use the minimum required lamports for the unshield transaction.",
+        "Whether to use the minimum required lamports for the decompress transaction.",
       default: false,
     }),
   };
@@ -27,12 +27,12 @@ class UnshieldCommand extends Command {
   static args = {
     amount: Args.string({
       name: "AMOUNT",
-      description: "The SPL amount to unshield.",
+      description: "The SPL amount to decompress.",
       required: true,
     }),
     token: Args.string({
       name: "TOKEN",
-      description: "The SPL token to unshield.",
+      description: "The SPL token to decompress.",
       parse: async (token: string) => token.toUpperCase(),
       required: true,
     }),
@@ -50,7 +50,7 @@ class UnshieldCommand extends Command {
     const recipient = args.recipient_address;
     const minimumLamports = flags["minimum-lamports"];
 
-    const loader = new CustomLoader("Performing token unshield...\n");
+    const loader = new CustomLoader("Performing token decompress...\n");
     loader.start();
 
     try {
@@ -58,7 +58,7 @@ class UnshieldCommand extends Command {
         skipFetchBalance: flags["skipFetchBalance"],
         localTestRpc: flags["localTestRpc"],
       });
-      const response = await user.unshield({
+      const response = await user.decompress({
         token,
         recipient: new PublicKey(recipient),
         publicAmountSpl: amountSpl,
@@ -78,7 +78,7 @@ class UnshieldCommand extends Command {
       );
       loader.stop();
     } catch (error) {
-      this.error(`Failed to unshield ${token}!\n${error}`);
+      this.error(`Failed to decompress ${token}!\n${error}`);
     }
   }
 }

@@ -18,14 +18,14 @@ export function SendForm() {
     initialValues: { amount: "", token: "SOL", recipient: "" },
   });
   const isUnshield = useSendType(form.values.recipient);
-  const { transfer, unshield, loading } = useAction();
+  const { transfer, decompress, loading } = useAction();
   const send = useSend();
 
   const handleSubmit = useCallback(
     async (values: SendFormValues) => {
       await send(values, isUnshield);
     },
-    [unshield, transfer, isUnshield]
+    [decompress, transfer, isUnshield]
   );
 
   return (
@@ -50,7 +50,7 @@ export function SendForm() {
                   variant="light"
                   size="xs"
                 >
-                  Unshield
+                  Decompress
                 </Chip>
               )}
               <Group w="100%" px="20px" justify="space-between">

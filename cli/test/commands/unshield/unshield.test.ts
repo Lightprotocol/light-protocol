@@ -1,7 +1,7 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src";
 
-describe("unshield SOL & SPL separately with the main command", () => {
+describe("decompress SOL & SPL separately with the main command", () => {
   before(async () => {
     await initTestEnvIfNeeded();
   });
@@ -9,7 +9,7 @@ describe("unshield SOL & SPL separately with the main command", () => {
   test
     .stdout({ print: true })
     .command([
-      "unshield",
+      "decompress",
       "--amount-sol=0.2",
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
@@ -21,7 +21,7 @@ describe("unshield SOL & SPL separately with the main command", () => {
   test
     .stdout({ print: true })
     .command([
-      "unshield",
+      "decompress",
       "--amount-spl=0.5",
       "--token=USDC",
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
@@ -35,45 +35,45 @@ describe("unshield SOL & SPL separately with the main command", () => {
     .stdout()
     .stderr()
     .command([
-      "unshield",
+      "decompress",
       "--amount-sol=3000000",
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail unshield of insufficient SOL amount");
+    .it("Should fail decompress of insufficient SOL amount");
 
   test
     .stdout()
     .stderr()
     .command([
-      "unshield",
+      "decompress",
       "--amount-spl=5500000",
       "--token=USDC",
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail unshield of insufficient SPL token amount");
+    .it("Should fail decompress of insufficient SPL token amount");
 
   test
     .stdout()
     .command([
-      "unshield",
+      "decompress",
       "--amount-spl=0.5",
       "--token=LFG",
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail unshield of unregistered SPL token");
+    .it("Should fail decompress of unregistered SPL token");
 });
 
-describe("unshield SOL & SPL at the same time with the main command", () => {
+describe("decompress SOL & SPL at the same time with the main command", () => {
   test
     .stdout({ print: true })
     .command([
-      "unshield",
+      "decompress",
       "--amount-sol=0.2",
       "--amount-spl=0.5",
       "--token=USDC",
@@ -93,7 +93,7 @@ describe("unshield SOL & SPL at the same time with the main command", () => {
     .stdout()
     .stderr()
     .command([
-      "unshield",
+      "decompress",
       "--amount-sol=2200000",
       "--amount-spl=0.5",
       "--token=USDC",
@@ -101,13 +101,13 @@ describe("unshield SOL & SPL at the same time with the main command", () => {
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail unshield of insufficient SOL amount");
+    .it("Should fail decompress of insufficient SOL amount");
 
   test
     .stdout()
     .stderr()
     .command([
-      "unshield",
+      "decompress",
       "--amount-sol=0.2",
       "--amount-spl=35000000",
       "--token=USDC",
@@ -115,12 +115,12 @@ describe("unshield SOL & SPL at the same time with the main command", () => {
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail unshield of insufficient SPL token amount");
+    .it("Should fail decompress of insufficient SPL token amount");
 
   test
     .stdout()
     .command([
-      "unshield",
+      "decompress",
       "--amount-sol=0.2",
       "--amount-spl=0.5",
       "--token=LFG",
@@ -128,5 +128,5 @@ describe("unshield SOL & SPL at the same time with the main command", () => {
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail unshield of unregistered SPL token");
+    .it("Should fail decompress of unregistered SPL token");
 });

@@ -121,7 +121,7 @@ describe("verifier_program", () => {
     assert(lightProviderMock.lightWasm);
   });
 
-  it("Shield (verifier one)", async () => {
+  it("Compress (verifier one)", async () => {
     await performShield({
       delegate: AUTHORITY_ONE,
       spl: true,
@@ -130,7 +130,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Shield (verifier storage)", async () => {
+  it("Compress (verifier storage)", async () => {
     await performShield({
       delegate: AUTHORITY,
       spl: false,
@@ -140,7 +140,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Shield (verifier zero)", async () => {
+  it("Compress (verifier zero)", async () => {
     await performShield({
       delegate: AUTHORITY,
       spl: true,
@@ -149,7 +149,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Unshield (verifier zero)", async () => {
+  it("Decompress (verifier zero)", async () => {
     await performUnshield({
       outputUtxos: [],
       tokenProgram: MINT,
@@ -159,7 +159,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Unshield (verifier storage)", async () => {
+  it("Decompress (verifier storage)", async () => {
     await performUnshield({
       outputUtxos: [],
       tokenProgram: SystemProgram.programId,
@@ -170,7 +170,7 @@ describe("verifier_program", () => {
     });
   });
 
-  it("Unshield (verifier one)", async () => {
+  it("Decompress (verifier one)", async () => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       rpc: RPC,

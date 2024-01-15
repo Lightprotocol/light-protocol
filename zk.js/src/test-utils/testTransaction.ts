@@ -58,7 +58,7 @@ export class TestTransaction {
     this.transaction = transaction;
   }
 
-  // send transaction should be the same for both shiel and unshield
+  // send transaction should be the same for both shiel and decompress
   // the function should just send the tx to the rpc or rpc respectively
   // in case there is more than one transaction to be sent to the verifier these can be sent separately
   // TODO: make optional and default no
@@ -99,7 +99,7 @@ export class TestTransaction {
         this.accounts.recipientSol,
       ),
     );
-    if (this.action === "SHIELD") {
+    if (this.action === "COMPRESS") {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
           this.accounts.signingAddress,
@@ -219,7 +219,7 @@ export class TestTransaction {
       throw new Error("No params provided.");
     }
 
-    if (this.action == "SHIELD" && !this.testValues.is_token) {
+    if (this.action == "COMPRESS" && !this.testValues.is_token) {
       const recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.accounts.recipientSol,
@@ -244,7 +244,7 @@ export class TestTransaction {
           .toString(),
         senderFeeAccountBalance.toString(),
       );
-    } else if (this.action == "SHIELD" && this.testValues.is_token) {
+    } else if (this.action == "COMPRESS" && this.testValues.is_token) {
       const recipientAccount = await getAccount(
         this.provider.provider.connection,
         this.accounts.recipientSpl!,
@@ -281,7 +281,7 @@ export class TestTransaction {
           .toString(),
         senderFeeAccountBalance.toString(),
       );
-    } else if (this.action == "UNSHIELD" && !this.testValues.is_token) {
+    } else if (this.action == "DECOMPRESS" && !this.testValues.is_token) {
       const rpcAccount = await this.provider.provider.connection.getBalance(
         this.accounts.rpcRecipientSol,
         "confirmed",
@@ -309,7 +309,7 @@ export class TestTransaction {
         new BN(rpcAccount).sub(this.transaction.public.rpcFee).toString(),
         this.testValues.rpcRecipientAccountBalancePriorLastTx?.toString(),
       );
-    } else if (this.action == "UNSHIELD" && this.testValues.is_token) {
+    } else if (this.action == "DECOMPRESS" && this.testValues.is_token) {
       await getAccount(
         this.provider.provider.connection,
         this.accounts.senderSpl!,

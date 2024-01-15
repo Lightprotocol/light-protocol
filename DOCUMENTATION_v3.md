@@ -43,7 +43,7 @@ The second flow consists out of the following functions in the merkle_tree_progr
 
 - verifies Groth16 ZKPs
 - invokes the Merkle Tree program to:
-  - unshield funds from a liquidity pool
+  - decompress funds from a liquidity pool
   - create Merkle tree leaves account
   - insert nullifiers
 - compressions are handled in the verifier program
@@ -53,7 +53,7 @@ The second flow consists out of the following functions in the merkle_tree_progr
 
 - verifies Groth16 ZKPs
 - invokes the Merkle Tree program to:
-  - unshield funds from a liquidity pool
+  - decompress funds from a liquidity pool
   - create Merkle tree leaves account
   - insert nullifiers
 - compressions are handled in the verifier program
@@ -66,7 +66,7 @@ The second flow consists out of the following functions in the merkle_tree_progr
 - trusts the verifier programs -> does only access control checks
 - owns merkle tree update state accounts
 - owns accounts of the liquidity pools
-- implements transfer logic to shield and unshield tokens
+- implements transfer logic to compress and decompress tokens
 - owns Merkle tree permanent storage accounts which store the state for sparse
   Merkle trees
 - registers verifier program

@@ -55,11 +55,11 @@ export function Assets() {
                         overlayProps: { backgroundOpacity: 0.2 },
                         size: "sm",
                         radius: "lg",
-                        children: <ModalContent initValue="shield" />,
+                        children: <ModalContent initValue="compress" />,
                       });
                     }}
                   >
-                    Shield
+                    Compress
                   </Menu.Item>
                   <Menu.Item
                     onClick={() => {

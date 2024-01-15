@@ -500,7 +500,7 @@ describe("Merkle Tree Tests", () => {
 
   it("Switch to a new Merkle tree", async () => {
     const user = await User.init({ provider: lightProvider });
-    await user.shield({
+    await user.compress({
       publicAmountSpl: shieldAmount,
       publicAmountSol: shieldAmount,
       token: "USDC",

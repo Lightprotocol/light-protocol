@@ -53,7 +53,7 @@ export const transferState = atom(
 
       /// FIX: in indexer, should use webhook to stream new txs in real time.
       /// sleep prevents fetching non-up2date txs state
-      /// Same for shield, unshield
+      /// Same for compress, decompress
       await sleep(5000);
 
       set(userState, { user, timestamp: Date.now() });
@@ -96,7 +96,7 @@ export const shieldState = atom(
       throw new Error("User is not initialized");
     }
     try {
-      await user.shield({
+      await user.compress({
         token,
         recipient,
         publicAmountSpl,
@@ -112,7 +112,7 @@ export const shieldState = atom(
       // FIX: the user class doesnt shallow update after compression, therefore we have to "force update" the user here
       // fix this by removing the user class and managing balance/history state manually. this makes it more predictable.
       set(userState, { user, timestamp: Date.now() });
-      actionNotification(`Shield successful`, NotifType.success, 3000);
+      actionNotification(`Compress successful`, NotifType.success, 3000);
     } catch (e: any) {
       console.error(e);
       throw e;
@@ -151,7 +151,7 @@ export const unshieldState = atom(
     }
 
     try {
-      await user.unshield({
+      await user.decompress({
         token,
         recipient,
         publicAmountSol,
@@ -164,7 +164,7 @@ export const unshieldState = atom(
       await sleep(8000);
 
       set(userState, { user, timestamp: Date.now() });
-      actionNotification(`Unshield successful`, NotifType.success, 3000);
+      actionNotification(`Decompress successful`, NotifType.success, 3000);
     } catch (e: any) {
       console.error(e);
       throw e;
@@ -177,8 +177,8 @@ export const unshieldState = atom(
 
 export function useAction() {
   const [, transfer] = useAtom(transferState);
-  const [, shield] = useAtom(shieldState);
-  const [, unshield] = useAtom(unshieldState);
+  const [, compress] = useAtom(shieldState);
+  const [, decompress] = useAtom(unshieldState);
   const [transferLoading] = useAtom(transferLoadingState);
   const [shieldLoading] = useAtom(shieldLoadingState);
   const [unshieldLoading] = useAtom(unshieldLoadingState);
@@ -187,8 +187,8 @@ export function useAction() {
 
   return {
     transfer,
-    shield,
-    unshield,
+    compress,
+    decompress,
     loading,
   };
 }

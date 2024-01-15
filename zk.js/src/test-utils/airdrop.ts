@@ -50,7 +50,7 @@ export async function airdropShieldedSol({
   });
 
   const user: User = await User.init({ provider, seed });
-  return await user.shield({
+  return await user.compress({
     publicAmountSol: amount,
     token: "SOL",
     recipient: recipientPublicKey,
@@ -125,7 +125,7 @@ export async function airdropShieldedMINTSpl({
   }
 
   const user: User = await User.init({ provider, seed });
-  return await user.shield({
+  return await user.compress({
     publicAmountSpl: amount,
     token: TOKEN_PUBKEY_SYMBOL.get(MINT.toBase58())!,
     recipient: recipientPublicKey,

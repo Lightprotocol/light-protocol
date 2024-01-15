@@ -5,8 +5,8 @@ Supported actions:
 - view compressed assets
 - view public sol balance
 - view tx history
-- shield
-- unshield
+- compress
+- decompress
 - transfer
 
 ### Run
