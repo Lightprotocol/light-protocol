@@ -14,7 +14,7 @@ describe("decompress:spl", () => {
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
-    .it("Unshielding 0.5 SPL:USDC", async (ctx) => {
+    .it("Decompressing 0.5 SPL:USDC", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully decompressed 0.5 USDC ✔");
     });
 

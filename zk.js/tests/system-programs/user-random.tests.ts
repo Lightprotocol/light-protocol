@@ -105,7 +105,7 @@ const compress = async (
     expectedUtxoHistoryLength: 1,
   };
   console.log(
-    "shielding ",
+    "compressing ",
     testInputs.amountSol,
     " ",
     testInputs.amountSpl,
@@ -175,7 +175,7 @@ const decompress = async (
     recipient: recipientKeypair.publicKey,
   };
   console.log(
-    "unshielding ",
+    "decompressing ",
     testInputs.amountSol,
     " ",
     testInputs.amountSpl,
@@ -385,12 +385,12 @@ const selectRandomAction = async (
   tokenMint: PublicKey,
 ) => {
   const randomNumber = rng();
-  const unshieldingPossible = await checkSolBalanceGtRpcFee(user, tokenMint);
-  console.log("unshielding possible ", unshieldingPossible);
+  const decompressingPossible = await checkSolBalanceGtRpcFee(user, tokenMint);
+  console.log("decompressing possible ", decompressingPossible);
 
-  if (randomNumber < 0.33 && unshieldingPossible) {
+  if (randomNumber < 0.33 && decompressingPossible) {
     return Action.TRANSFER;
-  } else if (randomNumber < 0.66 && unshieldingPossible) {
+  } else if (randomNumber < 0.66 && decompressingPossible) {
     return Action.DECOMPRESS;
   }
   return Action.COMPRESS;
