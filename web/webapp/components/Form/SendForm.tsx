@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import { Box, Stack, Group, Button, Text, Paper, rem } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
-import { IconArrowRight, IconCompressDown } from "@tabler/icons-react";
+import { IconArrowRight, IconShieldDown } from "@tabler/icons-react";
 import { TokenInput, SendRecipientInput } from "../Input";
 import { FormValues } from ".";
 import { useAction } from "../../state/hooks/useAction";
@@ -25,7 +25,7 @@ export function SendForm() {
     async (values: SendFormValues) => {
       await send(values, isDecompress);
     },
-    [decompress, transfer, isDecompress],
+    [decompress, transfer, isDecompress]
   );
 
   return (
@@ -43,7 +43,7 @@ export function SendForm() {
               {isDecompress && (
                 <Chip
                   icon={
-                    <IconCompressDown
+                    <IconShieldDown
                       style={{ width: rem(16), height: rem(16) }}
                     />
                   }
