@@ -69,7 +69,7 @@ export const getRecipientsAmount = (
 // check that publicMint and recipientMints exist in inputUtxos
 // checks sum inAmounts for every asset are less or equal to sum OutAmounts
 
-// unshield
+// decompress
 // publicSol -sumSolAmount
 // publicSpl -sumSplAmount
 // publicMint
@@ -77,7 +77,7 @@ export const getRecipientsAmount = (
 // transfer
 // check no publics
 
-// shield
+// compress
 // sumInSol +sumSolAmount
 // sumInSpl +sumSplAmount
 // publicMint
@@ -130,7 +130,7 @@ export function createOutUtxos({
   }
 
   const assetPubkeys =
-    !inUtxos && action === Action.SHIELD
+    !inUtxos && action === Action.COMPRESS
       ? [
           SystemProgram.programId,
           publicMint ? publicMint : SystemProgram.programId,
@@ -191,12 +191,12 @@ export function createOutUtxos({
   assets = [...new Map(assets.map((item) => [item[key], item])).values()];
 
   // subtract public amounts from sumIns
-  if (action === Action.UNSHIELD) {
+  if (action === Action.DECOMPRESS) {
     if (!publicAmountSol && !publicAmountSpl)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
         "createOutUtxos",
-        "publicAmountSol not initialized for unshield",
+        "publicAmountSol not initialized for decompress",
       );
     if (!publicAmountSpl) publicAmountSpl = BN_0;
     if (!publicAmountSol)
@@ -209,7 +209,7 @@ export function createOutUtxos({
       throw new CreateUtxoError(
         CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,
         "createOutUtxos",
-        "publicMint not initialized for unshield",
+        "publicMint not initialized for decompress",
       );
 
     const publicSplAssetIndex = assets.findIndex(
@@ -221,12 +221,12 @@ export function createOutUtxos({
     assets[publicSolAssetIndex].sumIn =
       assets[publicSolAssetIndex].sumIn.sub(publicAmountSol);
     // add public amounts to sumIns
-  } else if (action === Action.SHIELD) {
+  } else if (action === Action.COMPRESS) {
     if (rpcFee)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.RPC_FEE_DEFINED,
         "createOutUtxos",
-        "Shield and rpc fee defined",
+        "Compress and rpc fee defined",
       );
     if (!publicAmountSpl) publicAmountSpl = BN_0;
     if (!publicAmountSol) publicAmountSol = BN_0;
@@ -285,7 +285,7 @@ export function createOutUtxos({
   }
   // create change utxo
   // Also handles case that we have more than one change utxo because we wanted
-  // to unshield sol and used utxos with different spl tokens
+  // to decompress sol and used utxos with different spl tokens
   // it creates a change utxo for every asset that is non-zero then check that number of utxos is less or equal to verifier.config.outs
   const publicSplAssets = assets.filter(
     (x) =>
@@ -327,7 +327,7 @@ export function createOutUtxos({
     if (x == 0) {
       solAmount = assets[publicSolAssetIndex].sumIn;
     }
-    // catch case of sol shield with undefined spl assets
+    // catch case of sol compress with undefined spl assets
     const splAmount = publicSplAssets[x]?.sumIn
       ? publicSplAssets[x].sumIn
       : BN_0;
@@ -430,7 +430,7 @@ export function validateUtxoAmounts({
   publicAmountSpl?: BN;
   action?: Action;
 }): Asset[] {
-  const publicAmountMultiplier = action === Action.SHIELD ? BN_1 : new BN(-1);
+  const publicAmountMultiplier = action === Action.COMPRESS ? BN_1 : new BN(-1);
   const _publicAmountSol = publicAmountSol
     ? publicAmountSol.mul(publicAmountMultiplier)
     : BN_0;
@@ -457,8 +457,8 @@ export function validateUtxoAmounts({
         : index < 2
         ? sumOut.add(_publicAmountSpl)
         : sumOut;
-    sumInAdd = action === Action.SHIELD ? sumInAdd : sumIn;
-    sumOutAdd = action === Action.SHIELD ? sumOut : sumOutAdd;
+    sumInAdd = action === Action.COMPRESS ? sumInAdd : sumIn;
+    sumOutAdd = action === Action.COMPRESS ? sumOut : sumOutAdd;
 
     assets.push({
       asset: assetPubkey,

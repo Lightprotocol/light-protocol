@@ -12,12 +12,12 @@ export const shieldSolFlags = {
   recipient: Flags.string({
     char: "r",
     description:
-      "The recipient compressed/encryption publickey. If not set, the operation will shield to self.",
+      "The recipient compressed/encryption publickey. If not set, the operation will compress to self.",
     required: false,
   }),
   "skip-decimal-conversions": Flags.boolean({
     char: "d",
-    description: "Skip decimal conversions during shield.",
+    description: "Skip decimal conversions during compress.",
     default: false,
   }),
 };
@@ -31,7 +31,7 @@ export const shieldFlags = {
   }),
   "amount-spl": Flags.string({
     char: "p",
-    description: "The SPL token amount to shield.",
+    description: "The SPL token amount to compress.",
     relationships: [
       {
         type: "some",
@@ -46,21 +46,21 @@ export const shieldFlags = {
   }),
   "amount-sol": Flags.string({
     char: "l",
-    description: "The SOL amount to shield.",
+    description: "The SOL amount to compress.",
   }),
   "skip-minimum-lamports": Flags.boolean({
     description:
-      "Whether to use the minimum required lamports for the shield transaction.",
+      "Whether to use the minimum required lamports for the compress transaction.",
     default: false,
   }),
 };
 
 class ShieldCommand extends Command {
-  static summary = "Shield tokens for a user";
+  static summary = "Compress tokens for a user";
   static examples = [
-    "$ light shield --amount-sol 1.3 --recipient <SHIELDED_RECIPIENT_ADDRESS>",
-    "$ light shield --amount-spl 15 -t USDC",
-    "$ light shield --amount-sol 1 --amount-spl 22 -t USDC",
+    "$ light compress --amount-sol 1.3 --recipient <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light compress --amount-spl 15 -t USDC",
+    "$ light compress --amount-sol 1 --amount-spl 22 -t USDC",
   ];
 
   static flags = {
@@ -80,7 +80,7 @@ class ShieldCommand extends Command {
     const skipDecimalConversions = flags["skip-decimal-conversions"];
     const skipFetchBalance = flags["skipFetchBalance"];
 
-    const loader = new CustomLoader("Performing shield operation...\n");
+    const loader = new CustomLoader("Performing compress operation...\n");
     loader.start();
 
     try {
@@ -88,7 +88,7 @@ class ShieldCommand extends Command {
         skipFetchBalance,
         localTestRpc: flags["localTestRpc"],
       });
-      const response = await user.shield({
+      const response = await user.compress({
         token,
         recipient,
         publicAmountSpl: amountSpl ? amountSpl : 0,

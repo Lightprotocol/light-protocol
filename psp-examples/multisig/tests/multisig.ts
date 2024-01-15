@@ -135,7 +135,7 @@ describe("Test multisig", () => {
       inputUtxos,
       outputUtxos,
       rpc,
-      action: Action.UNSHIELD,
+      action: Action.DECOMPRESS,
     });
     console.log("------------------------------------------");
     console.log("\t Created Multisig Transaction ");
@@ -177,7 +177,7 @@ describe("Test multisig", () => {
   async function deposit(utxo: Utxo, user: User) {
     let tx = await user.storeAppUtxo({
       appUtxo: utxo,
-      action: Action.SHIELD,
+      action: Action.COMPRESS,
     });
     console.log("store program utxo transaction hash ", tx.txHash);
   }

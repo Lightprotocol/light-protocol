@@ -68,7 +68,7 @@ pub mod light_merkle_tree_program {
     //     Ok(())
     // }
 
-    /// Registers a new verifier which can unshield tokens, insert new nullifiers, add new leaves.
+    /// Registers a new verifier which can decompress tokens, insert new nullifiers, add new leaves.
     /// These functions can only be invoked from registered verifiers.
     pub fn register_verifier(
         ctx: Context<RegisterVerifier>,

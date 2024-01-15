@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This script is an example implementation of a compressed transfer using the Light Protocol and **Solana** blockchain. It demonstrates how to initialize a **Solana** wallet, request an airdrop of SOL tokens, set up a test rpc, perform a shield operation, transfer tokens to a recipient, and retrieve transaction information.
+This script is an example implementation of a compressed transfer using the Light Protocol and **Solana** blockchain. It demonstrates how to initialize a **Solana** wallet, request an airdrop of SOL tokens, set up a test rpc, perform a compress operation, transfer tokens to a recipient, and retrieve transaction information.
 
 ## Prerequisites
 
@@ -74,7 +74,7 @@ The script performs the following steps:
 - Sets up a test rpc.
 - Initializes the Light Protocol provider using the **Solana** wallet and the test rpc.
 - Initializes a Light Protocol user using the provider.
-- Performs a shield operation to shield 1 SOL.
+- Performs a compress operation to compress 1 SOL.
 - Retrieves the user's balance.
 - Generates a test recipient keypair.
 - Requests an airdrop of SOL tokens to the recipient's public key.

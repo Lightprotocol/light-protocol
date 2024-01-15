@@ -137,7 +137,7 @@
 //         senderSpl,
 //         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
 //         hasher: HASHER,
-//         action: Action.SHIELD,
+//         action: Action.COMPRESS,
 //         verifierIdl: VERIFIER_IDLS[verifier],
 //         account: ACCOUNT,
 //       });
@@ -161,7 +161,7 @@
 //       // does one successful transaction
 //       await lightProvider.sendAndConfirmTransaction(instructions);
 
-//       // Shield
+//       // Compress
 //       const shieldUtxo2 = new Utxo({
 //         hasher: HASHER,
 //         assets: [FEE_ASSET, MINT],
@@ -178,7 +178,7 @@
 //         senderSpl,
 //         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
 //         hasher: HASHER,
-//         action: Action.SHIELD,
+//         action: Action.COMPRESS,
 //         verifierIdl: VERIFIER_IDLS[verifier],
 //         account: ACCOUNT,
 //       });
@@ -194,7 +194,7 @@
 //       await transaction1.compileAndProve(HASHER, ACCOUNT);
 //       transactions.push({ transaction: transaction1, verifier });
 
-//       // Unshield
+//       // Decompress
 //       const tokenRecipient = recipientTokenAccount;
 
 //       const lightProviderUnshield = await LightProvider.init({
@@ -226,7 +226,7 @@
 //         recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
 //         rpc: RPC,
 //         hasher: HASHER,
-//         action: Action.UNSHIELD,
+//         action: Action.DECOMPRESS,
 //         verifierIdl: VERIFIER_IDLS[verifier],
 //         account: ACCOUNT,
 //       });

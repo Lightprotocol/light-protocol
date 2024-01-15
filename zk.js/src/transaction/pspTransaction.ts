@@ -986,7 +986,7 @@ export async function createShieldTransaction(
     ? shieldTransactionInput.assetLookUpTable
     : [SystemProgram.programId.toBase58(), MINT.toBase58()];
 
-  const action = Action.SHIELD;
+  const action = Action.COMPRESS;
   const verifierIdl = getSystemPspIdl(systemPspId);
   const verifierConfig = getVerifierConfig(verifierIdl);
 
@@ -1151,7 +1151,7 @@ export async function createUnshieldTransaction(
     ? unshieldTransactionInput.assetLookUpTable
     : [SystemProgram.programId.toBase58(), MINT.toBase58()];
 
-  const action = Action.UNSHIELD;
+  const action = Action.DECOMPRESS;
   const verifierIdl = getSystemPspIdl(systemPspId);
   const verifierConfig = getVerifierConfig(verifierIdl);
 
@@ -1364,7 +1364,7 @@ export async function getTxParams({
   account,
   utxos,
   inUtxos,
-  // for unshield
+  // for decompress
   recipientSol,
   recipientSplAddress,
   // for transfer
@@ -1419,7 +1419,7 @@ export async function getTxParams({
       "Fetching root from rpc failed.",
     );
   }
-  if (action !== Action.SHIELD && !rpc.getRpcFee(ataCreationFee)) {
+  if (action !== Action.COMPRESS && !rpc.getRpcFee(ataCreationFee)) {
     // TODO: could make easier to read by adding separate if/cases
     throw new TransactionParametersError(
       RpcErrorCode.RPC_FEE_UNDEFINED,
@@ -1448,7 +1448,7 @@ export async function getTxParams({
       outUtxos,
       utxos,
       rpcFee:
-        action == Action.SHIELD ? undefined : rpc.getRpcFee(ataCreationFee),
+        action == Action.COMPRESS ? undefined : rpc.getRpcFee(ataCreationFee),
       action,
       numberMaxInUtxos: getVerifierConfig(verifierIdl).in,
       numberMaxOutUtxos: getVerifierConfig(verifierIdl).out,
@@ -1459,10 +1459,10 @@ export async function getTxParams({
       publicMint: tokenCtx.mint,
       publicAmountSpl,
       inUtxos: inputUtxos,
-      publicAmountSol, // TODO: add support for extra sol for unshield & transfer
+      publicAmountSol, // TODO: add support for extra sol for decompress & transfer
       lightWasm: provider.lightWasm,
       rpcFee:
-        action == Action.SHIELD ? undefined : rpc.getRpcFee(ataCreationFee),
+        action == Action.COMPRESS ? undefined : rpc.getRpcFee(ataCreationFee),
       changeUtxoAccount: account,
       outUtxos,
       action,
@@ -1474,7 +1474,7 @@ export async function getTxParams({
     });
   }
 
-  if (action == Action.SHIELD) {
+  if (action == Action.COMPRESS) {
     return createShieldTransaction({
       message,
       transactionMerkleTreePubkey:
@@ -1491,7 +1491,7 @@ export async function getTxParams({
       account,
       lightWasm: provider.lightWasm,
     });
-  } else if (action == Action.UNSHIELD) {
+  } else if (action == Action.DECOMPRESS) {
     return createUnshieldTransaction({
       message,
       transactionMerkleTreePubkey:

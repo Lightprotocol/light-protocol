@@ -52,24 +52,24 @@ export async function performShielding({
     await testStateValidator.fetchAndSaveState();
 
     if (testInputs.shieldToRecipient) {
-      await userSender.shield({
+      await userSender.compress({
         publicAmountSol: testInputs.amountSol,
         publicAmountSpl: testInputs.amountSpl,
         token: testInputs.token,
         recipient: userRecipient.account.getPublicKey(),
       });
     } else {
-      await userSender.shield({
+      await userSender.compress({
         publicAmountSol: testInputs.amountSol,
         publicAmountSpl: testInputs.amountSpl,
         token: testInputs.token,
       });
     }
-    if (testInputs.token === "SOL" && testInputs.type === Action.SHIELD) {
+    if (testInputs.token === "SOL" && testInputs.type === Action.COMPRESS) {
       await testStateValidator.checkSolShielded();
     } else if (
       testInputs.token !== "SOL" &&
-      testInputs.type === Action.SHIELD
+      testInputs.type === Action.COMPRESS
     ) {
       await testStateValidator.checkSplShielded();
     } else {

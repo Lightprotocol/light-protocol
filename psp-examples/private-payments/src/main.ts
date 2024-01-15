@@ -7,7 +7,7 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 const provider = anchor.AnchorProvider.local(
   "http://127.0.0.1:8899",
-  confirmConfig,
+  confirmConfig
 );
 
 const log = console.log;
@@ -63,7 +63,7 @@ const main = async () => {
 
   async function makeShield(
     sender: anchor.web3.Keypair,
-    recipient: anchor.web3.Keypair,
+    recipient: anchor.web3.Keypair
   ) {
     log("requesting airdrop...");
     await airdropSol({
@@ -94,7 +94,7 @@ const main = async () => {
     const user = await light.User.init({ provider: lightProvider });
 
     try {
-      await user.shield({
+      await user.compress({
         publicAmountSol: "1",
         token: "SOL",
         confirmOptions: light.ConfirmOptions.finalized,
@@ -104,7 +104,7 @@ const main = async () => {
 
   async function makeTransfer(
     sender: anchor.web3.Keypair,
-    recipient: anchor.web3.Keypair,
+    recipient: anchor.web3.Keypair
   ) {
     log("initializing light provider...");
     const lightProvider = await light.Provider.init({

@@ -42,7 +42,7 @@ cd ../cli
 ./test_bin/run config --rpcRecipient=AV3LnV78ezsEBZebNeMPtEcH1hmvSfUBC5Xbyrzqbt44
 ./test_bin/run airdrop 50 ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k
 ./test_bin/run airdrop 50 --token=USDC ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k
-./test_bin/run shield:sol 20
+./test_bin/run compress:sol 20
 sleep 10
-./test_bin/run unshield:sol 10 ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k
+./test_bin/run decompress:sol 10 ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k
 cd ../rpc

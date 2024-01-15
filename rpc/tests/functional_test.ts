@@ -98,11 +98,11 @@ describe("API tests", () => {
     assert.equal(rpc.highRpcFee.toString(), TOKEN_ACCOUNT_FEE.toString());
   });
 
-  it("should shield", async () => {
+  it("should compress", async () => {
     let testInputs = {
       amountSol: 0.3,
       token: "SOL",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
     };
 
@@ -113,7 +113,7 @@ describe("API tests", () => {
       testInputs,
     });
     await userTestAssertHelper.fetchAndSaveState();
-    await user.shield({
+    await user.compress({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
       confirmOptions: ConfirmOptions.spendable,
@@ -175,7 +175,7 @@ describe("API tests", () => {
           res.body.data.transaction.verifier,
           getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT).toBase58(),
         );
-        assert.equal(res.body.data.transaction.type, Action.SHIELD);
+        assert.equal(res.body.data.transaction.type, Action.COMPRESS);
 
         assert.equal(
           res.body.data.transaction.publicAmountSol,
@@ -238,7 +238,7 @@ describe("API tests", () => {
           res.body.data[0].transaction.verifier,
           getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT).toBase58(),
         );
-        assert.equal(res.body.data[0].transaction.type, Action.SHIELD);
+        assert.equal(res.body.data[0].transaction.type, Action.COMPRESS);
 
         assert.equal(
           res.body.data[0].transaction.publicAmountSol,
@@ -305,7 +305,7 @@ describe("API tests", () => {
       });
   });
 
-  it("should fail to unshield SOL with invalid rpc pubkey", async () => {
+  it("should fail to decompress SOL with invalid rpc pubkey", async () => {
     const solRecipient = Keypair.generate();
     const rpc = new Rpc(
       Keypair.generate().publicKey,
@@ -324,13 +324,13 @@ describe("API tests", () => {
     const testInputs = {
       amountSol: 0.05,
       token: "SOL",
-      type: Action.UNSHIELD,
+      type: Action.DECOMPRESS,
       recipient: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
     let error = null;
     try {
-      await user.unshield({
+      await user.decompress({
         publicAmountSol: testInputs.amountSol,
         token: testInputs.token,
         recipient: testInputs.recipient,
@@ -342,7 +342,7 @@ describe("API tests", () => {
     expect(error).to.exist;
   });
 
-  it("should fail to unshield SOL with invalid rpc sol recipient", async () => {
+  it("should fail to decompress SOL with invalid rpc sol recipient", async () => {
     const solRecipient = Keypair.generate();
     let invalidRpc = [...[rpc]][0];
     invalidRpc.accounts.rpcRecipientSol = Keypair.generate().publicKey;
@@ -358,13 +358,13 @@ describe("API tests", () => {
     const testInputs = {
       amountSol: 0.05,
       token: "SOL",
-      type: Action.UNSHIELD,
+      type: Action.DECOMPRESS,
       recipient: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
     let error = null;
     try {
-      await user.unshield({
+      await user.decompress({
         publicAmountSol: testInputs.amountSol,
         token: testInputs.token,
         recipient: testInputs.recipient,
@@ -377,13 +377,13 @@ describe("API tests", () => {
   });
 
   // TODO: add a compression... before, add a transfer too tho, => assert job queeing functioning etc
-  it("should unshield SOL", async () => {
+  it("should decompress SOL", async () => {
     const solRecipient = Keypair.generate();
 
     const testInputs = {
       amountSol: 0.05,
       token: "SOL",
-      type: Action.UNSHIELD,
+      type: Action.DECOMPRESS,
       recipient: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
@@ -397,7 +397,7 @@ describe("API tests", () => {
     // need to wait for balance update to fetch current utxos
     await user.getBalance();
     await userTestAssertHelper.fetchAndSaveState();
-    await user.unshield({
+    await user.decompress({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
       recipient: testInputs.recipient,
@@ -510,13 +510,13 @@ describe("API tests", () => {
       });
   });
 
-  // Test to debug flakyness in unshield test
-  it.skip("debug should unshield SOL", async () => {
+  // Test to debug flakyness in decompress test
+  it.skip("debug should decompress SOL", async () => {
     for (let i = 0; i < 20; i++) {
       let testInputs = {
         amountSol: 0.3,
         token: "SOL",
-        type: Action.SHIELD,
+        type: Action.COMPRESS,
         expectedUtxoHistoryLength: 1,
       };
 
@@ -527,7 +527,7 @@ describe("API tests", () => {
         testInputs,
       });
       await userTestAssertHelper.fetchAndSaveState();
-      await user.shield({
+      await user.compress({
         publicAmountSol: testInputs.amountSol,
         token: testInputs.token,
         confirmOptions: ConfirmOptions.spendable,
@@ -540,7 +540,7 @@ describe("API tests", () => {
       const testInputsUnshield = {
         amountSol: 0.05,
         token: "SOL",
-        type: Action.UNSHIELD,
+        type: Action.DECOMPRESS,
         recipient: solRecipient.publicKey,
         expectedUtxoHistoryLength: 1,
       };
@@ -553,7 +553,7 @@ describe("API tests", () => {
       });
       // need to wait for balance update to fetch current utxos
       await userTestAssertHelperUnshield.fetchAndSaveState();
-      await user.unshield({
+      await user.decompress({
         publicAmountSol: testInputsUnshield.amountSol,
         token: testInputsUnshield.token,
         recipient: testInputsUnshield.recipient,

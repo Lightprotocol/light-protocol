@@ -235,7 +235,7 @@ export async function createSolanaInstructions({
   // TODO: make mint dynamic
   /**
    * Problem:
-   * - for spl decompressions we need an initialized associated token we can unshield to
+   * - for spl decompressions we need an initialized associated token we can decompress to
    * - this transaction needs to be signed by the owner of the associated token account? has it?
    */
   if (instructionInputs.ataCreationFee) {
@@ -387,11 +387,11 @@ export async function sendAndConfirmShieldedTransaction({
     systemPspIdl,
     rootIndex,
   } = solanaTransactionInputs;
-  if (action === Action.SHIELD) {
+  if (action === Action.COMPRESS) {
     throw new SolanaTransactionError(
       SolanaTransactionErrorCode.INVALID_ACTION,
       "sendAndConfirmShieldedTransaction",
-      `Action ${action} is SHIELD use sendAndConfirmShieldTransaction.`,
+      `Action ${action} is COMPRESS use sendAndConfirmShieldTransaction.`,
     );
   }
   if (!rpcRecipientSol) {

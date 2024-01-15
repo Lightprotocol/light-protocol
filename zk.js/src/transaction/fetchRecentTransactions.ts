@@ -194,7 +194,7 @@ async function enrichParsedTransactionEvents(
     publicAmountSpl: Uint8Array,
     publicAmountSol: Uint8Array,
   ) => {
-    let type = Action.SHIELD;
+    let type = Action.COMPRESS;
     let amountSpl = new BN(publicAmountSpl, 32, "be");
     let amountSol = new BN(publicAmountSol, 32, "be");
 
@@ -206,7 +206,7 @@ async function enrichParsedTransactionEvents(
       type =
         amountSpl.eq(BN_0) && amountSol.eq(BN_0)
           ? Action.TRANSFER
-          : Action.UNSHIELD;
+          : Action.DECOMPRESS;
     }
     return { amountSpl, amountSol, type };
   };
@@ -242,7 +242,7 @@ async function enrichParsedTransactionEvents(
 
   const nullifiers = event.nullifiers;
 
-  const solTokenPoolIndex = type === Action.SHIELD ? 9 : 8;
+  const solTokenPoolIndex = type === Action.COMPRESS ? 9 : 8;
   let changeSolAmount = new BN(
     tx.meta.postBalances[solTokenPoolIndex] -
       tx.meta.preBalances[solTokenPoolIndex],

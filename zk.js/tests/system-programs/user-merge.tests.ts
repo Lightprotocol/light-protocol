@@ -79,7 +79,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       amountSpl: 0,
       amountSol: 15,
       token: "SOL",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       recipientAccount: userKeypair,
       mergedUtxo: false,
@@ -96,7 +96,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     const testInputsShieldSpl = {
       amountSpl: 20,
       token: "USDC",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
       shieldToRecipient: true,
@@ -140,7 +140,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     const testInputsShield = {
       amountSpl: 20,
       token: "USDC",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
       shieldToRecipient: true,
@@ -177,11 +177,11 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       amount: 11,
       provider,
     });
-    // shield SPL to recipient
+    // compress SPL to recipient
     const testInputsShield = {
       amountSpl: 20,
       token: "USDC",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
       shieldToRecipient: true,
@@ -231,7 +231,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
     const testInputsShield = {
       amountSol: 20,
       token: "SOL",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
       shieldToRecipient: true,
@@ -273,7 +273,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       amountSpl: 0,
       amountSol: 20,
       token: "SOL",
-      type: Action.SHIELD,
+      type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
       shieldToRecipient: true,
