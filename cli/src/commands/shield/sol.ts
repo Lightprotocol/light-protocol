@@ -69,7 +69,7 @@ class ShieldSolCommand extends Command {
       this.log(`\nSuccessfully compressed ${amount} SOL`, "\x1b[32m✔\x1b[0m");
       loader.stop();
     } catch (error) {
-      this.error(`Shielding tokens failed!\n${error}`);
+      this.error(`Compressing tokens failed!\n${error}`);
     }
   }
 }

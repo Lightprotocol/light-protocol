@@ -782,13 +782,13 @@ export class User {
       throw new UserError(
         TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
         "getTxParams",
-        "Please provide a recipient for unshielding SOL",
+        "Please provide a recipient for decompressing SOL",
       );
     if (publicAmountSpl && recipient.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getTxParams",
-        "Please provide a recipient for unshielding SPL",
+        "Please provide a recipient for decompressing SPL",
       );
     if (publicAmountSpl && token == "SOL")
       throw new UserError(

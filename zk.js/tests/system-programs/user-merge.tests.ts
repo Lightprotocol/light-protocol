@@ -17,7 +17,7 @@ import {
 } from "../../src";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import {
-  performShielding,
+  performCompressing,
   EnvironmentConfig,
   performMergeAll,
   performMergeUtxos,
@@ -87,7 +87,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       recipientSeed,
     };
 
-    await performShielding({
+    await performCompressing({
       numberOfShields: 1,
       testInputs: testInputsShieldSol,
       environmentConfig,
@@ -103,7 +103,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       recipientSeed,
     };
 
-    await performShielding({
+    await performCompressing({
       numberOfShields: 1,
       testInputs: testInputsShieldSpl,
       environmentConfig,
@@ -147,7 +147,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       recipientSeed,
     };
 
-    await performShielding({
+    await performCompressing({
       numberOfShields: 2,
       testInputs: testInputsShield,
       environmentConfig,
@@ -188,7 +188,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       recipientSeed,
     };
 
-    await performShielding({
+    await performCompressing({
       numberOfShields: 2,
       testInputs: testInputsShield,
       environmentConfig,
@@ -238,7 +238,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       recipientSeed,
     };
 
-    await performShielding({
+    await performCompressing({
       numberOfShields: 2,
       testInputs: testInputsShield,
       environmentConfig,
@@ -280,7 +280,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       recipientSeed,
     };
 
-    await performShielding({
+    await performCompressing({
       numberOfShields: 2,
       testInputs: testInputsShield,
       environmentConfig,

@@ -34,14 +34,14 @@ describe("compress SOL & SPL separately with the main command", () => {
   test
     .stdout()
     .command(["compress", "--amount-sol=7", "--localTestRpc"])
-    .it("Shielding 7 SOL", async (ctx) => {
+    .it("Compressing 7 SOL", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully compressed 7 SOL ✔");
     });
 
   test
     .stdout({ print: true })
     .command(["compress", "--amount-spl=9", "--token=USDC", "--localTestRpc"])
-    .it("Shielding 9 SPL:USDC", async (ctx) => {
+    .it("Compressing 9 SPL:USDC", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully compressed 9 USDC ✔");
     });
 
@@ -99,7 +99,7 @@ describe("compress SOL & SPL at the same time with the main command", () => {
       "--localTestRpc",
     ])
     .it(
-      "Shielding 5 SOL & 1 SPL:USDC at the same time with the main cli",
+      "Compressing 5 SOL & 1 SPL:USDC at the same time with the main cli",
       async (ctx) => {
         expect(ctx.stdout).to.contain(
           "Successfully compressed 5 SOL & 1 USDC ✔",

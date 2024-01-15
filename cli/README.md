@@ -25,7 +25,7 @@ The CLI lets you initialize a PSP scaffold project and customize, build, and tes
 
 It also provides utilities for local development, such as running a local Solana-test-validator with all necessary Light accounts and pre-loaded programs. (`light test-validator`).
 
-You can also execute common user actions such as shielding and sending private transfers. (`light compress`, `light transfer`, `light decompress`).
+You can also execute common user actions such as compressing and sending private transfers. (`light compress`, `light transfer`, `light decompress`).
 
 For the full list of available commands, see below:
 

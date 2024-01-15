@@ -10,7 +10,7 @@ export function useSend() {
     async (values: SendFormValues, isUnshield: boolean) => {
       try {
         if (isUnshield) {
-          console.log("unshielding");
+          console.log("decompressing");
           await decompress({
             token: values.token,
             recipient: new PublicKey(values.recipient),

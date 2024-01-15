@@ -380,7 +380,7 @@ describe("verifier_program", () => {
       merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       rpc: RPC,
     });
-    // Running into memory issues with verifier one (10in2out) unshielding spl
+    // Running into memory issues with verifier one (10in2out) decompressing spl
     const unshieldTransactionInput: UnshieldTransactionInput = {
       lightWasm: WASM,
       mint: spl ? MINT : undefined,

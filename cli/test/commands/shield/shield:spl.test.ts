@@ -23,14 +23,14 @@ describe("compress:spl sub-cli", () => {
   test
     .stdout({ print: true })
     .command(["compress:spl", "10", "USDC", "--localTestRpc"])
-    .it("shielding 1 USDC", (ctx) => {
+    .it("compressing 1 USDC", (ctx) => {
       expect(ctx.stdout).to.contain("Successfully compressed 10 USDC ✔");
     });
 
   test
     .stdout({ print: true })
     .command(["compress:spl", "123", "USDC", "-d", "--localTestRpc"])
-    .it("shielding 1.23 USDC taking absolute input with the subcli", (ctx) => {
+    .it("compressing 1.23 USDC taking absolute input with the subcli", (ctx) => {
       expect(ctx.stdout).to.contain("Successfully compressed 1.23 USDC ✔");
     });
 

@@ -13,7 +13,7 @@ describe("decompress:sol", () => {
       "E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
-    .it("Unshielding 0.2 SOL", async (ctx) => {
+    .it("Decompressing 0.2 SOL", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully decompressed 0.2 SOL ✔");
     });
 

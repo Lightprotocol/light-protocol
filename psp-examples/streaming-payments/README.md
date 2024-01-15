@@ -16,7 +16,7 @@ Before running the code, ensure that you have the following installed on your ma
 
 2. **Test Setup**: The code performs an airdrop of Solana tokens to specific program addresses required for verification purposes.
 
-3. **Create and Spend Program UTXO Test**: Initializes a light user and generates a compressed UTXO (by shielding SPL tokens into the Light escrow).
+3. **Create and Spend Program UTXO Test**: Initializes a light user and generates a compressed UTXO (by compressing SPL tokens into the Light escrow).
 
 4. **Payment Streaming Test**: Sets up a payment stream client, initializes the stream and calculates the required parameters for streaming. The client then stores the initial program UTXO and checks its commitment hash. It then collects the stream for the current slot and executes the UTXO action, effectively streaming the payment.
 
