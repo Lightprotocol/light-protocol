@@ -177,7 +177,7 @@ describe("Utxo Functional", () => {
     assert.equal(outUtxo.verifierAddressCircuit.toString(), "0");
     assert.equal(
       outUtxo.utxoHash,
-      "10253777838998756860614944496033986881757496982016254670361237551864044449818",
+      "1568861568500976325458582407919961784722007419947902683370772851928230232273",
     );
 
     // toBytes
@@ -259,7 +259,7 @@ describe("Utxo Functional", () => {
     assert.equal(decryptedUtxo.value?.utxoHash, outUtxo.utxoHash);
     assert.equal(
       decryptedUtxo.value?.nullifier,
-      "20156180646641338299834793922899381259815381519712122415534487127198510064334",
+      "21508566631771077033991490094549084199988937559738947801279985465409281027234",
     );
     assert.deepEqual(decryptedUtxo.value?.merkleProof, ["1", "2", "3"]);
     assert.equal(decryptedUtxo.value?.merkleTreeLeafIndex, inputs.index);
