@@ -223,7 +223,7 @@ impl Account {
 
     #[wasm_bindgen(js_name = generateShieldedPrivateKey)]
     pub fn generate_shielded_private_key(seed: &str) -> Result<Vec<u8>, AccountError> {
-        let private_key_seed = format!("{}shielded", seed);
+        let private_key_seed = format!("{}compressed", seed);
         let hash = BigUint::from_bytes_be(
             &blake2_string(private_key_seed, ACCOUNT_HASH_LENGTH)[1..ACCOUNT_HASH_LENGTH],
         )

@@ -248,7 +248,7 @@ export class Account {
         AccountErrorCode.INVALID_PUBLIC_KEY_SIZE,
         "fromPubkey",
         `Invalid length: ${decoded.length} bytes. Expected 64 bytes for publicKey,
-          where the first 32 are the shielded key and the second 32 are the encryption key.`,
+          where the first 32 are the compressed key and the second 32 are the encryption key.`,
       );
 
     const pubKey = new BN(decoded.subarray(0, 32), undefined, "be");

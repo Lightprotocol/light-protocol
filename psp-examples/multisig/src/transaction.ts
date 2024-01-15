@@ -125,7 +125,7 @@ export class QueuedTransaction {
       provider.hasher
     );
 
-    console.log(`-------------- Shielded Transaction Hash --------------\n`);
+    console.log(`-------------- Compressed Transaction Hash --------------\n`);
     console.log(connectingHash.toString());
     console.log("------------------------------------------");
   }

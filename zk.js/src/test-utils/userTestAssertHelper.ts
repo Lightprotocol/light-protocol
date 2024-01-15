@@ -497,7 +497,7 @@ export class UserTestAssertHelper {
         tokenBalancePre!.toNumber() +
         amount * this.tokenCtx?.decimals.toNumber()
       ).toFixed(this.tokenCtx.decimals.toString().length - 1),
-      `Token shielded balance isSender ${
+      `Token compressed balance isSender ${
         userBalances.isSender
       } after ${tokenBalanceAfter!} != token shield amount ${tokenBalancePre!.toNumber()} + ${
         amount * this.tokenCtx?.decimals.toNumber()
@@ -568,7 +568,7 @@ export class UserTestAssertHelper {
     assert.equal(
       solBalanceAfter!.toNumber(),
       solBalancePre!.toNumber() + lamports,
-      `shielded sol balance after ${solBalanceAfter!} != shield amount ${solBalancePre!.toNumber()} + ${lamports}`,
+      `compressed sol balance after ${solBalanceAfter!} != shield amount ${solBalancePre!.toNumber()} + ${lamports}`,
     );
   }
 
@@ -658,9 +658,9 @@ export class UserTestAssertHelper {
    * Asynchronously checks if token compression has been performed correctly for a user.
    * This method performs the following checks:
    *
-   * 1. Asserts that the user's shielded token balance has increased by the amount shielded.
-   * 2. Asserts that the user's token balance has decreased by the amount shielded.
-   * 3. Asserts that the user's sol shielded balance has increased by the additional sol amount.
+   * 1. Asserts that the user's compressed token balance has increased by the amount compressed.
+   * 2. Asserts that the user's token balance has decreased by the amount compressed.
+   * 3. Asserts that the user's sol compressed balance has increased by the additional sol amount.
    * 4. Asserts that the length of spent UTXOs matches the expected spent UTXOs length.
    * 5. Asserts that the nullifier account exists for the user's first UTXO.
    * 6. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
@@ -669,14 +669,14 @@ export class UserTestAssertHelper {
    */
   async checkSplShielded() {
     await this.standardAsserts();
-    // assert that the user's shielded balance has increased by the amount shielded
+    // assert that the user's compressed balance has increased by the amount compressed
     await this.assertShieldedSplBalance(
       this.testInputs.amountSpl!,
       this.recipient,
       this.testInputs.shieldToRecipient,
     );
 
-    // assert that the user's token balance has decreased by the amount shielded
+    // assert that the user's token balance has decreased by the amount compressed
     await this.assertSplBalance(this.testInputs.amountSpl!, this.sender);
 
     const lamports =
@@ -686,7 +686,7 @@ export class UserTestAssertHelper {
             new BN(1e9),
           ).toNumber()
         : MINIMUM_LAMPORTS.toNumber();
-    // assert that the user's sol shielded balance has increased by the additional sol amount
+    // assert that the user's sol compressed balance has increased by the additional sol amount
     await this.assertShieldedSolBalance(
       lamports,
       this.recipient,
@@ -719,19 +719,19 @@ export class UserTestAssertHelper {
    * Asynchronously checks if SOL compression has been performed correctly for a user.
    * This method performs the following checks:
    *
-   * 1. Asserts recipient user balance increased by shielded amount.
-   * 2. Asserts sender users sol balance decreased by shielded amount.
+   * 1. Asserts recipient user balance increased by compressed amount.
+   * 2. Asserts sender users sol balance decreased by compressed amount.
    * 3. Asserts that user UTXOs are spent and updated correctly.
    * 4. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
    *
    * Note: The temporary account cost calculation is not deterministic and may vary depending on whether the user has
-   * shielded SPL tokens before. This needs to be handled carefully.
+   * compressed SPL tokens before. This needs to be handled carefully.
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
   async checkSolShielded() {
     await this.standardAsserts();
-    // assert that the user's shielded balance has increased by the amount shielded
+    // assert that the user's compressed balance has increased by the amount compressed
     await this.assertShieldedSolBalance(
       convertAndComputeDecimals(
         this.testInputs.amountSol!,
@@ -754,7 +754,7 @@ export class UserTestAssertHelper {
 
   async checkSolUnshielded() {
     await this.standardAsserts();
-    // recipient's sol balance should be increased by the amount unshielded
+    // recipient's sol balance should be increased by the amount decompressed
     await this.assertSolBalance(
       convertAndComputeDecimals(
         this.testInputs.amountSol!,
@@ -764,7 +764,7 @@ export class UserTestAssertHelper {
       this.recipientPreSolBalance!,
       this.testInputs.recipient!,
     );
-    // sender's shielded sol balance should be decreased by the amount unshielded
+    // sender's compressed sol balance should be decreased by the amount decompressed
     await this.assertShieldedSolBalance(
       convertAndComputeDecimals(
         this.testInputs.amountSol!,
@@ -803,23 +803,23 @@ export class UserTestAssertHelper {
    * Asynchronously checks if token decompression has been performed correctly for a user.
    * This method performs the following checks:
    *
-   * 1. Asserts that the user's shielded token balance has decreased by the amount unshielded.
-   * 2. Asserts that the recipient's token balance has increased by the amount unshielded.
-   * 3. Asserts that the user's shielded SOL balance has decreased by the fee.
+   * 1. Asserts that the user's compressed token balance has decreased by the amount decompressed.
+   * 2. Asserts that the recipient's token balance has increased by the amount decompressed.
+   * 3. Asserts that the user's compressed SOL balance has decreased by the fee.
    * 4. Asserts that user UTXOs are spent and updated correctly.
    * 5. Asserts that the recent indexed transaction is of type UNSHIELD and has the correct values.
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
   async checkSplUnshielded() {
-    // assert that the user's shielded token balance has decreased by the amount unshielded
+    // assert that the user's compressed token balance has decreased by the amount decompressed
     await this.standardAsserts();
     await this.assertShieldedSplBalance(
       this.testInputs.amountSpl!,
       this.sender,
     );
 
-    // assert that the recipient token balance has increased by the amount shielded
+    // assert that the recipient token balance has increased by the amount compressed
     await this.assertSplBalance(this.testInputs.amountSpl!, this.recipient);
 
     let solDecreasedAmount =
@@ -829,7 +829,7 @@ export class UserTestAssertHelper {
     solDecreasedAmount = solDecreasedAmount.add(
       this.provider.rpc.getRpcFee(true),
     );
-    // assert that the user's sol shielded balance has decreased by fee
+    // assert that the user's sol compressed balance has decreased by fee
     await this.assertShieldedSolBalance(
       solDecreasedAmount.toNumber(),
       this.sender,
@@ -840,23 +840,23 @@ export class UserTestAssertHelper {
   }
 
   /**
-   * Asynchronously checks if a shielded token transfer has been performed correctly for a user.
+   * Asynchronously checks if a compressed token transfer has been performed correctly for a user.
    * This method performs the following checks:
    *
-   * 1. Asserts that the user's shielded token balance has decreased by the amount transferred.
-   * 2. Asserts that the user's shielded SOL balance has decreased by the rpc fee.
+   * 1. Asserts that the user's compressed token balance has decreased by the amount transferred.
+   * 2. Asserts that the user's compressed SOL balance has decreased by the rpc fee.
    * 3. Asserts that user UTXOs are spent and updated correctly.
    * 4. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
-   * 5. Assert that the transfer has been received correctly by the shielded recipient's account.
+   * 5. Assert that the transfer has been received correctly by the compressed recipient's account.
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
   async checkSplTransferred() {
-    // assert that the user's shielded balance has decreased by the amount transferred
+    // assert that the user's compressed balance has decreased by the amount transferred
     await this.standardAsserts();
     await this.assertInboxBalance(this.recipient.user);
 
-    // assert that the user's spl shielded balance has decreased by amountSpl
+    // assert that the user's spl compressed balance has decreased by amountSpl
     await this.assertShieldedSplBalance(
       this.testInputs.amountSpl!,
       this.sender,
@@ -876,7 +876,7 @@ export class UserTestAssertHelper {
           ).toNumber()
         : 0;
     shieldedLamports += this.provider.rpc.getRpcFee().toNumber();
-    // assert that the user's sol shielded balance has decreased by fee
+    // assert that the user's sol compressed balance has decreased by fee
     await this.assertShieldedSolBalance(shieldedLamports, this.sender);
 
     // assert that user utxos are spent and updated correctly
@@ -900,7 +900,7 @@ export class UserTestAssertHelper {
   }
 
   async checkMergedAll() {
-    // assert that the user's shielded balance has decreased by the amount transferred
+    // assert that the user's compressed balance has decreased by the amount transferred
     await this.standardAsserts();
     await this.assertInboxBalance(this.recipient.user);
     assert.equal(
@@ -946,7 +946,7 @@ export class UserTestAssertHelper {
   }
 
   async checkMerged() {
-    // assert that the user's shielded balance has decreased by the amount transferred
+    // assert that the user's compressed balance has decreased by the amount transferred
     await this.standardAsserts();
     await this.assertInboxBalance(this.recipient.user);
     assert.equal(
@@ -1045,7 +1045,7 @@ export class UserTestAssertHelper {
   }
 
   async assertStoredWithTransfer() {
-    // shielded sol balance is reduced by the rpc fee
+    // compressed sol balance is reduced by the rpc fee
     const postSolBalance = await (
       await this.recipient.user.getBalance()
     ).totalSolBalance
@@ -1059,7 +1059,7 @@ export class UserTestAssertHelper {
   }
 
   async assertStoredWithShield() {
-    // shielded sol balance did not change
+    // compressed sol balance did not change
     const postSolBalance = (
       await this.recipient.user.getBalance()
     ).totalSolBalance.toString();

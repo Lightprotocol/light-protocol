@@ -24,14 +24,14 @@ describe("shield:spl sub-cli", () => {
     .stdout({ print: true })
     .command(["shield:spl", "10", "USDC", "--localTestRpc"])
     .it("shielding 1 USDC", (ctx) => {
-      expect(ctx.stdout).to.contain("Successfully shielded 10 USDC ✔");
+      expect(ctx.stdout).to.contain("Successfully compressed 10 USDC ✔");
     });
 
   test
     .stdout({ print: true })
     .command(["shield:spl", "123", "USDC", "-d", "--localTestRpc"])
     .it("shielding 1.23 USDC taking absolute input with the subcli", (ctx) => {
-      expect(ctx.stdout).to.contain("Successfully shielded 1.23 USDC ✔");
+      expect(ctx.stdout).to.contain("Successfully compressed 1.23 USDC ✔");
     });
 
   test
@@ -57,5 +57,5 @@ describe("shield:spl sub-cli", () => {
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield SPL to an invalid shielded recipient address");
+    .it("Should fail shield SPL to an invalid compressed recipient address");
 });

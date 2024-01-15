@@ -73,7 +73,7 @@ class UnshieldCommand extends Command {
         ),
       );
       this.log(
-        `\nSuccessfully unshielded ${amountSpl} ${token}`,
+        `\nSuccessfully decompressed ${amountSpl} ${token}`,
         "\x1b[32m✔\x1b[0m",
       );
       loader.stop();

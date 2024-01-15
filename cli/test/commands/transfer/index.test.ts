@@ -13,7 +13,7 @@ describe("transfer", () => {
       "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q",
       "--localTestRpc",
     ])
-    .it("transfer 1.5 SOL to a shielded account address", async (ctx) => {
+    .it("transfer 1.5 SOL to a compressed account address", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully transferred 1.5 SOL ✔");
     });
 
@@ -26,7 +26,7 @@ describe("transfer", () => {
       "--token=usdc",
       "--localTestRpc",
     ])
-    .it("transfer 5 USDC to a shielded account address", async (ctx) => {
+    .it("transfer 5 USDC to a compressed account address", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully transferred 5 USDC ✔");
     });
 
@@ -40,7 +40,7 @@ describe("transfer", () => {
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail transfer to an invalid shielded recipient address");
+    .it("Should fail transfer to an invalid compressed recipient address");
 
   test
     .stdout()

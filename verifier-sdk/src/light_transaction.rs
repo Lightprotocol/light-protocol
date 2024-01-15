@@ -859,7 +859,7 @@ impl<
                         .to_account_info(),
                     fee_amount_checked,
                 )?;
-                msg!("unshielded sol for the user");
+                msg!("decompressed sol for the user");
             }
         }
         if !self.is_shield_sol() && rpc_fee > 0 {
@@ -901,7 +901,7 @@ impl<
         Ok(())
     }
 
-    /// Creates and closes an account such that shielded sol is part of the transaction fees.
+    /// Creates and closes an account such that compressed sol is part of the transaction fees.
     fn shield_sol(&self, amount_checked: u64, recipient_sol: &AccountInfo) -> Result<()> {
         self.check_sol_pool_account_derivation(
             &recipient_sol.key(),
@@ -1107,7 +1107,7 @@ impl<
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
         // Big integers are stored in 4 u64 limbs, if the number is <= U64::max() and encoded in little endian,
         // only the first limb is greater than 0.
-        // Amounts in shielded accounts are limited to 64bit therefore a decompression will always be greater
+        // Amounts in compressed accounts are limited to 64bit therefore a decompression will always be greater
         // than one U64::max().
         if pub_amount.0[0] > 0
             && pub_amount.0[1] == 0

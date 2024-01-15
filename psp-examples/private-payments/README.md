@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This script is an example implementation of a shielded transfer using the Light Protocol and **Solana** blockchain. It demonstrates how to initialize a **Solana** wallet, request an airdrop of SOL tokens, set up a test rpc, perform a shield operation, transfer tokens to a recipient, and retrieve transaction information.
+This script is an example implementation of a compressed transfer using the Light Protocol and **Solana** blockchain. It demonstrates how to initialize a **Solana** wallet, request an airdrop of SOL tokens, set up a test rpc, perform a shield operation, transfer tokens to a recipient, and retrieve transaction information.
 
 ## Prerequisites
 
@@ -84,7 +84,7 @@ The script performs the following steps:
 - Retrieves and logs the transaction hash of the transfer.
 - Retrieves and logs the UTXO (Unspent Transaction Output) inbox for the test recipient.
 
-You can use it as a reference to integrate shielded transfers into your own applications or explore the capabilities of the Light Protocol and **Solana**.
+You can use it as a reference to integrate compressed transfers into your own applications or explore the capabilities of the Light Protocol and **Solana**.
 
 ## Notes
 

@@ -81,7 +81,7 @@ class ShieldSplCommand extends Command {
         : amountSpl;
 
       this.log(
-        `\nSuccessfully shielded ${amount} ${token}`,
+        `\nSuccessfully compressed ${amount} ${token}`,
         "\x1b[32m✔\x1b[0m",
       );
       loader.stop();

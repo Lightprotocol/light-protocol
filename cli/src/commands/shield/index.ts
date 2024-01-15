@@ -12,7 +12,7 @@ export const shieldSolFlags = {
   recipient: Flags.string({
     char: "r",
     description:
-      "The recipient shielded/encryption publickey. If not set, the operation will shield to self.",
+      "The recipient compressed/encryption publickey. If not set, the operation will shield to self.",
     required: false,
   }),
   "skip-decimal-conversions": Flags.boolean({
@@ -108,14 +108,14 @@ class ShieldCommand extends Command {
 
       if (!amountSol || !amountSpl) {
         this.log(
-          `\nSuccessfully shielded ${
+          `\nSuccessfully compressed ${
             token === "SOL" ? amountSol : amountSpl
           } ${token}`,
           "\x1b[32m✔\x1b[0m",
         );
       } else {
         this.log(
-          `\nSuccessfully shielded ${amountSol} SOL & ${amountSpl} ${token}`,
+          `\nSuccessfully compressed ${amountSol} SOL & ${amountSpl} ${token}`,
           "\x1b[32m✔\x1b[0m",
         );
       }

@@ -151,7 +151,7 @@ export class MultisigParams {
     console.log("----------------- MultiSig Parameters -----------------");
     console.log("Threshold: ", this.threshold.toString());
     console.log("Number of Signers: ", this.nrSigners.toString());
-    console.log(`Shielded pubkey: ${this.appDataHash}`);
+    console.log(`Compressed pubkey: ${this.appDataHash}`);
     console.log("Shared encryption public key: <encryption-key>");
     console.log("Shared encryption private key: <encryption-key>");
 
@@ -175,7 +175,7 @@ export class MultisigParams {
     let log = "----------------- MultiSig Parameters -----------------\n";
     log += "threshold: " + this.threshold.toString() + "\n";
     log += "Number of Signers: " + this.nrSigners.toString() + "\n";
-    log += "Shielded pubkey: " + this.appDataHash + "\n";
+    log += "Compressed pubkey: " + this.appDataHash + "\n";
 
     for (
       let i = 0;

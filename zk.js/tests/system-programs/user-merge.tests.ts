@@ -48,7 +48,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       await initLookUpTableFromFile(anchorProvider);
 
     environmentConfig.lightWasm = await WasmFactory.getInstance();
-    // this keypair is used to derive the shielded account seed from the light message signature
+    // this keypair is used to derive the compressed account seed from the light message signature
     environmentConfig.providerSolanaKeypair = ADMIN_AUTH_KEYPAIR;
     const rpcRecipientSol = SolanaKeypair.generate().publicKey;
 
