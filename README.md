@@ -2,7 +2,7 @@
 
 # Light Protocol
 
-[![Discord](https://img.TMP_FIX.io/discord/892771619687268383?label=discord&logo=discord)](https://discord.gg/WDAAaX6je2)
+[![Discord](https://img.shields.io/discord/892771619687268383?label=discord&logo=discord)](https://discord.gg/WDAAaX6je2)
 [![Workflow Status](https://github.com/Lightprotocol/light-protocol-onchain/workflows/programs-test/badge.svg)](https://github.com/Lightprotocol/light-poseidon/actions?query=workflow)
 
 **The ZK Layer for Solana**
