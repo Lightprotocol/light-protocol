@@ -2,7 +2,7 @@
 
 # Light Protocol
 
-[![Discord](https://img.shields.io/discord/892771619687268383?label=discord&logo=discord)](https://discord.gg/WDAAaX6je2)
+[![Discord](https://img.TMP_FIX.io/discord/892771619687268383?label=discord&logo=discord)](https://discord.gg/WDAAaX6je2)
 [![Workflow Status](https://github.com/Lightprotocol/light-protocol-onchain/workflows/programs-test/badge.svg)](https://github.com/Lightprotocol/light-poseidon/actions?query=workflow)
 
 **The ZK Layer for Solana**
@@ -148,7 +148,7 @@ pnpm test
 Tests are located in `tests/` directory.
 
 The default test is a functional test, setting up a test environment with a
-Merkle tree and an spl token, conducting two shields and unshields.
+Merkle tree and an spl token, conducting two compressions and decompressions.
 
 Tests can be executed in bulk or one by one.
 

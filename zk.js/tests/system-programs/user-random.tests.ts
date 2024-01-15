@@ -519,8 +519,8 @@ describe("Test User", () => {
   /**
    * History is still buggy
    * fails at tx 22
-   * - had two shields before one usdc and one sol
-   * - history only finds the latest sol shield
+   * - had two compressions before one usdc and one sol
+   * - history only finds the latest sol compression
    *
    * Check:
    * - that usdc transactions are categorized correctly

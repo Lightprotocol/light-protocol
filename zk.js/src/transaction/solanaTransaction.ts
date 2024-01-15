@@ -235,7 +235,7 @@ export async function createSolanaInstructions({
   // TODO: make mint dynamic
   /**
    * Problem:
-   * - for spl unshields we need an initialized associated token we can unshield to
+   * - for spl decompressions we need an initialized associated token we can unshield to
    * - this transaction needs to be signed by the owner of the associated token account? has it?
    */
   if (instructionInputs.ataCreationFee) {

@@ -640,7 +640,7 @@ export class User {
       throw new UserError(
         UserErrorCode.SPL_FUNDS_NOT_APPROVED,
         "sendTransaction",
-        "Please approve SPL funds before executing a shield with SPL tokens.",
+        "Please approve SPL funds before executing a compression with SPL tokens.",
       );
     if (!this.recentInstructions)
       throw new UserError(
@@ -776,7 +776,7 @@ export class User {
       throw new UserError(
         CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
         "unshield",
-        "Need to provide at least one amount for an unshield",
+        "Need to provide at least one amount for a decompression",
       );
     if (publicAmountSol && recipient.toBase58() == AUTHORITY.toBase58())
       throw new UserError(

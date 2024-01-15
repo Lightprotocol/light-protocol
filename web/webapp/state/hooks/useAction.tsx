@@ -109,7 +109,7 @@ export const shieldState = atom(
       /// sleep prevents fetching non-up2date txs state
       await sleep(8000);
 
-      // FIX: the user class doesnt shallow update after shields, therefore we have to "force update" the user here
+      // FIX: the user class doesnt shallow update after compression, therefore we have to "force update" the user here
       // fix this by removing the user class and managing balance/history state manually. this makes it more predictable.
       set(userState, { user, timestamp: Date.now() });
       actionNotification(`Shield successful`, NotifType.success, 3000);
