@@ -17,7 +17,7 @@ describe("compress:sol sub-cli", () => {
   test
     .stdout()
     .command(["compress:sol", "2.3", "--localTestRpc"])
-    .it("Shielding 2.3 SOL", async (ctx) => {
+    .it("Compressing 2.3 SOL", async (ctx) => {
       console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("Successfully compressed 2.3 SOL ✔");
     });
@@ -25,7 +25,7 @@ describe("compress:sol sub-cli", () => {
   test
     .stdout()
     .command(["compress:sol", "123456789", "-d", "--localTestRpc"])
-    .it("Shielding 123456789 LAMPORTS", async (ctx) => {
+    .it("Compressing 123456789 LAMPORTS", async (ctx) => {
       expect(ctx.stdout).to.contain(
         "Successfully compressed 0.123456789 SOL ✔",
       );

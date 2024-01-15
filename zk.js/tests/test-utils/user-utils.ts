@@ -17,7 +17,7 @@ export type EnvironmentConfig = {
   lookUpTable?: PublicKey;
 };
 
-export async function performShielding({
+export async function performCompressing({
   numberOfShields = 1,
   testInputs,
   environmentConfig,

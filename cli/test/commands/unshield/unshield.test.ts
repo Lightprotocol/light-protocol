@@ -14,7 +14,7 @@ describe("decompress SOL & SPL separately with the main command", () => {
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
-    .it("Unshielding 0.2 SOL", async (ctx) => {
+    .it("Decompressing 0.2 SOL", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully decompressed 0.2 SOL ✔");
     });
 
@@ -27,7 +27,7 @@ describe("decompress SOL & SPL separately with the main command", () => {
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbc",
       "--localTestRpc",
     ])
-    .it("Unshielding 0.5 SPL:USDC", async (ctx) => {
+    .it("Decompressing 0.5 SPL:USDC", async (ctx) => {
       expect(ctx.stdout).to.contain("Successfully decompressed 0.5 USDC ✔");
     });
 
@@ -81,7 +81,7 @@ describe("decompress SOL & SPL at the same time with the main command", () => {
       "--localTestRpc",
     ])
     .it(
-      "Unshielding 0.2 SOL and 0.5 SPL:USDC at the same time with the main cli",
+      "Decompressing 0.2 SOL and 0.5 SPL:USDC at the same time with the main cli",
       async (ctx) => {
         expect(ctx.stdout).to.contain(
           "Successfully decompressed 0.2 SOL & 0.5 USDC ✔",

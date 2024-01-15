@@ -59,7 +59,7 @@ describe("light web-app", () => {
     cy.get('button:contains("Compress now")').click();
     cy.get('button:contains("Compress now")').should("be.disabled"); // loading
 
-    cy.contains("Shielding SOL", { timeout: 20000 }).should("be.visible");
+    cy.contains("Compressing SOL", { timeout: 20000 }).should("be.visible");
     cy.contains("Compress successful", { timeout: 40000 }).should("be.visible");
     cy.wait(2000);
     cy.get('[data-testid="compress-send-modal"]', { timeout: 0 }).should(
@@ -117,7 +117,7 @@ describe("light web-app", () => {
     cy.get('button:contains("Send now")').click();
     cy.get('button:contains("Send now")').should("be.disabled"); // loading
 
-    cy.contains("Unshielding SOL", { timeout: 20000 }).should("be.visible");
+    cy.contains("Decompressing SOL", { timeout: 20000 }).should("be.visible");
     cy.contains("Decompress successful", { timeout: 40000 }).should(
       "be.visible"
     );

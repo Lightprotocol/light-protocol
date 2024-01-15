@@ -90,7 +90,7 @@ export const shieldState = atom(
     }
   ) => {
     set(shieldLoadingState, true);
-    actionNotification(`Shielding ${token}`);
+    actionNotification(`Compressing ${token}`);
     const { user } = get(userState);
     if (!user) {
       throw new Error("User is not initialized");
@@ -143,7 +143,7 @@ export const unshieldState = atom(
     }
   ) => {
     set(unshieldLoadingState, true);
-    actionNotification(`Unshielding ${token}`);
+    actionNotification(`Decompressing ${token}`);
 
     const { user } = get(userState);
     if (!user) {
