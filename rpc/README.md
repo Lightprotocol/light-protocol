@@ -8,7 +8,7 @@ Rpc nodes are trustless RPCs in the Light Protocol network that receive zero kno
 
 ## API Endpoints
 
-- **POST** `/relayTransaction`: Handles relay requests for shielded txs and d.
+- **POST** `/relayTransaction`: Handles relay requests for compressed txs and d.
 - **POST** `/updatemerkletree`: Updates the Merkle Tree.
 - **GET** `/indexedTransactions`: Returns indexed txs. No pagination currently.
 - **GET** `/getRpcInfo`: Returns config of self.

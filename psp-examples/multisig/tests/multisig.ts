@@ -57,7 +57,7 @@ describe("Test multisig", () => {
     });
 
     // The light provider is a connection and wallet abstraction.
-    // The wallet is used to derive the seed for your shielded keypair with a signature.
+    // The wallet is used to derive the seed for your compressed keypair with a signature.
     let lightProvider = await LightProvider.init({
       wallet,
       url: RPC_URL,

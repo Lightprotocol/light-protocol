@@ -35,14 +35,14 @@ describe("shield SOL & SPL separately with the main command", () => {
     .stdout()
     .command(["shield", "--amount-sol=7", "--localTestRpc"])
     .it("Shielding 7 SOL", async (ctx) => {
-      expect(ctx.stdout).to.contain("Successfully shielded 7 SOL ✔");
+      expect(ctx.stdout).to.contain("Successfully compressed 7 SOL ✔");
     });
 
   test
     .stdout({ print: true })
     .command(["shield", "--amount-spl=9", "--token=USDC", "--localTestRpc"])
     .it("Shielding 9 SPL:USDC", async (ctx) => {
-      expect(ctx.stdout).to.contain("Successfully shielded 9 USDC ✔");
+      expect(ctx.stdout).to.contain("Successfully compressed 9 USDC ✔");
     });
 
   test
@@ -78,7 +78,7 @@ describe("shield SOL & SPL separately with the main command", () => {
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield to invalid shielded recipient address");
+    .it("Should fail shield to invalid compressed recipient address");
 
   test
     .stdout()
@@ -102,7 +102,7 @@ describe("shield SOL & SPL at the same time with the main command", () => {
       "Shielding 5 SOL & 1 SPL:USDC at the same time with the main cli",
       async (ctx) => {
         expect(ctx.stdout).to.contain(
-          "Successfully shielded 5 SOL & 1 USDC ✔",
+          "Successfully compressed 5 SOL & 1 USDC ✔",
         );
       },
     );
@@ -145,7 +145,7 @@ describe("shield SOL & SPL at the same time with the main command", () => {
       "--localTestRpc",
     ])
     .exit(2)
-    .it("Should fail shield to invalid shielded recipient address");
+    .it("Should fail shield to invalid compressed recipient address");
 
   test
     .stdout()

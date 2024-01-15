@@ -15,7 +15,7 @@ describe("unshield:spl", () => {
       "--localTestRpc",
     ])
     .it("Unshielding 0.5 SPL:USDC", async (ctx) => {
-      expect(ctx.stdout).to.contain("Successfully unshielded 0.5 USDC ✔");
+      expect(ctx.stdout).to.contain("Successfully decompressed 0.5 USDC ✔");
     });
 
   test

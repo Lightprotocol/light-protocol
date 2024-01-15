@@ -37,7 +37,7 @@ pub mod light_psp10in2out {
 
     use super::*;
 
-    /// This instruction is the first step of a shielded transaction with 10 inputs and 2 outputs.
+    /// This instruction is the first step of a compressed transaction with 10 inputs and 2 outputs.
     /// It creates and initializes a verifier state account which stores public inputs and other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the verification and
     /// protocol logicin the second transaction.

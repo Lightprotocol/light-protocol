@@ -8,7 +8,7 @@ import {
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
 class TransferCommand extends Command {
-  static summary = "Transfer shielded funds between light users.";
+  static summary = "Transfer compressed funds between light users.";
 
   static examples = [
     "$ light transfer 1.8 <SHIELDED_RECIPIENT_ADDRESS>",
@@ -34,7 +34,7 @@ class TransferCommand extends Command {
     }),
     recipient: Args.string({
       name: "SHIELDED_RECIPIENT_ADDRESS",
-      description: "The recipient shielded/encryption public key.",
+      description: "The recipient compressed/encryption public key.",
       required: true,
     }),
   };
@@ -45,7 +45,7 @@ class TransferCommand extends Command {
     const { token } = flags;
 
     const loader = new CustomLoader(
-      `Performing shielded ${token} transfer...\n`,
+      `Performing compressed ${token} transfer...\n`,
     );
     loader.start();
 

@@ -44,7 +44,7 @@ template CheckIndices(n, nInAssets, nAssets) {
 // nOuts outputs
 // nAssets
 // one feeAsset at indexFeeAsset in assetPubkeys[nAssets]
-// the asset in position 1 can be unshielded
+// the asset in position 1 can be decompressed
 // all other assets can only be used in internal txs
 template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {
 

@@ -31,7 +31,7 @@ export async function airdropShieldedSol({
   if (!amount) throw new Error("Sol Airdrop amount undefined");
   if (!seed && !recipientPublicKey)
     throw new Error(
-      "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
+      "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop compressed sol aes encrypted, define a recipientPublicKey to airdrop compressed sol to the recipient nacl box encrypted",
     );
   const rpc = new TestRpc({
     rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
@@ -72,7 +72,7 @@ export async function airdropSol({
 }
 
 /**
- * airdrops shielded spl tokens from ADMIN_AUTH_KEYPAIR to the user specified by seed if aes encrypted desired, or by recipient pubkey if nacl box encrypted (will be in utxoInbox then)
+ * airdrops compressed spl tokens from ADMIN_AUTH_KEYPAIR to the user specified by seed if aes encrypted desired, or by recipient pubkey if nacl box encrypted (will be in utxoInbox then)
  * @param param0
  * @returns
  */
@@ -90,7 +90,7 @@ export async function airdropShieldedMINTSpl({
   if (!amount) throw new Error("Sol Airdrop amount undefined");
   if (!seed && !recipientPublicKey)
     throw new Error(
-      "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop shielded sol aes encrypted, define a recipientPublicKey to airdrop shielded sol to the recipient nacl box encrypted",
+      "Sol Airdrop seed and recipientPublicKey undefined define a seed to airdrop compressed sol aes encrypted, define a recipientPublicKey to airdrop compressed sol to the recipient nacl box encrypted",
     );
   const connection = provider?.provider?.connection;
   if (!connection) throw new Error("connection undefined");

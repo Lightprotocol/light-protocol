@@ -86,7 +86,7 @@ export type TmpTestPsp = {
     {
       name: "lightInstructionThird";
       docs: [
-        "This instruction is the third step of a shielded transaction.",
+        "This instruction is the third step of a compressed transaction.",
         "The proof is verified with the parameters saved in the first transaction.",
         "At successful verification protocol logic is executed.",
       ];
@@ -658,7 +658,7 @@ export const IDL: TmpTestPsp = {
     {
       name: "lightInstructionThird",
       docs: [
-        "This instruction is the third step of a shielded transaction.",
+        "This instruction is the third step of a compressed transaction.",
         "The proof is verified with the parameters saved in the first transaction.",
         "At successful verification protocol logic is executed.",
       ],

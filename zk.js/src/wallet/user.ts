@@ -882,7 +882,7 @@ export class User {
       throw new UserError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
         "transfer",
-        "Please provide a shielded recipient for the transfer.",
+        "Please provide a compressed recipient for the transfer.",
       );
     const recipientAccount = Account.fromPubkey(
       recipient,
@@ -900,7 +900,7 @@ export class User {
   }
 
   // TODO: add separate lookup function for users.
-  // TODO: add account parsing from and to string which is concat shielded pubkey and encryption key
+  // TODO: add account parsing from and to string which is concat compressed pubkey and encryption key
   /**
    * @description transfers to one recipient utxo and crencrypteates a change utxo with remainders of the input
    * @param token mint
@@ -1148,7 +1148,7 @@ export class User {
   }
 
   // TODO: how do we handle app utxos?, some will not be able to be accepted we can only mark these as accepted
-  /** shielded transfer to self, merge 10-1;
+  /** compressed transfer to self, merge 10-1;
    * get utxo inbox
    * merge highest first
    * loops in steps of 9 or 10
@@ -1220,7 +1220,7 @@ export class User {
   }
 
   // TODO: how do we handle app utxos?, some will not be able to be accepted we can only mark these as accepted
-  /** shielded transfer to self, merge 10-1;
+  /** compressed transfer to self, merge 10-1;
    * get utxo inbox
    * merge highest first
    * loops in steps of 9 or 10

@@ -66,7 +66,7 @@ describe("light web-app", () => {
       "not.exist"
     );
   });
-  it("should update balance by the amount that was just shielded", () => {
+  it("should update balance by the amount that was just compressed", () => {
     // Check that the balance has been updated
     cy.get('td:contains("SOL")')
       .next()

@@ -116,7 +116,7 @@ export class TestRpc extends Rpc {
     // limits the number of signatures which are queried
     // if the number is too low it is not going to index all transactions
     // hence the dependency on the merkle tree account index times 260 transactions
-    // which is approximately the number of transactions sent to send one shielded transaction and update the merkle tree
+    // which is approximately the number of transactions sent to send one compressed transaction and update the merkle tree
     const limit =
       1000 + 260 * merkleTreeAccount.merkleTree.nextIndex.toNumber();
     if (this.indexedTransactions.length === 0) {

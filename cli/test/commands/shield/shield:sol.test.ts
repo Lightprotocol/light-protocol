@@ -19,14 +19,16 @@ describe("shield:sol sub-cli", () => {
     .command(["shield:sol", "2.3", "--localTestRpc"])
     .it("Shielding 2.3 SOL", async (ctx) => {
       console.log(ctx.stdout);
-      expect(ctx.stdout).to.contain("Successfully shielded 2.3 SOL ✔");
+      expect(ctx.stdout).to.contain("Successfully compressed 2.3 SOL ✔");
     });
 
   test
     .stdout()
     .command(["shield:sol", "123456789", "-d", "--localTestRpc"])
     .it("Shielding 123456789 LAMPORTS", async (ctx) => {
-      expect(ctx.stdout).to.contain("Successfully shielded 0.123456789 SOL ✔");
+      expect(ctx.stdout).to.contain(
+        "Successfully compressed 0.123456789 SOL ✔",
+      );
     });
 
   test
@@ -50,5 +52,5 @@ describe("shield:sol sub-cli", () => {
       "--recipient=E2CDgD4vq636mLf9pgMTyKdK3k8gbPZM95YetYMfPLbcFAIL",
     ])
     .exit(2)
-    .it("Should fail shield SOL to an invalid shielded recipient address");
+    .it("Should fail shield SOL to an invalid compressed recipient address");
 });
