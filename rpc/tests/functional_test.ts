@@ -376,7 +376,7 @@ describe("API tests", () => {
     expect(error).to.exist;
   });
 
-  // TODO: add a shield... before, add a transfer too tho, => assert job queeing functioning etc
+  // TODO: add a compression... before, add a transfer too tho, => assert job queeing functioning etc
   it("should unshield SOL", async () => {
     const solRecipient = Keypair.generate();
 
@@ -495,7 +495,7 @@ describe("API tests", () => {
     await testStateValidator.checkSolTransferred();
   });
 
-  // TODO: add test for just proper indexing (-> e.g. shields)
+  // TODO: add test for just proper indexing (-> e.g. compre)
   // TODO: add test for stress test load (multiple requests, wrong requests etc)
   it("Should fail transaction with empty instructions", (done: any) => {
     const instructions: any[] = []; // Replace with a valid instruction object

@@ -46,7 +46,7 @@ The second flow consists out of the following functions in the merkle_tree_progr
   - unshield funds from a liquidity pool
   - create Merkle tree leaves account
   - insert nullifiers
-- shields are handled in the verifier program
+- compressions are handled in the verifier program
 - we use lookup tables to get everything into one transaction, this does not require any changes of the program therefore it should not be security relevant as long as the correct lookup table is used by the client.
 
 ## Verifier Program One:
@@ -56,7 +56,7 @@ The second flow consists out of the following functions in the merkle_tree_progr
   - unshield funds from a liquidity pool
   - create Merkle tree leaves account
   - insert nullifiers
-- shields are handled in the verifier program
+- compressions are handled in the verifier program
 - creates one state account to save state between two transactions:
   - first transaction, send data except proof
   - second transction: send proof data, verify, etc.

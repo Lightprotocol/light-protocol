@@ -136,7 +136,7 @@ pub(crate) fn light_verifier_accounts(
         (
             quote! {
                 pub token_program: Program<'info, ::anchor_spl::token::Token>,
-                /// CHECK: Is checked when it is used during spl unshields.
+                /// CHECK: Is checked when it is used during spl decompressions.
                 #[account(
                     mut,
                     seeds=[::light_merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED],
