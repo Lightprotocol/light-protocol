@@ -1,7 +1,7 @@
 import { Stack, Box, SegmentedControl, Button } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { useState, SetStateAction } from "react";
-import { ShieldForm, SendForm } from "../Form";
+import { CompressForm, SendForm } from "../Form";
 
 export const ModalContent = ({
   initValue = "compress",
@@ -25,12 +25,12 @@ export const ModalContent = ({
           ]}
         />
       </Box>
-      {value === "compress" ? <ShieldForm /> : <SendForm />}
+      {value === "compress" ? <CompressForm /> : <SendForm />}
     </Stack>
   );
 };
 
-export const ShieldSendModal = () => {
+export const CompressSendModal = () => {
   return (
     <>
       <Button

@@ -15,7 +15,7 @@ import {
 } from "../index";
 import { WasmFactory } from "@lightprotocol/account.rs";
 
-export async function airdropShieldedSol({
+export async function airdropCompressedSol({
   provider,
   amount,
   seed,
@@ -76,7 +76,7 @@ export async function airdropSol({
  * @param param0
  * @returns
  */
-export async function airdropShieldedMINTSpl({
+export async function airdropCompressedMINTSpl({
   provider,
   amount,
   seed,

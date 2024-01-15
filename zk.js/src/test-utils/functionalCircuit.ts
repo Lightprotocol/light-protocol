@@ -34,13 +34,13 @@ export async function functionalCircuitTest(
   const lightWasm = await WasmFactory.getInstance();
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
   const account = Account.createFromSeed(lightWasm, seed32);
-  const shieldAmount = 20_000;
-  const shieldFeeAmount = 10_000;
+  const compressAmount = 20_000;
+  const compressFeeAmount = 10_000;
   const rpcFee = new BN(5000);
   let inputUtxo: OutUtxo | Utxo = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
-    amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
+    amounts: [new BN(compressFeeAmount), new BN(compressAmount)],
     publicKey: account.keypair.publicKey,
     verifierAddress: app ? mockPubkey : undefined,
   });
@@ -57,8 +57,8 @@ export async function functionalCircuitTest(
     lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [
-      new BN(shieldFeeAmount / 2).sub(rpcFee),
-      new BN(shieldAmount / 2),
+      new BN(compressFeeAmount / 2).sub(rpcFee),
+      new BN(compressAmount / 2),
     ],
     publicKey: account.keypair.publicKey,
   });
@@ -66,7 +66,7 @@ export async function functionalCircuitTest(
   const outputUtxo2 = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
-    amounts: [new BN(shieldFeeAmount / 2), new BN(shieldAmount / 2)],
+    amounts: [new BN(compressFeeAmount / 2), new BN(compressAmount / 2)],
     publicKey: account.keypair.publicKey,
   });
 

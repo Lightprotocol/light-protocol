@@ -17,13 +17,13 @@ const isSolanaPublicKey = (string: string): boolean => {
 };
 
 export function useSendType(recipient: string) {
-  const [isUnshield, setIsUnshield] = useState(false);
+  const [isDecompress, setIsDecompress] = useState(false);
 
   useEffect(() => {
     if (recipient) {
-      setIsUnshield(isSolanaPublicKey(recipient));
+      setIsDecompress(isSolanaPublicKey(recipient));
     }
   }, [recipient]);
 
-  return isUnshield;
+  return isDecompress;
 }

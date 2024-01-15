@@ -8,22 +8,22 @@ import {
   confirmOptionsFlags,
   standardFlags,
 } from "../../utils";
-import { shieldFlags, shieldSolFlags } from ".";
+import { compressFlags, compressSolFlags } from ".";
 
-class ShieldSplCommand extends Command {
+class CompressSplCommand extends Command {
   static summary = "Compress SPL tokens for a user.";
 
   static examples = [
     "$ light compress:SPL 10 USDC",
-    "$ light compress:SPL 13 USDT --recipient <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light compress:SPL 13 USDT --recipient <COMPRESSED_RECIPIENT_ADDRESS>",
   ];
 
   static flags = {
     ...standardFlags,
     ...standardFlags,
-    ...shieldSolFlags,
+    ...compressSolFlags,
     ...confirmOptionsFlags,
-    "skip-minimum-lamports": shieldFlags["skip-minimum-lamports"],
+    "skip-minimum-lamports": compressFlags["skip-minimum-lamports"],
   };
 
   static args = {
@@ -41,7 +41,7 @@ class ShieldSplCommand extends Command {
   };
 
   async run() {
-    const { args, flags } = await this.parse(ShieldSplCommand);
+    const { args, flags } = await this.parse(CompressSplCommand);
 
     const amountSpl = args.amount;
     const token = args.token;
@@ -91,4 +91,4 @@ class ShieldSplCommand extends Command {
   }
 }
 
-export default ShieldSplCommand;
+export default CompressSplCommand;

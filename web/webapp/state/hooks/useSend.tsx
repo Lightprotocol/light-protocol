@@ -7,9 +7,9 @@ export function useSend() {
   const { transfer, decompress } = useAction();
 
   const send = useCallback(
-    async (values: SendFormValues, isUnshield: boolean) => {
+    async (values: SendFormValues, isDecompress: boolean) => {
       try {
-        if (isUnshield) {
+        if (isDecompress) {
           console.log("decompressing");
           await decompress({
             token: values.token,

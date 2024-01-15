@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import { Box, Stack, Group, Button, Text, Paper, rem } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
-import { IconArrowRight, IconShieldDown } from "@tabler/icons-react";
+import { IconArrowRight, IconCompressDown } from "@tabler/icons-react";
 import { TokenInput, SendRecipientInput } from "../Input";
 import { FormValues } from ".";
 import { useAction } from "../../state/hooks/useAction";
@@ -17,15 +17,15 @@ export function SendForm() {
   const form: UseFormReturnType<SendFormValues> = useForm({
     initialValues: { amount: "", token: "SOL", recipient: "" },
   });
-  const isUnshield = useSendType(form.values.recipient);
+  const isDecompress = useSendType(form.values.recipient);
   const { transfer, decompress, loading } = useAction();
   const send = useSend();
 
   const handleSubmit = useCallback(
     async (values: SendFormValues) => {
-      await send(values, isUnshield);
+      await send(values, isDecompress);
     },
-    [decompress, transfer, isUnshield]
+    [decompress, transfer, isDecompress],
   );
 
   return (
@@ -40,10 +40,10 @@ export function SendForm() {
         <Stack mt="md" gap={28}>
           {form.values.amount && form.values.recipient && (
             <Stack mt="xl" gap={8}>
-              {isUnshield && (
+              {isDecompress && (
                 <Chip
                   icon={
-                    <IconShieldDown
+                    <IconCompressDown
                       style={{ width: rem(16), height: rem(16) }}
                     />
                   }

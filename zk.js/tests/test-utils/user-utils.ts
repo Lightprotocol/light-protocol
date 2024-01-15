@@ -18,17 +18,17 @@ export type EnvironmentConfig = {
 };
 
 export async function performCompressing({
-  numberOfShields = 1,
+  numberOfCompressions = 1,
   testInputs,
   environmentConfig,
 }: {
-  numberOfShields: number;
+  numberOfCompressions: number;
   testInputs: TestInputs;
   environmentConfig: EnvironmentConfig;
 }) {
-  if (!testInputs.recipientSeed && testInputs.shieldToRecipient)
+  if (!testInputs.recipientSeed && testInputs.compressToRecipient)
     throw new Error("testinputs recipientSeed is undefined");
-  for (let i = 0; i < numberOfShields; i++) {
+  for (let i = 0; i < numberOfCompressions; i++) {
     const provider = await Provider.init({
       wallet: environmentConfig.providerSolanaKeypair!,
       rpc: environmentConfig.rpc,
@@ -37,7 +37,7 @@ export async function performCompressing({
     const userSender = await User.init({
       provider,
     });
-    const userRecipient = testInputs.shieldToRecipient
+    const userRecipient = testInputs.compressToRecipient
       ? await User.init({
           provider,
           seed: testInputs.recipientSeed,
@@ -51,7 +51,7 @@ export async function performCompressing({
     });
     await testStateValidator.fetchAndSaveState();
 
-    if (testInputs.shieldToRecipient) {
+    if (testInputs.compressToRecipient) {
       await userSender.compress({
         publicAmountSol: testInputs.amountSol,
         publicAmountSpl: testInputs.amountSpl,
@@ -66,12 +66,12 @@ export async function performCompressing({
       });
     }
     if (testInputs.token === "SOL" && testInputs.type === Action.COMPRESS) {
-      await testStateValidator.checkSolShielded();
+      await testStateValidator.checkSolCompressed();
     } else if (
       testInputs.token !== "SOL" &&
       testInputs.type === Action.COMPRESS
     ) {
-      await testStateValidator.checkSplShielded();
+      await testStateValidator.checkSplCompressed();
     } else {
       throw new Error(`No test option found for testInputs ${testInputs}`);
     }

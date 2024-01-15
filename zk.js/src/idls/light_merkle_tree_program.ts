@@ -527,7 +527,7 @@ export type LightMerkleTreeProgram = {
       ];
     },
     {
-      name: "unshieldSol";
+      name: "decompressSol";
       docs: [
         "Decompresses sol from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
@@ -563,7 +563,7 @@ export type LightMerkleTreeProgram = {
       ];
     },
     {
-      name: "unshieldSpl";
+      name: "decompressSpl";
       docs: [
         "Decompresses spl tokens from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
@@ -1108,8 +1108,8 @@ export type LightMerkleTreeProgram = {
     },
     {
       code: 6007;
-      name: "UnshieldFailed";
-      msg: "UnshieldFailed";
+      name: "DecompressFailed";
+      msg: "DecompressFailed";
     },
     {
       code: 6008;
@@ -1734,7 +1734,7 @@ export const IDL: LightMerkleTreeProgram = {
       ],
     },
     {
-      name: "unshieldSol",
+      name: "decompressSol",
       docs: [
         "Decompresses sol from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
@@ -1770,7 +1770,7 @@ export const IDL: LightMerkleTreeProgram = {
       ],
     },
     {
-      name: "unshieldSpl",
+      name: "decompressSpl",
       docs: [
         "Decompresses spl tokens from a liquidity pool.",
         "An arbitrary number of recipients can be passed in with remaining accounts.",
@@ -2315,8 +2315,8 @@ export const IDL: LightMerkleTreeProgram = {
     },
     {
       code: 6007,
-      name: "UnshieldFailed",
-      msg: "UnshieldFailed",
+      name: "DecompressFailed",
+      msg: "DecompressFailed",
     },
     {
       code: 6008,

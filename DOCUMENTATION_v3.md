@@ -135,8 +135,8 @@ Verified Merkle Tree instructions:
   inserts a number of nullifiers passed in as remaining accounts
 - insert_two_leaves
   creates a leaves account which stores a pair of leaves and a message of 256 bytes which can contain 2 encrypted utxos
-- unshield_spl
-- unshield_sol
+- decompress_spl
+- decompress_sol
 
 **Security Claims**
 

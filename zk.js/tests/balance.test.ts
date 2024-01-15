@@ -29,21 +29,21 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Balance Functional", () => {
   const seed32 = bs58.encode(new Uint8Array(32).fill(1));
-  const shieldAmount = 20_000;
-  const shieldFeeAmount = 10_000;
+  const compressAmount = 20_000;
+  const compressFeeAmount = 10_000;
 
   let lightWasm: LightWasm,
     lightProvider: LightProvider,
-    shieldUtxo1: Utxo,
+    compressUtxo1: Utxo,
     account: Account;
   before(async () => {
     lightWasm = await WasmFactory.getInstance();
     account = Account.createFromSeed(lightWasm, seed32);
     lightProvider = await LightProvider.loadMock();
-    shieldUtxo1 = createTestInUtxo({
+    compressUtxo1 = createTestInUtxo({
       lightWasm,
       assets: [FEE_ASSET, MINT],
-      amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
+      amounts: [new BN(compressFeeAmount), new BN(compressAmount)],
       account,
       merkleTreeLeafIndex: 1,
     });
@@ -66,19 +66,19 @@ describe("Balance Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.addUtxo(shieldUtxo1.utxoHash, shieldUtxo1, "utxos");
+      ?.addUtxo(compressUtxo1.utxoHash, compressUtxo1, "utxos");
 
     const utxo = balance.tokenBalances
       .get(MINT.toBase58())
-      ?.utxos.get(shieldUtxo1.utxoHash);
-    compareUtxos(utxo!, shieldUtxo1);
+      ?.utxos.get(compressUtxo1.utxoHash);
+    compareUtxos(utxo!, compressUtxo1);
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
-      shieldUtxo1.amounts[0].toString(),
+      compressUtxo1.amounts[0].toString(),
     );
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSpl.toString(),
-      shieldUtxo1.amounts[1].toString(),
+      compressUtxo1.amounts[1].toString(),
     );
     assert.equal(
       balance.tokenBalances.get(SystemProgram.programId.toBase58())?.spentUtxos
@@ -88,7 +88,7 @@ describe("Balance Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.moveToSpentUtxos(shieldUtxo1.utxoHash);
+      ?.moveToSpentUtxos(compressUtxo1.utxoHash);
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       "0",
@@ -104,9 +104,9 @@ describe("Balance Functional", () => {
 
     assert.equal(balance.tokenBalances.get(MINT.toBase58())?.utxos.size, 0);
 
-    const _shieldUtxo1 = balance.tokenBalances
+    const _compressUtxo1 = balance.tokenBalances
       .get(MINT.toBase58())
-      ?.spentUtxos.get(shieldUtxo1.utxoHash);
-    compareUtxos(_shieldUtxo1!, shieldUtxo1);
+      ?.spentUtxos.get(compressUtxo1.utxoHash);
+    compareUtxos(_compressUtxo1!, compressUtxo1);
   });
 });

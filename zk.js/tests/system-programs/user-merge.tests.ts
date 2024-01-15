@@ -10,8 +10,8 @@ import {
   Provider,
   User,
   MINT,
-  airdropShieldedSol,
-  airdropShieldedMINTSpl,
+  airdropCompressedSol,
+  airdropCompressedMINTSpl,
   RPC_FEE,
   airdropSol,
 } from "../../src";
@@ -75,7 +75,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   });
 
   it("Merge all sol & spl (no existing utxo)", async () => {
-    const testInputsShieldSol = {
+    const testInputsCompressSol = {
       amountSpl: 0,
       amountSol: 15,
       token: "SOL",
@@ -83,29 +83,29 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       expectedUtxoHistoryLength: 1,
       recipientAccount: userKeypair,
       mergedUtxo: false,
-      shieldToRecipient: true,
+      compressToRecipient: true,
       recipientSeed,
     };
 
     await performCompressing({
-      numberOfShields: 1,
-      testInputs: testInputsShieldSol,
+      numberOfCompressions: 1,
+      testInputs: testInputsCompressSol,
       environmentConfig,
     });
 
-    const testInputsShieldSpl = {
+    const testInputsCompressSpl = {
       amountSpl: 20,
       token: "USDC",
       type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
-      shieldToRecipient: true,
+      compressToRecipient: true,
       recipientSeed,
     };
 
     await performCompressing({
-      numberOfShields: 1,
-      testInputs: testInputsShieldSpl,
+      numberOfCompressions: 1,
+      testInputs: testInputsCompressSpl,
       environmentConfig,
     });
 
@@ -137,19 +137,19 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   });
 
   it("Merge all spl (existing utxos)", async () => {
-    const testInputsShield = {
+    const testInputsCompress = {
       amountSpl: 20,
       token: "USDC",
       type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
-      shieldToRecipient: true,
+      compressToRecipient: true,
       recipientSeed,
     };
 
     await performCompressing({
-      numberOfShields: 2,
-      testInputs: testInputsShield,
+      numberOfCompressions: 2,
+      testInputs: testInputsCompress,
       environmentConfig,
     });
 
@@ -172,25 +172,25 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       rpc: environmentConfig.rpc,
       confirmConfig,
     });
-    await airdropShieldedMINTSpl({
+    await airdropCompressedMINTSpl({
       seed: recipientSeed,
       amount: 11,
       provider,
     });
     // compress SPL to recipient
-    const testInputsShield = {
+    const testInputsCompress = {
       amountSpl: 20,
       token: "USDC",
       type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
-      shieldToRecipient: true,
+      compressToRecipient: true,
       recipientSeed,
     };
 
     await performCompressing({
-      numberOfShields: 2,
-      testInputs: testInputsShield,
+      numberOfCompressions: 2,
+      testInputs: testInputsCompress,
       environmentConfig,
     });
 
@@ -222,25 +222,25 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   });
 
   it("Merge all sol (existing utxos)", async () => {
-    await airdropShieldedSol({
+    await airdropCompressedSol({
       seed: recipientSeed,
       amount: 15,
       provider,
     });
 
-    const testInputsShield = {
+    const testInputsCompress = {
       amountSol: 20,
       token: "SOL",
       type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
-      shieldToRecipient: true,
+      compressToRecipient: true,
       recipientSeed,
     };
 
     await performCompressing({
-      numberOfShields: 2,
-      testInputs: testInputsShield,
+      numberOfCompressions: 2,
+      testInputs: testInputsCompress,
       environmentConfig,
     });
 
@@ -264,25 +264,25 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       rpc: environmentConfig.rpc,
       confirmConfig,
     });
-    await airdropShieldedSol({
+    await airdropCompressedSol({
       seed: recipientSeed,
       amount: 1,
       provider,
     });
-    const testInputsShield = {
+    const testInputsCompress = {
       amountSpl: 0,
       amountSol: 20,
       token: "SOL",
       type: Action.COMPRESS,
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
-      shieldToRecipient: true,
+      compressToRecipient: true,
       recipientSeed,
     };
 
     await performCompressing({
-      numberOfShields: 2,
-      testInputs: testInputsShield,
+      numberOfCompressions: 2,
+      testInputs: testInputsCompress,
       environmentConfig,
     });
 

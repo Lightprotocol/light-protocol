@@ -40,7 +40,7 @@
 // import { Hasher, WasmFactory } from "@lightprotocol/account.rs";
 // import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
-// let HASHER: Hasher, ACCOUNT, RPC, shieldUtxo1;
+// let HASHER: Hasher, ACCOUNT, RPC, compressUtxo1;
 // let SLEEP_BUFFER = 0;
 // const system = getSystem();
 // if (system === System.MacOsArm64) SLEEP_BUFFER = 400;
@@ -58,7 +58,7 @@
 //   anchor.setProvider(provider);
 //   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-//   let shieldAmount, shieldFeeAmount, lightProvider: Provider;
+//   let compressAmount, compressFeeAmount, lightProvider: Provider;
 //   const VERIFIER_IDLS = [IDL_LIGHT_PSP2IN2OUT, IDL_LIGHT_PSP10IN2OUT];
 
 //   before(async () => {
@@ -85,9 +85,9 @@
 //       payer: ADMIN_AUTH_KEYPAIR,
 //     });
 
-//     shieldAmount =
+//     compressAmount =
 //       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
-//     shieldFeeAmount =
+//     compressFeeAmount =
 //       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
 //     for (const verifier in VERIFIER_IDLS) {
@@ -110,7 +110,7 @@
 //           ),
 //         ), //delegate
 //         ADMIN_AUTH_KEYPAIR.publicKey, // owner
-//         shieldAmount * 10,
+//         compressAmount * 10,
 //         [ADMIN_AUTH_KEYPAIR],
 //       );
 //       const senderSpl = tokenAccount.address;
@@ -121,16 +121,16 @@
 //         confirmConfig,
 //       });
 
-//       shieldUtxo1 = new Utxo({
+//       compressUtxo1 = new Utxo({
 //         hasher: HASHER,
 //         assets: [FEE_ASSET, MINT],
-//         amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
+//         amounts: [new anchor.BN(compressFeeAmount), new anchor.BN(compressAmount)],
 //         publicKey: ACCOUNT.pubkey,
 //         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
 //       });
 
 //       const txParams = new TransactionParameters({
-//         outputUtxos: [shieldUtxo1],
+//         outputUtxos: [compressUtxo1],
 //         eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
 //         transactionMerkleTreePubkey:
 //           MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -162,16 +162,16 @@
 //       await lightProvider.sendAndConfirmTransaction(instructions);
 
 //       // Compress
-//       const shieldUtxo2 = new Utxo({
+//       const compressUtxo2 = new Utxo({
 //         hasher: HASHER,
 //         assets: [FEE_ASSET, MINT],
-//         amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
+//         amounts: [new anchor.BN(compressFeeAmount), new anchor.BN(compressAmount)],
 //         publicKey: ACCOUNT.pubkey,
 //         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
 //       });
 
 //       const txParams1 = new TransactionParameters({
-//         outputUtxos: [shieldUtxo2],
+//         outputUtxos: [compressUtxo2],
 //         eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
 //         transactionMerkleTreePubkey:
 //           MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -197,7 +197,7 @@
 //       // Decompress
 //       const tokenRecipient = recipientTokenAccount;
 
-//       const lightProviderUnshield = await LightProvider.init({
+//       const lightProviderDecompress = await LightProvider.init({
 //         wallet: ADMIN_AUTH_KEYPAIR,
 //         rpc: RPC,
 //         confirmConfig,
@@ -209,7 +209,7 @@
 //       );
 
 //       const user: User = await User.init({
-//         provider: lightProviderUnshield,
+//         provider: lightProviderDecompress,
 //         account: ACCOUNT,
 //       });
 //       const inputUtxos: Utxo[] = [
@@ -431,7 +431,7 @@
 //           ),
 //         ), // delegate
 //         keypair.publicKey, // owner
-//         shieldAmount * 10,
+//         compressAmount * 10,
 //         [keypair],
 //       );
 //       tmp_tx.params.accounts.senderSpl = tokenAccount.address;

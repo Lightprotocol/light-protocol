@@ -172,7 +172,7 @@ export class Provider {
     return response;
   }
 
-  async sendAndConfirmShieldedTransaction(
+  async sendAndConfirmCompressedTransaction(
     instructions: TransactionInstruction[],
   ): Promise<RpcSendTransactionsResponse | SendVersionedTransactionsResult> {
     const response = await this.rpc.sendTransactions(instructions, this);

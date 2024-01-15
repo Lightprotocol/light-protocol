@@ -2,8 +2,8 @@ import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import {
   AUTHORITY_ONE,
-  airdropShieldedMINTSpl,
-  airdropShieldedSol,
+  airdropCompressedMINTSpl,
+  airdropCompressedSol,
   airdropSol,
 } from "@lightprotocol/zk.js";
 import {
@@ -30,13 +30,13 @@ describe("accept-utxos", () => {
       lamports: 10e9,
       recipientPublicKey: AUTHORITY_ONE,
     });
-    await airdropShieldedSol({
+    await airdropCompressedSol({
       recipientPublicKey:
         "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q",
       amount: 1,
       provider,
     });
-    await airdropShieldedMINTSpl({
+    await airdropCompressedMINTSpl({
       recipientPublicKey:
         "HPLohgqzaUuyYVJtSgDk4iVJdXRX2FXHkYPcdYH23whnJUdxty2ZrjjGVdKaQAqgyCmg9ecYtKYQfppsgQaA84q",
       amount: 1,

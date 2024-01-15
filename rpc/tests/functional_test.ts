@@ -120,7 +120,7 @@ describe("API tests", () => {
     });
 
     await waitForBalanceUpdate(userTestAssertHelper, user);
-    await userTestAssertHelper.checkSolShielded();
+    await userTestAssertHelper.checkSolCompressed();
   });
 
   it("getEventById", (done) => {
@@ -406,7 +406,7 @@ describe("API tests", () => {
 
     await waitForBalanceUpdate(userTestAssertHelper, user);
     try {
-      await userTestAssertHelper.checkSolUnshielded();
+      await userTestAssertHelper.checkSolDecompressed();
     } catch (e) {
       console.log("userTestAssertHelper ", userTestAssertHelper);
       console.log("\n----------------------------------\n");
@@ -534,10 +534,10 @@ describe("API tests", () => {
       });
 
       await waitForBalanceUpdate(userTestAssertHelper, user);
-      await userTestAssertHelper.checkSolShielded();
+      await userTestAssertHelper.checkSolCompressed();
       const solRecipient = Keypair.generate();
 
-      const testInputsUnshield = {
+      const testInputsDecompress = {
         amountSol: 0.05,
         token: "SOL",
         type: Action.DECOMPRESS,
@@ -545,28 +545,28 @@ describe("API tests", () => {
         expectedUtxoHistoryLength: 1,
       };
       await user.getBalance();
-      const userTestAssertHelperUnshield = new UserTestAssertHelper({
+      const userTestAssertHelperDecompress = new UserTestAssertHelper({
         userSender: user,
         userRecipient: user,
         provider,
-        testInputs: testInputsUnshield,
+        testInputs: testInputsDecompress,
       });
       // need to wait for balance update to fetch current utxos
-      await userTestAssertHelperUnshield.fetchAndSaveState();
+      await userTestAssertHelperDecompress.fetchAndSaveState();
       await user.decompress({
-        publicAmountSol: testInputsUnshield.amountSol,
-        token: testInputsUnshield.token,
-        recipient: testInputsUnshield.recipient,
+        publicAmountSol: testInputsDecompress.amountSol,
+        token: testInputsDecompress.token,
+        recipient: testInputsDecompress.recipient,
         confirmOptions: ConfirmOptions.spendable,
       });
 
-      await waitForBalanceUpdate(userTestAssertHelperUnshield, user);
+      await waitForBalanceUpdate(userTestAssertHelperDecompress, user);
       try {
-        await userTestAssertHelperUnshield.checkSolUnshielded();
+        await userTestAssertHelperDecompress.checkSolDecompressed();
       } catch (e) {
         console.log(
-          "userTestAssertHelperUnshield ",
-          userTestAssertHelperUnshield,
+          "userTestAssertHelperDecompress ",
+          userTestAssertHelperDecompress,
         );
         console.log("\n----------------------------------\n");
         console.log(await user.getBalance());

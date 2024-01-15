@@ -1,5 +1,5 @@
 export * from "./SendForm";
-export * from "./ShieldForm";
+export * from "./CompressForm";
 
 export interface FormValues {
   amount: string;

@@ -32,7 +32,7 @@ use crate::{
     accounts::LightAccounts,
     cpi_instructions::{
         insert_nullifiers_cpi, insert_two_leaves_cpi, insert_two_leaves_event_cpi,
-        invoke_indexer_transaction_event, unshield_sol_cpi, unshield_spl_cpi,
+        invoke_indexer_transaction_event, decompress_sol_cpi, decompress_spl_cpi,
     },
     errors::VerifierSdkError,
     state::TransactionIndexerEvent,
@@ -700,8 +700,8 @@ impl<
             }
 
             // is a token compress or decompress
-            if self.is_shield_spl() {
-                self.shield_spl(pub_amount_checked, sender_spl, recipient_spl)?;
+            if self.is_compress_spl() {
+                self.compress_spl(pub_amount_checked, sender_spl, recipient_spl)?;
             } else {
                 self.check_spl_pool_account_derivation(
                     &self
@@ -715,8 +715,8 @@ impl<
                     &sender_spl.mint,
                 )?;
 
-                // shield_spl_cpi
-                unshield_spl_cpi(
+                // compress_spl_cpi
+                decompress_spl_cpi(
                     self.input.ctx.program_id,
                     &self
                         .input
@@ -787,9 +787,9 @@ impl<
         )?;
         msg!("fee amount {} ", fee_amount_checked);
         if fee_amount_checked > 0 {
-            if self.is_shield_sol() {
+            if self.is_compress_sol() {
                 msg!("is compress");
-                self.shield_sol(
+                self.compress_sol(
                     fee_amount_checked,
                     &self
                         .input
@@ -826,7 +826,7 @@ impl<
                 )?;
                 // Decompress sol for the user
                 msg!("decompress sol cpi");
-                unshield_sol_cpi(
+                decompress_sol_cpi(
                     self.input.ctx.program_id,
                     &self
                         .input
@@ -862,9 +862,9 @@ impl<
                 msg!("decompressed sol for the user");
             }
         }
-        if !self.is_shield_sol() && rpc_fee > 0 {
+        if !self.is_compress_sol() && rpc_fee > 0 {
             // pays the rpc fee
-            unshield_sol_cpi(
+            decompress_sol_cpi(
                 self.input.ctx.program_id,
                 &self
                     .input
@@ -902,7 +902,7 @@ impl<
     }
 
     /// Creates and closes an account such that compressed sol is part of the transaction fees.
-    fn shield_sol(&self, amount_checked: u64, recipient_sol: &AccountInfo) -> Result<()> {
+    fn compress_sol(&self, amount_checked: u64, recipient_sol: &AccountInfo) -> Result<()> {
         self.check_sol_pool_account_derivation(
             &recipient_sol.key(),
             *recipient_sol.data.try_borrow().unwrap(),
@@ -955,7 +955,7 @@ impl<
         )
     }
 
-    fn shield_spl(
+    fn compress_spl(
         &self,
         pub_amount_checked: u64,
         sender_spl: spl_token::state::Account,
@@ -1042,7 +1042,7 @@ impl<
     }
 
     /// Checks whether a transaction is a compression by inspecting the public amount.
-    pub fn is_shield_spl(&self) -> bool {
+    pub fn is_compress_spl(&self) -> bool {
         if self.input.public_amount.spl[24..] != [0u8; 8]
             && self.input.public_amount.spl[..24] == [0u8; 24]
         {
@@ -1052,7 +1052,7 @@ impl<
     }
 
     /// Checks whether a transaction is a deposit by inspecting the public amount.
-    pub fn is_shield_sol(&self) -> bool {
+    pub fn is_compress_sol(&self) -> bool {
         if self.input.public_amount.sol[24..] != [0u8; 8]
             && self.input.public_amount.sol[..24] == [0u8; 24]
         {

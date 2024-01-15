@@ -5,8 +5,8 @@ import {
   BN_0,
   FIELD_SIZE,
   N_ASSET_PUBKEYS,
-  STANDARD_SHIELDED_PRIVATE_KEY,
-  STANDARD_SHIELDED_PUBLIC_KEY,
+  STANDARD_COMPRESSION_PRIVATE_KEY,
+  STANDARD_COMPRESSION_PUBLIC_KEY,
   SYSTEM_PROGRAM_IDLS,
   lightPsp2in2outStorageId,
   merkleTreeProgramId,
@@ -251,12 +251,12 @@ export function createSystemProofInputs({
 
   const inputNullifier = transaction.private.inputUtxos.map((x) => {
     let _account = account;
-    if (new BN(x.publicKey).eq(STANDARD_SHIELDED_PUBLIC_KEY)) {
+    if (new BN(x.publicKey).eq(STANDARD_COMPRESSION_PUBLIC_KEY)) {
       _account = Account.fromPrivkey(
         lightWasm,
-        bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
-        bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
-        bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray("be", 32)),
+        bs58.encode(STANDARD_COMPRESSION_PRIVATE_KEY.toArray("be", 32)),
+        bs58.encode(STANDARD_COMPRESSION_PRIVATE_KEY.toArray("be", 32)),
+        bs58.encode(STANDARD_COMPRESSION_PRIVATE_KEY.toArray("be", 32)),
       );
     }
     return x.nullifier;
@@ -387,7 +387,7 @@ export type VerifierConfig = {
   in: number;
   out: number;
 };
-export type UnshieldAccounts = {
+export type DecompressAccounts = {
   recipientSol: PublicKey;
   recipientSpl: PublicKey;
   rpcPublicKey: PublicKey;
@@ -431,11 +431,11 @@ export type Transaction = {
   public: PublicTransactionVariables;
 };
 
-export type ShieldTransaction = Transaction & {
+export type CompressTransaction = Transaction & {
   action: Action;
 };
 
-export type UnshieldTransaction = Transaction & {
+export type DecompressTransaction = Transaction & {
   action: Action;
 };
 
@@ -583,7 +583,7 @@ export function addFillingUtxos(
  * @description Assigns spl and sol senderSpl or recipientSpl accounts to transaction parameters based on action.
  */
 // solanaTransaction
-export function assignAccountsUnshield(
+export function assignAccountsDecompress(
   assetPubkeys: PublicKey[],
   recipientSol?: PublicKey,
   recipientSpl?: PublicKey,
@@ -648,7 +648,7 @@ export function assignAccounts(assetPubkeys: PublicKey[]): {
   };
 }
 
-export function assignAccountsShield(
+export function assignAccountsCompress(
   assetPubkeys: PublicKey[],
   systemPspId: PublicKey,
   senderSpl?: PublicKey,
@@ -824,7 +824,7 @@ export function getExternalAmount(
 export function getTxIntegrityHash(
   rpcFee: BN,
   encryptedUtxos: Uint8Array,
-  accounts: UnshieldAccounts,
+  accounts: DecompressAccounts,
   verifierConfig: VerifierConfig,
   verifierProgramId: PublicKey,
   message?: Uint8Array,
@@ -950,7 +950,7 @@ export function getTransactionHash(
     txIntegrityHash.toString(),
   ]);
 }
-export type ShieldTransactionInput = {
+export type CompressTransactionInput = {
   mint?: PublicKey;
   message?: Buffer;
   transactionMerkleTreePubkey: PublicKey;
@@ -965,10 +965,10 @@ export type ShieldTransactionInput = {
   assetLookUpTable?: string[];
 };
 
-// add createShieldSolanaTransaction
-export async function createShieldTransaction(
-  shieldTransactionInput: ShieldTransactionInput,
-): Promise<ShieldTransaction> {
+// add createCompressSolanaTransaction
+export async function createCompressTransaction(
+  compressTransactionInput: CompressTransactionInput,
+): Promise<CompressTransaction> {
   const {
     message,
     transactionMerkleTreePubkey,
@@ -981,9 +981,9 @@ export async function createShieldTransaction(
     pspId,
     account,
     lightWasm,
-  } = shieldTransactionInput;
-  const assetLookUpTable = shieldTransactionInput.assetLookUpTable
-    ? shieldTransactionInput.assetLookUpTable
+  } = compressTransactionInput;
+  const assetLookUpTable = compressTransactionInput.assetLookUpTable
+    ? compressTransactionInput.assetLookUpTable
     : [SystemProgram.programId.toBase58(), MINT.toBase58()];
 
   const action = Action.COMPRESS;
@@ -1010,7 +1010,7 @@ export async function createShieldTransaction(
     privateVars.assetPubkeysCircuit,
   );
 
-  const accounts = assignAccountsShield(
+  const accounts = assignAccountsCompress(
     privateVars.assetPubkeys,
     systemPspId,
     senderSpl,
@@ -1046,7 +1046,7 @@ export async function createShieldTransaction(
     lightWasm,
   );
 
-  const transaction: ShieldTransaction = {
+  const transaction: CompressTransaction = {
     action,
     private: privateVars,
     public: {
@@ -1109,7 +1109,7 @@ export function createPrivateTransactionVariables({
   };
 }
 
-export type UnshieldTransactionInput = {
+export type DecompressTransactionInput = {
   mint?: PublicKey;
   message?: Buffer;
   transactionMerkleTreePubkey: PublicKey;
@@ -1127,10 +1127,10 @@ export type UnshieldTransactionInput = {
   assetLookUpTable?: string[];
 };
 
-// add createShieldSolanaTransaction
-export async function createUnshieldTransaction(
-  unshieldTransactionInput: UnshieldTransactionInput,
-): Promise<UnshieldTransaction> {
+// add createCompressSolanaTransaction
+export async function createDecompressTransaction(
+  decompressTransactionInput: DecompressTransactionInput,
+): Promise<DecompressTransaction> {
   const {
     message,
     transactionMerkleTreePubkey,
@@ -1146,9 +1146,9 @@ export async function createUnshieldTransaction(
     account,
     rpcFee,
     ataCreationFee,
-  } = unshieldTransactionInput;
-  const assetLookUpTable = unshieldTransactionInput.assetLookUpTable
-    ? unshieldTransactionInput.assetLookUpTable
+  } = decompressTransactionInput;
+  const assetLookUpTable = decompressTransactionInput.assetLookUpTable
+    ? decompressTransactionInput.assetLookUpTable
     : [SystemProgram.programId.toBase58(), MINT.toBase58()];
 
   const action = Action.DECOMPRESS;
@@ -1176,7 +1176,7 @@ export async function createUnshieldTransaction(
     privateVars.assetPubkeysCircuit,
   );
 
-  const accounts = assignAccountsUnshield(
+  const accounts = assignAccountsDecompress(
     privateVars.assetPubkeys,
     recipientSol,
     recipientSpl,
@@ -1214,7 +1214,7 @@ export async function createUnshieldTransaction(
     lightWasm,
   );
 
-  const transaction: UnshieldTransaction = {
+  const transaction: DecompressTransaction = {
     action,
     private: privateVars,
     public: {
@@ -1405,10 +1405,10 @@ export async function getTxParams({
   assetLookupTable: string[];
   verifierProgramLookupTable: string[];
   separateSolUtxo?: boolean;
-}): Promise<Transaction | ShieldTransaction | UnshieldTransaction> {
+}): Promise<Transaction | CompressTransaction | DecompressTransaction> {
   if (action === Action.TRANSFER && !outUtxos && !mergeUtxos)
     throw new TransactionParametersError(
-      UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
+      UserErrorCode.COMPRESSED_RECIPIENT_UNDEFINED,
       "getTxParams",
       "Recipient outUtxo not provided for transfer",
     );
@@ -1475,7 +1475,7 @@ export async function getTxParams({
   }
 
   if (action == Action.COMPRESS) {
-    return createShieldTransaction({
+    return createCompressTransaction({
       message,
       transactionMerkleTreePubkey:
         MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -1492,7 +1492,7 @@ export async function getTxParams({
       lightWasm: provider.lightWasm,
     });
   } else if (action == Action.DECOMPRESS) {
-    return createUnshieldTransaction({
+    return createDecompressTransaction({
       message,
       transactionMerkleTreePubkey:
         MerkleTreeConfig.getTransactionMerkleTreePda(),

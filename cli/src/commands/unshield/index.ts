@@ -7,7 +7,7 @@ import {
   getUser,
 } from "../../utils/utils";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
-class UnshieldCommand extends Command {
+class DecompressCommand extends Command {
   static summary = "Decompress tokens for a user.";
   static examples = [
     "$ light decompress --amount-SOL 2.4 --recipient <RECIPIENT_ADDRESS>",
@@ -43,7 +43,7 @@ class UnshieldCommand extends Command {
   };
 
   async run() {
-    const { flags } = await this.parse(UnshieldCommand);
+    const { flags } = await this.parse(DecompressCommand);
     const token = flags["token"];
     const amountSol = flags["amount-sol"];
     const recipient = flags["recipient"];
@@ -94,4 +94,4 @@ class UnshieldCommand extends Command {
   }
 }
 
-export default UnshieldCommand;
+export default DecompressCommand;

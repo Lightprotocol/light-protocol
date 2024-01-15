@@ -143,9 +143,9 @@ const compress = async (
   console.log(res);
 
   if (isSol) {
-    await userTestAssertHelper.checkSolShielded();
+    await userTestAssertHelper.checkSolCompressed();
   } else {
-    await userTestAssertHelper.checkSplShielded();
+    await userTestAssertHelper.checkSplCompressed();
   }
 };
 
@@ -197,9 +197,9 @@ const decompress = async (
   });
   console.log(res);
   if (isSol) {
-    await userTestAssertHelper.checkSolUnshielded();
+    await userTestAssertHelper.checkSolDecompressed();
   } else {
-    await userTestAssertHelper.checkSplUnshielded();
+    await userTestAssertHelper.checkSplDecompressed();
     const recipientAssociatedTokenAccount = getAssociatedTokenAddressSync(
       mint,
       testInputs.recipient,

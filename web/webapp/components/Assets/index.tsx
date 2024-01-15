@@ -11,7 +11,7 @@ import {
 import { modals } from "@mantine/modals";
 import { useBalance } from "../../state/hooks/useBalance";
 import { IconDotsVertical } from "@tabler/icons-react";
-import { parseShieldedBalance } from "../../utils/parser";
+import { parseCompressedBalance } from "../../utils/parser";
 import { useState } from "react";
 import { ModalContent } from "../Modal";
 
@@ -25,10 +25,10 @@ export function Assets() {
       return tokenBalance ? (
         <Table.Tr key={index}>
           <Table.Td style={{ padding: "20px" }}>
-            {parseShieldedBalance(tokenBalance).token}
+            {parseCompressedBalance(tokenBalance).token}
           </Table.Td>
           <Table.Td style={{ padding: "20px" }}>
-            {parseShieldedBalance(tokenBalance).balance}
+            {parseCompressedBalance(tokenBalance).balance}
           </Table.Td>
           <Table.Td style={{ padding: "20px" }}>
             <Group justify="flex-end">

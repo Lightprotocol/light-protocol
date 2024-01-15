@@ -17,7 +17,7 @@ export type LightPsp10in2out = {
   ];
   instructions: [
     {
-      name: "shieldedTransferFirst";
+      name: "compressedTransferFirst";
       docs: [
         "This instruction is the first step of a compressed transaction with 10 inputs and 2 outputs.",
         "It creates and initializes a verifier state account which stores public inputs and other data",
@@ -52,9 +52,9 @@ export type LightPsp10in2out = {
       ];
     },
     {
-      name: "shieldedTransferSecond";
+      name: "compressedTransferSecond";
       docs: [
-        "This instruction is the second step of a shieled transaction.",
+        "This instruction is the second step of a compressed transaction.",
         "The proof is verified with the parameters saved in the first transaction.",
         "At successful verification protocol logic is executed.",
       ];
@@ -170,7 +170,7 @@ export type LightPsp10in2out = {
   ];
   accounts: [
     {
-      name: "instructionDataShieldedTransferFirst";
+      name: "instructionDataCompressedTransferFirst";
       type: {
         kind: "struct";
         fields: [
@@ -224,7 +224,7 @@ export type LightPsp10in2out = {
       };
     },
     {
-      name: "instructionDataShieldedTransferSecond";
+      name: "instructionDataCompressedTransferSecond";
       type: {
         kind: "struct";
         fields: [
@@ -557,7 +557,7 @@ export const IDL: LightPsp10in2out = {
   ],
   instructions: [
     {
-      name: "shieldedTransferFirst",
+      name: "compressedTransferFirst",
       docs: [
         "This instruction is the first step of a compressed transaction with 10 inputs and 2 outputs.",
         "It creates and initializes a verifier state account which stores public inputs and other data",
@@ -592,9 +592,9 @@ export const IDL: LightPsp10in2out = {
       ],
     },
     {
-      name: "shieldedTransferSecond",
+      name: "compressedTransferSecond",
       docs: [
-        "This instruction is the second step of a shieled transaction.",
+        "This instruction is the second step of a compressed transaction.",
         "The proof is verified with the parameters saved in the first transaction.",
         "At successful verification protocol logic is executed.",
       ],
@@ -710,7 +710,7 @@ export const IDL: LightPsp10in2out = {
   ],
   accounts: [
     {
-      name: "instructionDataShieldedTransferFirst",
+      name: "instructionDataCompressedTransferFirst",
       type: {
         kind: "struct",
         fields: [
@@ -764,7 +764,7 @@ export const IDL: LightPsp10in2out = {
       },
     },
     {
-      name: "instructionDataShieldedTransferSecond",
+      name: "instructionDataCompressedTransferSecond",
       type: {
         kind: "struct",
         fields: [

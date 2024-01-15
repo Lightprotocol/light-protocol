@@ -81,7 +81,7 @@ pub fn cpi_system_verifier<
     cpi_ctx = cpi_ctx.with_remaining_accounts(ctx.remaining_accounts.to_vec());
     let verifier_state = ctx.accounts.verifier_state.load()?;
 
-    light_psp4in4out_app_storage::cpi::shielded_transfer_inputs(
+    light_psp4in4out_app_storage::cpi::compressed_transfer_inputs(
         cpi_ctx,
         proof_verifier.a,
         proof_verifier.b,
