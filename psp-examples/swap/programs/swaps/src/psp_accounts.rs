@@ -140,7 +140,7 @@ pub struct UtxoInternal {
     pub verifier_address_index: u64,
     pub blinding: u256,
     pub app_data_hash: u256,
-    pub account_shielded_public_key: u256,
+    pub account_compression_public_key: u256,
     pub account_encryption_public_key: [u8; 32],
     pub swapCommitmentHash: u256,
     pub userPubkey: u256,

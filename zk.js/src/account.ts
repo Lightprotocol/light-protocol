@@ -5,8 +5,8 @@ import {
   AccountErrorCode,
   BN_0,
   SIGN_MESSAGE,
-  STANDARD_SHIELDED_PRIVATE_KEY,
-  STANDARD_SHIELDED_PUBLIC_KEY,
+  STANDARD_COMPRESSION_PRIVATE_KEY,
+  STANDARD_COMPRESSION_PUBLIC_KEY,
   TransactionErrorCode,
   UtxoErrorCode,
   Utxo,
@@ -413,8 +413,8 @@ export class Account {
       if (utxo.publicKey === this.keypair.publicKey.toString()) {
         return this.keypair.privateKey;
       }
-      if (utxo.publicKey === STANDARD_SHIELDED_PUBLIC_KEY.toString()) {
-        return STANDARD_SHIELDED_PRIVATE_KEY;
+      if (utxo.publicKey === STANDARD_COMPRESSION_PUBLIC_KEY.toString()) {
+        return STANDARD_COMPRESSION_PRIVATE_KEY;
       }
     });
   }

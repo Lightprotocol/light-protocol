@@ -8,7 +8,7 @@ import {
 } from "../../utils/utils";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
-export const shieldSolFlags = {
+export const compressSolFlags = {
   recipient: Flags.string({
     char: "r",
     description:
@@ -22,7 +22,7 @@ export const shieldSolFlags = {
   }),
 };
 
-export const shieldFlags = {
+export const compressFlags = {
   token: Flags.string({
     char: "t",
     description: "The SPL token symbol.",
@@ -55,23 +55,23 @@ export const shieldFlags = {
   }),
 };
 
-class ShieldCommand extends Command {
+class CompressCommand extends Command {
   static summary = "Compress tokens for a user";
   static examples = [
-    "$ light compress --amount-sol 1.3 --recipient <SHIELDED_RECIPIENT_ADDRESS>",
+    "$ light compress --amount-sol 1.3 --recipient <COMPRESSED_RECIPIENT_ADDRESS>",
     "$ light compress --amount-spl 15 -t USDC",
     "$ light compress --amount-sol 1 --amount-spl 22 -t USDC",
   ];
 
   static flags = {
     ...standardFlags,
-    ...shieldFlags,
-    ...shieldSolFlags,
+    ...compressFlags,
+    ...compressSolFlags,
     ...confirmOptionsFlags,
   };
 
   async run() {
-    const { flags } = await this.parse(ShieldCommand);
+    const { flags } = await this.parse(CompressCommand);
     const token = flags["token"];
     const amountSol = flags["amount-sol"];
     const amountSpl = flags["amount-spl"];
@@ -128,4 +128,4 @@ class ShieldCommand extends Command {
   }
 }
 
-export default ShieldCommand;
+export default CompressCommand;

@@ -20,11 +20,11 @@ import {
   PspTransactionInput,
   getSystemProof,
   SolanaTransactionInputs,
-  sendAndConfirmShieldedTransaction,
+  sendAndConfirmCompressedTransaction,
   createTransaction,
   lightPsp4in4outAppStorageId,
   getVerifierProgramId,
-  shieldProgramUtxo,
+  compressProgramUtxo,
   createProgramOutUtxo,
 } from "@lightprotocol/zk.js";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
@@ -143,25 +143,26 @@ describe("Streaming Payments tests", () => {
       pspId: verifierProgramId,
       utxoName: "utxo",
     });
-    const testInputsShield = {
+    const testInputsCompress = {
       utxo: outputUtxoSol,
       action: Action.COMPRESS,
     };
 
-    const storeProgramUtxoResult = await shieldProgramUtxo({
+    const storeProgramUtxoResult = await compressProgramUtxo({
       account: lightUser.account,
-      appUtxo: testInputsShield.utxo,
+      appUtxo: testInputsCompress.utxo,
       provider: lightProvider,
     });
     console.log("storeProgramUtxoResult: ", storeProgramUtxoResult);
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await lightUser.syncStorage(IDL);
-    const shieldedUtxoCommitmentHash = testInputsShield.utxo.outUtxo.utxoHash;
+    const compressedUtxoCommitmentHash =
+      testInputsCompress.utxo.outUtxo.utxoHash;
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())
-      .tokenBalances.get(testInputsShield.utxo.outUtxo.assets[0].toBase58())
-      .utxos.get(shieldedUtxoCommitmentHash);
-    compareOutUtxos(inputUtxo!, testInputsShield.utxo.outUtxo);
+      .tokenBalances.get(testInputsCompress.utxo.outUtxo.assets[0].toBase58())
+      .utxos.get(compressedUtxoCommitmentHash);
+    compareOutUtxos(inputUtxo!, testInputsCompress.utxo.outUtxo);
     const circuitPath = path.join(
       "build-circuit/streaming-payments/streamingPayments"
     );
@@ -179,7 +180,7 @@ describe("Streaming Payments tests", () => {
       checkedInUtxos: [{ utxoName: "streamInUtxo", utxo: inputUtxo }],
     };
 
-    const shieldedTransaction = await createTransaction({
+    const compressedTransaction = await createTransaction({
       inputUtxos: [inputUtxo],
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
         new BN(0)
@@ -197,7 +198,7 @@ describe("Streaming Payments tests", () => {
     ))!;
     const proofInputs = createProofInputs({
       lightWasm: WASM,
-      transaction: shieldedTransaction,
+      transaction: compressedTransaction,
       pspTransaction: pspTransactionInput,
       account: lightUser.account,
       root,
@@ -207,7 +208,7 @@ describe("Streaming Payments tests", () => {
       account: lightUser.account,
       systemProofInputs: proofInputs,
       verifierIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
-      inputUtxos: shieldedTransaction.private.inputUtxos,
+      inputUtxos: compressedTransaction.private.inputUtxos,
     });
 
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
@@ -227,7 +228,7 @@ describe("Streaming Payments tests", () => {
       action: Action.TRANSFER,
       systemProof,
       pspProof,
-      publicTransactionVariables: shieldedTransaction.public,
+      publicTransactionVariables: compressedTransaction.public,
       pspTransactionInput,
       rpcRecipientSol: rpc.accounts.rpcRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
@@ -235,7 +236,7 @@ describe("Streaming Payments tests", () => {
       rootIndex,
     };
 
-    const res = await sendAndConfirmShieldedTransaction({
+    const res = await sendAndConfirmCompressedTransaction({
       solanaTransactionInputs,
       provider: lightProvider,
     });
@@ -301,7 +302,7 @@ describe("Streaming Payments tests", () => {
 
     console.log("storing streamInitUtxo");
 
-    await shieldProgramUtxo({
+    await compressProgramUtxo({
       account: lightUser.account,
       appUtxo: testInputsSol1.utxo,
       provider: lightProvider,

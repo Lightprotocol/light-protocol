@@ -10,8 +10,8 @@ import {
   fetchRecentTransactions,
   lightAccounts,
   Transaction,
-  ShieldTransaction,
-  UnshieldTransaction,
+  CompressTransaction,
+  DecompressTransaction,
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
@@ -38,7 +38,7 @@ export class TestTransaction {
     provider,
     appParams,
   }: {
-    transaction: ShieldTransaction | UnshieldTransaction | Transaction;
+    transaction: CompressTransaction | DecompressTransaction | Transaction;
     accounts: lightAccounts;
     appParams?: any;
     provider: Provider;
@@ -58,7 +58,7 @@ export class TestTransaction {
     this.transaction = transaction;
   }
 
-  // send transaction should be the same for both shiel and decompress
+  // send transaction should be the same for both compress and decompress
   // the function should just send the tx to the rpc or rpc respectively
   // in case there is more than one transaction to be sent to the verifier these can be sent separately
   // TODO: make optional and default no

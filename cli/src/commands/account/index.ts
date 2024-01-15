@@ -13,7 +13,7 @@ class AccountCommand extends Command {
       localTestRpc: true,
     });
     this.log(
-      `\n\x1b[1mShielded Public Key:\x1b[0m ${user.account.getPublicKey()}`,
+      `\n\x1b[1mCompressed Public Key:\x1b[0m ${user.account.getPublicKey()}`,
     );
     this.exit(0);
   }

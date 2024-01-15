@@ -11,13 +11,13 @@ export const waitForBalanceUpdate = async (
     retries--;
     if (
       !balance.totalSolBalance.eq(
-        userTestAssertHelper.recipient.preShieldedBalance!.totalSolBalance,
+        userTestAssertHelper.recipient.preCompressedBalance!.totalSolBalance,
       ) &&
       !balance.totalSolBalance.eq(BN_0)
     ) {
       // keeping these for future debugging for now
       // console.log("detected balance change after retries ", retries);
-      // console.log("prior balance ", userTestAssertHelper.recipient.preShieldedBalance!.totalSolBalance.toString());
+      // console.log("prior balance ", userTestAssertHelper.recipient.preCompressedBalance!.totalSolBalance.toString());
       // console.log("current balance ", balance.totalSolBalance.toString());
       retries = 0;
     }

@@ -13,8 +13,8 @@ import {
   encryptOutUtxoInternal,
   fetchAssetByIdLookUp,
   OutUtxo,
-  STANDARD_SHIELDED_PRIVATE_KEY,
-  STANDARD_SHIELDED_PUBLIC_KEY,
+  STANDARD_COMPRESSION_PRIVATE_KEY,
+  STANDARD_COMPRESSION_PUBLIC_KEY,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
   UtxoError,
   UtxoErrorCode,
@@ -152,7 +152,7 @@ export async function programOutUtxoToBytes(
     ...outUtxo,
     ...outUtxo.outUtxo,
     ...outUtxo.outUtxo.utxoData,
-    accountShieldedPublicKey: new BN(outUtxo.outUtxo.publicKey),
+    accountCompressionPublicKey: new BN(outUtxo.outUtxo.publicKey),
     accountEncryptionPublicKey: outUtxo.outUtxo.encryptionPublicKey
       ? outUtxo.outUtxo.encryptionPublicKey
       : new Uint8Array(32).fill(0),
@@ -230,7 +230,7 @@ export function programOutUtxoFromBytes({
   ];
   const publicKey = compressed
     ? account?.keypair.publicKey
-    : decodedUtxoData.accountShieldedPublicKey;
+    : decodedUtxoData.accountCompressionPublicKey;
 
   if (!pspIdl.accounts)
     throw new UtxoError(
@@ -473,9 +473,11 @@ export async function decryptProgramUtxo({
   }
   if (
     decryptedProgramOutUtxo.value.outUtxo.publicKey ===
-    STANDARD_SHIELDED_PUBLIC_KEY.toString()
+    STANDARD_COMPRESSION_PUBLIC_KEY.toString()
   ) {
-    const bs58Standard = bs58.encode(STANDARD_SHIELDED_PRIVATE_KEY.toArray());
+    const bs58Standard = bs58.encode(
+      STANDARD_COMPRESSION_PRIVATE_KEY.toArray(),
+    );
     const bs5832 = bs58.encode(new Uint8Array(32).fill(1));
     account = Account.fromPrivkey(lightWasm, bs58Standard, bs5832, bs5832);
   }

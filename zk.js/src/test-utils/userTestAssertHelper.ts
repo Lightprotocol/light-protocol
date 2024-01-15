@@ -38,7 +38,7 @@ export type TestInputs = {
   recipientSeed?: string;
   expectedRecipientUtxoLength?: number;
   mergedUtxo?: boolean;
-  shieldToRecipient?: boolean;
+  compressToRecipient?: boolean;
   utxoCommitments?: string[];
   storage?: boolean;
   message?: Buffer;
@@ -47,8 +47,8 @@ export type TestInputs = {
 
 export type TestUserBalances = {
   user: User;
-  preShieldedBalance?: Balance;
-  preShieldedInboxBalance?: Balance;
+  preCompressedBalance?: Balance;
+  preCompressedInboxBalance?: Balance;
   preTokenBalance?: number | null;
   preSolBalance?: number;
   isSender: boolean;
@@ -89,13 +89,13 @@ export class UserTestAssertHelper {
 
   async fetchAndSaveState() {
     const saveUserState = async (userBalances: TestUserBalances) => {
-      userBalances.preShieldedBalance = (
+      userBalances.preCompressedBalance = (
         await User.init({
           provider: this.provider,
           account: userBalances.user.account,
         })
       ).balance;
-      userBalances.preShieldedInboxBalance = await (
+      userBalances.preCompressedInboxBalance = await (
         await User.init({
           provider: this.provider,
           account: userBalances.user.account,
@@ -439,7 +439,7 @@ export class UserTestAssertHelper {
     for (const [
       asset,
       tokenBalance,
-    ] of this.sender.preShieldedBalance!.tokenBalances.entries()) {
+    ] of this.sender.preCompressedBalance!.tokenBalances.entries()) {
       for (const [commitment, utxo] of tokenBalance.utxos.entries()) {
         if (
           await fetchNullifierAccountInfo(
@@ -464,27 +464,27 @@ export class UserTestAssertHelper {
       assert(amountSpl.gte(new BN(this.testInputs.amountSpl)));
   }
 
-  async assertShieldedSplBalance(
+  async assertCompressedSplBalance(
     amount: number,
     userBalances: TestUserBalances,
-    shieldToRecipient?: boolean,
+    compressToRecipient?: boolean,
   ) {
     if (userBalances.isSender) {
       amount = amount * -1;
     }
-    const postShieldedBalances = !shieldToRecipient
+    const postCompressedBalances = !compressToRecipient
       ? await userBalances.user.getBalance(false)
       : await userBalances.user.getUtxoInbox();
 
-    const tokenBalanceAfter = postShieldedBalances.tokenBalances.get(
+    const tokenBalanceAfter = postCompressedBalances.tokenBalances.get(
       this.tokenCtx?.mint.toBase58(),
     )?.totalBalanceSpl;
 
-    const _tokenBalancePre = !shieldToRecipient
-      ? userBalances.preShieldedBalance!.tokenBalances.get(
+    const _tokenBalancePre = !compressToRecipient
+      ? userBalances.preCompressedBalance!.tokenBalances.get(
           this.tokenCtx?.mint.toBase58(),
         )?.totalBalanceSpl
-      : userBalances.preShieldedInboxBalance!.tokenBalances.get(
+      : userBalances.preCompressedInboxBalance!.tokenBalances.get(
           this.tokenCtx?.mint.toBase58(),
         )?.totalBalanceSpl;
     const tokenBalancePre = _tokenBalancePre ? _tokenBalancePre : BN_0;
@@ -548,22 +548,22 @@ export class UserTestAssertHelper {
     );
   }
 
-  async assertShieldedSolBalance(
+  async assertCompressedSolBalance(
     lamports: number,
     userBalances: TestUserBalances,
-    shieldToRecipient?: boolean,
+    compressToRecipient?: boolean,
   ) {
     if (userBalances.isSender) {
       lamports = lamports * -1;
     }
-    const postShieldedBalances = !shieldToRecipient
+    const postCompressedBalances = !compressToRecipient
       ? await userBalances.user.getBalance(false)
       : await userBalances.user.getUtxoInbox();
 
-    const solBalanceAfter = postShieldedBalances.totalSolBalance;
-    const solBalancePre = !shieldToRecipient
-      ? userBalances.preShieldedBalance!.totalSolBalance
-      : userBalances.preShieldedInboxBalance!.totalSolBalance;
+    const solBalanceAfter = postCompressedBalances.totalSolBalance;
+    const solBalancePre = !compressToRecipient
+      ? userBalances.preCompressedBalance!.totalSolBalance
+      : userBalances.preCompressedInboxBalance!.totalSolBalance;
 
     assert.equal(
       solBalanceAfter!.toNumber(),
@@ -586,7 +586,7 @@ export class UserTestAssertHelper {
     );
   }
 
-  async checkShieldedTransferReceived(
+  async checkCompressedTransferReceived(
     transferAmountSpl: number,
     transferAmountSol: number,
     mint: PublicKey,
@@ -600,15 +600,17 @@ export class UserTestAssertHelper {
           ?.utxos.size;
     // if storage expecting nr utxos to stay constant
     const expectedNrUtxos = this.testInputs.storage
-      ? this.recipient.preShieldedBalance?.tokenBalances.get(mint.toBase58())
+      ? this.recipient.preCompressedBalance?.tokenBalances.get(mint.toBase58())
           ?.utxos.size
       : this.testInputs.expectedRecipientUtxoLength;
     assert.equal(nrUtxos!, expectedNrUtxos!);
 
     const recipientPreBalancePlusTransferSpl =
-      this.recipient.preShieldedInboxBalance!.tokenBalances.get(mint.toBase58())
+      this.recipient.preCompressedInboxBalance!.tokenBalances.get(
+        mint.toBase58(),
+      )
         ? this.recipient
-            .preShieldedInboxBalance!.tokenBalances.get(mint.toBase58())!
+            .preCompressedInboxBalance!.tokenBalances.get(mint.toBase58())!
             .totalBalanceSpl!.toNumber() + transferAmountSpl
         : transferAmountSpl;
     assert.equal(
@@ -619,9 +621,11 @@ export class UserTestAssertHelper {
     );
 
     const recipientPreBalancePlusTransfer =
-      this.recipient.preShieldedInboxBalance!.tokenBalances.get(mint.toBase58())
+      this.recipient.preCompressedInboxBalance!.tokenBalances.get(
+        mint.toBase58(),
+      )
         ? this.recipient
-            .preShieldedInboxBalance!.tokenBalances.get(mint.toBase58())!
+            .preCompressedInboxBalance!.tokenBalances.get(mint.toBase58())!
             .totalBalanceSol!.toNumber() + transferAmountSol
         : transferAmountSol;
 
@@ -667,13 +671,13 @@ export class UserTestAssertHelper {
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
-  async checkSplShielded() {
+  async checkSplCompressed() {
     await this.standardAsserts();
     // assert that the user's compressed balance has increased by the amount compressed
-    await this.assertShieldedSplBalance(
+    await this.assertCompressedSplBalance(
       this.testInputs.amountSpl!,
       this.recipient,
-      this.testInputs.shieldToRecipient,
+      this.testInputs.compressToRecipient,
     );
 
     // assert that the user's token balance has decreased by the amount compressed
@@ -687,19 +691,20 @@ export class UserTestAssertHelper {
           ).toNumber()
         : MINIMUM_LAMPORTS.toNumber();
     // assert that the user's sol compressed balance has increased by the additional sol amount
-    await this.assertShieldedSolBalance(
+    await this.assertCompressedSolBalance(
       lamports,
       this.recipient,
-      this.testInputs.shieldToRecipient,
+      this.testInputs.compressToRecipient,
     );
 
     const spentUtxoLength = this.recipient.user.balance.tokenBalances.get(
       this.tokenCtx.mint.toBase58(),
     )?.spentUtxos.size;
 
-    const preUtxoLength = this.recipient.preShieldedBalance!.tokenBalances.get(
-      this.tokenCtx.mint.toBase58(),
-    )?.utxos.size;
+    const preUtxoLength =
+      this.recipient.preCompressedBalance!.tokenBalances.get(
+        this.tokenCtx.mint.toBase58(),
+      )?.utxos.size;
 
     assert.equal(
       spentUtxoLength ? spentUtxoLength : 0,
@@ -729,16 +734,16 @@ export class UserTestAssertHelper {
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
-  async checkSolShielded() {
+  async checkSolCompressed() {
     await this.standardAsserts();
     // assert that the user's compressed balance has increased by the amount compressed
-    await this.assertShieldedSolBalance(
+    await this.assertCompressedSolBalance(
       convertAndComputeDecimals(
         this.testInputs.amountSol!,
         this.tokenCtx!.decimals,
       ).toNumber(),
       this.recipient,
-      this.testInputs.shieldToRecipient,
+      this.testInputs.compressToRecipient,
     );
 
     await this.assertSolBalance(
@@ -752,7 +757,7 @@ export class UserTestAssertHelper {
     );
   }
 
-  async checkSolUnshielded() {
+  async checkSolDecompressed() {
     await this.standardAsserts();
     // recipient's sol balance should be increased by the amount decompressed
     await this.assertSolBalance(
@@ -765,7 +770,7 @@ export class UserTestAssertHelper {
       this.testInputs.recipient!,
     );
     // sender's compressed sol balance should be decreased by the amount decompressed
-    await this.assertShieldedSolBalance(
+    await this.assertCompressedSolBalance(
       convertAndComputeDecimals(
         this.testInputs.amountSol!,
         this.tokenCtx!.decimals,
@@ -778,7 +783,7 @@ export class UserTestAssertHelper {
   async checkSolTransferred() {
     await this.standardAsserts();
     // senders's sol balance should be decreased by the amount transfered
-    await this.assertShieldedSolBalance(
+    await this.assertCompressedSolBalance(
       convertAndComputeDecimals(
         this.testInputs.amountSol!,
         this.tokenCtx!.decimals,
@@ -789,7 +794,7 @@ export class UserTestAssertHelper {
       false,
     );
     // recipient's sol balance should be increased by the amount transfered
-    await this.assertShieldedSolBalance(
+    await this.assertCompressedSolBalance(
       convertAndComputeDecimals(
         this.testInputs.amountSol!,
         this.tokenCtx!.decimals,
@@ -811,10 +816,10 @@ export class UserTestAssertHelper {
    *
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
-  async checkSplUnshielded() {
+  async checkSplDecompressed() {
     // assert that the user's compressed token balance has decreased by the amount decompressed
     await this.standardAsserts();
-    await this.assertShieldedSplBalance(
+    await this.assertCompressedSplBalance(
       this.testInputs.amountSpl!,
       this.sender,
     );
@@ -830,7 +835,7 @@ export class UserTestAssertHelper {
       this.provider.rpc.getRpcFee(true),
     );
     // assert that the user's sol compressed balance has decreased by fee
-    await this.assertShieldedSolBalance(
+    await this.assertCompressedSolBalance(
       solDecreasedAmount.toNumber(),
       this.sender,
     );
@@ -857,32 +862,32 @@ export class UserTestAssertHelper {
     await this.assertInboxBalance(this.recipient.user);
 
     // assert that the user's spl compressed balance has decreased by amountSpl
-    await this.assertShieldedSplBalance(
+    await this.assertCompressedSplBalance(
       this.testInputs.amountSpl!,
       this.sender,
     );
 
-    await this.assertShieldedSplBalance(
+    await this.assertCompressedSplBalance(
       this.testInputs.amountSpl!,
       this.recipient,
       true,
     );
 
-    let shieldedLamports =
+    let compressedLamports =
       this.testInputs.amountSol != undefined
         ? convertAndComputeDecimals(
             this.testInputs.amountSol,
             new BN(1e9),
           ).toNumber()
         : 0;
-    shieldedLamports += this.provider.rpc.getRpcFee().toNumber();
+    compressedLamports += this.provider.rpc.getRpcFee().toNumber();
     // assert that the user's sol compressed balance has decreased by fee
-    await this.assertShieldedSolBalance(shieldedLamports, this.sender);
+    await this.assertCompressedSolBalance(compressedLamports, this.sender);
 
     // assert that user utxos are spent and updated correctly
     await this.assertUserUtxoSpent();
 
-    await this.checkShieldedTransferReceived(
+    await this.checkCompressedTransferReceived(
       this.testInputs.amountSpl !== undefined
         ? convertAndComputeDecimals(
             this.testInputs.amountSpl!,
@@ -909,7 +914,7 @@ export class UserTestAssertHelper {
       "Sender and recipient are the account for merges",
     );
     // if pre number of utxos was less than 10 expect current number to be one
-    let preNumberUtxos = this.sender.preShieldedBalance!.tokenBalances.get(
+    let preNumberUtxos = this.sender.preCompressedBalance!.tokenBalances.get(
       this.tokenCtx.mint.toBase58(),
     )?.utxos.size;
     preNumberUtxos = preNumberUtxos ?? 0;
@@ -925,7 +930,7 @@ export class UserTestAssertHelper {
       throw new Error(`Sender had more than 10 utxos ${preNumberUtxos}`);
     }
     const preNumberInboxUtxos =
-      this.sender.preShieldedInboxBalance!.tokenBalances.get(
+      this.sender.preCompressedInboxBalance!.tokenBalances.get(
         this.tokenCtx.mint.toBase58(),
       )?.utxos.size;
     const postNumberUtxos = this.sender.user.inboxBalance!.tokenBalances.get(
@@ -955,7 +960,7 @@ export class UserTestAssertHelper {
       "Sender and recipient are the account for merges",
     );
     // if pre number of utxos was less than 10 expect current number to be one
-    let preNumberUtxos = this.sender.preShieldedBalance!.tokenBalances.get(
+    let preNumberUtxos = this.sender.preCompressedBalance!.tokenBalances.get(
       this.tokenCtx.mint.toBase58(),
     )!.utxos.size!;
     preNumberUtxos = preNumberUtxos ? preNumberUtxos : 0;
@@ -983,7 +988,7 @@ export class UserTestAssertHelper {
     let sum = BN_0;
     for (const commitment of this.testInputs.utxoCommitments!) {
       const existedInPreInbox = this.sender
-        .preShieldedInboxBalance!.tokenBalances.get(
+        .preCompressedInboxBalance!.tokenBalances.get(
           this.tokenCtx.mint.toBase58(),
         )
         ?.utxos.get(commitment);
@@ -1014,10 +1019,10 @@ export class UserTestAssertHelper {
           this.tokenCtx.mint.toBase58(),
         )?.totalBalanceSpl;
     let preBalance = this.tokenCtx.isNative
-      ? this.recipient.preShieldedBalance?.tokenBalances.get(
+      ? this.recipient.preCompressedBalance?.tokenBalances.get(
           SystemProgram.programId.toBase58(),
         )?.totalBalanceSol
-      : this.recipient.preShieldedBalance?.tokenBalances.get(
+      : this.recipient.preCompressedBalance?.tokenBalances.get(
           this.tokenCtx.mint.toBase58(),
         )?.totalBalanceSpl;
     preBalance = preBalance ? preBalance : BN_0;
@@ -1052,19 +1057,19 @@ export class UserTestAssertHelper {
       .add(this.provider.rpc.getRpcFee())
       .toString();
     assert.strictEqual(
-      this.recipient.preShieldedBalance?.totalSolBalance!.toString(),
+      this.recipient.preCompressedBalance?.totalSolBalance!.toString(),
       postSolBalance,
     );
     await this.checkMessageStored();
   }
 
-  async assertStoredWithShield() {
+  async assertStoredWithCompress() {
     // compressed sol balance did not change
     const postSolBalance = (
       await this.recipient.user.getBalance()
     ).totalSolBalance.toString();
     assert.strictEqual(
-      this.recipient.preShieldedBalance?.totalSolBalance!.toString(),
+      this.recipient.preCompressedBalance?.totalSolBalance!.toString(),
       postSolBalance,
     );
     await this.checkMessageStored();
@@ -1137,11 +1142,11 @@ export class UserTestAssertHelper {
       1,
     );
     if (this.testInputs.type === Action.COMPRESS) {
-      await this.checkSplShielded();
+      await this.checkSplCompressed();
     } else if (this.testInputs.type === Action.TRANSFER) {
       await this.checkSplTransferred();
     } else if (this.testInputs.type === Action.DECOMPRESS) {
-      await this.checkSplUnshielded();
+      await this.checkSplDecompressed();
     }
   }
 }

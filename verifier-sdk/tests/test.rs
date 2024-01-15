@@ -231,7 +231,7 @@
 //     }
 //
 //     #[test]
-//     fn check_amount_and_is_shield_test() {
+//     fn check_amount_and_is_compress_test() {
 //         let mut public_inputs_vec = Vec::new();
 //         for input in PUBLIC_INPUTS.chunks(32) {
 //             public_inputs_vec.push(input.to_vec());
@@ -282,7 +282,7 @@
 //             change_endianness(&bytes)
 //         );
 //         tx.public_amount_spl = bytes.clone();
-//         assert!(tx.is_shield());
+//         assert!(tx.is_compress());
 //         assert!(tx
 //             .check_amount(1u64, change_endianness(&bytes).clone().try_into().unwrap())
 //             .is_err());
@@ -300,7 +300,7 @@
 //         let x: Fp256<FrParameters> = ark_ff::fields::PrimeField::from_be_bytes_mod_order(&bytes);
 //         let bytes = <BigInteger256 as BigInteger>::to_bytes_be(&x.into_repr());
 //         tx.public_amount_spl = bytes.clone();
-//         assert!(!tx.is_shield());
+//         assert!(!tx.is_compress());
 //
 //         // fee less or equal than decompress amount
 //         for i in 0..(new_bn.0[0] + 1) as u64 {
@@ -324,7 +324,7 @@
 //         field.add_nocarry(&new_bn);
 //         let bytes = <BigInteger256 as BigInteger>::to_bytes_be(&field);
 //         tx.public_amount_spl = bytes.clone();
-//         assert!(!tx.is_shield());
+//         assert!(!tx.is_compress());
 //         assert!(tx
 //             .check_amount(0u64, change_endianness(&bytes).clone().try_into().unwrap())
 //             .is_err());
@@ -334,7 +334,7 @@
 //         field.sub_noborrow(&new_bn);
 //         let bytes = <BigInteger256 as BigInteger>::to_bytes_be(&field);
 //         tx.public_amount_spl = bytes.clone();
-//         assert!(!tx.is_shield());
+//         assert!(!tx.is_compress());
 //         assert!(tx
 //             .check_amount(0u64, change_endianness(&bytes).clone().try_into().unwrap())
 //             .is_err());

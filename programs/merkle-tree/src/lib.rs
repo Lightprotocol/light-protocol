@@ -114,8 +114,8 @@ pub mod light_merkle_tree_program {
     /// Decompresses sol from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
     /// Can only be called from a registered verifier program.
-    pub fn unshield_sol<'info>(
-        ctx: Context<'_, '_, '_, 'info, UnshieldSol<'info>>,
+    pub fn decompress_sol<'info>(
+        ctx: Context<'_, '_, '_, 'info, DecompressSol<'info>>,
         amount: u64,
     ) -> Result<()> {
         process_sol_transfer(
@@ -128,8 +128,8 @@ pub mod light_merkle_tree_program {
     /// Decompresses spl tokens from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
     /// Can only be called from a registered verifier program.
-    pub fn unshield_spl<'info>(
-        ctx: Context<'_, '_, '_, 'info, UnshieldSpl<'info>>,
+    pub fn decompress_spl<'info>(
+        ctx: Context<'_, '_, '_, 'info, DecompressSpl<'info>>,
         amount: u64,
     ) -> Result<()> {
         process_spl_transfer(ctx, amount)

@@ -11,8 +11,8 @@ class TransferCommand extends Command {
   static summary = "Transfer compressed funds between light users.";
 
   static examples = [
-    "$ light transfer 1.8 <SHIELDED_RECIPIENT_ADDRESS>",
-    "$ light transfer 10 <SHIELDED_RECIPIENT_ADDRESS> -t USDC",
+    "$ light transfer 1.8 <COMPRESSED_RECIPIENT_ADDRESS>",
+    "$ light transfer 10 <COMPRESSED_RECIPIENT_ADDRESS> -t USDC",
   ];
 
   static flags = {
@@ -33,7 +33,7 @@ class TransferCommand extends Command {
       required: true,
     }),
     recipient: Args.string({
-      name: "SHIELDED_RECIPIENT_ADDRESS",
+      name: "COMPRESSED_RECIPIENT_ADDRESS",
       description: "The recipient compressed/encryption public key.",
       required: true,
     }),

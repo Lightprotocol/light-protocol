@@ -80,8 +80,8 @@ impl Account {
     pub fn new(seed: &str) -> Result<Account, AccountError> {
         console_error_panic_hook::set_once();
 
-        let private_key = vec_to_key(&Account::generate_shielded_private_key(seed)?)?;
-        let public_key = vec_to_key(&Account::generate_shielded_public_key(
+        let private_key = vec_to_key(&Account::generate_compression_private_key(seed)?)?;
+        let public_key = vec_to_key(&Account::generate_compression_public_key(
             private_key.to_vec(),
         )?)?;
 
@@ -154,7 +154,7 @@ impl Account {
         aes_secret: Vec<u8>,
     ) -> Result<Account, AccountError> {
         let private_key_arr: [u8; 32] = vec_to_key(&private_key)?;
-        let public_key = vec_to_key(&Account::generate_shielded_public_key(private_key)?)?;
+        let public_key = vec_to_key(&Account::generate_compression_public_key(private_key)?)?;
 
         let encryption_public_key =
             Account::create_encryption_public_key(encryption_private_key.to_vec())?;
@@ -221,8 +221,8 @@ impl Account {
         })
     }
 
-    #[wasm_bindgen(js_name = generateShieldedPrivateKey)]
-    pub fn generate_shielded_private_key(seed: &str) -> Result<Vec<u8>, AccountError> {
+    #[wasm_bindgen(js_name = generateCompressionPrivateKey)]
+    pub fn generate_compression_private_key(seed: &str) -> Result<Vec<u8>, AccountError> {
         let private_key_seed = format!("{}compressed", seed);
         let hash = BigUint::from_bytes_be(
             &blake2_string(private_key_seed, ACCOUNT_HASH_LENGTH)[1..ACCOUNT_HASH_LENGTH],
@@ -232,8 +232,8 @@ impl Account {
         poseidon_hash(vec![hash.as_slice()].as_slice()).map_err(AccountError::Poseidon)
     }
 
-    #[wasm_bindgen(js_name = generateShieldedPublicKey)]
-    pub fn generate_shielded_public_key(private_key: Vec<u8>) -> Result<Vec<u8>, AccountError> {
+    #[wasm_bindgen(js_name = generateCompressionPublicKey)]
+    pub fn generate_compression_public_key(private_key: Vec<u8>) -> Result<Vec<u8>, AccountError> {
         poseidon_hash(vec![private_key.as_slice()].as_slice()).map_err(AccountError::Poseidon)
     }
 

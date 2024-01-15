@@ -43,7 +43,7 @@ export const parseTxAmount = (tx: UserIndexedTransaction) => {
   return val;
 };
 
-export function parseShieldedBalance(tokenBalance: TokenUtxoBalance) {
+export function parseCompressedBalance(tokenBalance: TokenUtxoBalance) {
   let _token = tokenBalance.tokenData.symbol;
   let tokenCtx = TOKEN_REGISTRY.get(_token)!;
   let balance =

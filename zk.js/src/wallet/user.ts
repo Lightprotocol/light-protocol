@@ -320,7 +320,7 @@ export class User {
    * @param recipient optional, if not set, will compress to self
    * @param senderTokenAccount optional, if set, will use this token account to compress from, else derives ATA
    */
-  async createShieldTransactionParameters({
+  async createCompressTransactionParameters({
     token,
     publicAmountSpl,
     recipient,
@@ -407,7 +407,7 @@ export class User {
       if (solBalance < publicAmountSol.toNumber()) {
         throw new UserError(
           UserErrorCode.INSUFFICIENT_BAlANCE,
-          "createShieldTransactionParameters",
+          "createCompressTransactionParameters",
           `The current balance is insufficient for this operation. The user's balance is ${
             solBalance / LAMPORTS_PER_SOL
           } SOL, but the operation requires ${
@@ -483,7 +483,7 @@ export class User {
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
         "compileAndProveTransaction",
-        "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
+        "The method 'createCompressTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
     let root: string | undefined = undefined;
     let rootIndex: number | undefined = undefined;
@@ -564,7 +564,7 @@ export class User {
       throw new UserError(
         UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
         "compileAndProveTransaction",
-        "The method 'createShieldTransactionParameters' must be executed first to approve SPL funds before initiating a compress transaction.",
+        "The method 'createCompressTransactionParameters' must be executed first to approve SPL funds before initiating a compress transaction.",
       );
     if (
       this.recentTransactionParameters?.public.publicAmountSpl.gt(BN_0) &&
@@ -655,7 +655,7 @@ export class User {
           this.recentInstructions,
         );
       } else {
-        txResult = await this.provider.sendAndConfirmShieldedTransaction(
+        txResult = await this.provider.sendAndConfirmCompressedTransaction(
           this.recentInstructions,
         );
       }
@@ -705,7 +705,7 @@ export class User {
       ? Account.fromPubkey(recipient, this.provider.lightWasm)
       : undefined;
 
-    const txParams = await this.createShieldTransactionParameters({
+    const txParams = await this.createCompressTransactionParameters({
       token,
       publicAmountSpl,
       recipient: recipientAccount,
@@ -732,7 +732,7 @@ export class User {
     minimumLamports?: boolean;
     confirmOptions?: ConfirmOptions;
   }) {
-    const txParams = await this.createUnshieldTransactionParameters({
+    const txParams = await this.createDecompressTransactionParameters({
       token,
       publicAmountSpl,
       publicAmountSol,
@@ -742,7 +742,7 @@ export class User {
     return await this.transactWithParameters({ txParams, confirmOptions });
   }
 
-  // TODO: add unshieldSol and unshieldSpl
+  // TODO: add decompressSol and decompressSpl
   // TODO: add optional pass-in token mint
   // TODO: add pass-in mint
   /**
@@ -751,7 +751,7 @@ export class User {
    * @params recipient: PublicKey - Solana address
    * @params extraSolAmount: number - optional, if not set, will use MINIMUM_LAMPORTS
    */
-  async createUnshieldTransactionParameters({
+  async createDecompressTransactionParameters({
     token,
     publicAmountSpl,
     publicAmountSol,
@@ -880,7 +880,7 @@ export class User {
   }) {
     if (!recipient)
       throw new UserError(
-        UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
+        UserErrorCode.COMPRESSED_RECIPIENT_UNDEFINED,
         "transfer",
         "Please provide a compressed recipient for the transfer.",
       );
@@ -905,7 +905,7 @@ export class User {
    * @description transfers to one recipient utxo and crencrypteates a change utxo with remainders of the input
    * @param token mint
    * @param amount
-   * @param recipient shieldedAddress (BN)
+   * @param recipient compressedAddress (BN)
    * @returns
    */
   async createTransferTransactionParameters({
@@ -976,7 +976,7 @@ export class User {
 
     if (recipient && !tokenCtx)
       throw new UserError(
-        UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
+        UserErrorCode.COMPRESSED_RECIPIENT_UNDEFINED,
         "createTransferTransactionParameters",
       );
 
@@ -1512,7 +1512,7 @@ export class User {
       );
     if (compress) {
       this.recentTransactionParameters =
-        await this.createShieldTransactionParameters({
+        await this.createCompressTransactionParameters({
           token: "SOL",
           publicAmountSol: BN_0,
           minimumLamports: false,

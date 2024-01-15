@@ -37,12 +37,12 @@ import {
   createSystemProofInputs,
   createSolanaInstructions,
   getSolanaRemainingAccounts,
-  ShieldTransactionInput,
-  createShieldTransaction,
+  CompressTransactionInput,
+  createCompressTransaction,
   prepareAccounts,
   getVerifierProgramId,
-  createUnshieldTransaction,
-  UnshieldTransactionInput,
+  createDecompressTransaction,
+  DecompressTransactionInput,
   syncInputUtxosMerkleProofs,
   createOutUtxo,
   OutUtxo,
@@ -122,7 +122,7 @@ describe("verifier_program", () => {
   });
 
   it("Compress (verifier one)", async () => {
-    await performShield({
+    await performCompress({
       delegate: AUTHORITY_ONE,
       spl: true,
       shuffleEnabled: true,
@@ -131,7 +131,7 @@ describe("verifier_program", () => {
   });
 
   it("Compress (verifier storage)", async () => {
-    await performShield({
+    await performCompress({
       delegate: AUTHORITY,
       spl: false,
       message: Buffer.alloc(900).fill(1),
@@ -141,7 +141,7 @@ describe("verifier_program", () => {
   });
 
   it("Compress (verifier zero)", async () => {
-    await performShield({
+    await performCompress({
       delegate: AUTHORITY,
       spl: true,
       shuffleEnabled: true,
@@ -150,7 +150,7 @@ describe("verifier_program", () => {
   });
 
   it("Decompress (verifier zero)", async () => {
-    await performUnshield({
+    await performDecompress({
       outputUtxos: [],
       tokenProgram: MINT,
       spl: true,
@@ -160,7 +160,7 @@ describe("verifier_program", () => {
   });
 
   it("Decompress (verifier storage)", async () => {
-    await performUnshield({
+    await performDecompress({
       outputUtxos: [],
       tokenProgram: SystemProgram.programId,
       message: Buffer.alloc(900).fill(1),
@@ -192,7 +192,7 @@ describe("verifier_program", () => {
       amounts: [BN_0, inputUtxos[0].amounts[1]],
     });
 
-    await performUnshield({
+    await performDecompress({
       outputUtxos: [utxo],
       tokenProgram: MINT,
       shuffleEnabled: true,
@@ -200,7 +200,7 @@ describe("verifier_program", () => {
     });
   });
 
-  const performShield = async ({
+  const performCompress = async ({
     delegate,
     spl = false,
     message,
@@ -217,10 +217,10 @@ describe("verifier_program", () => {
       throw "undefined LOOK_UP_TABLE";
     }
 
-    const shieldAmount = spl
+    const compressAmount = spl
       ? 10_000 + Math.floor(Math.random() * 1_000_000_000)
       : 0;
-    const shieldFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+    const compressFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
     await airdropSplToAssociatedTokenAccount(
       provider.connection,
@@ -240,7 +240,7 @@ describe("verifier_program", () => {
       tokenAccount.address,
       delegate, // delegate
       ADMIN_AUTH_KEYPAIR.publicKey, // owner
-      shieldAmount * 2,
+      compressAmount * 2,
       [ADMIN_AUTH_KEYPAIR],
     );
     const senderSpl = spl ? tokenAccount.address : undefined;
@@ -250,26 +250,26 @@ describe("verifier_program", () => {
       confirmConfig,
     });
 
-    const shieldUtxo = spl
+    const compressUtxo = spl
       ? createOutUtxo({
           lightWasm: WASM,
           assets: [FEE_ASSET, MINT],
           amounts: [
-            new anchor.BN(shieldFeeAmount),
-            new anchor.BN(shieldAmount),
+            new anchor.BN(compressFeeAmount),
+            new anchor.BN(compressAmount),
           ],
           publicKey: ACCOUNT.keypair.publicKey,
         })
       : createOutUtxo({
           lightWasm: WASM,
-          amounts: [new anchor.BN(shieldFeeAmount)],
+          amounts: [new anchor.BN(compressFeeAmount)],
           publicKey: ACCOUNT.keypair.publicKey,
           assets: [FEE_ASSET],
         });
 
-    const shieldTransactionInput: ShieldTransactionInput = {
+    const compressTransactionInput: CompressTransactionInput = {
       lightWasm: WASM,
-      mint: shieldAmount > 0 ? MINT : undefined,
+      mint: compressAmount > 0 ? MINT : undefined,
       message,
       transactionMerkleTreePubkey:
         MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -277,11 +277,11 @@ describe("verifier_program", () => {
       signer: ADMIN_AUTH_KEYPAIR.publicKey,
       systemPspId: getVerifierProgramId(verifierIdl),
       account: ACCOUNT,
-      outputUtxos: [shieldUtxo],
+      outputUtxos: [compressUtxo],
     };
 
-    const shieldTransaction = await createShieldTransaction(
-      shieldTransactionInput,
+    const compressTransaction = await createCompressTransaction(
+      compressTransactionInput,
     );
     const { root, index: rootIndex } = (await RPC.getMerkleRoot(
       MerkleTreeConfig.getTransactionMerkleTreePda(),
@@ -289,13 +289,13 @@ describe("verifier_program", () => {
 
     const systemProofInputs = createSystemProofInputs({
       root,
-      transaction: shieldTransaction,
+      transaction: compressTransaction,
       lightWasm: WASM,
       account: ACCOUNT,
     });
     const systemProof = await getSystemProof({
       account: ACCOUNT,
-      inputUtxos: shieldTransaction.private.inputUtxos,
+      inputUtxos: compressTransaction.private.inputUtxos,
       verifierIdl,
       systemProofInputs,
     });
@@ -304,27 +304,27 @@ describe("verifier_program", () => {
       systemProof.parsedPublicInputsObject as any,
     );
     const accounts = prepareAccounts({
-      transactionAccounts: shieldTransaction.public.accounts,
+      transactionAccounts: compressTransaction.public.accounts,
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
     });
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({
-      action: shieldTransaction.action,
+      action: compressTransaction.action,
       rootIndex,
       systemProof,
       remainingSolanaAccounts,
       accounts,
-      publicTransactionVariables: shieldTransaction.public,
+      publicTransactionVariables: compressTransaction.public,
       systemPspIdl: verifierIdl,
     });
 
     const transactionTester = new TestTransaction({
-      transaction: shieldTransaction,
+      transaction: compressTransaction,
       accounts,
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
-    await lightProvider.sendAndConfirmShieldedTransaction(instructions);
+    await lightProvider.sendAndConfirmCompressedTransaction(instructions);
 
     // TODO: check why encryptedUtxo check doesn't work
     await transactionTester.checkBalances(
@@ -334,7 +334,7 @@ describe("verifier_program", () => {
     );
   };
 
-  const performUnshield = async ({
+  const performDecompress = async ({
     outputUtxos,
     tokenProgram,
     message,
@@ -367,7 +367,7 @@ describe("verifier_program", () => {
     });
     const ata = await getAssociatedTokenAddress(MINT, origin.publicKey);
 
-    const unshieldUtxo = user.balance.tokenBalances
+    const decompressUtxo = user.balance.tokenBalances
       .get(tokenProgram.toBase58())!
       .utxos.values()
       .next().value;
@@ -376,12 +376,12 @@ describe("verifier_program", () => {
       root,
       index: rootIndex,
     } = await syncInputUtxosMerkleProofs({
-      inputUtxos: [unshieldUtxo],
+      inputUtxos: [decompressUtxo],
       merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       rpc: RPC,
     });
     // Running into memory issues with verifier one (10in2out) decompressing spl
-    const unshieldTransactionInput: UnshieldTransactionInput = {
+    const decompressTransactionInput: DecompressTransactionInput = {
       lightWasm: WASM,
       mint: spl ? MINT : undefined,
       message,
@@ -398,19 +398,19 @@ describe("verifier_program", () => {
       ataCreationFee: spl ? spl : false,
     };
 
-    const unshieldTransaction = await createUnshieldTransaction(
-      unshieldTransactionInput,
+    const decompressTransaction = await createDecompressTransaction(
+      decompressTransactionInput,
     );
 
     const systemProofInputs = createSystemProofInputs({
-      transaction: unshieldTransaction,
+      transaction: decompressTransaction,
       lightWasm: WASM,
       account: ACCOUNT,
       root,
     });
     const systemProof = await getSystemProof({
       account: ACCOUNT,
-      inputUtxos: unshieldTransaction.private.inputUtxos,
+      inputUtxos: decompressTransaction.private.inputUtxos,
       verifierIdl,
       systemProofInputs,
     });
@@ -419,28 +419,28 @@ describe("verifier_program", () => {
       systemProof.parsedPublicInputsObject as any,
     );
     const accounts = prepareAccounts({
-      transactionAccounts: unshieldTransaction.public.accounts,
+      transactionAccounts: decompressTransaction.public.accounts,
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       rpcRecipientSol: lightProvider.rpc.accounts.rpcRecipientSol,
       signer: lightProvider.rpc.accounts.rpcPubkey,
     });
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({
-      action: unshieldTransaction.action,
+      action: decompressTransaction.action,
       rootIndex,
       systemProof,
       remainingSolanaAccounts,
       accounts,
-      publicTransactionVariables: unshieldTransaction.public,
+      publicTransactionVariables: decompressTransaction.public,
       systemPspIdl: verifierIdl,
     });
     const transactionTester = new TestTransaction({
-      transaction: unshieldTransaction,
+      transaction: decompressTransaction,
       accounts,
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
-    await lightProvider.sendAndConfirmShieldedTransaction(instructions);
+    await lightProvider.sendAndConfirmCompressedTransaction(instructions);
 
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },

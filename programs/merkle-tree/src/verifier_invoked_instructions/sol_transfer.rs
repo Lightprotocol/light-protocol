@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::{RegisteredAssetPool, RegisteredVerifier};
 #[derive(Accounts)]
-pub struct UnshieldSol<'info> {
+pub struct DecompressSol<'info> {
     /// CHECK:` Signer is registered verifier program.
     #[account(mut , seeds=[__program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,

@@ -9,8 +9,8 @@ import { modals } from "@mantine/modals";
 /// This assumes that we're never running two actions at
 /// the same time. otherwise it will throw a race condition.
 export const transferLoadingState = atom(false);
-export const shieldLoadingState = atom(false);
-export const unshieldLoadingState = atom(false);
+export const compressLoadingState = atom(false);
+export const decompressLoadingState = atom(false);
 
 export const transferState = atom(
   null,
@@ -31,7 +31,7 @@ export const transferState = atom(
       amountSol?: string;
       appUtxo?: AppUtxoConfig | undefined;
       confirmOptions?: any;
-    }
+    },
   ) => {
     set(transferLoadingState, true);
     actionNotification(`Sending ${token}`);
@@ -65,10 +65,10 @@ export const transferState = atom(
       set(transferLoadingState, false);
       delayedModalClose();
     }
-  }
+  },
 );
 
-export const shieldState = atom(
+export const compressState = atom(
   null,
   async (
     get,
@@ -87,9 +87,9 @@ export const shieldState = atom(
       publicAmountSpl?: string | undefined;
       confirmOptions?: ConfirmOptions | undefined;
       senderTokenAccount?: PublicKey | undefined;
-    }
+    },
   ) => {
-    set(shieldLoadingState, true);
+    set(compressLoadingState, true);
     actionNotification(`Compressing ${token}`);
     const { user } = get(userState);
     if (!user) {
@@ -117,13 +117,13 @@ export const shieldState = atom(
       console.error(e);
       throw e;
     } finally {
-      set(shieldLoadingState, false);
+      set(compressLoadingState, false);
       delayedModalClose();
     }
-  }
+  },
 );
 
-export const unshieldState = atom(
+export const decompressState = atom(
   null,
   async (
     get,
@@ -140,9 +140,9 @@ export const unshieldState = atom(
       publicAmountSol?: string | undefined;
       publicAmountSpl?: string | undefined;
       confirmOptions?: ConfirmOptions | undefined;
-    }
+    },
   ) => {
-    set(unshieldLoadingState, true);
+    set(decompressLoadingState, true);
     actionNotification(`Decompressing ${token}`);
 
     const { user } = get(userState);
@@ -169,21 +169,21 @@ export const unshieldState = atom(
       console.error(e);
       throw e;
     } finally {
-      set(unshieldLoadingState, false);
+      set(decompressLoadingState, false);
       delayedModalClose();
     }
-  }
+  },
 );
 
 export function useAction() {
   const [, transfer] = useAtom(transferState);
-  const [, compress] = useAtom(shieldState);
-  const [, decompress] = useAtom(unshieldState);
+  const [, compress] = useAtom(compressState);
+  const [, decompress] = useAtom(decompressState);
   const [transferLoading] = useAtom(transferLoadingState);
-  const [shieldLoading] = useAtom(shieldLoadingState);
-  const [unshieldLoading] = useAtom(unshieldLoadingState);
+  const [compressLoading] = useAtom(compressLoadingState);
+  const [decompressLoading] = useAtom(decompressLoadingState);
 
-  const loading = transferLoading || shieldLoading || unshieldLoading;
+  const loading = transferLoading || compressLoading || decompressLoading;
 
   return {
     transfer,
@@ -202,7 +202,7 @@ enum NotifType {
 const actionNotification = (
   title: string,
   type?: NotifType,
-  duration?: number
+  duration?: number,
 ) => {
   notifications.show({
     title,

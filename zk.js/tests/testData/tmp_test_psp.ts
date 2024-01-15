@@ -26,7 +26,7 @@ export type TmpTestPsp = {
     {
       name: "lightInstructionFirst";
       docs: [
-        "This instruction is the first step of a shieled transaction.",
+        "This instruction is the first step of a compressed transaction.",
         "It creates and initializes a verifier state account to save state of a verification during",
         "computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data",
         "such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic",
@@ -360,7 +360,7 @@ export type TmpTestPsp = {
             type: "u256";
           },
           {
-            name: "accountShieldedPublicKey";
+            name: "accountCompressionPublicKey";
             type: "u256";
           },
           {
@@ -598,7 +598,7 @@ export const IDL: TmpTestPsp = {
     {
       name: "lightInstructionFirst",
       docs: [
-        "This instruction is the first step of a shieled transaction.",
+        "This instruction is the first step of a compressed transaction.",
         "It creates and initializes a verifier state account to save state of a verification during",
         "computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data",
         "such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic",
@@ -932,7 +932,7 @@ export const IDL: TmpTestPsp = {
             type: "u256",
           },
           {
-            name: "accountShieldedPublicKey",
+            name: "accountCompressionPublicKey",
             type: "u256",
           },
           {

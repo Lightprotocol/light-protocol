@@ -33,7 +33,7 @@ const main = async () => {
   for (let i = 0; i < PARTICIPANTS_COUNT; i++) {
     const sender = senders[i];
     const recipient = recipients[i];
-    calls.push(makeShield(sender.keypair, recipient.keypair));
+    calls.push(makeCompress(sender.keypair, recipient.keypair));
   }
   await Promise.all(calls);
   const lightProvider = await light.Provider.init({
@@ -61,7 +61,7 @@ const main = async () => {
 
   console.timeEnd(logLabel);
 
-  async function makeShield(
+  async function makeCompress(
     sender: anchor.web3.Keypair,
     recipient: anchor.web3.Keypair
   ) {

@@ -24,7 +24,7 @@ import {
   generateRandomTestAmount,
   airdropSol,
   ConfirmOptions,
-  airdropShieldedSol,
+  airdropCompressedSol,
   TOKEN_ACCOUNT_FEE,
   useWallet,
   RPC_FEE,
@@ -170,7 +170,7 @@ describe("Test User", () => {
       publicAmountSpl: testInputs.amountSpl,
       token: testInputs.token,
     });
-    await testStateValidator.checkSplShielded();
+    await testStateValidator.checkSplCompressed();
   });
 
   it("(user class) compress SOL", async () => {
@@ -195,7 +195,7 @@ describe("Test User", () => {
       token: testInputs.token,
     });
 
-    await testStateValidator.checkSolShielded();
+    await testStateValidator.checkSolCompressed();
   });
 
   it("(user class) decompress SPL", async () => {
@@ -224,7 +224,7 @@ describe("Test User", () => {
       recipient: testInputs.recipient,
     });
 
-    await testStateValidator.checkSplUnshielded();
+    await testStateValidator.checkSplDecompressed();
   });
 
   it("(user class) transfer SPL", async () => {
@@ -293,7 +293,7 @@ describe("Test User", () => {
     await testStateValidator.fetchAndSaveState();
     await user.storeData(testInputs.message, ConfirmOptions.spendable, true);
 
-    await testStateValidator.assertStoredWithShield();
+    await testStateValidator.assertStoredWithCompress();
   });
 
   it("(user class) storage transfer", async () => {
@@ -309,7 +309,7 @@ describe("Test User", () => {
     };
 
     const seed = bs58.encode(new Uint8Array(32).fill(4));
-    await airdropShieldedSol({ provider, amount: 1, seed });
+    await airdropCompressedSol({ provider, amount: 1, seed });
 
     const user: User = await User.init({ provider, seed });
 
@@ -512,11 +512,11 @@ describe("Test User Errors", () => {
     );
   });
 
-  it("SHIELDED_RECIPIENT_UNDEFINED transfer", async () => {
+  it("COMPRESSED_RECIPIENT_UNDEFINED transfer", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({}),
-      UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
+      UserErrorCode.COMPRESSED_RECIPIENT_UNDEFINED,
     );
   });
 

@@ -4,7 +4,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { AppShell, Burger, Group, Stack, Title } from "@mantine/core";
 import { usePathname, useRouter } from "next/navigation";
 import { Navbar } from "../components/Navbar";
-import { ShieldSendModal } from "../components/Modal";
+import { CompressSendModal } from "../components/Modal";
 import { useEffect, useState } from "react";
 import { ADMIN_AUTH_KEYPAIR, useWallet } from "@lightprotocol/zk.js";
 import { useUser } from "../state/hooks/useUser";
@@ -18,7 +18,7 @@ export default function Shell() {
   const wallet = useWallet(
     ADMIN_AUTH_KEYPAIR,
     "https://api.devnet.solana.com",
-    false
+    false,
   );
 
   const [opened, { toggle }] = useDisclosure();
@@ -65,7 +65,7 @@ export default function Shell() {
           <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
           <Title size={"sm"}> My assets</Title>
           <Group>
-            <ShieldSendModal />
+            <CompressSendModal />
             zk account wallet connection
           </Group>
         </Group>

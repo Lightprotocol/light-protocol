@@ -21,7 +21,7 @@ pub const PROGRAM_ID: &str = "{{program-id}}";
 pub mod {{rust-name}} {
     use super::*;
 
-    /// This instruction is the first step of a shieled transaction.
+    /// This instruction is the first step of a compressed transaction.
     /// It creates and initializes a verifier state account to save state of a verification during{ VERIFYINGKEY_{{VERIFYING_KEY_NAME}}.nr_pubinputs }
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic

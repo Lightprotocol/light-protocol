@@ -39,12 +39,12 @@ pub mod light_psp2in2out_storage {
     use super::*;
 
     /// Saves the provided message in a temporary PDA.
-    pub fn shielded_transfer_first(
+    pub fn compressed_transfer_first(
         ctx: Context<LightInstructionFirst<'_>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs: InstructionDataShieldedTransferFirst =
-            InstructionDataShieldedTransferFirst::try_deserialize_unchecked(
+        let inputs: InstructionDataCompressedTransferFirst =
+            InstructionDataCompressedTransferFirst::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
         let message = inputs.message;
@@ -72,18 +72,18 @@ pub mod light_psp2in2out_storage {
 
     /// Close the temporary PDA. Should be used when we don't intend to perform
     /// the second transfer and want to reclaim the funds.
-    pub fn shielded_transfer_close(_ctx: Context<LightInstructionClose<'_>>) -> Result<()> {
+    pub fn compressed_transfer_close(_ctx: Context<LightInstructionClose<'_>>) -> Result<()> {
         Ok(())
     }
 
     /// Stores the provided message in a compressed account, closes the
     /// temporary PDA.
-    pub fn shielded_transfer_second<'info>(
+    pub fn compressed_transfer_second<'info>(
         ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs: InstructionDataShieldedTransferSecond =
-            InstructionDataShieldedTransferSecond::try_deserialize_unchecked(
+        let inputs: InstructionDataCompressedTransferSecond =
+            InstructionDataCompressedTransferSecond::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs, vec![0u8; 16]].concat().as_slice(),
             )?;
         let message = Message::new(&ctx.accounts.verifier_state.msg);
@@ -141,7 +141,7 @@ pub struct LightInstructionFirst<'info> {
 
 #[derive(Debug)]
 #[account]
-pub struct InstructionDataShieldedTransferFirst {
+pub struct InstructionDataCompressedTransferFirst {
     message: Vec<u8>,
 }
 
@@ -167,7 +167,7 @@ pub struct LightInstructionSecond<'info> {
 
 #[derive(Debug)]
 #[account]
-pub struct InstructionDataShieldedTransferSecond {
+pub struct InstructionDataCompressedTransferSecond {
     proof_a: [u8; 64],
     proof_b: [u8; 128],
     proof_c: [u8; 64],
