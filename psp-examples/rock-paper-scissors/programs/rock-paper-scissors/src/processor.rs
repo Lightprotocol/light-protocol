@@ -66,7 +66,7 @@ pub fn cpi_verifier_two<'a, 'b, 'c, 'info, const NR_CHECKED_INPUTS: usize>(
     );
     cpi_ctx = cpi_ctx.with_remaining_accounts(ctx.remaining_accounts.to_vec());
 
-    light_psp4in4out_app_storage::cpi::shielded_transfer_inputs(
+    light_psp4in4out_app_storage::cpi::compressed_transfer_inputs(
         cpi_ctx,
         proof_verifier.a,
         proof_verifier.b,

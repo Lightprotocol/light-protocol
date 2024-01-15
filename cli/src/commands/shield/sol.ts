@@ -6,21 +6,21 @@ import {
   getConfirmOptions,
   getUser,
 } from "../../utils";
-import { shieldSolFlags } from ".";
+import { compressSolFlags } from ".";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
-class ShieldSolCommand extends Command {
+class CompressSolCommand extends Command {
   static summary = "Compress SOL for a user.";
   static usage = "compress:SOL <AMOUNT> [FLAGS]";
   static examples = [
-    "$ light compress:SOL 1.3 --recipient <SHIELDED_RECIPIENT_ADDRESS> ",
+    "$ light compress:SOL 1.3 --recipient <COMPRESSED_RECIPIENT_ADDRESS> ",
     "$ light compress:SOL 12345678 -d",
   ];
 
   static flags = {
     ...standardFlags,
     ...standardFlags,
-    ...shieldSolFlags,
+    ...compressSolFlags,
     ...confirmOptionsFlags,
   };
 
@@ -33,7 +33,7 @@ class ShieldSolCommand extends Command {
   };
 
   async run() {
-    const { args, flags } = await this.parse(ShieldSolCommand);
+    const { args, flags } = await this.parse(CompressSolCommand);
     const amountSol = args.amount;
 
     const recipient = flags["recipient"];
@@ -74,4 +74,4 @@ class ShieldSolCommand extends Command {
   }
 }
 
-export default ShieldSolCommand;
+export default CompressSolCommand;

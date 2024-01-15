@@ -118,7 +118,7 @@ describe("Browser tests", () => {
     });
 
     await waitForBalanceUpdate(userTestAssertHelper, user);
-    await userTestAssertHelper.checkSolShielded();
+    await userTestAssertHelper.checkSolCompressed();
   });
 
   it("(browser) should decompress SOL and update merkle tree", async () => {
@@ -149,7 +149,7 @@ describe("Browser tests", () => {
     });
 
     await waitForBalanceUpdate(userTestAssertHelper, user);
-    await userTestAssertHelper.checkSolUnshielded();
+    await userTestAssertHelper.checkSolDecompressed();
   });
 
   it("should transfer sol and update merkle tree ", async () => {

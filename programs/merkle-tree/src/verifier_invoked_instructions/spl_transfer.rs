@@ -3,7 +3,7 @@ use anchor_spl::token::{Token, TokenAccount, Transfer};
 
 use crate::{utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier};
 #[derive(Accounts)]
-pub struct UnshieldSpl<'info> {
+pub struct DecompressSpl<'info> {
     /// CHECK:` Signer is registered verifier program.
     #[account(mut, seeds=[__program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
@@ -22,7 +22,7 @@ pub struct UnshieldSpl<'info> {
 }
 
 pub fn process_spl_transfer<'info>(
-    ctx: Context<'_, '_, '_, 'info, UnshieldSpl<'info>>,
+    ctx: Context<'_, '_, '_, 'info, DecompressSpl<'info>>,
     amount: u64,
 ) -> Result<()> {
     let (_, bump) =

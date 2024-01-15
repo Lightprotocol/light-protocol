@@ -32,7 +32,7 @@
 // process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 // let account: Account,
-//   shieldUtxo1: Utxo,
+//   compressUtxo1: Utxo,
 //   mockPubkey,
 //   hasher: Hasher,
 //   lightProvider: LightProvider,
@@ -42,7 +42,7 @@
 //   txParamsOutApp: TransactionParameters,
 //   txParams: TransactionParameters,
 //   txParamsSol: TransactionParameters,
-//   paramsUnshield: TransactionParameters,
+//   paramsDecompress: TransactionParameters,
 //   appData: any,
 //   rpc: Rpc;
 // const seed32 = bs58.encode(new Uint8Array(32).fill(1));
@@ -54,21 +54,21 @@
 //     hasher = await WasmFactory.getInstance();
 //     account = new Account({ hasher, seed: seed32 });
 //     await account.getEddsaPublicKey();
-//     const shieldAmount = 20_000;
-//     const shieldFeeAmount = 10_000;
-//     shieldUtxo1 = new Utxo({
+//     const compressAmount = 20_000;
+//     const compressFeeAmount = 10_000;
+//     compressUtxo1 = new Utxo({
 //       index: 0,
 //       hasher,
 //       assets: [FEE_ASSET, MINT],
-//       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
+//       amounts: [new BN(compressFeeAmount), new BN(compressAmount)],
 //       publicKey: account.pubkey,
 //       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
 //     });
-//     const shieldUtxoSol = new Utxo({
+//     const compressUtxoSol = new Utxo({
 //       index: 0,
 //       hasher,
 //       assets: [FEE_ASSET, MINT],
-//       amounts: [new BN(shieldFeeAmount), BN_0],
+//       amounts: [new BN(compressFeeAmount), BN_0],
 //       publicKey: account.pubkey,
 //       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
 //     });
@@ -77,7 +77,7 @@
 //     const mockPubkey3 = SolanaKeypair.generate().publicKey;
 
 //     txParams = new TransactionParameters({
-//       outputUtxos: [shieldUtxo1],
+//       outputUtxos: [compressUtxo1],
 //       eventMerkleTreePubkey: mockPubkey,
 //       transactionMerkleTreePubkey: mockPubkey,
 //       senderSpl: mockPubkey,
@@ -89,7 +89,7 @@
 //     });
 
 //     txParamsSol = new TransactionParameters({
-//       outputUtxos: [shieldUtxoSol],
+//       outputUtxos: [compressUtxoSol],
 //       eventMerkleTreePubkey: mockPubkey,
 //       transactionMerkleTreePubkey: mockPubkey,
 //       senderSpl: mockPubkey,
@@ -100,20 +100,20 @@
 //       account,
 //     });
 //     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, hasher, [
-//       shieldUtxo1.getCommitment(hasher),
+//       compressUtxo1.getCommitment(hasher),
 //       // random invalid other commitment
 //       hasher.poseidonHashString(["123124"]),
 //     ]);
 
 //     assert.equal(
 //       lightProvider.solMerkleTree?.merkleTree.indexOf(
-//         shieldUtxo1.getCommitment(hasher),
+//         compressUtxo1.getCommitment(hasher),
 //       ),
 //       0,
 //     );
 //     rpc = new Rpc(mockPubkey3, mockPubkey, new BN(5000));
-//     paramsUnshield = new TransactionParameters({
-//       inputUtxos: [shieldUtxo1],
+//     paramsDecompress = new TransactionParameters({
+//       inputUtxos: [compressUtxo1],
 //       eventMerkleTreePubkey: mockPubkey2,
 //       transactionMerkleTreePubkey: mockPubkey2,
 //       hasher,
@@ -225,7 +225,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 //     await tx.compile(lightProvider.hasher, account);
 //     tx.proofInput.root = new BN("123").toString();
@@ -239,7 +239,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 //     await tx.compile(lightProvider.hasher, account);
 
@@ -271,7 +271,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 //     await tx.compile(lightProvider.hasher, account);
 //     tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
@@ -301,7 +301,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 //     await tx.compile(lightProvider.hasher, account);
 
@@ -317,7 +317,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 //     await tx.compile(lightProvider.hasher, account);
 
@@ -332,7 +332,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -347,7 +347,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -363,7 +363,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -395,7 +395,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -413,7 +413,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -429,7 +429,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -445,7 +445,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -461,7 +461,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -477,7 +477,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -493,7 +493,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -542,7 +542,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -586,7 +586,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -602,7 +602,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -618,7 +618,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -635,7 +635,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -652,7 +652,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -669,7 +669,7 @@
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
-//       params: paramsUnshield,
+//       params: paramsDecompress,
 //     });
 
 //     await tx.compile(lightProvider.hasher, account);
@@ -691,12 +691,12 @@
 //     hasher = await WasmFactory.getInstance();
 //     account = new Account({ hasher, seed: seed32 });
 //     await account.getEddsaPublicKey();
-//     const shieldAmount = 20_000;
-//     const shieldFeeAmount = 10_000;
-//     shieldUtxo1 = new Utxo({
+//     const compressAmount = 20_000;
+//     const compressFeeAmount = 10_000;
+//     compressUtxo1 = new Utxo({
 //       hasher,
 //       assets: [FEE_ASSET, MINT],
-//       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
+//       amounts: [new BN(compressFeeAmount), new BN(compressAmount)],
 //       publicKey: account.pubkey,
 //       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
 //     });
@@ -705,7 +705,7 @@
 
 //     lightProvider = await LightProvider.loadMock();
 //     txParams = new TransactionParameters({
-//       outputUtxos: [shieldUtxo1],
+//       outputUtxos: [compressUtxo1],
 //       eventMerkleTreePubkey: mockPubkey,
 //       transactionMerkleTreePubkey: mockPubkey,
 //       senderSpl: mockPubkey,

@@ -323,7 +323,7 @@ export type SolanaTransactionInputs = {
 };
 
 // pspProof, systemProof,pspTransactionInput, txParams
-export async function sendAndConfirmShieldTransaction({
+export async function sendAndConfirmCompressTransaction({
   provider,
   solanaTransactionInputs,
 }: {
@@ -369,7 +369,7 @@ export async function sendAndConfirmShieldTransaction({
 }
 
 // pspProof, systemProof,pspTransactionInput, txParams
-export async function sendAndConfirmShieldedTransaction({
+export async function sendAndConfirmCompressedTransaction({
   provider,
   solanaTransactionInputs,
 }: {
@@ -390,14 +390,14 @@ export async function sendAndConfirmShieldedTransaction({
   if (action === Action.COMPRESS) {
     throw new SolanaTransactionError(
       SolanaTransactionErrorCode.INVALID_ACTION,
-      "sendAndConfirmShieldedTransaction",
-      `Action ${action} is COMPRESS use sendAndConfirmShieldTransaction.`,
+      "sendAndConfirmCompressedTransaction",
+      `Action ${action} is COMPRESS use sendAndConfirmCompressTransaction.`,
     );
   }
   if (!rpcRecipientSol) {
     throw new SolanaTransactionError(
       SolanaTransactionErrorCode.RPC_RECIPIENT_SOL_UNDEFINED,
-      "sendAndConfirmShieldedTransaction",
+      "sendAndConfirmCompressedTransaction",
       `Rpc recipient sol is undefined.`,
     );
   }
@@ -426,7 +426,8 @@ export async function sendAndConfirmShieldedTransaction({
     publicTransactionVariables,
   });
 
-  const txHash = await provider.sendAndConfirmShieldedTransaction(instructions);
+  const txHash =
+    await provider.sendAndConfirmCompressedTransaction(instructions);
   const rpcMerkleTreeUpdateResponse = "notPinged";
 
   return { txHash, response: rpcMerkleTreeUpdateResponse };

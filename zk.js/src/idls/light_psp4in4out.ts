@@ -17,7 +17,7 @@ export type LightPsp4in4outAppStorage = {
   ];
   instructions: [
     {
-      name: "shieldedTransferInputs";
+      name: "compressedTransferInputs";
       docs: [
         "This instruction is used to invoke this system verifier and can only be invoked via cpi.",
       ];
@@ -476,7 +476,7 @@ export const IDL: LightPsp4in4outAppStorage = {
   ],
   instructions: [
     {
-      name: "shieldedTransferInputs",
+      name: "compressedTransferInputs",
       docs: [
         "This instruction is used to invoke this system verifier and can only be invoked via cpi.",
       ],

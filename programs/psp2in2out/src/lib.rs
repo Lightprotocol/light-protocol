@@ -23,17 +23,17 @@ pub const PROGRAM_ID: &str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";
 pub mod light_psp2in2out {
     use super::*;
 
-    /// This instruction is the first step of a shieled transaction.
+    /// This instruction is the first step of a compressed transaction.
     /// It creates and initializes a verifier state account to save state of a verification during
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
-    pub fn shielded_transfer_first<'info>(
+    pub fn compressed_transfer_first<'info>(
         ctx: Context<'_, '_, '_, 'info, LightInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs: InstructionDataShieldedTransferFirst =
-            InstructionDataShieldedTransferFirst::try_deserialize_unchecked(
+        let inputs: InstructionDataCompressedTransferFirst =
+            InstructionDataCompressedTransferFirst::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
         let len_missing_bytes = 256 - inputs.encrypted_utxos.len();
@@ -75,7 +75,7 @@ pub struct LightInstruction<'info> {}
 
 #[derive(Debug)]
 #[account]
-pub struct InstructionDataShieldedTransferFirst {
+pub struct InstructionDataCompressedTransferFirst {
     proof_a: [u8; 64],
     proof_b: [u8; 128],
     proof_c: [u8; 64],
@@ -102,7 +102,7 @@ pub struct Utxo {
     verifier_address_index: u64,
     blinding: u256,
     app_data_hash: u256,
-    account_shielded_public_key: u256,
+    account_compression_public_key: u256,
     account_encryption_public_key: [u8; 32],
 }
 
@@ -112,7 +112,7 @@ pub struct OutUtxo {
     spl_asset_index: u64,
     blinding: u256,
     utxo_data_hash: u256,
-    account_shielded_public_key: u256,
+    account_compression_public_key: u256,
     account_encryption_public_key: [u8; 32],
     is_filling_utxo: bool,
 }

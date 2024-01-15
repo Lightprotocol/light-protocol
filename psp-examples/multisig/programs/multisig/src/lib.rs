@@ -21,7 +21,7 @@ pub mod multisig {
 
     use super::*;
 
-    /// This instruction is the first step of a shieled transaction.
+    /// This instruction is the first step of a compressed transaction.
     /// It creates and initializes a verifier state account to save state of a verification during
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic

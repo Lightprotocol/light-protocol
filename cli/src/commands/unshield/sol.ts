@@ -8,7 +8,7 @@ import {
 } from "../../utils/utils";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
-class UnshieldCommand extends Command {
+class DecompressCommand extends Command {
   static summary = "Decompress SOL for a user.";
   static usage = "decompress:SOL <AMOUNT> <RECIPIENT_ADDRESS> [FLAGS]";
   static examples = ["$ light decompress:SOL 5 <RECIPIENT_ADDRESS>"];
@@ -38,7 +38,7 @@ class UnshieldCommand extends Command {
   };
 
   async run() {
-    const { args, flags } = await this.parse(UnshieldCommand);
+    const { args, flags } = await this.parse(DecompressCommand);
     const amountSol = args.amount;
     const recipient = args.recipient_address;
     const minimumLamports = flags["minimum-lamports"];
@@ -78,4 +78,4 @@ class UnshieldCommand extends Command {
   }
 }
 
-export default UnshieldCommand;
+export default DecompressCommand;

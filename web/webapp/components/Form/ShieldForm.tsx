@@ -6,16 +6,16 @@ import { TokenInput } from "../Input";
 import { FormValues } from ".";
 import { useAction } from "../../state/hooks/useAction";
 
-export interface ShieldFormValues extends FormValues {}
+export interface CompressFormValues extends FormValues {}
 
-export const ShieldForm = () => {
-  const form: UseFormReturnType<ShieldFormValues> = useForm({
+export const CompressForm = () => {
+  const form: UseFormReturnType<CompressFormValues> = useForm({
     initialValues: { amount: "", token: "SOL" },
   });
   const { compress, loading } = useAction();
 
   const handleSubmit = useCallback(
-    async (values: ShieldFormValues) => {
+    async (values: CompressFormValues) => {
       try {
         await compress({
           token: values.token,
@@ -27,7 +27,7 @@ export const ShieldForm = () => {
         throw e;
       }
     },
-    [compress]
+    [compress],
   );
 
   return (

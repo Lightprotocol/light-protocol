@@ -40,7 +40,7 @@ pub mod light_psp4in4out_app_storage {
     use super::*;
 
     /// This instruction is used to invoke this system verifier and can only be invoked via cpi.
-    pub fn shielded_transfer_inputs<'info>(
+    pub fn compressed_transfer_inputs<'info>(
         ctx: Context<'_, '_, '_, 'info, LightInstruction<'info>>,
         proof_a: [u8; 64],
         proof_b: [u8; 128],

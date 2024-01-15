@@ -15,7 +15,7 @@ describe("light web-app", () => {
   });
 
   let startBalance = 0;
-  const shieldAmount0 = "0.01";
+  const compressAmount0 = "0.01";
 
   it("should store the previous balance", () => {
     // Store the previous balance
@@ -49,7 +49,7 @@ describe("light web-app", () => {
     cy.get('[data-testid="token-dropdown"]').should("be.visible");
 
     // type amount
-    cy.get('[data-testid="amount-input"]').type(shieldAmount0);
+    cy.get('[data-testid="amount-input"]').type(compressAmount0);
 
     // Select token
     cy.get('[data-testid="token-dropdown"]').click();
@@ -63,7 +63,7 @@ describe("light web-app", () => {
     cy.contains("Compress successful", { timeout: 40000 }).should("be.visible");
     cy.wait(2000);
     cy.get('[data-testid="compress-send-modal"]', { timeout: 0 }).should(
-      "not.exist"
+      "not.exist",
     );
   });
   it("should update balance by the amount that was just compressed", () => {
@@ -73,8 +73,8 @@ describe("light web-app", () => {
       .invoke("text")
       .then((text) => {
         expect(parseFloat(text)).to.be.closeTo(
-          startBalance + parseFloat(shieldAmount0),
-          0.2
+          startBalance + parseFloat(compressAmount0),
+          0.2,
         );
       });
   });
@@ -119,11 +119,11 @@ describe("light web-app", () => {
 
     cy.contains("Decompressing SOL", { timeout: 20000 }).should("be.visible");
     cy.contains("Decompress successful", { timeout: 40000 }).should(
-      "be.visible"
+      "be.visible",
     );
     cy.wait(2000);
     cy.get('[data-testid="compress-send-modal"]', { timeout: 0 }).should(
-      "not.exist"
+      "not.exist",
     );
   });
 
@@ -134,8 +134,8 @@ describe("light web-app", () => {
       .invoke("text")
       .then((text) => {
         expect(parseFloat(text)).to.be.closeTo(
-          startBalance + parseFloat(shieldAmount0) - parseFloat(sendAmount0),
-          0.5
+          startBalance + parseFloat(compressAmount0) - parseFloat(sendAmount0),
+          0.5,
         );
       });
   });

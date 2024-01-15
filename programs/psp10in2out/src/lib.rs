@@ -41,12 +41,12 @@ pub mod light_psp10in2out {
     /// It creates and initializes a verifier state account which stores public inputs and other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the verification and
     /// protocol logicin the second transaction.
-    pub fn shielded_transfer_first<'info>(
+    pub fn compressed_transfer_first<'info>(
         ctx: Context<'_, '_, '_, 'info, LightInstructionFirst<'info, 0, 2, 10>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs: InstructionDataShieldedTransferFirst =
-            InstructionDataShieldedTransferFirst::try_deserialize_unchecked(
+        let inputs: InstructionDataCompressedTransferFirst =
+            InstructionDataCompressedTransferFirst::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
         let len_missing_bytes = 256 - inputs.encrypted_utxos.len();
@@ -78,15 +78,15 @@ pub mod light_psp10in2out {
         Ok(())
     }
 
-    /// This instruction is the second step of a shieled transaction.
+    /// This instruction is the second step of a compressed transaction.
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
-    pub fn shielded_transfer_second<'info>(
+    pub fn compressed_transfer_second<'info>(
         ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info, 0, 2, 10>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs: InstructionDataShieldedTransferSecond =
-            InstructionDataShieldedTransferSecond::try_deserialize_unchecked(
+        let inputs: InstructionDataCompressedTransferSecond =
+            InstructionDataCompressedTransferSecond::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
         let proof = Proof {
@@ -177,7 +177,7 @@ pub struct LightInstructionFirst<
 
 #[derive(Debug)]
 #[account]
-pub struct InstructionDataShieldedTransferFirst {
+pub struct InstructionDataCompressedTransferFirst {
     public_amount_spl: [u8; 32],
     input_nullifier: [[u8; 32]; 10],
     output_commitment: [[u8; 32]; 2],
@@ -217,7 +217,7 @@ pub struct LightInstructionSecond<
 
 #[derive(Debug)]
 #[account]
-pub struct InstructionDataShieldedTransferSecond {
+pub struct InstructionDataCompressedTransferSecond {
     proof_a: [u8; 64],
     proof_b: [u8; 128],
     proof_c: [u8; 64],

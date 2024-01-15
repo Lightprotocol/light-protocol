@@ -108,7 +108,7 @@ class TransactionHistoryCommand extends Command {
     const tableData: any[] = [];
     const actionCheck =
       transaction.Type == `\x1b[32mTRANSFER\x1b[0m` ||
-      transaction.Type == `\x1b[32mUNSHIELD\x1b[0m`;
+      transaction.Type == `\x1b[32mDECOMPRESS\x1b[0m`;
     Object.keys(transaction).forEach((key) => {
       if (!ignoreKeys.includes(key)) {
         // Transform the key from camel case to separate words, each starting with a capital letter.

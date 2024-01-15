@@ -31,7 +31,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     light_merkle_tree_program::cpi::initialize_nullifiers(cpi_ctx, nullifiers)
 }
 
-pub fn unshield_sol_cpi<'a, 'b>(
+pub fn decompress_sol_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
@@ -44,7 +44,7 @@ pub fn unshield_sol_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    let accounts = light_merkle_tree_program::cpi::accounts::UnshieldSol {
+    let accounts = light_merkle_tree_program::cpi::accounts::DecompressSol {
         authority: authority.clone(),
         merkle_tree_token: merkle_tree_token.clone(),
         registered_verifier_pda: registered_verifier_pda.clone(),
@@ -52,11 +52,11 @@ pub fn unshield_sol_cpi<'a, 'b>(
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    light_merkle_tree_program::cpi::unshield_sol(cpi_ctx, pub_amount_checked)
+    light_merkle_tree_program::cpi::decompress_sol(cpi_ctx, pub_amount_checked)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn unshield_spl_cpi<'a, 'b>(
+pub fn decompress_spl_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
@@ -71,7 +71,7 @@ pub fn unshield_spl_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    let accounts = light_merkle_tree_program::cpi::accounts::UnshieldSpl {
+    let accounts = light_merkle_tree_program::cpi::accounts::DecompressSpl {
         authority: authority.clone(),
         merkle_tree_token: merkle_tree_token.clone(),
         token_authority: token_authority.clone(),
@@ -81,7 +81,7 @@ pub fn unshield_spl_cpi<'a, 'b>(
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    light_merkle_tree_program::cpi::unshield_spl(cpi_ctx, pub_amount_checked)
+    light_merkle_tree_program::cpi::decompress_spl(cpi_ctx, pub_amount_checked)
 }
 
 #[allow(clippy::too_many_arguments)]

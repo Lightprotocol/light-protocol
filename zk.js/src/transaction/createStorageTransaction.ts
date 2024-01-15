@@ -5,10 +5,10 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import {
-  ShieldTransaction,
+  CompressTransaction,
   Transaction,
-  UnshieldTransaction,
-  createShieldTransaction,
+  DecompressTransaction,
+  createCompressTransaction,
   createSystemProofInputs,
   getSystemProof,
   getSystemPspIdl,
@@ -171,7 +171,7 @@ export async function prepareStoreProgramUtxo({
   };
 }
 
-export async function shieldProgramUtxo({
+export async function compressProgramUtxo({
   token,
   amountSol,
   amountSpl,
@@ -212,7 +212,7 @@ export async function shieldProgramUtxo({
     lightWasm: provider.lightWasm,
   });
 
-  const transaction = await createShieldTransaction({
+  const transaction = await createCompressTransaction({
     message,
     transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
     mint:
@@ -240,7 +240,7 @@ export async function proveAndCreateInstructions({
   account,
   lightWasm,
 }: {
-  transaction: ShieldTransaction | Transaction | UnshieldTransaction;
+  transaction: CompressTransaction | Transaction | DecompressTransaction;
   rpc: Rpc;
   account: Account;
   lightWasm: LightWasm;
@@ -249,7 +249,7 @@ export async function proveAndCreateInstructions({
     throw new UserError(
       UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
       "compileAndProveTransaction",
-      "The method 'createShieldTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
+      "The method 'createCompressTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
     );
   let root: string | undefined = undefined;
   let rootIndex: number | undefined = undefined;

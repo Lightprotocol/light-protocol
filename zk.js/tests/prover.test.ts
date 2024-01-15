@@ -18,9 +18,9 @@ import {
   Utxo,
   Account,
   IDL_LIGHT_PSP2IN2OUT,
-  ShieldTransaction,
-  createShieldTransaction,
-  ShieldTransactionInput,
+  CompressTransaction,
+  createCompressTransaction,
+  CompressTransactionInput,
   MerkleTreeConfig,
   getVerifierProgramId,
   createSystemProofInputs,
@@ -35,32 +35,35 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Prover Functionality Tests", () => {
-  const shieldAmount = 20_000;
-  const shieldFeeAmount = 10_000;
+  const compressAmount = 20_000;
+  const compressFeeAmount = 10_000;
   const verifierIdl = IDL_LIGHT_PSP2IN2OUT;
   const mockPubkey = SolanaKeypair.generate().publicKey;
   const mockPubkey2 = SolanaKeypair.generate().publicKey;
   const path = require("path");
   const firstPath = path.resolve(__dirname, "../build-circuits/");
   let lightProvider: LightProvider;
-  let shieldUtxo: OutUtxo;
+  let compressUtxo: OutUtxo;
   let account: Account;
   let lightWasm: LightWasm;
-  let shieldTransaction: ShieldTransaction;
+  let compressTransaction: CompressTransaction;
   let merkleTree: MerkleTree;
   before(async () => {
     lightWasm = await WasmFactory.getInstance();
     lightProvider = await LightProvider.loadMock();
     account = Account.random(lightWasm);
 
-    shieldUtxo = createOutUtxo({
+    compressUtxo = createOutUtxo({
       lightWasm,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(shieldFeeAmount), new anchor.BN(shieldAmount)],
+      amounts: [
+        new anchor.BN(compressFeeAmount),
+        new anchor.BN(compressAmount),
+      ],
       publicKey: account.keypair.publicKey,
       blinding: new anchor.BN(new Array(31).fill(1)),
     });
-    const shieldTransactionInput: ShieldTransactionInput = {
+    const compressTransactionInput: CompressTransactionInput = {
       lightWasm,
       mint: MINT,
       transactionMerkleTreePubkey:
@@ -69,14 +72,16 @@ describe("Prover Functionality Tests", () => {
       signer: mockPubkey2,
       systemPspId: getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT),
       account,
-      outputUtxos: [shieldUtxo],
+      outputUtxos: [compressUtxo],
     };
 
-    shieldTransaction = await createShieldTransaction(shieldTransactionInput);
+    compressTransaction = await createCompressTransaction(
+      compressTransactionInput,
+    );
 
-    merkleTree = new MerkleTree(18, lightWasm, [shieldUtxo.utxoHash]);
+    merkleTree = new MerkleTree(18, lightWasm, [compressUtxo.utxoHash]);
 
-    assert.equal(merkleTree.indexOf(shieldUtxo.utxoHash), 0);
+    assert.equal(merkleTree.indexOf(compressUtxo.utxoHash), 0);
   });
 
   after(async () => {
@@ -86,7 +91,7 @@ describe("Prover Functionality Tests", () => {
 
   it("Verifies Prover with VerifierZero", async () => {
     const systemProofInputs = createSystemProofInputs({
-      transaction: shieldTransaction,
+      transaction: compressTransaction,
       lightWasm,
       account,
       root: merkleTree.root(),
@@ -100,7 +105,7 @@ describe("Prover Functionality Tests", () => {
     await genericProver.fullProve();
     await getSystemProof({
       account,
-      inputUtxos: shieldTransaction.private.inputUtxos,
+      inputUtxos: compressTransaction.private.inputUtxos,
       verifierIdl,
       systemProofInputs,
     });
@@ -131,7 +136,7 @@ describe("Prover Functionality Tests", () => {
 
   it("Checks identical public inputs with different randomness", async () => {
     const proofInput = createSystemProofInputs({
-      transaction: shieldTransaction,
+      transaction: compressTransaction,
       lightWasm,
       account,
       root: merkleTree.root(),
@@ -143,7 +148,7 @@ describe("Prover Functionality Tests", () => {
     await prover1.fullProve();
     await getSystemProof({
       account,
-      inputUtxos: shieldTransaction.private.inputUtxos,
+      inputUtxos: compressTransaction.private.inputUtxos,
       verifierIdl,
       systemProofInputs: proofInput,
     });
@@ -153,7 +158,7 @@ describe("Prover Functionality Tests", () => {
     await prover2.fullProve();
     await getSystemProof({
       account,
-      inputUtxos: shieldTransaction.private.inputUtxos,
+      inputUtxos: compressTransaction.private.inputUtxos,
       verifierIdl,
       systemProofInputs: proofInput,
     });

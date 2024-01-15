@@ -17,9 +17,9 @@ import {
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   createProofInputs,
   SolanaTransactionInputs,
-  sendAndConfirmShieldedTransaction,
+  sendAndConfirmCompressedTransaction,
   getVerifierProgramId,
-  shieldProgramUtxo,
+  compressProgramUtxo,
   createProgramOutUtxo,
   createOutUtxo,
 } from "@lightprotocol/zk.js";
@@ -73,7 +73,7 @@ describe("Test {{project-name}}", () => {
       confirmConfig,
     });
     lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      getVerifierProgramId(IDL)
+      getVerifierProgramId(IDL),
     );
 
     const user: User = await User.init({ provider: lightProvider });
@@ -89,31 +89,32 @@ describe("Test {{project-name}}", () => {
       utxoName: "utxo",
     });
 
-    const testInputsShield = {
+    const testInputsCompress = {
       utxo: outputUtxoSol,
       action: Action.COMPRESS,
     };
 
-    let storeTransaction = await shieldProgramUtxo({
+    let storeTransaction = await compressProgramUtxo({
       account: user.account,
-      appUtxo: testInputsShield.utxo,
+      appUtxo: testInputsCompress.utxo,
       provider: user.provider,
     });
     console.log("store program utxo transaction hash ", storeTransaction);
 
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await user.syncStorage(IDL);
-    const shieldedUtxoCommitmentHash = testInputsShield.utxo.outUtxo.utxoHash;
+    const compressedUtxoCommitmentHash =
+      testInputsCompress.utxo.outUtxo.utxoHash;
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())!
-      .tokenBalances.get(testInputsShield.utxo.outUtxo.assets[1].toBase58())!
-      .utxos.get(shieldedUtxoCommitmentHash)!;
-    assert.equal(inputUtxo.utxoHash, shieldedUtxoCommitmentHash);
+      .tokenBalances.get(testInputsCompress.utxo.outUtxo.assets[1].toBase58())!
+      .utxos.get(compressedUtxoCommitmentHash)!;
+    assert.equal(inputUtxo.utxoHash, compressedUtxoCommitmentHash);
     assert.equal(inputUtxo.utxoData.x.toString(), "1");
     assert.equal(inputUtxo.utxoData.y.toString(), "2");
 
     const circuitPath = path.join(
-      `build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`
+      `build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`,
     );
 
     const pspTransactionInput: PspTransactionInput = {
@@ -135,11 +136,11 @@ describe("Test {{project-name}}", () => {
     });
     const inputUtxos = [inputUtxo];
     const outputUtxos = [changeUtxo];
-    const shieldedTransaction = await createTransaction({
+    const compressedTransaction = await createTransaction({
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0)
+        new BN(0),
       ),
       rpcPublicKey: rpc.accounts.rpcPubkey,
       lightWasm: WASM,
@@ -150,12 +151,12 @@ describe("Test {{project-name}}", () => {
     });
 
     const { root, index: rootIndex } = (await rpc.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda()
+      MerkleTreeConfig.getTransactionMerkleTreePda(),
     ))!;
 
     const proofInputs = createProofInputs({
       lightWasm: WASM,
-      transaction: shieldedTransaction,
+      transaction: compressedTransaction,
       pspTransaction: pspTransactionInput,
       account: user.account,
       root,
@@ -178,7 +179,7 @@ describe("Test {{project-name}}", () => {
       action: Action.TRANSFER,
       systemProof,
       pspProof,
-      publicTransactionVariables: shieldedTransaction.public,
+      publicTransactionVariables: compressedTransaction.public,
       pspTransactionInput,
       rpcRecipientSol: rpc.accounts.rpcRecipientSol,
       eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
@@ -186,7 +187,7 @@ describe("Test {{project-name}}", () => {
       rootIndex,
     };
 
-    const { txHash } = await sendAndConfirmShieldedTransaction({
+    const { txHash } = await sendAndConfirmCompressedTransaction({
       solanaTransactionInputs,
       provider: user.provider,
     });
@@ -196,7 +197,7 @@ describe("Test {{project-name}}", () => {
       inputUtxo.utxoHash,
       true,
       MerkleTreeConfig.getTransactionMerkleTreePda(),
-      IDL
+      IDL,
     );
     assert.equal(utxoSpent!.status, "spent");
   });

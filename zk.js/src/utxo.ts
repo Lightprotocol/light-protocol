@@ -175,7 +175,7 @@ export function getUtxoHash(
     throw new UtxoError(
       CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
       "getCommitment",
-      "Neither Account nor shieldedPublicKey was provided",
+      "Neither Account nor compressionPublicKey was provided",
     );
   }
 
@@ -202,7 +202,7 @@ export async function outUtxoToBytes(
 ): Promise<Uint8Array> {
   const serializeObject = {
     ...outUtxo,
-    accountShieldedPublicKey: new BN(outUtxo.publicKey),
+    accountCompressionPublicKey: new BN(outUtxo.publicKey),
     accountEncryptionPublicKey: outUtxo.encryptionPublicKey
       ? outUtxo.encryptionPublicKey
       : new Uint8Array(32).fill(0),
@@ -267,7 +267,7 @@ export function outUtxoFromBytes({
   ];
   const publicKey = compressed
     ? account?.keypair.publicKey
-    : decodedUtxoData.accountShieldedPublicKey;
+    : decodedUtxoData.accountCompressionPublicKey;
   // TODO: evaluate whether there is a better way to handle the case of a compressed program utxo which currently not deserialized correctly when taken from encrypted utxos
   if (decodedUtxoData.utxoDataHash.toString() !== "0") {
     return null;

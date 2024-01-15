@@ -23,12 +23,12 @@ import {
   User,
   airdropSol,
   createSolanaInstructions,
-  UnshieldTransactionInput,
+  DecompressTransactionInput,
   getVerifierProgramId,
   getSystemProof,
   createSystemProofInputs,
   prepareAccounts,
-  createUnshieldTransaction,
+  createDecompressTransaction,
   getSolanaRemainingAccounts,
   Utxo,
   syncInputUtxosMerkleProofs,
@@ -53,7 +53,7 @@ describe("Merkle Tree Tests", () => {
   const merkleTreeProgram: anchor.Program<LightMerkleTreeProgram> =
     new anchor.Program(IDL_LIGHT_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
-  const shieldAmount = 10;
+  const compressAmount = 10;
   let INVALID_MERKLE_TREE_AUTHORITY_PDA,
     INVALID_SIGNER,
     lightProvider: Provider,
@@ -501,19 +501,19 @@ describe("Merkle Tree Tests", () => {
   it("Switch to a new Merkle tree", async () => {
     const user = await User.init({ provider: lightProvider });
     await user.compress({
-      publicAmountSpl: shieldAmount,
-      publicAmountSol: shieldAmount,
+      publicAmountSpl: compressAmount,
+      publicAmountSol: compressAmount,
       token: "USDC",
     });
 
     await user.getBalance();
-    const unshieldUtxo: Utxo = user.getAllUtxos()[0];
+    const decompressUtxo: Utxo = user.getAllUtxos()[0];
     const {
       root,
       index: rootIndex,
       syncedUtxos: inputUtxos,
     } = await syncInputUtxosMerkleProofs({
-      inputUtxos: [unshieldUtxo],
+      inputUtxos: [decompressUtxo],
       merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       rpc: lightProvider.rpc,
     });
@@ -530,7 +530,7 @@ describe("Merkle Tree Tests", () => {
       await merkleTreeConfig.initializeNewMerkleTrees();
 
     const verifierIdl = IDL_LIGHT_PSP2IN2OUT;
-    const unshieldTransactionInput: UnshieldTransactionInput = {
+    const decompressTransactionInput: DecompressTransactionInput = {
       lightWasm: WASM,
       mint: MINT,
       transactionMerkleTreePubkey:
@@ -545,19 +545,19 @@ describe("Merkle Tree Tests", () => {
       ataCreationFee: false,
     };
 
-    const unshieldTransaction = await createUnshieldTransaction(
-      unshieldTransactionInput,
+    const decompressTransaction = await createDecompressTransaction(
+      decompressTransactionInput,
     );
 
     const systemProofInputs = createSystemProofInputs({
-      transaction: unshieldTransaction,
+      transaction: decompressTransaction,
       lightWasm: WASM,
       account: user.account,
       root,
     });
     const systemProof = await getSystemProof({
       account: user.account,
-      inputUtxos: unshieldTransaction.private.inputUtxos,
+      inputUtxos: decompressTransaction.private.inputUtxos,
       verifierIdl,
       systemProofInputs,
     });
@@ -581,19 +581,19 @@ describe("Merkle Tree Tests", () => {
     );
 
     const accounts = prepareAccounts({
-      transactionAccounts: unshieldTransaction.public.accounts,
+      transactionAccounts: decompressTransaction.public.accounts,
       eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
       rpcRecipientSol: lightProvider.rpc.accounts.rpcRecipientSol,
       signer: lightProvider.rpc.accounts.rpcPubkey,
     });
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({
-      action: unshieldTransaction.action,
+      action: decompressTransaction.action,
       rootIndex,
       systemProof,
       remainingSolanaAccounts,
       accounts,
-      publicTransactionVariables: unshieldTransaction.public,
+      publicTransactionVariables: decompressTransaction.public,
       systemPspIdl: verifierIdl,
     });
 

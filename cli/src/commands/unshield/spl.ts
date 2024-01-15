@@ -8,7 +8,7 @@ import {
 } from "../../utils/utils";
 import { confirmOptionsFlags, standardFlags } from "../../utils";
 
-class UnshieldCommand extends Command {
+class DecompressCommand extends Command {
   static description = "Decompress SPL tokens for a user.";
   static usage = "decompress:SPL <AMOUNT> <TOKEN> <RECIPIENT_ADDRESS> [FLAGS]";
   static examples = ["$ light decompress:SPL 15 USDC <RECIPIENT_ADDRESS>"];
@@ -44,7 +44,7 @@ class UnshieldCommand extends Command {
   };
 
   async run() {
-    const { args, flags } = await this.parse(UnshieldCommand);
+    const { args, flags } = await this.parse(DecompressCommand);
     const amountSpl = args.amount;
     const token = args.token;
     const recipient = args.recipient_address;
@@ -83,4 +83,4 @@ class UnshieldCommand extends Command {
   }
 }
 
-export default UnshieldCommand;
+export default DecompressCommand;
