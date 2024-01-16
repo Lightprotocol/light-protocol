@@ -100,7 +100,7 @@ describe("Test private-compressed-account", () => {
 
     // The light provider is a connection and wallet abstraction.
     // The wallet is used to derive the seed for your compression keypair with a signature.
-    var lightProvider = await LightProvider.init({
+    let lightProvider = await LightProvider.init({
       wallet,
       url: RPC_URL,
       rpc,
