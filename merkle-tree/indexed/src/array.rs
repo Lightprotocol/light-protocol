@@ -59,9 +59,9 @@ where
         H: Hasher,
     {
         H::hashv(&[
-            self.value.to_bytes_le().as_slice(),
-            self.next_index.to_le_bytes().as_slice(),
-            next_value.to_bytes_le().as_slice(),
+            self.value.to_bytes_be().as_slice(),
+            self.next_index.to_be_bytes().as_slice(),
+            next_value.to_bytes_be().as_slice(),
         ])
     }
 }

@@ -6,7 +6,7 @@ use light_indexed_merkle_tree::{
     array::{IndexingArray, IndexingElement},
     reference, IndexedMerkleTree,
 };
-use light_utils::le_bytes_to_bigint;
+use light_utils::be_bytes_to_bigint;
 use thiserror::Error;
 
 const MERKLE_TREE_HEIGHT: usize = 4;
@@ -31,7 +31,7 @@ where
     H: Hasher,
 {
     for i in 0..NR_NULLIFIERS {
-        let nullifier = le_bytes_to_bigint(&nullifiers[i]).unwrap();
+        let nullifier = be_bytes_to_bigint(&nullifiers[i]).unwrap();
         queue.append(nullifier)?;
     }
     Ok(())

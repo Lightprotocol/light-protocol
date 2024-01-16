@@ -29,7 +29,18 @@ pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
     arr
 }
 
-/// Converts the given byte slice into [`ark_ff::BigInt`](`ark_ff::BigInt`).
+/// Converts the given big-endian byte slice into
+/// [`ark_ff::BigInt`](`ark_ff::BigInt`).
+pub fn be_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
+    bytes: &[u8; BYTES_SIZE],
+) -> Result<BigInt<NUM_LIMBS>, UtilsError> {
+    let mut bytes = bytes.clone();
+    bytes.reverse();
+    le_bytes_to_bigint(&bytes)
+}
+
+/// Converts the given little-endian byte slice into
+/// [`ark_ff::BigInt`](`ark_ff::BigInt`).
 pub fn le_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
     bytes: &[u8; BYTES_SIZE],
 ) -> Result<BigInt<NUM_LIMBS>, UtilsError> {
