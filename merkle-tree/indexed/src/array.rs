@@ -1,35 +1,51 @@
 use std::{cmp::Ordering, marker::PhantomData};
 
+use ark_ff::BigInteger;
 use light_hasher::{errors::HasherError, Hasher};
 
-#[derive(Copy, Clone, Debug, Default)]
-pub struct IndexingElement {
+#[derive(Clone, Debug, Default)]
+pub struct IndexingElement<B>
+where
+    B: BigInteger,
+{
     pub index: u16,
-    pub value: [u8; 32],
+    pub value: B,
     pub next_index: u16,
 }
 
-impl PartialEq for IndexingElement {
+impl<B> PartialEq for IndexingElement<B>
+where
+    B: BigInteger,
+{
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
     }
 }
 
-impl Eq for IndexingElement {}
+impl<B> Eq for IndexingElement<B> where B: BigInteger {}
 
-impl PartialOrd for IndexingElement {
+impl<B> PartialOrd for IndexingElement<B>
+where
+    B: BigInteger,
+{
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for IndexingElement {
+impl<B> Ord for IndexingElement<B>
+where
+    B: BigInteger,
+{
     fn cmp(&self, other: &Self) -> Ordering {
         self.value.cmp(&other.value)
     }
 }
 
-impl IndexingElement {
+impl<B> IndexingElement<B>
+where
+    B: BigInteger,
+{
     pub fn index(&self) -> usize {
         self.index.into()
     }
@@ -38,44 +54,49 @@ impl IndexingElement {
         self.next_index.into()
     }
 
-    pub fn hash<H>(&self, next_value: [u8; 32]) -> Result<[u8; 32], HasherError>
+    pub fn hash<H>(&self, next_value: &B) -> Result<[u8; 32], HasherError>
     where
         H: Hasher,
     {
         H::hashv(&[
-            self.value.as_slice(),
+            self.value.to_bytes_le().as_slice(),
             self.next_index.to_le_bytes().as_slice(),
-            next_value.as_slice(),
+            next_value.to_bytes_le().as_slice(),
         ])
     }
 }
 
-pub struct IndexingElementBundle {
-    pub new_low_element: IndexingElement,
-    pub new_element: IndexingElement,
-    pub new_element_next_value: [u8; 32],
+pub struct IndexingElementBundle<B>
+where
+    B: BigInteger,
+{
+    pub new_low_element: IndexingElement<B>,
+    pub new_element: IndexingElement<B>,
+    pub new_element_next_value: B,
 }
 
-pub struct IndexingArray<H, const ELEMENTS: usize>
+pub struct IndexingArray<H, B, const ELEMENTS: usize>
 where
     H: Hasher,
+    B: BigInteger,
 {
-    pub(crate) elements: [IndexingElement; ELEMENTS],
+    pub(crate) elements: [IndexingElement<B>; ELEMENTS],
     current_node_index: u16,
     highest_element_index: u16,
 
     _hasher: PhantomData<H>,
 }
 
-impl<H, const ELEMENTS: usize> Default for IndexingArray<H, ELEMENTS>
+impl<H, B, const ELEMENTS: usize> Default for IndexingArray<H, B, ELEMENTS>
 where
     H: Hasher,
+    B: BigInteger,
 {
     fn default() -> Self {
         Self {
             elements: std::array::from_fn(|_| IndexingElement {
                 index: 0,
-                value: [0u8; 32],
+                value: B::from(0_u32),
                 next_index: 0,
             }),
             current_node_index: 0,
@@ -85,11 +106,12 @@ where
     }
 }
 
-impl<H, const ELEMENTS: usize> IndexingArray<H, ELEMENTS>
+impl<H, B, const ELEMENTS: usize> IndexingArray<H, B, ELEMENTS>
 where
     H: Hasher,
+    B: BigInteger,
 {
-    pub fn get(&self, index: usize) -> Option<&IndexingElement> {
+    pub fn get(&self, index: usize) -> Option<&IndexingElement<B>> {
         self.elements.get(index)
     }
 
@@ -101,7 +123,7 @@ where
         self.current_node_index == 0
     }
 
-    pub fn iter(&self) -> IndexingArrayIter<H, ELEMENTS> {
+    pub fn iter(&self) -> IndexingArrayIter<H, B, ELEMENTS> {
         IndexingArrayIter {
             indexing_array: self,
             front: 0,
@@ -109,7 +131,7 @@ where
         }
     }
 
-    pub fn find_element(&self, value: &[u8; 32]) -> Option<&IndexingElement> {
+    pub fn find_element(&self, value: &B) -> Option<&IndexingElement<B>> {
         self.elements[..self.len() + 1]
             .iter()
             .find(|&node| node.value == *value)
@@ -122,7 +144,7 @@ where
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element_index(&self, value: &[u8; 32]) -> Result<u16, HasherError> {
+    pub fn find_low_element_index(&self, value: &B) -> Result<u16, HasherError> {
         // Try to find element whose next element is higher than the provided
         // value.
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
@@ -145,13 +167,13 @@ where
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element(
-        &self,
-        value: &[u8; 32],
-    ) -> Result<(IndexingElement, [u8; 32]), HasherError> {
+    pub fn find_low_element(&self, value: &B) -> Result<(IndexingElement<B>, B), HasherError> {
         let low_element_index = self.find_low_element_index(value)?;
-        let low_element = self.elements[usize::from(low_element_index)];
-        Ok((low_element, self.elements[low_element.next_index()].value))
+        let low_element = self.elements[usize::from(low_element_index)].clone();
+        Ok((
+            low_element.clone(),
+            self.elements[low_element.next_index()].value,
+        ))
     }
 
     /// Returns the index of the low element for the given `value`, which
@@ -163,7 +185,7 @@ where
     /// Low elements are used in non-membership proofs.
     pub fn find_low_element_index_for_existing_element(
         &self,
-        value: &[u8; 32],
+        value: &B,
     ) -> Result<Option<u16>, HasherError> {
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
             if self.elements[usize::from(node.next_index)].value == *value {
@@ -189,9 +211,9 @@ where
             .get(usize::from(element.next_index))
             .ok_or(HasherError::IndexHigherThanMax)?;
         H::hashv(&[
-            element.value.as_slice(),
+            element.value.to_bytes_le().as_slice(),
             element.next_index.to_le_bytes().as_slice(),
-            next_element.value.as_slice(),
+            next_element.value.to_bytes_le().as_slice(),
         ])
     }
 
@@ -200,9 +222,9 @@ where
     pub fn new_element_with_low_element_index(
         &self,
         low_element_index: u16,
-        value: [u8; 32],
-    ) -> IndexingElementBundle {
-        let mut new_low_element = self.elements[usize::from(low_element_index)];
+        value: B,
+    ) -> IndexingElementBundle<B> {
+        let mut new_low_element = self.elements[usize::from(low_element_index)].clone();
 
         let new_element_index = self.current_node_index + 1;
         let new_element = IndexingElement {
@@ -222,7 +244,7 @@ where
         }
     }
 
-    pub fn new_element(&self, value: [u8; 32]) -> Result<IndexingElementBundle, HasherError> {
+    pub fn new_element(&self, value: B) -> Result<IndexingElementBundle<B>, HasherError> {
         let low_element_index = self.find_low_element_index(&value)?;
         let element = self.new_element_with_low_element_index(low_element_index, value);
 
@@ -233,9 +255,9 @@ where
     pub fn append_with_low_element_index(
         &mut self,
         low_element_index: u16,
-        value: [u8; 32],
-    ) -> Result<IndexingElementBundle, HasherError> {
-        let old_low_element = self.elements[usize::from(low_element_index)];
+        value: B,
+    ) -> Result<IndexingElementBundle<B>, HasherError> {
+        let old_low_element = &self.elements[usize::from(low_element_index)];
 
         // Check that the `value` belongs to the range of `old_low_element`.
         if old_low_element.next_index == 0 {
@@ -275,20 +297,20 @@ where
 
         // Insert new node.
         self.current_node_index = new_element_bundle.new_element.index;
-        self.elements[self.len()] = new_element_bundle.new_element;
+        self.elements[self.len()] = new_element_bundle.new_element.clone();
 
         // Update low element.
-        self.elements[usize::from(low_element_index)] = new_element_bundle.new_low_element;
+        self.elements[usize::from(low_element_index)] = new_element_bundle.new_low_element.clone();
 
         Ok(new_element_bundle)
     }
 
-    pub fn append(&mut self, value: [u8; 32]) -> Result<IndexingElementBundle, HasherError> {
+    pub fn append(&mut self, value: B) -> Result<IndexingElementBundle<B>, HasherError> {
         let low_element_index = self.find_low_element_index(&value)?;
         self.append_with_low_element_index(low_element_index, value)
     }
 
-    pub fn lowest(&self) -> Option<IndexingElement> {
+    pub fn lowest(&self) -> Option<IndexingElement<B>> {
         self.elements.get(1).cloned()
     }
 
@@ -303,14 +325,14 @@ where
         &mut self,
         low_element_index: u16,
         index: u16,
-    ) -> Option<IndexingElement> {
+    ) -> Option<IndexingElement<B>> {
         if index > self.current_node_index {
             // Index out of bounds.
             return None;
         }
 
         // Save the element to be removed.
-        let removed_element = self.elements[usize::from(index)];
+        let removed_element = self.elements[usize::from(index)].clone();
 
         // Update the lower element - point to the node which the currently
         // removed element is pointing to.
@@ -321,7 +343,7 @@ where
             // Shift elements, which are on the right from the removed element,
             // to the left.
             if i >= index {
-                self.elements[usize::from(i)] = self.elements[usize::from(i) + 1];
+                self.elements[usize::from(i)] = self.elements[usize::from(i) + 1].clone();
                 self.elements[usize::from(i)].index -= 1;
             }
             // If the `next_index` is greater than the index of the removed
@@ -351,7 +373,7 @@ where
     /// It also performs necessary updates of the remaning elements, to
     /// preserve the integrity of the array. It searches for the low element
     /// and updates it, to point to a new next element instead of the one
-    pub fn dequeue_at(&mut self, index: u16) -> Result<Option<IndexingElement>, HasherError> {
+    pub fn dequeue_at(&mut self, index: u16) -> Result<Option<IndexingElement<B>>, HasherError> {
         match self.elements.get(usize::from(index)) {
             Some(node) => {
                 let low_element_index = self
@@ -364,20 +386,22 @@ where
     }
 }
 
-pub struct IndexingArrayIter<'a, H, const MAX_ELEMENTS: usize>
+pub struct IndexingArrayIter<'a, H, B, const MAX_ELEMENTS: usize>
 where
     H: Hasher,
+    B: BigInteger,
 {
-    indexing_array: &'a IndexingArray<H, MAX_ELEMENTS>,
+    indexing_array: &'a IndexingArray<H, B, MAX_ELEMENTS>,
     front: usize,
     back: usize,
 }
 
-impl<'a, H, const MAX_ELEMENTS: usize> Iterator for IndexingArrayIter<'a, H, MAX_ELEMENTS>
+impl<'a, H, B, const MAX_ELEMENTS: usize> Iterator for IndexingArrayIter<'a, H, B, MAX_ELEMENTS>
 where
     H: Hasher,
+    B: BigInteger,
 {
-    type Item = &'a IndexingElement;
+    type Item = &'a IndexingElement<B>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.front <= self.back {
@@ -390,10 +414,11 @@ where
     }
 }
 
-impl<'a, H, const MAX_ELEMENTS: usize> DoubleEndedIterator
-    for IndexingArrayIter<'a, H, MAX_ELEMENTS>
+impl<'a, H, B, const MAX_ELEMENTS: usize> DoubleEndedIterator
+    for IndexingArrayIter<'a, H, B, MAX_ELEMENTS>
 where
     H: Hasher,
+    B: BigInteger,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.back >= self.front {
@@ -408,6 +433,7 @@ where
 
 #[cfg(test)]
 mod test {
+    use ark_ff::BigInteger256;
     use light_hasher::Poseidon;
 
     use super::*;
@@ -421,12 +447,10 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexingArray<Poseidon, 8> = IndexingArray::default();
+        let mut indexing_array: IndexingArray<Poseidon, BigInteger256, 8> =
+            IndexingArray::default();
 
-        let nullifier1: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 30,
-        ];
+        let nullifier1 = BigInteger256::from(30_u32);
         indexing_array.append(nullifier1).unwrap();
 
         // After adding a new value 30, it should look like:
@@ -448,7 +472,7 @@ mod test {
             indexing_array.elements[0],
             IndexingElement {
                 index: 0,
-                value: [0u8; 32],
+                value: BigInteger256::zero(),
                 next_index: 1,
             },
         );
@@ -456,18 +480,12 @@ mod test {
             indexing_array.elements[1],
             IndexingElement {
                 index: 1,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30,
-                ],
+                value: BigInteger256::from(30_u32),
                 next_index: 0,
             }
         );
 
-        let nullifier2: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 10,
-        ];
+        let nullifier2 = BigInteger256::from(10_u32);
         indexing_array.append(nullifier2).unwrap();
 
         // After adding an another value 10, it should look like:
@@ -492,7 +510,7 @@ mod test {
             indexing_array.elements[0],
             IndexingElement {
                 index: 0,
-                value: [0u8; 32],
+                value: BigInteger256::zero(),
                 next_index: 2,
             }
         );
@@ -500,10 +518,7 @@ mod test {
             indexing_array.elements[1],
             IndexingElement {
                 index: 1,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ],
+                value: BigInteger256::from(30_u32),
                 next_index: 0,
             }
         );
@@ -511,18 +526,12 @@ mod test {
             indexing_array.elements[2],
             IndexingElement {
                 index: 2,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ],
+                value: BigInteger256::from(10_u32),
                 next_index: 1,
             }
         );
 
-        let nullifier3: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 20,
-        ];
+        let nullifier3 = BigInteger256::from(20_u32);
         indexing_array.append(nullifier3).unwrap();
 
         // After adding an another value 20, it should look like:
@@ -544,7 +553,7 @@ mod test {
             indexing_array.elements[0],
             IndexingElement {
                 index: 0,
-                value: [0u8; 32],
+                value: BigInteger256::zero(),
                 next_index: 2,
             }
         );
@@ -552,10 +561,7 @@ mod test {
             indexing_array.elements[1],
             IndexingElement {
                 index: 1,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ],
+                value: BigInteger256::from(30_u32),
                 next_index: 0,
             }
         );
@@ -563,10 +569,7 @@ mod test {
             indexing_array.elements[2],
             IndexingElement {
                 index: 2,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ],
+                value: BigInteger256::from(10_u32),
                 next_index: 3,
             }
         );
@@ -574,18 +577,12 @@ mod test {
             indexing_array.elements[3],
             IndexingElement {
                 index: 3,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 20
-                ],
+                value: BigInteger256::from(20_u32),
                 next_index: 1,
             }
         );
 
-        let nullifier4: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 50,
-        ];
+        let nullifier4 = BigInteger256::from(50_u32);
         indexing_array.append(nullifier4).unwrap();
 
         // After adding an another value 50, it should look like:
@@ -609,7 +606,7 @@ mod test {
             indexing_array.elements[0],
             IndexingElement {
                 index: 0,
-                value: [0u8; 32],
+                value: BigInteger256::zero(),
                 next_index: 2,
             }
         );
@@ -617,10 +614,7 @@ mod test {
             indexing_array.elements[1],
             IndexingElement {
                 index: 1,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ],
+                value: BigInteger256::from(30_u32),
                 next_index: 4,
             }
         );
@@ -628,10 +622,7 @@ mod test {
             indexing_array.elements[2],
             IndexingElement {
                 index: 2,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ],
+                value: BigInteger256::from(10_u32),
                 next_index: 3,
             }
         );
@@ -639,10 +630,7 @@ mod test {
             indexing_array.elements[3],
             IndexingElement {
                 index: 3,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 20
-                ],
+                value: BigInteger256::from(20_u32),
                 next_index: 1,
             }
         );
@@ -650,10 +638,7 @@ mod test {
             indexing_array.elements[4],
             IndexingElement {
                 index: 4,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 50
-                ],
+                value: BigInteger256::from(50_u32),
                 next_index: 0,
             }
         );
@@ -667,13 +652,11 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexingArray<Poseidon, 8> = IndexingArray::default();
+        let mut indexing_array: IndexingArray<Poseidon, BigInteger256, 8> =
+            IndexingArray::default();
 
         let low_element_index = 0;
-        let nullifier1: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 30,
-        ];
+        let nullifier1 = BigInteger256::from(30_u32);
         indexing_array
             .append_with_low_element_index(low_element_index, nullifier1)
             .unwrap();
@@ -697,7 +680,7 @@ mod test {
             indexing_array.elements[0],
             IndexingElement {
                 index: 0,
-                value: [0u8; 32],
+                value: BigInteger256::zero(),
                 next_index: 1,
             },
         );
@@ -705,19 +688,13 @@ mod test {
             indexing_array.elements[1],
             IndexingElement {
                 index: 1,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30,
-                ],
+                value: BigInteger256::from(30_u32),
                 next_index: 0,
             }
         );
 
         let low_element_index = 0;
-        let nullifier2: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 10,
-        ];
+        let nullifier2 = BigInteger256::from(10_u32);
         indexing_array
             .append_with_low_element_index(low_element_index, nullifier2)
             .unwrap();
@@ -744,7 +721,7 @@ mod test {
             indexing_array.elements[0],
             IndexingElement {
                 index: 0,
-                value: [0u8; 32],
+                value: BigInteger256::zero(),
                 next_index: 2,
             }
         );
@@ -752,10 +729,7 @@ mod test {
             indexing_array.elements[1],
             IndexingElement {
                 index: 1,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ],
+                value: BigInteger256::from(30_u32),
                 next_index: 0,
             }
         );
@@ -763,19 +737,13 @@ mod test {
             indexing_array.elements[2],
             IndexingElement {
                 index: 2,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ],
+                value: BigInteger256::from(10_u32),
                 next_index: 1,
             }
         );
 
         let low_element_index = 2;
-        let nullifier3: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 20,
-        ];
+        let nullifier3 = BigInteger256::from(20_u32);
         indexing_array
             .append_with_low_element_index(low_element_index, nullifier3)
             .unwrap();
@@ -799,7 +767,7 @@ mod test {
             indexing_array.elements[0],
             IndexingElement {
                 index: 0,
-                value: [0u8; 32],
+                value: BigInteger256::zero(),
                 next_index: 2,
             }
         );
@@ -807,10 +775,7 @@ mod test {
             indexing_array.elements[1],
             IndexingElement {
                 index: 1,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ],
+                value: BigInteger256::from(30_u32),
                 next_index: 0,
             }
         );
@@ -818,10 +783,7 @@ mod test {
             indexing_array.elements[2],
             IndexingElement {
                 index: 2,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ],
+                value: BigInteger256::from(10_u32),
                 next_index: 3,
             }
         );
@@ -829,19 +791,13 @@ mod test {
             indexing_array.elements[3],
             IndexingElement {
                 index: 3,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 20
-                ],
+                value: BigInteger256::from(20_u32),
                 next_index: 1,
             }
         );
 
         let low_element_index = 1;
-        let nullifier4: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 50,
-        ];
+        let nullifier4 = BigInteger256::from(50_u32);
         indexing_array
             .append_with_low_element_index(low_element_index, nullifier4)
             .unwrap();
@@ -867,7 +823,7 @@ mod test {
             indexing_array.elements[0],
             IndexingElement {
                 index: 0,
-                value: [0u8; 32],
+                value: BigInteger256::zero(),
                 next_index: 2,
             }
         );
@@ -875,10 +831,7 @@ mod test {
             indexing_array.elements[1],
             IndexingElement {
                 index: 1,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 30
-                ],
+                value: BigInteger256::from(30_u32),
                 next_index: 4,
             }
         );
@@ -886,10 +839,7 @@ mod test {
             indexing_array.elements[2],
             IndexingElement {
                 index: 2,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 10
-                ],
+                value: BigInteger256::from(10_u32),
                 next_index: 3,
             }
         );
@@ -897,10 +847,7 @@ mod test {
             indexing_array.elements[3],
             IndexingElement {
                 index: 3,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 20
-                ],
+                value: BigInteger256::from(20_u32),
                 next_index: 1,
             }
         );
@@ -908,10 +855,7 @@ mod test {
             indexing_array.elements[4],
             IndexingElement {
                 index: 4,
-                value: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 50
-                ],
+                value: BigInteger256::from(50_u32),
                 next_index: 0,
             }
         );
@@ -928,7 +872,8 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexingArray<Poseidon, 8> = IndexingArray::default();
+        let mut indexing_array: IndexingArray<Poseidon, BigInteger256, 8> =
+            IndexingArray::default();
 
         // Append nullifier 30. The low nullifier is at index 0. The array
         // should look like:
@@ -938,10 +883,7 @@ mod test {
         // next_index = [ 1] [ 0] [0] [0] [0] [0] [0] [0]
         // ```
         let low_element_index = 0;
-        let nullifier1: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 30,
-        ];
+        let nullifier1 = BigInteger256::from(30_u32);
         indexing_array
             .append_with_low_element_index(low_element_index, nullifier1)
             .unwrap();
@@ -950,10 +892,7 @@ mod test {
         // nullifier.
         // Therefore, the new element is lower than the supposed low element.
         let low_element_index = 1;
-        let nullifier2: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 20,
-        ];
+        let nullifier2 = BigInteger256::from(20_u32);
         assert!(matches!(
             indexing_array.append_with_low_element_index(low_element_index, nullifier2),
             Err(HasherError::LowElementGreaterOrEqualToNewElement)
@@ -963,10 +902,7 @@ mod test {
         // nullifier.
         // Therefore, the new element is greater than next element.
         let low_element_index = 0;
-        let nullifier2: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 50,
-        ];
+        let nullifier2 = BigInteger256::from(50_u32);
         assert!(matches!(
             indexing_array.append_with_low_element_index(low_element_index, nullifier2),
             Err(HasherError::NewElementGreaterOrEqualToNextElement),
@@ -980,10 +916,7 @@ mod test {
         // next_index = [ 1] [ 2] [ 0] [0] [0] [0] [0] [0]
         // ```
         let low_element_index = 1;
-        let nullifier2: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 50,
-        ];
+        let nullifier2 = BigInteger256::from(50_u32);
         indexing_array
             .append_with_low_element_index(low_element_index, nullifier2)
             .unwrap();
@@ -992,10 +925,7 @@ mod test {
         // low nullifier.
         // Therefore, the pointed low element is greater than the new element.
         let low_element_index = 2;
-        let nullifier3: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 50,
-        ];
+        let nullifier3 = BigInteger256::from(40_u32);
         assert!(matches!(
             indexing_array.append_with_low_element_index(low_element_index, nullifier3),
             Err(HasherError::LowElementGreaterOrEqualToNewElement)

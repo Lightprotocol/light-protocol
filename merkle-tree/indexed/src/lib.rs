@@ -1,3 +1,6 @@
+use std::marker::PhantomData;
+
+use ark_ff::BigInteger;
 use array::IndexingElement;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree;
 use light_hasher::{errors::HasherError, Hasher};
@@ -8,31 +11,37 @@ pub mod reference;
 #[repr(C)]
 pub struct IndexedMerkleTree<
     H,
+    B,
     const HEIGHT: usize,
     const MAX_CHANGELOG: usize,
     const MAX_ROOTS: usize,
 > where
     H: Hasher,
+    B: BigInteger,
 {
     pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>,
+    _bigint: PhantomData<B>,
 }
 
-impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Default
-    for IndexedMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+impl<H, B, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Default
+    for IndexedMerkleTree<H, B, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
 where
     H: Hasher,
+    B: BigInteger,
 {
     fn default() -> Self {
         Self {
             merkle_tree: ConcurrentMerkleTree::default(),
+            _bigint: PhantomData,
         }
     }
 }
 
-impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>
-    IndexedMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+impl<H, B, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>
+    IndexedMerkleTree<H, B, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
 where
     H: Hasher,
+    B: BigInteger,
 {
     pub fn init(&mut self) -> Result<(), HasherError> {
         self.merkle_tree.init()?;
@@ -71,10 +80,10 @@ where
     pub fn update(
         &mut self,
         changelog_index: usize,
-        new_element: IndexingElement,
-        new_element_next_value: [u8; 32],
-        low_element: IndexingElement,
-        low_element_next_value: [u8; 32],
+        new_element: IndexingElement<B>,
+        new_element_next_value: B,
+        low_element: IndexingElement<B>,
+        low_element_next_value: B,
         low_leaf_proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), HasherError> {
         // Check that the value of `new_element` belongs to the range
@@ -108,8 +117,8 @@ where
 
         // Update low element. If the `old_low_element` does not belong to the
         // tree, validating the proof is going to fail.
-        let old_low_leaf = low_element.hash::<H>(low_element_next_value)?;
-        let new_low_leaf = new_low_element.hash::<H>(new_element.value)?;
+        let old_low_leaf = low_element.hash::<H>(&low_element_next_value)?;
+        let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
         self.merkle_tree.update(
             changelog_index,
             &old_low_leaf,
@@ -119,7 +128,7 @@ where
         )?;
 
         // Append new element.
-        let new_leaf = new_element.hash::<H>(new_element_next_value)?;
+        let new_leaf = new_element.hash::<H>(&new_element_next_value)?;
         self.merkle_tree.append(&new_leaf)?;
 
         Ok(())

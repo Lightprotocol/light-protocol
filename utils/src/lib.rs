@@ -1,11 +1,23 @@
 use std::{
     env,
     io::{self, prelude::*},
+    mem,
     process::{Command, Stdio},
     thread::spawn,
 };
 
+use ark_ff::BigInt;
+use thiserror::Error;
+
 const CHUNK_SIZE: usize = 32;
+
+#[derive(Debug, Error)]
+pub enum UtilsError {
+    #[error("Invalid input size, expected {0}, got {1}")]
+    InvalidInputSize(usize, usize),
+    #[error("Invalid chunk size")]
+    InvalidChunkSize,
+}
 
 pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
     let mut arr = [0u8; SIZE];
@@ -15,6 +27,24 @@ pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
         }
     }
     arr
+}
+
+/// Converts the given byte slice into [`ark_ff::BigInt`](`ark_ff::BigInt`).
+pub fn le_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
+    bytes: &[u8; BYTES_SIZE],
+) -> Result<BigInt<NUM_LIMBS>, UtilsError> {
+    let expected_size = NUM_LIMBS * mem::size_of::<u64>();
+    if BYTES_SIZE != expected_size {
+        return Err(UtilsError::InvalidInputSize(expected_size, BYTES_SIZE));
+    }
+
+    let mut bigint: BigInt<NUM_LIMBS> = BigInt::zero();
+    for (i, chunk) in bytes.chunks(mem::size_of::<u64>()).enumerate() {
+        bigint.0[i] =
+            u64::from_le_bytes(chunk.try_into().map_err(|_| UtilsError::InvalidChunkSize)?);
+    }
+
+    Ok(bigint)
 }
 
 /// Truncates the given 32-byte array, replacing the least important element

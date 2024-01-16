@@ -1,10 +1,12 @@
 use std::cell::{RefCell, RefMut};
 
+use ark_ff::{BigInteger, BigInteger256};
 use light_hasher::{errors::HasherError, Hasher, Poseidon};
 use light_indexed_merkle_tree::{
     array::{IndexingArray, IndexingElement},
     reference, IndexedMerkleTree,
 };
+use light_utils::le_bytes_to_bigint;
 use thiserror::Error;
 
 const MERKLE_TREE_HEIGHT: usize = 4;
@@ -21,7 +23,7 @@ const NR_NULLIFIERS: usize = 2;
 /// inserting nullifiers into the queue.
 fn program_insert<H>(
     // PDA
-    mut queue: RefMut<'_, IndexingArray<H, QUEUE_ELEMENTS>>,
+    mut queue: RefMut<'_, IndexingArray<H, BigInteger256, QUEUE_ELEMENTS>>,
     // Instruction data
     nullifiers: [[u8; 32]; NR_NULLIFIERS],
 ) -> Result<(), HasherError>
@@ -29,7 +31,8 @@ where
     H: Hasher,
 {
     for i in 0..NR_NULLIFIERS {
-        queue.append(nullifiers[i])?;
+        let nullifier = le_bytes_to_bigint(&nullifiers[i]).unwrap();
+        queue.append(nullifier)?;
     }
     Ok(())
 }
@@ -44,19 +47,25 @@ enum RelayerUpdateError {
 /// inserting nullifiers from the queue to the tree.
 fn program_update<H>(
     // PDAs
-    queue: &mut RefMut<'_, IndexingArray<H, QUEUE_ELEMENTS>>,
+    queue: &mut RefMut<'_, IndexingArray<H, BigInteger256, QUEUE_ELEMENTS>>,
     merkle_tree: &mut RefMut<
         '_,
-        IndexedMerkleTree<H, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS>,
+        IndexedMerkleTree<
+            H,
+            BigInteger256,
+            MERKLE_TREE_HEIGHT,
+            MERKLE_TREE_CHANGELOG,
+            MERKLE_TREE_ROOTS,
+        >,
     >,
     // Instruction data
     changelog_index: u16,
     queue_index: u16,
     nullifier_index: u16,
     nullifier_next_index: u16,
-    nullifier_next_value: [u8; 32],
-    low_nullifier: IndexingElement,
-    low_nullifier_next_value: [u8; 32],
+    nullifier_next_value: BigInteger256,
+    low_nullifier: IndexingElement<BigInteger256>,
+    low_nullifier_next_value: BigInteger256,
     low_nullifier_proof: [[u8; 32]; MERKLE_TREE_HEIGHT],
 ) -> Result<(), HasherError>
 where
@@ -85,18 +94,30 @@ where
 /// nullifier Merkle tree.
 fn relayer_update<H>(
     // PDAs
-    queue: &mut RefMut<'_, IndexingArray<H, QUEUE_ELEMENTS>>,
+    queue: &mut RefMut<'_, IndexingArray<H, BigInteger256, QUEUE_ELEMENTS>>,
     merkle_tree: &mut RefMut<
         '_,
-        IndexedMerkleTree<H, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS>,
+        IndexedMerkleTree<
+            H,
+            BigInteger256,
+            MERKLE_TREE_HEIGHT,
+            MERKLE_TREE_CHANGELOG,
+            MERKLE_TREE_ROOTS,
+        >,
     >,
 ) -> Result<(), RelayerUpdateError>
 where
     H: Hasher,
 {
-    let mut relayer_indexing_array = IndexingArray::<H, INDEXING_ARRAY_ELEMENTS>::default();
-    let mut relayer_merkle_tree =
-        reference::IndexedMerkleTree::<H, MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS>::new().unwrap();
+    let mut relayer_indexing_array =
+        IndexingArray::<H, BigInteger256, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut relayer_merkle_tree = reference::IndexedMerkleTree::<
+        H,
+        BigInteger256,
+        MERKLE_TREE_HEIGHT,
+        MERKLE_TREE_ROOTS,
+    >::new()
+    .unwrap();
 
     let mut update_errors: Vec<HasherError> = Vec::new();
 
@@ -140,9 +161,9 @@ where
         // Update off-chain tree.
         relayer_merkle_tree
             .update(
-                nullifier_bundle.new_low_element,
-                nullifier_bundle.new_element,
-                nullifier_bundle.new_element_next_value,
+                &nullifier_bundle.new_low_element,
+                &nullifier_bundle.new_element,
+                &nullifier_bundle.new_element_next_value,
             )
             .unwrap();
 
@@ -150,7 +171,7 @@ where
         if update_successful {
             let low_nullifier_leaf = nullifier_bundle
                 .new_low_element
-                .hash::<H>(nullifier_bundle.new_element.value)
+                .hash::<H>(&nullifier_bundle.new_element.value)
                 .unwrap();
             let low_nullifier_proof =
                 relayer_merkle_tree.get_proof_of_leaf(nullifier_bundle.new_low_element.index());
@@ -164,7 +185,7 @@ where
 
             let new_nullifier_leaf = nullifier_bundle
                 .new_element
-                .hash::<H>(nullifier_bundle.new_element_next_value)
+                .hash::<H>(&nullifier_bundle.new_element_next_value)
                 .unwrap();
             let new_nullifier_proof =
                 relayer_merkle_tree.get_proof_of_leaf(nullifier_bundle.new_element.index());
@@ -202,34 +223,42 @@ where
     H: Hasher,
 {
     // On-chain PDAs.
-    let onchain_queue: RefCell<IndexingArray<H, QUEUE_ELEMENTS>> =
+    let onchain_queue: RefCell<IndexingArray<H, BigInteger256, QUEUE_ELEMENTS>> =
         RefCell::new(IndexingArray::default());
     let onchain_tree: RefCell<
-        IndexedMerkleTree<H, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS>,
+        IndexedMerkleTree<
+            H,
+            BigInteger256,
+            MERKLE_TREE_HEIGHT,
+            MERKLE_TREE_CHANGELOG,
+            MERKLE_TREE_ROOTS,
+        >,
     > = RefCell::new(IndexedMerkleTree::default());
     onchain_tree.borrow_mut().init().unwrap();
 
     // Insert a pair of nullifiers.
-    let nullifier1: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 30,
-    ];
-    let nullifier2: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 10,
-    ];
-    program_insert::<H>(onchain_queue.borrow_mut(), [nullifier1, nullifier2]).unwrap();
+    let nullifier1 = BigInteger256::from(30_u32);
+    let nullifier2 = BigInteger256::from(10_u32);
+    program_insert::<H>(
+        onchain_queue.borrow_mut(),
+        [
+            nullifier1.to_bytes_be().try_into().unwrap(),
+            nullifier2.to_bytes_be().try_into().unwrap(),
+        ],
+    )
+    .unwrap();
 
     // Insert an another pair of nullifiers.
-    let nullifier3: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 20,
-    ];
-    let nullifier4: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 50,
-    ];
-    program_insert::<H>(onchain_queue.borrow_mut(), [nullifier3, nullifier4]).unwrap();
+    let nullifier3 = BigInteger256::from(20_u32);
+    let nullifier4 = BigInteger256::from(50_u32);
+    program_insert::<H>(
+        onchain_queue.borrow_mut(),
+        [
+            nullifier3.to_bytes_be().try_into().unwrap(),
+            nullifier4.to_bytes_be().try_into().unwrap(),
+        ],
+    )
+    .unwrap();
 
     // Call relayer to update the tree.
     relayer_update::<H>(
@@ -251,22 +280,28 @@ where
     H: Hasher,
 {
     // On-chain PDAs.
-    let onchain_queue: RefCell<IndexingArray<H, QUEUE_ELEMENTS>> =
+    let onchain_queue: RefCell<IndexingArray<H, BigInteger256, QUEUE_ELEMENTS>> =
         RefCell::new(IndexingArray::default());
     let onchain_tree: RefCell<
-        IndexedMerkleTree<H, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS>,
+        IndexedMerkleTree<
+            H,
+            BigInteger256,
+            MERKLE_TREE_HEIGHT,
+            MERKLE_TREE_CHANGELOG,
+            MERKLE_TREE_ROOTS,
+        >,
     > = RefCell::new(IndexedMerkleTree::default());
     onchain_tree.borrow_mut().init().unwrap();
 
     // Insert a pair of nulifiers.
-    let nullifier1: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 30,
-    ];
-    let nullifier2: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 10,
-    ];
+    let nullifier1: [u8; 32] = BigInteger256::from(30_u32)
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+    let nullifier2: [u8; 32] = BigInteger256::from(10_u32)
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
     program_insert::<H>(onchain_queue.borrow_mut(), [nullifier1, nullifier2]).unwrap();
 
     // Try inserting the same pair into the queue. It should fail with an error.
@@ -288,15 +323,16 @@ where
     // At the same time, insert also some new nullifiers which aren't spent
     // yet. We want to make sure that they will be processed successfully and
     // only the invalid nullifiers will produce errors.
-    let nullifier3: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 25,
-    ];
-    let nullifier4: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 5,
-    ];
-    program_insert::<H>(onchain_queue.borrow_mut(), [nullifier3, nullifier4]).unwrap();
+    let nullifier3 = BigInteger256::from(25_u32);
+    let nullifier4 = BigInteger256::from(5_u32);
+    program_insert::<H>(
+        onchain_queue.borrow_mut(),
+        [
+            nullifier3.to_bytes_be().try_into().unwrap(),
+            nullifier4.to_bytes_be().try_into().unwrap(),
+        ],
+    )
+    .unwrap();
     // We expect exactly two errors (for the invalid nullifiers). No more, no
     // less.
     let _expected_err: Result<(), RelayerUpdateError> =
@@ -328,43 +364,49 @@ where
     H: Hasher,
 {
     // On-chain PDAs.
-    let onchain_queue: RefCell<IndexingArray<H, QUEUE_ELEMENTS>> =
+    let onchain_queue: RefCell<IndexingArray<H, BigInteger256, QUEUE_ELEMENTS>> =
         RefCell::new(IndexingArray::default());
     let onchain_tree: RefCell<
-        IndexedMerkleTree<H, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS>,
+        IndexedMerkleTree<
+            H,
+            BigInteger256,
+            MERKLE_TREE_HEIGHT,
+            MERKLE_TREE_CHANGELOG,
+            MERKLE_TREE_ROOTS,
+        >,
     > = RefCell::new(IndexedMerkleTree::default());
     onchain_tree.borrow_mut().init().unwrap();
 
     // Local artifacts.
-    let mut local_indexing_array = IndexingArray::<H, INDEXING_ARRAY_ELEMENTS>::default();
-    let mut local_merkle_tree =
-        reference::IndexedMerkleTree::<H, MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS>::new().unwrap();
+    let mut local_indexing_array =
+        IndexingArray::<H, BigInteger256, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut local_merkle_tree = reference::IndexedMerkleTree::<
+        H,
+        BigInteger256,
+        MERKLE_TREE_HEIGHT,
+        MERKLE_TREE_ROOTS,
+    >::new()
+    .unwrap();
 
     // Insert a pair of nullifiers, correctly. Just do it with relayer.
-    let nullifier1: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 30,
-    ];
-    let nullifier2: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 10,
-    ];
+    let nullifier1 = BigInteger256::from(30_u32);
+    let nullifier2 = BigInteger256::from(10_u32);
     onchain_queue.borrow_mut().append(nullifier1).unwrap();
     onchain_queue.borrow_mut().append(nullifier2).unwrap();
     let nullifier_bundle = local_indexing_array.append(nullifier1).unwrap();
     local_merkle_tree
         .update(
-            nullifier_bundle.new_low_element,
-            nullifier_bundle.new_element,
-            nullifier_bundle.new_element_next_value,
+            &nullifier_bundle.new_low_element,
+            &nullifier_bundle.new_element,
+            &nullifier_bundle.new_element_next_value,
         )
         .unwrap();
     let nullifier_bundle = local_indexing_array.append(nullifier2).unwrap();
     local_merkle_tree
         .update(
-            nullifier_bundle.new_low_element,
-            nullifier_bundle.new_element,
-            nullifier_bundle.new_element_next_value,
+            &nullifier_bundle.new_low_element,
+            &nullifier_bundle.new_element,
+            &nullifier_bundle.new_element_next_value,
         )
         .unwrap();
     relayer_update(
@@ -376,10 +418,7 @@ where
     // Try inserting nullifier 20, while pointing to index 1 (value 30) as low
     // nullifier. Point to index 2 (value 10) as next value.
     // Therefore, the new element is lowe than the supposed low element.
-    let nullifier3: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 20,
-    ];
+    let nullifier3 = BigInteger256::from(20_u32);
     onchain_queue.borrow_mut().append(nullifier3).unwrap();
     let changelog_index = onchain_tree.borrow_mut().changelog_index();
     // Index of our new nullifier in the queue.
@@ -416,10 +455,7 @@ where
 
     // Try inserting nullifier 50, while pointing to index 0 as low nullifier.
     // Therefore, the new element is greate than next element.
-    let nullifier3: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 50,
-    ];
+    let nullifier3 = BigInteger256::from(50_u32);
     onchain_queue.borrow_mut().append(nullifier3).unwrap();
     let changelog_index = onchain_tree.borrow_mut().changelog_index();
     // Index of our new nullifier in the queue.

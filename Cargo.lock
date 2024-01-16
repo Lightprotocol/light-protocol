@@ -2792,11 +2792,10 @@ version = "0.1.0"
 dependencies = [
  "ark-bn254 0.4.0",
  "ark-ff 0.4.2",
- "lazy_static",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-merkle-tree-reference",
- "num-bigint 0.4.4",
+ "light-utils",
  "thiserror",
 ]
 
@@ -2949,6 +2948,8 @@ name = "light-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ark-ff 0.4.2",
+ "thiserror",
 ]
 
 [[package]]
