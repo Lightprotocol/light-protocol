@@ -4,6 +4,7 @@ pub mod poseidon;
 pub mod sha256;
 pub mod syscalls;
 pub mod zero_bytes;
+pub mod zero_indexed_leaf;
 
 pub use keccak::Keccak;
 pub use poseidon::Poseidon;
@@ -19,4 +20,5 @@ pub trait Hasher {
     fn hash(val: &[u8]) -> Result<Hash, HasherError>;
     fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError>;
     fn zero_bytes() -> ZeroBytes;
+    fn zero_indexed_leaf() -> [u8; 32];
 }

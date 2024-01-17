@@ -1,16 +1,11 @@
 use std::{fs::File, io::prelude::*, path::PathBuf};
 
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use light_hasher::{zero_bytes::MAX_HEIGHT, Hasher, Keccak, Poseidon, Sha256};
 use light_utils::rustfmt;
 use quote::quote;
 
-#[derive(Debug, Clone, ValueEnum)]
-enum Hash {
-    Keccak,
-    Poseidon,
-    Sha256,
-}
+use crate::Hash;
 
 #[derive(Debug, Parser)]
 pub struct Options {

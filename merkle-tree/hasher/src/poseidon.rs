@@ -1,6 +1,7 @@
 use crate::{
     errors::HasherError,
     zero_bytes::{poseidon::ZERO_BYTES, ZeroBytes},
+    zero_indexed_leaf::poseidon::ZERO_INDEXED_LEAF,
     Hash, Hasher,
 };
 
@@ -93,5 +94,9 @@ impl Hasher for Poseidon {
 
     fn zero_bytes() -> ZeroBytes {
         ZERO_BYTES
+    }
+
+    fn zero_indexed_leaf() -> [u8; 32] {
+        ZERO_INDEXED_LEAF
     }
 }
