@@ -4,6 +4,14 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import {
+  ConfirmOptions,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_CLOCK_PUBKEY,
+  SYSVAR_RENT_PUBKEY,
+} from "@solana/web3.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 import {
   LightMerkleTreeProgram,
@@ -15,16 +23,7 @@ import {
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
 } from "./idls";
-
-import {
-  ConfirmOptions,
-  PublicKey,
-  SystemProgram,
-  SYSVAR_CLOCK_PUBKEY,
-  SYSVAR_RENT_PUBKEY,
-} from "@solana/web3.js";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { TokenData } from "./index";
+import { TokenData } from "./types/token";
 
 export const BN_0 = new anchor.BN(0);
 export const BN_1 = new anchor.BN(1);

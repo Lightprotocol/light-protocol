@@ -6,10 +6,8 @@ import {
   ParsedTransactionWithMeta,
   PublicKey,
 } from "@solana/web3.js";
-
 import { BN } from "@coral-xyz/anchor";
 import * as borsh from "@coral-xyz/borsh";
-
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import {
@@ -19,14 +17,9 @@ import {
   merkleTreeProgramId,
   BN_0,
 } from "../constants";
-
-import {
-  Action,
-  MerkleTreeConfig,
-  Utxo,
-  getIdsFromEncryptedUtxos,
-} from "../index";
-
+import { Action } from "../types";
+import { Utxo } from "../utxo";
+import { getIdsFromEncryptedUtxos } from "../test-utils";
 import { getUpdatedSpentUtxos, sleep } from "../utils";
 import {
   UserIndexedTransaction,
@@ -34,7 +27,9 @@ import {
   ParsedIndexedTransaction,
   RpcIndexedTransaction,
 } from "../types";
-import { TokenUtxoBalance, Provider } from "..";
+import { Provider } from "../provider";
+import { TokenUtxoBalance } from "../build-balance";
+import { MerkleTreeConfig } from "../merkle-tree";
 
 export class TransactionIndexerEvent {
   borshSchema = borsh.struct([

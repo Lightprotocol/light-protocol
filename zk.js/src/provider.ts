@@ -9,23 +9,19 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { initLookUpTable } from "./utils";
-import {
-  ADMIN_AUTH_KEYPAIR,
-  MINIMUM_LAMPORTS,
-  MINT,
-  ProviderError,
-  ProviderErrorCode,
-  Rpc,
-  RPC_FEE,
-  RPC_RECIPIENT_KEYPAIR,
-  RpcSendTransactionsResponse,
-  sendVersionedTransactions,
-  SendVersionedTransactionsResult,
-  TOKEN_ACCOUNT_FEE,
-  useWallet,
-} from "./index";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
+
+import { initLookUpTable } from "./utils";
+import { ADMIN_AUTH_KEYPAIR, MINT, RPC_RECIPIENT_KEYPAIR } from "./test-utils";
+import { MINIMUM_LAMPORTS, RPC_FEE, TOKEN_ACCOUNT_FEE } from "./constants";
+import { ProviderError, ProviderErrorCode } from "./errors";
+import { Rpc, RpcSendTransactionsResponse } from "./rpc";
+import {
+  SendVersionedTransactionsResult,
+  sendVersionedTransactions,
+} from "./transaction";
+import { useWallet } from "./wallet";
+
 const axios = require("axios");
 
 /**
