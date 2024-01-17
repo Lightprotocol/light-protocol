@@ -1,14 +1,12 @@
 use std::{cmp::Ordering, marker::PhantomData};
 
+use hash::compute_root;
 use light_hasher::{errors::HasherError, Hasher};
 
 pub mod changelog;
 pub mod hash;
 
-use crate::{
-    changelog::ChangelogEntry,
-    hash::{compute_parent_node, validate_proof},
-};
+use crate::{changelog::ChangelogEntry, hash::compute_parent_node};
 
 /// [Concurrent Merkle tree](https://drive.google.com/file/d/1BOpa5OFmara50fTvL0VIVYjtg-qzHCVc/view)
 /// which allows for multiple requests of updating leaves, without making any
@@ -176,6 +174,23 @@ where
         Some(updated_proof)
     }
 
+    /// Checks whether the given Merkle `proof` for the given `node` (with index
+    /// `i`) is valid. The proof is valid when computing parent node hashes using
+    /// the whole path of the proof gives the same result as the given `root`.
+    pub fn validate_proof(
+        &self,
+        leaf: &[u8; 32],
+        leaf_index: usize,
+        proof: &[[u8; 32]; HEIGHT],
+    ) -> Result<(), HasherError> {
+        let computed_root = compute_root::<H, HEIGHT>(leaf, leaf_index, proof)?;
+        if computed_root == self.root()? {
+            Ok(())
+        } else {
+            Err(HasherError::InvalidProof)
+        }
+    }
+
     /// Updates the leaf under `leaf_index` with the `new_leaf` value.
     ///
     /// 1. Computes the new path and root from `new_leaf` and Merkle proof
@@ -275,12 +290,7 @@ where
             proof.to_owned()
         };
 
-        validate_proof::<H, HEIGHT>(
-            &self.roots[self.current_root_index as usize],
-            old_leaf,
-            leaf_index,
-            proof,
-        )?;
+        self.validate_proof(old_leaf, leaf_index, proof)?;
         self.update_leaf_in_tree(new_leaf, leaf_index, &updated_proof)
     }
 
