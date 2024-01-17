@@ -27,14 +27,14 @@ import {
   getIdsFromEncryptedUtxos,
 } from "../index";
 
-import { getUpdatedSpentUtxos, sleep } from "../utils/utils";
+import { getUpdatedSpentUtxos, sleep } from "../utils";
 import {
   UserIndexedTransaction,
   IndexedTransactionData,
   ParsedIndexedTransaction,
   RpcIndexedTransaction,
 } from "../types";
-import { TokenUtxoBalance, Provider } from "../wallet";
+import { TokenUtxoBalance, Provider } from "..";
 
 export class TransactionIndexerEvent {
   borshSchema = borsh.struct([

@@ -14,7 +14,7 @@ import {
   getSystemPspIdl,
   getVerifierProgramId,
   syncInputUtxosMerkleProofs,
-} from "./pspTransaction";
+} from "./psp-transaction";
 import { LightWasm } from "@lightprotocol/account.rs";
 import {
   Rpc,

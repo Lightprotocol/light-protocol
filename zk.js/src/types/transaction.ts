@@ -1,7 +1,7 @@
 import { BN, Idl, Provider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { Rpc } from "../rpc";
-import { Utxo } from "../utxo/utxo";
+import { Utxo } from "../utxo";
 
 export type AppUtxoConfig = {
   verifierAddress: PublicKey;

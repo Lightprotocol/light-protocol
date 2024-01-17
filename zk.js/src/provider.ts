@@ -9,7 +9,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { initLookUpTable } from "./utils/utils";
+import { initLookUpTable } from "./utils";
 import {
   ADMIN_AUTH_KEYPAIR,
   MINIMUM_LAMPORTS,

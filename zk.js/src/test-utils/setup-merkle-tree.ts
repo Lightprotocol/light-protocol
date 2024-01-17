@@ -5,7 +5,7 @@ import {
   IDL_LIGHT_PSP10IN2OUT,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
-} from "../idls/index";
+} from "../idls";
 
 import {
   ADMIN_AUTH_KEYPAIR,
@@ -19,7 +19,7 @@ import {
   lightPsp2in2outStorageId,
   getSignerAuthorityPda,
 } from "../index";
-import { MerkleTreeConfig } from "../merkle-tree/merkle-tree-config";
+import { MerkleTreeConfig } from "../merkle-tree";
 
 export async function setUpMerkleTree(
   provider: anchor.AnchorProvider,

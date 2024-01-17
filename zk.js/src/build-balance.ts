@@ -8,7 +8,7 @@ import { Account } from "./account";
 import {
   fetchNullifierAccountInfo,
   fetchQueuedLeavesAccountInfo,
-} from "./utils/utils";
+} from "./utils";
 import {
   TokenUtxoBalanceError,
   TokenUtxoBalanceErrorCode,

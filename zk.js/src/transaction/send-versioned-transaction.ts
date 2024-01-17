@@ -11,7 +11,7 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 
-import { Wallet } from "../wallet";
+import { Wallet } from "..";
 import { confirmConfig } from "../constants";
 export const sendVersionedTransaction = async (
   ix: TransactionInstruction,
