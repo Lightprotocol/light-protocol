@@ -1,13 +1,13 @@
-import { ProgramUtxo, Utxo, decryptUtxo } from "../index";
+import { ProgramUtxo, Utxo, decryptUtxo } from "./index";
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 
 import { Connection, PublicKey } from "@solana/web3.js";
-import { Account } from "../account";
+import { Account } from "./account";
 import {
   fetchNullifierAccountInfo,
   fetchQueuedLeavesAccountInfo,
-} from "../utils";
+} from "./utils/utils";
 import {
   TokenUtxoBalanceError,
   TokenUtxoBalanceErrorCode,
@@ -18,7 +18,7 @@ import {
   TOKEN_PUBKEY_SYMBOL,
   UserErrorCode,
   BN_0,
-} from "../index";
+} from "./index";
 import { LightWasm } from "@lightprotocol/account.rs";
 // mint | programAddress for programUtxos
 export type Balance = {

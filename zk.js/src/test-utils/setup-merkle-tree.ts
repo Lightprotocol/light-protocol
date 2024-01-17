@@ -19,7 +19,7 @@ import {
   lightPsp2in2outStorageId,
   getSignerAuthorityPda,
 } from "../index";
-import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
+import { MerkleTreeConfig } from "../merkle-tree/merkle-tree-config";
 
 export async function setUpMerkleTree(
   provider: anchor.AnchorProvider,

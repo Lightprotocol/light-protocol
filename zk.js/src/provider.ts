@@ -9,7 +9,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { initLookUpTable } from "../utils";
+import { initLookUpTable } from "./utils/utils";
 import {
   ADMIN_AUTH_KEYPAIR,
   MINIMUM_LAMPORTS,
@@ -24,7 +24,7 @@ import {
   SendVersionedTransactionsResult,
   TOKEN_ACCOUNT_FEE,
   useWallet,
-} from "../index";
+} from "./index";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 const axios = require("axios");
 

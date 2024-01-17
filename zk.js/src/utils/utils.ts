@@ -15,7 +15,7 @@ import {
   lightPsp4in4outAppStorageId,
   BN_0,
   BN_1,
-} from "./constants";
+} from "../constants";
 import {
   AddressLookupTableProgram,
   Connection,
@@ -23,18 +23,18 @@ import {
   Transaction,
   SystemProgram,
 } from "@solana/web3.js";
-import { MerkleTreeConfig } from "./merkleTree";
-import { MINT } from "./test-utils/constants_system_verifier";
+import { MerkleTreeConfig } from "../merkle-tree";
+import { MINT } from "../test-utils/constants-system-verifier";
 import * as anchor from "@coral-xyz/anchor";
-import { UtilsError, UtilsErrorCode } from "./errors";
-import { TokenUtxoBalance, Wallet } from "./wallet";
-import { TokenData } from "./types";
+import { UtilsError, UtilsErrorCode } from "../errors";
+import { TokenUtxoBalance, Wallet } from "../wallet";
+import { TokenData } from "../types";
 import { sha256 } from "@noble/hashes/sha256";
 import { Decimal } from "decimal.js";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as os from "os";
-import { Utxo } from "utxo";
+import { Utxo } from "utxo/utxo";
 
 const crypto = require("@noble/hashes/crypto");
 

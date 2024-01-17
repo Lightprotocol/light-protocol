@@ -1,13 +1,13 @@
-export * from "./createAccounts";
-export * from "./testChecks";
-export * from "./setUpMerkleTree";
-export * from "./initLookUpTable";
-export * from "./constants_market_place";
-export * from "./functionalCircuit";
-export * from "./constants_system_verifier";
-export * from "./testRpc";
-export * from "./userTestAssertHelper";
-export * from "./testTransaction";
+export * from "./create-accounts";
+export * from "./test-checks";
+export * from "./setup-merkle-tree";
+export * from "./init-lookuptable";
+export * from "./constants-marketplace";
+export * from "./functional-circuit";
+export * from "./constants-system-verifier";
+export * from "./test-rpc";
+export * from "./usertest-assert-helper";
+export * from "./test-transaction";
 export * from "./airdrop";
 
 export function generateRandomTestAmount(

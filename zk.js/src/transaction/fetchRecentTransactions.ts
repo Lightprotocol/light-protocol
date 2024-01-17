@@ -27,7 +27,7 @@ import {
   getIdsFromEncryptedUtxos,
 } from "../index";
 
-import { getUpdatedSpentUtxos, sleep } from "../utils";
+import { getUpdatedSpentUtxos, sleep } from "../utils/utils";
 import {
   UserIndexedTransaction,
   IndexedTransactionData,

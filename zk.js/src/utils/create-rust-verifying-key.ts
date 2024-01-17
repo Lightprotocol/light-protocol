@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { camelToScreamingSnake } from "./convertCase";
+import { camelToScreamingSnake } from "./convert-case";
 
 const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
