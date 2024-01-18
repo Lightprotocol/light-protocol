@@ -17,6 +17,7 @@ import {
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
+import { WasmFactory } from "@lightprotocol/account.rs";
 
 require("dotenv").config();
 
@@ -103,36 +104,28 @@ export const getUser = async ({
   skipFetchBalance?: boolean;
   localTestRpc?: boolean;
 }): Promise<User> => {
+  if (!localTestRpc) throw new Error("wth?");
   const provider = await getLightProvider(localTestRpc);
   const user = await User.init({ provider, skipFetchBalance });
   return user;
 };
 
-export const getRpc = async (localTestRpc?: boolean) => {
-  if (!rpc) {
-    if (localTestRpc) {
-      const wallet = readWalletFromFile();
+/** TODO: use non-local testrpc once we have a proper one */
 
-      rpc = new TestRpc({
-        rpcPubkey: wallet.publicKey,
-        rpcRecipientSol: wallet.publicKey,
-        rpcFee: RPC_FEE,
-        highRpcFee: TOKEN_ACCOUNT_FEE,
-        payer: wallet,
-        connection: new solana.Connection(getSolanaRpcUrl(), "confirmed"),
-        lightWasm: (await getLightProvider()).lightWasm,
-      });
-      return rpc;
-    } else {
-      const config = getConfig();
-      rpc = new Rpc(
-        new solana.PublicKey(config.rpcPublicKey),
-        new solana.PublicKey(config.rpcRecipient),
-        new BN(config.rpcFee),
-        new BN(config.highRpcFee),
-        config.rpcUrl,
-      );
-    }
+export const getRpc = async (_localTestRpc?: boolean) => {
+  if (!rpc) {
+    const wallet = readWalletFromFile();
+
+    rpc = new TestRpc({
+      rpcPubkey: wallet.publicKey,
+      rpcRecipientSol: wallet.publicKey,
+      rpcFee: RPC_FEE,
+      highRpcFee: TOKEN_ACCOUNT_FEE,
+      payer: wallet,
+      connection: new solana.Connection(getSolanaRpcUrl(), "confirmed"),
+      lightWasm: await WasmFactory.getInstance(),
+    });
+    return rpc;
   }
   return rpc;
 };

@@ -363,7 +363,7 @@ export async function sendAndConfirmCompressTransaction({
     publicTransactionVariables,
   });
 
-  const txHash = await provider.sendAndConfirmTransaction(instructions);
+  const txHash = await provider.sendAndConfirmSolanaInstructions(instructions);
   const rpcMerkleTreeUpdateResponse = "notPinged";
   return { txHash, response: rpcMerkleTreeUpdateResponse };
 }
@@ -426,11 +426,19 @@ export async function sendAndConfirmCompressedTransaction({
     publicTransactionVariables,
   });
 
-  const txHash =
-    await provider.sendAndConfirmCompressedTransaction(instructions);
+  const txHash = await provider.rpc.sendAndConfirmSolanaInstructions(
+    instructions,
+    provider.provider.connection,
+    undefined,
+    undefined,
+    provider,
+  );
   const rpcMerkleTreeUpdateResponse = "notPinged";
 
-  return { txHash, response: rpcMerkleTreeUpdateResponse };
+  return {
+    txHash: { signatures: txHash }, // TODO: unify interface
+    response: rpcMerkleTreeUpdateResponse,
+  };
 }
 
 // TODO: unify event Merkle tree and transaction Merkle tree so that only one is passed

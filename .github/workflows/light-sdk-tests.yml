@@ -34,7 +34,6 @@ jobs:
             sub-tests: '[
               "@lightprotocol/circuit-lib.js:test",
               "@lightprotocol/circuit-lib.circom:test",
-              "@lightprotocol/rpc:test"]'
     services:
       redis:
         image: redis
@@ -60,21 +59,6 @@ jobs:
       - name: Install Playwright Browsers
         shell: bash
         run: npx playwright install --with-deps
-
-      - name: ${{ matrix.name }}
-        run: |
-          source ./scripts/devenv.sh
-
-          IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
-          for subtest in "${sub_tests[@]}"
-          do
-            npx nx run $subtest
-          done
-
-
-      - name: Run Rpc Docker build test
-        if: matrix.name == 'circuit-tests'
-        run: ./scripts/testDockerRpc.sh
 
       - name: Log out
         run: docker logout

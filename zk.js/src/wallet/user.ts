@@ -64,6 +64,7 @@ import {
   createOutUtxo,
   ProgramUtxo,
   decryptProgramUtxo,
+  ActionResponseMulti,
 } from "../index";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -651,12 +652,16 @@ export class User {
     let txResult;
     try {
       if (this.recentTransactionParameters["action"] === Action.COMPRESS) {
-        txResult = await this.provider.sendAndConfirmTransaction(
+        txResult = await this.provider.sendAndConfirmSolanaInstructions(
           this.recentInstructions,
         );
       } else {
-        txResult = await this.provider.sendAndConfirmCompressedTransaction(
+        txResult = await this.provider.rpc.sendAndConfirmSolanaInstructions(
           this.recentInstructions,
+          this.provider.provider.connection,
+          undefined,
+          undefined,
+          this.provider,
         );
       }
     } catch (e) {
@@ -700,7 +705,7 @@ export class User {
     senderTokenAccount?: PublicKey;
     skipDecimalConversions?: boolean;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponseMulti> {
     const recipientAccount = recipient
       ? Account.fromPubkey(recipient, this.provider.lightWasm)
       : undefined;
@@ -731,7 +736,7 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponseMulti> {
     const txParams = await this.createDecompressTransactionParameters({
       token,
       publicAmountSpl,
@@ -877,7 +882,7 @@ export class User {
     recipient: string;
     appUtxo?: AppUtxoConfig;
     confirmOptions?: ConfirmOptions;
-  }) {
+  }): Promise<ActionResponseMulti> {
     if (!recipient)
       throw new UserError(
         UserErrorCode.COMPRESSED_RECIPIENT_UNDEFINED,
@@ -1049,7 +1054,7 @@ export class User {
     txParams: Transaction;
     confirmOptions?: ConfirmOptions;
     shuffleEnabled?: boolean;
-  }) {
+  }): Promise<ActionResponseMulti> {
     this.recentTransactionParameters = txParams;
 
     this.recentInstructions =
@@ -1066,7 +1071,10 @@ export class User {
     await this.getBalance();
 
     this.resetTxState();
-    return { txHash, response: rpcMerkleTreeUpdateResponse };
+    return {
+      txHash: { signatures: txHash }, // TODO: unify external interfaces
+      response: rpcMerkleTreeUpdateResponse,
+    };
   }
 
   // @ts-ignore
@@ -1157,7 +1165,7 @@ export class User {
     asset: PublicKey,
     confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
     latest: boolean = true,
-  ) {
+  ): Promise<ActionResponseMulti> {
     await this.getUtxoInbox(latest);
     await this.getBalance(latest);
     const inboxTokenBalance: TokenUtxoBalance | undefined =
@@ -1230,7 +1238,7 @@ export class User {
     asset: PublicKey,
     confirmOptions: ConfirmOptions = ConfirmOptions.spendable,
     latest: boolean = false,
-  ) {
+  ): Promise<ActionResponseMulti> {
     if (commitments.length == 0)
       throw new UserError(
         UserErrorCode.NO_COMMITMENTS_PROVIDED,

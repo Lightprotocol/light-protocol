@@ -1,7 +1,37 @@
 import { BN, Idl, Provider } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import {
+  BlockhashWithExpiryBlockHeight,
+  PublicKey,
+  TransactionInstruction,
+  TransactionSignature,
+  VersionedTransaction,
+  VersionedTransactionResponse,
+} from "@solana/web3.js";
 import { Rpc } from "../rpc";
 import { Utxo } from "../utxo";
+
+export type PrioritizationFee = bigint;
+
+export type LightTransaction = VersionedTransaction[];
+export type LightTransactionResponse = VersionedTransactionResponse[];
+export type LightTransactionSignature = TransactionSignature[];
+
+export type RelayerRelayPayload = {
+  instructions: TransactionInstruction[];
+  prioritizationFee?: string;
+};
+
+// TODO: create unified interface for consumers
+/** these are placeholder types until we unify the external response interface */
+export type ActionResponseMulti = {
+  txHash: { signatures: TransactionSignature[] };
+  response: string;
+};
+
+export type SignaturesWithBlockhashInfo = {
+  signatures: TransactionSignature[];
+  blockhashInfo: BlockhashWithExpiryBlockHeight;
+};
 
 export type AppUtxoConfig = {
   verifierAddress: PublicKey;

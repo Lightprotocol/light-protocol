@@ -325,7 +325,7 @@ describe("verifier_program", () => {
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
-    await lightProvider.sendAndConfirmCompressedTransaction(instructions);
+    await lightProvider.sendAndConfirmSolanaInstructions(instructions);
 
     // TODO: check why encryptedUtxo check doesn't work
     await transactionTester.checkBalances(
@@ -441,7 +441,13 @@ describe("verifier_program", () => {
       provider: lightProvider,
     });
     await transactionTester.getTestValues();
-    await lightProvider.sendAndConfirmCompressedTransaction(instructions);
+    await lightProvider.rpc.sendAndConfirmSolanaInstructions(
+      instructions,
+      lightProvider.provider.connection,
+      undefined,
+      undefined,
+      lightProvider,
+    );
 
     await transactionTester.checkBalances(
       { publicInputs: systemProof.parsedPublicInputsObject },

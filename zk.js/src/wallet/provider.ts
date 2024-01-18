@@ -8,12 +8,19 @@ import {
   PublicKey,
   SystemProgram,
   TransactionInstruction,
+  Commitment,
+  AddressLookupTableAccountArgs,
+  BlockhashWithExpiryBlockHeight,
+  TransactionConfirmationStrategy,
+  TransactionSignature,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import { initLookUpTable } from "../utils";
 import {
   ADMIN_AUTH_KEYPAIR,
   MINIMUM_LAMPORTS,
   MINT,
+  PrioritizationFee,
   ProviderError,
   ProviderErrorCode,
   Rpc,
@@ -26,6 +33,7 @@ import {
   useWallet,
 } from "../index";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
+import { createSolanaTransactions } from "../transaction/createSolanaTransactions";
 const axios = require("axios");
 
 /**
@@ -35,6 +43,7 @@ export type Wallet = {
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   signTransaction: (transaction: any) => Promise<any>;
   signAllTransactions: (transaction: any[]) => Promise<any[]>;
+  sendTransaction: (transaction: any, connection?: Connection) => Promise<any>;
   sendAndConfirmTransaction: (transaction: any) => Promise<any>;
   publicKey: PublicKey;
   isNodeWallet?: boolean;
@@ -159,25 +168,98 @@ export class Provider {
     }
   }
 
-  async sendAndConfirmTransaction(
-    instructions: TransactionInstruction[],
-  ): Promise<RpcSendTransactionsResponse | SendVersionedTransactionsResult> {
-    const response = await sendVersionedTransactions(
-      instructions,
-      this.provider.connection,
-      this.lookUpTables.versionedTransactionLookupTable,
-      this.wallet,
+  /**
+   *
+   * @param commitment The level of commitment desired when querying the account state by (default: 'confirmed')
+   * @returns
+   */
+  async getVersionedTransactionLookupTableAccountArgs(
+    commitment?: Commitment,
+  ): Promise<AddressLookupTableAccountArgs> {
+    if (!this.connection)
+      throw new ProviderError(
+        ProviderErrorCode.CONNECTION_UNDEFINED,
+        "getKeyedAddressLookUpTableAccountInfo",
+      );
+
+    const { versionedTransactionLookupTable } = this.lookUpTables;
+
+    const lookupTableAccount = await this.connection.getAccountInfo(
+      versionedTransactionLookupTable,
+      // TODO: Determine whether we should use 'finalized' instead:
+      // https://docs.solana.com/proposals/versioned-transactions#front-running
+      // potential security implications
+      commitment || "confirmed",
     );
-    if (response.error) throw response.error;
-    return response;
+
+    const unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(
+      lookupTableAccount!.data,
+    );
+    return {
+      key: versionedTransactionLookupTable,
+      state: unpackedLookupTableAccount,
+    };
   }
 
-  async sendAndConfirmCompressedTransaction(
-    instructions: TransactionInstruction[],
-  ): Promise<RpcSendTransactionsResponse | SendVersionedTransactionsResult> {
-    const response = await this.rpc.sendTransactions(instructions, this);
-    if (response.error) throw response.error;
-    return response;
+  /**
+   * Convenience wrapper for sending and confirming light transactions.
+   * Fetches recentBlockhash if none provided, builds transactions from instructions, signs, sends, and confirms them.
+   */
+  /// TODO: figure out whether we should use confirmOptions to specify the latestblockhash commitment or not
+  async sendAndConfirmSolanaInstructions(
+    ixs: TransactionInstruction[],
+    confirmOptions?: ConfirmOptions,
+    prioritizationFee?: PrioritizationFee,
+    blockhashInfo?: BlockhashWithExpiryBlockHeight,
+    /** The level of commitment desired for querying the blockhash and lookuptable args */
+    commitment?: Commitment,
+  ): Promise<TransactionSignature[]> {
+    const connection = this.connection!;
+    const wallet = this.wallet;
+    const versionedTransactionLookupTableAccountArgs =
+      await this.getVersionedTransactionLookupTableAccountArgs(commitment);
+
+    const { blockhash, lastValidBlockHeight }: BlockhashWithExpiryBlockHeight =
+      blockhashInfo || (await connection.getLatestBlockhash(commitment));
+
+    const txs = createSolanaTransactions(
+      ixs,
+      blockhash,
+      versionedTransactionLookupTableAccountArgs,
+      prioritizationFee,
+    );
+
+    /// TODO: wallet adapter should have a signAndSendAllTransactions interface soon
+    const signedTransactions: VersionedTransaction[] =
+      await wallet.signAllTransactions(txs);
+
+    const signatures: TransactionSignature[] = [];
+
+    try {
+      for (const tx of signedTransactions) {
+        const signature: TransactionSignature =
+          await connection!.sendTransaction(tx);
+
+        /// we assume that we're able to fit all txs into one blockhash expiry window
+        const strategy: TransactionConfirmationStrategy = {
+          signature,
+          lastValidBlockHeight,
+          blockhash,
+        };
+
+        await connection.confirmTransaction(
+          strategy,
+          confirmOptions?.commitment || "confirmed",
+        );
+
+        signatures.push(signature);
+      }
+    } catch (error) {
+      console.error("sendAndConfirmSolanaInstructions error: ", error); // TODO: turn into custom error that prints the entire call stack
+      throw error;
+    }
+
+    return signatures;
   }
 
   /**
