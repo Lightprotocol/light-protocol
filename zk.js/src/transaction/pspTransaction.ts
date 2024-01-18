@@ -549,13 +549,13 @@ export function addFillingOutUtxos(
   utxos: OutUtxo[] = [],
   len: number,
   lightWasm: LightWasm,
-  publicKey: BN,
+  owner: BN,
 ): OutUtxo[] {
   while (utxos.length < len) {
     utxos.push(
       createFillingOutUtxo({
         lightWasm,
-        publicKey,
+        owner,
       }),
     );
   }

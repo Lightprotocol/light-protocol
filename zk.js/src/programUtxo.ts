@@ -7,10 +7,10 @@ import {
   createAccountObject,
   createOutUtxo,
   createUtxo,
-  CreateUtxoErrorCode,
   CreateUtxoInputs,
   decryptOutUtxoInternal,
   encryptOutUtxoInternal,
+  CreateUtxoErrorCode,
   fetchAssetByIdLookUp,
   OutUtxo,
   STANDARD_COMPRESSION_PRIVATE_KEY,
@@ -23,52 +23,62 @@ import {
 import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "./types";
-// TODO: make utxoData depend on idl with generic type
-export type ProgramOutUtxo = {
-  outUtxo: OutUtxo;
-  pspId: PublicKey;
-  pspIdl: Idl;
-  includeUtxoData: boolean;
-  utxoName: string;
+
+/** Program-owned utxo that had previously been inserted into a state Merkle tree */
+export type ProgramUtxo<TData extends any> = Omit<Utxo, "owner"> & {
+  /** Public key of program that owns the utxo */
+  owner: PublicKey;
+  /** Data assigned to the utxo */
+  data: TData;
+  /** Hash of 'data' */
+  dataHash: string;
 };
 
-export function createProgramOutUtxo({
-  publicKey,
+/** Program-owned utxo that is not inserted into the state tree yet. */
+export type ProgramOutUtxo<TData extends Object> = Omit<OutUtxo, "owner"> & {
+  /** Public key of program that owns the utxo */
+  owner: PublicKey;
+  /** Data assigned to the utxo */
+  data: TData;
+  /** Hash of 'data' */
+  dataHash: string;
+};
+
+type UtxoType = string;
+
+export function createProgramOutUtxo<TData extends Object>({
+  owner,
+  data,
   encryptionPublicKey,
   amounts,
   assets,
   blinding,
   lightWasm,
-  pspId,
-  pspIdl,
-  includeUtxoData = true,
-  utxoData,
-  utxoName,
+  dataIdl,
+  type,
 }: {
-  publicKey: BN;
-  encryptionPublicKey?: Uint8Array;
+  owner: PublicKey; // was BN publickey
   amounts: BN[];
   assets: PublicKey[];
-  blinding?: BN;
   lightWasm: LightWasm;
-  pspId: PublicKey;
-  pspIdl: Idl;
-  includeUtxoData?: boolean;
-  utxoData: any;
-  utxoName: string;
-}): ProgramOutUtxo {
-  checkUtxoData(utxoData, pspIdl, utxoName + "OutUtxo");
+  dataIdl: Idl;
+  data: TData;
+  type: UtxoType;
+  encryptionPublicKey?: Uint8Array;
+  blinding?: BN;
+}): ProgramOutUtxo<TData> {
+  checkUtxoData(data, dataIdl, type + "OutUtxo");
 
   const outUtxo = createOutUtxo({
-    publicKey,
+    owner,
     encryptionPublicKey,
     amounts,
     assets,
     blinding,
     isFillingUtxo: false,
     lightWasm,
-    verifierAddress: pspId,
-    utxoData,
+
+    data,
   });
 
   const programOutUtxo: ProgramOutUtxo = {
@@ -379,13 +389,6 @@ export async function decryptProgramOutUtxo({
     }),
   );
 }
-
-export type ProgramUtxo = {
-  utxo: Utxo;
-  pspId: PublicKey;
-  pspIdl: Idl;
-  includeUtxoData: boolean;
-};
 
 export function createProgramUtxo({
   createUtxoInputs,
