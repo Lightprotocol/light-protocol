@@ -33,7 +33,7 @@ jobs:
           - name: circuit-tests
             sub-tests: '[
               "@lightprotocol/circuit-lib.js:test",
-              "@lightprotocol/circuit-lib.circom:test",
+              "@lightprotocol/circuit-lib.circom:test"]'
     services:
       redis:
         image: redis
