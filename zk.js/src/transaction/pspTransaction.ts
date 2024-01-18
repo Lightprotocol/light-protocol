@@ -305,20 +305,6 @@ export function createSystemProofInputs({
   return proofInput;
 }
 
-export function getTransactionMint(transaction: Transaction) {
-  if (transaction.public.publicAmountSpl.eq(BN_0)) {
-    return BN_0;
-  } else if (transaction.private.assetPubkeysCircuit) {
-    return transaction.private.assetPubkeysCircuit[1];
-  } else {
-    throw new TransactionError(
-      TransactionErrorCode.GET_MINT_FAILED,
-      "getMint",
-      "Failed to retrieve mint. The transaction parameters should contain 'assetPubkeysCircuit' after initialization, but it's missing.",
-    );
-  }
-}
-
 // TODO: implement privacy preserving fetching, this fetching strategy is not priaacy preserving for the rpc
 export async function syncInputUtxosMerkleProofs({
   inputUtxos,

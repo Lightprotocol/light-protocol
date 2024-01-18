@@ -13,6 +13,12 @@ import {
 
 import { Wallet } from "../wallet";
 import { confirmConfig } from "../constants";
+
+export type SendVersionedTransactionsResult = {
+  signatures?: TransactionSignature[];
+  error?: any;
+};
+
 export const sendVersionedTransaction = async (
   ix: TransactionInstruction,
   connection: Connection,
@@ -77,11 +83,6 @@ export const sendVersionedTransaction = async (
       }
     }
   }
-};
-
-export type SendVersionedTransactionsResult = {
-  signatures?: TransactionSignature[];
-  error?: any;
 };
 
 export async function sendVersionedTransactions(
