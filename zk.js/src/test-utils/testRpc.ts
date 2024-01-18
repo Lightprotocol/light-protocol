@@ -95,14 +95,13 @@ export class TestRpc extends Rpc {
     ixs: TransactionInstruction[],
     connection: Connection,
     confirmOptions?: ConfirmOptions,
+    /// TODO: Once we pick up gasless transactions: add prioritization fee onto rpcFee if used. Add test.
     prioritizationFee?: PrioritizationFee,
     /*
      * TODO: we can remove the _provider param if we provide a method to get a static txlookuptable without using provider!
      */
     provider?: Provider,
   ): Promise<TransactionSignature[]> {
-    console.log("@testRelayer.sendAndConfirmSolanaInstructions");
-
     const {
       signatures,
       blockhashInfo: { lastValidBlockHeight, blockhash },

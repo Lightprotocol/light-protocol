@@ -104,7 +104,6 @@ export const getUser = async ({
   skipFetchBalance?: boolean;
   localTestRpc?: boolean;
 }): Promise<User> => {
-  if (!localTestRpc) throw new Error("wth?");
   const provider = await getLightProvider(localTestRpc);
   const user = await User.init({ provider, skipFetchBalance });
   return user;

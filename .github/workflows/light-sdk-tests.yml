@@ -60,5 +60,14 @@ jobs:
         shell: bash
         run: npx playwright install --with-deps
 
+      - name: ${{ matrix.name }}
+            run: |
+              source ./scripts/devenv.sh
+              IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+              for subtest in "${sub_tests[@]}"
+              do
+                npx nx run $subtest
+              done
+
       - name: Log out
         run: docker logout
