@@ -481,7 +481,7 @@ export class User {
   ): Promise<TransactionInstruction[]> {
     if (!this.recentTransactionParameters)
       throw new UserError(
-        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        UserErrorCode.TRANSACTION_PARAMETERS_UNDEFINED,
         "compileAndProveTransaction",
         "The method 'createCompressTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
@@ -562,7 +562,7 @@ export class User {
   async approve() {
     if (!this.recentTransactionParameters)
       throw new UserError(
-        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        UserErrorCode.TRANSACTION_PARAMETERS_UNDEFINED,
         "compileAndProveTransaction",
         "The method 'createCompressTransactionParameters' must be executed first to approve SPL funds before initiating a compress transaction.",
       );
@@ -629,7 +629,7 @@ export class User {
   async sendTransaction() {
     if (!this.recentTransactionParameters)
       throw new UserError(
-        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        UserErrorCode.TRANSACTION_PARAMETERS_UNDEFINED,
         "sendTransaction",
         "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
       );

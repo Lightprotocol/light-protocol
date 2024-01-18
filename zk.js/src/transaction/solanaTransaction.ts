@@ -71,7 +71,7 @@ export function getSolanaRemainingAccounts(
     remainingAccounts.nullifierPdaPubkeys.push({
       isSigner: false,
       isWritable: true,
-      pubkey: getNullifierPda(nullifiers[i], merkleTreeProgramId),
+      pubkey: deriveNullifierPda(nullifiers[i], merkleTreeProgramId),
     });
   }
 
@@ -93,7 +93,7 @@ export function getSolanaRemainingAccounts(
   return remainingAccounts;
 }
 
-export function getVerifierStatePda(
+export function deriveVerifierStatePda(
   verifierProgramId: PublicKey,
   signerPublicKey: PublicKey,
 ) {
@@ -461,7 +461,7 @@ export function prepareAccounts({
     signer = rpcPublicKey;
   }
   if (!verifierState) {
-    verifierState = getVerifierStatePda(verifierProgramId, signer);
+    verifierState = deriveVerifierStatePda(verifierProgramId, signer);
   }
   const accounts = {
     systemProgramId: SystemProgram.programId,
@@ -498,7 +498,7 @@ export function getRegisteredVerifierPda(
   )[0];
 }
 
-export function getNullifierPda(
+export function deriveNullifierPda(
   nullifier: number[],
   merkleTreeProgramId: PublicKey,
 ) {

@@ -229,9 +229,7 @@ export async function getSystemProof({
   });
 }
 
-/**
- * @description Prepares proof inputs.
- */
+/** Prepares and formats the system proof inputs for the zk-SNARK circuit. */
 export function createSystemProofInputs({
   transaction,
   root,

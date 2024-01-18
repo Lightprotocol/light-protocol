@@ -451,9 +451,9 @@ export class Account {
 
     if (addPrivateKey && !inputUtxos) {
       throw new AccountError(
-        TransactionErrorCode.NO_VERIFIER_IDL_PROVIDED,
+        TransactionErrorCode.NO_UTXOS_PROVIDED,
         "getProofInternal",
-        "verifierIdl is missing in TransactionParameters",
+        "input utxos are missing in TransactionParameters, but addPrivateKey is set to true",
       );
     }
     if (addPrivateKey && inputUtxos) {

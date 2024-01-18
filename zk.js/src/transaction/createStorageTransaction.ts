@@ -247,7 +247,7 @@ export async function proveAndCreateInstructions({
 }): Promise<TransactionInstruction[]> {
   if (!transaction)
     throw new UserError(
-      UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+      UserErrorCode.TRANSACTION_PARAMETERS_UNDEFINED,
       "compileAndProveTransaction",
       "The method 'createCompressTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
     );
@@ -308,7 +308,7 @@ export async function proveAndCreateInstructions({
   });
 
   const instructions = await createSolanaInstructions({
-    action: transaction["action"] ? transaction["action"] : Action.TRANSFER,
+    action: transaction["action"] ?? Action.TRANSFER,
     systemProof,
     remainingSolanaAccounts,
     accounts,
