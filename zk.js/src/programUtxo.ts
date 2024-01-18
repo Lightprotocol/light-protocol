@@ -19,6 +19,7 @@ import {
   UtxoError,
   UtxoErrorCode,
   Utxo,
+  Public,
 } from "./index";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -44,6 +45,12 @@ export type ProgramOutUtxo<TData extends Object> = Omit<OutUtxo, "owner"> & {
   dataHash: string;
 };
 
+export type PublicProgramUtxo<TData extends Object> = ProgramUtxo<TData> &
+  Public;
+export type PublicProgramOutUtxo<TData extends Object> = ProgramOutUtxo<TData> &
+  Public;
+
+  
 type UtxoType = string;
 
 export function createProgramOutUtxo<TData extends Object>({

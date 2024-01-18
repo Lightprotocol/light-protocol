@@ -88,6 +88,12 @@ export type OutUtxo = Omit<BaseUtxo, "owner"> & {
   encryptionPublicKey?: Uint8Array;
 };
 
+/** Type safety: enforce that the utxo is not encrypted */
+export type Public = { isPublic: true };
+export type PublicBaseUtxo = BaseUtxo & Public;
+export type PublicUtxo = Utxo & Public;
+export type PublicOutUtxo = OutUtxo & Public;
+
 export type NullifierInputs = {
   signature: string;
   /** hash of the utxo preimage */
@@ -468,6 +474,7 @@ export async function encryptOutUtxoInternal({
     );
   }
 }
+
 export async function decryptOutUtxo({
   lightWasm,
   encBytes,
