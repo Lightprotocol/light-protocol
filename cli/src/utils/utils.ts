@@ -110,21 +110,31 @@ export const getUser = async ({
 };
 
 /** TODO: use non-local testrpc once we have a proper one */
-
-export const getRpc = async (_localTestRpc?: boolean) => {
+export const getRpc = async (localTestRpc?: boolean) => {
   if (!rpc) {
-    const wallet = readWalletFromFile();
+    if (localTestRpc) {
+      const wallet = readWalletFromFile();
 
-    rpc = new TestRpc({
-      rpcPubkey: wallet.publicKey,
-      rpcRecipientSol: wallet.publicKey,
-      rpcFee: RPC_FEE,
-      highRpcFee: TOKEN_ACCOUNT_FEE,
-      payer: wallet,
-      connection: new solana.Connection(getSolanaRpcUrl(), "confirmed"),
-      lightWasm: await WasmFactory.getInstance(),
-    });
-    return rpc;
+      rpc = new TestRpc({
+        rpcPubkey: wallet.publicKey,
+        rpcRecipientSol: wallet.publicKey,
+        rpcFee: RPC_FEE,
+        highRpcFee: TOKEN_ACCOUNT_FEE,
+        payer: wallet,
+        connection: new solana.Connection(getSolanaRpcUrl(), "confirmed"),
+        lightWasm: (await getLightProvider()).lightWasm,
+      });
+      return rpc;
+    } else {
+      const config = getConfig();
+      rpc = new Rpc(
+        new solana.PublicKey(config.rpcPublicKey),
+        new solana.PublicKey(config.rpcRecipient),
+        new BN(config.rpcFee),
+        new BN(config.highRpcFee),
+        config.rpcUrl,
+      );
+    }
   }
   return rpc;
 };
