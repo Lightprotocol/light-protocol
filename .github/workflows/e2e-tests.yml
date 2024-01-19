@@ -3,7 +3,6 @@ on:
     branches:
       - main
     paths:
-      - "web/webapp/**"
       - "zk.js/**"
       - ".github/workflows/e2e-tests.yml"
       - "psp-examples/**"
@@ -12,7 +11,6 @@ on:
     branches:
       - main
     paths:
-      - "web/webapp/**"
       - "zk.js/**"
       - ".github/workflows/e2e-tests.yml"
       - "psp-examples/**"
@@ -59,30 +57,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      - name: Cache Cypress
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/Cypress
-          key: cypress-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            cypress-
-
-      - name: Install Cypress
-        run: |
-          (cd web/webapp && npx cypress install)
-
-      - name: Run end-to-end tests
-        run: |
-          source ./scripts/devenv.sh
-          cd web/webapp
-          pnpm run test:e2e
-
-      - name: Upload Screenshots
-        if: failure()
-        uses: actions/upload-artifact@v2
-        with:
-          name: cypress-screenshots
-          path: web/webapp/cypress/screenshots/
+  
       - name: ${{ matrix.test }}
         run: |
           source ./scripts/devenv.sh          

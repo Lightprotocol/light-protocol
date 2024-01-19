@@ -17,6 +17,7 @@ import {
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
+import { WasmFactory } from "@lightprotocol/account.rs";
 
 require("dotenv").config();
 
@@ -108,6 +109,7 @@ export const getUser = async ({
   return user;
 };
 
+/** TODO: use non-local testrpc once we have a proper one */
 export const getRpc = async (localTestRpc?: boolean) => {
   if (!rpc) {
     if (localTestRpc) {

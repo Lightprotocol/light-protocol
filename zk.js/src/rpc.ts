@@ -1,21 +1,25 @@
 import {
+  ConfirmOptions,
   Connection,
   PublicKey,
   RpcResponseAndContext,
   SignatureResult,
+  TransactionInstruction,
+  TransactionSignature,
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
-import axios from "axios";
+
 import {
   RpcError,
   RpcErrorCode,
   Provider,
-  IndexedTransaction,
   TOKEN_ACCOUNT_FEE,
   SendVersionedTransactionsResult,
   BN_0,
   RpcIndexedTransactionResponse,
   RpcIndexedTransaction,
+  PrioritizationFee,
+  SignaturesWithBlockhashInfo,
 } from "./index";
 
 export type RpcSendTransactionsResponse = SendVersionedTransactionsResult & {
@@ -76,21 +80,40 @@ export class Rpc {
     this.url = url;
   }
 
-  async sendTransactions(
-    instructions: any[],
-    _provider: Provider,
-  ): Promise<RpcSendTransactionsResponse> {
-    try {
-      const response = await axios.post(this.url + "/relayTransaction", {
-        instructions,
-      });
-      return response.data.data;
-    } catch (err) {
-      console.error({ err });
-      throw err;
-    }
+  /**
+   * Convenience function for sending and confirming instructions via Light RPC node.
+   * Routes instructions to Light RPC node and confirms the last transaction signature.
+   */
+  async sendAndConfirmSolanaInstructions(
+    _ixs: TransactionInstruction[],
+    _connection: Connection,
+    _confirmOptions?: ConfirmOptions,
+    _prioritizationFee?: PrioritizationFee,
+    _provider?: Provider,
+  ): Promise<TransactionSignature[]> {
+    throw new RpcError(
+      RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
+      "sendAndConfirmSolanaInstructions",
+      "Kept for compatibility with testRpc.",
+    );
   }
 
+  /**
+   * Convenience function for sending instructions via Light RPC node.
+   * Routes instructions to Light RPC node and returns tx metadata.
+   */
+  async sendSolanaInstructions(
+    _ixs: TransactionInstruction[],
+    _prioritizationFee?: bigint,
+  ): Promise<SignaturesWithBlockhashInfo> {
+    throw new RpcError(
+      RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
+      "sendSolanaInstructions",
+      "Kept for compatibility with testRpc.",
+    );
+  }
+
+  /** Not extended by TestRpc */
   getRpcFee(ataCreationFee?: boolean): BN {
     return ataCreationFee ? this.highRpcFee : this.rpcFee;
   }
@@ -99,122 +122,66 @@ export class Rpc {
     /* We must keep the param for type equality with TestRpc */
     _connection: Connection,
   ): Promise<RpcIndexedTransaction[]> {
-    try {
-      const response = await axios.get(this.url + "/indexedTransactions");
-
-      const indexedTransactions: RpcIndexedTransaction[] =
-        response.data.data.map((trx: IndexedTransaction) => {
-          return {
-            ...trx,
-            signer: new PublicKey(trx.signer),
-            to: new PublicKey(trx.to),
-            from: new PublicKey(trx.from),
-            toSpl: new PublicKey(trx.toSpl),
-            fromSpl: new PublicKey(trx.fromSpl),
-            verifier: new PublicKey(trx.verifier),
-            rpcRecipientSol: new PublicKey(trx.rpcRecipientSol),
-            firstLeafIndex: new BN(trx.firstLeafIndex, "hex"),
-            publicAmountSol: new BN(trx.publicAmountSol, "hex"),
-            publicAmountSpl: new BN(trx.publicAmountSpl, "hex"),
-            changeSolAmount: new BN(trx.changeSolAmount, "hex"),
-            rpcFee: new BN(trx.rpcFee, "hex"),
-          };
-        });
-
-      return indexedTransactions;
-    } catch (err) {
-      console.log({ err });
-      throw err;
-    }
+    throw new RpcError(
+      RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
+      "getIndexedTransactions",
+      "Kept for compatibility with testRpc.",
+    );
   }
 
-  async syncRpcInfo(): Promise<void> {
-    const response = await axios.get(this.url + "/getRpcInfo");
-    const data = response.data.data;
-    this.accounts.rpcPubkey = new PublicKey(data.rpcPubkey);
-    this.accounts.rpcRecipientSol = new PublicKey(data.rpcRecipientSol);
-    this.rpcFee = new BN(data.rpcFee);
-    this.highRpcFee = new BN(data.highRpcFee);
-  }
-
-  static async initFromUrl(url: string): Promise<Rpc> {
-    const response = await axios.get(url + "/getRpcInfo");
-    const data = response.data.data;
-    return new Rpc(
-      new PublicKey(data.rpcPubkey),
-      new PublicKey(data.rpcRecipientSol),
-      new BN(data.rpcFee),
-      new BN(data.highRpcFee),
-      url,
+  /** Not extended by TestRpc */
+  static async initFromUrl(_url: string): Promise<Rpc> {
+    throw new RpcError(
+      RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
+      "initFromUrl",
+      "Kept for compatibility with testRpc.",
     );
   }
 
   async getEventById(
-    merkleTreePdaPublicKey: PublicKey,
-    id: string,
-    variableNameID: number,
+    _merkleTreePdaPublicKey: PublicKey,
+    _id: string,
+    _variableNameID: number,
   ): Promise<RpcIndexedTransactionResponse | undefined> {
-    try {
-      const response = await axios.post(this.url + "/getEventById", {
-        id,
-        variableNameID,
-        merkleTreePdaPublicKey: merkleTreePdaPublicKey.toBase58(),
-      });
-      return response.data.data;
-    } catch (err) {
-      console.error({ err });
-      throw err;
-    }
+    throw new RpcError(
+      RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
+      "getEventById",
+      "Kept for compatibility with testRpc.",
+    );
   }
 
   async getEventsByIdBatch(
-    merkleTreePdaPublicKey: PublicKey,
-    ids: string[],
-    variableNameID: number,
+    _merkleTreePdaPublicKey: PublicKey,
+    _ids: string[],
+    _variableNameID: number,
   ): Promise<RpcIndexedTransactionResponse[] | undefined> {
-    if (ids.length === 0) return [];
-    try {
-      const response = await axios.post(this.url + "/getEventsByIdBatch", {
-        ids,
-        variableNameID,
-        merkleTreePdaPublicKey: merkleTreePdaPublicKey.toBase58(),
-      });
-      return response.data.data;
-    } catch (err) {
-      console.error({ err });
-      throw err;
-    }
+    throw new RpcError(
+      RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
+      "getEventsByIdBatch",
+      "Kept for compatibility with testRpc.",
+    );
   }
 
   async getMerkleProofByIndexBatch(
-    merkleTreePdaPublicKey: PublicKey,
-    indexes: number[],
+    _merkleTreePdaPublicKey: PublicKey,
+    _indexes: number[],
   ): Promise<
     { merkleProofs: string[][]; root: string; index: number } | undefined
   > {
-    try {
-      const response = await axios.post(
-        this.url + "/getMerkleProofByIndexBatch",
-        { indexes, merkleTreePdaPublicKey: merkleTreePdaPublicKey.toBase58() },
-      );
-      return response.data.data;
-    } catch (err) {
-      console.error({ err });
-      throw err;
-    }
+    throw new RpcError(
+      RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
+      "getMerkleProofByIndexBatch",
+      "Kept for compatibility with testRpc.",
+    );
   }
 
   async getMerkleRoot(
-    merkleTreePdaPublicKey: PublicKey,
+    _merkleTreePdaPublicKey: PublicKey,
   ): Promise<{ root: string; index: number } | undefined> {
-    try {
-      const response = await axios.post(this.url + "/getMerkleRoot", {
-        merkleTreePdaPublicKey: merkleTreePdaPublicKey.toBase58(),
-      });
-      return response.data.data;
-    } catch (err) {
-      console.error({ err });
-      throw err;
-    }
+    throw new RpcError(
+      RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
+      "getMerkleRoot",
+      "Kept for compatibility with testRpc.",
+    );
   }
 }
