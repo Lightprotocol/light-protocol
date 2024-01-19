@@ -1,9 +1,0 @@
-node_modules
-test-ledger
-lookUpTable.txt
-lib
-.env
-/.env
-.DS_Store
-dump.rdb
-.logs

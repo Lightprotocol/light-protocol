@@ -12,7 +12,7 @@ export const standardFlags = {
     description: "Using a local test rpc",
     aliases: ["lr"],
     required: false,
-    default: false,
+    default: true,
     parse: async () => true,
   }),
 };

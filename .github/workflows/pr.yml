@@ -31,7 +31,6 @@ jobs:
             circuits
             zk.js
             cli
-            rpc
             scripts
             macros
             light-macros

@@ -5,6 +5,3 @@
 set -eux
 
 npx nx run-many --target=test --all --parallel=false
-
-# run rpc docker build script
-. $(dirname $0)/testDockerRpc.sh

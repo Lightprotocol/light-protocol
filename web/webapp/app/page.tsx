@@ -18,7 +18,7 @@ export default function Shell() {
   const wallet = useWallet(
     ADMIN_AUTH_KEYPAIR,
     "https://api.devnet.solana.com",
-    false,
+    false
   );
 
   const [opened, { toggle }] = useDisclosure();
