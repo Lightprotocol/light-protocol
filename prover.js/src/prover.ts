@@ -1,4 +1,4 @@
-import { Idl } from "@coral-xyz/anchor";
+import { BN, Idl } from "@coral-xyz/anchor";
 import {
   ProofInputs,
   ParsedPublicInputs,
@@ -13,7 +13,9 @@ import { utils } from "ffjavascript";
 const unstringifyBigInts = utils.unstringifyBigInts;
 const stringifyBigInts = utils.stringifyBigInts;
 const leInt2Buff = utils.leInt2Buff;
-
+const FIELD_SIZE = new BN(
+  "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+);
 export type proofData = {
   pi_a: string[];
   pi_b: string[][];
@@ -161,7 +163,10 @@ export class Prover<
     return res;
   }
 
-  parseProofToBytesArray(proof: proofData): {
+  parseProofToBytesArray(
+    proof: proofData,
+    compressed: boolean = true,
+  ): {
     proofA: number[];
     proofB: number[][];
     proofC: number[];
@@ -187,6 +192,33 @@ export class Prover<
         }
       }
 
+      if (compressed) {
+        const proofA = mydata.pi_a[0];
+        // negate proof by reversing the bitmask
+        const proofAIsPositive = Prover.yElementIsPositiveG1(
+          new BN(mydata.pi_a[1]),
+        )
+          ? false
+          : true;
+        proofA[0] = Prover.addBitmaskToByte(proofA[0], proofAIsPositive);
+        const proofB = mydata.pi_b[0].flat().reverse();
+        const proofBY = mydata.pi_b[1].flat().reverse();
+        const proofBIsPositive = Prover.yElementIsPositiveG2(
+          new BN(proofBY.slice(0, 32)),
+          new BN(proofBY.slice(32, 64)),
+        );
+        proofB[0] = Prover.addBitmaskToByte(proofB[0], proofBIsPositive);
+        const proofC = mydata.pi_c[0];
+        const proofCIsPositive = Prover.yElementIsPositiveG1(
+          new BN(mydata.pi_c[1]),
+        );
+        proofC[0] = Prover.addBitmaskToByte(proofC[0], proofCIsPositive);
+        return {
+          proofA,
+          proofB,
+          proofC,
+        };
+      }
       return {
         proofA: [mydata.pi_a[0], mydata.pi_a[1]].flat(),
         proofB: [
@@ -200,6 +232,7 @@ export class Prover<
       throw error;
     }
   }
+  // TODO: add decompress proof function
 
   // mainly used to parse the public signals of groth16 fullProve
   parseToBytesArray(publicSignals: string[]): number[][] {
@@ -221,11 +254,49 @@ export class Prover<
     }
   }
 
-  async fullProveAndParse() {
+  static yElementIsPositiveG1(yElement: BN): boolean {
+    return yElement.lte(FIELD_SIZE.sub(yElement));
+  }
+
+  static yElementIsPositiveG2(yElement1: BN, yElement2: BN): boolean {
+    const fieldMidpoint = FIELD_SIZE.div(new BN(2));
+
+    // Compare the first component of the y coordinate
+    if (yElement1.lt(fieldMidpoint)) {
+      return true;
+    } else if (yElement1.gt(fieldMidpoint)) {
+      return false;
+    }
+
+    // If the first component is equal to the midpoint, compare the second component
+    return yElement2.lt(fieldMidpoint);
+  }
+
+  // bitmask compatible with solana altbn128 compression syscall and arkworks' implementation
+  // https://github.com/arkworks-rs/algebra/blob/master/ff/src/fields/models/fp/mod.rs#L580
+  // https://github.com/arkworks-rs/algebra/blob/master/serialize/src/flags.rs#L18
+  // fn u8_bitmask(value: u8, inf: bool, neg: bool) -> u8 {
+  //     let mut mask = 0;
+  //     match self {
+  //         inf => mask |= 1 << 6,
+  //         neg => mask |= 1 << 7,
+  //         _ => (),
+  //     }
+  //     mask
+  // }
+  static addBitmaskToByte(byte: number, yIsPositive: boolean): number {
+    if (!yIsPositive) {
+      return (byte |= 1 << 7);
+    } else {
+      return byte;
+    }
+  }
+
+  async fullProveAndParse(compressed: boolean = true) {
     await this.fullProve();
 
     const parsedPublicInputsObj = this.parseToBytesArray(this.publicInputs);
-    const parsedProofObj = this.parseProofToBytesArray(this.proof);
+    const parsedProofObj = this.parseProofToBytesArray(this.proof, compressed);
 
     return {
       parsedProof: parsedProofObj,

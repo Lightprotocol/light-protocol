@@ -33,7 +33,7 @@ impl Config for TransactionConfig {
 pub mod light_psp10in2out {
     use std::marker::PhantomData;
 
-    use light_verifier_sdk::light_transaction::{Amounts, Proof};
+    use light_verifier_sdk::light_transaction::{Amounts, ProofCompressed};
 
     use super::*;
 
@@ -89,7 +89,7 @@ pub mod light_psp10in2out {
             InstructionDataCompressedTransferSecond::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
-        let proof = Proof {
+        let proof = ProofCompressed {
             a: inputs.proof_a,
             b: inputs.proof_b,
             c: inputs.proof_c,
@@ -218,9 +218,9 @@ pub struct LightInstructionSecond<
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataCompressedTransferSecond {
-    proof_a: [u8; 64],
-    proof_b: [u8; 128],
-    proof_c: [u8; 64],
+    proof_a: [u8; 32],
+    proof_b: [u8; 64],
+    proof_c: [u8; 32],
 }
 
 #[derive(Accounts)]

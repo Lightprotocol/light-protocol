@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 use light_macros::light_verifier_accounts;
-use light_verifier_sdk::light_transaction::{Amounts, Proof, Transaction, TransactionInput};
+use light_verifier_sdk::light_transaction::{
+    Amounts, ProofCompressed, Transaction, TransactionInput,
+};
 
 pub mod verifying_key;
 use verifying_key::VERIFYINGKEY_TRANSACTION_MASP2_MAIN;
@@ -21,6 +23,7 @@ pub const PROGRAM_ID: &str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";
 
 #[program]
 pub mod light_psp2in2out {
+
     use super::*;
 
     /// This instruction is the first step of a compressed transaction.
@@ -39,7 +42,7 @@ pub mod light_psp2in2out {
         let len_missing_bytes = 256 - inputs.encrypted_utxos.len();
         let mut enc_utxos = inputs.encrypted_utxos;
         enc_utxos.append(&mut vec![0u8; len_missing_bytes]);
-        let proof = Proof {
+        let proof = ProofCompressed {
             a: inputs.proof_a,
             b: inputs.proof_b,
             c: inputs.proof_c,
@@ -76,9 +79,9 @@ pub struct LightInstruction<'info> {}
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataCompressedTransferFirst {
-    proof_a: [u8; 64],
-    proof_b: [u8; 128],
-    proof_c: [u8; 64],
+    proof_a: [u8; 32],
+    proof_b: [u8; 64],
+    proof_c: [u8; 32],
     public_amount_spl: [u8; 32],
     input_nullifier: [[u8; 32]; 2],
     output_commitment: [[u8; 32]; 2],

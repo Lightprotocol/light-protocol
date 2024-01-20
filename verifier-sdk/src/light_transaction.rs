@@ -1,5 +1,3 @@
-use std::ops::Neg;
-
 use anchor_lang::{
     prelude::*,
     solana_program::{
@@ -11,12 +9,12 @@ use anchor_lang::{
 };
 use anchor_spl::token::Transfer;
 use ark_bn254::FrParameters;
-use ark_ff::{
-    bytes::{FromBytes, ToBytes},
-    BigInteger, BigInteger256, FpParameters,
-};
+use ark_ff::{bytes::FromBytes, BigInteger, BigInteger256, FpParameters};
 use ark_std::vec::Vec;
-use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
+use groth16_solana::{
+    decompression::{decompress_g1, decompress_g2},
+    groth16::{Groth16Verifier, Groth16Verifyingkey},
+};
 use light_merkle_tree_program::{
     program::LightMerkleTreeProgram,
     state::TransactionMerkleTree,
@@ -39,7 +37,6 @@ use crate::{
     utils::close_account::close_account,
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
-type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 
 pub trait Config {
     /// Program ID of the verifier program.
@@ -85,6 +82,12 @@ impl<'a> Message<'a> {
     }
 }
 
+pub struct ProofCompressed {
+    pub a: [u8; 32],
+    pub b: [u8; 64],
+    pub c: [u8; 32],
+}
+
 pub struct Proof {
     pub a: [u8; 64],
     pub b: [u8; 128],
@@ -108,7 +111,7 @@ pub struct TransactionInput<
     A: LightAccounts<'info>,
 > {
     pub ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-    pub proof: &'a Proof,
+    pub proof: &'a ProofCompressed,
     pub public_amount: &'a Amounts,
     pub message: Option<&'a Message<'a>>,
     pub checked_public_inputs: &'a [[u8; 32]; NR_CHECKED_INPUTS],
@@ -306,7 +309,7 @@ impl<
         if !self.fetched_root {
             msg!("Tried to verify proof without fetching root.");
         }
-
+        msg!("verifying proof");
         assert_eq!(
             NR_PUBLIC_INPUTS,
             5 + NR_NULLIFIERS + NR_LEAVES + NR_CHECKED_INPUTS,
@@ -333,21 +336,15 @@ impl<
             public_inputs[5 + NR_NULLIFIERS + NR_LEAVES + i] = *input;
         }
 
-        let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
-            &*[&change_endianness(&self.input.proof.a)[..], &[0u8][..]].concat(),
-        )
-        .unwrap();
-        let mut proof_a_neg_buf = [0u8; 65];
-        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg_buf[..]).unwrap();
-        let mut proof_a_neg = [0u8; 64];
-        proof_a_neg.copy_from_slice(&proof_a_neg_buf[..64]);
-
-        let proof_a_neg = change_endianness(&proof_a_neg);
+        // we negate proof a offchain
+        let proof_a = decompress_g1(&self.input.proof.a).unwrap();
+        let proof_b = decompress_g2(&self.input.proof.b).unwrap();
+        let proof_c = decompress_g1(&self.input.proof.c).unwrap();
 
         let mut verifier = Groth16Verifier::new(
-            &proof_a_neg,
-            &self.input.proof.b,
-            &self.input.proof.c,
+            &proof_a,
+            &proof_b,
+            &proof_c,
             &public_inputs,
             self.input.verifyingkey,
         )

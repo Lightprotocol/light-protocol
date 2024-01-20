@@ -23,7 +23,7 @@ light-merkle-tree-program = { version = "0.3.1", path = "../merkle-tree", featur
 solana-security-txt = "1.1.0"
 
 # Light Deps
-groth16-solana = "0.0.2"
+groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
 light-macros = { version = "0.3.1", path = "../../macros/light" }
 light-verifier-sdk = { version = "0.3.1", path = "../../verifier-sdk" }
 

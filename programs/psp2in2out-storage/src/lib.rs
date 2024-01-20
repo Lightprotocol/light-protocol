@@ -2,7 +2,7 @@ use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_macros::light_verifier_accounts;
 use light_verifier_sdk::light_transaction::{
-    Amounts, Message, Proof, Transaction, TransactionInput, VERIFIER_STATE_SEED,
+    Amounts, Message, Transaction, TransactionInput, VERIFIER_STATE_SEED,
 };
 
 pub mod verifying_key;
@@ -36,6 +36,8 @@ pub enum VerifierError {
 
 #[program]
 pub mod light_psp2in2out_storage {
+    use light_verifier_sdk::light_transaction::ProofCompressed;
+
     use super::*;
 
     /// Saves the provided message in a temporary PDA.
@@ -87,7 +89,7 @@ pub mod light_psp2in2out_storage {
                 &mut [vec![0u8; 8], inputs, vec![0u8; 16]].concat().as_slice(),
             )?;
         let message = Message::new(&ctx.accounts.verifier_state.msg);
-        let proof = Proof {
+        let proof = ProofCompressed {
             a: inputs.proof_a,
             b: inputs.proof_b,
             c: inputs.proof_c,
@@ -168,9 +170,9 @@ pub struct LightInstructionSecond<'info> {
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataCompressedTransferSecond {
-    proof_a: [u8; 64],
-    proof_b: [u8; 128],
-    proof_c: [u8; 64],
+    proof_a: [u8; 32],
+    proof_b: [u8; 64],
+    proof_c: [u8; 32],
     input_nullifier: [[u8; 32]; 2],
     output_commitment: [[u8; 32]; 2],
     public_amount_sol: [u8; 32],
