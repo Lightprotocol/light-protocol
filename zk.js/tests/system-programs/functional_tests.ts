@@ -187,7 +187,7 @@ describe("verifier_program", () => {
 
     const utxo = createOutUtxo({
       lightWasm: WASM,
-      publicKey: inputUtxos[0].publicKey,
+      publicKey: new anchor.BN(inputUtxos[0].publicKey),
       assets: inputUtxos[0].assets,
       amounts: [BN_0, inputUtxos[0].amounts[1]],
     });
@@ -300,7 +300,6 @@ describe("verifier_program", () => {
       verifierIdl,
       systemProofInputs,
     });
-
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject as any,
     );

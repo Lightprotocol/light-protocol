@@ -23,7 +23,8 @@ verifier_program_two = { git = "https://github.com/lightprotocol/light-protocol"
 light-macros = "0.1.0"
 light-verifier-sdk = { git = "https://github.com/lightprotocol/light-protocol", tag = "v0.3.2" }
 solana-program = "1.16.4"
-groth16-solana = "0.0.2"
+groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
+
 
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"

@@ -124,7 +124,7 @@ export type LightPsp2in2out = {
             "type": {
               "array": [
                 "u8",
-                64
+                32
               ]
             }
           },
@@ -133,7 +133,7 @@ export type LightPsp2in2out = {
             "type": {
               "array": [
                 "u8",
-                128
+                64
               ]
             }
           },
@@ -142,7 +142,7 @@ export type LightPsp2in2out = {
             "type": {
               "array": [
                 "u8",
-                64
+                32
               ]
             }
           },
@@ -814,7 +814,7 @@ export const IDL: LightPsp2in2out = {
             "type": {
               "array": [
                 "u8",
-                64
+                32
               ]
             }
           },
@@ -823,7 +823,7 @@ export const IDL: LightPsp2in2out = {
             "type": {
               "array": [
                 "u8",
-                128
+                64
               ]
             }
           },
@@ -832,7 +832,7 @@ export const IDL: LightPsp2in2out = {
             "type": {
               "array": [
                 "u8",
-                64
+                32
               ]
             }
           },

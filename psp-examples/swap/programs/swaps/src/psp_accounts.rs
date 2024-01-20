@@ -178,12 +178,12 @@ impl Swap {
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataLightInstructionThird {
-    pub proof_a_app: [u8; 64],
-    pub proof_b_app: [u8; 128],
-    pub proof_c_app: [u8; 64],
-    pub proof_a: [u8; 64],
-    pub proof_b: [u8; 128],
-    pub proof_c: [u8; 64],
+    pub proof_a_app: [u8; 32],
+    pub proof_b_app: [u8; 64],
+    pub proof_c_app: [u8; 32],
+    pub proof_a: [u8; 32],
+    pub proof_b: [u8; 64],
+    pub proof_c: [u8; 32],
 }
 
 #[derive(Accounts)]
