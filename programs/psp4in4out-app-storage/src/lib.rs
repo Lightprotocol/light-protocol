@@ -92,7 +92,17 @@ pub mod light_psp4in4out_app_storage {
         };
         let mut tx = Transaction::<2, 4, 4, 15, LightInstruction<'info>>::new(input);
 
-        tx.transact()
+        tx.transact()?;
+
+        #[cfg(all(feature = "memory-test", target_os = "solana"))]
+        assert!(
+            light_verifier_sdk::light_transaction::custom_heap::log_total_heap("memory_check")
+                < 7000u64,
+            "memory degression detected {} {}",
+            light_verifier_sdk::light_transaction::custom_heap::log_total_heap("memory_check"),
+            7000u64
+        );
+        Ok(())
     }
 }
 

@@ -136,7 +136,17 @@ pub mod light_psp10in2out {
         };
         let mut tx =
             Transaction::<0, 2, 10, 17, LightInstructionSecond<'info, 0, 2, 10>>::new(input);
-        tx.transact()
+        tx.transact()?;
+
+        #[cfg(all(feature = "memory-test", target_os = "solana"))]
+        assert!(
+            light_verifier_sdk::light_transaction::custom_heap::log_total_heap("memory_check")
+                < 7000u64,
+            "memory degression detected {} {}",
+            light_verifier_sdk::light_transaction::custom_heap::log_total_heap("memory_check"),
+            7000u64
+        );
+        Ok(())
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
