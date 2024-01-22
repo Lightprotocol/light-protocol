@@ -15,6 +15,7 @@ use groth16_solana::{
     decompression::{decompress_g1, decompress_g2},
     groth16::{Groth16Verifier, Groth16Verifyingkey},
 };
+use light_macros::heap_neutral;
 use light_merkle_tree_program::{
     program::LightMerkleTreeProgram,
     state::TransactionMerkleTree,
@@ -61,13 +62,6 @@ pub struct Transaction<
     pub merkle_root: [u8; 32],
     pub tx_integrity_hash: [u8; 32],
     pub mint_pubkey: [u8; 32],
-    pub transferred_funds: bool,
-    pub computed_tx_integrity_hash: bool,
-    pub verified_proof: bool,
-    pub inserted_leaves: bool,
-    pub inserted_nullifier: bool,
-    pub fetched_root: bool,
-    pub fetched_mint: bool,
 }
 
 pub struct Message<'a> {
@@ -155,13 +149,6 @@ impl<
             merkle_root: [0u8; 32],
             tx_integrity_hash: [0u8; 32],
             mint_pubkey: [0u8; 32],
-            transferred_funds: false,
-            computed_tx_integrity_hash: false,
-            verified_proof: false,
-            inserted_leaves: false,
-            inserted_nullifier: false,
-            fetched_root: false,
-            fetched_mint: false,
         }
     }
 
@@ -169,19 +156,40 @@ impl<
     /// verifies the zero knowledge proof, inserts leaves, inserts nullifiers, transfers funds and fees.
     pub fn transact(&mut self) -> Result<()> {
         self.emit_indexer_transaction_event()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("emit_indexer_transaction_event");
         self.compute_tx_integrity_hash()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("compute_tx_integrity_hash");
         self.fetch_root()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("fetch_root");
         self.fetch_mint()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("fetch_mint");
         self.verify()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("verify");
         self.check_remaining_accounts()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("check_remaining_accounts");
         self.insert_leaves()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("insert_leaves");
         self.insert_nullifiers()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("insert_nullifiers");
         self.transfer_user_funds()?;
-        self.transfer_fee()?;
-        self.check_completion()
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("transfer_user_funds");
+        self.transfer_fee()
     }
 
-    pub fn emit_indexer_transaction_event(&mut self) -> Result<()> {
+    #[heap_neutral]
+    pub fn emit_indexer_transaction_event(&self) -> Result<()> {
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("pre assemble TransactionIndexerEvent");
+
         // Initialize the vector of leaves
 
         let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
@@ -204,6 +212,9 @@ impl<
             message,
         };
 
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("post assemble TransactionIndexerEvent");
+
         invoke_indexer_transaction_event(
             &transaction_data_event,
             &self.input.ctx.accounts.get_log_wrapper().to_account_info(),
@@ -215,14 +226,20 @@ impl<
                 .to_account_info(),
         )?;
 
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("post invoke_indexer_transaction_event");
+
         let event_hash = self.compute_event_hash(first_leaf_index);
         self.insert_event_leaves(event_hash)?;
 
         Ok(())
     }
 
-    fn compute_event_hash(&mut self, first_leaf_index: u64) -> [u8; 32] {
-        // TODO: remove vector
+    #[heap_neutral]
+    fn compute_event_hash(&self, first_leaf_index: u64) -> [u8; 32] {
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("pre compute hash");
+
         let nullifiers_hash = hashv(
             self.input
                 .nullifiers
@@ -258,15 +275,25 @@ impl<
             message_hash.as_slice(),
         ]);
 
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("post compute hash");
+
         event_hash.to_bytes()
     }
 
     /// Calls the Merkle tree program via CPI to insert event leaves.
-    fn insert_event_leaves(&mut self, event_hash: [u8; 32]) -> Result<()> {
+    #[heap_neutral]
+    fn insert_event_leaves(&self, event_hash: [u8; 32]) -> Result<()> {
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("pre load_event_mt");
         let event_merkle_tree = self.input.ctx.accounts.get_event_merkle_tree();
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("post load_event_mt");
+
         if event_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 as u64 {
             return err!(VerifierSdkError::EventMerkleTreeInvalidHashFunction);
         }
+
         insert_two_leaves_event_cpi(
             self.input.ctx.program_id,
             &self
@@ -297,24 +324,13 @@ impl<
     }
 
     /// Verifies a Goth16 zero knowledge proof over the bn254 curve.
-    pub fn verify(&mut self) -> Result<()> {
-        if !self.computed_tx_integrity_hash {
-            msg!("Tried to verify proof without computing integrity hash.");
-        }
-
-        if !self.fetched_mint {
-            msg!("Tried to verify proof without fetching mind.");
-        }
-
-        if !self.fetched_root {
-            msg!("Tried to verify proof without fetching root.");
-        }
-        msg!("verifying proof");
+    pub fn verify(&self) -> Result<()> {
+        #[cfg(all(target_os = "solana", feature = "custom-heap"))]
+        let pos = custom_heap::get_heap_pos();
         assert_eq!(
             NR_PUBLIC_INPUTS,
             5 + NR_NULLIFIERS + NR_LEAVES + NR_CHECKED_INPUTS,
         );
-
         let mut public_inputs: [[u8; 32]; NR_PUBLIC_INPUTS] = [[0u8; 32]; NR_PUBLIC_INPUTS];
 
         public_inputs[0] = self.merkle_root;
@@ -352,7 +368,8 @@ impl<
 
         match verifier.verify() {
             Ok(_) => {
-                self.verified_proof = true;
+                #[cfg(all(target_os = "solana", feature = "custom-heap"))]
+                custom_heap::free_heap(pos);
                 Ok(())
             }
             Err(e) => {
@@ -440,7 +457,6 @@ impl<
         // msg!("encrypted_utxos: {:?}", self.input.encrypted_utxos);
 
         self.tx_integrity_hash = truncate_to_circuit(&tx_integrity_hash.to_bytes());
-        self.computed_tx_integrity_hash = true;
         Ok(())
     }
 
@@ -449,7 +465,6 @@ impl<
         let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
         let merkle_tree = merkle_tree.load()?;
         self.merkle_root = merkle_tree.merkle_tree.roots[self.input.merkle_root_index];
-        self.fetched_root = true;
         Ok(())
     }
 
@@ -458,7 +473,13 @@ impl<
     pub fn fetch_mint(&mut self) -> Result<()> {
         match &self.input.ctx.accounts.get_sender_spl() {
             Some(sender_spl) => {
-                match spl_token::state::Account::unpack(sender_spl.data.borrow().as_ref()) {
+                // #[cfg(all(feature = "custom-heap"))]
+                //                custom_heap::log_total_heap("pre unpacked_account mint");
+                let unpacked_account =
+                    spl_token::state::Account::unpack(sender_spl.data.borrow().as_ref());
+                // #[cfg(all(feature = "custom-heap"))]
+                //                custom_heap::log_total_heap("post unpacked_account mint");
+                match unpacked_account {
                     Ok(sender_spl) => {
                         // Omits the last byte for the mint pubkey bytes to fit into the bn254 field.
                         // msg!(
@@ -477,19 +498,16 @@ impl<
                             .unwrap();
                         }
 
-                        self.fetched_mint = true;
                         Ok(())
                     }
                     Err(_) => {
                         self.mint_pubkey = [0u8; 32];
-                        self.fetched_mint = true;
                         Ok(())
                     }
                 }
             }
             None => {
                 self.mint_pubkey = [0u8; 32];
-                self.fetched_mint = true;
                 Ok(())
             }
         }
@@ -499,6 +517,7 @@ impl<
     ///
     /// * Nullifier and leaf accounts (mandatory).
     /// * Merkle tree accounts (optional).
+    #[heap_neutral]
     fn check_remaining_accounts(&self) -> Result<()> {
         let nr_nullifiers_leaves = NR_NULLIFIERS + NR_LEAVES / 2;
         let remaining_accounts_len = self.input.ctx.remaining_accounts.len();
@@ -519,12 +538,8 @@ impl<
     }
 
     /// Calls the Merkle tree program via cpi to insert transaction leaves.
-    pub fn insert_leaves(&mut self) -> Result<()> {
-        if !self.verified_proof {
-            msg!("Tried to insert leaves without verifying the proof.");
-            return err!(VerifierSdkError::ProofNotVerified);
-        }
-
+    #[heap_neutral]
+    pub fn insert_leaves(&self) -> Result<()> {
         let transaction_merkle_tree = self.get_transaction_merkle_tree()?;
 
         // check account integrities
@@ -553,8 +568,6 @@ impl<
             // TODO: remove vector or instantiate once for the whole struct
             self.input.leaves.to_vec(),
         )?;
-
-        self.inserted_leaves = true;
         Ok(())
     }
 
@@ -590,6 +603,7 @@ impl<
         }
     }
 
+    #[heap_neutral]
     fn validate_transaction_merkle_tree(
         &self,
         transaction_merkle_tree: &AccountInfo,
@@ -613,12 +627,8 @@ impl<
     }
 
     /// Calls merkle tree via cpi to insert nullifiers.
-    pub fn insert_nullifiers(&mut self) -> Result<()> {
-        if !self.verified_proof {
-            msg!("Tried to insert nullifiers without verifying the proof.");
-            return err!(VerifierSdkError::ProofNotVerified);
-        }
-
+    #[heap_neutral]
+    pub fn insert_nullifiers(&self) -> Result<()> {
         insert_nullifiers_cpi(
             self.input.ctx.program_id,
             &self
@@ -644,18 +654,12 @@ impl<
             self.input.nullifiers.to_vec(),
             self.input.ctx.remaining_accounts.to_vec(),
         )?;
-
-        self.inserted_nullifier = true;
         Ok(())
     }
 
     /// Transfers user funds either to or from a merkle tree liquidity pool.
-    pub fn transfer_user_funds(&mut self) -> Result<()> {
-        if !self.verified_proof {
-            msg!("Tried to transfer funds without verifying the proof.");
-            return err!(VerifierSdkError::ProofNotVerified);
-        }
-
+    #[heap_neutral]
+    pub fn transfer_user_funds(&self) -> Result<()> {
         msg!("transferring user funds");
         // check mintPubkey
         let (pub_amount_checked, _) =
@@ -765,18 +769,12 @@ impl<
             }
             msg!("transferred");
         }
-
-        self.transferred_funds = true;
         Ok(())
     }
 
     /// Transfers the rpc fee  to or from a merkle tree liquidity pool.
+    #[heap_neutral]
     pub fn transfer_fee(&self) -> Result<()> {
-        if !self.verified_proof {
-            msg!("Tried to transfer fees without verifying the proof.");
-            return err!(VerifierSdkError::ProofNotVerified);
-        }
-
         // check that it is the native token pool
         let (fee_amount_checked, rpc_fee) = self.check_amount(
             self.input.rpc_fee,
@@ -899,6 +897,7 @@ impl<
     }
 
     /// Creates and closes an account such that compressed sol is part of the transaction fees.
+    #[heap_neutral]
     fn compress_sol(&self, amount_checked: u64, recipient_sol: &AccountInfo) -> Result<()> {
         self.check_sol_pool_account_derivation(
             &recipient_sol.key(),
@@ -952,6 +951,7 @@ impl<
         )
     }
 
+    #[heap_neutral]
     fn compress_spl(
         &self,
         pub_amount_checked: u64,
@@ -1058,6 +1058,7 @@ impl<
         false
     }
 
+    #[heap_neutral]
     pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey, data: &[u8]) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
             &[&[0u8; 32], self.input.pool_type, POOL_CONFIG_SEED],
@@ -1072,6 +1073,7 @@ impl<
         Ok(())
     }
 
+    #[heap_neutral]
     pub fn check_spl_pool_account_derivation(&self, pubkey: &Pubkey, mint: &Pubkey) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
             &[&mint.to_bytes(), self.input.pool_type, POOL_SEED],
@@ -1082,20 +1084,6 @@ impl<
             return err!(VerifierSdkError::InvalidSenderOrRecipient);
         }
         Ok(())
-    }
-
-    pub fn check_completion(&self) -> Result<()> {
-        if self.transferred_funds
-            && self.verified_proof
-            && self.inserted_leaves
-            && self.inserted_nullifier
-        {
-            return Ok(());
-        }
-        msg!("verified_proof {}", self.verified_proof);
-        msg!("inserted_leaves {}", self.inserted_leaves);
-        msg!("transferred_funds {}", self.transferred_funds);
-        err!(VerifierSdkError::TransactionIncomplete)
     }
 
     #[allow(clippy::comparison_chain)]
@@ -1145,6 +1133,220 @@ impl<
             Ok((0, 0))
         } else {
             Err(VerifierSdkError::WrongPubAmount.into())
+        }
+    }
+}
+
+#[cfg(feature = "custom-heap")]
+pub mod custom_heap {
+    use std::{alloc::Layout, mem::size_of, ptr::null_mut, usize};
+
+    #[cfg(target_os = "solana")]
+    use anchor_lang::{
+        prelude::*,
+        solana_program::entrypoint::{HEAP_LENGTH, HEAP_START_ADDRESS},
+    };
+
+    #[cfg(target_os = "solana")]
+    #[global_allocator]
+    static A: BumpAllocator = BumpAllocator {
+        start: HEAP_START_ADDRESS as usize,
+        len: HEAP_LENGTH,
+    };
+
+    pub struct BumpAllocator {
+        pub start: usize,
+        pub len: usize,
+    }
+
+    impl BumpAllocator {
+        const RESERVED_MEM: usize = size_of::<*mut u8>();
+
+        /// Return heap position as of this call/// Returns the current position of the heap.
+        ///
+        /// # Safety
+        /// This function is unsafe because it returns a raw pointer.
+        pub unsafe fn pos(&self) -> usize {
+            let pos_ptr = self.start as *mut usize;
+            *pos_ptr
+        }
+
+        /// Reset heap start cursor to position.
+        /// # Safety
+        /// Do not use this function if you initialized heap memory after pos which you still need.
+        pub unsafe fn move_cursor(&self, pos: usize) {
+            let pos_ptr = self.start as *mut usize;
+            *pos_ptr = pos;
+        }
+    }
+
+    unsafe impl std::alloc::GlobalAlloc for BumpAllocator {
+        #[inline]
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            let pos_ptr = self.start as *mut usize;
+
+            let mut pos = *pos_ptr;
+            if pos == 0 {
+                // First time, set starting position
+                pos = self.start + self.len;
+            }
+            pos = pos.saturating_sub(layout.size());
+            pos &= !(layout.align().wrapping_sub(1));
+            if pos < self.start + BumpAllocator::RESERVED_MEM {
+                return null_mut();
+            }
+            *pos_ptr = pos;
+            pos as *mut u8
+        }
+        #[inline]
+        unsafe fn dealloc(&self, _: *mut u8, _: Layout) {
+            // no dellaoc in Solana runtime :*(
+        }
+    }
+    #[cfg(target_os = "solana")]
+    pub fn log_total_heap(string: &str) -> u64 {
+        const HEAP_END_ADDRESS: u64 = HEAP_START_ADDRESS as u64 + HEAP_LENGTH as u64;
+
+        msg!("{}", string);
+        let heap_start = unsafe { A.pos() } as u64;
+        let heap_used = HEAP_END_ADDRESS - heap_start;
+        msg!("total heap used: {}", heap_used);
+        heap_used
+    }
+    #[cfg(target_os = "solana")]
+    pub fn get_heap_pos() -> usize {
+        let heap_start = unsafe { A.pos() } as usize;
+        heap_start
+    }
+    #[cfg(target_os = "solana")]
+    pub fn free_heap(pos: usize) {
+        unsafe { A.move_cursor(pos) };
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::{
+        alloc::{GlobalAlloc, Layout},
+        mem::size_of,
+        ptr::null_mut,
+    };
+
+    use custom_heap::BumpAllocator;
+
+    use super::*;
+
+    #[test]
+    fn test_pos_move_cursor_heap() {
+        use std::mem::size_of;
+
+        use super::custom_heap::BumpAllocator;
+        {
+            let heap = [0u8; 128];
+            let allocator = BumpAllocator {
+                start: heap.as_ptr() as *const _ as usize,
+                len: heap.len(),
+            };
+            let pos = unsafe { allocator.pos() };
+            assert_eq!(pos, unsafe { allocator.pos() });
+            assert_eq!(pos, 0);
+            let mut pos_64 = 0;
+            for i in 0..128 - size_of::<*mut u8>() {
+                if i == 64 {
+                    pos_64 = unsafe { allocator.pos() };
+                }
+                let ptr = unsafe {
+                    allocator.alloc(Layout::from_size_align(1, size_of::<u8>()).unwrap())
+                };
+                assert_eq!(
+                    ptr as *const _ as usize,
+                    heap.as_ptr() as *const _ as usize + heap.len() - 1 - i
+                );
+                assert_eq!(ptr as *const _ as usize, unsafe { allocator.pos() });
+            }
+            let pos_128 = unsafe { allocator.pos() };
+            // free half of the heap
+            unsafe { allocator.move_cursor(pos_64) };
+            assert_eq!(pos_64, unsafe { allocator.pos() });
+            assert_ne!(pos_64 + 1, unsafe { allocator.pos() });
+            // allocate second half of the heap again
+            for i in 0..64 - size_of::<*mut u8>() {
+                let ptr = unsafe {
+                    allocator.alloc(Layout::from_size_align(1, size_of::<u8>()).unwrap())
+                };
+                assert_eq!(
+                    ptr as *const _ as usize,
+                    heap.as_ptr() as *const _ as usize + heap.len() - 1 - (i + 64)
+                );
+                assert_eq!(ptr as *const _ as usize, unsafe { allocator.pos() });
+            }
+            assert_eq!(pos_128, unsafe { allocator.pos() });
+            // free all of the heap
+            unsafe { allocator.move_cursor(pos) };
+            assert_eq!(pos, unsafe { allocator.pos() });
+            assert_ne!(pos + 1, unsafe { allocator.pos() });
+        }
+    }
+
+    /// taken from solana-program https://github.com/solana-labs/solana/blob/9a520fd5b42bafefa4815afe3e5390b4ea7482ca/sdk/program/src/entrypoint.rs#L374
+    #[test]
+    fn test_bump_allocator() {
+        // alloc the entire
+        {
+            let heap = [0u8; 128];
+            let allocator = BumpAllocator {
+                start: heap.as_ptr() as *const _ as usize,
+                len: heap.len(),
+            };
+            for i in 0..128 - size_of::<*mut u8>() {
+                let ptr = unsafe {
+                    allocator.alloc(Layout::from_size_align(1, size_of::<u8>()).unwrap())
+                };
+                assert_eq!(
+                    ptr as *const _ as usize,
+                    heap.as_ptr() as *const _ as usize + heap.len() - 1 - i
+                );
+            }
+            assert_eq!(null_mut(), unsafe {
+                allocator.alloc(Layout::from_size_align(1, 1).unwrap())
+            });
+        }
+        // check alignment
+        {
+            let heap = [0u8; 128];
+            let allocator = BumpAllocator {
+                start: heap.as_ptr() as *const _ as usize,
+                len: heap.len(),
+            };
+            let ptr =
+                unsafe { allocator.alloc(Layout::from_size_align(1, size_of::<u8>()).unwrap()) };
+            assert_eq!(0, ptr.align_offset(size_of::<u8>()));
+            let ptr =
+                unsafe { allocator.alloc(Layout::from_size_align(1, size_of::<u16>()).unwrap()) };
+            assert_eq!(0, ptr.align_offset(size_of::<u16>()));
+            let ptr =
+                unsafe { allocator.alloc(Layout::from_size_align(1, size_of::<u32>()).unwrap()) };
+            assert_eq!(0, ptr.align_offset(size_of::<u32>()));
+            let ptr =
+                unsafe { allocator.alloc(Layout::from_size_align(1, size_of::<u64>()).unwrap()) };
+            assert_eq!(0, ptr.align_offset(size_of::<u64>()));
+            let ptr =
+                unsafe { allocator.alloc(Layout::from_size_align(1, size_of::<u128>()).unwrap()) };
+            assert_eq!(0, ptr.align_offset(size_of::<u128>()));
+            let ptr = unsafe { allocator.alloc(Layout::from_size_align(1, 64).unwrap()) };
+            assert_eq!(0, ptr.align_offset(64));
+        }
+        // alloc entire block (minus the pos ptr)
+        {
+            let heap = [0u8; 128];
+            let allocator = BumpAllocator {
+                start: heap.as_ptr() as *const _ as usize,
+                len: heap.len(),
+            };
+            let ptr =
+                unsafe { allocator.alloc(Layout::from_size_align(120, size_of::<u8>()).unwrap()) };
+            assert_ne!(ptr, null_mut());
+            assert_eq!(0, ptr.align_offset(size_of::<u64>()));
         }
     }
 }

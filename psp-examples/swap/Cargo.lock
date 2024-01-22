@@ -1628,6 +1628,7 @@ dependencies = [
  "ark-std 0.3.0",
  "borsh 0.9.3",
  "groth16-solana",
+ "light-macros",
  "light-merkle-tree-program",
  "light-sparse-merkle-tree",
  "light-utils",

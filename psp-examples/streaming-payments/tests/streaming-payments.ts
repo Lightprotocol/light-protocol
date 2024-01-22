@@ -236,11 +236,10 @@ describe("Streaming Payments tests", () => {
       rootIndex,
     };
 
-    const res = await sendAndConfirmCompressedTransaction({
+    await sendAndConfirmCompressedTransaction({
       solanaTransactionInputs,
       provider: lightProvider,
     });
-    console.log("tx Hash : ", res.txHash);
   }
 
   async function paymentStreaming(

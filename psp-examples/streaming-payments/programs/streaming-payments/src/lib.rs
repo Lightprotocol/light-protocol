@@ -18,6 +18,8 @@ pub const PROGRAM_ID: &str = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 #[program]
 pub mod streaming_payments {
     use super::*;
+    #[cfg(target_os = "solana")]
+    use light_verifier_sdk::light_transaction::custom_heap::log_total_heap;
     use solana_program::sysvar;
     /// This instruction is the first step of a compressed transaction.
     /// It creates and initializes a verifier state account to save state of a verification during
@@ -120,8 +122,15 @@ pub mod streaming_payments {
             panic!("Escrow still locked");
         }
         msg!("checked inputs {:?}", verifier_state.checked_public_inputs);
+        #[cfg(target_os = "solana")]
+        log_total_heap("pre verify_program_proof");
         verify_program_proof(&ctx, &inputs)?;
-        cpi_verifier_two(&ctx, &inputs)
+        #[cfg(target_os = "solana")]
+        log_total_heap("pre cpi_verifier_two");
+        cpi_verifier_two(&ctx, &inputs)?;
+        #[cfg(target_os = "solana")]
+        log_total_heap("post cpi_verifier_two");
+        Ok(())
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.

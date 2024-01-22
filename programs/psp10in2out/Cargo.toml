@@ -14,7 +14,9 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = []
+default = ["custom-heap", "memory-test"]
+custom-heap = []
+memory-test = []
 
 [dependencies]
 anchor-lang = "0.28.0"
@@ -26,7 +28,7 @@ solana-security-txt = "1.1.0"
 groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
 
 light-macros = { version = "0.3.1", path = "../../macros/light" }
-light-verifier-sdk = { version = "0.3.1", path = "../../verifier-sdk" }
+light-verifier-sdk = { version = "0.3.1", path = "../../verifier-sdk", features = ["custom-heap", "mem-profiling"]  }
 
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"
