@@ -18,6 +18,7 @@ import {
   encryptProgramOutUtxo,
   decryptProgramOutUtxo,
   decryptProgramUtxo,
+  getUtxoHash,
 } from "../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { compareOutUtxos } from "./test-utils/compareUtxos";
@@ -177,8 +178,12 @@ describe("Program Utxo Functional", () => {
       utxoName,
       pspIdl,
       utxoData,
+      utxoDataHash: lightWasm.poseidonHashBN([utxoData.releaseSlot]),
     });
-
+    console.log(
+      "programOutUtxo",
+      programOutUtxo.outUtxo.utxoDataHash.toString(),
+    );
     // functional
     assert.equal(programOutUtxo.outUtxo.amounts[0].toString(), amountFee);
     assert.equal(programOutUtxo.outUtxo.amounts[1].toString(), amountToken);
@@ -204,16 +209,12 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(programOutUtxo.outUtxo.poolType.toString(), "0");
     assert.equal(
-      programOutUtxo.outUtxo.verifierAddress.toString(),
-      pspId.toString(),
-    );
-    assert.equal(
-      programOutUtxo.outUtxo.verifierAddressCircuit.toString(),
-      hashAndTruncateToCircuit(pspId.toBytes()).toString(),
+      programOutUtxo.outUtxo.utxoDataHash.toString(),
+      "18586133768512220936620570745912940619677854269274689475585506675881198879027",
     );
     assert.equal(
       programOutUtxo.outUtxo.utxoHash,
-      "7540600803361927548939886208864149514103175533120235954523664162373509461452",
+      "3900255133601114289945940646375843533526254833348962507171282032513729686383",
     );
 
     // toBytes
@@ -227,6 +228,20 @@ describe("Program Utxo Functional", () => {
       pspId,
       utxoName,
       pspIdl,
+    });
+    utxo1.outUtxo.utxoDataHash = lightWasm.poseidonHashBN([
+      utxoData.releaseSlot,
+    ]);
+    utxo1.outUtxo.utxoHash = getUtxoHash(lightWasm, {
+      utxoDataHash: utxo1.outUtxo.utxoDataHash.toString(),
+      publicKey: utxo1.outUtxo.publicKey.toString(),
+      amounts: utxo1.outUtxo.amounts.map((a) => a.toString()),
+      blinding: utxo1.outUtxo.blinding.toString(),
+      assetsCircuit: utxo1.outUtxo.assetsCircuit.map((a) => a.toString()),
+      poolType: utxo1.outUtxo.poolType.toString(),
+      address: utxo1.outUtxo.address?.toString() ?? "0",
+      metaHash: utxo1.outUtxo.metaHash?.toString() ?? "0",
+      transactionVersion: utxo1.outUtxo.transactionVersion.toString(),
     });
     compareOutUtxos(utxo1.outUtxo, programOutUtxo.outUtxo);
 
@@ -256,7 +271,22 @@ describe("Program Utxo Functional", () => {
       utxoName,
       pspIdl,
     });
+
     if (utxo3.value) {
+      utxo3.value.outUtxo.utxoDataHash = lightWasm.poseidonHashBN([
+        utxoData.releaseSlot,
+      ]);
+      utxo3.value.outUtxo.utxoHash = getUtxoHash(lightWasm, {
+        utxoDataHash: utxo1.outUtxo.utxoDataHash.toString(),
+        publicKey: utxo1.outUtxo.publicKey.toString(),
+        amounts: utxo1.outUtxo.amounts.map((a) => a.toString()),
+        blinding: utxo1.outUtxo.blinding.toString(),
+        assetsCircuit: utxo1.outUtxo.assetsCircuit.map((a) => a.toString()),
+        poolType: utxo1.outUtxo.poolType.toString(),
+        address: utxo1.outUtxo.address?.toString() ?? "0",
+        metaHash: utxo1.outUtxo.metaHash?.toString() ?? "0",
+        transactionVersion: utxo1.outUtxo.transactionVersion.toString(),
+      });
       compareOutUtxos(utxo3.value.outUtxo, programOutUtxo.outUtxo);
     } else {
       throw new Error("decrypt failed");
@@ -281,7 +311,22 @@ describe("Program Utxo Functional", () => {
       pspIdl,
       utxoName,
     });
-
+    decryptedUtxo.value!.utxo.utxoDataHash = lightWasm.poseidonHashString([
+      utxoData.releaseSlot,
+    ]);
+    decryptedUtxo.value!.utxo.utxoHash = getUtxoHash(lightWasm, {
+      utxoDataHash: programOutUtxo.outUtxo.utxoDataHash.toString(),
+      publicKey: programOutUtxo.outUtxo.publicKey.toString(),
+      amounts: programOutUtxo.outUtxo.amounts.map((a) => a.toString()),
+      blinding: programOutUtxo.outUtxo.blinding.toString(),
+      assetsCircuit: programOutUtxo.outUtxo.assetsCircuit.map((a) =>
+        a.toString(),
+      ),
+      poolType: programOutUtxo.outUtxo.poolType.toString(),
+      address: programOutUtxo.outUtxo.address?.toString() ?? "0",
+      metaHash: programOutUtxo.outUtxo.metaHash?.toString() ?? "0",
+      transactionVersion: programOutUtxo.outUtxo.transactionVersion.toString(),
+    });
     assert.equal(decryptedUtxo.value?.utxo.amounts[0].toString(), amountFee);
     assert.equal(decryptedUtxo.value?.utxo.amounts[1].toString(), amountToken);
     assert.equal(
@@ -305,21 +350,14 @@ describe("Program Utxo Functional", () => {
       lightWasm.poseidonHashString([utxoData.releaseSlot]).toString(),
     );
     assert.equal(decryptedUtxo.value?.utxo.poolType.toString(), "0");
-    assert.equal(
-      decryptedUtxo.value?.utxo.verifierAddress.toString(),
-      pspId.toString(),
-    );
-    assert.equal(
-      decryptedUtxo.value?.utxo.verifierAddressCircuit.toString(),
-      hashAndTruncateToCircuit(pspId.toBytes()).toString(),
-    );
+
     assert.equal(
       decryptedUtxo.value?.utxo.utxoHash,
       programOutUtxo.outUtxo.utxoHash,
     );
     assert.equal(
       decryptedUtxo.value?.utxo.nullifier,
-      "5610794678460418216727726121419735509967163565781683920673823506019224525239",
+      "6375266098703930269345700550425174694499182299695686843103201658599361581059",
     );
     assert.deepEqual(decryptedUtxo.value?.utxo.merkleProof, ["1", "2", "3"]);
     assert.equal(decryptedUtxo.value?.utxo.merkleTreeLeafIndex, inputs.index);

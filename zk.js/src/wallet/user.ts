@@ -1454,11 +1454,11 @@ export class User {
     );
 
     for (const utxo of decryptedStorageUtxos) {
-      const verifierAddress = utxo.utxo.verifierAddress.toBase58();
+      const verifierAddress = getVerifierProgramId(idl).toBase58();
       if (!this.balance.programBalances.get(verifierAddress)) {
         this.balance.programBalances.set(
           verifierAddress,
-          new ProgramUtxoBalance(utxo.utxo.verifierAddress, idl),
+          new ProgramUtxoBalance(getVerifierProgramId(idl), idl),
         );
       }
       this.balance.programBalances
@@ -1467,11 +1467,11 @@ export class User {
     }
 
     for (const utxo of spentUtxos) {
-      const verifierAddress = utxo.utxo.verifierAddress.toBase58();
+      const verifierAddress = getVerifierProgramId(idl).toBase58();
       if (!this.balance.programBalances.get(verifierAddress)) {
         this.balance.programBalances.set(
           verifierAddress,
-          new ProgramUtxoBalance(utxo.utxo.verifierAddress, idl),
+          new ProgramUtxoBalance(getVerifierProgramId(idl), idl),
         );
       }
       this.balance.programBalances

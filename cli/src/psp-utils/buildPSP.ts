@@ -71,7 +71,10 @@ export async function buildPSP({
     }
     if (!skipLinkCircuitlib) {
       linkedCircuitLibraries.push(
-        `node_modules/@lightprotocol/circuit-lib.circom/src/light-utils`,
+        `node_modules/@lightprotocol/circuit-lib.circom/src/transaction-utils`,
+      );
+      linkedCircuitLibraries.push(
+        `node_modules/@lightprotocol/circuit-lib.circom/src/transaction`,
       );
       linkedCircuitLibraries.push(
         `node_modules/@lightprotocol/circuit-lib.circom/src/merkle-tree`,

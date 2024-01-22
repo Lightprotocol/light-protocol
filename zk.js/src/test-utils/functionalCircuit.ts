@@ -19,7 +19,7 @@ import {
 } from "../index";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { BN } from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair } from "@solana/web3.js";
+import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -27,6 +27,7 @@ import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 export async function functionalCircuitTest(
   app: boolean = false,
   verifierIdl: Idl,
+  pspId?: PublicKey,
 ) {
   const lightProvider = await LightProvider.loadMock();
   const mockPubkey = SolanaKeypair.generate().publicKey;
@@ -42,7 +43,6 @@ export async function functionalCircuitTest(
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(compressFeeAmount), new BN(compressAmount)],
     publicKey: account.keypair.publicKey,
-    verifierAddress: app ? mockPubkey : undefined,
   });
 
   const merkleTree = new MerkleTree(18, lightWasm, [inputUtxo.utxoHash]);
@@ -79,7 +79,7 @@ export async function functionalCircuitTest(
     rpcFee,
     systemPspId: getVerifierProgramId(verifierIdl),
     rpcPublicKey: lightProvider.rpc.accounts.rpcPubkey,
-    pspId: app ? getVerifierProgramId(IDL_LIGHT_PSP2IN2OUT) : undefined,
+    pspId: app ? pspId : undefined,
   };
 
   const transaction = await createTransaction(txInput);
@@ -90,7 +90,7 @@ export async function functionalCircuitTest(
     root: merkleTree.root(),
   });
 
-  const transactionHash = getTransactionHash(
+  const publicTransactionHash = getTransactionHash(
     transaction.private.inputUtxos,
     transaction.private.outputUtxos,
     BN_0, // is not checked in circuit
@@ -98,11 +98,12 @@ export async function functionalCircuitTest(
   );
   systemProofInputs = {
     ...systemProofInputs,
-    publicAppVerifier: hashAndTruncateToCircuit(mockPubkey.toBytes()),
-    transactionHash,
-    txIntegrityHash: "0",
-    internalTxIntegrityHash: "0",
+    publicProgramId: hashAndTruncateToCircuit(mockPubkey.toBytes()),
+    publicTransactionHash,
+    privatePublicDataHash: "0",
+    publicDataHash: "0",
   } as any;
+
   // we rely on the fact that the function throws an error if proof generation failed
   await getSystemProof({
     account,
@@ -126,9 +127,15 @@ export async function functionalCircuitTest(
     });
     x = false;
   } catch (error: any) {
-    if (!error.toString().includes("CheckIndices_3 line: 34")) {
+    if (!error.toString().includes("CheckIndices_") && !app) {
       throw new Error(
         "Expected error to be CheckIndices_3, but it was " + error.toString(),
+      );
+    }
+
+    if (!error.toString().includes("CheckIndices_") && app) {
+      throw new Error(
+        "Expected error to be CheckIndices_5, but it was " + error.toString(),
       );
     }
   }

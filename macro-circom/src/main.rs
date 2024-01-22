@@ -248,7 +248,9 @@ mod tests {
                 "../circuit-lib/circuit-lib.circom/src/merkle-tree/",
                 "../target/testDataMain.circom",
                 "-l",
-                "../circuit-lib/circuit-lib.circom/src/light-utils/",
+                "../circuit-lib/circuit-lib.circom/src/transaction-utils/",
+                "-l",
+                "../circuit-lib/circuit-lib.circom/src/transaction/",
             ])
             .output()
             .expect("Failed to execute command");

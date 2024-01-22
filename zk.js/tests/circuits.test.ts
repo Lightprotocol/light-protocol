@@ -391,7 +391,7 @@
 //     );
 //   });
 
-//   it("With in utxo test invalid outputCommitment", async () => {
+//   it("With in utxo test invalid publicUtxoHash", async () => {
 //     const tx: Transaction = new Transaction({
 //       ...(await lightProvider.getRootIndex()),
 //       solMerkleTree: lightProvider.solMerkleTree!,
@@ -401,7 +401,7 @@
 //     await tx.compile(lightProvider.hasher, account);
 //     console.log();
 
-//     tx.proofInput.outputCommitment[0] = new BN("123").toString();
+//     tx.proofInput.publicUtxoHash[0] = new BN("123").toString();
 
 //     await chai.assert.isRejected(
 //       tx.getProof(account),

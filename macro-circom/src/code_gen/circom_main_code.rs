@@ -62,14 +62,14 @@ mod tests {
             template_name: Some(String::from("AppTransaction")),
             template_constants: Some(vec![String::from("7"), String::from("1")]),
             public_inputs: vec![
-                String::from("transactionHash"),
-                String::from("publicAppVerifier"),
+                String::from("publicTransactionHash"),
+                String::from("publicProgramId"),
             ],
         };
 
         let expected_string = format!("{}\npragma circom 2.1.4;\n\
             include \"./AppTransaction.circom\";\n\
-            component main {{public [transactionHash, publicAppVerifier]}} =  AppTransaction(7, 1, 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);", DISCLAIMER_STRING);
+            component main {{public [publicTransactionHash, publicProgramId]}} =  AppTransaction(7, 1, 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);", DISCLAIMER_STRING);
 
         assert_eq!(
             generate_circom_main_code(&instance).unwrap(),
@@ -89,14 +89,14 @@ mod tests {
                 String::from("2"),
             ]),
             public_inputs: vec![
-                String::from("transactionHash"),
-                String::from("publicAppVerifier"),
+                String::from("publicTransactionHash"),
+                String::from("publicProgramId"),
             ],
         };
 
         let expected_string = format!("{}\npragma circom 2.1.4;\n\
             include \"./AppTransaction.circom\";\n\
-            component main {{public [transactionHash, publicAppVerifier]}} =  AppTransaction(7, 1, 3, 2, 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);", DISCLAIMER_STRING);
+            component main {{public [publicTransactionHash, publicProgramId]}} =  AppTransaction(7, 1, 3, 2, 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);", DISCLAIMER_STRING);
 
         assert_eq!(
             generate_circom_main_code(&instance).unwrap(),
@@ -111,14 +111,14 @@ mod tests {
             template_name: Some(String::from("AppTransaction")),
             template_constants: Some(vec![String::from("7"), String::from("1")]),
             public_inputs: vec![
-                String::from("transactionHash"),
-                String::from("publicAppVerifier"),
+                String::from("publicTransactionHash"),
+                String::from("publicProgramId"),
             ],
         };
 
         let incorrect_expected_string = "pragma circom 2.1.4;\n\
             include \"./circuit.circom\";\n\
-            component main {public [transactionHash, publicAppVerifier]} =  appTransaction(7, 2 ,18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);";
+            component main {public [publicTransactionHash, publicProgramId]} =  appTransaction(7, 2 ,18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);";
 
         assert_ne!(
             generate_circom_main_code(&instance).unwrap(),
@@ -145,8 +145,8 @@ mod tests {
                 String::from("2"),
             ]),
             public_inputs: vec![
-                String::from("transactionHash"),
-                String::from("publicAppVerifier"),
+                String::from("publicTransactionHash"),
+                String::from("publicProgramId"),
             ],
         };
 
@@ -187,8 +187,8 @@ mod tests {
                 String::from("2"),
             ]),
             public_inputs: vec![
-                String::from("transactionHash"),
-                String::from("publicAppVerifier"),
+                String::from("publicTransactionHash"),
+                String::from("publicProgramId"),
                 String::from("inputA"),
                 String::from("inputB"),
             ],

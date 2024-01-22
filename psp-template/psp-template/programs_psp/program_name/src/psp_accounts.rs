@@ -18,10 +18,10 @@ pub struct LightInstructionFirst<'info, const NR_CHECKED_INPUTS: usize> {
 #[account]
 pub struct InstructionDataLightInstructionFirst {
     pub public_amount_spl: [u8; 32],
-    pub input_nullifier: [[u8; 32]; 4],
-    pub output_commitment: [[u8; 32]; 4],
+    pub public_nullifier: [[u8; 32]; 4],
+    pub public_out_utxo_hash: [[u8; 32]; 4],
     pub public_amount_sol: [u8; 32],
-    pub transaction_hash: [u8; 32],
+    pub public_transaction_hash: [u8; 32],
     pub root_index: u64,
     pub rpc_fee: u64,
     pub encrypted_utxos: Vec<u8>,

@@ -405,7 +405,7 @@ export class TestTransaction {
         )
           .toArray("be", 32)
           .toString(),
-        transactionInputs.publicInputs.outputCommitment[0].toString(),
+        transactionInputs.publicInputs.publicUtxoHash[0].toString(),
       );
     }
   }

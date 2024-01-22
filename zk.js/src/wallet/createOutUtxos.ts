@@ -317,7 +317,7 @@ export function createOutUtxos({
       assets: [SystemProgram.programId],
       amounts: [solAmount],
       publicKey: changeUtxoAccount.keypair.publicKey,
-      verifierAddress: appUtxo?.verifierAddress,
+      // verifierAddress: appUtxo?.verifierAddress,
     });
     outputUtxos.push(solChangeUtxo);
   }

@@ -22,6 +22,7 @@ import {
   compressProgramUtxo,
   createProgramOutUtxo,
   createOutUtxo,
+  createUtxoDataHash,
 } from "@lightprotocol/zk.js";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { SystemProgram, PublicKey, Keypair } from "@solana/web3.js";
@@ -77,16 +78,16 @@ describe("Test {{project-name}}", () => {
     );
 
     const user: User = await User.init({ provider: lightProvider });
-
+    const utxoData = { x: new BN(1), y: new BN(2) };
     const outputUtxoSol = createProgramOutUtxo({
       lightWasm: WASM,
       assets: [SystemProgram.programId],
-      publicKey: user.account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
-      utxoData: { x: new BN(1), y: new BN(2) },
+      utxoData,
       pspIdl: IDL,
       pspId: verifierProgramId,
       utxoName: "utxo",
+      utxoDataHash: createUtxoDataHash(utxoData, WASM),
     });
 
     const testInputsCompress = {

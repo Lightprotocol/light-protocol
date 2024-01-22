@@ -6,7 +6,6 @@ import {
   BN_0,
   SIGN_MESSAGE,
   STANDARD_COMPRESSION_PRIVATE_KEY,
-  STANDARD_COMPRESSION_PUBLIC_KEY,
   TransactionErrorCode,
   UtxoErrorCode,
   Utxo,
@@ -19,6 +18,14 @@ import { Result } from "./types";
 import { Prover } from "@lightprotocol/prover.js";
 
 const nacl = require("tweetnacl");
+
+function getProverInstance(
+  verifierIdl: Idl,
+  firstPath: string,
+  circuitName?: string,
+) {
+  return new Prover(verifierIdl, firstPath, circuitName);
+}
 
 // TODO: add fromPubkeyString()
 export class Account {
@@ -413,8 +420,7 @@ export class Account {
     proofInput["inPrivateKey"] = inputUtxos.map((utxo: Utxo) => {
       if (utxo.publicKey === this.keypair.publicKey.toString()) {
         return this.keypair.privateKey;
-      }
-      if (utxo.publicKey === STANDARD_COMPRESSION_PUBLIC_KEY.toString()) {
+      } else {
         return STANDARD_COMPRESSION_PRIVATE_KEY;
       }
     });
@@ -428,6 +434,8 @@ export class Account {
     addPrivateKey,
     enableLogging,
     inputUtxos,
+    getProver = getProverInstance,
+    wasmTester,
   }: {
     firstPath: string;
     verifierIdl: Idl;
@@ -436,6 +444,8 @@ export class Account {
     addPrivateKey?: boolean;
     enableLogging?: boolean;
     inputUtxos?: Utxo[];
+    getProver?: any;
+    wasmTester?: any;
   }) {
     if (!proofInput)
       throw new AccountError(
@@ -459,7 +469,13 @@ export class Account {
     if (addPrivateKey && inputUtxos) {
       this.addPrivateKey(proofInput, inputUtxos);
     }
-    const prover = new Prover(verifierIdl, firstPath, circuitName);
+    const prover = await getProver(
+      verifierIdl,
+      firstPath,
+      circuitName,
+      wasmTester,
+    );
+
     await prover.addProofInputs(proofInput);
     const prefix = `\x1b[37m[${new Date(Date.now()).toISOString()}]\x1b[0m`;
     const logMsg = `${prefix} Proving ${verifierIdl.name} circuit`;

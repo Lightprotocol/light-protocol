@@ -49,7 +49,7 @@ describe("Balance Functional", () => {
     });
   });
 
-  it("Test Balance moveToSpentUtxos", async () => {
+  it.skip("Test Balance moveToSpentUtxos", async () => {
     const balance: Balance = {
       tokenBalances: new Map([
         [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],

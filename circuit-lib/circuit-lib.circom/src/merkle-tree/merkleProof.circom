@@ -8,14 +8,14 @@ include "switcher.circom";
 template MerkleProof(levels) {
     signal input leaf;
     signal input pathElements[levels];
-    signal input pathIndices;
+    signal input leafIndex;
     signal output root;
 
     component switcher[levels];
     component hasher[levels];
 
     component indexBits = Num2Bits(levels);
-    indexBits.in <== pathIndices;
+    indexBits.in <== leafIndex;
 
     for (var i = 0; i < levels; i++) {
         switcher[i] = Switcher();
