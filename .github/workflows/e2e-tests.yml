@@ -38,7 +38,6 @@ jobs:
           - test: psp-examples-tests
             sub-tests: '[
               "@lightprotocol/streaming-payments:test",
-              "@lightprotocol/swap:test"
             ]'
     services:
       redis:

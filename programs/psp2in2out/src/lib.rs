@@ -3,7 +3,7 @@ use light_macros::light_verifier_accounts;
 use light_verifier_sdk::light_transaction::{
     Amounts, ProofCompressed, Transaction, TransactionInput,
 };
-use verifying_key::VERIFYINGKEY_TRANSACTION_MASP2_MAIN;
+use verifying_key::VERIFYINGKEY_PRIVATE_TRANSACTION2_IN2_OUT_MAIN;
 
 pub mod verifying_key;
 
@@ -58,16 +58,16 @@ pub mod light_psp2in2out {
             message: None,
             proof: &proof,
             public_amount: &public_amount,
-            nullifiers: &inputs.input_nullifier,
-            leaves: &inputs.output_commitment,
+            nullifiers: &inputs.public_nullifier,
+            leaves: &inputs.public_out_utxo_hash,
             encrypted_utxos: &enc_utxos,
             merkle_root_index: inputs.root_index as usize,
             rpc_fee: inputs.rpc_fee,
             checked_public_inputs: &[],
             pool_type: &[0u8; 32],
-            verifyingkey: &VERIFYINGKEY_TRANSACTION_MASP2_MAIN,
+            verifyingkey: &VERIFYINGKEY_PRIVATE_TRANSACTION2_IN2_OUT_MAIN,
         };
-        let mut transaction = Transaction::<0, 2, 2, 9, LightInstruction<'info>>::new(input);
+        let mut transaction = Transaction::<0, 2, 2, 12, LightInstruction<'info>>::new(input);
 
         transaction.transact()?;
 
@@ -94,8 +94,8 @@ pub struct InstructionDataCompressedTransferFirst {
     proof_b: [u8; 64],
     proof_c: [u8; 32],
     public_amount_spl: [u8; 32],
-    input_nullifier: [[u8; 32]; 2],
-    output_commitment: [[u8; 32]; 2],
+    public_nullifier: [[u8; 32]; 2],
+    public_out_utxo_hash: [[u8; 32]; 2],
     public_amount_sol: [u8; 32],
     root_index: u64,
     rpc_fee: u64,
@@ -113,9 +113,8 @@ pub struct u256 {
 pub struct Utxo {
     amounts: [u64; 2],
     spl_asset_index: u64,
-    verifier_address_index: u64,
     blinding: u256,
-    app_data_hash: u256,
+    data_hash: u256,
     account_compression_public_key: u256,
     account_encryption_public_key: [u8; 32],
 }

@@ -117,8 +117,8 @@ SeparatedCommaString: Vec<String> = {
 PublicInputsProperty: Vec<String> = {
     "publicInputs:" "[" <inputs: SeparatedCommaString> "]" "," => {
         let mut default_inputs = vec![
-            String::from("transactionHash"),
-            String::from("publicAppVerifier"),
+            String::from("publicTransactionHash"),
+            String::from("publicProgramId"),
         ];
         let mut combined = if inputs.is_empty() {
             Vec::<String>::new()
@@ -129,8 +129,8 @@ PublicInputsProperty: Vec<String> = {
         default_inputs
     },
     () => vec![
-        String::from("transactionHash"),
-        String::from("publicAppVerifier"),
+        String::from("publicTransactionHash"),
+        String::from("publicProgramId"),
     ]
 };
 

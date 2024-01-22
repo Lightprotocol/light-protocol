@@ -38,11 +38,11 @@ export type OutUtxo = {
   poolType: string;
   utxoHash: string;
   transactionVersion: string;
-  verifierAddress: PublicKey;
-  verifierAddressCircuit: string;
   isFillingUtxo: boolean;
   utxoDataHash: BN;
   utxoData?: any;
+  metaHash?: BN;
+  address?: BN;
 };
 
 export function createFillingOutUtxo({
@@ -69,7 +69,9 @@ export function createOutUtxo({
   blinding = new BN(randomBN(), 31, "be"),
   isFillingUtxo = false,
   lightWasm,
-  verifierAddress = SystemProgram.programId,
+  utxoDataHash = BN_0,
+  metaHash,
+  address,
   utxoData,
 }: {
   publicKey: BN;
@@ -79,15 +81,13 @@ export function createOutUtxo({
   blinding?: BN;
   isFillingUtxo?: boolean;
   lightWasm: LightWasm;
-  verifierAddress?: PublicKey;
+  utxoDataHash?: any;
+  metaHash?: BN;
+  address?: BN;
   utxoData?: any;
 }): OutUtxo {
   const poolType = BN_0;
   const transactionVersion = BN_0;
-  const verifierAddressCircuit =
-    verifierAddress.toBase58() === SystemProgram.programId.toBase58()
-      ? "0"
-      : hashAndTruncateToCircuit(verifierAddress.toBytes()).toString();
   if (assets.length !== amounts.length) {
     throw new UtxoError(
       UtxoErrorCode.ASSETS_AMOUNTS_LENGTH_MISMATCH,
@@ -99,10 +99,12 @@ export function createOutUtxo({
     assets.push(SystemProgram.programId);
     amounts.push(BN_0);
   }
-
-  const utxoDataHash = utxoData
-    ? createUtxoDataHash(utxoData, lightWasm)
-    : BN_0;
+  if (utxoData !== undefined && utxoDataHash === "0") {
+    throw new UtxoError(
+      UtxoErrorCode.UTXO_DATA_HASH_UNDEFINED,
+      "createOutUtxo",
+    );
+  }
 
   const utxoHashInputs: UtxoHashInputs = {
     publicKey: publicKey.toString(),
@@ -119,7 +121,8 @@ export function createOutUtxo({
     poolType: poolType.toString(),
     transactionVersion: transactionVersion.toString(),
     utxoDataHash: utxoDataHash.toString(),
-    verifierAddressCircuit,
+    metaHash: metaHash ? metaHash.toString() : "0",
+    address: address ? address.toString() : "0",
   };
   const utxoHash = getUtxoHash(lightWasm, utxoHashInputs);
   const outUtxo: OutUtxo = {
@@ -133,10 +136,10 @@ export function createOutUtxo({
     utxoHash,
     transactionVersion: utxoHashInputs.transactionVersion,
     isFillingUtxo,
-    verifierAddress,
-    verifierAddressCircuit: utxoHashInputs.verifierAddressCircuit,
     utxoDataHash,
     utxoData,
+    metaHash,
+    address,
   };
   return outUtxo;
 }
@@ -149,7 +152,8 @@ type UtxoHashInputs = {
   poolType: string;
   transactionVersion: string;
   utxoDataHash: string;
-  verifierAddressCircuit: string;
+  metaHash: string;
+  address: string;
 };
 
 export function getUtxoHash(
@@ -164,7 +168,8 @@ export function getUtxoHash(
     poolType,
     transactionVersion,
     utxoDataHash,
-    verifierAddressCircuit,
+    metaHash,
+    address,
   } = utxoHashInputs;
   const amountHash = lightWasm.poseidonHashString(amounts);
   const assetHash = lightWasm.poseidonHashString(
@@ -178,7 +183,15 @@ export function getUtxoHash(
       "Neither Account nor compressionPublicKey was provided",
     );
   }
-
+  // console.log("transactionVersion", transactionVersion);
+  // console.log("amountHash", amountHash);
+  // console.log("publicKey", publicKey);
+  // console.log("blinding", blinding);
+  // console.log("assetHash", assetHash);
+  // console.log("utxoDataHash", utxoDataHash);
+  // console.log("poolType", poolType);
+  // console.log("metaHash", metaHash);
+  // console.log("address", address);
   return lightWasm.poseidonHashString([
     transactionVersion,
     amountHash,
@@ -187,7 +200,8 @@ export function getUtxoHash(
     assetHash.toString(),
     utxoDataHash.toString(),
     poolType.toString(),
-    verifierAddressCircuit.toString(),
+    metaHash,
+    address,
   ]);
 }
 
@@ -500,15 +514,15 @@ export type Utxo = {
   poolType: string;
   utxoHash: string;
   transactionVersion: string;
-  verifierAddress: PublicKey;
-  verifierAddressCircuit: string;
-  isFillingUtxo: boolean; // should I serialize this as well?
+  isFillingUtxo: boolean; // should I serialize this as well? no
   nullifier: string;
   merkleTreeLeafIndex: number;
   merkleProof: string[];
   utxoDataHash: string;
   utxoData: any;
   utxoName: string;
+  metaHash?: BN;
+  address?: BN;
 };
 
 export type NullifierInputs = {
@@ -524,10 +538,12 @@ export type CreateUtxoInputs = {
   assets: PublicKey[];
   merkleTreeLeafIndex?: number;
   merkleProof: string[];
-  verifierAddress?: PublicKey;
   utxoDataHash?: string;
   utxoData?: any;
   utxoName?: string;
+  address?: BN;
+  metaHash?: BN;
+  owner?: PublicKey;
 };
 
 export function createFillingUtxo({
@@ -593,6 +609,8 @@ export function outUtxoToUtxo(
   merkleTreeLeafIndex: number,
   lightWasm: LightWasm,
   account: Account,
+  programOwner?: PublicKey,
+  utxoData?: any,
 ): Utxo {
   const inputs: CreateUtxoInputs = {
     utxoHash: outUtxo.utxoHash,
@@ -601,10 +619,11 @@ export function outUtxoToUtxo(
     assets: outUtxo.assets,
     merkleProof,
     merkleTreeLeafIndex,
-    verifierAddress:
-      outUtxo.verifierAddress.toBase58() === SystemProgram.programId.toBase58()
-        ? undefined
-        : outUtxo.verifierAddress,
+    metaHash: outUtxo.metaHash,
+    address: outUtxo.address,
+    utxoDataHash: outUtxo.utxoDataHash.toString(),
+    owner: programOwner,
+    utxoData,
   };
   return createUtxo(lightWasm, account, inputs, outUtxo.isFillingUtxo);
 }
@@ -617,7 +636,6 @@ export function createTestInUtxo({
   blinding,
   isFillingUtxo,
   lightWasm,
-  verifierAddress,
   merkleProof = ["1"],
   merkleTreeLeafIndex = 0,
 }: {
@@ -628,7 +646,6 @@ export function createTestInUtxo({
   blinding?: BN;
   isFillingUtxo?: boolean;
   lightWasm: LightWasm;
-  verifierAddress?: PublicKey;
   merkleProof?: string[];
   merkleTreeLeafIndex?: number;
 }): Utxo {
@@ -640,7 +657,6 @@ export function createTestInUtxo({
     blinding,
     isFillingUtxo,
     lightWasm,
-    verifierAddress,
   });
   return outUtxoToUtxo(
     outUtxo,
@@ -664,10 +680,12 @@ export function createUtxo(
     amounts,
     assets,
     merkleProof,
-    verifierAddress: verifierAddressInput,
     utxoDataHash: utxoDataHashInput,
     utxoData,
     utxoName,
+    metaHash,
+    address,
+    owner: ownerInput,
   } = createUtxoInputs;
   while (assets.length < 2) {
     assets.push(SystemProgram.programId);
@@ -681,14 +699,29 @@ export function createUtxo(
   const merkleProofInternal = isFillingUtxo
     ? new Array(18).fill("0")
     : merkleProof;
-  const verifierAddress = verifierAddressInput
-    ? verifierAddressInput
-    : SystemProgram.programId;
-  const verifierAddressCircuit = verifierAddressInput
-    ? hashAndTruncateToCircuit(verifierAddressInput.toBytes()).toString()
-    : "0";
-  const utxoDataHash = utxoDataHashInput ? utxoDataHashInput : "0";
-  if (utxoDataHashInput && !utxoData) {
+  if (
+    utxoDataHashInput !== undefined &&
+    !ownerInput &&
+    utxoDataHashInput !== "0"
+  ) {
+    throw new UtxoError(
+      UtxoErrorCode.NO_PUBLIC_KEY_PROVIDED_FOR_PROGRAM_UTXO,
+      "createUtxo",
+    );
+  }
+  const owner =
+    utxoDataHashInput !== "0" && utxoDataHashInput !== undefined
+      ? hashAndTruncateToCircuit(ownerInput!.toBytes()).toString()
+      : account.keypair.publicKey.toString();
+  const utxoDataHash =
+    utxoDataHashInput !== "0" && utxoDataHashInput !== undefined
+      ? utxoDataHashInput
+      : "0";
+  if (
+    utxoDataHashInput !== "0" &&
+    utxoDataHashInput !== undefined &&
+    !utxoData
+  ) {
     throw new UtxoError(
       CreateUtxoErrorCode.UTXO_DATA_UNDEFINED,
       "createUtxo",
@@ -715,7 +748,7 @@ export function createUtxo(
   };
   const nullifier = getNullifier(lightWasm, nullifierInputs);
   const utxo: Utxo = {
-    publicKey: account.keypair.publicKey.toString(),
+    publicKey: owner,
     amounts,
     assets,
     assetsCircuit: assets.map((asset, index) => {
@@ -730,8 +763,6 @@ export function createUtxo(
     poolType,
     utxoHash,
     transactionVersion,
-    verifierAddress,
-    verifierAddressCircuit,
     isFillingUtxo,
     nullifier,
     merkleTreeLeafIndex: merkleTreeLeafIndexInternal,
@@ -739,6 +770,8 @@ export function createUtxo(
     utxoDataHash,
     utxoName: utxoNameInternal,
     utxoData,
+    metaHash,
+    address,
   };
   return utxo;
 }

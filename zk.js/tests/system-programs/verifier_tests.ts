@@ -356,8 +356,8 @@
 //   it("Wrong nullifier", async () => {
 //     for (const tx of transactions) {
 //       const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
-//       for (const i in tmp_tx.transactionInputs.publicInputs!.inputNullifier) {
-//         tmp_tx.transactionInputs.publicInputs!.inputNullifier[i] = new Array(
+//       for (const i in tmp_tx.transactionInputs.publicInputs!.publicNullifier) {
+//         tmp_tx.transactionInputs.publicInputs!.publicNullifier[i] = new Array(
 //           32,
 //         ).fill(2);
 //         await sleep(SLEEP_BUFFER);
@@ -369,8 +369,8 @@
 //   it("Wrong leaves", async () => {
 //     for (const tx of transactions) {
 //       const tmp_tx: Transaction = _.cloneDeep(tx.transaction);
-//       for (const i in tmp_tx.transactionInputs.publicInputs!.outputCommitment) {
-//         tmp_tx.transactionInputs.publicInputs!.outputCommitment[i] = new Array(
+//       for (const i in tmp_tx.transactionInputs.publicInputs!.publicUtxoHash) {
+//         tmp_tx.transactionInputs.publicInputs!.publicUtxoHash[i] = new Array(
 //           32,
 //         ).fill(2);
 //         await sleep(SLEEP_BUFFER);

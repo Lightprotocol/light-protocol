@@ -24,12 +24,8 @@ ark-ff = { version = "^0.3.0", default-features = false }
 ark-ec = { version = "0.3.0" }
 ark-bn254 = "0.3.0"
 ark-std = { version = "^0.3.0", default-features = false }
-borsh = "0.9.3"
 groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
 light-macros = { version = "0.3.1", path = "../macros/light" }
 spl-token = "3.3.0"
 light-utils = { path = "../utils", version = "0.1.0" }
 light-sparse-merkle-tree = { path = "../merkle-tree/sparse", version = "0.1.1" }
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
