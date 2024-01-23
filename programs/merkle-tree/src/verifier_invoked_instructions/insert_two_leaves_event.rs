@@ -33,6 +33,6 @@ pub fn process_insert_two_leaves_event(
     let mut merkle_trees = ctx.accounts.merkle_tree_set.load_mut()?;
     merkle_trees
         .event_merkle_tree
-        .insert(leaf_left, leaf_right)?;
+        .append_two(&leaf_left, &leaf_right)?;
     Ok(())
 }

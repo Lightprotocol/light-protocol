@@ -200,7 +200,7 @@ impl<
         custom_heap::log_total_heap("post load MerkleTreeSet");
 
         // Initialize the vector of leaves
-        let first_leaf_index = merkle_tree_set.state_merkle_tree.next_index;
+        let first_leaf_index = merkle_tree_set.state_merkle_tree.rightmost_index;
         drop(merkle_tree_set);
 
         let message = match &self.input.message {

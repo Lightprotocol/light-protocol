@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, marker::PhantomData};
 
+use bytemuck::{Pod, Zeroable};
 use hash::compute_root;
 use light_hasher::{errors::HasherError, Hasher};
 
@@ -23,6 +24,7 @@ use crate::{changelog::ChangelogEntry, hash::compute_parent_node};
 /// Due to ability to make a decent number of concurrent update requests to be
 /// valid, no lock is necessary.
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct ConcurrentMerkleTree<
     H,
     const HEIGHT: usize,
@@ -66,6 +68,47 @@ where
             _hasher: PhantomData,
         }
     }
+}
+
+/// Mark `ConcurrentMerkleTree` as `Zeroable`, providing Anchor a guarantee
+/// that it can be always initialized with zeros.
+///
+/// # Safety
+///
+/// [`bytemuck`](bytemuck) is not able to ensure that our custom types (`Hasher`
+/// and `ConcurrentMerkleTree`) can be a subject of initializing with zeros. It
+/// also doesn't support structs with const generics (it would need to ensure
+/// alignment).
+///
+/// Therefore, it's our responsibility to guarantee that `ConcurrentMerkleTree`
+/// doesn't contain any fields which are not zeroable.
+unsafe impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Zeroable
+    for ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+where
+    H: Hasher,
+{
+}
+
+/// Mark `ConcurrentMerkleTree` as `Pod` (Plain Old Data), providing Anchor a
+/// guarantee that it can be used in a zero-copy account.
+///
+/// # Safety
+///
+/// [`bytemuck`](bytemuck) is not able to ensure that our custom types (`Hasher`
+/// and `ConcurrentMerkleTree`) can be a subject of byte serialization. It also
+/// doesn't support structs with const generics (it would need to ensure
+/// alignment).
+///
+/// Therefore, it's our responsibility to guarantee that:
+///
+/// * `Hasher` and `ConcurrentMerkleTree` with given const generics are aligned.
+/// * They don't contain any fields which are not implementing `Copy` or are
+///   not an easy subject for byte serialization.
+unsafe impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Pod
+    for ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+where
+    H: Hasher + Copy + 'static,
+{
 }
 
 impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>
@@ -373,5 +416,17 @@ where
         self.rightmost_leaf = *leaf;
 
         Ok(())
+    }
+
+    /// Appends a new pair of leaves to the tree.
+    pub fn append_two(
+        &mut self,
+        leaf_left: &[u8; 32],
+        leaf_right: &[u8; 32],
+    ) -> Result<(), HasherError> {
+        // TODO(vadorovsky): Instead of this naive double append, implement an
+        // optimized insertion of two leaves.
+        self.append(leaf_left)?;
+        self.append(leaf_right)
     }
 }

@@ -40,7 +40,7 @@ pub fn process_insert_two_leaves<'info, 'a>(
         // Insert the pair into the merkle tree
         merkle_tree_set
             .state_merkle_tree
-            .insert(*leaf_left, *leaf_right)?;
+            .append_two(&leaf_left, &leaf_right)?;
     }
 
     Ok(())
