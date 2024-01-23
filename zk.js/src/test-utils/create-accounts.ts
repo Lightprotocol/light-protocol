@@ -9,7 +9,6 @@ import {
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 const { SystemProgram } = require("@solana/web3.js");
-// const token = require('@solana/spl-token')
 // @ts-ignore
 const _ = require("lodash");
 import {

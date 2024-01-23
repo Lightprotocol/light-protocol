@@ -1,5 +1,11 @@
 import { AnchorProvider, BN, Idl, Program, utils } from "@coral-xyz/anchor";
 import { upperCamelCase, camelCase } from "case-anything";
+import { LightWasm } from "@lightprotocol/account.rs";
+import { getIndices3D } from "@lightprotocol/circuit-lib.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { sha256 } from "@noble/hashes/sha256";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+import nacl from "tweetnacl";
 import {
   AUTHORITY,
   BN_0,
@@ -12,38 +18,31 @@ import {
   lightPsp2in2outStorageId,
   merkleTreeProgramId,
 } from "../constants";
+import { Account } from "../account";
 import {
-  Account,
+  CreateUtxoErrorCode,
+  RpcErrorCode,
   TransactionError,
   TransactionErrorCode,
-  hashAndTruncateToCircuit,
-  truncateToCircuit,
   TransactionParametersError,
   TransactionParametersErrorCode,
-  Action,
-  MerkleTreeConfig,
-  TokenData,
-  Provider,
-  Rpc,
-  AppUtxoConfig,
   UserErrorCode,
-  RpcErrorCode,
-  CreateUtxoErrorCode,
-  selectInUtxos,
-  createOutUtxos,
-  OutUtxo,
-  Utxo,
+} from "../errors";
+import { hashAndTruncateToCircuit, truncateToCircuit } from "../utils";
+import { Action } from "../types";
+import { MerkleTreeConfig } from "../merkle-tree";
+import { TokenData } from "../types";
+import { MINT } from "../test-utils";
+import {
   createFillingOutUtxo,
   createFillingUtxo,
-  encryptOutUtxo,
-  MINT,
-} from "../index";
-import { LightWasm } from "@lightprotocol/account.rs";
-import { getIndices3D } from "@lightprotocol/circuit-lib.js";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { sha256 } from "@noble/hashes/sha256";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
-import nacl from "tweetnacl";
+  createOutUtxos,
+  selectInUtxos,
+} from "../utxo";
+import { Utxo, OutUtxo, encryptOutUtxo } from "../utxo";
+import { AppUtxoConfig } from "../types";
+import { Rpc } from "../rpc";
+import { Provider } from "../provider";
 
 export const setUndefinedPspCircuitInputsToZero = (
   proofInputs: any,

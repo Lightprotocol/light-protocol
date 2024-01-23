@@ -1,8 +1,4 @@
-const solana = require("@solana/web3.js");
-import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { LightMerkleTreeProgram } from "../idls";
-import { Program } from "@coral-xyz/anchor";
 
 export async function checkRentExemption({
   connection,

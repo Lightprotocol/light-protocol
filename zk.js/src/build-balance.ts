@@ -1,25 +1,24 @@
-import { ProgramUtxo, Utxo, decryptUtxo } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
+import { LightWasm } from "@lightprotocol/account.rs";
 
 import { Connection, PublicKey } from "@solana/web3.js";
-import { Account } from "../account";
+import { Account } from "./account";
 import {
   fetchNullifierAccountInfo,
   fetchQueuedLeavesAccountInfo,
-} from "../utils";
+} from "./utils";
+import { Utxo, ProgramUtxo, decryptUtxo } from "./utxo";
 import {
-  TokenUtxoBalanceError,
-  TokenUtxoBalanceErrorCode,
-  TOKEN_REGISTRY,
-  TokenData,
   ProgramUtxoBalanceError,
   ProgramUtxoBalanceErrorCode,
-  TOKEN_PUBKEY_SYMBOL,
+  TokenUtxoBalanceError,
+  TokenUtxoBalanceErrorCode,
   UserErrorCode,
-  BN_0,
-} from "../index";
-import { LightWasm } from "@lightprotocol/account.rs";
+} from "./errors";
+import { BN_0, TOKEN_PUBKEY_SYMBOL, TOKEN_REGISTRY } from "./constants";
+import { TokenData } from "./types";
+
 // mint | programAddress for programUtxos
 export type Balance = {
   tokenBalances: Map<string, TokenUtxoBalance>;

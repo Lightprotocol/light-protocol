@@ -8,19 +8,16 @@ import {
   TransactionSignature,
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
-
 import {
-  RpcError,
-  RpcErrorCode,
-  Provider,
-  TOKEN_ACCOUNT_FEE,
-  SendVersionedTransactionsResult,
-  BN_0,
-  RpcIndexedTransactionResponse,
-  RpcIndexedTransaction,
   PrioritizationFee,
   SignaturesWithBlockhashInfo,
-} from "./index";
+  RpcIndexedTransaction,
+  RpcIndexedTransactionResponse,
+} from "./types";
+import { RpcError, RpcErrorCode } from "./errors";
+import { Provider } from "./provider";
+import { BN_0, TOKEN_ACCOUNT_FEE } from "./constants";
+import { SendVersionedTransactionsResult } from "./transaction";
 
 export type RpcSendTransactionsResponse = SendVersionedTransactionsResult & {
   transactionStatus: string;

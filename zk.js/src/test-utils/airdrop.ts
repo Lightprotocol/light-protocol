@@ -1,19 +1,13 @@
 import { BN } from "@coral-xyz/anchor";
 import { mintTo, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import {
-  ADMIN_AUTH_KEYPAIR,
-  ConfirmOptions,
-  MINT,
-  Provider,
-  TestRpc,
-  TOKEN_PUBKEY_SYMBOL,
-  User,
-  confirmConfig,
-  confirmTransaction,
-  RPC_FEE,
-} from "../index";
 import { WasmFactory } from "@lightprotocol/account.rs";
+import { RPC_FEE, TOKEN_PUBKEY_SYMBOL, confirmConfig } from "../constants";
+import { confirmTransaction } from "../transaction";
+import { ConfirmOptions, User } from "../wallet";
+import { TestRpc } from "./test-rpc";
+import { ADMIN_AUTH_KEYPAIR, MINT } from "./constants-system-verifier";
+import { Provider } from "../provider";
 
 export async function airdropCompressedSol({
   provider,

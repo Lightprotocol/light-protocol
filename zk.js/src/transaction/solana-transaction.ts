@@ -1,30 +1,5 @@
 import { BN, BorshAccountsCoder, Idl, utils } from "@coral-xyz/anchor";
 import {
-  AUTHORITY,
-  UTXO_PREFIX_LENGTH,
-  merkleTreeProgramId,
-} from "../constants";
-import {
-  Action,
-  MINT,
-  Provider,
-  PspTransactionInput,
-  PublicInputs,
-  PublicTransactionVariables,
-  SolanaTransactionError,
-  SolanaTransactionErrorCode,
-  TransactionAccounts,
-  TransactionError,
-  TransactionErrorCode,
-  createAccountObject,
-  firstLetterToLower,
-  firstLetterToUpper,
-  getVerifierConfig,
-  getVerifierProgram,
-  lightAccounts,
-  remainingAccount,
-} from "../index";
-import {
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
@@ -34,6 +9,39 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
+
+import {
+  AUTHORITY,
+  UTXO_PREFIX_LENGTH,
+  merkleTreeProgramId,
+} from "../constants";
+
+import {
+  PspTransactionInput,
+  TransactionAccounts,
+  PublicTransactionVariables,
+  getVerifierConfig,
+  getVerifierProgram,
+} from "../transaction/psp-transaction";
+import {
+  Action,
+  lightAccounts,
+  PublicInputs,
+  remainingAccount,
+} from "../types";
+import { MINT } from "../test-utils";
+import { Provider } from "../provider";
+import {
+  SolanaTransactionError,
+  SolanaTransactionErrorCode,
+  TransactionError,
+  TransactionErrorCode,
+} from "../errors";
+import {
+  createAccountObject,
+  firstLetterToLower,
+  firstLetterToUpper,
+} from "../utils";
 
 type SolanaInstructionInputs = {
   publicInputs?: PublicInputs;

@@ -13,12 +13,12 @@ import {
   BorshAccountsCoder,
   Program,
 } from "@coral-xyz/anchor";
-import { Rpc, RpcSendTransactionsResponse } from "../rpc";
-import { Provider, useWallet } from "../wallet";
-import {
-  fetchRecentTransactions,
-  sendVersionedTransactions,
-} from "../transaction";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+
+import { LightWasm } from "@lightprotocol/account.rs";
+
+import { Rpc } from "../rpc";
+import { fetchRecentTransactions } from "../transaction";
 import {
   ParsedIndexedTransaction,
   PrioritizationFee,
@@ -26,20 +26,16 @@ import {
   RpcIndexedTransactionResponse,
   SignaturesWithBlockhashInfo,
 } from "../types";
+import { Provider } from "../provider";
+import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
+import { MerkleTreeConfig, SolMerkleTree } from "../merkle-tree";
 import {
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
-  MerkleTreeConfig,
   BN_0,
-  SolMerkleTree,
   UTXO_PREFIX_LENGTH,
-  LightMerkleTreeProgram,
-  RpcError,
-  TransactionErrorCode,
-  merkleTreeProgramId,
   confirmConfig,
-} from "../index";
-import { LightWasm } from "@lightprotocol/account.rs";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+  merkleTreeProgramId,
+} from "../constants";
+import { RpcError, TransactionErrorCode } from "../errors";
 
 export class TestRpc extends Rpc {
   // @ts-ignore
