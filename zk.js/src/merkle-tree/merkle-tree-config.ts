@@ -1,27 +1,22 @@
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import {
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
-  LightMerkleTreeProgram,
-} from "../idls/index";
 import { assert } from "chai";
+import { Program, BN, AnchorProvider } from "@coral-xyz/anchor";
+import { utf8 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import {
   Connection,
   Keypair,
   PublicKey,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
-
+import * as token from "@solana/spl-token";
+import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
 import {
   BN_0,
   BN_1,
-  confirmConfig,
   DEFAULT_MERKLE_TREE_LOCK_DURATION,
   DEFAULT_PROGRAMS,
+  confirmConfig,
   merkleTreeProgramId,
-} from "../index";
-
-const token = require("@solana/spl-token");
+} from "../constants";
 
 /// NODE ENV ONLY
 export class MerkleTreeConfig {
@@ -45,7 +40,7 @@ export class MerkleTreeConfig {
     anchorProvider,
   }: {
     payer?: Keypair;
-    anchorProvider: anchor.AnchorProvider;
+    anchorProvider: AnchorProvider;
   }) {
     this.payer = payer;
 
@@ -132,7 +127,7 @@ export class MerkleTreeConfig {
 
   async checkTransactionMerkleTreeIsInitialized(
     transactionMerkleTreePda: PublicKey,
-    transactionMerkleTreeIndex: anchor.BN,
+    transactionMerkleTreeIndex: BN,
   ) {
     const transactionMerkleTreeAccountInfo =
       await this.getTransactionMerkleTreeAccountInfo(transactionMerkleTreePda);
@@ -190,7 +185,7 @@ export class MerkleTreeConfig {
 
   getMerkleTreeAuthorityPda() {
     this.merkleTreeAuthorityPda = PublicKey.findProgramAddressSync(
-      [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
+      [utf8.encode("MERKLE_TREE_AUTHORITY")],
       this.merkleTreeProgram.programId,
     )[0];
     return this.merkleTreeAuthorityPda;
@@ -202,18 +197,18 @@ export class MerkleTreeConfig {
     );
   }
 
-  async getTransactionMerkleTreeIndex(): Promise<anchor.BN> {
+  async getTransactionMerkleTreeIndex(): Promise<BN> {
     const merkleTreeAuthorityAccountInfo =
       await this.getMerkleTreeAuthorityAccountInfo();
     return merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex;
   }
 
   static getTransactionMerkleTreePda(
-    transactionMerkleTreeIndex: anchor.BN = new anchor.BN(0),
+    transactionMerkleTreeIndex: BN = new BN(0),
   ) {
     return PublicKey.findProgramAddressSync(
       [
-        anchor.utils.bytes.utf8.encode("transaction_merkle_tree"),
+        utf8.encode("transaction_merkle_tree"),
         transactionMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
       ],
       merkleTreeProgramId,
@@ -238,16 +233,16 @@ export class MerkleTreeConfig {
     return transactionMerkleTreeAccountInfo.newest.toString() === "1";
   }
 
-  async getEventMerkleTreeIndex(): Promise<anchor.BN> {
+  async getEventMerkleTreeIndex(): Promise<BN> {
     const merkleTreeAuthorityAccountInfo =
       await this.getMerkleTreeAuthorityAccountInfo();
     return merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex;
   }
 
-  static getEventMerkleTreePda(eventMerkleTreeIndex: anchor.BN = BN_0) {
+  static getEventMerkleTreePda(eventMerkleTreeIndex: BN = BN_0) {
     return PublicKey.findProgramAddressSync(
       [
-        anchor.utils.bytes.utf8.encode("event_merkle_tree"),
+        utf8.encode("event_merkle_tree"),
         eventMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
       ],
       merkleTreeProgramId,
@@ -499,7 +494,7 @@ export class MerkleTreeConfig {
     this.poolTypes.push({
       tokenPdas: [],
       poolPda: PublicKey.findProgramAddressSync(
-        [Buffer.from(poolType), anchor.utils.bytes.utf8.encode("pooltype")],
+        [Buffer.from(poolType), utf8.encode("pooltype")],
         this.merkleTreeProgram.programId,
       )[0],
       poolType: poolType,
@@ -573,7 +568,7 @@ export class MerkleTreeConfig {
       const registeredTokenAccount = await token.getAccount(
         this.connection,
         poolPda.token,
-        { commitment: "confirmed", preflightCommitment: "confirmed" },
+        "confirmed",
       );
       assert.notEqual(registeredTokenAccount, null);
       assert.equal(registeredTokenAccount.mint.toBase58(), mint.toBase58());
@@ -594,7 +589,7 @@ export class MerkleTreeConfig {
         [
           new Uint8Array(32).fill(0),
           Buffer.from(poolType),
-          anchor.utils.bytes.utf8.encode("pool-config"),
+          utf8.encode("pool-config"),
         ],
         programId,
       )[0],
@@ -651,11 +646,7 @@ export class MerkleTreeConfig {
     poolType: Array<number> = new Array(32).fill(0),
   ) {
     return PublicKey.findProgramAddressSync(
-      [
-        mint.toBytes(),
-        Buffer.from(poolType),
-        anchor.utils.bytes.utf8.encode("pool"),
-      ],
+      [mint.toBytes(), Buffer.from(poolType), utf8.encode("pool")],
       programId,
     )[0];
   }
@@ -669,7 +660,7 @@ export class MerkleTreeConfig {
         [
           mint.toBytes(),
           new Uint8Array(32).fill(0),
-          anchor.utils.bytes.utf8.encode("pool-config"),
+          utf8.encode("pool-config"),
         ],
         this.merkleTreeProgram.programId,
       )[0],
@@ -685,7 +676,7 @@ export class MerkleTreeConfig {
 
   async getTokenAuthorityPda() {
     this.tokenAuthority = PublicKey.findProgramAddressSync(
-      [anchor.utils.bytes.utf8.encode("spl")],
+      [utf8.encode("spl")],
       this.merkleTreeProgram.programId,
     )[0];
     return this.tokenAuthority;

@@ -1,24 +1,17 @@
 import { BN, Program, Provider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import {
-  merkleTreeProgramId,
-  MERKLE_TREE_HEIGHT,
-  sleep,
-  ParsedIndexedTransaction,
-  SolMerkleTreeErrorCode,
-  SolMerkleTreeError,
-  Utxo,
-  BN_0,
-} from "../index";
-import { LightWasm } from "@lightprotocol/account.rs";
-import {
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
-  LightMerkleTreeProgram,
-} from "../idls/index";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
-const anchor = require("@coral-xyz/anchor");
+import { LightWasm } from "@lightprotocol/account.rs";
+import { ParsedIndexedTransaction } from "../types";
+import { merkleTreeProgramId, MERKLE_TREE_HEIGHT, BN_0 } from "../constants";
+import { SolMerkleTreeError, SolMerkleTreeErrorCode } from "../errors";
+import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
+import { sleep } from "../utils";
+import { Utxo } from "../utxo";
+
 const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, beInt2Buff, leInt2Buff } = ffjavascript.utils;
+
 export type QueuedLeavesPda = {
   leftLeafIndex: BN;
   encryptedUtxos: Array<number>;
@@ -101,7 +94,7 @@ export class SolMerkleTree {
           merkleTreeIndex.toNumber()
         ) {
           for (const iterator of indexedTransactions[i].leaves) {
-            leaves.push(new anchor.BN(iterator, undefined, "be").toString());
+            leaves.push(new BN(iterator, undefined, "be").toString());
           }
         }
       }

@@ -1,26 +1,23 @@
 import nacl from "tweetnacl";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
-import {
-  Account,
-  BN_0,
-  COMPRESSED_UTXO_BYTES_LENGTH,
-  createUtxoDataHash,
-  CreateUtxoErrorCode,
-  ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  fetchAssetByIdLookUp,
-  hashAndTruncateToCircuit,
-  IDL_LIGHT_PSP2IN2OUT,
-  MERKLE_TREE_HEIGHT,
-  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  UNCOMPRESSED_UTXO_BYTES_LENGTH,
-  UTXO_PREFIX_LENGTH,
-  UtxoError,
-  UtxoErrorCode,
-} from "./index";
+
 import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Result } from "./types";
+import { Result } from "../types";
+import { Account } from "../account";
+import {
+  UTXO_PREFIX_LENGTH,
+  BN_0,
+  COMPRESSED_UTXO_BYTES_LENGTH,
+  UNCOMPRESSED_UTXO_BYTES_LENGTH,
+  ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  MERKLE_TREE_HEIGHT,
+} from "../constants";
+import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
+import { IDL_LIGHT_PSP2IN2OUT } from "../idls";
+import { hashAndTruncateToCircuit, fetchAssetByIdLookUp } from "../utils";
 
 export const randomBN = (nbytes = 30) => {
   return new BN(nacl.randomBytes(nbytes));

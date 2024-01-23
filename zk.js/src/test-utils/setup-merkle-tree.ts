@@ -5,21 +5,19 @@ import {
   IDL_LIGHT_PSP10IN2OUT,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
-} from "../idls/index";
-
+} from "../idls";
 import {
-  ADMIN_AUTH_KEYPAIR,
   POOL_TYPE,
-  MINT,
   merkleTreeProgramId,
-  airdropSol,
   lightPsp2in2outId,
   lightPsp10in2outId,
   lightPsp4in4outAppStorageId,
   lightPsp2in2outStorageId,
-  getSignerAuthorityPda,
-} from "../index";
-import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
+} from "../constants";
+import { MerkleTreeConfig } from "../merkle-tree/merkle-tree-config";
+import { ADMIN_AUTH_KEYPAIR, MINT } from "./constants-system-verifier";
+import { airdropSol } from "./airdrop";
+import { getSignerAuthorityPda } from "../transaction";
 
 export async function setUpMerkleTree(
   provider: anchor.AnchorProvider,

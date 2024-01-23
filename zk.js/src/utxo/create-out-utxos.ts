@@ -1,23 +1,18 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
+import { LightWasm } from "@lightprotocol/account.rs";
+import { AppUtxoConfig, Action } from "../types";
+import { Account } from "../account";
+import { BN_0, MINIMUM_LAMPORTS, BN_2, BN_1 } from "../constants";
 import {
   CreateUtxoError,
-  CreateUtxoErrorCode,
-  TransactionErrorCode,
   TransactionParametersErrorCode,
-  Action,
-  Account,
-  AppUtxoConfig,
-  MINIMUM_LAMPORTS,
-  BN_0,
-  BN_1,
-  BN_2,
-  getAssetPubkeys,
-  createOutUtxo,
-  OutUtxo,
-  Utxo,
-} from "../index";
-import { LightWasm } from "@lightprotocol/account.rs";
+  TransactionErrorCode,
+  CreateUtxoErrorCode,
+} from "../errors";
+import { getAssetPubkeys } from "../transaction";
+import { Utxo, OutUtxo, createOutUtxo } from "./utxo";
+
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
 
 export type Recipient = {

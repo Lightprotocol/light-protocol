@@ -1,3 +1,4 @@
+/// TODO: remove user class
 import {
   LAMPORTS_PER_SOL,
   PublicKey,
@@ -5,68 +6,84 @@ import {
   Transaction as SolanaTransaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
+
 import { BN, Idl } from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
+
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import {
-  Account,
-  AccountErrorCode,
-  Action,
-  AppUtxoConfig,
-  AUTHORITY,
   Balance,
-  BN_0,
-  convertAndComputeDecimals,
-  createRecipientUtxos,
-  CreateUtxoErrorCode,
-  decimalConversion,
+  InboxBalance,
+  TokenUtxoBalance,
   decryptAddUtxoToBalance,
-  fetchNullifierAccountInfo,
-  getUserIndexTransactions,
+  ProgramUtxoBalance,
+} from "../build-balance";
+import {
+  BN_0,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  UTXO_PREFIX_LENGTH,
+  TOKEN_REGISTRY,
+  AUTHORITY,
+  TOKEN_PUBKEY_SYMBOL,
+  MAX_MESSAGE_SIZE,
+} from "../constants";
+import {
+  UserError,
+  UserErrorCode,
+  ProviderErrorCode,
+  RpcErrorCode,
+  CreateUtxoErrorCode,
+  TransactionParametersError,
+  TransactionParametersErrorCode,
+  TransactionErrorCode,
+  UtxoError,
+  AccountErrorCode,
+  SelectInUtxosErrorCode,
+} from "../errors";
+
+import {
   IDL_LIGHT_PSP2IN2OUT,
   IDL_LIGHT_PSP10IN2OUT,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
-  InboxBalance,
-  isProgramVerifier,
-  MAX_MESSAGE_SIZE,
-  MerkleTreeConfig,
-  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  UTXO_PREFIX_LENGTH,
-  ProgramUtxoBalance,
-  Provider,
-  ProviderErrorCode,
-  RpcErrorCode,
-  SelectInUtxosErrorCode,
-  TOKEN_PUBKEY_SYMBOL,
-  TOKEN_REGISTRY,
-  TokenUtxoBalance,
-  Transaction,
-  TransactionErrorCode,
-  UserError,
-  UserErrorCode,
-  UserIndexedTransaction,
-  UtxoError,
-  Result,
+} from "../idls";
+import { MerkleTreeConfig } from "../merkle-tree";
+import {
+  getUserIndexTransactions,
+  getTxParams,
+  syncInputUtxosMerkleProofs,
   createSystemProofInputs,
   getSystemProof,
-  createSolanaInstructions,
+  getSystemPspIdl,
   getSolanaRemainingAccounts,
   prepareAccounts,
-  getSystemPspIdl,
-  getTxParams,
+  createSolanaInstructions,
   getVerifierProgramId,
-  syncInputUtxosMerkleProofs,
-  TransactionParametersError,
-  TransactionParametersErrorCode,
+  Transaction,
+} from "../transaction";
+import {
+  UserIndexedTransaction,
+  AppUtxoConfig,
+  Action,
+  ActionResponseMulti,
   RpcIndexedTransactionResponse,
-  Utxo,
+  Result,
+} from "../types";
+import {
+  isProgramVerifier,
+  fetchNullifierAccountInfo,
+  decimalConversion,
+  convertAndComputeDecimals,
+} from "../utils";
+import {
   OutUtxo,
+  Utxo,
   createOutUtxo,
+  createRecipientUtxos,
   ProgramUtxo,
   decryptProgramUtxo,
-  ActionResponseMulti,
-} from "../index";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+} from "../utxo";
+import { Provider } from "../provider";
+import { Account } from "../account";
 
 // TODO: Utxos should be assigned to a merkle tree
 export enum ConfirmOptions {
@@ -1340,7 +1357,7 @@ export class User {
    * - add custom description strategies for arbitrary data
    */
   async syncStorage(
-    idl: anchor.Idl,
+    idl: Idl,
     aes: boolean = true,
     merkleTreePdaPublicKey: PublicKey = MerkleTreeConfig.getTransactionMerkleTreePda(),
   ) {

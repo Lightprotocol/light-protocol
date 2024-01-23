@@ -6,12 +6,17 @@ import {
   ParsedTransactionWithMeta,
   PublicKey,
 } from "@solana/web3.js";
-
 import { BN } from "@coral-xyz/anchor";
 import * as borsh from "@coral-xyz/borsh";
-
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import {
+  UserIndexedTransaction,
+  IndexedTransactionData,
+  ParsedIndexedTransaction,
+  RpcIndexedTransaction,
+  Action,
+} from "../types";
 import {
   VERIFIER_PUBLIC_KEYS,
   MAX_U64,
@@ -19,22 +24,12 @@ import {
   merkleTreeProgramId,
   BN_0,
 } from "../constants";
-
-import {
-  Action,
-  MerkleTreeConfig,
-  Utxo,
-  getIdsFromEncryptedUtxos,
-} from "../index";
-
 import { getUpdatedSpentUtxos, sleep } from "../utils";
-import {
-  UserIndexedTransaction,
-  IndexedTransactionData,
-  ParsedIndexedTransaction,
-  RpcIndexedTransaction,
-} from "../types";
-import { TokenUtxoBalance, Provider } from "../wallet";
+import { TokenUtxoBalance } from "../build-balance";
+import { Provider } from "../provider";
+import { MerkleTreeConfig } from "../merkle-tree";
+import { Utxo } from "../utxo";
+import { getIdsFromEncryptedUtxos } from "../test-utils";
 
 export class TransactionIndexerEvent {
   borshSchema = borsh.struct([

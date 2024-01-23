@@ -10,9 +10,9 @@ import {
   TransactionSignature,
   VersionedTransaction,
 } from "@solana/web3.js";
-
-import { Wallet } from "../wallet";
+import { Wallet } from "../provider";
 import { confirmConfig } from "../constants";
+
 export const sendVersionedTransaction = async (
   ix: TransactionInstruction,
   connection: Connection,

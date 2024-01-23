@@ -11,8 +11,11 @@ import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { PathLike, readFileSync, writeFile } from "fs";
 
+import { LightPsp2in2out, IDL_LIGHT_PSP2IN2OUT } from "../idls";
+import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
+import { ADMIN_AUTH_KEYPAIR, MINT } from "./constants-system-verifier";
+import { MerkleTreeConfig } from "../merkle-tree";
 import {
-  ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
   REGISTERED_POOL_PDA_SOL,
   DEFAULT_PROGRAMS,
@@ -26,11 +29,7 @@ import {
   REGISTERED_VERIFIER_ONE_PDA,
   REGISTERED_VERIFIER_PDA,
   REGISTERED_VERIFIER_TWO_PDA,
-  MINT,
-  MerkleTreeConfig,
-} from "../index";
-import { LightPsp2in2out, IDL_LIGHT_PSP2IN2OUT } from "../idls/index";
-import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
+} from "../constants";
 
 // TODO: create cli function to create a lookup table for apps
 // Probably only works for testing
