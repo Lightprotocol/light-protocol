@@ -5,9 +5,10 @@ import {
   Transaction as SolanaTransaction,
   PublicKey,
 } from "@solana/web3.js";
-import { TransactionError, TransactionErrorCode } from "../errors";
-import { Provider, getVerifierProgram } from "../index";
 import { Idl } from "@coral-xyz/anchor";
+import { TransactionError, TransactionErrorCode } from "../errors";
+import { Provider } from "../provider";
+import { getVerifierProgram } from "../transaction";
 
 // TODO: add test
 // This is used by applications not the rpc

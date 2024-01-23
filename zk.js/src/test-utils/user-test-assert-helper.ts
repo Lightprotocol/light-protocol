@@ -1,18 +1,9 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { BN } from "@coral-xyz/anchor";
 import assert = require("assert");
 
 import {
-  fetchNullifierAccountInfo,
-  sleep,
-  convertAndComputeDecimals,
-  Action,
-  fetchRecentTransactions,
-  ParsedIndexedTransaction,
-  TokenData,
-  UserIndexedTransaction,
-  Balance,
-  Provider,
-  User,
   AUTHORITY,
   MINIMUM_LAMPORTS,
   TOKEN_REGISTRY,
@@ -20,12 +11,24 @@ import {
   BN_0,
   lightPsp10in2outId,
   lightPsp2in2outId,
-  MerkleTreeConfig,
-  getEscrowPda,
-  Utxo,
-} from "../index";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { BN } from "@coral-xyz/anchor";
+} from "../constants";
+import {
+  ParsedIndexedTransaction,
+  UserIndexedTransaction,
+  TokenData,
+  Action,
+} from "../types";
+import { Utxo } from "../utxo";
+import { Balance } from "../build-balance";
+import {
+  convertAndComputeDecimals,
+  fetchNullifierAccountInfo,
+  sleep,
+} from "../utils";
+import { fetchRecentTransactions, getEscrowPda } from "../transaction";
+import { User } from "../wallet";
+import { MerkleTreeConfig } from "../merkle-tree";
+import { Provider } from "../provider";
 
 export type TestInputs = {
   amountSpl?: number;

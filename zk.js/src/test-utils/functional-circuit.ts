@@ -1,28 +1,25 @@
-import {
-  FEE_ASSET,
-  Account,
-  Provider as LightProvider,
-  MINT,
-  IDL_LIGHT_PSP2IN2OUT,
-  createTransaction,
-  TransactionInput,
-  getVerifierProgramId,
-  getSystemProof,
-  createSystemProofInputs,
-  hashAndTruncateToCircuit,
-  BN_0,
-  getTransactionHash,
-  createOutUtxo,
-  outUtxoToUtxo,
-  OutUtxo,
-  Utxo,
-} from "../index";
+import { OutUtxo, Utxo } from "../utxo";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { BN } from "@coral-xyz/anchor";
 import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
+
+import {
+  TransactionInput,
+  createSystemProofInputs,
+  getSystemProof,
+  getTransactionHash,
+  getVerifierProgramId,
+} from "../transaction";
+import { BN_0, FEE_ASSET } from "../constants";
+import { Account } from "../account";
+import { Provider as LightProvider } from "../provider";
+import { MINT } from "./constants-system-verifier";
+import { createTransaction } from "../transaction";
+import { hashAndTruncateToCircuit } from "../utils";
+import { createOutUtxo, outUtxoToUtxo } from "../utxo";
 
 export async function functionalCircuitTest(
   app: boolean = false,

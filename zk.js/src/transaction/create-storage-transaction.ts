@@ -5,6 +5,7 @@ import {
   TransactionInstruction,
   TransactionSignature,
 } from "@solana/web3.js";
+import { Action, AppUtxoConfig } from "../types";
 import {
   CompressTransaction,
   Transaction,
@@ -17,31 +18,34 @@ import {
   syncInputUtxosMerkleProofs,
 } from "./psp-transaction";
 import { LightWasm } from "@lightprotocol/account.rs";
+import { Rpc } from "../rpc";
 import {
-  Rpc,
+  CreateUtxoErrorCode,
   TransactionParametersError,
   TransactionParametersErrorCode,
   UserError,
   UserErrorCode,
-  MerkleTreeConfig,
-  Account,
-  Action,
-  AppUtxoConfig,
-  IDL_LIGHT_PSP2IN2OUT_STORAGE,
+} from "../errors";
+import { MerkleTreeConfig } from "../merkle-tree";
+import { Account } from "../account";
+import {
+  ProgramOutUtxo,
+  createProgramOutUtxo,
+  encryptProgramOutUtxo,
+} from "../utxo";
+import {
+  BN_0,
   MAX_MESSAGE_SIZE,
   TOKEN_PUBKEY_SYMBOL,
+  TOKEN_REGISTRY,
+} from "../constants";
+import {
   createSolanaInstructions,
   getSolanaRemainingAccounts,
   prepareAccounts,
-  Provider,
-  TOKEN_REGISTRY,
-  CreateUtxoErrorCode,
-  BN_0,
-  ProgramUtxo,
-  createProgramOutUtxo,
-  encryptProgramOutUtxo,
-  ProgramOutUtxo,
-} from "../index";
+} from "./solana-transaction";
+import { Provider } from "../provider";
+import { IDL_LIGHT_PSP2IN2OUT_STORAGE } from "../idls";
 
 export async function prepareStoreProgramUtxo({
   token,

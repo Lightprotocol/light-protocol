@@ -1,21 +1,21 @@
-import { TransactionError, TransactionErrorCode } from "../errors";
-import {
-  Account,
-  Provider,
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
-  checkRentExemption,
-  FIELD_SIZE,
-  Action,
-  merkleTreeProgramId,
-  fetchRecentTransactions,
-  lightAccounts,
-  Transaction,
-  CompressTransaction,
-  DecompressTransaction,
-} from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
+
+import { Action, lightAccounts } from "../types";
+import { TransactionError, TransactionErrorCode } from "../errors";
+import { FIELD_SIZE, merkleTreeProgramId } from "../constants";
+import {
+  DecompressTransaction,
+  CompressTransaction,
+  Transaction,
+  fetchRecentTransactions,
+} from "../transaction";
+import { checkRentExemption } from "./test-checks";
+import { Provider } from "../provider";
+import { IDL_LIGHT_MERKLE_TREE_PROGRAM } from "../idls";
+
 const assert = require("assert");
+
 export class TestTransaction {
   testValues?: {
     recipientBalancePriorTx?: BN;

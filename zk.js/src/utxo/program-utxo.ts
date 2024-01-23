@@ -1,29 +1,32 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
-import {
-  Account,
-  BN_0,
-  COMPRESSED_UTXO_BYTES_LENGTH,
-  createAccountObject,
-  createOutUtxo,
-  createUtxo,
-  CreateUtxoErrorCode,
-  CreateUtxoInputs,
-  decryptOutUtxoInternal,
-  encryptOutUtxoInternal,
-  fetchAssetByIdLookUp,
-  OutUtxo,
-  STANDARD_COMPRESSION_PRIVATE_KEY,
-  STANDARD_COMPRESSION_PUBLIC_KEY,
-  UNCOMPRESSED_UTXO_BYTES_LENGTH,
-  UtxoError,
-  UtxoErrorCode,
-  Utxo,
-  hashAndTruncateToCircuit,
-} from "../index";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Result } from "../types";
+import {
+  BN_0,
+  COMPRESSED_UTXO_BYTES_LENGTH,
+  UNCOMPRESSED_UTXO_BYTES_LENGTH,
+  STANDARD_COMPRESSION_PUBLIC_KEY,
+  STANDARD_COMPRESSION_PRIVATE_KEY,
+} from "../constants";
+import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
+import {
+  hashAndTruncateToCircuit,
+  fetchAssetByIdLookUp,
+  createAccountObject,
+} from "../utils";
+import {
+  createOutUtxo,
+  encryptOutUtxoInternal,
+  decryptOutUtxoInternal,
+  Utxo,
+  CreateUtxoInputs,
+  createUtxo,
+  OutUtxo,
+} from "./utxo";
+import { Account } from "../account";
+
 // TODO: make utxoData depend on idl with generic type
 export type ProgramOutUtxo = {
   outUtxo: OutUtxo;

@@ -15,26 +15,18 @@ import {
   TransactionSignature,
   VersionedTransaction,
 } from "@solana/web3.js";
-import { initLookUpTable } from "./utils/utils";
-import {
-  ADMIN_AUTH_KEYPAIR,
-  MINIMUM_LAMPORTS,
-  MINT,
-  PrioritizationFee,
-  ProviderError,
-  ProviderErrorCode,
-  Rpc,
-  RPC_FEE,
-  RPC_RECIPIENT_KEYPAIR,
-  RpcSendTransactionsResponse,
-  sendVersionedTransactions,
-  SendVersionedTransactionsResult,
-  TOKEN_ACCOUNT_FEE,
-  useWallet,
-} from "./index";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
+
+import { PrioritizationFee } from "./types";
+import { initLookUpTable } from "./utils";
 import { createSolanaTransactions } from "./transaction/create-solana-transactions";
-const axios = require("axios");
+import { useWallet } from "./wallet";
+import { MINIMUM_LAMPORTS, RPC_FEE, TOKEN_ACCOUNT_FEE } from "./constants";
+import { ADMIN_AUTH_KEYPAIR, MINT, RPC_RECIPIENT_KEYPAIR } from "./test-utils";
+import { Rpc } from "./rpc";
+import { ProviderError, ProviderErrorCode } from "./errors";
+
+import axios from "axios";
 
 /**
  * use: signMessage, signTransaction, sendAndConfirmTransaction, publicKey from the useWallet() hook in solana/wallet-adapter and {connection} from useConnection()

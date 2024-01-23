@@ -26,7 +26,7 @@ import {
   SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { TokenData } from "./index";
+import { TokenData } from "./types";
 
 export const BN_0 = new anchor.BN(0);
 export const BN_1 = new anchor.BN(1);

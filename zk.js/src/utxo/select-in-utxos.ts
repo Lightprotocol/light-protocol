@@ -1,19 +1,19 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
+import { LightWasm } from "@lightprotocol/account.rs";
+
+import { Action } from "../types";
+import { Utxo, OutUtxo } from "../utxo";
 import {
   CreateUtxoErrorCode,
   RpcErrorCode,
   SelectInUtxosError,
   SelectInUtxosErrorCode,
   TransactionErrorCode,
-  Action,
-  getUtxoArrayAmount,
-  TOKEN_REGISTRY,
-  BN_0,
-  Utxo,
-  OutUtxo,
-} from "../index";
-import { LightWasm } from "@lightprotocol/account.rs";
+} from "../errors";
+import { getUtxoArrayAmount } from "./create-out-utxos";
+import { BN_0, TOKEN_REGISTRY } from "../constants";
+
 // TODO: turn these into static user.class methods
 export const getAmount = (u: Utxo, asset: PublicKey) => {
   return u.amounts[u.assets.indexOf(asset)];

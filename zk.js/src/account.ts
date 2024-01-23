@@ -1,21 +1,23 @@
 import { sign } from "tweetnacl";
 import { BN, Idl, utils } from "@coral-xyz/anchor";
-import {
-  AccountError,
-  AccountErrorCode,
-  BN_0,
-  SIGN_MESSAGE,
-  STANDARD_COMPRESSION_PRIVATE_KEY,
-  TransactionErrorCode,
-  UtxoErrorCode,
-  Utxo,
-  Wallet,
-} from "./index";
 import { LightWasm, WasmAccount } from "@lightprotocol/account.rs";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Result } from "./types";
 import { Prover } from "@lightprotocol/prover.js";
+import { Result } from "./types";
+import {
+  AccountError,
+  AccountErrorCode,
+  TransactionErrorCode,
+  UtxoErrorCode,
+} from "./errors";
+import {
+  BN_0,
+  SIGN_MESSAGE,
+  STANDARD_COMPRESSION_PRIVATE_KEY,
+} from "./constants";
+import { Wallet } from "./provider";
+import { Utxo } from "./utxo";
 
 const nacl = require("tweetnacl");
 

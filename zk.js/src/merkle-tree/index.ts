@@ -1,2 +1,2 @@
-export * from "./solMerkleTree";
-export * from "./merkleTreeConfig";
+export * from "./sol-merkle-tree";
+export * from "./merkle-tree-config";
