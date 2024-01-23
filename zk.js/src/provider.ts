@@ -15,7 +15,7 @@ import {
   TransactionSignature,
   VersionedTransaction,
 } from "@solana/web3.js";
-import { initLookUpTable } from "../utils";
+import { initLookUpTable } from "./utils/utils";
 import {
   ADMIN_AUTH_KEYPAIR,
   MINIMUM_LAMPORTS,
@@ -31,9 +31,9 @@ import {
   SendVersionedTransactionsResult,
   TOKEN_ACCOUNT_FEE,
   useWallet,
-} from "../index";
+} from "./index";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
-import { createSolanaTransactions } from "../transaction/createSolanaTransactions";
+import { createSolanaTransactions } from "./transaction/create-solana-transactions";
 const axios = require("axios");
 
 /**

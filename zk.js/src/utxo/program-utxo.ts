@@ -20,10 +20,10 @@ import {
   UtxoErrorCode,
   Utxo,
   hashAndTruncateToCircuit,
-} from "./index";
+} from "../index";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Result } from "./types";
+import { Result } from "../types";
 // TODO: make utxoData depend on idl with generic type
 export type ProgramOutUtxo = {
   outUtxo: OutUtxo;

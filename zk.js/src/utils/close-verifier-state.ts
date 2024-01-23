@@ -5,8 +5,8 @@ import {
   Transaction as SolanaTransaction,
   PublicKey,
 } from "@solana/web3.js";
-import { TransactionError, TransactionErrorCode } from "./errors";
-import { Provider, getVerifierProgram } from "./index";
+import { TransactionError, TransactionErrorCode } from "../errors";
+import { Provider, getVerifierProgram } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 
 // TODO: add test

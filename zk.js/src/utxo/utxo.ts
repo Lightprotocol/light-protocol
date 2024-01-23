@@ -17,10 +17,10 @@ import {
   UTXO_PREFIX_LENGTH,
   UtxoError,
   UtxoErrorCode,
-} from "./index";
+} from "../index";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Result } from "./types";
+import { Result } from "../types";
 
 export const randomBN = (nbytes = 30) => {
   return new BN(nacl.randomBytes(nbytes));
