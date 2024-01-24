@@ -3,7 +3,13 @@ import { BN } from "@coral-xyz/anchor";
 import { LightWasm } from "@lightprotocol/account.rs";
 
 import { Action } from "../types";
-import { Utxo, OutUtxo } from "../utxo";
+import {
+  Utxo,
+  OutUtxo,
+  ProgramOutUtxo,
+  PlaceHolderTData,
+  ProgramUtxo,
+} from "../utxo";
 import {
   CreateUtxoErrorCode,
   RpcErrorCode,
@@ -55,12 +61,12 @@ export const getUtxoSum = (utxos: Utxo[], asset: PublicKey) => {
  *    if possible select utxo with smallest spl amount that works
  */
 const selectBiggestSmallest = (
-  filteredUtxos: Utxo[],
+  filteredUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[],
   assetIndex: number,
   sumOutSpl: BN,
   threshold: number,
 ) => {
-  const selectedUtxos: Utxo[] = [];
+  const selectedUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[] = [];
   let selectedUtxosAmount: BN = BN_0;
   let selectedUtxosSolAmount: BN = BN_0;
   // TODO: write sort that works with BN
@@ -115,7 +121,6 @@ const selectBiggestSmallest = (
 // TODO: enable users to pass in this function to use their own selection strategies
 // TODO: add option how many utxos to select
 export function selectInUtxos({
-  lightWasm,
   utxos,
   publicMint,
   publicAmountSpl,
@@ -132,9 +137,9 @@ export function selectInUtxos({
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
   rpcFee?: BN;
-  utxos?: Utxo[];
-  inUtxos?: Utxo[];
-  outUtxos?: OutUtxo[];
+  utxos?: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
+  inUtxos?: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
+  outUtxos?: (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[];
   action: Action;
   numberMaxInUtxos: number;
   numberMaxOutUtxos: number;
@@ -212,8 +217,9 @@ export function selectInUtxos({
   }
 
   // if mint is provided filter for only utxos that contain the mint
-  let filteredUtxos: Utxo[];
+  let filteredUtxos;
   let sumOutSpl = publicAmountSpl ? publicAmountSpl : BN_0;
+  /// TODO: review why we're using getUtxoArrayAmount which seems to be for inUtxos
   let sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
   if (rpcFee) sumOutSol = sumOutSol.add(rpcFee);
   if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
@@ -227,7 +233,7 @@ export function selectInUtxos({
   }
 
   // TODO: make work with input utxo
-  let selectedUtxosR: Utxo[] = inUtxos ? [...inUtxos] : [];
+  let selectedUtxosR = inUtxos ? [...inUtxos] : [];
   if (numberMaxInUtxos - selectedUtxosR.length < 0)
     throw new SelectInUtxosError(
       SelectInUtxosErrorCode.INVALID_NUMBER_OF_IN_UTXOS,
@@ -261,7 +267,7 @@ export function selectInUtxos({
         // exclude the utxo which is already selected and utxos which hold other assets than only sol
         const reFilteredUtxos = utxos.filter(
           (utxo) =>
-            utxo.utxoHash != selectedUtxosR[0].utxoHash &&
+            utxo.hash != selectedUtxosR[0].hash &&
             utxo.assets[1].toBase58() === SystemProgram.programId.toBase58(),
         );
 

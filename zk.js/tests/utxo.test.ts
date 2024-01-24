@@ -21,6 +21,8 @@ import {
   programOutUtxoToBytes,
   BN_1,
   programOutUtxoFromBytes,
+  createDataHashWithDefaultHashingSchema,
+  stringifyAssetsToCircuitInput,
 } from "../src";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -45,7 +47,7 @@ describe("Utxo Functional", () => {
   it("create out utxo", async () => {
     for (let i = 0; i < 100; i++) {
       const outUtxo = createOutUtxo({
-        publicKey: account.keypair.publicKey,
+        owner: account.keypair.publicKey,
         amounts: [new BN(123), new BN(456)],
         assets: [SystemProgram.programId, MINT],
         lightWasm,
@@ -88,12 +90,12 @@ describe("Utxo Functional", () => {
         merkleTreePdaPublicKey: MERKLE_TREE_SET,
         assetLookupTable,
         aes: true,
-        utxoHash: new BN(outUtxo.utxoHash).toArrayLike(Buffer, "be", 32),
+        utxoHash: new BN(outUtxo.hash).toArrayLike(Buffer, "be", 32),
       });
       compareOutUtxos(decryptedUtxo.value!, outUtxo);
 
       const asymOutUtxo = createOutUtxo({
-        publicKey: account.keypair.publicKey,
+        owner: account.keypair.publicKey,
         encryptionPublicKey: account.encryptionKeypair.publicKey,
         amounts: [new BN(123), new BN(456)],
         assets: [SystemProgram.programId, MINT],
@@ -117,7 +119,7 @@ describe("Utxo Functional", () => {
         merkleTreePdaPublicKey: MERKLE_TREE_SET,
         assetLookupTable,
         aes: false,
-        utxoHash: new BN(asymOutUtxo.utxoHash).toArrayLike(Buffer, "be", 32),
+        utxoHash: new BN(asymOutUtxo.hash).toArrayLike(Buffer, "be", 32),
       });
       if (decryptedUtxoNacl.value === null) {
         throw new Error("decrypt nacl failed");
@@ -146,12 +148,16 @@ describe("Utxo Functional", () => {
     const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
 
     const outUtxo = createOutUtxo({
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       amounts: inputs.amounts,
       assets: inputs.assets,
       blinding: inputs.blinding,
       lightWasm,
     });
+
+    const outUtxoAssetCircuitInput = stringifyAssetsToCircuitInput(
+      outUtxo.assets,
+    );
 
     // functional
     assert.equal(outUtxo.amounts[0].toString(), amountFee);
@@ -162,17 +168,18 @@ describe("Utxo Functional", () => {
     );
     assert.equal(outUtxo.assets[1].toBase58(), assetPubkey.toBase58());
     assert.equal(
-      outUtxo.assetsCircuit[0].toString(),
+      outUtxoAssetCircuitInput[0].toString(),
       hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
     );
     assert.equal(
-      outUtxo.assetsCircuit[1].toString(),
+      outUtxoAssetCircuitInput[1].toString(),
       hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
     );
-    assert.equal(outUtxo.utxoDataHash.toString(), "0");
+    if ("data" in outUtxo) throw new Error("dataHash is not 0");
+    // assert.equal(outUtxo.dataHash.toString(), "0");
     assert.equal(outUtxo.poolType.toString(), "0");
     assert.equal(
-      outUtxo.utxoHash,
+      outUtxo.hash.toString(),
       "17616393199387360834665924012652189736074827681842362183279563807978925296116",
     );
 
@@ -204,7 +211,7 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       aes: true,
       merkleTreePdaPublicKey: MERKLE_TREE_SET,
-      utxoHash: new BN(outUtxo.utxoHash).toArrayLike(Buffer, "be", 32),
+      utxoHash: new BN(outUtxo.hash).toArrayLike(Buffer, "be", 32),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       compressed: true,
     });
@@ -220,7 +227,7 @@ describe("Utxo Functional", () => {
       inputs.keypair,
       MERKLE_TREE_SET,
       true,
-      new BN(outUtxo.utxoHash).toArrayLike(Buffer, "be", 32),
+      new BN(outUtxo.hash).toArrayLike(Buffer, "be", 32),
       lightWasm,
       true,
       ["1", "2", "3"],
@@ -237,19 +244,22 @@ describe("Utxo Functional", () => {
       decryptedUtxo.value?.assets[1].toBase58(),
       assetPubkey.toBase58(),
     );
+    const decryptedUtxoAssetCircuitInput = stringifyAssetsToCircuitInput(
+      decryptedUtxo.value!.assets,
+    );
     assert.equal(
-      decryptedUtxo.value?.assetsCircuit[0].toString(),
+      decryptedUtxoAssetCircuitInput[0].toString(),
       hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
     );
     assert.equal(
-      decryptedUtxo.value?.assetsCircuit[1].toString(),
+      decryptedUtxoAssetCircuitInput[1].toString(),
       hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
     );
-    assert.equal(decryptedUtxo.value?.utxoDataHash.toString(), "0");
+    // assert.equal(decryptedUtxo.value?.dataHash.toString(), "0");
     assert.equal(decryptedUtxo.value?.poolType.toString(), "0");
-    assert.equal(decryptedUtxo.value?.utxoHash, outUtxo.utxoHash);
+    assert.equal(decryptedUtxo.value?.hash.toString(), outUtxo.hash.toString());
     assert.equal(
-      decryptedUtxo.value?.nullifier,
+      decryptedUtxo.value?.nullifier.toString(),
       "8680724017972717671969941133708196418881527598796387753861373148385948673953",
     );
     assert.deepEqual(decryptedUtxo.value?.merkleProof, ["1", "2", "3"]);
@@ -257,7 +267,7 @@ describe("Utxo Functional", () => {
 
     // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
     const outUtxoNacl = createOutUtxo({
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       encryptionPublicKey: account.encryptionKeypair.publicKey,
       amounts: inputs.amounts,
       assets: inputs.assets,
@@ -280,7 +290,7 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       merkleTreePdaPublicKey: MERKLE_TREE_SET,
       aes: false,
-      utxoHash: new BN(outUtxoNacl.utxoHash).toArrayLike(Buffer, "be", 32),
+      utxoHash: new BN(outUtxoNacl.hash).toArrayLike(Buffer, "be", 32),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
     });
     if (receivingUtxo1Unchecked.value !== null) {
@@ -303,12 +313,16 @@ describe("Utxo Functional", () => {
     const outputUtxo = createProgramOutUtxo({
       lightWasm,
       assets: [SystemProgram.programId],
-      publicKey: account.keypair.publicKey,
+      // owner: account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
-      utxoData: { releaseSlot: BN_1 },
-      pspIdl: TEST_PSP_IDL,
-      pspId: verifierProgramId,
-      utxoName: "utxo",
+      data: { releaseSlot: BN_1 },
+      dataHash: createDataHashWithDefaultHashingSchema(
+        { releaseSlot: BN_1 },
+        lightWasm,
+      ),
+      ownerIdl: TEST_PSP_IDL,
+      owner: verifierProgramId,
+      type: "utxo",
     });
     const bytes = await programOutUtxoToBytes(
       outputUtxo,
@@ -320,14 +334,14 @@ describe("Utxo Functional", () => {
       lightWasm,
       bytes: Buffer.from(bytes),
       account,
-      pspIdl: TEST_PSP_IDL,
-      pspId: verifierProgramId,
+      ownerIdl: TEST_PSP_IDL,
+      owner: verifierProgramId,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
-      utxoName: "utxo",
+      type: "utxo",
     });
-    compareOutUtxos(utxo1.outUtxo, outputUtxo.outUtxo);
+    compareOutUtxos(utxo1, outputUtxo);
     assert.equal(
-      utxo1.pspId.toBase58(),
+      utxo1.owner.toBase58(),
       "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
     );
   });

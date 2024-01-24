@@ -9,11 +9,11 @@ import {
   isEqualUint8Array,
   MERKLE_TREE_SET,
   MerkleTreeConfig,
-  newNonce,
   useWallet,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
+import nacl from "tweetnacl";
 
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -56,6 +56,10 @@ describe("Test Account Functional", () => {
   it("compare wasm account keypairs to the ref", () => {
     assert.equal(
       k0.keypair.privateKey.toString(),
+      new BN(k0.wasmAccount.getPrivateKey()).toString(),
+    );
+    console.log(
+      "bn.toString()",
       new BN(k0.wasmAccount.getPrivateKey()).toString(),
     );
     assert.equal(
@@ -318,6 +322,8 @@ describe("Test Account Functional", () => {
   it("aes encryption", async () => {
     const message = new Uint8Array(32).fill(1);
     // never reuse nonces this is only for testing
+    const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
+
     const nonce = newNonce().subarray(0, 12);
     const cipherText1 = await k0.encryptAes(message, nonce);
     const cleartext1 = k0.decryptAes(cipherText1);

@@ -16,6 +16,7 @@ import {
   getSystemPspIdl,
   getVerifierProgramId,
   syncInputUtxosMerkleProofs,
+  SystemProofInputs,
 } from "./psp-transaction";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { Rpc } from "../rpc";
@@ -29,8 +30,11 @@ import {
 import { MerkleTreeConfig } from "../merkle-tree";
 import { Account } from "../account";
 import {
+  BN31,
+  PlaceHolderTData,
   ProgramOutUtxo,
   createProgramOutUtxo,
+  createDataHashWithDefaultHashingSchema,
   encryptProgramOutUtxo,
 } from "../utxo";
 import {
@@ -65,7 +69,7 @@ export async function prepareStoreProgramUtxo({
   amountSpl?: BN;
   senderTokenAccount?: PublicKey;
   recipientPublicKey?: string;
-  appUtxo?: ProgramOutUtxo;
+  appUtxo?: ProgramOutUtxo<PlaceHolderTData>;
   appUtxoConfig?: AppUtxoConfig;
   account: Account;
   lightWasm: LightWasm;
@@ -97,6 +101,12 @@ export async function prepareStoreProgramUtxo({
       const recipientAccount = recipientPublicKey
         ? Account.fromPubkey(recipientPublicKey, lightWasm)
         : undefined;
+
+      const dataHash: BN31 = createDataHashWithDefaultHashingSchema(
+        appUtxoConfig.appData,
+        lightWasm,
+      );
+
       appUtxo = createProgramOutUtxo({
         lightWasm,
         amounts: [amountSol, amountSpl],
@@ -104,10 +114,11 @@ export async function prepareStoreProgramUtxo({
         encryptionPublicKey: recipientAccount
           ? recipientAccount.encryptionKeypair.publicKey
           : undefined,
-        pspId: appUtxoConfig.verifierAddress,
-        pspIdl: appUtxoConfig.idl,
-        utxoData: appUtxoConfig.appData,
-        utxoName: "appUtxo", // TODO: make dynamic
+        owner: appUtxoConfig.verifierAddress,
+        ownerIdl: appUtxoConfig.idl,
+        data: appUtxoConfig.appData,
+        type: "appUtxo", // TODO: make dynamic
+        dataHash,
       });
     } else {
       throw new UserError(
@@ -126,9 +137,9 @@ export async function prepareStoreProgramUtxo({
 
   if (!token) {
     const utxoAsset =
-      appUtxo.outUtxo.amounts[1].toString() === "0"
+      appUtxo.amounts[1].toString() === "0"
         ? new PublicKey(0).toBase58()
-        : appUtxo.outUtxo.assets[1].toBase58();
+        : appUtxo.assets[1].toBase58();
     token = TOKEN_PUBKEY_SYMBOL.get(utxoAsset);
   }
 
@@ -155,12 +166,10 @@ export async function prepareStoreProgramUtxo({
       "storeData",
       `${message.length}/${MAX_MESSAGE_SIZE}`,
     );
-  appUtxo.includeUtxoData = false;
+  // appUtxo.includeUtxoData = false;
   if (!amountSpl)
     amountSpl =
-      appUtxo.outUtxo.amounts[1].toString() === "0"
-        ? undefined
-        : appUtxo.outUtxo.amounts[1];
+      appUtxo.amounts[1].toString() === "0" ? undefined : appUtxo.amounts[1];
 
   const tokenCtx = getTokenContext(token);
 
@@ -190,7 +199,7 @@ export async function compressProgramUtxo({
   amountSpl?: BN;
   senderTokenAccount?: PublicKey;
   recipientPublicKey?: string;
-  appUtxo?: ProgramOutUtxo;
+  appUtxo?: ProgramOutUtxo<PlaceHolderTData>;
   appUtxoConfig?: AppUtxoConfig;
   account: Account;
   provider: Provider;
@@ -215,18 +224,22 @@ export async function compressProgramUtxo({
     lightWasm: provider.lightWasm,
   });
 
-  const transaction = await createCompressTransaction({
+  const transaction = await createCompressTransaction<
+    any,
+    ProgramOutUtxo<PlaceHolderTData>
+  >({
     message,
     merkleTreeSetPubkey: MERKLE_TREE_SET,
     mint:
       publicAmountSpl && !publicAmountSpl.eq(BN_0) ? tokenCtx.mint : undefined,
     senderSpl: userSplAccount,
-    outputUtxos: [utxo.outUtxo],
+    outputUtxos: [utxo],
     signer: provider.wallet.publicKey,
     systemPspId: getVerifierProgramId(verifierIdl),
     account,
     lightWasm: provider.lightWasm,
   });
+
   const instructions = await proveAndCreateInstructions({
     transaction,
     rpc: provider.rpc,
@@ -251,7 +264,7 @@ export async function proveAndCreateInstructions({
 }): Promise<TransactionInstruction[]> {
   if (!transaction)
     throw new UserError(
-      UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+      UserErrorCode.TRANSACTION_PARAMETERS_UNDEFINED,
       "compileAndProveTransaction",
       "The method 'createCompressTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
     );
@@ -284,12 +297,13 @@ export async function proveAndCreateInstructions({
       "Fetching root from rpc failed.",
     );
   }
-  const systemProofInputs = createSystemProofInputs({
+  const systemProofInputs: SystemProofInputs = createSystemProofInputs({
     transaction: transaction,
     root,
     account,
     lightWasm,
   });
+
   const systemProof = await getSystemProof({
     account: account,
     inputUtxos: transaction.private.inputUtxos,
@@ -309,7 +323,7 @@ export async function proveAndCreateInstructions({
   });
 
   const instructions = await createSolanaInstructions({
-    action: transaction["action"] ? transaction["action"] : Action.TRANSFER,
+    action: transaction["action"] ?? Action.TRANSFER,
     systemProof,
     remainingSolanaAccounts,
     accounts,

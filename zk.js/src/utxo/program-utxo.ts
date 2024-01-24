@@ -7,8 +7,6 @@ import {
   BN_0,
   COMPRESSED_UTXO_BYTES_LENGTH,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
-  STANDARD_COMPRESSION_PUBLIC_KEY,
-  STANDARD_COMPRESSION_PRIVATE_KEY,
 } from "../constants";
 import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
 import {
@@ -17,75 +15,128 @@ import {
   createAccountObject,
 } from "../utils";
 import {
-  createOutUtxo,
   encryptOutUtxoInternal,
   decryptOutUtxoInternal,
   Utxo,
   CreateUtxoInputs,
-  createUtxo,
   OutUtxo,
+  checkAssetAndAmountIntegrity,
+  getDefaultUtxoTypeAndVersionV0,
+  randomBN,
+  getUtxoHashInputs,
+  getUtxoHash,
+  createNullifierWithAccountSignature,
 } from "./utxo";
 import { Account } from "../account";
+import { BN31, createBN31 } from "./bn31";
 
-// TODO: make utxoData depend on idl with generic type
-export type ProgramOutUtxo = {
-  outUtxo: OutUtxo;
-  pspId: PublicKey;
-  pspIdl: Idl;
-  includeUtxoData: boolean;
-  utxoName: string;
+export type PlaceHolderTData = any;
+/** Program-owned utxo that had previously been inserted into a state Merkle tree */
+export type ProgramUtxo<TData extends PlaceHolderTData> = Omit<
+  Utxo,
+  "owner"
+> & {
+  /** Public key of program that owns the utxo */
+  owner: PublicKey;
+  /** Data assigned to the utxo */
+  data: TData;
+  /** Hash of 'data' */
+  dataHash: BN31;
+  /** psp idl */
+  ownerIdl: Idl; /// TODO: remove from utxo (waste of space)
+};
+
+/** Program-owned utxo that is not inserted into the state tree yet. */
+export type ProgramOutUtxo<TData extends PlaceHolderTData> = Omit<
+  OutUtxo,
+  "owner"
+> & {
+  /** Public key of program that owns the utxo */
+  owner: PublicKey;
+  /** Data assigned to the utxo */
+  data: TData;
+  /** Hash of 'data' */
+  dataHash: BN31;
+  /** psp idl */
+  ownerIdl: Idl; /// TODO: remove from utxo (waste of space)
 };
 
 export function createProgramOutUtxo({
-  encryptionPublicKey,
+  owner,
   amounts,
   assets,
-  blinding,
   lightWasm,
-  pspId,
-  pspIdl,
-  includeUtxoData = true,
-  utxoData,
-  utxoName,
-  utxoDataHash,
+  ownerIdl,
+  data,
+  dataHash,
+  type,
+  encryptionPublicKey,
+  address,
+  blinding = new BN(randomBN(), 31, "be"),
+  metaHash,
 }: {
-  encryptionPublicKey?: Uint8Array;
+  owner: PublicKey;
   amounts: BN[];
   assets: PublicKey[];
-  blinding?: BN;
   lightWasm: LightWasm;
-  pspId: PublicKey;
-  pspIdl: Idl;
-  includeUtxoData?: boolean;
-  utxoData: any;
-  utxoName: string;
-  utxoDataHash?: BN;
-}): ProgramOutUtxo {
-  checkUtxoData(utxoData, pspIdl, utxoName + "OutUtxo");
+  /** idl of the program owning the utxo */
+  ownerIdl: Idl;
+  data: PlaceHolderTData;
+  dataHash: BN;
+  type: string;
+  encryptionPublicKey?: Uint8Array;
+  address?: BN31;
+  blinding?: BN31;
+  metaHash?: BN31;
+}): ProgramOutUtxo<PlaceHolderTData> {
+  const { poolType, version } = getDefaultUtxoTypeAndVersionV0();
+  ({ assets, amounts } = checkAssetAndAmountIntegrity(assets, amounts));
 
-  const outUtxo = createOutUtxo({
-    publicKey: hashAndTruncateToCircuit(pspId.toBytes()),
-    encryptionPublicKey,
+  // TODO: enable check
+  // checkUtxoData(data, ownerIdl, type + "OutUtxo");
+
+  /// turn programId into BN31
+  const programIdCircuitInput = hashAndTruncateToCircuit(owner.toBytes());
+
+  const utxoHashInputs = getUtxoHashInputs(
+    programIdCircuitInput,
     amounts,
     assets,
     blinding,
-    isFillingUtxo: false,
-    lightWasm,
-    utxoData,
-    utxoDataHash,
-  });
+    poolType,
+    version,
+    dataHash,
+    metaHash,
+    address,
+  );
 
-  const programOutUtxo: ProgramOutUtxo = {
-    outUtxo,
-    pspId,
-    pspIdl,
-    includeUtxoData,
-    utxoName,
+  const hash = getUtxoHash(lightWasm, utxoHashInputs);
+
+  return {
+    hash,
+    owner,
+    amounts,
+    assets,
+    blinding,
+    type,
+    version,
+    poolType,
+    isFillingUtxo: false,
+    isPublic: false, // TODO: make isPublic dynamic
+    address,
+    metaHash,
+    data,
+    dataHash,
+    encryptionPublicKey,
+    ownerIdl,
   };
-  return programOutUtxo;
 }
 
-export const checkUtxoData = (utxoData: any, idl: any, circuitName: string) => {
+export const checkUtxoData = (
+  utxoData: PlaceHolderTData,
+  idl: Idl,
+  circuitName: string,
+) => {
   const circuitIdlObject = idl.accounts!.find(
     (account: any) => account.name === circuitName,
   );
@@ -119,8 +170,12 @@ export const checkUtxoData = (utxoData: any, idl: any, circuitName: string) => {
   });
 };
 
-// TODO: make general for unlimited lengths
-export const createUtxoDataHash = (utxoData: any, lightWasm: LightWasm): BN => {
+// TODO: generalize for >16 data inputs
+/** Creates utxo data hash using a default hashing schema */
+export const createDataHashWithDefaultHashingSchema = (
+  utxoData: PlaceHolderTData,
+  lightWasm: LightWasm,
+): BN => {
   let hashArray: any[] = [];
   for (const attribute in utxoData) {
     hashArray.push(utxoData[attribute]);
@@ -142,30 +197,46 @@ export const createUtxoDataHash = (utxoData: any, lightWasm: LightWasm): BN => {
   return utxoDataHash;
 };
 
+const getSplAssetLookupTableIndex = (
+  asset: PublicKey,
+  assetLookupTable: string[],
+): BN => {
+  const index = assetLookupTable.findIndex(
+    (base58PublicKey) => base58PublicKey === asset.toBase58(),
+  );
+  if (index === -1) {
+    throw new UtxoError(
+      UtxoErrorCode.ASSET_NOT_FOUND,
+      "getSplAssetLookupTableIndex",
+      `asset pubkey ${asset}, not found in lookup table`,
+    );
+  }
+  return new BN(index);
+};
+
 // TODO: remove verifier index from encrypted utxo data
-/**
- * @description Parses a utxo to bytes.
- * @returns {Uint8Array}
- */
+// TODO: add explicit type to serialized data
+/** Parse a program-owned utxo to bytes */
 export async function programOutUtxoToBytes(
-  outUtxo: ProgramOutUtxo,
+  outUtxo: ProgramOutUtxo<PlaceHolderTData>,
   assetLookupTable: string[],
   compressed: boolean = false,
 ): Promise<Uint8Array> {
   const serializeObject = {
     ...outUtxo,
-    ...outUtxo.outUtxo,
-    ...outUtxo.outUtxo.utxoData,
-    dataHash: outUtxo.outUtxo.utxoDataHash,
-    accountCompressionPublicKey: new BN(outUtxo.outUtxo.publicKey),
-    accountEncryptionPublicKey: outUtxo.outUtxo.encryptionPublicKey
-      ? outUtxo.outUtxo.encryptionPublicKey
-      : new Uint8Array(32).fill(0),
+    ...outUtxo.data,
+    /// TODO: fix idl naming congruence
+    appDataHash: outUtxo.dataHash,
+    /// FIX: check if we need this for programutxos anymore
+    accountCompressionPublicKey: hashAndTruncateToCircuit(
+      outUtxo.owner.toBytes(),
+    ),
+    accountEncryptionPublicKey:
+      outUtxo.encryptionPublicKey ?? new Uint8Array(32).fill(0),
     verifierAddressIndex: BN_0,
-    splAssetIndex: new BN(
-      assetLookupTable.findIndex(
-        (asset) => asset === outUtxo.outUtxo.assets[1].toBase58(),
-      ),
+    splAssetIndex: getSplAssetLookupTableIndex(
+      outUtxo.assets[1],
+      assetLookupTable,
     ),
   };
   if (serializeObject.splAssetIndex.toString() === "-1") {
@@ -175,9 +246,9 @@ export async function programOutUtxoToBytes(
       `asset pubkey ${serializeObject.assets[1]}, not found in lookup table`,
     );
   }
-  const coder = new BorshAccountsCoder(outUtxo.pspIdl);
+  const coder = new BorshAccountsCoder(outUtxo.ownerIdl);
   const serializedData = await coder.encode(
-    outUtxo.utxoName + "OutUtxo",
+    outUtxo.type + "OutUtxo",
     serializeObject,
   );
 
@@ -189,27 +260,27 @@ export async function programOutUtxoToBytes(
 }
 
 // TODO: support multiple utxo names, to pick the correct one (we can probably match the name from the discriminator)
+
+/** Reconstruct a program-owned output utxo from bytes */
 export function programOutUtxoFromBytes({
   bytes,
-  account,
   assetLookupTable,
-  compressed = false,
   lightWasm,
-  pspId,
-  pspIdl,
-  utxoName,
-  includeUtxoData,
+  owner,
+  ownerIdl,
+  type,
+  account,
+  compressed = false,
 }: {
   bytes: Buffer;
-  account?: Account;
   assetLookupTable: string[];
-  compressed?: boolean;
   lightWasm: LightWasm;
-  pspId: PublicKey;
-  pspIdl: Idl;
-  utxoName: string;
-  includeUtxoData?: boolean;
-}): ProgramOutUtxo {
+  owner: PublicKey;
+  ownerIdl: Idl;
+  type: string;
+  account?: Account;
+  compressed?: boolean;
+}): ProgramOutUtxo<PlaceHolderTData> {
   // if it is compressed and adds 64 0 bytes padding
   if (compressed) {
     const tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
@@ -226,21 +297,22 @@ export function programOutUtxoFromBytes({
         "For deserializing a compressed utxo an account is required.",
       );
   }
-  const coder = new BorshAccountsCoder(pspIdl);
-  const decodedUtxoData = coder.decode(utxoName + "OutUtxo", bytes);
+  const coder = new BorshAccountsCoder(ownerIdl);
+  /// TODO: decodedUtxoData should have explicit type, inferred by IDL
+  const decodedUtxoData = coder.decode(type + "OutUtxo", bytes);
 
   const assets = [
     SystemProgram.programId,
     fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex, assetLookupTable),
   ];
-  if (!pspIdl.accounts)
+  if (!ownerIdl.accounts)
     throw new UtxoError(
       UtxoErrorCode.APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS,
       "fromBytes",
     );
-  const utxoData = createAccountObject(
+  const data = createAccountObject(
     decodedUtxoData,
-    pspIdl.accounts,
+    ownerIdl.accounts,
     "utxoOutUtxoAppData", // TODO: make name flexible
   );
 
@@ -254,12 +326,20 @@ export function programOutUtxoFromBytes({
     assets,
     blinding: decodedUtxoData.blinding,
     lightWasm,
-    pspId,
-    pspIdl,
-    includeUtxoData,
-    utxoData,
-    utxoName,
-    utxoDataHash: decodedUtxoData.dataHash,
+    owner,
+    ownerIdl,
+    data,
+    type,
+    /// TODO: fix idl naming congruence
+    /// Currently, system programs assume 'appDataHash' whereas psp-idl uses 'dataHash'
+    /** dataHash (can be custom) gets stored in the encrypted message */
+    dataHash: decodedUtxoData.appDataHash
+      ? createBN31(decodedUtxoData.appDataHash)
+      : createBN31(decodedUtxoData.dataHash),
+    /// TODO: add encr/decr tests handling metaHash and address
+    /// I'm assuming we don't have coverage for these yet
+    address: decodedUtxoData.address,
+    metaHash: decodedUtxoData.metaHash,
   });
   return programUtxo;
 }
@@ -270,19 +350,19 @@ export function programOutUtxoFromString(
   account: Account,
   lightWasm: LightWasm,
   compressed: boolean = false,
-  pspId: PublicKey,
-  pspIdl: Idl,
-  utxoName: string,
-): ProgramOutUtxo {
+  owner: PublicKey,
+  ownerIdl: Idl,
+  type: string,
+): ProgramOutUtxo<PlaceHolderTData> {
   return programOutUtxoFromBytes({
     bytes: bs58.decode(string),
     assetLookupTable,
     account,
     compressed,
     lightWasm,
-    pspId,
-    pspIdl,
-    utxoName,
+    owner,
+    ownerIdl,
+    type,
   });
 }
 
@@ -292,7 +372,7 @@ export function programOutUtxoFromString(
  * @returns {Promise<string>} A promise that resolves to the base58 encoded string representation of the Utxo.
  */
 export async function programOutUtxoToString(
-  utxo: ProgramOutUtxo,
+  utxo: ProgramOutUtxo<PlaceHolderTData>,
   assetLookupTable: string[],
 ): Promise<string> {
   const bytes = await programOutUtxoToBytes(utxo, assetLookupTable);
@@ -307,7 +387,7 @@ export async function encryptProgramOutUtxo({
   compressed = false,
   assetLookupTable,
 }: {
-  utxo: ProgramOutUtxo;
+  utxo: ProgramOutUtxo<PlaceHolderTData>;
   lightWasm: LightWasm;
   account?: Account;
   merkleTreePdaPublicKey?: PublicKey;
@@ -315,17 +395,16 @@ export async function encryptProgramOutUtxo({
   assetLookupTable: string[];
 }): Promise<Uint8Array> {
   const bytes = await programOutUtxoToBytes(utxo, assetLookupTable, compressed);
-  const utxoHash = new BN(utxo.outUtxo.utxoHash).toArrayLike(Buffer, "be", 32);
+  const hash32 = utxo.hash.toArrayLike(Buffer, "be", 32);
 
   const encryptedUtxo = await encryptOutUtxoInternal({
     bytes,
-    utxoHash,
+    hash: hash32,
     lightWasm,
     account,
     merkleTreePdaPublicKey,
     compressed,
-    publicKey: utxo.outUtxo.publicKey,
-    encryptionPublicKey: utxo.outUtxo.encryptionPublicKey,
+    encryptionPublicKey: utxo.encryptionPublicKey,
   });
   return encryptedUtxo;
 }
@@ -339,9 +418,9 @@ export async function decryptProgramOutUtxo({
   utxoHash,
   compressed = false,
   assetLookupTable,
-  pspId,
-  pspIdl,
-  utxoName,
+  owner,
+  ownerIdl,
+  type,
 }: {
   lightWasm: LightWasm;
   encBytes: Uint8Array;
@@ -351,12 +430,11 @@ export async function decryptProgramOutUtxo({
   utxoHash: Uint8Array;
   compressed?: boolean;
   assetLookupTable: string[];
-  pspId: PublicKey;
-  pspIdl: Idl;
-  utxoName: string;
-}): Promise<Result<ProgramOutUtxo | null, UtxoError>> {
+  owner: PublicKey;
+  ownerIdl: Idl;
+  type: string;
+}): Promise<Result<ProgramOutUtxo<PlaceHolderTData> | null, UtxoError>> {
   const cleartext = await decryptOutUtxoInternal({
-    lightWasm,
     encBytes,
     account,
     merkleTreePdaPublicKey,
@@ -374,54 +452,87 @@ export async function decryptProgramOutUtxo({
       account,
       assetLookupTable,
       compressed,
-      pspId,
-      pspIdl,
-      utxoName,
+      owner,
+      ownerIdl,
+      type,
     }),
   );
 }
 
-export type ProgramUtxo = {
-  utxo: Utxo;
-  pspId: PublicKey;
-  pspIdl: Idl;
-  includeUtxoData: boolean;
+type CreateProgramUtxoInputs = Omit<CreateUtxoInputs, "owner"> & {
+  type: string;
+  owner: PublicKey;
+  ownerIdl: Idl;
+  data: PlaceHolderTData;
+  dataHash: BN31;
+  /// TODO: add dataHash here.
 };
 
 export function createProgramUtxo({
-  createUtxoInputs,
+  createProgramUtxoInputs,
   account,
   lightWasm,
-  pspId,
-  pspIdl,
-  includeUtxoData = true,
-  utxoData,
-  utxoName,
 }: {
-  createUtxoInputs: CreateUtxoInputs;
-  lightWasm: LightWasm;
-  pspId: PublicKey;
-  pspIdl: Idl;
-  includeUtxoData?: boolean;
-  utxoData: any;
-  utxoName: string;
+  createProgramUtxoInputs: CreateProgramUtxoInputs;
   account: Account;
-}): ProgramUtxo {
-  const utxoDataInternal = utxoData;
-  checkUtxoData(utxoDataInternal, pspIdl, utxoName + "OutUtxo");
-  const dataHash = createUtxoDataHash(utxoDataInternal, lightWasm);
-  createUtxoInputs["utxoDataHash"] = dataHash.toString();
-  createUtxoInputs["owner"] = pspId;
-  createUtxoInputs["utxoData"] = utxoDataInternal;
-  createUtxoInputs["utxoName"] = utxoName;
-  const utxo = createUtxo(lightWasm, account, createUtxoInputs, false);
-  const programOutUtxo: ProgramUtxo = {
-    utxo,
-    pspId,
-    pspIdl,
-    includeUtxoData,
+  lightWasm: LightWasm;
+}): ProgramUtxo<PlaceHolderTData> {
+  const { type, owner, ownerIdl, data, dataHash, ...createUtxoInputs } =
+    createProgramUtxoInputs;
+  const {
+    merkleTreeLeafIndex,
+    hash,
+    blinding,
+    amounts,
+    assets,
+    merkleProof,
+    metaHash,
+    address,
+  } = createUtxoInputs;
+
+  if (merkleTreeLeafIndex === undefined) {
+    throw new UtxoError(
+      CreateUtxoErrorCode.MERKLE_TREE_INDEX_UNDEFINED,
+      "createUtxo",
+      "Merkle tree index is undefined",
+    );
+  }
+  const merkleTreeLeafIndexBN = new BN(merkleTreeLeafIndex);
+
+  // FIX: enable check; (doesnt work for non psps)
+  // checkUtxoData(data, ownerIdl, type + "OutUtxo");
+
+  const nullifier = createNullifierWithAccountSignature(
+    account,
+    hash,
+    merkleTreeLeafIndexBN,
+    lightWasm,
+  );
+
+  const { version, poolType } = getDefaultUtxoTypeAndVersionV0();
+
+  const programUtxo: ProgramUtxo<PlaceHolderTData> = {
+    hash,
+    assets,
+    amounts,
+    blinding,
+    type,
+    version,
+    poolType,
+    nullifier,
+    isFillingUtxo: false,
+    isPublic: false,
+    address,
+    metaHash,
+    merkleProof,
+    merkleTreeLeafIndex,
+    merkletreeId: new BN(0).toNumber(), // TODO: make merkletreeId dynamic (support parallel merkle trees)
+    owner,
+    ownerIdl,
+    data,
+    dataHash,
   };
-  return programOutUtxo;
+  return programUtxo;
 }
 
 export interface DecryptProgramUtxoParams {
@@ -435,9 +546,9 @@ export interface DecryptProgramUtxoParams {
   merkleProof: string[];
   merkleTreeLeafIndex: number;
   assetLookupTable: string[];
-  pspId: PublicKey;
-  pspIdl: Idl;
-  utxoName: string;
+  owner: PublicKey;
+  ownerIdl: Idl;
+  type: string;
 }
 
 export async function decryptProgramUtxo({
@@ -451,10 +562,12 @@ export async function decryptProgramUtxo({
   merkleProof,
   merkleTreeLeafIndex,
   assetLookupTable,
-  pspId,
-  pspIdl,
-  utxoName,
-}: DecryptProgramUtxoParams): Promise<Result<ProgramUtxo | null, UtxoError>> {
+  owner,
+  ownerIdl,
+  type,
+}: DecryptProgramUtxoParams): Promise<
+  Result<ProgramUtxo<PlaceHolderTData> | null, UtxoError>
+> {
   const decryptedProgramOutUtxo = await decryptProgramOutUtxo({
     encBytes,
     account,
@@ -464,23 +577,28 @@ export async function decryptProgramUtxo({
     lightWasm,
     compressed,
     assetLookupTable,
-    pspId,
-    pspIdl,
-    utxoName,
+    owner,
+    ownerIdl,
+    type,
   });
+
   if (!decryptedProgramOutUtxo.value) {
-    return decryptedProgramOutUtxo as Result<ProgramUtxo | null, UtxoError>;
+    return decryptedProgramOutUtxo as Result<
+      ProgramUtxo<PlaceHolderTData> | null,
+      UtxoError
+    >;
   }
-  if (
-    decryptedProgramOutUtxo.value.outUtxo.publicKey ===
-    STANDARD_COMPRESSION_PUBLIC_KEY.toString()
-  ) {
-    const bs58Standard = bs58.encode(
-      STANDARD_COMPRESSION_PRIVATE_KEY.toArray(),
-    );
-    const bs5832 = bs58.encode(new Uint8Array(32).fill(1));
-    account = Account.fromPrivkey(lightWasm, bs58Standard, bs5832, bs5832);
-  }
+  /// TODO: double check if this is needed
+  // if (
+  //   decryptedProgramOutUtxo.value.owner ===
+  //   STANDARD_COMPRESSION_PUBLIC_KEY.toString()
+  // ) {
+  //   const bs58Standard = bs58.encode(
+  //     STANDARD_COMPRESSION_PRIVATE_KEY.toArray(),
+  //   );
+  //   const bs5832 = bs58.encode(new Uint8Array(32).fill(1));
+  //   account = Account.fromPrivkey(lightWasm, bs58Standard, bs5832, bs5832);
+  // }
 
   return Result.Ok(
     programOutUtxoToProgramUtxo(
@@ -494,29 +612,31 @@ export async function decryptProgramUtxo({
 }
 
 export function programOutUtxoToProgramUtxo(
-  programOutUtxo: ProgramOutUtxo,
+  programOutUtxo: ProgramOutUtxo<PlaceHolderTData>,
   merkleProof: string[],
   merkleTreeLeafIndex: number,
   lightWasm: LightWasm,
   account: Account,
-): ProgramUtxo {
-  const inputs: CreateUtxoInputs = {
-    utxoHash: programOutUtxo.outUtxo.utxoHash,
-    blinding: programOutUtxo.outUtxo.blinding.toString(),
-    amounts: programOutUtxo.outUtxo.amounts,
-    assets: programOutUtxo.outUtxo.assets,
+): ProgramUtxo<PlaceHolderTData> {
+  const inputs: CreateProgramUtxoInputs = {
+    hash: programOutUtxo.hash,
+    blinding: programOutUtxo.blinding,
+    amounts: programOutUtxo.amounts,
+    assets: programOutUtxo.assets,
     merkleProof,
     merkleTreeLeafIndex,
-    owner: programOutUtxo.pspId,
+    owner: programOutUtxo.owner,
+    data: programOutUtxo.data,
+    ownerIdl: programOutUtxo.ownerIdl,
+    type: programOutUtxo.type,
+    address: programOutUtxo.address,
+    metaHash: programOutUtxo.metaHash,
+    dataHash: programOutUtxo.dataHash,
   };
+
   return createProgramUtxo({
-    createUtxoInputs: inputs,
+    createProgramUtxoInputs: inputs,
     account,
     lightWasm,
-    pspId: programOutUtxo.pspId,
-    pspIdl: programOutUtxo.pspIdl,
-    includeUtxoData: programOutUtxo.includeUtxoData,
-    utxoData: programOutUtxo.outUtxo.utxoData,
-    utxoName: programOutUtxo.utxoName,
   });
 }

@@ -29,7 +29,7 @@ import { getUpdatedSpentUtxos, sleep } from "../utils";
 import { TokenUtxoBalance } from "../build-balance";
 import { Provider } from "../provider";
 import { MerkleTreeConfig } from "../merkle-tree";
-import { Utxo } from "../utxo";
+import { PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
 import { getIdsFromEncryptedUtxos } from "../test-utils";
 
 export class TransactionIndexerEvent {
@@ -83,23 +83,23 @@ export const getUserIndexTransactions = async (
   const spentUtxos = getUpdatedSpentUtxos(tokenBalances);
 
   indexedTransactions.forEach((trx) => {
-    const nullifierZero = new BN(trx.nullifiers[0]).toString();
+    const nullifierZero = new BN(trx.nullifiers[0]);
 
-    const nullifierOne = new BN(trx.nullifiers[1]).toString();
+    const nullifierOne = new BN(trx.nullifiers[1]);
 
     const isFromUser = trx.signer === provider.wallet.publicKey.toBase58();
 
-    const inSpentUtxos: Utxo[] = [];
-    const outSpentUtxos: Utxo[] = [];
+    const inSpentUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[] = [];
+    const outSpentUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[] = [];
 
     spentUtxos?.forEach((sUtxo) => {
       const matchesNullifier =
-        sUtxo.nullifier === nullifierOne || sUtxo.nullifier === nullifierZero;
+        sUtxo.nullifier.eq(nullifierOne) || sUtxo.nullifier.eq(nullifierZero);
 
       let matchesCommitment = false;
       for (const leaf of trx.leaves) {
         if (!matchesCommitment) {
-          matchesCommitment = sUtxo.utxoHash === new BN(leaf, "le").toString();
+          matchesCommitment = sUtxo.hash.eq(new BN(leaf, "le"));
         }
       }
 

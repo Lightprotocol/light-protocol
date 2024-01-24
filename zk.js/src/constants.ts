@@ -95,6 +95,10 @@ export const confirmConfig: ConfirmOptions = {
   preflightCommitment: "confirmed",
 };
 
+export const DEFAULT_UTXO_TYPE = "native";
+export const UTXO_VERSION_V0 = "0";
+export const UTXO_POOL_TYPE_V0: "0" = "0";
+
 export const COMPRESSED_UTXO_BYTES_LENGTH = 96 + ACCOUNT_DISCRIMINATOR_SIZE;
 export const ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH =
   COMPRESSED_UTXO_BYTES_LENGTH + 16;

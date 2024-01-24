@@ -17,7 +17,8 @@ import {
   STANDARD_COMPRESSION_PRIVATE_KEY,
 } from "./constants";
 import { Wallet } from "./provider";
-import { Utxo } from "./utxo";
+import { PlaceHolderTData, ProgramUtxo, Utxo } from "./utxo";
+import { SystemProofInputs } from "./transaction/psp-transaction";
 
 const nacl = require("tweetnacl");
 
@@ -418,14 +419,19 @@ export class Account {
     }
   }
 
-  private addPrivateKey(proofInput: any, inputUtxos: Utxo[]) {
-    proofInput["inPrivateKey"] = inputUtxos.map((utxo: Utxo) => {
-      if (utxo.publicKey === this.keypair.publicKey.toString()) {
-        return this.keypair.privateKey;
-      } else {
-        return STANDARD_COMPRESSION_PRIVATE_KEY;
-      }
-    });
+  private addPrivateKey(
+    proofInput: any,
+    inputUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[],
+  ) {
+    proofInput["inPrivateKey"] = inputUtxos.map(
+      (utxo: Utxo | ProgramUtxo<PlaceHolderTData>) => {
+        if ("data" in utxo) {
+          return STANDARD_COMPRESSION_PRIVATE_KEY;
+        } else {
+          return this.keypair.privateKey;
+        }
+      },
+    );
   }
 
   async getProofInternal({
@@ -442,10 +448,10 @@ export class Account {
     firstPath: string;
     verifierIdl: Idl;
     circuitName?: string;
-    proofInput: any;
+    proofInput: SystemProofInputs;
     addPrivateKey?: boolean;
     enableLogging?: boolean;
-    inputUtxos?: Utxo[];
+    inputUtxos?: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
     getProver?: any;
     wasmTester?: any;
   }) {
@@ -463,9 +469,9 @@ export class Account {
 
     if (addPrivateKey && !inputUtxos) {
       throw new AccountError(
-        TransactionErrorCode.NO_VERIFIER_IDL_PROVIDED,
+        TransactionErrorCode.NO_UTXOS_PROVIDED,
         "getProofInternal",
-        "verifierIdl is missing in TransactionParameters",
+        "input utxos are missing in TransactionParameters, but addPrivateKey is set to true",
       );
     }
     if (addPrivateKey && inputUtxos) {

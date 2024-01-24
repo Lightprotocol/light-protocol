@@ -32,6 +32,12 @@ import {
   BN_2,
   TransactionErrorCode,
   getVerifierProgram,
+  createProgramOutUtxo,
+  createDataHashWithDefaultHashingSchema,
+  PlaceHolderTData,
+  ProgramUtxo,
+  ProgramOutUtxo,
+  programOutUtxoToProgramUtxo,
 } from "../src";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { BN } from "@coral-xyz/anchor";
@@ -225,11 +231,13 @@ describe("Verifier tests", () => {
     account,
     shieldAmount,
     shieldFeeAmount,
-    inputProgramUtxo,
+    inputProgramUtxo: // | Utxo
+    // | OutUtxo
+    ProgramUtxo<PlaceHolderTData> | ProgramOutUtxo<PlaceHolderTData>,
     rpcFee,
     wasmTester2in2out,
     wasmTester10in2out,
-    plainInputUtxo;
+    plainInputUtxo: Utxo | OutUtxo;
   before(async () => {
     lightProvider = await LightProvider.loadMock();
     mockPubkey = SolanaKeypair.generate().publicKey;
@@ -246,42 +254,47 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
     });
+
     inputUtxo = createOutUtxo({
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       metaHash: BN_1,
       address: BN_2,
     });
+
     inputUtxo2 = createOutUtxo({
       lightWasm,
       assets: [FEE_ASSET],
       amounts: [BN_0],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       metaHash: new BN(3),
       address: new BN(4),
     });
-    inputProgramUtxo = createOutUtxo({
+
+    inputProgramUtxo = createProgramOutUtxo({
       lightWasm,
       assets: [FEE_ASSET],
       amounts: [BN_0],
-      publicKey: hashAndTruncateToCircuit(
-        getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT).toBytes(),
-      ),
+      owner: getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT),
       metaHash: new BN(6),
       address: new BN(7),
-      utxoDataHash: BN_1,
-      utxoData: { rnd: 1 },
+      data: { rnd: 1 },
+      ownerIdl: IDL_PUBLIC_LIGHT_PSP2IN2OUT,
+      /// Allows for custom hashing schema
+      dataHash: BN_1,
+      // dataHash: createDataHashWithDefaultHashingSchema({ rnd: 1 }, lightWasm),
+      type: "",
     });
 
     merkleTree = new MerkleTree(22, lightWasm, [
-      inputUtxo.utxoHash,
-      inputUtxo2.utxoHash,
-      inputProgramUtxo.utxoHash,
-      plainInputUtxo.utxoHash,
+      inputUtxo.hash.toString(),
+      inputUtxo2.hash.toString(),
+      inputProgramUtxo.hash.toString(),
+      plainInputUtxo.hash.toString(),
     ]);
     inputUtxo = outUtxoToUtxo(
       inputUtxo,
@@ -298,14 +311,14 @@ describe("Verifier tests", () => {
       account,
     );
 
-    inputProgramUtxo = outUtxoToUtxo(
+    inputProgramUtxo = programOutUtxoToProgramUtxo(
       inputProgramUtxo,
       merkleTree.path(2).pathElements,
       2,
       lightWasm,
       account,
-      getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT),
-      { rnd: 1 },
+      // getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT),
+      // { rnd: 1 },
     );
 
     plainInputUtxo = outUtxoToUtxo(
@@ -323,7 +336,7 @@ describe("Verifier tests", () => {
         new BN(shieldFeeAmount / 2).sub(rpcFee),
         new BN(shieldAmount / 2),
       ],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       metaHash: BN_1,
       address: BN_2,
     });
@@ -332,7 +345,7 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount / 2), new BN(shieldAmount / 2)],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       metaHash: new BN(3),
       address: new BN(4),
     });
@@ -340,8 +353,9 @@ describe("Verifier tests", () => {
 
   it("Test utxos with meta hash and address should succeed", async () => {
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
-    const localInputUtxo = { ...inputUtxo };
+    const localInputUtxo = inputUtxo;
     const localInputUtxo2 = localInputUtxo;
+
     const txInput: TransactionInput = {
       inputUtxos: [localInputUtxo2 as Utxo, inputUtxo2 as Utxo],
       outputUtxos: [outputUtxo1, outputUtxo2],
@@ -368,6 +382,7 @@ describe("Verifier tests", () => {
       BN_0, // is not checked in circuit
       lightWasm,
     );
+
     systemProofInputs = {
       ...systemProofInputs,
       publicProgramId: hashAndTruncateToCircuit(mockPubkey.toBytes()),
@@ -376,7 +391,7 @@ describe("Verifier tests", () => {
       publicDataHash: "0",
     } as any;
 
-    // we rely on the fact that the function throws an error if proof generation failed
+    // throws if proof generation fails
     await getSystemProof({
       account,
       inputUtxos: transaction.private.inputUtxos,
@@ -390,7 +405,7 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount / 2), new BN(shieldAmount / 2)],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       address: new BN(4),
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
@@ -429,8 +444,8 @@ describe("Verifier tests", () => {
       privatePublicDataHash: "0",
       publicDataHash: "0",
     } as any;
-    systemProofInputs.isNewAddress[1] = BN_1;
-    systemProofInputs.publicNewAddress[1] = new BN(4);
+    systemProofInputs.isNewAddress[1] = BN_1.toString();
+    systemProofInputs.publicNewAddress[1] = new BN(4).toString();
 
     // we rely on the fact that the function throws an error if proof generation failed
     await chai.assert.isRejected(
@@ -453,7 +468,7 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount).sub(rpcFee), new BN(shieldAmount)],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       metaHash: inputUtxo.metaHash,
       address: inputUtxo.address,
     });
@@ -497,7 +512,7 @@ describe("Verifier tests", () => {
     // adjustment for publicInUtxoHash
     systemProofInputs.publicInUtxoHash[1] = BN_0.toString();
     systemProofInputs.publicInUtxoDataHash[1] = BN_0.toString();
-    systemProofInputs.publicOutUtxoHash[1] = BN_0.toString();
+    systemProofInputs.publicOutUtxoHash[1] = BN_0;
 
     try {
       await getSystemProof({
@@ -521,7 +536,7 @@ describe("Verifier tests", () => {
       }
     }
     const publicOutUtxoHash = systemProofInputs.publicOutUtxoHash[0];
-    systemProofInputs.publicOutUtxoHash[0] = BN_0.toString();
+    systemProofInputs.publicOutUtxoHash[0] = BN_0;
 
     // need to be very careful with the expected error here because this will always return a type error when parsing after successful witness generation fails
     await chai.assert.isRejected(
@@ -560,7 +575,7 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount).sub(rpcFee), new BN(shieldAmount)],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       metaHash: inputUtxo.metaHash,
       address: inputUtxo.address,
     });
@@ -605,7 +620,7 @@ describe("Verifier tests", () => {
     // adjustment for publicInUtxoHash
     systemProofInputs.publicInUtxoHash[1] = BN_0.toString();
     systemProofInputs.publicInUtxoDataHash[1] = BN_0.toString();
-    systemProofInputs.publicOutUtxoHash[1] = BN_0.toString();
+    systemProofInputs.publicOutUtxoHash[1] = BN_0;
     await chai.assert.isRejected(
       getSystemProof({
         account,
@@ -625,7 +640,7 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount).sub(rpcFee), new BN(shieldAmount)],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       metaHash: inputUtxo.metaHash,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
@@ -687,7 +702,7 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount).sub(rpcFee), new BN(shieldAmount)],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       address: inputUtxo.address,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
@@ -749,16 +764,16 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET],
       amounts: [BN_0],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       metaHash: inputProgramUtxo.metaHash,
       address: inputProgramUtxo.address,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
-    const localInputUtxo = { ...inputProgramUtxo };
+    const localInputUtxo = inputProgramUtxo;
     const localInputUtxo2 = localInputUtxo;
 
     const txInput: TransactionInput = {
-      inputUtxos: [localInputUtxo2 as Utxo],
+      inputUtxos: [localInputUtxo2 as ProgramUtxo<PlaceHolderTData>],
       outputUtxos: [outputUtxo2],
       merkleTreeSetPubkey: mockPubkey,
       lightWasm,
@@ -783,19 +798,21 @@ describe("Verifier tests", () => {
       BN_0, // is not checked in circuit
       lightWasm,
     );
+
     systemProofInputs = {
       ...systemProofInputs,
       publicProgramId: hashAndTruncateToCircuit(
         getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT).toBytes(),
-      ).toString(),
+      ),
       publicTransactionHash,
       privatePublicDataHash: "0",
       publicDataHash: "0",
     } as any;
+
     systemProofInputs.isInProgramUtxo[0] = BN_1;
     systemProofInputs.inOwner[0] = hashAndTruncateToCircuit(
       getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT).toBytes(),
-    ).toString();
+    );
 
     try {
       await getSystemProof({
@@ -860,12 +877,12 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount).sub(rpcFee), new BN(shieldAmount)],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP10IN2OUT;
 
     const txInput: TransactionInput = {
-      inputUtxos: [plainInputUtxo],
+      inputUtxos: [plainInputUtxo as Utxo],
       outputUtxos: [outputUtxo2],
       merkleTreeSetPubkey: mockPubkey,
       lightWasm,
