@@ -36,6 +36,7 @@ import {
 import {
   BN_0,
   MAX_MESSAGE_SIZE,
+  MERKLE_TREE_SET,
   TOKEN_PUBKEY_SYMBOL,
   TOKEN_REGISTRY,
 } from "../constants";
@@ -140,7 +141,7 @@ export async function prepareStoreProgramUtxo({
   const message = Buffer.from(
     await encryptProgramOutUtxo({
       lightWasm,
-      merkleTreePdaPublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePdaPublicKey: MERKLE_TREE_SET,
       compressed: false,
       account,
       utxo: appUtxo,
@@ -216,7 +217,7 @@ export async function compressProgramUtxo({
 
   const transaction = await createCompressTransaction({
     message,
-    transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+    merkleTreeSetPubkey: MERKLE_TREE_SET,
     mint:
       publicAmountSpl && !publicAmountSpl.eq(BN_0) ? tokenCtx.mint : undefined,
     senderSpl: userSplAccount,
@@ -266,16 +267,13 @@ export async function proveAndCreateInstructions({
       index,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: transaction.private.inputUtxos,
-      merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
       rpc,
     });
     transaction.private.inputUtxos = syncedUtxos;
     root = fetchedRoot;
     rootIndex = index;
   } else {
-    const res = (await rpc.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    ))!;
+    const res = (await rpc.getMerkleRoot())!;
     root = res.root;
     rootIndex = res.index;
   }
@@ -305,7 +303,7 @@ export async function proveAndCreateInstructions({
   );
   const accounts = prepareAccounts({
     transactionAccounts: transaction.public.accounts,
-    eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+    merkleTreeSet: MERKLE_TREE_SET,
     rpcRecipientSol: rpc.accounts.rpcRecipientSol,
     signer: transaction.public.accounts.rpcPublicKey,
   });

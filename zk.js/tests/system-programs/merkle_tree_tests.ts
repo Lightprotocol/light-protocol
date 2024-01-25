@@ -37,7 +37,7 @@ import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Address } from "@coral-xyz/anchor";
 
-let WASM: LightWasm, RPC;
+let WASM: LightWasm, MERKLE_TREE_SET_KEYPAIR: Keypair, RPC: TestRpc;
 
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
@@ -62,8 +62,10 @@ describe("Merkle Tree Tests", () => {
     WASM = await WasmFactory.getInstance();
     await createTestAccounts(provider.connection, userTokenAccount);
 
+    MERKLE_TREE_SET_KEYPAIR = Keypair.generate();
+
     const merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MERKLE_TREE_SET_KEYPAIR.publicKey,
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
     INVALID_SIGNER = Keypair.generate();
@@ -86,6 +88,7 @@ describe("Merkle Tree Tests", () => {
     RPC = new TestRpc({
       rpcPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
       rpcRecipientSol,
+      merkleTreeSet: MERKLE_TREE_SET_KEYPAIR.publicKey,
       rpcFee: RPC_FEE,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
@@ -120,7 +123,7 @@ describe("Merkle Tree Tests", () => {
     // - can only be invoked by current authority
 
     const merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MERKLE_TREE_SET_KEYPAIR.publicKey,
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
     INVALID_SIGNER = new anchor.web3.Account();
@@ -143,7 +146,9 @@ describe("Merkle Tree Tests", () => {
 
     merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA;
     try {
-      await merkleTreeConfig.initMerkleTreeAuthority();
+      await merkleTreeConfig.initMerkleTreeAuthority({
+        merkleTreeSet: MERKLE_TREE_SET_KEYPAIR,
+      });
     } catch (e) {
       error = e;
     }
@@ -159,7 +164,10 @@ describe("Merkle Tree Tests", () => {
 
     // init merkle tree with invalid signer
     try {
-      await merkleTreeConfig.initMerkleTreeAuthority(INVALID_SIGNER);
+      await merkleTreeConfig.initMerkleTreeAuthority({
+        authority: INVALID_SIGNER,
+        merkleTreeSet: MERKLE_TREE_SET_KEYPAIR,
+      });
       console.log("Registering AUTHORITY success");
     } catch (e) {
       error = e;
@@ -173,7 +181,9 @@ describe("Merkle Tree Tests", () => {
     error = undefined;
 
     // initing real mt authority
-    await merkleTreeConfig.initMerkleTreeAuthority();
+    await merkleTreeConfig.initMerkleTreeAuthority({
+      merkleTreeSet: MERKLE_TREE_SET_KEYPAIR,
+    });
 
     const newAuthority = Keypair.generate();
     await provider.connection.confirmTransaction(
@@ -514,7 +524,7 @@ describe("Merkle Tree Tests", () => {
       syncedUtxos: inputUtxos,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [decompressUtxo],
-      merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePublicKey: MERKLE_TREE_SET_KEYPAIR.publicKey,
       rpc: lightProvider.rpc,
     });
 
@@ -526,77 +536,81 @@ describe("Merkle Tree Tests", () => {
     );
     const recipientSpl = tokenAccount.address;
 
-    const { transactionMerkleTree, eventMerkleTree } =
-      await merkleTreeConfig.initializeNewMerkleTrees();
+    const newMerkleTreeSet = Keypair.generate();
 
-    const verifierIdl = IDL_LIGHT_PSP2IN2OUT;
-    const decompressTransactionInput: DecompressTransactionInput = {
-      lightWasm: WASM,
-      mint: MINT,
-      transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
-      recipientSpl,
-      recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
-      rpcPublicKey: lightProvider.rpc.accounts.rpcPubkey,
-      systemPspId: getVerifierProgramId(verifierIdl),
-      account: user.account,
-      inputUtxos,
-      rpcFee: lightProvider.rpc.getRpcFee(false),
-      ataCreationFee: false,
-    };
+    await merkleTreeConfig.initializeNewMerkleTreeSet(newMerkleTreeSet);
 
-    const decompressTransaction = await createDecompressTransaction(
-      decompressTransactionInput,
-    );
+    // NOTE(vadorovsky): The code below is irrelevant - we are going to
+    // implement parallel Merkle trees and linked list alike mechanism
+    // of pointing to the next trees. We don't support passing trees as
+    // remaining accounts anymore
 
-    const systemProofInputs = createSystemProofInputs({
-      transaction: decompressTransaction,
-      lightWasm: WASM,
-      account: user.account,
-      root,
-    });
-    const systemProof = await getSystemProof({
-      account: user.account,
-      inputUtxos: decompressTransaction.private.inputUtxos,
-      verifierIdl,
-      systemProofInputs,
-    });
+    // const verifierIdl = IDL_LIGHT_PSP2IN2OUT;
+    // const decompressTransactionInput: DecompressTransactionInput = {
+    //   lightWasm: WASM,
+    //   mint: MINT,
+    //   merkleTreeSetPubkey: MERKLE_TREE_SET_KEYPAIR.publicKey,
+    //   recipientSpl,
+    //   recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
+    //   rpcPublicKey: lightProvider.rpc.accounts.rpcPubkey,
+    //   systemPspId: getVerifierProgramId(verifierIdl),
+    //   account: user.account,
+    //   inputUtxos,
+    //   rpcFee: lightProvider.rpc.getRpcFee(false),
+    //   ataCreationFee: false,
+    // };
 
-    const remainingMerkleTreeAccounts = {
-      nextTransactionMerkleTree: {
-        isSigner: false,
-        isWritable: true,
-        pubkey: transactionMerkleTree,
-      },
-      nextEventMerkleTree: {
-        isSigner: false,
-        isWritable: true,
-        pubkey: eventMerkleTree,
-      },
-    };
+    // const decompressTransaction = await createDecompressTransaction(
+    //   decompressTransactionInput,
+    // );
 
-    const remainingSolanaAccounts = getSolanaRemainingAccounts(
-      systemProof.parsedPublicInputsObject as any,
-      remainingMerkleTreeAccounts,
-    );
+    // const systemProofInputs = createSystemProofInputs({
+    //   transaction: decompressTransaction,
+    //   lightWasm: WASM,
+    //   account: user.account,
+    //   root,
+    // });
+    // const systemProof = await getSystemProof({
+    //   account: user.account,
+    //   inputUtxos: decompressTransaction.private.inputUtxos,
+    //   verifierIdl,
+    //   systemProofInputs,
+    // });
 
-    const accounts = prepareAccounts({
-      transactionAccounts: decompressTransaction.public.accounts,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
-      rpcRecipientSol: lightProvider.rpc.accounts.rpcRecipientSol,
-      signer: lightProvider.rpc.accounts.rpcPubkey,
-    });
-    // createSolanaInstructionsWithAccounts
-    const instructions = await createSolanaInstructions({
-      action: decompressTransaction.action,
-      rootIndex,
-      systemProof,
-      remainingSolanaAccounts,
-      accounts,
-      publicTransactionVariables: decompressTransaction.public,
-      systemPspIdl: verifierIdl,
-    });
+    // const remainingMerkleTreeAccounts = {
+    //   nextTransactionMerkleTree: {
+    //     isSigner: false,
+    //     isWritable: true,
+    //     pubkey: transactionMerkleTree,
+    //   },
+    //   nextEventMerkleTree: {
+    //     isSigner: false,
+    //     isWritable: true,
+    //     pubkey: eventMerkleTree,
+    //   },
+    // };
 
-    await lightProvider.sendAndConfirmSolanaInstructions(instructions);
+    // const remainingSolanaAccounts = getSolanaRemainingAccounts(
+    //   systemProof.parsedPublicInputsObject as any,
+    //   remainingMerkleTreeAccounts,
+    // );
+
+    // const accounts = prepareAccounts({
+    //   transactionAccounts: decompressTransaction.public.accounts,
+    //   rpcRecipientSol: lightProvider.rpc.accounts.rpcRecipientSol,
+    //   signer: lightProvider.rpc.accounts.rpcPubkey,
+    // });
+    // // createSolanaInstructionsWithAccounts
+    // const instructions = await createSolanaInstructions({
+    //   action: decompressTransaction.action,
+    //   rootIndex,
+    //   systemProof,
+    //   remainingSolanaAccounts,
+    //   accounts,
+    //   publicTransactionVariables: decompressTransaction.public,
+    //   systemPspIdl: verifierIdl,
+    // });
+
+    // await lightProvider.sendAndConfirmSolanaInstructions(instructions);
   });
 });

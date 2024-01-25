@@ -104,12 +104,12 @@ export class Provider {
     if (rpc) {
       this.rpc = rpc;
     } else {
-      this.rpc = new Rpc(
-        this.wallet.publicKey,
-        RPC_RECIPIENT_KEYPAIR.publicKey,
-        RPC_FEE,
-        TOKEN_ACCOUNT_FEE,
-      );
+      this.rpc = new Rpc({
+        rpcPubkey: this.wallet.publicKey,
+        rpcRecipientSol: RPC_RECIPIENT_KEYPAIR.publicKey,
+        rpcFee: RPC_FEE,
+        highRpcFee: TOKEN_ACCOUNT_FEE,
+      });
     }
     const tmpAssetLookupTable = assetLookupTable
       ? [...assetLookupTable.map((entry) => entry.toBase58())]

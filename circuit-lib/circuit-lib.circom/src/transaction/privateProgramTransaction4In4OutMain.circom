@@ -17,7 +17,7 @@ component main {
 		publicTransactionHash
 	]
 } = PrivateProgramTransaction(
-	18,
+	22,
 	4,
 	4,
 	184598798020101492503359154328231866914977581098629757339001774613643340069,

@@ -60,7 +60,7 @@ pub fn cpi_system_verifier<
             system_program: ctx.accounts.system_program.to_account_info(),
             registered_verifier_pda: ctx.accounts.registered_verifier_pda.to_account_info(),
             program_merkle_tree: ctx.accounts.program_merkle_tree.to_account_info(),
-            transaction_merkle_tree: ctx.accounts.transaction_merkle_tree.to_account_info(),
+            merkle_tree_set: ctx.accounts.merkle_tree_set.to_account_info(),
             token_program: ctx.accounts.token_program.to_account_info(),
             sender_spl: ctx.accounts.sender_spl.to_account_info(),
             recipient_spl: ctx.accounts.recipient_spl.to_account_info(),
@@ -70,7 +70,6 @@ pub fn cpi_system_verifier<
             rpc_recipient_sol: ctx.accounts.rpc_recipient_sol.to_account_info(),
             token_authority: ctx.accounts.token_authority.to_account_info(),
             log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
-            event_merkle_tree: ctx.accounts.event_merkle_tree.to_account_info(),
         };
 
     let mut cpi_ctx = CpiContext::new_with_signer(

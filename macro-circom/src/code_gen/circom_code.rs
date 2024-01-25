@@ -301,7 +301,7 @@ mod light_transaction_tests {
         */
         pragma circom 2.1.4;
         include \"./test_data.circom\";
-        component main {public [publicZ, publicTransactionHash, publicProgramId]} =  TestData( 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);";
+        component main {public [publicZ, publicTransactionHash, publicProgramId]} =  TestData(22, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);";
         create_file(name, &main_file_code).unwrap();
 
         let command_output = Command::new("circom")

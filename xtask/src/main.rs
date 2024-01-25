@@ -1,5 +1,6 @@
 use clap::{Parser, ValueEnum};
 
+mod accounts;
 mod zero_bytes;
 mod zero_indexed_leaf;
 
@@ -18,21 +19,21 @@ pub struct XtaskOptions {
 
 #[derive(Parser)]
 enum Command {
+    Accounts,
+    GenerateZeroBytes(zero_bytes::Options),
     /// Generates a leaf of an indexed Merkle tree, for the given hash, which
     /// represents a value 0.
     GenerateZeroIndexedLeaf(zero_indexed_leaf::Options),
-    GenerateZeroBytes(zero_bytes::Options),
 }
 
 fn main() -> Result<(), anyhow::Error> {
     let opts = XtaskOptions::parse();
 
     match opts.command {
+        Command::Accounts => accounts::accounts(),
+        Command::GenerateZeroBytes(opts) => zero_bytes::generate_zero_bytes(opts),
         Command::GenerateZeroIndexedLeaf(opts) => {
-            zero_indexed_leaf::generate_zero_indexed_leaf(opts)?
+            zero_indexed_leaf::generate_zero_indexed_leaf(opts)
         }
-        Command::GenerateZeroBytes(opts) => zero_bytes::generate_zero_bytes(opts)?,
     }
-
-    Ok(())
 }

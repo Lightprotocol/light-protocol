@@ -1,9 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{
-    event_merkle_tree::EventMerkleTree, utils::constants::EVENT_MERKLE_TREE_SEED,
-    RegisteredVerifier,
-};
+use crate::{state::MerkleTreeSet, RegisteredVerifier};
 
 #[derive(Accounts)]
 #[instruction(
@@ -18,11 +15,8 @@ pub struct InsertTwoLeavesEvent<'info> {
         seeds::program = registered_verifier.pubkey,
     )]
     pub authority: Signer<'info>,
-    #[account(mut, seeds = [
-        EVENT_MERKLE_TREE_SEED,
-        event_merkle_tree.load().unwrap().merkle_tree_nr.to_le_bytes().as_ref()
-    ], bump)]
-    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
+    #[account(mut)]
+    pub merkle_tree_set: AccountLoader<'info, MerkleTreeSet>,
     pub system_program: Program<'info, System>,
     #[account(
         seeds = [&registered_verifier.pubkey.to_bytes()],
@@ -36,7 +30,9 @@ pub fn process_insert_two_leaves_event(
     leaf_left: [u8; 32],
     leaf_right: [u8; 32],
 ) -> Result<()> {
-    let mut merkle_tree = ctx.accounts.event_merkle_tree.load_mut()?;
-    merkle_tree.merkle_tree.insert(leaf_left, leaf_right)?;
+    let mut merkle_trees = ctx.accounts.merkle_tree_set.load_mut()?;
+    merkle_trees
+        .event_merkle_tree
+        .insert(leaf_left, leaf_right)?;
     Ok(())
 }

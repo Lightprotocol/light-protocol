@@ -94,7 +94,7 @@ template streaming_payments() {
 
 /*
 * Environment Constants:
-*   levels = 18
+*   levels = 22
 *   nIns = 4
 *   nOuts = 4
 *   feeAsset = TruncatedKeccak256(0)

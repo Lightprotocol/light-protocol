@@ -162,9 +162,6 @@ export class TestTransaction {
       throw new Error("remainingAccounts.nullifierPdaPubkeys undefined");
     }
 
-    if (!remainingAccounts.leavesPdaPubkeys) {
-      throw new Error("remainingAccounts.leavesPdaPubkeys undefined");
-    }
     if (!this.testValues) {
       throw new Error("test values undefined");
     }

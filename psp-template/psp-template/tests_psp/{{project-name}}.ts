@@ -15,6 +15,7 @@ import {
   MerkleTreeConfig,
   lightPsp4in4outAppStorageId,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+  MERKLE_TREE_SET,
   createProofInputs,
   SolanaTransactionInputs,
   sendAndConfirmCompressedTransaction,
@@ -140,9 +141,7 @@ describe("Test {{project-name}}", () => {
     const compressedTransaction = await createTransaction({
       inputUtxos,
       outputUtxos,
-      transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0),
-      ),
+      merkleTreeSetPubkey: MERKLE_TREE_SET,
       rpcPublicKey: rpc.accounts.rpcPubkey,
       lightWasm: WASM,
       rpcFee: rpc.getRpcFee(),
@@ -152,7 +151,7 @@ describe("Test {{project-name}}", () => {
     });
 
     const { root, index: rootIndex } = (await rpc.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      MERKLE_TREE_SET,
     ))!;
 
     const proofInputs = createProofInputs({
@@ -178,12 +177,12 @@ describe("Test {{project-name}}", () => {
     });
     const solanaTransactionInputs: SolanaTransactionInputs = {
       action: Action.TRANSFER,
+      merkleTreeSet: MERKLE_TREE_SET,
       systemProof,
       pspProof,
       publicTransactionVariables: compressedTransaction.public,
       pspTransactionInput,
       rpcRecipientSol: rpc.accounts.rpcRecipientSol,
-      eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       rootIndex,
     };
@@ -197,7 +196,6 @@ describe("Test {{project-name}}", () => {
     const utxoSpent = await user.getUtxo(
       inputUtxo.utxoHash,
       true,
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
       IDL,
     );
     assert.equal(utxoSpent!.status, "spent");

@@ -28,11 +28,14 @@ describe("Merkle Tree Authority", () => {
     });
   // Second call, Merkle Tree Authority was already initialized.
   test
-    .stdout()
+    .stderr()
     .command(["merkle-tree-authority:initialize"])
-    .it("Merkle Tree Authority already initialized", ({ stdout }) => {
-      expect(stdout).to.contain("Merkle Tree Authority already initialized");
-    });
+    .catch((error) => {
+      expect(error.message).to.contain(
+        "Merkle Tree Authority already initialized",
+      );
+    })
+    .it("Merkle Tree Authority already initialized");
   test
     .stdout()
     .command(["merkle-tree-authority:get"])

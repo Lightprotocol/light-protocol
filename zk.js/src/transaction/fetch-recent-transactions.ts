@@ -23,6 +23,7 @@ import {
   FIELD_SIZE,
   merkleTreeProgramId,
   BN_0,
+  MERKLE_TREE_SET,
 } from "../constants";
 import { getUpdatedSpentUtxos, sleep } from "../utils";
 import { TokenUtxoBalance } from "../build-balance";
@@ -251,8 +252,7 @@ async function enrichParsedTransactionEvents(
   );
   transactions.push({
     IDs,
-    merkleTreePublicKey:
-      MerkleTreeConfig.getTransactionMerkleTreePda().toBase58(),
+    merkleTreePublicKey: MERKLE_TREE_SET.toBase58(),
     transaction: {
       blockTime: tx.blockTime! * 1000,
       signer: accountKeys[0],

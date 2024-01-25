@@ -2,17 +2,7 @@ use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 
 use crate::{
-    config,
-    errors::ErrorCode,
-    event_merkle_tree::EventMerkleTree,
-    process_initialize_new_event_merkle_tree, process_initialize_new_merkle_tree,
-    transaction_merkle_tree::state::TransactionMerkleTree,
-    utils::{
-        config::MERKLE_TREE_HEIGHT,
-        constants::{
-            EVENT_MERKLE_TREE_SEED, MERKLE_TREE_AUTHORITY_SEED, TRANSACTION_MERKLE_TREE_SEED,
-        },
-    },
+    config, errors::ErrorCode, state::MerkleTreeSet, utils::constants::MERKLE_TREE_AUTHORITY_SEED,
 };
 
 /// Configures the authority of the merkle tree which can:
@@ -25,8 +15,7 @@ use crate::{
 #[aligned_sized(anchor)]
 pub struct MerkleTreeAuthority {
     pub pubkey: Pubkey,
-    pub transaction_merkle_tree_index: u64,
-    pub event_merkle_tree_index: u64,
+    pub merkle_tree_set_index: u64,
     pub registered_asset_index: u64,
     pub enable_permissionless_spl_tokens: bool,
     pub enable_permissionless_merkle_tree_registration: bool,
@@ -42,28 +31,8 @@ pub struct InitializeMerkleTreeAuthority<'info> {
         space = MerkleTreeAuthority::LEN,
     )]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
-    #[account(
-        init,
-        seeds = [
-            TRANSACTION_MERKLE_TREE_SEED,
-            0u64.to_le_bytes().as_ref(),
-        ],
-        bump,
-        payer = authority,
-        space = TransactionMerkleTree::LEN,
-    )]
-    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
-    #[account(
-        init,
-        seeds = [
-            EVENT_MERKLE_TREE_SEED,
-            0u64.to_le_bytes().as_ref(),
-        ],
-        bump,
-        payer=authority,
-        space = EventMerkleTree::LEN,
-    )]
-    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
+    #[account(zero)]
+    pub merkle_tree_set: AccountLoader<'info, MerkleTreeSet>,
     /// CHECK:` Signer is merkle tree init authority.
     #[account(
         mut,
@@ -90,19 +59,8 @@ pub struct UpdateMerkleTreeAuthorityConfig<'info> {
     #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is merkle tree authority.
-    #[account( address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
+    #[account(address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateLockDuration<'info> {
-    #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
-    pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
-    /// CHECK:` Signer is merkle tree authority.
-    #[account( address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
 }
 
 pub fn process_initialize_merkle_tree_authority(
@@ -110,14 +68,10 @@ pub fn process_initialize_merkle_tree_authority(
 ) -> Result<()> {
     ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.authority.key();
 
-    let merkle_tree = &mut ctx.accounts.transaction_merkle_tree.load_init()?;
-    let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
-    process_initialize_new_merkle_tree(merkle_tree, merkle_tree_authority, MERKLE_TREE_HEIGHT)?;
-
-    let event_merkle_tree = &mut ctx.accounts.event_merkle_tree.load_init()?;
-    let merkle_tree_authority = &mut ctx.accounts.merkle_tree_authority_pda;
-
-    process_initialize_new_event_merkle_tree(event_merkle_tree, merkle_tree_authority)?;
+    // Initialize new Merkle trees.
+    let mut new_merkle_trees = ctx.accounts.merkle_tree_set.load_init()?;
+    new_merkle_trees.init(ctx.accounts.merkle_tree_authority_pda.merkle_tree_set_index)?;
+    ctx.accounts.merkle_tree_authority_pda.merkle_tree_set_index += 1;
 
     Ok(())
 }

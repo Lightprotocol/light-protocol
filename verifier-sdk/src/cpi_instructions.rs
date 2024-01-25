@@ -72,7 +72,6 @@ pub fn decompress_spl_cpi<'a, 'b>(
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
-
     let accounts = light_merkle_tree_program::cpi::accounts::DecompressSpl {
         authority: authority.clone(),
         merkle_tree_token: merkle_tree_token.clone(),
@@ -93,7 +92,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
-    transaction_merkle_tree_account: &'b AccountInfo<'a>,
+    merkle_tree_set: &'b AccountInfo<'a>,
     system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
     leaves: Vec<[u8; 32]>,
@@ -105,7 +104,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeaves {
         authority: authority.to_account_info(),
         system_program: system_program.to_account_info(),
-        transaction_merkle_tree: transaction_merkle_tree_account.to_account_info(),
+        merkle_tree_set: merkle_tree_set.to_account_info(),
         registered_verifier_pda: registered_verifier_pda.to_account_info(),
     };
 
@@ -120,7 +119,7 @@ pub fn insert_two_leaves_event_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
-    event_merkle_tree: &'b AccountInfo<'a>,
+    merkle_tree_set: &'b AccountInfo<'a>,
     system_program: &'b AccountInfo<'a>,
     registered_verifier: &'b AccountInfo<'a>,
     leaf_left: &'b [u8; 32],
@@ -132,7 +131,7 @@ pub fn insert_two_leaves_event_cpi<'a, 'b>(
 
     let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeavesEvent {
         authority: authority.clone(),
-        event_merkle_tree: event_merkle_tree.clone(),
+        merkle_tree_set: merkle_tree_set.clone(),
         system_program: system_program.clone(),
         registered_verifier: registered_verifier.clone(),
     };

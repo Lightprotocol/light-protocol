@@ -5,6 +5,7 @@ import {
   airdropSol,
   confirmConfig,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
+  MERKLE_TREE_SET,
   MerkleTreeConfig,
   ProgramUtxoBalance,
   Provider as LightProvider,
@@ -153,9 +154,7 @@ describe("Streaming Payments tests", () => {
 
     const compressedTransaction = await createTransaction({
       inputUtxos: [inputUtxo],
-      transactionMerkleTreePubkey: MerkleTreeConfig.getTransactionMerkleTreePda(
-        new BN(0),
-      ),
+      merkleTreeSetPubkey: MERKLE_TREE_SET,
       rpcPublicKey: rpc.accounts.rpcPubkey,
       lightWasm: WASM,
       rpcFee: rpc.rpcFee,
@@ -164,9 +163,8 @@ describe("Streaming Payments tests", () => {
       account: lightUser.account,
     });
     // createProofInputsAndProve
-    const { root, index: rootIndex } = (await rpc.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    ))!;
+    const { root, index: rootIndex } =
+      (await rpc.getMerkleRoot(MERKLE_TREE_SET))!;
     const proofInputs = createProofInputs({
       lightWasm: WASM,
       transaction: compressedTransaction,
@@ -197,12 +195,12 @@ describe("Streaming Payments tests", () => {
 
     const solanaTransactionInputs: SolanaTransactionInputs = {
       action: Action.TRANSFER,
+      merkleTreeSet: MERKLE_TREE_SET,
       systemProof,
       pspProof,
       publicTransactionVariables: compressedTransaction.public,
       pspTransactionInput,
       rpcRecipientSol: rpc.accounts.rpcRecipientSol,
-      eventMerkleTree: MerkleTreeConfig.getEventMerkleTreePda(),
       systemPspIdl: IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
       rootIndex,
     };
