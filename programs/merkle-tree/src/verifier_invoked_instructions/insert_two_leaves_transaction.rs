@@ -1,20 +1,19 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
-use crate::{
-    transaction_merkle_tree::state::TransactionMerkleTree,
-    utils::constants::TRANSACTION_MERKLE_TREE_SEED, RegisteredVerifier,
-};
+use crate::{state::MerkleTreeSet, RegisteredVerifier};
 
 #[derive(Accounts)]
 pub struct InsertTwoLeaves<'info> {
     /// CHECK: should only be accessed by a registered verifier.
-    #[account(mut, seeds=[__program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
+    #[account(
+        mut,
+        seeds=[__program_id.to_bytes().as_ref()],
+        bump,
+        seeds::program=registered_verifier_pda.pubkey
+    )]
     pub authority: Signer<'info>,
-    #[account(mut, seeds = [
-        TRANSACTION_MERKLE_TREE_SEED,
-        transaction_merkle_tree.load().unwrap().merkle_tree_nr.to_le_bytes().as_ref()
-    ], bump)]
-    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
+    #[account(mut)]
+    pub merkle_tree_set: AccountLoader<'info, MerkleTreeSet>,
     pub system_program: Program<'info, System>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
@@ -24,7 +23,7 @@ pub fn process_insert_two_leaves<'info, 'a>(
     ctx: Context<'a, '_, '_, 'info, InsertTwoLeaves<'info>>,
     leaves: &'a [[u8; 32]],
 ) -> Result<()> {
-    let merkle_tree = &mut ctx.accounts.transaction_merkle_tree.load_mut()?;
+    let mut merkle_tree_set = ctx.accounts.merkle_tree_set.load_mut()?;
 
     // Iterate over the leaves in pairs
     for i in (0..leaves.len()).step_by(2) {
@@ -39,7 +38,9 @@ pub fn process_insert_two_leaves<'info, 'a>(
         };
 
         // Insert the pair into the merkle tree
-        merkle_tree.merkle_tree.insert(*leaf_left, *leaf_right)?;
+        merkle_tree_set
+            .state_merkle_tree
+            .insert(*leaf_left, *leaf_right)?;
     }
 
     Ok(())

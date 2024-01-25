@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
-use light_merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree;
+use light_merkle_tree_program::program::LightMerkleTreeProgram;
+use light_merkle_tree_program::state::MerkleTreeSet;
 use light_merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
-use light_merkle_tree_program::{program::LightMerkleTreeProgram, EventMerkleTree};
 use light_psp4in4out_app_storage::{self, program::LightPsp4in4outAppStorage};
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 
@@ -50,7 +50,7 @@ pub struct LightInstructionThird<'info, const NR_CHECKED_INPUTS: usize> {
     pub program_merkle_tree: Program<'info, LightMerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
-    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
+    pub merkle_tree_set: AccountLoader<'info, MerkleTreeSet>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [LightMerkleTreeProgram::id().to_bytes().as_ref()], bump, seeds::program=LightPsp4in4outAppStorage::id())]
     pub authority: UncheckedAccount<'info>,
@@ -79,8 +79,6 @@ pub struct LightInstructionThird<'info, const NR_CHECKED_INPUTS: usize> {
     pub verifier_program: Program<'info, LightPsp4in4outAppStorage>,
     /// CHECK:` It get checked inside the event_call
     pub log_wrapper: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub event_merkle_tree: AccountLoader<'info, EventMerkleTree>,
 }
 
 #[derive(Debug)]

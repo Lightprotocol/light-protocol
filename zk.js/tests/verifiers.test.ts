@@ -277,7 +277,7 @@ describe("Verifier tests", () => {
       utxoData: { rnd: 1 },
     });
 
-    merkleTree = new MerkleTree(18, lightWasm, [
+    merkleTree = new MerkleTree(22, lightWasm, [
       inputUtxo.utxoHash,
       inputUtxo2.utxoHash,
       inputProgramUtxo.utxoHash,
@@ -345,7 +345,7 @@ describe("Verifier tests", () => {
     const txInput: TransactionInput = {
       inputUtxos: [localInputUtxo2 as Utxo, inputUtxo2 as Utxo],
       outputUtxos: [outputUtxo1, outputUtxo2],
-      transactionMerkleTreePubkey: mockPubkey,
+      merkleTreeSetPubkey: mockPubkey,
       lightWasm,
       account,
       rpcFee,
@@ -399,7 +399,7 @@ describe("Verifier tests", () => {
     const txInput: TransactionInput = {
       inputUtxos: [localInputUtxo2 as Utxo],
       outputUtxos: [outputUtxo1, outputUtxo2],
-      transactionMerkleTreePubkey: mockPubkey,
+      merkleTreeSetPubkey: mockPubkey,
       lightWasm,
       account,
       rpcFee,
@@ -463,7 +463,7 @@ describe("Verifier tests", () => {
     const txInput: TransactionInput = {
       inputUtxos: [localInputUtxo2 as Utxo],
       outputUtxos: [outputUtxo2],
-      transactionMerkleTreePubkey: mockPubkey,
+      merkleTreeSetPubkey: mockPubkey,
       lightWasm,
       account,
       rpcFee,
@@ -571,7 +571,7 @@ describe("Verifier tests", () => {
     const txInput: TransactionInput = {
       inputUtxos: [localInputUtxo2 as Utxo],
       outputUtxos: [outputUtxo2],
-      transactionMerkleTreePubkey: mockPubkey,
+      merkleTreeSetPubkey: mockPubkey,
       lightWasm,
       account,
       rpcFee,
@@ -635,7 +635,7 @@ describe("Verifier tests", () => {
     const txInput: TransactionInput = {
       inputUtxos: [localInputUtxo2 as Utxo],
       outputUtxos: [outputUtxo2],
-      transactionMerkleTreePubkey: mockPubkey,
+      merkleTreeSetPubkey: mockPubkey,
       lightWasm,
       account,
       rpcFee,
@@ -697,7 +697,7 @@ describe("Verifier tests", () => {
     const txInput: TransactionInput = {
       inputUtxos: [localInputUtxo2 as Utxo],
       outputUtxos: [outputUtxo2],
-      transactionMerkleTreePubkey: mockPubkey,
+      merkleTreeSetPubkey: mockPubkey,
       lightWasm,
       account,
       rpcFee,
@@ -760,7 +760,7 @@ describe("Verifier tests", () => {
     const txInput: TransactionInput = {
       inputUtxos: [localInputUtxo2 as Utxo],
       outputUtxos: [outputUtxo2],
-      transactionMerkleTreePubkey: mockPubkey,
+      merkleTreeSetPubkey: mockPubkey,
       lightWasm,
       account,
       rpcFee,
@@ -867,7 +867,7 @@ describe("Verifier tests", () => {
     const txInput: TransactionInput = {
       inputUtxos: [plainInputUtxo],
       outputUtxos: [outputUtxo2],
-      transactionMerkleTreePubkey: mockPubkey,
+      merkleTreeSetPubkey: mockPubkey,
       lightWasm,
       account,
       rpcFee,

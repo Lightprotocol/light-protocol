@@ -398,15 +398,12 @@ export function getTransactionMint(transaction: Transaction) {
 export async function syncInputUtxosMerkleProofs({
   inputUtxos,
   rpc,
-  merkleTreePublicKey,
 }: {
   inputUtxos: Utxo[];
-  merkleTreePublicKey: PublicKey;
   rpc: Rpc;
 }): Promise<{ syncedUtxos: Utxo[]; root: string; index: number }> {
   // skip empty utxos
   const { merkleProofs, root, index } = (await rpc.getMerkleProofByIndexBatch(
-    merkleTreePublicKey,
     inputUtxos
       .filter((utxo) => !utxo.amounts[0].eq(BN_0) || !utxo.amounts[1].eq(BN_0))
       .map((utxo) => utxo.merkleTreeLeafIndex),
@@ -473,7 +470,7 @@ export type TransactionAccounts = {
   recipientSpl: PublicKey;
   recipientSol: PublicKey;
   rpcPublicKey: PublicKey;
-  transactionMerkleTree: PublicKey;
+  merkleTreeSet: PublicKey;
   systemPspId: PublicKey;
   pspId?: PublicKey;
 };
@@ -1015,7 +1012,7 @@ export function getTransactionHash(
 export type CompressTransactionInput = {
   mint?: PublicKey;
   message?: Buffer;
-  transactionMerkleTreePubkey: PublicKey;
+  merkleTreeSetPubkey: PublicKey;
   senderSpl?: PublicKey;
   inputUtxos?: Utxo[];
   outputUtxos?: OutUtxo[];
@@ -1033,7 +1030,7 @@ export async function createCompressTransaction(
 ): Promise<CompressTransaction> {
   const {
     message,
-    transactionMerkleTreePubkey,
+    merkleTreeSetPubkey,
     mint,
     senderSpl,
     inputUtxos,
@@ -1087,7 +1084,7 @@ export async function createCompressTransaction(
   const encryptedUtxos = await encryptOutUtxos(
     account,
     privateVars.outputUtxos,
-    transactionMerkleTreePubkey,
+    merkleTreeSetPubkey,
     verifierConfig,
     assetLookUpTable,
     lightWasm,
@@ -1119,7 +1116,7 @@ export async function createCompressTransaction(
       txIntegrityHash,
       accounts: {
         ...completeAccounts,
-        transactionMerkleTree: transactionMerkleTreePubkey,
+        merkleTreeSet: merkleTreeSetPubkey,
       },
       publicAmountSpl,
       publicAmountSol,
@@ -1174,7 +1171,7 @@ export function createPrivateTransactionVariables({
 export type DecompressTransactionInput = {
   mint?: PublicKey;
   message?: Buffer;
-  transactionMerkleTreePubkey: PublicKey;
+  merkleTreeSetPubkey: PublicKey;
   recipientSpl?: PublicKey;
   recipientSol?: PublicKey;
   inputUtxos?: Utxo[];
@@ -1195,7 +1192,7 @@ export async function createDecompressTransaction(
 ): Promise<DecompressTransaction> {
   const {
     message,
-    transactionMerkleTreePubkey,
+    merkleTreeSetPubkey,
     mint,
     recipientSpl,
     recipientSol,
@@ -1248,14 +1245,14 @@ export async function createDecompressTransaction(
     rpcPublicKey,
     systemPspId,
     pspId,
-    transactionMerkleTree: transactionMerkleTreePubkey,
+    merkleTreeSet: merkleTreeSetPubkey,
   };
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
   const encryptedUtxos = await encryptOutUtxos(
     account,
     privateVars.outputUtxos,
-    transactionMerkleTreePubkey,
+    merkleTreeSetPubkey,
     verifierConfig,
     assetLookUpTable,
     lightWasm,
@@ -1300,7 +1297,7 @@ export async function createDecompressTransaction(
 
 export type TransactionInput = {
   message?: Buffer;
-  transactionMerkleTreePubkey: PublicKey;
+  merkleTreeSetPubkey: PublicKey;
   inputUtxos?: Utxo[];
   outputUtxos?: OutUtxo[];
   rpcPublicKey: PublicKey;
@@ -1317,7 +1314,7 @@ export async function createTransaction(
 ): Promise<Transaction> {
   const {
     message,
-    transactionMerkleTreePubkey,
+    merkleTreeSetPubkey,
     inputUtxos,
     outputUtxos,
     rpcPublicKey,
@@ -1359,7 +1356,7 @@ export async function createTransaction(
   const encryptedUtxos = await encryptOutUtxos(
     account,
     privateVars.outputUtxos,
-    transactionMerkleTreePubkey,
+    merkleTreeSetPubkey,
     verifierConfig,
     assetLookUpTable,
     lightWasm,
@@ -1389,7 +1386,7 @@ export async function createTransaction(
       txIntegrityHash,
       accounts: {
         ...completeAccounts,
-        transactionMerkleTree: transactionMerkleTreePubkey,
+        merkleTreeSet: merkleTreeSetPubkey,
         systemPspId,
         pspId,
       },
@@ -1539,8 +1536,7 @@ export async function getTxParams({
   if (action == Action.COMPRESS) {
     return createCompressTransaction({
       message,
-      transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreeSetPubkey: rpc.accounts.merkleTreeSet,
       mint:
         publicAmountSpl && !publicAmountSpl.eq(BN_0)
           ? tokenCtx.mint
@@ -1556,8 +1552,7 @@ export async function getTxParams({
   } else if (action == Action.DECOMPRESS) {
     return createDecompressTransaction({
       message,
-      transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreeSetPubkey: rpc.accounts.merkleTreeSet,
       mint:
         publicAmountSpl && !publicAmountSpl.eq(BN_0)
           ? tokenCtx.mint
@@ -1576,8 +1571,7 @@ export async function getTxParams({
   } else if (action == Action.TRANSFER) {
     return createTransaction({
       message,
-      transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreeSetPubkey: rpc.accounts.merkleTreeSet,
       inputUtxos,
       outputUtxos,
       lightWasm: provider.lightWasm,

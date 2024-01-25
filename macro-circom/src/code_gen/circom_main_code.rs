@@ -32,7 +32,7 @@ pub fn generate_circom_main_code(instance: &Instance) -> Result<String, MacroCir
     Ok(format!(
         "{}\npragma circom 2.1.4;\n\
 include \"./{}.circom\";\n\
-component main {{public [{}]}} =  {}({}{} 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);",
+component main {{public [{}]}} =  {}({}{} 22, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);",
 DISCLAIMER_STRING,template_name, inputs_str, template_name, config_str, if config_str.is_empty() { "" } else { "," }
     ))
 }
@@ -69,7 +69,7 @@ mod tests {
 
         let expected_string = format!("{}\npragma circom 2.1.4;\n\
             include \"./AppTransaction.circom\";\n\
-            component main {{public [publicTransactionHash, publicProgramId]}} =  AppTransaction(7, 1, 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);", DISCLAIMER_STRING);
+            component main {{public [publicTransactionHash, publicProgramId]}} =  AppTransaction(7, 1, 22, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);", DISCLAIMER_STRING);
 
         assert_eq!(
             generate_circom_main_code(&instance).unwrap(),
@@ -96,7 +96,7 @@ mod tests {
 
         let expected_string = format!("{}\npragma circom 2.1.4;\n\
             include \"./AppTransaction.circom\";\n\
-            component main {{public [publicTransactionHash, publicProgramId]}} =  AppTransaction(7, 1, 3, 2, 18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);", DISCLAIMER_STRING);
+            component main {{public [publicTransactionHash, publicProgramId]}} =  AppTransaction(7, 1, 3, 2, 22, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);", DISCLAIMER_STRING);
 
         assert_eq!(
             generate_circom_main_code(&instance).unwrap(),
@@ -118,7 +118,7 @@ mod tests {
 
         let incorrect_expected_string = "pragma circom 2.1.4;\n\
             include \"./circuit.circom\";\n\
-            component main {public [publicTransactionHash, publicProgramId]} =  appTransaction(7, 2 ,18, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);";
+            component main {public [publicTransactionHash, publicProgramId]} =  appTransaction(7, 2, 22, 4, 4, 184598798020101492503359154328231866914977581098629757339001774613643340069, 0, 1, 3, 2, 2);";
 
         assert_ne!(
             generate_circom_main_code(&instance).unwrap(),

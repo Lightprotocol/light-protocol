@@ -7,8 +7,7 @@ export type lightAccounts = {
   recipientSol: PublicKey;
   tokenAuthority: PublicKey;
   systemProgramId: PublicKey;
-  eventMerkleTree: PublicKey;
-  transactionMerkleTree: PublicKey;
+  merkleTreeSet: PublicKey;
   tokenProgram: PublicKey;
   registeredVerifierPda: PublicKey;
   authority: PublicKey;

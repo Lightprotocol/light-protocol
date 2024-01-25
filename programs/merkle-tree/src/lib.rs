@@ -11,13 +11,10 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
 }
 
-pub mod event_merkle_tree;
-pub use event_merkle_tree::*;
 pub mod instructions;
 pub use instructions::*;
-pub mod indexed_merkle_tree;
-pub mod transaction_merkle_tree;
-pub use transaction_merkle_tree::*;
+pub mod state;
+pub use state::*;
 pub mod verifier_invoked_instructions;
 pub use verifier_invoked_instructions::*;
 pub mod errors;
@@ -34,11 +31,8 @@ pub mod light_merkle_tree_program {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the merkle_tree_authority.
-    pub fn initialize_new_merkle_trees(
-        ctx: Context<InitializeNewMerkleTrees>,
-        lock_duration: u64,
-    ) -> Result<()> {
-        process_initialize_new_merkle_trees(ctx, lock_duration)
+    pub fn initialize_new_merkle_tree_set(ctx: Context<InitializeNewMerkleTreeSet>) -> Result<()> {
+        process_initialize_new_merkle_tree_set(ctx)
     }
 
     /// Initializes a new merkle tree authority which can register new verifiers and configure

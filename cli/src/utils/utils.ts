@@ -127,13 +127,13 @@ export const getRpc = async (localTestRpc?: boolean) => {
       return rpc;
     } else {
       const config = getConfig();
-      rpc = new Rpc(
-        new solana.PublicKey(config.rpcPublicKey),
-        new solana.PublicKey(config.rpcRecipient),
-        new BN(config.rpcFee),
-        new BN(config.highRpcFee),
-        config.rpcUrl,
-      );
+      rpc = new Rpc({
+        rpcPubkey: new solana.PublicKey(config.rpcPublicKey),
+        rpcRecipientSol: new solana.PublicKey(config.rpcRecipient),
+        rpcFee: new BN(config.rpcFee),
+        highRpcFee: new BN(config.highRpcFee),
+        url: config.rpcUrl,
+      });
     }
   }
   return rpc;

@@ -22,12 +22,10 @@ export const syncedState = atom(
       await user.syncState(
         true,
         user.balance,
-        MerkleTreeConfig.getTransactionMerkleTreePda()
       );
       await user.syncState(
         false,
         user.inboxBalance,
-        MerkleTreeConfig.getTransactionMerkleTreePda()
       );
 
       set(userState, { user, timestamp: Date.now() });

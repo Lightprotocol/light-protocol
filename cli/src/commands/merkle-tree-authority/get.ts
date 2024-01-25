@@ -20,10 +20,8 @@ class GetCommand extends Command {
     ux.table(
       [
         {
-          transactionMerkleTreeIndex:
-            merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex.toString(),
-          eventMerkleTreeIndex:
-            merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex.toString(),
+          merkleTreeSetIndex:
+            merkleTreeAuthorityAccountInfo.merkleTreeSetIndex.toString(),
           registeredAssetIndex:
             merkleTreeAuthorityAccountInfo.registeredAssetIndex.toString(),
           enablePermissionlessSplTokens:
@@ -33,11 +31,8 @@ class GetCommand extends Command {
         },
       ],
       {
-        transactionMerkleTreeIndex: {
-          header: "Transaction Merkle Tree index",
-        },
-        eventMerkleTreeIndex: {
-          header: "Event Merkle Tree index",
+        merkleTreeSetIndex: {
+          header: "Merkle Tree Set index",
         },
         registeredAssetIndex: {
           header: "Registered asset index",

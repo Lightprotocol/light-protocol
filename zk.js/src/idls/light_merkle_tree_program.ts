@@ -12,14 +12,14 @@ export type LightMerkleTreeProgram = {
     {
       "name": "MERKLE_TREE_HISTORY_SIZE",
       "type": "u64",
-      "value": "256"
+      "value": "2800"
     },
     {
       "name": "MERKLE_TREE_HEIGHT",
       "type": {
         "defined": "usize"
       },
-      "value": "18"
+      "value": "22"
     },
     {
       "name": "INITIAL_MERKLE_TREE_AUTHORITY",
@@ -135,21 +135,11 @@ export type LightMerkleTreeProgram = {
       "name": "TOKEN_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[115, 112, 108]"
-    },
-    {
-      "name": "EVENT_MERKLE_TREE_SEED",
-      "type": "bytes",
-      "value": "[101, 118, 101, 110, 116, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
-    },
-    {
-      "name": "TRANSACTION_MERKLE_TREE_SEED",
-      "type": "bytes",
-      "value": "[116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
     }
   ],
   "instructions": [
     {
-      "name": "initializeNewMerkleTrees",
+      "name": "initializeNewMerkleTreeSet",
       "docs": [
         "Initializes a new Merkle tree from config bytes.",
         "Can only be called from the merkle_tree_authority."
@@ -161,12 +151,7 @@ export type LightMerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "newTransactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "newEventMerkleTree",
+          "name": "newMerkleTreeSet",
           "isMut": true,
           "isSigner": false
         },
@@ -186,12 +171,7 @@ export type LightMerkleTreeProgram = {
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "lockDuration",
-          "type": "u64"
-        }
-      ]
+      "args": []
     },
     {
       "name": "initializeMerkleTreeAuthority",
@@ -206,12 +186,7 @@ export type LightMerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "eventMerkleTree",
+          "name": "merkleTreeSet",
           "isMut": true,
           "isSigner": false
         },
@@ -481,7 +456,7 @@ export type LightMerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "transactionMerkleTree",
+          "name": "merkleTreeSet",
           "isMut": true,
           "isSigner": false
         },
@@ -519,7 +494,7 @@ export type LightMerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "eventMerkleTree",
+          "name": "merkleTreeSet",
           "isMut": true,
           "isSigner": false
         },
@@ -722,56 +697,6 @@ export type LightMerkleTreeProgram = {
       }
     },
     {
-      "name": "eventMerkleTree",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "merkleTreeNr",
-            "type": "u64"
-          },
-          {
-            "name": "newest",
-            "type": "u8"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
-          },
-          {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "merkleTreePdaToken",
-      "type": {
-        "kind": "struct",
-        "fields": []
-      }
-    },
-    {
-      "name": "preInsertedLeavesIndex",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "nextIndex",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "merkleTreeAuthority",
       "docs": [
         "Configures the authority of the merkle tree which can:",
@@ -789,11 +714,7 @@ export type LightMerkleTreeProgram = {
             "type": "publicKey"
           },
           {
-            "name": "transactionMerkleTreeIndex",
-            "type": "u64"
-          },
-          {
-            "name": "eventMerkleTreeIndex",
+            "name": "merkleTreeSetIndex",
             "type": "u64"
           },
           {
@@ -812,154 +733,51 @@ export type LightMerkleTreeProgram = {
       }
     },
     {
-      "name": "merkleTreeUpdateState",
+      "name": "merkleTreeSet",
+      "docs": [
+        "Set of on-chain Merkle trees."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "nodeLeft",
+            "name": "index",
+            "docs": [
+              "Unique index."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "stateMerkleTree",
+            "docs": [
+              "Merkle tree for the transaction state."
+            ],
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "defined": "MerkleTree"
             }
           },
           {
-            "name": "nodeRight",
+            "name": "eventMerkleTree",
+            "docs": [
+              "Merkle tree for event compression."
+            ],
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "defined": "MerkleTree"
             }
           },
           {
-            "name": "leafLeft",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "leafRight",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "rpc",
+            "name": "nextMerkleTree",
+            "docs": [
+              "Public key of the next Merkle tree set."
+            ],
             "type": "publicKey"
           },
           {
-            "name": "merkleTreePdaPubkey",
+            "name": "owner",
+            "docs": [
+              "Owner of the Merkle tree set."
+            ],
             "type": "publicKey"
-          },
-          {
-            "name": "state",
-            "type": {
-              "array": [
-                "u8",
-                96
-              ]
-            }
-          },
-          {
-            "name": "currentRound",
-            "type": "u64"
-          },
-          {
-            "name": "currentRoundIndex",
-            "type": "u64"
-          },
-          {
-            "name": "currentInstructionIndex",
-            "type": "u64"
-          },
-          {
-            "name": "currentIndex",
-            "type": "u64"
-          },
-          {
-            "name": "currentLevel",
-            "type": "u64"
-          },
-          {
-            "name": "currentLevelHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "tmpLeavesIndex",
-            "type": "u64"
-          },
-          {
-            "name": "filledSubtrees",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                32
-              ]
-            }
-          },
-          {
-            "name": "leaves",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    {
-                      "array": [
-                        "u8",
-                        32
-                      ]
-                    },
-                    2
-                  ]
-                },
-                16
-              ]
-            }
-          },
-          {
-            "name": "numberOfLeaves",
-            "type": "u8"
-          },
-          {
-            "name": "padding1",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
-          },
-          {
-            "name": "insertLeavesIndex",
-            "type": "u8"
-          },
-          {
-            "name": "padding2",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
           }
         ]
       }
@@ -975,62 +793,6 @@ export type LightMerkleTreeProgram = {
           {
             "name": "pubkey",
             "type": "publicKey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "transactionMerkleTree",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "merkleTreeNr",
-            "type": "u64"
-          },
-          {
-            "name": "newest",
-            "type": "u64"
-          },
-          {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "twoLeavesBytesPda",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "nodeLeft",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "nodeRight",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "merkleTreePubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "leftLeafIndex",
-            "type": "u64"
           }
         ]
       }
@@ -1062,7 +824,7 @@ export type LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                32
+                22
               ]
             }
           },
@@ -1080,7 +842,7 @@ export type LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                256
+                2800
               ]
             }
           },
@@ -1266,7 +1028,7 @@ export type LightMerkleTreeProgram = {
     {
       "code": 6019,
       "name": "ExpectedOldMerkleTrees",
-      "msg": "Expected old Merkle trees as remaining accounts."
+      "msg": "Expected old Merkle trees as remaining account."
     },
     {
       "code": 6020,
@@ -1310,14 +1072,14 @@ export const IDL: LightMerkleTreeProgram = {
     {
       "name": "MERKLE_TREE_HISTORY_SIZE",
       "type": "u64",
-      "value": "256"
+      "value": "2800"
     },
     {
       "name": "MERKLE_TREE_HEIGHT",
       "type": {
         "defined": "usize"
       },
-      "value": "18"
+      "value": "22"
     },
     {
       "name": "INITIAL_MERKLE_TREE_AUTHORITY",
@@ -1433,21 +1195,11 @@ export const IDL: LightMerkleTreeProgram = {
       "name": "TOKEN_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[115, 112, 108]"
-    },
-    {
-      "name": "EVENT_MERKLE_TREE_SEED",
-      "type": "bytes",
-      "value": "[101, 118, 101, 110, 116, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
-    },
-    {
-      "name": "TRANSACTION_MERKLE_TREE_SEED",
-      "type": "bytes",
-      "value": "[116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]"
     }
   ],
   "instructions": [
     {
-      "name": "initializeNewMerkleTrees",
+      "name": "initializeNewMerkleTreeSet",
       "docs": [
         "Initializes a new Merkle tree from config bytes.",
         "Can only be called from the merkle_tree_authority."
@@ -1459,12 +1211,7 @@ export const IDL: LightMerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "newTransactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "newEventMerkleTree",
+          "name": "newMerkleTreeSet",
           "isMut": true,
           "isSigner": false
         },
@@ -1484,12 +1231,7 @@ export const IDL: LightMerkleTreeProgram = {
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "lockDuration",
-          "type": "u64"
-        }
-      ]
+      "args": []
     },
     {
       "name": "initializeMerkleTreeAuthority",
@@ -1504,12 +1246,7 @@ export const IDL: LightMerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "eventMerkleTree",
+          "name": "merkleTreeSet",
           "isMut": true,
           "isSigner": false
         },
@@ -1779,7 +1516,7 @@ export const IDL: LightMerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "transactionMerkleTree",
+          "name": "merkleTreeSet",
           "isMut": true,
           "isSigner": false
         },
@@ -1817,7 +1554,7 @@ export const IDL: LightMerkleTreeProgram = {
           "isSigner": true
         },
         {
-          "name": "eventMerkleTree",
+          "name": "merkleTreeSet",
           "isMut": true,
           "isSigner": false
         },
@@ -2020,56 +1757,6 @@ export const IDL: LightMerkleTreeProgram = {
       }
     },
     {
-      "name": "eventMerkleTree",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "merkleTreeNr",
-            "type": "u64"
-          },
-          {
-            "name": "newest",
-            "type": "u8"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
-          },
-          {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "merkleTreePdaToken",
-      "type": {
-        "kind": "struct",
-        "fields": []
-      }
-    },
-    {
-      "name": "preInsertedLeavesIndex",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "nextIndex",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "merkleTreeAuthority",
       "docs": [
         "Configures the authority of the merkle tree which can:",
@@ -2087,11 +1774,7 @@ export const IDL: LightMerkleTreeProgram = {
             "type": "publicKey"
           },
           {
-            "name": "transactionMerkleTreeIndex",
-            "type": "u64"
-          },
-          {
-            "name": "eventMerkleTreeIndex",
+            "name": "merkleTreeSetIndex",
             "type": "u64"
           },
           {
@@ -2110,154 +1793,51 @@ export const IDL: LightMerkleTreeProgram = {
       }
     },
     {
-      "name": "merkleTreeUpdateState",
+      "name": "merkleTreeSet",
+      "docs": [
+        "Set of on-chain Merkle trees."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "nodeLeft",
+            "name": "index",
+            "docs": [
+              "Unique index."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "stateMerkleTree",
+            "docs": [
+              "Merkle tree for the transaction state."
+            ],
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "defined": "MerkleTree"
             }
           },
           {
-            "name": "nodeRight",
+            "name": "eventMerkleTree",
+            "docs": [
+              "Merkle tree for event compression."
+            ],
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "defined": "MerkleTree"
             }
           },
           {
-            "name": "leafLeft",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "leafRight",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "rpc",
+            "name": "nextMerkleTree",
+            "docs": [
+              "Public key of the next Merkle tree set."
+            ],
             "type": "publicKey"
           },
           {
-            "name": "merkleTreePdaPubkey",
+            "name": "owner",
+            "docs": [
+              "Owner of the Merkle tree set."
+            ],
             "type": "publicKey"
-          },
-          {
-            "name": "state",
-            "type": {
-              "array": [
-                "u8",
-                96
-              ]
-            }
-          },
-          {
-            "name": "currentRound",
-            "type": "u64"
-          },
-          {
-            "name": "currentRoundIndex",
-            "type": "u64"
-          },
-          {
-            "name": "currentInstructionIndex",
-            "type": "u64"
-          },
-          {
-            "name": "currentIndex",
-            "type": "u64"
-          },
-          {
-            "name": "currentLevel",
-            "type": "u64"
-          },
-          {
-            "name": "currentLevelHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "tmpLeavesIndex",
-            "type": "u64"
-          },
-          {
-            "name": "filledSubtrees",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                32
-              ]
-            }
-          },
-          {
-            "name": "leaves",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    {
-                      "array": [
-                        "u8",
-                        32
-                      ]
-                    },
-                    2
-                  ]
-                },
-                16
-              ]
-            }
-          },
-          {
-            "name": "numberOfLeaves",
-            "type": "u8"
-          },
-          {
-            "name": "padding1",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
-          },
-          {
-            "name": "insertLeavesIndex",
-            "type": "u8"
-          },
-          {
-            "name": "padding2",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
           }
         ]
       }
@@ -2273,62 +1853,6 @@ export const IDL: LightMerkleTreeProgram = {
           {
             "name": "pubkey",
             "type": "publicKey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "transactionMerkleTree",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "merkleTreeNr",
-            "type": "u64"
-          },
-          {
-            "name": "newest",
-            "type": "u64"
-          },
-          {
-            "name": "merkleTree",
-            "type": {
-              "defined": "MerkleTree"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "twoLeavesBytesPda",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "nodeLeft",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "nodeRight",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "merkleTreePubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "leftLeafIndex",
-            "type": "u64"
           }
         ]
       }
@@ -2360,7 +1884,7 @@ export const IDL: LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                32
+                22
               ]
             }
           },
@@ -2378,7 +1902,7 @@ export const IDL: LightMerkleTreeProgram = {
                     32
                   ]
                 },
-                256
+                2800
               ]
             }
           },
@@ -2564,7 +2088,7 @@ export const IDL: LightMerkleTreeProgram = {
     {
       "code": 6019,
       "name": "ExpectedOldMerkleTrees",
-      "msg": "Expected old Merkle trees as remaining accounts."
+      "msg": "Expected old Merkle trees as remaining account."
     },
     {
       "code": 6020,

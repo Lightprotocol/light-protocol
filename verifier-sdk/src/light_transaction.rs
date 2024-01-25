@@ -18,13 +18,11 @@ use groth16_solana::{
 use light_macros::heap_neutral;
 use light_merkle_tree_program::{
     program::LightMerkleTreeProgram,
-    state::TransactionMerkleTree,
     utils::{
         accounts::create_and_check_pda,
-        constants::{POOL_CONFIG_SEED, POOL_SEED, TRANSACTION_MERKLE_TREE_SEED},
+        constants::{POOL_CONFIG_SEED, POOL_SEED},
     },
 };
-use light_sparse_merkle_tree::HashFunction;
 use light_utils::{change_endianness, truncate_to_circuit};
 
 use crate::{
@@ -156,6 +154,9 @@ impl<
     /// verifies the zero knowledge proof, inserts leaves, inserts nullifiers, transfers funds and fees.
     #[inline(never)]
     pub fn transact(&mut self) -> Result<()> {
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("pre transact");
+
         self.emit_indexer_transaction_event()?;
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("emit_indexer_transaction_event");
@@ -192,12 +193,15 @@ impl<
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("pre assemble TransactionIndexerEvent");
 
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("pre load MerkleTreeSet");
+        let merkle_tree_set = self.input.ctx.accounts.get_merkle_tree_set().load()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("post load MerkleTreeSet");
+
         // Initialize the vector of leaves
-
-        let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
-        let merkle_tree = merkle_tree.load_mut()?;
-
-        let first_leaf_index = merkle_tree.merkle_tree.next_index;
+        let first_leaf_index = merkle_tree_set.state_merkle_tree.next_index;
+        drop(merkle_tree_set);
 
         let message = match &self.input.message {
             Some(message) => message.content.clone(),
@@ -224,7 +228,7 @@ impl<
                 .input
                 .ctx
                 .accounts
-                .get_transaction_merkle_tree()
+                .get_merkle_tree_set()
                 .to_account_info(),
         )?;
 
@@ -288,16 +292,6 @@ impl<
     #[heap_neutral]
     #[inline(never)]
     fn insert_event_leaves(&self, event_hash: [u8; 32]) -> Result<()> {
-        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
-        custom_heap::log_total_heap("pre load_event_mt");
-        let event_merkle_tree = self.input.ctx.accounts.get_event_merkle_tree();
-        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
-        custom_heap::log_total_heap("post load_event_mt");
-
-        if event_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 as u64 {
-            return err!(VerifierSdkError::EventMerkleTreeInvalidHashFunction);
-        }
-
         insert_two_leaves_event_cpi(
             self.input.ctx.program_id,
             &self
@@ -307,7 +301,12 @@ impl<
                 .get_program_merkle_tree()
                 .to_account_info(),
             &self.input.ctx.accounts.get_authority().to_account_info(),
-            &event_merkle_tree.to_account_info(),
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_merkle_tree_set()
+                .to_account_info(),
             &self
                 .input
                 .ctx
@@ -477,9 +476,14 @@ impl<
 
     /// Fetches the root according to an index from the passed-in Merkle tree.
     pub fn fetch_root(&mut self) -> Result<()> {
-        let merkle_tree = self.input.ctx.accounts.get_transaction_merkle_tree();
-        let merkle_tree = merkle_tree.load()?;
-        self.merkle_root = merkle_tree.merkle_tree.roots[self.input.merkle_root_index];
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("pre load MerkleTreeSet");
+        let merkle_tree_set = self.input.ctx.accounts.get_merkle_tree_set().load()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("post load MerkleTreeSet");
+
+        self.merkle_root = merkle_tree_set.state_merkle_tree.roots[self.input.merkle_root_index];
+        drop(merkle_tree_set);
         Ok(())
     }
 
@@ -531,17 +535,12 @@ impl<
     #[heap_neutral]
     #[inline(never)]
     fn check_remaining_accounts(&self) -> Result<()> {
-        let nr_nullifiers_leaves = NR_NULLIFIERS + NR_LEAVES / 2;
         let remaining_accounts_len = self.input.ctx.remaining_accounts.len();
-        if remaining_accounts_len != nr_nullifiers_leaves // Only nullifiers and leaves.
-            // Nullifiers, leaves and next Merkle trees (transaction, event).
-            && remaining_accounts_len != nr_nullifiers_leaves + 2
-        {
+        if remaining_accounts_len != NR_NULLIFIERS {
             msg!(
-                "remaining_accounts.len() {} (expected {} or {})",
+                "remaining_accounts.len() {} (expected {})",
                 remaining_accounts_len,
-                nr_nullifiers_leaves,
-                nr_nullifiers_leaves + 1
+                NR_NULLIFIERS,
             );
             return err!(VerifierSdkError::InvalidNrRemainingAccounts);
         }
@@ -553,8 +552,6 @@ impl<
     #[heap_neutral]
     #[inline(never)]
     pub fn insert_leaves(&self) -> Result<()> {
-        let transaction_merkle_tree = self.get_transaction_merkle_tree()?;
-
         // check account integrities
         insert_two_leaves_cpi(
             self.input.ctx.program_id,
@@ -565,7 +562,12 @@ impl<
                 .get_program_merkle_tree()
                 .to_account_info(),
             &self.input.ctx.accounts.get_authority().to_account_info(),
-            &transaction_merkle_tree,
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_merkle_tree_set()
+                .to_account_info(),
             &self
                 .input
                 .ctx
@@ -581,62 +583,6 @@ impl<
             // TODO: remove vector or instantiate once for the whole struct
             self.input.leaves.to_vec(),
         )?;
-        Ok(())
-    }
-
-    /// Returns a Transaction Merkle Tree which should be used for the current
-    /// transaction. It might be either:
-    ///
-    /// * Transaction Merkle Tree provided in the context.
-    /// * A new Transaction Merkle Tree provided as a remaining account, which
-    ///   usually is the case when we reached the switch threshold (255_000).
-    ///   We pass a new Transaction Merkle Tree as remaining account, because
-    ///   Anchor does not support passing two accounts of the same type in the
-    ///   same instruction. We need a second Transacton Merkle Tree account for
-    ///   the UTXOs we want to spend in the transaction are in the old
-    ///   Transaction Merkle Tree. Since the old Merkle Tree is almost full we
-    ///   need to insert the new utxo commitments into the new Transaction
-    ///   Merkle Tree.
-    #[inline(never)]
-    fn get_transaction_merkle_tree(&self) -> Result<AccountInfo<'info>> {
-        // Index of a new Transaction Merkle Tree in remaining accounts.
-        let index = NR_NULLIFIERS + self.input.leaves.len() / 2;
-
-        match self.input.ctx.remaining_accounts.get(index) {
-            Some(transaction_merkle_tree) => {
-                let transaction_merkle_tree = transaction_merkle_tree.to_account_info();
-                self.validate_transaction_merkle_tree(&transaction_merkle_tree)?;
-                Ok(transaction_merkle_tree)
-            }
-            None => Ok(self
-                .input
-                .ctx
-                .accounts
-                .get_transaction_merkle_tree()
-                .to_account_info()),
-        }
-    }
-
-    #[heap_neutral]
-    fn validate_transaction_merkle_tree(
-        &self,
-        transaction_merkle_tree: &AccountInfo,
-    ) -> Result<()> {
-        let transaction_merkle_tree: AccountLoader<TransactionMerkleTree> =
-            AccountLoader::try_from(transaction_merkle_tree)?;
-        let index = transaction_merkle_tree.load()?.merkle_tree_nr;
-        let (pubkey, _) = Pubkey::find_program_address(
-            &[TRANSACTION_MERKLE_TREE_SEED, index.to_le_bytes().as_ref()],
-            &LightMerkleTreeProgram::id(),
-        );
-        if transaction_merkle_tree.key() != pubkey {
-            msg!(
-                "Transaction Merkle tree address is invalid, expected: {}, got: {}",
-                pubkey,
-                transaction_merkle_tree.key()
-            );
-            return err!(VerifierSdkError::InvalidTransactionMerkleTreeAddress);
-        }
         Ok(())
     }
 

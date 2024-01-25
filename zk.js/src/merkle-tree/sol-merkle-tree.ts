@@ -46,16 +46,13 @@ export class SolMerkleTree {
       merkleTreeProgramId,
       provider,
     );
-    const mtFetched =
-      await merkleTreeProgram.account.transactionMerkleTree.fetch(
-        merkleTreePubkey,
-        "processed",
-      );
-    const merkleTreeIndex = mtFetched.merkleTree.nextIndex;
+    const mtFetched = await merkleTreeProgram.account.merkleTreeSet.fetch(
+      merkleTreePubkey,
+      "processed",
+    );
+    const merkleTreeIndex = mtFetched.stateMerkleTree.nextIndex;
     // ProgramAccount<MerkleTreeProgram["accounts"][7]>
-    const leavesAccounts: Array<any> =
-      await merkleTreeProgram.account.twoLeavesBytesPda.all();
-    return { leavesAccounts, merkleTreeIndex, mtFetched };
+    return { merkleTreeIndex, mtFetched };
   }
 
   static async build({
@@ -75,7 +72,7 @@ export class SolMerkleTree {
       provider,
     );
 
-    let mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
+    let mtFetched = await merkleTreeProgram.account.merkleTreeSet.fetch(
       pubkey,
       "processed",
     );
@@ -85,7 +82,7 @@ export class SolMerkleTree {
         new BN(a.firstLeafIndex, "hex").toNumber() -
         new BN(b.firstLeafIndex, "hex").toNumber(),
     );
-    const merkleTreeIndex = mtFetched.merkleTree.nextIndex;
+    const merkleTreeIndex = mtFetched.stateMerkleTree.nextIndex;
     const leaves: string[] = [];
     if (indexedTransactions.length > 0) {
       for (let i: number = 0; i < indexedTransactions.length; i++) {
@@ -110,19 +107,18 @@ export class SolMerkleTree {
       unstringifyBigInts(builtMerkleTree.root()),
       32,
     );
-    let index = mtFetched.merkleTree.roots.findIndex((root) => {
+    let index = mtFetched.stateMerkleTree.roots.findIndex((root) => {
       return Array.from(builtMerkleTreeRoot).toString() === root.toString();
     });
     let retries = 3;
     while (index < 0 && retries > 0) {
       await sleep(100);
       retries--;
-      mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
+      mtFetched = await merkleTreeProgram.account.merkleTreeSet.fetch(
         pubkey,
         "processed",
       );
-      // @ts-ignore: unknown type error
-      index = mtFetched.merkleTree.roots.findIndex((root) => {
+      index = mtFetched.stateMerkleTree.roots.findIndex((root) => {
         return Array.from(builtMerkleTreeRoot).toString() === root.toString();
       });
     }
@@ -140,95 +136,5 @@ export class SolMerkleTree {
       lightWasm,
       merkleTree: builtMerkleTree,
     });
-  }
-
-  static async getUninsertedLeaves(
-    merkleTreePubkey: PublicKey,
-    provider?: Provider,
-  ): Promise<
-    Array<{
-      publicKey: PublicKey;
-      account: any;
-    }>
-  > {
-    const { leavesAccounts, merkleTreeIndex } = await SolMerkleTree.getLeaves(
-      merkleTreePubkey,
-      provider,
-    );
-
-    const filteredLeaves = leavesAccounts
-      .filter((pda) => {
-        if (
-          pda.account.merkleTreePubkey.toBase58() ===
-          merkleTreePubkey.toBase58()
-        ) {
-          return (
-            pda.account.leftLeafIndex.toNumber() >= merkleTreeIndex.toNumber()
-          );
-        }
-      })
-      .sort(
-        (a, b) =>
-          a.account.leftLeafIndex.toNumber() -
-          b.account.leftLeafIndex.toNumber(),
-      );
-    return filteredLeaves;
-  }
-
-  static async getUninsertedLeavesRpc(
-    merkleTreePubkey: PublicKey,
-    provider?: Provider,
-  ) {
-    return (
-      await SolMerkleTree.getUninsertedLeaves(merkleTreePubkey, provider)
-    ).map((pda) => {
-      return { isSigner: false, isWritable: true, pubkey: pda.publicKey };
-    });
-  }
-
-  /**
-   * @description Gets the merkle proofs for every input utxo with amounts > 0.
-   * @description For input utxos with amounts == 0 it returns merkle paths with all elements = 0.
-   */
-  getMerkleProofs(
-    lightWasm: LightWasm,
-    inputUtxos: Utxo[],
-  ): {
-    inputMerklePathIndices: Array<string>;
-    inputMerklePathElements: Array<Array<string>>;
-  } {
-    const inputMerklePathIndices = new Array<string>();
-    const inputMerklePathElements = new Array<Array<string>>();
-    // getting merkle proofs
-    for (const inputUtxo of inputUtxos) {
-      if (inputUtxo.amounts[0].gt(BN_0) || inputUtxo.amounts[1].gt(BN_0)) {
-        inputUtxo.merkleTreeLeafIndex = this.merkleTree.indexOf(
-          inputUtxo.utxoHash,
-        );
-
-        if (
-          inputUtxo.merkleTreeLeafIndex ||
-          inputUtxo.merkleTreeLeafIndex === 0
-        ) {
-          if (inputUtxo.merkleTreeLeafIndex < 0) {
-            throw new SolMerkleTreeError(
-              SolMerkleTreeErrorCode.INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE,
-              "getMerkleProofs",
-              `Input commitment ${inputUtxo.utxoHash} was not found. Was the local merkle tree synced since the utxo was inserted?`,
-            );
-          }
-          inputMerklePathIndices.push(inputUtxo.merkleTreeLeafIndex.toString());
-          inputMerklePathElements.push(
-            this.merkleTree.path(inputUtxo.merkleTreeLeafIndex).pathElements,
-          );
-        }
-      } else {
-        inputMerklePathIndices.push("0");
-        inputMerklePathElements.push(
-          new Array<string>(this.merkleTree.levels).fill("0"),
-        );
-      }
-    }
-    return { inputMerklePathIndices, inputMerklePathElements };
   }
 }

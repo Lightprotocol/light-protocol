@@ -58,22 +58,13 @@ type SolanaInstructionInputs = {
 
 export type SolanaRemainingAccounts = {
   nullifierPdaPubkeys?: remainingAccount[];
-  leavesPdaPubkeys?: remainingAccount[];
-  nextTransactionMerkleTree?: remainingAccount;
-  nextEventMerkleTree?: remainingAccount;
 };
 
 export function getSolanaRemainingAccounts(
   systemProofPublicInputs: PublicInputs,
-  remainingMerkleTreeAccounts?: {
-    nextTransactionMerkleTree?: remainingAccount;
-    nextEventMerkleTree?: remainingAccount;
-  },
 ) {
   const nullifiers = systemProofPublicInputs.publicNullifier;
-  const remainingAccounts: SolanaRemainingAccounts = {
-    ...remainingMerkleTreeAccounts,
-  };
+  const remainingAccounts: SolanaRemainingAccounts = {};
   remainingAccounts["nullifierPdaPubkeys"] = [];
   for (const i in nullifiers) {
     remainingAccounts.nullifierPdaPubkeys.push({
@@ -83,25 +74,6 @@ export function getSolanaRemainingAccounts(
     });
   }
 
-  remainingAccounts["leavesPdaPubkeys"] = [];
-
-  for (
-    let j = 0;
-    j < systemProofPublicInputs.publicOutUtxoHash.length;
-    j += 2
-  ) {
-    remainingAccounts.leavesPdaPubkeys.push({
-      isSigner: false,
-      isWritable: true,
-      pubkey: PublicKey.findProgramAddressSync(
-        [
-          Buffer.from(Array.from(systemProofPublicInputs.publicOutUtxoHash[j])),
-          utils.bytes.utf8.encode("leaves"),
-        ],
-        merkleTreeProgramId,
-      )[0],
-    });
-  }
   return remainingAccounts;
 }
 
@@ -302,16 +274,7 @@ export async function createSolanaInstructions({
     if (i === instructionNames.length - 1) {
       const remainingAccounts = [
         ...remainingSolanaAccounts!.nullifierPdaPubkeys!,
-        ...remainingSolanaAccounts!.leavesPdaPubkeys!,
       ];
-      if (remainingSolanaAccounts!.nextTransactionMerkleTree !== undefined) {
-        remainingAccounts.push(
-          remainingSolanaAccounts!.nextTransactionMerkleTree,
-        );
-      }
-      if (remainingSolanaAccounts!.nextEventMerkleTree !== undefined) {
-        remainingAccounts.push(remainingSolanaAccounts!.nextEventMerkleTree);
-      }
       method.remainingAccounts(remainingAccounts);
     }
 
@@ -324,7 +287,7 @@ export async function createSolanaInstructions({
 
 export type SolanaTransactionInputs = {
   action: Action;
-  eventMerkleTree: PublicKey;
+  merkleTreeSet: PublicKey;
   publicTransactionVariables: PublicTransactionVariables;
   systemProof: { parsedProof: any; parsedPublicInputsObject: any };
   pspTransactionInput?: PspTransactionInput;
@@ -346,7 +309,7 @@ export async function sendAndConfirmCompressTransaction({
     systemPspIdl,
     publicTransactionVariables,
     action,
-    eventMerkleTree,
+    merkleTreeSet,
     pspProof,
     pspTransactionInput,
     systemProof,
@@ -358,7 +321,7 @@ export async function sendAndConfirmCompressTransaction({
   );
   const accounts = prepareAccounts({
     transactionAccounts: publicTransactionVariables.accounts,
-    eventMerkleTreePubkey: eventMerkleTree,
+    merkleTreeSet: merkleTreeSet,
   });
 
   // createSolanaInstructionsWithAccounts
@@ -391,7 +354,7 @@ export async function sendAndConfirmCompressedTransaction({
   const {
     publicTransactionVariables,
     action,
-    eventMerkleTree,
+    merkleTreeSet,
     pspProof,
     pspTransactionInput,
     systemProof,
@@ -419,7 +382,7 @@ export async function sendAndConfirmCompressedTransaction({
   );
   const accounts = prepareAccounts({
     transactionAccounts: publicTransactionVariables.accounts,
-    eventMerkleTreePubkey: eventMerkleTree,
+    merkleTreeSet: merkleTreeSet,
     rpcRecipientSol,
     signer: publicTransactionVariables.accounts.rpcPublicKey,
   });
@@ -456,13 +419,13 @@ export async function sendAndConfirmCompressedTransaction({
 // TODO: unify event Merkle tree and transaction Merkle tree so that only one is passed
 export function prepareAccounts({
   transactionAccounts,
-  eventMerkleTreePubkey,
+  merkleTreeSet,
   signer,
   rpcRecipientSol,
   verifierState,
 }: {
   transactionAccounts: TransactionAccounts;
-  eventMerkleTreePubkey: PublicKey;
+  merkleTreeSet?: PublicKey;
   signer?: PublicKey;
   rpcRecipientSol?: PublicKey;
   verifierState?: PublicKey;
@@ -487,8 +450,7 @@ export function prepareAccounts({
     systemProgramId: SystemProgram.programId,
     tokenProgram: TOKEN_PROGRAM_ID,
     logWrapper: SPL_NOOP_PROGRAM_ID,
-    eventMerkleTree: eventMerkleTreePubkey,
-    transactionMerkleTree: transactionAccounts.transactionMerkleTree,
+    merkleTreeSet: transactionAccounts.merkleTreeSet,
     registeredVerifierPda: getRegisteredVerifierPda(
       merkleTreeProgramId,
       systemPspId,

@@ -34,6 +34,7 @@ import {
   UTXO_PREFIX_LENGTH,
   confirmConfig,
   merkleTreeProgramId,
+  MERKLE_TREE_SET,
 } from "../constants";
 import { RpcError, TransactionErrorCode } from "../errors";
 
@@ -48,6 +49,7 @@ export class TestRpc extends Rpc {
   constructor({
     rpcPubkey,
     rpcRecipientSol,
+    merkleTreeSet = MERKLE_TREE_SET,
     rpcFee = BN_0,
     highRpcFee,
     payer,
@@ -56,13 +58,14 @@ export class TestRpc extends Rpc {
   }: {
     rpcPubkey: PublicKey;
     rpcRecipientSol?: PublicKey;
+    merkleTreeSet?: PublicKey;
     rpcFee: BN;
     highRpcFee?: BN;
     payer: Keypair;
     connection: Connection;
     lightWasm: LightWasm;
   }) {
-    super(rpcPubkey, rpcRecipientSol, rpcFee, highRpcFee);
+    super({ rpcPubkey, rpcRecipientSol, merkleTreeSet, rpcFee, highRpcFee });
     if (payer.publicKey.toBase58() != rpcPubkey.toBase58())
       throw new Error(
         `Payer public key ${payer.publicKey.toBase58()} does not match rpc public key ${rpcPubkey.toBase58()}`,
@@ -71,7 +74,7 @@ export class TestRpc extends Rpc {
     this.connection = connection;
     const solMerkleTree = new SolMerkleTree({
       lightWasm,
-      pubkey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      pubkey: this.accounts.merkleTreeSet,
     });
     this.merkleTrees.push(solMerkleTree);
     this.lightWasm = lightWasm;
@@ -159,14 +162,14 @@ export class TestRpc extends Rpc {
     connection: Connection,
   ): Promise<RpcIndexedTransaction[]> {
     const merkleTreeAccountInfo = await connection.getAccountInfo(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      this.accounts.merkleTreeSet,
       "confirmed",
     );
     if (!merkleTreeAccountInfo)
       throw new Error("Failed to fetch merkle tree account");
     const coder = new BorshAccountsCoder(IDL_LIGHT_MERKLE_TREE_PROGRAM);
     const merkleTreeAccount = coder.decode(
-      "transactionMerkleTree",
+      "merkleTreeSet",
       merkleTreeAccountInfo.data,
     );
 
@@ -175,7 +178,7 @@ export class TestRpc extends Rpc {
     // hence the dependency on the merkle tree account index times 260 transactions
     // which is approximately the number of transactions sent to send one compressed transaction and update the merkle tree
     const limit =
-      1000 + 260 * merkleTreeAccount.merkleTree.nextIndex.toNumber();
+      1000 + 260 * merkleTreeAccount.stateMerkleTree.nextIndex.toNumber();
     if (this.indexedTransactions.length === 0) {
       const { transactions: newTransactions } = await fetchRecentTransactions({
         connection,
@@ -243,7 +246,6 @@ export class TestRpc extends Rpc {
   }
 
   async getEventsByIdBatch(
-    merkleTreePdaPublicKey: PublicKey,
     ids: string[],
     variableNameID: number,
   ): Promise<RpcIndexedTransactionResponse[] | undefined> {
@@ -254,7 +256,7 @@ export class TestRpc extends Rpc {
       trx.IDs.some((id) => ids.includes(id)),
     );
     const merkleTree = await this.syncMerkleTree(
-      merkleTreePdaPublicKey,
+      this.accounts.merkleTreeSet,
       indexedTransactions.map((trx) => trx.transaction),
     );
     return indexedTransactionsById.map((trx) =>
@@ -263,7 +265,6 @@ export class TestRpc extends Rpc {
   }
 
   async getMerkleProofByIndexBatch(
-    merkleTreePublicKey: PublicKey,
     indexes: number[],
   ): Promise<
     { merkleProofs: string[][]; root: string; index: number } | undefined
@@ -272,7 +273,7 @@ export class TestRpc extends Rpc {
       this.connection,
     );
     const merkleTree = await this.syncMerkleTree(
-      merkleTreePublicKey,
+      this.accounts.merkleTreeSet,
       indexedTransactions.map((trx) => trx.transaction),
     );
     if (!merkleTree) return undefined;
@@ -291,14 +292,12 @@ export class TestRpc extends Rpc {
     };
   }
 
-  async getMerkleRoot(
-    merkleTreePublicKey: PublicKey,
-  ): Promise<{ root: string; index: number } | undefined> {
+  async getMerkleRoot(): Promise<{ root: string; index: number } | undefined> {
     const indexedTransactions = await this.getIndexedTransactions(
       this.connection,
     );
     const merkleTree = await this.syncMerkleTree(
-      merkleTreePublicKey,
+      this.accounts.merkleTreeSet,
       indexedTransactions.map((trx) => trx.transaction),
     );
     const index = await getRootIndex(
@@ -316,14 +315,13 @@ export async function getRootIndex(
   root: string,
 ) {
   const rootBytes = new BN(root).toArray("be", 32);
-  const merkle_tree_account_data =
-    await merkleTreeProgram.account.transactionMerkleTree.fetch(
-      merkleTreePublicKey,
-      "confirmed",
-    );
+  const merkleTreeSetData = await merkleTreeProgram.account.merkleTreeSet.fetch(
+    merkleTreePublicKey,
+    "confirmed",
+  );
   let rootIndex: BN | undefined;
   // @ts-ignore: unknown type error
-  merkle_tree_account_data.merkleTree.roots.map((x: any, index: any) => {
+  merkleTreeSetData.stateMerkleTree.roots.map((x: any, index: any) => {
     if (x.toString() === rootBytes.toString()) {
       rootIndex = new BN(index.toString());
     }

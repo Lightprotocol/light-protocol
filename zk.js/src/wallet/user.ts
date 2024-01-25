@@ -26,6 +26,7 @@ import {
   AUTHORITY,
   TOKEN_PUBKEY_SYMBOL,
   MAX_MESSAGE_SIZE,
+  MERKLE_TREE_SET,
 } from "../constants";
 import {
   UserError,
@@ -176,7 +177,6 @@ export class User {
   async syncState(
     aes: boolean = true,
     balance: Balance | InboxBalance,
-    merkleTreePdaPublicKey: PublicKey,
   ): Promise<Balance | InboxBalance> {
     // reduce balance by spent utxos
     if (!this.provider.provider)
@@ -206,10 +206,9 @@ export class User {
       throw new UserError(UserErrorCode.PROVIDER_NOT_INITIALIZED, "syncState");
 
     const prefixes = aes
-      ? getPrefixes(this.account, merkleTreePdaPublicKey, 100)
+      ? getPrefixes(this.account, this.provider.rpc.accounts.merkleTreeSet, 100)
       : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
     const indexedTransactions = await this.provider.rpc.getEventsByIdBatch(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
       prefixes,
       0,
     );
@@ -240,7 +239,7 @@ export class User {
           lightWasm: this.provider.lightWasm,
           connection: this.provider.provider.connection,
           balance,
-          merkleTreePdaPublicKey,
+          merkleTreePdaPublicKey: this.provider.rpc.accounts.merkleTreeSet,
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
@@ -259,7 +258,7 @@ export class User {
           lightWasm: this.provider.lightWasm,
           connection: this.provider.provider.connection,
           balance,
-          merkleTreePdaPublicKey,
+          merkleTreePdaPublicKey: this.provider.rpc.accounts.merkleTreeSet,
           leftLeaf: Uint8Array.from([...leafLeft]),
           aes,
           assetLookupTable: this.provider.lookUpTables.assetLookupTable,
@@ -293,11 +292,7 @@ export class User {
    */
   async getUtxoInbox(latest: boolean = true): Promise<InboxBalance> {
     if (latest) {
-      await this.syncState(
-        false,
-        this.inboxBalance,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
-      );
+      await this.syncState(false, this.inboxBalance);
     }
     return this.inboxBalance;
   }
@@ -322,11 +317,7 @@ export class User {
       );
 
     if (latest) {
-      await this.syncState(
-        true,
-        this.balance,
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
-      );
+      await this.syncState(true, this.balance);
     }
     return this.balance;
   }
@@ -515,16 +506,13 @@ export class User {
         index,
       } = await syncInputUtxosMerkleProofs({
         inputUtxos: this.recentTransactionParameters.private.inputUtxos,
-        merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
         rpc: this.provider.rpc,
       });
       this.recentTransactionParameters.private.inputUtxos = syncedUtxos;
       root = fetchedRoot;
       rootIndex = index;
     } else {
-      const res = (await this.provider.rpc!.getMerkleRoot(
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
-      ))!;
+      const res = (await this.provider.rpc!.getMerkleRoot())!;
       root = res.root;
       rootIndex = res.index;
     }
@@ -556,7 +544,7 @@ export class User {
     );
     const accounts = prepareAccounts({
       transactionAccounts: this.recentTransactionParameters.public.accounts,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      merkleTreeSet: this.provider.rpc.accounts.merkleTreeSet,
       rpcRecipientSol: this.provider.rpc.accounts.rpcRecipientSol,
       signer: this.recentTransactionParameters.public.accounts.rpcPublicKey,
     });
@@ -1356,11 +1344,7 @@ export class User {
    * - try to decrypt all and add to appUtxos or decrypted data map
    * - add custom description strategies for arbitrary data
    */
-  async syncStorage(
-    idl: Idl,
-    aes: boolean = true,
-    merkleTreePdaPublicKey: PublicKey = MerkleTreeConfig.getTransactionMerkleTreePda(),
-  ) {
+  async syncStorage(idl: Idl, aes: boolean = true) {
     // TODO: move to rpc
     // TODO: implement the following
     /**
@@ -1375,10 +1359,9 @@ export class User {
      */
 
     const prefixes = aes
-      ? getPrefixes(this.account, merkleTreePdaPublicKey, 100)
+      ? getPrefixes(this.account, this.provider.rpc.accounts.merkleTreeSet, 100)
       : [bs58.encode(this.account.encryptionKeypair.publicKey.slice(0, 4))];
     const indexedTransactions = await this.provider.rpc.getEventsByIdBatch(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
       prefixes,
       0,
     );
@@ -1427,8 +1410,7 @@ export class User {
               aes,
               merkleTreeLeafIndex: index,
               utxoHash: Uint8Array.from(leaf),
-              merkleTreePdaPublicKey:
-                MerkleTreeConfig.getTransactionMerkleTreePda(),
+              merkleTreePdaPublicKey: this.provider.rpc.accounts.merkleTreeSet,
               compressed: false,
               assetLookupTable,
               merkleProof: data.merkleProofs[index],
@@ -1599,7 +1581,6 @@ export class User {
     latestInboxBalance = true,
     idl,
     asMap = false,
-    merkleTree = MerkleTreeConfig.getTransactionMerkleTreePda(),
   }: {
     latestBalance?: boolean;
     latestInboxBalance?: boolean;
@@ -1610,10 +1591,10 @@ export class User {
   }) {
     const programAddress = getVerifierProgramId(idl);
     const balance = latestBalance
-      ? await this.syncStorage(idl, true, merkleTree)
+      ? await this.syncStorage(idl, true)
       : this.balance.programBalances;
     const inboxBalance = latestInboxBalance
-      ? await this.syncStorage(idl, false, merkleTree)
+      ? await this.syncStorage(idl, false)
       : this.inboxBalance.programBalances;
 
     const programBalance = balance?.get(programAddress.toBase58());
@@ -1642,14 +1623,13 @@ export class User {
   async getUtxo(
     commitment: string,
     latest: boolean = false,
-    merkleTree = MerkleTreeConfig.getTransactionMerkleTreePda(),
     idl?: Idl,
   ): Promise<{ utxo: Utxo; status: string } | undefined> {
     if (latest) {
       await this.getBalance();
       if (idl) {
-        await this.syncStorage(idl, true, merkleTree);
-        await this.syncStorage(idl, false, merkleTree);
+        await this.syncStorage(idl, true);
+        await this.syncStorage(idl, false);
       }
     }
 

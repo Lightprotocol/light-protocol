@@ -694,7 +694,7 @@ export function createUtxo(
   const transactionVersion = "0";
   const merkleTreeLeafIndexInternal = isFillingUtxo ? 0 : merkleTreeLeafIndex;
   const merkleProofInternal = isFillingUtxo
-    ? new Array(18).fill("0")
+    ? new Array(MERKLE_TREE_HEIGHT).fill("0")
     : merkleProof;
   if (
     utxoDataHashInput !== undefined &&

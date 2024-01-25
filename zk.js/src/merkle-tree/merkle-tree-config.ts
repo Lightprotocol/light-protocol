@@ -5,6 +5,8 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  SystemProgram,
+  Transaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import * as token from "@solana/spl-token";
@@ -12,7 +14,6 @@ import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
 import {
   BN_0,
   BN_1,
-  DEFAULT_MERKLE_TREE_LOCK_DURATION,
   DEFAULT_PROGRAMS,
   confirmConfig,
   merkleTreeProgramId,
@@ -57,130 +58,75 @@ export class MerkleTreeConfig {
     this.connection = anchorProvider.connection;
   }
 
-  async initializeNewMerkleTrees() {
+  async initializeNewMerkleTreeSet(merkleTreeSet: Keypair) {
     if (!this.payer) throw new Error("Payer undefined");
     this.getMerkleTreeAuthorityPda();
 
     const merkleTreeAuthorityAccountInfo =
       await this.getMerkleTreeAuthorityAccountInfo();
-    const transactionMerkleTreeIndex =
-      merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex;
-    const eventMerkleTreeIndex =
-      merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex;
+    const merkleTreeSetIndex =
+      merkleTreeAuthorityAccountInfo.merkleTreeSetIndex;
 
-    const oldTransactionMerkleTree =
-      MerkleTreeConfig.getTransactionMerkleTreePda(
-        transactionMerkleTreeIndex.sub(BN_1),
-      );
-    const newTransactionMerkleTree =
-      MerkleTreeConfig.getTransactionMerkleTreePda(transactionMerkleTreeIndex);
-    const oldEventMerkleTree = MerkleTreeConfig.getEventMerkleTreePda(
-      eventMerkleTreeIndex.sub(BN_1),
-    );
-    const newEventMerkleTree =
-      MerkleTreeConfig.getEventMerkleTreePda(eventMerkleTreeIndex);
-
-    const tx = await this.merkleTreeProgram.methods
-      .initializeNewMerkleTrees(DEFAULT_MERKLE_TREE_LOCK_DURATION)
+    // TODO(vadorovsky): Expose account sizes through a WASM shim.
+    const space = 180752;
+    const ix1 = SystemProgram.createAccount({
+      fromPubkey: this.payer!.publicKey,
+      newAccountPubkey: merkleTreeSet.publicKey,
+      space,
+      lamports: await this.connection.getMinimumBalanceForRentExemption(space),
+      programId: merkleTreeProgramId,
+    });
+    const ix2 = await this.merkleTreeProgram.methods
+      .initializeNewMerkleTreeSet()
       .accounts({
         authority: this.payer.publicKey,
-        newTransactionMerkleTree: newTransactionMerkleTree,
-        newEventMerkleTree: newEventMerkleTree,
+        newMerkleTreeSet: merkleTreeSet.publicKey,
         systemProgram: DEFAULT_PROGRAMS.systemProgram,
         rent: DEFAULT_PROGRAMS.rent,
         merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
       })
-      .remainingAccounts([
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: oldTransactionMerkleTree,
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: oldEventMerkleTree,
-        },
-      ])
-      .signers([this.payer])
-      .transaction();
+      .instruction();
+    const tx = new Transaction().add(ix1, ix2);
 
     const txHash = await sendAndConfirmTransaction(
       this.connection,
       tx,
-      [this.payer!],
+      [this.payer!, merkleTreeSet],
       confirmConfig,
     );
 
-    await this.checkTransactionMerkleTreeIsInitialized(
-      newTransactionMerkleTree,
-      transactionMerkleTreeIndex,
+    await this.checkMerkleTreeSetIsInitialized(
+      merkleTreeSet.publicKey,
+      merkleTreeSetIndex,
     );
-    await this.checkEventMerkleTreeIsInitialized(newEventMerkleTree);
     return {
       txHash,
-      eventMerkleTree: newEventMerkleTree,
-      transactionMerkleTree: newTransactionMerkleTree,
-      index: transactionMerkleTreeIndex,
+      merkleTreeSet: merkleTreeSet.publicKey,
+      index: merkleTreeSetIndex,
     };
   }
 
-  async checkTransactionMerkleTreeIsInitialized(
-    transactionMerkleTreePda: PublicKey,
-    transactionMerkleTreeIndex: BN,
+  async checkMerkleTreeSetIsInitialized(
+    merkleTreeSetPubkey: PublicKey,
+    merkleTreeSetIndex: BN,
   ) {
-    const transactionMerkleTreeAccountInfo =
-      await this.getTransactionMerkleTreeAccountInfo(transactionMerkleTreePda);
+    const merkleTreeSetAccountInfo =
+      await this.getMerkleTreeSetAccountInfo(merkleTreeSetPubkey);
     assert(
-      transactionMerkleTreeAccountInfo != null,
+      merkleTreeSetAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
     );
     assert.equal(
-      transactionMerkleTreeAccountInfo.newest.toString(),
-      "1",
-      "new Merkle Tree is not marked as the newest",
-    );
-    assert.equal(
-      transactionMerkleTreeIndex.toString(),
-      transactionMerkleTreeAccountInfo.merkleTreeNr.toString(),
+      merkleTreeSetIndex.toString(),
+      merkleTreeSetAccountInfo.index.toString(),
       "Merkle tree number is not correct",
     );
     const merkleTreeAuthorityAccountInfo =
       await this.getMerkleTreeAuthorityAccountInfo();
     assert.equal(
-      transactionMerkleTreeAccountInfo.merkleTreeNr.toString(),
-      merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex
-        .sub(BN_1)
-        .toString(),
+      merkleTreeSetAccountInfo.index.toString(),
+      merkleTreeAuthorityAccountInfo.merkleTreeSetIndex.sub(BN_1).toString(),
     );
-  }
-
-  async checkEventMerkleTreeIsInitialized(eventMerkleTreePubkey: PublicKey) {
-    const merkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
-      eventMerkleTreePubkey,
-    );
-    const merkleTreeAuthorityAccountInfo =
-      await this.getMerkleTreeAuthorityAccountInfo();
-    assert(
-      merkleTreeAccountInfo != null,
-      "merkleTreeAccountInfo not initialized",
-    );
-    assert(
-      merkleTreeAccountInfo.newest == 1,
-      "new Merkle Tree is not marked as the newest",
-    );
-    assert.equal(
-      merkleTreeAccountInfo.merkleTreeNr.toString(),
-      merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex.sub(BN_1).toString(),
-    );
-  }
-
-  async printMerkleTree() {
-    const merkleTreeAccountInfo =
-      await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
-      );
-    console.log("merkleTreeAccountInfo ", merkleTreeAccountInfo);
   }
 
   getMerkleTreeAuthorityPda() {
@@ -197,108 +143,56 @@ export class MerkleTreeConfig {
     );
   }
 
-  async getTransactionMerkleTreeIndex(): Promise<BN> {
+  async getMerkleTreeSetIndex(): Promise<BN> {
     const merkleTreeAuthorityAccountInfo =
       await this.getMerkleTreeAuthorityAccountInfo();
-    return merkleTreeAuthorityAccountInfo.transactionMerkleTreeIndex;
+    return merkleTreeAuthorityAccountInfo.merkleTreeSetIndex;
   }
 
-  static getTransactionMerkleTreePda(
-    transactionMerkleTreeIndex: BN = new BN(0),
-  ) {
-    return PublicKey.findProgramAddressSync(
-      [
-        utf8.encode("transaction_merkle_tree"),
-        transactionMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
-      ],
-      merkleTreeProgramId,
-    )[0];
-  }
-
-  async getTransactionMerkleTreeAccountInfo(
-    transactionMerkleTreePubkey: PublicKey,
-  ) {
-    return await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-      transactionMerkleTreePubkey,
+  async getMerkleTreeSetAccountInfo(merkleTreeSetPubkey: PublicKey) {
+    return await this.merkleTreeProgram.account.merkleTreeSet.fetch(
+      merkleTreeSetPubkey,
     );
   }
 
-  async isNewestTransactionMerkleTree(
-    transactionMerkleTreePubkey: PublicKey,
-  ): Promise<boolean> {
-    const transactionMerkleTreeAccountInfo =
-      await this.getTransactionMerkleTreeAccountInfo(
-        transactionMerkleTreePubkey,
-      );
-    return transactionMerkleTreeAccountInfo.newest.toString() === "1";
-  }
-
-  async getEventMerkleTreeIndex(): Promise<BN> {
-    const merkleTreeAuthorityAccountInfo =
-      await this.getMerkleTreeAuthorityAccountInfo();
-    return merkleTreeAuthorityAccountInfo.eventMerkleTreeIndex;
-  }
-
-  static getEventMerkleTreePda(eventMerkleTreeIndex: BN = BN_0) {
-    return PublicKey.findProgramAddressSync(
-      [
-        utf8.encode("event_merkle_tree"),
-        eventMerkleTreeIndex.toArrayLike(Buffer, "le", 8),
-      ],
-      merkleTreeProgramId,
-    )[0];
-  }
-
-  async getEventMerkleTreeAccountInfo(eventMerkleTreePubkey: PublicKey) {
-    return await this.merkleTreeProgram.account.eventMerkleTree.fetch(
-      eventMerkleTreePubkey,
-    );
-  }
-
-  async isNewestEventMerkleTree(
-    eventMerkleTreePubkey: PublicKey,
-  ): Promise<boolean> {
-    const eventMerkleTreeAccountInfo = await this.getEventMerkleTreeAccountInfo(
-      eventMerkleTreePubkey,
-    );
-    return eventMerkleTreeAccountInfo.newest == 1;
-  }
-
-  async initMerkleTreeAuthority(
-    authority?: Keypair | undefined,
-    transactionMerkleTree?: PublicKey,
-    eventMerkleTree?: PublicKey,
-  ) {
+  async initMerkleTreeAuthority({
+    authority = this.payer,
+    merkleTreeSet,
+  }: {
+    authority?: Keypair | undefined;
+    merkleTreeSet: Keypair;
+  }) {
     if (authority == undefined) {
       authority = this.payer;
-    }
-    if (transactionMerkleTree == undefined) {
-      transactionMerkleTree =
-        MerkleTreeConfig.getTransactionMerkleTreePda(BN_0);
-    }
-    if (eventMerkleTree === undefined) {
-      eventMerkleTree = MerkleTreeConfig.getEventMerkleTreePda(BN_0);
     }
     if (this.merkleTreeAuthorityPda == undefined) {
       this.getMerkleTreeAuthorityPda();
     }
 
-    const tx = await this.merkleTreeProgram.methods
+    // TODO(vadorovsky): Expose account sizes through a WASM shim.
+    const space = 180752;
+    const ix1 = SystemProgram.createAccount({
+      fromPubkey: authority!.publicKey,
+      newAccountPubkey: merkleTreeSet.publicKey,
+      space,
+      lamports: await this.connection.getMinimumBalanceForRentExemption(space),
+      programId: merkleTreeProgramId,
+    });
+    const ix2 = await this.merkleTreeProgram.methods
       .initializeMerkleTreeAuthority()
       .accounts({
         authority: authority?.publicKey,
         merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
-        transactionMerkleTree: transactionMerkleTree,
-        eventMerkleTree: eventMerkleTree,
+        merkleTreeSet: merkleTreeSet.publicKey,
         ...DEFAULT_PROGRAMS,
       })
-      .signers([authority!])
-      .transaction();
+      .instruction();
+    const tx = new Transaction().add(ix1, ix2);
 
     const txHash = await sendAndConfirmTransaction(
       this.connection,
       tx,
-      [authority ? authority : this.payer!],
+      [authority!, merkleTreeSet],
       confirmConfig,
     );
 
@@ -316,8 +210,7 @@ export class MerkleTreeConfig {
     assert(
       merkleTreeAuthority.pubkey.toBase58() == authority!.publicKey.toBase58(),
     );
-    assert(merkleTreeAuthority.transactionMerkleTreeIndex.eq(BN_1));
-    assert(merkleTreeAuthority.eventMerkleTreeIndex.eq(BN_1));
+    assert(merkleTreeAuthority.merkleTreeSetIndex.eq(BN_1));
     assert(merkleTreeAuthority.registeredAssetIndex.eq(BN_0));
     assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
     assert(
@@ -391,7 +284,7 @@ export class MerkleTreeConfig {
   async enablePermissionlessSplTokens(configValue: boolean) {
     if (!this.payer) throw new Error("Payer undefined");
     if (this.merkleTreeAuthorityPda == undefined) {
-      await this.getMerkleTreeAuthorityPda();
+      this.getMerkleTreeAuthorityPda();
     }
     const tx = await this.merkleTreeProgram.methods
       .enablePermissionlessSplTokens(configValue)
@@ -665,7 +558,7 @@ export class MerkleTreeConfig {
         this.merkleTreeProgram.programId,
       )[0],
       poolType: poolType,
-      token: await MerkleTreeConfig.getSplPoolPdaToken(
+      token: MerkleTreeConfig.getSplPoolPdaToken(
         mint,
         this.merkleTreeProgram.programId,
         poolType,

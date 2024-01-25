@@ -7,6 +7,7 @@ import {
   AccountErrorCode,
   ADMIN_AUTH_KEYPAIR,
   isEqualUint8Array,
+  MERKLE_TREE_SET,
   MerkleTreeConfig,
   newNonce,
   useWallet,
@@ -359,8 +360,8 @@ describe("Test Account Functional", () => {
   });
 
   it("Should correctly generate UTXO prefix hash", () => {
-    const expectedOutput: Uint8Array = new Uint8Array([240, 73, 165, 83]);
-    const merkleTreePda = MerkleTreeConfig.getTransactionMerkleTreePda();
+    const expectedOutput: Uint8Array = new Uint8Array([233, 146, 10, 39]);
+    const merkleTreePda = MERKLE_TREE_SET;
     expect(merkleTreePda).to.not.be.undefined;
 
     const currentOutput = k0.generateUtxoPrefixHash(merkleTreePda, 0);
@@ -379,10 +380,7 @@ describe("Test Account Functional", () => {
 
   it("Should fail UTXO prefix hash generation test for wrong expected output", () => {
     const incorrectExpectedOutput: Uint8Array = new Uint8Array([1, 2, 3, 4]);
-    const currentOutput = k0.generateUtxoPrefixHash(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-      0,
-    );
+    const currentOutput = k0.generateUtxoPrefixHash(MERKLE_TREE_SET, 0);
     return expect(currentOutput).to.not.eql(incorrectExpectedOutput);
   });
 });

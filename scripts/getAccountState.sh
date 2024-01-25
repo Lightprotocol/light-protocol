@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 
-
 keys=(
-    "LOOK_UP_TABLE"
-    "merkleTreeAuthorityPda"
-    "eventMerkleTreePubkey"
-    "registered spl pool token pda"
-    "registered spl pool pda"
-    "REGISTERED_POOL_PDA_SOL"
-    "registered sol pool"
-    "registeredVerifierPda"
-    "registeredVerifierPda_1"
-    "registeredVerifierPda_2"
-    "registeredVerifierPda_3"
+    "lookup-table"
+    "merkle-tree-authority"
+    "merkle-tree-set-0"
+    "registered-spl-pool-token"
+    "registered-spl-pool"
+    "registered-sol-pool-token"
+    "registered-sol-pool"
+    "registered-psp2in2out"
+    "registered-psp10in2out"
+    "registered-psp4in4out"
+    "registered-psp2in2out-storage"
     "authorityJ1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
     "authorityJ85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc"
     "authority2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86"
@@ -22,7 +21,7 @@ keys=(
 values=(
     "DyZnme4h32E66deCvsAV6pVceVw8s6ucRhNcwoofVCem"
     "5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y"
-    "6x8FxrUqokbXCvnPT84Qvi5QcXVdQNv74Z5ZmS6znWAc"
+    "BrY8P3ZuLWFptfY7qwvkRZkEaD88UEByz9wKRuXFEwhr"
     "2mobV36eNyFGaMTKCHW1Jeoq64tUGuXqA4zGtY8SbxKh"
     "2q4tXrgpsDffibmjfTGHU1gWCjYUfhwFnMyLX6dAhhr4"
     "Eti4Rjkx7ow88XkaFbxRStmwadTp8p9J2nSv7NhtuqDU"
@@ -37,32 +36,29 @@ values=(
     "2mNCqdntwtm9cTLjgfdS85JTF92mgNerqA9TgGnxFzLt"
 )
 
-function rebuild_programs {
-    npx nx run @lightprotocol/programs:build --skip-nx-cache
-    npx nx run @lightprotocol/cli:build --skip-nx-cache
-}
-
-function start_validator {
-    ./cli/test_bin/run test-validator -bs
-}
-
-function airdrop {
-    solana airdrop 50000
-    solana airdrop 50000 $(./cli/test_bin/run config --get | awk '/user/{print $NF;}')
-    solana airdrop 50000 KitaXMAzb8GPZcc6NW6mE7P6gV2fY3Bp8NqZWfeUwqM
-}
-
-function initialize_merkle_tree_authority {
-    ./cli/test_bin/run merkle-tree-authority:initialize
-}
-
 export LIGHT_PROTOCOL_CONFIG="`git rev-parse --show-toplevel`/cli/config.json"
 
-rebuild_programs
-start_validator
-airdrop
-initialize_merkle_tree_authority
+# Start test validator.
+./cli/test_bin/run test-validator -bs
 
+# Airdrop:
+#
+# * The main wallet.
+# * The Light Protocol admin account.
+# * Authority account.
+solana airdrop 50000
+solana airdrop 50000 $(./cli/test_bin/run config --get | awk '/user/{print $NF;}')
+solana airdrop 50000 KitaXMAzb8GPZcc6NW6mE7P6gV2fY3Bp8NqZWfeUwqM
+
+# Initialize:
+#
+# * Merkle tree authority
+# * The 1st Merkle tree set
+./cli/test_bin/run merkle-tree-authority:initialize \
+    --use-mts-keypair \
+    ./target/deploy/merkle_tree_set_0-keypair.json
+
+# Register verifiers.
 ./cli/test_bin/run verifier:register J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i
 ./cli/test_bin/run verifier:register J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc
 ./cli/test_bin/run verifier:register 2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86
@@ -73,13 +69,9 @@ initialize_merkle_tree_authority
 ./cli/test_bin/run asset-pool:register-sol 0
 ./cli/test_bin/run asset-pool:register-spl 0 ycrF6Bw3doNPMSDmZM1rxNHimD2bwq1UFmifMCzbjAe
 
+# Dump PDAs into JSON files.
 for i in "${!keys[@]}"; do
     key=${keys[$i]}
     value=${values[$i]}
-    solana account $value --output-file "cli/accounts/misc/${key}.json" --output "json"
+    solana account $value --output-file "cli/accounts/${key}.json" --output "json"
 done
-
-solana \
-    account "DDx9XekF4emf7p7QyUYcCqZcPJtmzUYmYir54tQBbVBv" \
-    --output-file "cli/accounts/transaction-merkle-tree/transaction-merkle-tree.json" \
-    --output "json"

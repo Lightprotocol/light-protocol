@@ -35,7 +35,3 @@ pub const POOL_CONFIG_SEED: &[u8] = b"pool-config";
 pub const POOL_SEED: &[u8] = b"pool";
 #[constant]
 pub const TOKEN_AUTHORITY_SEED: &[u8] = b"spl";
-#[constant]
-pub const EVENT_MERKLE_TREE_SEED: &[u8] = b"event_merkle_tree";
-#[constant]
-pub const TRANSACTION_MERKLE_TREE_SEED: &[u8] = b"transaction_merkle_tree";

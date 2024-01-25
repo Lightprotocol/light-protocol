@@ -253,6 +253,9 @@ importers:
       '@project-serum/anchor':
         specifier: ^0.26.0
         version: 0.26.0
+      '@solana-developers/helpers':
+        specifier: ^1.4.2
+        version: 1.4.2
       '@solana/spl-token':
         specifier: ^0.3.7
         version: 0.3.7(@solana/web3.js@1.87.6)
@@ -4988,6 +4991,20 @@ packages:
   /@sinonjs/text-encoding@0.7.2:
     resolution: {integrity: sha512-sXXKG+uL9IrKqViTtao2Ws6dy0znu9sOaP1di/jKGW1M6VssO8vlpXCQcpZ+jisQ1tTFAC5Jo/EOzFbggBagFQ==}
     dev: true
+
+  /@solana-developers/helpers@1.4.2:
+    resolution: {integrity: sha512-ECj5N+got3GcUuOjDULdsU90qgTuL/HoIu5P0v6qoJUunaq8aqhxKUKeT/Lzc/xw3dbnob7WcBmjBD51Cj7dsw==}
+    dependencies:
+      '@solana/web3.js': 1.87.6
+      bs58: 5.0.0
+      dotenv: 16.3.1
+      prettier: 3.0.3
+      typescript: 5.3.2
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - utf-8-validate
+    dev: false
 
   /@solana-mobile/mobile-wallet-adapter-protocol-web3js@2.0.2(@solana/web3.js@1.87.6)(react-native@0.72.7):
     resolution: {integrity: sha512-z1KKJb5v4thNvpncQlohfDpWLCmelEMRtJpmLjocSIUCuy88yLJZ0+LXvFMWP+cdCoakEctI2vH8XAUifxPFBg==}
@@ -13194,7 +13211,6 @@ packages:
     resolution: {integrity: sha512-L/4pUDMxcNa8R/EthV08Zt42WBO4h1rarVtK0K+QJG0X187OLo7l699jWw0GKuwzkPQ//jMFA/8Xm6Fh3J/DAg==}
     engines: {node: '>=14'}
     hasBin: true
-    dev: true
 
   /pretty-bytes@5.6.0:
     resolution: {integrity: sha512-FFw039TmrBqFK8ma/7OL3sDz/VytdtJr044/QUJtH0wK9lb9jLq9tJyIxUwtQJHwar2BqtiA4iCWSwo9JLkzFg==}
