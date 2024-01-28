@@ -22,7 +22,7 @@ anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"
 
 byteorder = "1.3"
-bytemuck = "1.13"
+bytemuck = { version = "1.14", features = ["min_const_generics"] }
 
 arrayref = "0.3.6"
 borsh = "0.9.1"

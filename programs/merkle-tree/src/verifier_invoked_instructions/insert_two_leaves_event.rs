@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{state::MerkleTreeSet, RegisteredVerifier};
+use crate::{event_merkle_tree_from_bytes_mut, state::MerkleTreeSet, RegisteredVerifier};
 
 #[derive(Accounts)]
 #[instruction(
@@ -30,9 +30,9 @@ pub fn process_insert_two_leaves_event(
     leaf_left: [u8; 32],
     leaf_right: [u8; 32],
 ) -> Result<()> {
-    let mut merkle_trees = ctx.accounts.merkle_tree_set.load_mut()?;
-    merkle_trees
-        .event_merkle_tree
+    let mut merkle_tree_set = ctx.accounts.merkle_tree_set.load_mut()?;
+    event_merkle_tree_from_bytes_mut(&mut merkle_tree_set.event_merkle_tree)
         .append_two(&leaf_left, &leaf_right)?;
+
     Ok(())
 }

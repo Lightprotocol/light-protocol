@@ -80,7 +80,7 @@ where
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 1);
     assert_eq!(merkle_tree.rightmost_proof, expected_proof);
-    assert_eq!(merkle_tree.rightmost_index, 1);
+    assert_eq!(merkle_tree.next_index, 1);
     assert_eq!(merkle_tree.rightmost_leaf, leaf1);
 
     // Appending the 2nd leaf should result in recomputing the root due to the
@@ -123,7 +123,7 @@ where
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 2);
     assert_eq!(merkle_tree.rightmost_proof, expected_proof);
-    assert_eq!(merkle_tree.rightmost_index, 2);
+    assert_eq!(merkle_tree.next_index, 2);
     assert_eq!(merkle_tree.rightmost_leaf, leaf2);
 
     // Appending the 3rd leaf alters the next subtree on the right.
@@ -166,7 +166,7 @@ where
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 3);
     assert_eq!(merkle_tree.rightmost_proof, expected_proof);
-    assert_eq!(merkle_tree.rightmost_index, 3);
+    assert_eq!(merkle_tree.next_index, 3);
     assert_eq!(merkle_tree.rightmost_leaf, leaf3);
 
     // Appending the 4th leaf alters the next subtree on the right.
@@ -204,7 +204,7 @@ where
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 4);
     assert_eq!(merkle_tree.rightmost_proof, expected_proof);
-    assert_eq!(merkle_tree.rightmost_index, 4);
+    assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
 }
 
@@ -257,7 +257,7 @@ where
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 4);
     assert_eq!(merkle_tree.rightmost_proof, expected_proof);
-    assert_eq!(merkle_tree.rightmost_index, 4);
+    assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
 
     // Replace `leaf1`.
@@ -304,7 +304,7 @@ where
     // Note that we didn't create a new `expected_proof` here. We just re-used
     // the previous one.
     assert_eq!(merkle_tree.rightmost_proof, expected_proof);
-    assert_eq!(merkle_tree.rightmost_index, 4);
+    assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
 
     // Replace `leaf2`.
@@ -348,7 +348,7 @@ where
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 6);
     assert_eq!(merkle_tree.rightmost_proof, expected_proof);
-    assert_eq!(merkle_tree.rightmost_index, 4);
+    assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
 
     // Replace `leaf3`.
@@ -392,7 +392,7 @@ where
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 7);
     assert_eq!(merkle_tree.rightmost_proof, expected_proof);
-    assert_eq!(merkle_tree.rightmost_index, 4);
+    assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
 
     // Replace `leaf4`.
@@ -436,7 +436,7 @@ where
     assert_eq!(merkle_tree.current_root_index, 8);
     // This time `rightmost_*` fields should be changed.
     assert_eq!(merkle_tree.rightmost_proof, expected_proof);
-    assert_eq!(merkle_tree.rightmost_index, 4);
+    assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, new_leaf4);
 }
 
@@ -711,7 +711,7 @@ fn compare_trees<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_R
         spl_concurrent_mt.rightmost_proof.proof
     );
     assert_eq!(
-        concurrent_mt.rightmost_index,
+        concurrent_mt.next_index,
         spl_concurrent_mt.rightmost_proof.index as u64
     );
     assert_eq!(

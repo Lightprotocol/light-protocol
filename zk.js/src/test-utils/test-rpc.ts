@@ -37,6 +37,7 @@ import {
   MERKLE_TREE_SET,
 } from "../constants";
 import { RpcError, TransactionErrorCode } from "../errors";
+import { serializeOnchainMerkleTree } from "../merkle-tree";
 
 export class TestRpc extends Rpc {
   // @ts-ignore
@@ -172,13 +173,15 @@ export class TestRpc extends Rpc {
       "merkleTreeSet",
       merkleTreeAccountInfo.data,
     );
+    const stateMerkleTree = serializeOnchainMerkleTree(
+      merkleTreeAccount.stateMerkleTree,
+    );
 
     // limits the number of signatures which are queried
     // if the number is too low it is not going to index all transactions
     // hence the dependency on the merkle tree account index times 260 transactions
     // which is approximately the number of transactions sent to send one compressed transaction and update the merkle tree
-    const limit =
-      1000 + 260 * merkleTreeAccount.stateMerkleTree.nextIndex.toNumber();
+    const limit = 1000 + 260 * stateMerkleTree.nextIndex.toNumber();
     if (this.indexedTransactions.length === 0) {
       const { transactions: newTransactions } = await fetchRecentTransactions({
         connection,
@@ -319,9 +322,12 @@ export async function getRootIndex(
     merkleTreePublicKey,
     "confirmed",
   );
+  const stateMerkleTree = serializeOnchainMerkleTree(
+    merkleTreeSetData.stateMerkleTree,
+  );
   let rootIndex: BN | undefined;
   // @ts-ignore: unknown type error
-  merkleTreeSetData.stateMerkleTree.roots.map((x: any, index: any) => {
+  stateMerkleTree.roots.map((x: any, index: any) => {
     if (x.toString() === rootBytes.toString()) {
       rootIndex = new BN(index.toString());
     }

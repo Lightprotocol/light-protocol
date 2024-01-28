@@ -10,16 +10,25 @@ export type LightMerkleTreeProgram = {
       "value": "174"
     },
     {
-      "name": "MERKLE_TREE_HISTORY_SIZE",
-      "type": "u64",
-      "value": "2800"
-    },
-    {
       "name": "MERKLE_TREE_HEIGHT",
       "type": {
         "defined": "usize"
       },
       "value": "22"
+    },
+    {
+      "name": "MERKLE_TREE_CHANGELOG",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "0"
+    },
+    {
+      "name": "MERKLE_TREE_ROOTS",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "2800"
     },
     {
       "name": "INITIAL_MERKLE_TREE_AUTHORITY",
@@ -748,24 +757,6 @@ export type LightMerkleTreeProgram = {
             "type": "u64"
           },
           {
-            "name": "stateMerkleTree",
-            "docs": [
-              "Merkle tree for the transaction state."
-            ],
-            "type": {
-              "defined": "MerkleTree"
-            }
-          },
-          {
-            "name": "eventMerkleTree",
-            "docs": [
-              "Merkle tree for event compression."
-            ],
-            "type": {
-              "defined": "MerkleTree"
-            }
-          },
-          {
             "name": "nextMerkleTree",
             "docs": [
               "Public key of the next Merkle tree set."
@@ -778,6 +769,30 @@ export type LightMerkleTreeProgram = {
               "Owner of the Merkle tree set."
             ],
             "type": "publicKey"
+          },
+          {
+            "name": "stateMerkleTree",
+            "docs": [
+              "Merkle tree for the transaction state."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                90360
+              ]
+            }
+          },
+          {
+            "name": "eventMerkleTree",
+            "docs": [
+              "Merkle tree for event compression."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                90360
+              ]
+            }
           }
         ]
       }
@@ -793,137 +808,6 @@ export type LightMerkleTreeProgram = {
           {
             "name": "pubkey",
             "type": "publicKey"
-          }
-        ]
-      }
-    }
-  ],
-  "types": [
-    {
-      "name": "MerkleTree",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "height",
-            "docs": [
-              "Height of the Merkle tree."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "filledSubtrees",
-            "docs": [
-              "Subtree hashes."
-            ],
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                22
-              ]
-            }
-          },
-          {
-            "name": "roots",
-            "docs": [
-              "Full history of roots of the Merkle tree (the last one is the current",
-              "one)."
-            ],
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                2800
-              ]
-            }
-          },
-          {
-            "name": "nextIndex",
-            "docs": [
-              "Next index to insert a leaf."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "currentRootIndex",
-            "docs": [
-              "Current index of the root."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "hashFunction",
-            "docs": [
-              "Hash implementation used on the Merkle tree."
-            ],
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "HashFunction",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Sha256"
-          },
-          {
-            "name": "Poseidon"
-          }
-        ]
-      }
-    },
-    {
-      "name": "MerkleTreeError",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "HeightZero"
-          },
-          {
-            "name": "HeightHigherThanMax"
-          },
-          {
-            "name": "PoseidonInvalidNumberOfInputs"
-          },
-          {
-            "name": "PoseidonEmptyInput"
-          },
-          {
-            "name": "PoseidonInvalidInputLength"
-          },
-          {
-            "name": "PoseidonBytesToPrimeFieldElement"
-          },
-          {
-            "name": "PoseidonInputLargerThanModulus"
-          },
-          {
-            "name": "PoseidonVecToArray"
-          },
-          {
-            "name": "PoseidonU64Tou8"
-          },
-          {
-            "name": "PoseidonBytesToBigInt"
-          },
-          {
-            "name": "PoseidonInvalidWidthCircom"
-          },
-          {
-            "name": "PoseidonUnknown"
           }
         ]
       }
@@ -1070,16 +954,25 @@ export const IDL: LightMerkleTreeProgram = {
       "value": "174"
     },
     {
-      "name": "MERKLE_TREE_HISTORY_SIZE",
-      "type": "u64",
-      "value": "2800"
-    },
-    {
       "name": "MERKLE_TREE_HEIGHT",
       "type": {
         "defined": "usize"
       },
       "value": "22"
+    },
+    {
+      "name": "MERKLE_TREE_CHANGELOG",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "0"
+    },
+    {
+      "name": "MERKLE_TREE_ROOTS",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "2800"
     },
     {
       "name": "INITIAL_MERKLE_TREE_AUTHORITY",
@@ -1808,24 +1701,6 @@ export const IDL: LightMerkleTreeProgram = {
             "type": "u64"
           },
           {
-            "name": "stateMerkleTree",
-            "docs": [
-              "Merkle tree for the transaction state."
-            ],
-            "type": {
-              "defined": "MerkleTree"
-            }
-          },
-          {
-            "name": "eventMerkleTree",
-            "docs": [
-              "Merkle tree for event compression."
-            ],
-            "type": {
-              "defined": "MerkleTree"
-            }
-          },
-          {
             "name": "nextMerkleTree",
             "docs": [
               "Public key of the next Merkle tree set."
@@ -1838,6 +1713,30 @@ export const IDL: LightMerkleTreeProgram = {
               "Owner of the Merkle tree set."
             ],
             "type": "publicKey"
+          },
+          {
+            "name": "stateMerkleTree",
+            "docs": [
+              "Merkle tree for the transaction state."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                90360
+              ]
+            }
+          },
+          {
+            "name": "eventMerkleTree",
+            "docs": [
+              "Merkle tree for event compression."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                90360
+              ]
+            }
           }
         ]
       }
@@ -1853,137 +1752,6 @@ export const IDL: LightMerkleTreeProgram = {
           {
             "name": "pubkey",
             "type": "publicKey"
-          }
-        ]
-      }
-    }
-  ],
-  "types": [
-    {
-      "name": "MerkleTree",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "height",
-            "docs": [
-              "Height of the Merkle tree."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "filledSubtrees",
-            "docs": [
-              "Subtree hashes."
-            ],
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                22
-              ]
-            }
-          },
-          {
-            "name": "roots",
-            "docs": [
-              "Full history of roots of the Merkle tree (the last one is the current",
-              "one)."
-            ],
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                2800
-              ]
-            }
-          },
-          {
-            "name": "nextIndex",
-            "docs": [
-              "Next index to insert a leaf."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "currentRootIndex",
-            "docs": [
-              "Current index of the root."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "hashFunction",
-            "docs": [
-              "Hash implementation used on the Merkle tree."
-            ],
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "HashFunction",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Sha256"
-          },
-          {
-            "name": "Poseidon"
-          }
-        ]
-      }
-    },
-    {
-      "name": "MerkleTreeError",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "HeightZero"
-          },
-          {
-            "name": "HeightHigherThanMax"
-          },
-          {
-            "name": "PoseidonInvalidNumberOfInputs"
-          },
-          {
-            "name": "PoseidonEmptyInput"
-          },
-          {
-            "name": "PoseidonInvalidInputLength"
-          },
-          {
-            "name": "PoseidonBytesToPrimeFieldElement"
-          },
-          {
-            "name": "PoseidonInputLargerThanModulus"
-          },
-          {
-            "name": "PoseidonVecToArray"
-          },
-          {
-            "name": "PoseidonU64Tou8"
-          },
-          {
-            "name": "PoseidonBytesToBigInt"
-          },
-          {
-            "name": "PoseidonInvalidWidthCircom"
-          },
-          {
-            "name": "PoseidonUnknown"
           }
         ]
       }
