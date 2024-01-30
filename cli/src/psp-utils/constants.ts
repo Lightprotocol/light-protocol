@@ -11,6 +11,7 @@ export const LIGHT_PSP4IN4OUT_APP_STORAGE_TAG =
 export const LIGHT_PSP10IN2OUT_TAG = "light-psp10in2out-v0.3.1";
 export const LIGHT_USER_REGISTRY_TAG = "light-user-registry-v0.3.0";
 
+export const LIGHT_ANCHOR_TAG = "v0.28.0";
 export const MACRO_CIRCOM_TAG = "macro-circom-v0.1.1";
 export const ZK_JS_VERSION = "0.3.2-alpha.16";
 export const PROVER_JS_VERSION = "0.1.0-alpha.3";

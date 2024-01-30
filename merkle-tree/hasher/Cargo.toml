@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anchor-lang = "0.28.0"
+solana-program = ">=1.16, <1.18"
 thiserror = "1.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]

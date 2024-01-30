@@ -39,6 +39,7 @@ jobs:
         include:
           - test: system-programs-psp-examples
             sub-tests: '[
+              "@lightprotocol/account-compression-programs:test",
               "@lightprotocol/zk.js:test",
               "@lightprotocol/encrypted-messaging:test",
               "@lightprotocol/private-payments:test"

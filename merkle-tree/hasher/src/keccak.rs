@@ -1,4 +1,4 @@
-use anchor_lang::solana_program::keccak::{hash, hashv};
+use solana_program::keccak::{hash, hashv};
 
 use crate::{
     errors::HasherError,

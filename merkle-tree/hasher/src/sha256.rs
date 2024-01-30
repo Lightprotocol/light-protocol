@@ -1,4 +1,4 @@
-use anchor_lang::solana_program::hash::{hash, hashv};
+use solana_program::hash::{hash, hashv};
 
 use crate::{
     errors::HasherError,

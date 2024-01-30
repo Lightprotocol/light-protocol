@@ -112,6 +112,7 @@ NODE_VERSION="20.9.0"
 PNPM_VERSION="8.8.0"
 SOLANA_VERSION="1.17.5"
 ANCHOR_VERSION=`latest_release Lightprotocol anchor`
+LIGHT_ANCHOR_VERSION="v0.28.0"
 CIRCOM_VERSION=`latest_release Lightprotocol circom`
 MACRO_CIRCOM_VERSION=`latest_release Lightprotocol macro-circom`
 LIGHT_PROTOCOL_VERSION=`latest_release Lightprotocol light-protocol`
@@ -214,15 +215,23 @@ download_and_extract_github \
     "${PREFIX}/bin" \
     2
 
-echo "📥 Downloading Light Anchor"
+echo "📥 Downloading Anchor"
 download_file_github \
     Lightprotocol \
     anchor \
     "${ANCHOR_VERSION}" \
+    "anchor-${ARCH_SUFFIX_LP}" \
+    anchor \
+    "${PREFIX}/bin"
+
+echo "📥 Downloading Light Anchor"
+download_file_github \
+    Lightprotocol \
+    anchor \
+    "${LIGHT_ANCHOR_VERSION}" \
     "light-anchor-${ARCH_SUFFIX_LP}" \
     light-anchor \
     "${PREFIX}/bin"
-
 
 echo "📥 Downloading Circom"
 download_file_github \

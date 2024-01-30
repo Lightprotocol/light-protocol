@@ -5,6 +5,7 @@ edition = "2021"
 
 
 [dependencies]
+account-compression-state = { path = "../account-compression/state" }
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
 light-hasher = { path = "../merkle-tree/hasher", version = "0.1.0" }

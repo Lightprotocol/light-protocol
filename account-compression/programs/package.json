@@ -1,0 +1,9 @@
+{
+  "name": "@lightprotocol/account-compression-programs",
+  "version": "0.3.1",
+  "license": "MIT",
+  "scripts": {
+    "build": "anchor build",
+    "test": "cargo-test-sbf -p account-compression --features solana-tests"
+  }
+}

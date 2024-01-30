@@ -1,0 +1,35 @@
+[package]
+name = "account-compression"
+version = "0.3.1"
+description = "Solana account compression program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "account_compression"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+solana-tests = []
+
+[dependencies]
+account-compression-state = { path = "../../state" }
+aligned-sized = { version = "0.1.0", path = "../../../macros/aligned-sized" }
+anchor-lang = "0.29.0"
+ark-ff = "0.4.0"
+bytemuck = { version = "1.14", features = ["min_const_generics"] }
+light-hasher = { version = "0.1.0", path = "../../../merkle-tree/hasher" }
+light-indexed-merkle-tree = { version = "0.1.0", path = "../../../merkle-tree/indexed" }
+light-utils = { version = "0.1.0", path = "../../../utils" }
+
+# TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
+ahash = "=0.8.6"
+
+[dev-dependencies]
+solana-program-test = ">=1.17, <1.18"
+solana-sdk = ">=1.17, <1.18"
+tokio = "1.35"

@@ -1,53 +1,53 @@
-use anchor_lang::prelude::*;
+use thiserror::Error;
 
-#[error_code]
+#[derive(Debug, Error)]
 pub enum HasherError {
-    #[msg("Invalid height, it has to be greater than 0")]
+    #[error("Invalid height, it has to be greater than 0")]
     HeightZero,
-    #[msg("Invalid height, it cannot exceed the maximum allowed height")]
+    #[error("Invalid height, it cannot exceed the maximum allowed height")]
     HeightHigherThanMax,
-    #[msg("Invalid number of roots, it has to be greater than 0")]
+    #[error("Invalid number of roots, it has to be greater than 0")]
     RootsZero,
-    #[msg("Invalid root index, it exceeds the root buffer size")]
+    #[error("Invalid root index, it exceeds the root buffer size")]
     RootHigherThanMax,
-    #[msg("Merkle tree is full, cannot append more leaves.")]
+    #[error("Merkle tree is full, cannot append more leaves.")]
     TreeFull,
-    #[msg("Provided proof is larger than the height of the tree.")]
+    #[error("Provided proof is larger than the height of the tree.")]
     ProofTooLarge,
-    #[msg("Invalid Merkle proof, stopping the update operation.")]
+    #[error("Invalid Merkle proof, stopping the update operation.")]
     InvalidProof,
-    #[msg("Attempting to update the leaf which was updated by an another newest change.")]
+    #[error("Attempting to update the leaf which was updated by an another newest change.")]
     CannotUpdateLeaf,
-    #[msg("Cannot update tree without changelog, only `append` is supported.")]
+    #[error("Cannot update tree without changelog, only `append` is supported.")]
     AppendOnly,
-    #[msg("Invalid index, it exceeds the number of elements.")]
+    #[error("Invalid index, it exceeds the number of elements.")]
     IndexHigherThanMax,
-    #[msg("Could not find the low element.")]
+    #[error("Could not find the low element.")]
     LowElementNotFound,
-    #[msg("Low element is greater or equal to the provided new element.")]
+    #[error("Low element is greater or equal to the provided new element.")]
     LowElementGreaterOrEqualToNewElement,
-    #[msg("The provided new element is greater or equal to the next element.")]
+    #[error("The provided new element is greater or equal to the next element.")]
     NewElementGreaterOrEqualToNextElement,
-    #[msg("Integer overflow, value too large")]
+    #[error("Integer overflow, value too large")]
     IntegerOverflow,
-    #[msg("Invalid number of inputs.")]
+    #[error("Invalid number of inputs.")]
     PoseidonInvalidNumberOfInputs,
-    #[msg("Input is an empty slice.")]
+    #[error("Input is an empty slice.")]
     PoseidonEmptyInput,
-    #[msg("Invalid length of the input.")]
+    #[error("Invalid length of the input.")]
     PoseidonInvalidInputLength,
-    #[msg("Failed to convert bytes into a prime field element.")]
+    #[error("Failed to convert bytes into a prime field element.")]
     PoseidonBytesToPrimeFieldElement,
-    #[msg("Input is larger than the modulus of the prime field.")]
+    #[error("Input is larger than the modulus of the prime field.")]
     PoseidonInputLargerThanModulus,
-    #[msg("Failed to convert a vector of bytes into an array.")]
+    #[error("Failed to convert a vector of bytes into an array.")]
     PoseidonVecToArray,
-    #[msg("Failed to convert the number of inputs from u64 to u8.")]
+    #[error("Failed to convert the number of inputs from u64 to u8.")]
     PoseidonU64Tou8,
-    #[msg("Failed to convert bytes to BigInt")]
+    #[error("Failed to convert bytes to BigInt")]
     PoseidonBytesToBigInt,
-    #[msg("Invalid width. Choose a width between 2 and 16 for 1 to 15 inputs.")]
+    #[error("Invalid width. Choose a width between 2 and 16 for 1 to 15 inputs.")]
     PoseidonInvalidWidthCircom,
-    #[msg("Unknown Poseidon syscall error")]
+    #[error("Unknown Poseidon syscall error")]
     PoseidonUnknown,
 }

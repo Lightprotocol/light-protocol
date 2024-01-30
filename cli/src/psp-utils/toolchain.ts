@@ -6,7 +6,7 @@ import {
   downloadSolanaIfNotExists,
 } from "./download";
 import { executeCommand } from "./process";
-import { MACRO_CIRCOM_TAG } from "./constants";
+import { LIGHT_ANCHOR_TAG, MACRO_CIRCOM_TAG } from "./constants";
 
 const defaultCargoGeneratePath = "../../bin/cargo-generate";
 const defaultCircomPath = "../../bin/circom";
@@ -103,7 +103,11 @@ const anchorPath = createPathFunction({
   envVarName: "LIGHT_PROTOCOL_ANCHOR_PATH",
   defaultPath: defaultAnchorPath,
   downloadFunction: downloadLightBinIfNotExists,
-  downloadParams: { repoName: "anchor", remoteFileName: "light-anchor" },
+  downloadParams: {
+    repoName: "anchor",
+    remoteFileName: "light-anchor",
+    tag: LIGHT_ANCHOR_TAG,
+  },
 });
 
 /**

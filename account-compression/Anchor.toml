@@ -1,0 +1,26 @@
+[features]
+seeds = false
+
+[test.validator]
+url = "http://127.0.0.1:8899"
+
+[programs.localnet]
+psp_account_compression = "DmtCHY9V1vqkYfQ5xYESzvGoMGhePHLja9GQ994GKTTc"
+
+[programs.testnet]
+psp_account_compression = "DmtCHY9V1vqkYfQ5xYESzvGoMGhePHLja9GQ994GKTTc"
+
+[test]
+startup_wait = 100_000
+
+[provider]
+cluster = "testnet"
+wallet = "~/.config/solana/id.json"
+
+# TODO: Add tests.
+# [scripts]
+# test = "pnpm run ts-mocha -t 100000000 tests/functional_tests.ts --exit"
+
+# TODO: Save IDL in a specific directory.
+# [workspace]
+# types = "zk.js/src/idls"
