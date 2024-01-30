@@ -40,10 +40,6 @@ where
         self.merkle_tree.get_proof_of_leaf(index)
     }
 
-    pub fn node(&self, idx: usize) -> [u8; 32] {
-        self.merkle_tree.node(idx)
-    }
-
     pub fn root(&self) -> Option<[u8; 32]> {
         self.merkle_tree.root()
     }

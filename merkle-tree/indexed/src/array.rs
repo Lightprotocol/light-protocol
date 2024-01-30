@@ -1,7 +1,16 @@
 use std::{cmp::Ordering, marker::PhantomData};
 
-use ark_ff::BigInteger;
+use ark_ff::{BigInteger, BigInteger256};
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{errors::HasherError, Hasher};
+use light_utils::{be_bytes_to_bigint, bigint_to_be_bytes};
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct RawIndexingElement<const N: usize> {
+    pub index: u16,
+    pub value: [u8; N],
+    pub next_index: u16,
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct IndexingElement<B>
@@ -11,6 +20,32 @@ where
     pub index: u16,
     pub value: B,
     pub next_index: u16,
+}
+
+impl TryFrom<RawIndexingElement<32>> for IndexingElement<BigInteger256> {
+    type Error = ();
+
+    fn try_from(element: RawIndexingElement<32>) -> Result<Self, Self::Error> {
+        let value = be_bytes_to_bigint(&element.value).map_err(|_| ())?;
+        Ok(Self {
+            index: element.index,
+            value,
+            next_index: element.next_index,
+        })
+    }
+}
+
+impl TryFrom<IndexingElement<BigInteger256>> for RawIndexingElement<32> {
+    type Error = ();
+
+    fn try_from(element: IndexingElement<BigInteger256>) -> Result<Self, Self::Error> {
+        let value = bigint_to_be_bytes(&element.value).map_err(|_| ())?;
+        Ok(Self {
+            index: element.index,
+            value,
+            next_index: element.next_index,
+        })
+    }
 }
 
 impl<B> PartialEq for IndexingElement<B>
@@ -311,7 +346,11 @@ where
     }
 
     pub fn lowest(&self) -> Option<IndexingElement<B>> {
-        self.elements.get(1).cloned()
+        if self.current_node_index < 1 {
+            None
+        } else {
+            self.elements.get(1).cloned()
+        }
     }
 
     /// Returns and removes the element from the given index.

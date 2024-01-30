@@ -19,7 +19,7 @@ test-bpf = []
 
 [dependencies]
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
-anchor-lang = "0.28.0"
+anchor-lang = "0.29.0"
 bytemuck = "1.14"
 light-verifier-sdk = { version = "0.3.0", path = "../../verifier-sdk" }
 

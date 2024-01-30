@@ -29,6 +29,53 @@ pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
     arr
 }
 
+/// Converts the given [`ark_ff::BigInt`](ark_ff::BigInt) into a big-endian
+/// byte array.
+pub fn bigint_to_be_bytes<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
+    bigint: &BigInt<NUM_LIMBS>,
+) -> Result<[u8; BYTES_SIZE], UtilsError> {
+    let mut bytes = [0u8; BYTES_SIZE];
+    let limb_size = mem::size_of::<u64>();
+
+    if BYTES_SIZE != NUM_LIMBS * limb_size {
+        return Err(UtilsError::InvalidInputSize(
+            NUM_LIMBS * limb_size,
+            BYTES_SIZE,
+        ));
+    }
+
+    for (i, limb) in bigint.0.iter().enumerate() {
+        bytes[i * limb_size..(i + 1) * limb_size].copy_from_slice(&limb.to_le_bytes());
+    }
+
+    // Since we filled the array in little-endian order for each limb, reverse it for big-endian representation
+    bytes.reverse();
+
+    Ok(bytes)
+}
+
+/// Converts the given [`ark_ff::BigInt`](ark_ff::BigInt) into a little-endian
+/// byte array.
+pub fn bigint_to_le_bytes<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
+    bigint: &BigInt<NUM_LIMBS>,
+) -> Result<[u8; BYTES_SIZE], UtilsError> {
+    let mut bytes = [0u8; BYTES_SIZE];
+    let limb_size = mem::size_of::<u64>();
+
+    if BYTES_SIZE != NUM_LIMBS * limb_size {
+        return Err(UtilsError::InvalidInputSize(
+            NUM_LIMBS * limb_size,
+            BYTES_SIZE,
+        ));
+    }
+
+    for (i, limb) in bigint.0.iter().enumerate() {
+        bytes[i * limb_size..(i + 1) * limb_size].copy_from_slice(&limb.to_le_bytes());
+    }
+
+    Ok(bytes)
+}
+
 /// Converts the given big-endian byte slice into
 /// [`ark_ff::BigInt`](`ark_ff::BigInt`).
 pub fn be_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(

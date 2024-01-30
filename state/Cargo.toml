@@ -1,0 +1,9 @@
+[package]
+name = "account-compression-state"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ark-ff = "0.4"
+light-hasher = { version = "0.1.0", path = "../merkle-tree/hasher" }
+light-indexed-merkle-tree = { version = "0.1.0", path = "../merkle-tree/indexed" }

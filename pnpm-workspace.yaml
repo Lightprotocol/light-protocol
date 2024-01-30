@@ -10,3 +10,4 @@ packages:
   - "psp-examples/**"
   - "tmp-test-psp/**"
   - "web/webapp/**"
+  - "account-compression/programs/**"
