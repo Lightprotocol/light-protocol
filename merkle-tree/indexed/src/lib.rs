@@ -80,12 +80,16 @@ where
     pub fn update(
         &mut self,
         changelog_index: usize,
-        new_element: IndexingElement<B>,
+        mut new_element: IndexingElement<B>,
         new_element_next_value: B,
         low_element: IndexingElement<B>,
         low_element_next_value: B,
         low_leaf_proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), HasherError> {
+        // Update the new element with a correct index.
+        new_element.index = u16::try_from(self.merkle_tree.rightmost_index)
+            .map_err(|_| HasherError::IntegerOverflow)?;
+
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == 0 {

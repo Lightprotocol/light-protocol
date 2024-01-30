@@ -38,9 +38,17 @@ where
 }
 
 #[derive(Error, Debug)]
+enum ProgramUpdateError {
+    #[error("Invalid queue index")]
+    InvalidQueueIndex,
+    #[error("Hasher error: {0}")]
+    Hasher(HasherError),
+}
+
+#[derive(Error, Debug)]
 enum RelayerUpdateError {
     #[error("Updating Merkle tree failed, {0:?}")]
-    MerkleTreeUpdate(Vec<HasherError>),
+    MerkleTreeUpdate(Vec<ProgramUpdateError>),
 }
 
 /// A mock function which imitates a Merkle tree program instruction for
@@ -61,33 +69,40 @@ fn program_update<H>(
     // Instruction data
     changelog_index: u16,
     queue_index: u16,
-    nullifier_index: u16,
     nullifier_next_index: u16,
     nullifier_next_value: BigInteger256,
     low_nullifier: IndexingElement<BigInteger256>,
     low_nullifier_next_value: BigInteger256,
     low_nullifier_proof: [[u8; 32]; MERKLE_TREE_HEIGHT],
-) -> Result<(), HasherError>
+) -> Result<(), ProgramUpdateError>
 where
     H: Hasher,
 {
+    // Validate the `queue_index`.
+    if queue_index <= 0 || usize::from(queue_index) >= queue.len() {
+        return Err(ProgramUpdateError::InvalidQueueIndex);
+    }
+
     // Remove the nullifier from the queue.
     let mut nullifier = queue.dequeue_at(queue_index).unwrap().unwrap();
 
     // Update the nullifier with ranges adjusted to the Merkle tree state,
     // coming from relayer.
-    nullifier.index = nullifier_index;
     nullifier.next_index = nullifier_next_index;
 
     // Update the Merkle tree.
-    merkle_tree.update(
-        usize::from(changelog_index),
-        nullifier,
-        nullifier_next_value,
-        low_nullifier,
-        low_nullifier_next_value,
-        &low_nullifier_proof,
-    )
+    merkle_tree
+        .update(
+            usize::from(changelog_index),
+            nullifier,
+            nullifier_next_value,
+            low_nullifier,
+            low_nullifier_next_value,
+            &low_nullifier_proof,
+        )
+        .map_err(|e| ProgramUpdateError::Hasher(e))?;
+
+    Ok(())
 }
 
 /// A mock function which imitates a relayer endpoint for updating the
@@ -119,7 +134,7 @@ where
     >::new()
     .unwrap();
 
-    let mut update_errors: Vec<HasherError> = Vec::new();
+    let mut update_errors: Vec<ProgramUpdateError> = Vec::new();
 
     while !queue.is_empty() {
         let changelog_index = merkle_tree.changelog_index();
@@ -144,7 +159,6 @@ where
             merkle_tree,
             changelog_index as u16,
             lowest_from_queue.index,
-            nullifier_bundle.new_element.index,
             nullifier_bundle.new_element.next_index,
             nullifier_bundle.new_element_next_value,
             old_low_nullifier,
@@ -158,17 +172,17 @@ where
             }
         };
 
-        // Update off-chain tree.
-        relayer_merkle_tree
-            .update(
-                &nullifier_bundle.new_low_element,
-                &nullifier_bundle.new_element,
-                &nullifier_bundle.new_element_next_value,
-            )
-            .unwrap();
-
-        // Check if the on-chain Merkle tree was really updated.
         if update_successful {
+            // Update off-chain tree.
+            relayer_merkle_tree
+                .update(
+                    &nullifier_bundle.new_low_element,
+                    &nullifier_bundle.new_element,
+                    &nullifier_bundle.new_element_next_value,
+                )
+                .unwrap();
+
+            // Check if the on-chain Merkle tree was really updated.
             let low_nullifier_leaf = nullifier_bundle
                 .new_low_element
                 .hash::<H>(&nullifier_bundle.new_element.value)
@@ -196,15 +210,15 @@ where
                     &new_nullifier_proof,
                 )
                 .unwrap();
-        }
 
-        // Insert the element to the indexing array.
-        relayer_indexing_array
-            .append_with_low_element_index(
-                nullifier_bundle.new_low_element.index,
-                nullifier_bundle.new_element.value,
-            )
-            .unwrap();
+            // Insert the element to the indexing array.
+            relayer_indexing_array
+                .append_with_low_element_index(
+                    nullifier_bundle.new_low_element.index,
+                    nullifier_bundle.new_element.value,
+                )
+                .unwrap();
+        }
     }
 
     if update_errors.is_empty() {
@@ -337,8 +351,8 @@ where
     // less.
     let _expected_err: Result<(), RelayerUpdateError> =
         Err(RelayerUpdateError::MerkleTreeUpdate(vec![
-            HasherError::InvalidProof,
-            HasherError::InvalidProof,
+            ProgramUpdateError::Hasher(HasherError::InvalidProof),
+            ProgramUpdateError::Hasher(HasherError::InvalidProof),
         ]));
     assert!(matches!(
         relayer_update::<H>(
@@ -423,8 +437,6 @@ where
     let changelog_index = onchain_tree.borrow_mut().changelog_index();
     // Index of our new nullifier in the queue.
     let queue_index = 1_u16;
-    // Index of our new nullifier in the tree / on-chain state.
-    let nullifier_index = 3_u16;
     // (Invalid) index of the next nullifier.
     let nullifier_next_index = 2_u16;
     // (Invalid) value of the next nullifier.
@@ -443,14 +455,15 @@ where
             &mut onchain_tree.borrow_mut(),
             changelog_index as u16,
             queue_index,
-            nullifier_index,
             nullifier_next_index,
             nullifier_next_value,
             low_nullifier,
             low_nullifier_next_value,
             low_nullifier_proof,
         ),
-        Err(HasherError::LowElementGreaterOrEqualToNewElement)
+        Err(ProgramUpdateError::Hasher(
+            HasherError::LowElementGreaterOrEqualToNewElement
+        ))
     ));
 
     // Try inserting nullifier 50, while pointing to index 0 as low nullifier.
@@ -460,8 +473,6 @@ where
     let changelog_index = onchain_tree.borrow_mut().changelog_index();
     // Index of our new nullifier in the queue.
     let queue_index = 1_u16;
-    // Index of our new nullifier in the tree / on-chain state.
-    let nullifier_index = 3_u16;
     // (Invalid) index of the next nullifier. Value: 30.
     let nullifier_next_index = 1_u16;
     // (Invalid) value of the next nullifier.
@@ -480,14 +491,15 @@ where
             &mut onchain_tree.borrow_mut(),
             changelog_index as u16,
             queue_index,
-            nullifier_index,
             nullifier_next_index,
             nullifier_next_value,
             low_nullifier,
             low_nullifier_next_value,
             low_nullifier_proof,
         ),
-        Err(HasherError::NewElementGreaterOrEqualToNextElement)
+        Err(ProgramUpdateError::Hasher(
+            HasherError::NewElementGreaterOrEqualToNextElement
+        ))
     ));
 }
 
