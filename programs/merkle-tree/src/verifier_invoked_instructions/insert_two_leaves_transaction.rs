@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
-use crate::{state::MerkleTreeSet, RegisteredVerifier};
+use crate::{state::MerkleTreeSet, state_merkle_tree_from_bytes_mut, RegisteredVerifier};
 
 #[derive(Accounts)]
 pub struct InsertTwoLeaves<'info> {
@@ -38,9 +38,8 @@ pub fn process_insert_two_leaves<'info, 'a>(
         };
 
         // Insert the pair into the merkle tree
-        merkle_tree_set
-            .state_merkle_tree
-            .insert(*leaf_left, *leaf_right)?;
+        state_merkle_tree_from_bytes_mut(&mut merkle_tree_set.state_merkle_tree)
+            .append_two(leaf_left, leaf_right)?;
     }
 
     Ok(())

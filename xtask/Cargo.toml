@@ -9,7 +9,6 @@ anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
 light-hasher = { path = "../merkle-tree/hasher", version = "0.1.0" }
 light-merkle-tree-program = { path = "../programs/merkle-tree", version = "0.3.1" }
-light-sparse-merkle-tree = { path = "../merkle-tree/sparse", version = "0.1.1" }
 light-utils = { path = "../utils", version = "0.1.0" }
 quote = "1.0"
 sha2 = "0.10"

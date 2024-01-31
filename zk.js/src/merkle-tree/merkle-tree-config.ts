@@ -68,7 +68,7 @@ export class MerkleTreeConfig {
       merkleTreeAuthorityAccountInfo.merkleTreeSetIndex;
 
     // TODO(vadorovsky): Expose account sizes through a WASM shim.
-    const space = 180752;
+    const space = 180800;
     const ix1 = SystemProgram.createAccount({
       fromPubkey: this.payer!.publicKey,
       newAccountPubkey: merkleTreeSet.publicKey,
@@ -170,7 +170,7 @@ export class MerkleTreeConfig {
     }
 
     // TODO(vadorovsky): Expose account sizes through a WASM shim.
-    const space = 180752;
+    const space = 180800;
     const ix1 = SystemProgram.createAccount({
       fromPubkey: authority!.publicKey,
       newAccountPubkey: merkleTreeSet.publicKey,
