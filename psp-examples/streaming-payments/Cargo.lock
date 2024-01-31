@@ -1564,7 +1564,6 @@ dependencies = [
  "arkworks-gadgets",
  "arrayref",
  "bincode",
- "borsh 0.9.3",
  "bytemuck",
  "byteorder",
  "getrandom 0.2.10",

@@ -50,7 +50,9 @@ where
         // to any other leaf yet.
         // This low leaf is going to be updated during the first `update`
         // operation.
-        self.merkle_tree.append(&H::zero_indexed_leaf())
+        self.merkle_tree.append(&H::zero_indexed_leaf())?;
+
+        Ok(())
     }
 
     pub fn changelog_index(&self) -> usize {
