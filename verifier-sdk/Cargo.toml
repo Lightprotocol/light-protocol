@@ -28,4 +28,3 @@ groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branc
 light-macros = { version = "0.3.1", path = "../macros/light" }
 spl-token = "3.3.0"
 light-utils = { path = "../utils", version = "0.1.0" }
-light-sparse-merkle-tree = { path = "../merkle-tree/sparse", version = "0.1.1" }

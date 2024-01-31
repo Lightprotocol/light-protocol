@@ -18,6 +18,7 @@ use groth16_solana::{
 use light_macros::heap_neutral;
 use light_merkle_tree_program::{
     program::LightMerkleTreeProgram,
+    state_merkle_tree_from_bytes,
     utils::{
         accounts::create_and_check_pda,
         constants::{POOL_CONFIG_SEED, POOL_SEED},
@@ -200,8 +201,11 @@ impl<
         custom_heap::log_total_heap("post load MerkleTreeSet");
 
         // Initialize the vector of leaves
-        let first_leaf_index = merkle_tree_set.state_merkle_tree.next_index;
+        let first_leaf_index =
+            state_merkle_tree_from_bytes(&merkle_tree_set.state_merkle_tree).next_index;
         drop(merkle_tree_set);
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("drop MerkleTreeSet");
 
         let message = match &self.input.message {
             Some(message) => message.content.clone(),
@@ -482,8 +486,12 @@ impl<
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("post load MerkleTreeSet");
 
-        self.merkle_root = merkle_tree_set.state_merkle_tree.roots[self.input.merkle_root_index];
+        self.merkle_root = state_merkle_tree_from_bytes(&merkle_tree_set.state_merkle_tree).roots
+            [self.input.merkle_root_index];
         drop(merkle_tree_set);
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("drop MerkleTreeSet");
+
         Ok(())
     }
 

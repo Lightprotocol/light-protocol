@@ -1519,6 +1519,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-concurrent-merkle-tree"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "light-hasher",
+]
+
+[[package]]
 name = "light-hasher"
 version = "0.1.0"
 dependencies = [
@@ -1560,9 +1568,9 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "getrandom 0.2.10",
+ "light-concurrent-merkle-tree",
  "light-hasher",
  "light-macros",
- "light-sparse-merkle-tree",
  "light-utils",
  "solana-security-txt",
  "spl-token",
@@ -1596,16 +1604,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-sparse-merkle-tree"
-version = "0.1.1"
-dependencies = [
- "anchor-lang",
- "bytemuck",
- "light-hasher",
- "thiserror",
-]
-
-[[package]]
 name = "light-utils"
 version = "0.1.0"
 dependencies = [
@@ -1628,7 +1626,6 @@ dependencies = [
  "groth16-solana",
  "light-macros",
  "light-merkle-tree-program",
- "light-sparse-merkle-tree",
  "light-utils",
  "spl-token",
 ]

@@ -168,6 +168,7 @@ export const TESTNET_LOOK_UP_TABLE = new PublicKey(
 
 export const FEE_ASSET = anchor.web3.SystemProgram.programId;
 export const MERKLE_TREE_HEIGHT = 22;
+export const MERKLE_TREE_ROOTS = 2800;
 /** Threshold (per asset) at which new in-UTXOs get merged, in order to reduce UTXO pool size */
 export const UTXO_MERGE_THRESHOLD = 20; // 7
 export const UTXO_MERGE_MAXIMUM = 10;

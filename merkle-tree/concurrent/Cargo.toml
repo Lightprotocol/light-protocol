@@ -6,6 +6,7 @@ description = "Concurrent Merkle tree implementation"
 license = "Apache-2.0"
 
 [dependencies]
+bytemuck = "1.14"
 light-hasher = { path = "../hasher", version = "0.1.0" }
 
 [dev-dependencies]

@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, marker::PhantomData};
 
+use bytemuck::{Pod, Zeroable};
 use hash::compute_root;
 use light_hasher::{errors::HasherError, Hasher};
 
@@ -23,6 +24,7 @@ use crate::{changelog::ChangelogEntry, hash::compute_parent_node};
 /// Due to ability to make a decent number of concurrent update requests to be
 /// valid, no lock is necessary.
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct ConcurrentMerkleTree<
     H,
     const HEIGHT: usize,
@@ -31,18 +33,18 @@ pub struct ConcurrentMerkleTree<
 > where
     H: Hasher,
 {
+    /// Index of the newest non-empty leaf.
+    pub next_index: u64,
+    /// History of roots.
+    pub roots: [[u8; 32]; MAX_ROOTS],
     /// History of Merkle proofs.
     pub changelog: [ChangelogEntry<HEIGHT>; MAX_CHANGELOG],
     /// Index of the newest changelog.
     pub current_changelog_index: u64,
-    /// History of roots.
-    pub roots: [[u8; 32]; MAX_ROOTS],
     /// Index of the newest root.
     pub current_root_index: u64,
     /// The newest Merkle proof.
     pub rightmost_proof: [[u8; 32]; HEIGHT],
-    /// Index of the newest non-empty leaf.
-    pub rightmost_index: u64,
     /// The newest non-empty leaf.
     pub rightmost_leaf: [u8; 32],
 
@@ -61,11 +63,52 @@ where
             roots: [[0u8; 32]; MAX_ROOTS],
             current_root_index: 0,
             rightmost_proof: [[0u8; 32]; HEIGHT],
-            rightmost_index: 0,
+            next_index: 0,
             rightmost_leaf: [0u8; 32],
             _hasher: PhantomData,
         }
     }
+}
+
+/// Mark `ConcurrentMerkleTree` as `Zeroable`, providing Anchor a guarantee
+/// that it can be always initialized with zeros.
+///
+/// # Safety
+///
+/// [`bytemuck`](bytemuck) is not able to ensure that our custom types (`Hasher`
+/// and `ConcurrentMerkleTree`) can be a subject of initializing with zeros. It
+/// also doesn't support structs with const generics (it would need to ensure
+/// alignment).
+///
+/// Therefore, it's our responsibility to guarantee that `ConcurrentMerkleTree`
+/// doesn't contain any fields which are not zeroable.
+unsafe impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Zeroable
+    for ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+where
+    H: Hasher,
+{
+}
+
+/// Mark `ConcurrentMerkleTree` as `Pod` (Plain Old Data), providing Anchor a
+/// guarantee that it can be used in a zero-copy account.
+///
+/// # Safety
+///
+/// [`bytemuck`](bytemuck) is not able to ensure that our custom types (`Hasher`
+/// and `ConcurrentMerkleTree`) can be a subject of byte serialization. It also
+/// doesn't support structs with const generics (it would need to ensure
+/// alignment).
+///
+/// Therefore, it's our responsibility to guarantee that:
+///
+/// * `Hasher` and `ConcurrentMerkleTree` with given const generics are aligned.
+/// * They don't contain any fields which are not implementing `Copy` or are
+///   not an easy subject for byte serialization.
+unsafe impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Pod
+    for ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+where
+    H: Hasher + Copy + 'static,
+{
 }
 
 impl<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>
@@ -236,14 +279,14 @@ where
             .ok_or(HasherError::RootsZero)? = node;
 
         // Update the rightmost proof. It has to be done only if tree is not full.
-        if self.rightmost_index < (1 << HEIGHT) {
-            if self.rightmost_index > 0 && leaf_index < self.rightmost_index as usize - 1 {
+        if self.next_index < (1 << HEIGHT) {
+            if self.next_index > 0 && leaf_index < self.next_index as usize - 1 {
                 // Update the rightmost proof with the current changelog entry when:
                 //
                 // * `rightmost_index` is greater than 0 (tree is non-empty).
                 // * The updated leaf is non-rightmost.
                 if let Some(proof) = changelog_entry
-                    .update_proof(self.rightmost_index as usize - 1, &self.rightmost_proof)
+                    .update_proof(self.next_index as usize - 1, &self.rightmost_proof)
                 {
                     self.rightmost_proof = proof;
                 }
@@ -272,7 +315,7 @@ where
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), HasherError> {
-        let updated_proof = if self.rightmost_index > 0 && MAX_CHANGELOG > 0 {
+        let updated_proof = if self.next_index > 0 && MAX_CHANGELOG > 0 {
             match self.update_proof_or_leaf(changelog_index, leaf_index, proof) {
                 Some(proof) => proof,
                 // This case means that the leaf we are trying to update was
@@ -284,7 +327,7 @@ where
                 }
             }
         } else {
-            if leaf_index != self.rightmost_index as usize {
+            if leaf_index != self.next_index as usize {
                 return Err(HasherError::AppendOnly);
             }
             proof.to_owned()
@@ -296,11 +339,11 @@ where
 
     /// Appends a new leaf to the tree.
     pub fn append(&mut self, leaf: &[u8; 32]) -> Result<(), HasherError> {
-        if self.rightmost_index >= 1 << HEIGHT {
+        if self.next_index >= 1 << HEIGHT {
             return Err(HasherError::TreeFull);
         }
 
-        if self.rightmost_index == 0 {
+        if self.next_index == 0 {
             // NOTE(vadorovsky): This is not mentioned in the whitepaper, but
             // appending to an empty Merkle tree is a special case, where
             // `computer_parent_node` can't be called, because the usual
@@ -321,7 +364,7 @@ where
         } else {
             let mut current_node = *leaf;
             let mut intersection_node = self.rightmost_leaf;
-            let intersection_index = self.rightmost_index.trailing_zeros() as usize;
+            let intersection_index = self.next_index.trailing_zeros() as usize;
             let mut changelog_path = [[0u8; 32]; HEIGHT];
 
             for (i, item) in changelog_path.iter_mut().enumerate() {
@@ -334,7 +377,7 @@ where
                         intersection_node = compute_parent_node::<H>(
                             &intersection_node,
                             &self.rightmost_proof[i],
-                            self.rightmost_index as usize - 1,
+                            self.next_index as usize - 1,
                             i,
                         )?;
                         self.rightmost_proof[i] = empty_node;
@@ -347,7 +390,7 @@ where
                         current_node = compute_parent_node::<H>(
                             &current_node,
                             &self.rightmost_proof[i],
-                            self.rightmost_index as usize - 1,
+                            self.next_index as usize - 1,
                             i,
                         )?;
                     }
@@ -360,7 +403,7 @@ where
                 .get_mut(self.current_changelog_index as usize)
             {
                 *changelog_element =
-                    ChangelogEntry::new(current_node, changelog_path, self.rightmost_index as usize)
+                    ChangelogEntry::new(current_node, changelog_path, self.next_index as usize)
             }
             self.inc_current_root_index();
             *self
@@ -369,9 +412,21 @@ where
                 .ok_or(HasherError::RootsZero)? = current_node;
         }
 
-        self.rightmost_index += 1;
+        self.next_index += 1;
         self.rightmost_leaf = *leaf;
 
         Ok(())
+    }
+
+    /// Appends a new pair of leaves to the tree.
+    pub fn append_two(
+        &mut self,
+        leaf_left: &[u8; 32],
+        leaf_right: &[u8; 32],
+    ) -> Result<(), HasherError> {
+        // TODO(vadorovsky): Instead of this naive double append, implement an
+        // optimized insertion of two leaves.
+        self.append(leaf_left)?;
+        self.append(leaf_right)
     }
 }
