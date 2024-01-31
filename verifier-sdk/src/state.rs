@@ -89,8 +89,14 @@ impl<
     }
 }
 
+#[derive(AnchorDeserialize, AnchorSerialize)]
+#[repr(C)]
+pub enum TransactionIndexerEvent<'a> {
+    V1(TransactionIndexerEventV1<'a>),
+}
+
 #[derive(AnchorDeserialize, AnchorSerialize, Clone, Debug)]
-pub struct TransactionIndexerEvent<'a> {
+pub struct TransactionIndexerEventV1<'a> {
     pub leaves: &'a Vec<[u8; 32]>,
     pub public_amount_spl: [u8; 32],
     pub public_amount_sol: [u8; 32],

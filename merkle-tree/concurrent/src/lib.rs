@@ -37,6 +37,8 @@ pub struct ConcurrentMerkleTree<
     pub next_index: u64,
     /// History of roots.
     pub roots: [[u8; 32]; MAX_ROOTS],
+    /// Number of successful operations on the tree.
+    pub sequence_number: u64,
     /// History of Merkle proofs.
     pub changelog: [ChangelogEntry<HEIGHT>; MAX_CHANGELOG],
     /// Index of the newest changelog.
@@ -61,6 +63,7 @@ where
             changelog: [ChangelogEntry::default(); MAX_CHANGELOG],
             current_changelog_index: 0,
             roots: [[0u8; 32]; MAX_ROOTS],
+            sequence_number: 0,
             current_root_index: 0,
             rightmost_proof: [[0u8; 32]; HEIGHT],
             next_index: 0,
@@ -254,7 +257,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
-    ) -> Result<(), HasherError> {
+    ) -> Result<ChangelogEntry<HEIGHT>, HasherError> {
         let mut node = *new_leaf;
         let mut changelog_path = [[0u8; 32]; HEIGHT];
 
@@ -301,7 +304,7 @@ where
             }
         }
 
-        Ok(())
+        Ok(changelog_entry)
     }
 
     /// Replaces the `old_leaf` under the `leaf_index` with a `new_leaf`, using
@@ -314,7 +317,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
-    ) -> Result<(), HasherError> {
+    ) -> Result<ChangelogEntry<HEIGHT>, HasherError> {
         let updated_proof = if self.next_index > 0 && MAX_CHANGELOG > 0 {
             match self.update_proof_or_leaf(changelog_index, leaf_index, proof) {
                 Some(proof) => proof,
@@ -337,8 +340,13 @@ where
         self.update_leaf_in_tree(new_leaf, leaf_index, &updated_proof)
     }
 
-    /// Appends a new leaf to the tree.
-    pub fn append(&mut self, leaf: &[u8; 32]) -> Result<(), HasherError> {
+    /// Appends a new leaf to the tree with the given `changelog_entry` to save
+    /// the Merkle path in.
+    fn append_with_changelog_entry(
+        &mut self,
+        leaf: &[u8; 32],
+        changelog_entry: &mut ChangelogEntry<HEIGHT>,
+    ) -> Result<(), HasherError> {
         if self.next_index >= 1 << HEIGHT {
             return Err(HasherError::TreeFull);
         }
@@ -397,13 +405,16 @@ where
                 }
             }
 
+            changelog_entry.root = current_node;
+            changelog_entry.path = changelog_path;
+            changelog_entry.index = self.next_index;
+
             self.inc_current_changelog_index();
             if let Some(changelog_element) = self
                 .changelog
                 .get_mut(self.current_changelog_index as usize)
             {
-                *changelog_element =
-                    ChangelogEntry::new(current_node, changelog_path, self.next_index as usize)
+                *changelog_element = *changelog_entry;
             }
             self.inc_current_root_index();
             *self
@@ -412,21 +423,32 @@ where
                 .ok_or(HasherError::RootsZero)? = current_node;
         }
 
-        self.next_index += 1;
+        self.sequence_number = self.sequence_number.saturating_add(1);
+        self.next_index = self.next_index.saturating_add(1);
         self.rightmost_leaf = *leaf;
 
         Ok(())
     }
 
-    /// Appends a new pair of leaves to the tree.
-    pub fn append_two(
+    /// Appends a new leaf to the tree.
+    pub fn append(&mut self, leaf: &[u8; 32]) -> Result<ChangelogEntry<HEIGHT>, HasherError> {
+        let mut changelog_entry = ChangelogEntry::default();
+        self.append_with_changelog_entry(leaf, &mut changelog_entry)?;
+        Ok(changelog_entry)
+    }
+
+    /// Appends a new batch of leaves to the tree.
+    pub fn append_batch<const N: usize>(
         &mut self,
-        leaf_left: &[u8; 32],
-        leaf_right: &[u8; 32],
-    ) -> Result<(), HasherError> {
-        // TODO(vadorovsky): Instead of this naive double append, implement an
-        // optimized insertion of two leaves.
-        self.append(leaf_left)?;
-        self.append(leaf_right)
+        leaves: &[&[u8; 32]; N],
+    ) -> Result<[Box<ChangelogEntry<HEIGHT>>; N], HasherError> {
+        let mut changelog_entries: [Box<ChangelogEntry<HEIGHT>>; N] =
+            std::array::from_fn(|_| Box::<ChangelogEntry<HEIGHT>>::default());
+
+        for (leaf, changelog_entry) in leaves.iter().zip(changelog_entries.iter_mut()) {
+            self.append_with_changelog_entry(leaf, changelog_entry)?;
+        }
+
+        Ok(changelog_entries)
     }
 }

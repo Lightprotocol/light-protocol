@@ -1,6 +1,9 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
-use crate::{state::MerkleTreeSet, state_merkle_tree_from_bytes_mut, RegisteredVerifier};
+use crate::{
+    emit_indexer_event, state::MerkleTreeSet, state_merkle_tree_from_bytes_mut, ChangelogEvent,
+    ChangelogEventV1, RegisteredVerifier,
+};
 
 #[derive(Accounts)]
 pub struct InsertTwoLeaves<'info> {
@@ -17,6 +20,8 @@ pub struct InsertTwoLeaves<'info> {
     pub system_program: Program<'info, System>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
+    /// CHECK: It's checked in `emit_indexer_event`.
+    pub log_wrapper: UncheckedAccount<'info>,
 }
 
 pub fn process_insert_two_leaves<'info, 'a>(
@@ -24,6 +29,9 @@ pub fn process_insert_two_leaves<'info, 'a>(
     leaves: &'a [[u8; 32]],
 ) -> Result<()> {
     let mut merkle_tree_set = ctx.accounts.merkle_tree_set.load_mut()?;
+    // Borrow `state_merkle_tree` mutably.
+    let state_merkle_tree =
+        state_merkle_tree_from_bytes_mut(&mut merkle_tree_set.state_merkle_tree);
 
     // Iterate over the leaves in pairs
     for i in (0..leaves.len()).step_by(2) {
@@ -38,8 +46,18 @@ pub fn process_insert_two_leaves<'info, 'a>(
         };
 
         // Insert the pair into the merkle tree
-        state_merkle_tree_from_bytes_mut(&mut merkle_tree_set.state_merkle_tree)
-            .append_two(leaf_left, leaf_right)?;
+        let changelog_entries = state_merkle_tree.append_batch(&[leaf_left, leaf_right])?;
+
+        let changelog_event = ChangelogEvent::V1(ChangelogEventV1::new(
+            ctx.accounts.merkle_tree_set.key(),
+            &changelog_entries,
+            state_merkle_tree.sequence_number,
+        )?);
+        emit_indexer_event(
+            changelog_event.try_to_vec()?,
+            &ctx.accounts.log_wrapper,
+            &ctx.accounts.authority,
+        )?;
     }
 
     Ok(())

@@ -32,7 +32,7 @@ pub fn process_insert_two_leaves_event(
 ) -> Result<()> {
     let mut merkle_tree_set = ctx.accounts.merkle_tree_set.load_mut()?;
     event_merkle_tree_from_bytes_mut(&mut merkle_tree_set.event_merkle_tree)
-        .append_two(&leaf_left, &leaf_right)?;
+        .append_batch(&[&leaf_left, &leaf_right])?;
 
     Ok(())
 }
