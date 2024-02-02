@@ -21,7 +21,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    let accounts = light_merkle_tree_program::cpi::accounts::InitializeNullifiers {
+    let accounts = psp_account_compression::cpi::accounts::InitializeNullifiers {
         authority: authority.clone(),
         system_program: system_program.clone(),
         registered_verifier_pda: registered_verifier_pda.clone(),
@@ -30,7 +30,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     cpi_ctx = cpi_ctx.with_remaining_accounts(nullifier_pdas);
 
-    light_merkle_tree_program::cpi::initialize_nullifiers(cpi_ctx, nullifiers)
+    psp_account_compression::cpi::initialize_nullifiers(cpi_ctx, nullifiers)
 }
 
 pub fn decompress_sol_cpi<'a, 'b>(
@@ -46,7 +46,7 @@ pub fn decompress_sol_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    let accounts = light_merkle_tree_program::cpi::accounts::DecompressSol {
+    let accounts = psp_account_compression::cpi::accounts::DecompressSol {
         authority: authority.clone(),
         merkle_tree_token: merkle_tree_token.clone(),
         registered_verifier_pda: registered_verifier_pda.clone(),
@@ -54,7 +54,7 @@ pub fn decompress_sol_cpi<'a, 'b>(
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    light_merkle_tree_program::cpi::decompress_sol(cpi_ctx, pub_amount_checked)
+    psp_account_compression::cpi::decompress_sol(cpi_ctx, pub_amount_checked)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -72,7 +72,7 @@ pub fn decompress_spl_cpi<'a, 'b>(
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
-    let accounts = light_merkle_tree_program::cpi::accounts::DecompressSpl {
+    let accounts = psp_account_compression::cpi::accounts::DecompressSpl {
         authority: authority.clone(),
         merkle_tree_token: merkle_tree_token.clone(),
         token_authority: token_authority.clone(),
@@ -82,7 +82,7 @@ pub fn decompress_spl_cpi<'a, 'b>(
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    light_merkle_tree_program::cpi::decompress_spl(cpi_ctx, pub_amount_checked)
+    psp_account_compression::cpi::decompress_spl(cpi_ctx, pub_amount_checked)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -101,7 +101,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeaves {
+    let accounts = psp_account_compression::cpi::accounts::InsertTwoLeaves {
         authority: authority.to_account_info(),
         system_program: system_program.to_account_info(),
         merkle_tree_set: merkle_tree_set.to_account_info(),
@@ -109,7 +109,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    light_merkle_tree_program::cpi::insert_two_leaves(cpi_ctx, leaves)?;
+    psp_account_compression::cpi::insert_two_leaves(cpi_ctx, leaves)?;
     Ok(())
 }
 
@@ -129,7 +129,7 @@ pub fn insert_two_leaves_event_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeavesEvent {
+    let accounts = psp_account_compression::cpi::accounts::InsertTwoLeavesEvent {
         authority: authority.clone(),
         merkle_tree_set: merkle_tree_set.clone(),
         system_program: system_program.clone(),
@@ -137,7 +137,7 @@ pub fn insert_two_leaves_event_cpi<'a, 'b>(
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    light_merkle_tree_program::cpi::insert_two_leaves_event(
+    psp_account_compression::cpi::insert_two_leaves_event(
         cpi_ctx,
         leaf_left.to_owned(),
         leaf_right.to_owned(),

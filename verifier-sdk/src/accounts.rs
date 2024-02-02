@@ -1,13 +1,13 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
-use light_merkle_tree_program::{
-    program::LightMerkleTreeProgram, state::MerkleTreeSet, RegisteredVerifier,
+use psp_account_compression::{
+    program::PspAccountCompression, state::MerkleTreeSet, RegisteredVerifier,
 };
 
 pub trait LightAccounts<'info> {
     fn get_signing_address(&self) -> &Signer<'info>;
     fn get_system_program(&self) -> &Program<'info, System>;
-    fn get_program_merkle_tree(&self) -> &Program<'info, LightMerkleTreeProgram>;
+    fn get_program_merkle_tree(&self) -> &Program<'info, PspAccountCompression>;
     fn get_merkle_tree_set(&self) -> &AccountLoader<'info, MerkleTreeSet>;
     fn get_authority(&self) -> &UncheckedAccount<'info>;
     fn get_rpc_recipient_sol(&self) -> &UncheckedAccount<'info>;

@@ -1,6 +1,6 @@
 use std::mem;
 
-use light_merkle_tree_program::state::{EventMerkleTree, MerkleTreeSet, StateMerkleTree};
+use psp_account_compression::state::{EventMerkleTree, MerkleTreeSet, StateMerkleTree};
 use tabled::{Table, Tabled};
 
 #[derive(Tabled)]

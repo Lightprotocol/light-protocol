@@ -1,11 +1,11 @@
 use crate::u256;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
-use light_merkle_tree_program::{
-    program::LightMerkleTreeProgram, state::MerkleTreeSet, utils::constants::TOKEN_AUTHORITY_SEED,
-};
 use light_psp4in4out_app_storage::{self, program::LightPsp4in4outAppStorage};
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
+use psp_account_compression::{
+    program::LightMerkleTreeProgram, state::MerkleTreeSet, utils::constants::TOKEN_AUTHORITY_SEED,
+};
 
 // Send and stores data.
 #[derive(Accounts)]

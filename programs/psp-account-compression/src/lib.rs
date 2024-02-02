@@ -26,7 +26,7 @@ pub use config_accounts::*;
 use crate::utils::config;
 
 #[program]
-pub mod light_merkle_tree_program {
+pub mod psp_account_compression {
     use super::*;
 
     /// Initializes a new Merkle tree from config bytes.

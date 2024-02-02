@@ -1,13 +1,13 @@
 [package]
-name = "light-merkle-tree-program"
+name = "psp-account-compression"
 version = "0.3.1"
-description = "Light Protocol on-chain program which manages Merkle trees"
+description = "Account Compression PSP"
 license = "GPL-3.0"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "light_merkle_tree_program"
+name = "psp_account_compression"
 
 [features]
 no-entrypoint = []

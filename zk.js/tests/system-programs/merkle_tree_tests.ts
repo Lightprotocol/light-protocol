@@ -7,7 +7,7 @@ import {
   createMintWrapper,
   LightMerkleTreeProgram,
   merkleTreeProgramId,
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
+  IDL_PSP_ACCOUNT_COMPRESSION,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   createTestAccounts,
@@ -51,7 +51,7 @@ describe("Merkle Tree Tests", () => {
 
   anchor.setProvider(provider);
   const merkleTreeProgram: anchor.Program<LightMerkleTreeProgram> =
-    new anchor.Program(IDL_LIGHT_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
+    new anchor.Program(IDL_PSP_ACCOUNT_COMPRESSION, merkleTreeProgramId);
 
   const compressAmount = 10;
   let INVALID_MERKLE_TREE_AUTHORITY_PDA,

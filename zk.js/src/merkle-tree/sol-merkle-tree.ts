@@ -10,7 +10,7 @@ import {
   BN_0,
 } from "../constants";
 import { SolMerkleTreeError, SolMerkleTreeErrorCode } from "../errors";
-import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
+import { IDL_PSP_ACCOUNT_COMPRESSION, LightMerkleTreeProgram } from "../idls";
 import { sleep } from "../utils";
 import { Utxo } from "../utxo";
 
@@ -93,7 +93,7 @@ export class SolMerkleTree {
     provider?: Provider;
   }) {
     const merkleTreeProgram: Program<LightMerkleTreeProgram> = new Program(
-      IDL_LIGHT_MERKLE_TREE_PROGRAM,
+      IDL_PSP_ACCOUNT_COMPRESSION,
       merkleTreeProgramId,
       provider,
     );

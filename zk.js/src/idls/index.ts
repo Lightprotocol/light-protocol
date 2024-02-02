@@ -1,7 +1,7 @@
 export {
-  type LightMerkleTreeProgram,
-  IDL as IDL_LIGHT_MERKLE_TREE_PROGRAM,
-} from "./light_merkle_tree_program";
+  type PspAccountCompression,
+  IDL as IDL_PSP_ACCOUNT_COMPRESSION,
+} from "./psp_account_compression";
 export {
   type LightPsp2in2out,
   IDL as IDL_LIGHT_PSP2IN2OUT,

@@ -1,7 +1,7 @@
 import { Command, ux } from "@oclif/core";
 import { Program } from "@coral-xyz/anchor";
 import {
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
+  IDL_PSP_ACCOUNT_COMPRESSION,
   merkleTreeProgramId,
 } from "@lightprotocol/zk.js";
 import { setAnchorProvider } from "../../utils";
@@ -15,7 +15,7 @@ class VerifierListCommand extends Command {
     const anchorProvider = await setAnchorProvider();
 
     const merkleTreeProgram = new Program(
-      IDL_LIGHT_MERKLE_TREE_PROGRAM,
+      IDL_PSP_ACCOUNT_COMPRESSION,
       merkleTreeProgramId,
       anchorProvider,
     );

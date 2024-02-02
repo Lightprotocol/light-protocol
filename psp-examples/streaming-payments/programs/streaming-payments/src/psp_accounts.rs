@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
-use light_merkle_tree_program::program::LightMerkleTreeProgram;
-use light_merkle_tree_program::state::MerkleTreeSet;
-use light_merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
 use light_psp4in4out_app_storage::{self, program::LightPsp4in4outAppStorage};
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
+use psp_account_compression::program::LightMerkleTreeProgram;
+use psp_account_compression::state::MerkleTreeSet;
+use psp_account_compression::utils::constants::TOKEN_AUTHORITY_SEED;
 
 // Send and stores data.
 #[derive(Accounts)]

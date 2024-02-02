@@ -16,15 +16,15 @@ use groth16_solana::{
     groth16::{Groth16Verifier, Groth16Verifyingkey},
 };
 use light_macros::heap_neutral;
-use light_merkle_tree_program::{
-    program::LightMerkleTreeProgram,
+use light_utils::{change_endianness, truncate_to_circuit};
+use psp_account_compression::{
+    program::PspAccountCompression,
     state_merkle_tree_from_bytes,
     utils::{
         accounts::create_and_check_pda,
         constants::{POOL_CONFIG_SEED, POOL_SEED},
     },
 };
-use light_utils::{change_endianness, truncate_to_circuit};
 
 use crate::{
     accounts::LightAccounts,
@@ -956,11 +956,8 @@ impl<
             return err!(VerifierSdkError::InvalidSenderOrRecipient);
         }
 
-        let seed = light_merkle_tree_program::ID.to_bytes();
-        let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
-            &[seed.as_ref()],
-            self.input.ctx.program_id,
-        );
+        let seed = psp_account_compression::ID.to_bytes();
+        let (_, bump) = Pubkey::find_program_address(&[seed.as_ref()], self.input.ctx.program_id);
         let bump = &[bump];
         let seeds = &[&[seed.as_slice(), bump][..]];
 
@@ -1032,10 +1029,10 @@ impl<
     pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey, data: &[u8]) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
             &[&[0u8; 32], self.input.pool_type, POOL_CONFIG_SEED],
-            &LightMerkleTreeProgram::id(),
+            &PspAccountCompression::id(),
         );
         let mut cloned_data = data;
-        light_merkle_tree_program::RegisteredAssetPool::try_deserialize(&mut cloned_data)?;
+        psp_account_compression::RegisteredAssetPool::try_deserialize(&mut cloned_data)?;
 
         if derived_pubkey.0 != *pubkey {
             return err!(VerifierSdkError::InvalidSenderOrRecipient);
@@ -1047,7 +1044,7 @@ impl<
     pub fn check_spl_pool_account_derivation(&self, pubkey: &Pubkey, mint: &Pubkey) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
             &[&mint.to_bytes(), self.input.pool_type, POOL_SEED],
-            &LightMerkleTreeProgram::id(),
+            &PspAccountCompression::id(),
         );
 
         if derived_pubkey.0 != *pubkey {
