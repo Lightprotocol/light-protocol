@@ -139,9 +139,9 @@ pub(crate) fn light_verifier_accounts(
                 /// CHECK: Is checked when it is used during spl decompressions.
                 #[account(
                     mut,
-                    seeds=[::light_merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED],
+                    seeds=[::psp_account_compression::utils::constants::TOKEN_AUTHORITY_SEED],
                     bump,
-                    seeds::program=::light_merkle_tree_program::program::LightMerkleTreeProgram::id())]
+                    seeds::program=::psp_account_compression::program::PspAccountCompression::id())]
                 pub token_authority: AccountInfo<'info>,
                 /// CHECK: Is checked in verifier-sdk.
                 #[account(mut)]
@@ -234,15 +234,15 @@ pub(crate) fn light_verifier_accounts(
             )]
             pub signing_address: Signer<'info>,
             pub system_program: Program<'info, System>,
-            pub program_merkle_tree: Program<'info, ::light_merkle_tree_program::program::LightMerkleTreeProgram>,
+            pub program_merkle_tree: Program<'info, ::psp_account_compression::program::PspAccountCompression>,
             /// CHECK: Is the same as in integrity hash.
             #[account(mut)]
-            pub merkle_tree_set: AccountLoader<'info, ::light_merkle_tree_program::state::MerkleTreeSet>,
+            pub merkle_tree_set: AccountLoader<'info, ::psp_account_compression::state::MerkleTreeSet>,
             /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
             #[account(
                 mut,
                 seeds = [
-                    ::light_merkle_tree_program::program::LightMerkleTreeProgram::id().to_bytes().as_ref()
+                    ::psp_account_compression::program::PspAccountCompression::id().to_bytes().as_ref()
                 ],
                 bump,
                 #authority_seeds_program
@@ -262,11 +262,11 @@ pub(crate) fn light_verifier_accounts(
                 mut,
                 #registered_verifier_pda_seeds,
                 bump,
-                seeds::program = ::light_merkle_tree_program::program::LightMerkleTreeProgram::id()
+                seeds::program = ::psp_account_compression::program::PspAccountCompression::id()
             )]
             pub registered_verifier_pda: Account<
                 'info,
-                ::light_merkle_tree_program::config_accounts::register_verifier::RegisteredVerifier
+                ::psp_account_compression::config_accounts::register_verifier::RegisteredVerifier
             >,
             /// CHECK: It gets checked inside the event_call.
             pub log_wrapper: UncheckedAccount<'info>,
@@ -358,14 +358,14 @@ pub(crate) fn light_verifier_accounts(
 
             fn get_program_merkle_tree(&self) -> &Program<
                 'info,
-                ::light_merkle_tree_program::program::LightMerkleTreeProgram
+                ::psp_account_compression::program::PspAccountCompression
             > {
                 &self.program_merkle_tree
             }
 
             fn get_merkle_tree_set(&self) -> &AccountLoader<
                 'info,
-                ::light_merkle_tree_program::state::MerkleTreeSet
+                ::psp_account_compression::state::MerkleTreeSet
             > {
                 &self.merkle_tree_set
             }
@@ -383,7 +383,7 @@ pub(crate) fn light_verifier_accounts(
 
             fn get_registered_verifier_pda(&self) -> &Account<
                 'info,
-                ::light_merkle_tree_program::config_accounts::register_verifier::RegisteredVerifier
+                ::psp_account_compression::config_accounts::register_verifier::RegisteredVerifier
             > {
                 &self.registered_verifier_pda
             }

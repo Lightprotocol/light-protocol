@@ -12,7 +12,7 @@ import {
 } from "../transaction";
 import { checkRentExemption } from "./test-checks";
 import { Provider } from "../provider";
-import { IDL_LIGHT_MERKLE_TREE_PROGRAM } from "../idls";
+import { IDL_PSP_ACCOUNT_COMPRESSION } from "../idls";
 
 const assert = require("assert");
 
@@ -27,7 +27,7 @@ export class TestTransaction {
   };
   accounts: lightAccounts;
   provider: Provider;
-  merkleTreeProgram?: Program<typeof IDL_LIGHT_MERKLE_TREE_PROGRAM>;
+  merkleTreeProgram?: Program<typeof IDL_PSP_ACCOUNT_COMPRESSION>;
   appParams?: any;
   action: Action;
   transaction: Transaction;
@@ -44,7 +44,7 @@ export class TestTransaction {
     provider: Provider;
   }) {
     this.merkleTreeProgram = new Program(
-      IDL_LIGHT_MERKLE_TREE_PROGRAM,
+      IDL_PSP_ACCOUNT_COMPRESSION,
       merkleTreeProgramId,
       provider.provider,
     );

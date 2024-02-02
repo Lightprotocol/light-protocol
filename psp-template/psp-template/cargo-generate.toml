@@ -40,9 +40,9 @@ prompt = "account.rs version"
 type = "string"
 prompt = "zk js version"
 
-[placeholders.light-merkle-tree-program-version]
+[placeholders.psp-account-compression-version]
 type = "string"
-prompt = "Merkle tree program version"
+prompt = "Account Compression PSP version"
 
 [placeholders.light-system-program-version]
 type = "string"

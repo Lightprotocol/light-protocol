@@ -10,7 +10,7 @@ import {
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import * as token from "@solana/spl-token";
-import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
+import { IDL_PSP_ACCOUNT_COMPRESSION, LightMerkleTreeProgram } from "../idls";
 import {
   BN_0,
   BN_1,
@@ -46,7 +46,7 @@ export class MerkleTreeConfig {
     this.payer = payer;
 
     this.merkleTreeProgram = new Program(
-      IDL_LIGHT_MERKLE_TREE_PROGRAM,
+      IDL_PSP_ACCOUNT_COMPRESSION,
       merkleTreeProgramId,
       anchorProvider,
     );

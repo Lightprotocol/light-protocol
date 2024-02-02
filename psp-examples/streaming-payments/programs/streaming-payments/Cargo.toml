@@ -19,10 +19,10 @@ custom-heap = []
 [dependencies]
 anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"
-light-merkle-tree-program = { path = "../../../../programs/merkle-tree", features = ["cpi"] }
 light-psp4in4out-app-storage = { path = "../../../../programs/psp4in4out-app-storage", features = ["cpi"] }
 light-macros = { path = "../../../../macros/light" }
 light-verifier-sdk = { path = "../../../../verifier-sdk" }
+psp-account-compression = { path = "../../../../programs/psp-account-compression", features = ["cpi"] }
 solana-program = "1.16.15"
 groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
 

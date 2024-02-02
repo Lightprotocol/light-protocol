@@ -19,7 +19,7 @@ custom-heap = []
 [dependencies]
 anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"
-light-merkle-tree-program = { path = "../../../../programs/merkle-tree", features = ["cpi"] }
+psp-account-compression = { path = "../../../../programs/psp-account-compression", features = ["cpi"] }
 light-psp4in4out-app-storage = { path = "../../../../programs/psp4in4out-app-storage", features = ["cpi"] }
 light-macros = { path = "../../../../macros/light" }
 light-verifier-sdk = { path = "../../../../verifier-sdk" }

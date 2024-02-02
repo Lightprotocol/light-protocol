@@ -8,8 +8,8 @@ edition = "2021"
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
 light-hasher = { path = "../merkle-tree/hasher", version = "0.1.0" }
-light-merkle-tree-program = { path = "../programs/merkle-tree", version = "0.3.1" }
 light-utils = { path = "../utils", version = "0.1.0" }
+psp-account-compression = { path = "../programs/psp-account-compression", version = "0.3.1" }
 quote = "1.0"
 sha2 = "0.10"
 tabled = "0.15"

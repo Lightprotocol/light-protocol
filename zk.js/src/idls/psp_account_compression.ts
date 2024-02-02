@@ -1,6 +1,6 @@
-export type LightMerkleTreeProgram = {
+export type PspAccountCompression = {
   "version": "0.3.1",
-  "name": "light_merkle_tree_program",
+  "name": "psp_account_compression",
   "constants": [
     {
       "name": "ENCRYPTED_UTXOS_LENGTH",
@@ -942,9 +942,9 @@ export type LightMerkleTreeProgram = {
   ]
 };
 
-export const IDL: LightMerkleTreeProgram = {
+export const IDL: PspAccountCompression = {
   "version": "0.3.1",
-  "name": "light_merkle_tree_program",
+  "name": "psp_account_compression",
   "constants": [
     {
       "name": "ENCRYPTED_UTXOS_LENGTH",

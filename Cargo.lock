@@ -2822,41 +2822,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-merkle-tree-program"
-version = "0.3.1"
-dependencies = [
- "ahash 0.8.6",
- "aligned-sized",
- "anchor-lang",
- "anchor-spl",
- "ark-bn254 0.3.0",
- "ark-crypto-primitives",
- "ark-ec 0.3.0",
- "ark-ed-on-bn254",
- "ark-ff 0.3.0",
- "ark-groth16",
- "ark-relations",
- "ark-serialize 0.3.0",
- "ark-std 0.3.0",
- "arkworks-gadgets",
- "arrayref",
- "bincode",
- "borsh 0.9.3",
- "bytemuck",
- "byteorder",
- "getrandom 0.2.10",
- "light-concurrent-merkle-tree",
- "light-hasher",
- "light-macros",
- "light-utils",
- "serde_json",
- "solana-program-test",
- "solana-sdk",
- "solana-security-txt",
- "spl-token",
-]
-
-[[package]]
 name = "light-merkle-tree-reference"
 version = "0.1.0"
 dependencies = [
@@ -2884,8 +2849,8 @@ dependencies = [
  "anchor-spl",
  "groth16-solana",
  "light-macros",
- "light-merkle-tree-program",
  "light-verifier-sdk",
+ "psp-account-compression",
  "solana-security-txt",
 ]
 
@@ -2898,8 +2863,8 @@ dependencies = [
  "anchor-spl",
  "groth16-solana",
  "light-macros",
- "light-merkle-tree-program",
  "light-verifier-sdk",
+ "psp-account-compression",
  "solana-security-txt",
 ]
 
@@ -2913,8 +2878,8 @@ dependencies = [
  "anchor-spl",
  "groth16-solana",
  "light-macros",
- "light-merkle-tree-program",
  "light-verifier-sdk",
+ "psp-account-compression",
 ]
 
 [[package]]
@@ -2927,8 +2892,8 @@ dependencies = [
  "bytemuck",
  "groth16-solana",
  "light-macros",
- "light-merkle-tree-program",
  "light-verifier-sdk",
+ "psp-account-compression",
  "solana-security-txt",
 ]
 
@@ -2941,8 +2906,8 @@ dependencies = [
  "anchor-spl",
  "groth16-solana",
  "light-macros",
- "light-merkle-tree-program",
  "light-verifier-sdk",
+ "psp-account-compression",
  "solana-security-txt",
 ]
 
@@ -2955,8 +2920,8 @@ dependencies = [
  "anchor-spl",
  "groth16-solana",
  "light-macros",
- "light-merkle-tree-program",
  "light-verifier-sdk",
+ "psp-account-compression",
  "solana-security-txt",
 ]
 
@@ -2992,8 +2957,8 @@ dependencies = [
  "ark-std 0.3.0",
  "groth16-solana",
  "light-macros",
- "light-merkle-tree-program",
  "light-utils",
+ "psp-account-compression",
  "spl-token",
 ]
 
@@ -3779,6 +3744,41 @@ dependencies = [
  "rustc-hex",
  "serde",
  "serde_derive",
+]
+
+[[package]]
+name = "psp-account-compression"
+version = "0.3.1"
+dependencies = [
+ "ahash 0.8.6",
+ "aligned-sized",
+ "anchor-lang",
+ "anchor-spl",
+ "ark-bn254 0.3.0",
+ "ark-crypto-primitives",
+ "ark-ec 0.3.0",
+ "ark-ed-on-bn254",
+ "ark-ff 0.3.0",
+ "ark-groth16",
+ "ark-relations",
+ "ark-serialize 0.3.0",
+ "ark-std 0.3.0",
+ "arkworks-gadgets",
+ "arrayref",
+ "bincode",
+ "borsh 0.9.3",
+ "bytemuck",
+ "byteorder",
+ "getrandom 0.2.10",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-macros",
+ "light-utils",
+ "serde_json",
+ "solana-program-test",
+ "solana-sdk",
+ "solana-security-txt",
+ "spl-token",
 ]
 
 [[package]]
@@ -6862,8 +6862,8 @@ dependencies = [
  "anyhow",
  "clap 4.4.11",
  "light-hasher",
- "light-merkle-tree-program",
  "light-utils",
+ "psp-account-compression",
  "quote 1.0.35",
  "sha2 0.10.8",
  "tabled",

@@ -27,7 +27,7 @@ import {
   SignaturesWithBlockhashInfo,
 } from "../types";
 import { Provider } from "../provider";
-import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
+import { IDL_PSP_ACCOUNT_COMPRESSION, LightMerkleTreeProgram } from "../idls";
 import { MerkleTreeConfig, SolMerkleTree } from "../merkle-tree";
 import {
   BN_0,
@@ -80,7 +80,7 @@ export class TestRpc extends Rpc {
     this.merkleTrees.push(solMerkleTree);
     this.lightWasm = lightWasm;
     this.merkleTreeProgram = new Program(
-      IDL_LIGHT_MERKLE_TREE_PROGRAM,
+      IDL_PSP_ACCOUNT_COMPRESSION,
       merkleTreeProgramId,
       new AnchorProvider(connection, {} as any, {}),
     );
@@ -168,7 +168,7 @@ export class TestRpc extends Rpc {
     );
     if (!merkleTreeAccountInfo)
       throw new Error("Failed to fetch merkle tree account");
-    const coder = new BorshAccountsCoder(IDL_LIGHT_MERKLE_TREE_PROGRAM);
+    const coder = new BorshAccountsCoder(IDL_PSP_ACCOUNT_COMPRESSION);
     const merkleTreeAccount = coder.decode(
       "merkleTreeSet",
       merkleTreeAccountInfo.data,
