@@ -80,9 +80,9 @@ where
     H: Hasher,
     B: BigInteger,
 {
-    pub(crate) elements: [IndexingElement<B>; ELEMENTS],
-    current_node_index: u16,
-    highest_element_index: u16,
+    pub elements: [IndexingElement<B>; ELEMENTS],
+    pub current_node_index: u16,
+    pub highest_element_index: u16,
 
     _hasher: PhantomData<H>,
 }
@@ -437,6 +437,14 @@ mod test {
     use light_hasher::Poseidon;
 
     use super::*;
+
+    #[test]
+    fn size_of_indexing_element() {
+        println!(
+            "IndexingArray<Poseidon, BigInteger256, 8> = {}",
+            std::mem::size_of::<IndexingArray<Poseidon, BigInteger256, 2800>>()
+        );
+    }
 
     /// Tests the insertion of elements to the indexing array.
     #[test]

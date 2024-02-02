@@ -229,12 +229,6 @@ impl<
         invoke_indexer_transaction_event(
             &transaction_data_event,
             &self.input.ctx.accounts.get_log_wrapper().to_account_info(),
-            &self
-                .input
-                .ctx
-                .accounts
-                .get_merkle_tree_set()
-                .to_account_info(),
         )?;
 
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]

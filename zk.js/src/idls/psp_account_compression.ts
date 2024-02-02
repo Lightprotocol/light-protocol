@@ -129,9 +129,73 @@ export type PspAccountCompression = {
       "name": "TOKEN_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[115, 112, 108]"
+    },
+    {
+      "name": "GROUP_AUTHORITY_SEED",
+      "type": "bytes",
+      "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
     }
   ],
   "instructions": [
+    {
+      "name": "initializeGroupAuthority",
+      "docs": [
+        "initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)"
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "groupAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "seed",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "updateGroupAuthority",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "groupAuthority",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ]
+    },
     {
       "name": "initializeConcurrentMerkleTree",
       "docs": [
@@ -158,7 +222,7 @@ export type PspAccountCompression = {
       "args": []
     },
     {
-      "name": "insertLeavesParallel",
+      "name": "insertLeavesIntoMerkleTrees",
       "accounts": [
         {
           "name": "authority",
@@ -179,9 +243,88 @@ export type PspAccountCompression = {
           }
         }
       ]
+    },
+    {
+      "name": "initializeIndexedArray",
+      "accounts": [
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "indexedArray",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "owner",
+          "type": "publicKey"
+        },
+        {
+          "name": "delegate",
+          "type": "publicKey"
+        },
+        {
+          "name": "index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "insertIntoIndexedArrays",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "elements",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        },
+        {
+          "name": "lowElementIndexes",
+          "type": {
+            "vec": "u16"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "groupAuthority",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "indexedArrayAccount",
       "type": {
@@ -262,6 +405,18 @@ export type PspAccountCompression = {
                 90360
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "registeredProgram",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
           }
         ]
       }
@@ -527,9 +682,73 @@ export const IDL: PspAccountCompression = {
       "name": "TOKEN_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[115, 112, 108]"
+    },
+    {
+      "name": "GROUP_AUTHORITY_SEED",
+      "type": "bytes",
+      "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
     }
   ],
   "instructions": [
+    {
+      "name": "initializeGroupAuthority",
+      "docs": [
+        "initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)"
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "groupAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "seed",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "updateGroupAuthority",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "groupAuthority",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ]
+    },
     {
       "name": "initializeConcurrentMerkleTree",
       "docs": [
@@ -556,7 +775,7 @@ export const IDL: PspAccountCompression = {
       "args": []
     },
     {
-      "name": "insertLeavesParallel",
+      "name": "insertLeavesIntoMerkleTrees",
       "accounts": [
         {
           "name": "authority",
@@ -577,9 +796,88 @@ export const IDL: PspAccountCompression = {
           }
         }
       ]
+    },
+    {
+      "name": "initializeIndexedArray",
+      "accounts": [
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "indexedArray",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "owner",
+          "type": "publicKey"
+        },
+        {
+          "name": "delegate",
+          "type": "publicKey"
+        },
+        {
+          "name": "index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "insertIntoIndexedArrays",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "elements",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        },
+        {
+          "name": "lowElementIndexes",
+          "type": {
+            "vec": "u16"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "groupAuthority",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "indexedArrayAccount",
       "type": {
@@ -660,6 +958,18 @@ export const IDL: PspAccountCompression = {
                 90360
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "registeredProgram",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
           }
         ]
       }
