@@ -166,7 +166,7 @@ export async function prepareStoreProgramUtxo({
       "storeData",
       `${message.length}/${MAX_MESSAGE_SIZE}`,
     );
-  // appUtxo.includeUtxoData = false;
+
   if (!amountSpl)
     amountSpl =
       appUtxo.amounts[1].toString() === "0" ? undefined : appUtxo.amounts[1];
