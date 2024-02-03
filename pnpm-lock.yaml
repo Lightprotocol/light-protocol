@@ -865,9 +865,6 @@ importers:
       axios:
         specifier: ^1.5.0
         version: 1.5.0
-      borsh:
-        specifier: ^2.0.0
-        version: 2.0.0
       case-anything:
         specifier: ^2.1.13
         version: 2.1.13
@@ -6765,10 +6762,6 @@ packages:
       bn.js: 5.2.1
       bs58: 4.0.1
       text-encoding-utf-8: 1.0.2
-
-  /borsh@2.0.0:
-    resolution: {integrity: sha512-kc9+BgR3zz9+cjbwM8ODoUB4fs3X3I5A/HtX7LZKxCLaMrEeDFoBpnhZY//DTS1VZBSs6S5v46RZRbZjRFspEg==}
-    dev: false
 
   /brace-expansion@1.1.11:
     resolution: {integrity: sha512-iCuPHDFgrHX7H2vEI/5xpz07zSHB00TpugqhmYtVmMO6518mCuRMoOYFldEBl0g187ufozdaHgWKcYFb61qGiA==}

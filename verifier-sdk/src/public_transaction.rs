@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData};
 #[cfg(all(target_os = "solana", feature = "custom-heap"))]
 use crate::light_transaction::custom_heap;
 use crate::{
-    accounts::LightPublicAccounts,
+    accounts::LightAccounts,
     cpi_instructions::{
         decompress_sol_cpi, decompress_spl_cpi, insert_public_nullifier_into_indexed_array_cpi,
         insert_two_leaves_parallel_cpi, invoke_indexer_transaction_event,
@@ -11,16 +11,11 @@ use crate::{
     errors::VerifierSdkError,
     light_transaction::{Message, ProofCompressed},
     utils::close_account::close_account,
-    utxo::{Utxo, DEFAULT_PUBKEY, DEFAULT_UTXO_HASH},
+    utxo::{hash_and_truncate_to_circuit, Utxo, DEFAULT_PUBKEY, DEFAULT_UTXO_HASH},
 };
 use anchor_lang::{
     prelude::*,
-    solana_program::{
-        hash::{hash, hashv},
-        msg,
-        program_pack::Pack,
-        sysvar,
-    },
+    solana_program::{hash::hashv, msg, program_pack::Pack, sysvar},
 };
 use anchor_spl::token::Transfer;
 use ark_bn254::FrParameters;
@@ -73,7 +68,7 @@ impl<
         const NR_OUT_UTXOS: usize,
         const NR_IN_UTXOS: usize,
         const NR_PUBLIC_INPUTS: usize,
-        A: LightPublicAccounts<'info>,
+        A: LightAccounts<'info>,
         P,
     >
     TransactionConvertible<
@@ -155,7 +150,7 @@ impl<
         const NR_OUT_UTXOS: usize,
         const NR_IN_UTXOS: usize,
         const NR_PUBLIC_INPUTS: usize,
-        A: LightPublicAccounts<'info>,
+        A: LightAccounts<'info>,
         P,
     >
     TransactionConvertible<
@@ -225,7 +220,7 @@ pub struct PublicTransaction<
     const NR_OUT_UTXOS: usize,
     const NR_IN_UTXOS: usize,
     const NR_PUBLIC_INPUTS: usize,
-    A: LightPublicAccounts<'info>,
+    A: LightAccounts<'info>,
     P,
 > where
     P: AnchorSerialize,
@@ -266,7 +261,7 @@ pub struct PublicTransactionInput<
     const NR_CHECKED_INPUTS: usize,
     const NR_OUT_UTXOS: usize,
     const NR_IN_UTXOS: usize,
-    A: LightPublicAccounts<'info>,
+    A: LightAccounts<'info>,
 > {
     pub ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     pub proof: &'a ProofCompressed,
@@ -309,7 +304,7 @@ pub trait TransactionConvertible<
     const NR_OUT_UTXOS: usize,
     const NR_IN_UTXOS: usize,
     const NR_PUBLIC_INPUTS: usize,
-    A: LightPublicAccounts<'info>,
+    A: LightAccounts<'info>,
     P,
 > where
     P: AnchorSerialize,
@@ -339,7 +334,7 @@ impl<
         const NR_OUT_UTXOS: usize,
         const NR_IN_UTXOS: usize,
         const NR_PUBLIC_INPUTS: usize,
-        A: LightPublicAccounts<'info>,
+        A: LightAccounts<'info>,
         P,
     >
     PublicTransaction<
@@ -690,13 +685,10 @@ where
                         {
                             self.mint_pubkey = [0u8; 32];
                         } else {
-                            self.mint_pubkey = [
-                                vec![0u8],
-                                hash(&sender_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
-                            ]
-                            .concat()
-                            .try_into()
-                            .unwrap();
+                            self.mint_pubkey = hash_and_truncate_to_circuit(&[sender_spl
+                                .mint
+                                .to_bytes()
+                                .as_slice()])
                         }
 
                         Ok(())
@@ -750,12 +742,14 @@ where
                 .ctx
                 .accounts
                 .get_psp_account_compression()
+                .unwrap()
                 .to_account_info(),
             &self
                 .input
                 .ctx
                 .accounts
                 .get_account_compression_authority()
+                .unwrap()
                 .to_account_info(),
             &self
                 .input
@@ -784,12 +778,14 @@ where
                 .ctx
                 .accounts
                 .get_psp_account_compression()
+                .unwrap()
                 .to_account_info(),
             &self
                 .input
                 .ctx
                 .accounts
                 .get_account_compression_authority()
+                .unwrap()
                 .to_account_info(),
             &self
                 .input
@@ -845,11 +841,13 @@ where
             )?;
 
             // check mint
-            if self.mint_pubkey[1..] != hash(&recipient_spl.mint.to_bytes()).try_to_vec()?[1..] {
+            if self.mint_pubkey
+                != hash_and_truncate_to_circuit(&[recipient_spl.mint.to_bytes().as_slice()])
+            {
                 msg!(
                     "*self.mint_pubkey[..31] {:?}, {:?}, recipient_spl mint",
-                    self.mint_pubkey[1..].to_vec(),
-                    hash(&recipient_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec()
+                    self.mint_pubkey.to_vec(),
+                    hash_and_truncate_to_circuit(&[recipient_spl.mint.to_bytes().as_slice()])
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
@@ -1379,25 +1377,5 @@ mod test {
         ];
         let inputs_refs: Vec<&[u8]> = inputs.iter().map(|&slice| slice).collect();
         Poseidon::hashv(&inputs_refs).unwrap();
-    }
-
-    #[test]
-    fn poseid_test() {
-        let spl_circuit = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0,
-        ];
-        let res = Poseidon::hashv(&[
-            &BigUint::parse_bytes(
-                b"6686672797465227418401714772753289406522066866583537086457438811846503839916",
-                10,
-            )
-            .unwrap()
-            .to_bytes_be()
-            .as_slice(),
-            &spl_circuit,
-        ])
-        .unwrap();
-        let res_res = Poseidon::hash(&res).unwrap();
     }
 }

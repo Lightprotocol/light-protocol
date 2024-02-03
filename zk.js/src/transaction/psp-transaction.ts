@@ -411,6 +411,7 @@ export async function syncInputUtxosMerkleProofs({
 }: {
   inputUtxos: Utxo[];
   rpc: Rpc;
+  merkleTreePublicKey: PublicKey;
 }): Promise<{ syncedUtxos: Utxo[]; root: string; index: number }> {
   // skip empty utxos
   const { merkleProofs, root, index } = (await rpc.getMerkleProofByIndexBatch(
@@ -952,11 +953,6 @@ export function getTxIntegrityHash(
   const recipientSol = !isCompression
     ? new Uint8Array(32)
     : accounts.recipientSol.toBytes();
-  console.log("messageHash ", messageHash);
-  console.log("recipientSpl ", recipientSpl);
-  console.log("recipientSol ", recipientSol);
-  console.log("accounts.rpcPublicKey ", accounts.rpcPublicKey.toBytes());
-  console.log("rpcFee ", rpcFee.toArray("be", 8));
 
   const hash = sha256
     .create()
@@ -1431,7 +1427,7 @@ export async function createTransaction(
     isPublic,
     false,
   );
-  console.log("txIntegrityHash ", txIntegrityHash);
+
   const transactionHash = getTransactionHash(
     privateVars.inputUtxos,
     privateVars.outputUtxos,

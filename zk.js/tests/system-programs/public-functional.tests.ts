@@ -1,4 +1,3 @@
-import * as anchor from "@coral-xyz/anchor";
 import {
   ComputeBudgetProgram,
   Connection,
@@ -9,55 +8,31 @@ import {
   Transaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import { Idl } from "@coral-xyz/anchor";
-const token = require("@solana/spl-token");
+
+import {AnchorProvider, BN, BorshCoder, Program, setProvider, utils, web3} from "@coral-xyz/anchor"
 
 // TODO: add and use namespaces in SDK
 import {
   Utxo,
   LOOK_UP_TABLE,
   ADMIN_AUTH_KEYPAIR,
-  AUTHORITY,
-  MINT,
-  Provider,
-  AUTHORITY_ONE,
   createTestAccounts,
   userTokenAccount,
-  FEE_ASSET,
   confirmConfig,
-  User,
-  TestRpc,
-  TestTransaction,
-  IDL_LIGHT_PSP2IN2OUT,
-  IDL_LIGHT_PSP10IN2OUT,
-  IDL_LIGHT_PSP2IN2OUT_STORAGE,
   Account,
   airdropSol,
   MerkleTreeConfig,
-  RPC_FEE,
   BN_0,
-  airdropSplToAssociatedTokenAccount,
   getSystemProof,
   createSystemProofInputs,
   createSolanaInstructions,
-  getSolanaRemainingAccounts,
-  CompressTransactionInput,
-  createCompressTransaction,
   prepareAccounts,
   getVerifierProgramId,
-  createDecompressTransaction,
-  DecompressTransactionInput,
-  syncInputUtxosMerkleProofs,
   createOutUtxo,
-  OutUtxo,
   IDL_PSP_TOKEN_COMPRESSION,
   merkleTreeProgramId,
   getTokenAuthorityPda,
-  sleep,
   getSignerAuthorityPda,
-  ProviderError,
-  PublicTransactionIndexerEventBeet,
-  PublicTransactionIndexerEventAnchor,
   PublicTestRpc,
   remainingAccount,
   createTransaction,
@@ -76,7 +51,6 @@ import {
 } from "@solana/spl-token";
 import { assert } from "chai";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
-import { BN } from "@coral-xyz/anchor";
 let WASM: LightWasm;
 let RPC: PublicTestRpc;
 let ACCOUNT: Account, ACCOUNT2: Account;
@@ -93,7 +67,7 @@ const initializeIndexedArray = async ({
   const accountCompressionProgramId = getVerifierProgramId(
     IDL_PSP_ACCOUNT_COMPRESSION,
   );
-  const accountCompressionProgram = new anchor.Program(
+  const accountCompressionProgram = new Program(
     IDL_PSP_ACCOUNT_COMPRESSION,
     accountCompressionProgramId,
   );
@@ -142,7 +116,7 @@ const initializeMerkleTree = async ({
   const accountCompressionProgramId = getVerifierProgramId(
     IDL_PSP_ACCOUNT_COMPRESSION,
   );
-  const accountCompressionProgram = new anchor.Program(
+  const accountCompressionProgram = new Program(
     IDL_PSP_ACCOUNT_COMPRESSION,
     accountCompressionProgramId,
   );
@@ -184,12 +158,12 @@ describe("verifier_program", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  const provider = anchor.AnchorProvider.local(
+  const provider = AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig,
   );
-  anchor.setProvider(provider);
-  const compressedTokenProgram = new anchor.Program(
+  setProvider(provider);
+  const compressedTokenProgram = new Program(
     IDL_PSP_TOKEN_COMPRESSION,
     getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
     provider,
@@ -202,7 +176,7 @@ describe("verifier_program", () => {
   ): PublicKey => {
     let [pubkey] = PublicKey.findProgramAddressSync(
       [
-        anchor.utils.bytes.utf8.encode("authority"),
+        utils.bytes.utf8.encode("authority"),
         authority.toBuffer(),
         mint.toBuffer(),
       ],
@@ -270,7 +244,7 @@ describe("verifier_program", () => {
       null,
       TOKEN_PROGRAM_ID,
     );
-    const transferInstruction = anchor.web3.SystemProgram.transfer({
+    const transferInstruction = web3.SystemProgram.transfer({
       fromPubkey: authorityKeypair.publicKey,
       toPubkey: authorityPda,
       lamports:
@@ -341,7 +315,7 @@ describe("verifier_program", () => {
             ACCOUNT.keypair.publicKey.toArray("be", 32),
             ACCOUNT.keypair.publicKey.toArray("be", 32),
           ],
-          [new anchor.BN(100), new anchor.BN(101)],
+          [new BN(100), new BN(101)],
         )
         .accounts({
           feePayer: authorityKeypair.publicKey,
@@ -399,31 +373,31 @@ describe("verifier_program", () => {
     assert.equal(utxos[1].amounts[1].toNumber(), 101);
     console.log(
       "utxo 0 version",
-      new anchor.BN(utxos[0].transactionVersion).toArray("be", 32),
+      new BN(utxos[0].transactionVersion).toArray("be", 32),
     );
     console.log(
       "utxo 0 amount",
-      new anchor.BN(utxos[0].amounts[0]).toArray("be", 32),
+      new BN(utxos[0].amounts[0]).toArray("be", 32),
     );
     console.log(
       "utxo 0 amount",
-      new anchor.BN(utxos[0].amounts[1]).toArray("be", 32),
+      new BN(utxos[0].amounts[1]).toArray("be", 32),
     );
     console.log(
       "utxo 0 owner",
-      new anchor.BN(utxos[0].publicKey).toArray("be", 32),
+      new BN(utxos[0].publicKey).toArray("be", 32),
     );
     console.log(
       "utxo 0 blinding",
-      new anchor.BN(utxos[0].blinding).toArray("be", 32),
+      new BN(utxos[0].blinding).toArray("be", 32),
     );
     console.log(
       "utxo 0 asset",
-      new anchor.BN(utxos[0].assetsCircuit[0]).toArray("be", 32),
+      new BN(utxos[0].assetsCircuit[0]).toArray("be", 32),
     );
     console.log(
       "utxo 0 asset",
-      new anchor.BN(utxos[0].assetsCircuit[1]).toArray("be", 32),
+      new BN(utxos[0].assetsCircuit[1]).toArray("be", 32),
     );
     await RPC.getMerkleRoot(merkleTreeKeyPair.publicKey);
   });
@@ -447,11 +421,6 @@ describe("verifier_program", () => {
     }
     const verifierIdl = IDL_PSP_TOKEN_COMPRESSION;
 
-    // const lightProvider = await Provider.init({
-    //   wallet: ADMIN_AUTH_KEYPAIR,
-    //   rpc: RPC,
-    //   confirmConfig,
-    // });
     let senderUtxos = await RPC.getAssetsByOwner(
       senderAccount.keypair.publicKey.toString(),
     );
@@ -465,24 +434,7 @@ describe("verifier_program", () => {
       blinding: BN_0,
     });
 
-    // const compressUtxo = spl
-    //   ? createOutUtxo({
-    //       lightWasm: WASM,
-    //       assets: [FEE_ASSET, MINT],
-    //       amounts: [
-    //         new anchor.BN(compressFeeAmount),
-    //         new anchor.BN(compressAmount),
-    //       ],
-    //       publicKey: ACCOUNT.keypair.publicKey,
-    //     })
-    //   : createOutUtxo({
-    //       lightWasm: WASM,
-    //       amounts: [new anchor.BN(compressFeeAmount)],
-    //       publicKey: ACCOUNT.keypair.publicKey,
-    //       assets: [FEE_ASSET],
-    //     });
-
-    const compressTransactionInput: TransactionInput = {
+    const transactionInput: TransactionInput = {
       lightWasm: WASM,
       merkleTreeSetPubkey: merkleTreeKeyPair.publicKey,
       rpcPublicKey: ADMIN_AUTH_KEYPAIR.publicKey,
@@ -494,8 +446,8 @@ describe("verifier_program", () => {
       rpcFee: BN_0,
     };
 
-    const compressTransaction = await createTransaction(
-      compressTransactionInput,
+    const transaction = await createTransaction(
+      transactionInput,
     );
 
     const { root, index: rootIndex } = (await RPC.getMerkleRoot(
@@ -504,14 +456,14 @@ describe("verifier_program", () => {
 
     const systemProofInputs = createSystemProofInputs({
       root,
-      transaction: compressTransaction,
+      transaction: transaction,
       lightWasm: WASM,
       account: ACCOUNT,
     });
     // console.log("systemProofInputs ", systemProofInputs)
     const systemProof = await getSystemProof({
       account: ACCOUNT,
-      inputUtxos: compressTransaction.private.inputUtxos,
+      inputUtxos: transaction.private.inputUtxos,
       verifierIdl,
       systemProofInputs,
     });
@@ -540,7 +492,7 @@ describe("verifier_program", () => {
     ];
 
     let accounts = prepareAccounts({
-      transactionAccounts: compressTransaction.public.accounts,
+      transactionAccounts: transaction.public.accounts,
       merkleTreeSet: merkleTreeKeyPair.publicKey,
     });
     // pspAccountCompression -> accountCompressionProgram
@@ -551,14 +503,12 @@ describe("verifier_program", () => {
       getVerifierProgramId(IDL_PSP_ACCOUNT_COMPRESSION),
       getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
     );
-    // console.log("authority accounts generated ", accounts.authority);
-    // console.log("authority accounts derived ", getSignerAuthorityPda(merkleTreeProgramId, getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION)));
-    // process.exit(0);
+
     let serializedOutUtxo = (
-      await new anchor.BorshCoder(IDL_PSP_TOKEN_COMPRESSION).accounts.encode(
+      await new BorshCoder(IDL_PSP_TOKEN_COMPRESSION).accounts.encode(
         "transferOutputUtxo",
         {
-          owner: new anchor.BN(outputUtxo.publicKey),
+          owner: new BN(outputUtxo.publicKey),
           amounts: outputUtxo.amounts,
           splAssetMint: outputUtxo.assets[1],
           metaHash: null,
@@ -566,17 +516,14 @@ describe("verifier_program", () => {
         },
       )
     ).subarray(8);
-    // console.log("serializedOutUtxo ", serializedOutUtxo);
-    // let decoded = await new anchor.BorshCoder(IDL_PSP_TOKEN_COMPRESSION).accounts.decodeUnchecked("transferOutputUtxo", Buffer.from([...new Array(8), ...serializedOutUtxo]));
-    // TODO: add more Merkle tree remaining accounts and find an automated way to do so
-    // createSolanaInstructionsWithAccounts
+    
     const instructions = await createSolanaInstructions({
       action: Action.TRANSFER,
       rootIndex,
       systemProof,
       remainingSolanaAccounts: remainingSolanaAccounts as any,
       accounts,
-      publicTransactionVariables: compressTransaction.public,
+      publicTransactionVariables: transaction.public,
       systemPspIdl: verifierIdl,
       instructionName: "transfer2In2Out",
       customInputs: {
@@ -585,7 +532,6 @@ describe("verifier_program", () => {
       },
       removeZeroUtxos: true,
     });
-    console.log("instructions ", instructions[0].keys);
     try {
       const txHash = await sendAndConfirmTransaction(
         provider.connection,
@@ -619,140 +565,6 @@ describe("verifier_program", () => {
       2,
       RPC.merkleTrees[0].merkleTree.indexOf(recpientBalance[0].utxoHash),
     );
-    // const transactionTester = new TestTransaction({
-    //   transaction: compressTransaction,
-    //   accounts,
-    //   provider: lightProvider,
-    // });
-    // await transactionTester.getTestValues();
-    // await lightProvider.sendAndConfirmSolanaInstructions(instructions);
-
-    // // TODO: check why encryptedUtxo check doesn't work
-    // await transactionTester.checkBalances(
-    //   { publicInputs: systemProof.parsedPublicInputsObject },
-    //   remainingSolanaAccounts,
-    //   systemProofInputs,
-    // );
   };
-  /*
-  const performDecompress = async ({
-    outputUtxos,
-    tokenProgram,
-    message,
-    spl,
-    shuffleEnabled = true,
-    verifierIdl,
-  }: {
-    outputUtxos: Array<OutUtxo>;
-    tokenProgram: anchor.web3.PublicKey;
-    message?: Buffer;
-    spl?: boolean;
-    shuffleEnabled: boolean;
-    verifierIdl: Idl;
-  }) => {
-    const lightProvider = await Provider.init({
-      wallet: ADMIN_AUTH_KEYPAIR,
-      rpc: RPC,
-      confirmConfig,
-    });
-    const user = await User.init({
-      provider: lightProvider,
-      account: ACCOUNT,
-    });
-
-    const origin = Keypair.generate();
-    await airdropSol({
-      connection: lightProvider.provider.connection,
-      lamports: 1000 * 1e9,
-      recipientPublicKey: origin.publicKey,
-    });
-    const ata = await getAssociatedTokenAddress(MINT, origin.publicKey);
-
-    const decompressUtxo = user.balance.tokenBalances
-      .get(tokenProgram.toBase58())!
-      .utxos.values()
-      .next().value;
-    const {
-      syncedUtxos,
-      root,
-      index: rootIndex,
-    } = await syncInputUtxosMerkleProofs({
-      inputUtxos: [decompressUtxo],
-      merkleTreePublicKey: merkleTreeKeyPair.publicKey,
-      rpc: RPC,
-    });
-    // Running into memory issues with verifier one (10in2out) decompressing spl
-    const decompressTransactionInput: DecompressTransactionInput = {
-      lightWasm: WASM,
-      mint: spl ? MINT : undefined,
-      message,
-      transactionMerkleTreePubkey:
-        merkleTreeKeyPair.publicKey,
-      recipientSpl: spl ? ata : undefined,
-      recipientSol: origin.publicKey,
-      rpcPublicKey: lightProvider.rpc.accounts.rpcPubkey,
-      systemPspId: getVerifierProgramId(verifierIdl),
-      account: ACCOUNT,
-      inputUtxos: syncedUtxos,
-      outputUtxos,
-      rpcFee: user.provider.rpc.getRpcFee(true),
-      ataCreationFee: spl ? spl : false,
-    };
-
-    const decompressTransaction = await createDecompressTransaction(
-      decompressTransactionInput,
-    );
-
-    const systemProofInputs = createSystemProofInputs({
-      transaction: decompressTransaction,
-      lightWasm: WASM,
-      account: ACCOUNT,
-      root,
-    });
-    const systemProof = await getSystemProof({
-      account: ACCOUNT,
-      inputUtxos: decompressTransaction.private.inputUtxos,
-      verifierIdl,
-      systemProofInputs,
-    });
-
-    const remainingSolanaAccounts = getSolanaRemainingAccounts(
-      systemProof.parsedPublicInputsObject as any,
-    );
-    const accounts = prepareAccounts({
-      transactionAccounts: decompressTransaction.public.accounts,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
-      rpcRecipientSol: lightProvider.rpc.accounts.rpcRecipientSol,
-      signer: lightProvider.rpc.accounts.rpcPubkey,
-    });
-    // createSolanaInstructionsWithAccounts
-    const instructions = await createSolanaInstructions({
-      action: decompressTransaction.action,
-      rootIndex,
-      systemProof,
-      remainingSolanaAccounts,
-      accounts,
-      publicTransactionVariables: decompressTransaction.public,
-      systemPspIdl: verifierIdl,
-    });
-    const transactionTester = new TestTransaction({
-      transaction: decompressTransaction,
-      accounts,
-      provider: lightProvider,
-    });
-    await transactionTester.getTestValues();
-    await lightProvider.rpc.sendAndConfirmSolanaInstructions(
-      instructions,
-      lightProvider.provider.connection,
-      undefined,
-      undefined,
-      lightProvider,
-    );
-
-    await transactionTester.checkBalances(
-      { publicInputs: systemProof.parsedPublicInputsObject },
-      remainingSolanaAccounts,
-      systemProofInputs,
-    );
-  };*/
+ 
 });

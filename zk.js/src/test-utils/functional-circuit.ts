@@ -62,12 +62,6 @@ export async function functionalCircuitTest(
     publicKey: account.keypair.publicKey,
     blinding: isShield ? new BN(0) : undefined,
   });
-  console.log("outputUtxo1", JSON.stringify(outputUtxo1));
-  console.log(
-    "outputUtxo1 publicKey ",
-    account.keypair.publicKey.toArray("be", 32),
-  );
-  console.log("outputUtxo1 blinding ", outputUtxo1.blinding.toArray("be", 31));
 
   const outputUtxo2 = createOutUtxo({
     lightWasm,
@@ -76,8 +70,7 @@ export async function functionalCircuitTest(
     publicKey: account.keypair.publicKey,
     blinding: isShield ? new BN(0) : undefined,
   });
-  console.log("outputUtxo2", JSON.stringify(outputUtxo2));
-  console.log("outputUtxo2 blinding ", outputUtxo2.blinding.toArray("be", 31));
+
   let inputUtxos: Utxo[] = [];
   if (!isShield) {
     inputUtxos = [inputUtxo as Utxo];
@@ -122,13 +115,12 @@ export async function functionalCircuitTest(
   } as any;
 
   // we rely on the fact that the function throws an error if proof generation failed
-  let res = await getSystemProof({
+  await getSystemProof({
     account,
     inputUtxos: transaction.private.inputUtxos,
     verifierIdl,
     systemProofInputs,
   });
-  console.log("res", JSON.stringify(res));
   // unsuccessful proof generation
   let x = true;
 

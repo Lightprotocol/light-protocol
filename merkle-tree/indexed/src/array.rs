@@ -456,10 +456,9 @@ mod test {
         // ```
         let mut indexing_array: IndexingArray<Poseidon, BigInteger256, 8> =
             IndexingArray::default();
-        println!("indexing_array: {:?}", indexing_array.elements[0]);
         let nullifier1 = BigInteger256::from(30_u32);
         indexing_array.append(nullifier1).unwrap();
-        panic!();
+
         // After adding a new value 30, it should look like:
         //
         // ```

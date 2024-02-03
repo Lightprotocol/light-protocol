@@ -1,17 +1,12 @@
 mod test {
-    use std::default;
 
     use ark_ff::BigInteger256;
-    use light_concurrent_merkle_tree::ConcurrentMerkleTree;
     use light_hasher::Poseidon;
     use light_indexed_merkle_tree::array::IndexingArray;
     use psp_account_compression::{
-        self, indexed_array_from_bytes, state_merkle_tree_from_bytes, update_group_authority,
-        utils::config::{MERKLE_TREE_CHANGELOG, MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS},
-        GroupAuthority, GROUP_AUTHORITY_SEED, ID,
+        self, indexed_array_from_bytes, GroupAuthority, GROUP_AUTHORITY_SEED, ID,
     };
     use solana_program_test::ProgramTestContext;
-    use solana_sdk::{account::Account, account_info::AccountInfo};
     use {
         solana_program_test::ProgramTest,
         solana_sdk::{
@@ -19,15 +14,11 @@ mod test {
             pubkey::Pubkey,
             signature::{Keypair, Signer},
             system_instruction,
-            sysvar::rent,
             transaction::Transaction,
         },
     };
 
-    use anchor_lang::{
-        accounts::account_loader::AccountLoader, solana_program::pubkey, system_program,
-        AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
-    };
+    use anchor_lang::{system_program, AnchorDeserialize, InstructionData, ToAccountMetas};
     use ark_serialize::CanonicalDeserialize;
     #[tokio::test]
     async fn test_create_and_update_group() {

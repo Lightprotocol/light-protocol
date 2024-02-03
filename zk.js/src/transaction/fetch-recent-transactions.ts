@@ -195,7 +195,6 @@ export class PublicTransactionIndexerEventAnchor {
       });
       return _internal;
     } catch (e) {
-      console.log("error", e);
       return null;
     }
   }
@@ -204,7 +203,6 @@ export class PublicTransactionIndexerEventAnchor {
     try {
       return this.utxo.decode(buffer);
     } catch (e) {
-      console.log("error", e);
       return null;
     }
   }
@@ -463,8 +461,10 @@ function enrichParsedTransactionEvents(event: IndexedTransactionData) {
 
 const deserializePrivateEvents = (
   data: Buffer,
+  tx: ParsedTransactionWithMeta,
 ): RpcIndexedTransaction | undefined => {
   let decodedEvent = new TransactionIndexerEvent().deserialize(data);
+  decodedEvent["tx"] = tx;
   if (decodedEvent) {
     return enrichParsedTransactionEvents(decodedEvent);
   }
@@ -482,16 +482,7 @@ const parseTransactionEvents = (
   transactions: RpcIndexedTransaction[] | PublicTransactionIndexerEventBeet[],
   deserializeFn: Function,
 ) => {
-  // console.log("indexer events size ", indexerEventsTransactions.length);
   indexerEventsTransactions.forEach((tx) => {
-    console.log("tx -------------------------------");
-    console.log("tx.signature ", tx?.transaction?.signatures[0]);
-    console.log(
-      "tx.meta.innerInstructions.length ",
-      tx?.meta?.innerInstructions?.length,
-    );
-    console.log("tx ", tx);
-
     if (
       !tx ||
       !tx.meta ||
@@ -501,7 +492,6 @@ const parseTransactionEvents = (
     ) {
       return;
     }
-
     tx.meta.innerInstructions.forEach((ix) => {
       ix.instructions.forEach((ixInner: any) => {
         if (!ixInner.data) return;
@@ -509,7 +499,7 @@ const parseTransactionEvents = (
           return;
         const data = bs58.decode(ixInner.data);
 
-        const decodedEvent = deserializeFn(data);
+        const decodedEvent = deserializeFn(data, tx);
 
         if (decodedEvent) {
           transactions.push(decodedEvent);
@@ -589,10 +579,6 @@ async function getTransactionsBatch({
       return txs;
     }
   });
-  console.log(
-    "transactionEvents",
-    transactionEvents.map((tx: any) => tx.transaction.signatures[0]),
-  );
   parseTransactionEvents(transactionEvents, transactions, deserializeFn);
   return lastSignature;
 }
@@ -667,10 +653,8 @@ const deserializePublicEvents = (data: Buffer) => {
 
   try {
     let event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
-    console.log("event ", event);
     return event;
   } catch (e) {
-    console.log("error", e);
     return null;
   }
 };

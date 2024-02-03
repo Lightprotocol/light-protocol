@@ -1,7 +1,7 @@
 use crate::verifying_keypublic_psp_2_in_2_out::VERIFYINGKEY_PUBLIC_PROGRAM_TRANSACTION2_IN2_OUT_MAIN;
 use crate::verifying_keypublic_psp_8_in_2_out::VERIFYINGKEY_PUBLIC_TRANSACTION8_IN2_OUT_MAIN;
 use anchor_lang::prelude::*;
-use light_macros::light_public_transaction;
+use light_macros::light_verifier_accounts;
 use light_verifier_sdk::{
     light_transaction::ProofCompressed,
     public_transaction::{
@@ -229,13 +229,13 @@ pub fn process_8in2out_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         ];
         transaction.verify()?;
     }
-
+    let x = psp_account_compression::program::PspAccountCompression::id();
     #[cfg(target_os = "solana")]
     transaction.transact()?;
     Ok(())
 }
 
-#[light_public_transaction()]
+#[light_verifier_accounts(public)]
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {}
 

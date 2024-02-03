@@ -38,11 +38,6 @@ export type LightPsp4in4outAppStorage = {
           "isSigner": false
         },
         {
-          "name": "merkleTreeSet",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "authority",
           "isMut": true,
           "isSigner": false
@@ -93,6 +88,11 @@ export type LightPsp4in4outAppStorage = {
         {
           "name": "logWrapper",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "merkleTreeSet",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -765,11 +765,6 @@ export const IDL: LightPsp4in4outAppStorage = {
           "isSigner": false
         },
         {
-          "name": "merkleTreeSet",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "authority",
           "isMut": true,
           "isSigner": false
@@ -820,6 +815,11 @@ export const IDL: LightPsp4in4outAppStorage = {
         {
           "name": "logWrapper",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "merkleTreeSet",
+          "isMut": true,
           "isSigner": false
         },
         {

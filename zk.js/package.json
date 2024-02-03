@@ -68,7 +68,6 @@
     "@solana/spl-token": "^0.3.7",
     "@solana/web3.js": "^1.87.6",
     "axios": "^1.5.0",
-    "borsh": "^2.0.0",
     "case-anything": "^2.1.13",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",

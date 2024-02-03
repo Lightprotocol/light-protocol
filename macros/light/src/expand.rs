@@ -45,6 +45,7 @@ pub(crate) fn pubkey(args: PubkeyArgs) -> Result<TokenStream> {
 pub(crate) struct LightVerifierAccountsArgs {
     sol: bool,
     spl: bool,
+    public: bool,
     signing_address: Option<Expr>,
     verifier_program_id: Option<Expr>,
 }
@@ -53,6 +54,7 @@ impl Parse for LightVerifierAccountsArgs {
     fn parse(input: syn::parse::ParseStream) -> Result<Self> {
         let mut sol = false;
         let mut spl = false;
+        let mut public = false;
         let mut signing_address = None;
         let mut verifier_program_id = None;
 
@@ -63,6 +65,7 @@ impl Parse for LightVerifierAccountsArgs {
             match ident.to_string().as_str() {
                 "sol" => sol = true,
                 "spl" => spl = true,
+                "public" => public = true,
                 "signing_address" => {
                     let _eq_token: syn::Token![=] = input.parse()?;
                     let expr: Expr = input.parse()?;
@@ -87,6 +90,7 @@ impl Parse for LightVerifierAccountsArgs {
         Ok(Self {
             sol,
             spl,
+            public,
             signing_address,
             verifier_program_id,
         })
@@ -222,6 +226,70 @@ pub(crate) fn light_verifier_accounts(
         },
     };
 
+    let (public_fields, public_getters) = if args.public {
+        (
+            quote! {
+                pub psp_account_compression: Program<'info, ::psp_account_compression::program::PspAccountCompression>,
+                /// CHECK: This is the cpi authority and will be enforced in the Account Compression program.
+                #[account(
+                    mut,
+                    seeds = [
+                        ::psp_account_compression::program::PspAccountCompression::id().to_bytes().as_ref()
+                    ],
+                    bump,
+                    #authority_seeds_program
+                )]
+                pub account_compression_authority: UncheckedAccount<'info>,
+            },
+            quote! {
+                fn get_psp_account_compression(&self) -> Option<&Program<
+                    'info,
+                    ::psp_account_compression::program::PspAccountCompression
+                >> {
+                    Some(&self.psp_account_compression)
+                }
+
+                fn get_account_compression_authority(&self) -> Option<&UncheckedAccount<'info>> {
+                    Some(&self.account_compression_authority)
+                }
+
+                fn get_merkle_tree_set(&self) -> Option<&AccountLoader<
+                    'info,
+                    ::light_merkle_tree_program::state::MerkleTreeSet
+                >> {
+                    None
+                }
+            },
+        )
+    } else {
+        (
+            quote! {
+                /// CHECK: Is the same as in integrity hash.
+                #[account(mut)]
+                pub merkle_tree_set: AccountLoader<'info, ::light_merkle_tree_program::state::MerkleTreeSet>,
+            },
+            quote! {
+                fn get_psp_account_compression(&self) -> Option<&Program<
+                    'info,
+                    ::psp_account_compression::program::PspAccountCompression
+                >> {
+                    None
+                }
+
+                fn get_account_compression_authority(&self) -> Option<&UncheckedAccount<'info>> {
+                    None
+                }
+
+                fn get_merkle_tree_set(&self) -> Option<&AccountLoader<
+                    'info,
+                    ::light_merkle_tree_program::state::MerkleTreeSet
+                >> {
+                    Some(&self.merkle_tree_set)
+                }
+            },
+        )
+    };
+
     // This `anchor_syn::AccountsStruct` instance is created only to provide
     // our own common fields (which we want to append to the original struct
     // provided as the `item` argument). We define our fields there and then
@@ -235,9 +303,7 @@ pub(crate) fn light_verifier_accounts(
             pub signing_address: Signer<'info>,
             pub system_program: Program<'info, System>,
             pub program_merkle_tree: Program<'info, ::light_merkle_tree_program::program::LightMerkleTreeProgram>,
-            /// CHECK: Is the same as in integrity hash.
-            #[account(mut)]
-            pub merkle_tree_set: AccountLoader<'info, ::light_merkle_tree_program::state::MerkleTreeSet>,
+
             /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
             #[account(
                 mut,
@@ -270,6 +336,8 @@ pub(crate) fn light_verifier_accounts(
             >,
             /// CHECK: It gets checked inside the event_call.
             pub log_wrapper: UncheckedAccount<'info>,
+
+            #public_fields
         }
     };
 
@@ -363,13 +431,6 @@ pub(crate) fn light_verifier_accounts(
                 &self.program_merkle_tree
             }
 
-            fn get_merkle_tree_set(&self) -> &AccountLoader<
-                'info,
-                ::light_merkle_tree_program::state::MerkleTreeSet
-            > {
-                &self.merkle_tree_set
-            }
-
             fn get_authority(&self) -> &UncheckedAccount<'info> {
                 &self.authority
             }
@@ -391,6 +452,8 @@ pub(crate) fn light_verifier_accounts(
             fn get_log_wrapper(&self) -> &UncheckedAccount<'info> {
                 &self.log_wrapper
             }
+
+            #public_getters
         }
     })
 }

@@ -75,11 +75,6 @@ export type LightPsp10in2out = {
           "isSigner": false
         },
         {
-          "name": "merkleTreeSet",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "authority",
           "isMut": true,
           "isSigner": false
@@ -130,6 +125,11 @@ export type LightPsp10in2out = {
         {
           "name": "logWrapper",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "merkleTreeSet",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -764,11 +764,6 @@ export const IDL: LightPsp10in2out = {
           "isSigner": false
         },
         {
-          "name": "merkleTreeSet",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "authority",
           "isMut": true,
           "isSigner": false
@@ -819,6 +814,11 @@ export const IDL: LightPsp10in2out = {
         {
           "name": "logWrapper",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "merkleTreeSet",
+          "isMut": true,
           "isSigner": false
         },
         {

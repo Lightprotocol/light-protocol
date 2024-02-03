@@ -38,7 +38,7 @@ import {
   LightMerkleTreeProgram,
   PspAccountCompression,
 } from "../idls";
-import { MerkleTreeConfig, SolMerkleTree } from "../merkle-tree";
+import { SolMerkleTree } from "../merkle-tree";
 import {
   BN_0,
   UTXO_PREFIX_LENGTH,
@@ -149,7 +149,7 @@ export class TestRpc extends Rpc {
     /** We mock the internal relayer server logic and must init a provider with the relayerKeypair */
     provider = await Provider.init({
       wallet: this.rpcKeypair,
-      rpc: this,
+      rpc: this as any,
       confirmConfig,
       versionedTransactionLookupTable:
         provider!.lookUpTables.versionedTransactionLookupTable,
@@ -314,7 +314,7 @@ export class TestRpc extends Rpc {
     );
     if (!merkleTree) return undefined;
     const index = await getRootIndex(
-      this.accountCompressionProgram,
+      this.merkleTreeProgram,
       merkleTree.pubkey,
       merkleTree.merkleTree.root(),
     );
@@ -328,7 +328,8 @@ export class TestRpc extends Rpc {
     };
   }
 
-  async getMerkleRoot(): Promise<{ root: string; index: number } | undefined> {
+  // @ts-ignore: todo fix inheritance type issues
+  async getMerkleRoot(merkleTreePubkey: PublicKey): Promise<{ root: string; index: number} | undefined> {
     const indexedTransactions = await this.getIndexedTransactions(
       this.connection,
     );
@@ -340,7 +341,7 @@ export class TestRpc extends Rpc {
     );
     const index = await getRootIndex(
       this.merkleTreeProgram,
-      merkleTree.pubkey,
+      merkleTreePubkey,
       merkleTree.merkleTree.root(),
     );
     return { root: merkleTree.merkleTree.root(), index: index.toNumber() };
@@ -400,19 +401,6 @@ export class PublicTestRpc {
   async getIndexedTransactions(
     connection: Connection,
   ): Promise<PublicTransactionIndexerEventBeet[]> {
-    // const merkleTreeAccountInfo = await connection.getAccountInfo(
-    //   this.merkleTreePublicKey,
-    //   "confirmed",
-    // );
-    // console.log("merkleTreeAccountInfo", merkleTreeAccountInfo);
-    // if (!merkleTreeAccountInfo)
-    //   throw new Error("Failed to fetch merkle tree account");
-    // const coder = new BorshAccountsCoder(IDL_PSP_ACCOUNT_COMPRESSION);
-    // const merkleTreeAccount = coder.decode(
-    //   "merkleTree",
-    //   merkleTreeAccountInfo.data,
-    // );
-
     // limits the number of signatures which are queried
     // if the number is too low it is not going to index all transactions
     // hence the dependency on the merkle tree account index times 260 transactions
@@ -457,14 +445,6 @@ export class PublicTestRpc {
     const indexedOutUtxos = eventsToOutUtxos(
       this.indexedTransactions,
       this.lightWasm,
-    );
-    console.log(
-      "utxoHashes ",
-      indexedOutUtxos.map(({ outUtxo }) => outUtxo.utxoHash),
-    );
-    console.log(
-      "utxoHashes ",
-      indexedOutUtxos.map(({ outUtxo }) => outUtxo),
     );
 
     const merkleTree = new MerkleTree(
@@ -576,19 +556,21 @@ export class PublicTestRpc {
       this.accountCompressionProgram,
       merkleTree.pubkey,
       merkleTree.merkleTree.root(),
+      "concurrentMerkleTreeAccount"
     );
     return { root: merkleTree.merkleTree.root(), index: index.toNumber() };
   }
 }
 
 export async function getRootIndex(
-  merkleTreeProgram: Program<PspAccountCompression>,
+  merkleTreeProgram: Program<PspAccountCompression> | Program<LightMerkleTreeProgram>,
   merkleTreePublicKey: PublicKey,
   root: string,
+  accountName: string = "merkleTreeSet",
 ) {
   const rootBytes = new BN(root).toArray("be", 32);
   const merkleTreeSetData =
-    await merkleTreeProgram.account.concurrentMerkleTreeAccount.fetch(
+    await merkleTreeProgram.account[accountName].fetch(
       merkleTreePublicKey,
       "confirmed",
     );
@@ -598,10 +580,6 @@ export async function getRootIndex(
   let rootIndex: BN | undefined;
   // @ts-ignore: unknown type error
   stateMerkleTree.roots.map((x: any, index: any) => {
-    if (index < 10) {
-      console.log("root", x.toString());
-      console.log("rootBytes", rootBytes.toString());
-    }
     if (x.toString() === rootBytes.toString()) {
       rootIndex = new BN(index.toString());
     }
@@ -692,7 +670,6 @@ export const outUtxosToUtxos = (
 ) => {
   let utxos: Utxo[] = [];
   outUtxos.forEach(({ outUtxo, index }) => {
-    console.log("index", index);
     let utxo = outUtxoToUtxo({
       outUtxo,
       merkleProof: merkleTree.path(index).pathElements,

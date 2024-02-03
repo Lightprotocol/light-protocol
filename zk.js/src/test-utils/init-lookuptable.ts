@@ -14,7 +14,6 @@ import { PathLike, readFileSync, writeFile } from "fs";
 import { LightPsp2in2out, IDL_LIGHT_PSP2IN2OUT } from "../idls";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import { ADMIN_AUTH_KEYPAIR, MINT } from "./constants-system-verifier";
-import { MerkleTreeConfig } from "../merkle-tree";
 import {
   AUTHORITY,
   REGISTERED_POOL_PDA_SOL,

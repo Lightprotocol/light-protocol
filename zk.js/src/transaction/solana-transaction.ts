@@ -196,7 +196,6 @@ export async function createSolanaInstructions({
     encryptedUtxos: Buffer.from(instructionInputs.encryptedUtxos!),
     inUtxoHashes,
   };
-  console.log("inUtxoHashes: ", inputObject.inUtxoHashes);
   if (pspTransactionInput) {
     inputObject = {
       ...inputObject,
@@ -500,15 +499,6 @@ export function getSignerAuthorityPda(
   merkleTreeProgramId: PublicKey,
   verifierProgramId: PublicKey,
 ) {
-  console.log(
-    "getSignerAuthorityPda seeds: ",
-    merkleTreeProgramId.toBytes(),
-    verifierProgramId.toBytes(),
-    PublicKey.findProgramAddressSync(
-      [merkleTreeProgramId.toBytes()],
-      verifierProgramId,
-    )[1],
-  );
   return PublicKey.findProgramAddressSync(
     [merkleTreeProgramId.toBytes()],
     verifierProgramId,

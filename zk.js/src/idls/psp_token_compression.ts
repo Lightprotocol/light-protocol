@@ -247,16 +247,6 @@ export type PspTokenCompression = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "accountCompressionAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
@@ -272,6 +262,16 @@ export type PspTokenCompression = {
         {
           "name": "logWrapper",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pspAccountCompression",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "accountCompressionAuthority",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -306,16 +306,6 @@ export type PspTokenCompression = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "accountCompressionAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
@@ -331,6 +321,16 @@ export type PspTokenCompression = {
         {
           "name": "logWrapper",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pspAccountCompression",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "accountCompressionAuthority",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -1684,16 +1684,6 @@ export const IDL: PspTokenCompression = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "accountCompressionAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
@@ -1709,6 +1699,16 @@ export const IDL: PspTokenCompression = {
         {
           "name": "logWrapper",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pspAccountCompression",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "accountCompressionAuthority",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -1743,16 +1743,6 @@ export const IDL: PspTokenCompression = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "accountCompressionAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "rpcRecipientSol",
           "isMut": true,
           "isSigner": false
@@ -1768,6 +1758,16 @@ export const IDL: PspTokenCompression = {
         {
           "name": "logWrapper",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pspAccountCompression",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "accountCompressionAuthority",
+          "isMut": true,
           "isSigner": false
         }
       ],

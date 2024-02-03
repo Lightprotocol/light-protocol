@@ -5,10 +5,10 @@ use anchor_lang::{
 };
 use light_hasher::{Hasher, Poseidon};
 // use light_utils::hash_and_truncate_to_circuit;
+#[cfg(all(target_os = "solana", feature = "custom-heap"))]
+use crate::light_transaction::custom_heap;
 use num_bigint::BigUint;
 use std::default::Default;
-
-use crate::light_transaction::custom_heap;
 pub const DEFAULT_PUBKEY: [u8; 32] = [
     41, 23, 97, 0, 234, 169, 98, 189, 193, 254, 108, 101, 77, 106, 60, 19, 14, 150, 164, 209, 22,
     139, 51, 132, 139, 137, 125, 197, 2, 130, 1, 51,
@@ -152,7 +152,7 @@ impl Utxo {
     }
 }
 
-fn hash_and_truncate_to_circuit(data: &[&[u8]]) -> [u8; 32] {
+pub fn hash_and_truncate_to_circuit(data: &[&[u8]]) -> [u8; 32] {
     let hashed_data = data.iter().map(|d| hash(d).to_bytes()).collect::<Vec<_>>();
     let truncated_data = &hashv(
         hashed_data
@@ -162,11 +162,9 @@ fn hash_and_truncate_to_circuit(data: &[&[u8]]) -> [u8; 32] {
             .as_slice(),
     )
     .to_bytes()[0..30];
-    msg!("truncated data {:?}", truncated_data);
     let hash = Poseidon::hash(truncated_data).unwrap();
     hash
 }
-
 #[cfg(test)]
 mod test {
     use std::str::FromStr;

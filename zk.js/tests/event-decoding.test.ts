@@ -9,11 +9,11 @@ import {
   PublicTestRpc,
   OutUtxo,
   createOutUtxo,
+  MERKLE_TREE_SET,
 } from "../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
-import { Schema, deserialize } from "borsh";
+import { Connection, PublicKey } from "@solana/web3.js";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 
@@ -160,94 +160,15 @@ describe("Test Account Functional", () => {
     console.log("decodedEvent ", decodedEvent);
   });
 
-  // Doesn't work
-  it.skip("Event decoding borsh", () => {
-    let eventData = Buffer.from([
-      1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 224, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0,
-      0, 0, 0, 96, 26, 82, 0, 221, 142, 158, 200, 48, 135, 138, 33, 41, 156,
-      236, 47, 207, 207, 209, 167, 120, 68, 6, 195, 73, 224, 133, 236, 172, 69,
-      143, 84, 9, 203, 246, 71, 191, 105, 220, 115, 150, 213, 89, 159, 251, 168,
-      170, 12, 109, 193, 195, 87, 133, 235, 169, 26, 45, 163, 109, 188, 150, 25,
-      27, 4, 186, 75, 28, 134, 130, 66, 71, 1, 120, 191, 53, 6, 112, 226, 144,
-      72, 153, 77, 18, 183, 81, 120, 126, 176, 3, 31, 224, 135, 206, 23, 242, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 224, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      101, 0, 0, 0, 0, 0, 0, 0, 96, 26, 82, 0, 221, 142, 158, 200, 48, 135, 138,
-      33, 41, 156, 236, 47, 207, 207, 209, 167, 120, 68, 6, 195, 73, 224, 133,
-      236, 172, 69, 143, 84, 9, 203, 246, 71, 191, 105, 220, 115, 150, 213, 89,
-      159, 251, 168, 170, 12, 109, 193, 195, 87, 133, 235, 169, 26, 45, 163,
-      109, 188, 150, 25, 27, 4, 233, 32, 229, 180, 164, 130, 91, 46, 175, 162,
-      124, 62, 12, 178, 218, 65, 48, 145, 33, 61, 213, 46, 245, 234, 117, 101,
-      226, 224, 164, 129, 199, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0,
-    ]);
-    let utxoData = Buffer.from([
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2,
-      0, 0, 0, 0, 0, 0, 0, 14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97,
-      221, 115, 252, 160, 127, 236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86,
-      7, 23, 246, 215, 32, 29, 80, 210, 12, 55, 172, 224, 206, 72, 234, 251, 4,
-      214, 215, 140, 183, 183, 99, 27, 207, 3, 220, 89, 216, 44, 41, 209, 140,
-      56, 131, 67, 39, 198, 68, 189, 235, 239, 241, 102, 35, 143, 232, 212, 114,
-      70, 4, 218, 99, 143, 68, 214, 203, 128, 13, 222, 105, 96, 178, 31, 69,
-      207, 119, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0,
-    ]);
-
-    // Define the borsh schema for ParsingUtxoBeet
-    const ParsingUtxoSchema: Schema = {
-      struct: {
-        version: "u64",
-        poolType: "u64",
-        amounts: { array: { type: "u64", len: 2 } },
-        splAssetMint: { array: { type: "u8", len: 32 } }, // PublicKey serialized as 32 bytes
-        owner: { array: { type: "u8", len: 32 } },
-        blinding: { array: { type: "u8", len: 31 } },
-        dataHash: { array: { type: "u8", len: 32 } },
-        metaHash: { array: { type: "u8", len: 32 } },
-        address: { array: { type: "u8", len: 32 } },
-        message: { option: { array: { type: "u8", len: 32 } } },
-      },
-    };
-    const ParsingBorshEventSchema: Schema = {
-      struct: {
-        inUtxoHashes: { array: { type: { array: { type: "u8", len: 32 } } } },
-        outUtxos: { array: { type: ParsingUtxoSchema } },
-        outUtxoIndexes: { array: { type: "u64" } },
-        publicAmountSol: { option: { array: { type: "u8", len: 32 } } },
-        publicAmountSpl: { option: { array: { type: "u8", len: 32 } } },
-        rpcFee: { option: "u64" },
-        message: { option: { array: { type: "u8" } } },
-        transactionHash: { option: { array: { type: "u8", len: 32 } } },
-        // programId: { option: {array: { type: 'u8', len: 32 }} },
-      },
-    };
-    const deserializedEvent = deserialize(ParsingUtxoSchema, utxoData);
-    console.log("deserializedEvent ", deserializedEvent);
-    const deserializedEvent2 = deserialize(ParsingBorshEventSchema, eventData);
-    console.log("deserializedEvent2 ", deserializedEvent2);
-  });
-
-  it.skip("Test rpc (needs running test validator", async () => {
-    const connection = new Connection("http://localhost:8899");
-    const lightWasm = await WasmFactory.getInstance();
-    let rpc = new PublicTestRpc({ connection, lightWasm });
-    const indexedTransactions = await rpc.getIndexedTransactions(connection);
-    console.log("indexedTransactions ", indexedTransactions[0].outUtxos[0]);
-    const owner = indexedTransactions[0].outUtxos[0].owner;
-    console.log("owner ", owner);
-    const utxos = await rpc.getAssetsByOwner(new BN(owner).toString());
-    console.log("utxos ", utxos);
-  });
+  // it.skip("Test rpc (needs running test validator", async () => {
+  //   const connection = new Connection("http://localhost:8899");
+  //   const lightWasm = await WasmFactory.getInstance();
+  //   let rpc = new PublicTestRpc({ connection, lightWasm, merkleTreePublicKey: });
+  //   const indexedTransactions = await rpc.getIndexedTransactions(connection);
+  //   console.log("indexedTransactions ", indexedTransactions[0].outUtxos[0]);
+  //   const owner = indexedTransactions[0].outUtxos[0].owner;
+  //   console.log("owner ", owner);
+  //   const utxos = await rpc.getAssetsByOwner(new BN(owner).toString());
+  //   console.log("utxos ", utxos);
+  // });
 });

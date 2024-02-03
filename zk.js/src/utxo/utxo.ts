@@ -196,16 +196,11 @@ export function getUtxoHash(
     metaHash,
     address,
   } = utxoHashInputs;
-  console.log("amounts ", amounts);
   // this is weird I am getting different
   const amountHash = lightWasm.poseidonHashString(
     amounts.map((x) => new BN(x)),
   );
   const assetHash = lightWasm.poseidonHashString(
-    assetsCircuit.map((x) => x.toString()),
-  );
-  console.log(
-    "assets ",
     assetsCircuit.map((x) => x.toString()),
   );
 
@@ -237,7 +232,6 @@ export function getUtxoHash(
     metaHash,
     address,
   ]);
-  console.log("hash", new BN(hash).toArray("be", 32));
   return hash;
 }
 

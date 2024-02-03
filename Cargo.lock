@@ -2886,6 +2886,7 @@ dependencies = [
  "light-macros",
  "light-merkle-tree-program",
  "light-verifier-sdk",
+ "psp-account-compression",
  "solana-security-txt",
 ]
 
@@ -2900,6 +2901,7 @@ dependencies = [
  "light-macros",
  "light-merkle-tree-program",
  "light-verifier-sdk",
+ "psp-account-compression",
  "solana-security-txt",
 ]
 
@@ -2915,6 +2917,7 @@ dependencies = [
  "light-macros",
  "light-merkle-tree-program",
  "light-verifier-sdk",
+ "psp-account-compression",
 ]
 
 [[package]]
@@ -2929,34 +2932,7 @@ dependencies = [
  "light-macros",
  "light-merkle-tree-program",
  "light-verifier-sdk",
- "solana-security-txt",
-]
-
-[[package]]
-name = "light-public-psp10in2out"
-version = "0.3.1"
-dependencies = [
- "ahash 0.8.6",
- "anchor-lang",
- "anchor-spl",
- "groth16-solana",
- "light-macros",
- "light-merkle-tree-program",
- "light-verifier-sdk",
- "solana-security-txt",
-]
-
-[[package]]
-name = "light-public-psp2in2out"
-version = "0.3.1"
-dependencies = [
- "ahash 0.8.6",
- "anchor-lang",
- "anchor-spl",
- "groth16-solana",
- "light-macros",
- "light-merkle-tree-program",
- "light-verifier-sdk",
+ "psp-account-compression",
  "solana-security-txt",
 ]
 
@@ -7145,6 +7121,8 @@ dependencies = [
  "light-hasher",
  "light-merkle-tree-program",
  "light-utils",
+ "psp-account-compression",
+ "psp-token-compression",
  "quote 1.0.35",
  "sha2 0.10.8",
  "tabled",

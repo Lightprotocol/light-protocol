@@ -191,11 +191,11 @@ describe("Utxo Functional", () => {
     assert.equal(outUtxo.assets[1].toBase58(), assetPubkey.toBase58());
     assert.equal(
       outUtxo.assetsCircuit[0].toString(),
-      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
+      hashAndTruncateToCircuit([SystemProgram.programId.toBytes()], lightWasm).toString(),
     );
     assert.equal(
       outUtxo.assetsCircuit[1].toString(),
-      hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
+      hashAndTruncateToCircuit([assetPubkey.toBytes()], lightWasm).toString(),
     );
     assert.equal(outUtxo.utxoDataHash.toString(), "0");
     assert.equal(outUtxo.poolType.toString(), "0");
@@ -268,11 +268,11 @@ describe("Utxo Functional", () => {
     );
     assert.equal(
       decryptedUtxo.value?.assetsCircuit[0].toString(),
-      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
+      hashAndTruncateToCircuit([SystemProgram.programId.toBytes()], lightWasm).toString(),
     );
     assert.equal(
       decryptedUtxo.value?.assetsCircuit[1].toString(),
-      hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
+      hashAndTruncateToCircuit([assetPubkey.toBytes()], lightWasm).toString(),
     );
     assert.equal(decryptedUtxo.value?.utxoDataHash.toString(), "0");
     assert.equal(decryptedUtxo.value?.poolType.toString(), "0");

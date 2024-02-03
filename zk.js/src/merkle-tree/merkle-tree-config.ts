@@ -542,7 +542,6 @@ export class MerkleTreeConfig {
     );
 
     await this.checkPoolRegistered(solPoolPda, poolType);
-    console.log("registered sol pool ", this.merkleTreeAuthorityPda.toBase58());
     // no need to push the sol pool because it is the pool config pda
     // TODO: evaluate how to handle this case
     return txHash;

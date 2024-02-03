@@ -35,6 +35,7 @@ use crate::{
     errors::VerifierSdkError,
     state::TransactionIndexerEvent,
     utils::close_account::close_account,
+    utxo::hash_and_truncate_to_circuit,
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 
@@ -197,7 +198,13 @@ impl<
 
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("pre load MerkleTreeSet");
-        let merkle_tree_set = self.input.ctx.accounts.get_merkle_tree_set().load()?;
+        let merkle_tree_set = self
+            .input
+            .ctx
+            .accounts
+            .get_merkle_tree_set()
+            .unwrap()
+            .load()?;
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("post load MerkleTreeSet");
 
@@ -305,6 +312,7 @@ impl<
                 .ctx
                 .accounts
                 .get_merkle_tree_set()
+                .unwrap()
                 .to_account_info(),
             &self
                 .input
@@ -477,7 +485,13 @@ impl<
     pub fn fetch_root(&mut self) -> Result<()> {
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("pre load MerkleTreeSet");
-        let merkle_tree_set = self.input.ctx.accounts.get_merkle_tree_set().load()?;
+        let merkle_tree_set = self
+            .input
+            .ctx
+            .accounts
+            .get_merkle_tree_set()
+            .unwrap()
+            .load()?;
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("post load MerkleTreeSet");
 
@@ -507,13 +521,17 @@ impl<
                         if self.input.public_amount.spl[24..32] == vec![0u8; 8] {
                             self.mint_pubkey = [0u8; 32];
                         } else {
-                            self.mint_pubkey = [
-                                vec![0u8],
-                                hash(&sender_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
-                            ]
-                            .concat()
-                            .try_into()
-                            .unwrap();
+                            self.mint_pubkey = hash_and_truncate_to_circuit(&[sender_spl
+                                .mint
+                                .to_bytes()
+                                .as_slice()])
+                            // [
+                            //     vec![0u8],
+                            //     hash(&sender_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
+                            // ]
+                            // .concat()
+                            // .try_into()
+                            // .unwrap();
                         }
 
                         Ok(())
@@ -570,6 +588,7 @@ impl<
                 .ctx
                 .accounts
                 .get_merkle_tree_set()
+                .unwrap()
                 .to_account_info(),
             &self
                 .input
@@ -650,11 +669,13 @@ impl<
             )?;
 
             // check mint
-            if self.mint_pubkey[1..] != hash(&recipient_spl.mint.to_bytes()).try_to_vec()?[1..] {
+            if self.mint_pubkey
+                != hash_and_truncate_to_circuit(&[recipient_spl.mint.to_bytes().as_slice()])
+            {
                 msg!(
-                    "*self.mint_pubkey[..31] {:?}, {:?}, recipient_spl mint",
-                    self.mint_pubkey[1..].to_vec(),
-                    hash(&recipient_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec()
+                    "*self.mint_pubkey {:?}, {:?}, recipient_spl mint",
+                    self.mint_pubkey.to_vec(),
+                    hash_and_truncate_to_circuit(&[recipient_spl.mint.to_bytes().as_slice()])
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
