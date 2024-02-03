@@ -369,7 +369,7 @@ export function outUtxoFromBytes({
         "For deserializing a compressed utxo an account is required.",
       );
   }
-  /// TODO: seems very hardcoded
+
   const coder = new BorshAccountsCoder(IDL_LIGHT_PSP2IN2OUT);
 
   let decodedUtxo;
@@ -698,10 +698,6 @@ export function outUtxoToUtxo(
     metaHash: outUtxo.metaHash,
     address: outUtxo.address,
     owner: outUtxo.owner,
-
-    // dataHash: outUtxo.dataHash.toString(),
-    // owner: programOwner,
-    // utxoData,
   };
   return createUtxo(lightWasm, account, inputs, outUtxo.isFillingUtxo);
 }
@@ -785,8 +781,6 @@ export function createUtxo(
   const merkleProofInternal = isFillingUtxo
     ? new Array(18).fill("0")
     : merkleProof;
-
-  // const owner = account.keypair.publicKey;
 
   const nullifier = createNullifierWithAccountSignature(
     account,

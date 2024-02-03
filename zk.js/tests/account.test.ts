@@ -58,10 +58,7 @@ describe("Test Account Functional", () => {
       k0.keypair.privateKey.toString(),
       new BN(k0.wasmAccount.getPrivateKey()).toString(),
     );
-    console.log(
-      "bn.toString()",
-      new BN(k0.wasmAccount.getPrivateKey()).toString(),
-    );
+
     assert.equal(
       k0.keypair.publicKey.toString(),
       new BN(k0.wasmAccount.getPublicKey()).toString(),

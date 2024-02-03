@@ -28,12 +28,8 @@ import {
   OutUtxo,
   Utxo,
   BN_1,
-  getUtxoHash,
   BN_2,
-  TransactionErrorCode,
-  getVerifierProgram,
   createProgramOutUtxo,
-  createDataHashWithDefaultHashingSchema,
   PlaceHolderTData,
   ProgramUtxo,
   ProgramOutUtxo,
@@ -41,11 +37,11 @@ import {
 } from "../src";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { BN } from "@coral-xyz/anchor";
-import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
-import { assert, expect } from "chai";
+
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const wasm_tester = require("circom_tester").wasm;
@@ -231,9 +227,9 @@ describe("Verifier tests", () => {
     account,
     shieldAmount,
     shieldFeeAmount,
-    inputProgramUtxo: // | Utxo
-    // | OutUtxo
-    ProgramUtxo<PlaceHolderTData> | ProgramOutUtxo<PlaceHolderTData>,
+    inputProgramUtxo:
+      | ProgramUtxo<PlaceHolderTData>
+      | ProgramOutUtxo<PlaceHolderTData>,
     rpcFee,
     wasmTester2in2out,
     wasmTester10in2out,
@@ -317,8 +313,6 @@ describe("Verifier tests", () => {
       2,
       lightWasm,
       account,
-      // getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT),
-      // { rnd: 1 },
     );
 
     plainInputUtxo = outUtxoToUtxo(

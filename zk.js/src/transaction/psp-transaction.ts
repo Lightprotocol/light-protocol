@@ -578,7 +578,6 @@ export async function syncInputUtxosMerkleProofs({
   rpc,
 }: {
   inputUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
-  merkleTreePublicKey: PublicKey;
   rpc: Rpc;
 }): Promise<{
   syncedUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[];

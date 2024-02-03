@@ -2,7 +2,7 @@ import { assert } from "chai";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { compareOutUtxos } from "./test-utils/compareUtxos";
+import { compareOutUtxos } from "./test-utils/compare-utxos";
 
 import {
   Account,
@@ -313,7 +313,6 @@ describe("Utxo Functional", () => {
     const outputUtxo = createProgramOutUtxo({
       lightWasm,
       assets: [SystemProgram.programId],
-      // owner: account.keypair.publicKey,
       amounts: [new BN(1_000_000)],
       data: { releaseSlot: BN_1 },
       dataHash: createDataHashWithDefaultHashingSchema(

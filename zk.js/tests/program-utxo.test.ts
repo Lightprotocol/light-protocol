@@ -27,7 +27,7 @@ import {
   createNullifierWithAccountSignature,
 } from "../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
-import { compareOutUtxos } from "./test-utils/compareUtxos";
+import { compareOutUtxos } from "./test-utils/compare-utxos";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support

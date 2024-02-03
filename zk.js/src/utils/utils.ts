@@ -219,7 +219,6 @@ export const getUpdatedSpentUtxos = (
     .flat();
 };
 
-/// TODO: remove
 export function getNullifierPda(
   nullifier: number[],
   merkleTreeProgramId: PublicKey,

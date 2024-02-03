@@ -23,7 +23,7 @@ import {
   createProgramOutUtxo,
 } from "@lightprotocol/zk.js";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
-import { compareOutUtxos } from "../../../zk.js/tests/test-utils/compareUtxos";
+import { compareOutUtxos } from "../../../zk.js/tests/test-utils/compare-utxos";
 import {
   Keypair as SolanaKeypair,
   Keypair,
@@ -36,7 +36,7 @@ import { createDataHashWithDefaultHashingSchema } from "@lightprotocol/zk.js";
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
 let WASM: LightWasm;
 
@@ -68,7 +68,7 @@ describe("Streaming Payments tests", () => {
 
   async function createAndSpendProgramUtxo(
     wallet: anchor.web3.Keypair,
-    rpcRecipientSol: anchor.web3.PublicKey
+    rpcRecipientSol: anchor.web3.PublicKey,
   ): Promise<void> {
     await airdropSol({
       connection: provider.connection,
@@ -136,7 +136,7 @@ describe("Streaming Payments tests", () => {
 
     compareOutUtxos(inputUtxo!, testInputsCompress.utxo);
     const circuitPath = path.join(
-      "build-circuit/streaming-payments/streamingPayments"
+      "build-circuit/streaming-payments/streamingPayments",
     );
     // TODO: add in and out utxos to appParams
     // TODO: create compile appParams method which creates isAppIn and out utxo arrays, prefixes utxo data variables with in and out prefixes
@@ -182,7 +182,7 @@ describe("Streaming Payments tests", () => {
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
       proofInputs,
       IDL,
-      pspTransactionInput.circuitName
+      pspTransactionInput.circuitName,
     );
 
     const pspProof = await lightUser.account.getProofInternal({
