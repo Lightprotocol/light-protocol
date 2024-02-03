@@ -329,7 +329,9 @@ export class TestRpc extends Rpc {
   }
 
   // @ts-ignore: todo fix inheritance type issues
-  async getMerkleRoot(merkleTreePubkey: PublicKey): Promise<{ root: string; index: number} | undefined> {
+  async getMerkleRoot(
+    merkleTreePubkey: PublicKey,
+  ): Promise<{ root: string; index: number } | undefined> {
     const indexedTransactions = await this.getIndexedTransactions(
       this.connection,
     );
@@ -556,24 +558,25 @@ export class PublicTestRpc {
       this.accountCompressionProgram,
       merkleTree.pubkey,
       merkleTree.merkleTree.root(),
-      "concurrentMerkleTreeAccount"
+      "concurrentMerkleTreeAccount",
     );
     return { root: merkleTree.merkleTree.root(), index: index.toNumber() };
   }
 }
 
 export async function getRootIndex(
-  merkleTreeProgram: Program<PspAccountCompression> | Program<LightMerkleTreeProgram>,
+  merkleTreeProgram:
+    | Program<PspAccountCompression>
+    | Program<LightMerkleTreeProgram>,
   merkleTreePublicKey: PublicKey,
   root: string,
   accountName: string = "merkleTreeSet",
 ) {
   const rootBytes = new BN(root).toArray("be", 32);
-  const merkleTreeSetData =
-    await merkleTreeProgram.account[accountName].fetch(
-      merkleTreePublicKey,
-      "confirmed",
-    );
+  const merkleTreeSetData = await merkleTreeProgram.account[accountName].fetch(
+    merkleTreePublicKey,
+    "confirmed",
+  );
   const stateMerkleTree = serializeOnchainMerkleTree(
     merkleTreeSetData.stateMerkleTree,
   );
@@ -632,7 +635,7 @@ export const eventsToOutUtxos = (
   events: PublicTransactionIndexerEventBeet[],
   lightWasm: LightWasm,
 ) => {
-  let utxos: {
+  const utxos: {
     outUtxo: OutUtxo;
     index: number;
     merkleTreePubkey: PublicKey | undefined;
@@ -644,7 +647,7 @@ export const eventsToOutUtxos = (
           ({ index }) => index === Number(event.outUtxoIndexes[i].toString()),
         ) === undefined
       ) {
-        let outUtxo: OutUtxo = convertParsingUtxoBeetToOutUtxo(
+        const outUtxo: OutUtxo = convertParsingUtxoBeetToOutUtxo(
           beetOutUtxo,
           lightWasm,
         );
@@ -668,9 +671,9 @@ export const outUtxosToUtxos = (
   lightWasm: LightWasm,
   merkleTree: MerkleTree,
 ) => {
-  let utxos: Utxo[] = [];
+  const utxos: Utxo[] = [];
   outUtxos.forEach(({ outUtxo, index }) => {
-    let utxo = outUtxoToUtxo({
+    const utxo = outUtxoToUtxo({
       outUtxo,
       merkleProof: merkleTree.path(index).pathElements,
       merkleTreeLeafIndex: index,

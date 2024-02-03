@@ -322,10 +322,10 @@ export async function createVerifyingkeyRsFileArgv() {
   } else if (nrInputs == "4" && prefix == "private") {
     program = "psp4in4out-app-storage";
   } else if (nrInputs == "2" && prefix == "public") {
-    program = "token-compression";
+    program = "compressed-token";
     fileName = "public-psp2in2out";
   } else if (nrInputs == "10" && prefix == "public") {
-    program = "token-compression";
+    program = "compressed-token";
     fileName = "public-psp10in2out";
   } else {
     throw new Error("invalid nr of inputs");

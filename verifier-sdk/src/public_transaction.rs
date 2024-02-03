@@ -608,17 +608,17 @@ where
             None => [0u8; 32],
         };
         let recipient_spl = match self.input.ctx.accounts.get_recipient_spl().as_ref() {
-            Some(recipient_spl) => recipient_spl.key().to_bytes(),
-            None => [0u8; 32],
+            Some(recipient_spl) => recipient_spl.key().to_bytes().to_vec(),
+            None => Vec::new(),
         };
         let recipient_sol = match self.input.ctx.accounts.get_recipient_sol().as_ref() {
-            Some(recipient_spl) => recipient_spl.key().to_bytes(),
-            None => [0u8; 32],
+            Some(recipient_spl) => recipient_spl.key().to_bytes().to_vec(),
+            None => Vec::new(),
         };
         let tx_integrity_hash = hashv(&[
             &message_hash,
-            &recipient_spl,
-            &recipient_sol,
+            &recipient_spl[..],
+            &recipient_sol[..],
             &self
                 .input
                 .ctx
@@ -629,23 +629,23 @@ where
             &self.input.rpc_fee.unwrap_or(0u64).to_be_bytes(),
             // self.input.encrypted_utxos,
         ]);
-        msg!("message_hash: {:?}", message_hash.to_vec());
-        msg!("recipient_spl: {:?}", recipient_spl.to_vec());
-        msg!("recipient_sol: {:?}", recipient_sol);
-        msg!(
-            "signing_address: {:?}",
-            self.input
-                .ctx
-                .accounts
-                .get_signing_address()
-                .key()
-                .to_bytes()
-                .to_vec()
-        );
-        msg!(
-            "rpc_fee: {:?}",
-            self.input.rpc_fee.unwrap_or(0u64).to_be_bytes().to_vec()
-        );
+        // msg!("message_hash: {:?}", message_hash.to_vec());
+        // msg!("recipient_spl: {:?}", recipient_spl.to_vec());
+        // msg!("recipient_sol: {:?}", recipient_sol);
+        // msg!(
+        //     "signing_address: {:?}",
+        //     self.input
+        //         .ctx
+        //         .accounts
+        //         .get_signing_address()
+        //         .key()
+        //         .to_bytes()
+        //         .to_vec()
+        // );
+        // msg!(
+        //     "rpc_fee: {:?}",
+        //     self.input.rpc_fee.unwrap_or(0u64).to_be_bytes().to_vec()
+        // );
 
         self.tx_integrity_hash = truncate_to_circuit(&tx_integrity_hash.to_bytes());
         Ok(())
@@ -1307,7 +1307,6 @@ pub fn check_amount(rpc_fee: u64, amount: [u8; 32]) -> Result<(u64, u64)> {
 #[cfg(test)]
 mod test {
     use light_hasher::{Hasher, Poseidon};
-    use num_bigint::BigUint;
 
     #[test]
     fn poseidon_test() {

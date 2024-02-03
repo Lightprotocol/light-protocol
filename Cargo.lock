@@ -3823,7 +3823,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "psp-token-compression"
+name = "psp-compressed-token"
 version = "0.3.1"
 dependencies = [
  "ahash 0.8.6",
@@ -7122,7 +7122,7 @@ dependencies = [
  "light-merkle-tree-program",
  "light-utils",
  "psp-account-compression",
- "psp-token-compression",
+ "psp-compressed-token",
  "quote 1.0.35",
  "sha2 0.10.8",
  "tabled",

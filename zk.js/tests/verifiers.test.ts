@@ -56,7 +56,7 @@ async function getWasmTester(verifierIdl: Idl) {
   const basePath = "../circuit-lib/circuit-lib.circom/src/transaction/";
   const circuitPathMap = new Map<string, string>([
     ["light_public_psp2in2out", "publicProgramTransaction2In2OutMain.circom"],
-    ["light_public_psp10in2out", "publicTransaction10In2OutMain.circom"],
+    ["light_public_psp10in2out", "publicTransaction8In2OutMain.circom"],
   ]);
   const path = basePath + circuitPathMap.get(verifierIdl.name);
 
@@ -173,12 +173,12 @@ const verifiers = [
 ];
 
 const publicVerifiers = [
-  // { verifierIdl: IDL_PUBLIC_LIGHT_PSP2IN2OUT, isApp: true },
+  { verifierIdl: IDL_PUBLIC_LIGHT_PSP2IN2OUT, isApp: true },
   { verifierIdl: IDL_PUBLIC_LIGHT_PSP10IN2OUT, isApp: false },
 ];
 
 describe("Verifier tests", () => {
-  it.skip("Test functional private circuits", async () => {
+  it("Test functional private circuits", async () => {
     for (const verifier in verifiers) {
       console.time("private circuits" + verifiers[verifier].verifierIdl.name);
       for (let i = 0; i < 1; i++) {
@@ -194,6 +194,8 @@ describe("Verifier tests", () => {
     }
   });
 
+  // this test does not work anymore because the token compression program has multiple circuits
+  // TODO: adapt to multiple circuits in one idl
   it.skip("Test functional public circuits", async () => {
     console.time("public circuits");
     for (const verifier in publicVerifiers) {

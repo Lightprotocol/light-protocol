@@ -130,7 +130,7 @@ export class MerkleTreeConfig {
   }
 
   static getMerkleTreeAuthorityPda(programId: PublicKey = merkleTreeProgramId) {
-    let merkleTreeAuthorityPda = PublicKey.findProgramAddressSync(
+    const merkleTreeAuthorityPda = PublicKey.findProgramAddressSync(
       [utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
       programId,
     )[0];

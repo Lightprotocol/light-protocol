@@ -140,7 +140,8 @@ describe("Merkle Tree Tests", () => {
       merkleTreeProgram.programId,
     )[0];
 
-    merkleTreeConfig.merkleTreeAuthorityPda = MerkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     let error;
 
@@ -152,7 +153,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    merkleTreeConfig.merkleTreeAuthorityPda = MerkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
     console.log(error);
 
     assert.isTrue(
@@ -227,7 +229,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    merkleTreeConfig.merkleTreeAuthorityPda = MerkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
     console.log("updateMerkleTreeAuthority ", error);
 
     assert.isTrue(
@@ -308,7 +311,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    merkleTreeConfig.merkleTreeAuthorityPda = MerkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     assert.isTrue(
       error.logs.includes(
@@ -357,7 +361,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    merkleTreeConfig.merkleTreeAuthorityPda = MerkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     assert.isTrue(
       error.logs.includes(
@@ -404,7 +409,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    merkleTreeConfig.merkleTreeAuthorityPda = MerkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
     console.log("error ", error);
 
     assert.isTrue(
@@ -463,7 +469,8 @@ describe("Merkle Tree Tests", () => {
     } catch (e) {
       error = e;
     }
-    merkleTreeConfig.merkleTreeAuthorityPda = MerkleTreeConfig.getMerkleTreeAuthorityPda();
+    merkleTreeConfig.merkleTreeAuthorityPda =
+      MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     assert.isTrue(
       error.logs.includes(

@@ -24,7 +24,7 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
 describe("Test Account Functional", () => {
   it.skip("Event decoding beet with nesting", () => {
-    let eventData = Buffer.from([
+    const eventData = Buffer.from([
       0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 109, 221, 129, 73, 139,
       106, 245, 1, 95, 37, 253, 254, 42, 73, 80, 210, 168, 244, 216, 161, 214,
@@ -50,7 +50,7 @@ describe("Test Account Functional", () => {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ]);
-    let utxoData = Buffer.from([
+    const utxoData = Buffer.from([
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2,
       0, 0, 0, 0, 0, 0, 0, 14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97,
       221, 115, 252, 160, 127, 236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86,
@@ -65,7 +65,7 @@ describe("Test Account Functional", () => {
       0,
     ]);
 
-    let utxoTestData = new ParsingUtxoBeet(
+    const utxoTestData = new ParsingUtxoBeet(
       1,
       2,
       [3, 4],
@@ -77,11 +77,11 @@ describe("Test Account Functional", () => {
       new Uint8Array(32),
       null,
     );
-    let utxoTest = ParsingUtxoBeet.struct.serialize(utxoTestData);
-    let utxoTest2 = ParsingUtxoBeet.struct.deserialize(utxoTest[0]);
-    let res = ParsingUtxoBeet.struct.deserialize(utxoData);
+    const utxoTest = ParsingUtxoBeet.struct.serialize(utxoTestData);
+    const utxoTest2 = ParsingUtxoBeet.struct.deserialize(utxoTest[0]);
+    const res = ParsingUtxoBeet.struct.deserialize(utxoData);
 
-    let event = new PublicTransactionIndexerEventBeet(
+    const event = new PublicTransactionIndexerEventBeet(
       [new Uint8Array(32)],
       [utxoTestData, utxoTestData],
       [1],
@@ -93,9 +93,9 @@ describe("Test Account Functional", () => {
       PublicKey.default,
     );
     console.log("event ", event);
-    let eventTest = PublicTransactionIndexerEventBeet.struct.serialize(event);
+    const eventTest = PublicTransactionIndexerEventBeet.struct.serialize(event);
     console.log("eventTest ", eventTest);
-    let eventTest2 = PublicTransactionIndexerEventBeet.struct.deserialize(
+    const eventTest2 = PublicTransactionIndexerEventBeet.struct.deserialize(
       eventTest[0],
     );
     console.log("eventTest2 ", eventTest2);
@@ -109,7 +109,7 @@ describe("Test Account Functional", () => {
   });
 
   it.skip("Event decoding manual nesting", () => {
-    let eventData = Buffer.from([
+    const eventData = Buffer.from([
       0, 0, 0, 0, 2, 0, 0, 0, 224, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 25, 221,
       239, 163, 33, 36, 39, 48, 68, 103, 121, 132, 128, 194, 25, 137, 132, 118,
@@ -136,7 +136,7 @@ describe("Test Account Functional", () => {
       0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0,
     ]);
-    let utxoData = Buffer.from([
+    const utxoData = Buffer.from([
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2,
       0, 0, 0, 0, 0, 0, 0, 14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97,
       221, 115, 252, 160, 127, 236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86,
@@ -150,11 +150,11 @@ describe("Test Account Functional", () => {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0,
     ]);
-    let decodedUtxo = new PublicTransactionIndexerEventAnchor().deserializeUtxo(
+    const decodedUtxo = new PublicTransactionIndexerEventAnchor().deserializeUtxo(
       utxoData,
     );
     console.log("decodedUtxo ", decodedUtxo);
-    let decodedEvent = new PublicTransactionIndexerEventAnchor().deserialize(
+    const decodedEvent = new PublicTransactionIndexerEventAnchor().deserialize(
       eventData,
     );
     console.log("decodedEvent ", decodedEvent);

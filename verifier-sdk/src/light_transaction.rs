@@ -421,12 +421,12 @@ impl<
             None => [0u8; 32],
         };
         let recipient_spl = match self.input.ctx.accounts.get_recipient_spl().as_ref() {
-            Some(recipient_spl) => recipient_spl.key().to_bytes(),
-            None => [0u8; 32],
+            Some(recipient_spl) => recipient_spl.key().to_bytes().to_vec(),
+            None => Vec::new(),
         };
         let tx_integrity_hash = hashv(&[
             &message_hash,
-            &recipient_spl,
+            &recipient_spl[..],
             &self
                 .input
                 .ctx
@@ -446,6 +446,8 @@ impl<
             &self.input.rpc_fee.to_be_bytes(),
             self.input.encrypted_utxos,
         ]);
+        // #[cfg(all(target_os = "solana", feature = "custom-heap"))]
+        // let pos = custom_heap::get_heap_pos();
         // msg!("message_hash: {:?}", message_hash.to_vec());
         // msg!("recipient_spl: {:?}", recipient_spl.to_vec());
         // msg!(
@@ -470,14 +472,13 @@ impl<
         //         .to_bytes()
         //         .to_vec()
         // );
-        // msg!(
-        //     "rpc_fee: {:?}",
-        //     self.input.rpc_fee.to_be_bytes().to_vec()
-        // );
+        // msg!("rpc_fee: {:?}", self.input.rpc_fee.to_be_bytes().to_vec());
         // msg!("rpc_fee {}", self.input.rpc_fee);
         // msg!("encrypted_utxos: {:?}", self.input.encrypted_utxos);
-
+        // #[cfg(all(target_os = "solana", feature = "custom-heap"))]
+        // custom_heap::free_heap(pos);
         self.tx_integrity_hash = truncate_to_circuit(&tx_integrity_hash.to_bytes());
+        // msg!("self.tx_integrity_hash {:?}", self.tx_integrity_hash);
         Ok(())
     }
 

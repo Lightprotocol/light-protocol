@@ -189,7 +189,7 @@ export class PublicTransactionIndexerEventAnchor {
 
   deserialize(buffer: Buffer): any | null {
     try {
-      let _internal = this.borshSchema.decode(buffer);
+      const _internal = this.borshSchema.decode(buffer);
       _internal.outUtxos = _internal.outUtxos.map((utxo: any) => {
         return this.utxo.decode(utxo);
       });
@@ -463,7 +463,7 @@ const deserializePrivateEvents = (
   data: Buffer,
   tx: ParsedTransactionWithMeta,
 ): RpcIndexedTransaction | undefined => {
-  let decodedEvent = new TransactionIndexerEvent().deserialize(data);
+  const decodedEvent = new TransactionIndexerEvent().deserialize(data);
   decodedEvent["tx"] = tx;
   if (decodedEvent) {
     return enrichParsedTransactionEvents(decodedEvent);
@@ -652,7 +652,7 @@ const deserializePublicEvents = (data: Buffer) => {
   data = Buffer.from(Array.from(data).map((x: any) => Number(x)));
 
   try {
-    let event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
+    const event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
     return event;
   } catch (e) {
     return null;

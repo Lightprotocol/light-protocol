@@ -288,8 +288,15 @@ export function createSystemProofInputs({
     publicInUtxoDataHash: transaction.private.inputUtxos?.map(
       (x) => x.utxoDataHash,
     ),
+    // if utxo is zero set utxo hash to [0u8; 32]
     publicInUtxoHash: transaction.private.inputUtxos.map((x) => {
-      if (x.amounts[0].eq(BN_0) && x.amounts[1].eq(BN_0)) {
+      if (
+        x.amounts[0].eq(BN_0) &&
+        x.amounts[1].eq(BN_0) &&
+        new BN(x.utxoDataHash).eq(BN_0) &&
+        new BN(x.metaHash ?? "0").eq(BN_0) &&
+        new BN(x.address ?? "0").eq(BN_0)
+      ) {
         return BN_0;
       }
       return x.utxoHash;
@@ -469,8 +476,8 @@ export type VerifierConfig = {
   out: number;
 };
 export type DecompressAccounts = {
-  recipientSol: PublicKey;
-  recipientSpl: PublicKey;
+  recipientSol?: PublicKey;
+  recipientSpl?: PublicKey;
   rpcPublicKey: PublicKey;
 };
 
@@ -478,8 +485,8 @@ export type DecompressAccounts = {
 export type TransactionAccounts = {
   senderSpl: PublicKey;
   senderSol: PublicKey;
-  recipientSpl: PublicKey;
-  recipientSol: PublicKey;
+  recipientSpl?: PublicKey;
+  recipientSol?: PublicKey;
   rpcPublicKey: PublicKey;
   merkleTreeSet: PublicKey;
   systemPspId: PublicKey;
@@ -917,18 +924,18 @@ export function getTxIntegrityHash(
       "getTxIntegrityHash",
       "",
     );
-  if (!accounts.recipientSpl)
-    throw new TransactionError(
-      TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
-      "getTxIntegrityHash",
-      "",
-    );
-  if (!accounts.recipientSol)
-    throw new TransactionError(
-      TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
-      "getTxIntegrityHash",
-      "",
-    );
+  // if (!accounts.recipientSpl)
+  //   throw new TransactionError(
+  //     TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+  //     "getTxIntegrityHash",
+  //     "",
+  //   );
+  // if (!accounts.recipientSol)
+  //   throw new TransactionError(
+  //     TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+  //     "getTxIntegrityHash",
+  //     "",
+  //   );
 
   if (encryptedUtxos && encryptedUtxos.length > 128 * verifierConfig.out)
     throw new TransactionParametersError(
@@ -945,26 +952,39 @@ export function getTxIntegrityHash(
   // refactoring / removal
   // For example, we could derive which accounts exist in the IDL of the
   // verifier program method.
-  const recipientSpl =
-    verifierProgramId.toBase58() === lightPsp2in2outStorageId.toBase58() ||
-    !isCompression
-      ? new Uint8Array(32)
-      : accounts.recipientSpl.toBytes();
-  const recipientSol = !isCompression
-    ? new Uint8Array(32)
-    : accounts.recipientSol.toBytes();
+  // const recipientSol.toBytes();
+  // console.log("message hash ", messageHash);
+  //   verifierProgramId.toBase58() === lightPsp2in2outStorageId.toBase58() ||
+  //   !accounts.recipientSpl
+  //     ? new Uint8Array(32)
+  //     : accounts.recipientSpl.toBytes();
+  // const recipientSol = !accounts.recipientSol
+  //   ? new Uint8Array(32)
+  //   : accounts.recitSpl ", recipientSpl);
+  // console.log("recipientSol ", accounts.recipientSol.toBytes());
+  const hash = sha256.create().update(messageHash);
+  if (accounts.recipientSpl) {
+    // console.log("recipienpientSpl = ", accounts.recipientSpl.toBytes())
 
-  const hash = sha256
-    .create()
-    .update(messageHash)
-    .update(recipientSpl)
-    .update(recipientSol)
+    hash.update(accounts.recipientSpl.toBytes());
+  }
+  if (accounts.recipientSol) {
+    // console.log("recipientSol = ", accounts.recipientSol.toBytes())
+
+    hash.update(accounts.recipientSol.toBytes());
+  }
+  hash
     .update(accounts.rpcPublicKey.toBytes())
     .update(rpcFee.toArrayLike(Buffer, "be", 8));
   if (!isPublic) {
     hash.update(encryptedUtxos);
   }
+  // console.log("accounts.rpcPublicKey.toBytes() ", accounts.rpcPublicKey.toBytes())
+  // console.log("rpcFee.toArrayLike() ", rpcFee.toArrayLike(Buffer, "be", 8))
+  // console.log("encryptedUtxos ", encryptedUtxos)
+
   const txIntegrityHash = truncateToCircuit(hash.digest());
+  // console.log("txIntegrityHash ",txIntegrityHash.toArray("be", 32) )
   return txIntegrityHash;
 }
 
@@ -1121,6 +1141,12 @@ export async function createCompressTransaction(
         assetLookUpTable,
         lightWasm,
       );
+  if (
+    getVerifierProgramId(verifierIdl).toBase58() ===
+    lightPsp2in2outStorageId.toBase58()
+  ) {
+    completeAccounts.recipientSpl = undefined;
+  }
   const txIntegrityHash = getTxIntegrityHash(
     BN_0,
     encryptedUtxos,
@@ -1299,6 +1325,12 @@ export async function createDecompressTransaction(
         assetLookUpTable,
         lightWasm,
       );
+  if (
+    getVerifierProgramId(verifierIdl).toBase58() ===
+    lightPsp2in2outStorageId.toBase58()
+  ) {
+    completeAccounts.recipientSpl = undefined;
+  }
   const txIntegrityHash = getTxIntegrityHash(
     rpcFee,
     encryptedUtxos,
@@ -1400,11 +1432,13 @@ export async function createTransaction(
   const completeAccounts = {
     senderSol: MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
     senderSpl: AUTHORITY,
-    recipientSol: AUTHORITY,
-    recipientSpl: AUTHORITY,
+    recipientSol: isPublic ? undefined : AUTHORITY,
+    recipientSpl: isPublic ? undefined : AUTHORITY,
     rpcPublicKey,
   };
-
+  if (verifierProgramId.toBase58() === lightPsp2in2outStorageId.toBase58()) {
+    completeAccounts.recipientSpl = undefined;
+  }
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
   const encryptedUtxos = isPublic
     ? new Uint8Array()

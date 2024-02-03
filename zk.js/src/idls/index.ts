@@ -31,9 +31,9 @@ export {
   IDL as IDL_PUBLIC_LIGHT_PSP10IN2OUT,
 } from "./light_public_psp10in2out";
 export {
-  type PspTokenCompression,
-  IDL as IDL_PSP_TOKEN_COMPRESSION,
-} from "./psp_token_compression";
+  type PspCompressedToken,
+  IDL as IDL_PSP_COMPRESSED_TOKEN,
+} from "./psp_compressed_token";
 export {
   type PspAccountCompression,
   IDL as IDL_PSP_ACCOUNT_COMPRESSION,

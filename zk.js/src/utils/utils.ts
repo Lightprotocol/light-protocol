@@ -49,10 +49,10 @@ export function hashAndTruncateToCircuit(
   data: Uint8Array[],
   lightWasm: LightWasm,
 ): string {
-  let hashedAndTruncatedData = data.map((value) =>
+  const hashedAndTruncatedData = data.map((value) =>
     keccak_256.create().update(Buffer.from(value)).digest(),
   );
-  let compressedData = keccak_256
+  const compressedData = keccak_256
     .create()
     .update(Buffer.concat(hashedAndTruncatedData))
     .digest()

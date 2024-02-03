@@ -9,7 +9,15 @@ import {
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 
-import {AnchorProvider, BN, BorshCoder, Program, setProvider, utils, web3} from "@coral-xyz/anchor"
+import {
+  AnchorProvider,
+  BN,
+  BorshCoder,
+  Program,
+  setProvider,
+  utils,
+  web3,
+} from "@coral-xyz/anchor";
 
 // TODO: add and use namespaces in SDK
 import {
@@ -29,7 +37,7 @@ import {
   prepareAccounts,
   getVerifierProgramId,
   createOutUtxo,
-  IDL_PSP_TOKEN_COMPRESSION,
+  IDL_PSP_COMPRESSED_TOKEN,
   merkleTreeProgramId,
   getTokenAuthorityPda,
   getSignerAuthorityPda,
@@ -158,29 +166,26 @@ describe("verifier_program", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  const provider = AnchorProvider.local(
-    "http://127.0.0.1:8899",
-    confirmConfig,
-  );
+  const provider = AnchorProvider.local("http://127.0.0.1:8899", confirmConfig);
   setProvider(provider);
   const compressedTokenProgram = new Program(
-    IDL_PSP_TOKEN_COMPRESSION,
-    getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+    IDL_PSP_COMPRESSED_TOKEN,
+    getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
     provider,
   );
-  let authorityKeypair = Keypair.generate();
-  let mintKeypair = Keypair.generate();
+  const authorityKeypair = Keypair.generate();
+  const mintKeypair = Keypair.generate();
   const deriveAuthorityPda = (
     authority: PublicKey,
     mint: PublicKey,
   ): PublicKey => {
-    let [pubkey] = PublicKey.findProgramAddressSync(
+    const [pubkey] = PublicKey.findProgramAddressSync(
       [
         utils.bytes.utf8.encode("authority"),
         authority.toBuffer(),
         mint.toBuffer(),
       ],
-      getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+      getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
     );
     return pubkey;
   };
@@ -228,7 +233,7 @@ describe("verifier_program", () => {
   });
 
   it(" create mint", async () => {
-    let createAccountInstruction = SystemProgram.createAccount({
+    const createAccountInstruction = SystemProgram.createAccount({
       fromPubkey: authorityKeypair.publicKey,
       lamports:
         await provider.connection.getMinimumBalanceForRentExemption(MINT_SIZE),
@@ -237,7 +242,7 @@ describe("verifier_program", () => {
       space: MINT_SIZE,
     });
 
-    let createMintInstruciton = createInitializeMint2Instruction(
+    const createMintInstruciton = createInitializeMint2Instruction(
       mintKeypair.publicKey,
       2,
       authorityPda,
@@ -252,7 +257,7 @@ describe("verifier_program", () => {
         (await provider.connection.getMinimumBalanceForRentExemption(165)),
     });
 
-    let ix = await compressedTokenProgram.methods
+    const ix = await compressedTokenProgram.methods
       .createMint()
       .accounts({
         feePayer: authorityKeypair.publicKey,
@@ -296,12 +301,12 @@ describe("verifier_program", () => {
 
   it("Mint to", async () => {
     const registerVerifier = async () => {
-      let merkleTreeConfig = new MerkleTreeConfig({
+      const merkleTreeConfig = new MerkleTreeConfig({
         payer: ADMIN_AUTH_KEYPAIR,
         anchorProvider: provider,
       });
-      let x = await merkleTreeConfig.registerVerifier(
-        getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+      const x = await merkleTreeConfig.registerVerifier(
+        getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
       );
       console.log("registered verifier ", x);
     };
@@ -309,7 +314,7 @@ describe("verifier_program", () => {
     await registerVerifier();
 
     const mint = async () => {
-      let tx = await compressedTokenProgram.methods
+      const tx = await compressedTokenProgram.methods
         .mintTo(
           [
             ACCOUNT.keypair.publicKey.toArray("be", 32),
@@ -330,18 +335,18 @@ describe("verifier_program", () => {
           noopProgram: SPL_NOOP_PROGRAM_ID,
           merkleTreeSet: merkleTreeKeyPair.publicKey,
           registeredVerifierPda: MerkleTreeConfig.getRegisteredVerifierPda(
-            getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+            getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
           ),
           merkleTreeAuthority: getSignerAuthorityPda(
             merkleTreeProgramId,
-            getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+            getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
           ),
           pspAccountCompression: getVerifierProgramId(
             IDL_PSP_ACCOUNT_COMPRESSION,
           ),
           pspAccountCompressionAuthority: getSignerAuthorityPda(
             getVerifierProgramId(IDL_PSP_ACCOUNT_COMPRESSION),
-            getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+            getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
           ),
         })
         .signers([authorityKeypair])
@@ -351,7 +356,7 @@ describe("verifier_program", () => {
         .transaction();
       let data;
       try {
-        let txHash = await sendAndConfirmTransaction(
+        const txHash = await sendAndConfirmTransaction(
           provider.connection,
           tx,
           [authorityKeypair],
@@ -375,22 +380,10 @@ describe("verifier_program", () => {
       "utxo 0 version",
       new BN(utxos[0].transactionVersion).toArray("be", 32),
     );
-    console.log(
-      "utxo 0 amount",
-      new BN(utxos[0].amounts[0]).toArray("be", 32),
-    );
-    console.log(
-      "utxo 0 amount",
-      new BN(utxos[0].amounts[1]).toArray("be", 32),
-    );
-    console.log(
-      "utxo 0 owner",
-      new BN(utxos[0].publicKey).toArray("be", 32),
-    );
-    console.log(
-      "utxo 0 blinding",
-      new BN(utxos[0].blinding).toArray("be", 32),
-    );
+    console.log("utxo 0 amount", new BN(utxos[0].amounts[0]).toArray("be", 32));
+    console.log("utxo 0 amount", new BN(utxos[0].amounts[1]).toArray("be", 32));
+    console.log("utxo 0 owner", new BN(utxos[0].publicKey).toArray("be", 32));
+    console.log("utxo 0 blinding", new BN(utxos[0].blinding).toArray("be", 32));
     console.log(
       "utxo 0 asset",
       new BN(utxos[0].assetsCircuit[0]).toArray("be", 32),
@@ -419,9 +412,9 @@ describe("verifier_program", () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
-    const verifierIdl = IDL_PSP_TOKEN_COMPRESSION;
+    const verifierIdl = IDL_PSP_COMPRESSED_TOKEN;
 
-    let senderUtxos = await RPC.getAssetsByOwner(
+    const senderUtxos = await RPC.getAssetsByOwner(
       senderAccount.keypair.publicKey.toString(),
     );
     const inputUtxos: Utxo[] = [senderUtxos[0]];
@@ -446,9 +439,7 @@ describe("verifier_program", () => {
       rpcFee: BN_0,
     };
 
-    const transaction = await createTransaction(
-      transactionInput,
-    );
+    const transaction = await createTransaction(transactionInput);
 
     const { root, index: rootIndex } = (await RPC.getMerkleRoot(
       merkleTreeKeyPair.publicKey,
@@ -491,7 +482,7 @@ describe("verifier_program", () => {
       }),
     ];
 
-    let accounts = prepareAccounts({
+    const accounts = prepareAccounts({
       transactionAccounts: transaction.public.accounts,
       merkleTreeSet: merkleTreeKeyPair.publicKey,
     });
@@ -501,11 +492,11 @@ describe("verifier_program", () => {
     );
     accounts["accountCompressionAuthority"] = getSignerAuthorityPda(
       getVerifierProgramId(IDL_PSP_ACCOUNT_COMPRESSION),
-      getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+      getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
     );
 
-    let serializedOutUtxo = (
-      await new BorshCoder(IDL_PSP_TOKEN_COMPRESSION).accounts.encode(
+    const serializedOutUtxo = (
+      await new BorshCoder(IDL_PSP_COMPRESSED_TOKEN).accounts.encode(
         "transferOutputUtxo",
         {
           owner: new BN(outputUtxo.publicKey),
@@ -516,7 +507,7 @@ describe("verifier_program", () => {
         },
       )
     ).subarray(8);
-    
+
     const instructions = await createSolanaInstructions({
       action: Action.TRANSFER,
       rootIndex,
@@ -546,7 +537,7 @@ describe("verifier_program", () => {
       console.log(e);
       throw e;
     }
-    let recpientBalance = await RPC.getAssetsByOwner(
+    const recpientBalance = await RPC.getAssetsByOwner(
       recipientAccount.keypair.publicKey.toString(),
     );
     console.log("recpientBalance ", recpientBalance);
@@ -566,5 +557,4 @@ describe("verifier_program", () => {
       RPC.merkleTrees[0].merkleTree.indexOf(recpientBalance[0].utxoHash),
     );
   };
- 
 });

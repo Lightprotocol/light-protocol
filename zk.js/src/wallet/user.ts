@@ -537,7 +537,6 @@ export class User {
       )!,
       systemProofInputs,
     });
-
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject,
       // TODO: readd remainingMerkleTreeAccounts,

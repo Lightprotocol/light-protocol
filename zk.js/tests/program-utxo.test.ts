@@ -198,7 +198,10 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(
       programOutUtxo.outUtxo.assetsCircuit[0].toString(),
-      hashAndTruncateToCircuit([SystemProgram.programId.toBytes()], lightWasm).toString(),
+      hashAndTruncateToCircuit(
+        [SystemProgram.programId.toBytes()],
+        lightWasm,
+      ).toString(),
     );
     assert.equal(
       programOutUtxo.outUtxo.assetsCircuit[1].toString(),
@@ -215,7 +218,7 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(
       programOutUtxo.outUtxo.utxoHash,
-      "3900255133601114289945940646375843533526254833348962507171282032513729686383",
+      "10728499339752724929638383989191231305214495159689622006819820882299484542287",
     );
 
     // toBytes
@@ -340,7 +343,10 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(
       decryptedUtxo.value?.utxo.assetsCircuit[0].toString(),
-      hashAndTruncateToCircuit([SystemProgram.programId.toBytes()], lightWasm).toString(),
+      hashAndTruncateToCircuit(
+        [SystemProgram.programId.toBytes()],
+        lightWasm,
+      ).toString(),
     );
     assert.equal(
       decryptedUtxo.value?.utxo.assetsCircuit[1].toString(),
@@ -358,7 +364,7 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(
       decryptedUtxo.value?.utxo.nullifier,
-      "6375266098703930269345700550425174694499182299695686843103201658599361581059",
+      "3671097476682376794240906933200709448048184503525122640395460659992826459312",
     );
     assert.deepEqual(decryptedUtxo.value?.utxo.merkleProof, ["1", "2", "3"]);
     assert.equal(decryptedUtxo.value?.utxo.merkleTreeLeafIndex, inputs.index);

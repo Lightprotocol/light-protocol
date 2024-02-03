@@ -176,7 +176,7 @@ export async function createSolanaInstructions({
       240 + UTXO_PREFIX_LENGTH * 2,
     );
   }
-  let inUtxoHashes: number[][] = [];
+  const inUtxoHashes: number[][] = [];
   instructionInputs.publicInputs?.publicInUtxoHash?.map((el) => {
     if (removeZeroUtxos && el.toString() === new Array(32).fill(0).toString()) {
     } else {

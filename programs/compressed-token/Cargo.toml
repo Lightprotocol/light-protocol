@@ -1,5 +1,5 @@
 [package]
-name = "psp-token-compression"
+name = "psp-compressed-token"
 version = "0.3.1"
 description = "Native PSP which can verify 2 inputs and 2 outputs without additional public inputs."
 license = "GPL-3.0"
@@ -7,7 +7,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "psp_token_compression"
+name = "psp_compressed_token"
 
 [features]
 no-entrypoint = []

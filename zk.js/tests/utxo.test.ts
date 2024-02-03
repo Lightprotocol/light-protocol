@@ -130,16 +130,16 @@ describe("Utxo Functional", () => {
     }
   });
   it("parsing for hash", async () => {
-    let zeroHash = lightWasm.poseidonHash(["0"]);
+    const zeroHash = lightWasm.poseidonHash(["0"]);
     console.log("zero hash: ", zeroHash);
-    let oneHash = lightWasm.poseidonHash(["1"]);
+    const oneHash = lightWasm.poseidonHash(["1"]);
     console.log("one hash: ", oneHash);
-    let oneBnHash = lightWasm.poseidonHash([new BN(1).toString()]);
+    const oneBnHash = lightWasm.poseidonHash([new BN(1).toString()]);
     console.log("one bn hash: ", oneBnHash);
   });
 
   it("Filling public utxo is consistent", async () => {
-    let fillingUtxo = createFillingOutUtxo({
+    const fillingUtxo = createFillingOutUtxo({
       lightWasm,
       publicKey: STANDARD_COMPRESSION_PUBLIC_KEY,
       isPublic: true,
@@ -191,7 +191,10 @@ describe("Utxo Functional", () => {
     assert.equal(outUtxo.assets[1].toBase58(), assetPubkey.toBase58());
     assert.equal(
       outUtxo.assetsCircuit[0].toString(),
-      hashAndTruncateToCircuit([SystemProgram.programId.toBytes()], lightWasm).toString(),
+      hashAndTruncateToCircuit(
+        [SystemProgram.programId.toBytes()],
+        lightWasm,
+      ).toString(),
     );
     assert.equal(
       outUtxo.assetsCircuit[1].toString(),
@@ -201,7 +204,7 @@ describe("Utxo Functional", () => {
     assert.equal(outUtxo.poolType.toString(), "0");
     assert.equal(
       outUtxo.utxoHash,
-      "17616393199387360834665924012652189736074827681842362183279563807978925296116",
+      "2544843658061717158156922815997928856082308524175481591473611870665777784472",
     );
     console.log("utxo hash: ", new BN(outUtxo.utxoHash).toArray("be", 32));
 
@@ -268,7 +271,10 @@ describe("Utxo Functional", () => {
     );
     assert.equal(
       decryptedUtxo.value?.assetsCircuit[0].toString(),
-      hashAndTruncateToCircuit([SystemProgram.programId.toBytes()], lightWasm).toString(),
+      hashAndTruncateToCircuit(
+        [SystemProgram.programId.toBytes()],
+        lightWasm,
+      ).toString(),
     );
     assert.equal(
       decryptedUtxo.value?.assetsCircuit[1].toString(),
@@ -279,7 +285,7 @@ describe("Utxo Functional", () => {
     assert.equal(decryptedUtxo.value?.utxoHash, outUtxo.utxoHash);
     assert.equal(
       decryptedUtxo.value?.nullifier,
-      "8680724017972717671969941133708196418881527598796387753861373148385948673953",
+      "10553008000889321107174664413512517396156948704869406505613611769377511828900",
     );
     assert.deepEqual(decryptedUtxo.value?.merkleProof, ["1", "2", "3"]);
     assert.equal(decryptedUtxo.value?.merkleTreeLeafIndex, inputs.index);

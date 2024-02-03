@@ -221,7 +221,7 @@ export function getUtxoHash(
   // console.log("poolType", new BN(poolType).toArray("be",32));
   // console.log("metaHash", new BN(metaHash).toArray("be",32));
   // console.log("address", new BN(address).toArray("be",32));
-  let hash = lightWasm.poseidonHashString([
+  const hash = lightWasm.poseidonHashString([
     transactionVersion,
     amountHash,
     publicKey.toString(),
