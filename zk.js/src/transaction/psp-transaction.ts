@@ -201,8 +201,8 @@ export type PublicTransactionVariables = {
 };
 
 export type PrivateTransactionVariables = {
-  inputUtxos: (Utxo | ProgramUtxo<any>)[];
-  outputUtxos: (OutUtxo | ProgramOutUtxo<any>)[];
+  inputUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
+  outputUtxos: (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[];
   assetPubkeys: PublicKey[];
   assetPubkeysCircuit: string[];
 };
@@ -728,11 +728,11 @@ export function getVerifierConfig(verifierIdl: Idl): VerifierConfig {
  * @note Therefore, we have to pass in empty inputs for values we don't use.
  */
 export function addFillingOutUtxos(
-  utxos: (OutUtxo | ProgramOutUtxo<any>)[] = [],
+  utxos: (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[] = [],
   len: number,
   lightWasm: LightWasm,
   owner: BN,
-): (OutUtxo | ProgramOutUtxo<any>)[] {
+): (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[] {
   while (utxos.length < len) {
     utxos.push(
       createFillingOutUtxo({
@@ -745,11 +745,11 @@ export function addFillingOutUtxos(
 }
 
 export function addFillingUtxos(
-  utxos: (Utxo | ProgramUtxo<any>)[] = [],
+  utxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[] = [],
   len: number,
   lightWasm: LightWasm,
   account: Account,
-): (Utxo | ProgramUtxo<any>)[] {
+): (Utxo | ProgramUtxo<PlaceHolderTData>)[] {
   while (utxos.length < len) {
     utxos.push(
       createFillingUtxo({
@@ -863,8 +863,8 @@ export function getEscrowPda(verifierProgramId: PublicKey): PublicKey {
 
 // pspTransaction
 export function getAssetPubkeys(
-  inputUtxos?: (Utxo | ProgramUtxo<any>)[],
-  outputUtxos?: (OutUtxo | ProgramOutUtxo<any>)[],
+  inputUtxos?: (Utxo | ProgramUtxo<PlaceHolderTData>)[],
+  outputUtxos?: (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[],
 ): { assetPubkeysCircuit: string[]; assetPubkeys: PublicKey[] } {
   const assetPubkeysCircuit: string[] = [
     hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
@@ -873,7 +873,12 @@ export function getAssetPubkeys(
   const assetPubkeys: PublicKey[] = [SystemProgram.programId];
 
   const processUtxos = (
-    utxos: (Utxo | ProgramUtxo<any> | OutUtxo | ProgramOutUtxo<any>)[],
+    utxos: (
+      | Utxo
+      | ProgramUtxo<PlaceHolderTData>
+      | OutUtxo
+      | ProgramOutUtxo<PlaceHolderTData>
+    )[],
   ) => {
     utxos.map((utxo) => {
       const splAssetCircuit = stringifyAssetsToCircuitInput(
@@ -938,14 +943,14 @@ export function getAssetPubkeys(
 // pspTransaction
 export function getExternalAmount(
   assetIndex: number,
-  inputUtxos: (Utxo | ProgramUtxo<any>)[],
-  outputUtxos: (OutUtxo | ProgramOutUtxo<any>)[],
+  inputUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[],
+  outputUtxos: (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[],
   assetPubkeysCircuit: string[],
 ): BN {
   return new BN(0)
     .add(
       outputUtxos
-        .filter((utxo: OutUtxo | ProgramOutUtxo<any>) => {
+        .filter((utxo: OutUtxo | ProgramOutUtxo<PlaceHolderTData>) => {
           const assetCircuitInput = stringifyAssetsToCircuitInput(utxo.assets)[
             assetIndex
           ].toString();
@@ -1056,7 +1061,7 @@ export function getTxIntegrityHash(
 /** Encrypts a batch of output utxos */
 export async function encryptOutUtxos(
   account: Account,
-  outputUtxos: (OutUtxo | ProgramOutUtxo<any>)[],
+  outputUtxos: (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[],
   transactionMerkleTree: PublicKey,
   verifierConfig: VerifierConfig,
   assetLookupTable: string[],
@@ -1123,8 +1128,8 @@ export function getTransactionHash(
 }
 // add createCompressSolanaTransaction
 export async function createCompressTransaction<
-  T extends Utxo | ProgramUtxo<any>,
-  TOut extends OutUtxo | ProgramOutUtxo<any>,
+  T extends Utxo | ProgramUtxo<PlaceHolderTData>,
+  TOut extends OutUtxo | ProgramOutUtxo<PlaceHolderTData>,
 >({
   mint,
   message,
@@ -1249,8 +1254,8 @@ export function createPrivateTransactionVariables({
   account,
   verifierConfig,
 }: {
-  inputUtxos?: (Utxo | ProgramUtxo<any>)[];
-  outputUtxos?: (OutUtxo | ProgramOutUtxo<any>)[];
+  inputUtxos?: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
+  outputUtxos?: (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[];
   lightWasm: LightWasm;
   account: Account;
   verifierConfig: VerifierConfig;

@@ -128,24 +128,12 @@ describe("Streaming Payments tests", () => {
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await lightUser.syncStorage(IDL);
     const compressedUtxoCommitmentHash = testInputsCompress.utxo.hash;
-    console.log(
-      "compressedUtxoCommitmentHash: ",
-      compressedUtxoCommitmentHash,
-      "\n as string:",
-      compressedUtxoCommitmentHash.toString()
-    );
 
-    console.log(
-      "programUtxoBalance get:: ",
-      programUtxoBalance
-        .get(verifierProgramId.toBase58())
-        .tokenBalances.get(testInputsCompress.utxo.assets[0].toBase58())
-    );
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())
       .tokenBalances.get(testInputsCompress.utxo.assets[0].toBase58())
       .utxos.get(compressedUtxoCommitmentHash.toString());
-    console.log("inputUtxo", inputUtxo);
+
     compareOutUtxos(inputUtxo!, testInputsCompress.utxo);
     const circuitPath = path.join(
       "build-circuit/streaming-payments/streamingPayments"
