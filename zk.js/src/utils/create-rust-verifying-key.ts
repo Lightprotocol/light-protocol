@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 import { camelToScreamingSnake } from "./convert-case";
-import {snakeCase} from "case-anything"
+import { snakeCase } from "case-anything";
 const ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const fs = require("fs");
@@ -322,16 +322,21 @@ export async function createVerifyingkeyRsFileArgv() {
   } else if (nrInputs == "4" && prefix == "private") {
     program = "psp4in4out-app-storage";
   } else if (nrInputs == "2" && prefix == "public") {
-    program = "psp-token-compression";
+    program = "token-compression";
     fileName = "public-psp2in2out";
   } else if (nrInputs == "10" && prefix == "public") {
-    program = "psp-token-compression";
+    program = "token-compression";
     fileName = "public-psp10in2out";
   } else {
     throw new Error("invalid nr of inputs");
   }
   const vKeyJsonPath = "./verification_key_mainnet" + nrInputs + ".json";
-  const vKeyRsPath = "../../programs/" + program + "/src/verifying_key" + snakeCase(fileName) + ".rs";
+  const vKeyRsPath =
+    "../../programs/" +
+    program +
+    "/src/verifying_key" +
+    snakeCase(fileName) +
+    ".rs";
   const circuitName =
     prefix +
     programSuffix +

@@ -414,7 +414,7 @@ export function createProgramUtxo({
   createUtxoInputs["owner"] = pspId;
   createUtxoInputs["utxoData"] = utxoDataInternal;
   createUtxoInputs["utxoName"] = utxoName;
-  const utxo = createUtxo(lightWasm, createUtxoInputs , false, account);
+  const utxo = createUtxo(lightWasm, createUtxoInputs, false, account);
   const programOutUtxo: ProgramUtxo = {
     utxo,
     pspId,

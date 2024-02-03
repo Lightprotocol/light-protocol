@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_merkle_tree_program::program::LightMerkleTreeProgram;
-use light_merkle_tree_program::state::TransactionMerkleTree;
+use light_merkle_tree_program::state_merkle_tree_from_bytes;
 use light_verifier_sdk::public_transaction::PublicTransactionEvent;
 use light_verifier_sdk::utxo::Utxo;
+use psp_account_compression::ConcurrentMerkleTreeAccount;
 
 pub fn process_create_mint<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, CreateMintInstruction<'info>>,
@@ -103,6 +104,7 @@ pub fn process_mint_to<'info>(
     }
 
     let merkle_tree_account = ctx.accounts.merkle_tree_set.load_mut()?;
+    let merkle_tree = state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
 
     let mut utxos = Vec::with_capacity(compression_public_keys.len());
     let mut utxo_indexes: Vec<u64> = Vec::with_capacity(compression_public_keys.len());
@@ -121,10 +123,10 @@ pub fn process_mint_to<'info>(
         };
         utxo.update_blinding(
             ctx.accounts.merkle_tree_set.key(),
-            (merkle_tree_account.merkle_tree.next_index + i as u64) as usize,
+            (merkle_tree.next_index + i as u64) as usize,
         )
         .unwrap();
-        utxo_indexes.push(merkle_tree_account.merkle_tree.next_index + i as u64);
+        utxo_indexes.push(merkle_tree.next_index + i as u64);
         utxos.push(utxo);
     }
     drop(merkle_tree_account);
@@ -187,16 +189,26 @@ fn cpi_merkle_tree<'a, 'b, 'c, 'info>(
     ctx: &'a Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     utxo_hashes: Vec<[u8; 32]>,
 ) -> Result<()> {
-    light_verifier_sdk::cpi_instructions::insert_two_leaves_cpi(
+    let mut merkle_tree_accounts = Vec::new();
+    for _ in 0..utxo_hashes.len() {
+        merkle_tree_accounts.push(ctx.accounts.merkle_tree_set.to_account_info().clone());
+    }
+    light_verifier_sdk::cpi_instructions::insert_two_leaves_parallel_cpi(
         &ctx.program_id,
-        &ctx.accounts.merkle_tree_program.to_account_info().clone(),
-        &ctx.accounts.merkle_tree_authority.to_account_info().clone(),
-        &ctx.accounts.merkle_tree_set.to_account_info().clone(),
+        &ctx.accounts
+            .psp_account_compression
+            .to_account_info()
+            .clone(),
+        &ctx.accounts
+            .psp_account_compression_authority
+            .to_account_info()
+            .clone(),
         &ctx.accounts
             .registered_verifier_pda
             .to_account_info()
             .clone(),
         utxo_hashes,
+        merkle_tree_accounts,
     )?;
     Ok(())
 }
@@ -216,7 +228,7 @@ pub fn mint_spl_to_merkle_tree<'a, 'b, 'c, 'info>(
         authority_bytes.as_slice(),
         mint_bytes.as_slice(),
     ];
-    let (address, bump) =
+    let (_, bump) =
         anchor_lang::prelude::Pubkey::find_program_address(seeds.as_slice(), ctx.program_id);
     let bump = &[bump];
     let seeds = [
@@ -225,8 +237,6 @@ pub fn mint_spl_to_merkle_tree<'a, 'b, 'c, 'info>(
         mint_bytes.as_slice(),
         bump,
     ];
-    msg!("address: {:?}", address);
-    msg!("seeds: {:?}", seeds);
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = anchor_spl::token::MintTo {
         authority: ctx.accounts.authority_pda.to_account_info(),
@@ -266,10 +276,14 @@ pub struct MintToInstruction<'info> {
     /// CHECK this account
     #[account(mut)]
     pub merkle_tree_pda_token: Account<'info, TokenAccount>,
-    // TODO: replace with Merkle tree set
     #[account(mut)]
-    pub merkle_tree_set: AccountLoader<'info, TransactionMerkleTree>,
+    pub merkle_tree_set: AccountLoader<'info, ConcurrentMerkleTreeAccount>,
     /// CHECK this account
     pub noop_program: UncheckedAccount<'info>,
     pub merkle_tree_program: Program<'info, LightMerkleTreeProgram>,
+    pub psp_account_compression:
+        Program<'info, psp_account_compression::program::PspAccountCompression>,
+    /// CHECK this account in psp account compression program
+    #[account(mut)]
+    pub psp_account_compression_authority: UncheckedAccount<'info>,
 }

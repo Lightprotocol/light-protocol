@@ -258,7 +258,6 @@ where
         value: B,
     ) -> Result<IndexingElementBundle<B>, HasherError> {
         let old_low_element = &self.elements[usize::from(low_element_index)];
-
         // Check that the `value` belongs to the range of `old_low_element`.
         if old_low_element.next_index == 0 {
             // In this case, the `old_low_element` is the greatest element.
@@ -457,10 +456,10 @@ mod test {
         // ```
         let mut indexing_array: IndexingArray<Poseidon, BigInteger256, 8> =
             IndexingArray::default();
-
+        println!("indexing_array: {:?}", indexing_array.elements[0]);
         let nullifier1 = BigInteger256::from(30_u32);
         indexing_array.append(nullifier1).unwrap();
-
+        panic!();
         // After adding a new value 30, it should look like:
         //
         // ```

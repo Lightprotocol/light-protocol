@@ -7,6 +7,8 @@ use ark_serialize::CanonicalDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexingArray;
 
+use crate::RegisteredProgram;
+
 #[derive(Accounts)]
 pub struct InsertIntoIndexedArrays<'info> {
     /// CHECK:` Signer is owned by registered verifier program.
@@ -14,7 +16,7 @@ pub struct InsertIntoIndexedArrays<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     // #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump )]
-    // pub registered_verifier_pda: Account<'info, RegisteredVerifier>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
+    pub registered_verifier_pda: Option<Account<'info, RegisteredProgram>>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
 }
 
 /// Inserts every element into the indexed array.
@@ -26,9 +28,19 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c, 'info>(
     low_element_indexes: &'a [u16],
 ) -> Result<()> {
     if low_element_indexes.len() != elements.len() {
+        msg!(
+            "Number of low  does not match number elements {} != {}",
+            low_element_indexes.len(),
+            elements.len()
+        );
         return err!(crate::errors::ErrorCode::NumberOfLeavesMismatch);
     }
     if elements.len() != ctx.remaining_accounts.len() {
+        msg!(
+            "Number of elements does not match number of indexed arrays accounts {} != {}",
+            elements.len(),
+            ctx.remaining_accounts.len()
+        );
         return err!(crate::errors::ErrorCode::NumberOfLeavesMismatch);
     }
     // for every index
@@ -52,10 +64,12 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c, 'info>(
         let array = AccountLoader::<IndexedArrayAccount>::try_from(mt).unwrap();
         let mut array_account = array.load_mut()?;
         let array = indexed_array_from_bytes_mut(&mut array_account.indexed_array);
-        for (element, index) in elements.iter().zip(low_element_indexes) {
+        for (element, _index) in elements.iter().zip(low_element_indexes) {
+            msg!("Inserting element {:?} into indexed array", element);
+
             array
-                .append_with_low_element_index(
-                    *index,
+                .append(
+                    // *index, TODO: enable index once we have rpc to get the low elements from indexer and a correction function inside the append function the index should just be a starting point
                     BigInteger256::deserialize_uncompressed_unchecked(element.as_slice()).unwrap(),
                 )
                 .unwrap();
@@ -76,9 +90,7 @@ pub fn process_initialize_indexed_array<'a, 'info>(
     indexed_array_account.index = index;
     indexed_array_account.owner = owner;
     indexed_array_account.delegate = delegate.unwrap_or(owner);
-    // let boxed = Box::new(IndexingArray::<Poseidon, BigInteger256, 2800>::default());
-    // initialize_default_indexed_array(&mut indexed_array_account.indexed_array);
-
+    // Explicitly initializing the indexed array is not necessary as defautl values are all zero.
     Ok(())
 }
 

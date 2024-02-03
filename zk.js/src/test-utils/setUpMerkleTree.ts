@@ -19,7 +19,7 @@ import {
   lightPsp2in2outStorageId,
   getSignerAuthorityPda,
 } from "../index";
-import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
+import { MerkleTreeConfig } from "../merkle-tree/merkle-tree-config";
 
 export async function setUpMerkleTree(
   provider: anchor.AnchorProvider,
@@ -48,7 +48,8 @@ export async function setUpMerkleTree(
 
   if (
     (await provider.connection.getAccountInfo(
-      (await merkleTreeConfig.savePoolTypePda(Uint8Array.from(POOL_TYPE))).poolPda,
+      (await merkleTreeConfig.savePoolTypePda(Uint8Array.from(POOL_TYPE)))
+        .poolPda,
     )) == null
   ) {
     await merkleTreeConfig.registerPoolType(POOL_TYPE);
@@ -58,7 +59,8 @@ export async function setUpMerkleTree(
 
   if (
     (await provider.connection.getAccountInfo(
-      (await merkleTreeConfig.saveSplPoolPda(MINT, Uint8Array.from(POOL_TYPE))).pda,
+      (await merkleTreeConfig.saveSplPoolPda(MINT, Uint8Array.from(POOL_TYPE)))
+        .pda,
     )) == null
   ) {
     await merkleTreeConfig.registerSplPool(Uint8Array.from(POOL_TYPE), MINT);

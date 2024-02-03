@@ -55,6 +55,25 @@ pub fn process_2in2out_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         InstructionDataTransfer2In2Out::try_deserialize_unchecked(
             &mut [vec![0u8; 8], inputs].concat().as_slice(),
         )?;
+    msg!("in_utxo_hashes {:?}", inputs.in_utxo_hashes);
+    // TODO: refactor into generic function to reuse for input validation in 8in2out
+    if inputs.low_element_indexes.len() > 2
+        && inputs.low_element_indexes.len() != inputs.in_utxo_hashes.len()
+    {
+        msg!("number of low element indexes invalid {} > 2 or not equal to number of in utxo hashes {} != {}", inputs.low_element_indexes.len(),inputs.low_element_indexes.len(),  inputs.in_utxo_hashes.len());
+        panic!();
+    }
+    if inputs.out_utxo.len() > 2 {
+        msg!("number of out_utxo invalid {} > 2", inputs.out_utxo.len());
+        panic!();
+    }
+    if inputs.in_utxo_hashes.len() > 2 {
+        msg!(
+            "number of in_utxo_hashes invalid {} > 2",
+            inputs.in_utxo_hashes.len()
+        );
+        panic!();
+    }
 
     let proof = ProofCompressed {
         a: inputs.proof_a,
@@ -82,18 +101,16 @@ pub fn process_2in2out_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         sol: inputs.public_amount_sol,
         spl: inputs.public_amount_spl,
     };
-    let mut in_utxo_hashes = [[0u8; 32]; 2];
-    for i in 0..2 {
-        if inputs.in_utxo_hashes[i].is_some() {
-            in_utxo_hashes[i] = inputs.in_utxo_hashes[i].unwrap_or([0u8; 32]);
-        }
-    }
+    // let mut low_element_indexes = [0u16; 2];
+    // for (i, index) in inputs.low_element_indexes.iter().enumerate() {
+    //     low_element_indexes[i] = *index;
+    // }
     let input = PublicTransactionInput {
         ctx: &ctx,
         message: None,
         proof: &proof,
         public_amount: Some(&public_amount),
-        in_utxo_hashes: &in_utxo_hashes,
+        in_utxo_hashes: &inputs.in_utxo_hashes,
         in_utxo_data_hashes: [None, None],
         out_utxos: out_utxos.clone(),
         merkle_root_indexes,
@@ -103,6 +120,7 @@ pub fn process_2in2out_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         program_id: None,
         new_addresses: &[None, None],
         transaction_hash: None,
+        low_element_indexes: &inputs.low_element_indexes,
     };
     let mut transaction = PublicTransaction::<
         0,
@@ -167,22 +185,14 @@ pub fn process_8in2out_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         sol: inputs.public_amount_sol,
         spl: inputs.public_amount_spl,
     };
-    let mut in_utxo_hashes = [[0u8; 32]; 8];
-    let in_utxo_data_hashes = [None; 8];
-    for i in 0..8 {
-        if i < inputs.in_utxo_hashes.len() && inputs.in_utxo_hashes[i].is_some() {
-            in_utxo_hashes[i] = inputs.in_utxo_hashes[i].unwrap_or([0u8; 32]);
-        } else {
-            in_utxo_hashes[i] = [0u8; 32];
-        }
-    }
+
     let input = PublicTransactionInput::<0, 2, 8, TransferInstruction<'info>> {
         ctx: &ctx,
         message: None,
         proof: &proof,
         public_amount: Some(&public_amount),
-        in_utxo_hashes: &in_utxo_hashes,
-        in_utxo_data_hashes: in_utxo_data_hashes.try_into().unwrap(),
+        in_utxo_hashes: &inputs.in_utxo_hashes,
+        in_utxo_data_hashes: [None; 8],
         out_utxos: out_utxos.clone(),
         merkle_root_indexes: [0usize; 8],
         rpc_fee: inputs.rpc_fee,
@@ -191,6 +201,7 @@ pub fn process_8in2out_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         program_id: None,
         new_addresses: &[None, None],
         transaction_hash: None,
+        low_element_indexes: &inputs.low_element_indexes,
     };
     let mut transaction = PublicTransaction::<
         0,
@@ -223,6 +234,7 @@ pub fn process_8in2out_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     transaction.transact()?;
     Ok(())
 }
+
 #[light_public_transaction()]
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {}
@@ -234,7 +246,8 @@ pub struct InstructionDataTransfer2In2Out {
     proof_b: [u8; 64],
     proof_c: [u8; 32],
     public_amount_spl: Option<[u8; 32]>,
-    in_utxo_hashes: [Option<[u8; 32]>; 2],
+    in_utxo_hashes: Vec<[u8; 32]>,
+    low_element_indexes: Vec<u16>, // currently not used just a placeholder value
     public_amount_sol: Option<[u8; 32]>,
     root_indexes: [Option<u64>; 2],
     rpc_fee: Option<u64>,
@@ -248,13 +261,15 @@ pub struct InstructionDataTransfer8In2Out {
     proof_b: [u8; 64],
     proof_c: [u8; 32],
     public_amount_spl: Option<[u8; 32]>,
-    in_utxo_hashes: [Option<[u8; 32]>; 8],
+    in_utxo_hashes: Vec<[u8; 32]>,
+    low_element_indexes: Vec<u16>, // currently not used just a placeholder value
     public_amount_sol: Option<[u8; 32]>,
     root_indexes: [Option<u64>; 8],
     rpc_fee: Option<u64>,
     out_utxo: [Option<Vec<u8>>; 2],
 }
 
+/*
 #[cfg(test)]
 mod test {
 
@@ -671,3 +686,4 @@ mod test {
         )
     }
 }
+*/

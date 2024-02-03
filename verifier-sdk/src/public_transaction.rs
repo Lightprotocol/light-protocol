@@ -5,7 +5,7 @@ use crate::light_transaction::custom_heap;
 use crate::{
     accounts::LightPublicAccounts,
     cpi_instructions::{
-        decompress_sol_cpi, decompress_spl_cpi, insert_nullifiers_cpi,
+        decompress_sol_cpi, decompress_spl_cpi, insert_public_nullifier_into_indexed_array_cpi,
         insert_two_leaves_parallel_cpi, invoke_indexer_transaction_event,
     },
     errors::VerifierSdkError,
@@ -33,14 +33,13 @@ use groth16_solana::{
 use light_macros::heap_neutral;
 use light_merkle_tree_program::{
     program::LightMerkleTreeProgram,
-    state::TransactionMerkleTree,
     utils::{
         accounts::create_and_check_pda,
         constants::{POOL_CONFIG_SEED, POOL_SEED},
     },
 };
 use light_utils::{change_endianness, truncate_to_circuit};
-use num_bigint::BigUint;
+use psp_account_compression::{state::ConcurrentMerkleTreeAccount, state_merkle_tree_from_bytes};
 
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 
@@ -122,7 +121,7 @@ where
             //     .sol
             //     .unwrap_or([0u8; 32]),
             // mint_pubkey: input.mint_pubkey,
-            in_utxo_hashes: *input.input.in_utxo_hashes,
+            in_utxo_hashes: input.in_utxo_hashes_proof,
             out_utxo_hashes: input.out_utxo_hashes_proof,
             // checked_public_inputs: *input.checked_public_inputs,
             // in_utxo_data_hashes: input
@@ -204,7 +203,7 @@ where
                 .sol
                 .unwrap_or([0u8; 32]),
             mint_pubkey: input.mint_pubkey,
-            in_utxo_hashes: *input.input.in_utxo_hashes,
+            in_utxo_hashes: input.in_utxo_hashes_proof,
             out_utxo_hashes_proof: input.out_utxo_hashes_proof,
             // checked_public_inputs: *input.checked_public_inputs,
             in_utxo_data_hashes: input
@@ -241,6 +240,7 @@ pub struct PublicTransaction<
     pub out_utxo_hashes: Vec<[u8; 32]>,
     pub out_utxo_index: Vec<u64>,
     pub out_utxo_hashes_proof: [[u8; 32]; NR_OUT_UTXOS],
+    pub in_utxo_hashes_proof: [[u8; 32]; NR_IN_UTXOS],
     _p: PhantomData<P>,
 }
 
@@ -252,6 +252,11 @@ pub struct Amounts {
 
 // TODO: add functions from TransferUtxo to PublicTransactionInput with auto padding for in utxo hashes, out utxo hashes, new_addresses, in_data_hashes
 
+// Remaining accounts layout:
+// all remainging accounts need to be set regardless whether less utxos are actually used
+// 0..NR_IN_Utxos: in utxos
+// NR_IN_Utxos..NR_IN_Utxos+NR_IN_Utxos: indexed arrays to nullify in utxos
+// NR_IN_Utxos+NR_IN_Utxos..NR_IN_Utxos+NR_IN_Utxos+NR_OUT_Utxos: out utxos
 #[derive(Clone)]
 pub struct PublicTransactionInput<
     'a,
@@ -269,8 +274,9 @@ pub struct PublicTransactionInput<
     pub message: Option<&'a Vec<u8>>,
     pub transaction_hash: Option<&'a [u8; 32]>,
     pub program_id: Option<&'a Pubkey>,
-    pub in_utxo_hashes: &'a [[u8; 32]; NR_IN_UTXOS],
+    pub in_utxo_hashes: &'a Vec<[u8; 32]>,
     pub in_utxo_data_hashes: [Option<[u8; 32]>; NR_IN_UTXOS],
+    pub low_element_indexes: &'a Vec<u16>,
     // using a vector on purpose since Utxos can be large and could lead to stack frame issues
     pub out_utxos: Vec<Utxo>,
     pub new_addresses: &'a [Option<[u8; 32]>; NR_OUT_UTXOS],
@@ -404,6 +410,7 @@ where
             mint_pubkey: [0u8; 32],
             out_utxo_hashes: Vec::new(),
             out_utxo_index: Vec::new(),
+            in_utxo_hashes_proof: [[0u8; 32]; NR_IN_UTXOS],
             out_utxo_hashes_proof: [DEFAULT_UTXO_HASH; NR_OUT_UTXOS],
             _p: PhantomData,
         }
@@ -413,6 +420,7 @@ where
     /// verifies the zero knowledge proof, inserts out_utxo_hashes, inserts in_utxo_hashes, transfers funds and fees.
     #[inline(never)]
     pub fn transact(&mut self) -> Result<()> {
+        self.fill_in_utxo_hashes_proof();
         self.hash_out_utxos_and_fetch_out_utxo_index()?;
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("hash_out_utxos_and_fetch_out_utxo_index");
@@ -435,16 +443,24 @@ where
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("check_remaining_accounts");
         self.insert_out_utxos_into_merkle_tree()?;
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        custom_heap::log_total_heap("insert_out_utxos_into_merkle_tree");
+        self.nullify_in_utxos()?;
         // #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
-        // custom_heap::log_total_heap("insert_out_utxos_into_merkle_tree");
-        // self.insert_nullifiers()?;
-        // #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
-        // custom_heap::log_total_heap("insert_nullifiers");
+        // custom_heap::log_total_heap("nullify_in_utxos");
         // self.transfer_user_funds()?;
         // #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         // custom_heap::log_total_heap("transfer_user_funds");
         // self.transfer_fee()?;
         Ok(())
+    }
+
+    #[inline(never)]
+    pub fn fill_in_utxo_hashes_proof(&mut self) {
+        msg!("in_utxo_hashes: {:?}", self.input.in_utxo_hashes);
+        for (i, hash) in self.input.in_utxo_hashes.iter().enumerate() {
+            self.in_utxo_hashes_proof[i] = *hash;
+        }
     }
 
     #[heap_neutral]
@@ -504,20 +520,22 @@ where
             self.out_utxo_hashes_proof[i] = utxo.hash()?;
 
             let index = merkle_tree_indexes
-                .get_mut(&self.input.ctx.remaining_accounts[i + NR_IN_UTXOS].key());
+                .get_mut(&self.input.ctx.remaining_accounts[i + NR_IN_UTXOS * 2].key());
             match index {
                 Some(index) => {
                     self.out_utxo_index.push(index.clone() as u64);
                 }
                 None => {
-                    let merkle_tree = AccountLoader::<TransactionMerkleTree>::try_from(
-                        &self.input.ctx.remaining_accounts[i + NR_IN_UTXOS].to_account_info(),
+                    let merkle_tree = AccountLoader::<ConcurrentMerkleTreeAccount>::try_from(
+                        &self.input.ctx.remaining_accounts[i + NR_IN_UTXOS * 2].to_account_info(),
                     )
                     .unwrap();
-                    let merkle_tree = merkle_tree.load()?;
-                    let index = merkle_tree.merkle_tree.next_index as usize;
+                    let merkle_tree_account = merkle_tree.load()?;
+                    let merkle_tree =
+                        state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
+                    let index = merkle_tree.next_index as usize;
                     merkle_tree_indexes.insert(
-                        self.input.ctx.remaining_accounts[i + NR_IN_UTXOS].key(),
+                        self.input.ctx.remaining_accounts[i + NR_IN_UTXOS * 2].key(),
                         index,
                     );
 
@@ -525,7 +543,7 @@ where
                 }
             }
             utxo.update_blinding(
-                self.input.ctx.remaining_accounts[i + NR_IN_UTXOS].key(),
+                self.input.ctx.remaining_accounts[i + NR_IN_UTXOS * 2].key(),
                 self.out_utxo_index[i] as usize,
             )
             .unwrap();
@@ -547,31 +565,7 @@ where
         // TODO: we should autogenerate this if we go for more rust sdk
 
         let public_inputs_struct = P::from_transaction(self);
-        //  {
-        //     state_merkle_roots: self.state_merkle_roots,
-        //     public_amount_spl: self
-        //         .input
-        //         .public_amount
-        //         .unwrap_or(&Amounts::default())
-        //         .spl
-        //         .unwrap_or([0u8; 32]),
-        //     tx_integrity_hash: self.tx_integrity_hash,
-        //     public_amount_sol: self
-        //         .input
-        //         .public_amount
-        //         .unwrap_or(&Amounts::default())
-        //         .sol
-        //         .unwrap_or([0u8; 32]),
-        //     mint_pubkey: self.mint_pubkey,
-        //     in_utxo_hashes: *self.input.in_utxo_hashes,
-        //     out_utxo_hashes: self.out_utxo_hashes,
-        //     // checked_public_inputs: *self.checked_public_inputs,
-        //     in_utxo_data_hashes: self
-        //         .input
-        //         .in_utxo_data_hashes
-        //         .map(|x| x.unwrap_or([0u8; 32])),
-        //     new_adresses: self.input.new_addresses.map(|x| x.unwrap_or([0u8; 32])),
-        // };
+        // TODO: return a public inputs array from_transaction
         let public_inputs: Vec<[u8; 32]> = public_inputs_struct
             .try_to_vec()?
             .chunks(32)
@@ -665,13 +659,14 @@ where
     /// Fetches the root according to an index from the passed-in Merkle tree.
     pub fn fetch_state_merkle_tree_roots(&mut self) -> Result<()> {
         for i in 0..NR_IN_UTXOS {
-            let merkle_tree = AccountLoader::<TransactionMerkleTree>::try_from(
+            let merkle_tree = AccountLoader::<ConcurrentMerkleTreeAccount>::try_from(
                 &self.input.ctx.remaining_accounts[i].to_account_info(),
             )
             .unwrap();
-            let merkle_tree = merkle_tree.load()?;
-            self.state_merkle_roots[i] =
-                merkle_tree.merkle_tree.roots[merkle_tree.merkle_tree.current_root_index as usize];
+            let merkle_tree_account = merkle_tree.load()?;
+            let merkle_tree = state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
+
+            self.state_merkle_roots[i] = merkle_tree.roots[merkle_tree.current_root_index as usize];
         }
         Ok(())
     }
@@ -754,9 +749,14 @@ where
                 .input
                 .ctx
                 .accounts
-                .get_program_merkle_tree()
+                .get_psp_account_compression()
                 .to_account_info(),
-            &self.input.ctx.accounts.get_authority().to_account_info(),
+            &self
+                .input
+                .ctx
+                .accounts
+                .get_account_compression_authority()
+                .to_account_info(),
             &self
                 .input
                 .ctx
@@ -765,32 +765,32 @@ where
                 .to_account_info(),
             // TODO: remove vector or instantiate once for the whole struct
             // switch to out utxo hashes assoon as we can insert signle hashes
-            self.out_utxo_hashes_proof.to_vec(),
-            self.input.ctx.remaining_accounts[NR_IN_UTXOS..NR_IN_UTXOS + NR_OUT_UTXOS].to_vec(),
+            self.out_utxo_hashes.to_vec(),
+            self.input.ctx.remaining_accounts
+                [NR_IN_UTXOS * 2..NR_IN_UTXOS * 2 + self.out_utxo_hashes.len()]
+                .to_vec(),
         )?;
         Ok(())
     }
 
-    /// Calls merkle tree via cpi to insert in_utxo_hashes.
+    /// Calls account compression program via cpi to nullify in_utxo_hashes.
     #[heap_neutral]
     #[inline(never)]
-    pub fn insert_nullifiers(&self) -> Result<()> {
-        insert_nullifiers_cpi(
+    pub fn nullify_in_utxos(&self) -> Result<()> {
+        insert_public_nullifier_into_indexed_array_cpi(
             self.input.ctx.program_id,
             &self
                 .input
                 .ctx
                 .accounts
-                .get_program_merkle_tree()
+                .get_psp_account_compression()
                 .to_account_info(),
-            &self.input.ctx.accounts.get_authority().to_account_info(),
             &self
                 .input
                 .ctx
                 .accounts
-                .get_system_program()
-                .to_account_info()
-                .clone(),
+                .get_account_compression_authority()
+                .to_account_info(),
             &self
                 .input
                 .ctx
@@ -798,7 +798,10 @@ where
                 .get_registered_verifier_pda()
                 .to_account_info(),
             self.input.in_utxo_hashes.to_vec(),
-            self.input.ctx.remaining_accounts.to_vec(),
+            self.input.low_element_indexes.to_vec(),
+            self.input.ctx.remaining_accounts
+                [NR_IN_UTXOS..NR_IN_UTXOS + self.input.in_utxo_hashes.len()]
+                .to_vec(),
         )?;
         Ok(())
     }

@@ -104,6 +104,7 @@ export async function createSolanaInstructions({
   instructionNamePrefix,
   instructionName,
   customInputs,
+  removeZeroUtxos,
 }: {
   action: Action;
   rootIndex: number;
@@ -118,6 +119,7 @@ export async function createSolanaInstructions({
   instructionNamePrefix?: string;
   instructionName?: string;
   customInputs?: any;
+  removeZeroUtxos?: boolean;
 }): Promise<TransactionInstruction[]> {
   let proofBytesApp = {};
   let publicInputsApp = undefined;
@@ -174,17 +176,27 @@ export async function createSolanaInstructions({
       240 + UTXO_PREFIX_LENGTH * 2,
     );
   }
+  let inUtxoHashes: number[][] = [];
+  instructionInputs.publicInputs?.publicInUtxoHash?.map((el) => {
+    if (removeZeroUtxos && el.toString() === new Array(32).fill(0).toString()) {
+    } else {
+      inUtxoHashes.push(el);
+    }
+  });
   let inputObject = {
     ...instructionInputs.customInputs,
     message: instructionInputs.message,
     ...instructionInputs.proofBytes,
     ...instructionInputs.publicInputs,
     rootIndex: new BN(instructionInputs.rootIndex!),
-    rootIndexes: instructionInputs.publicInputs?.publicInUtxoHash?.map(()=> new BN(instructionInputs.rootIndex!)),
+    rootIndexes: instructionInputs.publicInputs?.publicInUtxoHash?.map(
+      () => new BN(instructionInputs.rootIndex!),
+    ),
     rpcFee: publicTransactionVariables.rpcFee,
     encryptedUtxos: Buffer.from(instructionInputs.encryptedUtxos!),
-    inUtxoHashes: instructionInputs.publicInputs?.publicInUtxoHash?.map((el) => el),
+    inUtxoHashes,
   };
+  console.log("inUtxoHashes: ", inputObject.inUtxoHashes);
   if (pspTransactionInput) {
     inputObject = {
       ...inputObject,
@@ -222,7 +234,10 @@ export async function createSolanaInstructions({
     instructions.push(ix);
   }
 
-  const instructionNames = instructionName !== undefined ? [instructionName] : getInstructionNamesByPrefix(invokingProgramIdl, instructionNamePrefix); //getOrderedInstructionNames(invokingProgramIdl);
+  const instructionNames =
+    instructionName !== undefined
+      ? [instructionName]
+      : getInstructionNamesByPrefix(invokingProgramIdl, instructionNamePrefix); //getOrderedInstructionNames(invokingProgramIdl);
   for (let i = 0; i < instructionNames.length; i++) {
     const instruction = instructionNames[i];
     const coder = new BorshAccountsCoder(invokingProgramIdl);
@@ -256,7 +271,7 @@ export async function createSolanaInstructions({
       method.remainingAccounts(remainingAccounts);
     }
     if (i === instructionNames.length - 1 && instructionName) {
-      method.remainingAccounts(remainingSolanaAccounts  as any);
+      method.remainingAccounts(remainingSolanaAccounts as any);
     }
 
     const ix = await method.instruction();
@@ -296,7 +311,7 @@ export async function sendAndConfirmCompressTransaction({
     pspTransactionInput,
     systemProof,
     rootIndex,
-    instructionNamePrefix
+    instructionNamePrefix,
   } = solanaTransactionInputs;
 
   const remainingSolanaAccounts = getSolanaRemainingAccounts(
@@ -319,7 +334,7 @@ export async function sendAndConfirmCompressTransaction({
     pspTransactionInput,
     pspProof,
     publicTransactionVariables,
-    instructionNamePrefix
+    instructionNamePrefix,
   });
 
   const txHash = await provider.sendAndConfirmSolanaInstructions(instructions);
@@ -485,10 +500,15 @@ export function getSignerAuthorityPda(
   merkleTreeProgramId: PublicKey,
   verifierProgramId: PublicKey,
 ) {
-  console.log("getSignerAuthorityPda seeds: ", merkleTreeProgramId.toBytes(), verifierProgramId.toBytes(), PublicKey.findProgramAddressSync(
-    [merkleTreeProgramId.toBytes()],
-    verifierProgramId,
-  )[1]);
+  console.log(
+    "getSignerAuthorityPda seeds: ",
+    merkleTreeProgramId.toBytes(),
+    verifierProgramId.toBytes(),
+    PublicKey.findProgramAddressSync(
+      [merkleTreeProgramId.toBytes()],
+      verifierProgramId,
+    )[1],
+  );
   return PublicKey.findProgramAddressSync(
     [merkleTreeProgramId.toBytes()],
     verifierProgramId,
@@ -497,7 +517,13 @@ export function getSignerAuthorityPda(
 export function getInstructionNamesByPrefix(verifierIdl: Idl, prefix?: string) {
   prefix = prefix ? prefix : "";
   const instructions = verifierIdl.instructions
-    .filter((instruction) => {if (prefix) {instruction.name.startsWith(prefix)} else {return true;}})
+    .filter((instruction) => {
+      if (prefix) {
+        instruction.name.startsWith(prefix);
+      } else {
+        return true;
+      }
+    })
     .map((instruction) => instruction);
   return orderInstructionNames(instructions);
 }

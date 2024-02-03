@@ -5,7 +5,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use crate::{
     state::ConcurrentMerkleTreeAccount,
     state_merkle_tree_from_bytes_mut,
-    utils::check_registered_or_signer::{check_registered_or_signer, GroupAccess, GroupAccounts},
+    utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
     RegisteredProgram, //RegisteredVerifier,
 };
 
@@ -68,10 +68,11 @@ pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c, 'info>(
     for (mt, leaves) in merkle_tree_map.values() {
         let merkle_tree = AccountLoader::<ConcurrentMerkleTreeAccount>::try_from(mt).unwrap();
         let mut merkle_tree_account = merkle_tree.load_mut()?;
-        check_registered_or_signer::<InsertTwoLeavesParallel, ConcurrentMerkleTreeAccount>(
-            &ctx,
-            &merkle_tree_account,
-        )?;
+        // TODO: activate when group access control is implemented
+        // check_registered_or_signer::<InsertTwoLeavesParallel, ConcurrentMerkleTreeAccount>(
+        //     &ctx,
+        //     &merkle_tree_account,
+        // )?;
 
         let merkle_tree =
             state_merkle_tree_from_bytes_mut(&mut merkle_tree_account.state_merkle_tree);

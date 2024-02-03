@@ -2,7 +2,7 @@
 
 set -eux
 
-keys="light_merkle_tree_program light_psp2in2out light_psp10in2out light_psp4in4out_app_storage light_psp2in2out_storage light_user_registry psp_token_compression"
+keys="light_merkle_tree_program light_psp2in2out light_psp10in2out light_psp4in4out_app_storage light_psp2in2out_storage light_user_registry psp_token_compression psp_account_compression"
 
 out_dir="`git rev-parse --show-toplevel`/cli/bin"
 if [ ! -e $out_dir ]; then

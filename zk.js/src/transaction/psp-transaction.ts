@@ -289,7 +289,7 @@ export function createSystemProofInputs({
       (x) => x.utxoDataHash,
     ),
     publicInUtxoHash: transaction.private.inputUtxos.map((x) => {
-      if(x.amounts[0].eq( BN_0) && x.amounts[1].eq(BN_0)) {
+      if (x.amounts[0].eq(BN_0) && x.amounts[1].eq(BN_0)) {
         return BN_0;
       }
       return x.utxoHash;
@@ -760,7 +760,10 @@ export function getAssetPubkeys(
 ): { assetPubkeysCircuit: string[]; assetPubkeys: PublicKey[] } {
   const assetPubkeysCircuit: string[] = [
     // TODO: switch circuits to new truncate scheme
-    hashAndTruncateToCircuit([SystemProgram.programId.toBytes()], lightWasm).toString(),
+    hashAndTruncateToCircuit(
+      [SystemProgram.programId.toBytes()],
+      lightWasm,
+    ).toString(),
   ];
 
   const assetPubkeys: PublicKey[] = [SystemProgram.programId];
@@ -942,18 +945,18 @@ export function getTxIntegrityHash(
   // For example, we could derive which accounts exist in the IDL of the
   // verifier program method.
   const recipientSpl =
-    verifierProgramId.toBase58() === lightPsp2in2outStorageId.toBase58() || !isCompression
+    verifierProgramId.toBase58() === lightPsp2in2outStorageId.toBase58() ||
+    !isCompression
       ? new Uint8Array(32)
       : accounts.recipientSpl.toBytes();
-  const recipientSol =
-     !isCompression
-      ? new Uint8Array(32)
-      : accounts.recipientSol.toBytes();
+  const recipientSol = !isCompression
+    ? new Uint8Array(32)
+    : accounts.recipientSol.toBytes();
   console.log("messageHash ", messageHash);
   console.log("recipientSpl ", recipientSpl);
   console.log("recipientSol ", recipientSol);
   console.log("accounts.rpcPublicKey ", accounts.rpcPublicKey.toBytes());
-  console.log("rpcFee ", rpcFee.toArray( "be", 8));
+  console.log("rpcFee ", rpcFee.toArray("be", 8));
 
   const hash = sha256
     .create()
@@ -961,8 +964,8 @@ export function getTxIntegrityHash(
     .update(recipientSpl)
     .update(recipientSol)
     .update(accounts.rpcPublicKey.toBytes())
-    .update(rpcFee.toArrayLike(Buffer, "be", 8))
-  if(!isPublic) {
+    .update(rpcFee.toArrayLike(Buffer, "be", 8));
+  if (!isPublic) {
     hash.update(encryptedUtxos);
   }
   const txIntegrityHash = truncateToCircuit(hash.digest());
@@ -1112,14 +1115,16 @@ export async function createCompressTransaction(
   };
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
-  const encryptedUtxos = isPublic ? new Uint8Array() : await encryptOutUtxos(
-    account,
-    privateVars.outputUtxos,
-    merkleTreeSetPubkey,
-    verifierConfig,
-    assetLookUpTable,
-    lightWasm,
-  );
+  const encryptedUtxos = isPublic
+    ? new Uint8Array()
+    : await encryptOutUtxos(
+        account,
+        privateVars.outputUtxos,
+        merkleTreeSetPubkey,
+        verifierConfig,
+        assetLookUpTable,
+        lightWasm,
+      );
   const txIntegrityHash = getTxIntegrityHash(
     BN_0,
     encryptedUtxos,
@@ -1188,7 +1193,7 @@ export function createPrivateTransactionVariables({
     outputUtxos,
     verifierConfig.out,
     lightWasm,
-    isPublic ? STANDARD_COMPRESSION_PUBLIC_KEY: account.keypair.publicKey,
+    isPublic ? STANDARD_COMPRESSION_PUBLIC_KEY : account.keypair.publicKey,
     isPublic,
   );
 
@@ -1288,14 +1293,16 @@ export async function createDecompressTransaction(
   };
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
-  const encryptedUtxos = isPublic ? new Uint8Array() : await encryptOutUtxos(
-    account,
-    privateVars.outputUtxos,
-    merkleTreeSetPubkey,
-    verifierConfig,
-    assetLookUpTable,
-    lightWasm,
-  );
+  const encryptedUtxos = isPublic
+    ? new Uint8Array()
+    : await encryptOutUtxos(
+        account,
+        privateVars.outputUtxos,
+        merkleTreeSetPubkey,
+        verifierConfig,
+        assetLookUpTable,
+        lightWasm,
+      );
   const txIntegrityHash = getTxIntegrityHash(
     rpcFee,
     encryptedUtxos,
@@ -1365,7 +1372,7 @@ export async function createTransaction(
     systemPspId,
     account,
     rpcFee,
-    isPublic
+    isPublic,
   } = transactionInput;
   const assetLookUpTable = transactionInput.assetLookUpTable
     ? transactionInput.assetLookUpTable
@@ -1403,14 +1410,16 @@ export async function createTransaction(
   };
 
   // TODO: double check onchain code for consistency between utxo merkle trees and inserted merkle tree
-  const encryptedUtxos = isPublic ? new Uint8Array() : await encryptOutUtxos(
-    account,
-    privateVars.outputUtxos,
-    merkleTreeSetPubkey,
-    verifierConfig,
-    assetLookUpTable,
-    lightWasm,
-  );
+  const encryptedUtxos = isPublic
+    ? new Uint8Array()
+    : await encryptOutUtxos(
+        account,
+        privateVars.outputUtxos,
+        merkleTreeSetPubkey,
+        verifierConfig,
+        assetLookUpTable,
+        lightWasm,
+      );
 
   const txIntegrityHash = getTxIntegrityHash(
     rpcFee,
@@ -1434,7 +1443,9 @@ export async function createTransaction(
     private: privateVars,
     public: {
       transactionHash,
-      publicMintPubkey: !publicAmountSpl.eq(BN_0) ? privateVars.assetPubkeysCircuit[1].toString() : "0",
+      publicMintPubkey: !publicAmountSpl.eq(BN_0)
+        ? privateVars.assetPubkeysCircuit[1].toString()
+        : "0",
       txIntegrityHash,
       accounts: {
         ...completeAccounts,

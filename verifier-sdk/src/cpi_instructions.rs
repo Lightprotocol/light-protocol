@@ -115,33 +115,57 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
 #[inline(never)]
 pub fn insert_two_leaves_parallel_cpi<'a, 'b>(
     program_id: &Pubkey,
-    merkle_tree_program_id: &'b AccountInfo<'a>,
+    psp_account_compression_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
     leaves: Vec<[u8; 32]>,
     transaction_merkle_tree_accounts: Vec<AccountInfo<'a>>,
 ) -> Result<()> {
-    let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
+    let (seed, bump) = get_seeds(program_id, psp_account_compression_program_id)?;
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
-    msg!("seeds {:?}", seeds);
-    // msg!("authority {:?}", authority);
-    // msg!("registered_verifier_pda {:?}", registered_verifier_pda);
-    // msg!("program_id {:?}", program_id);
-    // msg!("merkle_tree_program_id {:?}", merkle_tree_program_id);
-    msg!(
-        "transaction_merkle_tree_accounts {:?}",
-        transaction_merkle_tree_accounts
-    );
 
-    let accounts = light_merkle_tree_program::cpi::accounts::InsertTwoLeavesParallel {
+    let accounts = psp_account_compression::cpi::accounts::InsertTwoLeavesParallel {
         authority: authority.to_account_info(),
-        registered_verifier_pda: registered_verifier_pda.to_account_info(),
+        registered_verifier_pda: None,
     };
 
-    let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+    let mut cpi_ctx =
+        CpiContext::new_with_signer(psp_account_compression_program_id.clone(), accounts, seeds);
     cpi_ctx.remaining_accounts = transaction_merkle_tree_accounts;
-    light_merkle_tree_program::cpi::insert_two_leaves_parallel(cpi_ctx, leaves)?;
+    psp_account_compression::cpi::insert_leaves_into_merkle_trees(cpi_ctx, leaves)?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(unused_variables)]
+#[inline(never)]
+pub fn insert_public_nullifier_into_indexed_array_cpi<'a, 'b>(
+    program_id: &Pubkey,
+    psp_account_compression_program_id: &'b AccountInfo<'a>,
+    authority: &'b AccountInfo<'a>,
+    registered_verifier_pda: &'b AccountInfo<'a>,
+    in_utxos: Vec<[u8; 32]>,
+    low_element_indexes: Vec<u16>,
+    indexed_array_accounts: Vec<AccountInfo<'a>>,
+) -> Result<()> {
+    let (seed, bump) = get_seeds(program_id, psp_account_compression_program_id)?;
+    let bump = &[bump];
+    let seeds = &[&[seed.as_slice(), bump][..]];
+
+    let accounts = psp_account_compression::cpi::accounts::InsertIntoIndexedArrays {
+        authority: authority.to_account_info(),
+        registered_verifier_pda: None,
+    };
+
+    let mut cpi_ctx =
+        CpiContext::new_with_signer(psp_account_compression_program_id.clone(), accounts, seeds);
+    cpi_ctx.remaining_accounts = indexed_array_accounts;
+    psp_account_compression::cpi::insert_into_indexed_arrays(
+        cpi_ctx,
+        in_utxos,
+        low_element_indexes,
+    )?;
     Ok(())
 }
 
@@ -176,6 +200,7 @@ pub fn insert_two_leaves_event_cpi<'a, 'b>(
     )?;
     Ok(())
 }
+
 #[inline(never)]
 pub fn get_seeds<'a>(
     program_id: &'a Pubkey,

@@ -39,15 +39,24 @@ import { Wallet } from "../provider";
 
 import { Utxo } from "../utxo";
 import { TokenUtxoBalance } from "../build-balance";
-import {keccak_256} from "@noble/hashes/sha3";
+import { keccak_256 } from "@noble/hashes/sha3";
 
 import { LightWasm } from "@lightprotocol/account.rs";
 
 const crypto = require("@noble/hashes/crypto");
 
-export function hashAndTruncateToCircuit(data: Uint8Array[], lightWasm: LightWasm): string {
-  let hashedAndTruncatedData = data.map((value) => keccak_256.create().update(Buffer.from(value)).digest());
-  let compressedData = keccak_256.create().update(Buffer.concat(hashedAndTruncatedData)).digest().slice(0, 30);
+export function hashAndTruncateToCircuit(
+  data: Uint8Array[],
+  lightWasm: LightWasm,
+): string {
+  let hashedAndTruncatedData = data.map((value) =>
+    keccak_256.create().update(Buffer.from(value)).digest(),
+  );
+  let compressedData = keccak_256
+    .create()
+    .update(Buffer.concat(hashedAndTruncatedData))
+    .digest()
+    .slice(0, 30);
   return lightWasm.poseidonHashString([new BN(compressedData, 30, "be")]);
 }
 

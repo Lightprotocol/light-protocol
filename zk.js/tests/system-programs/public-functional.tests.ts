@@ -50,7 +50,7 @@ import {
   syncInputUtxosMerkleProofs,
   createOutUtxo,
   OutUtxo,
-  IDL_COMPRESSED_TOKEN_PROGRAM,
+  IDL_PSP_TOKEN_COMPRESSION,
   merkleTreeProgramId,
   getTokenAuthorityPda,
   sleep,
@@ -63,6 +63,7 @@ import {
   createTransaction,
   TransactionInput,
   Action,
+  IDL_PSP_ACCOUNT_COMPRESSION,
 } from "../../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -75,11 +76,108 @@ import {
 } from "@solana/spl-token";
 import { assert } from "chai";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
-import {BN} from  "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 let WASM: LightWasm;
 let RPC: PublicTestRpc;
 let ACCOUNT: Account, ACCOUNT2: Account;
+const initializeIndexedArray = async ({
+  feePayer,
+  indexedArrayKeypair,
+  connection,
+}: {
+  connection: Connection;
+  feePayer: Keypair;
+  indexedArrayKeypair: Keypair;
+}) => {
+  const space = 112120;
+  const accountCompressionProgramId = getVerifierProgramId(
+    IDL_PSP_ACCOUNT_COMPRESSION,
+  );
+  const accountCompressionProgram = new anchor.Program(
+    IDL_PSP_ACCOUNT_COMPRESSION,
+    accountCompressionProgramId,
+  );
+  const ix1 = SystemProgram.createAccount({
+    fromPubkey: feePayer.publicKey,
+    newAccountPubkey: indexedArrayKeypair.publicKey,
+    space,
+    lamports: await connection.getMinimumBalanceForRentExemption(space),
+    programId: accountCompressionProgramId,
+  });
 
+  const ix2 = await accountCompressionProgram.methods
+    .initializeIndexedArray(new BN(0), merkleTreeProgramId, null)
+    .accounts({
+      authority: feePayer.publicKey,
+      indexedArray: indexedArrayKeypair.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .instruction();
+  const tx = new Transaction().add(ix1, ix2);
+  try {
+    const txHash = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [feePayer, indexedArrayKeypair],
+      confirmConfig,
+    );
+    console.log(
+      "------------------ initialized indexed array ------------------",
+    );
+    console.log("txHash ", txHash);
+  } catch (e) {
+    console.log(e);
+  }
+};
+const initializeMerkleTree = async ({
+  feePayer,
+  merkleTreeKeypair,
+  connection,
+}: {
+  connection: Connection;
+  feePayer: Keypair;
+  merkleTreeKeypair: Keypair;
+}) => {
+  const space = 90472;
+  const accountCompressionProgramId = getVerifierProgramId(
+    IDL_PSP_ACCOUNT_COMPRESSION,
+  );
+  const accountCompressionProgram = new anchor.Program(
+    IDL_PSP_ACCOUNT_COMPRESSION,
+    accountCompressionProgramId,
+  );
+  const ix1 = SystemProgram.createAccount({
+    fromPubkey: feePayer.publicKey,
+    newAccountPubkey: merkleTreeKeypair.publicKey,
+    space,
+    lamports: await connection.getMinimumBalanceForRentExemption(space),
+    programId: accountCompressionProgramId,
+  });
+
+  const ix2 = await accountCompressionProgram.methods
+    .initializeConcurrentMerkleTree(new BN(0), merkleTreeProgramId, null)
+    .accounts({
+      authority: feePayer.publicKey,
+      merkleTree: merkleTreeKeypair.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .instruction();
+  const tx = new Transaction().add(ix1, ix2);
+  try {
+    const txHash = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [feePayer, merkleTreeKeypair],
+      confirmConfig,
+    );
+    console.log(
+      "------------------ initialized merkle tree ------------------",
+    );
+    console.log("txHash ", txHash);
+  } catch (e) {
+    console.log(e);
+  }
+};
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
@@ -91,28 +189,40 @@ describe("verifier_program", () => {
     confirmConfig,
   );
   anchor.setProvider(provider);
-  const compressedTokenProgram = new anchor.Program(IDL_COMPRESSED_TOKEN_PROGRAM,getVerifierProgramId(IDL_COMPRESSED_TOKEN_PROGRAM), provider )
+  const compressedTokenProgram = new anchor.Program(
+    IDL_PSP_TOKEN_COMPRESSION,
+    getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+    provider,
+  );
   let authorityKeypair = Keypair.generate();
   let mintKeypair = Keypair.generate();
-  const deriveAuthorityPda = (authority: PublicKey, mint: PublicKey): PublicKey => {
-    let [pubkey,] = PublicKey.findProgramAddressSync(
-      [anchor.utils.bytes.utf8.encode("authority"), authority.toBuffer(), mint.toBuffer()],
-      getVerifierProgramId(IDL_COMPRESSED_TOKEN_PROGRAM),
+  const deriveAuthorityPda = (
+    authority: PublicKey,
+    mint: PublicKey,
+  ): PublicKey => {
+    let [pubkey] = PublicKey.findProgramAddressSync(
+      [
+        anchor.utils.bytes.utf8.encode("authority"),
+        authority.toBuffer(),
+        mint.toBuffer(),
+      ],
+      getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
     );
     return pubkey;
   };
-  const authorityPda = deriveAuthorityPda(authorityKeypair.publicKey, mintKeypair.publicKey);
-
+  const authorityPda = deriveAuthorityPda(
+    authorityKeypair.publicKey,
+    mintKeypair.publicKey,
+  );
+  const merkleTreeKeyPair = Keypair.generate();
+  const indexedArrayKeypair = Keypair.generate();
   before("init test setup Merkle tree lookup table etc", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
     WASM = await WasmFactory.getInstance();
-    // let data = [215, 14, 158, 183, 149, 177, 250, 102, 242, 9, 248, 116, 252, 35, 233, 7, 209, 142, 128, 28, 205, 129, 198, 228, 231, 219, 112, 243, 178, 168, 241, 144];
-    // let hash =  WASM.poseidonHash([new BN(data, 32, "le")]);
-    // console.log("hash ", hash);
-    // process.exit(0);
     const seed = bs58.encode(new Uint8Array(32).fill(1));
     const seed2 = bs58.encode(new Uint8Array(32).fill(2));
+
     ACCOUNT = Account.createFromSeed(WASM, seed);
     ACCOUNT2 = Account.createFromSeed(WASM, seed2);
 
@@ -120,151 +230,237 @@ describe("verifier_program", () => {
 
     await provider.connection.requestAirdrop(rpcRecipientSol, 2e9);
 
-    RPC = new PublicTestRpc({connection: provider.connection , lightWasm: WASM});
+    RPC = new PublicTestRpc({
+      connection: provider.connection,
+      lightWasm: WASM,
+      merkleTreePublicKey: merkleTreeKeyPair.publicKey,
+    });
     await airdropSol({
       connection: provider.connection,
       lamports: 1000 * 1e9,
       recipientPublicKey: authorityKeypair.publicKey,
     });
+    await initializeMerkleTree({
+      feePayer: ADMIN_AUTH_KEYPAIR,
+      merkleTreeKeypair: merkleTreeKeyPair,
+      connection: provider.connection,
+    });
+
+    await initializeIndexedArray({
+      feePayer: ADMIN_AUTH_KEYPAIR,
+      indexedArrayKeypair,
+      connection: provider.connection,
+    });
   });
-  
-  it.only(" create mint", async () => {
-   
+
+  it(" create mint", async () => {
     let createAccountInstruction = SystemProgram.createAccount({
       fromPubkey: authorityKeypair.publicKey,
-      lamports: await provider.connection.getMinimumBalanceForRentExemption(MINT_SIZE),
+      lamports:
+        await provider.connection.getMinimumBalanceForRentExemption(MINT_SIZE),
       newAccountPubkey: mintKeypair.publicKey,
       programId: TOKEN_PROGRAM_ID,
       space: MINT_SIZE,
-    })
-    
+    });
 
-
-    let createMintInstruciton = createInitializeMint2Instruction(mintKeypair.publicKey, 2, authorityPda, null, TOKEN_PROGRAM_ID);
+    let createMintInstruciton = createInitializeMint2Instruction(
+      mintKeypair.publicKey,
+      2,
+      authorityPda,
+      null,
+      TOKEN_PROGRAM_ID,
+    );
     const transferInstruction = anchor.web3.SystemProgram.transfer({
       fromPubkey: authorityKeypair.publicKey,
       toPubkey: authorityPda,
-      lamports: await provider.connection.getMinimumBalanceForRentExemption(80) + await provider.connection.getMinimumBalanceForRentExemption(165),
+      lamports:
+        (await provider.connection.getMinimumBalanceForRentExemption(80)) +
+        (await provider.connection.getMinimumBalanceForRentExemption(165)),
     });
- 
-    let ix = await compressedTokenProgram.methods.createMint().accounts({
-      feePayer: authorityKeypair.publicKey,
-      authority: authorityKeypair.publicKey,
-      mint: mintKeypair.publicKey,
-      authorityPda,
-      systemProgram: SystemProgram.programId,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      merkleTreeProgram: merkleTreeProgramId,
-      tokenAuthority: getTokenAuthorityPda(),
-      merkleTreePdaToken: MerkleTreeConfig.getSplPoolPdaToken(mintKeypair.publicKey),
-      registeredAssetPoolPda: MerkleTreeConfig.getSplPoolPda(mintKeypair.publicKey),
-      merkleTreeAuthorityPda: MerkleTreeConfig.getMerkleTreeAuthorityPda(),
-      registeredPoolTypePda: MerkleTreeConfig.getPoolTypePda(new Uint8Array(32).fill(0)),
-    })
-    .signers([
-      authorityKeypair,
-      mintKeypair,
-    ]).instruction();
-    const transaction = new Transaction()
-    .add(
-      createAccountInstruction,
-    ).add(
-      createMintInstruciton
-    ).add(transferInstruction)
-    .add(ix);
-    try {
-    const res = await sendAndConfirmTransaction(provider.connection, transaction, [authorityKeypair, mintKeypair], confirmConfig);
-    console.log(res)
-    }
-    catch (e) {
-      console.log(e)
-    }
-  });
 
-  it.only("Mint to", async () => {
-    const registerVerifier = async () => {
-      let merkleTreeConfig = new MerkleTreeConfig({payer: ADMIN_AUTH_KEYPAIR, anchorProvider: provider});
-      let x = await merkleTreeConfig.registerVerifier(getVerifierProgramId(IDL_COMPRESSED_TOKEN_PROGRAM));
-      console.log("registered verifier ", x)
-    }
-    await registerVerifier();
-    const mint  = async () => {
-      let tx = await compressedTokenProgram.methods.mintTo(
-        [ACCOUNT.keypair.publicKey.toArray("be", 32), ACCOUNT.keypair.publicKey.toArray("be", 32)],
-        [new anchor.BN(100), new anchor.BN(101)],
-      ).accounts({
+    let ix = await compressedTokenProgram.methods
+      .createMint()
+      .accounts({
         feePayer: authorityKeypair.publicKey,
         authority: authorityKeypair.publicKey,
         mint: mintKeypair.publicKey,
         authorityPda,
-        merkleTreePdaToken: MerkleTreeConfig.getSplPoolPdaToken(mintKeypair.publicKey),
+        systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         merkleTreeProgram: merkleTreeProgramId,
-        noopProgram: SPL_NOOP_PROGRAM_ID,
-        merkleTreeSet: MerkleTreeConfig.getTransactionMerkleTreePda(),
-        registeredVerifierPda: MerkleTreeConfig.getRegisteredVerifierPda(getVerifierProgramId(IDL_COMPRESSED_TOKEN_PROGRAM)),
-        merkleTreeAuthority: getSignerAuthorityPda(merkleTreeProgramId, getVerifierProgramId(IDL_COMPRESSED_TOKEN_PROGRAM)),
-      }).signers([
-        authorityKeypair,
-      ]).preInstructions([      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-      ]).transaction();
-      let data
-      try {
-        let txHash = await sendAndConfirmTransaction(provider.connection, tx, [authorityKeypair], confirmConfig);
-        console.log("txHash ", txHash)
-      }
-      catch (e) {
-        console.log(e)
-      }
+        tokenAuthority: getTokenAuthorityPda(),
+        merkleTreePdaToken: MerkleTreeConfig.getSplPoolPdaToken(
+          mintKeypair.publicKey,
+        ),
+        registeredAssetPoolPda: MerkleTreeConfig.getSplPoolPda(
+          mintKeypair.publicKey,
+        ),
+        merkleTreeAuthorityPda: MerkleTreeConfig.getMerkleTreeAuthorityPda(),
+        registeredPoolTypePda: MerkleTreeConfig.getPoolTypePda(
+          new Uint8Array(32).fill(0),
+        ),
+      })
+      .signers([authorityKeypair, mintKeypair])
+      .instruction();
+    const transaction = new Transaction()
+      .add(createAccountInstruction)
+      .add(createMintInstruciton)
+      .add(transferInstruction)
+      .add(ix);
+    try {
+      const res = await sendAndConfirmTransaction(
+        provider.connection,
+        transaction,
+        [authorityKeypair, mintKeypair],
+        confirmConfig,
+      );
+      console.log(res);
+    } catch (e) {
+      console.log(e);
     }
-    const data = await mint()
+  });
 
-    const utxos = await RPC.getAssetsByOwner(ACCOUNT.keypair.publicKey.toString());
-    console.log("utxos ", utxos[0])
+  it("Mint to", async () => {
+    const registerVerifier = async () => {
+      let merkleTreeConfig = new MerkleTreeConfig({
+        payer: ADMIN_AUTH_KEYPAIR,
+        anchorProvider: provider,
+      });
+      let x = await merkleTreeConfig.registerVerifier(
+        getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+      );
+      console.log("registered verifier ", x);
+    };
+
+    await registerVerifier();
+
+    const mint = async () => {
+      let tx = await compressedTokenProgram.methods
+        .mintTo(
+          [
+            ACCOUNT.keypair.publicKey.toArray("be", 32),
+            ACCOUNT.keypair.publicKey.toArray("be", 32),
+          ],
+          [new anchor.BN(100), new anchor.BN(101)],
+        )
+        .accounts({
+          feePayer: authorityKeypair.publicKey,
+          authority: authorityKeypair.publicKey,
+          mint: mintKeypair.publicKey,
+          authorityPda,
+          merkleTreePdaToken: MerkleTreeConfig.getSplPoolPdaToken(
+            mintKeypair.publicKey,
+          ),
+          tokenProgram: TOKEN_PROGRAM_ID,
+          merkleTreeProgram: merkleTreeProgramId,
+          noopProgram: SPL_NOOP_PROGRAM_ID,
+          merkleTreeSet: merkleTreeKeyPair.publicKey,
+          registeredVerifierPda: MerkleTreeConfig.getRegisteredVerifierPda(
+            getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+          ),
+          merkleTreeAuthority: getSignerAuthorityPda(
+            merkleTreeProgramId,
+            getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+          ),
+          pspAccountCompression: getVerifierProgramId(
+            IDL_PSP_ACCOUNT_COMPRESSION,
+          ),
+          pspAccountCompressionAuthority: getSignerAuthorityPda(
+            getVerifierProgramId(IDL_PSP_ACCOUNT_COMPRESSION),
+            getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+          ),
+        })
+        .signers([authorityKeypair])
+        .preInstructions([
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+        ])
+        .transaction();
+      let data;
+      try {
+        let txHash = await sendAndConfirmTransaction(
+          provider.connection,
+          tx,
+          [authorityKeypair],
+          confirmConfig,
+        );
+        console.log("txHash ", txHash);
+      } catch (e) {
+        console.log(e);
+      }
+    };
+    const data = await mint();
+
+    const utxos = await RPC.getAssetsByOwner(
+      ACCOUNT.keypair.publicKey.toString(),
+    );
+    console.log("utxos ", utxos[0]);
     assert.equal(utxos.length, 2);
     assert.equal(utxos[0].amounts[1].toNumber(), 100);
     assert.equal(utxos[1].amounts[1].toNumber(), 101);
-
-    console.log("utxo 0 version", new anchor.BN(utxos[0].transactionVersion).toArray("be", 32))
-    console.log("utxo 0 amount", new anchor.BN(utxos[0].amounts[0]).toArray("be", 32))
-    console.log("utxo 0 amount", new anchor.BN(utxos[0].amounts[1]).toArray("be", 32))
-    console.log("utxo 0 owner", new anchor.BN(utxos[0].publicKey).toArray("be", 32))
-    console.log("utxo 0 blinding", new anchor.BN(utxos[0].blinding).toArray("be", 32))
-    console.log("utxo 0 asset", new anchor.BN(utxos[0].assetsCircuit[0]).toArray("be", 32))
-    console.log("utxo 0 asset", new anchor.BN(utxos[0].assetsCircuit[1]).toArray("be", 32))
-
-
-//     '10360557237825235488097282037625996457621919477735467906377568872108966350594'
-// '16180391079141022144172006926116243706152468827752959671432316270411413007669'
-
+    console.log(
+      "utxo 0 version",
+      new anchor.BN(utxos[0].transactionVersion).toArray("be", 32),
+    );
+    console.log(
+      "utxo 0 amount",
+      new anchor.BN(utxos[0].amounts[0]).toArray("be", 32),
+    );
+    console.log(
+      "utxo 0 amount",
+      new anchor.BN(utxos[0].amounts[1]).toArray("be", 32),
+    );
+    console.log(
+      "utxo 0 owner",
+      new anchor.BN(utxos[0].publicKey).toArray("be", 32),
+    );
+    console.log(
+      "utxo 0 blinding",
+      new anchor.BN(utxos[0].blinding).toArray("be", 32),
+    );
+    console.log(
+      "utxo 0 asset",
+      new anchor.BN(utxos[0].assetsCircuit[0]).toArray("be", 32),
+    );
+    console.log(
+      "utxo 0 asset",
+      new anchor.BN(utxos[0].assetsCircuit[1]).toArray("be", 32),
+    );
+    await RPC.getMerkleRoot(merkleTreeKeyPair.publicKey);
   });
 
-  it.only("Compressed Token Transfer (2in2out)", async () => {
-    await performCompressedTokenTransfer({senderAccount: ACCOUNT, recipientAccount: ACCOUNT2});
+  it("Compressed Token Transfer (2in2out)", async () => {
+    await performCompressedTokenTransfer({
+      senderAccount: ACCOUNT,
+      recipientAccount: ACCOUNT2,
+    });
   });
 
-
-  const performCompressedTokenTransfer = async ({senderAccount, recipientAccount}: {senderAccount: Account; recipientAccount: Account;}) => {
+  const performCompressedTokenTransfer = async ({
+    senderAccount,
+    recipientAccount,
+  }: {
+    senderAccount: Account;
+    recipientAccount: Account;
+  }) => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
-    const verifierIdl = IDL_COMPRESSED_TOKEN_PROGRAM;
+    const verifierIdl = IDL_PSP_TOKEN_COMPRESSION;
 
     // const lightProvider = await Provider.init({
     //   wallet: ADMIN_AUTH_KEYPAIR,
     //   rpc: RPC,
     //   confirmConfig,
     // });
-    let senderUtxos = await RPC.getAssetsByOwner(senderAccount.keypair.publicKey.toString());
+    let senderUtxos = await RPC.getAssetsByOwner(
+      senderAccount.keypair.publicKey.toString(),
+    );
     const inputUtxos: Utxo[] = [senderUtxos[0]];
-    
+
     const outputUtxo = createOutUtxo({
       lightWasm: WASM,
       assets: senderUtxos[0].assets,
-      amounts: [
-        BN_0,
-        inputUtxos[0].amounts[1],
-      ],
+      amounts: [BN_0, inputUtxos[0].amounts[1]],
       publicKey: recipientAccount.keypair.publicKey,
       blinding: BN_0,
     });
@@ -288,15 +484,14 @@ describe("verifier_program", () => {
 
     const compressTransactionInput: TransactionInput = {
       lightWasm: WASM,
-      transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreeSetPubkey: merkleTreeKeyPair.publicKey,
       rpcPublicKey: ADMIN_AUTH_KEYPAIR.publicKey,
       systemPspId: getVerifierProgramId(verifierIdl),
       account: ACCOUNT,
       inputUtxos,
       outputUtxos: [outputUtxo],
       isPublic: true,
-      rpcFee: BN_0
+      rpcFee: BN_0,
     };
 
     const compressTransaction = await createTransaction(
@@ -304,7 +499,7 @@ describe("verifier_program", () => {
     );
 
     const { root, index: rootIndex } = (await RPC.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreeKeyPair.publicKey,
     ))!;
 
     const systemProofInputs = createSystemProofInputs({
@@ -320,25 +515,59 @@ describe("verifier_program", () => {
       verifierIdl,
       systemProofInputs,
     });
-    console.log("systemProof ", systemProof.parsedPublicInputsObject)
-    const remainingSolanaAccounts: remainingAccount[] = new Array(4).fill({isSigner: false, isWritable: true, pubkey: MerkleTreeConfig.getTransactionMerkleTreePda()})//,MerkleTreeConfig.getTransactionMerkleTreePda()]
+    console.log("systemProof ", systemProof.parsedPublicInputsObject);
+    // Remaining accounts layout:
+    // all remainging accounts need to be set regardless whether less utxos are actually used
+    // 0..NR_IN_Utxos: in utxos
+    // NR_IN_Utxos..NR_IN_Utxos+NR_IN_Utxos: indexed arrays to nullify in utxos
+    // NR_IN_Utxos+NR_IN_Utxos..NR_IN_Utxos+NR_IN_Utxos+NR_OUT_Utxos: out utxos
+    const remainingSolanaAccounts: remainingAccount[] = [
+      ...new Array(2).fill({
+        isSigner: false,
+        isWritable: true,
+        pubkey: merkleTreeKeyPair.publicKey,
+      }),
+      ...new Array(2).fill({
+        isSigner: false,
+        isWritable: true,
+        pubkey: indexedArrayKeypair.publicKey,
+      }),
+      ...new Array(2).fill({
+        isSigner: false,
+        isWritable: true,
+        pubkey: merkleTreeKeyPair.publicKey,
+      }),
+    ];
 
-    const accounts = prepareAccounts({
+    let accounts = prepareAccounts({
       transactionAccounts: compressTransaction.public.accounts,
-      eventMerkleTreePubkey: MerkleTreeConfig.getEventMerkleTreePda(),
+      merkleTreeSet: merkleTreeKeyPair.publicKey,
     });
+    // pspAccountCompression -> accountCompressionProgram
+    accounts["pspAccountCompression"] = getVerifierProgramId(
+      IDL_PSP_ACCOUNT_COMPRESSION,
+    );
+    accounts["accountCompressionAuthority"] = getSignerAuthorityPda(
+      getVerifierProgramId(IDL_PSP_ACCOUNT_COMPRESSION),
+      getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION),
+    );
     // console.log("authority accounts generated ", accounts.authority);
-    // console.log("authority accounts derived ", getSignerAuthorityPda(merkleTreeProgramId, getVerifierProgramId(IDL_COMPRESSED_TOKEN_PROGRAM)));
+    // console.log("authority accounts derived ", getSignerAuthorityPda(merkleTreeProgramId, getVerifierProgramId(IDL_PSP_TOKEN_COMPRESSION)));
     // process.exit(0);
-    let serializedOutUtxo = (await new anchor.BorshCoder(IDL_COMPRESSED_TOKEN_PROGRAM).accounts.encode("transferOutputUtxo", {
-      owner: new anchor.BN(outputUtxo.publicKey),
-      amounts: outputUtxo.amounts,
-      splAssetMint: outputUtxo.assets[1],
-      metaHash: null,
-      address: null,
-    })).subarray(8);
+    let serializedOutUtxo = (
+      await new anchor.BorshCoder(IDL_PSP_TOKEN_COMPRESSION).accounts.encode(
+        "transferOutputUtxo",
+        {
+          owner: new anchor.BN(outputUtxo.publicKey),
+          amounts: outputUtxo.amounts,
+          splAssetMint: outputUtxo.assets[1],
+          metaHash: null,
+          address: null,
+        },
+      )
+    ).subarray(8);
     // console.log("serializedOutUtxo ", serializedOutUtxo);
-    // let decoded = await new anchor.BorshCoder(IDL_COMPRESSED_TOKEN_PROGRAM).accounts.decodeUnchecked("transferOutputUtxo", Buffer.from([...new Array(8), ...serializedOutUtxo]));
+    // let decoded = await new anchor.BorshCoder(IDL_PSP_TOKEN_COMPRESSION).accounts.decodeUnchecked("transferOutputUtxo", Buffer.from([...new Array(8), ...serializedOutUtxo]));
     // TODO: add more Merkle tree remaining accounts and find an automated way to do so
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({
@@ -351,31 +580,45 @@ describe("verifier_program", () => {
       systemPspIdl: verifierIdl,
       instructionName: "transfer2In2Out",
       customInputs: {
-        outUtxo: [
-          serializedOutUtxo,
-          null,
-        ]
-      }
+        outUtxo: [serializedOutUtxo, null],
+        lowElementIndexes: [0],
+      },
+      removeZeroUtxos: true,
     });
-    console.log("instructions ", instructions[0].keys)
+    console.log("instructions ", instructions[0].keys);
     try {
-      const txHash = await sendAndConfirmTransaction(provider.connection, new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 })).add(instructions[0]), [ADMIN_AUTH_KEYPAIR], confirmConfig);
-      console.log("txHash ", txHash)
-    }
-    catch (e) {
-      console.log(e)
+      const txHash = await sendAndConfirmTransaction(
+        provider.connection,
+        new Transaction()
+          .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }))
+          .add(instructions[0]),
+        [ADMIN_AUTH_KEYPAIR],
+        confirmConfig,
+      );
+      console.log("txHash ", txHash);
+    } catch (e) {
+      console.log(e);
       throw e;
     }
-    let recpientBalance = await RPC.getAssetsByOwner(recipientAccount.keypair.publicKey.toString());
-    console.log("recpientBalance ", recpientBalance)
-    console.log("RPC utxos", RPC.utxos)
+    let recpientBalance = await RPC.getAssetsByOwner(
+      recipientAccount.keypair.publicKey.toString(),
+    );
+    console.log("recpientBalance ", recpientBalance);
+    console.log(
+      "RPC utxos",
+      RPC.utxos.map((utxo) => new BN(utxo.utxoHash).toArray("be", 32)),
+    );
     assert.deepEqual(recpientBalance[0].amounts[1].toNumber(), 100);
+    // assert.deepEqual(recpientBalance[0].utxoHash, outputUtxo.utxoHash);
+
+    // assert.deepEqual(recpientBalance[1].amounts[1].toNumber(), 101);
     // check that I rebuilt the correct tree
-    (await RPC.getMerkleRoot(
-      MerkleTreeConfig.getTransactionMerkleTreePda(),
-    ))!;
+    (await RPC.getMerkleRoot(merkleTreeKeyPair.publicKey))!;
     // check that utxo was inserted
-    assert.equal(2, RPC.merkleTrees[0].merkleTree.indexOf(recpientBalance[0].utxoHash));
+    assert.equal(
+      2,
+      RPC.merkleTrees[0].merkleTree.indexOf(recpientBalance[0].utxoHash),
+    );
     // const transactionTester = new TestTransaction({
     //   transaction: compressTransaction,
     //   accounts,
@@ -391,7 +634,7 @@ describe("verifier_program", () => {
     //   systemProofInputs,
     // );
   };
-
+  /*
   const performDecompress = async ({
     outputUtxos,
     tokenProgram,
@@ -435,7 +678,7 @@ describe("verifier_program", () => {
       index: rootIndex,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [decompressUtxo],
-      merkleTreePublicKey: MerkleTreeConfig.getTransactionMerkleTreePda(),
+      merkleTreePublicKey: merkleTreeKeyPair.publicKey,
       rpc: RPC,
     });
     // Running into memory issues with verifier one (10in2out) decompressing spl
@@ -444,7 +687,7 @@ describe("verifier_program", () => {
       mint: spl ? MINT : undefined,
       message,
       transactionMerkleTreePubkey:
-        MerkleTreeConfig.getTransactionMerkleTreePda(),
+        merkleTreeKeyPair.publicKey,
       recipientSpl: spl ? ata : undefined,
       recipientSol: origin.publicKey,
       rpcPublicKey: lightProvider.rpc.accounts.rpcPubkey,
@@ -511,5 +754,5 @@ describe("verifier_program", () => {
       remainingSolanaAccounts,
       systemProofInputs,
     );
-  };
+  };*/
 });

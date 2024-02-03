@@ -2997,6 +2997,7 @@ dependencies = [
  "light-merkle-tree-program",
  "light-utils",
  "num-bigint 0.4.4",
+ "psp-account-compression",
  "spl-token 3.5.0",
 ]
 
@@ -3826,7 +3827,6 @@ dependencies = [
  "anchor-spl",
  "ark-ff 0.4.2",
  "ark-groth16",
- "ark-serialize 0.3.0",
  "ark-serialize 0.4.2",
  "arrayref",
  "bincode",
@@ -3860,6 +3860,7 @@ dependencies = [
  "light-merkle-tree-program",
  "light-utils",
  "light-verifier-sdk",
+ "psp-account-compression",
  "serde",
  "serde_json",
  "solana-security-txt",

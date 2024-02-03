@@ -18,9 +18,7 @@ import {
 import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
 import { IDL_LIGHT_PSP2IN2OUT } from "../idls";
 import { hashAndTruncateToCircuit, fetchAssetByIdLookUp } from "../utils";
-import {
-  ParsingUtxoBeet,
-} from "../transaction/fetch-recent-transactions";
+import { ParsingUtxoBeet } from "../transaction/fetch-recent-transactions";
 
 export const randomBN = (nbytes = 30) => {
   return new BN(nacl.randomBytes(nbytes));
@@ -115,7 +113,8 @@ export function createOutUtxo({
     assetsCircuit: assets.map((asset, index) => {
       if (
         index !== 0 &&
-        (asset == undefined ||asset?.toBase58() === SystemProgram.programId.toBase58())
+        (asset == undefined ||
+          asset?.toBase58() === SystemProgram.programId.toBase58())
       )
         return "0";
       return hashAndTruncateToCircuit([asset.toBytes()], lightWasm).toString();
@@ -147,16 +146,25 @@ export function createOutUtxo({
   return outUtxo;
 }
 
-export function convertParsingUtxoBeetToOutUtxo(parsingUtxoBeet: ParsingUtxoBeet, lightWasm: LightWasm): OutUtxo {
+export function convertParsingUtxoBeetToOutUtxo(
+  parsingUtxoBeet: ParsingUtxoBeet,
+  lightWasm: LightWasm,
+): OutUtxo {
   return createOutUtxo({
     publicKey: new BN(parsingUtxoBeet.owner),
-    amounts: parsingUtxoBeet.amounts.map(amount => new BN(amount)),
+    amounts: parsingUtxoBeet.amounts.map((amount) => new BN(amount)),
     assets: [SystemProgram.programId, parsingUtxoBeet.splAssetMint],
     lightWasm,
-    metaHash: parsingUtxoBeet.metaHash ? new BN(parsingUtxoBeet.metaHash) : undefined,
-    address: parsingUtxoBeet.address ? new BN(parsingUtxoBeet.address) : undefined,
+    metaHash: parsingUtxoBeet.metaHash
+      ? new BN(parsingUtxoBeet.metaHash)
+      : undefined,
+    address: parsingUtxoBeet.address
+      ? new BN(parsingUtxoBeet.address)
+      : undefined,
     utxoDataHash: new BN(parsingUtxoBeet.dataHash),
-    utxoData: parsingUtxoBeet.message ? new BN(parsingUtxoBeet.message) : undefined,
+    utxoData: parsingUtxoBeet.message
+      ? new BN(parsingUtxoBeet.message)
+      : undefined,
     blinding: new BN(parsingUtxoBeet.blinding),
   });
 }
@@ -190,11 +198,16 @@ export function getUtxoHash(
   } = utxoHashInputs;
   console.log("amounts ", amounts);
   // this is weird I am getting different
-  const amountHash = lightWasm.poseidonHashString(amounts.map((x) => new BN(x)));
+  const amountHash = lightWasm.poseidonHashString(
+    amounts.map((x) => new BN(x)),
+  );
   const assetHash = lightWasm.poseidonHashString(
     assetsCircuit.map((x) => x.toString()),
   );
-  console.log("assets ", assetsCircuit.map((x) => x.toString()));
+  console.log(
+    "assets ",
+    assetsCircuit.map((x) => x.toString()),
+  );
 
   if (!publicKey) {
     throw new UtxoError(
@@ -224,7 +237,7 @@ export function getUtxoHash(
     metaHash,
     address,
   ]);
-  console.log("hash", new BN(hash).toArray("be",32));
+  console.log("hash", new BN(hash).toArray("be", 32));
   return hash;
 }
 
@@ -628,24 +641,23 @@ export async function decryptUtxo(
   );
 }
 
-export function outUtxoToUtxo(
-  {
-    outUtxo,
-    merkleProof,
-    merkleTreeLeafIndex,
-    lightWasm,
-    account,
-    programOwner,
-    utxoData,
-  }:{
-    outUtxo: OutUtxo,
-    merkleProof: string[],
-    merkleTreeLeafIndex: number,
-    lightWasm: LightWasm,
-    account?: Account,
-    programOwner?: PublicKey,
-    utxoData?: any,
-  }): Utxo {
+export function outUtxoToUtxo({
+  outUtxo,
+  merkleProof,
+  merkleTreeLeafIndex,
+  lightWasm,
+  account,
+  programOwner,
+  utxoData,
+}: {
+  outUtxo: OutUtxo;
+  merkleProof: string[];
+  merkleTreeLeafIndex: number;
+  lightWasm: LightWasm;
+  account?: Account;
+  programOwner?: PublicKey;
+  utxoData?: any;
+}): Utxo {
   const inputs: CreateUtxoInputs = {
     utxoHash: outUtxo.utxoHash,
     blinding: outUtxo.blinding.toString(),
@@ -673,7 +685,7 @@ export function createTestInUtxo({
   lightWasm,
   merkleProof = ["1"],
   merkleTreeLeafIndex = 0,
-  isPublic = false
+  isPublic = false,
 }: {
   account?: Account;
   publicKey?: BN;
@@ -776,10 +788,12 @@ export function createUtxo(
     );
   }
 
-  const computeNullifier = (account: Account, utxoHash: string, merkleTreeLeafIndex: number): string => {
-    const signature = account
-    .sign(utxoHash, merkleTreeLeafIndex)
-    .toString();
+  const computeNullifier = (
+    account: Account,
+    utxoHash: string,
+    merkleTreeLeafIndex: number,
+  ): string => {
+    const signature = account.sign(utxoHash, merkleTreeLeafIndex).toString();
 
     const nullifierInputs: NullifierInputs = {
       signature,
@@ -787,9 +801,11 @@ export function createUtxo(
       merkleTreeLeafIndex: merkleTreeLeafIndex.toString(),
     };
     return getNullifier(lightWasm, nullifierInputs);
-  }
+  };
 
-  const nullifier = account ?  computeNullifier(account, utxoHash, merkleTreeLeafIndexInternal): "";
+  const nullifier = account
+    ? computeNullifier(account, utxoHash, merkleTreeLeafIndexInternal)
+    : "";
 
   const utxo: Utxo = {
     publicKey: owner,

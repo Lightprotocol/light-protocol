@@ -177,6 +177,11 @@ export async function getSolanaArgs({
       name: "psp_token_compression.so",
       tag: LIGHT_USER_REGISTRY_TAG,
     },
+    {
+      id: "DmtCHY9V1vqkYfQ5xYESzvGoMGhePHLja9GQ994GKTTc",
+      name: "psp_account_compression.so",
+      tag: LIGHT_USER_REGISTRY_TAG,
+    },
   ];
   if (additionalPrograms)
     additionalPrograms.forEach((program) => {

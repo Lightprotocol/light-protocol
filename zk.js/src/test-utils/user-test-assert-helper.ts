@@ -1044,10 +1044,14 @@ export class UserTestAssertHelper {
       },
     );
     indexedTransactions.sort(
-      (a, b) => (b.transaction as ParsedIndexedTransaction).blockTime - (a.transaction as ParsedIndexedTransaction).blockTime,
+      (a, b) =>
+        (b.transaction as ParsedIndexedTransaction).blockTime -
+        (a.transaction as ParsedIndexedTransaction).blockTime,
     );
     assert.equal(
-      (indexedTransactions[0].transaction as ParsedIndexedTransaction).message.toString(),
+      (
+        indexedTransactions[0].transaction as ParsedIndexedTransaction
+      ).message.toString(),
       this.testInputs.message.toString(),
     );
   }

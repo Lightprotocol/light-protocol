@@ -131,6 +131,11 @@ export type PspAccountCompression = {
       "value": "[115, 112, 108]"
     },
     {
+      "name": "PROGRAM_ID",
+      "type": "string",
+      "value": "\"DmtCHY9V1vqkYfQ5xYESzvGoMGhePHLja9GQ994GKTTc\""
+    },
+    {
       "name": "GROUP_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
@@ -219,7 +224,22 @@ export type PspAccountCompression = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "index",
+          "type": "u64"
+        },
+        {
+          "name": "owner",
+          "type": "publicKey"
+        },
+        {
+          "name": "delegate",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ]
     },
     {
       "name": "insertLeavesIntoMerkleTrees",
@@ -228,6 +248,12 @@ export type PspAccountCompression = {
           "name": "authority",
           "isMut": true,
           "isSigner": true
+        },
+        {
+          "name": "registeredVerifierPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [
@@ -248,28 +274,35 @@ export type PspAccountCompression = {
       "name": "initializeIndexedArray",
       "accounts": [
         {
-          "name": "systemProgram",
+          "name": "authority",
           "isMut": false,
-          "isSigner": false
+          "isSigner": true
         },
         {
           "name": "indexedArray",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
+        {
+          "name": "index",
+          "type": "u64"
+        },
         {
           "name": "owner",
           "type": "publicKey"
         },
         {
           "name": "delegate",
-          "type": "publicKey"
-        },
-        {
-          "name": "index",
-          "type": "u64"
+          "type": {
+            "option": "publicKey"
+          }
         }
       ]
     },
@@ -280,6 +313,12 @@ export type PspAccountCompression = {
           "name": "authority",
           "isMut": true,
           "isSigner": true
+        },
+        {
+          "name": "registeredVerifierPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [
@@ -547,6 +586,11 @@ export type PspAccountCompression = {
       "code": 6024,
       "name": "OddNumberOfLeaves",
       "msg": "Odd number of leaves."
+    },
+    {
+      "code": 6025,
+      "name": "NumberOfLeavesMismatch",
+      "msg": "Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves."
     }
   ]
 };
@@ -684,6 +728,11 @@ export const IDL: PspAccountCompression = {
       "value": "[115, 112, 108]"
     },
     {
+      "name": "PROGRAM_ID",
+      "type": "string",
+      "value": "\"DmtCHY9V1vqkYfQ5xYESzvGoMGhePHLja9GQ994GKTTc\""
+    },
+    {
       "name": "GROUP_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
@@ -772,7 +821,22 @@ export const IDL: PspAccountCompression = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "index",
+          "type": "u64"
+        },
+        {
+          "name": "owner",
+          "type": "publicKey"
+        },
+        {
+          "name": "delegate",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ]
     },
     {
       "name": "insertLeavesIntoMerkleTrees",
@@ -781,6 +845,12 @@ export const IDL: PspAccountCompression = {
           "name": "authority",
           "isMut": true,
           "isSigner": true
+        },
+        {
+          "name": "registeredVerifierPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [
@@ -801,28 +871,35 @@ export const IDL: PspAccountCompression = {
       "name": "initializeIndexedArray",
       "accounts": [
         {
-          "name": "systemProgram",
+          "name": "authority",
           "isMut": false,
-          "isSigner": false
+          "isSigner": true
         },
         {
           "name": "indexedArray",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
+        {
+          "name": "index",
+          "type": "u64"
+        },
         {
           "name": "owner",
           "type": "publicKey"
         },
         {
           "name": "delegate",
-          "type": "publicKey"
-        },
-        {
-          "name": "index",
-          "type": "u64"
+          "type": {
+            "option": "publicKey"
+          }
         }
       ]
     },
@@ -833,6 +910,12 @@ export const IDL: PspAccountCompression = {
           "name": "authority",
           "isMut": true,
           "isSigner": true
+        },
+        {
+          "name": "registeredVerifierPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [
@@ -1100,6 +1183,11 @@ export const IDL: PspAccountCompression = {
       "code": 6024,
       "name": "OddNumberOfLeaves",
       "msg": "Odd number of leaves."
+    },
+    {
+      "code": 6025,
+      "name": "NumberOfLeavesMismatch",
+      "msg": "Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves."
     }
   ]
 };

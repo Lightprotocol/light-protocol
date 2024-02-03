@@ -51,7 +51,7 @@ export async function functionalCircuitTest(
     merkleTreeLeafIndex: 0,
     lightWasm,
     account,
-});
+  });
   const outputUtxo1 = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
@@ -62,10 +62,12 @@ export async function functionalCircuitTest(
     publicKey: account.keypair.publicKey,
     blinding: isShield ? new BN(0) : undefined,
   });
-  console.log("outputUtxo1", JSON.stringify(outputUtxo1))
-  console.log("outputUtxo1 publicKey ", account.keypair.publicKey.toArray("be", 32));
+  console.log("outputUtxo1", JSON.stringify(outputUtxo1));
+  console.log(
+    "outputUtxo1 publicKey ",
+    account.keypair.publicKey.toArray("be", 32),
+  );
   console.log("outputUtxo1 blinding ", outputUtxo1.blinding.toArray("be", 31));
-
 
   const outputUtxo2 = createOutUtxo({
     lightWasm,
@@ -74,10 +76,10 @@ export async function functionalCircuitTest(
     publicKey: account.keypair.publicKey,
     blinding: isShield ? new BN(0) : undefined,
   });
-  console.log("outputUtxo2", JSON.stringify(outputUtxo2))
+  console.log("outputUtxo2", JSON.stringify(outputUtxo2));
   console.log("outputUtxo2 blinding ", outputUtxo2.blinding.toArray("be", 31));
   let inputUtxos: Utxo[] = [];
-  if(!isShield) {
+  if (!isShield) {
     inputUtxos = [inputUtxo as Utxo];
   }
 
@@ -110,7 +112,10 @@ export async function functionalCircuitTest(
   );
   systemProofInputs = {
     ...systemProofInputs,
-    publicProgramId: hashAndTruncateToCircuit([mockPubkey.toBytes()], lightWasm),
+    publicProgramId: hashAndTruncateToCircuit(
+      [mockPubkey.toBytes()],
+      lightWasm,
+    ),
     publicTransactionHash,
     privatePublicDataHash: "0",
     publicDataHash: "0",
@@ -123,7 +128,7 @@ export async function functionalCircuitTest(
     verifierIdl,
     systemProofInputs,
   });
-  console.log("res", JSON.stringify(res))
+  console.log("res", JSON.stringify(res));
   // unsuccessful proof generation
   let x = true;
 

@@ -475,34 +475,6 @@ export type LightMerkleTreeProgram = {
       ]
     },
     {
-      "name": "insertTwoLeavesParallel",
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "registeredVerifierPda",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "leaves",
-          "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
       "name": "insertTwoLeavesEvent",
       "accounts": [
         {
@@ -1405,34 +1377,6 @@ export const IDL: LightMerkleTreeProgram = {
           "name": "merkleTreeSet",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "registeredVerifierPda",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "leaves",
-          "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "insertTwoLeavesParallel",
-      "accounts": [
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
         },
         {
           "name": "registeredVerifierPda",

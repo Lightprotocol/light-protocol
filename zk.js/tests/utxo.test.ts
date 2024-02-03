@@ -138,20 +138,20 @@ describe("Utxo Functional", () => {
     console.log("one bn hash: ", oneBnHash);
   });
 
-  it.only("Filling public utxo is consistent", async () => {
+  it("Filling public utxo is consistent", async () => {
     let fillingUtxo = createFillingOutUtxo({
       lightWasm,
       publicKey: STANDARD_COMPRESSION_PUBLIC_KEY,
       isPublic: true,
-    })
+    });
     console.log("filling utxo: ", fillingUtxo.utxoHash);
     const fillingUtxo2 = createFillingOutUtxo({
       lightWasm,
       publicKey: STANDARD_COMPRESSION_PUBLIC_KEY,
       isPublic: true,
-    })
+    });
     assert.equal(fillingUtxo.utxoHash, fillingUtxo2.utxoHash);
-  })
+  });
 
   it("encryption", async () => {
     const amountFee = "1";
@@ -169,7 +169,10 @@ describe("Utxo Functional", () => {
       index: 1,
     };
     const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
-    console.log("public key: ", inputs.keypair.keypair.publicKey.toArray("be", 32));
+    console.log(
+      "public key: ",
+      inputs.keypair.keypair.publicKey.toArray("be", 32),
+    );
     const outUtxo = createOutUtxo({
       publicKey: account.keypair.publicKey,
       amounts: inputs.amounts,

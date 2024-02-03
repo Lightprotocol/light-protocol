@@ -549,6 +549,18 @@ pub(crate) fn light_public_transaction_accounts(
             )]
             pub authority: UncheckedAccount<'info>,
 
+            pub psp_account_compression: Program<'info, ::psp_account_compression::program::PspAccountCompression>,
+            /// CHECK: This is the cpi authority and will be enforced in the Account Compression program.
+            #[account(
+                mut,
+                seeds = [
+                    ::psp_account_compression::program::PspAccountCompression::id().to_bytes().as_ref()
+                ],
+                bump,
+                #authority_seeds_program
+            )]
+            pub account_compression_authority: UncheckedAccount<'info>,
+
             /// CHECK: Is not checked the rpc has complete freedom.
             #[account(mut)]
             pub rpc_recipient_sol: UncheckedAccount<'info>,
@@ -665,6 +677,17 @@ pub(crate) fn light_public_transaction_accounts(
 
             fn get_authority(&self) -> &UncheckedAccount<'info> {
                 &self.authority
+            }
+
+            fn get_psp_account_compression(&self) -> &Program<
+                'info,
+                ::psp_account_compression::program::PspAccountCompression
+            > {
+                &self.psp_account_compression
+            }
+
+            fn get_account_compression_authority(&self) -> &UncheckedAccount<'info> {
+                &self.account_compression_authority
             }
 
             fn get_rpc_recipient_sol(&self) -> &UncheckedAccount<'info> {

@@ -270,10 +270,12 @@ describe("Verifier tests", () => {
       lightWasm,
       assets: [FEE_ASSET],
       amounts: [BN_0],
-      publicKey: new BN(hashAndTruncateToCircuit(
-        [getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT).toBytes()],
-        lightWasm,
-      )),
+      publicKey: new BN(
+        hashAndTruncateToCircuit(
+          [getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT).toBytes()],
+          lightWasm,
+        ),
+      ),
       metaHash: new BN(6),
       address: new BN(7),
       utxoDataHash: BN_1,
@@ -293,32 +295,31 @@ describe("Verifier tests", () => {
       lightWasm,
       account,
     });
-    inputUtxo2 = outUtxoToUtxo(
-      {outUtxo: inputUtxo2,
+    inputUtxo2 = outUtxoToUtxo({
+      outUtxo: inputUtxo2,
       merkleProof: merkleTree.path(1).pathElements,
       merkleTreeLeafIndex: 1,
       lightWasm,
-      account,}
-    );
+      account,
+    });
 
-    inputProgramUtxo = outUtxoToUtxo(
-      {
+    inputProgramUtxo = outUtxoToUtxo({
       outUtxo: inputProgramUtxo,
       merkleProof: merkleTree.path(2).pathElements,
       merkleTreeLeafIndex: 2,
       lightWasm,
       account,
       programOwner: getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT),
-      utxoData: { rnd: 1 },}
-    );
+      utxoData: { rnd: 1 },
+    });
 
-    plainInputUtxo = outUtxoToUtxo(
-      {outUtxo: plainInputUtxo,
+    plainInputUtxo = outUtxoToUtxo({
+      outUtxo: plainInputUtxo,
       merkleProof: merkleTree.path(3).pathElements,
       merkleTreeLeafIndex: 3,
       lightWasm,
-      account,}
-    );
+      account,
+    });
 
     outputUtxo1 = createOutUtxo({
       lightWasm,
@@ -374,7 +375,10 @@ describe("Verifier tests", () => {
     );
     systemProofInputs = {
       ...systemProofInputs,
-      publicProgramId: hashAndTruncateToCircuit([mockPubkey.toBytes()], lightWasm),
+      publicProgramId: hashAndTruncateToCircuit(
+        [mockPubkey.toBytes()],
+        lightWasm,
+      ),
       publicTransactionHash,
       privatePublicDataHash: "0",
       publicDataHash: "0",
@@ -428,7 +432,10 @@ describe("Verifier tests", () => {
     );
     systemProofInputs = {
       ...systemProofInputs,
-      publicProgramId: hashAndTruncateToCircuit([mockPubkey.toBytes()], lightWasm),
+      publicProgramId: hashAndTruncateToCircuit(
+        [mockPubkey.toBytes()],
+        lightWasm,
+      ),
       publicTransactionHash: "0",
       privatePublicDataHash: "0",
       publicDataHash: "0",
@@ -492,7 +499,10 @@ describe("Verifier tests", () => {
     );
     systemProofInputs = {
       ...systemProofInputs,
-      publicProgramId: hashAndTruncateToCircuit([mockPubkey.toBytes()], lightWasm),
+      publicProgramId: hashAndTruncateToCircuit(
+        [mockPubkey.toBytes()],
+        lightWasm,
+      ),
       publicTransactionHash,
       privatePublicDataHash: "0",
       publicDataHash: "0",
@@ -600,7 +610,10 @@ describe("Verifier tests", () => {
     );
     systemProofInputs = {
       ...systemProofInputs,
-      publicProgramId: hashAndTruncateToCircuit([mockPubkey.toBytes()], lightWasm),
+      publicProgramId: hashAndTruncateToCircuit(
+        [mockPubkey.toBytes()],
+        lightWasm,
+      ),
       publicTransactionHash,
       privatePublicDataHash: "0",
       publicDataHash: "0",
@@ -664,7 +677,10 @@ describe("Verifier tests", () => {
     );
     systemProofInputs = {
       ...systemProofInputs,
-      publicProgramId: hashAndTruncateToCircuit([mockPubkey.toBytes()], lightWasm),
+      publicProgramId: hashAndTruncateToCircuit(
+        [mockPubkey.toBytes()],
+        lightWasm,
+      ),
       publicTransactionHash,
       privatePublicDataHash: "0",
       publicDataHash: "0",
@@ -726,7 +742,10 @@ describe("Verifier tests", () => {
     );
     systemProofInputs = {
       ...systemProofInputs,
-      publicProgramId: hashAndTruncateToCircuit([mockPubkey.toBytes()], lightWasm),
+      publicProgramId: hashAndTruncateToCircuit(
+        [mockPubkey.toBytes()],
+        lightWasm,
+      ),
       publicTransactionHash,
       privatePublicDataHash: "0",
       publicDataHash: "0",
@@ -898,7 +917,10 @@ describe("Verifier tests", () => {
     );
     systemProofInputs = {
       ...systemProofInputs,
-      publicProgramId: hashAndTruncateToCircuit([mockPubkey.toBytes()], lightWasm),
+      publicProgramId: hashAndTruncateToCircuit(
+        [mockPubkey.toBytes()],
+        lightWasm,
+      ),
       publicTransactionHash,
       privatePublicDataHash: "0",
       publicDataHash: "0",
