@@ -685,8 +685,6 @@ export function outUtxoToUtxo(
   merkleTreeLeafIndex: number,
   lightWasm: LightWasm,
   account: Account,
-  // programOwner?: PublicKey,
-  // utxoData?: any,
 ): Utxo {
   const inputs: CreateUtxoInputs = {
     hash: outUtxo.hash,
@@ -779,7 +777,7 @@ export function createUtxo(
     : new BN(merkleTreeLeafIndex);
 
   const merkleProofInternal = isFillingUtxo
-    ? new Array(18).fill("0")
+    ? new Array(MERKLE_TREE_HEIGHT).fill("0")
     : merkleProof;
 
   const nullifier = createNullifierWithAccountSignature(
