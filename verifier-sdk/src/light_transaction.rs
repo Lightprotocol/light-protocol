@@ -34,7 +34,7 @@ use crate::{
         insert_two_leaves_event_cpi,
     },
     errors::VerifierSdkError,
-    state::{TransactionIndexerEvent, TransactionIndexerEventV1},
+    state::TransactionIndexerEventV1,
     utils::close_account::close_account,
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
@@ -213,7 +213,7 @@ impl<
             None => Vec::<u8>::new(),
         };
         let leaves = self.input.leaves.to_vec();
-        let transaction_data_event = TransactionIndexerEvent::V1(TransactionIndexerEventV1 {
+        let transaction_data_event = TransactionIndexerEventV1 {
             leaves: &leaves,
             public_amount_sol: self.input.public_amount.sol,
             public_amount_spl: self.input.public_amount.spl,
@@ -222,7 +222,7 @@ impl<
             nullifiers: self.input.nullifiers.to_vec(),
             first_leaf_index,
             message,
-        });
+        };
 
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("post assemble TransactionIndexerEvent");
