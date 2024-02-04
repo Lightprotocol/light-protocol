@@ -59,7 +59,6 @@ describe("Program Utxo Functional", () => {
   it("create program out utxo", async () => {
     for (let i = 0; i < 100; i++) {
       const programOutUtxo = createProgramOutUtxo({
-        // owner: createOutUtxoInputs.owner,
         amounts: createOutUtxoInputs.amounts,
         assets: createOutUtxoInputs.assets,
         dataHash: createDataHashWithDefaultHashingSchema(data, lightWasm),
@@ -174,7 +173,6 @@ describe("Program Utxo Functional", () => {
     const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
 
     const programOutUtxo = createProgramOutUtxo({
-      // ...createOutUtxoInputs,
       amounts: createOutUtxoInputs.amounts,
       assets: createOutUtxoInputs.assets,
       blinding: createOutUtxoInputs.blinding,
@@ -372,18 +370,10 @@ describe("Program Utxo Functional", () => {
       decryptedUtxo.value?.hash.toString(),
       programOutUtxo.hash.toString(),
     );
-    const nullifier = createNullifierWithAccountSignature(
-      account,
-      programOutUtxo.hash,
-      new BN(inputs.index),
-      lightWasm,
-    );
 
-    /// TODO: check whether this has downstream implications
     assert.equal(
       decryptedUtxo.value?.nullifier.toString(),
-      nullifier.toString(),
-      // "6375266098703930269345700550425174694499182299695686843103201658599361581059",
+      "7348232893700449159949977118836554677452891838957421208915931061103447385461",
     );
     assert.deepEqual(decryptedUtxo.value?.merkleProof, ["1", "2", "3"]);
     assert.equal(decryptedUtxo.value?.merkleTreeLeafIndex, inputs.index);

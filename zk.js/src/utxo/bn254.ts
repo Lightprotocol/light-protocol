@@ -5,7 +5,7 @@ import { FIELD_SIZE } from "../constants";
 /** BN with <254-bit max size */
 export type BN254 = BN;
 
-/** Create a BN instance with <254-bit max size and base58 capabilities  */
+/** Create a BN instance with <254-bit max size and base58 capabilities */
 export const createBN254 = (
   number: string | number | BN | Buffer | Uint8Array | number[],
   base?: number | "hex" | "base58" | undefined,
@@ -22,7 +22,7 @@ export const createBN254 = (
 };
 
 /**
- * Enforces a maximum size of 248 bits (31 bytes) for BN instances.
+ * Enforces a maximum size of <254 bits for BN instances.
  * This is necessary for compatibility with zk-SNARKs, where hashes must be less than the field modulus (~2^254).
  */
 function enforceSize(bn: BN) {
@@ -32,7 +32,7 @@ function enforceSize(bn: BN) {
   return bn;
 }
 
-/** Convert 248-bit BN to Base58 string. */
+/** Convert <254-bit BN to Base58 string. */
 export function BN254toBase58(bn: BN254): string {
   const buffer = Buffer.from(bn.toArray("be", 32));
   return bs58.encode(buffer);

@@ -806,7 +806,6 @@ export function createUtxo(
   return utxo;
 }
 
-/// TODO: needs to be refactored to account for no-account access and public utxos
 export function createNullifierWithAccountSignature(
   account: Account,
   hash: BN254,

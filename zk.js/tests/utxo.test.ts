@@ -176,7 +176,6 @@ describe("Utxo Functional", () => {
       hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
     );
     if ("data" in outUtxo) throw new Error("dataHash is not 0");
-    // assert.equal(outUtxo.dataHash.toString(), "0");
     assert.equal(outUtxo.poolType.toString(), "0");
     assert.equal(
       outUtxo.hash.toString(),
@@ -255,7 +254,6 @@ describe("Utxo Functional", () => {
       decryptedUtxoAssetCircuitInput[1].toString(),
       hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
     );
-    // assert.equal(decryptedUtxo.value?.dataHash.toString(), "0");
     assert.equal(decryptedUtxo.value?.poolType.toString(), "0");
     assert.equal(decryptedUtxo.value?.hash.toString(), outUtxo.hash.toString());
     assert.equal(

@@ -281,8 +281,8 @@ describe("Verifier tests", () => {
       data: { rnd: 1 },
       ownerIdl: IDL_PUBLIC_LIGHT_PSP2IN2OUT,
       /// Allows for custom hashing schema
+      /// One could instead also use the default hashing util: createDataHashWithDefaultHashingSchema()
       dataHash: BN_1,
-      // dataHash: createDataHashWithDefaultHashingSchema({ rnd: 1 }, lightWasm),
       type: "",
     });
 
