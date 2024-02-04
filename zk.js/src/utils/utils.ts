@@ -38,12 +38,18 @@ import { MINT } from "../test-utils/constants-system-verifier";
 import { UtilsError, UtilsErrorCode } from "../errors";
 import { Wallet } from "../provider";
 
-import { BN31, PlaceHolderTData, ProgramUtxo, Utxo, createBN31 } from "../utxo";
+import {
+  BN254,
+  PlaceHolderTData,
+  ProgramUtxo,
+  Utxo,
+  createBN254,
+} from "../utxo";
 import { TokenUtxoBalance } from "../build-balance";
 
 const crypto = require("@noble/hashes/crypto");
 
-export function hashAndTruncateToCircuit(data: Uint8Array): BN31 {
+export function hashAndTruncateToCircuit(data: Uint8Array): BN254 {
   return truncateToCircuit(sha256.create().update(Buffer.from(data)).digest());
 }
 
@@ -68,8 +74,8 @@ export function hashAndTruncateToCircuit(data: Uint8Array): BN31 {
  * const truncated = truncateFunction(original32BytesArray);
  * ```
  */
-export function truncateToCircuit(digest: Uint8Array): BN31 {
-  return createBN31(digest.slice(1, 32), undefined, "be");
+export function truncateToCircuit(digest: Uint8Array): BN254 {
+  return createBN254(digest.slice(1, 32), undefined, "be");
 }
 
 // TODO: add pooltype
@@ -230,7 +236,7 @@ export function getNullifierPda(
 }
 
 export const fetchNullifierAccountInfo = async (
-  nullifier: BN31,
+  nullifier: BN254,
   connection: Connection,
 ): Promise<AccountInfo<Buffer> | null> => {
   const nullifierPubkey = getNullifierPda(

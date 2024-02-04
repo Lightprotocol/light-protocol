@@ -18,7 +18,7 @@ import {
   TokenData,
   Action,
 } from "../types";
-import { BN31, PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
+import { BN254, PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
 import { Balance } from "../build-balance";
 import {
   convertAndComputeDecimals,
@@ -578,14 +578,14 @@ export class UserTestAssertHelper {
     );
   }
 
-  async assertNullifierAccountDoesNotExist(nullifier: BN31) {
+  async assertNullifierAccountDoesNotExist(nullifier: BN254) {
     assert.notEqual(
       fetchNullifierAccountInfo(nullifier, this.provider.connection!),
       null,
     );
   }
 
-  async assertNullifierAccountExists(nullifier: BN31) {
+  async assertNullifierAccountExists(nullifier: BN254) {
     assert.notEqual(
       fetchNullifierAccountInfo(nullifier, this.provider.connection!),
       null,

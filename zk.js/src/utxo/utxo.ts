@@ -21,11 +21,10 @@ import {
 import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
 import { IDL_LIGHT_PSP2IN2OUT } from "../idls";
 import { hashAndTruncateToCircuit, fetchAssetByIdLookUp } from "../utils";
-import { BN31, createBN31 } from "./bn31";
+import { BN254, createBN254 } from "./bn254";
 import {
   PlaceHolderTData,
   ProgramOutUtxo,
-  ProgramUtxo,
   programOutUtxoToBytes,
 } from "./program-utxo";
 
@@ -33,12 +32,12 @@ export const randomBN = (nbytes = 30) => new BN(nacl.randomBytes(nbytes));
 const randomPrefixBytes = () => nacl.randomBytes(UTXO_PREFIX_LENGTH);
 
 /** Public key of Poseidon-hashed keypair */
-type CompressionPublicKey = BN31;
+type CompressionPublicKey = BN254;
 
 /** Describes the generic utxo details applicable to every utxo. */
 export type BaseUtxo = {
   /** Identifier and commitment to the utxo, is inserted as leaf into state tree */
-  hash: BN31;
+  hash: BN254;
   /** Compression public key of the user or public key program owning the utxo */
   owner: CompressionPublicKey | PublicKey;
   /** Optional number of lamports and SPL amount assigned to the utxo */
@@ -46,7 +45,7 @@ export type BaseUtxo = {
   /** Optional native mint and SPL mint address respective to 'amounts' */
   assets: PublicKey[];
   /** Random value to force uniqueness of 'hash' */
-  blinding: BN31;
+  blinding: BN254;
   /** Optional type of utxo for custom circuits, defaults to 'native' */
   type: string;
   /** Default to '0' */
@@ -58,7 +57,7 @@ export type BaseUtxo = {
   /** Default 'true'. Whether the inputs to 'hash' are public or not. Useful for confidential compute. */
   isPublic: boolean;
   /** Optional persistent id of the utxo. Used for compressed PDAs and non-fungible tokens */
-  address?: BN31;
+  address?: BN254;
   /** Optional public key of program that owns the metadata */
   metadataOwner?: PublicKey;
   /**
@@ -69,7 +68,7 @@ export type BaseUtxo = {
   // /** hash of metadata */
   // metadataHash?: string;
   /** hash of metadataHash and metadataOwner */
-  metaHash?: BN31;
+  metaHash?: BN254;
 };
 
 /** Utxo that had previously been inserted into a state Merkle tree */
@@ -77,7 +76,7 @@ export type Utxo = Omit<BaseUtxo, "owner"> & {
   /** Compression public key of the user that owns the utxo */
   owner: CompressionPublicKey;
   /** Hash that invalidates utxo once inserted into nullifier queue, if isPublic = true it defaults to: 'hash' */
-  nullifier: BN31;
+  nullifier: BN254;
   /** Numerical identifier of the Merkle tree which the 'hash' is part of */
   merkletreeId: number;
   /** Proof path attached to the utxo. Can be reconstructed using event history */
@@ -106,7 +105,7 @@ export type PublicOutUtxo = OutUtxo & Public;
 export type NullifierInputs = {
   signature: BN;
   /** hash of the utxo preimage */
-  hash: BN31;
+  hash: BN254;
   merkleTreeLeafIndex: BN;
 };
 
@@ -181,15 +180,15 @@ export function stringifyAssetsToCircuitInput(assets: PublicKey[]): string[] {
 
 /** Utxo and ProgramUtxo */
 export function getUtxoHashInputs(
-  owner: BN31,
+  owner: BN254,
   amounts: BN[],
   assets: PublicKey[],
-  blinding: BN31,
+  blinding: BN254,
   poolType: string,
   version: string,
-  dataHash?: BN31,
-  metaHash?: BN31,
-  address?: BN31,
+  dataHash?: BN254,
+  metaHash?: BN254,
+  address?: BN254,
 ): UtxoHashInputs {
   return {
     owner: owner.toString(),
@@ -210,7 +209,7 @@ export function createOutUtxo({
   amounts,
   assets,
   lightWasm,
-  blinding = new BN(randomBN(), 31, "be"),
+  blinding = new BN(randomBN(), 30, "be"),
   encryptionPublicKey,
   isFillingUtxo = false,
   metaHash,
@@ -220,11 +219,11 @@ export function createOutUtxo({
   amounts: BN[];
   assets: PublicKey[];
   lightWasm: LightWasm;
-  blinding?: BN31;
+  blinding?: BN254;
   encryptionPublicKey?: Uint8Array;
   isFillingUtxo?: boolean;
-  metaHash?: BN31;
-  address?: BN31;
+  metaHash?: BN254;
+  address?: BN254;
 }): OutUtxo {
   const { poolType, version, type } = getDefaultUtxoTypeAndVersionV0();
 
@@ -265,7 +264,7 @@ export function createOutUtxo({
 export function getUtxoHash(
   lightWasm: LightWasm,
   utxoHashInputs: UtxoHashInputs,
-): BN31 {
+): BN254 {
   const {
     owner,
     amounts,
@@ -278,7 +277,6 @@ export function getUtxoHash(
     address,
   } = utxoHashInputs;
 
-  /// TODO: we're assuming that amount is < 2^254. Check security implications
   const amountHash = lightWasm.poseidonHashString(amounts);
   const assetHash = lightWasm.poseidonHashString(
     assetsCircuitInput.map((x) => x.toString()),
@@ -392,7 +390,7 @@ export function outUtxoFromBytes({
     : decodedUtxo.accountCompressionPublicKey;
 
   const outUtxo = createOutUtxo({
-    owner: createBN31(owner),
+    owner: createBN254(owner),
     encryptionPublicKey: new BN(decodedUtxo.accountEncryptionPublicKey).eq(BN_0)
       ? undefined
       : decodedUtxo.accountEncryptionPublicKey,
@@ -400,7 +398,7 @@ export function outUtxoFromBytes({
     assets,
     blinding: decodedUtxo.blinding,
     lightWasm,
-    metaHash: decodedUtxo.metaHash, // check whether need to force bn31
+    metaHash: decodedUtxo.metaHash, // check whether need to force BN254
     address: decodedUtxo.address,
   });
   return outUtxo;
@@ -611,15 +609,15 @@ export async function decryptOutUtxoInternal({
 }
 
 export type CreateUtxoInputs = {
-  hash: BN31;
+  hash: BN254;
   owner: CompressionPublicKey;
   amounts: BN[];
   assets: PublicKey[];
-  blinding: BN31;
+  blinding: BN254;
   merkleProof: string[];
   merkleTreeLeafIndex?: number;
-  address?: BN31;
-  metaHash?: BN31;
+  address?: BN254;
+  metaHash?: BN254;
 };
 
 export function createFillingUtxo({
@@ -811,10 +809,10 @@ export function createUtxo(
 /// TODO: needs to be refactored to account for no-account access and public utxos
 export function createNullifierWithAccountSignature(
   account: Account,
-  hash: BN31,
-  merkleTreeLeafIndexInternal: BN31,
+  hash: BN254,
+  merkleTreeLeafIndexInternal: BN254,
   lightWasm: LightWasm,
-): BN31 {
+): BN254 {
   /// TODO: account.sign should accept BN for hash and leafIndex
   const signature = account.sign(
     hash.toString(),
@@ -834,7 +832,7 @@ export function createNullifierWithAccountSignature(
 export function getNullifier(
   lightWasm: LightWasm,
   inputs: NullifierInputs,
-): BN31 {
+): BN254 {
   return lightWasm.poseidonHashBN([
     inputs.hash,
     inputs.merkleTreeLeafIndex,

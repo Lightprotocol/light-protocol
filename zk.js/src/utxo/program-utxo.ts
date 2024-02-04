@@ -6,6 +6,7 @@ import { Result } from "../types";
 import {
   BN_0,
   COMPRESSED_UTXO_BYTES_LENGTH,
+  STANDARD_COMPRESSION_PUBLIC_KEY,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
 } from "../constants";
 import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
@@ -28,7 +29,7 @@ import {
   createNullifierWithAccountSignature,
 } from "./utxo";
 import { Account } from "../account";
-import { BN31, createBN31 } from "./bn31";
+import { BN254, createBN254 } from "./bn254";
 
 export type PlaceHolderTData = any;
 /** Program-owned utxo that had previously been inserted into a state Merkle tree */
@@ -41,7 +42,7 @@ export type ProgramUtxo<TData extends PlaceHolderTData> = Omit<
   /** Data assigned to the utxo */
   data: TData;
   /** Hash of 'data' */
-  dataHash: BN31;
+  dataHash: BN254;
   /** psp idl */
   ownerIdl: Idl; /// TODO: remove from utxo (waste of space)
 };
@@ -56,7 +57,7 @@ export type ProgramOutUtxo<TData extends PlaceHolderTData> = Omit<
   /** Data assigned to the utxo */
   data: TData;
   /** Hash of 'data' */
-  dataHash: BN31;
+  dataHash: BN254;
   /** psp idl */
   ownerIdl: Idl; /// TODO: remove from utxo (waste of space)
 };
@@ -85,9 +86,9 @@ export function createProgramOutUtxo({
   dataHash: BN;
   type: string;
   encryptionPublicKey?: Uint8Array;
-  address?: BN31;
-  blinding?: BN31;
-  metaHash?: BN31;
+  address?: BN254;
+  blinding?: BN254;
+  metaHash?: BN254;
 }): ProgramOutUtxo<PlaceHolderTData> {
   const { poolType, version } = getDefaultUtxoTypeAndVersionV0();
   ({ assets, amounts } = checkAssetAndAmountIntegrity(assets, amounts));
@@ -95,7 +96,7 @@ export function createProgramOutUtxo({
   // TODO: enable check
   // checkUtxoData(data, ownerIdl, type + "OutUtxo");
 
-  /// turn programId into BN31
+  /// turn programId into BN254
   const programIdCircuitInput = hashAndTruncateToCircuit(owner.toBytes());
 
   const utxoHashInputs = getUtxoHashInputs(
@@ -334,8 +335,8 @@ export function programOutUtxoFromBytes({
     /// Currently, system programs assume 'appDataHash' whereas psp-idl uses 'dataHash'
     /** dataHash (can be custom) gets stored in the encrypted message */
     dataHash: decodedUtxoData.appDataHash
-      ? createBN31(decodedUtxoData.appDataHash)
-      : createBN31(decodedUtxoData.dataHash),
+      ? createBN254(decodedUtxoData.appDataHash)
+      : createBN254(decodedUtxoData.dataHash),
     /// TODO: add encr/decr tests handling metaHash and address
     /// I'm assuming we don't have coverage for these yet
     address: decodedUtxoData.address,
@@ -464,7 +465,7 @@ type CreateProgramUtxoInputs = Omit<CreateUtxoInputs, "owner"> & {
   owner: PublicKey;
   ownerIdl: Idl;
   data: PlaceHolderTData;
-  dataHash: BN31;
+  dataHash: BN254;
   /// TODO: add dataHash here.
 };
 
@@ -551,6 +552,7 @@ export interface DecryptProgramUtxoParams {
   type: string;
 }
 
+// TODO: Add a test for encrypting and decrypting program-utxo with standard public key.
 export async function decryptProgramUtxo({
   encBytes,
   account,
@@ -588,17 +590,6 @@ export async function decryptProgramUtxo({
       UtxoError
     >;
   }
-  /// TODO: double check if this is needed
-  // if (
-  //   decryptedProgramOutUtxo.value.owner ===
-  //   STANDARD_COMPRESSION_PUBLIC_KEY.toString()
-  // ) {
-  //   const bs58Standard = bs58.encode(
-  //     STANDARD_COMPRESSION_PRIVATE_KEY.toArray(),
-  //   );
-  //   const bs5832 = bs58.encode(new Uint8Array(32).fill(1));
-  //   account = Account.fromPrivkey(lightWasm, bs58Standard, bs5832, bs5832);
-  // }
 
   return Result.Ok(
     programOutUtxoToProgramUtxo(

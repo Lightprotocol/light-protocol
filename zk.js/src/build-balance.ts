@@ -216,7 +216,6 @@ export async function decryptAddUtxoToBalance({
 
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo.value || decryptedUtxo.error) return;
-  // if (decryptedUtxo.value && decryptedUtxo.value.dataHash !== "0") return;
 
   const utxo = decryptedUtxo.value;
   const nullifier = utxo.nullifier;

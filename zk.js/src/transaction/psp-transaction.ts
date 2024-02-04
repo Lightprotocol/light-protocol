@@ -35,7 +35,7 @@ import { MerkleTreeConfig } from "../merkle-tree";
 import { TokenData } from "../types";
 import { MINT } from "../test-utils";
 import {
-  BN31,
+  BN254,
   PlaceHolderTData,
   ProgramOutUtxo,
   ProgramUtxo,
@@ -279,7 +279,7 @@ export const createUtxoIndices = (
   utxos:
     | (Utxo | ProgramUtxo<PlaceHolderTData>)[]
     | (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[],
-  utxoHash: BN31,
+  utxoHash: BN254,
 ): BN[] => {
   const isAppInUtxo = new Array(4).fill(BN_0);
   for (const i in utxos) {

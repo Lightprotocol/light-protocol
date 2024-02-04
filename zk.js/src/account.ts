@@ -15,6 +15,7 @@ import {
   BN_0,
   SIGN_MESSAGE,
   STANDARD_COMPRESSION_PRIVATE_KEY,
+  STANDARD_COMPRESSION_PUBLIC_KEY,
 } from "./constants";
 import { Wallet } from "./provider";
 import { PlaceHolderTData, ProgramUtxo, Utxo } from "./utxo";
@@ -419,13 +420,15 @@ export class Account {
     }
   }
 
-  private addPrivateKey(
+  private addPrivateKeyToProofInput(
     proofInput: any,
     inputUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[],
   ) {
     proofInput["inPrivateKey"] = inputUtxos.map(
       (utxo: Utxo | ProgramUtxo<PlaceHolderTData>) => {
         if ("data" in utxo) {
+          return STANDARD_COMPRESSION_PRIVATE_KEY;
+        } else if (utxo.owner.eq(STANDARD_COMPRESSION_PUBLIC_KEY)) {
           return STANDARD_COMPRESSION_PRIVATE_KEY;
         } else {
           return this.keypair.privateKey;
@@ -475,7 +478,7 @@ export class Account {
       );
     }
     if (addPrivateKey && inputUtxos) {
-      this.addPrivateKey(proofInput, inputUtxos);
+      this.addPrivateKeyToProofInput(proofInput, inputUtxos);
     }
     const prover = await getProver(
       verifierIdl,

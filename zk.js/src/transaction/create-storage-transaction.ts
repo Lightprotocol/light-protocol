@@ -30,7 +30,7 @@ import {
 import { MerkleTreeConfig } from "../merkle-tree";
 import { Account } from "../account";
 import {
-  BN31,
+  BN254,
   PlaceHolderTData,
   ProgramOutUtxo,
   createProgramOutUtxo,
@@ -102,7 +102,7 @@ export async function prepareStoreProgramUtxo({
         ? Account.fromPubkey(recipientPublicKey, lightWasm)
         : undefined;
 
-      const dataHash: BN31 = createDataHashWithDefaultHashingSchema(
+      const dataHash: BN254 = createDataHashWithDefaultHashingSchema(
         appUtxoConfig.appData,
         lightWasm,
       );
