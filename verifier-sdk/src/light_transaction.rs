@@ -17,6 +17,7 @@ use groth16_solana::{
 };
 use light_macros::heap_neutral;
 use light_merkle_tree_program::{
+    emit_indexer_event,
     program::LightMerkleTreeProgram,
     state_merkle_tree_from_bytes,
     utils::{
@@ -30,10 +31,10 @@ use crate::{
     accounts::LightAccounts,
     cpi_instructions::{
         decompress_sol_cpi, decompress_spl_cpi, insert_nullifiers_cpi, insert_two_leaves_cpi,
-        insert_two_leaves_event_cpi, invoke_indexer_transaction_event,
+        insert_two_leaves_event_cpi,
     },
     errors::VerifierSdkError,
-    state::TransactionIndexerEvent,
+    state::TransactionIndexerEventV1,
     utils::close_account::close_account,
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
@@ -211,8 +212,9 @@ impl<
             Some(message) => message.content.clone(),
             None => Vec::<u8>::new(),
         };
-        let transaction_data_event = TransactionIndexerEvent {
-            leaves: &self.input.leaves.to_vec(),
+        let leaves = self.input.leaves.to_vec();
+        let transaction_data_event = TransactionIndexerEventV1 {
+            leaves: &leaves,
             public_amount_sol: self.input.public_amount.sol,
             public_amount_spl: self.input.public_amount.spl,
             rpc_fee: self.input.rpc_fee,
@@ -225,8 +227,8 @@ impl<
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("post assemble TransactionIndexerEvent");
 
-        invoke_indexer_transaction_event(
-            &transaction_data_event,
+        emit_indexer_event(
+            transaction_data_event.try_to_vec()?,
             &self.input.ctx.accounts.get_log_wrapper().to_account_info(),
             &self
                 .input
@@ -588,6 +590,7 @@ impl<
                 .accounts
                 .get_registered_verifier_pda()
                 .to_account_info(),
+            &self.input.ctx.accounts.get_log_wrapper().to_account_info(),
             // TODO: remove vector or instantiate once for the whole struct
             self.input.leaves.to_vec(),
         )?;
