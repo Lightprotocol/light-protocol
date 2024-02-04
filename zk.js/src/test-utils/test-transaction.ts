@@ -396,7 +396,7 @@ export class TestTransaction {
         new BN(
           rpc.solMerkleTree!.merkleTree.elements()[
             rpc.solMerkleTree!.merkleTree.indexOf(
-              this.transaction.private.outputUtxos[0].utxoHash,
+              this.transaction.private.outputUtxos[0].hash,
             )
           ],
         )

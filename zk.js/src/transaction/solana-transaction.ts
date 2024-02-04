@@ -41,6 +41,7 @@ import {
   createAccountObject,
   firstLetterToLower,
   firstLetterToUpper,
+  getNullifierPda,
 } from "../utils";
 
 type SolanaInstructionInputs = {
@@ -58,6 +59,18 @@ type SolanaInstructionInputs = {
 
 export type SolanaRemainingAccounts = {
   nullifierPdaPubkeys?: remainingAccount[];
+};
+
+export type SolanaTransactionInputs = {
+  action: Action;
+  merkleTreeSet: PublicKey;
+  publicTransactionVariables: PublicTransactionVariables;
+  systemProof: { parsedProof: any; parsedPublicInputsObject: any };
+  pspTransactionInput?: PspTransactionInput;
+  pspProof?: { parsedProof: any; parsedPublicInputsObject: any };
+  rpcRecipientSol?: PublicKey;
+  systemPspIdl: Idl;
+  rootIndex: number;
 };
 
 export function getSolanaRemainingAccounts(
@@ -285,18 +298,6 @@ export async function createSolanaInstructions({
   return instructions;
 }
 
-export type SolanaTransactionInputs = {
-  action: Action;
-  merkleTreeSet: PublicKey;
-  publicTransactionVariables: PublicTransactionVariables;
-  systemProof: { parsedProof: any; parsedPublicInputsObject: any };
-  pspTransactionInput?: PspTransactionInput;
-  pspProof?: { parsedProof: any; parsedPublicInputsObject: any };
-  rpcRecipientSol?: PublicKey;
-  systemPspIdl: Idl;
-  rootIndex: number;
-};
-
 // pspProof, systemProof,pspTransactionInput, txParams
 export async function sendAndConfirmCompressTransaction({
   provider,
@@ -476,16 +477,6 @@ export function getRegisteredVerifierPda(
 ): PublicKey {
   return PublicKey.findProgramAddressSync(
     [verifierProgramId.toBytes()],
-    merkleTreeProgramId,
-  )[0];
-}
-
-export function getNullifierPda(
-  nullifier: number[],
-  merkleTreeProgramId: PublicKey,
-) {
-  return PublicKey.findProgramAddressSync(
-    [Uint8Array.from([...nullifier]), utils.bytes.utf8.encode("nf")],
     merkleTreeProgramId,
   )[0];
 }

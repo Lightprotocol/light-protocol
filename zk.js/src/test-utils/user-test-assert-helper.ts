@@ -18,7 +18,7 @@ import {
   TokenData,
   Action,
 } from "../types";
-import { Utxo } from "../utxo";
+import { BN254, PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
 import { Balance } from "../build-balance";
 import {
   convertAndComputeDecimals,
@@ -380,7 +380,10 @@ export class UserTestAssertHelper {
     // checks that a utxo is categorized correctly which means:
     // - has the same asset as the tokenBalance it is part of
     // - has a balance of that asset greater than 0
-    const checkCategorizationByAsset = (asset: string, utxo: Utxo) => {
+    const checkCategorizationByAsset = (
+      asset: string,
+      utxo: Utxo | ProgramUtxo<PlaceHolderTData>,
+    ) => {
       if (asset === SystemProgram.programId.toBase58()) {
         assert.notStrictEqual(
           utxo.amounts[0].toString(),
@@ -575,14 +578,14 @@ export class UserTestAssertHelper {
     );
   }
 
-  async assertNullifierAccountDoesNotExist(nullifier: string) {
+  async assertNullifierAccountDoesNotExist(nullifier: BN254) {
     assert.notEqual(
       fetchNullifierAccountInfo(nullifier, this.provider.connection!),
       null,
     );
   }
 
-  async assertNullifierAccountExists(nullifier: string) {
+  async assertNullifierAccountExists(nullifier: BN254) {
     assert.notEqual(
       fetchNullifierAccountInfo(nullifier, this.provider.connection!),
       null,

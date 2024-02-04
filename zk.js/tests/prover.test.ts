@@ -15,14 +15,12 @@ import {
   FEE_ASSET,
   Provider as LightProvider,
   MINT,
-  Utxo,
   Account,
   IDL_LIGHT_PSP2IN2OUT,
   CompressTransaction,
   createCompressTransaction,
   CompressTransactionInput,
   MERKLE_TREE_SET,
-  MerkleTreeConfig,
   getVerifierProgramId,
   createSystemProofInputs,
   getSystemProof,
@@ -61,7 +59,7 @@ describe("Prover Functionality Tests", () => {
         new anchor.BN(compressFeeAmount),
         new anchor.BN(compressAmount),
       ],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       blinding: new anchor.BN(new Array(31).fill(1)),
     });
     const compressTransactionInput: CompressTransactionInput = {
@@ -79,9 +77,9 @@ describe("Prover Functionality Tests", () => {
       compressTransactionInput,
     );
 
-    merkleTree = new MerkleTree(22, lightWasm, [compressUtxo.utxoHash]);
+    merkleTree = new MerkleTree(22, lightWasm, [compressUtxo.hash.toString()]);
 
-    assert.equal(merkleTree.indexOf(compressUtxo.utxoHash), 0);
+    assert.equal(merkleTree.indexOf(compressUtxo.hash.toString()), 0);
   });
 
   after(async () => {

@@ -12,6 +12,7 @@ import {
 } from "../errors";
 import { getAssetPubkeys } from "../transaction";
 import { Utxo, OutUtxo, createOutUtxo } from "./utxo";
+import { PlaceHolderTData, ProgramOutUtxo, ProgramUtxo } from "./program-utxo";
 
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
 
@@ -26,7 +27,9 @@ export type Recipient = {
 // mint: PublicKey, expectedAmount: BN,
 export const getUtxoArrayAmount = (
   mint: PublicKey,
-  inUtxos: Utxo[] | OutUtxo[],
+  inUtxos:
+    | (Utxo | ProgramUtxo<PlaceHolderTData>)[]
+    | (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[],
 ) => {
   let inAmount = BN_0;
   inUtxos.forEach((inUtxo) => {
@@ -98,7 +101,7 @@ export function createOutUtxos({
   separateSolUtxo = false,
   lightWasm,
 }: {
-  inUtxos?: Utxo[];
+  inUtxos?: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
@@ -311,7 +314,7 @@ export function createOutUtxos({
       lightWasm,
       assets: [SystemProgram.programId],
       amounts: [solAmount],
-      publicKey: changeUtxoAccount.keypair.publicKey,
+      owner: changeUtxoAccount.keypair.publicKey,
       // verifierAddress: appUtxo?.verifierAddress,
     });
     outputUtxos.push(solChangeUtxo);
@@ -336,7 +339,7 @@ export function createOutUtxos({
       lightWasm,
       assets: [SystemProgram.programId, splAsset],
       amounts: [solAmount, splAmount],
-      publicKey: changeUtxoAccount.keypair.publicKey,
+      owner: changeUtxoAccount.keypair.publicKey,
     });
 
     outputUtxos.push(changeUtxo);
@@ -392,7 +395,7 @@ export function createRecipientUtxos({
       lightWasm,
       assets: [SystemProgram.programId, splMint],
       amounts: [solAmount, splAmount],
-      publicKey: recipients[j].account.keypair.publicKey,
+      owner: recipients[j].account.keypair.publicKey,
       encryptionPublicKey: recipients[j].account.encryptionKeypair.publicKey,
     });
 
@@ -419,8 +422,8 @@ export function validateUtxoAmounts({
   action,
 }: {
   assetPubkeys: PublicKey[];
-  inUtxos?: Utxo[];
-  outUtxos: OutUtxo[];
+  inUtxos?: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
+  outUtxos: (OutUtxo | ProgramOutUtxo<PlaceHolderTData>)[];
   publicAmountSol?: BN;
   publicAmountSpl?: BN;
   action?: Action;

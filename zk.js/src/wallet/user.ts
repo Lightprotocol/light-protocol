@@ -82,6 +82,7 @@ import {
   createRecipientUtxos,
   ProgramUtxo,
   decryptProgramUtxo,
+  PlaceHolderTData,
 } from "../utxo";
 import { Provider } from "../provider";
 import { Account } from "../account";
@@ -440,7 +441,7 @@ export class User {
     const utxosEntries = this.balance.tokenBalances
       .get(tokenCtx.mint.toBase58())
       ?.utxos.values();
-    let utxos: Utxo[] =
+    let utxos =
       utxosEntries && mergeExistingUtxos ? Array.from(utxosEntries) : [];
     const outUtxos: OutUtxo[] = [];
     if (recipient) {
@@ -455,7 +456,7 @@ export class User {
           lightWasm: this.provider.lightWasm,
           assets,
           amounts,
-          publicKey: recipient.keypair.publicKey,
+          owner: recipient.keypair.publicKey,
           encryptionPublicKey: recipient.encryptionKeypair.publicKey,
         }),
       );
@@ -490,7 +491,7 @@ export class User {
   ): Promise<TransactionInstruction[]> {
     if (!this.recentTransactionParameters)
       throw new UserError(
-        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        UserErrorCode.TRANSACTION_PARAMETERS_UNDEFINED,
         "compileAndProveTransaction",
         "The method 'createCompressTransactionParameters' must be executed first to generate the parameters that can be compiled and proven.",
       );
@@ -568,7 +569,7 @@ export class User {
   async approve() {
     if (!this.recentTransactionParameters)
       throw new UserError(
-        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        UserErrorCode.TRANSACTION_PARAMETERS_UNDEFINED,
         "compileAndProveTransaction",
         "The method 'createCompressTransactionParameters' must be executed first to approve SPL funds before initiating a compress transaction.",
       );
@@ -635,7 +636,7 @@ export class User {
   async sendTransaction() {
     if (!this.recentTransactionParameters)
       throw new UserError(
-        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        UserErrorCode.TRANSACTION_PARAMETERS_UNDEFINED,
         "sendTransaction",
         "Unable to send transaction. The transaction must be compiled and a proof must be generated first.",
       );
@@ -843,10 +844,10 @@ export class User {
       .get(SystemProgram.programId.toBase58())
       ?.utxos.values();
 
-    const utxosEntriesSol: Utxo[] =
+    const utxosEntriesSol =
       solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
 
-    const utxos: Utxo[] = utxosEntries
+    const utxos = utxosEntries
       ? Array.from([...utxosEntries, ...utxosEntriesSol])
       : [];
 
@@ -1012,7 +1013,7 @@ export class User {
     const solUtxos = this.balance.tokenBalances
       .get(SystemProgram.programId.toBase58())
       ?.utxos.values();
-    const utxosEntriesSol: Utxo[] =
+    const utxosEntriesSol =
       solUtxos && token !== "SOL" ? Array.from(solUtxos) : new Array<Utxo>();
 
     const utxosEntries = this.balance.tokenBalances
@@ -1205,7 +1206,7 @@ export class User {
         b.amounts[assetIndex].toNumber() - a.amounts[assetIndex].toNumber(),
     );
 
-    let inUtxos: Utxo[] =
+    let inUtxos =
       utxosEntries && asset.toBase58() !== new PublicKey(0).toBase58()
         ? Array.from([...utxosEntries, ...solUtxos, ...inboxUtxosEntries])
         : Array.from([...solUtxos, ...inboxUtxosEntries]);
@@ -1266,7 +1267,7 @@ export class User {
       .get(asset.toBase58())
       ?.utxos.values();
 
-    const commitmentUtxos: Utxo[] = [];
+    const commitmentUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[] = [];
     for (const commitment of commitments) {
       const utxo = inboxTokenBalance.utxos.get(commitment);
       if (!utxo)
@@ -1278,7 +1279,7 @@ export class User {
       commitmentUtxos.push(utxo);
     }
 
-    const inUtxos: Utxo[] = utxosEntries
+    const inUtxos = utxosEntries
       ? Array.from([...utxosEntries, ...commitmentUtxos])
       : Array.from(commitmentUtxos);
 
@@ -1393,10 +1394,13 @@ export class User {
       assetLookupTable: string[],
       aes: boolean,
     ) => {
-      const decryptedStorageUtxos: ProgramUtxo[] = [];
-      const spentUtxos: ProgramUtxo[] = [];
+      const decryptedStorageUtxos: ProgramUtxo<PlaceHolderTData>[] = [];
+      const spentUtxos: ProgramUtxo<PlaceHolderTData>[] = [];
       for (const data of indexedTransactions) {
-        let decryptedUtxo: Result<ProgramUtxo | null, UtxoError>;
+        let decryptedUtxo: Result<
+          ProgramUtxo<PlaceHolderTData> | null,
+          UtxoError
+        >;
         let index = new BN(data.transaction.firstLeafIndex, "hex").toNumber();
         for (const [, leaf] of data.transaction.leaves.entries()) {
           try {
@@ -1404,9 +1408,9 @@ export class User {
               lightWasm: this.provider.lightWasm,
               account: this.account,
               encBytes: Uint8Array.from(data.transaction.message),
-              pspIdl: idl,
-              pspId: getVerifierProgramId(idl),
-              utxoName: "utxo", // TODO: try all accounts which are appended with OutUtxo from idl
+              ownerIdl: idl,
+              owner: getVerifierProgramId(idl),
+              type: "utxo", // TODO: try all accounts which are appended with OutUtxo from idl
               aes,
               merkleTreeLeafIndex: index,
               utxoHash: Uint8Array.from(leaf),
@@ -1419,7 +1423,7 @@ export class User {
             if (decryptedUtxo.value) {
               const utxo = decryptedUtxo.value;
               const nfExists = await fetchNullifierAccountInfo(
-                utxo.utxo.nullifier,
+                utxo.nullifier,
                 this.provider.provider?.connection,
               );
 
@@ -1462,7 +1466,7 @@ export class User {
       }
       this.balance.programBalances
         .get(verifierAddress)!
-        .addUtxo(utxo.utxo.utxoHash, utxo, "utxos");
+        .addUtxo(utxo.hash.toString(), utxo, "utxos");
     }
 
     for (const utxo of spentUtxos) {
@@ -1475,7 +1479,7 @@ export class User {
       }
       this.balance.programBalances
         .get(verifierAddress)!
-        .addUtxo(utxo.utxo.utxoHash, utxo, "spentUtxos");
+        .addUtxo(utxo.hash.toString(), utxo, "spentUtxos");
     }
     for (const [, programBalance] of this.balance.programBalances) {
       for (const [, tokenBalance] of programBalance.tokenBalances) {
@@ -1493,8 +1497,8 @@ export class User {
     return this.balance.programBalances;
   }
 
-  getAllUtxos(): Utxo[] {
-    const allUtxos: Utxo[] = [];
+  getAllUtxos(): (Utxo | ProgramUtxo<PlaceHolderTData>)[] {
+    const allUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[] = [];
 
     for (const tokenBalance of this.balance.tokenBalances.values()) {
       allUtxos.push(...tokenBalance.utxos.values());
@@ -1527,7 +1531,7 @@ export class User {
           verifierIdl: IDL_LIGHT_PSP2IN2OUT_STORAGE,
         });
     } else {
-      const inUtxos: Utxo[] = [];
+      const inUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[] = [];
       // any utxo just select any utxo with a non-zero sol balance preferably sol balance
       const firstSolUtxo = this.balance.tokenBalances
         .get(SystemProgram.programId.toBase58())
@@ -1605,13 +1609,13 @@ export class User {
         tokenBalances: programBalance?.tokenBalances,
         inboxTokenBalances: inboxProgramBalance?.tokenBalances,
       };
-    const programUtxoArray: Utxo[] = [];
+    const programUtxoArray: (Utxo | ProgramUtxo<PlaceHolderTData>)[] = [];
     if (programBalance) {
       for (const tokenBalance of programBalance.tokenBalances.values()) {
         programUtxoArray.push(...tokenBalance.utxos.values());
       }
     }
-    const inboxProgramUtxoArray: Utxo[] = [];
+    const inboxProgramUtxoArray: (Utxo | ProgramUtxo<PlaceHolderTData>)[] = [];
     if (inboxProgramBalance) {
       for (const tokenBalance of inboxProgramBalance.tokenBalances.values()) {
         inboxProgramUtxoArray.push(...tokenBalance.utxos.values());
@@ -1624,7 +1628,9 @@ export class User {
     commitment: string,
     latest: boolean = false,
     idl?: Idl,
-  ): Promise<{ utxo: Utxo; status: string } | undefined> {
+  ): Promise<
+    { utxo: Utxo | ProgramUtxo<PlaceHolderTData>; status: string } | undefined
+  > {
     if (latest) {
       await this.getBalance();
       if (idl) {

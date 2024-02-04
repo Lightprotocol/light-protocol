@@ -1,3 +1,4 @@
+//@ts-check
 import * as anchor from "@coral-xyz/anchor";
 import { assert } from "chai";
 import {
@@ -23,7 +24,7 @@ import {
   compressProgramUtxo,
   createProgramOutUtxo,
   createOutUtxo,
-  createUtxoDataHash,
+  createDataHashWithDefaultHashingSchema,
 } from "@lightprotocol/zk.js";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { SystemProgram, PublicKey, Keypair } from "@solana/web3.js";
@@ -75,7 +76,7 @@ describe("Test {{project-name}}", () => {
       confirmConfig,
     });
     lightProvider.addVerifierProgramPublickeyToLookUpTable(
-      getVerifierProgramId(IDL),
+      getVerifierProgramId(IDL)
     );
 
     const user: User = await User.init({ provider: lightProvider });
@@ -84,11 +85,11 @@ describe("Test {{project-name}}", () => {
       lightWasm: WASM,
       assets: [SystemProgram.programId],
       amounts: [new BN(1_000_000)],
-      utxoData,
-      pspIdl: IDL,
-      pspId: verifierProgramId,
-      utxoName: "utxo",
-      utxoDataHash: createUtxoDataHash(utxoData, WASM),
+      data: utxoData,
+      ownerIdl: IDL,
+      owner: verifierProgramId,
+      type: "utxo",
+      dataHash: createDataHashWithDefaultHashingSchema(utxoData, WASM),
     });
 
     const testInputsCompress = {
@@ -105,34 +106,39 @@ describe("Test {{project-name}}", () => {
 
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await user.syncStorage(IDL);
-    const compressedUtxoCommitmentHash =
-      testInputsCompress.utxo.outUtxo.utxoHash;
+    const compressedUtxoCommitmentHash = testInputsCompress.utxo.hash;
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())!
-      .tokenBalances.get(testInputsCompress.utxo.outUtxo.assets[1].toBase58())!
-      .utxos.get(compressedUtxoCommitmentHash)!;
-    assert.equal(inputUtxo.utxoHash, compressedUtxoCommitmentHash);
-    assert.equal(inputUtxo.utxoData.x.toString(), "1");
-    assert.equal(inputUtxo.utxoData.y.toString(), "2");
+      .tokenBalances.get(testInputsCompress.utxo.assets[1].toBase58())!
+      .utxos.get(compressedUtxoCommitmentHash.toString())!;
+    assert.equal(
+      inputUtxo.hash.toString(),
+      compressedUtxoCommitmentHash.toString()
+    );
+    if (!("data" in inputUtxo)) throw new Error("no data in inputUtxo");
+    if ("data" in inputUtxo) {
+      assert.equal(inputUtxo.data.x.toString(), "1");
+      assert.equal(inputUtxo.data.y.toString(), "2");
+    }
 
     const circuitPath = path.join(
-      `build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`,
+      `build-circuit/${"{{project-name}}"}/${"{{circom-name-camel-case}}"}`
     );
 
     const pspTransactionInput: PspTransactionInput = {
       proofInputs: {
-        publicZ: inputUtxo.utxoData.x.add(inputUtxo.utxoData.y),
+        publicZ: inputUtxo.data.x.add(inputUtxo.data.y),
       },
       path: circuitPath,
       verifierIdl: IDL,
       circuitName: "{{circom-name-camel-case}}",
-      checkedInUtxos: [{ utxoName: "inputUtxo", utxo: inputUtxo }],
+      checkedInUtxos: [{ type: "inputUtxo", utxo: inputUtxo }],
     };
     const changeAmountSol = inputUtxo.amounts[0].sub(rpc.getRpcFee());
 
     const changeUtxo = createOutUtxo({
       lightWasm: WASM,
-      publicKey: new BN(inputUtxo.publicKey),
+      owner: user.account.keypair.publicKey,
       amounts: [changeAmountSol],
       assets: [SystemProgram.programId],
     });
@@ -150,9 +156,8 @@ describe("Test {{project-name}}", () => {
       account: user.account,
     });
 
-    const { root, index: rootIndex } = (await rpc.getMerkleRoot(
-      MERKLE_TREE_SET,
-    ))!;
+    const { root, index: rootIndex } =
+      (await rpc.getMerkleRoot(MERKLE_TREE_SET))!;
 
     const proofInputs = createProofInputs({
       lightWasm: WASM,
@@ -193,11 +198,7 @@ describe("Test {{project-name}}", () => {
     });
 
     console.log("transaction hash ", txHash);
-    const utxoSpent = await user.getUtxo(
-      inputUtxo.utxoHash,
-      true,
-      IDL,
-    );
+    const utxoSpent = await user.getUtxo(inputUtxo.hash.toString(), true, IDL);
     assert.equal(utxoSpent!.status, "spent");
   });
 });
