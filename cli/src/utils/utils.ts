@@ -114,8 +114,8 @@ export const getRpc = async (localTestRpc?: boolean) => {
   if (!rpc) {
     if (localTestRpc) {
       const wallet = readWalletFromFile();
-
-      rpc = new TestRpc({
+      // @ts-ignore: todo fix type error
+      rpc  = new TestRpc({
         rpcPubkey: wallet.publicKey,
         rpcRecipientSol: wallet.publicKey,
         rpcFee: RPC_FEE,

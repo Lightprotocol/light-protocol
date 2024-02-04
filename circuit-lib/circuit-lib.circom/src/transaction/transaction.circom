@@ -625,12 +625,6 @@ template TransactionLib(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPubli
 
     checkMintPublicKey.enabled <== publicAmountSpl;
 
-    // component assetCheck[nAssets];
-    // for (var i = 0; i < nAssets; i++) {
-    //     assetCheck[i] = Num2Bits(248);
-    //     assetCheck[i].in <== assetPublicKeys[i];
-    // }
-
     // verify correctness of transaction inputs
     component checkInUtxos = CheckUtxoIntegrity(nIns, nAssets, nInAssets);
 
