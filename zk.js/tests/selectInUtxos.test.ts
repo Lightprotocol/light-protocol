@@ -8,7 +8,7 @@ chai.use(chaiAsPromised);
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { compareUtxos } from "./test-utils/compareUtxos";
+import { compareUtxos } from "./test-utils/compare-utxos";
 import {
   TransactionErrorCode,
   Action,

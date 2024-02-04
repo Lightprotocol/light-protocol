@@ -1,17 +1,17 @@
-import { BN } from "@coral-xyz/anchor";
+import { AnchorProvider, BN, Idl, utils } from "@coral-xyz/anchor";
 import {
   AddressLookupTableProgram,
   Connection,
   PublicKey,
   Transaction,
   SystemProgram,
+  AccountInfo,
 } from "@solana/web3.js";
 import * as os from "os";
 import { sha256 } from "@noble/hashes/sha256";
 import { Decimal } from "decimal.js";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import * as anchor from "@coral-xyz/anchor";
 
 import { TokenData } from "../types";
 import {
@@ -31,18 +31,25 @@ import {
   lightPsp4in4outAppStorageId,
   BN_0,
   BN_1,
+  BN_2,
 } from "../constants";
 import { MerkleTreeConfig } from "../merkle-tree";
 import { MINT } from "../test-utils/constants-system-verifier";
 import { UtilsError, UtilsErrorCode } from "../errors";
 import { Wallet } from "../provider";
 
-import { Utxo } from "../utxo";
+import {
+  BN254,
+  PlaceHolderTData,
+  ProgramUtxo,
+  Utxo,
+  createBN254,
+} from "../utxo";
 import { TokenUtxoBalance } from "../build-balance";
 
 const crypto = require("@noble/hashes/crypto");
 
-export function hashAndTruncateToCircuit(data: Uint8Array) {
+export function hashAndTruncateToCircuit(data: Uint8Array): BN254 {
   return truncateToCircuit(sha256.create().update(Buffer.from(data)).digest());
 }
 
@@ -67,8 +74,8 @@ export function hashAndTruncateToCircuit(data: Uint8Array) {
  * const truncated = truncateFunction(original32BytesArray);
  * ```
  */
-export function truncateToCircuit(digest: Uint8Array) {
-  return new BN(digest.slice(1, 32), undefined, "be");
+export function truncateToCircuit(digest: Uint8Array): BN254 {
+  return createBN254(digest.slice(1, 32), undefined, "be");
 }
 
 // TODO: add pooltype
@@ -77,7 +84,7 @@ export async function getAssetLookUpId({
   asset,
 }: {
   asset: PublicKey;
-  anchorProvider: anchor.AnchorProvider;
+  anchorProvider: AnchorProvider;
   // poolType?: Uint8Array
 }): Promise<any> {
   const poolType = new Array(32).fill(0);
@@ -212,23 +219,31 @@ export const convertAndComputeDecimals = (
 
 export const getUpdatedSpentUtxos = (
   tokenBalances: Map<string, TokenUtxoBalance>,
-): Utxo[] => {
+): (Utxo | ProgramUtxo<PlaceHolderTData>)[] => {
   return Array.from(tokenBalances.values())
     .map((value) => Array.from(value.spentUtxos.values()))
     .flat();
 };
 
-export const fetchNullifierAccountInfo = async (
-  nullifier: string,
-  connection: Connection,
-) => {
-  const nullifierPubkey = PublicKey.findProgramAddressSync(
-    [
-      new anchor.BN(nullifier.toString()).toArrayLike(Buffer, "be", 32),
-      anchor.utils.bytes.utf8.encode("nf"),
-    ],
+export function getNullifierPda(
+  nullifier: number[],
+  merkleTreeProgramId: PublicKey,
+): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Uint8Array.from([...nullifier]), utils.bytes.utf8.encode("nf")],
     merkleTreeProgramId,
   )[0];
+}
+
+export const fetchNullifierAccountInfo = async (
+  nullifier: BN254,
+  connection: Connection,
+): Promise<AccountInfo<Buffer> | null> => {
+  const nullifierPubkey = getNullifierPda(
+    nullifier.toArray("be", 32),
+    merkleTreeProgramId,
+  );
+
   let retries = 2;
   while (retries > 0) {
     const res = await connection.getAccountInfo(nullifierPubkey, "processed");
@@ -244,7 +259,7 @@ export const fetchQueuedLeavesAccountInfo = async (
   connection: Connection,
 ) => {
   const queuedLeavesPubkey = PublicKey.findProgramAddressSync(
-    [leftLeaf, anchor.utils.bytes.utf8.encode("leaves")],
+    [leftLeaf, utils.bytes.utf8.encode("leaves")],
     merkleTreeProgramId,
   )[0];
   return connection.getAccountInfo(queuedLeavesPubkey, "confirmed");
@@ -315,7 +330,7 @@ export function firstLetterToUpper(input: string): string {
  * @param {Idl} idl - The IDL object to check.
  * @returns {boolean} - Returns true if such an account exists, false otherwise.
  */
-export function isProgramVerifier(idl: anchor.Idl): boolean {
+export function isProgramVerifier(idl: Idl): boolean {
   if (!idl.accounts)
     throw new UtilsError(
       UtilsErrorCode.ACCOUNTS_UNDEFINED,
@@ -331,17 +346,14 @@ export function isProgramVerifier(idl: anchor.Idl): boolean {
 
 export async function initLookUpTable(
   payer: Wallet,
-  provider: anchor.Provider,
+  provider: AnchorProvider,
   extraAccounts?: Array<PublicKey>,
 ): Promise<PublicKey> {
   const payerPubkey = payer.publicKey;
   const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
 
   const [lookUpTable] = PublicKey.findProgramAddressSync(
-    [
-      payerPubkey.toBuffer(),
-      new anchor.BN(recentSlot).toArrayLike(Buffer, "le", 8),
-    ],
+    [payerPubkey.toBuffer(), new BN(recentSlot).toArrayLike(Buffer, "le", 8)],
     AddressLookupTableProgram.programId,
   );
 
@@ -352,7 +364,7 @@ export async function initLookUpTable(
   })[0];
 
   const escrows = PublicKey.findProgramAddressSync(
-    [anchor.utils.bytes.utf8.encode("escrow")],
+    [utils.bytes.utf8.encode("escrow")],
     lightPsp2in2outId,
   )[0];
 

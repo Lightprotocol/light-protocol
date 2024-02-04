@@ -15,9 +15,11 @@ import {
   BN_0,
   SIGN_MESSAGE,
   STANDARD_COMPRESSION_PRIVATE_KEY,
+  STANDARD_COMPRESSION_PUBLIC_KEY,
 } from "./constants";
 import { Wallet } from "./provider";
-import { Utxo } from "./utxo";
+import { PlaceHolderTData, ProgramUtxo, Utxo } from "./utxo";
+import { SystemProofInputs } from "./transaction/psp-transaction";
 
 const nacl = require("tweetnacl");
 
@@ -418,14 +420,27 @@ export class Account {
     }
   }
 
-  private addPrivateKey(proofInput: any, inputUtxos: Utxo[]) {
-    proofInput["inPrivateKey"] = inputUtxos.map((utxo: Utxo) => {
-      if (utxo.publicKey === this.keypair.publicKey.toString()) {
-        return this.keypair.privateKey;
-      } else {
-        return STANDARD_COMPRESSION_PRIVATE_KEY;
-      }
-    });
+  private addPrivateKeyToProofInput(
+    proofInput: any,
+    inputUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[],
+  ) {
+    proofInput["inPrivateKey"] = inputUtxos.map(
+      (utxo: Utxo | ProgramUtxo<PlaceHolderTData>) => {
+        if ("data" in utxo) {
+          return STANDARD_COMPRESSION_PRIVATE_KEY;
+        } else if (utxo.owner.eq(STANDARD_COMPRESSION_PUBLIC_KEY)) {
+          return STANDARD_COMPRESSION_PRIVATE_KEY;
+        } else if (utxo.owner.eq(this.keypair.publicKey)) {
+          return this.keypair.privateKey;
+        } else {
+          throw new AccountError(
+            AccountErrorCode.INVALID_OWNER,
+            "addPrivateKeyToProofInput",
+            "Trying to spend utxo that is not owned by the account",
+          );
+        }
+      },
+    );
   }
 
   async getProofInternal({
@@ -442,10 +457,10 @@ export class Account {
     firstPath: string;
     verifierIdl: Idl;
     circuitName?: string;
-    proofInput: any;
+    proofInput: SystemProofInputs;
     addPrivateKey?: boolean;
     enableLogging?: boolean;
-    inputUtxos?: Utxo[];
+    inputUtxos?: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
     getProver?: any;
     wasmTester?: any;
   }) {
@@ -463,13 +478,13 @@ export class Account {
 
     if (addPrivateKey && !inputUtxos) {
       throw new AccountError(
-        TransactionErrorCode.NO_VERIFIER_IDL_PROVIDED,
+        TransactionErrorCode.NO_UTXOS_PROVIDED,
         "getProofInternal",
-        "verifierIdl is missing in TransactionParameters",
+        "input utxos are missing in TransactionParameters, but addPrivateKey is set to true",
       );
     }
     if (addPrivateKey && inputUtxos) {
-      this.addPrivateKey(proofInput, inputUtxos);
+      this.addPrivateKeyToProofInput(proofInput, inputUtxos);
     }
     const prover = await getProver(
       verifierIdl,

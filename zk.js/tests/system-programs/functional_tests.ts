@@ -188,7 +188,7 @@ describe("verifier_program", () => {
 
     const utxo = createOutUtxo({
       lightWasm: WASM,
-      publicKey: new anchor.BN(inputUtxos[0].publicKey),
+      owner: new anchor.BN(inputUtxos[0].owner),
       assets: inputUtxos[0].assets,
       amounts: [BN_0, inputUtxos[0].amounts[1]],
     });
@@ -260,12 +260,12 @@ describe("verifier_program", () => {
             new anchor.BN(compressFeeAmount),
             new anchor.BN(compressAmount),
           ],
-          publicKey: ACCOUNT.keypair.publicKey,
+          owner: ACCOUNT.keypair.publicKey,
         })
       : createOutUtxo({
           lightWasm: WASM,
           amounts: [new anchor.BN(compressFeeAmount)],
-          publicKey: ACCOUNT.keypair.publicKey,
+          owner: ACCOUNT.keypair.publicKey,
           assets: [FEE_ASSET],
         });
 

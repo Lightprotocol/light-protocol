@@ -22,7 +22,7 @@ import {
 } from "../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { compareUtxos } from "./test-utils/compareUtxos";
+import { compareUtxos } from "./test-utils/compare-utxos";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";

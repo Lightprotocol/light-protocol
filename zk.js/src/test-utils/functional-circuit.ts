@@ -13,7 +13,7 @@ import {
   getTransactionHash,
   getVerifierProgramId,
 } from "../transaction";
-import { BN_0, FEE_ASSET } from "../constants";
+import { BN_0, FEE_ASSET, MERKLE_TREE_HEIGHT } from "../constants";
 import { Account } from "../account";
 import { Provider as LightProvider } from "../provider";
 import { MINT } from "./constants-system-verifier";
@@ -35,16 +35,18 @@ export async function functionalCircuitTest(
   const compressAmount = 20_000;
   const compressFeeAmount = 10_000;
   const rpcFee = new BN(5000);
-  let inputUtxo: OutUtxo | Utxo = createOutUtxo({
+  const _inputUtxo: OutUtxo | Utxo = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(compressFeeAmount), new BN(compressAmount)],
-    publicKey: account.keypair.publicKey,
+    owner: account.keypair.publicKey,
   });
 
-  const merkleTree = new MerkleTree(22, lightWasm, [inputUtxo.utxoHash]);
-  inputUtxo = outUtxoToUtxo(
-    inputUtxo,
+  const merkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, lightWasm, [
+    _inputUtxo.hash.toString(),
+  ]);
+  const inputUtxo = outUtxoToUtxo(
+    _inputUtxo,
     merkleTree.path(0).pathElements,
     0,
     lightWasm,
@@ -57,14 +59,14 @@ export async function functionalCircuitTest(
       new BN(compressFeeAmount / 2).sub(rpcFee),
       new BN(compressAmount / 2),
     ],
-    publicKey: account.keypair.publicKey,
+    owner: account.keypair.publicKey,
   });
 
   const outputUtxo2 = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(compressFeeAmount / 2), new BN(compressAmount / 2)],
-    publicKey: account.keypair.publicKey,
+    owner: account.keypair.publicKey,
   });
 
   const txInput: TransactionInput = {

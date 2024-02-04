@@ -74,8 +74,8 @@ describe("Test createOutUtxos Functional", () => {
         assets: [SystemProgram.programId, tokenCtx.mint],
         amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
         merkleProof: ["1"],
-        utxoHash: "0",
-        blinding: "1",
+        hash: BN_0,
+        blinding: BN_1,
         merkleTreeLeafIndex: 0,
       },
       false,
@@ -87,8 +87,8 @@ describe("Test createOutUtxos Functional", () => {
         assets: [SystemProgram.programId],
         amounts: [new BN(1e6)],
         merkleProof: ["1"],
-        utxoHash: "0",
-        blinding: "2",
+        hash: BN_0,
+        blinding: BN_2,
         merkleTreeLeafIndex: 0,
       },
       false,
@@ -590,7 +590,7 @@ describe("createRecipientUtxos", () => {
     });
 
     expect(outputUtxos.length).to.equal(recipients.length);
-    expect(outputUtxos[0].publicKey.toString()).to.equal(
+    expect(outputUtxos[0].owner.toString()).to.equal(
       account1.keypair.publicKey.toString(),
     );
     expect(outputUtxos[0].amounts[0].toString()).to.equal("5");
@@ -598,7 +598,7 @@ describe("createRecipientUtxos", () => {
     expect(outputUtxos[0].assets[0].equals(SystemProgram.programId)).to.be.true;
     expect(outputUtxos[0].assets[1].equals(mint)).to.be.true;
 
-    expect(outputUtxos[1].publicKey.toString()).to.equal(
+    expect(outputUtxos[1].owner.toString()).to.equal(
       account2.keypair.publicKey.toString(),
     );
     expect(outputUtxos[1].amounts[0].toString()).to.equal("3");
@@ -633,8 +633,8 @@ describe("validateUtxoAmounts", () => {
       {
         amounts,
         assets,
-        blinding: "0",
-        utxoHash: "0",
+        blinding: BN_0,
+        hash: BN_0,
         merkleProof: ["1"],
         merkleTreeLeafIndex: 0,
       },
@@ -652,7 +652,7 @@ describe("validateUtxoAmounts", () => {
       amounts,
       assets,
       blinding: BN_0,
-      publicKey: Account.createFromSeed(lightWasm, seed32).keypair.publicKey,
+      owner: Account.createFromSeed(lightWasm, seed32).keypair.publicKey,
     });
   }
 
@@ -713,8 +713,8 @@ describe("Test createOutUtxos Errors", () => {
         assets: [SystemProgram.programId, tokenCtx.mint],
         amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals.toNumber())],
         merkleProof: ["1"],
-        utxoHash: "0",
-        blinding: "1",
+        hash: BN_0,
+        blinding: BN_1,
         merkleTreeLeafIndex: 0,
       },
       false,
@@ -726,8 +726,8 @@ describe("Test createOutUtxos Errors", () => {
         assets: [SystemProgram.programId],
         amounts: [new BN(1e6)],
         merkleProof: ["1"],
-        utxoHash: "0",
-        blinding: "2",
+        hash: BN_0,
+        blinding: BN_2,
         merkleTreeLeafIndex: 0,
       },
       false,
@@ -781,13 +781,13 @@ describe("Test createOutUtxos Errors", () => {
         outUtxos: [
           createOutUtxo({
             lightWasm,
-            publicKey: k0.keypair.publicKey,
+            owner: k0.keypair.publicKey,
             amounts: [BN_0],
             assets: [SystemProgram.programId],
           }),
           createOutUtxo({
             lightWasm,
-            publicKey: k0.keypair.publicKey,
+            owner: k0.keypair.publicKey,
             amounts: [BN_0],
             assets: [SystemProgram.programId],
           }),
@@ -820,7 +820,7 @@ describe("Test createOutUtxos Errors", () => {
         outUtxos: [
           createOutUtxo({
             lightWasm,
-            publicKey: k0.keypair.publicKey,
+            owner: k0.keypair.publicKey,
             amounts: [BN_0, BN_1],
             assets: [SystemProgram.programId, invalidMint],
           }),
@@ -848,7 +848,7 @@ describe("Test createOutUtxos Errors", () => {
         outUtxos: [
           createOutUtxo({
             lightWasm,
-            publicKey: k0.keypair.publicKey,
+            owner: k0.keypair.publicKey,
             amounts: [BN_0, new BN(1e12)],
             assets: [SystemProgram.programId, utxo1.assets[1]],
           }),
@@ -913,8 +913,8 @@ describe("Test createOutUtxos Errors", () => {
         assets: [SystemProgram.programId, invalidMint],
         amounts: [new BN(1e6), new BN(1e6)],
         merkleProof: ["3"],
-        utxoHash: "0",
-        blinding: "1",
+        hash: BN_0,
+        blinding: BN_1,
         merkleTreeLeafIndex: 0,
       },
       false,
@@ -932,7 +932,7 @@ describe("Test createOutUtxos Errors", () => {
         outUtxos: [
           createOutUtxo({
             lightWasm,
-            publicKey: k0.keypair.publicKey,
+            owner: k0.keypair.publicKey,
             amounts: [BN_0, BN_1],
             assets: [SystemProgram.programId, utxo1.assets[1]],
           }),

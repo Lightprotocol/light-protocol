@@ -1,11 +1,20 @@
 import { assert } from "chai";
-import { OutUtxo } from "../../src/index";
+import {
+  OutUtxo,
+  PlaceHolderTData,
+  ProgramOutUtxo,
+  ProgramUtxo,
+  stringifyAssetsToCircuitInput,
+} from "../../src/index";
 import { Utxo } from "../../src";
 
-export function compareOutUtxos(utxo1: OutUtxo, utxo2: OutUtxo): void {
+export function compareOutUtxos(
+  utxo1: OutUtxo | ProgramOutUtxo<PlaceHolderTData>,
+  utxo2: OutUtxo | ProgramOutUtxo<PlaceHolderTData>,
+): void {
   assert.strictEqual(
-    utxo1.publicKey.toString(),
-    utxo2.publicKey.toString(),
+    utxo1.owner.toString(),
+    utxo2.owner.toString(),
     "publicKey does not match",
   );
 
@@ -39,9 +48,12 @@ export function compareOutUtxos(utxo1: OutUtxo, utxo2: OutUtxo): void {
     ),
   );
 
+  const utxo1AssetsCircuitInput = stringifyAssetsToCircuitInput(utxo1.assets);
+  const utxo2AssetsCircuitInput = stringifyAssetsToCircuitInput(utxo2.assets);
+
   assert.deepEqual(
-    utxo1.assetsCircuit,
-    utxo2.assetsCircuit,
+    utxo1AssetsCircuitInput,
+    utxo2AssetsCircuitInput,
     "assetsCircuit does not match",
   );
   assert.strictEqual(
@@ -51,8 +63,8 @@ export function compareOutUtxos(utxo1: OutUtxo, utxo2: OutUtxo): void {
   );
   assert.strictEqual(utxo1.poolType, utxo2.poolType, "poolType does not match");
   assert.strictEqual(
-    utxo1.transactionVersion,
-    utxo2.transactionVersion,
+    utxo1.version,
+    utxo2.version,
     "transactionVersion does not match",
   );
   assert.strictEqual(
@@ -60,18 +72,27 @@ export function compareOutUtxos(utxo1: OutUtxo, utxo2: OutUtxo): void {
     utxo2.isFillingUtxo,
     "isFillingUtxo does not match",
   );
+  if ("dataHash" in utxo1 && "dataHash" in utxo2) {
+    assert.strictEqual(
+      utxo1.dataHash!.toString(),
+      utxo2.dataHash!.toString(),
+      "utxoDataHash does not match",
+    );
+  }
   assert.strictEqual(
-    utxo1.utxoDataHash.toString(),
-    utxo2.utxoDataHash.toString(),
-    "utxoDataHash does not match",
+    utxo1.hash.toString(),
+    utxo2.hash.toString(),
+    "utxoHash does not match",
   );
-  assert.strictEqual(utxo1.utxoHash, utxo2.utxoHash, "utxoHash does not match");
 }
 
-export function compareUtxos(utxo1: Utxo, utxo2: Utxo): void {
+export function compareUtxos(
+  utxo1: Utxo | ProgramUtxo<PlaceHolderTData>,
+  utxo2: Utxo | ProgramUtxo<PlaceHolderTData>,
+): void {
   assert.strictEqual(
-    utxo1.publicKey.toString(),
-    utxo2.publicKey.toString(),
+    utxo1.owner.toString(),
+    utxo2.owner.toString(),
     "publicKey does not match",
   );
 
@@ -91,10 +112,12 @@ export function compareUtxos(utxo1: Utxo, utxo2: Utxo): void {
     "merkleTreeLeafIndex does not match",
   );
 
-  if (utxo1.utxoData || utxo2.utxoData) {
+  if ("data" in utxo1 && !("data" in utxo2))
+    throw new Error("Utxo type mismatch");
+  if ("data" in utxo1 && "data" in utxo2) {
     assert.deepStrictEqual(
-      utxo1.utxoData.toString(),
-      utxo2.utxoData.toString(),
+      utxo1.data.toString(),
+      utxo2.data.toString(),
       "utxoData does not match",
     );
   }
@@ -121,9 +144,12 @@ export function compareUtxos(utxo1: Utxo, utxo2: Utxo): void {
     ),
   );
 
+  const utxo1AssetsCircuitInput = stringifyAssetsToCircuitInput(utxo1.assets);
+  const utxo2AssetsCircuitInput = stringifyAssetsToCircuitInput(utxo2.assets);
+
   assert.deepEqual(
-    utxo1.assetsCircuit,
-    utxo2.assetsCircuit,
+    utxo1AssetsCircuitInput,
+    utxo2AssetsCircuitInput,
     "assetsCircuit does not match",
   );
   assert.strictEqual(
@@ -132,9 +158,10 @@ export function compareUtxos(utxo1: Utxo, utxo2: Utxo): void {
     "blinding does not match",
   );
   assert.strictEqual(utxo1.poolType, utxo2.poolType, "poolType does not match");
+
   assert.strictEqual(
-    utxo1.transactionVersion,
-    utxo2.transactionVersion,
+    utxo1.version,
+    utxo2.version,
     "transactionVersion does not match",
   );
   assert.strictEqual(
@@ -142,10 +169,11 @@ export function compareUtxos(utxo1: Utxo, utxo2: Utxo): void {
     utxo2.isFillingUtxo,
     "isFillingUtxo does not match",
   );
-  assert.strictEqual(
-    utxo1.utxoDataHash.toString(),
-    utxo2.utxoDataHash.toString(),
-    "utxoDataHash does not match",
-  );
-  assert.strictEqual(utxo1.utxoHash, utxo2.utxoHash, "utxoHash does not match");
+  if ("dataHash" in utxo1 && "dataHash" in utxo2)
+    assert.strictEqual(
+      utxo1.dataHash.toString(),
+      utxo2.dataHash.toString(),
+      "utxoDataHash does not match",
+    );
+  assert.strictEqual(utxo1.hash, utxo2.hash, "utxoHash does not match");
 }

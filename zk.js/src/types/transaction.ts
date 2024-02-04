@@ -8,7 +8,7 @@ import {
   VersionedTransactionResponse,
 } from "@solana/web3.js";
 import { Rpc } from "../rpc";
-import { Utxo } from "../utxo";
+import { PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
 
 export type PrioritizationFee = bigint;
 
@@ -127,8 +127,8 @@ export type RpcIndexedTransactionResponse = {
 
 // User internal type
 export type UserIndexedTransaction = ParsedIndexedTransaction & {
-  inSpentUtxos: Utxo[];
-  outSpentUtxos: Utxo[];
+  inSpentUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
+  outSpentUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
 };
 
 export enum Action {

@@ -8,7 +8,7 @@ import {
   fetchNullifierAccountInfo,
   fetchQueuedLeavesAccountInfo,
 } from "./utils";
-import { Utxo, ProgramUtxo, decryptUtxo } from "./utxo";
+import { Utxo, ProgramUtxo, decryptUtxo, PlaceHolderTData } from "./utxo";
 import {
   ProgramUtxoBalanceError,
   ProgramUtxoBalanceErrorCode,
@@ -38,9 +38,9 @@ export class TokenUtxoBalance {
   tokenData: TokenData;
   totalBalanceSpl: BN;
   totalBalanceSol: BN;
-  utxos: Map<string, Utxo>; // commitment hash as key
-  committedUtxos: Map<string, Utxo>; // utxos which are
-  spentUtxos: Map<string, Utxo>; // ordered for slot spent - maybe this should just be an UserIndexedTransaction
+  utxos: Map<string, Utxo | ProgramUtxo<PlaceHolderTData>>; // commitment hash as key
+  committedUtxos: Map<string, Utxo | ProgramUtxo<PlaceHolderTData>>; // utxos which are
+  spentUtxos: Map<string, Utxo | ProgramUtxo<PlaceHolderTData>>; // ordered for slot spent - maybe this should just be an UserIndexedTransaction
   constructor(tokenData: TokenData) {
     this.tokenData = tokenData;
     this.totalBalanceSol = BN_0;
@@ -54,7 +54,11 @@ export class TokenUtxoBalance {
     return new TokenUtxoBalance(TOKEN_REGISTRY.get("SOL")!);
   }
 
-  addUtxo(commitment: string, utxo: Utxo, attribute: VariableType): boolean {
+  addUtxo(
+    commitment: string,
+    utxo: Utxo | ProgramUtxo<PlaceHolderTData>,
+    attribute: VariableType,
+  ): boolean {
     const utxoExists = this[attribute].get(commitment) !== undefined;
     this[attribute].set(commitment, utxo);
 
@@ -96,13 +100,13 @@ export class ProgramUtxoBalance {
 
   addUtxo(
     commitment: string,
-    utxo: ProgramUtxo,
+    utxo: ProgramUtxo<PlaceHolderTData>,
     attribute: VariableType,
   ): boolean {
     const utxoAsset =
-      utxo.utxo.amounts[1].toString() === "0"
+      utxo.amounts[1].toString() === "0"
         ? new PublicKey(0).toBase58()
-        : utxo.utxo.assets[1].toBase58();
+        : utxo.assets[1].toBase58();
     const tokenBalance = this.tokenBalances?.get(utxoAsset);
     // if not token balance for utxoAsset create token balance
     if (!tokenBalance) {
@@ -124,7 +128,7 @@ export class ProgramUtxoBalance {
     }
     return this.tokenBalances
       .get(utxoAsset)!
-      .addUtxo(commitment, utxo.utxo, attribute);
+      .addUtxo(commitment, utxo, attribute);
   }
 }
 
@@ -144,7 +148,7 @@ export class ProgramBalance extends TokenUtxoBalance {
 
   addProgramUtxo(
     commitment: string,
-    utxo: ProgramUtxo,
+    utxo: ProgramUtxo<PlaceHolderTData>,
     attribute: VariableType,
   ): boolean {
     // if (utxo.utxo.publicKey != this.programAddress) {
@@ -158,12 +162,12 @@ export class ProgramBalance extends TokenUtxoBalance {
     // }
 
     const utxoExists = this[attribute].get(commitment) !== undefined;
-    this[attribute].set(commitment, utxo.utxo);
+    this[attribute].set(commitment, utxo);
 
     if (attribute === ("utxos" as VariableType) && !utxoExists) {
-      this.totalBalanceSol = this.totalBalanceSol.add(utxo.utxo.amounts[0]);
-      if (utxo.utxo.amounts[1]) {
-        this.totalBalanceSpl = this.totalBalanceSpl.add(utxo.utxo.amounts[1]);
+      this.totalBalanceSol = this.totalBalanceSol.add(utxo.amounts[0]);
+      if (utxo.amounts[1]) {
+        this.totalBalanceSpl = this.totalBalanceSpl.add(utxo.amounts[1]);
       }
     }
     return !utxoExists;
@@ -212,7 +216,6 @@ export async function decryptAddUtxoToBalance({
 
   // null if utxo did not decrypt -> return nothing and continue
   if (!decryptedUtxo.value || decryptedUtxo.error) return;
-  if (decryptedUtxo.value && decryptedUtxo.value.utxoDataHash !== "0") return;
 
   const utxo = decryptedUtxo.value;
   const nullifier = utxo.nullifier;
@@ -232,7 +235,7 @@ export async function decryptAddUtxoToBalance({
   const assetIndex = utxo.amounts[1].toString() !== "0" ? 1 : 0;
 
   // valid amounts and is not app utxo
-  if (amountsValid && utxo.utxoDataHash.toString() === "0") {
+  if (amountsValid && !("data" in utxo)) {
     // TODO: add is native to utxo
     // if !asset try to add asset and then push
     if (
@@ -255,6 +258,8 @@ export async function decryptAddUtxoToBalance({
       ? "spentUtxos"
       : "utxos";
 
-    balance.tokenBalances.get(assetKey)?.addUtxo(utxo.utxoHash, utxo, utxoType);
+    balance.tokenBalances
+      .get(assetKey)
+      ?.addUtxo(utxo.hash.toString(), utxo, utxoType);
   }
 }

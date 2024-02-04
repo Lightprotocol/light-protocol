@@ -128,13 +128,13 @@ describe("Test Rpc Errors", () => {
     const utxo = createOutUtxo({
       amounts: [new BN(1)],
       assets: [mockKeypair.publicKey],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       lightWasm: WASM,
     });
     const utxo2 = createOutUtxo({
       amounts: [new BN(2)],
       assets: [mockKeypair.publicKey],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       lightWasm: WASM,
     });
     const verifierConfig: VerifierConfig = {
@@ -167,13 +167,13 @@ describe("Test Rpc Errors", () => {
     const utxo = createOutUtxo({
       amounts: [new BN(1)],
       assets: [mockKeypair.publicKey],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       lightWasm: WASM,
     });
     const utxo2 = createOutUtxo({
       amounts: [new BN(2)],
       assets: [mockKeypair.publicKey],
-      publicKey: account.keypair.publicKey,
+      owner: account.keypair.publicKey,
       lightWasm: WASM,
     });
     const verifierConfig: VerifierConfig = {
@@ -190,8 +190,8 @@ describe("Test Rpc Errors", () => {
     );
 
     const merkleTree = new MerkleTree(22, WASM, [
-      utxo.utxoHash,
-      utxo2.utxoHash,
+      utxo.hash.toString(),
+      utxo2.hash.toString(),
     ]);
     const solMerkleTree = new SolMerkleTree({
       pubkey: MERKLE_TREE_SET,
@@ -214,10 +214,7 @@ describe("Test Rpc Errors", () => {
       publicAmountSol: "0",
       publicAmountSpl: "0",
       encryptedUtxos: Array.from(encryptedUtxos),
-      leaves: [
-        new BN(utxo.utxoHash).toArray("be", 32),
-        new BN(utxo2.utxoHash).toArray("be", 32),
-      ],
+      leaves: [utxo.hash.toArray("be", 32), utxo2.hash.toArray("be", 32)],
       firstLeafIndex: "0",
       nullifiers: [Array(32).fill(1), Array(32).fill(2)],
       rpcFee: "0",

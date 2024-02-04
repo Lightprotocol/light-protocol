@@ -23,7 +23,7 @@ import {
   createProgramOutUtxo,
 } from "@lightprotocol/zk.js";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
-import { compareOutUtxos } from "../../../zk.js/tests/test-utils/compareUtxos";
+import { compareOutUtxos } from "../../../zk.js/tests/test-utils/compare-utxos";
 import {
   Keypair as SolanaKeypair,
   Keypair,
@@ -31,7 +31,7 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { IDL } from "../target/types/streaming_payments";
-import { createUtxoDataHash } from "@lightprotocol/zk.js";
+import { createDataHashWithDefaultHashingSchema } from "@lightprotocol/zk.js";
 
 const path = require("path");
 
@@ -108,11 +108,11 @@ describe("Streaming Payments tests", () => {
       lightWasm: WASM,
       assets: [SystemProgram.programId],
       amounts: [new BN(1_000_000)],
-      utxoData,
-      pspIdl: IDL,
-      pspId: verifierProgramId,
-      utxoName: "utxo",
-      utxoDataHash: createUtxoDataHash(utxoData, WASM),
+      data: utxoData,
+      ownerIdl: IDL,
+      owner: verifierProgramId,
+      type: "utxo",
+      dataHash: createDataHashWithDefaultHashingSchema(utxoData, WASM),
     });
     const testInputsCompress = {
       utxo: outputUtxoSol,
@@ -127,14 +127,14 @@ describe("Streaming Payments tests", () => {
     console.log("storeProgramUtxoResult: ", storeProgramUtxoResult);
     const programUtxoBalance: Map<string, ProgramUtxoBalance> =
       await lightUser.syncStorage(IDL);
-    const compressedUtxoCommitmentHash =
-      testInputsCompress.utxo.outUtxo.utxoHash;
+    const compressedUtxoCommitmentHash = testInputsCompress.utxo.hash;
+
     const inputUtxo = programUtxoBalance
       .get(verifierProgramId.toBase58())
-      .tokenBalances.get(testInputsCompress.utxo.outUtxo.assets[0].toBase58())
-      .utxos.get(compressedUtxoCommitmentHash);
+      .tokenBalances.get(testInputsCompress.utxo.assets[0].toBase58())
+      .utxos.get(compressedUtxoCommitmentHash.toString());
 
-    compareOutUtxos(inputUtxo!, testInputsCompress.utxo.outUtxo);
+    compareOutUtxos(inputUtxo!, testInputsCompress.utxo);
     const circuitPath = path.join(
       "build-circuit/streaming-payments/streamingPayments",
     );
@@ -148,8 +148,7 @@ describe("Streaming Payments tests", () => {
       path: circuitPath,
       verifierIdl: IDL,
       circuitName: "streamingPayments",
-      // ts-ignore
-      checkedInUtxos: [{ utxoName: "streamInUtxo", utxo: inputUtxo }],
+      checkedInUtxos: [{ type: "streamInUtxo", utxo: inputUtxo }],
     };
 
     const compressedTransaction = await createTransaction({
