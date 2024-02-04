@@ -430,8 +430,14 @@ export class Account {
           return STANDARD_COMPRESSION_PRIVATE_KEY;
         } else if (utxo.owner.eq(STANDARD_COMPRESSION_PUBLIC_KEY)) {
           return STANDARD_COMPRESSION_PRIVATE_KEY;
-        } else {
+        } else if (utxo.owner.eq(this.keypair.publicKey)) {
           return this.keypair.privateKey;
+        } else {
+          throw new AccountError(
+            AccountErrorCode.INVALID_OWNER,
+            "addPrivateKeyToProofInput",
+            "Trying to spend utxo that is not owned by the account",
+          );
         }
       },
     );

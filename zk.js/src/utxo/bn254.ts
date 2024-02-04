@@ -32,8 +32,9 @@ function enforceSize(bn: BN) {
   return bn;
 }
 
-/** Convert <254-bit BN to Base58 string. */
+/** Convert <254-bit BN to Base58 string. Fills up to 32 bytes. */
 export function BN254toBase58(bn: BN254): string {
   const buffer = Buffer.from(bn.toArray("be", 32));
+
   return bs58.encode(buffer);
 }

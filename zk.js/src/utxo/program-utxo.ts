@@ -73,7 +73,7 @@ export function createProgramOutUtxo({
   type,
   encryptionPublicKey,
   address,
-  blinding = new BN(randomBN(), 31, "be"),
+  blinding = new BN(randomBN(), 30, "be"),
   metaHash,
 }: {
   owner: PublicKey;
