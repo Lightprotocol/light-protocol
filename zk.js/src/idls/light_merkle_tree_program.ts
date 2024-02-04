@@ -820,6 +820,22 @@ export type LightMerkleTreeProgram = {
   ],
   "types": [
     {
+      "name": "Changelogs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "changelogs",
+            "type": {
+              "vec": {
+                "defined": "ChangelogEvent"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "PathNode",
       "docs": [
         "Node of the Merkle path with an index representing the position in a",
@@ -1874,6 +1890,22 @@ export const IDL: LightMerkleTreeProgram = {
     }
   ],
   "types": [
+    {
+      "name": "Changelogs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "changelogs",
+            "type": {
+              "vec": {
+                "defined": "ChangelogEvent"
+              }
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "PathNode",
       "docs": [
