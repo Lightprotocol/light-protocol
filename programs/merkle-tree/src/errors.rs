@@ -52,4 +52,10 @@ pub enum ErrorCode {
     InvalidTwoLeavesPda,
     #[msg("Odd number of leaves.")]
     OddNumberOfLeaves,
+    #[msg("Integer overflow, value too large")]
+    IntegerOverflow,
+    #[msg("Provided noop program public key is invalid")]
+    InvalidNoopPubkey,
+    #[msg("Emitting an event requires at least one changelog entry")]
+    EventNoChangelogEntry,
 }

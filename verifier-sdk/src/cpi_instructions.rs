@@ -1,11 +1,4 @@
-use std::str::FromStr;
-
-use anchor_lang::{
-    prelude::*,
-    solana_program::{instruction::Instruction, program::invoke},
-};
-
-use crate::{errors::VerifierSdkError, state::TransactionIndexerEvent};
+use anchor_lang::prelude::*;
 
 #[inline(never)]
 pub fn insert_nullifiers_cpi<'a, 'b>(
@@ -95,6 +88,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     merkle_tree_set: &'b AccountInfo<'a>,
     system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
+    log_wrapper: &'b AccountInfo<'a>,
     leaves: Vec<[u8; 32]>,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
@@ -106,6 +100,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         system_program: system_program.to_account_info(),
         merkle_tree_set: merkle_tree_set.to_account_info(),
         registered_verifier_pda: registered_verifier_pda.to_account_info(),
+        log_wrapper: log_wrapper.to_account_info(),
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
@@ -155,27 +150,4 @@ pub fn get_seeds<'a>(
     );
     let seed = merkle_tree_program_id.key().to_bytes();
     Ok((seed, bump))
-}
-
-#[inline(never)]
-pub fn invoke_indexer_transaction_event<'info>(
-    event: &TransactionIndexerEvent,
-    noop_program: &AccountInfo<'info>,
-    signer: &AccountInfo<'info>,
-) -> Result<()> {
-    if noop_program.key()
-        != Pubkey::from_str("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV").unwrap()
-    {
-        return err!(VerifierSdkError::InvalidNoopPubkey);
-    }
-    let instruction = Instruction {
-        program_id: noop_program.key(),
-        accounts: vec![],
-        data: event.try_to_vec()?,
-    };
-    invoke(
-        &instruction,
-        &[noop_program.to_account_info(), signer.to_account_info()],
-    )?;
-    Ok(())
 }
