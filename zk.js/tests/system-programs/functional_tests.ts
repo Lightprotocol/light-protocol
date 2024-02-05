@@ -191,6 +191,7 @@ describe("verifier_program", () => {
       owner: new anchor.BN(inputUtxos[0].owner),
       assets: inputUtxos[0].assets,
       amounts: [BN_0, inputUtxos[0].amounts[1]],
+      isPublic: false,
     });
 
     await performDecompress({
@@ -261,12 +262,14 @@ describe("verifier_program", () => {
             new anchor.BN(compressAmount),
           ],
           owner: ACCOUNT.keypair.publicKey,
+          isPublic: false,
         })
       : createOutUtxo({
           lightWasm: WASM,
           amounts: [new anchor.BN(compressFeeAmount)],
           owner: ACCOUNT.keypair.publicKey,
           assets: [FEE_ASSET],
+          isPublic: false,
         });
 
     const compressTransactionInput: CompressTransactionInput = {

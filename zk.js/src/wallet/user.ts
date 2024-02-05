@@ -514,7 +514,7 @@ export class User {
       root = fetchedRoot;
       rootIndex = index;
     } else {
-      const res = (await this.provider.rpc!.getMerkleRoot())!;
+      const res = (await this.provider.rpc!.getMerkleRoot(MERKLE_TREE_SET))!;
       root = res.root;
       rootIndex = res.index;
     }

@@ -229,7 +229,7 @@ pub(crate) fn light_verifier_accounts(
     let (public_fields, public_getters) = if args.public {
         (
             quote! {
-                pub account_compression: Program<'info, ::account_compression::program::AccountCompression>,
+                pub account_compression_program: Program<'info, ::account_compression::program::AccountCompression>,
                 /// CHECK: This is the cpi authority and will be enforced in the Account Compression program.
                 #[account(
                     mut,
@@ -242,11 +242,11 @@ pub(crate) fn light_verifier_accounts(
                 pub account_compression_authority: UncheckedAccount<'info>,
             },
             quote! {
-                fn get_psp_account_compression(&self) -> Option<&Program<
+                fn get_psp_account_compression_program(&self) -> Option<&Program<
                     'info,
                     ::account_compression::program::AccountCompression
                 >> {
-                    Some(&self.account_compression)
+                    Some(&self.account_compression_program)
                 }
 
                 fn get_account_compression_authority(&self) -> Option<&UncheckedAccount<'info>> {
@@ -269,7 +269,7 @@ pub(crate) fn light_verifier_accounts(
                 pub merkle_tree_set: AccountLoader<'info, ::light_merkle_tree_program::state::MerkleTreeSet>,
             },
             quote! {
-                fn get_psp_account_compression(&self) -> Option<&Program<
+                fn get_psp_account_compression_program(&self) -> Option<&Program<
                     'info,
                     ::account_compression::program::AccountCompression
                 >> {

@@ -742,7 +742,7 @@ where
                 .input
                 .ctx
                 .accounts
-                .get_psp_account_compression()
+                .get_psp_account_compression_program()
                 .unwrap()
                 .to_account_info(),
             &self
@@ -779,7 +779,7 @@ where
                 .input
                 .ctx
                 .accounts
-                .get_psp_account_compression()
+                .get_psp_account_compression_program()
                 .unwrap()
                 .to_account_info(),
             &self

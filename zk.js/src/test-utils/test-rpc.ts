@@ -317,6 +317,7 @@ export class TestRpc extends Rpc {
       this.merkleTreeProgram,
       merkleTree.pubkey,
       merkleTree.merkleTree.root(),
+      "merkleTreeSet",
     );
 
     return {
@@ -345,6 +346,7 @@ export class TestRpc extends Rpc {
       this.merkleTreeProgram,
       merkleTreePubkey,
       merkleTree.merkleTree.root(),
+      "merkleTreeSet",
     );
     return { root: merkleTree.merkleTree.root(), index: index.toNumber() };
   }
@@ -362,14 +364,17 @@ export class PublicTestRpc {
   accountCompressionProgram: Program<AccountCompression>;
   latestSignature: string = "";
   merkleTreePublicKey: PublicKey;
+  indexedArrayPublicKey: PublicKey;
   constructor({
     connection,
     lightWasm,
     merkleTreePublicKey,
+    indexedArrayPublicKey,
   }: {
     merkleTreePublicKey: PublicKey;
     connection: Connection;
     lightWasm: LightWasm;
+    indexedArrayPublicKey: PublicKey;
   }) {
     this.connection = connection;
     const solMerkleTree = new SolMerkleTree({
@@ -389,6 +394,7 @@ export class PublicTestRpc {
       new AnchorProvider(connection, {} as any, {}),
     );
     this.merkleTreePublicKey = merkleTreePublicKey;
+    this.indexedArrayPublicKey = indexedArrayPublicKey;
   }
 
   /**
@@ -461,7 +467,18 @@ export class PublicTestRpc {
 
   async getAssetsByOwner(owner: string): Promise<Utxo[]> {
     await this.getIndexedTransactions(this.connection);
-    return this.utxos.filter((utxo) => utxo.owner.toString() === owner);
+    const ownedUtxos = this.utxos.filter(
+      (utxo) => utxo.owner.toString() === owner,
+    );
+
+    // TODO: do not return nullified utxos, currently does not work
+    // we need to deserialize the nullifier queue in ts first
+    // let merkleTree = await this.syncMerkleTree(this.merkleTreePublicKey);
+    // const indexedArrayAccount = await this.accountCompressionProgram.account.indexedArrayAccount.fetch(this.indexedArrayPublicKey);
+    // const indexedArray = parseIndexedArrayFromAccount(Buffer.from(indexedArrayAccount.indexedArray));
+    // // removes utxos which have been nullified
+    // const spendableUtxos = merkleTree?.merkleTree.indexOf(utxo.hash.toString()) !== -1;
+    return ownedUtxos;
   }
 
   async syncMerkleTree(merkleTreePubkey: PublicKey): Promise<SolMerkleTree> {
@@ -539,6 +556,7 @@ export class PublicTestRpc {
       this.accountCompressionProgram,
       merkleTree.pubkey,
       merkleTree.merkleTree.root(),
+      "concurrentMerkleTreeAccount",
     );
 
     return {
@@ -571,7 +589,7 @@ export async function getRootIndex(
     | Program<LightMerkleTreeProgram>,
   merkleTreePublicKey: PublicKey,
   root: string,
-  accountName: string = "merkleTreeSet",
+  accountName: string,
 ) {
   const rootBytes = new BN(root).toArray("be", 32);
   const merkleTreeSetData = await merkleTreeProgram.account[accountName].fetch(
@@ -686,4 +704,62 @@ export const outUtxosToUtxos = (
   });
 
   return utxos;
+};
+import {
+  FixableBeetStruct,
+  u16,
+  bignum,
+  array,
+  u8,
+  uniformFixedSizeArray,
+} from "@metaplex-foundation/beet";
+
+// Does not work because it does not deserialize arkworks big numbers correctly
+export class IndexingElementBeet {
+  constructor(
+    readonly index: number,
+    readonly value: bignum[],
+    readonly nextIndex: number,
+  ) {}
+
+  static readonly struct = new FixableBeetStruct<
+    IndexingElementBeet,
+    IndexingElementBeet
+  >(
+    [
+      ["index", u16],
+      ["value", uniformFixedSizeArray(u8, 32)],
+      ["nextIndex", u16],
+    ],
+    (args) => new IndexingElementBeet(args.index, args.value, args.nextIndex),
+    "IndexingElement",
+  );
+}
+export class IndexingArrayBeet {
+  constructor(
+    readonly elements: IndexingElementBeet[],
+    readonly currentNodeIndex: number,
+    readonly highestElementIndex: number,
+  ) {}
+  static readonly struct = new FixableBeetStruct<
+    IndexingArrayBeet,
+    IndexingArrayBeet
+  >(
+    [
+      ["elements", array(IndexingElementBeet.struct)],
+      ["currentNodeIndex", u16],
+      ["highestElementIndex", u16],
+    ],
+    (args) =>
+      new IndexingArrayBeet(
+        args.elements,
+        args.currentNodeIndex,
+        args.highestElementIndex,
+      ),
+    `IndexingArray`,
+  );
+}
+
+export const parseIndexedArrayFromAccount = (account: Buffer) => {
+  return IndexingArrayBeet.struct.deserialize(account);
 };

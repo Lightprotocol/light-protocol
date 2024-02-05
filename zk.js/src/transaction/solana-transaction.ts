@@ -193,10 +193,7 @@ export async function createSolanaInstructions({
   }
   const inUtxoHashes: number[][] = [];
   instructionInputs.publicInputs?.publicInUtxoHash?.map((el) => {
-    if (
-      !removeZeroUtxos &&
-      el.toString() !== new Array(32).fill(0).toString()
-    ) {
+    if (removeZeroUtxos && el.toString() !== new Array(32).fill(0).toString()) {
       inUtxoHashes.push(el);
     }
   });

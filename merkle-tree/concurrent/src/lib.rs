@@ -442,11 +442,12 @@ where
         &mut self,
         leaves: &[&[u8; 32]],
     ) -> Result<Vec<Box<ChangelogEntry<HEIGHT>>>, HasherError> {
-        let mut changelog_entries: Vec<Box<ChangelogEntry<HEIGHT>>> =
-            Vec::with_capacity(leaves.len());
+        let mut changelog_entries: Vec<Box<ChangelogEntry<HEIGHT>>> = Vec::new();
 
-        for (leaf, changelog_entry) in leaves.iter().zip(changelog_entries.iter_mut()) {
-            self.append_with_changelog_entry(leaf, changelog_entry)?;
+        for leaf in leaves.iter() {
+            let mut changelog_entry = Box::new(ChangelogEntry::default());
+            self.append_with_changelog_entry(leaf, &mut changelog_entry)?;
+            changelog_entries.push(changelog_entry);
         }
 
         Ok(changelog_entries)

@@ -487,11 +487,11 @@ export function createSystemProofInputs({
     // if utxo is zero set utxo hash to [0u8; 32]
     publicInUtxoHash: transaction.private.inputUtxos.map((x) => {
       if (
-        x.amounts[0].eq(BN_0) && x.amounts[1].eq(BN_0) && "dataHash" in x
-          ? new BN(x.dataHash).eq(BN_0)
-          : true &&
-            new BN(x.metaHash ?? "0").eq(BN_0) &&
-            new BN(x.address ?? "0").eq(BN_0)
+        x.amounts[0].eq(BN_0) &&
+        x.amounts[1].eq(BN_0) &&
+        ("dataHash" in x ? new BN(x.dataHash).eq(BN_0) : true) &&
+        new BN(x.metaHash ?? "0").eq(BN_0) &&
+        new BN(x.address ?? "0").eq(BN_0)
       ) {
         return "0";
       }

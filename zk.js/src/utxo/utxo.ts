@@ -281,25 +281,21 @@ export function convertParsingUtxoBeetToOutUtxo(
   parsingUtxoBeet: ParsingUtxoBeet,
   lightWasm: LightWasm,
 ): OutUtxo | undefined {
-  if (
-    parsingUtxoBeet.dataHash.toString() !==
-    new Uint8Array(32).fill(0).toString()
-  ) {
-    return createOutUtxo({
-      owner: new BN(parsingUtxoBeet.owner),
-      amounts: parsingUtxoBeet.amounts.map((amount) => new BN(amount)),
-      assets: [SystemProgram.programId, parsingUtxoBeet.splAssetMint],
-      lightWasm,
-      metaHash: parsingUtxoBeet.metaHash
-        ? new BN(parsingUtxoBeet.metaHash)
-        : undefined,
-      address: parsingUtxoBeet.address
-        ? new BN(parsingUtxoBeet.address)
-        : undefined,
-      blinding: new BN(parsingUtxoBeet.blinding),
-      isPublic: true,
-    });
-  }
+  return createOutUtxo({
+    owner: new BN(parsingUtxoBeet.owner),
+    amounts: parsingUtxoBeet.amounts.map((amount) => new BN(amount)),
+    assets: [SystemProgram.programId, parsingUtxoBeet.splAssetMint],
+    lightWasm,
+    metaHash: parsingUtxoBeet.metaHash
+      ? new BN(parsingUtxoBeet.metaHash)
+      : undefined,
+    address: parsingUtxoBeet.address
+      ? new BN(parsingUtxoBeet.address)
+      : undefined,
+    blinding: new BN(parsingUtxoBeet.blinding),
+    isPublic: true,
+  });
+
   // TODO: do a different type which has a raw data field because the indexer doesn't have the idl to parse the data
   // this is a type which is used internally in the indexer and as return type for program utxos from the indexer
   // else {
