@@ -36,7 +36,7 @@ import { createDataHashWithDefaultHashingSchema } from "@lightprotocol/zk.js";
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 );
 let WASM: LightWasm;
 
@@ -62,13 +62,13 @@ describe("Streaming Payments tests", () => {
     WASM = await WasmFactory.getInstance();
   });
 
-  it("Create and Spend Program Utxo for one user", async () => {
+  it.only("Create and Spend Program Utxo for one user", async () => {
     await createAndSpendProgramUtxo(users[0].wallet, users[0].rpcRecipientSol);
   });
 
   async function createAndSpendProgramUtxo(
     wallet: anchor.web3.Keypair,
-    rpcRecipientSol: anchor.web3.PublicKey,
+    rpcRecipientSol: anchor.web3.PublicKey
   ): Promise<void> {
     await airdropSol({
       connection: provider.connection,
@@ -134,9 +134,9 @@ describe("Streaming Payments tests", () => {
       .tokenBalances.get(testInputsCompress.utxo.assets[0].toBase58())
       .utxos.get(compressedUtxoCommitmentHash.toString());
 
-    compareOutUtxos(inputUtxo!, testInputsCompress.utxo);
+    compareOutUtxos(inputUtxo!, testInputsCompress.utxo, WASM);
     const circuitPath = path.join(
-      "build-circuit/streaming-payments/streamingPayments",
+      "build-circuit/streaming-payments/streamingPayments"
     );
     // TODO: add in and out utxos to appParams
     // TODO: create compile appParams method which creates isAppIn and out utxo arrays, prefixes utxo data variables with in and out prefixes
@@ -182,7 +182,7 @@ describe("Streaming Payments tests", () => {
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
       proofInputs,
       IDL,
-      pspTransactionInput.circuitName,
+      pspTransactionInput.circuitName
     );
 
     const pspProof = await lightUser.account.getProofInternal({
