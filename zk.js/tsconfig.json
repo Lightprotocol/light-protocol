@@ -1,11 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
-    "outDir": "./lib",
-    "rootDir": "src",
+    "esModuleInterop": true,
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "rootDirs": ["src", "tests"],
     "baseUrl": "src",
-    "esModuleInterop": true
+    "outDir": "dist",
+    "declarationDir": "dist/types",
   },
   "extends": "@lightprotocol/tsconfig/base.json",
-  "include": ["src"]
+  "include": ["src", "tests"]
 }

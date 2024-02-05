@@ -1,4 +1,3 @@
-const solana = require("@solana/web3.js");
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import {
@@ -7,8 +6,9 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
   sendAndConfirmTransaction,
+  SystemProgram,
+  Transaction
 } from "@solana/web3.js";
-const { SystemProgram } = require("@solana/web3.js");
 // @ts-ignore
 const _ = require("lodash");
 import {
@@ -95,19 +95,18 @@ export const newProgramOwnedAccount = async ({
       const signature = await connection.requestAirdrop(payer.publicKey, 1e7);
       await confirmTransaction(connection, signature);
 
-      const tx = new solana.Transaction().add(
-        solana.SystemProgram.createAccount({
+      const tx = new Transaction().add(
+        SystemProgram.createAccount({
           fromPubkey: payer.publicKey,
           newAccountPubkey: account.publicKey,
           space: 0,
           lamports: await connection.getMinimumBalanceForRentExemption(1),
-          Id: owner.programId,
+          programId: owner.programId,
         }),
       );
 
-      tx.feePayer = payer.publicKey;
-      tx.recentBlockhash = await connection.getLatestBlockhash();
-      await solana.sendAndConfirmTransaction(connection, tx, [payer, account], {
+      tx.feePayer = payer.publicKey;      
+      await sendAndConfirmTransaction(connection, tx, [payer, account], {
         commitment: "confirmed",
         preflightCommitment: "confirmed",
       });
@@ -188,10 +187,11 @@ export async function createMintWrapper({
 
   const space = MINT_SIZE;
 
-  const txCreateAccount = new solana.Transaction().add(
+  const requiredLamports = await connection.getMinimumBalanceForRentExemption(space);
+  const txCreateAccount = new Transaction().add(
     SystemProgram.createAccount({
       fromPubkey: authorityKeypair.publicKey,
-      lamports: connection.getMinimumBalanceForRentExemption(space),
+      lamports: requiredLamports,
       newAccountPubkey: mintKeypair.publicKey,
       programId: TOKEN_PROGRAM_ID,
       space: space,
@@ -248,8 +248,8 @@ export async function createTestAccounts(
     const signature2 = await connection.requestAirdrop(AUTHORITY_ONE, amount);
     await confirmTransaction(connection, signature2);
     // subsidising transactions
-    const txTransfer1 = new solana.Transaction().add(
-      solana.SystemProgram.transfer({
+    const txTransfer1 = new Transaction().add(
+      SystemProgram.transfer({
         fromPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
         toPubkey: AUTHORITY,
         lamports: 3_000_000_000,

@@ -2,16 +2,32 @@
   "name": "@lightprotocol/zk.js",
   "version": "0.3.2-alpha.16",
   "description": "",
-  "main": "lib/index.js",
+  "type": "module",
+  "main": "./dist/umd/index.js",
+  "module": "./dist/es/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/main/index.d.ts",
+      "import": "./dist/es/index.js",
+      "default": "./dist/cjs/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/types/main/index.d.ts",
+  "files": [
+    "dist",
+    "build-circuits",
+    "bin",
+    "circuit-lib"
+  ],
   "scripts": {
     "start-test-validator": "./../cli/test_bin/run test-validator -b",
     "test": "pnpm test-zk.js && pnpm test-system-programs",
-    "test-zk.js": "ts-mocha --resolveJsonModule ./tsconfig.json -t 10000000000 tests/**.ts  --require mocha-suppress-logs --exit",
-    "test-tx-params": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/transactionParameters.test.ts --exit",
-    "test-utxo": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/utxo.test.ts --exit",
-    "test-bn254": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/bn254.test.ts --exit",
-    "test-program-utxo": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/program-utxo.test.ts --exit",
-    "test-verifiers": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/verifiers.test.ts --exit",
+    "test-zk.js": "vitest run",
+    "test-utxo": "vitest run tests/utxo.test.ts",
+    "test-bn254": "vitest run tests/bn254.test.ts",
+    "test-program-utxo": "vitest run tests/program-utxo.test.ts",
+    "test-verifiers": "vitest run tests/verifiers.test.ts",
     "test-circuits": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/circuits.test.ts --exit",
     "test-transaction": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/transaction.test.ts --exit",
     "test-prover": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/prover.test.ts --exit",
@@ -30,7 +46,8 @@
     "test-sp-verifiers": "pnpm run start-test-validator && ts-mocha -t 2000000 tests/system-programs/verifier_tests.ts --exit",
     "test-sp-merkle-tree": "./../cli/test_bin/run test-validator -b -s && ts-mocha -t 2000000 tests/system-programs/merkle_tree_tests.ts --exit",
     "test-sp-user-registry": "pnpm run start-test-validator && ts-mocha -t 2000000 tests/system-programs/user-registry.tests.ts --exit",
-    "build": "rimraf lib && pnpm tsc",
+    "build": "rimraf dist && pnpm build:bundle",
+    "build:bundle": "rollup -c --bundleConfigAsCjs",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"tests/**/*.{ts,js}\" -w",
     "format:check": "prettier \"src/**/*{ts,js}\" --check",
     "lint": "eslint .",
@@ -41,12 +58,6 @@
       "prettier --write"
     ]
   },
-  "files": [
-    "lib/**/*",
-    "build-circuits/**/*",
-    "bin/*",
-    "circuit-lib/*"
-  ],
   "keywords": [
     "sdk",
     "light",
@@ -77,6 +88,7 @@
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@lightprotocol/tsconfig": "workspace:*",
     "@types/bn.js": "^5.1.1",
     "@types/chai": "^4.3.9",
@@ -95,10 +107,14 @@
     "mocha": "^10.2.0",
     "prettier": "^3.0.3",
     "rimraf": "^5.0.5",
+    "rollup": "^4.6.1",
+    "rollup-plugin-polyfill-node": "^0.13.0",
     "seedrandom": "^3.0.5",
     "ts-mocha": "^10.0.0",
     "ts-node": "^10.9.1",
+    "tslib": "^2.6.2",
     "typescript": "5.3.2",
-    "typescript-collections": "^1.3.3"
+    "typescript-collections": "^1.3.3",
+    "vitest": "^0.34.6"
   }
 }

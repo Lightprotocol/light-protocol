@@ -1,8 +1,4 @@
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
-import { it } from "mocha";
+import { it, beforeAll, assert } from "vitest";
 
 import {
   functionalCircuitTest,
@@ -234,7 +230,7 @@ describe("Verifier tests", () => {
     wasmTester2in2out,
     wasmTester10in2out,
     plainInputUtxo: Utxo | OutUtxo;
-  before(async () => {
+  beforeAll(async () => {
     lightProvider = await LightProvider.loadMock();
     mockPubkey = SolanaKeypair.generate().publicKey;
 
@@ -442,7 +438,7 @@ describe("Verifier tests", () => {
     systemProofInputs.publicNewAddress[1] = new BN(4).toString();
 
     // we rely on the fact that the function throws an error if proof generation failed
-    await chai.assert.isRejected(
+    await assert.isRejected(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -517,7 +513,7 @@ describe("Verifier tests", () => {
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
       });
-    } catch (e) {
+    } catch (e: any) {
       console.log("e", e);
       if (
         !e
@@ -533,7 +529,7 @@ describe("Verifier tests", () => {
     systemProofInputs.publicOutUtxoHash[0] = BN_0;
 
     // need to be very careful with the expected error here because this will always return a type error when parsing after successful witness generation fails
-    await chai.assert.isRejected(
+    await assert.isRejected(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -550,7 +546,7 @@ describe("Verifier tests", () => {
     systemProofInputs.publicInUtxoHash[0] = BN_0.toString();
 
     // need to be very careful with the expected error here because this will always return a type error when parsing after successful witness generation fails
-    await chai.assert.isRejected(
+    await assert.isRejected(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -615,7 +611,7 @@ describe("Verifier tests", () => {
     systemProofInputs.publicInUtxoHash[1] = BN_0.toString();
     systemProofInputs.publicInUtxoDataHash[1] = BN_0.toString();
     systemProofInputs.publicOutUtxoHash[1] = BN_0;
-    await chai.assert.isRejected(
+    await assert.isRejected(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -677,7 +673,7 @@ describe("Verifier tests", () => {
 
     // need to set this manually because it is automatically taken from the outputUtxo address which we set zero on purpose
     systemProofInputs.isAddressUtxo[0] = BN_1;
-    await chai.assert.isRejected(
+    await assert.isRejected(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -739,7 +735,7 @@ describe("Verifier tests", () => {
 
     // need to set this manually because it is automatically taken from the outputUtxo address which we set zero on purpose
     systemProofInputs.isMetaHashUtxo[0] = BN_1;
-    await chai.assert.isRejected(
+    await assert.isRejected(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -817,7 +813,7 @@ describe("Verifier tests", () => {
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
       });
-    } catch (e) {
+    } catch (e: any) {
       console.log("e", e);
       if (
         !e
@@ -832,7 +828,7 @@ describe("Verifier tests", () => {
     const publicInUtxoDataHash = systemProofInputs.publicInUtxoDataHash[0];
     // adjustment for publicInUtxoHash
     systemProofInputs.publicInUtxoDataHash[0] = BN_0.toString();
-    await chai.assert.isRejected(
+    await assert.isRejected(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -852,7 +848,7 @@ describe("Verifier tests", () => {
 
     // @ts-ignore: its not part of the return type but we set it manually above
     systemProofInputs.publicTransactionHash = BN_1.toString();
-    await chai.assert.isRejected(
+    await assert.isRejected(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -909,7 +905,7 @@ describe("Verifier tests", () => {
       publicDataHash: "0",
     } as any;
 
-    await chai.assert.isRejected(
+    await assert.isRejected(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,

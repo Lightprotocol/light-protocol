@@ -1,15 +1,13 @@
 //@ts-check
-import { assert } from "chai";
+import { assert, beforeAll, it } from "vitest";
 import { SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
-import { it } from "mocha";
 import { IDL as TEST_PSP_IDL } from "./testData/tmp_test_psp";
 
 import {
   Account,
   BN_1,
   hashAndTruncateToCircuit,
-  MerkleTreeConfig,
   MERKLE_TREE_SET,
   MINT,
   Provider as LightProvider,
@@ -24,14 +22,9 @@ import {
   createDataHashWithDefaultHashingSchema,
   stringifyAssetsToCircuitInput,
   getUtxoHashInputs,
-  createNullifierWithAccountSignature,
 } from "../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { compareOutUtxos } from "./test-utils/compare-utxos";
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const seed32 = new Uint8Array(32).fill(1).toString();
@@ -45,7 +38,7 @@ const type = "utxo";
 let createOutUtxoInputs;
 describe("Program Utxo Functional", () => {
   let lightWasm: LightWasm, lightProvider: LightProvider;
-  before(async () => {
+  beforeAll(async () => {
     lightWasm = await WasmFactory.getInstance();
     lightProvider = await LightProvider.loadMock();
     account = Account.createFromSeed(lightWasm, seed32);

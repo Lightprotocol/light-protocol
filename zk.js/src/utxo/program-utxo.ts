@@ -6,7 +6,6 @@ import { Result } from "../types";
 import {
   BN_0,
   COMPRESSED_UTXO_BYTES_LENGTH,
-  STANDARD_COMPRESSION_PUBLIC_KEY,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
 } from "../constants";
 import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
