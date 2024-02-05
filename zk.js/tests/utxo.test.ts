@@ -53,6 +53,7 @@ describe("Utxo Functional", () => {
         amounts: [new BN(123), new BN(456)],
         assets: [SystemProgram.programId, MINT],
         lightWasm,
+        isPublic: false,
       });
       const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
       const bytes = await outUtxoToBytes(outUtxo, assetLookupTable);
@@ -61,8 +62,9 @@ describe("Utxo Functional", () => {
         account,
         assetLookupTable,
         lightWasm,
+        isPublic: false,
       });
-      compareOutUtxos(fromBytesOutUtxo!, outUtxo);
+      compareOutUtxos(fromBytesOutUtxo!, outUtxo, lightWasm);
 
       const compressedBytes = await outUtxoToBytes(
         outUtxo,
@@ -75,8 +77,9 @@ describe("Utxo Functional", () => {
         assetLookupTable,
         lightWasm,
         compressed: true,
+        isPublic: false,
       });
-      compareOutUtxos(fromBytesCompressedOutUtxo!, outUtxo);
+      compareOutUtxos(fromBytesCompressedOutUtxo!, outUtxo, lightWasm);
 
       const encryptedBytes = await encryptOutUtxo({
         utxo: outUtxo,
@@ -94,7 +97,7 @@ describe("Utxo Functional", () => {
         aes: true,
         utxoHash: new BN(outUtxo.hash).toArrayLike(Buffer, "be", 32),
       });
-      compareOutUtxos(decryptedUtxo.value!, outUtxo);
+      compareOutUtxos(decryptedUtxo.value!, outUtxo, lightWasm);
 
       const asymOutUtxo = createOutUtxo({
         owner: account.keypair.publicKey,
@@ -102,7 +105,9 @@ describe("Utxo Functional", () => {
         amounts: [new BN(123), new BN(456)],
         assets: [SystemProgram.programId, MINT],
         lightWasm,
+        isPublic: false,
       });
+
       const expectedPrefix = bs58.encode(
         account.encryptionKeypair.publicKey.slice(0, 4),
       );
@@ -128,7 +133,7 @@ describe("Utxo Functional", () => {
       }
       decryptedUtxoNacl.value!["encryptionPublicKey"] =
         account.encryptionKeypair.publicKey;
-      compareOutUtxos(decryptedUtxoNacl.value!, asymOutUtxo);
+      compareOutUtxos(decryptedUtxoNacl.value!, asymOutUtxo, lightWasm);
     }
   });
   it("parsing for hash", async () => {
@@ -143,16 +148,16 @@ describe("Utxo Functional", () => {
   it("Filling public utxo is consistent", async () => {
     const fillingUtxo = createFillingOutUtxo({
       lightWasm,
-      publicKey: STANDARD_COMPRESSION_PUBLIC_KEY,
+      owner: STANDARD_COMPRESSION_PUBLIC_KEY,
       isPublic: true,
     });
-    console.log("filling utxo: ", fillingUtxo.utxoHash);
+    console.log("filling utxo: ", fillingUtxo.hash);
     const fillingUtxo2 = createFillingOutUtxo({
       lightWasm,
-      publicKey: STANDARD_COMPRESSION_PUBLIC_KEY,
+      owner: STANDARD_COMPRESSION_PUBLIC_KEY,
       isPublic: true,
     });
-    assert.equal(fillingUtxo.utxoHash, fillingUtxo2.utxoHash);
+    assert.equal(fillingUtxo.hash.toString(), fillingUtxo2.hash.toString());
   });
 
   it("encryption", async () => {
@@ -181,10 +186,12 @@ describe("Utxo Functional", () => {
       assets: inputs.assets,
       blinding: inputs.blinding,
       lightWasm,
+      isPublic: false,
     });
 
     const outUtxoAssetCircuitInput = stringifyAssetsToCircuitInput(
       outUtxo.assets,
+      lightWasm,
     );
 
     // functional
@@ -195,24 +202,25 @@ describe("Utxo Functional", () => {
       SystemProgram.programId.toBase58(),
     );
     assert.equal(outUtxo.assets[1].toBase58(), assetPubkey.toBase58());
+
     assert.equal(
-      outUtxo.assetsCircuit[0].toString(),
+      outUtxoAssetCircuitInput[0].toString(),
       hashAndTruncateToCircuit(
         [SystemProgram.programId.toBytes()],
         lightWasm,
       ).toString(),
     );
     assert.equal(
-      outUtxo.assetsCircuit[1].toString(),
+      outUtxoAssetCircuitInput[1].toString(),
       hashAndTruncateToCircuit([assetPubkey.toBytes()], lightWasm).toString(),
     );
     if ("data" in outUtxo) throw new Error("dataHash is not 0");
     assert.equal(outUtxo.poolType.toString(), "0");
     assert.equal(
-      outUtxo.utxoHash,
+      outUtxo.hash.toString(),
       "2544843658061717158156922815997928856082308524175481591473611870665777784472",
     );
-    console.log("utxo hash: ", new BN(outUtxo.utxoHash).toArray("be", 32));
+    console.log("utxo hash: ", new BN(outUtxo.hash).toArray("be", 32));
 
     // toBytes
     const bytes = await outUtxoToBytes(outUtxo, assetLookupTable);
@@ -222,8 +230,9 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       bytes: Buffer.from(bytes),
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
-    compareOutUtxos(utxo1!, outUtxo);
+    compareOutUtxos(utxo1!, outUtxo, lightWasm);
 
     // encrypt
     const encBytes = await encryptOutUtxo({
@@ -248,7 +257,7 @@ describe("Utxo Functional", () => {
     });
 
     if (utxo3.value) {
-      compareOutUtxos(utxo3.value, outUtxo);
+      compareOutUtxos(utxo3.value, outUtxo, lightWasm);
     } else {
       throw new Error("decrypt failed");
     }
@@ -277,6 +286,7 @@ describe("Utxo Functional", () => {
     );
     const decryptedUtxoAssetCircuitInput = stringifyAssetsToCircuitInput(
       decryptedUtxo.value!.assets,
+      lightWasm,
     );
     assert.equal(
       decryptedUtxoAssetCircuitInput[0].toString(),
@@ -306,6 +316,7 @@ describe("Utxo Functional", () => {
       assets: inputs.assets,
       blinding: inputs.blinding,
       lightWasm,
+      isPublic: false,
     });
 
     // encrypt
@@ -330,7 +341,7 @@ describe("Utxo Functional", () => {
       const decryptedUtxo = receivingUtxo1Unchecked.value;
       decryptedUtxo["encryptionPublicKey"] =
         account.encryptionKeypair.publicKey;
-      compareOutUtxos(decryptedUtxo, outUtxoNacl);
+      compareOutUtxos(decryptedUtxo, outUtxoNacl, lightWasm);
     } else {
       throw new Error("decrypt unchecked failed");
     }
@@ -357,6 +368,7 @@ describe("Utxo Functional", () => {
       type: "utxo",
     });
     const bytes = await programOutUtxoToBytes(
+      lightWasm,
       outputUtxo,
       lightProvider.lookUpTables.assetLookupTable,
       false,
@@ -371,7 +383,7 @@ describe("Utxo Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       type: "utxo",
     });
-    compareOutUtxos(utxo1, outputUtxo);
+    compareOutUtxos(utxo1, outputUtxo, lightWasm);
     assert.equal(
       utxo1.owner.toBase58(),
       "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",

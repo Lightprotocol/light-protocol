@@ -97,7 +97,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxInUtxos,
       numberMaxOutUtxos,
     });
-    compareUtxos(selectedUtxo[0], utxo1);
+    compareUtxos(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Decompress select sol", async () => {
@@ -113,7 +113,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    compareUtxos(selectedUtxo[0], utxoSol);
+    compareUtxos(selectedUtxo[0], utxoSol, lightWasm);
     assert.equal(selectInUtxos.length, 1);
   });
 
@@ -132,8 +132,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    compareUtxos(selectedUtxo[1], utxoSol);
-    compareUtxos(selectedUtxo[0], utxo1);
+    compareUtxos(selectedUtxo[1], utxoSol, lightWasm);
+    compareUtxos(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Transfer select sol & spl", async () => {
@@ -149,6 +149,7 @@ describe("Test selectInUtxos Functional", () => {
       ],
       lightWasm,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
 
     const selectedUtxo = selectInUtxos({
@@ -161,8 +162,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    compareUtxos(selectedUtxo[1], utxoSol);
-    compareUtxos(selectedUtxo[0], utxo1);
+    compareUtxos(selectedUtxo[1], utxoSol, lightWasm);
+    compareUtxos(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Transfer select sol", async () => {
@@ -178,6 +179,7 @@ describe("Test selectInUtxos Functional", () => {
       ],
       lightWasm,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
     const selectedUtxo = selectInUtxos({
       utxos: inUtxos,
@@ -189,8 +191,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    compareUtxos(selectedUtxo[0], utxoSol);
-    compareUtxos(selectedUtxo[1], utxo1);
+    compareUtxos(selectedUtxo[0], utxoSol, lightWasm);
+    compareUtxos(selectedUtxo[1], utxo1, lightWasm);
   });
 
   it("Transfer select spl", async () => {
@@ -206,6 +208,7 @@ describe("Test selectInUtxos Functional", () => {
       ],
       lightWasm,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
 
     const selectedUtxo = selectInUtxos({
@@ -218,7 +221,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    compareUtxos(selectedUtxo[0], utxo1);
+    compareUtxos(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Compress select sol & spl", async () => {
@@ -235,7 +238,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    compareUtxos(selectedUtxo[0], utxo1);
+    compareUtxos(selectedUtxo[0], utxo1, lightWasm);
   });
 
   it("Compress select sol", async () => {
@@ -250,8 +253,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    compareUtxos(selectedUtxo[0], utxoSol);
-    compareUtxos(selectedUtxo[1], utxo1);
+    compareUtxos(selectedUtxo[0], utxoSol, lightWasm);
+    compareUtxos(selectedUtxo[1], utxo1, lightWasm);
   });
 
   it("Compress select spl", async () => {
@@ -267,7 +270,7 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    compareUtxos(selectedUtxo[0], utxo1);
+    compareUtxos(selectedUtxo[0], utxo1, lightWasm);
     assert.equal(selectedUtxo.length, 1);
   });
 
@@ -284,6 +287,7 @@ describe("Test selectInUtxos Functional", () => {
       ],
       lightWasm,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
 
     const selectedUtxo = selectInUtxos({
@@ -296,8 +300,8 @@ describe("Test selectInUtxos Functional", () => {
       numberMaxOutUtxos,
     });
 
-    compareUtxos(selectedUtxo[0], utxo1);
-    compareUtxos(selectedUtxo[1], utxo2);
+    compareUtxos(selectedUtxo[0], utxo1, lightWasm);
+    compareUtxos(selectedUtxo[1], utxo2, lightWasm);
   });
 });
 
@@ -354,6 +358,7 @@ describe("Test selectInUtxos Errors", () => {
       ],
       lightWasm,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
     expect(() => {
       selectInUtxos({
@@ -526,6 +531,7 @@ describe("Test selectInUtxos Errors", () => {
         ...lightProvider.lookUpTables.assetLookupTable,
         ...[mint.toBase58()],
       ],
+      isPublic: false,
     });
     expect(() => {
       selectInUtxos({
@@ -558,6 +564,7 @@ describe("Test selectInUtxos Errors", () => {
       ],
       lightWasm,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
     expect(() => {
       selectInUtxos({
@@ -590,6 +597,7 @@ describe("Test selectInUtxos Errors", () => {
       ],
       lightWasm,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
     expect(() => {
       selectInUtxos({
@@ -622,6 +630,7 @@ describe("Test selectInUtxos Errors", () => {
       ],
       lightWasm,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
     expect(() => {
       selectInUtxos({

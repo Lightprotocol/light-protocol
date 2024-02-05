@@ -21,15 +21,14 @@ import {
 import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
 import { IDL_LIGHT_PSP2IN2OUT } from "../idls";
 import { hashAndTruncateToCircuit, fetchAssetByIdLookUp } from "../utils";
-import { ParsingUtxoBeet } from "../transaction/fetch-recent-transactions";
 
 import { BN254, createBN254 } from "./bn254";
 import {
   PlaceHolderTData,
   ProgramOutUtxo,
-  createProgramOutUtxo,
   programOutUtxoToBytes,
 } from "./program-utxo";
+import { ParsingUtxoBeet } from "./parse-utxo";
 
 export const randomBN = (nbytes = 30) => new BN(nacl.randomBytes(nbytes));
 const randomPrefixBytes = () => nacl.randomBytes(UTXO_PREFIX_LENGTH);
