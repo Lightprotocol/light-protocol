@@ -170,6 +170,7 @@ export class Rpc {
   }
 
   async getMerkleProofByIndexBatch(
+    _merkleTreePublicKey: PublicKey,
     _indexes: number[],
   ): Promise<
     { merkleProofs: string[][]; root: string; index: number } | undefined

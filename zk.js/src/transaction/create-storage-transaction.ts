@@ -281,6 +281,7 @@ export async function proveAndCreateInstructions({
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: transaction.private.inputUtxos,
       rpc,
+      merkleTreeSet: MERKLE_TREE_SET,
     });
     transaction.private.inputUtxos = syncedUtxos;
     root = fetchedRoot;

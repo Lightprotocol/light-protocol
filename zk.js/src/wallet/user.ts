@@ -509,6 +509,7 @@ export class User {
       } = await syncInputUtxosMerkleProofs({
         inputUtxos: this.recentTransactionParameters.private.inputUtxos,
         rpc: this.provider.rpc,
+        merkleTreeSet: this.provider.rpc.accounts.merkleTreeSet,
       });
       this.recentTransactionParameters.private.inputUtxos = syncedUtxos;
       root = fetchedRoot;

@@ -279,6 +279,7 @@ export class TestRpc extends Rpc {
   }
 
   async getMerkleProofByIndexBatch(
+    merkleTreePublicKey = this.accounts.merkleTreeSet,
     indexes: number[],
   ): Promise<
     { merkleProofs: string[][]; root: string; index: number } | undefined
@@ -287,7 +288,7 @@ export class TestRpc extends Rpc {
       this.connection,
     );
     const merkleTree = await this.syncMerkleTree(
-      this.accounts.merkleTreeSet,
+      merkleTreePublicKey,
       indexedTransactions.map(
         (trx) => trx.transaction as ParsedIndexedTransaction,
       ),

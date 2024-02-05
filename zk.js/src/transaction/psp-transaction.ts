@@ -620,9 +620,11 @@ export function createSystemProofInputs({
 export async function syncInputUtxosMerkleProofs({
   inputUtxos,
   rpc,
+  merkleTreeSet,
 }: {
   inputUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
   rpc: Rpc;
+  merkleTreeSet: PublicKey;
 }): Promise<{
   syncedUtxos: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
   root: string;
@@ -630,6 +632,7 @@ export async function syncInputUtxosMerkleProofs({
 }> {
   // skip empty utxos
   const { merkleProofs, root, index } = (await rpc.getMerkleProofByIndexBatch(
+    merkleTreeSet,
     inputUtxos
       .filter((utxo) => !utxo.amounts[0].eq(BN_0) || !utxo.amounts[1].eq(BN_0))
       .map((utxo) => utxo.merkleTreeLeafIndex),
