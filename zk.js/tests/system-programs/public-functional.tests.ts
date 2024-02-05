@@ -531,10 +531,10 @@ describe("verifier_program", () => {
       await RPC.accountCompressionProgram.account.indexedArrayAccount.fetch(
         indexedArrayKeypair.publicKey,
       );
-    const indexedArray = parseIndexedArrayFromAccount(
-      Buffer.from(indexedArrayAccount.indexedArray),
-    );
-    console.log("indexedArray ", indexedArray);
-    console.log("indexedArray ", indexedArray[0].elements[0]);
+    // const indexedArray = parseIndexedArrayFromAccount(
+    //   Buffer.from(indexedArrayAccount.indexedArray),
+    // );
+    // console.log("indexedArray ", indexedArray);
+    // console.log("indexedArray ", indexedArray[0].elements[0]);
   };
 });
