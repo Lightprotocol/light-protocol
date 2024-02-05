@@ -77,6 +77,7 @@ describe("Test createOutUtxos Functional", () => {
         blinding: BN_1,
         merkleTreeLeafIndex: 0,
         owner: k0.keypair.publicKey,
+        isPublic: false,
       },
       false,
       k0,
@@ -91,6 +92,7 @@ describe("Test createOutUtxos Functional", () => {
         blinding: BN_2,
         merkleTreeLeafIndex: 0,
         owner: k0.keypair.publicKey,
+        isPublic: false,
       },
       false,
       k0,
@@ -120,6 +122,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -149,6 +152,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -179,6 +183,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -209,6 +214,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -238,6 +244,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -269,6 +276,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -300,6 +308,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -331,6 +340,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -362,6 +372,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -393,6 +404,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -424,6 +436,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -454,6 +467,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
     assert.equal(
       outUtxos[0].amounts[0].toNumber(),
@@ -485,6 +499,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
     assert.equal(
       outUtxos[0].amounts[0].toNumber(),
@@ -515,6 +530,7 @@ describe("Test createOutUtxos Functional", () => {
       recipients,
       lightWasm,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
+      isPublic: false,
     });
 
     outUtxos = createOutUtxos({
@@ -531,6 +547,7 @@ describe("Test createOutUtxos Functional", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
 
     assert.equal(
@@ -589,6 +606,7 @@ describe("createRecipientUtxos", () => {
       recipients,
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       lightWasm,
+      isPublic: false,
     });
 
     expect(outputUtxos.length).to.equal(recipients.length);
@@ -639,6 +657,7 @@ describe("validateUtxoAmounts", () => {
         merkleProof: ["1"],
         merkleTreeLeafIndex: 0,
         owner: Account.createFromSeed(lightWasm, seed32).keypair.publicKey,
+        isPublic: false,
       },
       false,
       Account.createFromSeed(lightWasm, seed32),
@@ -656,6 +675,7 @@ describe("validateUtxoAmounts", () => {
       assets,
       blinding: BN_0,
       owner: Account.createFromSeed(lightWasm, seed32).keypair.publicKey,
+      isPublic: false,
     });
   }
 
@@ -719,6 +739,7 @@ describe("Test createOutUtxos Errors", () => {
         blinding: BN_1,
         merkleTreeLeafIndex: 0,
         owner: k0.keypair.publicKey,
+        isPublic: false,
       },
       false,
       k0,
@@ -733,6 +754,7 @@ describe("Test createOutUtxos Errors", () => {
         blinding: BN_2,
         merkleTreeLeafIndex: 0,
         owner: k0.keypair.publicKey,
+        isPublic: false,
       },
       false,
       k0,
@@ -750,6 +772,7 @@ describe("Test createOutUtxos Errors", () => {
       assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
       verifierProgramLookupTable:
         lightProvider.lookUpTables.verifierProgramLookupTable,
+      isPublic: false,
     });
   });
 
@@ -789,18 +812,21 @@ describe("Test createOutUtxos Errors", () => {
             owner: k0.keypair.publicKey,
             amounts: [BN_0],
             assets: [SystemProgram.programId],
+            isPublic: false,
           }),
           createOutUtxo({
             lightWasm,
             owner: k0.keypair.publicKey,
             amounts: [BN_0],
             assets: [SystemProgram.programId],
+            isPublic: false,
           }),
         ],
         numberMaxOutUtxos,
         assetLookupTable: lightProvider.lookUpTables.assetLookupTable,
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        isPublic: false,
       });
     })
       .to.throw(CreateUtxoError)
@@ -828,6 +854,7 @@ describe("Test createOutUtxos Errors", () => {
             owner: k0.keypair.publicKey,
             amounts: [BN_0, BN_1],
             assets: [SystemProgram.programId, invalidMint],
+            isPublic: false,
           }),
         ],
       });
@@ -856,6 +883,7 @@ describe("Test createOutUtxos Errors", () => {
             owner: k0.keypair.publicKey,
             amounts: [BN_0, new BN(1e12)],
             assets: [SystemProgram.programId, utxo1.assets[1]],
+            isPublic: false,
           }),
         ],
       });
@@ -921,6 +949,7 @@ describe("Test createOutUtxos Errors", () => {
         blinding: BN_1,
         merkleTreeLeafIndex: 0,
         owner: k0.keypair.publicKey,
+        isPublic: false,
       },
       false,
       k0,
@@ -941,6 +970,7 @@ describe("Test createOutUtxos Errors", () => {
             owner: k0.keypair.publicKey,
             amounts: [BN_0, BN_1],
             assets: [SystemProgram.programId, utxo1.assets[1]],
+            isPublic: false,
           }),
         ],
         numberMaxOutUtxos,
@@ -950,6 +980,7 @@ describe("Test createOutUtxos Errors", () => {
         ],
         verifierProgramLookupTable:
           lightProvider.lookUpTables.verifierProgramLookupTable,
+        isPublic: false,
       });
     })
       .to.throw(CreateUtxoError)

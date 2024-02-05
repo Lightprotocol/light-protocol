@@ -7,10 +7,12 @@ import {
   stringifyAssetsToCircuitInput,
 } from "../../src/index";
 import { Utxo } from "../../src";
+import { LightWasm } from "@lightprotocol/account.rs";
 
 export function compareOutUtxos(
   utxo1: OutUtxo | ProgramOutUtxo<PlaceHolderTData>,
   utxo2: OutUtxo | ProgramOutUtxo<PlaceHolderTData>,
+  lightWasm: LightWasm,
 ): void {
   assert.strictEqual(
     utxo1.owner.toString(),
@@ -48,8 +50,14 @@ export function compareOutUtxos(
     ),
   );
 
-  const utxo1AssetsCircuitInput = stringifyAssetsToCircuitInput(utxo1.assets);
-  const utxo2AssetsCircuitInput = stringifyAssetsToCircuitInput(utxo2.assets);
+  const utxo1AssetsCircuitInput = stringifyAssetsToCircuitInput(
+    utxo1.assets,
+    lightWasm,
+  );
+  const utxo2AssetsCircuitInput = stringifyAssetsToCircuitInput(
+    utxo2.assets,
+    lightWasm,
+  );
 
   assert.deepEqual(
     utxo1AssetsCircuitInput,
@@ -89,6 +97,7 @@ export function compareOutUtxos(
 export function compareUtxos(
   utxo1: Utxo | ProgramUtxo<PlaceHolderTData>,
   utxo2: Utxo | ProgramUtxo<PlaceHolderTData>,
+  lightWasm: LightWasm,
 ): void {
   assert.strictEqual(
     utxo1.owner.toString(),
@@ -144,8 +153,14 @@ export function compareUtxos(
     ),
   );
 
-  const utxo1AssetsCircuitInput = stringifyAssetsToCircuitInput(utxo1.assets);
-  const utxo2AssetsCircuitInput = stringifyAssetsToCircuitInput(utxo2.assets);
+  const utxo1AssetsCircuitInput = stringifyAssetsToCircuitInput(
+    utxo1.assets,
+    lightWasm,
+  );
+  const utxo2AssetsCircuitInput = stringifyAssetsToCircuitInput(
+    utxo2.assets,
+    lightWasm,
+  );
 
   assert.deepEqual(
     utxo1AssetsCircuitInput,

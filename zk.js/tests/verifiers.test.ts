@@ -210,7 +210,6 @@ describe("Verifier tests", () => {
           publicVerifiers[verifier].verifierIdl,
           getVerifierProgramId(publicVerifiers[verifier].verifierIdl),
           true,
-          publicVerifiers[verifier].isApp ? false : true,
         );
       }
       console.timeEnd(
@@ -255,6 +254,7 @@ describe("Verifier tests", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount), new BN(shieldAmount)],
       owner: account.keypair.publicKey,
+      isPublic: true,
     });
 
     inputUtxo = createOutUtxo({
@@ -264,6 +264,7 @@ describe("Verifier tests", () => {
       owner: account.keypair.publicKey,
       metaHash: BN_1,
       address: BN_2,
+      isPublic: true,
     });
 
     inputUtxo2 = createOutUtxo({
@@ -273,6 +274,7 @@ describe("Verifier tests", () => {
       owner: account.keypair.publicKey,
       metaHash: new BN(3),
       address: new BN(4),
+      isPublic: true,
     });
 
     inputProgramUtxo = createProgramOutUtxo({
@@ -337,6 +339,7 @@ describe("Verifier tests", () => {
       owner: account.keypair.publicKey,
       metaHash: BN_1,
       address: BN_2,
+      isPublic: true,
     });
 
     outputUtxo2 = createOutUtxo({
@@ -346,6 +349,7 @@ describe("Verifier tests", () => {
       owner: account.keypair.publicKey,
       metaHash: new BN(3),
       address: new BN(4),
+      isPublic: true,
     });
   });
 
@@ -408,6 +412,7 @@ describe("Verifier tests", () => {
       amounts: [new BN(shieldFeeAmount / 2), new BN(shieldAmount / 2)],
       owner: account.keypair.publicKey,
       address: new BN(4),
+      isPublic: true,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
     const localInputUtxo = { ...inputUtxo };
@@ -475,6 +480,7 @@ describe("Verifier tests", () => {
       owner: account.keypair.publicKey,
       metaHash: inputUtxo.metaHash,
       address: inputUtxo.address,
+      isPublic: true,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
     const localInputUtxo = { ...inputUtxo };
@@ -585,6 +591,7 @@ describe("Verifier tests", () => {
       owner: account.keypair.publicKey,
       metaHash: inputUtxo.metaHash,
       address: inputUtxo.address,
+      isPublic: true,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
     const localInputUtxo = { ...inputUtxo };
@@ -652,6 +659,7 @@ describe("Verifier tests", () => {
       amounts: [new BN(shieldFeeAmount).sub(rpcFee), new BN(shieldAmount)],
       owner: account.keypair.publicKey,
       metaHash: inputUtxo.metaHash,
+      isPublic: true,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
     const localInputUtxo = { ...inputUtxo };
@@ -717,6 +725,7 @@ describe("Verifier tests", () => {
       amounts: [new BN(shieldFeeAmount).sub(rpcFee), new BN(shieldAmount)],
       owner: account.keypair.publicKey,
       address: inputUtxo.address,
+      isPublic: true,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
     const localInputUtxo = { ...inputUtxo };
@@ -783,6 +792,7 @@ describe("Verifier tests", () => {
       owner: account.keypair.publicKey,
       metaHash: inputProgramUtxo.metaHash,
       address: inputProgramUtxo.address,
+      isPublic: true,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP2IN2OUT;
     const localInputUtxo = inputProgramUtxo;
@@ -818,7 +828,8 @@ describe("Verifier tests", () => {
     systemProofInputs = {
       ...systemProofInputs,
       publicProgramId: hashAndTruncateToCircuit(
-        getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT).toBytes(),
+        [getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT).toBytes()],
+        lightWasm,
       ),
       publicTransactionHash,
       privatePublicDataHash: "0",
@@ -827,7 +838,8 @@ describe("Verifier tests", () => {
 
     systemProofInputs.isInProgramUtxo[0] = BN_1;
     systemProofInputs.inOwner[0] = hashAndTruncateToCircuit(
-      getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT).toBytes(),
+      [getVerifierProgramId(IDL_PUBLIC_LIGHT_PSP2IN2OUT).toBytes()],
+      lightWasm,
     );
 
     try {
@@ -894,6 +906,7 @@ describe("Verifier tests", () => {
       assets: [FEE_ASSET, MINT],
       amounts: [new BN(shieldFeeAmount).sub(rpcFee), new BN(shieldAmount)],
       owner: account.keypair.publicKey,
+      isPublic: true,
     });
     const verifierIdl = IDL_PUBLIC_LIGHT_PSP10IN2OUT;
 

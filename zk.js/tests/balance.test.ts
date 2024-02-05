@@ -66,12 +66,12 @@ describe("Balance Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.addUtxo(compressUtxo1.utxoHash, compressUtxo1, "utxos");
+      ?.addUtxo(compressUtxo1.hash.toString(), compressUtxo1, "utxos");
 
     const utxo = balance.tokenBalances
       .get(MINT.toBase58())
-      ?.utxos.get(compressUtxo1.utxoHash);
-    compareUtxos(utxo!, compressUtxo1);
+      ?.utxos.get(compressUtxo1.hash.toString());
+    compareUtxos(utxo!, compressUtxo1, lightWasm);
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       compressUtxo1.amounts[0].toString(),
@@ -88,7 +88,7 @@ describe("Balance Functional", () => {
 
     balance.tokenBalances
       .get(MINT.toBase58())
-      ?.moveToSpentUtxos(compressUtxo1.utxoHash);
+      ?.moveToSpentUtxos(compressUtxo1.hash.toString());
     assert.equal(
       balance.tokenBalances.get(MINT.toBase58())?.totalBalanceSol.toString(),
       "0",
@@ -106,7 +106,7 @@ describe("Balance Functional", () => {
 
     const _compressUtxo1 = balance.tokenBalances
       .get(MINT.toBase58())
-      ?.spentUtxos.get(compressUtxo1.utxoHash);
-    compareUtxos(_compressUtxo1!, compressUtxo1);
+      ?.spentUtxos.get(compressUtxo1.hash.toString());
+    compareUtxos(_compressUtxo1!, compressUtxo1, lightWasm);
   });
 });
