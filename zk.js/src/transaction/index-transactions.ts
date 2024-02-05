@@ -6,7 +6,6 @@ import {
   ParsedTransactionWithMeta,
   PublicKey,
 } from "@solana/web3.js";
-
 import { BN } from "@coral-xyz/anchor";
 import * as borsh from "@coral-xyz/borsh";
 import {
@@ -33,18 +32,25 @@ import { getUpdatedSpentUtxos, sleep } from "../utils";
 import { TokenUtxoBalance } from "../build-balance";
 import { Provider } from "../provider";
 import { PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
-import { getIdsFromEncryptedUtxos } from "../test-utils";
+
 import {
   array,
   coption,
   fixedSizeUint8Array,
   u64,
-  uniformFixedSizeArray,
   FixableBeetStruct,
   bignum,
   u8,
 } from "@metaplex-foundation/beet";
 import { publicKey } from "@metaplex-foundation/beet-solana";
+import { ParsingUtxoBeet, getIdsFromEncryptedUtxos } from "../utxo/parse-utxo";
+
+type Instruction = {
+  accounts: any[];
+  data: string;
+  programId: PublicKey;
+  stackHeight: null | number;
+};
 
 export class TransactionIndexerEvent {
   borshSchema = borsh.struct([
@@ -65,54 +71,6 @@ export class TransactionIndexerEvent {
       return null;
     }
   }
-}
-
-// Define ParsingUtxo TypeScript class and Beet struct
-export class ParsingUtxoBeet {
-  constructor(
-    readonly version: bignum,
-    readonly poolType: bignum,
-    readonly amounts: bignum[],
-    readonly splAssetMint: PublicKey,
-    readonly owner: Uint8Array,
-    readonly blinding: Uint8Array,
-    readonly dataHash: Uint8Array,
-    readonly metaHash: Uint8Array,
-    readonly address: Uint8Array,
-    readonly message: number[] | null,
-  ) {}
-
-  static readonly struct = new FixableBeetStruct<
-    ParsingUtxoBeet,
-    ParsingUtxoBeet
-  >(
-    [
-      ["version", u64],
-      ["poolType", u64],
-      ["amounts", uniformFixedSizeArray(u64, 2)],
-      ["splAssetMint", coption(publicKey)],
-      ["owner", fixedSizeUint8Array(32)],
-      ["blinding", fixedSizeUint8Array(32)],
-      ["dataHash", fixedSizeUint8Array(32)],
-      ["metaHash", fixedSizeUint8Array(32)],
-      ["address", fixedSizeUint8Array(32)],
-      ["message", coption(array(u8))],
-    ],
-    (args) =>
-      new ParsingUtxoBeet(
-        args.version,
-        args.poolType,
-        args.amounts,
-        args.splAssetMint,
-        args.owner,
-        args.blinding,
-        args.dataHash,
-        args.metaHash,
-        args.address,
-        args.message,
-      ),
-    "ParsingUtxo",
-  );
 }
 
 export class PublicTransactionIndexerEventBeet {
@@ -279,12 +237,6 @@ export const getUserIndexTransactions = async (
   return transactionHistory.sort((a, b) => b.blockTime - a.blockTime);
 };
 
-type Instruction = {
-  accounts: any[];
-  data: string;
-  programId: PublicKey;
-  stackHeight: null | number;
-};
 export const findMatchingInstruction = (
   instructions: Instruction[],
   publicKeys: PublicKey[],
@@ -470,7 +422,6 @@ const deserializePrivateEvents = (
 };
 
 /**
- * @async
  * @description This functions takes the transactionMeta of  indexer events transactions and extracts relevant data from it
  * @function parseTransactionEvents
  * @param {(ParsedTransactionWithMeta | null)[]} indexerEventsTransactions - An array of indexer event transactions to process

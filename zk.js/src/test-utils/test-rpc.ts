@@ -13,17 +13,11 @@ import {
   BorshAccountsCoder,
   Program,
 } from "@coral-xyz/anchor";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 import { LightWasm } from "@lightprotocol/account.rs";
 
 import { Rpc } from "../rpc";
-import {
-  ParsingUtxoBeet,
-  PublicTransactionIndexerEventBeet,
-  fetchRecentPublicTransactions,
-  fetchRecentTransactions,
-} from "../transaction";
+import { fetchRecentTransactions } from "../transaction";
 import {
   ParsedIndexedTransaction,
   PrioritizationFee,
@@ -32,32 +26,21 @@ import {
   SignaturesWithBlockhashInfo,
 } from "../types";
 import { Provider } from "../provider";
-import {
-  IDL_LIGHT_MERKLE_TREE_PROGRAM,
-  IDL_PSP_ACCOUNT_COMPRESSION,
-  LightMerkleTreeProgram,
-  AccountCompression,
-} from "../idls";
-import { SolMerkleTree } from "../merkle-tree";
+import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
 import {
   BN_0,
-  UTXO_PREFIX_LENGTH,
   confirmConfig,
   MERKLE_TREE_SET,
   merkleTreeProgramId,
-  MERKLE_TREE_HEIGHT,
 } from "../constants";
 import { RpcError, TransactionErrorCode } from "../errors";
-import { serializeOnchainMerkleTree } from "../merkle-tree";
 import {
-  convertParsingUtxoBeetToOutUtxo,
-  getVerifierProgramId,
-} from "../index";
-import { MerkleTree } from "@lightprotocol/circuit-lib.js";
-import { Utxo, OutUtxo, outUtxoToUtxo } from "../utxo";
+  getRootIndex,
+  serializeOnchainMerkleTree,
+  SolMerkleTree,
+} from "../merkle-tree";
 
 export class TestRpc extends Rpc {
-  // @ts-ignore
   indexedTransactions: RpcIndexedTransaction[] = [];
   rpcKeypair: Keypair;
   connection: Connection;
@@ -172,10 +155,7 @@ export class TestRpc extends Rpc {
    * - getting all signatures the merkle tree was involved in
    * - trying to extract and parse event cpi for every signature's transaction
    * - if there are indexed transactions already in the rpc object only transactions after the last indexed event are indexed
-   * @param connection
-   * @returns
    */
-  // @ts-ignore
   async getIndexedTransactions(
     connection: Connection,
   ): Promise<RpcIndexedTransaction[]> {
@@ -313,23 +293,29 @@ export class TestRpc extends Rpc {
       ),
     );
     if (!merkleTree) return undefined;
-    const index = await getRootIndex(
+    const rootIndex = await getRootIndex(
       this.merkleTreeProgram,
       merkleTree.pubkey,
       merkleTree.merkleTree.root(),
       "merkleTreeSet",
     );
 
+    if (rootIndex === undefined) {
+      throw new RpcError(
+        TransactionErrorCode.ROOT_NOT_FOUND,
+        "getRootIndex",
+        `Root index not found for root ${merkleTree.merkleTree.root()}`,
+      );
+    }
     return {
       merkleProofs: indexes.map(
         (index) => merkleTree.merkleTree.path(index).pathElements,
       ),
       root: merkleTree.merkleTree.root(),
-      index: index.toNumber(),
+      index: rootIndex.toNumber(),
     };
   }
 
-  // @ts-ignore: todo fix inheritance type issues
   async getMerkleRoot(
     merkleTreePubkey: PublicKey,
   ): Promise<{ root: string; index: number } | undefined> {
@@ -342,279 +328,22 @@ export class TestRpc extends Rpc {
         (trx) => trx.transaction as ParsedIndexedTransaction,
       ),
     );
-    const index = await getRootIndex(
+
+    const rootIndex = await getRootIndex(
       this.merkleTreeProgram,
       merkleTreePubkey,
       merkleTree.merkleTree.root(),
       "merkleTreeSet",
     );
-    return { root: merkleTree.merkleTree.root(), index: index.toNumber() };
-  }
-}
-
-// TODO: make indexed transaction derserialization function generic at test rpc level
-export class PublicTestRpc {
-  // @ts-ignore
-  indexedTransactions: PublicTransactionIndexerEventBeet[] = [];
-  utxos: Utxo[] = [];
-  connection: Connection;
-  merkleTrees: SolMerkleTree[] = [];
-  lightWasm: LightWasm;
-  merkleTreeProgram: Program<LightMerkleTreeProgram>;
-  accountCompressionProgram: Program<AccountCompression>;
-  latestSignature: string = "";
-  merkleTreePublicKey: PublicKey;
-  indexedArrayPublicKey: PublicKey;
-  constructor({
-    connection,
-    lightWasm,
-    merkleTreePublicKey,
-    indexedArrayPublicKey,
-  }: {
-    merkleTreePublicKey: PublicKey;
-    connection: Connection;
-    lightWasm: LightWasm;
-    indexedArrayPublicKey: PublicKey;
-  }) {
-    this.connection = connection;
-    const solMerkleTree = new SolMerkleTree({
-      lightWasm,
-      pubkey: merkleTreePublicKey,
-    });
-    this.merkleTrees.push(solMerkleTree);
-    this.lightWasm = lightWasm;
-    this.merkleTreeProgram = new Program(
-      IDL_LIGHT_MERKLE_TREE_PROGRAM,
-      merkleTreeProgramId,
-      new AnchorProvider(connection, {} as any, {}),
-    );
-    this.accountCompressionProgram = new Program(
-      IDL_PSP_ACCOUNT_COMPRESSION,
-      getVerifierProgramId(IDL_PSP_ACCOUNT_COMPRESSION),
-      new AnchorProvider(connection, {} as any, {}),
-    );
-    this.merkleTreePublicKey = merkleTreePublicKey;
-    this.indexedArrayPublicKey = indexedArrayPublicKey;
-  }
-
-  /**
-   * Indexes light transactions by:
-   * - getting all signatures the merkle tree was involved in
-   * - trying to extract and parse event cpi for every signature's transaction
-   * - if there are indexed transactions already in the rpc object only transactions after the last indexed event are indexed
-   * @param connection
-   * @returns
-   */
-  // @ts-ignore
-  async getIndexedTransactions(
-    connection: Connection,
-  ): Promise<PublicTransactionIndexerEventBeet[]> {
-    // limits the number of signatures which are queried
-    // if the number is too low it is not going to index all transactions
-    // hence the dependency on the merkle tree account index times 260 transactions
-    // which is approximately the number of transactions sent to send one compressed transaction and update the merkle tree
-    const limit = 1000; // + 260 * merkleTreeAccount.merkleTree.nextIndex.toNumber();
-
-    const { transactions: newTransactions, oldestFetchedSignature } =
-      await fetchRecentPublicTransactions({
-        connection,
-        batchOptions: {
-          limit,
-        },
-      });
-    this.indexedTransactions = newTransactions;
-    this.latestSignature = oldestFetchedSignature;
-    // if (this.indexedTransactions.length === 0) {
-
-    // } else {
-    //   if (this.indexedTransactions.length === 0) return [];
-
-    //   this.indexedTransactions.reduce((a, b) =>
-    //     Number(a.outUtxoIndexes[0].toString()) >
-    //     Number(b.outUtxoIndexes[0].toString())
-    //       ? a
-    //       : b,
-    //   );
-
-    //   const { transactions: newTransactions, oldestFetchedSignature } =
-    //     await fetchRecentTransactions({
-    //       connection,
-    //       batchOptions: {
-    //         limit,
-    //         until: this.latestSignature,
-    //       },
-    //     });
-    //   this.latestSignature = oldestFetchedSignature;
-    //   // @ts-ignore: doesn't like RpcIndexedTransactionResponse | PublicTransactionIndexerEventBeet but in this case it can only be PublicTransactionIndexerEventBeet
-    //   this.indexedTransactions = [
-    //     ...this.indexedTransactions,
-    //     ...newTransactions,
-    //   ];
-    // }
-    const indexedOutUtxos = eventsToOutUtxos(
-      this.indexedTransactions,
-      this.lightWasm,
-    );
-
-    const merkleTree = new MerkleTree(
-      MERKLE_TREE_HEIGHT,
-      this.lightWasm,
-      indexedOutUtxos.map(({ outUtxo }) => outUtxo.hash.toString()),
-    );
-    this.utxos = outUtxosToUtxos(indexedOutUtxos, this.lightWasm, merkleTree);
-    return this.indexedTransactions;
-  }
-
-  async getAssetsByOwner(owner: string): Promise<Utxo[]> {
-    await this.getIndexedTransactions(this.connection);
-    const ownedUtxos = this.utxos.filter(
-      (utxo) => utxo.owner.toString() === owner,
-    );
-
-    // TODO: do not return nullified utxos, currently does not work
-    // we need to deserialize the nullifier queue in ts first
-    // let merkleTree = await this.syncMerkleTree(this.merkleTreePublicKey);
-    // const indexedArrayAccount = await this.accountCompressionProgram.account.indexedArrayAccount.fetch(this.indexedArrayPublicKey);
-    // const indexedArray = parseIndexedArrayFromAccount(Buffer.from(indexedArrayAccount.indexedArray));
-    // // removes utxos which have been nullified
-    // const spendableUtxos = merkleTree?.merkleTree.indexOf(utxo.hash.toString()) !== -1;
-    return ownedUtxos;
-  }
-
-  async syncMerkleTree(merkleTreePubkey: PublicKey): Promise<SolMerkleTree> {
-    let solMerkleTreeIndex = this.merkleTrees.findIndex((tree) =>
-      tree.pubkey.equals(merkleTreePubkey),
-    );
-    solMerkleTreeIndex =
-      solMerkleTreeIndex === -1 ? this.merkleTrees.length : solMerkleTreeIndex;
-    const indexedOutUtxos = eventsToOutUtxos(
-      this.indexedTransactions,
-      this.lightWasm,
-    );
-    const merkleTree = new MerkleTree(
-      MERKLE_TREE_HEIGHT,
-      this.lightWasm,
-      indexedOutUtxos.map(({ outUtxo }) => outUtxo.hash.toString()),
-    );
-
-    this.merkleTrees[solMerkleTreeIndex] = new SolMerkleTree({
-      pubkey: merkleTreePubkey,
-      lightWasm: this.lightWasm,
-      merkleTree,
-    });
-    return this.merkleTrees[solMerkleTreeIndex];
-  }
-
-  // async getEventById(
-  //   merkleTreePdaPublicKey: PublicKey,
-  //   id: string,
-  //   _variableNameID: number,
-  // ): Promise<RpcIndexedTransactionResponse | undefined> {
-  //   const indexedTransactions = await this.getIndexedTransactions(
-  //     this.connection,
-  //   );
-  //   const indexedTransaction = indexedTransactions.find((trx) =>
-  //     trx.IDs.includes(id),
-  //   )?.transaction;
-  //   if (!indexedTransaction) return undefined;
-  //   const merkleTree = await this.syncMerkleTree(
-  //     merkleTreePdaPublicKey,
-  //   );
-  //   return createRpcIndexedTransactionResponse(indexedTransaction, merkleTree);
-  // }
-
-  // async getEventsByIdBatch(
-  //   merkleTreePdaPublicKey: PublicKey,
-  //   ids: string[],
-  //   variableNameID: number,
-  // ): Promise<RpcIndexedTransactionResponse[] | undefined> {
-  //   const indexedTransactions = await this.getIndexedTransactions(
-  //     this.connection,
-  //   );
-  //   const indexedTransactionsById = indexedTransactions.filter((trx) =>
-  //     trx.IDs.some((id) => ids.includes(id)),
-  //   );
-  //   const merkleTree = await this.syncMerkleTree(
-  //     merkleTreePdaPublicKey,
-  //     indexedTransactions.map((trx) => trx.transaction),
-  //   );
-  //   return indexedTransactionsById.map((trx) =>
-  //     createRpcIndexedTransactionResponse(trx.transaction, merkleTree),
-  //   );
-  // }
-
-  async getMerkleProofByIndexBatch(
-    merkleTreePublicKey: PublicKey,
-    indexes: number[],
-  ): Promise<
-    { merkleProofs: string[][]; root: string; index: number } | undefined
-  > {
-    await this.getIndexedTransactions(this.connection);
-    const merkleTree = await this.syncMerkleTree(merkleTreePublicKey);
-    if (!merkleTree) return undefined;
-    const index = await getRootIndex(
-      this.accountCompressionProgram,
-      merkleTree.pubkey,
-      merkleTree.merkleTree.root(),
-      "concurrentMerkleTreeAccount",
-    );
-
-    return {
-      merkleProofs: indexes.map(
-        (index) => merkleTree.merkleTree.path(index).pathElements,
-      ),
-      root: merkleTree.merkleTree.root(),
-      index: index.toNumber(),
-    };
-  }
-
-  async getMerkleRoot(
-    merkleTreePublicKey: PublicKey,
-  ): Promise<{ root: string; index: number } | undefined> {
-    await this.getIndexedTransactions(this.connection);
-    const merkleTree = await this.syncMerkleTree(merkleTreePublicKey);
-    const index = await getRootIndex(
-      this.accountCompressionProgram,
-      merkleTree.pubkey,
-      merkleTree.merkleTree.root(),
-      "concurrentMerkleTreeAccount",
-    );
-    return { root: merkleTree.merkleTree.root(), index: index.toNumber() };
-  }
-}
-
-export async function getRootIndex(
-  merkleTreeProgram:
-    | Program<AccountCompression>
-    | Program<LightMerkleTreeProgram>,
-  merkleTreePublicKey: PublicKey,
-  root: string,
-  accountName: string,
-) {
-  const rootBytes = new BN(root).toArray("be", 32);
-  const merkleTreeSetData = await merkleTreeProgram.account[accountName].fetch(
-    merkleTreePublicKey,
-    "confirmed",
-  );
-  const stateMerkleTree = serializeOnchainMerkleTree(
-    merkleTreeSetData.stateMerkleTree,
-  );
-  let rootIndex: BN | undefined;
-  // @ts-ignore: unknown type error
-  stateMerkleTree.roots.map((x: any, index: any) => {
-    if (x.toString() === rootBytes.toString()) {
-      rootIndex = new BN(index.toString());
+    if (rootIndex === undefined) {
+      throw new RpcError(
+        TransactionErrorCode.ROOT_NOT_FOUND,
+        "getRootIndex",
+        `Root index not found for root ${merkleTree.merkleTree.root()}`,
+      );
     }
-  });
-
-  if (rootIndex === undefined) {
-    throw new RpcError(
-      TransactionErrorCode.ROOT_NOT_FOUND,
-      "getRootIndex",
-      `Root index not found for root ${root}`,
-    );
+    return { root: merkleTree.merkleTree.root(), index: rootIndex.toNumber() };
   }
-  return rootIndex;
 }
 
 export const createRpcIndexedTransactionResponse = (
@@ -633,133 +362,4 @@ export const createRpcIndexedTransactionResponse = (
     merkleProofs,
   };
   return rpcIndexedTransactionResponse;
-};
-
-export const getIdsFromEncryptedUtxos = (
-  encryptedUtxos: Buffer,
-  numberOfLeaves: number,
-): string[] => {
-  const utxoLength = 124; //encryptedUtxos.length / numberOfLeaves;
-  // divide encrypted utxos by multiples of 2
-  // and extract the first two bytes of each
-  const ids: string[] = [];
-  for (let i = 0; i < encryptedUtxos.length; i += utxoLength) {
-    ids.push(bs58.encode(encryptedUtxos.slice(i, i + UTXO_PREFIX_LENGTH)));
-  }
-  return ids;
-};
-
-// TODO: add Merkle tree pubkey to support multiple merkle trees
-export const eventsToOutUtxos = (
-  events: PublicTransactionIndexerEventBeet[],
-  lightWasm: LightWasm,
-) => {
-  const utxos: {
-    outUtxo: OutUtxo;
-    index: number;
-    merkleTreePubkey: PublicKey | undefined;
-  }[] = [];
-  events.forEach((event) => {
-    event.outUtxos.forEach((beetOutUtxo: ParsingUtxoBeet, i) => {
-      if (
-        utxos.find(
-          ({ index }) => index === Number(event.outUtxoIndexes[i].toString()),
-        ) === undefined
-      ) {
-        const outUtxo: OutUtxo | undefined = convertParsingUtxoBeetToOutUtxo(
-          beetOutUtxo,
-          lightWasm,
-        );
-        if (outUtxo) {
-          utxos.push({
-            outUtxo,
-            index: Number(event.outUtxoIndexes[i].toString()),
-            merkleTreePubkey: undefined,
-          });
-        }
-      }
-    });
-  });
-  return utxos;
-};
-
-export const outUtxosToUtxos = (
-  outUtxos: {
-    outUtxo: OutUtxo;
-    index: number;
-    merkleTreePubkey: PublicKey | undefined;
-  }[],
-  lightWasm: LightWasm,
-  merkleTree: MerkleTree,
-) => {
-  const utxos: Utxo[] = [];
-  outUtxos.forEach(({ outUtxo, index }) => {
-    const utxo = outUtxoToUtxo({
-      outUtxo,
-      merkleProof: merkleTree.path(index).pathElements,
-      merkleTreeLeafIndex: index,
-      lightWasm,
-    });
-    utxos.push(utxo);
-  });
-
-  return utxos;
-};
-import {
-  FixableBeetStruct,
-  u16,
-  bignum,
-  array,
-  u8,
-  uniformFixedSizeArray,
-} from "@metaplex-foundation/beet";
-
-// Does not work because it does not deserialize arkworks big numbers correctly
-export class IndexingElementBeet {
-  constructor(
-    readonly index: number,
-    readonly value: bignum[],
-    readonly nextIndex: number,
-  ) {}
-
-  static readonly struct = new FixableBeetStruct<
-    IndexingElementBeet,
-    IndexingElementBeet
-  >(
-    [
-      ["index", u16],
-      ["value", uniformFixedSizeArray(u8, 32)],
-      ["nextIndex", u16],
-    ],
-    (args) => new IndexingElementBeet(args.index, args.value, args.nextIndex),
-    "IndexingElement",
-  );
-}
-export class IndexingArrayBeet {
-  constructor(
-    readonly elements: IndexingElementBeet[],
-    readonly currentNodeIndex: number,
-    readonly highestElementIndex: number,
-  ) {}
-  static readonly struct = new FixableBeetStruct<
-    IndexingArrayBeet,
-    IndexingArrayBeet
-  >(
-    [
-      ["elements", array(IndexingElementBeet.struct)],
-      ["currentNodeIndex", u16],
-      ["highestElementIndex", u16],
-    ],
-    (args) =>
-      new IndexingArrayBeet(
-        args.elements,
-        args.currentNodeIndex,
-        args.highestElementIndex,
-      ),
-    `IndexingArray`,
-  );
-}
-
-export const parseIndexedArrayFromAccount = (account: Buffer) => {
-  return IndexingArrayBeet.struct.deserialize(account);
 };
