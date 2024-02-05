@@ -4,16 +4,6 @@ import { ExtPointType } from "@noble/curves/abstract/edwards";
 export type LookupTable = { [key: string]: string };
 
 /**
- * @param plaintext A 32-bit bigint
- * @returns A point on the Baby Jubjub curve
- */
-export function encode(plaintext: bigint): ExtPointType {
-  if (plaintext >= BigInt(2 ** 32)) {
-    throw new Error("The plaintext should nit be bigger than a 32-bit bigint");
-  } else return babyjubjubExt.BASE.multiplyUnsafe(plaintext);
-}
-
-/**
  * @param encoded A an encoded 32-bit bigint to a Baby Jubjub curve point
  * @param precomputeSize The size of precomputed values -> 2^precomputeSize
  * @param lookupTable The offline saved 2^precomputeSize values used to break a 32-bit ECDLP.

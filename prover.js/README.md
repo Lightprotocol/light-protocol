@@ -35,7 +35,7 @@ proofInputs.proofInputs = {
 ```
 
 ## Notes
-
+ 
 - The generic types for a circuit proof or public inputs are accessible as long as ZK account structs are available in the [Anchor](https://www.anchor-lang.com/docs/cli#idl) idl.
 - The circom circuit inputs should be written in camel case for compliance with the ZK account struct rust parser.
 - The generics file should contain a union type of all the verifierIdls containing the parsed ZK accounts.

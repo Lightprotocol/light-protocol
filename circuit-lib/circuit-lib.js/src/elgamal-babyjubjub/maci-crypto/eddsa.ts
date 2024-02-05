@@ -5,8 +5,9 @@
  */
 
 const createBlakeHash = require("blake-hash");
-const babyJub = require("./babyjub");
 const ff = require("ffjavascript");
+
+import { mulPointEscalar, Base8 } from "./babyjub";
 
 function pruneBuffer(_buff) {
   const buff = Buffer.from(_buff);
@@ -21,7 +22,7 @@ function prv2pub(prv) {
     createBlakeHash("blake512").update(prv).digest().slice(0, 32),
   );
   let s = ff.utils.leBuff2int(sBuff);
-  const A = babyJub.mulPointEscalar(babyJub.Base8, ff.Scalar.shr(s, 3));
+  const A = mulPointEscalar(Base8, ff.Scalar.shr(s, 3));
   return A;
 }
 

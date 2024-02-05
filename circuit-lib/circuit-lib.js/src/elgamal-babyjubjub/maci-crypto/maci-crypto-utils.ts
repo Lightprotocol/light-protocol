@@ -24,7 +24,8 @@
 
 import * as crypto from "crypto";
 import assert from "assert";
-const eddsa = require("./eddsa");
+import { pruneBuffer, prv2pub } from "./eddsa";
+
 const ff = require("ffjavascript");
 const createBlakeHash = require("blake-hash");
 
@@ -85,7 +86,7 @@ const genPubKey = (privKey: PrivKey): PubKey => {
   privKey = BigInt(privKey.toString());
   //@ts-ignore
   assert(privKey < SNARK_FIELD_SIZE);
-  return eddsa.prv2pub(bigInt2Buffer(privKey));
+  return prv2pub(bigInt2Buffer(privKey));
 };
 
 /*
@@ -101,7 +102,7 @@ const genPrivKey = (): PrivKey => {
  * PubKey and other circuits.
  */
 const formatPrivKeyForBabyJub = (privKey: PrivKey) => {
-  const sBuff = eddsa.pruneBuffer(
+  const sBuff = pruneBuffer(
     createBlakeHash("blake512")
       .update(bigInt2Buffer(privKey))
       .digest()

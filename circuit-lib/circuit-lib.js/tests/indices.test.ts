@@ -1,4 +1,5 @@
 import { assert } from "chai";
+
 import { MINT, hashAndTruncateToCircuit } from "../../../zk.js/src/index";
 import { getIndices3D } from "../src/index";
 import { PublicKey } from "@solana/web3.js";

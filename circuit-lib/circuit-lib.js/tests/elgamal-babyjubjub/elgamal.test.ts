@@ -1,4 +1,5 @@
-import { assert, expect } from "chai";
+import { assert } from "chai";
+import { describe, it, expect } from "vitest";
 import {
   babyjubjubExt,
   generateKeypair,
@@ -10,10 +11,10 @@ import {
 import { getRandomBytes } from "./test-utils";
 
 import {
-  encode,
   decode,
   split64BigInt,
 } from "../../src/elgamal-babyjubjub/pointEncoding";
+import { encode } from "../../src/elgamal-babyjubjub/elgamal";
 import { precompute } from "../../src/elgamal-babyjubjub/precompute";
 
 const fs = require("fs");
@@ -149,7 +150,7 @@ describe("Testing Encoding/Decoding for ElGamal Scheme", async () => {
   let lookupTable: any;
   let directoryPath = "./build";
   const lookupTable19Path = directoryPath + `/lookupTableBBJub19.json`;
-  before(() => {
+  beforeAll(() => {
     if (!fs.existsSync(directoryPath)) {
       fs.mkdirSync(directoryPath, { recursive: true });
       console.log(`Directory created: ${directoryPath}`);
