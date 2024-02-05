@@ -27,8 +27,8 @@ pub mod psp_compressed_token {
 
     use super::*;
 
-    pub fn create_mint<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, CreateMintInstruction<'info>>,
+    pub fn create_mint<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
     ) -> Result<()> {
         process_create_mint(ctx)
     }

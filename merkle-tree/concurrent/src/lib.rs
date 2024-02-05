@@ -445,7 +445,7 @@ where
         let mut changelog_entries: Vec<Box<ChangelogEntry<HEIGHT>>> = Vec::new();
 
         for leaf in leaves.iter() {
-            let mut changelog_entry = Box::new(ChangelogEntry::default());
+            let mut changelog_entry = Box::<ChangelogEntry<HEIGHT>>::default();
             self.append_with_changelog_entry(leaf, &mut changelog_entry)?;
             changelog_entries.push(changelog_entry);
         }
