@@ -3,10 +3,9 @@ use anchor_lang::prelude::*;
 
 use crate::{errors::ErrorCode, MerkleTreeAuthority};
 
-///
 #[account]
 #[aligned_sized(anchor)]
-pub struct RegisteredVerifier {
+pub struct RegisteredProgram {
     pub pubkey: Pubkey,
 }
 
@@ -18,15 +17,14 @@ pub struct RegisterVerifier<'info> {
         payer = authority,
         seeds = [&verifier_pubkey.to_bytes()],
         bump,
-        space = RegisteredVerifier::LEN,
+        space = RegisteredProgram::LEN,
     )]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
+    pub registered_verifier_pda: Account<'info, RegisteredProgram>,
     /// CHECK:` Signer is checked according to authority pda in instruction
     #[account(mut, address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 pub fn process_register_verifier(

@@ -3,21 +3,21 @@ use std::collections::HashMap;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use crate::{
+    emit_indexer_event,
     state::ConcurrentMerkleTreeAccount,
     state_merkle_tree_from_bytes_mut,
     utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
-    RegisteredProgram, //RegisteredVerifier,
+    ChangelogEvent, ChangelogEventV1, Changelogs, RegisteredProgram,
 };
 
 // TODO: implement group access control
 #[derive(Accounts)]
 pub struct InsertTwoLeavesParallel<'info> {
-    /// CHECK: should only be accessed by a registered verifier.
-    // #[account(mut, seeds=[__program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
+    /// CHECK: should only be accessed by a registered program/owner/delegate.
     #[account(mut)]
     pub authority: Signer<'info>,
-    // #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Option<Account<'info, RegisteredProgram>>,
+    pub log_wrapper: UncheckedAccount<'info>,
 }
 
 impl GroupAccess for ConcurrentMerkleTreeAccount {
@@ -38,18 +38,19 @@ impl<'info> GroupAccounts<'info> for InsertTwoLeavesParallel<'info> {
         &self.registered_verifier_pda
     }
 }
-/// for every leave one Merkle tree account has to be passed as remaing account
+
+/// for every leaf one Merkle tree account has to be passed as remaing account
 /// for every leaf could be inserted into a different Merkle tree account
 /// 1. deduplicate Merkle trees and identify into which tree to insert what leaf
 /// 2. iterate over every unique Merkle tree and batch insert leaves
-pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeavesParallel<'info>>,
+pub fn process_insert_leaves_into_merkle_trees<'a, 'info>(
+    ctx: Context<'a, '_, '_, 'info, InsertTwoLeavesParallel<'info>>,
     leaves: &'a [[u8; 32]],
 ) -> Result<()> {
     if leaves.len() != ctx.remaining_accounts.len() {
         return err!(crate::errors::ErrorCode::NumberOfLeavesMismatch);
     }
-    let mut merkle_tree_map = HashMap::<Pubkey, (&AccountInfo, Vec<[u8; 32]>)>::new();
+    let mut merkle_tree_map = HashMap::<Pubkey, (&AccountInfo, Vec<&[u8; 32]>)>::new();
     for (i, mt) in ctx.remaining_accounts.iter().enumerate() {
         match merkle_tree_map.get(&mt.key()) {
             Some(_) => {}
@@ -61,10 +62,10 @@ pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c, 'info>(
             .get_mut(&mt.key())
             .unwrap()
             .1
-            .push(leaves[i]);
+            .push(&leaves[i]);
     }
-    msg!("merkle_tree_map {:?}", merkle_tree_map);
 
+    let mut changelog_events = Vec::new();
     for (mt, leaves) in merkle_tree_map.values() {
         let merkle_tree = AccountLoader::<ConcurrentMerkleTreeAccount>::try_from(mt).unwrap();
         let mut merkle_tree_account = merkle_tree.load_mut()?;
@@ -74,12 +75,23 @@ pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c, 'info>(
         //     &merkle_tree_account,
         // )?;
 
-        let merkle_tree =
+        let state_merkle_tree =
             state_merkle_tree_from_bytes_mut(&mut merkle_tree_account.state_merkle_tree);
-        for leaf in leaves {
-            merkle_tree.append(&leaf).unwrap();
-        }
+        let changelog_entries = state_merkle_tree.append_batch(&leaves[..])?;
+        changelog_events.push(ChangelogEvent::V1(ChangelogEventV1::new(
+            mt.key(),
+            &changelog_entries,
+            state_merkle_tree.sequence_number,
+        )?));
     }
+    let changelog_event = Changelogs {
+        changelogs: changelog_events,
+    };
+    emit_indexer_event(
+        changelog_event.try_to_vec()?,
+        &ctx.accounts.log_wrapper,
+        &ctx.accounts.authority,
+    )?;
 
     Ok(())
 }

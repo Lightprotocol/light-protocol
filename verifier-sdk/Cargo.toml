@@ -18,7 +18,7 @@ name = "light_verifier_sdk"
 anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"
 light-merkle-tree-program = { version = "0.3.1", path = "../programs/merkle-tree", features = ["cpi"] }
-psp-account-compression = { version = "0.3.1", path = "../programs/account-compression", features = ["cpi"] }
+account-compression = { version = "0.3.1", path = "../programs/account-compression", features = ["cpi"] }
 
 aligned-sized = { version = "0.1.0", path = "../macros/aligned-sized" }
 light-hasher = { version = "0.1.0", path = "../merkle-tree/hasher" }

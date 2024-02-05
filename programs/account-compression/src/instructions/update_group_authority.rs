@@ -13,8 +13,8 @@ pub struct UpdateGroupAuthority<'info> {
     pub group_authority: Account<'info, GroupAuthority>,
 }
 
-pub fn set_group_authority<'info>(
-    group_authority: &mut Account<'info, GroupAuthority>,
+pub fn set_group_authority(
+    group_authority: &mut Account<'_, GroupAuthority>,
     authority: Pubkey,
 ) -> Result<()> {
     group_authority.authority = authority;

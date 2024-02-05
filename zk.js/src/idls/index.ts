@@ -35,6 +35,6 @@ export {
   IDL as IDL_PSP_COMPRESSED_TOKEN,
 } from "./psp_compressed_token";
 export {
-  type PspAccountCompression,
+  type AccountCompression,
   IDL as IDL_PSP_ACCOUNT_COMPRESSION,
-} from "./psp_account_compression";
+} from "./account_compression";

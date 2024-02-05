@@ -100,6 +100,7 @@ export function createOutUtxos({
   assetLookupTable,
   separateSolUtxo = false,
   lightWasm,
+  isPublic,
 }: {
   inUtxos?: (Utxo | ProgramUtxo<PlaceHolderTData>)[];
   publicMint?: PublicKey;
@@ -115,6 +116,7 @@ export function createOutUtxos({
   verifierProgramLookupTable: string[];
   separateSolUtxo?: boolean;
   lightWasm: LightWasm;
+  isPublic: boolean;
 }) {
   if (!lightWasm)
     throw new CreateUtxoError(
@@ -315,7 +317,7 @@ export function createOutUtxos({
       assets: [SystemProgram.programId],
       amounts: [solAmount],
       owner: changeUtxoAccount.keypair.publicKey,
-      // verifierAddress: appUtxo?.verifierAddress,
+      isPublic,
     });
     outputUtxos.push(solChangeUtxo);
   }
@@ -340,6 +342,7 @@ export function createOutUtxos({
       assets: [SystemProgram.programId, splAsset],
       amounts: [solAmount, splAmount],
       owner: changeUtxoAccount.keypair.publicKey,
+      isPublic,
     });
 
     outputUtxos.push(changeUtxo);
@@ -368,10 +371,12 @@ export function createRecipientUtxos({
   recipients,
   assetLookupTable,
   lightWasm,
+  isPublic,
 }: {
   recipients: Recipient[];
   assetLookupTable: string[];
   lightWasm: LightWasm;
+  isPublic: boolean;
 }): OutUtxo[] {
   const outputUtxos: OutUtxo[] = [];
 
@@ -397,6 +402,7 @@ export function createRecipientUtxos({
       amounts: [solAmount, splAmount],
       owner: recipients[j].account.keypair.publicKey,
       encryptionPublicKey: recipients[j].account.encryptionKeypair.publicKey,
+      isPublic,
     });
 
     outputUtxos.push(recipientUtxo);

@@ -458,6 +458,7 @@ export class User {
           amounts,
           owner: recipient.keypair.publicKey,
           encryptionPublicKey: recipient.encryptionKeypair.publicKey,
+          isPublic: false,
         }),
       );
       utxos = [];
@@ -1004,6 +1005,7 @@ export class User {
         ],
         assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         lightWasm: this.provider.lightWasm,
+        isPublic: false,
       });
     }
 

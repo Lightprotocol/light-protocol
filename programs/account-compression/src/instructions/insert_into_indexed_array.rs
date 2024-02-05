@@ -11,19 +11,17 @@ use crate::RegisteredProgram;
 
 #[derive(Accounts)]
 pub struct InsertIntoIndexedArrays<'info> {
-    /// CHECK:` Signer is owned by registered verifier program.
-    // #[account(mut, seeds=[__program_id.to_bytes().as_ref()], bump,seeds::program=registered_verifier_pda.pubkey)]
+    /// CHECK: should only be accessed by a registered program/owner/delegate.
     #[account(mut)]
     pub authority: Signer<'info>,
-    // #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump )]
     pub registered_verifier_pda: Option<Account<'info, RegisteredProgram>>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
 }
 
 /// Inserts every element into the indexed array.
 /// Throws an error if the element already exists.
 /// Expects an indexed queue account as for every index as remaining account.
-pub fn process_insert_into_indexed_arrays<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, InsertIntoIndexedArrays<'info>>,
+pub fn process_insert_into_indexed_arrays<'a, 'info>(
+    ctx: Context<'a, '_, '_, 'info, InsertIntoIndexedArrays<'info>>,
     elements: &'a [[u8; 32]],
     low_element_indexes: &'a [u16],
 ) -> Result<()> {
@@ -80,8 +78,8 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c, 'info>(
 
 // TODO: add a function to merkle tree program that creates a new Merkle tree and indexed array account in the same transaction with consistent parameters and add them to the group
 // we can use the same group regulate permissions for the de compression pool program
-pub fn process_initialize_indexed_array<'a, 'info>(
-    ctx: Context<'a, '_, '_, 'info, InitializeIndexedArrays<'info>>,
+pub fn process_initialize_indexed_array<'info>(
+    ctx: Context<'_, '_, '_, 'info, InitializeIndexedArrays<'info>>,
     index: u64,
     owner: Pubkey,
     delegate: Option<Pubkey>,
@@ -96,14 +94,10 @@ pub fn process_initialize_indexed_array<'a, 'info>(
 
 #[derive(Accounts)]
 pub struct InitializeIndexedArrays<'info> {
-    // /// CHECK:` Signer is owned by registered verifier program.
-    // #[account(mut, seeds=[__program_id.to_bytes().as_ref()], bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     #[account(zero)]
     pub indexed_array: AccountLoader<'info, IndexedArrayAccount>,
     pub system_program: Program<'info, System>,
-    // #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump )]
-    // pub registered_verifier_pda: Account<'info, RegisteredVerifier>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
 }
 
 #[derive(Debug, PartialEq)]

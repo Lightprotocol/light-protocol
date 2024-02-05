@@ -120,7 +120,7 @@ const initializeMerkleTree = async ({
   feePayer: Keypair;
   merkleTreeKeypair: Keypair;
 }) => {
-  const space = 90472;
+  const space = 90480;
   const accountCompressionProgramId = getVerifierProgramId(
     IDL_PSP_ACCOUNT_COMPRESSION,
   );
@@ -341,9 +341,7 @@ describe("verifier_program", () => {
             merkleTreeProgramId,
             getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
           ),
-          pspAccountCompression: getVerifierProgramId(
-            IDL_PSP_ACCOUNT_COMPRESSION,
-          ),
+          accountCompression: getVerifierProgramId(IDL_PSP_ACCOUNT_COMPRESSION),
           pspAccountCompressionAuthority: getSignerAuthorityPda(
             getVerifierProgramId(IDL_PSP_ACCOUNT_COMPRESSION),
             getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
@@ -376,22 +374,11 @@ describe("verifier_program", () => {
     assert.equal(utxos.length, 2);
     assert.equal(utxos[0].amounts[1].toNumber(), 100);
     assert.equal(utxos[1].amounts[1].toNumber(), 101);
-    console.log(
-      "utxo 0 version",
-      new BN(utxos[0].transactionVersion).toArray("be", 32),
-    );
+    console.log("utxo 0 version", new BN(utxos[0].version).toArray("be", 32));
     console.log("utxo 0 amount", new BN(utxos[0].amounts[0]).toArray("be", 32));
     console.log("utxo 0 amount", new BN(utxos[0].amounts[1]).toArray("be", 32));
-    console.log("utxo 0 owner", new BN(utxos[0].publicKey).toArray("be", 32));
+    console.log("utxo 0 owner", new BN(utxos[0].owner).toArray("be", 32));
     console.log("utxo 0 blinding", new BN(utxos[0].blinding).toArray("be", 32));
-    console.log(
-      "utxo 0 asset",
-      new BN(utxos[0].assetsCircuit[0]).toArray("be", 32),
-    );
-    console.log(
-      "utxo 0 asset",
-      new BN(utxos[0].assetsCircuit[1]).toArray("be", 32),
-    );
     await RPC.getMerkleRoot(merkleTreeKeyPair.publicKey);
   });
 
@@ -423,8 +410,9 @@ describe("verifier_program", () => {
       lightWasm: WASM,
       assets: senderUtxos[0].assets,
       amounts: [BN_0, inputUtxos[0].amounts[1]],
-      publicKey: recipientAccount.keypair.publicKey,
+      owner: recipientAccount.keypair.publicKey,
       blinding: BN_0,
+      isPublic: true,
     });
 
     const transactionInput: TransactionInput = {
@@ -499,7 +487,7 @@ describe("verifier_program", () => {
       await new BorshCoder(IDL_PSP_COMPRESSED_TOKEN).accounts.encode(
         "transferOutputUtxo",
         {
-          owner: new BN(outputUtxo.publicKey),
+          owner: new BN(outputUtxo.owner),
           amounts: outputUtxo.amounts,
           splAssetMint: outputUtxo.assets[1],
           metaHash: null,
@@ -543,10 +531,10 @@ describe("verifier_program", () => {
     console.log("recpientBalance ", recpientBalance);
     console.log(
       "RPC utxos",
-      RPC.utxos.map((utxo) => new BN(utxo.utxoHash).toArray("be", 32)),
+      RPC.utxos.map((utxo) => new BN(utxo.hash).toArray("be", 32)),
     );
     assert.deepEqual(recpientBalance[0].amounts[1].toNumber(), 100);
-    // assert.deepEqual(recpientBalance[0].utxoHash, outputUtxo.utxoHash);
+    // assert.deepEqual(recpientBalance[0].hash, outputUtxo.hash);
 
     // assert.deepEqual(recpientBalance[1].amounts[1].toNumber(), 101);
     // check that I rebuilt the correct tree
@@ -554,7 +542,7 @@ describe("verifier_program", () => {
     // check that utxo was inserted
     assert.equal(
       2,
-      RPC.merkleTrees[0].merkleTree.indexOf(recpientBalance[0].utxoHash),
+      RPC.merkleTrees[0].merkleTree.indexOf(recpientBalance[0].hash.toString()),
     );
   };
 });

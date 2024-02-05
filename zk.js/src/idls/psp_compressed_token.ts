@@ -190,7 +190,7 @@ export type PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
+          "name": "accountCompression",
           "isMut": false,
           "isSigner": false
         },
@@ -265,7 +265,7 @@ export type PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
+          "name": "accountCompression",
           "isMut": false,
           "isSigner": false
         },
@@ -324,7 +324,7 @@ export type PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
+          "name": "accountCompression",
           "isMut": false,
           "isSigner": false
         },
@@ -1627,7 +1627,7 @@ export const IDL: PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
+          "name": "accountCompression",
           "isMut": false,
           "isSigner": false
         },
@@ -1702,7 +1702,7 @@ export const IDL: PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
+          "name": "accountCompression",
           "isMut": false,
           "isSigner": false
         },
@@ -1761,7 +1761,7 @@ export const IDL: PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompression",
+          "name": "accountCompression",
           "isMut": false,
           "isSigner": false
         },

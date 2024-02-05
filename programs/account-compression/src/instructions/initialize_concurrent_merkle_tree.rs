@@ -9,9 +9,6 @@ pub struct InitializeConcurrentMerkleTree<'info> {
     #[account(zero)]
     pub merkle_tree: AccountLoader<'info, ConcurrentMerkleTreeAccount>,
     pub system_program: Program<'info, System>,
-    // pub rent: Sysvar<'info, Rent>,
-    // #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
-    // pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 }
 
 #[allow(unused_variables)]
