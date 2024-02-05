@@ -499,7 +499,6 @@ const parseTransactionEvents = (
         const data = bs58.decode(ixInner.data);
 
         const decodedEvent = deserializeFn(data, tx);
-
         if (decodedEvent) {
           transactions.push(decodedEvent);
         }

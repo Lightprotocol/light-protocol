@@ -71,8 +71,21 @@ pub fn process_insert_into_indexed_arrays<'a, 'info>(
                     BigInteger256::deserialize_uncompressed_unchecked(element.as_slice()).unwrap(),
                 )
                 .unwrap();
+            msg!(
+                "Inserted elements into indexed arrays {:?}",
+                array.elements[0]
+            );
+            msg!(
+                "Inserted elements into indexed arrays 1 {:?}",
+                array.elements[1]
+            );
+            msg!(
+                "Inserted elements into indexed arrays  2 {:?}",
+                array.elements[2]
+            );
         }
     }
+    msg!("Inserted elements into indexed arrays {:?}", elements);
     Ok(())
 }
 

@@ -193,7 +193,10 @@ fn cpi_merkle_tree<'a, 'b, 'c, 'info>(
     }
     light_verifier_sdk::cpi_instructions::insert_two_leaves_parallel_cpi(
         &ctx.program_id,
-        &ctx.accounts.account_compression.to_account_info().clone(),
+        &ctx.accounts
+            .account_compression_program
+            .to_account_info()
+            .clone(),
         &ctx.accounts
             .psp_account_compression_authority
             .to_account_info()
@@ -277,7 +280,8 @@ pub struct MintToInstruction<'info> {
     /// CHECK this account
     pub noop_program: UncheckedAccount<'info>,
     pub merkle_tree_program: Program<'info, LightMerkleTreeProgram>,
-    pub account_compression: Program<'info, account_compression::program::AccountCompression>,
+    pub account_compression_program:
+        Program<'info, account_compression::program::AccountCompression>,
     /// CHECK this account in psp account compression program
     #[account(mut)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,
