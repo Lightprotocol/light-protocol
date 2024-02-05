@@ -1,7 +1,8 @@
+#[cfg(target_os = "solana")]
 mod test {
 
     use account_compression::{
-        self, indexed_array_from_bytes, GroupAuthority, GROUP_AUTHORITY_SEED, ID,
+        self, indexed_array_from_bytes, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, ID,
     };
     use anchor_lang::{system_program, AnchorDeserialize, InstructionData, ToAccountMetas};
     use ark_ff::BigInteger256;

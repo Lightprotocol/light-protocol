@@ -227,7 +227,7 @@ mod test {
         let sol_amount = 1u64;
         let token_amount = 2u64;
         let mint = Pubkey::from_str("ycrF6Bw3doNPMSDmZM1rxNHimD2bwq1UFmifMCzbjAe").unwrap();
-        let owner = [
+        let owner_be = [
             32, 29, 80, 210, 12, 55, 172, 224, 206, 72, 234, 251, 4, 214, 215, 140, 183, 183, 99,
             27, 207, 3, 220, 89, 216, 44, 41, 209, 140, 56, 131, 67,
         ];
@@ -240,7 +240,7 @@ mod test {
             0,
             [sol_amount, token_amount],
             Some(mint),
-            owner,
+            owner_be,
             blinding,
             data_hash,
             meta_hash,
@@ -257,7 +257,7 @@ mod test {
         assert_eq!(BigUint::from_bytes_be(&amount_hash), reference);
         let asset_hash = utxo.compute_asset_hash()?;
         let reference = BigUint::parse_bytes(
-            b"9340065326044129008197171558760186932973940749536260832525108848644208614347",
+            b"18441201210286611959794113583012596586275857083390975280889369109208613803708",
             10,
         )
         .unwrap();
@@ -265,18 +265,20 @@ mod test {
 
         let hash = utxo.hash()?;
         let reference_hash = [
-            38, 242, 134, 116, 20, 185, 146, 113, 93, 43, 96, 138, 136, 18, 54, 127, 230, 238, 6,
-            154, 117, 234, 29, 80, 198, 180, 111, 7, 45, 187, 137, 244,
+            32, 92, 230, 44, 125, 173, 121, 152, 232, 126, 86, 177, 252, 125, 66, 206, 213, 128,
+            177, 44, 86, 54, 200, 231, 3, 175, 73, 81, 135, 82, 232, 81,
         ];
         assert_eq!(hash, reference_hash);
         utxo.update_blinding(mint, 2).unwrap();
         let hash = utxo.hash()?;
         assert_ne!(hash, reference_hash);
-
+        let mut owner_le = owner_be;
+        // convert to le
+        owner_le.reverse();
         let transfer_output_utxo = TransferOutputUtxo {
             amounts: [sol_amount, token_amount],
             spl_asset_mint: Some(mint),
-            owner: u256 { data: owner },
+            owner: u256 { data: owner_le },
             meta_hash: None,
             address: None,
         };
