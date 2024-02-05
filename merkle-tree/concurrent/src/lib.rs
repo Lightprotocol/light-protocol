@@ -196,7 +196,7 @@ where
     ///     element from the changelog to our updated proof).
     ///   * If yes, it means that the same leaf we want to update was already
     ///     updated. In such case, updating the proof is not possible.
-    fn update_proof_or_leaf(
+    fn update_proof(
         &self,
         changelog_index: usize,
         leaf_index: usize,
@@ -319,7 +319,7 @@ where
         proof: &[[u8; 32]; HEIGHT],
     ) -> Result<ChangelogEntry<HEIGHT>, HasherError> {
         let updated_proof = if self.next_index > 0 && MAX_CHANGELOG > 0 {
-            match self.update_proof_or_leaf(changelog_index, leaf_index, proof) {
+            match self.update_proof(changelog_index, leaf_index, proof) {
                 Some(proof) => proof,
                 // This case means that the leaf we are trying to update was
                 // already updated. Therefore, updating the proof is impossible.
