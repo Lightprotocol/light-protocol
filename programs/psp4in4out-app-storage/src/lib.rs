@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, solana_program::hash::hash};
+use anchor_lang::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use light_macros::{light_verifier_accounts, pubkey};
 use light_verifier_sdk::light_transaction::{
@@ -70,8 +70,9 @@ pub mod light_psp4in4out_app_storage {
             return err!(crate::ErrorCode::InvalidVerifier);
         };
 
-        let mut owner_hash = hash(&ctx.accounts.verifier_state.owner.to_bytes()).to_bytes();
-        owner_hash[0] = 0;
+        let owner_hash =
+            light_verifier_sdk::utxo::hash_and_truncate_to_circuit(&[&ctx.program_id.to_bytes()]);
+
         let checked_inputs = [owner_hash, connecting_hash];
 
         let nullifiers: [[u8; 32]; 4] = verifier_state.nullifiers.to_vec().try_into().unwrap();

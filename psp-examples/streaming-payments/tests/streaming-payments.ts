@@ -6,7 +6,6 @@ import {
   confirmConfig,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   MERKLE_TREE_SET,
-  MerkleTreeConfig,
   ProgramUtxoBalance,
   Provider as LightProvider,
   TestRpc,
@@ -36,7 +35,7 @@ import { createDataHashWithDefaultHashingSchema } from "@lightprotocol/zk.js";
 const path = require("path");
 
 const verifierProgramId = new PublicKey(
-  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
 );
 let WASM: LightWasm;
 
@@ -68,7 +67,7 @@ describe("Streaming Payments tests", () => {
 
   async function createAndSpendProgramUtxo(
     wallet: anchor.web3.Keypair,
-    rpcRecipientSol: anchor.web3.PublicKey
+    rpcRecipientSol: anchor.web3.PublicKey,
   ): Promise<void> {
     await airdropSol({
       connection: provider.connection,
@@ -136,7 +135,7 @@ describe("Streaming Payments tests", () => {
 
     compareOutUtxos(inputUtxo!, testInputsCompress.utxo, WASM);
     const circuitPath = path.join(
-      "build-circuit/streaming-payments/streamingPayments"
+      "build-circuit/streaming-payments/streamingPayments",
     );
     // TODO: add in and out utxos to appParams
     // TODO: create compile appParams method which creates isAppIn and out utxo arrays, prefixes utxo data variables with in and out prefixes
@@ -182,7 +181,7 @@ describe("Streaming Payments tests", () => {
     const completePspProofInputs = setUndefinedPspCircuitInputsToZero(
       proofInputs,
       IDL,
-      pspTransactionInput.circuitName
+      pspTransactionInput.circuitName,
     );
 
     const pspProof = await lightUser.account.getProofInternal({
