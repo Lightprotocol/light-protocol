@@ -1,7 +1,7 @@
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
 
-import { Action, lightAccounts } from "../types";
+import { Action, IndexedTransaction, ParsedIndexedTransaction, lightAccounts } from "../types";
 import { TransactionError, TransactionErrorCode } from "../errors";
 import { FIELD_SIZE, merkleTreeProgramId } from "../constants";
 import {
@@ -374,12 +374,13 @@ export class TestTransaction {
             limit: 5000,
           },
         });
-      // indexedTransactions.sort(
-      //   (a, b) => b.transaction.blockTime - a.transaction.blockTime,
-      // );
+      indexedTransactions.sort(
+        (a, b) => (b.transaction as ParsedIndexedTransaction).blockTime - (a.transaction as ParsedIndexedTransaction).blockTime,
+      );
 
       if (!indexedTransactions)
         throw new Error("indexedTransactions undefined");
+        indexedTransactions
       assert.equal(
         indexedTransactions[0].transaction!.message!.toString(),
         this.transaction.public.message.toString(),

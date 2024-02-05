@@ -415,8 +415,8 @@ const deserializePrivateEvents = (
   tx: ParsedTransactionWithMeta,
 ): RpcIndexedTransaction | undefined => {
   const decodedEvent = new TransactionIndexerEvent().deserialize(data);
-  decodedEvent["tx"] = tx;
   if (decodedEvent) {
+    decodedEvent["tx"] = tx;
     return enrichParsedTransactionEvents(decodedEvent);
   }
 };
