@@ -36,7 +36,7 @@ import {
   IDL_LIGHT_MERKLE_TREE_PROGRAM,
   IDL_PSP_ACCOUNT_COMPRESSION,
   LightMerkleTreeProgram,
-  PspAccountCompression,
+  AccountCompression,
 } from "../idls";
 import { SolMerkleTree } from "../merkle-tree";
 import {
@@ -359,7 +359,7 @@ export class PublicTestRpc {
   merkleTrees: SolMerkleTree[] = [];
   lightWasm: LightWasm;
   merkleTreeProgram: Program<LightMerkleTreeProgram>;
-  accountCompressionProgram: Program<PspAccountCompression>;
+  accountCompressionProgram: Program<AccountCompression>;
   latestSignature: string = "";
   merkleTreePublicKey: PublicKey;
   constructor({
@@ -408,42 +408,43 @@ export class PublicTestRpc {
     // hence the dependency on the merkle tree account index times 260 transactions
     // which is approximately the number of transactions sent to send one compressed transaction and update the merkle tree
     const limit = 1000; // + 260 * merkleTreeAccount.merkleTree.nextIndex.toNumber();
+
+    const { transactions: newTransactions, oldestFetchedSignature } =
+      await fetchRecentPublicTransactions({
+        connection,
+        batchOptions: {
+          limit,
+        },
+      });
+    this.indexedTransactions = newTransactions;
+    this.latestSignature = oldestFetchedSignature;
     // if (this.indexedTransactions.length === 0) {
-    if (true) {
-      const { transactions: newTransactions, oldestFetchedSignature } =
-        await fetchRecentPublicTransactions({
-          connection,
-          batchOptions: {
-            limit,
-          },
-        });
-      this.indexedTransactions = newTransactions;
-      this.latestSignature = oldestFetchedSignature;
-    } else {
-      if (this.indexedTransactions.length === 0) return [];
 
-      this.indexedTransactions.reduce((a, b) =>
-        Number(a.outUtxoIndexes[0].toString()) >
-        Number(b.outUtxoIndexes[0].toString())
-          ? a
-          : b,
-      );
+    // } else {
+    //   if (this.indexedTransactions.length === 0) return [];
 
-      const { transactions: newTransactions, oldestFetchedSignature } =
-        await fetchRecentTransactions({
-          connection,
-          batchOptions: {
-            limit,
-            until: this.latestSignature,
-          },
-        });
-      this.latestSignature = oldestFetchedSignature;
-      // @ts-ignore: doesn't like RpcIndexedTransactionResponse | PublicTransactionIndexerEventBeet but in this case it can only be PublicTransactionIndexerEventBeet
-      this.indexedTransactions = [
-        ...this.indexedTransactions,
-        ...newTransactions,
-      ];
-    }
+    //   this.indexedTransactions.reduce((a, b) =>
+    //     Number(a.outUtxoIndexes[0].toString()) >
+    //     Number(b.outUtxoIndexes[0].toString())
+    //       ? a
+    //       : b,
+    //   );
+
+    //   const { transactions: newTransactions, oldestFetchedSignature } =
+    //     await fetchRecentTransactions({
+    //       connection,
+    //       batchOptions: {
+    //         limit,
+    //         until: this.latestSignature,
+    //       },
+    //     });
+    //   this.latestSignature = oldestFetchedSignature;
+    //   // @ts-ignore: doesn't like RpcIndexedTransactionResponse | PublicTransactionIndexerEventBeet but in this case it can only be PublicTransactionIndexerEventBeet
+    //   this.indexedTransactions = [
+    //     ...this.indexedTransactions,
+    //     ...newTransactions,
+    //   ];
+    // }
     const indexedOutUtxos = eventsToOutUtxos(
       this.indexedTransactions,
       this.lightWasm,
@@ -452,7 +453,7 @@ export class PublicTestRpc {
     const merkleTree = new MerkleTree(
       MERKLE_TREE_HEIGHT,
       this.lightWasm,
-      indexedOutUtxos.map(({ outUtxo }) => outUtxo.utxoHash),
+      indexedOutUtxos.map(({ outUtxo }) => outUtxo.hash.toString()),
     );
     this.utxos = outUtxosToUtxos(indexedOutUtxos, this.lightWasm, merkleTree);
     return this.indexedTransactions;
@@ -460,7 +461,7 @@ export class PublicTestRpc {
 
   async getAssetsByOwner(owner: string): Promise<Utxo[]> {
     await this.getIndexedTransactions(this.connection);
-    return this.utxos.filter((utxo) => utxo.publicKey === owner);
+    return this.utxos.filter((utxo) => utxo.owner.toString() === owner);
   }
 
   async syncMerkleTree(merkleTreePubkey: PublicKey): Promise<SolMerkleTree> {
@@ -476,7 +477,7 @@ export class PublicTestRpc {
     const merkleTree = new MerkleTree(
       MERKLE_TREE_HEIGHT,
       this.lightWasm,
-      indexedOutUtxos.map(({ outUtxo }) => outUtxo.utxoHash),
+      indexedOutUtxos.map(({ outUtxo }) => outUtxo.hash.toString()),
     );
 
     this.merkleTrees[solMerkleTreeIndex] = new SolMerkleTree({
@@ -566,7 +567,7 @@ export class PublicTestRpc {
 
 export async function getRootIndex(
   merkleTreeProgram:
-    | Program<PspAccountCompression>
+    | Program<AccountCompression>
     | Program<LightMerkleTreeProgram>,
   merkleTreePublicKey: PublicKey,
   root: string,
@@ -647,15 +648,17 @@ export const eventsToOutUtxos = (
           ({ index }) => index === Number(event.outUtxoIndexes[i].toString()),
         ) === undefined
       ) {
-        const outUtxo: OutUtxo = convertParsingUtxoBeetToOutUtxo(
+        const outUtxo: OutUtxo | undefined = convertParsingUtxoBeetToOutUtxo(
           beetOutUtxo,
           lightWasm,
         );
-        utxos.push({
-          outUtxo,
-          index: Number(event.outUtxoIndexes[i].toString()),
-          merkleTreePubkey: undefined,
-        });
+        if (outUtxo) {
+          utxos.push({
+            outUtxo,
+            index: Number(event.outUtxoIndexes[i].toString()),
+            merkleTreePubkey: undefined,
+          });
+        }
       }
     });
   });

@@ -229,12 +229,12 @@ pub(crate) fn light_verifier_accounts(
     let (public_fields, public_getters) = if args.public {
         (
             quote! {
-                pub psp_account_compression: Program<'info, ::psp_account_compression::program::PspAccountCompression>,
+                pub account_compression: Program<'info, ::account_compression::program::AccountCompression>,
                 /// CHECK: This is the cpi authority and will be enforced in the Account Compression program.
                 #[account(
                     mut,
                     seeds = [
-                        ::psp_account_compression::program::PspAccountCompression::id().to_bytes().as_ref()
+                        ::account_compression::program::AccountCompression::id().to_bytes().as_ref()
                     ],
                     bump,
                     #authority_seeds_program
@@ -244,9 +244,9 @@ pub(crate) fn light_verifier_accounts(
             quote! {
                 fn get_psp_account_compression(&self) -> Option<&Program<
                     'info,
-                    ::psp_account_compression::program::PspAccountCompression
+                    ::account_compression::program::AccountCompression
                 >> {
-                    Some(&self.psp_account_compression)
+                    Some(&self.account_compression)
                 }
 
                 fn get_account_compression_authority(&self) -> Option<&UncheckedAccount<'info>> {
@@ -271,7 +271,7 @@ pub(crate) fn light_verifier_accounts(
             quote! {
                 fn get_psp_account_compression(&self) -> Option<&Program<
                     'info,
-                    ::psp_account_compression::program::PspAccountCompression
+                    ::account_compression::program::AccountCompression
                 >> {
                     None
                 }

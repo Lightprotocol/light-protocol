@@ -1,29 +1,25 @@
 mod test {
 
-    use ark_ff::BigInteger256;
-    use light_hasher::Poseidon;
-    use light_indexed_merkle_tree::array::IndexingArray;
-    use psp_account_compression::{
+    use account_compression::{
         self, indexed_array_from_bytes, GroupAuthority, GROUP_AUTHORITY_SEED, ID,
     };
-    use solana_program_test::ProgramTestContext;
-    use {
-        solana_program_test::ProgramTest,
-        solana_sdk::{
-            instruction::{AccountMeta, Instruction},
-            pubkey::Pubkey,
-            signature::{Keypair, Signer},
-            system_instruction,
-            transaction::Transaction,
-        },
-    };
-
     use anchor_lang::{system_program, AnchorDeserialize, InstructionData, ToAccountMetas};
+    use ark_ff::BigInteger256;
     use ark_serialize::CanonicalDeserialize;
+    use light_hasher::Poseidon;
+    use light_indexed_merkle_tree::array::IndexingArray;
+    use solana_program_test::{ProgramTest, ProgramTestContext};
+    use solana_sdk::{
+        instruction::{AccountMeta, Instruction},
+        pubkey::Pubkey,
+        signature::{Keypair, Signer},
+        system_instruction,
+        transaction::Transaction,
+    };
     #[tokio::test]
     async fn test_create_and_update_group() {
         let mut program_test = ProgramTest::default();
-        program_test.add_program("psp_account_compression", ID, None);
+        program_test.add_program("account_compression", ID, None);
 
         program_test.set_compute_max_units(1_400_000u64);
 
@@ -32,16 +28,16 @@ mod test {
         let seed = [1u8; 32];
         let group_accounts = anchor_lang::prelude::Pubkey::find_program_address(
             &[GROUP_AUTHORITY_SEED, seed.as_slice()],
-            &psp_account_compression::ID,
+            &account_compression::ID,
         );
 
-        let instruction_data = psp_account_compression::instruction::InitializeGroupAuthority {
+        let instruction_data = account_compression::instruction::InitializeGroupAuthority {
             _seed: seed,
             authority: context.payer.pubkey(),
         };
 
         let instruction = Instruction {
-            program_id: psp_account_compression::ID,
+            program_id: account_compression::ID,
             accounts: vec![
                 AccountMeta::new(context.payer.pubkey(), true),
                 AccountMeta::new(group_accounts.0, false),
@@ -67,14 +63,13 @@ mod test {
         assert_eq!(group_authority.seed, seed);
 
         let updated_keypair = Keypair::new();
-        let update_group_authority_ix =
-            psp_account_compression::instruction::UpdateGroupAuthority {
-                authority: updated_keypair.pubkey(),
-            };
+        let update_group_authority_ix = account_compression::instruction::UpdateGroupAuthority {
+            authority: updated_keypair.pubkey(),
+        };
 
         // update with new authority
         let instruction = Instruction {
-            program_id: psp_account_compression::ID,
+            program_id: account_compression::ID,
             accounts: vec![
                 AccountMeta::new(context.payer.pubkey(), true),
                 AccountMeta::new(group_accounts.0, false),
@@ -101,12 +96,11 @@ mod test {
         assert_eq!(group_authority.seed, seed);
 
         // update with old authority should fail
-        let update_group_authority_ix =
-            psp_account_compression::instruction::UpdateGroupAuthority {
-                authority: context.payer.pubkey(),
-            };
+        let update_group_authority_ix = account_compression::instruction::UpdateGroupAuthority {
+            authority: context.payer.pubkey(),
+        };
         let instruction = Instruction {
-            program_id: psp_account_compression::ID,
+            program_id: account_compression::ID,
             accounts: vec![
                 AccountMeta::new(context.payer.pubkey(), true),
                 AccountMeta::new(group_accounts.0, false),
@@ -159,7 +153,7 @@ mod test {
     #[tokio::test]
     async fn test_init_and_insert_leaves_into_merkle_tree() {
         let mut program_test = ProgramTest::default();
-        program_test.add_program("psp_account_compression", ID, None);
+        program_test.add_program("account_compression", ID, None);
 
         program_test.set_compute_max_units(1_400_000u64);
         let mut context = program_test.start_with_context().await;
@@ -167,12 +161,11 @@ mod test {
         let context_pubkey = context.payer.pubkey();
         let merkle_tree_keypair = Keypair::new();
         let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
-        let instruction_data =
-            psp_account_compression::instruction::InitializeConcurrentMerkleTree {
-                index: 1u64,
-                owner: context.payer.pubkey(),
-                delegate: None,
-            };
+        let instruction_data = account_compression::instruction::InitializeConcurrentMerkleTree {
+            index: 1u64,
+            owner: context.payer.pubkey(),
+            delegate: None,
+        };
 
         let account_create_ix = system_instruction::create_account(
             &context.payer.pubkey(),
@@ -182,13 +175,13 @@ mod test {
                 .get_rent()
                 .await
                 .unwrap()
-                .minimum_balance(psp_account_compression::ConcurrentMerkleTreeAccount::LEN),
-            psp_account_compression::ConcurrentMerkleTreeAccount::LEN as u64,
-            &psp_account_compression::ID,
+                .minimum_balance(account_compression::ConcurrentMerkleTreeAccount::LEN),
+            account_compression::ConcurrentMerkleTreeAccount::LEN as u64,
+            &account_compression::ID,
         );
 
         let instruction = Instruction {
-            program_id: psp_account_compression::ID,
+            program_id: account_compression::ID,
             accounts: vec![
                 AccountMeta::new(context.payer.pubkey(), true),
                 AccountMeta::new(merkle_tree_pubkey, false),
@@ -208,27 +201,30 @@ mod test {
             .process_transaction(transaction.clone())
             .await
             .unwrap();
-        let merkle_tree = get_account_zero_copy::<
-            psp_account_compression::ConcurrentMerkleTreeAccount,
-        >(&mut context, merkle_tree_pubkey)
-        .await;
+        let merkle_tree =
+            get_account_zero_copy::<account_compression::ConcurrentMerkleTreeAccount>(
+                &mut context,
+                merkle_tree_pubkey,
+            )
+            .await;
         assert_eq!(merkle_tree.owner, context_pubkey);
         assert_eq!(merkle_tree.delegate, context_pubkey);
         assert_eq!(merkle_tree.index, 1);
 
         // insertions with merkle tree leaves missmatch should fail
-        let instruction_data = psp_account_compression::instruction::InsertLeavesIntoMerkleTrees {
+        let instruction_data = account_compression::instruction::InsertLeavesIntoMerkleTrees {
             leaves: vec![[1u8; 32], [2u8; 32]],
         };
 
-        let accounts = psp_account_compression::accounts::InsertTwoLeavesParallel {
+        let accounts = account_compression::accounts::InsertTwoLeavesParallel {
             authority: context.payer.pubkey(),
             registered_verifier_pda: None,
+            log_wrapper: account_compression::state::event::NOOP_PROGRAM_ID,
         };
         // accounts.
 
         let instruction = Instruction {
-            program_id: psp_account_compression::ID,
+            program_id: account_compression::ID,
             accounts: vec![
                 accounts.to_account_metas(Some(true)),
                 vec![
@@ -250,7 +246,7 @@ mod test {
             context.banks_client.process_transaction(transaction).await;
         assert!(remaining_accounts_missmatch_error.is_err());
         // let merkle_tree =
-        //     get_account_zero_copy::<psp_account_compression::ConcurrentMerkleTreeAccount>(
+        //     get_account_zero_copy::<account_compression::ConcurrentMerkleTreeAccount>(
         //         &mut context,
         //         merkle_tree_pubkey,
         //     )
@@ -279,7 +275,7 @@ mod test {
     #[tokio::test]
     async fn test_init_and_insert_into_indexed_array() {
         let mut program_test = ProgramTest::default();
-        program_test.add_program("psp_account_compression", ID, None);
+        program_test.add_program("account_compression", ID, None);
 
         program_test.set_compute_max_units(1_400_000u64);
         let mut context = program_test.start_with_context().await;
@@ -287,7 +283,7 @@ mod test {
         let context_pubkey = context.payer.pubkey();
         let merkle_tree_keypair = Keypair::new();
         let indexed_array_pubkey = merkle_tree_keypair.pubkey();
-        let instruction_data = psp_account_compression::instruction::InitializeIndexedArray {
+        let instruction_data = account_compression::instruction::InitializeIndexedArray {
             index: 1u64,
             owner: context.payer.pubkey(),
             delegate: None,
@@ -301,13 +297,13 @@ mod test {
                 .get_rent()
                 .await
                 .unwrap()
-                .minimum_balance(psp_account_compression::IndexedArrayAccount::LEN),
-            psp_account_compression::IndexedArrayAccount::LEN as u64,
-            &psp_account_compression::ID,
+                .minimum_balance(account_compression::IndexedArrayAccount::LEN),
+            account_compression::IndexedArrayAccount::LEN as u64,
+            &account_compression::ID,
         );
 
         let instruction = Instruction {
-            program_id: psp_account_compression::ID,
+            program_id: account_compression::ID,
             accounts: vec![
                 AccountMeta::new(context.payer.pubkey(), true),
                 AccountMeta::new(indexed_array_pubkey, false),
@@ -327,7 +323,7 @@ mod test {
             .process_transaction(transaction.clone())
             .await
             .unwrap();
-        let array = get_account_zero_copy::<psp_account_compression::IndexedArrayAccount>(
+        let array = get_account_zero_copy::<account_compression::IndexedArrayAccount>(
             &mut context,
             indexed_array_pubkey,
         )
@@ -348,16 +344,16 @@ mod test {
         );
 
         // TODO: investigate why this fails with 0 0
-        let instruction_data = psp_account_compression::instruction::InsertIntoIndexedArrays {
+        let instruction_data = account_compression::instruction::InsertIntoIndexedArrays {
             elements: vec![[1u8; 32], [2u8; 32]],
             low_element_indexes: vec![0, 1],
         };
-        let accounts = psp_account_compression::accounts::InsertIntoIndexedArrays {
+        let accounts = account_compression::accounts::InsertIntoIndexedArrays {
             authority: context.payer.pubkey(),
             registered_verifier_pda: None,
         };
         let instruction = Instruction {
-            program_id: psp_account_compression::ID,
+            program_id: account_compression::ID,
             accounts: vec![
                 accounts.to_account_metas(Some(true)),
                 vec![
@@ -379,7 +375,7 @@ mod test {
             .process_transaction(transaction.clone())
             .await
             .unwrap();
-        let array = get_account_zero_copy::<psp_account_compression::IndexedArrayAccount>(
+        let array = get_account_zero_copy::<account_compression::IndexedArrayAccount>(
             &mut context,
             indexed_array_pubkey,
         )

@@ -7,7 +7,7 @@ use light_macros::pubkey;
 
 use crate::errors::ErrorCode;
 
-const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
+pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
 
 #[derive(AnchorDeserialize, AnchorSerialize, Debug)]
 pub struct Changelogs {
@@ -99,7 +99,11 @@ impl ChangelogEventV1 {
     }
 }
 
-pub fn emit_indexer_event(data: Vec<u8>, noop_program: &AccountInfo) -> Result<()> {
+pub fn emit_indexer_event<'info>(
+    data: Vec<u8>,
+    noop_program: &AccountInfo<'info>,
+    signer: &AccountInfo<'info>,
+) -> Result<()> {
     if noop_program.key() != NOOP_PROGRAM_ID {
         return err!(ErrorCode::InvalidNoopPubkey);
     }
@@ -108,7 +112,10 @@ pub fn emit_indexer_event(data: Vec<u8>, noop_program: &AccountInfo) -> Result<(
         accounts: vec![],
         data,
     };
-    invoke(&instruction, &[noop_program.to_account_info()])?;
+    invoke(
+        &instruction,
+        &[noop_program.to_account_info(), signer.to_account_info()],
+    )?;
     Ok(())
 }
 

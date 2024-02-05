@@ -97,9 +97,13 @@ export function createProgramOutUtxo({
   // checkUtxoData(data, ownerIdl, type + "OutUtxo");
 
   /// turn programId into BN254
-  const programIdCircuitInput = hashAndTruncateToCircuit(owner.toBytes());
+  const programIdCircuitInput = hashAndTruncateToCircuit(
+    [Uint8Array.from(owner.toBytes())],
+    lightWasm,
+  );
 
   const utxoHashInputs = getUtxoHashInputs(
+    lightWasm,
     programIdCircuitInput,
     amounts,
     assets,
@@ -219,6 +223,7 @@ const getSplAssetLookupTableIndex = (
 // TODO: add explicit type to serialized data
 /** Parse a program-owned utxo to bytes */
 export async function programOutUtxoToBytes(
+  lightWasm: LightWasm,
   outUtxo: ProgramOutUtxo<PlaceHolderTData>,
   assetLookupTable: string[],
   compressed: boolean = false,
@@ -230,7 +235,8 @@ export async function programOutUtxoToBytes(
     appDataHash: outUtxo.dataHash,
     /// FIX: check if we need this for programutxos anymore
     accountCompressionPublicKey: hashAndTruncateToCircuit(
-      outUtxo.owner.toBytes(),
+      [Uint8Array.from(outUtxo.owner.toBytes())],
+      lightWasm,
     ),
     accountEncryptionPublicKey:
       outUtxo.encryptionPublicKey ?? new Uint8Array(32).fill(0),
@@ -375,8 +381,9 @@ export function programOutUtxoFromString(
 export async function programOutUtxoToString(
   utxo: ProgramOutUtxo<PlaceHolderTData>,
   assetLookupTable: string[],
+  lightWasm: LightWasm,
 ): Promise<string> {
-  const bytes = await programOutUtxoToBytes(utxo, assetLookupTable);
+  const bytes = await programOutUtxoToBytes(lightWasm, utxo, assetLookupTable);
   return bs58.encode(bytes);
 }
 
@@ -395,7 +402,12 @@ export async function encryptProgramOutUtxo({
   compressed?: boolean;
   assetLookupTable: string[];
 }): Promise<Uint8Array> {
-  const bytes = await programOutUtxoToBytes(utxo, assetLookupTable, compressed);
+  const bytes = await programOutUtxoToBytes(
+    lightWasm,
+    utxo,
+    assetLookupTable,
+    compressed,
+  );
   const hash32 = utxo.hash.toArrayLike(Buffer, "be", 32);
 
   const encryptedUtxo = await encryptOutUtxoInternal({
@@ -623,6 +635,7 @@ export function programOutUtxoToProgramUtxo(
     address: programOutUtxo.address,
     metaHash: programOutUtxo.metaHash,
     dataHash: programOutUtxo.dataHash,
+    isPublic: programOutUtxo.isPublic,
   };
 
   return createProgramUtxo({

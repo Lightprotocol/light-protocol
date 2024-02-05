@@ -179,7 +179,7 @@ export async function getSolanaArgs({
     },
     {
       id: "DmtCHY9V1vqkYfQ5xYESzvGoMGhePHLja9GQ994GKTTc",
-      name: "psp_account_compression.so",
+      name: "account_compression.so",
       tag: LIGHT_USER_REGISTRY_TAG,
     },
   ];

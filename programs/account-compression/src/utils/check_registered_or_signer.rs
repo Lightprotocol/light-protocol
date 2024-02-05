@@ -1,7 +1,6 @@
-use crate::errors::ErrorCode;
-use crate::RegisteredProgram;
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::pubkey::Pubkey;
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+
+use crate::{errors::ErrorCode, RegisteredProgram};
 
 pub trait GroupAccess {
     fn get_owner(&self) -> &Pubkey;
@@ -29,18 +28,18 @@ pub fn check_registered_or_signer<'a, 'b, 'c, 'info, C: GroupAccounts<'info>, A:
             if ctx.accounts.get_signing_address().key() == derived_address
                 && derived_address == *checked_account.get_owner()
             {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(ErrorCode::InvalidAuthority.into());
+                Err(ErrorCode::InvalidAuthority.into())
             }
         }
         None => {
             if ctx.accounts.get_signing_address().key() == *checked_account.get_delegate()
                 || ctx.accounts.get_signing_address().key() == *checked_account.get_owner()
             {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(ErrorCode::InvalidAuthority.into());
+                Err(ErrorCode::InvalidAuthority.into())
             }
         }
     }

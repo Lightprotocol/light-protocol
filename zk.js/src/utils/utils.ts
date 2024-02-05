@@ -64,7 +64,9 @@ export function hashAndTruncateToCircuit(
     .update(Buffer.concat(hashedAndTruncatedData))
     .digest()
     .slice(0, 30);
-  return createBN254(lightWasm.poseidonHashString([new BN(compressedData, 30, "be")]));
+  return createBN254(
+    lightWasm.poseidonHashString([new BN(compressedData, 30, "be")]),
+  );
 }
 
 /**

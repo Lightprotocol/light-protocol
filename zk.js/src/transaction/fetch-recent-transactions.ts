@@ -7,7 +7,7 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 
-import { BN, BorshCoder } from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import * as borsh from "@coral-xyz/borsh";
 import {
   SPL_NOOP_ADDRESS,
@@ -32,7 +32,6 @@ import {
 import { getUpdatedSpentUtxos, sleep } from "../utils";
 import { TokenUtxoBalance } from "../build-balance";
 import { Provider } from "../provider";
-import { MerkleTreeConfig } from "../merkle-tree";
 import { PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
 import { getIdsFromEncryptedUtxos } from "../test-utils";
 import {
@@ -480,7 +479,7 @@ const deserializePrivateEvents = (
 const parseTransactionEvents = (
   indexerEventsTransactions: (ParsedTransactionWithMeta | null)[],
   transactions: RpcIndexedTransaction[] | PublicTransactionIndexerEventBeet[],
-  deserializeFn: Function,
+  deserializeFn: DeserializePublicEvents | DeserializePrivateEvents,
 ) => {
   indexerEventsTransactions.forEach((tx) => {
     if (
@@ -532,7 +531,7 @@ async function getTransactionsBatch({
   merkleTreeProgramId: PublicKey;
   batchOptions: ConfirmedSignaturesForAddress2Options;
   transactions: RpcIndexedTransaction[] | PublicTransactionIndexerEventBeet[];
-  deserializeFn: Function;
+  deserializeFn: DeserializePublicEvents | DeserializePrivateEvents;
 }): Promise<ConfirmedSignatureInfo> {
   const signatures = await connection.getConfirmedSignaturesForAddress2(
     new PublicKey(merkleTreeProgramId),
@@ -647,7 +646,13 @@ export async function fetchRecentTransactions({
     oldestFetchedSignature: batchBefore!,
   };
 }
+type DeserializePublicEvents = (data: Buffer) => any | null;
 
+// More specific function type for deserializing private events
+type DeserializePrivateEvents = (
+  data: Buffer,
+  tx: ParsedTransactionWithMeta,
+) => RpcIndexedTransaction | undefined;
 const deserializePublicEvents = (data: Buffer) => {
   data = Buffer.from(Array.from(data).map((x: any) => Number(x)));
 

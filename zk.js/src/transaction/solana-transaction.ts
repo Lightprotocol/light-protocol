@@ -72,6 +72,8 @@ export type SolanaTransactionInputs = {
   rpcRecipientSol?: PublicKey;
   systemPspIdl: Idl;
   rootIndex: number;
+  instructionNamePrefix?: string;
+  customInputs?: any;
 };
 
 export function getSolanaRemainingAccounts(
@@ -191,8 +193,10 @@ export async function createSolanaInstructions({
   }
   const inUtxoHashes: number[][] = [];
   instructionInputs.publicInputs?.publicInUtxoHash?.map((el) => {
-    if (removeZeroUtxos && el.toString() === new Array(32).fill(0).toString()) {
-    } else {
+    if (
+      !removeZeroUtxos &&
+      el.toString() !== new Array(32).fill(0).toString()
+    ) {
       inUtxoHashes.push(el);
     }
   });
@@ -311,6 +315,7 @@ export async function sendAndConfirmCompressTransaction({
     systemProof,
     rootIndex,
     instructionNamePrefix,
+    customInputs,
   } = solanaTransactionInputs;
 
   const remainingSolanaAccounts = getSolanaRemainingAccounts(
@@ -334,6 +339,7 @@ export async function sendAndConfirmCompressTransaction({
     pspProof,
     publicTransactionVariables,
     instructionNamePrefix,
+    customInputs,
   });
 
   const txHash = await provider.sendAndConfirmSolanaInstructions(instructions);

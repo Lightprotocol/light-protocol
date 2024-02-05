@@ -4,7 +4,7 @@ declare_id!("DmtCHY9V1vqkYfQ5xYESzvGoMGhePHLja9GQ994GKTTc");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
-    name: "psp_account_compression",
+    name: "account_compression",
     project_url: "lightprotocol.com",
     contacts: "email:security@lightprotocol.com",
     policy: "https://github.com/Lightprotocol/light-protocol-program/blob/main/SECURITY.md",
@@ -25,7 +25,7 @@ pub mod config_accounts;
 pub use config_accounts::*;
 
 #[program]
-pub mod psp_account_compression {
+pub mod account_compression {
     use super::*;
 
     /// initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)
@@ -64,8 +64,8 @@ pub mod psp_account_compression {
         process_initialize_concurrent_state_merkle_tree(ctx, index, owner, delegate)
     }
 
-    pub fn insert_leaves_into_merkle_trees<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeavesParallel<'info>>,
+    pub fn insert_leaves_into_merkle_trees<'info>(
+        ctx: Context<'_, '_, '_, 'info, InsertTwoLeavesParallel<'info>>,
         leaves: Vec<[u8; 32]>,
     ) -> Result<()> {
         process_insert_leaves_into_merkle_trees(ctx, &leaves)

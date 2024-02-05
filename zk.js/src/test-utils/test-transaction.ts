@@ -96,7 +96,7 @@ export class TestTransaction {
 
     this.testValues.recipientFeeBalancePriorTx = new BN(
       await this.provider.provider.connection.getBalance(
-        this.accounts.recipientSol,
+        this.accounts.recipientSol!,
       ),
     );
     if (this.action === "COMPRESS") {
@@ -374,11 +374,14 @@ export class TestTransaction {
             limit: 5000,
           },
         });
-      indexedTransactions.sort(
-        (a, b) => b.transaction.blockTime - a.transaction.blockTime,
-      );
+      // indexedTransactions.sort(
+      //   (a, b) => b.transaction.blockTime - a.transaction.blockTime,
+      // );
+
+      if (!indexedTransactions)
+        throw new Error("indexedTransactions undefined");
       assert.equal(
-        indexedTransactions[0].transaction.message.toString(),
+        indexedTransactions[0].transaction!.message!.toString(),
         this.transaction.public.message.toString(),
       );
     }

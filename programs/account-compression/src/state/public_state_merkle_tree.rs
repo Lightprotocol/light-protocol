@@ -3,12 +3,12 @@ use anchor_lang::prelude::*;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree;
 use light_hasher::Poseidon;
 
-use crate::utils::config::{MERKLE_TREE_CHANGELOG, MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS};
+use crate::utils::constants::{MERKLE_TREE_CHANGELOG, MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS};
 
 pub type StateMerkleTree =
     ConcurrentMerkleTree<Poseidon, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS>;
 
-pub fn state_merkle_tree_from_bytes(bytes: &[u8; 90360]) -> &StateMerkleTree {
+pub fn state_merkle_tree_from_bytes(bytes: &[u8; 90368]) -> &StateMerkleTree {
     // SAFETY: We make sure that the size of the byte slice is equal to
     // the size of `StateMerkleTree`.
     // The only reason why we are doing this is that Anchor is struggling with
@@ -20,7 +20,7 @@ pub fn state_merkle_tree_from_bytes(bytes: &[u8; 90360]) -> &StateMerkleTree {
     }
 }
 
-pub fn state_merkle_tree_from_bytes_mut(bytes: &mut [u8; 90360]) -> &mut StateMerkleTree {
+pub fn state_merkle_tree_from_bytes_mut(bytes: &mut [u8; 90368]) -> &mut StateMerkleTree {
     // SAFETY: We make sure that the size of the byte slice is equal to
     // the size of `StateMerkleTree`.
     // The only reason why we are doing this is that Anchor is struggling with
@@ -46,7 +46,7 @@ pub struct ConcurrentMerkleTreeAccount {
     /// Delegate of the Merkle tree.
     pub delegate: Pubkey,
     /// Merkle tree for the transaction state.
-    pub state_merkle_tree: [u8; 90360],
+    pub state_merkle_tree: [u8; 90368],
 }
 
 impl ConcurrentMerkleTreeAccount {

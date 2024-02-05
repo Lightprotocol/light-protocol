@@ -1,14 +1,18 @@
-use anchor_lang::solana_program::pubkey::Pubkey;
+use std::default::Default;
+
 use anchor_lang::{
     prelude::*,
-    solana_program::keccak::{hash, hashv},
+    solana_program::{
+        keccak::{hash, hashv},
+        pubkey::Pubkey,
+    },
 };
 use light_hasher::{Hasher, Poseidon};
+use num_bigint::BigUint;
+
 // use light_utils::hash_and_truncate_to_circuit;
 #[cfg(all(target_os = "solana", feature = "custom-heap"))]
 use crate::light_transaction::custom_heap;
-use num_bigint::BigUint;
-use std::default::Default;
 pub const DEFAULT_PUBKEY: [u8; 32] = [
     41, 23, 97, 0, 234, 169, 98, 189, 193, 254, 108, 101, 77, 106, 60, 19, 14, 150, 164, 209, 22,
     139, 51, 132, 139, 137, 125, 197, 2, 130, 1, 51,

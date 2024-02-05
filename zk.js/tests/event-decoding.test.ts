@@ -150,9 +150,8 @@ describe("Test Account Functional", () => {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0,
     ]);
-    const decodedUtxo = new PublicTransactionIndexerEventAnchor().deserializeUtxo(
-      utxoData,
-    );
+    const decodedUtxo =
+      new PublicTransactionIndexerEventAnchor().deserializeUtxo(utxoData);
     console.log("decodedUtxo ", decodedUtxo);
     const decodedEvent = new PublicTransactionIndexerEventAnchor().deserialize(
       eventData,

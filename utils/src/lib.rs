@@ -1,4 +1,3 @@
-use ark_ff::BigInt;
 use std::{
     env,
     io::{self, prelude::*},
@@ -6,6 +5,8 @@ use std::{
     process::{Command, Stdio},
     thread::spawn,
 };
+
+use ark_ff::BigInt;
 use thiserror::Error;
 
 const CHUNK_SIZE: usize = 32;

@@ -25,6 +25,7 @@ export async function functionalCircuitTest(
   app: boolean = false,
   verifierIdl: Idl,
   pspId?: PublicKey,
+  isPublic = false,
 ) {
   const lightProvider = await LightProvider.loadMock();
   const mockPubkey = SolanaKeypair.generate().publicKey;
@@ -40,18 +41,20 @@ export async function functionalCircuitTest(
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(compressFeeAmount), new BN(compressAmount)],
     owner: account.keypair.publicKey,
+    isPublic,
   });
 
   const merkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, lightWasm, [
     _inputUtxo.hash.toString(),
   ]);
-  const inputUtxo = outUtxoToUtxo(
-    _inputUtxo,
-    merkleTree.path(0).pathElements,
-    0,
+  const inputUtxo = outUtxoToUtxo({
+    outUtxo: _inputUtxo,
+    merkleProof: merkleTree.path(0).pathElements,
+    merkleTreeLeafIndex: 0,
     lightWasm,
     account,
-  );
+  });
+
   const outputUtxo1 = createOutUtxo({
     lightWasm,
     assets: [FEE_ASSET, MINT],
@@ -60,6 +63,7 @@ export async function functionalCircuitTest(
       new BN(compressAmount / 2),
     ],
     owner: account.keypair.publicKey,
+    isPublic,
   });
 
   const outputUtxo2 = createOutUtxo({
@@ -67,6 +71,7 @@ export async function functionalCircuitTest(
     assets: [FEE_ASSET, MINT],
     amounts: [new BN(compressFeeAmount / 2), new BN(compressAmount / 2)],
     owner: account.keypair.publicKey,
+    isPublic,
   });
 
   const txInput: TransactionInput = {
@@ -97,7 +102,10 @@ export async function functionalCircuitTest(
   );
   systemProofInputs = {
     ...systemProofInputs,
-    publicProgramId: hashAndTruncateToCircuit(mockPubkey.toBytes()),
+    publicProgramId: hashAndTruncateToCircuit(
+      [Uint8Array.from(mockPubkey.toBytes())],
+      lightWasm,
+    ),
     publicTransactionHash,
     privatePublicDataHash: "0",
     publicDataHash: "0",

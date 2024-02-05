@@ -1,18 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-#[cfg(all(target_os = "solana", feature = "custom-heap"))]
-use crate::light_transaction::custom_heap;
-use crate::{
-    accounts::LightAccounts,
-    cpi_instructions::{
-        decompress_sol_cpi, decompress_spl_cpi, insert_public_nullifier_into_indexed_array_cpi,
-        insert_two_leaves_parallel_cpi, invoke_indexer_transaction_event,
-    },
-    errors::VerifierSdkError,
-    light_transaction::{Message, ProofCompressed},
-    utils::close_account::close_account,
-    utxo::{hash_and_truncate_to_circuit, Utxo, DEFAULT_PUBKEY, DEFAULT_UTXO_HASH},
-};
+use account_compression::{state::ConcurrentMerkleTreeAccount, state_merkle_tree_from_bytes};
 use anchor_lang::{
     prelude::*,
     solana_program::{hash::hashv, msg, program_pack::Pack, sysvar},
@@ -34,7 +22,20 @@ use light_merkle_tree_program::{
     },
 };
 use light_utils::{change_endianness, truncate_to_circuit};
-use psp_account_compression::{state::ConcurrentMerkleTreeAccount, state_merkle_tree_from_bytes};
+
+#[cfg(all(target_os = "solana", feature = "custom-heap"))]
+use crate::light_transaction::custom_heap;
+use crate::{
+    accounts::LightAccounts,
+    cpi_instructions::{
+        decompress_sol_cpi, decompress_spl_cpi, insert_public_nullifier_into_indexed_array_cpi,
+        insert_two_leaves_parallel_cpi, invoke_indexer_transaction_event,
+    },
+    errors::VerifierSdkError,
+    light_transaction::{Message, ProofCompressed},
+    utils::close_account::close_account,
+    utxo::{hash_and_truncate_to_circuit, Utxo, DEFAULT_PUBKEY, DEFAULT_UTXO_HASH},
+};
 
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 
@@ -763,6 +764,7 @@ where
             self.input.ctx.remaining_accounts
                 [NR_IN_UTXOS * 2..NR_IN_UTXOS * 2 + self.out_utxo_hashes.len()]
                 .to_vec(),
+            &self.input.ctx.accounts.get_log_wrapper(),
         )?;
         Ok(())
     }

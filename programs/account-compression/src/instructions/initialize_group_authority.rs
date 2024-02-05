@@ -1,15 +1,6 @@
-use aligned_sized::aligned_sized;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
-pub const GROUP_AUTHORITY_SEED: &[u8] = b"group_authority";
-
-#[account]
-#[aligned_sized(anchor)]
-#[derive(Debug)]
-pub struct GroupAuthority {
-    pub authority: Pubkey,
-    pub seed: [u8; 32],
-}
+use crate::{config_accounts::GroupAuthority, utils::constants::GROUP_AUTHORITY_SEED};
 
 #[derive(Accounts)]
 #[instruction(seed: [u8; 32])]

@@ -122,20 +122,22 @@ pub fn insert_two_leaves_parallel_cpi<'a, 'b>(
     registered_verifier_pda: &'b AccountInfo<'a>,
     leaves: Vec<[u8; 32]>,
     transaction_merkle_tree_accounts: Vec<AccountInfo<'a>>,
+    log_wrapper: &'b AccountInfo<'a>,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, psp_account_compression_program_id)?;
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    let accounts = psp_account_compression::cpi::accounts::InsertTwoLeavesParallel {
+    let accounts = account_compression::cpi::accounts::InsertTwoLeavesParallel {
         authority: authority.to_account_info(),
         registered_verifier_pda: None,
+        log_wrapper: log_wrapper.to_account_info(),
     };
 
     let mut cpi_ctx =
         CpiContext::new_with_signer(psp_account_compression_program_id.clone(), accounts, seeds);
     cpi_ctx.remaining_accounts = transaction_merkle_tree_accounts;
-    psp_account_compression::cpi::insert_leaves_into_merkle_trees(cpi_ctx, leaves)?;
+    account_compression::cpi::insert_leaves_into_merkle_trees(cpi_ctx, leaves)?;
     Ok(())
 }
 
@@ -155,7 +157,7 @@ pub fn insert_public_nullifier_into_indexed_array_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    let accounts = psp_account_compression::cpi::accounts::InsertIntoIndexedArrays {
+    let accounts = account_compression::cpi::accounts::InsertIntoIndexedArrays {
         authority: authority.to_account_info(),
         registered_verifier_pda: None,
     };
@@ -163,11 +165,7 @@ pub fn insert_public_nullifier_into_indexed_array_cpi<'a, 'b>(
     let mut cpi_ctx =
         CpiContext::new_with_signer(psp_account_compression_program_id.clone(), accounts, seeds);
     cpi_ctx.remaining_accounts = indexed_array_accounts;
-    psp_account_compression::cpi::insert_into_indexed_arrays(
-        cpi_ctx,
-        in_utxos,
-        low_element_indexes,
-    )?;
+    account_compression::cpi::insert_into_indexed_arrays(cpi_ctx, in_utxos, low_element_indexes)?;
     Ok(())
 }
 

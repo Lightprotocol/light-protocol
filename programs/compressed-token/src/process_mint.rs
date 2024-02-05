@@ -1,10 +1,8 @@
+use account_compression::ConcurrentMerkleTreeAccount;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use light_merkle_tree_program::program::LightMerkleTreeProgram;
-use light_merkle_tree_program::state_merkle_tree_from_bytes;
-use light_verifier_sdk::public_transaction::PublicTransactionEvent;
-use light_verifier_sdk::utxo::Utxo;
-use psp_account_compression::ConcurrentMerkleTreeAccount;
+use light_merkle_tree_program::{program::LightMerkleTreeProgram, state_merkle_tree_from_bytes};
+use light_verifier_sdk::{public_transaction::PublicTransactionEvent, utxo::Utxo};
 
 pub fn process_create_mint<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, CreateMintInstruction<'info>>,
@@ -195,10 +193,7 @@ fn cpi_merkle_tree<'a, 'b, 'c, 'info>(
     }
     light_verifier_sdk::cpi_instructions::insert_two_leaves_parallel_cpi(
         &ctx.program_id,
-        &ctx.accounts
-            .psp_account_compression
-            .to_account_info()
-            .clone(),
+        &ctx.accounts.account_compression.to_account_info().clone(),
         &ctx.accounts
             .psp_account_compression_authority
             .to_account_info()
@@ -209,6 +204,7 @@ fn cpi_merkle_tree<'a, 'b, 'c, 'info>(
             .clone(),
         utxo_hashes,
         merkle_tree_accounts,
+        &ctx.accounts.noop_program.to_account_info(),
     )?;
     Ok(())
 }
@@ -281,8 +277,7 @@ pub struct MintToInstruction<'info> {
     /// CHECK this account
     pub noop_program: UncheckedAccount<'info>,
     pub merkle_tree_program: Program<'info, LightMerkleTreeProgram>,
-    pub psp_account_compression:
-        Program<'info, psp_account_compression::program::PspAccountCompression>,
+    pub account_compression: Program<'info, account_compression::program::AccountCompression>,
     /// CHECK this account in psp account compression program
     #[account(mut)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,
