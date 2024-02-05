@@ -4,8 +4,8 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_merkle_tree_program::{program::LightMerkleTreeProgram, state_merkle_tree_from_bytes};
 use light_verifier_sdk::{public_transaction::PublicTransactionEvent, utxo::Utxo};
 
-pub fn process_create_mint<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, CreateMintInstruction<'info>>,
+pub fn process_create_mint<'info>(
+    ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
 ) -> Result<()> {
     cpi_register_merkle_tree_token_pool(&ctx)?;
     Ok(())
@@ -43,8 +43,8 @@ pub struct CreateMintInstruction<'info> {
     pub merkle_tree_program: Program<'info, LightMerkleTreeProgram>,
 }
 
-pub fn cpi_register_merkle_tree_token_pool<'a, 'b, 'c, 'info>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, CreateMintInstruction<'info>>,
+pub fn cpi_register_merkle_tree_token_pool<'a, 'info>(
+    ctx: &'a Context<'a, '_, '_, 'info, CreateMintInstruction<'info>>,
 ) -> Result<()> {
     let authority_bytes = ctx.accounts.authority.key().to_bytes();
     let mint_bytes = ctx.accounts.mint.key().to_bytes();
@@ -183,8 +183,8 @@ pub fn process_mint_to<'info>(
 }
 
 #[inline(never)]
-fn cpi_merkle_tree<'a, 'b, 'c, 'info>(
-    ctx: &'a Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+fn cpi_merkle_tree<'info>(
+    ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     utxo_hashes: Vec<[u8; 32]>,
 ) -> Result<()> {
     let mut merkle_tree_accounts = Vec::new();
@@ -192,7 +192,7 @@ fn cpi_merkle_tree<'a, 'b, 'c, 'info>(
         merkle_tree_accounts.push(ctx.accounts.merkle_tree_set.to_account_info().clone());
     }
     light_verifier_sdk::cpi_instructions::insert_two_leaves_parallel_cpi(
-        &ctx.program_id,
+        ctx.program_id,
         &ctx.accounts
             .account_compression_program
             .to_account_info()
@@ -212,8 +212,8 @@ fn cpi_merkle_tree<'a, 'b, 'c, 'info>(
     Ok(())
 }
 #[inline(never)]
-pub fn mint_spl_to_merkle_tree<'a, 'b, 'c, 'info>(
-    ctx: &'a Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+pub fn mint_spl_to_merkle_tree<'info>(
+    ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     amounts: Vec<u64>,
 ) -> Result<()> {
     let mut mint_amount: u64 = 0;

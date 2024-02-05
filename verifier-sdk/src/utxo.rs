@@ -36,7 +36,7 @@ pub struct Utxo {
     pub message: Option<Vec<u8>>,
 }
 
-impl<'a> Default for Utxo {
+impl Default for Utxo {
     fn default() -> Self {
         Utxo {
             version: 0,
@@ -54,6 +54,7 @@ impl<'a> Default for Utxo {
 }
 
 impl Utxo {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         version: u64,
         pool_type: u64,
@@ -95,7 +96,7 @@ impl Utxo {
             None => [0u8; 32],
         };
         let hash = Poseidon::hashv(&[
-            &BigUint::parse_bytes(
+            BigUint::parse_bytes(
                 b"6686672797465227418401714772753289406522066866583537086457438811846503839916",
                 10,
             )
@@ -166,8 +167,7 @@ pub fn hash_and_truncate_to_circuit(data: &[&[u8]]) -> [u8; 32] {
             .as_slice(),
     )
     .to_bytes()[0..30];
-    let hash = Poseidon::hash(truncated_data).unwrap();
-    hash
+    Poseidon::hash(truncated_data).unwrap()
 }
 #[cfg(test)]
 mod test {

@@ -215,10 +215,7 @@ pub fn get_seeds<'a>(
 }
 
 #[inline(never)]
-pub fn invoke_indexer_transaction_event<'info, T>(
-    event: &T,
-    noop_program: &AccountInfo<'info>,
-) -> Result<()>
+pub fn invoke_indexer_transaction_event<T>(event: &T, noop_program: &AccountInfo) -> Result<()>
 where
     T: AnchorSerialize,
 {

@@ -31,9 +31,9 @@ pub struct TransferOutputUtxo {
     pub address: Option<u256>,
 }
 
-pub fn from_transfer_output_utxo<'a>(utxo: TransferOutputUtxo) -> Utxo {
+pub fn from_transfer_output_utxo(utxo: TransferOutputUtxo) -> Utxo {
     // beet big number deserialiazation is little endian
-    let mut owner = utxo.owner.data.clone();
+    let mut owner = utxo.owner.data;
     owner.reverse();
     Utxo {
         version: 0,
@@ -223,9 +223,7 @@ pub fn process_8in2out_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         transaction.out_utxo_hashes = out_utxos
             .iter()
             .map(|utxo| utxo.hash().unwrap())
-            .collect::<Vec<[u8; 32]>>()
-            .try_into()
-            .unwrap();
+            .collect::<Vec<[u8; 32]>>();
         transaction.mint_pubkey = [
             0, 24, 59, 207, 17, 191, 51, 84, 25, 96, 177, 164, 233, 142, 128, 208, 115, 82, 0, 223,
             237, 121, 0, 231, 241, 213, 140, 224, 58, 185, 152, 253,

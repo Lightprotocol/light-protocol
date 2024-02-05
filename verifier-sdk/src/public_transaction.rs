@@ -519,7 +519,7 @@ where
                 .get_mut(&self.input.ctx.remaining_accounts[i + NR_IN_UTXOS * 2].key());
             match index {
                 Some(index) => {
-                    self.out_utxo_index.push(index.clone() as u64);
+                    self.out_utxo_index.push(*index as u64);
                 }
                 None => {
                     let merkle_tree = AccountLoader::<ConcurrentMerkleTreeAccount>::try_from(
@@ -535,7 +535,7 @@ where
                         index,
                     );
 
-                    self.out_utxo_index.push(index.clone() as u64);
+                    self.out_utxo_index.push(index as u64);
                 }
             }
             utxo.update_blinding(
@@ -764,7 +764,7 @@ where
             self.input.ctx.remaining_accounts
                 [NR_IN_UTXOS * 2..NR_IN_UTXOS * 2 + self.out_utxo_hashes.len()]
                 .to_vec(),
-            &self.input.ctx.accounts.get_log_wrapper(),
+            self.input.ctx.accounts.get_log_wrapper(),
         )?;
         Ok(())
     }
@@ -859,7 +859,7 @@ where
                 self.compress_spl(pub_amount_checked, sender_spl, recipient_spl)?;
             } else {
                 check_spl_pool_account_derivation(
-                    &self.input.pool_type,
+                    self.input.pool_type,
                     &self
                         .input
                         .ctx
@@ -960,7 +960,7 @@ where
                 msg!("is decompress");
 
                 check_sol_pool_account_derivation(
-                    &self.input.pool_type,
+                    self.input.pool_type,
                     &self
                         .input
                         .ctx
@@ -1062,7 +1062,7 @@ where
     #[heap_neutral]
     fn compress_sol(&self, amount_checked: u64, recipient_sol: &AccountInfo) -> Result<()> {
         check_sol_pool_account_derivation(
-            &self.input.pool_type,
+            self.input.pool_type,
             &recipient_sol.key(),
             *recipient_sol.data.try_borrow().unwrap(),
         )?;
@@ -1122,7 +1122,7 @@ where
         recipient_spl: spl_token::state::Account,
     ) -> Result<()> {
         check_spl_pool_account_derivation(
-            &self.input.pool_type,
+            self.input.pool_type,
             &self
                 .input
                 .ctx
@@ -1205,10 +1205,9 @@ where
     /// Checks whether a transaction is a compression or decompression transaction by inspecting the public amount.
     pub fn is_compress_spl(&self) -> Option<([u8; 32], bool)> {
         match self.input.public_amount {
-            Some(amounts) => match amounts.spl {
-                Some(spl) => Some((spl, spl[24..] != [0u8; 8] && spl[..24] == [0u8; 24])),
-                None => None,
-            },
+            Some(amounts) => amounts
+                .sol
+                .map(|sol| (sol, sol[24..] != [0u8; 8] && sol[..24] == [0u8; 24])),
             _ => None,
         }
     }
@@ -1216,10 +1215,9 @@ where
     /// Checks whether a transaction is a compression or decompression transaction by inspecting the public amount.
     pub fn is_compress_sol(&self) -> Option<([u8; 32], bool)> {
         match self.input.public_amount {
-            Some(amounts) => match amounts.sol {
-                Some(sol) => Some((sol, sol[24..] != [0u8; 8] && sol[..24] == [0u8; 24])),
-                None => None,
-            },
+            Some(amounts) => amounts
+                .sol
+                .map(|sol| (sol, sol[24..] != [0u8; 8] && sol[..24] == [0u8; 24])),
             _ => None,
         }
     }
