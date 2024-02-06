@@ -178,7 +178,7 @@ export PATH="${PREFIX}/cargo/bin:${PATH}"
 
 rustup component add clippy
 rustup component add rustfmt
-rustup toolchain install nightly --component clippy,rustfmt
+rustup toolchain install nightly-2024-02-01 --component clippy,rustfmt
 
 cargo install cargo-expand wasm-pack
 
