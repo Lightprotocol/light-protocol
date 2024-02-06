@@ -351,77 +351,97 @@ where
             return Err(HasherError::TreeFull);
         }
 
-        if self.next_index == 0 {
-            // NOTE(vadorovsky): This is not mentioned in the whitepaper, but
-            // appending to an empty Merkle tree is a special case, where
-            // `computer_parent_node` can't be called, because the usual
-            // `self.rightmost_index - 1` used as a sibling index would be a
-            //  negative value.
-            //
-            // [spl-concurrent-merkle-tree](https://github.com/solana-labs/solana-program-library/blob/da94833aa16d756aed49ee1a7aa295295b41d19a/libraries/concurrent-merkle-tree/src/concurrent_merkle_tree.rs#L263-L265)
-            // handles this case by:
-            //
-            // * Valitating a proof.
-            // * Performing procedures which usually are done by `replace_leaf`
-            //   algorithm.
-            //
-            // Here, we just call `update` directly, because we wrote it in a
-            // way which allows an "update" of the 1st leaf in the empty tree.
-            let proof = self.rightmost_proof;
-            self.update(0, &H::zero_bytes()[0], leaf, 0, &proof)?;
+        let mut current_node = *leaf;
+        let mut intersection_node = self.rightmost_leaf;
+        // The highest index of our currently computed Merkle path which is not
+        // affected by the Merkle path of the last append.
+        //
+        // For example, let's imagine this tree, where there are
+        // two non-zero leaves:
+        //
+        //          H2
+        //      /-/    \-\
+        //    H1          Z[1]
+        //  /    \      /      \
+        // L1    L2   Z[0]    Z[0]
+        //
+        // Let's assume that we are starting to append the 3rd leaf. The
+        // Merkle path of that append will consist of the following nodes
+        // marked by `M`. Nodes marked by `X` belong to one of the previous
+        // Merkle paths. Node marked by `Z` is a zero leaf which doesn't
+        // belong to any path.
+        //
+        //       M3
+        //    /-/  \-\
+        //   X        M2
+        //  / \      /  \
+        // X   X    M1   Z
+        //
+        // We can write the Merkle path as an array, from the leaf to the
+        // uppermost node:
+        //
+        // [M1, **M2**, M3]
+        //  (1) **(2)** (3)
+        //
+        // The only node which was affected by previous appends is M3, because
+        // it was part of the Merkle path of the previous append.
+        //
+        // Therefore, the intersection node is M2 and the intersection index is
+        // 2.
+        let intersection_index = self.next_index.trailing_zeros() as usize;
+        let node_index = if self.next_index > 1 {
+            self.next_index as usize - 1
         } else {
-            let mut current_node = *leaf;
-            let mut intersection_node = self.rightmost_leaf;
-            let intersection_index = self.next_index.trailing_zeros() as usize;
-            let mut changelog_path = [[0u8; 32]; HEIGHT];
+            0
+        };
+        let mut changelog_path = [[0u8; 32]; HEIGHT];
 
-            for (i, item) in changelog_path.iter_mut().enumerate() {
-                *item = current_node;
+        for (i, item) in changelog_path.iter_mut().enumerate() {
+            *item = current_node;
 
-                match i.cmp(&intersection_index) {
-                    Ordering::Less => {
-                        let empty_node = H::zero_bytes()[i];
-                        current_node = H::hashv(&[&current_node, &empty_node])?;
-                        intersection_node = compute_parent_node::<H>(
-                            &intersection_node,
-                            &self.rightmost_proof[i],
-                            self.next_index as usize - 1,
-                            i,
-                        )?;
-                        self.rightmost_proof[i] = empty_node;
-                    }
-                    Ordering::Equal => {
-                        current_node = H::hashv(&[&intersection_node, &current_node])?;
-                        self.rightmost_proof[intersection_index] = intersection_node;
-                    }
-                    Ordering::Greater => {
-                        current_node = compute_parent_node::<H>(
-                            &current_node,
-                            &self.rightmost_proof[i],
-                            self.next_index as usize - 1,
-                            i,
-                        )?;
-                    }
+            match i.cmp(&intersection_index) {
+                Ordering::Less => {
+                    let empty_node = H::zero_bytes()[i];
+                    current_node = H::hashv(&[&current_node, &empty_node])?;
+                    intersection_node = compute_parent_node::<H>(
+                        &intersection_node,
+                        &self.rightmost_proof[i],
+                        node_index,
+                        i,
+                    )?;
+                    self.rightmost_proof[i] = empty_node;
+                }
+                Ordering::Equal => {
+                    current_node = H::hashv(&[&intersection_node, &current_node])?;
+                    self.rightmost_proof[intersection_index] = intersection_node;
+                }
+                Ordering::Greater => {
+                    current_node = compute_parent_node::<H>(
+                        &current_node,
+                        &self.rightmost_proof[i],
+                        node_index,
+                        i,
+                    )?;
                 }
             }
-
-            changelog_entry.root = current_node;
-            changelog_entry.path = changelog_path;
-            changelog_entry.index = self.next_index;
-
-            self.inc_current_changelog_index();
-            if let Some(changelog_element) = self
-                .changelog
-                .get_mut(self.current_changelog_index as usize)
-            {
-                *changelog_element = *changelog_entry;
-            }
-            self.inc_current_root_index();
-            *self
-                .roots
-                .get_mut(self.current_root_index as usize)
-                .ok_or(HasherError::RootsZero)? = current_node;
         }
+
+        changelog_entry.root = current_node;
+        changelog_entry.path = changelog_path;
+        changelog_entry.index = self.next_index;
+
+        self.inc_current_changelog_index();
+        if let Some(changelog_element) = self
+            .changelog
+            .get_mut(self.current_changelog_index as usize)
+        {
+            *changelog_element = *changelog_entry;
+        }
+        self.inc_current_root_index();
+        *self
+            .roots
+            .get_mut(self.current_root_index as usize)
+            .ok_or(HasherError::RootsZero)? = current_node;
 
         self.sequence_number = self.sequence_number.saturating_add(1);
         self.next_index = self.next_index.saturating_add(1);
