@@ -22,9 +22,9 @@ import {
   createOutUtxo,
   createRpcIndexedTransactionResponse,
   encryptOutUtxos,
-  getIdsFromEncryptedUtxos,
   Account,
 } from "../src";
+import { getIdsFromEncryptedUtxos } from "../src/test-utils/test-rpc-utils";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";

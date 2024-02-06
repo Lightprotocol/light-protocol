@@ -1,4 +1,4 @@
-import {BN254, createBN254} from "utxo/bn254";
+import {BN254, createBN254} from "../utxo/bn254";
 import {sha256} from "@noble/hashes/sha256";
 import {PublicKey, SystemProgram} from "@solana/web3.js";
 

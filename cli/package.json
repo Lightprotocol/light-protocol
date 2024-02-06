@@ -81,7 +81,7 @@
     "topicSeparator": ""
   },
   "scripts": {
-    "build": "shx rm -rf dist && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json && sh scripts/copyLocalProgramBinaries.sh",
+    "build": "shx rm -rf dist && pnpm tsc && sh scripts/copyLocalProgramBinaries.sh",
     "format": "pnpm prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
     "format:check": "pnpm prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
     "lint": "eslint . --ext .ts",

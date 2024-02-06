@@ -5,10 +5,10 @@ import {
     TransactionErrorCode,
     TransactionParametersError,
     TransactionParametersErrorCode
-} from "errors";
+} from "../errors";
 import {OutUtxo, Utxo} from "../utxo/utxo-types";
-import {PlaceHolderTData, ProgramOutUtxo, ProgramUtxo} from "utxo/program-utxo-types";
-import {hashAndTruncateToCircuit, stringifyAssetsToCircuitInput} from "utils/hash-utils";
+import {PlaceHolderTData, ProgramOutUtxo, ProgramUtxo} from "../utxo/program-utxo-types";
+import {hashAndTruncateToCircuit, stringifyAssetsToCircuitInput} from "../utils/hash-utils";
 import {BN_0, N_ASSET_PUBKEYS} from "../constants";
 
 export function getVerifierProgram(

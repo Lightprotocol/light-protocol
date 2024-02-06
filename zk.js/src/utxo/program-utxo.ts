@@ -27,8 +27,8 @@ import {
 } from "./utxo";
 import { Account } from "../account";
 import { BN254, createBN254 } from "./bn254";
-import {PlaceHolderTData, ProgramOutUtxo, ProgramUtxo} from "utxo/program-utxo-types";
-import {programOutUtxoToBytes} from "utxo/program-utxo-utils";
+import {PlaceHolderTData, ProgramOutUtxo, ProgramUtxo} from "../utxo/program-utxo-types";
+import {programOutUtxoToBytes} from "../utxo/program-utxo-utils";
 
 export function createProgramOutUtxo({
   owner,

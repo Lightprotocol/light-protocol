@@ -4,12 +4,14 @@
     "esModuleInterop": true,
     "importHelpers": true,
     "module": "commonjs",
+    "moduleResolution": "node",
+    "baseUrl": ".",
     "outDir": "dist",
-    "rootDirs": ["src"],
+    "rootDirs": ["src", "test"],
     "strict": true,
     "target": "ES2020",
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "./test/**/*"]
 }

@@ -1,10 +1,10 @@
 
 // TODO: remove verifier index from encrypted utxo data
 // TODO: add explicit type to serialized data
-import {PlaceHolderTData, ProgramOutUtxo} from "utxo/program-utxo-types";
-import {hashAndTruncateToCircuit} from "utils/hash-utils";
+import {PlaceHolderTData, ProgramOutUtxo} from "./program-utxo-types";
+import {hashAndTruncateToCircuit} from "../utils/hash-utils";
 import {BN_0, COMPRESSED_UTXO_BYTES_LENGTH} from "../constants";
-import {UtxoError, UtxoErrorCode} from "errors";
+import {UtxoError, UtxoErrorCode} from "../errors";
 import {BN, BorshAccountsCoder} from "@coral-xyz/anchor";
 import {PublicKey} from "@solana/web3.js";
 

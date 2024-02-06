@@ -1,4 +1,4 @@
-import { AnchorProvider, BN, Idl, Program, utils } from "@coral-xyz/anchor";
+import { BN, Idl, utils } from "@coral-xyz/anchor";
 import { upperCamelCase, camelCase } from "case-anything";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { getIndices3D } from "@lightprotocol/circuit-lib.js";
@@ -52,7 +52,7 @@ import {
 import { AppUtxoConfig } from "../types";
 import { Rpc } from "../rpc";
 import { Provider } from "../provider";
-import {getAssetPubkeys, getVerifierProgramId} from "transaction/psp-util";
+import {getAssetPubkeys, getVerifierProgramId} from "../transaction/psp-util";
 
 export type SystemProofInputs = {
   publicInUtxoDataHash: (string | BN)[];

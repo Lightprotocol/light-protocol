@@ -3,7 +3,7 @@
     "ignorePatterns": ["node_modules", "dist", "bin", "accounts", "test"],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
-        "project": ["./tsconfig.json", "./tsconfig.test.json"]
+        "project": ["./tsconfig.json"]
     },
     "plugins": [
         "@typescript-eslint"
