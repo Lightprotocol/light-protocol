@@ -1,15 +1,13 @@
-import { assert, expect } from "chai";
+import { it, expect, assert } from "vitest";
 
 import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
-import { it } from "mocha";
 
 import {
   ADMIN_AUTH_KEYPAIR,
   Action,
   BN_0,
   BN_1,
-  MerkleTreeConfig,
   MERKLE_TREE_SET,
   ParsedIndexedTransaction,
   RPC_FEE,
@@ -19,7 +17,6 @@ import {
   SolMerkleTree,
   TOKEN_ACCOUNT_FEE,
   TestRpc,
-  Utxo,
   VerifierConfig,
   confirmConfig,
   createOutUtxo,

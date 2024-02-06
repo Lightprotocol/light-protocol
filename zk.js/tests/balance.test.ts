@@ -1,12 +1,7 @@
-import { assert } from "chai";
+import { it, beforeAll, assert } from "vitest";
+
 import { SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
-import { it } from "mocha";
-
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
 
 import {
   FEE_ASSET,
@@ -36,7 +31,7 @@ describe("Balance Functional", () => {
     lightProvider: LightProvider,
     compressUtxo1: Utxo,
     account: Account;
-  before(async () => {
+  beforeAll(async () => {
     lightWasm = await WasmFactory.getInstance();
     account = Account.createFromSeed(lightWasm, seed32);
     lightProvider = await LightProvider.loadMock();

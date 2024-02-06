@@ -1,6 +1,5 @@
-import { assert, expect } from "chai";
+import { it, beforeAll, expect, assert } from "vitest";
 import { BN } from "@coral-xyz/anchor";
-import { it } from "mocha";
 import {
   Account,
   AccountError,
@@ -8,18 +7,11 @@ import {
   ADMIN_AUTH_KEYPAIR,
   isEqualUint8Array,
   MERKLE_TREE_SET,
-  MerkleTreeConfig,
   useWallet,
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import nacl from "tweetnacl";
-
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
 const circomlibjs = require("circomlibjs");
 const { buildBabyjub } = circomlibjs;
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -44,7 +36,7 @@ describe("Test Account Functional", () => {
     k00: Account,
     kBurner: Account;
 
-  before(async () => {
+  beforeAll(async () => {
     lightWasm = await WasmFactory.getInstance();
     babyJub = await buildBabyjub();
     F = babyJub.F;
@@ -332,7 +324,7 @@ describe("Test Account Functional", () => {
     // added try catch because in some cases it doesn't decrypt but doesn't throw an error either
     //TODO: revisit this and possibly switch aes library
     try {
-      await chai.assert.isRejected(kBurner.decryptAes(cipherText1), Error);
+      await expect(kBurner.decryptAes(cipherText1)).rejects.toThrow(Error);
     } catch (error) {
       const msg = k0.decryptAes(cipherText1);
       assert.isNotNull(msg);
@@ -390,7 +382,7 @@ describe("Test Account Functional", () => {
 
 describe("Test Account Errors", () => {
   let lightWasm: LightWasm, k0: Account;
-  before(async () => {
+  beforeAll(async () => {
     lightWasm = await WasmFactory.getInstance();
     k0 = Account.createFromSeed(lightWasm, seed32);
   });

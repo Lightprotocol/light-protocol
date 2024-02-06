@@ -1,4 +1,4 @@
-import { it, beforeAll, assert } from "vitest";
+import { it, beforeAll, expect } from "vitest";
 
 import {
   functionalCircuitTest,
@@ -438,18 +438,16 @@ describe("Verifier tests", () => {
     systemProofInputs.publicNewAddress[1] = new BN(4).toString();
 
     // we rely on the fact that the function throws an error if proof generation failed
-    await assert.isRejected(
-      getSystemProof({
+    await expect(
+        getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
         verifierIdl,
         systemProofInputs,
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
-      }),
-      "PROOF_GENERATION_FAILED: TypeError: Cannot read properties of undefined (reading 'parsedProof')",
-      "expected error to be PROOF_GENERATION_FAILED",
-    );
+      }))
+        .rejects.toThrow("PROOF_GENERATION_FAILED: TypeError: Cannot read properties of undefined (reading 'parsedProof')");
   });
 
   // public input optionality is checked correctly
@@ -529,7 +527,7 @@ describe("Verifier tests", () => {
     systemProofInputs.publicOutUtxoHash[0] = BN_0;
 
     // need to be very careful with the expected error here because this will always return a type error when parsing after successful witness generation fails
-    await assert.isRejected(
+    await expect(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -537,16 +535,13 @@ describe("Verifier tests", () => {
         systemProofInputs,
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
-      }),
-      "PROOF_GENERATION_FAILED: Error: Error: Assert Failed.",
-      "expected error to be PROOF_GENERATION_FAILED",
-    );
+      })).rejects.toThrow("PROOF_GENERATION_FAILED: Error: Error: Assert Failed.");
 
     systemProofInputs.publicOutUtxoHash[0] = publicOutUtxoHash;
     systemProofInputs.publicInUtxoHash[0] = BN_0.toString();
 
     // need to be very careful with the expected error here because this will always return a type error when parsing after successful witness generation fails
-    await assert.isRejected(
+    await expect(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -554,10 +549,7 @@ describe("Verifier tests", () => {
         systemProofInputs,
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
-      }),
-      "PROOF_GENERATION_FAILED: Error: Error: Assert Failed.",
-      "expected error to be PROOF_GENERATION_FAILED",
-    );
+      })).rejects.toThrow("PROOF_GENERATION_FAILED: Error: Error: Assert Failed.");
   });
 
   it("Test spend utxo which is not in Merkle tree should not succeed", async () => {
@@ -611,7 +603,7 @@ describe("Verifier tests", () => {
     systemProofInputs.publicInUtxoHash[1] = BN_0.toString();
     systemProofInputs.publicInUtxoDataHash[1] = BN_0.toString();
     systemProofInputs.publicOutUtxoHash[1] = BN_0;
-    await assert.isRejected(
+    await expect(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -619,10 +611,7 @@ describe("Verifier tests", () => {
         systemProofInputs,
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
-      }),
-      "PROOF_GENERATION_FAILED: Error: Error: Assert Failed.",
-      "expected error to be PROOF_GENERATION_FAILED",
-    );
+      })).rejects.toThrow("PROOF_GENERATION_FAILED: Error: Error: Assert Failed.");
   });
 
   it("Test address is persistent", async () => {
@@ -673,7 +662,7 @@ describe("Verifier tests", () => {
 
     // need to set this manually because it is automatically taken from the outputUtxo address which we set zero on purpose
     systemProofInputs.isAddressUtxo[0] = BN_1;
-    await assert.isRejected(
+    await expect(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -681,10 +670,7 @@ describe("Verifier tests", () => {
         systemProofInputs,
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
-      }),
-      "PROOF_GENERATION_FAILED: Error: Error: Assert Failed.",
-      "expected error to be PROOF_GENERATION_FAILED",
-    );
+      })).rejects.toThrow("PROOF_GENERATION_FAILED: Error: Error: Assert Failed.");
   });
 
   it("Test metaHash is persistent", async () => {
@@ -735,7 +721,7 @@ describe("Verifier tests", () => {
 
     // need to set this manually because it is automatically taken from the outputUtxo address which we set zero on purpose
     systemProofInputs.isMetaHashUtxo[0] = BN_1;
-    await assert.isRejected(
+    await expect(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -743,10 +729,7 @@ describe("Verifier tests", () => {
         systemProofInputs,
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
-      }),
-      "PROOF_GENERATION_FAILED: Error: Error: Assert Failed.",
-      "expected error to be PROOF_GENERATION_FAILED",
-    );
+      })).rejects.toThrow("PROOF_GENERATION_FAILED: Error: Error: Assert Failed.");
   });
 
   it("Test programUtxo works & publicUtxoDataHash needs to be set if utxo has dataHash, transactionHash is optional", async () => {
@@ -828,7 +811,7 @@ describe("Verifier tests", () => {
     const publicInUtxoDataHash = systemProofInputs.publicInUtxoDataHash[0];
     // adjustment for publicInUtxoHash
     systemProofInputs.publicInUtxoDataHash[0] = BN_0.toString();
-    await assert.isRejected(
+    await expect(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -836,10 +819,8 @@ describe("Verifier tests", () => {
         systemProofInputs,
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
-      }),
-      "PROOF_GENERATION_FAILED: Error: Error: Assert Failed.",
-      "expected error to be PROOF_GENERATION_FAILED",
-    );
+      })).rejects.toThrow("PROOF_GENERATION_FAILED: Error: Error: Assert Failed.");
+
     systemProofInputs.publicInUtxoDataHash[0] = publicInUtxoDataHash;
     console.log(
       "transaction hash is public ",
@@ -848,7 +829,7 @@ describe("Verifier tests", () => {
 
     // @ts-ignore: its not part of the return type but we set it manually above
     systemProofInputs.publicTransactionHash = BN_1.toString();
-    await assert.isRejected(
+    await expect(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -856,10 +837,7 @@ describe("Verifier tests", () => {
         systemProofInputs,
         getProver: getTestProver,
         wasmTester: wasmTester2in2out,
-      }),
-      "PROOF_GENERATION_FAILED: Error: Error: Assert Failed.",
-      "expected error to be PROOF_GENERATION_FAILED",
-    );
+      })).rejects.toThrow("PROOF_GENERATION_FAILED: Error: Error: Assert Failed.");
   });
 
   it("Test 10in2out functional", async () => {
@@ -905,7 +883,7 @@ describe("Verifier tests", () => {
       publicDataHash: "0",
     } as any;
 
-    await assert.isRejected(
+    await expect(
       getSystemProof({
         account,
         inputUtxos: transaction.private.inputUtxos,
@@ -913,9 +891,6 @@ describe("Verifier tests", () => {
         systemProofInputs,
         getProver: getTestProver,
         wasmTester: wasmTester10in2out,
-      }),
-      "PROOF_GENERATION_FAILED: TypeError: Cannot read properties of undefined (reading 'parsedProof')",
-      "expected error to be PROOF_GENERATION_FAILED",
-    );
+      })).rejects.toThrow("PROOF_GENERATION_FAILED: TypeError: Cannot read properties of undefined (reading 'parsedProof')");
   });
 });

@@ -1,11 +1,6 @@
-import { assert, expect } from "chai";
-import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
-import { it } from "mocha";
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
+import { it, expect, assert } from "vitest";
 
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
+import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import {
   Provider as LightProvider,
   ProviderErrorCode,
@@ -58,11 +53,10 @@ describe("Test Provider Functional", () => {
   });
 
   it("KEYPAIR_UNDEFINED Provider", async () => {
-    await chai.assert.isRejected(
+    await expect(
       // @ts-ignore
       LightProvider.init({}),
-      ProviderErrorCode.KEYPAIR_UNDEFINED,
-    );
+    ).rejects.toThrow(ProviderErrorCode.KEYPAIR_UNDEFINED);
   });
 
   it("WALLET_UNDEFINED", async () => {

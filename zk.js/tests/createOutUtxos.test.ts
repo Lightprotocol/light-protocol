@@ -1,16 +1,10 @@
-import { assert, expect } from "chai";
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-import { BN } from "@coral-xyz/anchor";
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
+import { it, expect, assert, beforeAll } from "vitest";
 
 import {
   SystemProgram,
   Keypair as SolanaKeypair,
   PublicKey,
 } from "@solana/web3.js";
-import { it } from "mocha";
 
 import {
   Action,
@@ -37,6 +31,7 @@ import {
 } from "../src";
 import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import {BN} from "@coral-xyz/anchor";
 const numberMaxOutUtxos = 2;
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -56,7 +51,7 @@ describe("Test createOutUtxos Functional", () => {
     utxoSol: Utxo,
     recipientAccount: Account,
     lightProvider: Provider;
-  before(async () => {
+  beforeAll(async () => {
     lightProvider = await Provider.loadMock();
     lightWasm = await WasmFactory.getInstance();
     k0 = Account.createFromSeed(lightWasm, seed32);
@@ -77,6 +72,7 @@ describe("Test createOutUtxos Functional", () => {
         hash: BN_0,
         blinding: BN_1,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey,
       },
       false,
     );
@@ -90,6 +86,7 @@ describe("Test createOutUtxos Functional", () => {
         hash: BN_0,
         blinding: BN_2,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey,
       },
       false,
     );
@@ -613,7 +610,7 @@ describe("validateUtxoAmounts", () => {
     assetPubkey: PublicKey,
     inUtxos: [Utxo, Utxo],
     lightProvider: Provider;
-  before(async () => {
+  beforeAll(async () => {
     lightProvider = await Provider.loadMock();
     lightWasm = await WasmFactory.getInstance();
     assetPubkey = new PublicKey(0);
@@ -627,9 +624,10 @@ describe("validateUtxoAmounts", () => {
     amounts: BN[],
     assets: PublicKey[],
   ): Utxo {
+    let account = Account.createFromSeed(lightWasm, seed32);
     return createUtxo(
       lightWasm,
-      Account.createFromSeed(lightWasm, seed32),
+      account,
       {
         amounts,
         assets,
@@ -637,6 +635,7 @@ describe("validateUtxoAmounts", () => {
         hash: BN_0,
         merkleProof: ["1"],
         merkleTreeLeafIndex: 0,
+        owner: account.keypair.publicKey
       },
       false,
     );
@@ -696,7 +695,7 @@ describe("Test createOutUtxos Errors", () => {
     utxo1: Utxo,
     utxoSol: Utxo,
     lightProvider: Provider;
-  before(async () => {
+  beforeAll(async () => {
     lightProvider = await Provider.loadMock();
     lightWasm = await WasmFactory.getInstance();
     k0 = Account.createFromSeed(lightWasm, seed32);
@@ -716,6 +715,7 @@ describe("Test createOutUtxos Errors", () => {
         hash: BN_0,
         blinding: BN_1,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey
       },
       false,
     );
@@ -729,6 +729,7 @@ describe("Test createOutUtxos Errors", () => {
         hash: BN_0,
         blinding: BN_2,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey
       },
       false,
     );
@@ -916,6 +917,7 @@ describe("Test createOutUtxos Errors", () => {
         hash: BN_0,
         blinding: BN_1,
         merkleTreeLeafIndex: 0,
+        owner: k0.keypair.publicKey,
       },
       false,
     );

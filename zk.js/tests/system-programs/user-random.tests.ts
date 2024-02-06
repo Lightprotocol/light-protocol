@@ -1,3 +1,5 @@
+import { it, assert } from "vitest";
+
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair, PublicKey, Keypair } from "@solana/web3.js";
 import seedrandom from "seedrandom";
@@ -29,7 +31,6 @@ import {
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccount,
 } from "@solana/spl-token";
-import { assert } from "chai";
 import { WasmFactory } from "@lightprotocol/account.rs";
 
 function generateRandomTestAmount(

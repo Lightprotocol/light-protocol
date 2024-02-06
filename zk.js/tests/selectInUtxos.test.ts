@@ -1,13 +1,9 @@
-import { assert, expect } from "chai";
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
+import { it, expect, assert, beforeAll } from "vitest";
+
 import { BN } from "@coral-xyz/anchor";
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
 
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
-import { it } from "mocha";
 import { compareUtxos } from "./test-utils/compare-utxos";
 import {
   TransactionErrorCode,
@@ -51,7 +47,7 @@ describe("Test selectInUtxos Functional", () => {
     utxo2Burner: Account,
     utxo1Burner: Account;
   let lightProvider: Provider;
-  before(async () => {
+  beforeAll(async () => {
     lightProvider = await Provider.loadMock();
 
     lightWasm = await WasmFactory.getInstance();
@@ -312,7 +308,7 @@ describe("Test selectInUtxos Errors", () => {
     lightProvider: Provider,
     account: Account;
 
-  before(async () => {
+  beforeAll(async () => {
     lightProvider = await Provider.loadMock();
     lightWasm = await WasmFactory.getInstance();
     splAmount = new BN(3);

@@ -1,3 +1,5 @@
+import { it, beforeAll, afterAll, expect, assert } from "vitest";
+
 import * as anchor from "@coral-xyz/anchor";
 import {
   Connection,
@@ -29,7 +31,6 @@ import {
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
   Account,
   airdropSol,
-  MerkleTreeConfig,
   RPC_FEE,
   BN_0,
   airdropSplToAssociatedTokenAccount,
@@ -54,7 +55,6 @@ import {
   getAssociatedTokenAddress,
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
-import { assert } from "chai";
 
 let WASM: LightWasm;
 let RPC: TestRpc;

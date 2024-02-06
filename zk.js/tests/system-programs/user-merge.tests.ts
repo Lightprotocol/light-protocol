@@ -1,3 +1,5 @@
+import { it, beforeAll, afterAll, expect, assert } from "vitest";
+
 import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
 
 import {
@@ -42,7 +44,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
   const userKeypair = ADMIN_AUTH_KEYPAIR;
   const environmentConfig: EnvironmentConfig = {};
 
-  before("init test setup Merkle tree lookup table etc ", async () => {
+  beforeAll(async () => {
     await createTestAccounts(anchorProvider.connection);
     environmentConfig.lookUpTable =
       await initLookUpTableFromFile(anchorProvider);

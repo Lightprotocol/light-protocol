@@ -1,3 +1,7 @@
+import { describe } from 'vitest'
+
+describe.todo('unimplemented circuits tests');
+
 // import * as anchor from "@coral-xyz/anchor";
 // import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
 // import _ from "lodash";

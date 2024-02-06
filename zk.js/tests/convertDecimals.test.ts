@@ -1,18 +1,12 @@
-import { expect } from "chai";
+import { it, expect } from "vitest";
+
 import { BN } from "@coral-xyz/anchor";
-import { it } from "mocha";
 import {
   BN_0,
   BN_1,
   convertAndComputeDecimals,
   generateRandomTestAmount,
 } from "../src";
-
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";

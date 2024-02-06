@@ -1,7 +1,8 @@
+import { it, beforeAll, assert } from "vitest";
+
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair, Keypair } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
-import { assert } from "chai";
 
 import {
   createMintWrapper,
@@ -22,14 +23,6 @@ import {
   RPC_FEE,
   User,
   airdropSol,
-  createSolanaInstructions,
-  DecompressTransactionInput,
-  getVerifierProgramId,
-  getSystemProof,
-  createSystemProofInputs,
-  prepareAccounts,
-  createDecompressTransaction,
-  getSolanaRemainingAccounts,
   Utxo,
   syncInputUtxosMerkleProofs,
 } from "../../src";
@@ -58,7 +51,7 @@ describe("Merkle Tree Tests", () => {
     INVALID_SIGNER,
     lightProvider: Provider,
     merkleTreeConfig: MerkleTreeConfig;
-  before(async () => {
+  beforeAll(async () => {
     WASM = await WasmFactory.getInstance();
     await createTestAccounts(provider.connection, userTokenAccount);
 

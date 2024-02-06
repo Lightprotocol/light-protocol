@@ -1,15 +1,11 @@
-import { assert, expect } from "chai";
-import { it } from "mocha";
+import { it, beforeAll, afterAll, expect, assert } from "vitest";
+
 import { Prover } from "@lightprotocol/prover.js";
 import * as anchor from "@coral-xyz/anchor";
 
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 const ffjavascript = require("ffjavascript");
 const utils = ffjavascript.utils;
-
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-chai.use(chaiAsPromised);
 
 import {
   FEE_ASSET,
@@ -47,7 +43,7 @@ describe("Prover Functionality Tests", () => {
   let lightWasm: LightWasm;
   let compressTransaction: CompressTransaction;
   let merkleTree: MerkleTree;
-  before(async () => {
+  beforeAll(async () => {
     lightWasm = await WasmFactory.getInstance();
     lightProvider = await LightProvider.loadMock();
     account = Account.random(lightWasm);
@@ -82,7 +78,7 @@ describe("Prover Functionality Tests", () => {
     assert.equal(merkleTree.indexOf(compressUtxo.hash.toString()), 0);
   });
 
-  after(async () => {
+  afterAll(async () => {
     //@ts-ignore
     globalThis.curve_bn128.terminate();
   });

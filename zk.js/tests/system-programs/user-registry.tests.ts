@@ -1,3 +1,5 @@
+import { it, beforeAll, afterAll, expect, assert } from "vitest";
+
 import * as anchor from "@coral-xyz/anchor";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -22,7 +24,6 @@ import {
   sendAndConfirmTransaction,
   SystemProgram,
 } from "@solana/web3.js";
-import { assert } from "chai";
 
 let ACCOUNT: Account, RPC: TestRpc;
 
@@ -40,7 +41,7 @@ describe("User registry", () => {
     provider,
   );
 
-  before("Create user", async () => {
+  beforeAll( async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
     const lightWasm = await WasmFactory.getInstance();

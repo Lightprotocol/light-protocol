@@ -1,3 +1,7 @@
+import { describe } from 'vitest'
+
+describe.todo('unimplemented circuits tests');
+
 // TODO: refactor after circuit refactor
 // import { assert } from "chai";
 // const chai = require("chai");

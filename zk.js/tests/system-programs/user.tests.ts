@@ -1,9 +1,7 @@
+import { it, beforeAll, expect } from "vitest";
+
 import { Keypair, Keypair as SolanaKeypair } from "@solana/web3.js";
 import { sign } from "tweetnacl";
-const chai = require("chai");
-const chaiAsPromised = require("chai-as-promised");
-// init chai-as-promised support
-chai.use(chaiAsPromised);
 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -32,7 +30,6 @@ import {
 } from "../../src";
 import { WasmFactory, LightWasm } from "@lightprotocol/account.rs";
 import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
-import { expect } from "chai";
 
 let WASM: LightWasm, RPC: TestRpc, provider: Provider, user: User;
 
@@ -48,7 +45,7 @@ describe("Test User", () => {
   setProvider(anchorProvider);
   const userKeypair = ADMIN_AUTH_KEYPAIR;
 
-  before("init test setup Merkle tree lookup table etc ", async () => {
+  beforeAll( async () => {
     await createTestAccounts(anchorProvider.connection);
     WASM = await WasmFactory.getInstance();
 
@@ -346,7 +343,7 @@ describe("Test User Errors", () => {
     provider: Provider,
     user: User;
 
-  before("init test setup Merkle tree lookup table etc ", async () => {
+  beforeAll( async () => {
     if ((await providerAnchor.connection.getBalance(ADMIN_AUTH_KEY)) === 0) {
       await createTestAccounts(providerAnchor.connection);
     }
