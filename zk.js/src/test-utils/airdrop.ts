@@ -3,7 +3,7 @@ import { mintTo, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { RPC_FEE, TOKEN_PUBKEY_SYMBOL, confirmConfig } from "../constants";
-import { confirmTransaction } from "../transaction";
+import { confirmTransaction } from "../transaction/send-versioned-transaction";
 import { ConfirmOptions, User } from "../wallet";
 import { TestRpc } from "./test-rpc";
 import { ADMIN_AUTH_KEYPAIR, MINT } from "./constants-system-verifier";

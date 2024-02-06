@@ -26,7 +26,6 @@ import {
   AUTHORITY,
   TOKEN_PUBKEY_SYMBOL,
   MAX_MESSAGE_SIZE,
-  MERKLE_TREE_SET,
 } from "../constants";
 import {
   UserError,
@@ -47,20 +46,31 @@ import {
   IDL_LIGHT_PSP10IN2OUT,
   IDL_LIGHT_PSP2IN2OUT_STORAGE,
 } from "../idls";
-import { MerkleTreeConfig } from "../merkle-tree";
+
 import {
   getUserIndexTransactions,
+} from "../transaction/fetch-recent-transactions";
+
+
+import {
+  getVerifierProgramId,
+} from "../transaction/psp-util";
+
+import {
+  getSolanaRemainingAccounts,
+  prepareAccounts,
+  createSolanaInstructions,
+} from "../transaction/solana-transaction";
+
+import {
+  Transaction,
   getTxParams,
   syncInputUtxosMerkleProofs,
   createSystemProofInputs,
   getSystemProof,
   getSystemPspIdl,
-  getSolanaRemainingAccounts,
-  prepareAccounts,
-  createSolanaInstructions,
-  getVerifierProgramId,
-  Transaction,
-} from "../transaction";
+} from "../transaction/psp-transaction";
+
 import {
   UserIndexedTransaction,
   AppUtxoConfig,

@@ -8,6 +8,7 @@ import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
 import { getVerifierProgramId } from "../transaction/psp-util";
 import {
+  createTransaction,
   TransactionInput,
   createSystemProofInputs,
   getSystemProof,
@@ -17,7 +18,6 @@ import { BN_0, FEE_ASSET, MERKLE_TREE_HEIGHT } from "../constants";
 import { Account } from "../account";
 import { Provider as LightProvider } from "../provider";
 import { MINT } from "./constants-system-verifier";
-import { createTransaction } from "../transaction";
 import { hashAndTruncateToCircuit } from "../utils/hash-utils";
 import { createOutUtxo, outUtxoToUtxo } from "../utxo";
 

@@ -5,11 +5,13 @@ import { Action, lightAccounts } from "../types";
 import { TransactionError, TransactionErrorCode } from "../errors";
 import { FIELD_SIZE, merkleTreeProgramId } from "../constants";
 import {
-  DecompressTransaction,
-  CompressTransaction,
-  Transaction,
   fetchRecentTransactions,
-} from "../transaction";
+} from "../transaction/fetch-recent-transactions";
+import {
+  Transaction,
+  CompressTransaction,
+  DecompressTransaction
+} from "../transaction/psp-transaction";
 import { checkRentExemption } from "./test-checks";
 import { Provider } from "../provider";
 import { IDL_LIGHT_MERKLE_TREE_PROGRAM } from "../idls";

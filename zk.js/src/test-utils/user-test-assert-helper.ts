@@ -29,7 +29,8 @@ import {
   fetchNullifierAccountInfo
 } from "../utils";
 import { sleep } from "../utils/common";
-import { fetchRecentTransactions, getEscrowPda } from "../transaction";
+import { getEscrowPda } from "../transaction/psp-transaction";
+import { fetchRecentTransactions } from "../transaction/fetch-recent-transactions";
 import { User } from "../wallet";
 import { MerkleTreeConfig } from "../merkle-tree";
 import { Provider } from "../provider";

@@ -31,7 +31,7 @@ import {
   PublicInputs,
   remainingAccount,
 } from "../types";
-import { MINT } from "../test-utils";
+import { MINT } from "../test-utils/constants-system-verifier";
 import { Provider } from "../provider";
 import {
   SolanaTransactionError,
