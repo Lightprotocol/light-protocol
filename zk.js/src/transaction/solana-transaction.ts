@@ -21,8 +21,10 @@ import {
   TransactionAccounts,
   PublicTransactionVariables,
   getVerifierConfig,
-  getVerifierProgram,
 } from "../transaction/psp-transaction";
+import {
+  getVerifierProgram
+} from "../transaction/psp-util";
 import {
   Action,
   lightAccounts,

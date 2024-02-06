@@ -14,10 +14,12 @@ import {
   createSystemProofInputs,
   getSystemProof,
   getSystemPspIdl,
-  getVerifierProgramId,
   syncInputUtxosMerkleProofs,
   SystemProofInputs,
 } from "./psp-transaction";
+import {
+  getVerifierProgramId
+} from "../transaction/psp-util";
 import { LightWasm } from "@lightprotocol/account.rs";
 import { Rpc } from "../rpc";
 import {

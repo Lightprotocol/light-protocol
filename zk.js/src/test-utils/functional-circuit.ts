@@ -18,7 +18,7 @@ import { Account } from "../account";
 import { Provider as LightProvider } from "../provider";
 import { MINT } from "./constants-system-verifier";
 import { createTransaction } from "../transaction";
-import { hashAndTruncateToCircuit } from "../utils";
+import { hashAndTruncateToCircuit } from "../utils/hash-utils";
 import { createOutUtxo, outUtxoToUtxo } from "../utxo";
 
 export async function functionalCircuitTest(

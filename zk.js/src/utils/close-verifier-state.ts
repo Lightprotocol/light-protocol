@@ -8,7 +8,7 @@ import {
 import { Idl } from "@coral-xyz/anchor";
 import { TransactionError, TransactionErrorCode } from "../errors";
 import { Provider } from "../provider";
-import { getVerifierProgram } from "../transaction";
+import { getVerifierProgram } from "../transaction/psp-util";
 
 // TODO: add test
 // This is used by applications not the rpc

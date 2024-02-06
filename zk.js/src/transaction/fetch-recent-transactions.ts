@@ -25,10 +25,10 @@ import {
   BN_0,
   MERKLE_TREE_SET,
 } from "../constants";
-import { getUpdatedSpentUtxos, sleep } from "../utils";
+import { getUpdatedSpentUtxos } from "../utils";
+import { sleep } from "../utils/common";
 import { TokenUtxoBalance } from "../build-balance";
 import { Provider } from "../provider";
-import { MerkleTreeConfig } from "../merkle-tree";
 import { PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
 import { getIdsFromEncryptedUtxos } from "../test-utils";
 

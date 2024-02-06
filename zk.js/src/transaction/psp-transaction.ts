@@ -29,7 +29,7 @@ import {
   TransactionParametersErrorCode,
   UserErrorCode,
 } from "../errors";
-import { hashAndTruncateToCircuit, truncateToCircuit } from "../utils";
+import { truncateToCircuit, hashAndTruncateToCircuit } from "../utils/hash-utils";
 import { Action } from "../types";
 import { MerkleTreeConfig } from "../merkle-tree";
 import { TokenData } from "../types";
@@ -49,6 +49,7 @@ import { Utxo, OutUtxo, encryptOutUtxo } from "../utxo";
 import { AppUtxoConfig } from "../types";
 import { Rpc } from "../rpc";
 import { Provider } from "../provider";
+import {getVerifierProgramId} from "transaction/psp-util";
 
 export type SystemProofInputs = {
   publicInUtxoDataHash: (string | BN)[];
@@ -655,31 +656,6 @@ export function findIdlIndex(programId: string, idlObjects: Idl[]): number {
   }
 
   return -1; // Return -1 if the programId is not found in any IDL object
-}
-
-export function getVerifierProgramId(verifierIdl: Idl): PublicKey {
-  const programIdObj = verifierIdl.constants!.find(
-    (constant) => constant.name === "PROGRAM_ID",
-  );
-  if (!programIdObj || typeof programIdObj.value !== "string") {
-    throw new TransactionParametersError(
-      TransactionParametersErrorCode.PROGRAM_ID_CONSTANT_UNDEFINED,
-      'PROGRAM_ID constant not found in idl. Example: pub const PROGRAM_ID: &str = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";',
-    );
-  }
-
-  // Extracting the public key string value from the object and removing quotes.
-  const programIdStr = programIdObj.value.slice(1, -1);
-  return new PublicKey(programIdStr);
-}
-
-export function getVerifierProgram(
-  verifierIdl: Idl,
-  anchorProvider: AnchorProvider,
-): Program<Idl> {
-  const programId = getVerifierProgramId(verifierIdl);
-  const verifierProgram = new Program(verifierIdl, programId, anchorProvider);
-  return verifierProgram;
 }
 
 export function getVerifierConfig(verifierIdl: Idl): VerifierConfig {

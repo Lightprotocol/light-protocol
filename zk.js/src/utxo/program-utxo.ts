@@ -10,10 +10,10 @@ import {
 } from "../constants";
 import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
 import {
-  hashAndTruncateToCircuit,
-  fetchAssetByIdLookUp,
   createAccountObject,
 } from "../utils";
+import { hashAndTruncateToCircuit } from "../utils/hash-utils";
+import { fetchAssetByIdLookUp } from "../utils/fetch-utils";
 import {
   encryptOutUtxoInternal,
   decryptOutUtxoInternal,

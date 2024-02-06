@@ -22,9 +22,9 @@ import { BN254, PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
 import { Balance } from "../build-balance";
 import {
   convertAndComputeDecimals,
-  fetchNullifierAccountInfo,
-  sleep,
+  fetchNullifierAccountInfo
 } from "../utils";
+import { sleep } from "../utils/common";
 import { fetchRecentTransactions, getEscrowPda } from "../transaction";
 import { User } from "../wallet";
 import { MerkleTreeConfig } from "../merkle-tree";

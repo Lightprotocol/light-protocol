@@ -30,8 +30,7 @@ import {
   lightPsp2in2outId,
   lightPsp4in4outAppStorageId,
   BN_0,
-  BN_1,
-  BN_2,
+  BN_1
 } from "../constants";
 import { MerkleTreeConfig } from "../merkle-tree";
 import { MINT } from "../test-utils/constants-system-verifier";
@@ -49,34 +48,6 @@ import { TokenUtxoBalance } from "../build-balance";
 
 const crypto = require("@noble/hashes/crypto");
 
-export function hashAndTruncateToCircuit(data: Uint8Array): BN254 {
-  return truncateToCircuit(sha256.create().update(Buffer.from(data)).digest());
-}
-
-/**
- * Truncates the given 32-byte array to a 31-byte one, ensuring it fits
- * into the Fr modulo field.
- *
- * ## Safety
- *
- * This function is primarily used for truncating hashes (e.g., SHA-256) which are
- * not constrained by any modulo space. It's important to note that, as of now,
- * it's not possible to use any ZK-friendly function within a single transaction.
- * While truncating hashes to 31 bytes is generally safe, you should ensure that
- * this operation is appropriate for your specific use case.
- *
- * @param bytes The 32-byte array to be truncated.
- * @returns The truncated 31-byte array.
- *
- * @example
- * ```typescript
- * // example usage of truncate function
- * const truncated = truncateFunction(original32BytesArray);
- * ```
- */
-export function truncateToCircuit(digest: Uint8Array): BN254 {
-  return createBN254(digest.slice(1, 32), undefined, "be");
-}
 
 // TODO: add pooltype
 export async function getAssetLookUpId({
@@ -107,12 +78,6 @@ export function getAssetIndex(
   return new BN(assetLookupTable.indexOf(assetPubkey.toBase58()));
 }
 
-export function fetchAssetByIdLookUp(
-  assetIndex: BN,
-  assetLookupTable: string[],
-): PublicKey {
-  return new PublicKey(assetLookupTable[assetIndex.toNumber()]);
-}
 
 export function fetchVerifierByIdLookUp(
   index: BN,
@@ -263,10 +228,6 @@ export const fetchQueuedLeavesAccountInfo = async (
     merkleTreeProgramId,
   )[0];
   return connection.getAccountInfo(queuedLeavesPubkey, "confirmed");
-};
-
-export const sleep = (ms: number) => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
 export type KeyValue = {

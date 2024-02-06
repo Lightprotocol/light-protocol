@@ -20,7 +20,9 @@ import {
 } from "../constants";
 import { UtxoError, UtxoErrorCode, CreateUtxoErrorCode } from "../errors";
 import { IDL_LIGHT_PSP2IN2OUT } from "../idls";
-import { hashAndTruncateToCircuit, fetchAssetByIdLookUp } from "../utils";
+import { hashAndTruncateToCircuit } from "../utils/hash-utils";
+import { fetchAssetByIdLookUp } from "../utils/fetch-utils";
+
 import { BN254, createBN254 } from "./bn254";
 import {
   PlaceHolderTData,

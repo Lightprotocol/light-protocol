@@ -35,10 +35,11 @@ import {
   confirmConfig,
   AUTHORITY_ONE,
   TOKEN_REGISTRY,
-  sleep,
   confirmTransaction,
   BN_0,
 } from "../index";
+import { sleep } from "../utils/common";
+
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { Program } from "@coral-xyz/anchor";
 

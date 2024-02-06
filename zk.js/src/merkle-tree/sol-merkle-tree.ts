@@ -7,15 +7,12 @@ import {
   merkleTreeProgramId,
   MERKLE_TREE_HEIGHT,
   MERKLE_TREE_ROOTS,
-  BN_0,
 } from "../constants";
-import { SolMerkleTreeError, SolMerkleTreeErrorCode } from "../errors";
 import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
-import { sleep } from "../utils";
-import { Utxo } from "../utxo";
+import { sleep } from "../utils/common";
 
 const ffjavascript = require("ffjavascript");
-const { unstringifyBigInts, beInt2Buff, leInt2Buff } = ffjavascript.utils;
+const { unstringifyBigInts, beInt2Buff } = ffjavascript.utils;
 
 const INDEX_SIZE = 8;
 const ROOT_SIZE = 32;
