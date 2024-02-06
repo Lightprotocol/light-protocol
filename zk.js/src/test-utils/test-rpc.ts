@@ -18,7 +18,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { LightWasm } from "@lightprotocol/account.rs";
 
 import { Rpc } from "../rpc";
-import { fetchRecentTransactions } from "../transaction";
+import { fetchRecentTransactions } from "../transaction/fetch-recent-transactions";
 import {
   ParsedIndexedTransaction,
   PrioritizationFee,
@@ -28,7 +28,7 @@ import {
 } from "../types";
 import { Provider } from "../provider";
 import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
-import { MerkleTreeConfig, SolMerkleTree } from "../merkle-tree";
+import { SolMerkleTree } from "../merkle-tree";
 import {
   BN_0,
   UTXO_PREFIX_LENGTH,
@@ -359,18 +359,4 @@ export const createRpcIndexedTransactionResponse = (
     merkleProofs,
   };
   return rpcIndexedTransactionResponse;
-};
-
-export const getIdsFromEncryptedUtxos = (
-  encryptedUtxos: Buffer,
-  numberOfLeaves: number,
-): string[] => {
-  const utxoLength = 124; //encryptedUtxos.length / numberOfLeaves;
-  // divide encrypted utxos by multiples of 2
-  // and extract the first two bytes of each
-  const ids: string[] = [];
-  for (let i = 0; i < encryptedUtxos.length; i += utxoLength) {
-    ids.push(bs58.encode(encryptedUtxos.slice(i, i + UTXO_PREFIX_LENGTH)));
-  }
-  return ids;
 };

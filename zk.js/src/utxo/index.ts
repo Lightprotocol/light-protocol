@@ -4,3 +4,5 @@ export * from "./program-utxo";
 export * from "./select-in-utxos";
 export * from "./utxo";
 export * from "./utxo-types";
+export * from "./program-utxo-types";
+export * from "./program-utxo-utils";

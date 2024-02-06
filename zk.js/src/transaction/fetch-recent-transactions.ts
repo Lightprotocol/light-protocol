@@ -34,7 +34,7 @@ import {
   PlaceHolderTData,
   ProgramUtxo
 } from "../utxo/program-utxo-types";
-import { getIdsFromEncryptedUtxos } from "../test-utils";
+import { getIdsFromEncryptedUtxos } from "../test-utils/test-rpc-utils";
 
 export class TransactionIndexerEvent {
   borshSchema = borsh.struct([

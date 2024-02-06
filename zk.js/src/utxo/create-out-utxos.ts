@@ -96,9 +96,7 @@ export function createOutUtxos({
   rpcFee,
   changeUtxoAccount,
   action,
-  appUtxo,
   numberMaxOutUtxos,
-  assetLookupTable,
   separateSolUtxo = false,
   lightWasm,
 }: {

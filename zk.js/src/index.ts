@@ -13,4 +13,6 @@ export * from "./errors";
 export * from "./provider";
 export * from "./rpc";
 
+export * from "./test-utils";
+
 export * as circuitlibjs from "@lightprotocol/circuit-lib.js";
