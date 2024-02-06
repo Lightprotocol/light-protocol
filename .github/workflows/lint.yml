@@ -60,5 +60,5 @@ jobs:
           # here... But without that, the toolchain is just not there!
           # I will spend more time on debugging this once I can afford burning
           # more hours.
-          rustup toolchain install nightly --component clippy,rustfmt
+          rustup toolchain install nightly-2024-02-01 --component clippy,rustfmt
           ./scripts/lint.sh
