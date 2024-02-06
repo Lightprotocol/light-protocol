@@ -6,13 +6,13 @@ import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 
+import { getVerifierProgramId } from "../transaction/psp-util";
 import {
   TransactionInput,
   createSystemProofInputs,
   getSystemProof,
   getTransactionHash,
-  getVerifierProgramId,
-} from "../transaction";
+} from "../transaction/psp-transaction";
 import { BN_0, FEE_ASSET, MERKLE_TREE_HEIGHT } from "../constants";
 import { Account } from "../account";
 import { Provider as LightProvider } from "../provider";

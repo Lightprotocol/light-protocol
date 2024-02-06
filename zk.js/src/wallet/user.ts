@@ -80,10 +80,12 @@ import {
   Utxo,
   createOutUtxo,
   createRecipientUtxos,
-  ProgramUtxo,
   decryptProgramUtxo,
-  PlaceHolderTData,
 } from "../utxo";
+import {
+  PlaceHolderTData,
+  ProgramUtxo,
+} from "../utxo/program-utxo-types";
 import { Provider } from "../provider";
 import { Account } from "../account";
 

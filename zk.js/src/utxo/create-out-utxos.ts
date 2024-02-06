@@ -10,9 +10,10 @@ import {
   TransactionErrorCode,
   CreateUtxoErrorCode,
 } from "../errors";
-import { getAssetPubkeys } from "../transaction";
-import { Utxo, OutUtxo, createOutUtxo } from "./utxo";
-import { PlaceHolderTData, ProgramOutUtxo, ProgramUtxo } from "./program-utxo";
+import { getAssetPubkeys } from "../transaction/psp-util";
+import { createOutUtxo } from "./utxo";
+import { Utxo, OutUtxo } from "./utxo-types";
+import { PlaceHolderTData, ProgramOutUtxo, ProgramUtxo } from "./program-utxo-types";
 
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
 

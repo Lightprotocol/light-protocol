@@ -17,9 +17,7 @@ import { fetchAssetByIdLookUp } from "../utils/fetch-utils";
 import {
   encryptOutUtxoInternal,
   decryptOutUtxoInternal,
-  Utxo,
   CreateUtxoInputs,
-  OutUtxo,
   checkAssetAndAmountIntegrity,
   getDefaultUtxoTypeAndVersionV0,
   randomBN,
@@ -29,37 +27,8 @@ import {
 } from "./utxo";
 import { Account } from "../account";
 import { BN254, createBN254 } from "./bn254";
-
-export type PlaceHolderTData = any;
-/** Program-owned utxo that had previously been inserted into a state Merkle tree */
-export type ProgramUtxo<TData extends PlaceHolderTData> = Omit<
-  Utxo,
-  "owner"
-> & {
-  /** Public key of program that owns the utxo */
-  owner: PublicKey;
-  /** Data assigned to the utxo */
-  data: TData;
-  /** Hash of 'data' */
-  dataHash: BN254;
-  /** psp idl */
-  ownerIdl: Idl; /// TODO: remove from utxo (waste of space)
-};
-
-/** Program-owned utxo that is not inserted into the state tree yet. */
-export type ProgramOutUtxo<TData extends PlaceHolderTData> = Omit<
-  OutUtxo,
-  "owner"
-> & {
-  /** Public key of program that owns the utxo */
-  owner: PublicKey;
-  /** Data assigned to the utxo */
-  data: TData;
-  /** Hash of 'data' */
-  dataHash: BN254;
-  /** psp idl */
-  ownerIdl: Idl; /// TODO: remove from utxo (waste of space)
-};
+import {PlaceHolderTData, ProgramOutUtxo, ProgramUtxo} from "utxo/program-utxo-types";
+import {programOutUtxoToBytes} from "utxo/program-utxo-utils";
 
 export function createProgramOutUtxo({
   owner,
@@ -196,68 +165,6 @@ export const createDataHashWithDefaultHashingSchema = (
   );
   return utxoDataHash;
 };
-
-const getSplAssetLookupTableIndex = (
-  asset: PublicKey,
-  assetLookupTable: string[],
-): BN => {
-  const index = assetLookupTable.findIndex(
-    (base58PublicKey) => base58PublicKey === asset.toBase58(),
-  );
-  if (index === -1) {
-    throw new UtxoError(
-      UtxoErrorCode.ASSET_NOT_FOUND,
-      "getSplAssetLookupTableIndex",
-      `asset pubkey ${asset}, not found in lookup table`,
-    );
-  }
-  return new BN(index);
-};
-
-// TODO: remove verifier index from encrypted utxo data
-// TODO: add explicit type to serialized data
-/** Parse a program-owned utxo to bytes */
-export async function programOutUtxoToBytes(
-  outUtxo: ProgramOutUtxo<PlaceHolderTData>,
-  assetLookupTable: string[],
-  compressed: boolean = false,
-): Promise<Uint8Array> {
-  const serializeObject = {
-    ...outUtxo,
-    ...outUtxo.data,
-    /// TODO: fix idl naming congruence
-    appDataHash: outUtxo.dataHash,
-    /// FIX: check if we need this for programutxos anymore
-    accountCompressionPublicKey: hashAndTruncateToCircuit(
-      outUtxo.owner.toBytes(),
-    ),
-    accountEncryptionPublicKey:
-      outUtxo.encryptionPublicKey ?? new Uint8Array(32).fill(0),
-    verifierAddressIndex: BN_0,
-    splAssetIndex: getSplAssetLookupTableIndex(
-      outUtxo.assets[1],
-      assetLookupTable,
-    ),
-  };
-  if (serializeObject.splAssetIndex.toString() === "-1") {
-    throw new UtxoError(
-      UtxoErrorCode.ASSET_NOT_FOUND,
-      "outUtxoToBytes",
-      `asset pubkey ${serializeObject.assets[1]}, not found in lookup table`,
-    );
-  }
-  const coder = new BorshAccountsCoder(outUtxo.ownerIdl);
-  const serializedData = await coder.encode(
-    outUtxo.type + "OutUtxo",
-    serializeObject,
-  );
-
-  // Compressed serialization does not store the account since for an encrypted utxo
-  // we assume that the user who is able to decrypt the utxo knows the corresponding account.
-  return compressed
-    ? serializedData.subarray(0, COMPRESSED_UTXO_BYTES_LENGTH)
-    : serializedData;
-}
 
 // TODO: support multiple utxo names, to pick the correct one (we can probably match the name from the discriminator)
 

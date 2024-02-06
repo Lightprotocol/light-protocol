@@ -39,11 +39,13 @@ import { Wallet } from "../provider";
 
 import {
   BN254,
-  PlaceHolderTData,
-  ProgramUtxo,
   Utxo,
-  createBN254,
 } from "../utxo";
+import {
+    PlaceHolderTData,
+    ProgramUtxo }
+from "../utxo/program-utxo-types";
+
 import { TokenUtxoBalance } from "../build-balance";
 
 const crypto = require("@noble/hashes/crypto");

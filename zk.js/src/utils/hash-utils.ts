@@ -1,5 +1,6 @@
 import {BN254, createBN254} from "utxo/bn254";
 import {sha256} from "@noble/hashes/sha256";
+import {PublicKey, SystemProgram} from "@solana/web3.js";
 
 /**
  * Truncates the given 32-byte array to a 31-byte one, ensuring it fits
@@ -28,4 +29,17 @@ export function truncateToCircuit(digest: Uint8Array): BN254 {
 
 export function hashAndTruncateToCircuit(data: Uint8Array): BN254 {
     return truncateToCircuit(sha256.create().update(Buffer.from(data)).digest());
+}
+
+/**
+ * Hashes and truncates assets to fit within 254-bit modulo space.
+ * Returns decimal string.
+ * SOL = "0"
+ * */
+export function stringifyAssetsToCircuitInput(assets: PublicKey[]): string[] {
+    return assets.map((asset: PublicKey, index) => {
+        if (index !== 0 && asset.toBase58() === SystemProgram.programId.toBase58())
+            return "0";
+        return hashAndTruncateToCircuit(asset.toBytes()).toString();
+    });
 }

@@ -8,7 +8,11 @@ import {
   VersionedTransactionResponse,
 } from "@solana/web3.js";
 import { Rpc } from "../rpc";
-import { PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
+import { Utxo } from "../utxo";
+import {
+  PlaceHolderTData,
+  ProgramUtxo
+} from "../utxo/program-utxo-types";
 
 export type PrioritizationFee = bigint;
 

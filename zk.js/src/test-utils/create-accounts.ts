@@ -22,22 +22,23 @@ import {
 import { Account } from "../account";
 
 import { createMint } from "@solana/spl-token";
+import { confirmTransaction } from "../transaction/send-versioned-transaction"
+import {
+  AUTHORITY,
+  AUTHORITY_ONE,
+  TOKEN_REGISTRY,
+  BN_0,
+  confirmConfig
+} from "../constants";
 import {
   ADMIN_AUTH_KEYPAIR,
-  AUTHORITY,
   MINT_PRIVATE_KEY,
   MINT,
   KEYPAIR_PRIVKEY,
   USER_TOKEN_ACCOUNT,
   RECIPIENT_TOKEN_ACCOUNT,
   ADMIN_AUTH_KEY,
-  // userTokenAccount,
-  confirmConfig,
-  AUTHORITY_ONE,
-  TOKEN_REGISTRY,
-  confirmTransaction,
-  BN_0,
-} from "../index";
+} from "./constants-system-verifier";
 import { sleep } from "../utils/common";
 
 import { WasmFactory } from "@lightprotocol/account.rs";

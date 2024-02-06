@@ -29,16 +29,17 @@ import {
   UserError,
   UserErrorCode,
 } from "../errors";
-import { MerkleTreeConfig } from "../merkle-tree";
 import { Account } from "../account";
 import {
   BN254,
-  PlaceHolderTData,
-  ProgramOutUtxo,
   createProgramOutUtxo,
   createDataHashWithDefaultHashingSchema,
   encryptProgramOutUtxo,
 } from "../utxo";
+import {
+  ProgramOutUtxo,
+  PlaceHolderTData,
+} from "../utxo/program-utxo-types";
 import {
   BN_0,
   MAX_MESSAGE_SIZE,

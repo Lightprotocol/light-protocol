@@ -18,7 +18,11 @@ import {
   TokenData,
   Action,
 } from "../types";
-import { BN254, PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
+import { BN254, Utxo } from "../utxo";
+import {
+  PlaceHolderTData,
+  ProgramUtxo
+} from "../utxo/program-utxo-types";
 import { Balance } from "../build-balance";
 import {
   convertAndComputeDecimals,

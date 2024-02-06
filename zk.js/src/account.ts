@@ -18,7 +18,11 @@ import {
   STANDARD_COMPRESSION_PUBLIC_KEY,
 } from "./constants";
 import { Wallet } from "./provider";
-import { PlaceHolderTData, ProgramUtxo, Utxo } from "./utxo";
+import { Utxo } from "./utxo";
+import {
+  PlaceHolderTData,
+  ProgramUtxo
+} from "./utxo/program-utxo-types";
 import { SystemProofInputs } from "./transaction/psp-transaction";
 
 const nacl = require("tweetnacl");

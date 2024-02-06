@@ -1,6 +1,5 @@
 export * from "./idls";
 export * from "./merkle-tree";
-export * from "./test-utils";
 export * from "./transaction";
 export * from "./types";
 export * from "./utils";

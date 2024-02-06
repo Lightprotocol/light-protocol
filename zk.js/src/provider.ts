@@ -22,7 +22,11 @@ import { initLookUpTable } from "./utils";
 import { createSolanaTransactions } from "./transaction/create-solana-transactions";
 import { useWallet } from "./wallet";
 import { MINIMUM_LAMPORTS, RPC_FEE, TOKEN_ACCOUNT_FEE } from "./constants";
-import { ADMIN_AUTH_KEYPAIR, MINT, RPC_RECIPIENT_KEYPAIR } from "./test-utils";
+import {
+  ADMIN_AUTH_KEYPAIR,
+  MINT,
+  RPC_RECIPIENT_KEYPAIR
+} from "./test-utils/constants-system-verifier";
 import { Rpc } from "./rpc";
 import { ProviderError, ProviderErrorCode } from "./errors";
 

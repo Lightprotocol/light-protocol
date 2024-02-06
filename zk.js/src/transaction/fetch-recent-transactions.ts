@@ -29,7 +29,11 @@ import { getUpdatedSpentUtxos } from "../utils";
 import { sleep } from "../utils/common";
 import { TokenUtxoBalance } from "../build-balance";
 import { Provider } from "../provider";
-import { PlaceHolderTData, ProgramUtxo, Utxo } from "../utxo";
+import { Utxo } from "../utxo";
+import {
+  PlaceHolderTData,
+  ProgramUtxo
+} from "../utxo/program-utxo-types";
 import { getIdsFromEncryptedUtxos } from "../test-utils";
 
 export class TransactionIndexerEvent {

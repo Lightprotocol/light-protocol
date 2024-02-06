@@ -8,7 +8,11 @@ import {
   fetchNullifierAccountInfo,
   fetchQueuedLeavesAccountInfo,
 } from "./utils";
-import { Utxo, ProgramUtxo, decryptUtxo, PlaceHolderTData } from "./utxo";
+import { Utxo, decryptUtxo } from "./utxo";
+import {
+  PlaceHolderTData,
+  ProgramUtxo
+} from "./utxo/program-utxo-types";
 import {
   ProgramUtxoBalanceError,
   ProgramUtxoBalanceErrorCode,

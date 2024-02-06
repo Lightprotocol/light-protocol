@@ -6,10 +6,12 @@ import { Action } from "../types";
 import {
   Utxo,
   OutUtxo,
+} from "../utxo";
+import {
   ProgramOutUtxo,
   PlaceHolderTData,
   ProgramUtxo,
-} from "../utxo";
+} from "../utxo/program-utxo-types";
 import {
   CreateUtxoErrorCode,
   RpcErrorCode,
