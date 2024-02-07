@@ -18,3 +18,5 @@ export const babyjubjub = twistedEdwards({
   hash: sha512,
   randomBytes,
 } as const);
+
+export const babyjubjubExt = babyjubjub.ExtendedPoint;
