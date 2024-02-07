@@ -327,11 +327,6 @@ export type LightMerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "merkleTreeAuthorityPda",
           "isMut": false,
           "isSigner": false
@@ -372,11 +367,6 @@ export type LightMerkleTreeProgram = {
         },
         {
           "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
           "isMut": false,
           "isSigner": false
         },
@@ -433,11 +423,6 @@ export type LightMerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "registeredPoolTypePda",
           "isMut": false,
           "isSigner": false
@@ -467,11 +452,6 @@ export type LightMerkleTreeProgram = {
         {
           "name": "merkleTreeSet",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -1398,11 +1378,6 @@ export const IDL: LightMerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "merkleTreeAuthorityPda",
           "isMut": false,
           "isSigner": false
@@ -1443,11 +1418,6 @@ export const IDL: LightMerkleTreeProgram = {
         },
         {
           "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
           "isMut": false,
           "isSigner": false
         },
@@ -1504,11 +1474,6 @@ export const IDL: LightMerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "registeredPoolTypePda",
           "isMut": false,
           "isSigner": false
@@ -1538,11 +1503,6 @@ export const IDL: LightMerkleTreeProgram = {
         {
           "name": "merkleTreeSet",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
           "isSigner": false
         },
         {

@@ -70,6 +70,7 @@ describe("Program Utxo Functional", () => {
       });
       const assetLookupTable = lightProvider.lookUpTables.assetLookupTable;
       const bytes = await programOutUtxoToBytes(
+        lightWasm,
         programOutUtxo,
         assetLookupTable,
       );
@@ -82,7 +83,7 @@ describe("Program Utxo Functional", () => {
         type,
         ownerIdl,
       });
-      compareOutUtxos(fromBytesOutUtxo, programOutUtxo);
+      compareOutUtxos(fromBytesOutUtxo, programOutUtxo, lightWasm);
 
       const encryptedBytes = await encryptProgramOutUtxo({
         utxo: programOutUtxo,
@@ -103,7 +104,7 @@ describe("Program Utxo Functional", () => {
         type,
         ownerIdl,
       });
-      compareOutUtxos(decryptedUtxo.value!, programOutUtxo);
+      compareOutUtxos(decryptedUtxo.value!, programOutUtxo, lightWasm);
 
       const asymOutUtxoInputs = {
         ...createOutUtxoInputs,
@@ -144,7 +145,7 @@ describe("Program Utxo Functional", () => {
       }
       decryptedUtxoNacl.value!["encryptionPublicKey"] =
         account.encryptionKeypair.publicKey;
-      compareOutUtxos(decryptedUtxoNacl.value!, asymOutUtxo);
+      compareOutUtxos(decryptedUtxoNacl.value!, asymOutUtxo, lightWasm);
     }
   });
 
@@ -185,6 +186,7 @@ describe("Program Utxo Functional", () => {
     });
     const programUtxoAssetsCircuitInput = stringifyAssetsToCircuitInput(
       programOutUtxo.assets,
+      lightWasm,
     );
     // functional
     assert.equal(programOutUtxo.amounts[0].toString(), amountFee);
@@ -197,11 +199,14 @@ describe("Program Utxo Functional", () => {
     assert.equal(programOutUtxo.assets[1].toBase58(), assetPubkey.toBase58());
     assert.equal(
       programUtxoAssetsCircuitInput[0].toString(),
-      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
+      hashAndTruncateToCircuit(
+        [SystemProgram.programId.toBytes()],
+        lightWasm,
+      ).toString(),
     );
     assert.equal(
       programUtxoAssetsCircuitInput[1].toString(),
-      hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
+      hashAndTruncateToCircuit([assetPubkey.toBytes()], lightWasm).toString(),
     );
     assert.equal(
       programOutUtxo.dataHash.toString(),
@@ -214,11 +219,15 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(
       programOutUtxo.hash.toString(),
-      "3900255133601114289945940646375843533526254833348962507171282032513729686383",
+      "10728499339752724929638383989191231305214495159689622006819820882299484542287",
     );
 
     // toBytes
-    const bytes = await programOutUtxoToBytes(programOutUtxo, assetLookupTable);
+    const bytes = await programOutUtxoToBytes(
+      lightWasm,
+      programOutUtxo,
+      assetLookupTable,
+    );
     // fromBytes
 
     const utxo1 = programOutUtxoFromBytes({
@@ -234,10 +243,12 @@ describe("Program Utxo Functional", () => {
     utxo1.dataHash = lightWasm.poseidonHashBN([data.releaseSlot]);
 
     const programIdCircuitInput = hashAndTruncateToCircuit(
-      utxo1.owner.toBytes(),
+      [Uint8Array.from(utxo1.owner.toBytes())],
+      lightWasm,
     );
 
     const utxoHashInputs = getUtxoHashInputs(
+      lightWasm,
       programIdCircuitInput,
       utxo1.amounts,
       utxo1.assets,
@@ -250,7 +261,7 @@ describe("Program Utxo Functional", () => {
     );
     utxo1.hash = getUtxoHash(lightWasm, utxoHashInputs);
 
-    compareOutUtxos(utxo1, programOutUtxo);
+    compareOutUtxos(utxo1, programOutUtxo, lightWasm);
 
     // encrypt
     const encBytes = await encryptProgramOutUtxo({
@@ -277,10 +288,12 @@ describe("Program Utxo Functional", () => {
 
     if (utxo3.value) {
       const programIdCircuitInput = hashAndTruncateToCircuit(
-        utxo1.owner.toBytes(),
+        [Uint8Array.from(utxo1.owner.toBytes())],
+        lightWasm,
       );
 
       const utxoHashInputs = getUtxoHashInputs(
+        lightWasm,
         programIdCircuitInput,
         utxo3.value.amounts,
         utxo3.value.assets,
@@ -293,7 +306,7 @@ describe("Program Utxo Functional", () => {
       );
       utxo3.value.dataHash = lightWasm.poseidonHashBN([data.releaseSlot]);
       utxo3.value.hash = getUtxoHash(lightWasm, utxoHashInputs);
-      compareOutUtxos(utxo3.value, programOutUtxo);
+      compareOutUtxos(utxo3.value, programOutUtxo, lightWasm);
     } else {
       throw new Error("decrypt failed");
     }
@@ -316,16 +329,19 @@ describe("Program Utxo Functional", () => {
 
     const decryptedUtxoAssetsCircuitInput = stringifyAssetsToCircuitInput(
       decryptedUtxo.value!.assets,
+      lightWasm,
     );
 
     decryptedUtxo.value!.dataHash = lightWasm.poseidonHashBN([
       data.releaseSlot,
     ]);
     const programIdCircuitInput2 = hashAndTruncateToCircuit(
-      utxo1.owner.toBytes(),
+      [Uint8Array.from(utxo1.owner.toBytes())],
+      lightWasm,
     );
 
     const utxoHashInputs2 = getUtxoHashInputs(
+      lightWasm,
       programIdCircuitInput2,
       programOutUtxo.amounts,
       programOutUtxo.assets,
@@ -354,11 +370,14 @@ describe("Program Utxo Functional", () => {
     );
     assert.equal(
       decryptedUtxoAssetsCircuitInput[0].toString(),
-      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()).toString(),
+      hashAndTruncateToCircuit(
+        [SystemProgram.programId.toBytes()],
+        lightWasm,
+      ).toString(),
     );
     assert.equal(
       decryptedUtxoAssetsCircuitInput[1].toString(),
-      hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
+      hashAndTruncateToCircuit([assetPubkey.toBytes()], lightWasm).toString(),
     );
     assert.equal(
       decryptedUtxo.value?.dataHash.toString(),
@@ -373,7 +392,7 @@ describe("Program Utxo Functional", () => {
 
     assert.equal(
       decryptedUtxo.value?.nullifier.toString(),
-      "7348232893700449159949977118836554677452891838957421208915931061103447385461",
+      "7786972114895806034736629010864079797538750920747374242808631971988141286974",
     );
     assert.deepEqual(decryptedUtxo.value?.merkleProof, ["1", "2", "3"]);
     assert.equal(decryptedUtxo.value?.merkleTreeLeafIndex, inputs.index);
@@ -419,7 +438,7 @@ describe("Program Utxo Functional", () => {
       const decryptedProgramUtxo = receivingUtxo1Unchecked.value;
       decryptedProgramUtxo["encryptionPublicKey"] =
         account.encryptionKeypair.publicKey;
-      compareOutUtxos(decryptedProgramUtxo, programOutUtxoNacl);
+      compareOutUtxos(decryptedProgramUtxo, programOutUtxoNacl, lightWasm);
     } else {
       throw new Error("decrypt unchecked failed");
     }

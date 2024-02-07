@@ -458,6 +458,7 @@ export class User {
           amounts,
           owner: recipient.keypair.publicKey,
           encryptionPublicKey: recipient.encryptionKeypair.publicKey,
+          isPublic: false,
         }),
       );
       utxos = [];
@@ -513,7 +514,7 @@ export class User {
       root = fetchedRoot;
       rootIndex = index;
     } else {
-      const res = (await this.provider.rpc!.getMerkleRoot())!;
+      const res = (await this.provider.rpc!.getMerkleRoot(MERKLE_TREE_SET))!;
       root = res.root;
       rootIndex = res.index;
     }
@@ -538,7 +539,6 @@ export class User {
       )!,
       systemProofInputs,
     });
-
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject,
       // TODO: readd remainingMerkleTreeAccounts,
@@ -1005,6 +1005,7 @@ export class User {
         ],
         assetLookupTable: this.provider.lookUpTables.assetLookupTable,
         lightWasm: this.provider.lightWasm,
+        isPublic: false,
       });
     }
 

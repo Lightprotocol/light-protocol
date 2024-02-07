@@ -80,9 +80,9 @@ where
     H: Hasher,
     B: BigInteger,
 {
-    pub(crate) elements: [IndexingElement<B>; ELEMENTS],
-    current_node_index: u16,
-    highest_element_index: u16,
+    pub elements: [IndexingElement<B>; ELEMENTS],
+    pub current_node_index: u16,
+    pub highest_element_index: u16,
 
     _hasher: PhantomData<H>,
 }
@@ -258,7 +258,6 @@ where
         value: B,
     ) -> Result<IndexingElementBundle<B>, HasherError> {
         let old_low_element = &self.elements[usize::from(low_element_index)];
-
         // Check that the `value` belongs to the range of `old_low_element`.
         if old_low_element.next_index == 0 {
             // In this case, the `old_low_element` is the greatest element.
@@ -438,6 +437,14 @@ mod test {
 
     use super::*;
 
+    #[test]
+    fn size_of_indexing_element() {
+        println!(
+            "IndexingArray<Poseidon, BigInteger256, 8> = {}",
+            std::mem::size_of::<IndexingArray<Poseidon, BigInteger256, 2800>>()
+        );
+    }
+
     /// Tests the insertion of elements to the indexing array.
     #[test]
     fn test_append() {
@@ -449,7 +456,6 @@ mod test {
         // ```
         let mut indexing_array: IndexingArray<Poseidon, BigInteger256, 8> =
             IndexingArray::default();
-
         let nullifier1 = BigInteger256::from(30_u32);
         indexing_array.append(nullifier1).unwrap();
 

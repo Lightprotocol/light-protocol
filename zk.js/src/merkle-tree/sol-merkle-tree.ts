@@ -7,15 +7,17 @@ import {
   merkleTreeProgramId,
   MERKLE_TREE_HEIGHT,
   MERKLE_TREE_ROOTS,
-  BN_0,
 } from "../constants";
-import { SolMerkleTreeError, SolMerkleTreeErrorCode } from "../errors";
-import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
+
+import {
+  AccountCompression,
+  IDL_LIGHT_MERKLE_TREE_PROGRAM,
+  LightMerkleTreeProgram,
+} from "../idls";
 import { sleep } from "../utils";
-import { Utxo } from "../utxo";
 
 const ffjavascript = require("ffjavascript");
-const { unstringifyBigInts, beInt2Buff, leInt2Buff } = ffjavascript.utils;
+const { unstringifyBigInts, beInt2Buff } = ffjavascript.utils;
 
 const INDEX_SIZE = 8;
 const ROOT_SIZE = 32;
@@ -168,4 +170,31 @@ export class SolMerkleTree {
       merkleTree: builtMerkleTree,
     });
   }
+}
+
+export async function getRootIndex(
+  merkleTreeProgram:
+    | Program<AccountCompression>
+    | Program<LightMerkleTreeProgram>,
+  merkleTreePublicKey: PublicKey,
+  root: string,
+  accountName: string = "merkleTreeSet",
+) {
+  const rootBytes = new BN(root).toArray("be", 32);
+  const merkleTreeSetData = await merkleTreeProgram.account[accountName].fetch(
+    merkleTreePublicKey,
+    "confirmed",
+  );
+  const stateMerkleTree = serializeOnchainMerkleTree(
+    merkleTreeSetData.stateMerkleTree,
+  );
+  let rootIndex: BN | undefined;
+
+  stateMerkleTree.roots.map((x: any, index: any) => {
+    if (x.toString() === rootBytes.toString()) {
+      rootIndex = new BN(index.toString());
+    }
+  });
+
+  return rootIndex;
 }

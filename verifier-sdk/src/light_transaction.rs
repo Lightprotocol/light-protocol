@@ -36,6 +36,7 @@ use crate::{
     errors::VerifierSdkError,
     state::TransactionIndexerEventV1,
     utils::close_account::close_account,
+    utxo::hash_and_truncate_to_circuit,
 };
 pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 
@@ -64,6 +65,7 @@ pub struct Transaction<
     pub mint_pubkey: [u8; 32],
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Message<'a> {
     pub content: &'a Vec<u8>,
     pub hash: [u8; 32],
@@ -75,7 +77,7 @@ impl<'a> Message<'a> {
         Message { hash, content }
     }
 }
-
+#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
 pub struct ProofCompressed {
     pub a: [u8; 32],
     pub b: [u8; 64],
@@ -197,7 +199,13 @@ impl<
 
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("pre load MerkleTreeSet");
-        let merkle_tree_set = self.input.ctx.accounts.get_merkle_tree_set().load()?;
+        let merkle_tree_set = self
+            .input
+            .ctx
+            .accounts
+            .get_merkle_tree_set()
+            .unwrap()
+            .load()?;
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("post load MerkleTreeSet");
 
@@ -230,12 +238,6 @@ impl<
         emit_indexer_event(
             transaction_data_event.try_to_vec()?,
             &self.input.ctx.accounts.get_log_wrapper().to_account_info(),
-            &self
-                .input
-                .ctx
-                .accounts
-                .get_merkle_tree_set()
-                .to_account_info(),
         )?;
 
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
@@ -312,6 +314,7 @@ impl<
                 .ctx
                 .accounts
                 .get_merkle_tree_set()
+                .unwrap()
                 .to_account_info(),
             &self
                 .input
@@ -420,12 +423,12 @@ impl<
             None => [0u8; 32],
         };
         let recipient_spl = match self.input.ctx.accounts.get_recipient_spl().as_ref() {
-            Some(recipient_spl) => recipient_spl.key().to_bytes(),
-            None => [0u8; 32],
+            Some(recipient_spl) => recipient_spl.key().to_bytes().to_vec(),
+            None => Vec::new(),
         };
         let tx_integrity_hash = hashv(&[
             &message_hash,
-            &recipient_spl,
+            &recipient_spl[..],
             &self
                 .input
                 .ctx
@@ -445,6 +448,8 @@ impl<
             &self.input.rpc_fee.to_be_bytes(),
             self.input.encrypted_utxos,
         ]);
+        // #[cfg(all(target_os = "solana", feature = "custom-heap"))]
+        // let pos = custom_heap::get_heap_pos();
         // msg!("message_hash: {:?}", message_hash.to_vec());
         // msg!("recipient_spl: {:?}", recipient_spl.to_vec());
         // msg!(
@@ -469,14 +474,13 @@ impl<
         //         .to_bytes()
         //         .to_vec()
         // );
-        // msg!(
-        //     "rpc_fee: {:?}",
-        //     self.input.rpc_fee.to_be_bytes().to_vec()
-        // );
+        // msg!("rpc_fee: {:?}", self.input.rpc_fee.to_be_bytes().to_vec());
         // msg!("rpc_fee {}", self.input.rpc_fee);
         // msg!("encrypted_utxos: {:?}", self.input.encrypted_utxos);
-
+        // #[cfg(all(target_os = "solana", feature = "custom-heap"))]
+        // custom_heap::free_heap(pos);
         self.tx_integrity_hash = truncate_to_circuit(&tx_integrity_hash.to_bytes());
+        // msg!("self.tx_integrity_hash {:?}", self.tx_integrity_hash);
         Ok(())
     }
 
@@ -484,7 +488,13 @@ impl<
     pub fn fetch_root(&mut self) -> Result<()> {
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("pre load MerkleTreeSet");
-        let merkle_tree_set = self.input.ctx.accounts.get_merkle_tree_set().load()?;
+        let merkle_tree_set = self
+            .input
+            .ctx
+            .accounts
+            .get_merkle_tree_set()
+            .unwrap()
+            .load()?;
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("post load MerkleTreeSet");
 
@@ -514,13 +524,17 @@ impl<
                         if self.input.public_amount.spl[24..32] == vec![0u8; 8] {
                             self.mint_pubkey = [0u8; 32];
                         } else {
-                            self.mint_pubkey = [
-                                vec![0u8],
-                                hash(&sender_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
-                            ]
-                            .concat()
-                            .try_into()
-                            .unwrap();
+                            self.mint_pubkey = hash_and_truncate_to_circuit(&[sender_spl
+                                .mint
+                                .to_bytes()
+                                .as_slice()])
+                            // [
+                            //     vec![0u8],
+                            //     hash(&sender_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
+                            // ]
+                            // .concat()
+                            // .try_into()
+                            // .unwrap();
                         }
 
                         Ok(())
@@ -577,12 +591,7 @@ impl<
                 .ctx
                 .accounts
                 .get_merkle_tree_set()
-                .to_account_info(),
-            &self
-                .input
-                .ctx
-                .accounts
-                .get_system_program()
+                .unwrap()
                 .to_account_info(),
             &self
                 .input
@@ -664,11 +673,13 @@ impl<
             )?;
 
             // check mint
-            if self.mint_pubkey[1..] != hash(&recipient_spl.mint.to_bytes()).try_to_vec()?[1..] {
+            if self.mint_pubkey
+                != hash_and_truncate_to_circuit(&[recipient_spl.mint.to_bytes().as_slice()])
+            {
                 msg!(
-                    "*self.mint_pubkey[..31] {:?}, {:?}, recipient_spl mint",
-                    self.mint_pubkey[1..].to_vec(),
-                    hash(&recipient_spl.mint.to_bytes()).try_to_vec()?[1..].to_vec()
+                    "*self.mint_pubkey {:?}, {:?}, recipient_spl mint",
+                    self.mint_pubkey.to_vec(),
+                    hash_and_truncate_to_circuit(&[recipient_spl.mint.to_bytes().as_slice()])
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }

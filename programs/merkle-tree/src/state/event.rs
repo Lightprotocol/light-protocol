@@ -99,11 +99,7 @@ impl ChangelogEventV1 {
     }
 }
 
-pub fn emit_indexer_event<'info>(
-    data: Vec<u8>,
-    noop_program: &AccountInfo<'info>,
-    signer: &AccountInfo<'info>,
-) -> Result<()> {
+pub fn emit_indexer_event(data: Vec<u8>, noop_program: &AccountInfo) -> Result<()> {
     if noop_program.key() != NOOP_PROGRAM_ID {
         return err!(ErrorCode::InvalidNoopPubkey);
     }
@@ -112,10 +108,7 @@ pub fn emit_indexer_event<'info>(
         accounts: vec![],
         data,
     };
-    invoke(
-        &instruction,
-        &[noop_program.to_account_info(), signer.to_account_info()],
-    )?;
+    invoke(&instruction, &[noop_program.to_account_info()])?;
     Ok(())
 }
 

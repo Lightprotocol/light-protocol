@@ -61,6 +61,7 @@ describe("Prover Functionality Tests", () => {
       ],
       owner: account.keypair.publicKey,
       blinding: new anchor.BN(new Array(31).fill(1)),
+      isPublic: false,
     });
     const compressTransactionInput: CompressTransactionInput = {
       lightWasm,

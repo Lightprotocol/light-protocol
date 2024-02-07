@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::hash::hash;
 pub mod psp_accounts;
 pub use psp_accounts::*;
 pub mod auto_generated_accounts;
@@ -41,8 +40,8 @@ pub mod streaming_payments {
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
 
-        let mut program_id_hash = hash(&ctx.program_id.to_bytes()).to_bytes();
-        program_id_hash[0] = 0;
+        let program_id_hash =
+            light_verifier_sdk::utxo::hash_and_truncate_to_circuit(&[&ctx.program_id.to_bytes()]);
 
         let mut verifier_state = ctx.accounts.verifier_state.load_init()?;
         verifier_state.signer = *ctx.accounts.signing_address.key;

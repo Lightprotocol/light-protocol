@@ -1,19 +1,12 @@
-export * from "./create-accounts";
-export * from "./test-checks";
-export * from "./init-lookuptable";
-export * from "./constants-marketplace";
-export * from "./functional-circuit";
-export * from "./constants-system-verifier";
-export * from "./test-rpc";
-export * from "./user-test-assert-helper";
-export * from "./test-transaction";
 export * from "./airdrop";
-
-export function generateRandomTestAmount(
-  min: number = 0.2,
-  max: number = 2,
-  decimals: number,
-): number {
-  const randomAmount = Math.random() * (max - min) + min;
-  return +randomAmount.toFixed(decimals);
-}
+export * from "./constants-marketplace";
+export * from "./constants-system-verifier";
+export * from "./create-accounts";
+export * from "./create-random-test-amount";
+export * from "./functional-circuit";
+export * from "./init-lookuptable";
+export * from "./public-test-rpc";
+export * from "./test-checks";
+export * from "./test-rpc";
+export * from "./test-transaction";
+export * from "./user-test-assert-helper";

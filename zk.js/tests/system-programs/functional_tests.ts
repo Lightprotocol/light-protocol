@@ -191,6 +191,7 @@ describe("verifier_program", () => {
       owner: new anchor.BN(inputUtxos[0].owner),
       assets: inputUtxos[0].assets,
       amounts: [BN_0, inputUtxos[0].amounts[1]],
+      isPublic: false,
     });
 
     await performDecompress({
@@ -261,12 +262,14 @@ describe("verifier_program", () => {
             new anchor.BN(compressAmount),
           ],
           owner: ACCOUNT.keypair.publicKey,
+          isPublic: false,
         })
       : createOutUtxo({
           lightWasm: WASM,
           amounts: [new anchor.BN(compressFeeAmount)],
           owner: ACCOUNT.keypair.publicKey,
           assets: [FEE_ASSET],
+          isPublic: false,
         });
 
     const compressTransactionInput: CompressTransactionInput = {
@@ -299,12 +302,13 @@ describe("verifier_program", () => {
       verifierIdl,
       systemProofInputs,
     });
+
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject as any,
     );
     const accounts = prepareAccounts({
       transactionAccounts: compressTransaction.public.accounts,
-      eventMerkleTreePubkey: MERKLE_TREE_SET,
+      merkleTreeSet: MERKLE_TREE_SET,
     });
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({
@@ -376,7 +380,7 @@ describe("verifier_program", () => {
       index: rootIndex,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [decompressUtxo],
-      merkleTreePublicKey: MERKLE_TREE_SET,
+      merkleTreeSet: MERKLE_TREE_SET,
       rpc: RPC,
     });
     // Running into memory issues with verifier one (10in2out) decompressing spl
@@ -412,7 +416,6 @@ describe("verifier_program", () => {
       verifierIdl,
       systemProofInputs,
     });
-
     const remainingSolanaAccounts = getSolanaRemainingAccounts(
       systemProof.parsedPublicInputsObject as any,
     );

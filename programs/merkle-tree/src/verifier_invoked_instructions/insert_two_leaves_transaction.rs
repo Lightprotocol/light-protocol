@@ -17,7 +17,6 @@ pub struct InsertTwoLeaves<'info> {
     pub authority: Signer<'info>,
     #[account(mut)]
     pub merkle_tree_set: AccountLoader<'info, MerkleTreeSet>,
-    pub system_program: Program<'info, System>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     /// CHECK: It's checked in `emit_indexer_event`.
@@ -53,11 +52,7 @@ pub fn process_insert_two_leaves<'info, 'a>(
             &changelog_entries,
             state_merkle_tree.sequence_number,
         )?);
-        emit_indexer_event(
-            changelog_event.try_to_vec()?,
-            &ctx.accounts.log_wrapper,
-            &ctx.accounts.authority,
-        )?;
+        emit_indexer_event(changelog_event.try_to_vec()?, &ctx.accounts.log_wrapper)?;
     }
 
     Ok(())

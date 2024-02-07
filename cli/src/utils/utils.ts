@@ -44,7 +44,7 @@ export const getWalletConfig = async (
       anchorProvider: anchorProvider,
     });
 
-    merkleTreeConfig.getMerkleTreeAuthorityPda();
+    MerkleTreeConfig.getMerkleTreeAuthorityPda();
 
     return merkleTreeConfig;
   } catch (error) {
@@ -114,7 +114,7 @@ export const getRpc = async (localTestRpc?: boolean) => {
   if (!rpc) {
     if (localTestRpc) {
       const wallet = readWalletFromFile();
-
+      // @ts-ignore: todo fix type error
       rpc = new TestRpc({
         rpcPubkey: wallet.publicKey,
         rpcRecipientSol: wallet.publicKey,

@@ -181,7 +181,10 @@ export class Rpc {
     );
   }
 
-  async getMerkleRoot(): Promise<{ root: string; index: number } | undefined> {
+  async getMerkleRoot(
+    /// For signature compatibility with TestRpc
+    _merkleTreePubkey?: PublicKey,
+  ): Promise<{ root: string; index: number } | undefined> {
     throw new RpcError(
       RpcErrorCode.RPC_METHOD_NOT_IMPLEMENTED,
       "getMerkleRoot",

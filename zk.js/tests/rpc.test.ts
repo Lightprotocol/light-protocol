@@ -9,7 +9,6 @@ import {
   Action,
   BN_0,
   BN_1,
-  MerkleTreeConfig,
   MERKLE_TREE_SET,
   ParsedIndexedTransaction,
   RPC_FEE,
@@ -19,18 +18,18 @@ import {
   SolMerkleTree,
   TOKEN_ACCOUNT_FEE,
   TestRpc,
-  Utxo,
   VerifierConfig,
   confirmConfig,
   createOutUtxo,
   createRpcIndexedTransactionResponse,
   encryptOutUtxos,
-  getIdsFromEncryptedUtxos,
   Account,
 } from "../src";
+
 import { WasmFactory } from "@lightprotocol/account.rs";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { getIdsFromEncryptedUtxos } from "../src/utxo/parse-utxo";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -130,12 +129,14 @@ describe("Test Rpc Errors", () => {
       assets: [mockKeypair.publicKey],
       owner: account.keypair.publicKey,
       lightWasm: WASM,
+      isPublic: false,
     });
     const utxo2 = createOutUtxo({
       amounts: [new BN(2)],
       assets: [mockKeypair.publicKey],
       owner: account.keypair.publicKey,
       lightWasm: WASM,
+      isPublic: false,
     });
     const verifierConfig: VerifierConfig = {
       in: 2,
@@ -169,12 +170,14 @@ describe("Test Rpc Errors", () => {
       assets: [mockKeypair.publicKey],
       owner: account.keypair.publicKey,
       lightWasm: WASM,
+      isPublic: false,
     });
     const utxo2 = createOutUtxo({
       amounts: [new BN(2)],
       assets: [mockKeypair.publicKey],
       owner: account.keypair.publicKey,
       lightWasm: WASM,
+      isPublic: false,
     });
     const verifierConfig: VerifierConfig = {
       in: 2,

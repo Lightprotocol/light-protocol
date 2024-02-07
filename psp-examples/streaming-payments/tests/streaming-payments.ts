@@ -6,7 +6,6 @@ import {
   confirmConfig,
   IDL_LIGHT_PSP4IN4OUT_APP_STORAGE,
   MERKLE_TREE_SET,
-  MerkleTreeConfig,
   ProgramUtxoBalance,
   Provider as LightProvider,
   TestRpc,
@@ -62,7 +61,7 @@ describe("Streaming Payments tests", () => {
     WASM = await WasmFactory.getInstance();
   });
 
-  it("Create and Spend Program Utxo for one user", async () => {
+  it.only("Create and Spend Program Utxo for one user", async () => {
     await createAndSpendProgramUtxo(users[0].wallet, users[0].rpcRecipientSol);
   });
 
@@ -134,7 +133,7 @@ describe("Streaming Payments tests", () => {
       .tokenBalances.get(testInputsCompress.utxo.assets[0].toBase58())
       .utxos.get(compressedUtxoCommitmentHash.toString());
 
-    compareOutUtxos(inputUtxo!, testInputsCompress.utxo);
+    compareOutUtxos(inputUtxo!, testInputsCompress.utxo, WASM);
     const circuitPath = path.join(
       "build-circuit/streaming-payments/streamingPayments",
     );

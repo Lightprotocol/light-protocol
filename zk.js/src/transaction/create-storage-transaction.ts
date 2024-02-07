@@ -286,7 +286,7 @@ export async function proveAndCreateInstructions({
     root = fetchedRoot;
     rootIndex = index;
   } else {
-    const res = (await rpc.getMerkleRoot())!;
+    const res = (await rpc.getMerkleRoot(MERKLE_TREE_SET))!;
     root = res.root;
     rootIndex = res.index;
   }
