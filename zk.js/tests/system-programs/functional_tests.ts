@@ -285,7 +285,7 @@ describe("verifier_program", () => {
       compressTransactionInput,
     );
     const { root, index: rootIndex } =
-      (await RPC.getMerkleRoot(MERKLE_TREE_SET))!;
+      (await RPC.getMerkleRoot())!;
 
     const systemProofInputs = createSystemProofInputs({
       root,
@@ -304,7 +304,7 @@ describe("verifier_program", () => {
     );
     const accounts = prepareAccounts({
       transactionAccounts: compressTransaction.public.accounts,
-      eventMerkleTreePubkey: MERKLE_TREE_SET,
+      signer: ADMIN_AUTH_KEYPAIR,
     });
     // createSolanaInstructionsWithAccounts
     const instructions = await createSolanaInstructions({
@@ -376,7 +376,6 @@ describe("verifier_program", () => {
       index: rootIndex,
     } = await syncInputUtxosMerkleProofs({
       inputUtxos: [decompressUtxo],
-      merkleTreePublicKey: MERKLE_TREE_SET,
       rpc: RPC,
     });
     // Running into memory issues with verifier one (10in2out) decompressing spl

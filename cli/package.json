@@ -16,7 +16,7 @@
     "/oclif.manifest.json"
   ],
   "dependencies": {
-    "@coral-xyz/anchor": "0.28.0",
+    "@coral-xyz/anchor": "0.29.0",
     "@lightprotocol/zk.js": "workspace:*",
     "@lightprotocol/account.rs": "workspace:*",
     "@oclif/core": "^2.15",

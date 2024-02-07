@@ -14,17 +14,18 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
+# idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 default = ["custom-heap", "memory-test"]
 custom-heap = []
 memory-test = []
 
 [dependencies]
-anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
-anchor-spl = "0.28.0"
+anchor-lang = { version = "0.29.0", features = ["init-if-needed"] }
+anchor-spl = "0.29.0"
 
 # Light deps
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
-groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
+groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana", branch = "anchor-0.29" }
 
 light-macros = { version = "0.3.1", path = "../../macros/light" }
 light-merkle-tree-program = { version = "0.3.1", path = "../merkle-tree", features = ["cpi"] }

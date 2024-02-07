@@ -1,6 +1,7 @@
 use std::mem;
 
-use light_merkle_tree_program::state::{EventMerkleTree, MerkleTreeSet, StateMerkleTree};
+use light_merkle_tree_program::state::MerkleTreeSet;
+use light_merkle_tree_state::{EventMerkleTree, StateMerkleTree};
 use tabled::{Table, Tabled};
 
 #[derive(Tabled)]

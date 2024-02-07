@@ -6,6 +6,7 @@ use anchor_lang::{
         program_pack::Pack,
         sysvar,
     },
+    Bumps,
 };
 use anchor_spl::token::Transfer;
 use ark_bn254::FrParameters;
@@ -19,12 +20,12 @@ use light_macros::heap_neutral;
 use light_merkle_tree_program::{
     emit_indexer_event,
     program::LightMerkleTreeProgram,
-    state_merkle_tree_from_bytes,
     utils::{
         accounts::create_and_check_pda,
         constants::{POOL_CONFIG_SEED, POOL_SEED},
     },
 };
+use light_merkle_tree_state::state_merkle_tree_from_bytes;
 use light_utils::{change_endianness, truncate_to_circuit};
 
 use crate::{
@@ -54,7 +55,7 @@ pub struct Transaction<
     const NR_LEAVES: usize,
     const NR_NULLIFIERS: usize,
     const NR_PUBLIC_INPUTS: usize,
-    A: LightAccounts<'info>,
+    A: LightAccounts<'info> + Bumps,
 > {
     // Client input.
     pub input: TransactionInput<'a, 'b, 'c, 'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, A>,
@@ -102,7 +103,7 @@ pub struct TransactionInput<
     const NR_CHECKED_INPUTS: usize,
     const NR_LEAVES: usize,
     const NR_NULLIFIERS: usize,
-    A: LightAccounts<'info>,
+    A: LightAccounts<'info> + Bumps,
 > {
     pub ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     pub proof: &'a ProofCompressed,
@@ -127,7 +128,7 @@ impl<
         const NR_LEAVES: usize,
         const NR_NULLIFIERS: usize,
         const NR_PUBLIC_INPUTS: usize,
-        A: LightAccounts<'info>,
+        A: LightAccounts<'info> + Bumps,
     >
     Transaction<'a, 'b, 'c, 'info, NR_CHECKED_INPUTS, NR_LEAVES, NR_NULLIFIERS, NR_PUBLIC_INPUTS, A>
 {

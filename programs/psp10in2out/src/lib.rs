@@ -22,6 +22,10 @@ declare_id!("J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc");
 #[constant]
 pub const PROGRAM_ID: &str = "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc";
 
+const NR_CHECKED_INPUTS: usize = 0;
+const NR_LEAVES: usize = 2;
+const NR_NULLIFIERS: usize = 10;
+
 #[derive(Clone)]
 pub struct TransactionConfig;
 impl Config for TransactionConfig {
@@ -42,7 +46,7 @@ pub mod light_psp10in2out {
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the verification and
     /// protocol logicin the second transaction.
     pub fn compressed_transfer_first<'info>(
-        ctx: Context<'_, '_, '_, 'info, LightInstructionFirst<'info, 0, 2, 10>>,
+        ctx: Context<'_, '_, '_, 'info, LightInstructionFirst<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataCompressedTransferFirst =
@@ -85,7 +89,7 @@ pub mod light_psp10in2out {
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
     pub fn compressed_transfer_second<'info>(
-        ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info, 0, 2, 10>>,
+        ctx: Context<'_, '_, '_, 'info, LightInstructionSecond<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs: InstructionDataCompressedTransferSecond =
@@ -137,8 +141,7 @@ pub mod light_psp10in2out {
             checked_public_inputs: &[],
             verifyingkey: &VERIFYINGKEY_PRIVATE_TRANSACTION10_IN2_OUT_MAIN,
         };
-        let mut tx =
-            Transaction::<0, 2, 10, 36, LightInstructionSecond<'info, 0, 2, 10>>::new(input);
+        let mut tx = Transaction::<0, 2, 10, 36, LightInstructionSecond<'info>>::new(input);
         tx.transact()?;
 
         #[cfg(all(feature = "memory-test", target_os = "solana"))]
@@ -154,7 +157,7 @@ pub mod light_psp10in2out {
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
     pub fn close_verifier_state<'info>(
-        _ctx: Context<'_, '_, '_, 'info, CloseVerifierState<'info, 0, 2, 10>>,
+        _ctx: Context<'_, '_, '_, 'info, CloseVerifierState<'info>>,
     ) -> Result<()> {
         Ok(())
     }
@@ -162,12 +165,7 @@ pub mod light_psp10in2out {
 
 /// Send and stores data.
 #[derive(Accounts)]
-pub struct LightInstructionFirst<
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
-> {
+pub struct LightInstructionFirst<'info> {
     /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
@@ -207,12 +205,7 @@ pub struct InstructionDataCompressedTransferFirst {
     signing_address=verifier_state.signer
 )]
 #[derive(Accounts)]
-pub struct LightInstructionSecond<
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
-> {
+pub struct LightInstructionSecond<'info> {
     #[account(
         mut,
         seeds = [
@@ -237,12 +230,7 @@ pub struct InstructionDataCompressedTransferSecond {
 }
 
 #[derive(Accounts)]
-pub struct CloseVerifierState<
-    'info,
-    const NR_CHECKED_INPUTS: usize,
-    const NR_LEAVES: usize,
-    const NR_NULLIFIERS: usize,
-> {
+pub struct CloseVerifierState<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]

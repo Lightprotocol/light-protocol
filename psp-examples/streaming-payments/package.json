@@ -8,7 +8,7 @@
     "build": "../../cli/test_bin/run psp:build streaming-payments --ptau=15"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "0.28.0",
+    "@coral-xyz/anchor": "0.29.0",
     "@lightprotocol/circuit-lib.circom": "workspace:*",
     "@lightprotocol/circuit-lib.js": "workspace:*",
     "@lightprotocol/account.rs": "workspace:*",

@@ -55,8 +55,8 @@
   "author": "ananas-block",
   "license": "GPL-3.0",
   "dependencies": {
-    "@coral-xyz/anchor": "0.28.0",
-    "@coral-xyz/borsh": "0.28.0",
+    "@coral-xyz/anchor": "0.29.0",
+    "@coral-xyz/borsh": "0.29.0",
     "@lightprotocol/account.rs": "workspace:*",
     "@lightprotocol/circuit-lib.js": "workspace:*",
     "@lightprotocol/prover.js": "workspace:*",

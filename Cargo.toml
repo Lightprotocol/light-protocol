@@ -6,6 +6,7 @@ members = [
     "macros/light",
     "merkle-tree/*",
     "programs/*",
+    "state/*",
     "utils",
     "verifier-sdk",
     "xtask",

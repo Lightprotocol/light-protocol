@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { ACCOUNT_DISCRIMINATOR_SIZE, BN, Program } from "@coral-xyz/anchor";
+import { DISCRIMINATOR_SIZE, BN, Program } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
@@ -99,7 +99,7 @@ export const DEFAULT_UTXO_TYPE = "native";
 export const UTXO_VERSION_V0 = "0";
 export const UTXO_POOL_TYPE_V0 = "0";
 
-export const COMPRESSED_UTXO_BYTES_LENGTH = 96 + ACCOUNT_DISCRIMINATOR_SIZE;
+export const COMPRESSED_UTXO_BYTES_LENGTH = 96 + DISCRIMINATOR_SIZE;
 export const ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH =
   COMPRESSED_UTXO_BYTES_LENGTH + 16;
 export const NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH =

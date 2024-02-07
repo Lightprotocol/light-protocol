@@ -1,9 +1,7 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_merkle_tree_state::state_merkle_tree_from_bytes_mut;
 
-use crate::{
-    emit_indexer_event, state::MerkleTreeSet, state_merkle_tree_from_bytes_mut, ChangelogEvent,
-    ChangelogEventV1, RegisteredVerifier,
-};
+use crate::{emit_indexer_event, state::MerkleTreeSet, ChangelogEventV1, RegisteredVerifier};
 
 #[derive(Accounts)]
 pub struct InsertTwoLeaves<'info> {
@@ -48,11 +46,11 @@ pub fn process_insert_two_leaves<'info, 'a>(
         // Insert the pair into the merkle tree
         let changelog_entries = state_merkle_tree.append_batch(&[leaf_left, leaf_right])?;
 
-        let changelog_event = ChangelogEvent::V1(ChangelogEventV1::new(
+        let changelog_event = ChangelogEventV1::new(
             ctx.accounts.merkle_tree_set.key(),
             &changelog_entries,
             state_merkle_tree.sequence_number,
-        )?);
+        )?;
         emit_indexer_event(
             changelog_event.try_to_vec()?,
             &ctx.accounts.log_wrapper,

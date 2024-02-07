@@ -14,7 +14,7 @@
     "cypress:run": "cypress run"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "0.28.0",
+    "@coral-xyz/anchor": "0.29.0",
     "@emotion/react": "^11.11.1",
     "@lightprotocol/zk.js": "workspace:*",
     "@mantine/core": "^7.1.5",

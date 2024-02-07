@@ -7,7 +7,7 @@
     "test": "../../cli/test_bin/run test-validator -b && pnpm ts-mocha ./tests/encrypted-messaging.ts -t 100000 --exit"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "0.28.0",
+    "@coral-xyz/anchor": "0.29.0",
     "@lightprotocol/zk.js": "workspace:*",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7"

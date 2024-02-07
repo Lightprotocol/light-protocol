@@ -70,13 +70,13 @@ export class TestTransaction {
         "",
       );
 
-    if (this.accounts.recipientSpl) {
+    if (this.accounts.publicKeys.recipientSpl) {
       try {
         this.testValues.recipientBalancePriorTx = new BN(
           (
             await getAccount(
               this.provider.provider.connection,
-              this.accounts.recipientSpl,
+              this.accounts.publicKeys.recipientSpl,
             )
           ).amount.toString(),
         );
@@ -85,7 +85,7 @@ export class TestTransaction {
         try {
           this.testValues.recipientBalancePriorTx = new BN(
             await this.provider.provider.connection.getBalance(
-              this.accounts.recipientSpl,
+              this.accounts.publicKeys.recipientSpl,
             ),
           );
         } catch (_) {
@@ -96,26 +96,26 @@ export class TestTransaction {
 
     this.testValues.recipientFeeBalancePriorTx = new BN(
       await this.provider.provider.connection.getBalance(
-        this.accounts.recipientSol,
+        this.accounts.publicKeys.recipientSol,
       ),
     );
     if (this.action === "COMPRESS") {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
-          this.accounts.signingAddress,
+          this.accounts.publicKeys.signingAddress,
         ),
       );
     } else {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
-          this.accounts.senderSol,
+          this.accounts.publicKeys.senderSol,
         ),
       );
     }
 
     this.testValues.rpcRecipientAccountBalancePriorLastTx = new BN(
       await this.provider.provider.connection.getBalance(
-        this.accounts.rpcRecipientSol,
+        this.accounts.publicKeys.rpcRecipientSol,
       ),
     );
   }
@@ -132,11 +132,11 @@ export class TestTransaction {
         "",
       );
 
-    if (!this.accounts.senderSol) {
+    if (!this.accounts.publicKeys.senderSol) {
       throw new Error("accounts.senderSol undefined");
     }
 
-    if (!this.accounts.recipientSol) {
+    if (!this.accounts.publicKeys.recipientSol) {
       throw new Error("accounts.recipientSol undefined");
     }
 
@@ -177,10 +177,10 @@ export class TestTransaction {
 
     this.testValues.is_token =
       new BN(proofInput.publicAmountSpl).toString() !== "0";
-    if (this.testValues.is_token && !this.accounts.senderSpl) {
+    if (this.testValues.is_token && !this.accounts.publicKeys.senderSpl) {
       throw new Error("accounts.senderSpl undefined");
     }
-    if (this.testValues.is_token && !this.accounts.recipientSpl) {
+    if (this.testValues.is_token && !this.accounts.publicKeys.recipientSpl) {
       throw new Error("accounts.recipientSpl undefined");
     }
     if (this.testValues.is_token && !this.testValues.recipientBalancePriorTx) {
@@ -219,13 +219,13 @@ export class TestTransaction {
     if (this.action == "COMPRESS" && !this.testValues.is_token) {
       const recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.accounts.recipientSol,
+          this.accounts.publicKeys.recipientSol,
           "confirmed",
         );
 
       const senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.accounts.signingAddress,
+          this.accounts.publicKeys.signingAddress,
           "confirmed",
         );
       assert.equal(
@@ -244,11 +244,11 @@ export class TestTransaction {
     } else if (this.action == "COMPRESS" && this.testValues.is_token) {
       const recipientAccount = await getAccount(
         this.provider.provider.connection,
-        this.accounts.recipientSpl!,
+        this.accounts.publicKeys.recipientSpl!,
       );
       const recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.accounts.recipientSol,
+          this.accounts.publicKeys.recipientSol,
         );
       assert.equal(
         recipientAccount.amount.toString(),
@@ -258,11 +258,11 @@ export class TestTransaction {
         ).toString(),
         "amount not transferred correctly",
       );
-      if (!this.accounts.signingAddress)
+      if (!this.accounts.publicKeys.signingAddress)
         throw new Error("Signing address undefined");
       const senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.accounts.signingAddress,
+          this.accounts.publicKeys.signingAddress,
           "confirmed",
         );
       assert.equal(
@@ -280,13 +280,13 @@ export class TestTransaction {
       );
     } else if (this.action == "DECOMPRESS" && !this.testValues.is_token) {
       const rpcAccount = await this.provider.provider.connection.getBalance(
-        this.accounts.rpcRecipientSol,
+        this.accounts.publicKeys.rpcRecipientSol,
         "confirmed",
       );
 
       const recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
-          this.accounts.recipientSol,
+          this.accounts.publicKeys.recipientSol,
           "confirmed",
         );
 
@@ -309,12 +309,12 @@ export class TestTransaction {
     } else if (this.action == "DECOMPRESS" && this.testValues.is_token) {
       await getAccount(
         this.provider.provider.connection,
-        this.accounts.senderSpl!,
+        this.accounts.publicKeys.senderSpl!,
       );
 
       const recipientAccount = await getAccount(
         this.provider.provider.connection,
-        this.accounts.recipientSpl!,
+        this.accounts.publicKeys.recipientSpl!,
       );
 
       assert.equal(
@@ -330,13 +330,13 @@ export class TestTransaction {
       );
 
       const rpcAccount = await this.provider.provider.connection.getBalance(
-        this.accounts.rpcRecipientSol,
+        this.accounts.publicKeys.rpcRecipientSol,
         "confirmed",
       );
 
       const recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
-          this.accounts.recipientSol,
+          this.accounts.publicKeys.recipientSol,
           "confirmed",
         );
 

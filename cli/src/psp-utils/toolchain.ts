@@ -11,7 +11,7 @@ import { MACRO_CIRCOM_TAG } from "./constants";
 const defaultCargoGeneratePath = "../../bin/cargo-generate";
 const defaultCircomPath = "../../bin/circom";
 const defaultMacroCircomPath = "../../bin/macro-circom";
-const defaultAnchorPath = "../../bin/light-anchor";
+const defaultAnchorPath = "../../bin/anchor";
 const defaultSolanaPath = "../../bin/solana";
 
 /**
@@ -103,7 +103,7 @@ const anchorPath = createPathFunction({
   envVarName: "LIGHT_PROTOCOL_ANCHOR_PATH",
   defaultPath: defaultAnchorPath,
   downloadFunction: downloadLightBinIfNotExists,
-  downloadParams: { repoName: "anchor", remoteFileName: "light-anchor" },
+  downloadParams: { repoName: "anchor", remoteFileName: "anchor" },
 });
 
 /**

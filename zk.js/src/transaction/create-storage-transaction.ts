@@ -319,7 +319,7 @@ export async function proveAndCreateInstructions({
     transactionAccounts: transaction.public.accounts,
     merkleTreeSet: MERKLE_TREE_SET,
     rpcRecipientSol: rpc.accounts.rpcRecipientSol,
-    signer: transaction.public.accounts.rpcPublicKey,
+    signer: account.keypair,
   });
 
   const instructions = await createSolanaInstructions({

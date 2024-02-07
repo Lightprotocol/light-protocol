@@ -4,6 +4,7 @@ import {
   createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
 import {
+    Keypair,
   PublicKey,
   SystemProgram,
   TransactionInstruction,
@@ -236,24 +237,25 @@ export async function createSolanaInstructions({
    * - this transaction needs to be signed by the owner of the associated token account? has it?
    */
   if (instructionInputs.ataCreationFee) {
-    if (!accounts.recipientSpl)
+    if (!accounts.publicKeys.recipientSpl)
       throw new TransactionError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getInstructions",
         "Probably sth in the associated token address generation went wrong",
       );
-    if (!accounts.recipientSol)
+    if (!accounts.publicKeys.recipientSol)
       throw new TransactionError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getInstructions",
         "Probably sth in the associated token address generation went wrong",
       );
     const ix = createAssociatedTokenAccountInstruction(
-      accounts.signingAddress,
-      accounts.recipientSpl,
-      accounts.recipientSol,
+      accounts.publicKeys.signingAddress,
+      accounts.publicKeys.recipientSpl,
+      accounts.publicKeys.recipientSol,
       MINT,
     );
+    console.error("MINT IX:", ix);
     instructions.push(ix);
   }
 
@@ -279,9 +281,9 @@ export async function createSolanaInstructions({
     const method = verifierProgram.methods[
       methodName as keyof typeof verifierProgram.methods
     ](inputsVec).accounts({
-      ...accounts,
+      ...accounts.publicKeys,
       ...appAccounts,
-    });
+    }).signers([accounts.signer]);
 
     // Check if it's the last iteration
     if (i === instructionNames.length - 1) {
@@ -293,6 +295,7 @@ export async function createSolanaInstructions({
 
     const ix = await method.instruction();
 
+    console.error("i:", i, "IX:", ix);
     instructions.push(ix);
   }
   return instructions;
@@ -301,9 +304,11 @@ export async function createSolanaInstructions({
 // pspProof, systemProof,pspTransactionInput, txParams
 export async function sendAndConfirmCompressTransaction({
   provider,
+  signer,
   solanaTransactionInputs,
 }: {
   provider: Provider;
+  signer: Keypair;
   solanaTransactionInputs: SolanaTransactionInputs;
 }): Promise<any> {
   const {
@@ -322,6 +327,7 @@ export async function sendAndConfirmCompressTransaction({
   );
   const accounts = prepareAccounts({
     transactionAccounts: publicTransactionVariables.accounts,
+    signer,
     merkleTreeSet: merkleTreeSet,
   });
 
@@ -420,14 +426,14 @@ export async function sendAndConfirmCompressedTransaction({
 // TODO: unify event Merkle tree and transaction Merkle tree so that only one is passed
 export function prepareAccounts({
   transactionAccounts,
-  merkleTreeSet,
   signer,
+  merkleTreeSet,
   rpcRecipientSol,
   verifierState,
 }: {
   transactionAccounts: TransactionAccounts;
+  signer: Keypair;
   merkleTreeSet?: PublicKey;
-  signer?: PublicKey;
   rpcRecipientSol?: PublicKey;
   verifierState?: PublicKey;
 }): lightAccounts {
@@ -441,32 +447,35 @@ export function prepareAccounts({
     systemPspId,
   } = transactionAccounts;
   const verifierProgramId = pspId ? pspId : systemPspId;
-  if (!signer) {
-    signer = rpcPublicKey;
-  }
+  // if (!signer) {
+  //   signer = rpcPublicKey;
+  // }
   if (!verifierState) {
-    verifierState = getVerifierStatePda(verifierProgramId, signer);
+    verifierState = getVerifierStatePda(verifierProgramId, signer.publicKey);
   }
   const accounts = {
-    systemProgramId: SystemProgram.programId,
-    tokenProgram: TOKEN_PROGRAM_ID,
-    logWrapper: SPL_NOOP_PROGRAM_ID,
-    merkleTreeSet: transactionAccounts.merkleTreeSet,
-    registeredVerifierPda: getRegisteredVerifierPda(
-      merkleTreeProgramId,
-      systemPspId,
-    ),
-    authority: getSignerAuthorityPda(merkleTreeProgramId, systemPspId),
-    senderSpl,
-    recipientSpl,
-    senderSol,
-    recipientSol,
-    programMerkleTree: merkleTreeProgramId,
-    tokenAuthority: getTokenAuthorityPda(),
-    verifierProgram: pspId ? systemPspId : undefined,
-    signingAddress: signer,
-    rpcRecipientSol: rpcRecipientSol ? rpcRecipientSol : AUTHORITY,
-    verifierState,
+    publicKeys: {
+      systemProgramId: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      logWrapper: SPL_NOOP_PROGRAM_ID,
+      merkleTreeSet: transactionAccounts.merkleTreeSet,
+      registeredVerifierPda: getRegisteredVerifierPda(
+        merkleTreeProgramId,
+        systemPspId,
+      ),
+      authority: getSignerAuthorityPda(merkleTreeProgramId, systemPspId),
+      senderSpl,
+      recipientSpl,
+      senderSol,
+      recipientSol,
+      programMerkleTree: merkleTreeProgramId,
+      tokenAuthority: getTokenAuthorityPda(),
+      verifierProgram: pspId ? systemPspId : undefined,
+      signingAddress: signer.publicKey,
+      rpcRecipientSol: rpcRecipientSol ? rpcRecipientSol : AUTHORITY,
+      verifierState,
+    },
+    signer,
   };
   return accounts;
 }

@@ -24,6 +24,7 @@ export function createSolanaTransactions(
   const versionedTransactions: VersionedTransaction[] = [];
 
   for (const ix of ixs) {
+    console.error("IX:", ix);
     versionedTransactions.push(
       createVersionedTransaction(
         ix,

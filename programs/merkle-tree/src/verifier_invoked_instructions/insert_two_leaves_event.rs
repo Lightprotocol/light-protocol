@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
+use light_merkle_tree_state::event_merkle_tree_from_bytes_mut;
 
-use crate::{event_merkle_tree_from_bytes_mut, state::MerkleTreeSet, RegisteredVerifier};
+use crate::{state::MerkleTreeSet, RegisteredVerifier};
 
 #[derive(Accounts)]
 #[instruction(

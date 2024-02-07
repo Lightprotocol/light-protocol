@@ -110,7 +110,7 @@ check_flag() {
 
 NODE_VERSION="20.9.0"
 PNPM_VERSION="8.8.0"
-SOLANA_VERSION="1.17.5"
+SOLANA_VERSION="1.17.14"
 ANCHOR_VERSION=`latest_release Lightprotocol anchor`
 CIRCOM_VERSION=`latest_release Lightprotocol circom`
 MACRO_CIRCOM_VERSION=`latest_release Lightprotocol macro-circom`
@@ -219,10 +219,9 @@ download_file_github \
     Lightprotocol \
     anchor \
     "${ANCHOR_VERSION}" \
-    "light-anchor-${ARCH_SUFFIX_LP}" \
-    light-anchor \
+    "anchor-${ARCH_SUFFIX_LP}" \
+    anchor \
     "${PREFIX}/bin"
-
 
 echo "📥 Downloading Circom"
 download_file_github \

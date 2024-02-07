@@ -9,7 +9,7 @@
     "test": "../../cli/test_bin/run test-validator -b; pnpm ts-node src/main.ts --exit"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "0.28.0",
+    "@coral-xyz/anchor": "0.29.0",
     "@lightprotocol/zk.js": "workspace:*"
   },
   "devDependencies": {

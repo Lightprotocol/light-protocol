@@ -16,8 +16,8 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = "0.28.0"
-groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
+anchor-lang = "0.29.0"
+groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana", branch = "anchor-0.29" }
 
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"

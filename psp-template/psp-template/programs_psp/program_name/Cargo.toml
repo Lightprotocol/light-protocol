@@ -17,14 +17,14 @@ default = ["custom-heap"]
 custom-heap = []
 
 [dependencies]
-anchor-lang = "0.28.0"
-anchor-spl = "0.28.0"
+anchor-lang = "0.29.0"
+anchor-spl = "0.29.0"
 light-merkle-tree-program = {{ light-merkle-tree-program-version }}
 {{ light-system-program }} = {{ light-system-program-version }}
 light-macros = {{ light-macros-version }}
 light-verifier-sdk = {{ light-verifier-sdk-version }}
-solana-program = "1.16.4"
-groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
+solana-program = "1.17.14"
+groth16-solana = { git =  "https://github.com/Lightprotocol/groth16-solana", branch = "anchor-0.29" }
 
 bytemuck = "1.14.0"
 memoffset = "0.9.0"

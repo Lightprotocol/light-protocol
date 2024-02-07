@@ -1,0 +1,9 @@
+[package]
+name = "light-merkle-tree-state"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+light-concurrent-merkle-tree = { version = "0.1.0", path = "../../merkle-tree/concurrent" }
+light-hasher = { path = "../../merkle-tree/hasher", version = "0.1.0" }
+light-utils = { version = "0.1.0", path = "../../utils" }

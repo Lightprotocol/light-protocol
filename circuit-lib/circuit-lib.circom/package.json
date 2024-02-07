@@ -20,7 +20,7 @@
   },
   "author": "",
   "devDependencies": {
-    "@coral-xyz/anchor": "0.28.0",
+    "@coral-xyz/anchor": "0.29.0",
     "@lightprotocol/zk.js": "workspace:*",
     "@types/chai": "^4.3.9",
     "@types/chai-as-promised": "^7.1.6",

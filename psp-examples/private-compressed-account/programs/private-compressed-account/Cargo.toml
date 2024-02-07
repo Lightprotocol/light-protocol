@@ -16,14 +16,14 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = "0.28.0"
-anchor-spl = "0.28.0"
+anchor-lang = "0.29.0"
+anchor-spl = "0.29.0"
 light-merkle-tree-program = { path = "../../../../programs/merkle-tree", features = ["cpi"] }
 light-psp4in4out-app-storage = { path = "../../../../programs/psp4in4out-app-storage", features = ["cpi"] }
 light-macros = { path = "../../../../macros/light" }
 light-verifier-sdk = { path = "../../../../verifier-sdk" }
-solana-program = "1.16.4"
-groth16-solana = { git= "https://github.com/Lightprotocol/groth16-solana", branch="master"}
+solana-program = "1.17.14"
+groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana", branch = "anchor-0.29" }
 
 bytemuck = { version = "1.4.0", features = ["derive", "min_const_generics"]}
 memoffset = "0.9.0"
