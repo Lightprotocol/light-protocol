@@ -9,7 +9,7 @@ export type LookupTable = { [key: string]: string };
  */
 export function encode(plaintext: bigint): ExtPointType {
   if (plaintext >= BigInt(2 ** 32)) {
-    throw new Error("The plaintext should nit be bigger than a 32-bit bigint");
+    throw new Error("The plaintext should not be bigger than a 32-bit bigint");
   } else return babyjubjubExt.BASE.multiplyUnsafe(plaintext);
 }
 
