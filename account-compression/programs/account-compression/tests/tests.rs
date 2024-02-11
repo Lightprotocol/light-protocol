@@ -1,13 +1,15 @@
 #[cfg(feature = "solana-tests")]
 mod test {
     use account_compression::{
-        instruction::{InitializeAddressMerkleTree, InitializeAddressQueue, InsertAddresses},
+        instruction::{InitializeAddressMerkleTree, InitializeAddressQueue, InsertAddresses, UpdateAddressMerkleTree},
         state::{AddressMerkleTreeAccount, AddressQueueAccount},
         ID,
     };
-    use account_compression_state::{address_merkle_tree_from_bytes, address_queue_from_bytes};
+    use account_compression_state::{address_merkle_tree_from_bytes, address_queue_from_bytes, address_queue_from_bytes_mut, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS, QUEUE_ELEMENTS};
     use anchor_lang::{InstructionData, ZeroCopy};
     use ark_ff::{BigInteger, BigInteger256};
+    use light_hasher::Poseidon;
+    use light_indexed_merkle_tree::{array::IndexingArray, reference, IndexedMerkleTree};
     use solana_program_test::{ProgramTest, ProgramTestContext};
     use solana_sdk::{
         instruction::{AccountMeta, Instruction},
@@ -33,6 +35,25 @@ mod test {
         unsafe {
             let ptr = account.data[8..].as_ptr() as *const T;
             &*ptr
+        }
+    }
+
+    async fn get_account_zero_copy_mut<T>(context: &mut ProgramTestContext, pubkey: Pubkey) -> &mut T
+    where
+        T: ZeroCopy,
+    {
+        let account = context
+            .banks_client
+            .get_account(pubkey)
+            .await
+            .unwrap()
+            .unwrap();
+
+        // TODO: Check discriminator.
+
+        unsafe {
+            let ptr = account.data[8..].as_ptr() as *mut T;
+            &mut *ptr
         }
     }
 
@@ -157,7 +178,7 @@ mod test {
         let transaction = Transaction::new_signed_with_payer(
             &[insert_ix],
             Some(&context.payer.pubkey()),
-            &vec![&context.payer],
+            &[&context.payer],
             context.last_blockhash,
         );
         context
@@ -165,6 +186,79 @@ mod test {
             .process_transaction(transaction)
             .await
             .unwrap();
+    }
+
+    async fn update_merkle_tree(context: &mut ProgramTestContext, address_queue_pubkey: Pubkey, address_merkle_tree_pubkey: Pubkey, queue_index: u16) {
+        let address_queue: &mut AddressQueueAccount = get_account_zero_copy_mut(&mut context, address_queue_pubkey).await;
+        let address_queue = address_queue_from_bytes_mut(&mut address_queue.queue);
+        let address_merkle_tree: &AddressMerkleTreeAccount = get_account_zero_copy(&mut context, address_merkle_tree_pubkey).await;
+        let address_merkle_tree = address_merkle_tree_from_bytes(&address_merkle_tree.merkle_tree);
+
+        // Remove the address from the queue.
+        let mut address = address_queue.dequeue_at(queue_index).unwrap().unwrap();
+
+        let instruction_data = UpdateAddressMerkleTree {
+            changelog_index: address_merkle_tree.changelog_index() as u16,
+            queue_index,
+        };
+        let update_ix = Instruction {
+            program_id: ID,
+            accounts: vec![
+                AccountMeta::new(context.payer.pubkey(), true),
+                AccountMeta::new(address_queue_pubkey, false),
+                AccountMeta::new(address_merkle_tree_pubkey, false),
+            ],
+            data: instruction_data.data(),
+        };
+        let transaction = Transaction::new_signed_with_payer(
+            &[update_ix],
+            Some(&context.payer.pubkey()),
+            &[&context.payer],
+            context.last_blockhash,
+        );
+        context
+            .banks_client
+            .process_transaction(transaction)
+            .await
+            .unwrap();
+    }
+
+    async fn relayer_update(context: &mut ProgramTestContext, address_queue_pubkey: Pubkey, address_merkle_tree_pubkey: Pubkey) {
+        let address_queue: &AddressQueueAccount = get_account_zero_copy(context, address_queue_pubkey).await;
+        let address_queue = address_queue_from_bytes(&address_queue.queue);
+        let address_merkle_tree: &AddressMerkleTreeAccount = get_account_zero_copy(context, address_merkle_tree_pubkey).await;
+        let address_merkle_tree = address_merkle_tree_from_bytes(&address_merkle_tree.merkle_tree);
+
+        let mut relayer_indexing_array = IndexingArray::<Poseidon, BigInteger256, QUEUE_ELEMENTS>::default();
+        let mut relayer_merkle_tree = reference::IndexedMerkleTree::<
+            Poseidon,
+            BigInteger256,
+            MERKLE_TREE_HEIGHT,
+            MERKLE_TREE_ROOTS,
+        >::new()
+        .unwrap();
+
+        while !address_queue.is_empty() {
+            let changelog_index = address_merkle_tree.changelog_index();
+
+            let lowest_from_queue = match address_queue.lowest() {
+                Some(lowest) => lowest,
+                None => break,
+            };
+
+            // Create new element from the dequeued value.
+            let (old_low_address, old_low_address_next_value) = relayer_indexing_array
+                .find_low_element(&lowest_from_queue.value)
+                .unwrap();
+            let address_bundle = relayer_indexing_array
+                .new_element_with_low_element_index(old_low_address.index, lowest_from_queue.value);
+
+            // Get the Merkle proof for updaring low element.
+            let low_address_proof =
+                relayer_merkle_tree.get_proof_of_leaf(usize::from(old_low_address.index));
+
+
+        }
     }
 
     #[tokio::test]
