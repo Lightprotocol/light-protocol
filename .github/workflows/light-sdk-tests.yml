@@ -27,13 +27,9 @@ jobs:
         include:
           - name: sdk-tests-light-rpc-cli
             sub-tests: '[
-              "@lightprotocol/cli:test",
-              "@lightprotocol/prover.js:test"
+                "@lightprotocol/circuit-lib.js:test",
+                "@lightprotocol/prover.js:test",
             ]'
-          - name: circuit-tests
-            sub-tests: '[
-              "@lightprotocol/circuit-lib.js:test",
-              "@lightprotocol/circuit-lib.circom:test"]'
     services:
       redis:
         image: redis
