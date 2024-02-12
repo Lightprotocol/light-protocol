@@ -15,16 +15,22 @@ pub enum ConcurrentMerkleTreeError {
     TreeFull,
     #[error("Provided proof is larger than the height of the tree.")]
     ProofTooLarge,
-    #[error("Invalid Merkle proof, stopping the update operation.")]
-    InvalidProof,
+    #[error("Invalid Merkle proof, expected root: {0:?}, the provided proof produces root: {1:?}")]
+    InvalidProof([u8; 32], [u8; 32]),
     #[error("Attempting to update the leaf which was updated by an another newest change.")]
     CannotUpdateLeaf,
+    #[error("Cannot update the empty leaf")]
+    CannotUpdateEmpty,
     #[error("Cannot update tree without changelog, only `append` is supported.")]
     AppendOnly,
     #[error("The batch of leaves is empty")]
     EmptyLeaves,
     #[error("The vector of changelog entries is empty")]
     EmptyChangelogEntries,
+    #[error(
+        "Found an empty node in the Merkle path buffer, where we expected all nodes to be filled"
+    )]
+    MerklePathsEmptyNode,
     #[error("Hasher error: {0}")]
     Hasher(#[from] HasherError),
 }
@@ -41,11 +47,13 @@ impl From<ConcurrentMerkleTreeError> for u32 {
             ConcurrentMerkleTreeError::RootHigherThanMax => 2004,
             ConcurrentMerkleTreeError::TreeFull => 2005,
             ConcurrentMerkleTreeError::ProofTooLarge => 2006,
-            ConcurrentMerkleTreeError::InvalidProof => 2007,
+            ConcurrentMerkleTreeError::InvalidProof(_, _) => 2007,
             ConcurrentMerkleTreeError::CannotUpdateLeaf => 2008,
-            ConcurrentMerkleTreeError::AppendOnly => 2009,
-            ConcurrentMerkleTreeError::EmptyLeaves => 2010,
-            ConcurrentMerkleTreeError::EmptyChangelogEntries => 2011,
+            ConcurrentMerkleTreeError::CannotUpdateEmpty => 2009,
+            ConcurrentMerkleTreeError::AppendOnly => 2010,
+            ConcurrentMerkleTreeError::EmptyLeaves => 2011,
+            ConcurrentMerkleTreeError::EmptyChangelogEntries => 2012,
+            ConcurrentMerkleTreeError::MerklePathsEmptyNode => 2013,
             ConcurrentMerkleTreeError::Hasher(e) => e.into(),
         }
     }

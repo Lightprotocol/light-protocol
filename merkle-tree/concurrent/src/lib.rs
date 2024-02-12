@@ -1,7 +1,8 @@
-use std::{cmp::Ordering, marker::PhantomData};
+use std::marker::PhantomData;
 
 use bytemuck::{Pod, Zeroable};
 use hash::compute_root;
+pub use light_hasher;
 use light_hasher::Hasher;
 
 pub mod changelog;
@@ -9,7 +10,9 @@ pub mod errors;
 pub mod hash;
 
 use crate::{
-    changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, hash::compute_parent_node,
+    changelog::{ChangelogEntry, MerklePaths},
+    errors::ConcurrentMerkleTreeError,
+    hash::compute_parent_node,
 };
 
 /// [Concurrent Merkle tree](https://drive.google.com/file/d/1BOpa5OFmara50fTvL0VIVYjtg-qzHCVc/view)
@@ -49,7 +52,7 @@ pub struct ConcurrentMerkleTree<
     /// Index of the newest root.
     pub current_root_index: u64,
     /// The newest Merkle proof.
-    pub rightmost_proof: [[u8; 32]; HEIGHT],
+    pub filled_subtrees: [[u8; 32]; HEIGHT],
     /// The newest non-empty leaf.
     pub rightmost_leaf: [u8; 32],
 
@@ -68,7 +71,7 @@ where
             roots: [[0u8; 32]; MAX_ROOTS],
             sequence_number: 0,
             current_root_index: 0,
-            rightmost_proof: [[0u8; 32]; HEIGHT],
+            filled_subtrees: [[0u8; 32]; HEIGHT],
             next_index: 0,
             rightmost_leaf: [0u8; 32],
             _hasher: PhantomData,
@@ -142,7 +145,7 @@ where
             .ok_or(ConcurrentMerkleTreeError::RootsZero)? = root;
 
         // Initialize rightmost proof.
-        for (i, node) in self.rightmost_proof.iter_mut().enumerate() {
+        for (i, node) in self.filled_subtrees.iter_mut().enumerate() {
             *node = H::zero_bytes()[i];
         }
 
@@ -185,6 +188,19 @@ where
             .copied()
     }
 
+    pub fn current_index(&self) -> usize {
+        let next_index = self.next_index();
+        if next_index > 0 {
+            next_index - 1
+        } else {
+            next_index
+        }
+    }
+
+    pub fn next_index(&self) -> usize {
+        self.next_index as usize
+    }
+
     /// Returns an updated Merkle proof.
     ///
     /// The update is performed by checking whether there are any new changelog
@@ -206,24 +222,19 @@ where
         &self,
         changelog_index: usize,
         leaf_index: usize,
-        proof: &[[u8; 32]; HEIGHT],
-    ) -> Option<[[u8; 32]; HEIGHT]> {
-        let mut updated_proof = proof.to_owned();
-
+        proof: &mut [[u8; 32]; HEIGHT],
+    ) -> Result<(), ConcurrentMerkleTreeError> {
         let mut i = changelog_index + 1;
 
         while i != self.current_changelog_index as usize + 1 {
             let changelog_entry = self.changelog[i];
 
-            updated_proof = match changelog_entry.update_proof(leaf_index, &updated_proof) {
-                Some(proof) => proof,
-                None => return None,
-            };
+            changelog_entry.update_proof(leaf_index, proof)?;
 
             i = (i + 1) % MAX_ROOTS;
         }
 
-        Some(updated_proof)
+        Ok(())
     }
 
     /// Checks whether the given Merkle `proof` for the given `node` (with index
@@ -235,11 +246,15 @@ where
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), ConcurrentMerkleTreeError> {
+        let expected_root = self.root()?;
         let computed_root = compute_root::<H, HEIGHT>(leaf, leaf_index, proof)?;
-        if computed_root == self.root()? {
+        if computed_root == expected_root {
             Ok(())
         } else {
-            Err(ConcurrentMerkleTreeError::InvalidProof)
+            Err(ConcurrentMerkleTreeError::InvalidProof(
+                expected_root,
+                computed_root,
+            ))
         }
     }
 
@@ -287,27 +302,11 @@ where
             .get_mut(self.current_root_index as usize)
             .ok_or(ConcurrentMerkleTreeError::RootsZero)? = node;
 
-        // Update the rightmost proof. It has to be done only if tree is not full.
-        if self.next_index < (1 << HEIGHT) {
-            if self.next_index > 0 && leaf_index < self.next_index as usize - 1 {
-                // Update the rightmost proof with the current changelog entry when:
-                //
-                // * `rightmost_index` is greater than 0 (tree is non-empty).
-                // * The updated leaf is non-rightmost.
-                if let Some(proof) = changelog_entry
-                    .update_proof(self.next_index as usize - 1, &self.rightmost_proof)
-                {
-                    self.rightmost_proof = proof;
-                }
-            } else {
-                // Save the provided proof and leaf as the new rightmost under
-                // any of the following conditions:
-                //
-                // * Tree is empty (and this is the first `append`).
-                // * The rightmost leaf is updated.
-                self.rightmost_proof.copy_from_slice(proof);
-                self.rightmost_leaf = *new_leaf;
-            }
+        changelog_entry.update_subtrees(self.next_index as usize - 1, &mut self.filled_subtrees);
+
+        // Check if we updated the rightmost leaf.
+        if self.next_index() < (1 << HEIGHT) && leaf_index >= self.current_index() {
+            self.rightmost_leaf = *new_leaf;
         }
 
         Ok(changelog_entry)
@@ -324,136 +323,17 @@ where
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
     ) -> Result<ChangelogEntry<HEIGHT>, ConcurrentMerkleTreeError> {
-        let updated_proof = if self.next_index > 0 && MAX_CHANGELOG > 0 {
-            match self.update_proof(changelog_index, leaf_index, proof) {
-                Some(proof) => proof,
-                // This case means that the leaf we are trying to update was
-                // already updated. Therefore, updating the proof is impossible.
-                // We need to return an error and request the caller
-                // to retry the update with a new proof.
-                None => {
-                    return Err(ConcurrentMerkleTreeError::CannotUpdateLeaf);
-                }
-            }
-        } else {
-            if leaf_index != self.next_index as usize {
-                return Err(ConcurrentMerkleTreeError::AppendOnly);
-            }
-            proof.to_owned()
-        };
-
-        self.validate_proof(old_leaf, leaf_index, proof)?;
-        self.update_leaf_in_tree(new_leaf, leaf_index, &updated_proof)
-    }
-
-    /// Appends a new leaf to the tree with the given `changelog_entry` to save
-    /// the Merkle path in.
-    fn append_with_changelog_entry(
-        &mut self,
-        leaf: &[u8; 32],
-        changelog_entry: &mut ChangelogEntry<HEIGHT>,
-    ) -> Result<(), ConcurrentMerkleTreeError> {
-        if self.next_index >= 1 << HEIGHT {
-            return Err(ConcurrentMerkleTreeError::TreeFull);
+        if leaf_index >= self.next_index() {
+            return Err(ConcurrentMerkleTreeError::CannotUpdateEmpty);
         }
 
-        let mut current_node = *leaf;
-        let mut intersection_node = self.rightmost_leaf;
-        // The highest index of our currently computed Merkle path which is not
-        // affected by the Merkle path of the last append.
-        //
-        // For example, let's imagine this tree, where there are
-        // two non-zero leaves:
-        //
-        //          H2
-        //      /-/    \-\
-        //    H1          Z[1]
-        //  /    \      /      \
-        // L1    L2   Z[0]    Z[0]
-        //
-        // Let's assume that we are starting to append the 3rd leaf. The
-        // Merkle path of that append will consist of the following nodes
-        // marked by `M`. Nodes marked by `X` belong to one of the previous
-        // Merkle paths. Node marked by `Z` is a zero leaf which doesn't
-        // belong to any path.
-        //
-        //       M3
-        //    /-/  \-\
-        //   X        M2
-        //  / \      /  \
-        // X   X    M1   Z
-        //
-        // We can write the Merkle path as an array, from the leaf to the
-        // uppermost node:
-        //
-        // [M1, **M2**, M3]
-        //  (1) **(2)** (3)
-        //
-        // The only node which was affected by previous appends is M3, because
-        // it was part of the Merkle path of the previous append.
-        //
-        // Therefore, the intersection node is M2 and the intersection index is
-        // 2.
-        let intersection_index = self.next_index.trailing_zeros() as usize;
-        let node_index = if self.next_index > 1 {
-            self.next_index as usize - 1
-        } else {
-            0
-        };
-        let mut changelog_path = [[0u8; 32]; HEIGHT];
+        let mut proof = proof.to_owned();
 
-        for (i, item) in changelog_path.iter_mut().enumerate() {
-            *item = current_node;
-
-            match i.cmp(&intersection_index) {
-                Ordering::Less => {
-                    let empty_node = H::zero_bytes()[i];
-                    current_node = H::hashv(&[&current_node, &empty_node])?;
-                    intersection_node = compute_parent_node::<H>(
-                        &intersection_node,
-                        &self.rightmost_proof[i],
-                        node_index,
-                        i,
-                    )?;
-                    self.rightmost_proof[i] = empty_node;
-                }
-                Ordering::Equal => {
-                    current_node = H::hashv(&[&intersection_node, &current_node])?;
-                    self.rightmost_proof[intersection_index] = intersection_node;
-                }
-                Ordering::Greater => {
-                    current_node = compute_parent_node::<H>(
-                        &current_node,
-                        &self.rightmost_proof[i],
-                        node_index,
-                        i,
-                    )?;
-                }
-            }
+        if MAX_CHANGELOG > 0 {
+            self.update_proof(changelog_index, leaf_index, &mut proof)?;
         }
-
-        changelog_entry.root = current_node;
-        changelog_entry.path = changelog_path;
-        changelog_entry.index = self.next_index;
-
-        self.inc_current_changelog_index();
-        if let Some(changelog_element) = self
-            .changelog
-            .get_mut(self.current_changelog_index as usize)
-        {
-            *changelog_element = *changelog_entry;
-        }
-        self.inc_current_root_index();
-        *self
-            .roots
-            .get_mut(self.current_root_index as usize)
-            .ok_or(ConcurrentMerkleTreeError::RootsZero)? = current_node;
-
-        self.sequence_number = self.sequence_number.saturating_add(1);
-        self.next_index = self.next_index.saturating_add(1);
-        self.rightmost_leaf = *leaf;
-
-        Ok(())
+        self.validate_proof(old_leaf, leaf_index, &proof)?;
+        self.update_leaf_in_tree(new_leaf, leaf_index, &proof)
     }
 
     /// Appends a new leaf to the tree.
@@ -461,23 +341,89 @@ where
         &mut self,
         leaf: &[u8; 32],
     ) -> Result<ChangelogEntry<HEIGHT>, ConcurrentMerkleTreeError> {
-        let mut changelog_entry = ChangelogEntry::default();
-        self.append_with_changelog_entry(leaf, &mut changelog_entry)?;
+        let changelog_entries = self.append_batch(&[leaf])?;
+        let changelog_entry = changelog_entries
+            .first()
+            .ok_or(ConcurrentMerkleTreeError::EmptyChangelogEntries)?
+            .to_owned();
         Ok(changelog_entry)
     }
 
-    /// Appends a new batch of leaves to the tree.
+    /// Appends a batch of new leaves to the tree.
     pub fn append_batch(
         &mut self,
         leaves: &[&[u8; 32]],
-    ) -> Result<Vec<Box<ChangelogEntry<HEIGHT>>>, ConcurrentMerkleTreeError> {
-        let mut changelog_entries: Vec<Box<ChangelogEntry<HEIGHT>>> = Vec::new();
-
-        for leaf in leaves.iter() {
-            let mut changelog_entry = Box::<ChangelogEntry<HEIGHT>>::default();
-            self.append_with_changelog_entry(leaf, &mut changelog_entry)?;
-            changelog_entries.push(changelog_entry);
+    ) -> Result<Vec<ChangelogEntry<HEIGHT>>, ConcurrentMerkleTreeError> {
+        if (self.next_index as usize + leaves.len() - 1) >= 1 << HEIGHT {
+            return Err(ConcurrentMerkleTreeError::TreeFull);
         }
+
+        let first_leaf_index = self.next_index;
+        // Buffer of Merkle paths.
+        let mut merkle_paths = MerklePaths::<H, HEIGHT>::new(leaves.len());
+
+        for (leaf_i, leaf) in leaves.iter().enumerate() {
+            let mut current_index = self.next_index;
+            let mut current_node = leaf.to_owned().to_owned();
+
+            if leaf_i > 0 {
+                merkle_paths.inc_current_leaf();
+            }
+
+            // Limit until which we fill up the current Merkle path.
+            let fillup_index = if leaf_i < (leaves.len() - 1) {
+                self.next_index.trailing_ones() as usize + 1
+            } else {
+                HEIGHT
+            };
+
+            // Assign the leaf to the path.
+            merkle_paths.set(0, current_node);
+
+            for i in 0..fillup_index {
+                let is_left = current_index % 2 == 0;
+
+                current_node = if is_left {
+                    let empty_node = H::zero_bytes()[i];
+                    self.filled_subtrees[i] = current_node;
+                    H::hashv(&[&current_node, &empty_node])?
+                } else {
+                    H::hashv(&[&self.filled_subtrees[i], &current_node])?
+                };
+
+                if i < HEIGHT - 1 {
+                    merkle_paths.set(i + 1, current_node);
+                }
+
+                current_index /= 2;
+            }
+
+            merkle_paths.set_root(current_node);
+
+            self.inc_current_root_index();
+            *self
+                .roots
+                .get_mut(self.current_root_index as usize)
+                .ok_or(ConcurrentMerkleTreeError::RootsZero)? = current_node;
+
+            self.sequence_number = self.sequence_number.saturating_add(1);
+            self.next_index = self.next_index.saturating_add(1);
+            self.rightmost_leaf = leaf.to_owned().to_owned();
+        }
+
+        let changelog_entries = merkle_paths.to_changelog_entries(first_leaf_index as usize)?;
+
+        // Save changelog entries.
+        for changelog_entry in changelog_entries.iter() {
+            self.inc_current_changelog_index();
+            if let Some(changelog_element) = self
+                .changelog
+                .get_mut(self.current_changelog_index as usize)
+            {
+                *changelog_element = *changelog_entry;
+            }
+        }
+
         Ok(changelog_entries)
     }
 }

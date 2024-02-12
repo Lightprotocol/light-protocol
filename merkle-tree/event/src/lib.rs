@@ -1,15 +1,11 @@
-use anchor_lang::{
-    prelude::*,
-    solana_program::{instruction::Instruction, program::invoke},
-};
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
-use light_macros::pubkey;
 
-use crate::errors::AccountCompressionErrorCode;
+pub mod errors;
 
-pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
+use errors::EventError;
 
-#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct Changelogs {
     pub changelogs: Vec<ChangelogEvent>,
 }
@@ -18,7 +14,7 @@ pub struct Changelogs {
 /// [`StateMerkleTree`](light_merkle_tree_program::state::StateMerkleTree)
 /// change. Indexers can use this type of events to re-build a non-sparse
 /// version of state Merkle tree.
-#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 #[repr(C)]
 pub enum ChangelogEvent {
     V1(ChangelogEventV1),
@@ -26,17 +22,17 @@ pub enum ChangelogEvent {
 
 /// Node of the Merkle path with an index representing the position in a
 /// non-sparse Merkle tree.
-#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct PathNode {
     pub node: [u8; 32],
     pub index: u32,
 }
 
 /// Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent).
-#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct ChangelogEventV1 {
     /// Public key of the tree.
-    pub id: Pubkey,
+    pub id: [u8; 32],
     // Merkle paths.
     pub paths: Vec<Vec<PathNode>>,
     /// Number of successful operations on the on-chain tree.
@@ -47,21 +43,19 @@ pub struct ChangelogEventV1 {
 
 impl ChangelogEventV1 {
     pub fn new<const HEIGHT: usize>(
-        merkle_tree_account_pubkey: Pubkey,
-        changelog_entries: &[ChangelogEntry<HEIGHT>],
+        merkle_tree_account_pubkey: [u8; 32],
+        changelog_entries: Vec<ChangelogEntry<HEIGHT>>,
         seq: u64,
-    ) -> Result<Self> {
+    ) -> Result<Self, EventError> {
         let mut paths = Vec::with_capacity(changelog_entries.len());
         for changelog_entry in changelog_entries.iter() {
             let path_len = changelog_entry.path.len();
             let mut path = Vec::with_capacity(path_len);
-            let path_len = u32::try_from(path_len)
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
+            let path_len = u32::try_from(path_len).map_err(|_| EventError::IntegerOverflow)?;
 
             // Add all nodes from the changelog path.
             for (level, node) in changelog_entry.path.iter().enumerate() {
-                let level = u32::try_from(level)
-                    .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
+                let level = u32::try_from(level).map_err(|_| EventError::IntegerOverflow)?;
                 let index = (1 << (path_len - level)) + (changelog_entry.index as u32 >> level);
                 path.push(PathNode {
                     node: node.to_owned(),
@@ -88,10 +82,10 @@ impl ChangelogEventV1 {
         // were lost.
         let index: u32 = changelog_entries
             .first()
-            .ok_or(AccountCompressionErrorCode::EventNoChangelogEntry)?
+            .ok_or(EventError::EventNoChangelogEntry)?
             .index
             .try_into()
-            .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
+            .map_err(|_| EventError::IntegerOverflow)?;
         Ok(Self {
             id: merkle_tree_account_pubkey,
             paths,
@@ -101,30 +95,10 @@ impl ChangelogEventV1 {
     }
 }
 
-pub fn emit_indexer_event<'info>(
-    data: Vec<u8>,
-    noop_program: &AccountInfo<'info>,
-    signer: &AccountInfo<'info>,
-) -> Result<()> {
-    if noop_program.key() != NOOP_PROGRAM_ID {
-        return err!(AccountCompressionErrorCode::InvalidNoopPubkey);
-    }
-    let instruction = Instruction {
-        program_id: noop_program.key(),
-        accounts: vec![],
-        data,
-    };
-    invoke(
-        &instruction,
-        &[noop_program.to_account_info(), signer.to_account_info()],
-    )?;
-    Ok(())
-}
-
 #[cfg(test)]
 mod test {
-    use light_concurrent_merkle_tree::ConcurrentMerkleTree;
-    use light_hasher::Keccak;
+    use light_concurrent_merkle_tree::{light_hasher::Keccak, ConcurrentMerkleTree};
+    use solana_program::pubkey::Pubkey;
     use spl_account_compression::{events::ChangeLogEventV1, ChangeLogEvent};
 
     use super::*;
@@ -137,9 +111,10 @@ mod test {
         const MAX_CHANGELOG: usize = 8;
         const MAX_ROOTS: usize = 8;
 
-        let pubkey = Pubkey::new_from_array([0u8; 32]);
+        let pubkey = [0u8; 32];
 
         // Fill up the Merkle tree with random leaves.
+        // let mut merkle_tree = MerkleTree::<Poseidon, HEIGHT, ROOTS>::new().unwrap();
         let mut merkle_tree =
             ConcurrentMerkleTree::<Keccak, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>::default();
         merkle_tree.init().unwrap();
@@ -160,11 +135,14 @@ mod test {
         for i in 0..leaves {
             let changelog_entry = merkle_tree.changelog[i];
             let changelog_event =
-                ChangelogEventV1::new(pubkey, &[changelog_entry], i as u64).unwrap();
+                ChangelogEventV1::new(pubkey, vec![changelog_entry], i as u64).unwrap();
 
             let spl_changelog_entry = Box::new(spl_merkle_tree.change_logs[i]);
-            let spl_changelog_event: Box<ChangeLogEvent> =
-                Box::<ChangeLogEvent>::from((spl_changelog_entry, pubkey, i as u64));
+            let spl_changelog_event: Box<ChangeLogEvent> = Box::<ChangeLogEvent>::from((
+                spl_changelog_entry,
+                Pubkey::new_from_array(pubkey),
+                i as u64,
+            ));
 
             match *spl_changelog_event {
                 ChangeLogEvent::V1(ChangeLogEventV1 {
@@ -173,7 +151,7 @@ mod test {
                     seq,
                     index,
                 }) => {
-                    assert_eq!(id, changelog_event.id);
+                    assert_eq!(id.to_bytes(), changelog_event.id);
                     assert_eq!(path.len(), changelog_event.paths[0].len());
                     for j in 0..HEIGHT {
                         assert_eq!(path[j].node, changelog_event.paths[0][j].node);

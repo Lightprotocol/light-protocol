@@ -1,3 +1,9 @@
+use std::marker::PhantomData;
+
+use light_hasher::Hasher;
+
+use crate::errors::ConcurrentMerkleTreeError;
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(C)]
 pub struct ChangelogEntry<const HEIGHT: usize> {
@@ -25,7 +31,12 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
         Self { root, path, index }
     }
 
+    pub fn index(&self) -> usize {
+        self.index as usize
+    }
+
     /// Returns an intersection index in the changelog entry which affects the
+    /// provided path.
     ///
     /// Determining it can be done by taking a XOR of the leaf index (which was
     /// directly updated in the changelog entry) and the leaf index we are
@@ -37,10 +48,9 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
     /// index 4, critbit would be:
     ///
     /// 2 ^ 4 = 0b_0010 ^ 0b_0100 = 0b_0110 = 6
-    fn intersection_index(&self, leaf_index: usize, changelog_entry_index: usize) -> usize {
+    fn intersection_index(&self, leaf_index: usize) -> usize {
         let padding = 64 - HEIGHT;
-        let common_path_len =
-            ((leaf_index ^ changelog_entry_index) << padding).leading_zeros() as usize;
+        let common_path_len = ((leaf_index ^ self.index()) << padding).leading_zeros() as usize;
 
         (HEIGHT - 1) - common_path_len
     }
@@ -48,18 +58,128 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
     pub fn update_proof(
         &self,
         leaf_index: usize,
-        proof: &[[u8; 32]; HEIGHT],
-    ) -> Option<[[u8; 32]; HEIGHT]> {
-        let mut updated_proof = proof.to_owned();
-
-        let changelog_entry_index = self.index as usize;
-        if leaf_index != changelog_entry_index {
-            let intersection_index = self.intersection_index(leaf_index, changelog_entry_index);
-            updated_proof[intersection_index] = self.path[intersection_index];
+        proof: &mut [[u8; 32]; HEIGHT],
+    ) -> Result<(), ConcurrentMerkleTreeError> {
+        if leaf_index != self.index() {
+            let intersection_index = self.intersection_index(leaf_index);
+            proof[intersection_index] = self.path[intersection_index];
         } else {
-            return None;
+            // This case means that the leaf we are trying to update was
+            // already updated. Therefore, updating the proof is impossible.
+            // We need to return an error and request the caller
+            // to retry the update with a new proof.
+            return Err(ConcurrentMerkleTreeError::CannotUpdateLeaf);
         }
 
-        Some(updated_proof)
+        Ok(())
     }
+
+    pub fn update_subtrees(&self, rightmost_index: usize, subtrees: &mut [[u8; 32]; HEIGHT]) {
+        let (mut current_index, start) = if rightmost_index != self.index() {
+            let intersection_index = self.intersection_index(rightmost_index);
+            let current_index = rightmost_index + intersection_index;
+
+            subtrees[intersection_index] = self.path[intersection_index];
+
+            (current_index, intersection_index)
+        } else {
+            (rightmost_index, 0)
+        };
+
+        for (i, subtree) in subtrees.iter_mut().enumerate().take(HEIGHT).skip(start) {
+            // for i in start..HEIGHT {
+            let is_left = current_index % 2 == 0;
+            if is_left {
+                *subtree = self.path[i];
+            }
+
+            current_index /= 2;
+        }
+    }
+}
+
+/// Temoporary buffer for building Merkle paths during batched append.
+pub struct MerklePaths<H, const HEIGHT: usize>
+where
+    H: Hasher,
+{
+    pub paths: Vec<[Option<[u8; 32]>; HEIGHT]>,
+    root: Option<[u8; 32]>,
+    current_leaf_index: usize,
+    _hasher: PhantomData<H>,
+}
+
+impl<H, const HEIGHT: usize> MerklePaths<H, HEIGHT>
+where
+    H: Hasher,
+{
+    pub fn new(nr_leaves: usize) -> Self {
+        let paths = vec![[None; HEIGHT]; nr_leaves];
+        Self {
+            paths,
+            root: None,
+            current_leaf_index: 0,
+            _hasher: PhantomData,
+        }
+    }
+
+    /// Searches for a node under the given `node_index` in all Merkle paths,
+    /// starting from the newest one.
+    pub fn get(&self, node_index: usize) -> Option<&[u8; 32]> {
+        for path in self.paths[..self.current_leaf_index].iter().rev() {
+            if let Some(Some(node)) = path.get(node_index) {
+                return Some(node);
+            }
+        }
+        None
+    }
+
+    pub fn inc_current_leaf(&mut self) {
+        self.current_leaf_index += 1;
+    }
+
+    pub fn set(&mut self, node_index: usize, node: [u8; 32]) {
+        self.paths[self.current_leaf_index][node_index] = Some(node);
+
+        // Fill up empty nodes from previous paths on the same level.
+        for leaf_index in 0..self.current_leaf_index {
+            if self.paths[leaf_index][node_index].is_none() {
+                self.paths[leaf_index][node_index] =
+                    self.paths[self.current_leaf_index][node_index];
+            }
+        }
+    }
+
+    pub fn set_root(&mut self, root: [u8; 32]) {
+        self.root = Some(root);
+    }
+
+    pub fn to_changelog_entries(
+        &self,
+        first_leaf_index: usize,
+    ) -> Result<Vec<ChangelogEntry<HEIGHT>>, ConcurrentMerkleTreeError> {
+        self.paths
+            .iter()
+            .enumerate()
+            .map(|(i, path)| {
+                let mut changelog_path = [[0u8; 32]; HEIGHT];
+                for i in 0..HEIGHT {
+                    changelog_path[i] =
+                        path[i].ok_or(ConcurrentMerkleTreeError::MerklePathsEmptyNode)?;
+                }
+                Ok(ChangelogEntry::new(
+                    self.root
+                        .ok_or(ConcurrentMerkleTreeError::MerklePathsEmptyNode)?,
+                    changelog_path,
+                    first_leaf_index + i,
+                ))
+            })
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_get_rightmost_proof() {}
 }

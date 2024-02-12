@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 light-hasher = { path = "../hasher", version = "0.1.0" }
+thiserror = "1.0"

@@ -2,8 +2,7 @@ use std::marker::PhantomData;
 
 use ark_ff::BigInteger;
 use array::IndexingElement;
-use light_concurrent_merkle_tree::ConcurrentMerkleTree;
-use light_hasher::Hasher;
+use light_concurrent_merkle_tree::{light_hasher::Hasher, ConcurrentMerkleTree};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 pub mod array;
