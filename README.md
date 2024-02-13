@@ -7,13 +7,13 @@
 
 **The ZK Layer for Solana**
 
-Light is a zkLayer enabling private program execution, purpose-built for Solana.
+Light is a zkLayer enabling stateless program execution, purpose-built for Solana.
 
 Developers can use Light to build applications such as
 
 - encrypted orderbooks
-- private governance
-- on-chain games with private state
+- confidential voting
+- on-chain games with encrypted game state
 - zk-identity
 
 
