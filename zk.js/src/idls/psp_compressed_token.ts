@@ -1,6 +1,6 @@
-export type PspCompressedTokenProgram = {
+export type PspCompressedToken = {
   "version": "0.3.0",
-  "name": "psp_compressed_token_program",
+  "name": "psp_compressed_token",
   "constants": [
     {
       "name": "PROGRAM_ID",
@@ -356,9 +356,9 @@ export type PspCompressedTokenProgram = {
   ]
 };
 
-export const IDL: PspCompressedTokenProgram = {
+export const IDL: PspCompressedToken = {
   "version": "0.3.0",
-  "name": "psp_compressed_token_program",
+  "name": "psp_compressed_token",
   "constants": [
     {
       "name": "PROGRAM_ID",

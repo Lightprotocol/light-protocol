@@ -1,6 +1,6 @@
-export type PspCompressedPdaProgram = {
+export type PspCompressedPda = {
   "version": "0.3.0",
-  "name": "psp_compressed_pda_program",
+  "name": "psp_compressed_pda",
   "instructions": [
     {
       "name": "executeCompressedTransaction",
@@ -274,9 +274,9 @@ export type PspCompressedPdaProgram = {
   ]
 };
 
-export const IDL: PspCompressedPdaProgram = {
+export const IDL: PspCompressedPda = {
   "version": "0.3.0",
-  "name": "psp_compressed_pda_program",
+  "name": "psp_compressed_pda",
   "instructions": [
     {
       "name": "executeCompressedTransaction",

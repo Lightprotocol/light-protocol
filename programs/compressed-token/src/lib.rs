@@ -21,7 +21,7 @@ solana_security_txt::security_txt! {
 pub const PROGRAM_ID: &str = "9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE";
 
 #[program]
-pub mod psp_compressed_token_program {
+pub mod psp_compressed_token {
 
     use super::*;
 
