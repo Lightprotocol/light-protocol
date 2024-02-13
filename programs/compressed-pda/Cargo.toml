@@ -1,0 +1,27 @@
+[package]
+name = "psp-compressed-pda"
+version = "0.3.0"
+description = "Registry for Light Protocol users"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "psp_compressed_pda"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+test-bpf = []
+
+[dependencies]
+aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
+anchor-lang = "0.28.0"
+bytemuck = "1.14"
+light-verifier-sdk = { version = "0.3.0", path = "../../verifier-sdk" }
+
+# TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
+ahash = "=0.8.6"
