@@ -21,7 +21,6 @@ pub struct CreateMintInstruction<'info> {
     /// Mint authority, ensures that this program needs to be used as a proxy to mint tokens
     #[account(mut, seeds = [b"authority",authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump,)]
     pub authority_pda: UncheckedAccount<'info>,
-    /// not sure whether this is going to work with the pda, but even if it doesn't we can just as well take a normal account, this is safe because every account can only exist once and you need the private key
     #[account(mut, constraint = mint.mint_authority.unwrap() == authority_pda.key())]
     pub mint: Account<'info, Mint>,
     pub system_program: Program<'info, System>,
