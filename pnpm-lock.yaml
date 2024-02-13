@@ -99,6 +99,10 @@ importers:
         specifier: ^0.34.6
         version: 0.34.6(@vitest/browser@0.34.6)(playwright@1.40.1)
 
+  account.rs/src/main/wasm: {}
+
+  account.rs/src/main/wasm-simd: {}
+
   circuit-lib/circuit-lib.circom:
     devDependencies:
       '@coral-xyz/anchor':
