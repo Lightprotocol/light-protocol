@@ -1,11 +1,8 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{
-        keccak::{hash, hashv},
-        pubkey::Pubkey,
-    },
+    solana_program::{keccak::hash, pubkey::Pubkey},
 };
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_hasher::{Hasher, Poseidon};
 
 declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
@@ -15,6 +12,8 @@ pub mod psp_compressed_pda {
     use super::*;
 
     /// This function can be used to transfer sol and execute any other compressed transaction.
+    /// Instruction data is not optimized for space.
+    /// This method can be called by cpi so that instruction data can be compressed with a custom algorithm.
     pub fn execute_compressed_transaction(
         _ctx: Context<TransferInstruction>,
         inputs: Vec<u8>,
@@ -22,6 +21,19 @@ pub mod psp_compressed_pda {
         let _inputs: InstructionDataTransfer = InstructionDataTransfer::try_deserialize_unchecked(
             &mut [vec![0u8; 8], inputs].concat().as_slice(),
         )?;
+        Ok(())
+    }
+
+    /// This function can be used to transfer sol and execute any other compressed transaction.
+    /// Instruction data is optimized for space.
+    pub fn execute_compressed_transaction2(
+        _ctx: Context<TransferInstruction>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        let _inputs: InstructionDataTransfer2 =
+            InstructionDataTransfer2::try_deserialize_unchecked(
+                &mut [vec![0u8; 8], inputs].concat().as_slice(),
+            )?;
         Ok(())
     }
 
@@ -76,7 +88,21 @@ pub struct InstructionDataTransfer {
     low_element_indexes: Vec<u16>,
     root_indexes: Vec<u64>,
     rpc_fee: Option<u64>,
-    out_utxo: SerializedUtxos,
+    in_utxo: Vec<Utxo>,
+    out_utxo: Vec<OutUtxo>,
+}
+
+// TODO: parse utxos a more efficient way, since owner is sent multiple times this way
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataTransfer2 {
+    proof_a: [u8; 32],
+    proof_b: [u8; 64],
+    proof_c: [u8; 32],
+    low_element_indexes: Vec<u16>,
+    root_indexes: Vec<u64>,
+    rpc_fee: Option<u64>,
+    utxos: SerializedUtxos,
 }
 
 // there are two sources I can get the pubkey from the transaction object and the other account keys
@@ -91,6 +117,7 @@ pub struct InstructionDataTransfer {
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct SerializedUtxos {
     pub pubkey_array: Vec<Pubkey>,
+    pub u64_array: Vec<u64>,
     pub in_utxo: Vec<InUtxoSerializable>,
     pub out_utxo: Vec<OutUtxoSerializable>,
 }
@@ -108,7 +135,7 @@ impl SerializedUtxos {
             } else {
                 self.pubkey_array[in_utxo.owner.saturating_sub(accounts.len() as u8) as usize]
             };
-            let lamports = in_utxo.lamports;
+            let lamports = self.u64_array[in_utxo.lamports as usize];
             let data = in_utxo.data.as_ref().map(|data| {
                 data.tlv_from_serializable_tlv(
                     [accounts, self.pubkey_array.as_slice()].concat().as_slice(),
@@ -131,17 +158,17 @@ impl SerializedUtxos {
         &self,
         accounts: &[Pubkey],
         merkle_tree_accounts: &[Pubkey],
-        leaf_indices: &[u16],
+        leaf_indices: &[u32],
     ) -> Vec<Utxo> {
         let mut out_utxos = Vec::new();
-        for (i, in_utxo) in self.in_utxo.iter().enumerate() {
-            let owner = if (in_utxo.owner as usize) < accounts.len() {
-                accounts[in_utxo.owner as usize]
+        for (i, out_utxo) in self.out_utxo.iter().enumerate() {
+            let owner = if (out_utxo.owner as usize) < accounts.len() {
+                accounts[out_utxo.owner as usize]
             } else {
-                self.pubkey_array[in_utxo.owner.saturating_sub(accounts.len() as u8) as usize]
+                self.pubkey_array[out_utxo.owner.saturating_sub(accounts.len() as u8) as usize]
             };
-            let lamports = in_utxo.lamports;
-            let data = in_utxo.data.as_ref().map(|data| {
+            let lamports = self.u64_array[out_utxo.lamports as usize];
+            let data = out_utxo.data.as_ref().map(|data| {
                 data.tlv_from_serializable_tlv(
                     [accounts, self.pubkey_array.as_slice()].concat().as_slice(),
                 )
@@ -158,24 +185,122 @@ impl SerializedUtxos {
         }
         out_utxos
     }
+
+    pub fn add_in_utxos(
+        &mut self,
+        utxos_to_add: &[Utxo],
+        accounts: &[Pubkey],
+        leaf_indices: &[u32],
+    ) -> Result<()> {
+        for (i, utxo) in utxos_to_add.iter().enumerate() {
+            // Determine the owner index
+            let owner_index = match accounts.iter().position(|&p| p == utxo.owner) {
+                Some(index) => index as u8, // Found in accounts
+                None => match self.pubkey_array.iter().position(|&p| p == utxo.owner) {
+                    Some(index) => (accounts.len() + index) as u8, // Found in accounts
+                    None => {
+                        // Not found, add to pubkey_array and use index
+                        self.pubkey_array.push(utxo.owner);
+                        (accounts.len() + self.pubkey_array.len() - 1) as u8
+                    }
+                },
+            };
+
+            // Add the lamports index
+            let lamports_index = match self.u64_array.iter().position(|&p| p == utxo.lamports) {
+                Some(index) => index as u8, // Found in accounts
+                None => {
+                    // Not found, add to u64_array and use index
+                    self.u64_array.push(utxo.lamports);
+                    (self.u64_array.len() - 1) as u8
+                }
+            };
+
+            // Serialize the UTXO data, if present
+            let data_serializable = utxo.data.as_ref().map(|data| {
+                // This transformation needs to be defined based on how Tlv can be converted to TlvSerializable
+                Tlv::to_serializable_tlv(data, &mut self.pubkey_array, accounts)
+            });
+
+            // Create and add the InUtxoSerializable
+            let in_utxo_serializable = InUtxoSerializable {
+                owner: owner_index,
+                leaf_index: leaf_indices[i],
+                lamports: lamports_index,
+                data: data_serializable,
+            };
+            self.in_utxo.push(in_utxo_serializable);
+        }
+        Ok(())
+    }
+
+    pub fn add_out_utxos(&mut self, utxos_to_add: &[OutUtxo], accounts: &[Pubkey]) -> Result<()> {
+        for utxo in utxos_to_add.iter() {
+            // Determine the owner index
+            let owner_index = match accounts.iter().position(|&p| p == utxo.owner) {
+                Some(index) => index as u8, // Found in accounts
+                None => match self.pubkey_array.iter().position(|&p| p == utxo.owner) {
+                    Some(index) => (accounts.len() + index) as u8, // Found in accounts
+                    None => {
+                        // Not found, add to pubkey_array and use index
+                        self.pubkey_array.push(utxo.owner);
+                        (accounts.len() + self.pubkey_array.len() - 1) as u8
+                    }
+                },
+            };
+
+            // Add the lamports index
+            let lamports_index = match self.u64_array.iter().position(|&p| p == utxo.lamports) {
+                Some(index) => index as u8, // Found in accounts
+                None => {
+                    // Not found, add to u64_array and use index
+                    self.u64_array.push(utxo.lamports);
+                    (self.u64_array.len() - 1) as u8
+                }
+            };
+
+            // Serialize the UTXO data, if present
+            let data_serializable = utxo.data.as_ref().map(|data| {
+                // This transformation needs to be defined based on how Tlv can be converted to TlvSerializable
+                Tlv::to_serializable_tlv(data, &mut self.pubkey_array, accounts)
+            });
+
+            // Create and add the InUtxoSerializable
+            let in_utxo_serializable = OutUtxoSerializable {
+                owner: owner_index,
+                lamports: lamports_index,
+                data: data_serializable,
+            };
+            self.out_utxo.push(in_utxo_serializable);
+        }
+        Ok(())
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[account]
 pub struct InUtxoSerializable {
     pub owner: u8,
     pub leaf_index: u32,
-    pub lamports: u64,
+    pub lamports: u8,
     pub data: Option<TlvSerializable>,
 }
 
 // no need to send blinding is computed onchain
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[account]
 pub struct OutUtxoSerializable {
     pub owner: u8,
-    pub lamports: u64,
+    pub lamports: u8,
     pub data: Option<TlvSerializable>,
+}
+
+#[derive(Debug)]
+#[account]
+pub struct OutUtxo {
+    pub owner: Pubkey,
+    pub lamports: u64,
+    pub data: Option<Tlv>,
 }
 
 // blinding we just need to send the leafIndex
@@ -199,7 +324,7 @@ impl Utxo {
     }
 }
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct TlvSerializable {
     pub tlv_elements: Vec<TlvDataElementSerializable>,
 }
@@ -219,138 +344,562 @@ impl TlvSerializable {
     }
 }
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct Tlv {
     pub tlv_elements: Vec<TlvDataElement>,
 }
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+impl Tlv {
+    pub fn to_serializable_tlv(
+        &self,
+        pubkey_array: &mut Vec<Pubkey>,
+        accounts: &[Pubkey],
+    ) -> TlvSerializable {
+        let mut tlv_elements_serializable = Vec::new();
+
+        for tlv_element in &self.tlv_elements {
+            // Try to find the owner in the accounts vector.
+            let owner_index = match accounts.iter().position(|&p| p == tlv_element.owner) {
+                Some(index) => index as u8, // Owner found, use existing index
+                None => match pubkey_array.iter().position(|&p| p == tlv_element.owner) {
+                    Some(index) => (accounts.len() + index) as u8, // Owner found, use existing index
+                    None => {
+                        // Owner not found, append to accounts and use new index
+                        pubkey_array.push(tlv_element.owner);
+                        (accounts.len() + pubkey_array.len() - 1) as u8
+                    }
+                },
+            };
+
+            let serializable_element = TlvDataElementSerializable {
+                discriminator: tlv_element.discriminator,
+                owner: owner_index,
+                data: tlv_element.data.clone(),
+            };
+
+            tlv_elements_serializable.push(serializable_element);
+        }
+
+        TlvSerializable {
+            tlv_elements: tlv_elements_serializable,
+        }
+    }
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct TlvDataElementSerializable {
     pub discriminator: [u8; 8],
     pub owner: u8,
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+/// Time lock escrow example:
+/// escrow tlv data -> compressed token program
+/// let escrow_data = {
+///   owner: Pubkey, // owner is the user pubkey
+///   release_slot: u64,
+///   deposit_slot: u64,
+/// };
+///
+/// let escrow_tlv_data = TlvDataElement {
+///   discriminator: [1,0,0,0,0,0,0,0],
+///   owner: escrow_program_id,
+///   data: escrow_data.try_to_vec()?,
+/// };
+/// let token_tlv = TlvDataElement {
+///   discriminator: [2,0,0,0,0,0,0,0],
+///   owner: token_program,
+///   data: token_data.try_to_vec()?,
+/// };
+/// let token_data = Account {
+///  mint,
+///  owner,
+///  amount: 10_000_000u64,
+///  delegate: None,
+///  state: Initialized, (u64)
+///  is_native: None,
+///  delegated_amount: 0u64,
+///  close_authority: None,
+/// };
+///
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct TlvDataElement {
     pub discriminator: [u8; 8],
     pub owner: Pubkey,
     pub data: Vec<u8>,
 }
 
-// /// Time lock escrow example:
-// /// escrow tlv data -> compressed token program
-// /// let escrow_data = {
-// ///   owner: Pubkey, // owner is the user pubkey
-// ///   release_slot: u64,
-// ///   deposit_slot: u64,
-// /// };
-// ///
-// /// let escrow_tlv_data = TlvDataElement {
-// ///   discriminator: [1,0,0,0,0,0,0,0],
-// ///   owner: escrow_program_id,
-// ///   data: escrow_data,
-// ///   tlv_data: Some(token_tlv.try_to_vec()?),
-// /// };
-// /// let token_tlv = TlvDataElement {
-// ///   discriminator: [2,0,0,0,0,0,0,0],
-// ///   owner: token_program,
-// ///   data: token_data,
-// ///   tlv_data: None,
-// /// };
-// /// let token_data = Account {
-// ///  mint,
-// ///  owner,
-// ///  amount: 10_000_000u64,
-// ///  delegate: None,
-// ///  state: Initialized, (u64)
-// ///  is_native: None,
-// ///  delegated_amount: 0u64,
-// ///  close_authority: None,
-// /// };
-// ///
-// #[derive(Debug, Clone)]
-// pub struct TlvDataElement {
-//     pub discriminator: [u8; 8],
-//     pub owner: Pubkey,
-//     pub data: Vec<u8>,
-//     pub tlv_data: Option<Box<TlvDataElement>>,
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anchor_lang::solana_program::pubkey::Pubkey;
 
-// impl BorshSerialize for TlvDataElement {
-//     fn serialize<W: std::io::Write>(
-//         &self,
-//         writer: &mut W,
-//     ) -> std::result::Result<(), std::io::Error> {
-//         self.discriminator.serialize(writer)?;
-//         self.owner.serialize(writer)?;
-//         self.data.serialize(writer)?;
-//         match &self.tlv_data {
-//             Some(boxed) => {
-//                 1u8.serialize(writer)?; // Indicate that `tlv_data` is present
-//                 boxed.serialize(writer)?;
-//             }
-//             None => {
-//                 0u8.serialize(writer)?; // Indicate that `tlv_data` is not present
-//             }
-//         }
-//         Ok(())
-//     }
-// }
+    #[test]
+    fn test_add_in_utxos() {
+        let mut serialized_utxos = SerializedUtxos {
+            pubkey_array: vec![],
+            u64_array: vec![],
+            in_utxo: vec![],
+            out_utxo: vec![],
+        };
 
-// impl BorshDeserialize for TlvDataElement {
-//     fn deserialize(buf: &mut &[u8]) -> std::result::Result<Self, std::io::Error> {
-//         let discriminator = <[u8; 8]>::deserialize(buf)?;
-//         let owner = <Pubkey>::deserialize(buf)?;
-//         let data = Vec::<u8>::deserialize(buf)?;
-//         let tlv_data_indicator: u8 = BorshDeserialize::deserialize(buf)?;
-//         let tlv_data = if tlv_data_indicator == 0 {
-//             None
-//         } else {
-//             Some(Box::new(TlvDataElement::deserialize(buf)?))
-//         };
+        let owner_pubkey = Pubkey::new_unique();
+        let owner2_pubkey = Pubkey::new_unique();
 
-//         Ok(TlvDataElement {
-//             discriminator,
-//             owner,
-//             data,
-//             tlv_data,
-//         })
-//     }
+        let accounts = vec![owner_pubkey];
+        let utxo = Utxo {
+            owner: owner_pubkey,
+            blinding: [0u8; 32],
+            lamports: 100,
+            data: None,
+        };
 
-//     fn deserialize_reader<R: std::io::Read>(
-//         reader: &mut R,
-//     ) -> std::result::Result<Self, std::io::Error> {
-//         let mut discriminator = [0u8; 8];
-//         reader.read_exact(&mut discriminator)?;
+        serialized_utxos
+            .add_in_utxos(&[utxo], &accounts, &[0])
+            .unwrap();
 
-//         let mut owner = [0u8; 32];
-//         reader.read_exact(&mut owner)?;
+        assert_eq!(serialized_utxos.in_utxo.len(), 1);
+        assert_eq!(serialized_utxos.pubkey_array.len(), 0);
+        assert_eq!(serialized_utxos.u64_array.len(), 1);
+        assert_eq!(serialized_utxos.u64_array[0], 100);
+        assert_eq!(
+            serialized_utxos.in_utxo[0],
+            InUtxoSerializable {
+                owner: 0,
+                leaf_index: 0,
+                lamports: 0,
+                data: None,
+            }
+        );
+        let utxo = Utxo {
+            owner: owner2_pubkey,
+            blinding: [0u8; 32],
+            lamports: 100,
+            data: None,
+        };
 
-//         // Directly read the length of the data vector from the reader
-//         let mut data_len_bytes = [0u8; 4];
-//         reader.read_exact(&mut data_len_bytes)?;
-//         let data_len = u32::from_le_bytes(data_len_bytes); // Assumes little endian. Adjust if necessary.
+        serialized_utxos
+            .add_in_utxos(&[utxo], &accounts, &[1])
+            .unwrap();
+        assert_eq!(serialized_utxos.in_utxo.len(), 2);
+        assert_eq!(serialized_utxos.pubkey_array.len(), 1);
+        assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
+        assert_eq!(serialized_utxos.u64_array.len(), 1);
+        assert_eq!(serialized_utxos.u64_array[0], 100);
+        assert_eq!(
+            serialized_utxos.in_utxo[1],
+            InUtxoSerializable {
+                owner: 1,
+                leaf_index: 1,
+                lamports: 0,
+                data: None,
+            }
+        );
 
-//         let mut data = vec![0u8; data_len as usize];
-//         reader.read_exact(&mut data)?;
+        let utxo = Utxo {
+            owner: owner2_pubkey,
+            blinding: [0u8; 32],
+            lamports: 201,
+            data: None,
+        };
 
-//         // Directly read the tlv_data_indicator from the reader
-//         let mut tlv_data_indicator_bytes = [0u8; 1];
-//         reader.read_exact(&mut tlv_data_indicator_bytes)?;
-//         let tlv_data_indicator = tlv_data_indicator_bytes[0];
+        serialized_utxos
+            .add_in_utxos(&[utxo], &accounts, &[2])
+            .unwrap();
+        assert_eq!(serialized_utxos.in_utxo.len(), 3);
+        assert_eq!(serialized_utxos.pubkey_array.len(), 1);
+        assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
+        assert_eq!(serialized_utxos.u64_array.len(), 2);
+        assert_eq!(serialized_utxos.u64_array[1], 201);
+        assert_eq!(
+            serialized_utxos.in_utxo[2],
+            InUtxoSerializable {
+                owner: 1,
+                leaf_index: 2,
+                lamports: 1,
+                data: None,
+            }
+        );
+    }
 
-//         let tlv_data = if tlv_data_indicator == 0 {
-//             None
-//         } else {
-//             Some(Box::new(TlvDataElement::deserialize_reader(reader)?))
-//         };
+    #[test]
+    fn test_add_out_utxos() {
+        let mut serialized_utxos = SerializedUtxos {
+            pubkey_array: vec![],
+            u64_array: vec![],
+            in_utxo: vec![],
+            out_utxo: vec![],
+        };
 
-//         Ok(TlvDataElement {
-//             discriminator,
-//             owner: Pubkey::new_from_array(owner),
-//             data,
-//             tlv_data,
-//         })
-//     }
-// }
+        let owner_pubkey = Pubkey::new_unique();
+        let owner2_pubkey = Pubkey::new_unique();
+
+        let accounts = vec![owner_pubkey];
+        let utxo = OutUtxo {
+            owner: owner_pubkey,
+            lamports: 100,
+            data: None,
+        };
+
+        serialized_utxos.add_out_utxos(&[utxo], &accounts).unwrap();
+
+        assert_eq!(serialized_utxos.out_utxo.len(), 1);
+        assert_eq!(serialized_utxos.pubkey_array.len(), 0);
+        assert_eq!(serialized_utxos.u64_array.len(), 1);
+        assert_eq!(serialized_utxos.u64_array[0], 100);
+        assert_eq!(
+            serialized_utxos.out_utxo[0],
+            OutUtxoSerializable {
+                owner: 0,
+                lamports: 0,
+                data: None,
+            }
+        );
+        let utxo = OutUtxo {
+            owner: owner2_pubkey,
+            lamports: 100,
+            data: None,
+        };
+
+        serialized_utxos.add_out_utxos(&[utxo], &accounts).unwrap();
+        assert_eq!(serialized_utxos.out_utxo.len(), 2);
+        assert_eq!(serialized_utxos.pubkey_array.len(), 1);
+        assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
+        assert_eq!(serialized_utxos.u64_array.len(), 1);
+        assert_eq!(serialized_utxos.u64_array[0], 100);
+        assert_eq!(
+            serialized_utxos.out_utxo[1],
+            OutUtxoSerializable {
+                owner: 1,
+                lamports: 0,
+                data: None,
+            }
+        );
+
+        let utxo = OutUtxo {
+            owner: owner2_pubkey,
+            lamports: 201,
+            data: None,
+        };
+
+        serialized_utxos.add_out_utxos(&[utxo], &accounts).unwrap();
+        assert_eq!(serialized_utxos.out_utxo.len(), 3);
+        assert_eq!(serialized_utxos.pubkey_array.len(), 1);
+        assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
+        assert_eq!(serialized_utxos.u64_array.len(), 2);
+        assert_eq!(serialized_utxos.u64_array[1], 201);
+        assert_eq!(
+            serialized_utxos.out_utxo[2],
+            OutUtxoSerializable {
+                owner: 1,
+                lamports: 1,
+                data: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_add_in_and_out_utxos() {
+        let mut serialized_utxos = SerializedUtxos {
+            pubkey_array: vec![],
+            u64_array: vec![],
+            in_utxo: vec![],
+            out_utxo: vec![],
+        };
+
+        let owner_pubkey = Pubkey::new_unique();
+        let owner2_pubkey = Pubkey::new_unique();
+        let accounts = vec![owner_pubkey];
+
+        // Adding an InUtxo
+        let in_utxo = Utxo {
+            owner: owner_pubkey,
+            blinding: [0u8; 32],
+            lamports: 100,
+            data: None,
+        };
+
+        serialized_utxos
+            .add_in_utxos(&[in_utxo.clone()], &accounts, &[0])
+            .unwrap();
+
+        // Adding an OutUtxo with the same owner
+        let out_utxo = OutUtxo {
+            owner: owner_pubkey,
+            lamports: 100,
+            data: None,
+        };
+
+        serialized_utxos
+            .add_out_utxos(&[out_utxo.clone()], &accounts)
+            .unwrap();
+
+        // Adding another OutUtxo with a different owner
+        let out_utxo2 = OutUtxo {
+            owner: owner2_pubkey,
+            lamports: 200,
+            data: None,
+        };
+
+        serialized_utxos
+            .add_out_utxos(&[out_utxo2.clone()], &accounts)
+            .unwrap();
+
+        // Assertions for InUtxo
+        assert_eq!(serialized_utxos.in_utxo.len(), 1);
+        assert!(serialized_utxos
+            .in_utxo
+            .iter()
+            .any(|u| u.owner == 0 && u.lamports == 0 && u.leaf_index == 0 && u.data.is_none()));
+
+        // Assertions for OutUtxo
+        assert_eq!(serialized_utxos.out_utxo.len(), 2);
+        assert!(serialized_utxos
+            .out_utxo
+            .iter()
+            .any(|u| u.owner == 0 && u.lamports == 0 && u.data.is_none()));
+        assert!(serialized_utxos
+            .out_utxo
+            .iter()
+            .any(|u| u.owner == 1 && u.lamports == 1 && u.data.is_none()));
+        // Checking pubkey_array and u64_array
+        assert_eq!(
+            serialized_utxos.pubkey_array.len(),
+            1,
+            "Should contain exactly one additional pubkey"
+        );
+        assert_eq!(
+            serialized_utxos.pubkey_array[0], owner2_pubkey,
+            "The additional pubkey should match owner2_pubkey"
+        );
+        assert_eq!(
+            serialized_utxos.u64_array.len(),
+            2,
+            "Should contain exactly two unique lamport values"
+        );
+        assert_eq!(
+            serialized_utxos.u64_array[serialized_utxos.out_utxo[0].lamports as usize], 100,
+            "Should contain lamports value 100"
+        );
+        assert_eq!(
+            serialized_utxos.u64_array[serialized_utxos.out_utxo[1].lamports as usize], 200,
+            "Should contain lamports value 200"
+        );
+        let merkle_tree_accounts = vec![Pubkey::new_unique(), Pubkey::new_unique()]; // Mocked merkle tree accounts for blinding computation
+        let deserialized_in_utxos =
+            serialized_utxos.in_utxos_from_serialized_utxos(&accounts, &merkle_tree_accounts);
+
+        // Deserialization step for OutUtxos
+        // Assuming out_utxos_from_serialized_utxos method exists and works similarly to in_utxos_from_serialized_utxos
+        let leaf_indices: Vec<u32> = vec![2, 3]; // Mocked leaf indices for out_utxos
+        let deserialized_out_utxos = serialized_utxos.out_utxos_from_serialized_utxos(
+            &accounts,
+            &merkle_tree_accounts,
+            &leaf_indices,
+        );
+
+        // Assertions for deserialized InUtxos
+        assert_eq!(deserialized_in_utxos.len(), 1);
+        assert_eq!(deserialized_in_utxos[0].owner, in_utxo.owner);
+        assert_eq!(deserialized_in_utxos[0].lamports, in_utxo.lamports);
+        assert_eq!(deserialized_in_utxos[0].data, None);
+        let out_utxos = vec![out_utxo, out_utxo2];
+        // Assertions for deserialized OutUtxos
+        assert_eq!(deserialized_out_utxos.len(), 2);
+        deserialized_out_utxos
+            .iter()
+            .enumerate()
+            .for_each(|(i, u)| {
+                println!("u {:?}", u);
+                println!("out_utxo {:?}", out_utxos[i]);
+                assert!(
+                    u.owner == out_utxos[i].owner
+                        && u.lamports == out_utxos[i].lamports
+                        && u.data == out_utxos[i].data
+                )
+            });
+    }
+
+    #[test]
+    fn test_in_utxos_from_serialized_utxos() {
+        let owner_pubkey = Pubkey::new_unique();
+        let merkle_tree_account = Pubkey::new_unique();
+        let serialized_utxos = SerializedUtxos {
+            pubkey_array: vec![owner_pubkey],
+            u64_array: vec![100],
+            in_utxo: vec![InUtxoSerializable {
+                owner: 0,
+                leaf_index: 1,
+                lamports: 0,
+                data: None,
+            }],
+            out_utxo: vec![],
+        };
+
+        let accounts = vec![]; // No additional accounts needed for this test
+        let merkle_tree_accounts = vec![merkle_tree_account];
+
+        let in_utxos =
+            serialized_utxos.in_utxos_from_serialized_utxos(&accounts, &merkle_tree_accounts);
+
+        assert_eq!(in_utxos.len(), 1);
+        let utxo = &in_utxos[0];
+        assert_eq!(utxo.owner, owner_pubkey);
+        assert_eq!(utxo.lamports, 100);
+    }
+
+    fn generate_pubkey() -> Pubkey {
+        Pubkey::new_unique()
+    }
+
+    #[test]
+    fn test_to_serializable_tlv() {
+        let pubkey1 = generate_pubkey();
+        let pubkey2 = generate_pubkey(); // This pubkey will simulate an "external" pubkey not initially in accounts.
+        let accounts = vec![pubkey1];
+        let mut pubkey_array = Vec::new();
+
+        let tlv = Tlv {
+            tlv_elements: vec![
+                TlvDataElement {
+                    discriminator: [0; 8],
+                    owner: pubkey1,
+                    data: vec![1, 2, 3],
+                },
+                TlvDataElement {
+                    discriminator: [1; 8],
+                    owner: pubkey2,
+                    data: vec![4, 5, 6],
+                },
+            ],
+        };
+
+        let serializable = tlv.to_serializable_tlv(&mut pubkey_array, &accounts);
+
+        // Verify that pubkey_array was updated correctly
+        assert_eq!(pubkey_array, vec![pubkey2]);
+
+        // Verify the transformation
+        assert_eq!(serializable.tlv_elements.len(), 2);
+        assert_eq!(serializable.tlv_elements[0].owner, 0);
+        assert_eq!(serializable.tlv_elements[1].owner, 1);
+    }
+
+    #[test]
+    fn test_to_serializable_tlv_same_owner() {
+        let pubkey1 = generate_pubkey();
+        let accounts = vec![pubkey1];
+        let mut pubkey_array = Vec::new();
+
+        let tlv = Tlv {
+            tlv_elements: vec![
+                TlvDataElement {
+                    discriminator: [0; 8],
+                    owner: pubkey1,
+                    data: vec![1, 2, 3],
+                },
+                TlvDataElement {
+                    discriminator: [1; 8],
+                    owner: pubkey1,
+                    data: vec![4, 5, 6],
+                },
+            ],
+        };
+
+        let serializable = tlv.to_serializable_tlv(&mut pubkey_array, &accounts);
+
+        // Verify that pubkey_array was updated correctly
+        assert_eq!(pubkey_array, Vec::new());
+
+        // Verify the transformation
+        assert_eq!(serializable.tlv_elements.len(), 2);
+        assert_eq!(serializable.tlv_elements[0].owner, 0);
+        assert_eq!(serializable.tlv_elements[1].owner, 0);
+        let tlv_deserialized = serializable.tlv_from_serializable_tlv(&accounts);
+        assert_eq!(tlv, tlv_deserialized);
+    }
+
+    #[test]
+    fn test_tlv_from_serializable_tlv() {
+        let pubkey1 = generate_pubkey();
+        let pubkey2 = generate_pubkey();
+        let accounts = vec![pubkey1, pubkey2];
+
+        let serializable = TlvSerializable {
+            tlv_elements: vec![
+                TlvDataElementSerializable {
+                    discriminator: [0; 8],
+                    owner: 0,
+                    data: vec![1, 2, 3],
+                },
+                TlvDataElementSerializable {
+                    discriminator: [1; 8],
+                    owner: 1,
+                    data: vec![4, 5, 6],
+                },
+            ],
+        };
+
+        let tlv = serializable.tlv_from_serializable_tlv(&accounts);
+
+        // Verify reconstruction
+        assert_eq!(tlv.tlv_elements.len(), 2);
+        assert_eq!(tlv.tlv_elements[0].owner, pubkey1);
+        assert_eq!(tlv.tlv_elements[1].owner, pubkey2);
+    }
+
+    #[test]
+    fn test_add_in_utxos_with_tlv_data() {
+        let mut serialized_utxos = SerializedUtxos {
+            pubkey_array: vec![],
+            u64_array: vec![],
+            in_utxo: vec![],
+            out_utxo: vec![],
+        };
+
+        let owner_pubkey = Pubkey::new_unique();
+        let accounts = vec![owner_pubkey];
+
+        // Creating TLV data for the UTXO
+        let tlv_data = Tlv {
+            tlv_elements: vec![TlvDataElement {
+                discriminator: [1; 8],
+                owner: owner_pubkey,
+                data: vec![10, 20, 30],
+            }],
+        };
+
+        // Convert TLV data to a serializable format
+        let mut pubkey_array_for_tlv = Vec::new();
+        let tlv_serializable = tlv_data.to_serializable_tlv(&mut pubkey_array_for_tlv, &accounts);
+
+        let utxo = Utxo {
+            owner: owner_pubkey,
+            blinding: [0u8; 32],
+            lamports: 100,
+            data: Some(tlv_data),
+        };
+
+        // Assuming add_in_utxos is modified to accept UTXOs with TLV data correctly
+        serialized_utxos
+            .add_in_utxos(&[utxo], &accounts, &[1])
+            .unwrap();
+
+        assert_eq!(
+            serialized_utxos.in_utxo.len(),
+            1,
+            "Should have added one UTXO"
+        );
+        assert!(
+            serialized_utxos.in_utxo[0].data.is_some(),
+            "UTXO should have TLV data"
+        );
+
+        // Verify that TLV data was serialized correctly
+        let serialized_tlv_data = serialized_utxos.in_utxo[0].data.as_ref().unwrap();
+        assert_eq!(
+            *serialized_tlv_data, tlv_serializable,
+            "TLV data should match the serialized version"
+        );
+    }
+}
