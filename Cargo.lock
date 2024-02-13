@@ -3560,7 +3560,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "psp-compressed-pda-program"
+name = "psp-compressed-pda"
 version = "0.3.0"
 dependencies = [
  "ahash 0.8.6",
@@ -3571,7 +3571,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "psp-compressed-token-program"
+name = "psp-compressed-token"
 version = "0.3.0"
 dependencies = [
  "ahash 0.8.6",
@@ -3579,7 +3579,7 @@ dependencies = [
  "anchor-lang 0.28.0",
  "anchor-spl",
  "bytemuck",
- "psp-compressed-pda-program",
+ "psp-compressed-pda",
  "solana-security-txt",
 ]
 

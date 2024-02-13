@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
 
 #[program]
-pub mod psp_compressed_pda_program {
+pub mod psp_compressed_pda {
     use super::*;
 
     /// This function can be used to transfer sol and execute any other compressed transaction.
@@ -37,7 +37,7 @@ pub struct TransferInstruction<'info> {
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK this account
     pub noop_program: UncheckedAccount<'info>,
-    pub compressed_pda_program: UncheckedAccount<'info>, // Program<'info, psp_compressed_pda_program::program::CompressedPda>,
+    pub compressed_pda_program: UncheckedAccount<'info>, // Program<'info, psp_compressed_pda::program::CompressedPda>,
     /// CHECK this account in psp account compression program
     #[account(mut)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use psp_compressed_pda_program::{TokenInUtxo, TokenOutUtxo};
+use psp_compressed_pda::{TokenInUtxo, TokenOutUtxo};
 // use light_verifier_sdk::light_transaction::ProofCompressed;
 
 // use crate::utxo::{TokenInUtxo, TokenOutUtxo};
@@ -156,7 +156,7 @@ pub struct TransferInstruction<'info> {
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK this account
     pub noop_program: UncheckedAccount<'info>,
-    pub compressed_pda_program: UncheckedAccount<'info>, // Program<'info, psp_compressed_pda_program::program::CompressedPda>,
+    pub compressed_pda_program: UncheckedAccount<'info>, // Program<'info, psp_compressed_pda::program::CompressedPda>,
     /// CHECK this account in psp account compression program
     #[account(mut)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,

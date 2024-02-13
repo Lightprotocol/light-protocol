@@ -1,7 +1,7 @@
 // use account_compression::ConcurrentMerkleTreeAccount;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-// use psp_compressed_pda_program::program::PspCompressedPdaProgram;
+// use psp_compressed_pda::program::PspCompressedPda;
 // use light_merkle_tree_program::{program::LightMerkleTreeProgram, state_merkle_tree_from_bytes};
 // use light_verifier_sdk::{public_transaction::PublicTransactionEvent, utxo::Utxo};
 
@@ -41,8 +41,7 @@ pub struct CreateMintInstruction<'info> {
     #[account(mut)]
     pub token_authority: UncheckedAccount<'info>,
     /// CHECK this account in merkle tree program
-    pub compressed_pda_program:
-        Program<'info, psp_compressed_pda_program::program::PspCompressedPdaProgram>,
+    pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
 }
 
 pub fn cpi_register_merkle_tree_token_pool<'a, 'info>(
@@ -282,8 +281,7 @@ pub struct MintToInstruction<'info> {
     /// CHECK this account
     pub noop_program: UncheckedAccount<'info>,
     pub merkle_tree_program: UncheckedAccount<'info>, //Program<'info, LightMerkleTreeProgram>,
-    pub account_compression_program:
-        Program<'info, psp_compressed_pda_program::program::PspCompressedPdaProgram>,
+    pub account_compression_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
     /// CHECK this account in psp account compression program
     #[account(mut)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,

@@ -1,5 +1,5 @@
 [package]
-name = "psp-compressed-pda-program"
+name = "psp-compressed-pda"
 version = "0.3.0"
 description = "Registry for Light Protocol users"
 license = "Apache-2.0"
@@ -7,7 +7,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "psp_compressed_pda_program"
+name = "psp_compressed_pda"
 
 [features]
 no-entrypoint = []
