@@ -9,5 +9,5 @@ set -eux
 
 pnpm install || { echo >&2 "Failed to install dependencies. Aborting."; exit 1; }
 
-npx nx run-many --target=build --all
+npx nx run-many --target=build --all --exclude web-wallet --exclude cli
 
