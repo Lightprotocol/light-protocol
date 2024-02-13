@@ -1,5 +1,5 @@
-use crate::{TokenInUtxo, TokenOutUtxo};
 use anchor_lang::prelude::*;
+use psp_compressed_pda_program::{TokenInUtxo, TokenOutUtxo};
 // use light_verifier_sdk::light_transaction::ProofCompressed;
 
 // use crate::utxo::{TokenInUtxo, TokenOutUtxo};
@@ -42,7 +42,6 @@ use anchor_lang::prelude::*;
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     _ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
-    _test_state_roots: Option<[[u8; 32]; 2]>,
 ) -> Result<()> {
     let _inputs: InstructionDataTransfer = InstructionDataTransfer::try_deserialize_unchecked(
         &mut [vec![0u8; 8], inputs].concat().as_slice(),

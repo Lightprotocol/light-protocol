@@ -1,6 +1,4 @@
 use anchor_lang::prelude::*;
-pub mod utxo;
-pub use utxo::*;
 
 pub mod process_mint;
 pub mod process_transfer;
@@ -45,7 +43,7 @@ pub mod psp_compressed_token_program {
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        process_transfer::process_transfer(ctx, inputs, None)
+        process_transfer::process_transfer(ctx, inputs)
     }
 
     // TODO: implement update mint, freeze utxo, thaw utxo

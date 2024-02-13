@@ -3560,6 +3560,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "psp-compressed-pda-program"
+version = "0.3.0"
+dependencies = [
+ "ahash 0.8.6",
+ "aligned-sized",
+ "anchor-lang 0.28.0",
+ "bytemuck",
+ "light-verifier-sdk",
+]
+
+[[package]]
+name = "psp-compressed-token-program"
+version = "0.3.0"
+dependencies = [
+ "ahash 0.8.6",
+ "aligned-sized",
+ "anchor-lang 0.28.0",
+ "anchor-spl",
+ "bytemuck",
+ "psp-compressed-pda-program",
+ "solana-security-txt",
+]
+
+[[package]]
 name = "qstring"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
