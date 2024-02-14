@@ -2,11 +2,21 @@ use ark_ff::BigInteger256;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexingArray, IndexedMerkleTree};
 
+/// Size of the address space queue.
 pub const QUEUE_ELEMENTS: usize = 2800;
 
+/// Height of the address space Merkle tree.
 pub const MERKLE_TREE_HEIGHT: usize = 22;
+/// Number of changelog entries in the address space Merkle tree.
 pub const MERKLE_TREE_CHANGELOG: usize = 2800;
+/// Size of the root buffer of the address space Merkle tree.
 pub const MERKLE_TREE_ROOTS: usize = 2800;
+
+/// Number of leaves in the Merkle tree (2 ^ height).
+///
+/// The same value should be used by relayers as the size of an off-chain
+/// indexing array.
+pub const MERKLE_TREE_LEAVES: usize = 4194304;
 
 pub type AddressQueue = IndexingArray<Poseidon, BigInteger256, QUEUE_ELEMENTS>;
 
