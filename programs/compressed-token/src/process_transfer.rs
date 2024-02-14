@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use psp_compressed_pda::{TokenInUtxo, TokenOutUtxo};
+use anchor_spl::token::spl_token::state::AccountState;
+use psp_compressed_pda::SerializedUtxos;
 // use light_verifier_sdk::light_transaction::ProofCompressed;
 
 // use crate::utxo::{TokenInUtxo, TokenOutUtxo};
@@ -171,9 +172,31 @@ pub struct InstructionDataTransfer {
     proof_a: [u8; 32],
     proof_b: [u8; 64],
     proof_c: [u8; 32],
-    in_utxos: Vec<TokenInUtxo>,
     low_element_indexes: Vec<u16>,
     root_indexes: Vec<u64>,
     rpc_fee: Option<u64>,
-    out_utxo: Vec<TokenOutUtxo>,
+    serialized_utxos: SerializedUtxos,
+}
+
+pub struct TokenTlvData {
+    /// The mint associated with this account
+    pub mint: Pubkey,
+    /// The owner of this account.
+    pub owner: Pubkey,
+    /// The amount of tokens this account holds.
+    pub amount: u64,
+    /// If `delegate` is `Some` then `delegated_amount` represents
+    /// the amount authorized by the delegate
+    pub delegate: Option<Pubkey>,
+    /// The account's state
+    pub state: AccountState,
+    /// If is_some, this is a native token, and the value logs the rent-exempt
+    /// reserve. An Account is required to be rent-exempt, so the value is
+    /// used by the Processor to ensure that wrapped SOL accounts do not
+    /// drop below this threshold.
+    pub is_native: Option<u64>,
+    /// The amount delegated
+    pub delegated_amount: u64,
+    /// Optional authority to close the account.
+    pub close_authority: Option<Pubkey>,
 }
