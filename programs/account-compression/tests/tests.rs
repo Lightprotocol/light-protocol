@@ -20,7 +20,7 @@ use light_indexed_merkle_tree::{
     reference,
 };
 use light_utils::bigint_to_be_bytes;
-use solana_program_test::{ProgramTest, ProgramTestContext};
+use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     account::Account,
     instruction::{AccountMeta, Instruction},
@@ -29,8 +29,14 @@ use solana_sdk::{
     system_instruction, system_program,
     transaction::Transaction,
 };
+use thiserror::Error;
 
-// async fn get_account_zero_copy<T>(context: &mut ProgramTestContext, pubkey: Pubkey) -> Box<T>
+#[derive(Error, Debug)]
+enum RelayerUpdateError {
+    #[error("Updating Merkle tree failed: {0:?}")]
+    MerkleTreeUpdate(Vec<BanksClientError>),
+}
+
 async fn deserialize_account_zero_copy<'a, T>(account: &'a Account) -> &'a T
 where
     T: ZeroCopy,
@@ -163,14 +169,13 @@ async fn update_merkle_tree(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     queue_index: u16,
-    // address_index: u16,
     address_next_index: u16,
     address_next_value: [u8; 32],
     low_address: RawIndexingElement<32>,
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 22],
     next_address_proof: [u8; 128],
-) {
+) -> Result<(), BanksClientError> {
     let changelog_index = {
         let address_merkle_tree = context
             .banks_client
@@ -187,7 +192,6 @@ async fn update_merkle_tree(
     let instruction_data = UpdateAddressMerkleTree {
         changelog_index: changelog_index as u16,
         queue_index,
-        // address_index,
         address_next_index,
         address_next_value,
         low_address,
@@ -210,18 +214,14 @@ async fn update_merkle_tree(
         &[&context.payer],
         context.last_blockhash,
     );
-    context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap();
+    context.banks_client.process_transaction(transaction).await
 }
 
 async fn relayer_update(
     context: &mut ProgramTestContext,
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
-) {
+) -> Result<(), RelayerUpdateError> {
     let mut relayer_indexing_array =
         IndexingArray::<Poseidon, BigInteger256, QUEUE_ELEMENTS>::default();
     let mut relayer_merkle_tree = reference::IndexedMerkleTree::<
@@ -231,6 +231,9 @@ async fn relayer_update(
         MERKLE_TREE_ROOTS,
     >::new()
     .unwrap();
+
+    let mut update_errors: Vec<BanksClientError> = Vec::new();
+
     loop {
         let lowest_from_queue = {
             let address_queue = context
@@ -261,7 +264,8 @@ async fn relayer_update(
             relayer_merkle_tree.get_proof_of_leaf(usize::from(old_low_address.index));
         let old_low_address: RawIndexingElement<32> = old_low_address.try_into().unwrap();
 
-        update_merkle_tree(
+        // Update on-chain tree.
+        let update_successful = match update_merkle_tree(
             context,
             address_queue_pubkey,
             address_merkle_tree_pubkey,
@@ -273,21 +277,36 @@ async fn relayer_update(
             low_address_proof,
             [0u8; 128],
         )
-        .await;
+        .await
+        {
+            Ok(_) => true,
+            Err(e) => {
+                update_errors.push(e);
+                false
+            }
+        };
 
-        relayer_merkle_tree
-            .update(
-                &address_bundle.new_low_element,
-                &address_bundle.new_element,
-                &address_bundle.new_element_next_value,
-            )
-            .unwrap();
-        relayer_indexing_array
-            .append_with_low_element_index(
-                address_bundle.new_low_element.index,
-                address_bundle.new_element.value,
-            )
-            .unwrap();
+        if update_successful {
+            relayer_merkle_tree
+                .update(
+                    &address_bundle.new_low_element,
+                    &address_bundle.new_element,
+                    &address_bundle.new_element_next_value,
+                )
+                .unwrap();
+            relayer_indexing_array
+                .append_with_low_element_index(
+                    address_bundle.new_low_element.index,
+                    address_bundle.new_element.value,
+                )
+                .unwrap();
+        }
+    }
+
+    if update_errors.is_empty() {
+        Ok(())
+    } else {
+        Err(RelayerUpdateError::MerkleTreeUpdate(update_errors))
     }
 }
 
@@ -332,10 +351,11 @@ async fn test_address_queue() {
     assert_eq!(element2.value, BigInteger256::from(10_u32));
     assert_eq!(element2.next_index, 1);
 
-    relayer_update(
+    let res = relayer_update(
         &mut context,
         address_queue_keypair.pubkey(),
         address_merkle_tree_keypair.pubkey(),
     )
     .await;
+    assert!(res.is_ok());
 }

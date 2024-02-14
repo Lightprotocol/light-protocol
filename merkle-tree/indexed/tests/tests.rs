@@ -158,17 +158,17 @@ where
             }
         };
 
-        // Update off-chain tree.
-        relayer_merkle_tree
-            .update(
-                &nullifier_bundle.new_low_element,
-                &nullifier_bundle.new_element,
-                &nullifier_bundle.new_element_next_value,
-            )
-            .unwrap();
-
         // Check if the on-chain Merkle tree was really updated.
         if update_successful {
+            // Update off-chain tree.
+            relayer_merkle_tree
+                .update(
+                    &nullifier_bundle.new_low_element,
+                    &nullifier_bundle.new_element,
+                    &nullifier_bundle.new_element_next_value,
+                )
+                .unwrap();
+
             let low_nullifier_leaf = nullifier_bundle
                 .new_low_element
                 .hash::<H>(&nullifier_bundle.new_element.value)
@@ -196,15 +196,15 @@ where
                     &new_nullifier_proof,
                 )
                 .unwrap();
-        }
 
-        // Insert the element to the indexing array.
-        relayer_indexing_array
-            .append_with_low_element_index(
-                nullifier_bundle.new_low_element.index,
-                nullifier_bundle.new_element.value,
-            )
-            .unwrap();
+            // Insert the element to the indexing array.
+            relayer_indexing_array
+                .append_with_low_element_index(
+                    nullifier_bundle.new_low_element.index,
+                    nullifier_bundle.new_element.value,
+                )
+                .unwrap();
+        }
     }
 
     if update_errors.is_empty() {
