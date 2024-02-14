@@ -262,7 +262,7 @@ impl SerializedUtxos {
         &self,
         accounts: &[Pubkey],
         merkle_tree_accounts: &[Pubkey],
-    ) -> Vec<Utxo> {
+    ) -> Result<Vec<Utxo>> {
         let mut in_utxos = Vec::new();
         for (i, in_utxo) in self.in_utxos.iter().enumerate() {
             let owner = if (in_utxo.owner as usize) < accounts.len() {
@@ -282,11 +282,10 @@ impl SerializedUtxos {
                 lamports,
                 data,
             };
-            utxo.update_blinding(merkle_tree_accounts[i].key(), in_utxo.leaf_index as usize)
-                .unwrap();
+            utxo.update_blinding(merkle_tree_accounts[i].key(), in_utxo.leaf_index as usize)?;
             in_utxos.push(utxo);
         }
-        in_utxos
+        Ok(in_utxos)
     }
 
     pub fn out_utxos_from_serialized_utxos(
@@ -294,7 +293,7 @@ impl SerializedUtxos {
         accounts: &[Pubkey],
         merkle_tree_accounts: &[Pubkey],
         leaf_indices: &[u32],
-    ) -> Vec<Utxo> {
+    ) -> Result<Vec<Utxo>> {
         let mut out_utxos = Vec::new();
         for (i, out_utxo) in self.out_utxos.iter().enumerate() {
             let owner = if (out_utxo.owner as usize) < accounts.len() {
@@ -314,11 +313,10 @@ impl SerializedUtxos {
                 lamports,
                 data,
             };
-            utxo.update_blinding(merkle_tree_accounts[i].key(), leaf_indices[i] as usize)
-                .unwrap();
+            utxo.update_blinding(merkle_tree_accounts[i].key(), leaf_indices[i] as usize)?;
             out_utxos.push(utxo);
         }
-        out_utxos
+        Ok(out_utxos)
     }
 
     pub fn add_in_utxos(
@@ -826,17 +824,16 @@ mod tests {
             "Should contain lamports value 200"
         );
         let merkle_tree_accounts = vec![Pubkey::new_unique(), Pubkey::new_unique()]; // Mocked merkle tree accounts for blinding computation
-        let deserialized_in_utxos =
-            serialized_utxos.in_utxos_from_serialized_utxos(&accounts, &merkle_tree_accounts);
+        let deserialized_in_utxos = serialized_utxos
+            .in_utxos_from_serialized_utxos(&accounts, &merkle_tree_accounts)
+            .unwrap();
 
         // Deserialization step for OutUtxos
         // Assuming out_utxos_from_serialized_utxos method exists and works similarly to in_utxos_from_serialized_utxos
         let leaf_indices: Vec<u32> = vec![2, 3]; // Mocked leaf indices for out_utxos
-        let deserialized_out_utxos = serialized_utxos.out_utxos_from_serialized_utxos(
-            &accounts,
-            &merkle_tree_accounts,
-            &leaf_indices,
-        );
+        let deserialized_out_utxos = serialized_utxos
+            .out_utxos_from_serialized_utxos(&accounts, &merkle_tree_accounts, &leaf_indices)
+            .unwrap();
 
         // Assertions for deserialized InUtxos
         assert_eq!(deserialized_in_utxos.len(), 1);
@@ -879,8 +876,9 @@ mod tests {
         let accounts = vec![]; // No additional accounts needed for this test
         let merkle_tree_accounts = vec![merkle_tree_account];
 
-        let in_utxos =
-            serialized_utxos.in_utxos_from_serialized_utxos(&accounts, &merkle_tree_accounts);
+        let in_utxos = serialized_utxos
+            .in_utxos_from_serialized_utxos(&accounts, &merkle_tree_accounts)
+            .unwrap();
 
         assert_eq!(in_utxos.len(), 1);
         let utxo = &in_utxos[0];
