@@ -44,12 +44,11 @@ pub fn bigint_to_be_bytes<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
         ));
     }
 
-    for (i, limb) in bigint.0.iter().enumerate() {
-        bytes[i * limb_size..(i + 1) * limb_size].copy_from_slice(&limb.to_le_bytes());
+    // Iterate over the limbs in reverse order - limbs are little-endian.
+    for (i, limb) in bigint.0.iter().enumerate().rev() {
+        let start_index = BYTES_SIZE - (i + 1) * limb_size;
+        bytes[start_index..start_index + limb_size].copy_from_slice(&limb.to_be_bytes());
     }
-
-    // Since we filled the array in little-endian order for each limb, reverse it for big-endian representation
-    bytes.reverse();
 
     Ok(bytes)
 }
@@ -118,10 +117,12 @@ pub fn le_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
 /// # Examples
 ///
 /// ```
+/// use light_utils::truncate_to_circuit;
+///
 /// let original: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 ///                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
 ///                            29, 30, 31, 32];
-/// let truncated: [u8; 32] = truncate_function(&original);
+/// let truncated: [u8; 32] = truncate_to_circuit(&original);
 /// assert_eq!(truncated, [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
 ///                        18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
 /// ```
@@ -160,4 +161,89 @@ pub fn rustfmt(code: String) -> Result<Vec<u8>, anyhow::Error> {
     stdin_handle.join().unwrap();
 
     Ok(formatted_code)
+}
+
+#[cfg(test)]
+mod test {
+    use ark_ff::{
+        BigInteger128, BigInteger256, BigInteger320, BigInteger384, BigInteger448, BigInteger64,
+        BigInteger768, BigInteger832, UniformRand,
+    };
+    use rand::thread_rng;
+
+    use super::*;
+
+    const ITERATIONS: usize = 64;
+
+    #[test]
+    fn test_bigint_conversion() {
+        let mut rng = thread_rng();
+
+        for _ in 0..ITERATIONS {
+            let b64 = BigInteger64::rand(&mut rng);
+            let b64_converted: [u8; 8] = bigint_to_be_bytes(&b64).unwrap();
+            let b64_converted: BigInteger64 = be_bytes_to_bigint(&b64_converted).unwrap();
+            assert_eq!(b64, b64_converted);
+            let b64_converted: [u8; 8] = bigint_to_le_bytes(&b64).unwrap();
+            let b64_converted: BigInteger64 = le_bytes_to_bigint(&b64_converted).unwrap();
+            assert_eq!(b64, b64_converted);
+
+            let b128 = BigInteger128::rand(&mut rng);
+            let b128_converted: [u8; 16] = bigint_to_be_bytes(&b128).unwrap();
+            let b128_converted: BigInteger128 = be_bytes_to_bigint(&b128_converted).unwrap();
+            assert_eq!(b128, b128_converted);
+            let b128_converted: [u8; 16] = bigint_to_le_bytes(&b128).unwrap();
+            let b128_converted: BigInteger128 = le_bytes_to_bigint(&b128_converted).unwrap();
+            assert_eq!(b128, b128_converted);
+
+            let b256 = BigInteger256::rand(&mut rng);
+            let b256_converted: [u8; 32] = bigint_to_be_bytes(&b256).unwrap();
+            let b256_converted: BigInteger256 = be_bytes_to_bigint(&b256_converted).unwrap();
+            assert_eq!(b256, b256_converted);
+            let b256_converted: [u8; 32] = bigint_to_le_bytes(&b256).unwrap();
+            let b256_converted: BigInteger256 = le_bytes_to_bigint(&b256_converted).unwrap();
+            assert_eq!(b256, b256_converted);
+
+            let b320 = BigInteger320::rand(&mut rng);
+            let b320_converted: [u8; 40] = bigint_to_be_bytes(&b320).unwrap();
+            let b320_converted: BigInteger320 = be_bytes_to_bigint(&b320_converted).unwrap();
+            assert_eq!(b320, b320_converted);
+            let b320_converted: [u8; 40] = bigint_to_le_bytes(&b320).unwrap();
+            let b320_converted: BigInteger320 = le_bytes_to_bigint(&b320_converted).unwrap();
+            assert_eq!(b320, b320_converted);
+
+            let b384 = BigInteger384::rand(&mut rng);
+            let b384_converted: [u8; 48] = bigint_to_be_bytes(&b384).unwrap();
+            let b384_converted: BigInteger384 = be_bytes_to_bigint(&b384_converted).unwrap();
+            assert_eq!(b384, b384_converted);
+            let b384_converted: [u8; 48] = bigint_to_le_bytes(&b384).unwrap();
+            let b384_converted: BigInteger384 = le_bytes_to_bigint(&b384_converted).unwrap();
+            assert_eq!(b384, b384_converted);
+
+            let b448 = BigInteger448::rand(&mut rng);
+            let b448_converted: [u8; 56] = bigint_to_be_bytes(&b448).unwrap();
+            let b448_converted: BigInteger448 = be_bytes_to_bigint(&b448_converted).unwrap();
+            assert_eq!(b448, b448_converted);
+            let b448 = BigInteger448::rand(&mut rng);
+            let b448_converted: [u8; 56] = bigint_to_le_bytes(&b448).unwrap();
+            let b448_converted: BigInteger448 = le_bytes_to_bigint(&b448_converted).unwrap();
+            assert_eq!(b448, b448_converted);
+
+            let b768 = BigInteger768::rand(&mut rng);
+            let b768_converted: [u8; 96] = bigint_to_be_bytes(&b768).unwrap();
+            let b768_converted: BigInteger768 = be_bytes_to_bigint(&b768_converted).unwrap();
+            assert_eq!(b768, b768_converted);
+            let b768_converted: [u8; 96] = bigint_to_le_bytes(&b768).unwrap();
+            let b768_converted: BigInteger768 = le_bytes_to_bigint(&b768_converted).unwrap();
+            assert_eq!(b768, b768_converted);
+
+            let b832 = BigInteger832::rand(&mut rng);
+            let b832_converted: [u8; 104] = bigint_to_be_bytes(&b832).unwrap();
+            let b832_converted: BigInteger832 = be_bytes_to_bigint(&b832_converted).unwrap();
+            assert_eq!(b832, b832_converted);
+            let b832_converted: [u8; 104] = bigint_to_le_bytes(&b832).unwrap();
+            let b832_converted: BigInteger832 = le_bytes_to_bigint(&b832_converted).unwrap();
+            assert_eq!(b832, b832_converted);
+        }
+    }
 }
