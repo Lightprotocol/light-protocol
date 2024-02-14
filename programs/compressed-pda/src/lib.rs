@@ -7,8 +7,15 @@ use light_hasher::{Hasher, Poseidon};
 
 declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
 
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Sum check failed")]
+    SumCheckFailed,
+}
+
 #[program]
 pub mod psp_compressed_pda {
+
     use super::*;
 
     /// This function can be used to transfer sol and execute any other compressed transaction.
@@ -21,6 +28,32 @@ pub mod psp_compressed_pda {
         let _inputs: InstructionDataTransfer = InstructionDataTransfer::try_deserialize_unchecked(
             &mut [vec![0u8; 8], inputs].concat().as_slice(),
         )?;
+        // let (merkle_tree_indices, root_indices) = fetch_out_utxo_index(
+        //     inputs.out_utxos.len(),
+        //     &ctx.remaining_accounts
+        //         [inputs.in_utxos.len() * 2..inputs.in_utxos.len() * 2 + inputs.out_utxos.len()],
+        // )?;
+        // let out_utxos: Vec<Utxo> = merkle_tree_indices
+        //     .iter()
+        //     .map(|(pubkey, i)| {
+        //         let mut utxo = Utxo {
+        //             owner: inputs.out_utxos[*i].owner,
+        //             blinding: [0u8; 32],
+        //             lamports: inputs.out_utxos[*i].lamports,
+        //             data: inputs.out_utxos[*i].data.clone(),
+        //         };
+        //         utxo.update_blinding(*pubkey, root_indices[*i] as usize)
+        //             .unwrap();
+        //         utxo
+        //     })
+        //     .collect();
+        // // sum check
+        // sum_check(inputs.in_utxos, out_utxos, inputs.rpc_fee)?;
+        // check cpi signatures if account is defined
+        // verify proof of inclusion of in utxo hashes
+        // insert nullifiers (in utxo hashes)
+        // insert leaves (out utxo hashes)
+
         Ok(())
     }
 
@@ -34,6 +67,40 @@ pub mod psp_compressed_pda {
             InstructionDataTransfer2::try_deserialize_unchecked(
                 &mut [vec![0u8; 8], inputs].concat().as_slice(),
             )?;
+        // let in_utxos = inputs.utxos.in_utxos_from_serialized_utxos(
+        //     &ctx.accounts
+        //         .to_account_infos()
+        //         .iter()
+        //         .map(|a| a.key())
+        //         .collect::<Vec<Pubkey>>(),
+        //     &ctx.remaining_accounts[..inputs.utxos.in_utxos.len()]
+        //         .iter()
+        //         .map(|a| a.key())
+        //         .collect::<Vec<Pubkey>>(),
+        // );
+        // let (_, root_indices) = fetch_out_utxo_index(
+        //     inputs.utxos.out_utxos.len(),
+        //     &ctx.remaining_accounts[inputs.utxos.in_utxos.len() * 2
+        //         ..inputs.utxos.in_utxos.len() * 2 + inputs.utxos.out_utxos.len()],
+        // )?;
+
+        // let out_utxos = inputs.utxos.out_utxos_from_serialized_utxos(
+        //     &ctx.accounts
+        //         .to_account_infos()
+        //         .iter()
+        //         .map(|a| a.key())
+        //         .collect::<Vec<Pubkey>>(),
+        //     &ctx.remaining_accounts[inputs.utxos.in_utxos.len() * 2..]
+        //         .iter()
+        //         .map(|a| a.key())
+        //         .collect::<Vec<Pubkey>>(),
+        //     &root_indices,
+        // );
+        // sum_check(in_utxos, out_utxos, inputs.rpc_fee)?;
+        // check cpi signatures if account is defined
+        // verify proof of inclusion of in utxo hashes
+        // insert nullifiers (in utxo hashes)
+        // insert leaves (out utxo hashes)
         Ok(())
     }
 
@@ -42,6 +109,68 @@ pub mod psp_compressed_pda {
     // TODO: add create_pda as a wrapper around process_execute_compressed_transaction
 }
 
+pub fn sum_check(
+    in_utxos: Vec<Utxo>,
+    out_utxos: Vec<Utxo>,
+    rpc_fee: Option<u64>,
+) -> anchor_lang::Result<()> {
+    let mut sum: u64 = 0;
+    for utxo in in_utxos.iter() {
+        sum = sum
+            .checked_add(utxo.lamports)
+            .ok_or(ProgramError::InvalidAccountData)?;
+    }
+
+    for utxo in out_utxos.iter() {
+        println!("utxo.lamports {}", utxo.lamports);
+        sum = sum
+            .checked_sub(utxo.lamports)
+            .ok_or(ProgramError::InvalidAccountData)?;
+    }
+
+    if let Some(rpc_fee) = rpc_fee {
+        sum = sum
+            .checked_sub(rpc_fee)
+            .ok_or(ProgramError::InvalidAccountData)?;
+    }
+
+    if sum == 0 {
+        Ok(())
+    } else {
+        Err(ErrorCode::SumCheckFailed.into())
+    }
+}
+
+// TODO: pass the information in which Merkle tree which utxo is as instruction data
+// #[inline(never)]
+// pub fn fetch_out_utxo_index(
+//     number_out_utxos: usize,
+//     remaining_accounts: &[AccountInfo],
+// ) -> Result<(HashMap<Pubkey, usize>, Vec<u32>)> {
+//     let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
+//     let mut out_utxo_index: Vec<u32> = Vec::new();
+//     for i in 0..number_out_utxos {
+//         let index = merkle_tree_indices.get_mut(&remaining_accounts[i].key());
+//         match index {
+//             Some(index) => {
+//                 out_utxo_index.push(*index as u32);
+//             }
+//             None => {
+//                 let merkle_tree =
+//                     AccountLoader::<ConcurrentMerkleTreeAccount>::try_from(&remaining_accounts[i])
+//                         .unwrap();
+//                 let merkle_tree_account = merkle_tree.load()?;
+//                 let merkle_tree =
+//                     state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
+//                 let index = merkle_tree.next_index as usize;
+//                 merkle_tree_indices.insert(remaining_accounts[i].key(), index);
+
+//                 out_utxo_index.push(index as u64);
+//             }
+//         }
+//     }
+//     Ok((merkle_tree_indices, out_utxo_index))
+// }
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
 /// These additional accounts are passed as remaining accounts.
 /// 1 Merkle tree for each in utxo one queue and Merkle tree account each for each out utxo.
@@ -85,11 +214,14 @@ pub struct InstructionDataTransfer {
     proof_a: [u8; 32],
     proof_b: [u8; 64],
     proof_c: [u8; 32],
-    low_element_indexes: Vec<u16>,
-    root_indexes: Vec<u64>,
+    low_element_indices: Vec<u16>,
+    root_indices: Vec<u64>,
     rpc_fee: Option<u64>,
-    in_utxo: Vec<Utxo>,
-    out_utxo: Vec<OutUtxo>,
+    in_utxos: Vec<Utxo>,
+    out_utxos: Vec<OutUtxo>,
+    in_utxo_merkle_tree_remaining_account_index: Vec<u8>,
+    in_utxo_nullifier_queue_remaining_account_index: Vec<u8>,
+    out_utxo_merkle_tree_remaining_account_index: Vec<u8>,
 }
 
 // TODO: parse utxos a more efficient way, since owner is sent multiple times this way
@@ -99,10 +231,13 @@ pub struct InstructionDataTransfer2 {
     proof_a: [u8; 32],
     proof_b: [u8; 64],
     proof_c: [u8; 32],
-    low_element_indexes: Vec<u16>,
-    root_indexes: Vec<u64>,
+    low_element_indices: Vec<u16>,
+    root_indices: Vec<u64>,
     rpc_fee: Option<u64>,
     utxos: SerializedUtxos,
+    in_utxo_merkle_tree_remaining_account_index: Vec<u8>,
+    in_utxo_nullifier_queue_remaining_account_index: Vec<u8>,
+    out_utxo_merkle_tree_remaining_account_index: Vec<u8>,
 }
 
 // there are two sources I can get the pubkey from the transaction object and the other account keys
@@ -118,8 +253,8 @@ pub struct InstructionDataTransfer2 {
 pub struct SerializedUtxos {
     pub pubkey_array: Vec<Pubkey>,
     pub u64_array: Vec<u64>,
-    pub in_utxo: Vec<InUtxoSerializable>,
-    pub out_utxo: Vec<OutUtxoSerializable>,
+    pub in_utxos: Vec<InUtxoSerializable>,
+    pub out_utxos: Vec<OutUtxoSerializable>,
 }
 
 impl SerializedUtxos {
@@ -129,7 +264,7 @@ impl SerializedUtxos {
         merkle_tree_accounts: &[Pubkey],
     ) -> Vec<Utxo> {
         let mut in_utxos = Vec::new();
-        for (i, in_utxo) in self.in_utxo.iter().enumerate() {
+        for (i, in_utxo) in self.in_utxos.iter().enumerate() {
             let owner = if (in_utxo.owner as usize) < accounts.len() {
                 accounts[in_utxo.owner as usize]
             } else {
@@ -161,7 +296,7 @@ impl SerializedUtxos {
         leaf_indices: &[u32],
     ) -> Vec<Utxo> {
         let mut out_utxos = Vec::new();
-        for (i, out_utxo) in self.out_utxo.iter().enumerate() {
+        for (i, out_utxo) in self.out_utxos.iter().enumerate() {
             let owner = if (out_utxo.owner as usize) < accounts.len() {
                 accounts[out_utxo.owner as usize]
             } else {
@@ -229,7 +364,7 @@ impl SerializedUtxos {
                 lamports: lamports_index,
                 data: data_serializable,
             };
-            self.in_utxo.push(in_utxo_serializable);
+            self.in_utxos.push(in_utxo_serializable);
         }
         Ok(())
     }
@@ -271,7 +406,7 @@ impl SerializedUtxos {
                 lamports: lamports_index,
                 data: data_serializable,
             };
-            self.out_utxo.push(in_utxo_serializable);
+            self.out_utxos.push(in_utxo_serializable);
         }
         Ok(())
     }
@@ -338,6 +473,7 @@ impl TlvSerializable {
                 discriminator: tlv_element.discriminator,
                 owner,
                 data: tlv_element.data.clone(),
+                data_hash: tlv_element.data_hash,
             });
         }
         Tlv { tlv_elements }
@@ -375,6 +511,7 @@ impl Tlv {
                 discriminator: tlv_element.discriminator,
                 owner: owner_index,
                 data: tlv_element.data.clone(),
+                data_hash: tlv_element.data_hash,
             };
 
             tlv_elements_serializable.push(serializable_element);
@@ -391,6 +528,7 @@ pub struct TlvDataElementSerializable {
     pub discriminator: [u8; 8],
     pub owner: u8,
     pub data: Vec<u8>,
+    pub data_hash: [u8; 32],
 }
 
 /// Time lock escrow example:
@@ -427,20 +565,22 @@ pub struct TlvDataElement {
     pub discriminator: [u8; 8],
     pub owner: Pubkey,
     pub data: Vec<u8>,
+    pub data_hash: [u8; 32],
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use anchor_lang::solana_program::pubkey::Pubkey;
+
+    use super::*;
 
     #[test]
     fn test_add_in_utxos() {
         let mut serialized_utxos = SerializedUtxos {
             pubkey_array: vec![],
             u64_array: vec![],
-            in_utxo: vec![],
-            out_utxo: vec![],
+            in_utxos: vec![],
+            out_utxos: vec![],
         };
 
         let owner_pubkey = Pubkey::new_unique();
@@ -458,12 +598,12 @@ mod tests {
             .add_in_utxos(&[utxo], &accounts, &[0])
             .unwrap();
 
-        assert_eq!(serialized_utxos.in_utxo.len(), 1);
+        assert_eq!(serialized_utxos.in_utxos.len(), 1);
         assert_eq!(serialized_utxos.pubkey_array.len(), 0);
         assert_eq!(serialized_utxos.u64_array.len(), 1);
         assert_eq!(serialized_utxos.u64_array[0], 100);
         assert_eq!(
-            serialized_utxos.in_utxo[0],
+            serialized_utxos.in_utxos[0],
             InUtxoSerializable {
                 owner: 0,
                 leaf_index: 0,
@@ -481,13 +621,13 @@ mod tests {
         serialized_utxos
             .add_in_utxos(&[utxo], &accounts, &[1])
             .unwrap();
-        assert_eq!(serialized_utxos.in_utxo.len(), 2);
+        assert_eq!(serialized_utxos.in_utxos.len(), 2);
         assert_eq!(serialized_utxos.pubkey_array.len(), 1);
         assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
         assert_eq!(serialized_utxos.u64_array.len(), 1);
         assert_eq!(serialized_utxos.u64_array[0], 100);
         assert_eq!(
-            serialized_utxos.in_utxo[1],
+            serialized_utxos.in_utxos[1],
             InUtxoSerializable {
                 owner: 1,
                 leaf_index: 1,
@@ -506,13 +646,13 @@ mod tests {
         serialized_utxos
             .add_in_utxos(&[utxo], &accounts, &[2])
             .unwrap();
-        assert_eq!(serialized_utxos.in_utxo.len(), 3);
+        assert_eq!(serialized_utxos.in_utxos.len(), 3);
         assert_eq!(serialized_utxos.pubkey_array.len(), 1);
         assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
         assert_eq!(serialized_utxos.u64_array.len(), 2);
         assert_eq!(serialized_utxos.u64_array[1], 201);
         assert_eq!(
-            serialized_utxos.in_utxo[2],
+            serialized_utxos.in_utxos[2],
             InUtxoSerializable {
                 owner: 1,
                 leaf_index: 2,
@@ -527,8 +667,8 @@ mod tests {
         let mut serialized_utxos = SerializedUtxos {
             pubkey_array: vec![],
             u64_array: vec![],
-            in_utxo: vec![],
-            out_utxo: vec![],
+            in_utxos: vec![],
+            out_utxos: vec![],
         };
 
         let owner_pubkey = Pubkey::new_unique();
@@ -543,12 +683,12 @@ mod tests {
 
         serialized_utxos.add_out_utxos(&[utxo], &accounts).unwrap();
 
-        assert_eq!(serialized_utxos.out_utxo.len(), 1);
+        assert_eq!(serialized_utxos.out_utxos.len(), 1);
         assert_eq!(serialized_utxos.pubkey_array.len(), 0);
         assert_eq!(serialized_utxos.u64_array.len(), 1);
         assert_eq!(serialized_utxos.u64_array[0], 100);
         assert_eq!(
-            serialized_utxos.out_utxo[0],
+            serialized_utxos.out_utxos[0],
             OutUtxoSerializable {
                 owner: 0,
                 lamports: 0,
@@ -562,13 +702,13 @@ mod tests {
         };
 
         serialized_utxos.add_out_utxos(&[utxo], &accounts).unwrap();
-        assert_eq!(serialized_utxos.out_utxo.len(), 2);
+        assert_eq!(serialized_utxos.out_utxos.len(), 2);
         assert_eq!(serialized_utxos.pubkey_array.len(), 1);
         assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
         assert_eq!(serialized_utxos.u64_array.len(), 1);
         assert_eq!(serialized_utxos.u64_array[0], 100);
         assert_eq!(
-            serialized_utxos.out_utxo[1],
+            serialized_utxos.out_utxos[1],
             OutUtxoSerializable {
                 owner: 1,
                 lamports: 0,
@@ -583,13 +723,13 @@ mod tests {
         };
 
         serialized_utxos.add_out_utxos(&[utxo], &accounts).unwrap();
-        assert_eq!(serialized_utxos.out_utxo.len(), 3);
+        assert_eq!(serialized_utxos.out_utxos.len(), 3);
         assert_eq!(serialized_utxos.pubkey_array.len(), 1);
         assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
         assert_eq!(serialized_utxos.u64_array.len(), 2);
         assert_eq!(serialized_utxos.u64_array[1], 201);
         assert_eq!(
-            serialized_utxos.out_utxo[2],
+            serialized_utxos.out_utxos[2],
             OutUtxoSerializable {
                 owner: 1,
                 lamports: 1,
@@ -603,8 +743,8 @@ mod tests {
         let mut serialized_utxos = SerializedUtxos {
             pubkey_array: vec![],
             u64_array: vec![],
-            in_utxo: vec![],
-            out_utxo: vec![],
+            in_utxos: vec![],
+            out_utxos: vec![],
         };
 
         let owner_pubkey = Pubkey::new_unique();
@@ -646,20 +786,20 @@ mod tests {
             .unwrap();
 
         // Assertions for InUtxo
-        assert_eq!(serialized_utxos.in_utxo.len(), 1);
+        assert_eq!(serialized_utxos.in_utxos.len(), 1);
         assert!(serialized_utxos
-            .in_utxo
+            .in_utxos
             .iter()
             .any(|u| u.owner == 0 && u.lamports == 0 && u.leaf_index == 0 && u.data.is_none()));
 
         // Assertions for OutUtxo
-        assert_eq!(serialized_utxos.out_utxo.len(), 2);
+        assert_eq!(serialized_utxos.out_utxos.len(), 2);
         assert!(serialized_utxos
-            .out_utxo
+            .out_utxos
             .iter()
             .any(|u| u.owner == 0 && u.lamports == 0 && u.data.is_none()));
         assert!(serialized_utxos
-            .out_utxo
+            .out_utxos
             .iter()
             .any(|u| u.owner == 1 && u.lamports == 1 && u.data.is_none()));
         // Checking pubkey_array and u64_array
@@ -678,11 +818,11 @@ mod tests {
             "Should contain exactly two unique lamport values"
         );
         assert_eq!(
-            serialized_utxos.u64_array[serialized_utxos.out_utxo[0].lamports as usize], 100,
+            serialized_utxos.u64_array[serialized_utxos.out_utxos[0].lamports as usize], 100,
             "Should contain lamports value 100"
         );
         assert_eq!(
-            serialized_utxos.u64_array[serialized_utxos.out_utxo[1].lamports as usize], 200,
+            serialized_utxos.u64_array[serialized_utxos.out_utxos[1].lamports as usize], 200,
             "Should contain lamports value 200"
         );
         let merkle_tree_accounts = vec![Pubkey::new_unique(), Pubkey::new_unique()]; // Mocked merkle tree accounts for blinding computation
@@ -727,13 +867,13 @@ mod tests {
         let serialized_utxos = SerializedUtxos {
             pubkey_array: vec![owner_pubkey],
             u64_array: vec![100],
-            in_utxo: vec![InUtxoSerializable {
+            in_utxos: vec![InUtxoSerializable {
                 owner: 0,
                 leaf_index: 1,
                 lamports: 0,
                 data: None,
             }],
-            out_utxo: vec![],
+            out_utxos: vec![],
         };
 
         let accounts = vec![]; // No additional accounts needed for this test
@@ -765,11 +905,13 @@ mod tests {
                     discriminator: [0; 8],
                     owner: pubkey1,
                     data: vec![1, 2, 3],
+                    data_hash: [1; 32],
                 },
                 TlvDataElement {
                     discriminator: [1; 8],
                     owner: pubkey2,
                     data: vec![4, 5, 6],
+                    data_hash: [2; 32],
                 },
             ],
         };
@@ -797,11 +939,13 @@ mod tests {
                     discriminator: [0; 8],
                     owner: pubkey1,
                     data: vec![1, 2, 3],
+                    data_hash: [1; 32],
                 },
                 TlvDataElement {
                     discriminator: [1; 8],
                     owner: pubkey1,
                     data: vec![4, 5, 6],
+                    data_hash: [2; 32],
                 },
             ],
         };
@@ -831,11 +975,13 @@ mod tests {
                     discriminator: [0; 8],
                     owner: 0,
                     data: vec![1, 2, 3],
+                    data_hash: [1; 32],
                 },
                 TlvDataElementSerializable {
                     discriminator: [1; 8],
                     owner: 1,
                     data: vec![4, 5, 6],
+                    data_hash: [2; 32],
                 },
             ],
         };
@@ -853,8 +999,8 @@ mod tests {
         let mut serialized_utxos = SerializedUtxos {
             pubkey_array: vec![],
             u64_array: vec![],
-            in_utxo: vec![],
-            out_utxo: vec![],
+            in_utxos: vec![],
+            out_utxos: vec![],
         };
 
         let owner_pubkey = Pubkey::new_unique();
@@ -866,6 +1012,7 @@ mod tests {
                 discriminator: [1; 8],
                 owner: owner_pubkey,
                 data: vec![10, 20, 30],
+                data_hash: [2; 32],
             }],
         };
 
@@ -886,20 +1033,80 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            serialized_utxos.in_utxo.len(),
+            serialized_utxos.in_utxos.len(),
             1,
             "Should have added one UTXO"
         );
         assert!(
-            serialized_utxos.in_utxo[0].data.is_some(),
+            serialized_utxos.in_utxos[0].data.is_some(),
             "UTXO should have TLV data"
         );
 
         // Verify that TLV data was serialized correctly
-        let serialized_tlv_data = serialized_utxos.in_utxo[0].data.as_ref().unwrap();
+        let serialized_tlv_data = serialized_utxos.in_utxos[0].data.as_ref().unwrap();
         assert_eq!(
             *serialized_tlv_data, tlv_serializable,
             "TLV data should match the serialized version"
         );
+    }
+
+    #[test]
+    fn test_sum_check_passes() {
+        let in_utxos = vec![
+            Utxo {
+                owner: Pubkey::new_unique(),
+                blinding: [0; 32],
+                lamports: 100,
+                data: None,
+            },
+            Utxo {
+                owner: Pubkey::new_unique(),
+                blinding: [0; 32],
+                lamports: 50,
+                data: None,
+            },
+        ];
+
+        let out_utxos = vec![Utxo {
+            owner: Pubkey::new_unique(),
+            lamports: 150,
+            blinding: [0; 32],
+            data: None,
+        }];
+
+        let rpc_fee = None; // No RPC fee
+
+        let result = sum_check(in_utxos, out_utxos, rpc_fee);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_sum_check_fails() {
+        let in_utxos = vec![
+            Utxo {
+                owner: Pubkey::new_unique(),
+                blinding: [0; 32],
+                lamports: 200,
+                data: None,
+            },
+            Utxo {
+                owner: Pubkey::new_unique(),
+                blinding: [0; 32],
+                lamports: 50,
+                data: None,
+            },
+        ];
+
+        let out_utxos = vec![Utxo {
+            owner: Pubkey::new_unique(),
+            blinding: [0; 32],
+            lamports: 100,
+            data: None,
+        }];
+
+        let rpc_fee = Some(50); // Adding an RPC fee to ensure the sums don't match
+
+        let result = sum_check(in_utxos, out_utxos, rpc_fee);
+        assert!(result.is_err());
     }
 }

@@ -3567,6 +3567,7 @@ dependencies = [
  "aligned-sized",
  "anchor-lang 0.28.0",
  "bytemuck",
+ "light-hasher",
  "light-verifier-sdk",
 ]
 
