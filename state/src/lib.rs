@@ -18,7 +18,7 @@ pub const MERKLE_TREE_ROOTS: usize = 2800;
 /// indexing array.
 pub const MERKLE_TREE_LEAVES: usize = 4194304;
 
-pub type AddressQueue = IndexingArray<Poseidon, BigInteger256, QUEUE_ELEMENTS>;
+pub type AddressQueue = IndexingArray<Poseidon, u16, BigInteger256, QUEUE_ELEMENTS>;
 
 pub fn address_queue_from_bytes(bytes: &[u8; 112008]) -> &AddressQueue {
     // SAFETY: We make sure that the size of the byte slice is equal to
@@ -46,6 +46,7 @@ pub fn address_queue_from_bytes_mut(bytes: &mut [u8; 112008]) -> &mut AddressQue
 
 pub type AddressMerkleTree = IndexedMerkleTree<
     Poseidon,
+    usize,
     BigInteger256,
     MERKLE_TREE_HEIGHT,
     MERKLE_TREE_CHANGELOG,

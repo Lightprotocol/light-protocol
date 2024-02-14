@@ -28,7 +28,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
     system_instruction, system_program,
-    transaction::{Transaction, TransactionError},
+    transaction::Transaction,
 };
 use thiserror::Error;
 
@@ -166,9 +166,9 @@ async fn update_merkle_tree(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     queue_index: u16,
-    address_next_index: u16,
+    address_next_index: usize,
     address_next_value: [u8; 32],
-    low_address: RawIndexingElement<32>,
+    low_address: RawIndexingElement<usize, 32>,
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 22],
     next_address_proof: [u8; 128],
@@ -221,6 +221,7 @@ async fn relayer_update(
 ) -> Result<(), RelayerUpdateError> {
     let mut relayer_indexing_array = Box::new(IndexingArray::<
         Poseidon,
+        usize,
         BigInteger256,
         // This is not a correct value you would normally use in relayer, A
         // correct size would be number of leaves which the merkle tree can fit
@@ -231,6 +232,7 @@ async fn relayer_update(
     let mut relayer_merkle_tree = Box::new(
         reference::IndexedMerkleTree::<
             Poseidon,
+            usize,
             BigInteger256,
             MERKLE_TREE_HEIGHT,
             MERKLE_TREE_ROOTS,
@@ -263,12 +265,13 @@ async fn relayer_update(
             .find_low_element(&lowest_from_queue.value)
             .unwrap();
         let address_bundle = relayer_indexing_array
-            .new_element_with_low_element_index(old_low_address.index, lowest_from_queue.value);
+            .new_element_with_low_element_index(old_low_address.index, lowest_from_queue.value)
+            .unwrap();
 
         // Get the Merkle proof for updaring low element.
         let low_address_proof =
             relayer_merkle_tree.get_proof_of_leaf(usize::from(old_low_address.index));
-        let old_low_address: RawIndexingElement<32> = old_low_address.try_into().unwrap();
+        let old_low_address: RawIndexingElement<usize, 32> = old_low_address.try_into().unwrap();
 
         // Update on-chain tree.
         let update_successful = match update_merkle_tree(
@@ -386,6 +389,7 @@ async fn test_insert_invalid_low_element() {
     // values. 😈
     let mut local_indexing_array = Box::new(IndexingArray::<
         Poseidon,
+        usize,
         BigInteger256,
         // This is not a correct value you would normally use in relayer, A
         // correct size would be number of leaves which the merkle tree can fit
@@ -396,6 +400,7 @@ async fn test_insert_invalid_low_element() {
     let mut local_merkle_tree = Box::new(
         reference::IndexedMerkleTree::<
             Poseidon,
+            usize,
             BigInteger256,
             MERKLE_TREE_HEIGHT,
             MERKLE_TREE_ROOTS,
@@ -450,7 +455,7 @@ async fn test_insert_invalid_low_element() {
     // Index of our new nullifier in the queue.
     let queue_index = 1_u16;
     // (Invalid) index of the next address.
-    let next_index = 2_u16;
+    let next_index = 2_usize;
     // (Invalid) value of the next address.
     let next_value = address2;
     // (Invalid) low nullifier.
@@ -486,7 +491,7 @@ async fn test_insert_invalid_low_element() {
     // Index of our new nullifier in the queue.
     let queue_index = 1_u16;
     // (Invalid) index of the next address.
-    let next_index = 1_u16;
+    let next_index = 1_usize;
     // (Invalid) value of the next address.
     let next_value = address1;
     // (Invalid) low nullifier.

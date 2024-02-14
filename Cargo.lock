@@ -2735,6 +2735,7 @@ dependencies = [
  "light-hasher",
  "light-merkle-tree-reference",
  "light-utils",
+ "num-traits",
  "thiserror",
 ]
 

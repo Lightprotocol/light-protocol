@@ -27,11 +27,11 @@ pub fn process_update_address_merkle_tree<'info>(
     // Index of the address to dequeue.
     queue_index: u16,
     // Index of the next address.
-    address_next_index: u16,
+    address_next_index: usize,
     // Value of the next address.
     address_next_value: [u8; 32],
     // Low address.
-    low_address: RawIndexingElement<32>,
+    low_address: RawIndexingElement<usize, 32>,
     // Value of the next address.
     low_address_next_value: [u8; 32],
     // Merkle proof for updating the low address.
@@ -46,20 +46,23 @@ pub fn process_update_address_merkle_tree<'info>(
     let merkle_tree = address_merkle_tree_from_bytes_mut(&mut merkle_tree.merkle_tree);
 
     // Remove the address from the queue.
-    let mut address = address_queue
+    let address = address_queue
         .dequeue_at(queue_index)
         .map_err(|_| AccountCompressionErrorCode::AddressQueueDequeue)?
         .ok_or(AccountCompressionErrorCode::InvalidIndex)?;
 
     // Update the address with ranges adjusted to the Merkle tree state.
-    address.index = u16::try_from(merkle_tree.merkle_tree.next_index)
-        .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
-    address.next_index = address_next_index;
+    let address: IndexingElement<usize, BigInteger256> = IndexingElement {
+        index: usize::try_from(merkle_tree.merkle_tree.next_index)
+            .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
+        value: address.value,
+        next_index: address_next_index,
+    };
 
     // Convert byte inputs to big integers.
     let address_next_value = be_bytes_to_bigint(&address_next_value)
         .map_err(|_| AccountCompressionErrorCode::BytesToBigint)?;
-    let low_address: IndexingElement<BigInteger256> = low_address
+    let low_address: IndexingElement<usize, BigInteger256> = low_address
         .try_into()
         .map_err(|_| AccountCompressionErrorCode::BytesToBigint)?;
     let low_address_next_value = be_bytes_to_bigint(&low_address_next_value)

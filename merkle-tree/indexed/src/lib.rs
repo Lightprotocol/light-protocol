@@ -4,6 +4,7 @@ use ark_ff::BigInteger;
 use array::IndexingElement;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree;
 use light_hasher::{errors::HasherError, Hasher};
+use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 pub mod array;
 pub mod reference;
@@ -11,37 +12,46 @@ pub mod reference;
 #[repr(C)]
 pub struct IndexedMerkleTree<
     H,
+    I,
     B,
     const HEIGHT: usize,
     const MAX_CHANGELOG: usize,
     const MAX_ROOTS: usize,
 > where
     H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>,
+    _index: PhantomData<I>,
     _bigint: PhantomData<B>,
 }
 
-impl<H, B, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Default
-    for IndexedMerkleTree<H, B, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+impl<H, I, B, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Default
+    for IndexedMerkleTree<H, I, B, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
 where
     H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
     fn default() -> Self {
         Self {
             merkle_tree: ConcurrentMerkleTree::default(),
+            _index: PhantomData,
             _bigint: PhantomData,
         }
     }
 }
 
-impl<H, B, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>
-    IndexedMerkleTree<H, B, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+impl<H, I, B, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>
+    IndexedMerkleTree<H, I, B, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
 where
     H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
     pub fn init(&mut self) -> Result<(), HasherError> {
         self.merkle_tree.init()?;
@@ -82,15 +92,15 @@ where
     pub fn update(
         &mut self,
         changelog_index: usize,
-        new_element: IndexingElement<B>,
+        new_element: IndexingElement<I, B>,
         new_element_next_value: B,
-        low_element: IndexingElement<B>,
+        low_element: IndexingElement<I, B>,
         low_element_next_value: B,
         low_leaf_proof: &[[u8; 32]; HEIGHT],
     ) -> Result<(), HasherError> {
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
-        if low_element.next_index == 0 {
+        if low_element.next_index == I::zero() {
             // In this case, the `old_low_element` is the greatest element.
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).

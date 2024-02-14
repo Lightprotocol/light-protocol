@@ -38,11 +38,11 @@ pub mod address {
         // Index of the address to dequeue.
         queue_index: u16,
         // Index of the next address.
-        address_next_index: u16,
+        address_next_index: usize,
         // Value of the next address.
         address_next_value: [u8; 32],
         // Low address.
-        low_address: RawIndexingElement<32>,
+        low_address: RawIndexingElement<usize, 32>,
         // Value of the next address.
         low_address_next_value: [u8; 32],
         // Merkle proof for updating the low address.
