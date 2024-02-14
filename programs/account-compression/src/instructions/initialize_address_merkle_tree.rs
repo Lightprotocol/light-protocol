@@ -21,8 +21,5 @@ pub fn process_initialize_address_merkle_tree<'info>(
         .init()
         .map_err(|_| AccountCompressionErrorCode::AddressMerkleTreeInitialize)?;
 
-    msg!("changelog_index: {}", address_merkle_tree.changelog_index());
-    msg!("initialized tree succefully!!!111");
-
     Ok(())
 }
