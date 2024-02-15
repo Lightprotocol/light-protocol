@@ -33,10 +33,7 @@ export type PspCompressedToken = {
         {
           "name": "mint",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "not sure whether this is going to work with the pda, but even if it doesn't we can just as well take a normal account, this is safe because every account can only exist once and you need the private key"
-          ]
+          "isSigner": false
         },
         {
           "name": "systemProgram",
@@ -51,18 +48,12 @@ export type PspCompressedToken = {
         {
           "name": "registeredAssetPoolPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "registeredPoolTypePda",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "merkleTreePdaToken",
@@ -75,26 +66,17 @@ export type PspCompressedToken = {
         {
           "name": "merkleTreeAuthorityPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "tokenAuthority",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "compressedPdaProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         }
       ],
       "args": []
@@ -115,26 +97,17 @@ export type PspCompressedToken = {
         {
           "name": "merkleTreeAuthority",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Check is checked in Merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "authorityPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Check that mint authority is derived from signer"
-          ]
+          "isSigner": false
         },
         {
           "name": "mint",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Check that authority is mint authority"
-          ]
+          "isSigner": false
         },
         {
           "name": "tokenProgram",
@@ -144,18 +117,12 @@ export type PspCompressedToken = {
         {
           "name": "registeredVerifierPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "merkleTreePdaToken",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "merkleTreeSet",
@@ -165,10 +132,7 @@ export type PspCompressedToken = {
         {
           "name": "noopProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "merkleTreeProgram",
@@ -183,10 +147,7 @@ export type PspCompressedToken = {
         {
           "name": "pspAccountCompressionAuthority",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in psp account compression program"
-          ]
+          "isSigner": false
         }
       ],
       "args": [
@@ -220,26 +181,17 @@ export type PspCompressedToken = {
         {
           "name": "authorityPda",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Check that mint authority is derived from signer"
-          ]
+          "isSigner": false
         },
         {
           "name": "registeredProgramPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "noopProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "compressedPdaProgram",
@@ -249,18 +201,12 @@ export type PspCompressedToken = {
         {
           "name": "pspAccountCompressionAuthority",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in psp account compression program"
-          ]
+          "isSigner": false
         },
         {
           "name": "accountCompressionProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in psp account compression program"
-          ]
+          "isSigner": false
         }
       ],
       "args": [
@@ -391,10 +337,7 @@ export const IDL: PspCompressedToken = {
         {
           "name": "mint",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "not sure whether this is going to work with the pda, but even if it doesn't we can just as well take a normal account, this is safe because every account can only exist once and you need the private key"
-          ]
+          "isSigner": false
         },
         {
           "name": "systemProgram",
@@ -409,18 +352,12 @@ export const IDL: PspCompressedToken = {
         {
           "name": "registeredAssetPoolPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "registeredPoolTypePda",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "merkleTreePdaToken",
@@ -433,26 +370,17 @@ export const IDL: PspCompressedToken = {
         {
           "name": "merkleTreeAuthorityPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "tokenAuthority",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "compressedPdaProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
+          "isSigner": false
         }
       ],
       "args": []
@@ -473,26 +401,17 @@ export const IDL: PspCompressedToken = {
         {
           "name": "merkleTreeAuthority",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Check is checked in Merkle tree program"
-          ]
+          "isSigner": false
         },
         {
           "name": "authorityPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Check that mint authority is derived from signer"
-          ]
+          "isSigner": false
         },
         {
           "name": "mint",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Check that authority is mint authority"
-          ]
+          "isSigner": false
         },
         {
           "name": "tokenProgram",
@@ -502,18 +421,12 @@ export const IDL: PspCompressedToken = {
         {
           "name": "registeredVerifierPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "merkleTreePdaToken",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "merkleTreeSet",
@@ -523,10 +436,7 @@ export const IDL: PspCompressedToken = {
         {
           "name": "noopProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "merkleTreeProgram",
@@ -541,10 +451,7 @@ export const IDL: PspCompressedToken = {
         {
           "name": "pspAccountCompressionAuthority",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in psp account compression program"
-          ]
+          "isSigner": false
         }
       ],
       "args": [
@@ -578,26 +485,17 @@ export const IDL: PspCompressedToken = {
         {
           "name": "authorityPda",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Check that mint authority is derived from signer"
-          ]
+          "isSigner": false
         },
         {
           "name": "registeredProgramPda",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "noopProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account"
-          ]
+          "isSigner": false
         },
         {
           "name": "compressedPdaProgram",
@@ -607,18 +505,12 @@ export const IDL: PspCompressedToken = {
         {
           "name": "pspAccountCompressionAuthority",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in psp account compression program"
-          ]
+          "isSigner": false
         },
         {
           "name": "accountCompressionProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in psp account compression program"
-          ]
+          "isSigner": false
         }
       ],
       "args": [

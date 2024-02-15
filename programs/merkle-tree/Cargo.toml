@@ -18,8 +18,8 @@ default = []
 test-bpf = []
 
 [dependencies]
-anchor-lang = "0.28.0"
-anchor-spl = "0.28.0"
+anchor-lang = "0.29.0"
+anchor-spl = "0.29.0"
 
 byteorder = "1.3"
 bytemuck = { version = "1.14", features = ["min_const_generics"] }

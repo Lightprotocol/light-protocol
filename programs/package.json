@@ -3,6 +3,7 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
-    "build": "light-anchor build"
+    "build": "anchor build",
+    "test": "cargo-test-sbf -p account-compression"
   }
 }

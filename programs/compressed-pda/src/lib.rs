@@ -178,19 +178,20 @@ pub fn sum_check(
 pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
-    /// Check that mint authority is derived from signer
+    /// CHECK: Check that mint authority is derived from signer
     // #[account(mut, seeds = [b"authority", authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump,)]
     pub authority_pda: UncheckedAccount<'info>,
-    /// CHECK this account
+    /// CHECK: this account
     #[account(mut)]
     pub registered_program_pda: UncheckedAccount<'info>,
-    /// CHECK this account
+    /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
+    /// CHECK: this account in psp account compression program
     pub compressed_pda_program: UncheckedAccount<'info>, // Program<'info, psp_compressed_pda::program::CompressedPda>,
-    /// CHECK this account in psp account compression program
+    /// CHECK: this account in psp account compression program
     #[account(mut)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,
-    /// CHECK this account in psp account compression program
+    /// CHECK: this account in psp account compression program
     pub account_compression_program: UncheckedAccount<'info>,
     pub cpi_signature_account: Option<Account<'info, CpiSignatureAccount>>,
 }

@@ -1,50 +1,113 @@
 use std::{cmp::Ordering, marker::PhantomData};
 
-use ark_ff::BigInteger;
+use ark_ff::{BigInteger, BigInteger256};
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{errors::HasherError, Hasher};
+use light_utils::bigint::{be_bytes_to_bigint, bigint_to_be_bytes};
+use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
-#[derive(Clone, Debug, Default)]
-pub struct IndexingElement<B>
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct RawIndexingElement<I, const N: usize>
 where
-    B: BigInteger,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
 {
-    pub index: u16,
-    pub value: B,
-    pub next_index: u16,
+    pub index: I,
+    pub value: [u8; N],
+    pub next_index: I,
 }
 
-impl<B> PartialEq for IndexingElement<B>
+#[derive(Clone, Debug, Default)]
+pub struct IndexingElement<I, B>
 where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
+{
+    pub index: I,
+    pub value: B,
+    pub next_index: I,
+}
+
+impl<I> TryFrom<RawIndexingElement<I, 32>> for IndexingElement<I, BigInteger256>
+where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    usize: From<I>,
+{
+    type Error = ();
+
+    fn try_from(element: RawIndexingElement<I, 32>) -> Result<Self, Self::Error> {
+        let value = be_bytes_to_bigint(&element.value).map_err(|_| ())?;
+        Ok(Self {
+            index: element.index,
+            value,
+            next_index: element.next_index,
+        })
+    }
+}
+
+impl<I> TryFrom<IndexingElement<I, BigInteger256>> for RawIndexingElement<I, 32>
+where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    usize: From<I>,
+{
+    type Error = ();
+
+    fn try_from(element: IndexingElement<I, BigInteger256>) -> Result<Self, Self::Error> {
+        let value = bigint_to_be_bytes(&element.value).map_err(|_| ())?;
+        Ok(Self {
+            index: element.index,
+            value,
+            next_index: element.next_index,
+        })
+    }
+}
+
+impl<I, B> PartialEq for IndexingElement<I, B>
+where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    B: BigInteger,
+    usize: From<I>,
 {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
     }
 }
 
-impl<B> Eq for IndexingElement<B> where B: BigInteger {}
-
-impl<B> PartialOrd for IndexingElement<B>
+impl<I, B> Eq for IndexingElement<I, B>
 where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
+{
+}
+
+impl<I, B> PartialOrd for IndexingElement<I, B>
+where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    B: BigInteger,
+    usize: From<I>,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<B> Ord for IndexingElement<B>
+impl<I, B> Ord for IndexingElement<I, B>
 where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.value.cmp(&other.value)
     }
 }
 
-impl<B> IndexingElement<B>
+impl<I, B> IndexingElement<I, B>
 where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
     pub fn index(&self) -> usize {
         self.index.into()
@@ -59,59 +122,67 @@ where
         H: Hasher,
     {
         H::hashv(&[
-            self.value.to_bytes_be().as_slice(),
-            self.next_index.to_be_bytes().as_slice(),
-            next_value.to_bytes_be().as_slice(),
+            self.value.to_bytes_be().as_ref(),
+            self.next_index.to_be_bytes().as_ref(),
+            next_value.to_bytes_be().as_ref(),
         ])
     }
 }
 
-pub struct IndexingElementBundle<B>
+pub struct IndexingElementBundle<I, B>
 where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
-    pub new_low_element: IndexingElement<B>,
-    pub new_element: IndexingElement<B>,
+    pub new_low_element: IndexingElement<I, B>,
+    pub new_element: IndexingElement<I, B>,
     pub new_element_next_value: B,
 }
 
-pub struct IndexingArray<H, B, const ELEMENTS: usize>
+pub struct IndexingArray<H, I, B, const ELEMENTS: usize>
 where
     H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
-    pub(crate) elements: [IndexingElement<B>; ELEMENTS],
-    current_node_index: u16,
-    highest_element_index: u16,
+    pub(crate) elements: [IndexingElement<I, B>; ELEMENTS],
+    current_node_index: I,
+    highest_element_index: I,
 
     _hasher: PhantomData<H>,
 }
 
-impl<H, B, const ELEMENTS: usize> Default for IndexingArray<H, B, ELEMENTS>
+impl<H, I, B, const ELEMENTS: usize> Default for IndexingArray<H, I, B, ELEMENTS>
 where
     H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
     fn default() -> Self {
         Self {
             elements: std::array::from_fn(|_| IndexingElement {
-                index: 0,
+                index: I::zero(),
                 value: B::from(0_u32),
-                next_index: 0,
+                next_index: I::zero(),
             }),
-            current_node_index: 0,
-            highest_element_index: 0,
+            current_node_index: I::zero(),
+            highest_element_index: I::zero(),
             _hasher: PhantomData,
         }
     }
 }
 
-impl<H, B, const ELEMENTS: usize> IndexingArray<H, B, ELEMENTS>
+impl<H, I, B, const ELEMENTS: usize> IndexingArray<H, I, B, ELEMENTS>
 where
     H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
-    pub fn get(&self, index: usize) -> Option<&IndexingElement<B>> {
+    pub fn get(&self, index: usize) -> Option<&IndexingElement<I, B>> {
         self.elements.get(index)
     }
 
@@ -120,10 +191,10 @@ where
     }
 
     pub fn is_empty(&self) -> bool {
-        self.current_node_index == 0
+        self.current_node_index == I::zero()
     }
 
-    pub fn iter(&self) -> IndexingArrayIter<H, B, ELEMENTS> {
+    pub fn iter(&self) -> IndexingArrayIter<H, I, B, ELEMENTS> {
         IndexingArrayIter {
             indexing_array: self,
             front: 0,
@@ -131,7 +202,7 @@ where
         }
     }
 
-    pub fn find_element(&self, value: &B) -> Option<&IndexingElement<B>> {
+    pub fn find_element(&self, value: &B) -> Option<&IndexingElement<I, B>> {
         self.elements[..self.len() + 1]
             .iter()
             .find(|&node| node.value == *value)
@@ -144,7 +215,7 @@ where
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element_index(&self, value: &B) -> Result<u16, HasherError> {
+    pub fn find_low_element_index(&self, value: &B) -> Result<I, HasherError> {
         // Try to find element whose next element is higher than the provided
         // value.
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
@@ -167,7 +238,7 @@ where
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element(&self, value: &B) -> Result<(IndexingElement<B>, B), HasherError> {
+    pub fn find_low_element(&self, value: &B) -> Result<(IndexingElement<I, B>, B), HasherError> {
         let low_element_index = self.find_low_element_index(value)?;
         let low_element = self.elements[usize::from(low_element_index)].clone();
         Ok((
@@ -186,7 +257,7 @@ where
     pub fn find_low_element_index_for_existing_element(
         &self,
         value: &B,
-    ) -> Result<Option<u16>, HasherError> {
+    ) -> Result<Option<I>, HasherError> {
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
             if self.elements[usize::from(node.next_index)].value == *value {
                 let i = i.try_into().map_err(|_| HasherError::IntegerOverflow)?;
@@ -201,7 +272,7 @@ where
     /// * The value of the given element.
     /// * The `next_index` of the given element.
     /// * The value of the element pointed by `next_index`.
-    pub fn hash_element(&self, index: u16) -> Result<[u8; 32], HasherError> {
+    pub fn hash_element(&self, index: I) -> Result<[u8; 32], HasherError> {
         let element = self
             .elements
             .get(usize::from(index))
@@ -211,9 +282,9 @@ where
             .get(usize::from(element.next_index))
             .ok_or(HasherError::IndexHigherThanMax)?;
         H::hashv(&[
-            element.value.to_bytes_le().as_slice(),
-            element.next_index.to_le_bytes().as_slice(),
-            next_element.value.to_bytes_le().as_slice(),
+            element.value.to_bytes_le().as_ref(),
+            element.next_index.to_le_bytes().as_ref(),
+            next_element.value.to_bytes_le().as_ref(),
         ])
     }
 
@@ -221,12 +292,15 @@ where
     /// provided `low_element_index` and `value`.
     pub fn new_element_with_low_element_index(
         &self,
-        low_element_index: u16,
+        low_element_index: I,
         value: B,
-    ) -> IndexingElementBundle<B> {
+    ) -> Result<IndexingElementBundle<I, B>, HasherError> {
         let mut new_low_element = self.elements[usize::from(low_element_index)].clone();
 
-        let new_element_index = self.current_node_index + 1;
+        let new_element_index = self
+            .current_node_index
+            .checked_add(&I::one())
+            .ok_or(HasherError::IntegerOverflow)?;
         let new_element = IndexingElement {
             index: new_element_index,
             value,
@@ -237,16 +311,16 @@ where
 
         let new_element_next_value = self.elements[usize::from(new_element.next_index)].value;
 
-        IndexingElementBundle {
+        Ok(IndexingElementBundle {
             new_low_element,
             new_element,
             new_element_next_value,
-        }
+        })
     }
 
-    pub fn new_element(&self, value: B) -> Result<IndexingElementBundle<B>, HasherError> {
+    pub fn new_element(&self, value: B) -> Result<IndexingElementBundle<I, B>, HasherError> {
         let low_element_index = self.find_low_element_index(&value)?;
-        let element = self.new_element_with_low_element_index(low_element_index, value);
+        let element = self.new_element_with_low_element_index(low_element_index, value)?;
 
         Ok(element)
     }
@@ -254,13 +328,13 @@ where
     /// Appends the given `value` to the indexing array.
     pub fn append_with_low_element_index(
         &mut self,
-        low_element_index: u16,
+        low_element_index: I,
         value: B,
-    ) -> Result<IndexingElementBundle<B>, HasherError> {
+    ) -> Result<IndexingElementBundle<I, B>, HasherError> {
         let old_low_element = &self.elements[usize::from(low_element_index)];
 
         // Check that the `value` belongs to the range of `old_low_element`.
-        if old_low_element.next_index == 0 {
+        if old_low_element.next_index == I::zero() {
             // In this case, the `old_low_element` is the greatest element.
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).
@@ -281,7 +355,8 @@ where
         }
 
         // Create new node.
-        let new_element_bundle = self.new_element_with_low_element_index(low_element_index, value);
+        let new_element_bundle =
+            self.new_element_with_low_element_index(low_element_index, value)?;
 
         // If the old low element wasn't pointing to any element, it means that:
         //
@@ -291,7 +366,7 @@ where
         //
         // Therefore, we need to save the new element index as the highest
         // index.
-        if old_low_element.next_index == 0 {
+        if old_low_element.next_index == I::zero() {
             self.highest_element_index = new_element_bundle.new_element.index;
         }
 
@@ -305,13 +380,17 @@ where
         Ok(new_element_bundle)
     }
 
-    pub fn append(&mut self, value: B) -> Result<IndexingElementBundle<B>, HasherError> {
+    pub fn append(&mut self, value: B) -> Result<IndexingElementBundle<I, B>, HasherError> {
         let low_element_index = self.find_low_element_index(&value)?;
         self.append_with_low_element_index(low_element_index, value)
     }
 
-    pub fn lowest(&self) -> Option<IndexingElement<B>> {
-        self.elements.get(1).cloned()
+    pub fn lowest(&self) -> Option<IndexingElement<I, B>> {
+        if self.current_node_index < I::one() {
+            None
+        } else {
+            self.elements.get(1).cloned()
+        }
     }
 
     /// Returns and removes the element from the given index.
@@ -323,12 +402,12 @@ where
     /// next element instead of the one which is removed.
     pub fn dequeue_at_with_low_element_index(
         &mut self,
-        low_element_index: u16,
-        index: u16,
-    ) -> Option<IndexingElement<B>> {
+        low_element_index: I,
+        index: I,
+    ) -> Result<Option<IndexingElement<I, B>>, HasherError> {
         if index > self.current_node_index {
             // Index out of bounds.
-            return None;
+            return Ok(None);
         }
 
         // Save the element to be removed.
@@ -338,34 +417,45 @@ where
         // removed element is pointing to.
         self.elements[usize::from(low_element_index)].next_index = removed_element.next_index;
 
-        let mut new_highest_element_index: u16 = 0;
-        for i in 0..self.current_node_index {
+        let mut new_highest_element_index = I::zero();
+        for i in 0..usize::from(self.current_node_index) {
             // Shift elements, which are on the right from the removed element,
             // to the left.
-            if i >= index {
-                self.elements[usize::from(i)] = self.elements[usize::from(i) + 1].clone();
-                self.elements[usize::from(i)].index -= 1;
+            if i >= usize::from(index) {
+                self.elements[i] = self.elements
+                    [i.checked_add(1_usize).ok_or(HasherError::IntegerOverflow)?]
+                .clone();
+                self.elements[i].index = self.elements[i]
+                    .index
+                    .checked_sub(&I::one())
+                    .ok_or(HasherError::IntegerOverflow)?;
             }
             // If the `next_index` is greater than the index of the removed
             // element, decrement it. Elements on the right from the removed
             // element are going to be shifted left.
-            if self.elements[usize::from(i)].next_index >= index {
-                self.elements[usize::from(i)].next_index -= 1;
+            if self.elements[i].next_index >= index {
+                self.elements[i].next_index = self.elements[i]
+                    .next_index
+                    .checked_sub(&I::one())
+                    .ok_or(HasherError::IntegerOverflow)?;
             }
 
-            if self.elements[usize::from(i)].value
-                > self.elements[usize::from(new_highest_element_index)].value
+            if self.elements[i].value > self.elements[usize::from(new_highest_element_index)].value
             {
-                new_highest_element_index = i;
+                new_highest_element_index =
+                    i.try_into().map_err(|_| HasherError::IntegerOverflow)?;
             }
         }
 
         // Update current_node_index
-        self.current_node_index -= 1;
+        self.current_node_index = self
+            .current_node_index
+            .checked_sub(&I::one())
+            .ok_or(HasherError::IntegerOverflow)?;
         // Update highest_element_index
         self.highest_element_index = new_highest_element_index;
 
-        Some(removed_element)
+        Ok(Some(removed_element))
     }
 
     /// Returns and removes the element from the given index.
@@ -373,35 +463,40 @@ where
     /// It also performs necessary updates of the remaning elements, to
     /// preserve the integrity of the array. It searches for the low element
     /// and updates it, to point to a new next element instead of the one
-    pub fn dequeue_at(&mut self, index: u16) -> Result<Option<IndexingElement<B>>, HasherError> {
+    pub fn dequeue_at(&mut self, index: I) -> Result<Option<IndexingElement<I, B>>, HasherError> {
         match self.elements.get(usize::from(index)) {
             Some(node) => {
                 let low_element_index = self
                     .find_low_element_index_for_existing_element(&node.value)?
                     .ok_or(HasherError::LowElementNotFound)?;
-                Ok(self.dequeue_at_with_low_element_index(low_element_index, index))
+                self.dequeue_at_with_low_element_index(low_element_index, index)
             }
             None => Ok(None),
         }
     }
 }
 
-pub struct IndexingArrayIter<'a, H, B, const MAX_ELEMENTS: usize>
+pub struct IndexingArrayIter<'a, H, I, B, const MAX_ELEMENTS: usize>
 where
     H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
-    indexing_array: &'a IndexingArray<H, B, MAX_ELEMENTS>,
+    indexing_array: &'a IndexingArray<H, I, B, MAX_ELEMENTS>,
     front: usize,
     back: usize,
 }
 
-impl<'a, H, B, const MAX_ELEMENTS: usize> Iterator for IndexingArrayIter<'a, H, B, MAX_ELEMENTS>
+impl<'a, H, I, B, const MAX_ELEMENTS: usize> Iterator
+    for IndexingArrayIter<'a, H, I, B, MAX_ELEMENTS>
 where
     H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
-    type Item = &'a IndexingElement<B>;
+    type Item = &'a IndexingElement<I, B>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.front <= self.back {
@@ -414,11 +509,13 @@ where
     }
 }
 
-impl<'a, H, B, const MAX_ELEMENTS: usize> DoubleEndedIterator
-    for IndexingArrayIter<'a, H, B, MAX_ELEMENTS>
+impl<'a, H, I, B, const MAX_ELEMENTS: usize> DoubleEndedIterator
+    for IndexingArrayIter<'a, H, I, B, MAX_ELEMENTS>
 where
     H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
+    usize: From<I>,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.back >= self.front {
@@ -447,7 +544,7 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexingArray<Poseidon, BigInteger256, 8> =
+        let mut indexing_array: IndexingArray<Poseidon, usize, BigInteger256, 8> =
             IndexingArray::default();
 
         let nullifier1 = BigInteger256::from(30_u32);
@@ -652,7 +749,7 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexingArray<Poseidon, BigInteger256, 8> =
+        let mut indexing_array: IndexingArray<Poseidon, usize, BigInteger256, 8> =
             IndexingArray::default();
 
         let low_element_index = 0;
@@ -872,7 +969,7 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexingArray<Poseidon, BigInteger256, 8> =
+        let mut indexing_array: IndexingArray<Poseidon, usize, BigInteger256, 8> =
             IndexingArray::default();
 
         // Append nullifier 30. The low nullifier is at index 0. The array

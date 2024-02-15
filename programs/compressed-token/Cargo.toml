@@ -19,8 +19,8 @@ custom-heap = []
 test-bpf = []
 
 [dependencies]
-anchor-lang = "0.28.0"
-anchor-spl = "0.28.0"
+anchor-lang = "0.29.0"
+anchor-spl = "0.29.0"
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
 psp-compressed-pda = { version = "0.3.0", path = "../compressed-pda", features = ["cpi"] }
 bytemuck = "1.14"

@@ -1,13 +1,13 @@
 use std::{
     env,
     io::{self, prelude::*},
-    mem,
     process::{Command, Stdio},
     thread::spawn,
 };
 
-use ark_ff::BigInt;
 use thiserror::Error;
+
+pub mod bigint;
 
 const CHUNK_SIZE: usize = 32;
 
@@ -29,35 +29,6 @@ pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
     arr
 }
 
-/// Converts the given big-endian byte slice into
-/// [`ark_ff::BigInt`](`ark_ff::BigInt`).
-pub fn be_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
-    bytes: &[u8; BYTES_SIZE],
-) -> Result<BigInt<NUM_LIMBS>, UtilsError> {
-    let mut bytes = *bytes;
-    bytes.reverse();
-    le_bytes_to_bigint(&bytes)
-}
-
-/// Converts the given little-endian byte slice into
-/// [`ark_ff::BigInt`](`ark_ff::BigInt`).
-pub fn le_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
-    bytes: &[u8; BYTES_SIZE],
-) -> Result<BigInt<NUM_LIMBS>, UtilsError> {
-    let expected_size = NUM_LIMBS * mem::size_of::<u64>();
-    if BYTES_SIZE != expected_size {
-        return Err(UtilsError::InvalidInputSize(expected_size, BYTES_SIZE));
-    }
-
-    let mut bigint: BigInt<NUM_LIMBS> = BigInt::zero();
-    for (i, chunk) in bytes.chunks(mem::size_of::<u64>()).enumerate() {
-        bigint.0[i] =
-            u64::from_le_bytes(chunk.try_into().map_err(|_| UtilsError::InvalidChunkSize)?);
-    }
-
-    Ok(bigint)
-}
-
 /// Truncates the given 32-byte array, replacing the least important element
 /// with 0, making it fit into Fr modulo field.
 ///
@@ -71,10 +42,12 @@ pub fn le_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
 /// # Examples
 ///
 /// ```
+/// use light_utils::truncate_to_circuit;
+///
 /// let original: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 ///                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
 ///                            29, 30, 31, 32];
-/// let truncated: [u8; 32] = truncate_function(&original);
+/// let truncated: [u8; 32] = truncate_to_circuit(&original);
 /// assert_eq!(truncated, [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
 ///                        18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
 /// ```
