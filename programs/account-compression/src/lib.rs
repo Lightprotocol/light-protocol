@@ -10,7 +10,7 @@ use state::*;
 declare_id!("5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN");
 
 #[program]
-pub mod address {
+pub mod account_compression {
     use super::*;
 
     pub fn initialize_address_queue(_ctx: Context<InitializeAddressQueue>) -> Result<()> {
