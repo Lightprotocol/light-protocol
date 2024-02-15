@@ -20,7 +20,7 @@ use light_indexed_merkle_tree::{
     array::{IndexingArray, RawIndexingElement},
     reference,
 };
-use light_utils::bigint_to_be_bytes;
+use light_utils::bigint::bigint_to_be_bytes;
 use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     account::Account,

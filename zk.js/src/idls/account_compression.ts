@@ -1,6 +1,6 @@
-export type Address = {
+export type AccountCompression = {
   "version": "0.3.1",
-  "name": "address",
+  "name": "account_compression",
   "instructions": [
     {
       "name": "initializeAddressQueue",
@@ -92,7 +92,9 @@ export type Address = {
         },
         {
           "name": "addressNextIndex",
-          "type": "u16"
+          "type": {
+            "defined": "usize"
+          }
         },
         {
           "name": "addressNextValue",
@@ -106,7 +108,7 @@ export type Address = {
         {
           "name": "lowAddress",
           "type": {
-            "defined": "RawIndexingElement<32>"
+            "defined": "RawIndexingElement<usize,32>"
           }
         },
         {
@@ -219,9 +221,9 @@ export type Address = {
   ]
 };
 
-export const IDL: Address = {
+export const IDL: AccountCompression = {
   "version": "0.3.1",
-  "name": "address",
+  "name": "account_compression",
   "instructions": [
     {
       "name": "initializeAddressQueue",
@@ -313,7 +315,9 @@ export const IDL: Address = {
         },
         {
           "name": "addressNextIndex",
-          "type": "u16"
+          "type": {
+            "defined": "usize"
+          }
         },
         {
           "name": "addressNextValue",
@@ -327,7 +331,7 @@ export const IDL: Address = {
         {
           "name": "lowAddress",
           "type": {
-            "defined": "RawIndexingElement<32>"
+            "defined": "RawIndexingElement<usize,32>"
           }
         },
         {

@@ -6,7 +6,7 @@ use light_indexed_merkle_tree::{
     array::{IndexingArray, IndexingElement},
     reference, IndexedMerkleTree,
 };
-use light_utils::be_bytes_to_bigint;
+use light_utils::bigint::be_bytes_to_bigint;
 use thiserror::Error;
 
 const MERKLE_TREE_HEIGHT: usize = 4;
