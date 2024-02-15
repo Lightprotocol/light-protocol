@@ -6,9 +6,9 @@ use std::{
     thread::spawn,
 };
 
-use ark_ff::BigInt;
+use ark_ff::{BigInt, PrimeField};
+use solana_program::keccak::hashv;
 use thiserror::Error;
-
 const CHUNK_SIZE: usize = 32;
 
 #[derive(Debug, Error)]
@@ -17,6 +17,8 @@ pub enum UtilsError {
     InvalidInputSize(usize, usize),
     #[error("Invalid chunk size")]
     InvalidChunkSize,
+    #[error("Invalid seeds")]
+    InvalidSeeds,
 }
 
 pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
@@ -58,30 +60,57 @@ pub fn le_bytes_to_bigint<const BYTES_SIZE: usize, const NUM_LIMBS: usize>(
     Ok(bigint)
 }
 
-/// Truncates the given 32-byte array, replacing the least important element
-/// with 0, making it fit into Fr modulo field.
-///
-/// # Safety
-///
-/// This function is used mostly for truncating hashes (i.e. SHA-256) which are
-/// not constrainted by any modulo space. At the same time, we can't (yet) use
-/// any ZK-friendly function in one transaction. Truncating hashes to 31 should
-/// be generally safe, but please make sure that it's appropriate in your case.
-///
-/// # Examples
-///
-/// ```
-/// let original: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-///                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
-///                            29, 30, 31, 32];
-/// let truncated: [u8; 32] = truncate_function(&original);
-/// assert_eq!(truncated, [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-///                        18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
-/// ```
+// /// Truncates the given 32-byte array, replacing the least important element
+// /// with 0, making it fit into Fr modulo field.
+// ///
+// /// # Safety
+// ///
+// /// This function is used mostly for truncating hashes (i.e. SHA-256) which are
+// /// not constrainted by any modulo space. At the same time, we can't (yet) use
+// /// any ZK-friendly function in one transaction. Truncating hashes to 31 should
+// /// be generally safe, but please make sure that it's appropriate in your case.
+// ///
+// /// # Examples
+// ///
+// /// ```
+// /// let original: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+// ///                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+// ///                            29, 30, 31, 32];
+// /// let truncated: [u8; 32] = truncate_function(&original);
+// /// assert_eq!(truncated, [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+// ///                        18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
+// /// ```
 pub fn truncate_to_circuit(bytes: &[u8; 32]) -> [u8; 32] {
     let mut truncated = [0; 32];
     truncated[1..].copy_from_slice(&bytes[1..]);
     truncated
+}
+
+pub fn is_smaller_than_bn254_field_size_le(bytes: &[u8; 32]) -> Result<bool, UtilsError> {
+    let bigint = le_bytes_to_bigint::<32, 4>(bytes)?;
+    if bigint < ark_bn254::Fr::MODULUS {
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+pub fn hash_to_bn254_field_size_le(bytes: &[u8]) -> Option<([u8; 32], u8)> {
+    let mut bump_seed = [std::u8::MAX];
+    for _ in 0..std::u8::MAX {
+        {
+            let mut hashed_value: [u8; 32] = hashv(&[bytes, bump_seed.as_ref()]).to_bytes();
+            hashed_value[31] = 0;
+
+            match is_smaller_than_bn254_field_size_le(&hashed_value) {
+                Ok(true) => return Some((hashed_value, bump_seed[0])),
+                Ok(false) => (),
+                Err(_) => (),
+            }
+        }
+        bump_seed[0] -= 1;
+    }
+    None
 }
 
 /// Applies `rustfmt` on the given string containing Rust code. The purpose of
@@ -113,4 +142,49 @@ pub fn rustfmt(code: String) -> Result<Vec<u8>, anyhow::Error> {
     stdin_handle.join().unwrap();
 
     Ok(formatted_code)
+}
+
+#[cfg(test)]
+mod tests {
+
+    use solana_program::pubkey::Pubkey;
+
+    use super::*;
+
+    // #[test]
+    // fn test_is_smaller_than_bn254_field_size_le() {
+    //     let smaller_than_field = [0u8; 32]; // Definitely smaller
+    //     let field_size = ark_bn254::Fr::characteristic(); // Get the field size
+    //     let mut field_size_bytes = [0u8; 32];
+    //     ark_bn254::Fr::seriali field_size(&mut field_size_bytes); // Convert to byte array
+
+    //     // Adjust the field_size_bytes to make a value just over the field size
+    //     let mut just_over_field_size = field_size_bytes;
+    //     just_over_field_size[0] += 1; // Increment the least significant byte
+
+    //     assert!(is_smaller_than_bn254_field_size_le(&smaller_than_field).unwrap());
+    //     assert!(!is_smaller_than_bn254_field_size_le(&field_size_bytes).unwrap());
+    //     assert!(!is_smaller_than_bn254_field_size_le(&just_over_field_size).unwrap());
+    // }
+
+    #[test]
+    fn test_hash_to_bn254_field_size_le() {
+        for _ in 0..1000_0000 {
+            let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
+            if let Some((hashed_value, bump_seed)) =
+                hash_to_bn254_field_size_le(input_bytes.as_slice())
+            {
+                if bump_seed != 255 {
+                    println!("Bump seed: {}", bump_seed);
+                }
+
+                assert!(
+                    is_smaller_than_bn254_field_size_le(&hashed_value).unwrap(),
+                    "Hashed value should be within BN254 field size"
+                );
+            } else {
+                panic!("Failed to find a hash within BN254 field size");
+            }
+        }
+    }
 }
