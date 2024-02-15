@@ -25,3 +25,12 @@ light-verifier-sdk = { version = "0.3.0", path = "../../verifier-sdk" }
 light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher" }
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"
+
+[dev-dependencies]
+solana-program-test = "1.16.16"
+solana-sdk = "1.16.16"
+serde_json = "1.0.59"
+ark-groth16 ={ version = "^0.3.0", default-features = false, features = ["std"] }
+tokio = "1.35.1"
+spl-account-compression = "0.3.0"
+spl-concurrent-merkle-tree = "0.2.0"

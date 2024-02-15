@@ -3600,9 +3600,16 @@ dependencies = [
  "ahash 0.8.6",
  "aligned-sized",
  "anchor-lang 0.28.0",
+ "ark-groth16",
  "bytemuck",
  "light-hasher",
  "light-verifier-sdk",
+ "serde_json",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-account-compression",
+ "spl-concurrent-merkle-tree",
+ "tokio",
 ]
 
 [[package]]

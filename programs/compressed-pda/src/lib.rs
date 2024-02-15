@@ -44,8 +44,8 @@ pub mod psp_compressed_pda {
         //         utxo
         //     })
         //     .collect();
-        // // sum check
-        // sum_check(inputs.in_utxos, out_utxos, inputs.rpc_fee)?;
+        // // // sum check
+        // sum_check(inputs.in_utxos, inputs.out_utxos, inputs.rpc_fee)?;
         // check cpi signatures if account is defined
         // verify proof of inclusion of in utxo hashes
         // insert nullifiers (in utxo hashes)
