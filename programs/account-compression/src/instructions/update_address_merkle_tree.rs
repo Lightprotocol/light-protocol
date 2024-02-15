@@ -2,7 +2,7 @@ use account_compression_state::{address_merkle_tree_from_bytes_mut, address_queu
 use anchor_lang::prelude::*;
 use ark_ff::BigInteger256;
 use light_indexed_merkle_tree::array::{IndexingElement, RawIndexingElement};
-use light_utils::be_bytes_to_bigint;
+use light_utils::bigint::be_bytes_to_bigint;
 
 use crate::{
     errors::AccountCompressionErrorCode,

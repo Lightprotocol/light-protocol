@@ -3,7 +3,7 @@ use std::{cmp::Ordering, marker::PhantomData};
 use ark_ff::{BigInteger, BigInteger256};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{errors::HasherError, Hasher};
-use light_utils::{be_bytes_to_bigint, bigint_to_be_bytes};
+use light_utils::bigint::{be_bytes_to_bigint, bigint_to_be_bytes};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 #[derive(BorshDeserialize, BorshSerialize)]

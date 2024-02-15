@@ -1,6 +1,6 @@
 use account_compression_state::address_queue_from_bytes_mut;
 use anchor_lang::prelude::*;
-use light_utils::be_bytes_to_bigint;
+use light_utils::bigint::be_bytes_to_bigint;
 
 use crate::{errors::AccountCompressionErrorCode, AddressQueueAccount};
 
