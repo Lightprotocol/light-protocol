@@ -5,13 +5,13 @@ use std::str::FromStr;
 use account_compression::{
     self, indexed_array_from_bytes, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, ID,
 };
-use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+use anchor_lang::{system_program, AnchorDeserialize, InstructionData, ToAccountMetas};
 use ark_ff::BigInteger256;
 use ark_serialize::CanonicalDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexingArray;
 use light_test_utils::{airdrop_lamports, get_account, AccountZeroCopy};
-use solana_program_test::ProgramTest;
+use solana_program_test::{ProgramTest, ProgramTestContext};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -228,7 +228,7 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
 
     let accounts = account_compression::accounts::InsertTwoLeavesParallel {
         authority: context.payer.pubkey(),
-        registered_verifier_pda: None,
+        registered_program_pda: None,
         log_wrapper: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
     };
 
@@ -357,7 +357,7 @@ async fn test_init_and_insert_into_indexed_array() {
     };
     let accounts = account_compression::accounts::InsertIntoIndexedArrays {
         authority: context.payer.pubkey(),
-        registered_verifier_pda: None,
+        registered_program_pda: None,
     };
     let instruction = Instruction {
         program_id: account_compression::ID,
