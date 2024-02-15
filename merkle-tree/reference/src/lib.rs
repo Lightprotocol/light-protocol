@@ -2,43 +2,6 @@ use std::{cell::RefCell, collections::VecDeque, marker::PhantomData, rc::Rc};
 
 use light_hasher::{errors::HasherError, Hasher};
 
-pub fn build_root<H>(leaves: &[Rc<RefCell<TreeNode<H>>>]) -> Result<[u8; 32], HasherError>
-where
-    H: Hasher,
-{
-    let mut tree = VecDeque::from_iter(leaves.iter().cloned());
-    let mut seq_num = leaves.len();
-    while tree.len() > 1 {
-        let left = tree.pop_front().unwrap();
-        let level = left.borrow().level;
-        let right = if level != tree[0].borrow().level {
-            let node = Rc::new(RefCell::new(TreeNode::new_empty(level, seq_num)));
-            seq_num += 1;
-            node
-        } else {
-            tree.pop_front().unwrap()
-        };
-        let mut hashed_parent = [0u8; 32];
-
-        hashed_parent
-            .copy_from_slice(H::hashv(&[&left.borrow().node, &right.borrow().node])?.as_ref());
-        let parent = Rc::new(RefCell::new(TreeNode::new(
-            hashed_parent,
-            left.clone(),
-            right.clone(),
-            level + 1,
-            seq_num,
-        )));
-        left.borrow_mut().assign_parent(parent.clone());
-        right.borrow_mut().assign_parent(parent.clone());
-        tree.push_back(parent);
-        seq_num += 1;
-    }
-
-    let root = tree[0].borrow().node;
-    Ok(root)
-}
-
 /// Reference implementation of Merkle tree used for testing.
 pub struct MerkleTree<H, const HEIGHT: usize, const MAX_ROOTS: usize>
 where
@@ -73,7 +36,34 @@ where
             let tree_node = TreeNode::new_empty(0, i);
             leaf_nodes.push(Rc::new(RefCell::new(tree_node)));
         }
-        let root = build_root(leaf_nodes.as_slice())?;
+
+        let mut tree = VecDeque::from_iter(leaf_nodes.iter().cloned());
+        let mut seq_num = leaf_nodes.len();
+        while tree.len() > 1 {
+            let left = tree.pop_front().unwrap();
+            let level = left.borrow().level;
+            let right = if level != tree[0].borrow().level {
+                let node = Rc::new(RefCell::new(TreeNode::new_empty(level, seq_num)));
+                seq_num += 1;
+                node
+            } else {
+                tree.pop_front().unwrap()
+            };
+
+            let parent = Rc::new(RefCell::new(TreeNode::new(
+                None,
+                left.clone(),
+                right.clone(),
+                level + 1,
+                seq_num,
+            )));
+            left.borrow_mut().assign_parent(parent.clone());
+            right.borrow_mut().assign_parent(parent.clone());
+            tree.push_back(parent);
+            seq_num += 1;
+        }
+
+        let root = H::zero_bytes()[HEIGHT];
         let roots = vec![root];
         Ok(Self {
             leaf_nodes,
@@ -94,9 +84,23 @@ where
             }
             let parent = ref_node.borrow().parent.as_ref().unwrap().clone();
             if parent.borrow().left.as_ref().unwrap().borrow().id == ref_node.borrow().id {
-                proof[i] = parent.borrow().right.as_ref().unwrap().borrow().node;
+                proof[i] = parent
+                    .borrow()
+                    .right
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .node
+                    .unwrap_or(H::zero_bytes()[i]);
             } else {
-                proof[i] = parent.borrow().left.as_ref().unwrap().borrow().node;
+                proof[i] = parent
+                    .borrow()
+                    .left
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .node
+                    .unwrap_or(H::zero_bytes()[i]);
             }
             node = parent;
             i += 1;
@@ -114,34 +118,47 @@ where
     /// Updates root from an updated leaf node set at index: `idx`
     fn update_root_from_leaf(&mut self, leaf_idx: usize) -> Result<(), HasherError> {
         let mut node = self.leaf_nodes[leaf_idx].clone();
+        let mut i = 0_usize;
         loop {
             let ref_node = node.clone();
             if ref_node.borrow().parent.is_none() {
-                self.roots.push(ref_node.borrow().node);
+                self.roots
+                    .push(ref_node.borrow().node.unwrap_or(H::zero_bytes()[i]));
                 break;
             }
             let parent = ref_node.borrow().parent.as_ref().unwrap().clone();
             let hash = if parent.borrow().left.as_ref().unwrap().borrow().id == ref_node.borrow().id
             {
                 H::hashv(&[
-                    &ref_node.borrow().node,
-                    &parent.borrow().right.as_ref().unwrap().borrow().node,
+                    &ref_node.borrow().node.unwrap_or(H::zero_bytes()[i]),
+                    &parent
+                        .borrow()
+                        .right
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .node
+                        .unwrap_or(H::zero_bytes()[i]),
                 ])?
             } else {
                 H::hashv(&[
-                    &parent.borrow().left.as_ref().unwrap().borrow().node,
-                    &ref_node.borrow().node,
+                    &parent
+                        .borrow()
+                        .left
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .node
+                        .unwrap_or(H::zero_bytes()[i]),
+                    &ref_node.borrow().node.unwrap_or(H::zero_bytes()[i]),
                 ])?
             };
             node = parent;
-            node.borrow_mut().node.copy_from_slice(hash.as_ref());
+            node.borrow_mut().node = Some(hash);
+            i += 1;
         }
 
         Ok(())
-    }
-
-    pub fn node(&self, idx: usize) -> [u8; 32] {
-        self.leaf_nodes[idx].borrow().node
     }
 
     pub fn root(&self) -> Option<[u8; 32]> {
@@ -149,12 +166,15 @@ where
     }
 
     pub fn update(&mut self, leaf: &[u8; 32], leaf_idx: usize) -> Result<(), HasherError> {
-        self.leaf_nodes[leaf_idx].borrow_mut().node = *leaf;
+        self.leaf_nodes[leaf_idx].borrow_mut().node = Some(*leaf);
         self.update_root_from_leaf(leaf_idx)
     }
 
     pub fn leaf(&self, leaf_idx: usize) -> [u8; 32] {
-        self.leaf_nodes[leaf_idx].borrow().node
+        self.leaf_nodes[leaf_idx]
+            .borrow()
+            .node
+            .unwrap_or(H::zero_bytes()[0])
     }
 }
 
@@ -163,7 +183,7 @@ pub struct TreeNode<H>
 where
     H: Hasher,
 {
-    pub node: [u8; 32],
+    pub node: Option<[u8; 32]>,
     left: Option<Rc<RefCell<TreeNode<H>>>>,
     right: Option<Rc<RefCell<TreeNode<H>>>>,
     parent: Option<Rc<RefCell<TreeNode<H>>>>,
@@ -180,7 +200,7 @@ where
     H: Hasher,
 {
     pub fn new(
-        node: [u8; 32],
+        node: Option<[u8; 32]>,
         left: Rc<RefCell<TreeNode<H>>>,
         right: Rc<RefCell<TreeNode<H>>>,
         level: usize,
@@ -199,7 +219,7 @@ where
 
     pub fn new_empty(level: usize, id: usize) -> Self {
         Self {
-            node: H::zero_bytes()[level],
+            node: None,
             left: None,
             right: None,
             parent: None,

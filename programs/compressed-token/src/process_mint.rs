@@ -19,27 +19,28 @@ pub struct CreateMintInstruction<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// Mint authority, ensures that this program needs to be used as a proxy to mint tokens
+    /// CHECK: this account in merkle tree program
     #[account(mut, seeds = [b"authority",authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump,)]
     pub authority_pda: UncheckedAccount<'info>,
     #[account(mut, constraint = mint.mint_authority.unwrap() == authority_pda.key())]
     pub mint: Account<'info, Mint>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
-    /// CHECK this account in merkle tree program
+    /// CHECK: this account in merkle tree program
     #[account(mut)]
     pub registered_asset_pool_pda: UncheckedAccount<'info>,
-    /// CHECK this account in merkle tree program
+    /// CHECK: this account in merkle tree program
     pub registered_pool_type_pda: UncheckedAccount<'info>,
     /// CHECK this account in merkle tree program
     #[account(mut)]
     pub merkle_tree_pda_token: UncheckedAccount<'info>,
-    /// CHECK this account in merkle tree program
+    /// CHECK: this account in merkle tree program
     #[account(mut)]
     pub merkle_tree_authority_pda: UncheckedAccount<'info>,
-    /// CHECK this account in merkle tree program
+    /// CHECK: this account in merkle tree program
     #[account(mut)]
     pub token_authority: UncheckedAccount<'info>,
-    /// CHECK this account in merkle tree program
+    /// CHECK: this account in merkle tree program
     pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
 }
 
@@ -258,30 +259,32 @@ pub struct MintToInstruction<'info> {
     pub fee_payer: Signer<'info>,
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// Check is checked in Merkle tree program
+    /// CHECK: is checked in Merkle tree program
     #[account(mut)]
     pub merkle_tree_authority: UncheckedAccount<'info>,
-    /// Check that mint authority is derived from signer
+    /// CHECK: that mint authority is derived from signer
     #[account(mut, seeds = [b"authority", authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump,)]
     pub authority_pda: UncheckedAccount<'info>,
-    /// Check that authority is mint authority
+    /// CHECK: that authority is mint authority
     #[account(mut, constraint = mint.mint_authority.unwrap() == authority_pda.key())]
     pub mint: Account<'info, Mint>,
     // pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
-    /// CHECK this account
+    /// CHECK: this account
     #[account(mut)]
     pub registered_verifier_pda: UncheckedAccount<'info>,
-    /// CHECK this account
+    /// CHECK: this account
     #[account(mut)]
     pub merkle_tree_pda_token: Account<'info, TokenAccount>,
+    /// CHECK: this account
     #[account(mut)]
     pub merkle_tree_set: UncheckedAccount<'info>, // AccountLoader<'info, ConcurrentMerkleTreeAccount>,
-    /// CHECK this account
+    /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
+    /// CHECK: this account
     pub merkle_tree_program: UncheckedAccount<'info>, //Program<'info, LightMerkleTreeProgram>,
     pub account_compression_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
-    /// CHECK this account in psp account compression program
+    /// CHECK: this account in psp account compression program
     #[account(mut)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,
 }
