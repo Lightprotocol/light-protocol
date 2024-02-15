@@ -48,6 +48,6 @@ pub enum HasherError {
     PoseidonBytesToBigInt,
     #[msg("Invalid width. Choose a width between 2 and 16 for 1 to 15 inputs.")]
     PoseidonInvalidWidthCircom,
-    #[msg("Unknown Poseidon syscall msg")]
+    #[msg("Unknown Poseidon syscall error")]
     PoseidonUnknown,
 }
