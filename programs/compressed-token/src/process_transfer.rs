@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_le;
-use psp_compressed_pda::SerializedUtxos;
+use psp_compressed_pda::utxo::SerializedUtxos;
 // use light_verifier_sdk::light_transaction::ProofCompressed;
 
 // use crate::utxo::{TokenInUtxo, TokenOutUtxo};
@@ -248,7 +248,7 @@ impl DataHasher for TokenTlvData {
 
 #[cfg(test)]
 mod test {
-    use psp_compressed_pda::{OutUtxo, SerializedUtxos, Tlv, TlvDataElement, Utxo};
+    use psp_compressed_pda::utxo::{OutUtxo, SerializedUtxos, Tlv, TlvDataElement, Utxo};
 
     use super::*;
 
