@@ -18,6 +18,8 @@ pub enum UtilsError {
     InvalidInputSize(usize, usize),
     #[error("Invalid chunk size")]
     InvalidChunkSize,
+    #[error("Invalid seeds")]
+    InvalidSeeds,
 }
 
 pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
