@@ -22,3 +22,7 @@ pub trait Hasher {
     fn zero_bytes() -> ZeroBytes;
     fn zero_indexed_leaf() -> [u8; 32];
 }
+
+pub trait DataHasher {
+    fn hash(&self) -> Result<[u8; 32], HasherError>;
+}

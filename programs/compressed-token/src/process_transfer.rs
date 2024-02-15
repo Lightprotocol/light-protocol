@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::spl_token::state::AccountState;
+use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
+use light_utils::hash_to_bn254_field_size_le;
 use psp_compressed_pda::SerializedUtxos;
 // use light_verifier_sdk::light_transaction::ProofCompressed;
 
@@ -179,6 +180,14 @@ pub struct InstructionDataTransfer {
     serialized_utxos: SerializedUtxos,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
+pub enum AccountState {
+    Uninitialized,
+    Initialized,
+    Frozen,
+}
+
+#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub struct TokenTlvData {
     /// The mint associated with this account
     pub mint: Pubkey,
@@ -200,4 +209,157 @@ pub struct TokenTlvData {
     pub delegated_amount: u64,
     /// Optional authority to close the account.
     pub close_authority: Option<Pubkey>,
+}
+
+impl DataHasher for TokenTlvData {
+    fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
+        let delegate = match self.delegate {
+            Some(delegate) => {
+                hash_to_bn254_field_size_le(delegate.to_bytes().as_slice())
+                    .unwrap()
+                    .0
+            }
+            None => [0u8; 32],
+        };
+        let close_authority = match self.close_authority {
+            Some(close_authority) => {
+                hash_to_bn254_field_size_le(close_authority.to_bytes().as_slice())
+                    .unwrap()
+                    .0
+            }
+            None => [0u8; 32],
+        };
+
+        Poseidon::hashv(&[
+            &hash_to_bn254_field_size_le(self.mint.to_bytes().as_slice())
+                .unwrap()
+                .0,
+            &hash_to_bn254_field_size_le(self.owner.to_bytes().as_slice())
+                .unwrap()
+                .0,
+            &self.amount.to_le_bytes(),
+            &delegate,
+            &(self.state as u8).to_le_bytes(),
+            &self.is_native.unwrap_or_default().to_le_bytes(),
+            &self.delegated_amount.to_le_bytes(),
+            &close_authority,
+        ])
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use psp_compressed_pda::{OutUtxo, SerializedUtxos, Tlv, TlvDataElement, Utxo};
+
+    use super::*;
+
+    #[test]
+    fn test_add_utxos_with_token_tlv_data() {
+        let mut serialized_utxos = SerializedUtxos {
+            pubkey_array: vec![],
+            u64_array: vec![],
+            in_utxos: vec![],
+            out_utxos: vec![],
+        };
+
+        let token_program = Pubkey::new_unique();
+        let merkle_tree_pda = Pubkey::new_unique();
+        let owner_pubkey = Pubkey::new_unique();
+        let mint_pubkey = Pubkey::new_unique();
+        let delegate_pubkey = Pubkey::new_unique(); // Assuming there's a delegate for this example
+        let accounts = vec![owner_pubkey, mint_pubkey, token_program];
+
+        // Creating TokenTlvData
+        let token_tlv_data = TokenTlvData {
+            mint: mint_pubkey,
+            owner: owner_pubkey,
+            amount: 10_000_000,
+            delegate: Some(delegate_pubkey),
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 5000,
+            close_authority: None,
+        };
+
+        // Assuming we have a way to serialize TokenTlvData to Vec<u8>
+        let token_data_serialized = token_tlv_data.try_to_vec().unwrap();
+        let token_data_hash = token_tlv_data.hash().unwrap(); // Assuming hash() returns a Result
+
+        // Creating TLV data element with TokenTlvData
+        let token_tlv_data_element = TlvDataElement {
+            discriminator: [2; 8],
+            owner: token_program,
+            data: token_data_serialized,
+            data_hash: token_data_hash,
+        };
+
+        let tlv_data = Tlv {
+            tlv_elements: vec![token_tlv_data_element],
+        };
+
+        // Convert TLV data to a serializable format
+        let mut pubkey_array_for_tlv = Vec::new();
+        let tlv_serializable = tlv_data.to_serializable_tlv(&mut pubkey_array_for_tlv, &accounts);
+
+        let mut utxo = Utxo {
+            owner: owner_pubkey,
+            blinding: [0u8; 32],
+            lamports: 100,
+            data: Some(tlv_data.clone()),
+        };
+        let leaf_index = 1u32;
+        utxo.update_blinding(merkle_tree_pda, (leaf_index as usize).clone())
+            .unwrap();
+
+        // Assuming add_in_utxos is modified to accept UTXOs with TLV data correctly
+        serialized_utxos
+            .add_in_utxos(&[utxo.clone()], &accounts, &[leaf_index])
+            .unwrap();
+
+        // Create OutUtxo
+        let out_utxo = OutUtxo {
+            owner: owner_pubkey,
+            lamports: 100,
+            data: Some(tlv_data),
+        };
+
+        // Add OutUtxo
+        serialized_utxos
+            .add_out_utxos(&[out_utxo], &accounts)
+            .unwrap();
+
+        assert_eq!(
+            serialized_utxos.in_utxos.len(),
+            1,
+            "Should have added one UTXO with TLV data"
+        );
+        assert!(
+            serialized_utxos.in_utxos[0].data.is_some(),
+            "UTXO should contain TLV data"
+        );
+        assert_eq!(
+            serialized_utxos.out_utxos.len(),
+            1,
+            "Should have added one out UTXO with TLV data"
+        );
+        assert!(
+            serialized_utxos.out_utxos[0].data.is_some(),
+            "UTXO should contain TLV data"
+        );
+        // Verify that TLV data was serialized correctly
+        let serialized_tlv_data = serialized_utxos.in_utxos[0].data.as_ref().unwrap();
+        assert_eq!(
+            *serialized_tlv_data, tlv_serializable,
+            "Serialized TLV data should match the expected serialized version"
+        );
+        let deserialized_in_utxos = serialized_utxos
+            .in_utxos_from_serialized_utxos(&accounts, &[merkle_tree_pda])
+            .unwrap();
+        assert_eq!(deserialized_in_utxos[0], utxo);
+
+        let deserialized_out_utxos = serialized_utxos
+            .out_utxos_from_serialized_utxos(&accounts, &[merkle_tree_pda], &[1u32])
+            .unwrap();
+        assert_eq!(deserialized_out_utxos[0], utxo);
+    }
 }

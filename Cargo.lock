@@ -3332,8 +3332,10 @@ name = "light-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ark-bn254 0.4.0",
  "ark-ff 0.4.2",
  "rand 0.8.5",
+ "solana-program",
  "thiserror",
 ]
 
@@ -4259,6 +4261,8 @@ dependencies = [
  "bytemuck",
  "light-hasher",
  "light-verifier-sdk",
+ "solana-program-test",
+ "tokio",
 ]
 
 [[package]]
@@ -4270,6 +4274,8 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "bytemuck",
+ "light-hasher",
+ "light-utils",
  "psp-compressed-pda",
  "solana-security-txt",
 ]

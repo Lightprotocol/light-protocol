@@ -25,6 +25,8 @@ aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
 psp-compressed-pda = { version = "0.3.0", path = "../compressed-pda", features = ["cpi"] }
 bytemuck = "1.14"
 solana-security-txt = "1.1.0"
+light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher" }
+light-utils = { version = "0.1.0", path = "../../utils" }
 
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"
