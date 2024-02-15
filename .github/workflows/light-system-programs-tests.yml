@@ -38,11 +38,6 @@ jobs:
       matrix:
         include:
           - test: system-programs
-            # sub-tests: '[
-            #   "@lightprotocol/zk.js:test",
-            #   "@lightprotocol/encrypted-messaging:test",
-            #   "@lightprotocol/private-payments:test"
-            # ]'
             sub-tests: '[
               "@lightprotocol/programs:test"
             ]'
