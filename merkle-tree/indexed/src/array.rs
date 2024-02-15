@@ -150,9 +150,9 @@ where
     B: BigInteger,
     usize: From<I>,
 {
-    pub(crate) elements: [IndexingElement<I, B>; ELEMENTS],
-    current_node_index: I,
-    highest_element_index: I,
+    pub elements: [IndexingElement<I, B>; ELEMENTS],
+    pub current_node_index: I,
+    pub highest_element_index: I,
 
     _hasher: PhantomData<H>,
 }

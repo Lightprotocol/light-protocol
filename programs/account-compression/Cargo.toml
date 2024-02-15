@@ -2,6 +2,7 @@
 name = "account-compression"
 version = "0.3.1"
 description = "Solana account compression program"
+license = "Apache-2.0"
 edition = "2021"
 
 [lib]
@@ -27,9 +28,15 @@ light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher" }
 light-concurrent-merkle-tree = { path = "../../merkle-tree/concurrent" }
 light-indexed-merkle-tree = { version = "0.1.0", path = "../../merkle-tree/indexed" }
 light-utils = { version = "0.1.0", path = "../../utils" }
+light-macros = { version = "0.3.1", path = "../../macros/light/" }
+
+
 
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"
+
+ark-serialize = "^0.4.0"
+
 
 [dev-dependencies]
 memoffset = "0.9"
@@ -38,3 +45,5 @@ solana-program-test = ">=1.17, <1.18"
 solana-sdk = ">=1.17, <1.18"
 thiserror = "1.0"
 tokio = "1.35"
+spl-account-compression = {version="0.3.0", features=["cpi"]}
+spl-concurrent-merkle-tree = "0.2.0"

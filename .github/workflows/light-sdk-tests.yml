@@ -52,10 +52,6 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      - name: Install Playwright Browsers
-        shell: bash
-        run: npx playwright install --with-deps
-
       - name: ${{ matrix.name }}
         run: |
           source ./scripts/devenv.sh
