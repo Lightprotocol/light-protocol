@@ -1,0 +1,4 @@
+### Compressed-token
+
+- uses the core lib (stateless.js)
+- provides methods and high-level utils for interacting with the compressed-token program and managing compressed-token state
