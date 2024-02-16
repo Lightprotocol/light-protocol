@@ -1,5 +1,4 @@
 "use strict";
-/// TODO: extract wallet into its own npm package
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -46,10 +45,11 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.useWallet = void 0;
+exports.Wallet = void 0;
+/// TODO: extract wallet into its own npm package
 var web3_js_1 = require("@solana/web3.js");
 var tweetnacl_1 = require("tweetnacl");
-var psp_compressed_pda_1 = require("./idls/psp_compressed_pda");
+var psp_compressed_pda_1 = require("../idls/psp_compressed_pda");
 /// Mock Solana web3 library
 var Wallet = /** @class */ (function () {
     function Wallet(keypair, url, commitment) {
@@ -143,6 +143,7 @@ var Wallet = /** @class */ (function () {
     }
     return Wallet;
 }());
+exports.Wallet = Wallet;
 /// TODO: generalize when needed
 var getIdlByProofInputs = function (_proofInputs) {
     return psp_compressed_pda_1.IDL;
@@ -152,23 +153,3 @@ var getIdlByProofInputs = function (_proofInputs) {
 var getCircuitByProofInputs = function (_proofInputs) {
     return "mockCircuit";
 };
-// Mock useWallet hook
-var useWallet = function (keypair, url, 
-//   isNodeWallet: boolean = true,
-commitment) {
-    if (url === void 0) { url = "http://127.0.0.1:8899"; }
-    if (commitment === void 0) { commitment = "confirmed"; }
-    url = url !== "mock" ? url : "http://127.0.0.1:8899";
-    var wallet = new Wallet(keypair, url, commitment);
-    return {
-        publicKey: wallet._publicKey,
-        sendAndConfirmTransaction: wallet.sendAndConfirmTransaction,
-        signMessage: wallet.signMessage,
-        signTransaction: wallet.signTransaction,
-        signAllTransactions: wallet.signAllTransactions,
-        sendTransaction: wallet.sendTransaction,
-        getProof: wallet.getProof,
-        // isNodeWallet,
-    };
-};
-exports.useWallet = useWallet;

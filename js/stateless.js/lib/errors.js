@@ -18,20 +18,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UtilsError = exports.MerkleTreeError = exports.ProofError = exports.HashError = exports.LookupTableError = exports.RpcError = exports.CreateUtxoError = exports.SelectInUtxosError = exports.UtxoError = exports.UtilsErrorCode = exports.MerkleTreeErrorCode = exports.ProofErrorCode = exports.HashErrorCode = exports.LookupTableErrorCode = exports.RpcErrorCode = exports.CreateUtxoErrorCode = exports.SelectInUtxosErrorCode = exports.UtxoErrorCode = void 0;
 var UtxoErrorCode;
 (function (UtxoErrorCode) {
-    UtxoErrorCode["APP_DATA_IDL_UNDEFINED"] = "APP_DATA_IDL_UNDEFINED";
     UtxoErrorCode["NEGATIVE_LAMPORTS"] = "NEGATIVE_LAMPORTS";
     UtxoErrorCode["NOT_U64"] = "NOT_U64";
     UtxoErrorCode["BLINDING_EXCEEDS_FIELD_SIZE"] = "BLINDING_EXCEEDS_FIELD_SIZE";
-    UtxoErrorCode["INDEX_NOT_PROVIDED"] = "INDEX_NOT_PROVIDED";
-    UtxoErrorCode["INVALID_NONCE_LENGTH"] = "INVALID_NONCE_LENGTH";
-    UtxoErrorCode["MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED"] = "MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED";
-    UtxoErrorCode["TRANSACTION_INDEX_UNDEFINED"] = "TRANSACTION_INDEX_UNDEFINED";
-    UtxoErrorCode["VERIFIER_INDEX_NOT_FOUND"] = "VERIFIER_INDEX_NOT_FOUND";
-    UtxoErrorCode["INVALID_IV"] = "INVALID_IV";
 })(UtxoErrorCode || (exports.UtxoErrorCode = UtxoErrorCode = {}));
 var SelectInUtxosErrorCode;
 (function (SelectInUtxosErrorCode) {
-    SelectInUtxosErrorCode["INVALID_NUMBER_OF_MINTS"] = "INVALID_NUMBER_OF_MINTS";
     SelectInUtxosErrorCode["FAILED_TO_FIND_UTXO_COMBINATION"] = "FAILED_TO_FIND_UTXO_COMBINATION";
     SelectInUtxosErrorCode["INVALID_NUMBER_OF_IN_UTXOS"] = "INVALID_NUMBER_OF_IN_UTXOS";
 })(SelectInUtxosErrorCode || (exports.SelectInUtxosErrorCode = SelectInUtxosErrorCode = {}));
@@ -39,8 +31,6 @@ var CreateUtxoErrorCode;
 (function (CreateUtxoErrorCode) {
     CreateUtxoErrorCode["OWNER_UNDEFINED"] = "OWNER_UNDEFINED";
     CreateUtxoErrorCode["INVALID_OUTPUT_UTXO_LENGTH"] = "INVALID_OUTPUT_UTXO_LENGTH";
-    CreateUtxoErrorCode["RPC_FEE_DEFINED"] = "RPC_FEE_DEFINED";
-    CreateUtxoErrorCode["LAMPORTS_UNDEFINED"] = "LAMPORTS_UNDEFINED";
     CreateUtxoErrorCode["UTXO_DATA_UNDEFINED"] = "UTXO_DATA_UNDEFINED";
 })(CreateUtxoErrorCode || (exports.CreateUtxoErrorCode = CreateUtxoErrorCode = {}));
 var RpcErrorCode;

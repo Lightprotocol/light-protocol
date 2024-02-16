@@ -1,5 +1,4 @@
 "use strict";
-// write sleep fn
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sleep = void 0;
 var sleep = function (ms) {
