@@ -1,5 +1,5 @@
 mod helpers;
-pub use crate::verifying_keys::helpers::{get_zk_bytes, vk};
+pub use crate::verifying_keys::helpers::vk;
 mod merkle22_1;
 pub use crate::verifying_keys::merkle22_1::VERIFYINGKEY as VK22_1;
 mod merkle22_2;

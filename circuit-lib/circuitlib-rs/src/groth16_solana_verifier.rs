@@ -1,7 +1,9 @@
 use std::{collections::HashMap, ops::Neg};
+use std::fs::File;
 
 use ark_bn254::Bn254;
 use ark_circom::circom::Inputs;
+use ark_circom::read_zkey;
 use ark_groth16::Proof as ArkGroth16Proof;
 use ark_serialize::{CanonicalSerialize, Compress};
 use groth16_solana::{
@@ -10,12 +12,12 @@ use groth16_solana::{
 };
 
 use crate::{
-    arkworks_prover::{prove, read_zk, ArkProof},
+    arkworks_prover::{prove, ArkProof},
     errors::CircuitsError,
     helpers::{change_endianness, convert_endianness_128},
-    merkle_proof_inputs::{public_inputs, MerkleTreeInfo, MerkleTreeProofInput, ProofInputs},
-    verifying_keys::get_zk_bytes,
+    merkle_proof_inputs::{public_inputs, MerkleTreeInfo, MerkleTreeProofInput, ProofInputs}
 };
+use crate::arkworks_prover::ArkProvingKey;
 
 pub struct ProofCompressed {
     pub a: [u8; 32],
@@ -58,8 +60,9 @@ pub fn merkle_inclusion_proof(
         .try_into()
         .map_err(|_| CircuitsError::ChangeEndiannessError)?;
 
-    let zk_bytes: &[u8] = get_zk_bytes(merkle_tree_info, merkle_proof_inputs_len - 1)?;
-    let pk = read_zk(merkle_tree_info, merkle_proof_inputs_len, zk_bytes)?;
+    let path = format!("test-data/merkle{}_{}/circuit.zkey", merkle_tree_info.height(), merkle_proof_inputs_len);
+    let mut file = File::open(path).unwrap();
+    let pk: ArkProvingKey = read_zkey(&mut file).unwrap();
     let wasm_path = merkle_tree_info.wasm_path(merkle_proof_inputs_len);
     let proof = prove(
         merkle_tree_info,
