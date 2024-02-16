@@ -1,0 +1,6 @@
+### Stateless.js
+
+- Light's core js-client
+- utils for working with compressed PDAs and local development (such as a test-rpc)
+- rpc interface for interacting with photon
+- utils for system ixs, and the wallet interface for zk-proof generation
