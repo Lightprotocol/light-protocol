@@ -9,7 +9,7 @@ import {
   Transaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import * as token from "@solana/spl-token";
+import { getAccount } from "@solana/spl-token";
 import { IDL_LIGHT_MERKLE_TREE_PROGRAM, LightMerkleTreeProgram } from "../idls";
 import {
   BN_0,
@@ -458,7 +458,7 @@ export class MerkleTreeConfig {
         poolPda.token.toBase58(),
       );
 
-      const registeredTokenAccount = await token.getAccount(
+      const registeredTokenAccount = await getAccount(
         this.connection,
         poolPda.token,
         "confirmed",

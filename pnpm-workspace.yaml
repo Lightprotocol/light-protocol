@@ -4,6 +4,7 @@ packages:
   - "prover.js/**"
   - "circuit-lib/**"
   - "zk.js/**"
+  - "js/stateless.js/**"
   - "account.rs/**"
   - "cli/**"
   - "rpc/**"
