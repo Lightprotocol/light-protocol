@@ -5,6 +5,8 @@ export interface CompressedAccountInfoRpcResponse {
 }
 
 export interface CompressionApiInterface {
+  /// TODO: add all rpc methods
+
   getCompressedAccountInfo(
     assetId: PublicKey
   ): Promise<CompressedAccountInfoRpcResponse>;
