@@ -32,6 +32,6 @@ once_cell = "1.8"
 thiserror = "1.0"
 color-eyre = "=0.6.2"
 log = "0.4"
-env_logger = { version = "0.11.2", default-features = false }
+env_logger = "0.10.2"
 # 1.3.0 required by package `aes-gcm-siv v0.10.3`
 zeroize = "=1.3.0"
