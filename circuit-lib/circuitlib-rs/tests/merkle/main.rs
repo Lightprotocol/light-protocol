@@ -31,24 +31,6 @@ macro_rules! test_and_prove {
 test_and_prove!(test_and_prove_22_1, MerkleTreeInfo::H22, 1);
 test_and_prove!(test_and_prove_22_2, MerkleTreeInfo::H22, 2);
 test_and_prove!(test_and_prove_22_3, MerkleTreeInfo::H22, 3);
-// test_and_prove!(test_and_prove_22_4, MerkleTreeInfo::H22, 4);
-// test_and_prove!(test_and_prove_22_5, MerkleTreeInfo::H22, 5);
-// test_and_prove!(test_and_prove_22_6, MerkleTreeInfo::H22, 6);
-// test_and_prove!(test_and_prove_22_7, MerkleTreeInfo::H22, 7);
-// test_and_prove!(test_and_prove_22_8, MerkleTreeInfo::H22, 8);
-// test_and_prove!(test_and_prove_22_9, MerkleTreeInfo::H22, 9);
-// test_and_prove!(test_and_prove_22_10, MerkleTreeInfo::H22, 10);
-//
-// test_and_prove!(test_and_prove_30_1, MerkleTreeInfo::H30, 1);
-// test_and_prove!(test_and_prove_30_2, MerkleTreeInfo::H30, 2);
-// test_and_prove!(test_and_prove_30_3, MerkleTreeInfo::H30, 3);
-// test_and_prove!(test_and_prove_30_4, MerkleTreeInfo::H30, 4);
-// test_and_prove!(test_and_prove_30_5, MerkleTreeInfo::H30, 5);
-// test_and_prove!(test_and_prove_30_6, MerkleTreeInfo::H30, 6);
-// test_and_prove!(test_and_prove_30_7, MerkleTreeInfo::H30, 7);
-// test_and_prove!(test_and_prove_30_8, MerkleTreeInfo::H30, 8);
-// test_and_prove!(test_and_prove_30_9, MerkleTreeInfo::H30, 9);
-// test_and_prove!(test_and_prove_30_10, MerkleTreeInfo::H30, 10);
 
 fn init_logger() {
     let _ = Builder::new()

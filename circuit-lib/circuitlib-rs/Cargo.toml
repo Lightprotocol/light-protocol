@@ -6,8 +6,6 @@ edition = "2021"
 [dependencies]
 
 # light local deps
-# ark-zkey = { path = "../../../mopro/ark-zkey" }
-# witness = { path = "../../../circom-witness-rs" }
 light-merkle-tree-reference =  { path = "../../merkle-tree/reference"}
 light-hasher = { path = "../../merkle-tree/hasher" }
 

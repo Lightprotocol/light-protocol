@@ -16,7 +16,14 @@ impl MerkleTreeInfo {
             MerkleTreeInfo::H30 => 30,
         }
     }
-    pub fn wasm_path(&self, num_of_utxos: usize) -> String {
+    pub fn test_zk_path(&self, num_of_utxos: usize) -> String {
+        format!(
+            "test-data/merkle{}_{}/circuit.zkey",
+            self.height(),
+            num_of_utxos
+        )
+    }
+    pub fn test_wasm_path(&self, num_of_utxos: usize) -> String {
         format!(
             "test-data/merkle{}_{}/merkle{}_{}_js/merkle{}_{}.wasm",
             self.height(),

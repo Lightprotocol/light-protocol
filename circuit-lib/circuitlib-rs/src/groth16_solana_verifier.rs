@@ -57,14 +57,10 @@ pub fn merkle_inclusion_proof(
         .try_into()
         .map_err(|_| CircuitsError::ChangeEndiannessError)?;
 
-    let path = format!(
-        "test-data/merkle{}_{}/circuit.zkey",
-        merkle_tree_info.height(),
-        merkle_proof_inputs_len
-    );
-    let mut file = File::open(path).unwrap();
+    let zk_path = merkle_tree_info.test_zk_path(merkle_proof_inputs_len);
+    let mut file = File::open(zk_path).unwrap();
     let pk: ArkProvingKey = read_zkey(&mut file).unwrap();
-    let wasm_path = merkle_tree_info.wasm_path(merkle_proof_inputs_len);
+    let wasm_path = merkle_tree_info.test_wasm_path(merkle_proof_inputs_len);
     let proof = prove(
         merkle_tree_info,
         merkle_proof_inputs_len,
