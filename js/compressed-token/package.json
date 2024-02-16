@@ -1,7 +1,7 @@
 {
-  "name": "@lightprotocol/stateless.js",
+  "name": "@lightprotocol/compressed-token",
   "version": "0.0.1",
-  "description": "The Light Protocol core client library.",
+  "description": "The js-client library to interact with the compressed token program",
   "main": "lib/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
