@@ -78,7 +78,7 @@ impl Hasher for Poseidon {
             let result = unsafe {
                 crate::syscalls::sol_poseidon(
                     0, // bn254
-                    1, // little-endian
+                    0, // big-endian
                     vals as *const _ as *const u8,
                     vals.len() as u64,
                     &mut hash_result as *mut _ as *mut u8,

@@ -101,6 +101,9 @@ pub fn hash_to_bn254_field_size_le(bytes: &[u8]) -> Option<([u8; 32], u8)> {
         {
             let mut hashed_value: [u8; 32] = hashv(&[bytes, bump_seed.as_ref()]).to_bytes();
             hashed_value[31] = 0;
+            // TODO: remove these once we switched to le poseidon
+            hashed_value[30] = 0;
+            hashed_value[29] = 0;
 
             match is_smaller_than_bn254_field_size_le(&hashed_value) {
                 Ok(true) => return Some((hashed_value, bump_seed[0])),
