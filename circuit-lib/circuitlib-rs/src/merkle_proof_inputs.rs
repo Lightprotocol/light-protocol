@@ -6,14 +6,12 @@ use num_bigint::BigInt;
 #[derive(Clone, Debug)]
 pub enum MerkleTreeInfo {
     H22,
-    H30,
 }
 
 impl MerkleTreeInfo {
     pub fn height(&self) -> u8 {
         match self {
             MerkleTreeInfo::H22 => 22,
-            MerkleTreeInfo::H30 => 30,
         }
     }
     pub fn test_zk_path(&self, num_of_utxos: usize) -> String {
