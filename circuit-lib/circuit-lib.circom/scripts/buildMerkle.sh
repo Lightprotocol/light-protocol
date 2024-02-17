@@ -26,7 +26,7 @@ function execute_commands {
   mkdir -p "$build_directory"
   mkdir -p "$src_directory"
   download_ptau "build" "$ptau_number" || { echo "download_ptau failed"; exit 1; }
-  circom --r1cs --wasm --sym "$circuits_circom_directory/src/merkle-tree/merkle${merkle_number}_$utxo_count.circom" -o "$build_directory" || { echo "circom failed"; exit 1; }
+  circom --r1cs --wasm --sym "$circuits_circom_directory/src/merkle-tree/merkle${merkle_number}_$utxo_count.circom" -o "$build_directory" -l "$circuits_circom_directory/node_modules/circomlib/circuits" || { echo "circom failed"; exit 1; }
   npx snarkjs groth16 setup "$build_directory/merkle${merkle_number}_$utxo_count.r1cs" "build/ptau$ptau_number" "$build_directory/tmp_circuit.zkey" || { echo "snarkjs groth16 setup failed"; exit 1; }
   npx snarkjs zkey contribute "$build_directory/tmp_circuit.zkey" "$build_directory/circuit.zkey" -e="321432151325321543215" || { echo "snarkjs zkey contribute failed"; exit 1; }
   rm "$build_directory/tmp_circuit.zkey"
@@ -45,7 +45,7 @@ CIRCUIT_RS_VERIFYINGKEY_DIR="$CIRCUIT_RS_DIR/src/verifying_keys"
 rm "$CIRCUIT_RS_VERIFYINGKEY_DIR/mod.rs"
 touch "$CIRCUIT_RS_VERIFYINGKEY_DIR/mod.rs"
 echo "mod helpers;" >> "$CIRCUIT_RS_VERIFYINGKEY_DIR/mod.rs";
-echo "pub use crate::verifying_keys::helpers::{get_zk_bytes, vk};" >> "$CIRCUIT_RS_VERIFYINGKEY_DIR/mod.rs";
+echo "pub use crate::verifying_keys::helpers::vk;" >> "$CIRCUIT_RS_VERIFYINGKEY_DIR/mod.rs";
 
 POWERS_OF_TAU=16
 MAX_COUNT=3
