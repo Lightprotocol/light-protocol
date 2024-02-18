@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
 use ark_ff::BigInteger;
-use light_hasher::{errors::HasherError, Hasher};
+use light_hasher::Hasher;
 use light_merkle_tree_reference::MerkleTree;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
-use crate::array::IndexingElement;
+use crate::{array::IndexingElement, errors::IndexedMerkleTreeError};
 
 #[repr(C)]
 pub struct IndexedMerkleTree<H, I, B, const HEIGHT: usize, const MAX_ROOTS: usize>
@@ -27,7 +27,7 @@ where
     B: BigInteger,
     usize: From<I>,
 {
-    pub fn new() -> Result<Self, HasherError> {
+    pub fn new() -> Result<Self, IndexedMerkleTreeError> {
         let mut merkle_tree = MerkleTree::new()?;
 
         // Append the first low leaf, which has value 0 and does not point
@@ -56,7 +56,7 @@ where
         new_low_element: &IndexingElement<I, B>,
         new_element: &IndexingElement<I, B>,
         new_element_next_value: &B,
-    ) -> Result<(), HasherError> {
+    ) -> Result<(), IndexedMerkleTreeError> {
         // Update the low element.
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
         self.merkle_tree

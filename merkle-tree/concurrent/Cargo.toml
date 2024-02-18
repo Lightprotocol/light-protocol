@@ -5,9 +5,17 @@ edition = "2021"
 description = "Concurrent Merkle tree implementation"
 license = "Apache-2.0"
 
+[features]
+solana = [
+  "light-hasher/solana",
+  "solana-program"
+]
+
 [dependencies]
 bytemuck = "1.14"
 light-hasher = { path = "../hasher", version = "0.1.0" }
+solana-program = { version = ">=1.17, <1.18", optional = true }
+thiserror = "1.0"
 
 [dev-dependencies]
 ark-bn254 = "0.4"

@@ -1,9 +1,6 @@
 //! This module is a partial copy from
 //! [solana-program](https://github.com/solana-labs/solana/blob/master/sdk/program/src/syscalls/definitions.rs),
 //! which is licensed under Apache License 2.0.
-//!
-//! The purpose of the module is to provide definition of Poseidon syscall
-//! without upgrading solana-program and Anchor just yet.
 
 #[cfg(target_feature = "static-syscalls")]
 macro_rules! define_syscall {
@@ -38,4 +35,6 @@ macro_rules! define_syscall {
 	}
 }
 
+define_syscall!(fn sol_sha256(vals: *const u8, val_len: u64, hash_result: *mut u8) -> u64);
+define_syscall!(fn sol_keccak256(vals: *const u8, val_len: u64, hash_result: *mut u8) -> u64);
 define_syscall!(fn sol_poseidon(parameters: u64, endianness: u64, vals: *const u8, val_len: u64, hash_result: *mut u8) -> u64);

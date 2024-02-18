@@ -2,12 +2,15 @@ use std::{cmp::Ordering, marker::PhantomData};
 
 use bytemuck::{Pod, Zeroable};
 use hash::compute_root;
-use light_hasher::{errors::HasherError, Hasher};
+use light_hasher::Hasher;
 
 pub mod changelog;
+pub mod errors;
 pub mod hash;
 
-use crate::{changelog::ChangelogEntry, hash::compute_parent_node};
+use crate::{
+    changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, hash::compute_parent_node,
+};
 
 /// [Concurrent Merkle tree](https://drive.google.com/file/d/1BOpa5OFmara50fTvL0VIVYjtg-qzHCVc/view)
 /// which allows for multiple requests of updating leaves, without making any
@@ -120,7 +123,7 @@ where
     H: Hasher,
 {
     /// Initializes the Merkle tree.
-    pub fn init(&mut self) -> Result<(), HasherError> {
+    pub fn init(&mut self) -> Result<(), ConcurrentMerkleTreeError> {
         // Initialize changelog.
         let root = H::zero_bytes()[HEIGHT];
         let mut changelog_path = [[0u8; 32]; HEIGHT];
@@ -133,7 +136,10 @@ where
         }
 
         // Initialize root.
-        *self.roots.get_mut(0).ok_or(HasherError::RootsZero)? = root;
+        *self
+            .roots
+            .get_mut(0)
+            .ok_or(ConcurrentMerkleTreeError::RootsZero)? = root;
 
         // Initialize rightmost proof.
         for (i, node) in self.rightmost_proof.iter_mut().enumerate() {
@@ -172,10 +178,10 @@ where
     }
 
     /// Returns the current root.
-    pub fn root(&self) -> Result<[u8; 32], HasherError> {
+    pub fn root(&self) -> Result<[u8; 32], ConcurrentMerkleTreeError> {
         self.roots
             .get(self.current_root_index as usize)
-            .ok_or(HasherError::RootHigherThanMax)
+            .ok_or(ConcurrentMerkleTreeError::RootHigherThanMax)
             .copied()
     }
 
@@ -228,12 +234,12 @@ where
         leaf: &[u8; 32],
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
-    ) -> Result<(), HasherError> {
+    ) -> Result<(), ConcurrentMerkleTreeError> {
         let computed_root = compute_root::<H, HEIGHT>(leaf, leaf_index, proof)?;
         if computed_root == self.root()? {
             Ok(())
         } else {
-            Err(HasherError::InvalidProof)
+            Err(ConcurrentMerkleTreeError::InvalidProof)
         }
     }
 
@@ -257,7 +263,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
-    ) -> Result<ChangelogEntry<HEIGHT>, HasherError> {
+    ) -> Result<ChangelogEntry<HEIGHT>, ConcurrentMerkleTreeError> {
         let mut node = *new_leaf;
         let mut changelog_path = [[0u8; 32]; HEIGHT];
 
@@ -279,7 +285,7 @@ where
         *self
             .roots
             .get_mut(self.current_root_index as usize)
-            .ok_or(HasherError::RootsZero)? = node;
+            .ok_or(ConcurrentMerkleTreeError::RootsZero)? = node;
 
         // Update the rightmost proof. It has to be done only if tree is not full.
         if self.next_index < (1 << HEIGHT) {
@@ -317,7 +323,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
-    ) -> Result<ChangelogEntry<HEIGHT>, HasherError> {
+    ) -> Result<ChangelogEntry<HEIGHT>, ConcurrentMerkleTreeError> {
         let updated_proof = if self.next_index > 0 && MAX_CHANGELOG > 0 {
             match self.update_proof(changelog_index, leaf_index, proof) {
                 Some(proof) => proof,
@@ -326,12 +332,12 @@ where
                 // We need to return an error and request the caller
                 // to retry the update with a new proof.
                 None => {
-                    return Err(HasherError::CannotUpdateLeaf);
+                    return Err(ConcurrentMerkleTreeError::CannotUpdateLeaf);
                 }
             }
         } else {
             if leaf_index != self.next_index as usize {
-                return Err(HasherError::AppendOnly);
+                return Err(ConcurrentMerkleTreeError::AppendOnly);
             }
             proof.to_owned()
         };
@@ -346,9 +352,9 @@ where
         &mut self,
         leaf: &[u8; 32],
         changelog_entry: &mut ChangelogEntry<HEIGHT>,
-    ) -> Result<(), HasherError> {
+    ) -> Result<(), ConcurrentMerkleTreeError> {
         if self.next_index >= 1 << HEIGHT {
-            return Err(HasherError::TreeFull);
+            return Err(ConcurrentMerkleTreeError::TreeFull);
         }
 
         let mut current_node = *leaf;
@@ -441,7 +447,7 @@ where
         *self
             .roots
             .get_mut(self.current_root_index as usize)
-            .ok_or(HasherError::RootsZero)? = current_node;
+            .ok_or(ConcurrentMerkleTreeError::RootsZero)? = current_node;
 
         self.sequence_number = self.sequence_number.saturating_add(1);
         self.next_index = self.next_index.saturating_add(1);
@@ -451,7 +457,10 @@ where
     }
 
     /// Appends a new leaf to the tree.
-    pub fn append(&mut self, leaf: &[u8; 32]) -> Result<ChangelogEntry<HEIGHT>, HasherError> {
+    pub fn append(
+        &mut self,
+        leaf: &[u8; 32],
+    ) -> Result<ChangelogEntry<HEIGHT>, ConcurrentMerkleTreeError> {
         let mut changelog_entry = ChangelogEntry::default();
         self.append_with_changelog_entry(leaf, &mut changelog_entry)?;
         Ok(changelog_entry)
@@ -461,7 +470,7 @@ where
     pub fn append_batch<const N: usize>(
         &mut self,
         leaves: &[&[u8; 32]; N],
-    ) -> Result<[Box<ChangelogEntry<HEIGHT>>; N], HasherError> {
+    ) -> Result<[Box<ChangelogEntry<HEIGHT>>; N], ConcurrentMerkleTreeError> {
         let mut changelog_entries: [Box<ChangelogEntry<HEIGHT>>; N] =
             std::array::from_fn(|_| Box::<ChangelogEntry<HEIGHT>>::default());
 

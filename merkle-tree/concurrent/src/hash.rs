@@ -1,4 +1,6 @@
-use light_hasher::{errors::HasherError, Hasher};
+use light_hasher::Hasher;
+
+use crate::errors::ConcurrentMerkleTreeError;
 
 /// Returns the hash of the parent node based on the provided `node` (with its
 /// `node_index`) and `sibling` (with its `sibling_index`).
@@ -7,16 +9,17 @@ pub fn compute_parent_node<H>(
     sibling: &[u8; 32],
     node_index: usize,
     sibling_index: usize,
-) -> Result<[u8; 32], HasherError>
+) -> Result<[u8; 32], ConcurrentMerkleTreeError>
 where
     H: Hasher,
 {
     let is_left = (node_index >> sibling_index) & 1 == 0;
-    if is_left {
-        H::hashv(&[node, sibling])
+    let hash = if is_left {
+        H::hashv(&[node, sibling])?
     } else {
-        H::hashv(&[sibling, node])
-    }
+        H::hashv(&[sibling, node])?
+    };
+    Ok(hash)
 }
 
 /// Computes the root for the given `leaf` (with index `i`) and `proof`. It
@@ -25,7 +28,7 @@ pub fn compute_root<H, const HEIGHT: usize>(
     leaf: &[u8; 32],
     leaf_index: usize,
     proof: &[[u8; 32]; HEIGHT],
-) -> Result<[u8; 32], HasherError>
+) -> Result<[u8; 32], ConcurrentMerkleTreeError>
 where
     H: Hasher,
 {

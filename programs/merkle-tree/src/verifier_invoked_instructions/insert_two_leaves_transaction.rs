@@ -46,7 +46,9 @@ pub fn process_insert_two_leaves<'info, 'a>(
         };
 
         // Insert the pair into the merkle tree
-        let changelog_entries = state_merkle_tree.append_batch(&[leaf_left, leaf_right])?;
+        let changelog_entries = state_merkle_tree
+            .append_batch(&[leaf_left, leaf_right])
+            .map_err(ProgramError::from)?;
 
         let changelog_event = ChangelogEvent::V1(ChangelogEventV1::new(
             ctx.accounts.merkle_tree_set.key(),

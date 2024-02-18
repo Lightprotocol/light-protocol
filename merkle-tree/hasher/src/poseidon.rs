@@ -19,60 +19,17 @@ impl Hasher for Poseidon {
         #[cfg(not(target_os = "solana"))]
         {
             use ark_bn254::Fr;
-            use light_poseidon::{Poseidon, PoseidonBytesHasher, PoseidonError};
+            use light_poseidon::{Poseidon, PoseidonBytesHasher};
 
-            impl From<PoseidonError> for HasherError {
-                fn from(error: PoseidonError) -> Self {
-                    match error {
-                        PoseidonError::InvalidNumberOfInputs { .. } => {
-                            HasherError::PoseidonInvalidNumberOfInputs
-                        }
-                        PoseidonError::EmptyInput => HasherError::PoseidonEmptyInput,
-                        PoseidonError::InvalidInputLength { .. } => {
-                            HasherError::PoseidonInvalidInputLength
-                        }
-                        PoseidonError::BytesToPrimeFieldElement { .. } => {
-                            HasherError::PoseidonBytesToPrimeFieldElement
-                        }
-                        PoseidonError::InputLargerThanModulus => {
-                            HasherError::PoseidonInputLargerThanModulus
-                        }
-                        PoseidonError::VecToArray => HasherError::PoseidonVecToArray,
-                        PoseidonError::U64Tou8 => HasherError::PoseidonU64Tou8,
-                        PoseidonError::BytesToBigInt => HasherError::PoseidonBytesToBigInt,
-                        PoseidonError::InvalidWidthCircom { .. } => {
-                            HasherError::PoseidonInvalidWidthCircom
-                        }
-                    }
-                }
-            }
-
-            let mut hasher = Poseidon::<Fr>::new_circom(vals.len()).map_err(HasherError::from)?;
-            let res = hasher.hash_bytes_be(vals).map_err(HasherError::from)?;
+            let mut hasher = Poseidon::<Fr>::new_circom(vals.len())?;
+            let res = hasher.hash_bytes_be(vals)?;
 
             Ok(res)
         }
         // Call via a system call to perform the calculation.
         #[cfg(target_os = "solana")]
         {
-            use crate::HASH_BYTES;
-
-            impl From<u64> for HasherError {
-                fn from(error: u64) -> Self {
-                    match error {
-                        1 => HasherError::PoseidonInvalidNumberOfInputs,
-                        2 => HasherError::PoseidonEmptyInput,
-                        3 => HasherError::PoseidonInvalidInputLength,
-                        4 => HasherError::PoseidonBytesToPrimeFieldElement,
-                        5 => HasherError::PoseidonInputLargerThanModulus,
-                        6 => HasherError::PoseidonVecToArray,
-                        7 => HasherError::PoseidonU64Tou8,
-                        8 => HasherError::PoseidonBytesToBigInt,
-                        9 => HasherError::PoseidonInvalidWidthCircom,
-                        _ => HasherError::PoseidonUnknown,
-                    }
-                }
-            }
+            use crate::{errors::PoseidonSyscallError, HASH_BYTES};
 
             let mut hash_result = [0; HASH_BYTES];
             let result = unsafe {
@@ -87,7 +44,7 @@ impl Hasher for Poseidon {
 
             match result {
                 0 => Ok(hash_result),
-                e => Err(HasherError::from(e)),
+                e => Err(HasherError::from(PoseidonSyscallError::from(e))),
             }
         }
     }
