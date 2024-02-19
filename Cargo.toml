@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "account.rs/src/wasm",
+    "circuit-lib/circuitlib-rs",
     "macros/aligned-sized",
     "macros/light",
     "merkle-tree/*",

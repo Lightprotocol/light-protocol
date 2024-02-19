@@ -1,7 +1,6 @@
 node_modules
 test-ledger
-ptau17
-ptau15
+ptau*
 tests/*.js
-*.js
 lib
+build

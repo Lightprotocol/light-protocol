@@ -47,4 +47,4 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           cargo build --workspace --all-targets
-          cargo test --workspace --all-targets
+          cargo test --workspace --all-targets --exclude circuitlib-rs

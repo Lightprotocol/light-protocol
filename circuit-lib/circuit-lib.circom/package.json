@@ -4,6 +4,7 @@
   "description": "",
   "license": "GPL-3.0",
   "scripts": {
+    "build-merkle": "sh scripts/buildMerkle.sh",
     "build-private-2in": "sh scripts/buildCircuit.sh private 2 2",
     "build-private-10in": "sh scripts/buildCircuit.sh private 10 2",
     "build-private-4in-program": "sh scripts/buildCircuit.sh private 4 4 Program",
