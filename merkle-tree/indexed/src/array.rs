@@ -2,9 +2,11 @@ use std::{cmp::Ordering, marker::PhantomData};
 
 use ark_ff::{BigInteger, BigInteger256};
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_hasher::{errors::HasherError, Hasher};
+use light_hasher::Hasher;
 use light_utils::bigint::{be_bytes_to_bigint, bigint_to_be_bytes};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
+
+use crate::errors::IndexedMerkleTreeError;
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct RawIndexingElement<I, const N: usize>
@@ -117,15 +119,16 @@ where
         self.next_index.into()
     }
 
-    pub fn hash<H>(&self, next_value: &B) -> Result<[u8; 32], HasherError>
+    pub fn hash<H>(&self, next_value: &B) -> Result<[u8; 32], IndexedMerkleTreeError>
     where
         H: Hasher,
     {
-        H::hashv(&[
+        let hash = H::hashv(&[
             self.value.to_bytes_be().as_ref(),
             self.next_index.to_be_bytes().as_ref(),
             next_value.to_bytes_be().as_ref(),
-        ])
+        ])?;
+        Ok(hash)
     }
 }
 
@@ -215,12 +218,14 @@ where
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element_index(&self, value: &B) -> Result<I, HasherError> {
+    pub fn find_low_element_index(&self, value: &B) -> Result<I, IndexedMerkleTreeError> {
         // Try to find element whose next element is higher than the provided
         // value.
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
             if self.elements[node.next_index()].value > *value {
-                return i.try_into().map_err(|_| HasherError::IntegerOverflow);
+                return i
+                    .try_into()
+                    .map_err(|_| IndexedMerkleTreeError::IntegerOverflow);
             }
         }
         // If no such element was found, it means that our value is going to be
@@ -238,7 +243,10 @@ where
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element(&self, value: &B) -> Result<(IndexingElement<I, B>, B), HasherError> {
+    pub fn find_low_element(
+        &self,
+        value: &B,
+    ) -> Result<(IndexingElement<I, B>, B), IndexedMerkleTreeError> {
         let low_element_index = self.find_low_element_index(value)?;
         let low_element = self.elements[usize::from(low_element_index)].clone();
         Ok((
@@ -257,10 +265,12 @@ where
     pub fn find_low_element_index_for_existing_element(
         &self,
         value: &B,
-    ) -> Result<Option<I>, HasherError> {
+    ) -> Result<Option<I>, IndexedMerkleTreeError> {
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
             if self.elements[usize::from(node.next_index)].value == *value {
-                let i = i.try_into().map_err(|_| HasherError::IntegerOverflow)?;
+                let i = i
+                    .try_into()
+                    .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
                 return Ok(Some(i));
             }
         }
@@ -272,20 +282,21 @@ where
     /// * The value of the given element.
     /// * The `next_index` of the given element.
     /// * The value of the element pointed by `next_index`.
-    pub fn hash_element(&self, index: I) -> Result<[u8; 32], HasherError> {
+    pub fn hash_element(&self, index: I) -> Result<[u8; 32], IndexedMerkleTreeError> {
         let element = self
             .elements
             .get(usize::from(index))
-            .ok_or(HasherError::IndexHigherThanMax)?;
+            .ok_or(IndexedMerkleTreeError::IndexHigherThanMax)?;
         let next_element = self
             .elements
             .get(usize::from(element.next_index))
-            .ok_or(HasherError::IndexHigherThanMax)?;
-        H::hashv(&[
+            .ok_or(IndexedMerkleTreeError::IndexHigherThanMax)?;
+        let hash = H::hashv(&[
             element.value.to_bytes_le().as_ref(),
             element.next_index.to_le_bytes().as_ref(),
             next_element.value.to_bytes_le().as_ref(),
-        ])
+        ])?;
+        Ok(hash)
     }
 
     /// Returns an updated low element and a new element, created based on the
@@ -294,13 +305,13 @@ where
         &self,
         low_element_index: I,
         value: B,
-    ) -> Result<IndexingElementBundle<I, B>, HasherError> {
+    ) -> Result<IndexingElementBundle<I, B>, IndexedMerkleTreeError> {
         let mut new_low_element = self.elements[usize::from(low_element_index)].clone();
 
         let new_element_index = self
             .current_node_index
             .checked_add(&I::one())
-            .ok_or(HasherError::IntegerOverflow)?;
+            .ok_or(IndexedMerkleTreeError::IntegerOverflow)?;
         let new_element = IndexingElement {
             index: new_element_index,
             value,
@@ -318,7 +329,10 @@ where
         })
     }
 
-    pub fn new_element(&self, value: B) -> Result<IndexingElementBundle<I, B>, HasherError> {
+    pub fn new_element(
+        &self,
+        value: B,
+    ) -> Result<IndexingElementBundle<I, B>, IndexedMerkleTreeError> {
         let low_element_index = self.find_low_element_index(&value)?;
         let element = self.new_element_with_low_element_index(low_element_index, value)?;
 
@@ -330,7 +344,7 @@ where
         &mut self,
         low_element_index: I,
         value: B,
-    ) -> Result<IndexingElementBundle<I, B>, HasherError> {
+    ) -> Result<IndexingElementBundle<I, B>, IndexedMerkleTreeError> {
         let old_low_element = &self.elements[usize::from(low_element_index)];
 
         // Check that the `value` belongs to the range of `old_low_element`.
@@ -339,18 +353,18 @@ where
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).
             if value <= old_low_element.value {
-                return Err(HasherError::LowElementGreaterOrEqualToNewElement);
+                return Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement);
             }
         } else {
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).
             if value <= old_low_element.value {
-                return Err(HasherError::LowElementGreaterOrEqualToNewElement);
+                return Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement);
             }
             // The value of `new_element` needs to be lower than the value of
             // next element pointed by `old_low_element`.
             if value >= self.elements[usize::from(old_low_element.next_index)].value {
-                return Err(HasherError::NewElementGreaterOrEqualToNextElement);
+                return Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement);
             }
         }
 
@@ -380,7 +394,10 @@ where
         Ok(new_element_bundle)
     }
 
-    pub fn append(&mut self, value: B) -> Result<IndexingElementBundle<I, B>, HasherError> {
+    pub fn append(
+        &mut self,
+        value: B,
+    ) -> Result<IndexingElementBundle<I, B>, IndexedMerkleTreeError> {
         let low_element_index = self.find_low_element_index(&value)?;
         self.append_with_low_element_index(low_element_index, value)
     }
@@ -404,7 +421,7 @@ where
         &mut self,
         low_element_index: I,
         index: I,
-    ) -> Result<Option<IndexingElement<I, B>>, HasherError> {
+    ) -> Result<Option<IndexingElement<I, B>>, IndexedMerkleTreeError> {
         if index > self.current_node_index {
             // Index out of bounds.
             return Ok(None);
@@ -422,13 +439,14 @@ where
             // Shift elements, which are on the right from the removed element,
             // to the left.
             if i >= usize::from(index) {
-                self.elements[i] = self.elements
-                    [i.checked_add(1_usize).ok_or(HasherError::IntegerOverflow)?]
+                self.elements[i] = self.elements[i
+                    .checked_add(1_usize)
+                    .ok_or(IndexedMerkleTreeError::IntegerOverflow)?]
                 .clone();
                 self.elements[i].index = self.elements[i]
                     .index
                     .checked_sub(&I::one())
-                    .ok_or(HasherError::IntegerOverflow)?;
+                    .ok_or(IndexedMerkleTreeError::IntegerOverflow)?;
             }
             // If the `next_index` is greater than the index of the removed
             // element, decrement it. Elements on the right from the removed
@@ -437,13 +455,14 @@ where
                 self.elements[i].next_index = self.elements[i]
                     .next_index
                     .checked_sub(&I::one())
-                    .ok_or(HasherError::IntegerOverflow)?;
+                    .ok_or(IndexedMerkleTreeError::IntegerOverflow)?;
             }
 
             if self.elements[i].value > self.elements[usize::from(new_highest_element_index)].value
             {
-                new_highest_element_index =
-                    i.try_into().map_err(|_| HasherError::IntegerOverflow)?;
+                new_highest_element_index = i
+                    .try_into()
+                    .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
             }
         }
 
@@ -451,7 +470,7 @@ where
         self.current_node_index = self
             .current_node_index
             .checked_sub(&I::one())
-            .ok_or(HasherError::IntegerOverflow)?;
+            .ok_or(IndexedMerkleTreeError::IntegerOverflow)?;
         // Update highest_element_index
         self.highest_element_index = new_highest_element_index;
 
@@ -463,12 +482,15 @@ where
     /// It also performs necessary updates of the remaning elements, to
     /// preserve the integrity of the array. It searches for the low element
     /// and updates it, to point to a new next element instead of the one
-    pub fn dequeue_at(&mut self, index: I) -> Result<Option<IndexingElement<I, B>>, HasherError> {
+    pub fn dequeue_at(
+        &mut self,
+        index: I,
+    ) -> Result<Option<IndexingElement<I, B>>, IndexedMerkleTreeError> {
         match self.elements.get(usize::from(index)) {
             Some(node) => {
                 let low_element_index = self
                     .find_low_element_index_for_existing_element(&node.value)?
-                    .ok_or(HasherError::LowElementNotFound)?;
+                    .ok_or(IndexedMerkleTreeError::LowElementNotFound)?;
                 self.dequeue_at_with_low_element_index(low_element_index, index)
             }
             None => Ok(None),
@@ -992,7 +1014,7 @@ mod test {
         let nullifier2 = BigInteger256::from(20_u32);
         assert!(matches!(
             indexing_array.append_with_low_element_index(low_element_index, nullifier2),
-            Err(HasherError::LowElementGreaterOrEqualToNewElement)
+            Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement)
         ));
 
         // Try appending nullifier 50, while pointing to index 0 as low
@@ -1002,7 +1024,7 @@ mod test {
         let nullifier2 = BigInteger256::from(50_u32);
         assert!(matches!(
             indexing_array.append_with_low_element_index(low_element_index, nullifier2),
-            Err(HasherError::NewElementGreaterOrEqualToNextElement),
+            Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement),
         ));
 
         // Append nullifier 50 correctly, with 0 as low nullifier. The array
@@ -1025,7 +1047,7 @@ mod test {
         let nullifier3 = BigInteger256::from(40_u32);
         assert!(matches!(
             indexing_array.append_with_low_element_index(low_element_index, nullifier3),
-            Err(HasherError::LowElementGreaterOrEqualToNewElement)
+            Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement)
         ));
     }
 }

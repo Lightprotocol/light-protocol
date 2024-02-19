@@ -1,9 +1,11 @@
 use std::cell::{RefCell, RefMut};
 
 use ark_ff::{BigInteger, BigInteger256};
-use light_hasher::{errors::HasherError, Hasher, Poseidon};
+use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
+use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{
     array::{IndexingArray, IndexingElement},
+    errors::IndexedMerkleTreeError,
     reference, IndexedMerkleTree,
 };
 use light_utils::bigint::be_bytes_to_bigint;
@@ -26,7 +28,7 @@ fn program_insert<H>(
     mut queue: RefMut<'_, IndexingArray<H, u16, BigInteger256, QUEUE_ELEMENTS>>,
     // Instruction data
     nullifiers: [[u8; 32]; NR_NULLIFIERS],
-) -> Result<(), HasherError>
+) -> Result<(), IndexedMerkleTreeError>
 where
     H: Hasher,
 {
@@ -40,7 +42,7 @@ where
 #[derive(Error, Debug)]
 enum RelayerUpdateError {
     #[error("Updating Merkle tree failed, {0:?}")]
-    MerkleTreeUpdate(Vec<HasherError>),
+    MerkleTreeUpdate(Vec<IndexedMerkleTreeError>),
 }
 
 /// A mock function which imitates a Merkle tree program instruction for
@@ -68,7 +70,7 @@ fn program_update<H>(
     low_nullifier: IndexingElement<usize, BigInteger256>,
     low_nullifier_next_value: BigInteger256,
     low_nullifier_proof: [[u8; 32]; MERKLE_TREE_HEIGHT],
-) -> Result<(), HasherError>
+) -> Result<(), IndexedMerkleTreeError>
 where
     H: Hasher,
 {
@@ -125,7 +127,7 @@ where
     >::new()
     .unwrap();
 
-    let mut update_errors: Vec<HasherError> = Vec::new();
+    let mut update_errors: Vec<IndexedMerkleTreeError> = Vec::new();
 
     while !queue.is_empty() {
         let changelog_index = merkle_tree.changelog_index();
@@ -316,7 +318,7 @@ where
     // Try inserting the same pair into the queue. It should fail with an error.
     assert!(matches!(
         program_insert::<H>(onchain_queue.borrow_mut(), [nullifier1, nullifier2]),
-        Err(HasherError::LowElementGreaterOrEqualToNewElement),
+        Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement),
     ));
 
     // Update the on-chain tree (so it contains the nullifiers we inserted).
@@ -346,8 +348,8 @@ where
     // less.
     let _expected_err: Result<(), RelayerUpdateError> =
         Err(RelayerUpdateError::MerkleTreeUpdate(vec![
-            HasherError::InvalidProof,
-            HasherError::InvalidProof,
+            IndexedMerkleTreeError::ConcurrentMerkleTree(ConcurrentMerkleTreeError::InvalidProof),
+            IndexedMerkleTreeError::ConcurrentMerkleTree(ConcurrentMerkleTreeError::InvalidProof),
         ]));
     assert!(matches!(
         relayer_update::<H>(
@@ -461,7 +463,7 @@ where
             low_nullifier_next_value,
             low_nullifier_proof,
         ),
-        Err(HasherError::LowElementGreaterOrEqualToNewElement)
+        Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement)
     ));
 
     // Try inserting nullifier 50, while pointing to index 0 as low nullifier.
@@ -498,7 +500,7 @@ where
             low_nullifier_next_value,
             low_nullifier_proof,
         ),
-        Err(HasherError::NewElementGreaterOrEqualToNextElement)
+        Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement)
     ));
 }
 

@@ -251,14 +251,6 @@ export type PspCompressedToken = {
             }
           },
           {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "TokenInUtxo"
-              }
-            }
-          },
-          {
             "name": "lowElementIndexes",
             "type": {
               "vec": "u16"
@@ -277,11 +269,9 @@ export type PspCompressedToken = {
             }
           },
           {
-            "name": "outUtxo",
+            "name": "serializedUtxos",
             "type": {
-              "vec": {
-                "defined": "TokenOutUtxo"
-              }
+              "defined": "SerializedUtxos"
             }
           }
         ]
@@ -555,14 +545,6 @@ export const IDL: PspCompressedToken = {
             }
           },
           {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "TokenInUtxo"
-              }
-            }
-          },
-          {
             "name": "lowElementIndexes",
             "type": {
               "vec": "u16"
@@ -581,11 +563,9 @@ export const IDL: PspCompressedToken = {
             }
           },
           {
-            "name": "outUtxo",
+            "name": "serializedUtxos",
             "type": {
-              "vec": {
-                "defined": "TokenOutUtxo"
-              }
+              "defined": "SerializedUtxos"
             }
           }
         ]

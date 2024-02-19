@@ -3,11 +3,14 @@ use std::marker::PhantomData;
 use ark_ff::BigInteger;
 use array::IndexingElement;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree;
-use light_hasher::{errors::HasherError, Hasher};
+use light_hasher::Hasher;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 pub mod array;
+pub mod errors;
 pub mod reference;
+
+use crate::errors::IndexedMerkleTreeError;
 
 #[repr(C)]
 pub struct IndexedMerkleTree<
@@ -53,7 +56,7 @@ where
     B: BigInteger,
     usize: From<I>,
 {
-    pub fn init(&mut self) -> Result<(), HasherError> {
+    pub fn init(&mut self) -> Result<(), IndexedMerkleTreeError> {
         self.merkle_tree.init()?;
 
         // Append the first low leaf, which has value 0 and does not point
@@ -73,8 +76,9 @@ where
         self.merkle_tree.root_index()
     }
 
-    pub fn root(&self) -> Result<[u8; 32], HasherError> {
-        self.merkle_tree.root()
+    pub fn root(&self) -> Result<[u8; 32], IndexedMerkleTreeError> {
+        let root = self.merkle_tree.root()?;
+        Ok(root)
     }
 
     /// Checks whether the given Merkle `proof` for the given `node` (with index
@@ -85,8 +89,9 @@ where
         leaf: &[u8; 32],
         leaf_index: usize,
         proof: &[[u8; 32]; HEIGHT],
-    ) -> Result<(), HasherError> {
-        self.merkle_tree.validate_proof(leaf, leaf_index, proof)
+    ) -> Result<(), IndexedMerkleTreeError> {
+        self.merkle_tree.validate_proof(leaf, leaf_index, proof)?;
+        Ok(())
     }
 
     pub fn update(
@@ -97,7 +102,7 @@ where
         low_element: IndexingElement<I, B>,
         low_element_next_value: B,
         low_leaf_proof: &[[u8; 32]; HEIGHT],
-    ) -> Result<(), HasherError> {
+    ) -> Result<(), IndexedMerkleTreeError> {
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == I::zero() {
@@ -105,18 +110,18 @@ where
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).
             if new_element.value <= low_element.value {
-                return Err(HasherError::LowElementGreaterOrEqualToNewElement);
+                return Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement);
             }
         } else {
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).
             if new_element.value <= low_element.value {
-                return Err(HasherError::LowElementGreaterOrEqualToNewElement);
+                return Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement);
             }
             // The value of `new_element` needs to be lower than the value of
             // next element pointed by `old_low_element`.
             if new_element.value >= low_element_next_value {
-                return Err(HasherError::NewElementGreaterOrEqualToNextElement);
+                return Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement);
             }
         }
 

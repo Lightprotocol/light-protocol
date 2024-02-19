@@ -5,7 +5,9 @@ export type PspCompressedPda = {
     {
       "name": "executeCompressedTransaction",
       "docs": [
-        "This function can be used to transfer sol and execute any other compressed transaction."
+        "This function can be used to transfer sol and execute any other compressed transaction.",
+        "Instruction data is not optimized for space.",
+        "This method can be called by cpi so that instruction data can be compressed with a custom algorithm."
       ],
       "accounts": [
         {
@@ -42,6 +44,68 @@ export type PspCompressedPda = {
           "name": "accountCompressionProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        }
+      ],
+      "args": [
+        {
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "executeCompressedTransaction2",
+      "docs": [
+        "This function can be used to transfer sol and execute any other compressed transaction.",
+        "Instruction data is optimized for space."
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "authorityPda",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "registeredProgramPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "noopProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "compressedPdaProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pspAccountCompressionAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [
@@ -53,6 +117,22 @@ export type PspCompressedPda = {
     }
   ],
   "accounts": [
+    {
+      "name": "cpiSignatureAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signatures",
+            "type": {
+              "vec": {
+                "defined": "CpiSignature"
+              }
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "instructionDataTransfer",
       "type": {
@@ -86,21 +166,13 @@ export type PspCompressedPda = {
             }
           },
           {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "TokenInUtxo"
-              }
-            }
-          },
-          {
-            "name": "lowElementIndexes",
+            "name": "lowElementIndices",
             "type": {
               "vec": "u16"
             }
           },
           {
-            "name": "rootIndexes",
+            "name": "rootIndices",
             "type": {
               "vec": "u64"
             }
@@ -112,10 +184,129 @@ export type PspCompressedPda = {
             }
           },
           {
-            "name": "outUtxo",
+            "name": "inUtxos",
             "type": {
               "vec": {
-                "defined": "TokenOutUtxo"
+                "defined": "Utxo"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "OutUtxo"
+              }
+            }
+          },
+          {
+            "name": "inUtxoMerkleTreeRemainingAccountIndex",
+            "type": "bytes"
+          },
+          {
+            "name": "inUtxoNullifierQueueRemainingAccountIndex",
+            "type": "bytes"
+          },
+          {
+            "name": "outUtxoMerkleTreeRemainingAccountIndex",
+            "type": "bytes"
+          }
+        ]
+      }
+    },
+    {
+      "name": "instructionDataTransfer2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proofA",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "proofB",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "proofC",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lowElementIndices",
+            "type": {
+              "vec": "u16"
+            }
+          },
+          {
+            "name": "rootIndices",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "utxos",
+            "type": {
+              "defined": "SerializedUtxos"
+            }
+          },
+          {
+            "name": "inUtxoMerkleTreeRemainingAccountIndex",
+            "type": "bytes"
+          },
+          {
+            "name": "inUtxoNullifierQueueRemainingAccountIndex",
+            "type": "bytes"
+          },
+          {
+            "name": "outUtxoMerkleTreeRemainingAccountIndex",
+            "type": "bytes"
+          }
+        ]
+      }
+    },
+    {
+      "name": "inUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "leafIndex",
+            "type": "u32"
+          },
+          {
+            "name": "lamports",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
               }
             }
           }
@@ -123,7 +314,55 @@ export type PspCompressedPda = {
       }
     },
     {
-      "name": "tokenInUtxo",
+      "name": "outUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "lamports",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "outUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "utxo",
       "type": {
         "kind": "struct",
         "fields": [
@@ -148,24 +387,26 @@ export type PspCompressedPda = {
             "name": "data",
             "type": {
               "option": {
-                "defined": "TlvData"
+                "defined": "Tlv"
               }
             }
           }
         ]
       }
-    },
+    }
+  ],
+  "types": [
     {
-      "name": "tokenOutUtxo",
+      "name": "CpiSignature",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "owner",
+            "name": "program",
             "type": "publicKey"
           },
           {
-            "name": "blinding",
+            "name": "tlvHash",
             "type": {
               "array": [
                 "u8",
@@ -174,19 +415,187 @@ export type PspCompressedPda = {
             }
           },
           {
-            "name": "lamports",
-            "type": "u64"
+            "name": "tlvData",
+            "type": {
+              "defined": "TlvDataElement"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SerializedUtxos",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkeyArray",
+            "type": {
+              "vec": "publicKey"
+            }
           },
           {
-            "name": "data",
+            "name": "u64Array",
             "type": {
-              "option": {
-                "defined": "TlvData"
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoSerializable"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "OutUtxoSerializable"
               }
             }
           }
         ]
       }
+    },
+    {
+      "name": "TlvSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tlvElements",
+            "type": {
+              "vec": {
+                "defined": "TlvDataElementSerializable"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Tlv",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tlvElements",
+            "type": {
+              "vec": {
+                "defined": "TlvDataElement"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TlvDataElementSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discriminator",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": "bytes"
+          },
+          {
+            "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TlvDataElement",
+      "docs": [
+        "Time lock escrow example:",
+        "escrow tlv data -> compressed token program",
+        "let escrow_data = {",
+        "owner: Pubkey, // owner is the user pubkey",
+        "release_slot: u64,",
+        "deposit_slot: u64,",
+        "};",
+        "",
+        "let escrow_tlv_data = TlvDataElement {",
+        "discriminator: [1,0,0,0,0,0,0,0],",
+        "owner: escrow_program_id,",
+        "data: escrow_data.try_to_vec()?,",
+        "};",
+        "let token_tlv = TlvDataElement {",
+        "discriminator: [2,0,0,0,0,0,0,0],",
+        "owner: token_program,",
+        "data: token_data.try_to_vec()?,",
+        "};",
+        "let token_data = Account {",
+        "mint,",
+        "owner,",
+        "amount: 10_000_000u64,",
+        "delegate: None,",
+        "state: Initialized, (u64)",
+        "is_native: None,",
+        "delegated_amount: 0u64,",
+        "close_authority: None,",
+        "};",
+        ""
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discriminator",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "data",
+            "type": "bytes"
+          },
+          {
+            "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "SumCheckFailed",
+      "msg": "Sum check failed"
     }
   ]
 };
@@ -198,7 +607,9 @@ export const IDL: PspCompressedPda = {
     {
       "name": "executeCompressedTransaction",
       "docs": [
-        "This function can be used to transfer sol and execute any other compressed transaction."
+        "This function can be used to transfer sol and execute any other compressed transaction.",
+        "Instruction data is not optimized for space.",
+        "This method can be called by cpi so that instruction data can be compressed with a custom algorithm."
       ],
       "accounts": [
         {
@@ -235,6 +646,68 @@ export const IDL: PspCompressedPda = {
           "name": "accountCompressionProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        }
+      ],
+      "args": [
+        {
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "executeCompressedTransaction2",
+      "docs": [
+        "This function can be used to transfer sol and execute any other compressed transaction.",
+        "Instruction data is optimized for space."
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "authorityPda",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "registeredProgramPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "noopProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "compressedPdaProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pspAccountCompressionAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [
@@ -246,6 +719,22 @@ export const IDL: PspCompressedPda = {
     }
   ],
   "accounts": [
+    {
+      "name": "cpiSignatureAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signatures",
+            "type": {
+              "vec": {
+                "defined": "CpiSignature"
+              }
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "instructionDataTransfer",
       "type": {
@@ -279,21 +768,13 @@ export const IDL: PspCompressedPda = {
             }
           },
           {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "TokenInUtxo"
-              }
-            }
-          },
-          {
-            "name": "lowElementIndexes",
+            "name": "lowElementIndices",
             "type": {
               "vec": "u16"
             }
           },
           {
-            "name": "rootIndexes",
+            "name": "rootIndices",
             "type": {
               "vec": "u64"
             }
@@ -305,10 +786,129 @@ export const IDL: PspCompressedPda = {
             }
           },
           {
-            "name": "outUtxo",
+            "name": "inUtxos",
             "type": {
               "vec": {
-                "defined": "TokenOutUtxo"
+                "defined": "Utxo"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "OutUtxo"
+              }
+            }
+          },
+          {
+            "name": "inUtxoMerkleTreeRemainingAccountIndex",
+            "type": "bytes"
+          },
+          {
+            "name": "inUtxoNullifierQueueRemainingAccountIndex",
+            "type": "bytes"
+          },
+          {
+            "name": "outUtxoMerkleTreeRemainingAccountIndex",
+            "type": "bytes"
+          }
+        ]
+      }
+    },
+    {
+      "name": "instructionDataTransfer2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proofA",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "proofB",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "proofC",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lowElementIndices",
+            "type": {
+              "vec": "u16"
+            }
+          },
+          {
+            "name": "rootIndices",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "utxos",
+            "type": {
+              "defined": "SerializedUtxos"
+            }
+          },
+          {
+            "name": "inUtxoMerkleTreeRemainingAccountIndex",
+            "type": "bytes"
+          },
+          {
+            "name": "inUtxoNullifierQueueRemainingAccountIndex",
+            "type": "bytes"
+          },
+          {
+            "name": "outUtxoMerkleTreeRemainingAccountIndex",
+            "type": "bytes"
+          }
+        ]
+      }
+    },
+    {
+      "name": "inUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "leafIndex",
+            "type": "u32"
+          },
+          {
+            "name": "lamports",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
               }
             }
           }
@@ -316,7 +916,55 @@ export const IDL: PspCompressedPda = {
       }
     },
     {
-      "name": "tokenInUtxo",
+      "name": "outUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "lamports",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "outUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "utxo",
       "type": {
         "kind": "struct",
         "fields": [
@@ -341,24 +989,26 @@ export const IDL: PspCompressedPda = {
             "name": "data",
             "type": {
               "option": {
-                "defined": "TlvData"
+                "defined": "Tlv"
               }
             }
           }
         ]
       }
-    },
+    }
+  ],
+  "types": [
     {
-      "name": "tokenOutUtxo",
+      "name": "CpiSignature",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "owner",
+            "name": "program",
             "type": "publicKey"
           },
           {
-            "name": "blinding",
+            "name": "tlvHash",
             "type": {
               "array": [
                 "u8",
@@ -367,19 +1017,187 @@ export const IDL: PspCompressedPda = {
             }
           },
           {
-            "name": "lamports",
-            "type": "u64"
+            "name": "tlvData",
+            "type": {
+              "defined": "TlvDataElement"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SerializedUtxos",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkeyArray",
+            "type": {
+              "vec": "publicKey"
+            }
           },
           {
-            "name": "data",
+            "name": "u64Array",
             "type": {
-              "option": {
-                "defined": "TlvData"
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoSerializable"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "OutUtxoSerializable"
               }
             }
           }
         ]
       }
+    },
+    {
+      "name": "TlvSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tlvElements",
+            "type": {
+              "vec": {
+                "defined": "TlvDataElementSerializable"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Tlv",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tlvElements",
+            "type": {
+              "vec": {
+                "defined": "TlvDataElement"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TlvDataElementSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discriminator",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": "bytes"
+          },
+          {
+            "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TlvDataElement",
+      "docs": [
+        "Time lock escrow example:",
+        "escrow tlv data -> compressed token program",
+        "let escrow_data = {",
+        "owner: Pubkey, // owner is the user pubkey",
+        "release_slot: u64,",
+        "deposit_slot: u64,",
+        "};",
+        "",
+        "let escrow_tlv_data = TlvDataElement {",
+        "discriminator: [1,0,0,0,0,0,0,0],",
+        "owner: escrow_program_id,",
+        "data: escrow_data.try_to_vec()?,",
+        "};",
+        "let token_tlv = TlvDataElement {",
+        "discriminator: [2,0,0,0,0,0,0,0],",
+        "owner: token_program,",
+        "data: token_data.try_to_vec()?,",
+        "};",
+        "let token_data = Account {",
+        "mint,",
+        "owner,",
+        "amount: 10_000_000u64,",
+        "delegate: None,",
+        "state: Initialized, (u64)",
+        "is_native: None,",
+        "delegated_amount: 0u64,",
+        "close_authority: None,",
+        "};",
+        ""
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discriminator",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "data",
+            "type": "bytes"
+          },
+          {
+            "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "SumCheckFailed",
+      "msg": "Sum check failed"
     }
   ]
 };

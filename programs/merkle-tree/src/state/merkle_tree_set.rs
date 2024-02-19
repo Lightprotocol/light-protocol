@@ -79,8 +79,12 @@ impl MerkleTreeSet {
     pub fn init(&mut self, index: u64) -> Result<()> {
         self.index = index;
 
-        state_merkle_tree_from_bytes_mut(&mut self.state_merkle_tree).init()?;
-        event_merkle_tree_from_bytes_mut(&mut self.event_merkle_tree).init()?;
+        state_merkle_tree_from_bytes_mut(&mut self.state_merkle_tree)
+            .init()
+            .map_err(ProgramError::from)?;
+        event_merkle_tree_from_bytes_mut(&mut self.event_merkle_tree)
+            .init()
+            .map_err(ProgramError::from)?;
 
         Ok(())
     }

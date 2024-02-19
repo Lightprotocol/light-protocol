@@ -1,5 +1,3 @@
-use anchor_lang::solana_program::hash::{hash, hashv};
-
 use crate::{
     errors::HasherError,
     zero_bytes::{sha256::ZERO_BYTES, ZeroBytes},
@@ -12,11 +10,35 @@ pub struct Sha256;
 
 impl Hasher for Sha256 {
     fn hash(val: &[u8]) -> Result<Hash, HasherError> {
-        Ok(hash(val).to_bytes())
+        Self::hashv(&[val])
     }
 
     fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
-        Ok(hashv(vals).to_bytes())
+        #[cfg(not(target_os = "solana"))]
+        {
+            use sha2::{Digest, Sha256};
+
+            let mut hasher = Sha256::default();
+            for val in vals {
+                hasher.update(val);
+            }
+            Ok(hasher.finalize().into())
+        }
+        // Call via a system call to perform the calculation
+        #[cfg(target_os = "solana")]
+        {
+            use crate::HASH_BYTES;
+
+            let mut hash_result = [0; HASH_BYTES];
+            unsafe {
+                crate::syscalls::sol_sha256(
+                    vals as *const _ as *const u8,
+                    vals.len() as u64,
+                    &mut hash_result as *mut _ as *mut u8,
+                );
+            }
+            Ok(hash_result)
+        }
     }
 
     fn zero_bytes() -> ZeroBytes {
