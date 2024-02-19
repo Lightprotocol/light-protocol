@@ -3,6 +3,13 @@ name = "light-indexed-merkle-tree"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+solana = [
+  "light-concurrent-merkle-tree/solana",
+  "light-hasher/solana",
+  "solana-program"
+]
+
 [dependencies]
 ark-ff = "0.4"
 borsh = { version = "0.10" }
@@ -11,6 +18,8 @@ light-hasher = { path = "../hasher", version = "0.1.0" }
 light-merkle-tree-reference = { path = "../reference", version = "0.1.0" }
 light-utils = { path = "../../utils", version = "0.1.0" }
 num-traits = "0.2"
+solana-program = { version = ">=1.17, <1.18", optional = true }
+thiserror = "1.0"
 
 [dev-dependencies]
 ark-bn254 = "0.4"

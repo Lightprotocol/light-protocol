@@ -2710,7 +2710,9 @@ dependencies = [
  "light-hasher",
  "light-merkle-tree-reference",
  "rand 0.8.5",
+ "solana-program",
  "spl-concurrent-merkle-tree",
+ "thiserror",
  "tokio",
 ]
 
@@ -2718,9 +2720,11 @@ dependencies = [
 name = "light-hasher"
 version = "0.1.0"
 dependencies = [
- "anchor-lang",
  "ark-bn254 0.4.0",
  "light-poseidon 0.2.0",
+ "sha2 0.10.8",
+ "sha3 0.10.8",
+ "solana-program",
  "thiserror",
 ]
 
@@ -2736,6 +2740,7 @@ dependencies = [
  "light-merkle-tree-reference",
  "light-utils",
  "num-traits",
+ "solana-program",
  "thiserror",
 ]
 

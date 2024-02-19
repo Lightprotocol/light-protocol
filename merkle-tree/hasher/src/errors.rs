@@ -1,53 +1,108 @@
-use anchor_lang::prelude::*;
+#[cfg(not(target_os = "solana"))]
+use light_poseidon::PoseidonError;
+use thiserror::Error;
 
-#[error_code]
+#[derive(Error, Debug)]
+pub enum PoseidonSyscallError {
+    #[error("Invalid parameters.")]
+    InvalidParameters,
+    #[error("Invalid endianness.")]
+    InvalidEndianness,
+    #[error("Invalid number of inputs. Maximum allowed is 12.")]
+    InvalidNumberOfInputs,
+    #[error("Input is an empty slice.")]
+    EmptyInput,
+    #[error(
+        "Invalid length of the input. The length matching the modulus of the prime field is 32."
+    )]
+    InvalidInputLength,
+    #[error("Failed to convert bytest into a prime field element.")]
+    BytesToPrimeFieldElement,
+    #[error("Input is larger than the modulus of the prime field.")]
+    InputLargerThanModulus,
+    #[error("Failed to convert a vector of bytes into an array.")]
+    VecToArray,
+    #[error("Failed to convert the number of inputs from u64 to u8.")]
+    U64Tou8,
+    #[error("Failed to convert bytes to BigInt")]
+    BytesToBigInt,
+    #[error("Invalid width. Choose a width between 2 and 16 for 1 to 15 inputs.")]
+    InvalidWidthCircom,
+    #[error("Unexpected error")]
+    Unexpected,
+}
+
+impl From<u64> for PoseidonSyscallError {
+    fn from(error: u64) -> Self {
+        match error {
+            1 => PoseidonSyscallError::InvalidParameters,
+            2 => PoseidonSyscallError::InvalidEndianness,
+            3 => PoseidonSyscallError::InvalidNumberOfInputs,
+            4 => PoseidonSyscallError::EmptyInput,
+            5 => PoseidonSyscallError::InvalidInputLength,
+            6 => PoseidonSyscallError::BytesToPrimeFieldElement,
+            7 => PoseidonSyscallError::InputLargerThanModulus,
+            8 => PoseidonSyscallError::VecToArray,
+            9 => PoseidonSyscallError::U64Tou8,
+            10 => PoseidonSyscallError::BytesToBigInt,
+            11 => PoseidonSyscallError::InvalidWidthCircom,
+            _ => PoseidonSyscallError::Unexpected,
+        }
+    }
+}
+
+impl From<PoseidonSyscallError> for u64 {
+    fn from(error: PoseidonSyscallError) -> Self {
+        match error {
+            PoseidonSyscallError::InvalidParameters => 2001,
+            PoseidonSyscallError::InvalidEndianness => 2002,
+            PoseidonSyscallError::InvalidNumberOfInputs => 2003,
+            PoseidonSyscallError::EmptyInput => 2004,
+            PoseidonSyscallError::InvalidInputLength => 2005,
+            PoseidonSyscallError::BytesToPrimeFieldElement => 2006,
+            PoseidonSyscallError::InputLargerThanModulus => 2007,
+            PoseidonSyscallError::VecToArray => 2008,
+            PoseidonSyscallError::U64Tou8 => 2009,
+            PoseidonSyscallError::BytesToBigInt => 2010,
+            PoseidonSyscallError::InvalidWidthCircom => 2011,
+            PoseidonSyscallError::Unexpected => 2012,
+        }
+    }
+}
+
+#[derive(Debug, Error)]
 pub enum HasherError {
-    #[msg("Invalid height, it has to be greater than 0")]
-    HeightZero,
-    #[msg("Invalid height, it cannot exceed the maximum allowed height")]
-    HeightHigherThanMax,
-    #[msg("Invalid number of roots, it has to be greater than 0")]
-    RootsZero,
-    #[msg("Invalid root index, it exceeds the root buffer size")]
-    RootHigherThanMax,
-    #[msg("Merkle tree is full, cannot append more leaves.")]
-    TreeFull,
-    #[msg("Provided proof is larger than the height of the tree.")]
-    ProofTooLarge,
-    #[msg("Invalid Merkle proof, stopping the update operation.")]
-    InvalidProof,
-    #[msg("Attempting to update the leaf which was updated by an another newest change.")]
-    CannotUpdateLeaf,
-    #[msg("Cannot update tree without changelog, only `append` is supported.")]
-    AppendOnly,
-    #[msg("Invalid index, it exceeds the number of elements.")]
-    IndexHigherThanMax,
-    #[msg("Could not find the low element.")]
-    LowElementNotFound,
-    #[msg("Low element is greater or equal to the provided new element.")]
-    LowElementGreaterOrEqualToNewElement,
-    #[msg("The provided new element is greater or equal to the next element.")]
-    NewElementGreaterOrEqualToNextElement,
-    #[msg("Integer overflow, value too large")]
+    #[error("Integer overflow, value too large")]
     IntegerOverflow,
-    #[msg("Invalid number of inputs.")]
-    PoseidonInvalidNumberOfInputs,
-    #[msg("Input is an empty slice.")]
-    PoseidonEmptyInput,
-    #[msg("Invalid length of the input.")]
-    PoseidonInvalidInputLength,
-    #[msg("Failed to convert bytes into a prime field element.")]
-    PoseidonBytesToPrimeFieldElement,
-    #[msg("Input is larger than the modulus of the prime field.")]
-    PoseidonInputLargerThanModulus,
-    #[msg("Failed to convert a vector of bytes into an array.")]
-    PoseidonVecToArray,
-    #[msg("Failed to convert the number of inputs from u64 to u8.")]
-    PoseidonU64Tou8,
-    #[msg("Failed to convert bytes to BigInt")]
-    PoseidonBytesToBigInt,
-    #[msg("Invalid width. Choose a width between 2 and 16 for 1 to 15 inputs.")]
-    PoseidonInvalidWidthCircom,
-    #[msg("Unknown Poseidon syscall error")]
-    PoseidonUnknown,
+    #[cfg(not(target_os = "solana"))]
+    #[error("Poseidon hasher error: {0}")]
+    Poseidon(#[from] PoseidonError),
+    #[cfg(target_os = "solana")]
+    #[error("Poseidon syscall error: {0}")]
+    PoseidonSyscall(#[from] PoseidonSyscallError),
+    #[error("Unknown Solana syscall error: {0}")]
+    UnknownSolanaSyscall(u64),
+}
+
+// NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
+// doesn't support data-carrying enums.
+#[cfg(feature = "solana")]
+impl From<HasherError> for u32 {
+    fn from(e: HasherError) -> u32 {
+        match e {
+            HasherError::IntegerOverflow => 1001,
+            #[cfg(not(target_os = "solana"))]
+            HasherError::Poseidon(_) => 1002,
+            #[cfg(target_os = "solana")]
+            HasherError::PoseidonSyscall(e) => (u64::from(e)).try_into().unwrap_or(1001),
+            HasherError::UnknownSolanaSyscall(e) => e.try_into().unwrap_or(1001),
+        }
+    }
+}
+
+#[cfg(feature = "solana")]
+impl From<HasherError> for solana_program::program_error::ProgramError {
+    fn from(e: HasherError) -> Self {
+        solana_program::program_error::ProgramError::Custom(e.into())
+    }
 }

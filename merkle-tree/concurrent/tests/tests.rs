@@ -1,7 +1,9 @@
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
-use light_concurrent_merkle_tree::{changelog::ChangelogEntry, ConcurrentMerkleTree};
-use light_hasher::{errors::HasherError, Hasher, Keccak, Poseidon, Sha256};
+use light_concurrent_merkle_tree::{
+    changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, ConcurrentMerkleTree,
+};
+use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
 use rand::thread_rng;
 
 /// Tests whether append operations work as expected.
@@ -457,7 +459,7 @@ where
     }
     assert!(matches!(
         merkle_tree.append(&[4; 32]),
-        Err(HasherError::TreeFull)
+        Err(ConcurrentMerkleTreeError::TreeFull)
     ));
 }
 
@@ -614,7 +616,7 @@ where
 
         assert!(matches!(
             merkle_tree.update(changelog_index, &old_leaf, &new_leaf, i, &proof),
-            Err(HasherError::AppendOnly),
+            Err(ConcurrentMerkleTreeError::AppendOnly),
         ));
     }
 }
