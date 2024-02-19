@@ -40,43 +40,5 @@ export type UtxoWithMerkleProof = Utxo & {
   merkleProof: string[];
 };
 
-// decode utxo (deserialize, serialize)
 
-
-async function transferSol({
-  fromPubkey,
-  toPubkey,
-  amount,
-  lamports,
-  recentBlockhash,
-  connection,
-  signers,
-  feePayer,
-}: {
-  fromPubkey: PublicKey;
-  toPubkey: PublicKey;
-  amount: bigint;
-  lamports: bigint;
-  recentBlockhash: string;
-  connection: any;
-  signers: any;
-  feePayer: PublicKey;
-}) {
-  const transaction = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey,
-      toPubkey,
-      lamports,
-    })
-  );
-
-  transaction.recentBlockhash = recentBlockhash;
-  transaction.feePayer = feePayer;
-
-  const signature = await connection.sendTransaction(transaction, signers, {
-    skipPreflight: true,
-  });
-  return signature;
-
-
-})
+// TODO: 

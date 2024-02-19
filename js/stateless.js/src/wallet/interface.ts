@@ -55,9 +55,9 @@ export class Wallet {
     return signature;
   };
 
-  signAllTransactions = async (
-    transactions: Transaction[]
-  ): Promise<Transaction[]> => {
+  signAllTransactions = async <T extends Transaction | VersionedTransaction>(
+    transactions: T[]
+  ): Promise<T[]> => {
     const signedTxs = await Promise.all(
       transactions.map(async (tx) => {
         return await this.signTransaction(tx);
