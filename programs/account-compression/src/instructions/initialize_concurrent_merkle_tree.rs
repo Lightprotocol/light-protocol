@@ -1,13 +1,13 @@
 use anchor_lang::prelude::*;
 
-use crate::state::ConcurrentMerkleTreeAccount;
+use crate::state::StateMerkleTreeAccount;
 
 #[derive(Accounts)]
 pub struct InitializeConcurrentMerkleTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     #[account(zero)]
-    pub merkle_tree: AccountLoader<'info, ConcurrentMerkleTreeAccount>,
+    pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     pub system_program: Program<'info, System>,
 }
 

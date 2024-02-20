@@ -5,13 +5,13 @@ use std::str::FromStr;
 use account_compression::{
     self, indexed_array_from_bytes, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, ID,
 };
-use anchor_lang::{system_program, AnchorDeserialize, InstructionData, ToAccountMetas};
+use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use ark_ff::BigInteger256;
 use ark_serialize::CanonicalDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexingArray;
 use light_test_utils::{airdrop_lamports, get_account, get_account_zero_copy};
-use solana_program_test::{ProgramTest, ProgramTestContext};
+use solana_program_test::ProgramTest;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -186,8 +186,8 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
             .get_rent()
             .await
             .unwrap()
-            .minimum_balance(account_compression::ConcurrentMerkleTreeAccount::LEN),
-        account_compression::ConcurrentMerkleTreeAccount::LEN as u64,
+            .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
+        account_compression::StateMerkleTreeAccount::LEN as u64,
         &account_compression::ID,
     );
 
@@ -212,7 +212,7 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    let merkle_tree = get_account_zero_copy::<account_compression::ConcurrentMerkleTreeAccount>(
+    let merkle_tree = get_account_zero_copy::<account_compression::StateMerkleTreeAccount>(
         &mut context,
         merkle_tree_pubkey,
     )
@@ -252,7 +252,7 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
         context.banks_client.process_transaction(transaction).await;
     assert!(remaining_accounts_missmatch_error.is_err());
     // let merkle_tree =
-    //     get_account_zero_copy::<account_compression::ConcurrentMerkleTreeAccount>(
+    //     get_account_zero_copy::<account_compression::StateMerkleTreeAccount>(
     //         &mut context,
     //         merkle_tree_pubkey,
     //     )

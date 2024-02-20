@@ -36,7 +36,7 @@ pub fn state_merkle_tree_from_bytes_mut(bytes: &mut [u8; 90368]) -> &mut StateMe
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
 #[derive(Debug)]
-pub struct ConcurrentMerkleTreeAccount {
+pub struct StateMerkleTreeAccount {
     /// Unique index.
     pub index: u64,
     /// Public key of the next Merkle tree.
@@ -49,7 +49,7 @@ pub struct ConcurrentMerkleTreeAccount {
     pub state_merkle_tree: [u8; 90368],
 }
 
-impl ConcurrentMerkleTreeAccount {
+impl StateMerkleTreeAccount {
     pub fn init(&mut self, index: u64) -> Result<()> {
         self.index = index;
 

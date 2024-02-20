@@ -470,7 +470,7 @@ where
     pub fn append_batch(
         &mut self,
         leaves: &[&[u8; 32]],
-    ) -> Result<Vec<Box<ChangelogEntry<HEIGHT>>>, HasherError> {
+    ) -> Result<Vec<Box<ChangelogEntry<HEIGHT>>>, ConcurrentMerkleTreeError> {
         let mut changelog_entries: Vec<Box<ChangelogEntry<HEIGHT>>> = Vec::new();
 
         for leaf in leaves.iter() {
