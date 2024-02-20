@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 use groth16_solana::groth16::Groth16Verifyingkey;
 
 use crate::{
