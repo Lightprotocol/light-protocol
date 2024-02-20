@@ -3,7 +3,6 @@
 use std::assert_eq;
 
 use account_compression::{
-    address,
     instruction::{
         InitializeAddressMerkleTree, InitializeAddressQueue, InsertAddresses,
         UpdateAddressMerkleTree,

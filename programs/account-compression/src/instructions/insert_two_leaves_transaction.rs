@@ -4,7 +4,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use crate::{
     emit_indexer_event,
-    state::ConcurrentMerkleTreeAccount,
+    state::StateMerkleTreeAccount,
     state_merkle_tree_from_bytes_mut,
     utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
     ChangelogEvent, ChangelogEventV1, Changelogs, RegisteredProgram,
@@ -21,7 +21,7 @@ pub struct InsertTwoLeavesParallel<'info> {
     pub log_wrapper: UncheckedAccount<'info>,
 }
 
-impl GroupAccess for ConcurrentMerkleTreeAccount {
+impl GroupAccess for StateMerkleTreeAccount {
     fn get_owner(&self) -> &Pubkey {
         &self.owner
     }
@@ -68,17 +68,17 @@ pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 
     let mut changelog_events = Vec::new();
     for (mt, leaves) in merkle_tree_map.values() {
-        let merkle_tree = AccountLoader::<ConcurrentMerkleTreeAccount>::try_from(mt).unwrap();
+        let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(mt).unwrap();
         let mut merkle_tree_account = merkle_tree.load_mut()?;
         // TODO: activate when group access control is implemented
-        // check_registered_or_signer::<InsertTwoLeavesParallel, ConcurrentMerkleTreeAccount>(
+        // check_registered_or_signer::<InsertTwoLeavesParallel, StateMerkleTreeAccount>(
         //     &ctx,
         //     &merkle_tree_account,
         // )?;
 
         let state_merkle_tree =
             state_merkle_tree_from_bytes_mut(&mut merkle_tree_account.state_merkle_tree);
-        let changelog_entries = state_merkle_tree.append_batch(&leaves[..])?;
+        let changelog_entries = state_merkle_tree.append_batch(&leaves[..]).unwrap();
         changelog_events.push(ChangelogEvent::V1(ChangelogEventV1::new(
             mt.key(),
             &changelog_entries,
