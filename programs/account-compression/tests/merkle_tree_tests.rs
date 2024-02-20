@@ -10,6 +10,7 @@ use ark_ff::BigInteger256;
 use ark_serialize::CanonicalDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexingArray;
+use light_test_utils::{airdrop_lamports, get_account, get_account_zero_copy};
 use solana_program_test::{ProgramTest, ProgramTestContext};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -18,31 +19,6 @@ use solana_sdk::{
     system_instruction,
     transaction::Transaction,
 };
-pub async fn airdrop_lamports(
-    banks_client: &mut ProgramTestContext,
-    destination_pubkey: &Pubkey,
-    lamports: u64,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // Create a transfer instruction
-    let transfer_instruction =
-        system_instruction::transfer(&banks_client.payer.pubkey(), destination_pubkey, lamports);
-
-    // Create and sign a transaction
-    let transaction = Transaction::new_signed_with_payer(
-        &[transfer_instruction],
-        Some(&banks_client.payer.pubkey()),
-        &vec![&banks_client.payer],
-        banks_client.last_blockhash,
-    );
-
-    // Send the transaction
-    banks_client
-        .banks_client
-        .process_transaction(transaction)
-        .await?;
-
-    Ok(())
-}
 
 #[tokio::test]
 async fn test_create_and_update_group() {
@@ -183,29 +159,6 @@ async fn test_create_and_update_group() {
         .process_transaction(transaction)
         .await
         .unwrap();
-}
-
-async fn get_account<T: AnchorDeserialize>(context: &mut ProgramTestContext, pubkey: Pubkey) -> T {
-    let account = context
-        .banks_client
-        .get_account(pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-    T::deserialize(&mut &account.data[8..]).unwrap()
-}
-async fn get_account_zero_copy<T>(context: &mut ProgramTestContext, pubkey: Pubkey) -> &T {
-    let account = context
-        .banks_client
-        .get_account(pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-
-    unsafe {
-        let ptr = account.data[8..].as_ptr() as *const T;
-        &*ptr
-    }
 }
 
 #[tokio::test]
