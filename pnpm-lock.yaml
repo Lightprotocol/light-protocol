@@ -199,6 +199,9 @@ importers:
       '@types/node-fetch':
         specifier: ^2.6.2
         version: 2.6.6
+      axios:
+        specifier: ^1.5.0
+        version: 1.5.0
       chai:
         specifier: ^4.3.10
         version: 4.3.10
