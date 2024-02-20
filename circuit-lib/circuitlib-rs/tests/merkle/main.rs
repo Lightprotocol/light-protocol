@@ -1,11 +1,10 @@
 use circuitlib_rs::{
     groth16_solana_verifier::{groth16_solana_verify, merkle_inclusion_proof},
+    helpers::init_logger,
     init_merkle_tree::merkle_tree_inputs,
     merkle_proof_inputs::{MerkleTreeInfo, MerkleTreeProofInput},
     verifying_keys::vk,
 };
-use env_logger::Builder;
-use log::LevelFilter;
 
 macro_rules! test_and_prove {
     ($fn_name:ident, $mt_height:expr, $nr_inputs:expr) => {
@@ -33,9 +32,3 @@ test_and_prove!(test_and_prove_26_2, MerkleTreeInfo::H26, 2);
 test_and_prove!(test_and_prove_26_3, MerkleTreeInfo::H26, 3);
 test_and_prove!(test_and_prove_26_4, MerkleTreeInfo::H26, 4);
 test_and_prove!(test_and_prove_26_8, MerkleTreeInfo::H26, 8);
-
-fn init_logger() {
-    let _ = Builder::new()
-        .filter_module("circuitlib_rs", LevelFilter::Info)
-        .try_init();
-}

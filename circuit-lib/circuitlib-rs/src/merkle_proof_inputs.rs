@@ -64,6 +64,7 @@ pub fn public_inputs(merkle_proof_inputs: &[MerkleTreeProofInput]) -> Vec<[u8; 3
 }
 
 pub struct ProofInputs<'a>(pub &'a [MerkleTreeProofInput]);
+
 impl<'a> TryInto<HashMap<String, Inputs>> for ProofInputs<'a> {
     type Error = std::io::Error;
 
