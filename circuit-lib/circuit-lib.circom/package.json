@@ -4,7 +4,7 @@
   "description": "",
   "license": "GPL-3.0",
   "scripts": {
-    "build-merkle": "sh scripts/buildMerkle.sh",
+    "build-merkle": "./scripts/buildMerkle.sh",
     "build-private-2in": "sh scripts/buildCircuit.sh private 2 2",
     "build-private-10in": "sh scripts/buildCircuit.sh private 10 2",
     "build-private-4in-program": "sh scripts/buildCircuit.sh private 4 4 Program",
@@ -32,6 +32,7 @@
     "chai-as-promised": "^7.1.1",
     "circom_tester": "^0.0.19",
     "circomlib": "^2.0.5",
+    "ffjavascript": "^0.2.62",
     "mocha": "^10.2.0",
     "mocha-suppress-logs": "^0.3.1",
     "prettier": "^3.0.3",

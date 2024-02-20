@@ -23,11 +23,7 @@ impl MerkleTreeInfo {
     }
     pub fn test_wasm_path(&self, num_of_utxos: usize) -> String {
         format!(
-            "test-data/merkle{}_{}/merkle{}_{}_js/merkle{}_{}.wasm",
-            self.height(),
-            num_of_utxos,
-            self.height(),
-            num_of_utxos,
+            "test-data/merkle{}_{}/circuit.wasm",
             self.height(),
             num_of_utxos
         )
