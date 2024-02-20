@@ -10,7 +10,7 @@ use ark_ff::BigInteger256;
 use ark_serialize::CanonicalDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexingArray;
-use light_test_utils::{airdrop_lamports, get_account, get_account_zero_copy};
+use light_test_utils::{airdrop_lamports, get_account, AccountZeroCopy};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -212,14 +212,14 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    let merkle_tree = get_account_zero_copy::<account_compression::StateMerkleTreeAccount>(
+    let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
         &mut context,
         merkle_tree_pubkey,
     )
     .await;
-    assert_eq!(merkle_tree.owner, context_pubkey);
-    assert_eq!(merkle_tree.delegate, context_pubkey);
-    assert_eq!(merkle_tree.index, 1);
+    assert_eq!(merkle_tree.deserialized.owner, context_pubkey);
+    assert_eq!(merkle_tree.deserialized.delegate, context_pubkey);
+    assert_eq!(merkle_tree.deserialized.index, 1);
 
     // insertions with merkle tree leaves missmatch should fail
     let instruction_data = account_compression::instruction::InsertLeavesIntoMerkleTrees {
@@ -329,15 +329,16 @@ async fn test_init_and_insert_into_indexed_array() {
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    let array = get_account_zero_copy::<account_compression::IndexedArrayAccount>(
+
+    let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
         &mut context,
         indexed_array_pubkey,
     )
     .await;
-    assert_eq!(array.owner, context_pubkey);
-    assert_eq!(array.delegate, context_pubkey);
-    assert_eq!(array.index, 1);
-    let indexed_array = indexed_array_from_bytes(&array.indexed_array);
+    assert_eq!(array.deserialized.owner, context_pubkey);
+    assert_eq!(array.deserialized.delegate, context_pubkey);
+    assert_eq!(array.deserialized.index, 1);
+    let indexed_array = indexed_array_from_bytes(&array.deserialized.indexed_array);
     let mut default_array = IndexingArray::<Poseidon, u16, BigInteger256, 2800>::default();
     assert_eq!(indexed_array.elements, default_array.elements);
     assert_eq!(
@@ -381,13 +382,13 @@ async fn test_init_and_insert_into_indexed_array() {
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    let array = get_account_zero_copy::<account_compression::IndexedArrayAccount>(
+    let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
         &mut context,
         indexed_array_pubkey,
     )
     .await;
 
-    let indexed_array = indexed_array_from_bytes(&array.indexed_array);
+    let indexed_array = indexed_array_from_bytes(&array.deserialized.indexed_array);
     default_array
         .append(BigInteger256::deserialize_uncompressed_unchecked(&[1u8; 32][..]).unwrap())
         .unwrap();

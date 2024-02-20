@@ -3,7 +3,32 @@ use anchor_lang::{
     AnchorDeserialize,
 };
 use solana_program_test::ProgramTestContext;
-use solana_sdk::{signer::Signer, transaction::Transaction};
+use solana_sdk::{account::Account, signer::Signer, transaction::Transaction};
+
+pub struct AccountZeroCopy<'a, T> {
+    pub account: Account,
+    pub deserialized: &'a T,
+    phantom_data: std::marker::PhantomData<T>,
+}
+
+impl<'a, T> AccountZeroCopy<'a, T> {
+    pub async fn new(context: &mut ProgramTestContext, address: Pubkey) -> AccountZeroCopy<'a, T> {
+        let account = context
+            .banks_client
+            .get_account(address)
+            .await
+            .unwrap()
+            .unwrap();
+        unsafe {
+            let ptr = account.data[8..].as_ptr() as *const T;
+            Self {
+                account,
+                deserialized: &*ptr,
+                phantom_data: std::marker::PhantomData,
+            }
+        }
+    }
+}
 
 pub async fn get_account<T: AnchorDeserialize>(
     context: &mut ProgramTestContext,
@@ -18,19 +43,20 @@ pub async fn get_account<T: AnchorDeserialize>(
     T::deserialize(&mut &account.data[8..]).unwrap()
 }
 
-pub async fn get_account_zero_copy<T>(context: &mut ProgramTestContext, pubkey: Pubkey) -> &T {
-    let account = context
-        .banks_client
-        .get_account(pubkey)
-        .await
-        .unwrap()
-        .unwrap();
+// pub async fn get_account_zero_copy<T>(context: &mut ProgramTestContext, pubkey: Pubkey) -> &T {
+//     let account = context
+//         .banks_client
+//         .get_account(pubkey)
+//         .await
+//         .unwrap()
+//         .unwrap();
 
-    unsafe {
-        let ptr = account.data[8..].as_ptr() as *const T;
-        &*ptr
-    }
-}
+//     // unsafe {
+//     //     let ptr = account.data[8..].as_ptr() as *const T;
+//     //     &*ptr
+//     // }
+//     AccountZeroCopy::<T>::new(context, account)
+// }
 
 pub async fn airdrop_lamports(
     banks_client: &mut ProgramTestContext,

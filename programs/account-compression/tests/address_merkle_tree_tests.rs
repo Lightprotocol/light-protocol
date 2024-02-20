@@ -13,18 +13,17 @@ use account_compression::{
 use account_compression_state::{
     address_merkle_tree_from_bytes, address_queue_from_bytes, MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS,
 };
-use anchor_lang::{InstructionData, ZeroCopy};
+use anchor_lang::InstructionData;
 use ark_ff::{BigInteger, BigInteger256};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::{IndexingArray, RawIndexingElement},
     reference,
 };
-use light_test_utils::get_account_zero_copy;
+use light_test_utils::AccountZeroCopy;
 use light_utils::bigint::bigint_to_be_bytes;
 use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
-    account::Account,
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
@@ -37,17 +36,6 @@ use thiserror::Error;
 enum RelayerUpdateError {
     #[error("Updating Merkle tree failed: {0:?}")]
     MerkleTreeUpdate(Vec<BanksClientError>),
-}
-
-async fn deserialize_account_zero_copy<'a, T>(account: &'a Account) -> &'a T
-where
-    T: ZeroCopy,
-{
-    // TODO: Check discriminator.
-    unsafe {
-        let ptr = account.data[8..].as_ptr() as *const T;
-        &*ptr
-    }
 }
 
 async fn create_account_ix(
@@ -176,19 +164,20 @@ async fn update_merkle_tree(
 ) -> Result<(), BanksClientError> {
     let changelog_index = {
         // TODO: figure out why I get an invalid memory reference error here when I try to replace 183-190 with this
-        // let address_merkle_tree =
-        // get_account_zero_copy::<AddressMerkleTreeAccount>(context, address_merkle_tree_pubkey)
-        //     .await;
-        let address_merkle_tree = context
-            .banks_client
-            .get_account(address_merkle_tree_pubkey)
-            .await
-            .unwrap()
-            .unwrap();
-        let address_merkle_tree: &AddressMerkleTreeAccount =
-            deserialize_account_zero_copy(&address_merkle_tree).await;
+        let address_merkle_tree =
+            AccountZeroCopy::<AddressMerkleTreeAccount>::new(context, address_merkle_tree_pubkey)
+                .await;
+        // let address_merkle_tree = context
+        //     .banks_client
+        //     .get_account(address_merkle_tree_pubkey)
+        //     .await
+        //     .unwrap()
+        //     .unwrap();
+        // let address_merkle_tree: &AddressMerkleTreeAccount =
+        //     deserialize_account_zero_copy(&address_merkle_tree).await;
 
-        let address_merkle_tree = address_merkle_tree_from_bytes(&address_merkle_tree.merkle_tree);
+        let address_merkle_tree =
+            address_merkle_tree_from_bytes(&address_merkle_tree.deserialized.merkle_tree);
         let changelog_index = address_merkle_tree.changelog_index();
         changelog_index
     };
@@ -251,8 +240,8 @@ async fn relayer_update(
     loop {
         let lowest_from_queue = {
             let address_queue =
-                get_account_zero_copy::<AddressQueueAccount>(context, address_queue_pubkey).await;
-            let address_queue = address_queue_from_bytes(&address_queue.queue);
+                AccountZeroCopy::<AddressQueueAccount>::new(context, address_queue_pubkey).await;
+            let address_queue = address_queue_from_bytes(&address_queue.deserialized.queue);
             let lowest = match address_queue.lowest() {
                 Some(lowest) => lowest.clone(),
                 None => break,
@@ -339,9 +328,9 @@ async fn test_address_queue() {
         .await
         .unwrap();
     let address_queue =
-        get_account_zero_copy::<AddressQueueAccount>(&mut context, address_queue_keypair.pubkey())
+        AccountZeroCopy::<AddressQueueAccount>::new(&mut context, address_queue_keypair.pubkey())
             .await;
-    let address_queue = address_queue_from_bytes(&address_queue.queue);
+    let address_queue = address_queue_from_bytes(&address_queue.deserialized.queue);
     let element0 = address_queue.get(0).unwrap();
 
     assert_eq!(element0.index, 0);
