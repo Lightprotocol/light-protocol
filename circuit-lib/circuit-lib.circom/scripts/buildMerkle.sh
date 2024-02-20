@@ -43,9 +43,8 @@ function execute_commands {
     || { echo "snarkjs zkey contribute failed"; exit 1; }
   rm "$temp_directory/tmp_circuit.zkey"
   
-  echo "Exporting verification key..."
+  echo "Verifying proof..."
   npx snarkjs zkey verify "$temp_directory/merkle${merkle_number}_$utxo_count.r1cs" "$temp_directory/ptau$ptau_number" "$temp_directory/circuit.zkey" || { echo "snarkjs zkey verify failed"; exit 1; }
-  npx snarkjs zkey export verificationkey "$temp_directory/circuit.zkey" "$build_directory/merkle${merkle_number}_$utxo_count.json"
 
   cp "$temp_directory/circuit.zkey" "$build_directory/circuit.zkey"
   cp "$temp_directory/merkle${merkle_number}_${utxo_count}_js/merkle${merkle_number}_${utxo_count}.wasm" "$build_directory/circuit.wasm"
