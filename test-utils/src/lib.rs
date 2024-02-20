@@ -2,8 +2,11 @@ use anchor_lang::{
     solana_program::{pubkey::Pubkey, system_instruction},
     AnchorDeserialize,
 };
-use solana_program_test::ProgramTestContext;
-use solana_sdk::{account::Account, signer::Signer, transaction::Transaction};
+use solana_program_test::{BanksClientError, ProgramTestContext};
+use solana_sdk::{
+    account::Account, instruction::Instruction, signature::Keypair, signer::Signer,
+    transaction::Transaction,
+};
 
 pub struct AccountZeroCopy<'a, T> {
     pub account: Account,
@@ -43,21 +46,6 @@ pub async fn get_account<T: AnchorDeserialize>(
     T::deserialize(&mut &account.data[8..]).unwrap()
 }
 
-// pub async fn get_account_zero_copy<T>(context: &mut ProgramTestContext, pubkey: Pubkey) -> &T {
-//     let account = context
-//         .banks_client
-//         .get_account(pubkey)
-//         .await
-//         .unwrap()
-//         .unwrap();
-
-//     // unsafe {
-//     //     let ptr = account.data[8..].as_ptr() as *const T;
-//     //     &*ptr
-//     // }
-//     AccountZeroCopy::<T>::new(context, account)
-// }
-
 pub async fn airdrop_lamports(
     banks_client: &mut ProgramTestContext,
     destination_pubkey: &Pubkey,
@@ -82,4 +70,18 @@ pub async fn airdrop_lamports(
         .await?;
 
     Ok(())
+}
+
+pub async fn create_and_send_transaction(
+    context: &mut ProgramTestContext,
+    instruction: &[Instruction],
+    payer: &Keypair,
+) -> Result<(), BanksClientError> {
+    let transaction = Transaction::new_signed_with_payer(
+        instruction,
+        Some(&payer.pubkey()),
+        &vec![&payer],
+        context.last_blockhash,
+    );
+    context.banks_client.process_transaction(transaction).await
 }

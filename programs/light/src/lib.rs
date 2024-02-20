@@ -24,8 +24,9 @@ pub mod light {
         bump: u8,
         new_authority: Pubkey,
     ) -> Result<()> {
+        let program_id = ctx.program_id.to_bytes();
         let bump = &[bump];
-        let seeds = [AUTHORITY_PDA_SEED, bump];
+        let seeds = [AUTHORITY_PDA_SEED, program_id.as_slice(), bump];
         let signer_seeds = &[&seeds[..]];
 
         let accounts = account_compression::cpi::accounts::UpdateGroupAuthority {
@@ -47,8 +48,9 @@ pub mod light {
         bump: u8,
         program_id: Pubkey,
     ) -> Result<()> {
+        let program_id_seed = ctx.program_id.to_bytes();
         let bump = &[bump];
-        let seeds = [AUTHORITY_PDA_SEED, bump];
+        let seeds = [AUTHORITY_PDA_SEED, program_id_seed.as_slice(), bump];
         let signer_seeds = &[&seeds[..]];
 
         let accounts = account_compression::cpi::accounts::RegisterProgramToGroup {
@@ -99,6 +101,5 @@ pub struct RegisteredProgram<'info> {
     group_pda: Account<'info, GroupAuthority>,
     account_compression_program: Program<'info, AccountCompression>,
     system_program: Program<'info, System>,
-    registered_program_pda:
-        Account<'info, account_compression::register_program::RegisteredProgram>,
+    registered_program_pda: AccountInfo<'info>,
 }

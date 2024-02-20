@@ -43,6 +43,51 @@ export type Light = {
           "type": "publicKey"
         }
       ]
+    },
+    {
+      "name": "registerSystemProgram",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "authorityPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "groupPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "registeredProgramPda",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bump",
+          "type": "u8"
+        },
+        {
+          "name": "programId",
+          "type": "publicKey"
+        }
+      ]
     }
   ],
   "errors": [
@@ -96,6 +141,51 @@ export const IDL: Light = {
         },
         {
           "name": "newAuthority",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "registerSystemProgram",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "authorityPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "groupPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "registeredProgramPda",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bump",
+          "type": "u8"
+        },
+        {
+          "name": "programId",
           "type": "publicKey"
         }
       ]
