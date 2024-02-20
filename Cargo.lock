@@ -21,16 +21,21 @@ dependencies = [
  "aligned-sized",
  "anchor-lang",
  "ark-ff 0.4.2",
+ "ark-serialize 0.4.2",
  "borsh 0.10.3",
  "bytemuck",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
+ "light-macros",
+ "light-test-utils",
  "light-utils",
  "memoffset 0.9.0",
  "solana-client-wasm",
  "solana-program-test",
  "solana-sdk",
+ "spl-account-compression",
+ "spl-concurrent-merkle-tree",
  "thiserror",
  "tokio",
 ]
@@ -3279,6 +3284,19 @@ dependencies = [
  "ark-bn254 0.4.0",
  "ark-ff 0.4.2",
  "num-bigint 0.4.4",
+ "thiserror",
+]
+
+[[package]]
+name = "light-test-utils"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anyhow",
+ "ark-ff 0.4.2",
+ "rand 0.8.5",
+ "solana-program-test",
+ "solana-sdk",
  "thiserror",
 ]
 

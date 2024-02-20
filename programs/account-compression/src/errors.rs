@@ -16,4 +16,16 @@ pub enum AccountCompressionErrorCode {
     BytesToBigint,
     #[msg("Integer overflow")]
     IntegerOverflow,
+    #[msg("InvalidAuthority")]
+    InvalidAuthority,
+    #[msg("InvalidVerifier")]
+    InvalidVerifier,
+    #[msg(
+        "Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves."
+    )]
+    NumberOfLeavesMismatch,
+    #[msg("Provided noop program public key is invalid")]
+    InvalidNoopPubkey,
+    #[msg("Emitting an event requires at least one changelog entry")]
+    EventNoChangelogEntry,
 }
