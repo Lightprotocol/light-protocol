@@ -47,3 +47,4 @@ thiserror = "1.0"
 tokio = "1.35"
 spl-account-compression = {version="0.3.0", features=["cpi"]}
 spl-concurrent-merkle-tree = "0.2.0"
+"light-test-utils" = { version = "0.1.0", path = "../../test-utils" }

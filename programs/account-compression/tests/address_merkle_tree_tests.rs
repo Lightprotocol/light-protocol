@@ -3,6 +3,7 @@
 use std::assert_eq;
 
 use account_compression::{
+    address,
     instruction::{
         InitializeAddressMerkleTree, InitializeAddressQueue, InsertAddresses,
         UpdateAddressMerkleTree,
@@ -20,6 +21,7 @@ use light_indexed_merkle_tree::{
     array::{IndexingArray, RawIndexingElement},
     reference,
 };
+use light_test_utils::get_account_zero_copy;
 use light_utils::bigint::bigint_to_be_bytes;
 use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
@@ -174,6 +176,10 @@ async fn update_merkle_tree(
     next_address_proof: [u8; 128],
 ) -> Result<(), BanksClientError> {
     let changelog_index = {
+        // TODO: figure out why I get an invalid memory reference error here when I try to replace 183-190 with this
+        // let address_merkle_tree =
+        // get_account_zero_copy::<AddressMerkleTreeAccount>(context, address_merkle_tree_pubkey)
+        //     .await;
         let address_merkle_tree = context
             .banks_client
             .get_account(address_merkle_tree_pubkey)
@@ -182,6 +188,7 @@ async fn update_merkle_tree(
             .unwrap();
         let address_merkle_tree: &AddressMerkleTreeAccount =
             deserialize_account_zero_copy(&address_merkle_tree).await;
+
         let address_merkle_tree = address_merkle_tree_from_bytes(&address_merkle_tree.merkle_tree);
         let changelog_index = address_merkle_tree.changelog_index();
         changelog_index
@@ -244,14 +251,8 @@ async fn relayer_update(
 
     loop {
         let lowest_from_queue = {
-            let address_queue = context
-                .banks_client
-                .get_account(address_queue_pubkey)
-                .await
-                .unwrap()
-                .unwrap();
-            let address_queue: &AddressQueueAccount =
-                deserialize_account_zero_copy(&address_queue).await;
+            let address_queue =
+                get_account_zero_copy::<AddressQueueAccount>(context, address_queue_pubkey).await;
             let address_queue = address_queue_from_bytes(&address_queue.queue);
             let lowest = match address_queue.lowest() {
                 Some(lowest) => lowest.clone(),
@@ -338,15 +339,9 @@ async fn test_address_queue() {
     insert_addresses(&mut context, address_queue_keypair.pubkey(), addresses)
         .await
         .unwrap();
-
-    // Check if addresses were inserted properly.
-    let address_queue = context
-        .banks_client
-        .get_account(address_queue_keypair.pubkey())
-        .await
-        .unwrap()
-        .unwrap();
-    let address_queue: &AddressQueueAccount = deserialize_account_zero_copy(&address_queue).await;
+    let address_queue =
+        get_account_zero_copy::<AddressQueueAccount>(&mut context, address_queue_keypair.pubkey())
+            .await;
     let address_queue = address_queue_from_bytes(&address_queue.queue);
     let element0 = address_queue.get(0).unwrap();
 
