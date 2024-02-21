@@ -3,7 +3,7 @@ use groth16_solana::groth16::Groth16Verifyingkey;
 use crate::{
     errors::CircuitsError,
     merkle_proof_inputs::MerkleTreeInfo,
-    verifying_keys::{VK22_1, VK22_2, VK22_3},
+    verifying_keys::{VK22_1, VK22_2, VK22_3, VK22_4, VK22_8},
 };
 
 pub fn vk<'a>(
@@ -15,6 +15,8 @@ pub fn vk<'a>(
             1 => Ok(Box::new(VK22_1)),
             2 => Ok(Box::new(VK22_2)),
             3 => Ok(Box::new(VK22_3)),
+            4 => Ok(Box::new(VK22_4)),
+            8 => Ok(Box::new(VK22_8)),
             _ => Err(CircuitsError::WrongNumberOfUtxos),
         },
     }

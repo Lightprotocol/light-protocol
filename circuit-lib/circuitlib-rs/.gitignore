@@ -1,2 +1,3 @@
-test-data
 build
+*.r1cs
+*.sym

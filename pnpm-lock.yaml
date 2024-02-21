@@ -138,6 +138,9 @@ importers:
       circomlib:
         specifier: ^2.0.5
         version: 2.0.5
+      ffjavascript:
+        specifier: ^0.2.62
+        version: 0.2.62
       mocha:
         specifier: ^10.2.0
         version: 10.2.0
