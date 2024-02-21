@@ -280,483 +280,94 @@ export type PspCompressedToken = {
   ],
   "types": [
     {
-      "name": "CpiSignatureAccount",
+      "name": "TokenTlvData",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "signatures",
-            "type": {
-              "vec": {
-                "defined": "CpiSignature"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "CpiSignature",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "program",
+            "name": "mint",
+            "docs": [
+              "The mint associated with this account"
+            ],
             "type": "publicKey"
           },
           {
-            "name": "tlvHash",
+            "name": "owner",
+            "docs": [
+              "The owner of this account."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "The amount of tokens this account holds."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "delegate",
+            "docs": [
+              "If `delegate` is `Some` then `delegated_amount` represents",
+              "the amount authorized by the delegate"
+            ],
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "option": "publicKey"
             }
           },
           {
-            "name": "tlvData",
+            "name": "state",
+            "docs": [
+              "The account's state"
+            ],
             "type": {
-              "defined": "TlvDataElement"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "InstructionDataTransfer",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "proofA",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "defined": "AccountState"
             }
           },
           {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lowElementIndices",
-            "type": {
-              "vec": "u16"
-            }
-          },
-          {
-            "name": "rootIndices",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "rpcFee",
+            "name": "isNative",
+            "docs": [
+              "If is_some, this is a native token, and the value logs the rent-exempt",
+              "reserve. An Account is required to be rent-exempt, so the value is",
+              "used by the Processor to ensure that wrapped SOL accounts do not",
+              "drop below this threshold."
+            ],
             "type": {
               "option": "u64"
             }
           },
           {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "Utxo"
-              }
-            }
-          },
-          {
-            "name": "outUtxos",
-            "type": {
-              "vec": {
-                "defined": "OutUtxo"
-              }
-            }
-          },
-          {
-            "name": "inUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "inUtxoNullifierQueueRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "outUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          }
-        ]
-      }
-    },
-    {
-      "name": "InstructionDataTransfer2",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "proofA",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lowElementIndices",
-            "type": {
-              "vec": "u16"
-            }
-          },
-          {
-            "name": "rootIndices",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "rpcFee",
-            "type": {
-              "option": "u64"
-            }
-          },
-          {
-            "name": "utxos",
-            "type": {
-              "defined": "SerializedUtxos"
-            }
-          },
-          {
-            "name": "inUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "inUtxoNullifierQueueRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "outUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          }
-        ]
-      }
-    },
-    {
-      "name": "SerializedUtxos",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pubkeyArray",
-            "type": {
-              "vec": "publicKey"
-            }
-          },
-          {
-            "name": "u64Array",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "InUtxoSerializable"
-              }
-            }
-          },
-          {
-            "name": "outUtxos",
-            "type": {
-              "vec": {
-                "defined": "OutUtxoSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "InUtxoSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "leafIndex",
-            "type": "u32"
-          },
-          {
-            "name": "lamports",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "TlvSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "OutUtxoSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "lamports",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "TlvSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "OutUtxo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "lamports",
+            "name": "delegatedAmount",
+            "docs": [
+              "The amount delegated"
+            ],
             "type": "u64"
           },
           {
-            "name": "data",
+            "name": "closeAuthority",
+            "docs": [
+              "Optional authority to close the account."
+            ],
             "type": {
-              "option": {
-                "defined": "Tlv"
-              }
+              "option": "publicKey"
             }
           }
         ]
       }
     },
     {
-      "name": "Utxo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "blinding",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lamports",
-            "type": "u64"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "Tlv"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "TlvSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "tlvElements",
-            "type": {
-              "vec": {
-                "defined": "TlvDataElementSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "Tlv",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "tlvElements",
-            "type": {
-              "vec": {
-                "defined": "TlvDataElement"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "TlvDataElementSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "discriminator",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": "bytes"
-          },
-          {
-            "name": "dataHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "TlvDataElement",
-      "docs": [
-        "Time lock escrow example:",
-        "escrow tlv data -> compressed token program",
-        "let escrow_data = {",
-        "owner: Pubkey, // owner is the user pubkey",
-        "release_slot: u64,",
-        "deposit_slot: u64,",
-        "};",
-        "",
-        "let escrow_tlv_data = TlvDataElement {",
-        "discriminator: [1,0,0,0,0,0,0,0],",
-        "owner: escrow_program_id,",
-        "data: escrow_data.try_to_vec()?,",
-        "};",
-        "let token_tlv = TlvDataElement {",
-        "discriminator: [2,0,0,0,0,0,0,0],",
-        "owner: token_program,",
-        "data: token_data.try_to_vec()?,",
-        "};",
-        "let token_data = Account {",
-        "mint,",
-        "owner,",
-        "amount: 10_000_000u64,",
-        "delegate: None,",
-        "state: Initialized, (u64)",
-        "is_native: None,",
-        "delegated_amount: 0u64,",
-        "close_authority: None,",
-        "};",
-        ""
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "discriminator",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "data",
-            "type": "bytes"
-          },
-          {
-            "name": "dataHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "ErrorCode",
+      "name": "AccountState",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "SumCheckFailed"
+            "name": "Uninitialized"
+          },
+          {
+            "name": "Initialized"
+          },
+          {
+            "name": "Frozen"
           }
         ]
       }
@@ -1058,483 +669,94 @@ export const IDL: PspCompressedToken = {
   ],
   "types": [
     {
-      "name": "CpiSignatureAccount",
+      "name": "TokenTlvData",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "signatures",
-            "type": {
-              "vec": {
-                "defined": "CpiSignature"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "CpiSignature",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "program",
+            "name": "mint",
+            "docs": [
+              "The mint associated with this account"
+            ],
             "type": "publicKey"
           },
           {
-            "name": "tlvHash",
+            "name": "owner",
+            "docs": [
+              "The owner of this account."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "The amount of tokens this account holds."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "delegate",
+            "docs": [
+              "If `delegate` is `Some` then `delegated_amount` represents",
+              "the amount authorized by the delegate"
+            ],
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "option": "publicKey"
             }
           },
           {
-            "name": "tlvData",
+            "name": "state",
+            "docs": [
+              "The account's state"
+            ],
             "type": {
-              "defined": "TlvDataElement"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "InstructionDataTransfer",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "proofA",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "defined": "AccountState"
             }
           },
           {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lowElementIndices",
-            "type": {
-              "vec": "u16"
-            }
-          },
-          {
-            "name": "rootIndices",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "rpcFee",
+            "name": "isNative",
+            "docs": [
+              "If is_some, this is a native token, and the value logs the rent-exempt",
+              "reserve. An Account is required to be rent-exempt, so the value is",
+              "used by the Processor to ensure that wrapped SOL accounts do not",
+              "drop below this threshold."
+            ],
             "type": {
               "option": "u64"
             }
           },
           {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "Utxo"
-              }
-            }
-          },
-          {
-            "name": "outUtxos",
-            "type": {
-              "vec": {
-                "defined": "OutUtxo"
-              }
-            }
-          },
-          {
-            "name": "inUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "inUtxoNullifierQueueRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "outUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          }
-        ]
-      }
-    },
-    {
-      "name": "InstructionDataTransfer2",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "proofA",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lowElementIndices",
-            "type": {
-              "vec": "u16"
-            }
-          },
-          {
-            "name": "rootIndices",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "rpcFee",
-            "type": {
-              "option": "u64"
-            }
-          },
-          {
-            "name": "utxos",
-            "type": {
-              "defined": "SerializedUtxos"
-            }
-          },
-          {
-            "name": "inUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "inUtxoNullifierQueueRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "outUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          }
-        ]
-      }
-    },
-    {
-      "name": "SerializedUtxos",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pubkeyArray",
-            "type": {
-              "vec": "publicKey"
-            }
-          },
-          {
-            "name": "u64Array",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "InUtxoSerializable"
-              }
-            }
-          },
-          {
-            "name": "outUtxos",
-            "type": {
-              "vec": {
-                "defined": "OutUtxoSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "InUtxoSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "leafIndex",
-            "type": "u32"
-          },
-          {
-            "name": "lamports",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "TlvSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "OutUtxoSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "lamports",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "TlvSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "OutUtxo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "lamports",
+            "name": "delegatedAmount",
+            "docs": [
+              "The amount delegated"
+            ],
             "type": "u64"
           },
           {
-            "name": "data",
+            "name": "closeAuthority",
+            "docs": [
+              "Optional authority to close the account."
+            ],
             "type": {
-              "option": {
-                "defined": "Tlv"
-              }
+              "option": "publicKey"
             }
           }
         ]
       }
     },
     {
-      "name": "Utxo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "blinding",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lamports",
-            "type": "u64"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "Tlv"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "TlvSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "tlvElements",
-            "type": {
-              "vec": {
-                "defined": "TlvDataElementSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "Tlv",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "tlvElements",
-            "type": {
-              "vec": {
-                "defined": "TlvDataElement"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "TlvDataElementSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "discriminator",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": "bytes"
-          },
-          {
-            "name": "dataHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "TlvDataElement",
-      "docs": [
-        "Time lock escrow example:",
-        "escrow tlv data -> compressed token program",
-        "let escrow_data = {",
-        "owner: Pubkey, // owner is the user pubkey",
-        "release_slot: u64,",
-        "deposit_slot: u64,",
-        "};",
-        "",
-        "let escrow_tlv_data = TlvDataElement {",
-        "discriminator: [1,0,0,0,0,0,0,0],",
-        "owner: escrow_program_id,",
-        "data: escrow_data.try_to_vec()?,",
-        "};",
-        "let token_tlv = TlvDataElement {",
-        "discriminator: [2,0,0,0,0,0,0,0],",
-        "owner: token_program,",
-        "data: token_data.try_to_vec()?,",
-        "};",
-        "let token_data = Account {",
-        "mint,",
-        "owner,",
-        "amount: 10_000_000u64,",
-        "delegate: None,",
-        "state: Initialized, (u64)",
-        "is_native: None,",
-        "delegated_amount: 0u64,",
-        "close_authority: None,",
-        "};",
-        ""
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "discriminator",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "data",
-            "type": "bytes"
-          },
-          {
-            "name": "dataHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "ErrorCode",
+      "name": "AccountState",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "SumCheckFailed"
+            "name": "Uninitialized"
+          },
+          {
+            "name": "Initialized"
+          },
+          {
+            "name": "Frozen"
           }
         ]
       }

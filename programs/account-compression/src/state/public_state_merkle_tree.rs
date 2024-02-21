@@ -43,8 +43,14 @@ pub struct StateMerkleTreeAccount {
     pub next_merkle_tree: Pubkey,
     /// Owner of the Merkle tree.
     pub owner: Pubkey,
-    /// Delegate of the Merkle tree.
+    /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
     pub delegate: Pubkey,
+    // TODO: add Merkle tree parameters, in combination with a deserialize function
+    //    this will allow for flexibly sized Merkle trees, change log and roots lengths.
+    // change_log_length: u64,
+    // height: u64,
+    // roots_length: u64,
+    // canopy_depth: u64,
     /// Merkle tree for the transaction state.
     pub state_merkle_tree: [u8; 90368],
 }

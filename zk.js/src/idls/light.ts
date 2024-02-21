@@ -6,11 +6,16 @@ export type Light = {
       "name": "AUTHORITY_PDA_SEED",
       "type": "bytes",
       "value": "[97, 117, 116, 104, 111, 114, 105, 116, 121]"
+    },
+    {
+      "name": "CPI_AUTHORITY_PDA_SEED",
+      "type": "bytes",
+      "value": "[99, 112, 105, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
     }
   ],
   "instructions": [
     {
-      "name": "updateAuthority",
+      "name": "initializeGovernanceAuthority",
       "accounts": [
         {
           "name": "authority",
@@ -23,13 +28,64 @@ export type Light = {
           "isSigner": false
         },
         {
-          "name": "groupPda",
-          "isMut": true,
+          "name": "systemProgram",
+          "isMut": false,
           "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "authority",
+          "type": "publicKey"
         },
         {
-          "name": "accountCompressionProgram",
-          "isMut": false,
+          "name": "rewards",
+          "type": {
+            "vec": "u64"
+          }
+        },
+        {
+          "name": "bump",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateGovernanceAuthorityReward",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "authorityPda",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "reward",
+          "type": "u64"
+        },
+        {
+          "name": "index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateGovernanceAuthority",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "authorityPda",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -54,6 +110,11 @@ export type Light = {
         },
         {
           "name": "authorityPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "cpiAuthority",
           "isMut": true,
           "isSigner": false
         },
@@ -88,6 +149,39 @@ export type Light = {
           "type": "publicKey"
         }
       ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "lightGovernanceAuthority",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "rewards",
+            "type": {
+              "vec": "u64"
+            }
+          }
+        ]
+      }
     }
   ],
   "errors": [
@@ -107,11 +201,16 @@ export const IDL: Light = {
       "name": "AUTHORITY_PDA_SEED",
       "type": "bytes",
       "value": "[97, 117, 116, 104, 111, 114, 105, 116, 121]"
+    },
+    {
+      "name": "CPI_AUTHORITY_PDA_SEED",
+      "type": "bytes",
+      "value": "[99, 112, 105, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
     }
   ],
   "instructions": [
     {
-      "name": "updateAuthority",
+      "name": "initializeGovernanceAuthority",
       "accounts": [
         {
           "name": "authority",
@@ -124,13 +223,64 @@ export const IDL: Light = {
           "isSigner": false
         },
         {
-          "name": "groupPda",
-          "isMut": true,
+          "name": "systemProgram",
+          "isMut": false,
           "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "authority",
+          "type": "publicKey"
         },
         {
-          "name": "accountCompressionProgram",
-          "isMut": false,
+          "name": "rewards",
+          "type": {
+            "vec": "u64"
+          }
+        },
+        {
+          "name": "bump",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateGovernanceAuthorityReward",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "authorityPda",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "reward",
+          "type": "u64"
+        },
+        {
+          "name": "index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateGovernanceAuthority",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "authorityPda",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -155,6 +305,11 @@ export const IDL: Light = {
         },
         {
           "name": "authorityPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "cpiAuthority",
           "isMut": true,
           "isSigner": false
         },
@@ -189,6 +344,39 @@ export const IDL: Light = {
           "type": "publicKey"
         }
       ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "lightGovernanceAuthority",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "rewards",
+            "type": {
+              "vec": "u64"
+            }
+          }
+        ]
+      }
     }
   ],
   "errors": [

@@ -1,15 +1,14 @@
-#[cfg(test)]
-mod test {
-    use psp_compressed_pda::ID;
-    use solana_program_test::ProgramTest;
+#![cfg(feature = "test-sbf")]
 
-    #[tokio::test]
-    async fn test_create_and_update_group() {
-        let mut program_test = ProgramTest::default();
-        program_test.add_program("psp_compressed_pda", ID, None);
+use psp_compressed_pda::ID;
+use solana_program_test::ProgramTest;
 
-        program_test.set_compute_max_units(1_400_000u64);
+#[tokio::test]
+async fn test_create_and_update_group() {
+    let mut program_test = ProgramTest::default();
+    program_test.add_program("psp_compressed_pda", ID, None);
 
-        let mut context = program_test.start_with_context().await;
-    }
+    program_test.set_compute_max_units(1_400_000u64);
+
+    let _context = program_test.start_with_context().await;
 }

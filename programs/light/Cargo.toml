@@ -27,8 +27,12 @@ light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher" }
 ahash = "=0.8.6"
 account-compression = { version = "0.3.1", path = "../account-compression", features = ["cpi"]  }
 
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+solana-sdk = "1.17.4"
+
 [dev-dependencies]
 solana-program-test = "1.17.4"
 solana-sdk = "1.17.4"
 tokio = "1.36.0"
-light-test-utils = { version = "0.1.0", path = "../../test-utils" }
+light-test-utils = { version = "0.1.0", path = "../../test-utils", default-features = false }
+light-macros= { version = "0.3.1", path = "../../macros/light" }

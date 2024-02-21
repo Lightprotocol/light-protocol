@@ -28,4 +28,5 @@ ahash = "=0.8.6"
 
 [dev-dependencies]
 solana-program-test = "1.17.4"
+solana-sdk = "1.17.4"
 tokio = "1.36.0"

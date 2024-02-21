@@ -3,11 +3,6 @@ export type AccountCompression = {
   "name": "account_compression",
   "constants": [
     {
-      "name": "NOOP_PROGRAM_ID",
-      "type": "publicKey",
-      "value": ":: anchor_lang :: prelude :: Pubkey :: new_from_array ([11u8 , 188u8 , 15u8 , 192u8 , 187u8 , 71u8 , 202u8 , 47u8 , 116u8 , 196u8 , 17u8 , 46u8 , 148u8 , 171u8 , 19u8 , 207u8 , 163u8 , 198u8 , 52u8 , 229u8 , 220u8 , 23u8 , 234u8 , 203u8 , 3u8 , 205u8 , 26u8 , 35u8 , 205u8 , 126u8 , 120u8 , 124u8])"
-    },
-    {
       "name": "GROUP_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
@@ -146,7 +141,7 @@ export type AccountCompression = {
         {
           "name": "lowAddress",
           "type": {
-            "defined": "RawIndexingElement"
+            "defined": "RawIndexingElement<usize,32>"
           }
         },
         {
@@ -421,40 +416,6 @@ export type AccountCompression = {
   ],
   "accounts": [
     {
-      "name": "addressQueueAccount",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "queue",
-            "type": {
-              "array": [
-                "u8",
-                112008
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "addressMerkleTreeAccount",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "merkleTree",
-            "type": {
-              "array": [
-                "u8",
-                2173568
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "groupAuthority",
       "type": {
         "kind": "struct",
@@ -509,6 +470,52 @@ export type AccountCompression = {
       }
     },
     {
+      "name": "registeredProgram",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "addressQueueAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "queue",
+            "type": {
+              "array": [
+                "u8",
+                112008
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "addressMerkleTreeAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merkleTree",
+            "type": {
+              "array": [
+                "u8",
+                2173568
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "stateMerkleTreeAccount",
       "docs": [
         "Concurrent state Merkle tree used for public compressed transactions."
@@ -540,7 +547,7 @@ export type AccountCompression = {
           {
             "name": "delegate",
             "docs": [
-              "Delegate of the Merkle tree."
+              "Delegate of the Merkle tree. This will be used for program owned Merkle trees."
             ],
             "type": "publicKey"
           },
@@ -555,18 +562,6 @@ export type AccountCompression = {
                 90368
               ]
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "registeredProgram",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pubkey",
-            "type": "publicKey"
           }
         ]
       }
@@ -676,6 +671,24 @@ export type AccountCompression = {
             ]
           }
         ]
+      }
+    },
+    {
+      "name": "IndexedArray",
+      "type": {
+        "kind": "alias",
+        "value": {
+          "defined": "IndexingArray<Poseidon,u16,BigInteger256,2800>"
+        }
+      }
+    },
+    {
+      "name": "StateMerkleTree",
+      "type": {
+        "kind": "alias",
+        "value": {
+          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
+        }
       }
     }
   ],
@@ -748,11 +761,6 @@ export const IDL: AccountCompression = {
   "name": "account_compression",
   "constants": [
     {
-      "name": "NOOP_PROGRAM_ID",
-      "type": "publicKey",
-      "value": ":: anchor_lang :: prelude :: Pubkey :: new_from_array ([11u8 , 188u8 , 15u8 , 192u8 , 187u8 , 71u8 , 202u8 , 47u8 , 116u8 , 196u8 , 17u8 , 46u8 , 148u8 , 171u8 , 19u8 , 207u8 , 163u8 , 198u8 , 52u8 , 229u8 , 220u8 , 23u8 , 234u8 , 203u8 , 3u8 , 205u8 , 26u8 , 35u8 , 205u8 , 126u8 , 120u8 , 124u8])"
-    },
-    {
       "name": "GROUP_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
@@ -891,7 +899,7 @@ export const IDL: AccountCompression = {
         {
           "name": "lowAddress",
           "type": {
-            "defined": "RawIndexingElement"
+            "defined": "RawIndexingElement<usize,32>"
           }
         },
         {
@@ -1166,40 +1174,6 @@ export const IDL: AccountCompression = {
   ],
   "accounts": [
     {
-      "name": "addressQueueAccount",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "queue",
-            "type": {
-              "array": [
-                "u8",
-                112008
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "addressMerkleTreeAccount",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "merkleTree",
-            "type": {
-              "array": [
-                "u8",
-                2173568
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "groupAuthority",
       "type": {
         "kind": "struct",
@@ -1254,6 +1228,52 @@ export const IDL: AccountCompression = {
       }
     },
     {
+      "name": "registeredProgram",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "addressQueueAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "queue",
+            "type": {
+              "array": [
+                "u8",
+                112008
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "addressMerkleTreeAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merkleTree",
+            "type": {
+              "array": [
+                "u8",
+                2173568
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "stateMerkleTreeAccount",
       "docs": [
         "Concurrent state Merkle tree used for public compressed transactions."
@@ -1285,7 +1305,7 @@ export const IDL: AccountCompression = {
           {
             "name": "delegate",
             "docs": [
-              "Delegate of the Merkle tree."
+              "Delegate of the Merkle tree. This will be used for program owned Merkle trees."
             ],
             "type": "publicKey"
           },
@@ -1300,18 +1320,6 @@ export const IDL: AccountCompression = {
                 90368
               ]
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "registeredProgram",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pubkey",
-            "type": "publicKey"
           }
         ]
       }
@@ -1421,6 +1429,24 @@ export const IDL: AccountCompression = {
             ]
           }
         ]
+      }
+    },
+    {
+      "name": "IndexedArray",
+      "type": {
+        "kind": "alias",
+        "value": {
+          "defined": "IndexingArray<Poseidon,u16,BigInteger256,2800>"
+        }
+      }
+    },
+    {
+      "name": "StateMerkleTree",
+      "type": {
+        "kind": "alias",
+        "value": {
+          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
+        }
       }
     }
   ],
