@@ -16,7 +16,7 @@ pub struct InsertTwoLeavesParallel<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     #[account(mut)]
     pub authority: Signer<'info>,
-    pub registered_verifier_pda: Option<Account<'info, RegisteredProgram>>,
+    pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: in event emitting
     pub log_wrapper: UncheckedAccount<'info>,
 }
@@ -36,7 +36,7 @@ impl<'info> GroupAccounts<'info> for InsertTwoLeavesParallel<'info> {
         &self.authority
     }
     fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
-        &self.registered_verifier_pda
+        &self.registered_program_pda
     }
 }
 

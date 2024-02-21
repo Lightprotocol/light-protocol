@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 use light_indexed_merkle_tree::array::RawIndexingElement;
 
 pub mod errors;
@@ -34,7 +35,6 @@ pub mod account_compression {
         process_insert_addresses(ctx, addresses)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn update_address_merkle_tree<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateMerkleTree<'info>>,
         // Index of the Merkle tree changelog.

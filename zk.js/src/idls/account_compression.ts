@@ -3,6 +3,11 @@ export type AccountCompression = {
   "name": "account_compression",
   "constants": [
     {
+      "name": "NOOP_PROGRAM_ID",
+      "type": "publicKey",
+      "value": ":: anchor_lang :: prelude :: Pubkey :: new_from_array ([11u8 , 188u8 , 15u8 , 192u8 , 187u8 , 71u8 , 202u8 , 47u8 , 116u8 , 196u8 , 17u8 , 46u8 , 148u8 , 171u8 , 19u8 , 207u8 , 163u8 , 198u8 , 52u8 , 229u8 , 220u8 , 23u8 , 234u8 , 203u8 , 3u8 , 205u8 , 26u8 , 35u8 , 205u8 , 126u8 , 120u8 , 124u8])"
+    },
+    {
       "name": "GROUP_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
@@ -32,11 +37,6 @@ export type AccountCompression = {
       "name": "PROGRAM_ID",
       "type": "string",
       "value": "\"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN\""
-    },
-    {
-      "name": "NOOP_PROGRAM_ID",
-      "type": "publicKey",
-      "value": ":: anchor_lang :: prelude :: Pubkey :: new_from_array ([11u8 , 188u8 , 15u8 , 192u8 , 187u8 , 71u8 , 202u8 , 47u8 , 116u8 , 196u8 , 17u8 , 46u8 , 148u8 , 171u8 , 19u8 , 207u8 , 163u8 , 198u8 , 52u8 , 229u8 , 220u8 , 23u8 , 234u8 , 203u8 , 3u8 , 205u8 , 26u8 , 35u8 , 205u8 , 126u8 , 120u8 , 124u8])"
     }
   ],
   "instructions": [
@@ -251,7 +251,7 @@ export type AccountCompression = {
           "isSigner": true
         },
         {
-          "name": "registeredVerifierPda",
+          "name": "registeredProgramPda",
           "isMut": true,
           "isSigner": false
         },
@@ -322,7 +322,7 @@ export type AccountCompression = {
           "isSigner": true
         },
         {
-          "name": "registeredVerifierPda",
+          "name": "registeredProgramPda",
           "isMut": false,
           "isSigner": false,
           "isOptional": true
@@ -392,7 +392,7 @@ export type AccountCompression = {
           "isSigner": true
         },
         {
-          "name": "registeredVerifierPda",
+          "name": "registeredProgramPda",
           "isMut": false,
           "isSigner": false,
           "isOptional": true
@@ -509,7 +509,7 @@ export type AccountCompression = {
       }
     },
     {
-      "name": "concurrentMerkleTreeAccount",
+      "name": "stateMerkleTreeAccount",
       "docs": [
         "Concurrent state Merkle tree used for public compressed transactions."
       ],
@@ -748,6 +748,11 @@ export const IDL: AccountCompression = {
   "name": "account_compression",
   "constants": [
     {
+      "name": "NOOP_PROGRAM_ID",
+      "type": "publicKey",
+      "value": ":: anchor_lang :: prelude :: Pubkey :: new_from_array ([11u8 , 188u8 , 15u8 , 192u8 , 187u8 , 71u8 , 202u8 , 47u8 , 116u8 , 196u8 , 17u8 , 46u8 , 148u8 , 171u8 , 19u8 , 207u8 , 163u8 , 198u8 , 52u8 , 229u8 , 220u8 , 23u8 , 234u8 , 203u8 , 3u8 , 205u8 , 26u8 , 35u8 , 205u8 , 126u8 , 120u8 , 124u8])"
+    },
+    {
       "name": "GROUP_AUTHORITY_SEED",
       "type": "bytes",
       "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
@@ -777,11 +782,6 @@ export const IDL: AccountCompression = {
       "name": "PROGRAM_ID",
       "type": "string",
       "value": "\"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN\""
-    },
-    {
-      "name": "NOOP_PROGRAM_ID",
-      "type": "publicKey",
-      "value": ":: anchor_lang :: prelude :: Pubkey :: new_from_array ([11u8 , 188u8 , 15u8 , 192u8 , 187u8 , 71u8 , 202u8 , 47u8 , 116u8 , 196u8 , 17u8 , 46u8 , 148u8 , 171u8 , 19u8 , 207u8 , 163u8 , 198u8 , 52u8 , 229u8 , 220u8 , 23u8 , 234u8 , 203u8 , 3u8 , 205u8 , 26u8 , 35u8 , 205u8 , 126u8 , 120u8 , 124u8])"
     }
   ],
   "instructions": [
@@ -996,7 +996,7 @@ export const IDL: AccountCompression = {
           "isSigner": true
         },
         {
-          "name": "registeredVerifierPda",
+          "name": "registeredProgramPda",
           "isMut": true,
           "isSigner": false
         },
@@ -1067,7 +1067,7 @@ export const IDL: AccountCompression = {
           "isSigner": true
         },
         {
-          "name": "registeredVerifierPda",
+          "name": "registeredProgramPda",
           "isMut": false,
           "isSigner": false,
           "isOptional": true
@@ -1137,7 +1137,7 @@ export const IDL: AccountCompression = {
           "isSigner": true
         },
         {
-          "name": "registeredVerifierPda",
+          "name": "registeredProgramPda",
           "isMut": false,
           "isSigner": false,
           "isOptional": true
@@ -1254,7 +1254,7 @@ export const IDL: AccountCompression = {
       }
     },
     {
-      "name": "concurrentMerkleTreeAccount",
+      "name": "stateMerkleTreeAccount",
       "docs": [
         "Concurrent state Merkle tree used for public compressed transactions."
       ],

@@ -14,7 +14,7 @@ pub struct InsertIntoIndexedArrays<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     #[account(mut)]
     pub authority: Signer<'info>,
-    pub registered_verifier_pda: Option<Account<'info, RegisteredProgram>>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
+    pub registered_program_pda: Option<Account<'info, RegisteredProgram>>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
 }
 
 /// Inserts every element into the indexed array.

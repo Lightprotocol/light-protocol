@@ -22,7 +22,7 @@ pub struct RegisterProgramToGroup<'info> {
         bump,
         space = RegisteredProgram::LEN,
     )]
-    pub registered_verifier_pda: Account<'info, RegisteredProgram>,
+    pub registered_program_pda: Account<'info, RegisteredProgram>,
     #[account(mut)]
     pub group_authority_pda: Account<'info, GroupAuthority>,
     pub system_program: Program<'info, System>,
@@ -32,6 +32,6 @@ pub fn process_register_program(
     ctx: Context<RegisterProgramToGroup>,
     verifier_pubkey: Pubkey,
 ) -> Result<()> {
-    ctx.accounts.registered_verifier_pda.pubkey = verifier_pubkey;
+    ctx.accounts.registered_program_pda.pubkey = verifier_pubkey;
     Ok(())
 }
