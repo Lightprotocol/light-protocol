@@ -83,7 +83,7 @@ pub mod light {
 pub struct UpdateAuthority<'info> {
     #[account(mut)]
     authority: Signer<'info>,
-    #[account(mut, seeds = [AUTHORITY_PDA_SEED, &__program_id.to_bytes().as_slice()], bump)]
+    #[account(mut, seeds = [AUTHORITY_PDA_SEED, __program_id.to_bytes().as_slice()], bump)]
     authority_pda: AccountInfo<'info>,
     #[account(mut)]
     group_pda: Account<'info, GroupAuthority>,
@@ -95,7 +95,7 @@ pub struct UpdateAuthority<'info> {
 pub struct RegisteredProgram<'info> {
     #[account(mut)]
     authority: Signer<'info>,
-    #[account(mut, seeds = [AUTHORITY_PDA_SEED, &__program_id.to_bytes().as_slice()], bump)]
+    #[account(mut, seeds = [AUTHORITY_PDA_SEED, __program_id.to_bytes().as_slice()], bump)]
     authority_pda: AccountInfo<'info>,
     #[account(mut)]
     group_pda: Account<'info, GroupAuthority>,
