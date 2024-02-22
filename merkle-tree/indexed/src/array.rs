@@ -2,7 +2,7 @@ use std::{cmp::Ordering, marker::PhantomData};
 
 use ark_ff::{BigInteger, BigInteger256};
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_hasher::Hasher;
+use light_concurrent_merkle_tree::light_hasher::Hasher;
 use light_utils::bigint::{be_bytes_to_bigint, bigint_to_be_bytes};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
@@ -553,7 +553,7 @@ where
 #[cfg(test)]
 mod test {
     use ark_ff::BigInteger256;
-    use light_hasher::Poseidon;
+    use light_concurrent_merkle_tree::light_hasher::Poseidon;
 
     use super::*;
 

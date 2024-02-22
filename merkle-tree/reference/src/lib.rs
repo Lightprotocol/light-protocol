@@ -2,28 +2,19 @@ use std::{cell::RefCell, collections::VecDeque, marker::PhantomData, rc::Rc};
 
 use light_hasher::{errors::HasherError, Hasher};
 
-/// Reference implementation of Merkle tree used for testing.
+pub mod store;
+
+/// Reference implementation of Merkle tree which stores all nodes. Used for
+/// testing.
 pub struct MerkleTree<H, const HEIGHT: usize, const MAX_ROOTS: usize>
 where
     H: Hasher,
 {
     pub leaf_nodes: Vec<Rc<RefCell<TreeNode<H>>>>,
     pub roots: Vec<[u8; 32]>,
+    pub rightmost_index: usize,
 
     _hasher: PhantomData<H>,
-}
-
-impl<H, const HEIGHT: usize, const MAX_ROOTS: usize> Default for MerkleTree<H, HEIGHT, MAX_ROOTS>
-where
-    H: Hasher,
-{
-    fn default() -> Self {
-        Self {
-            leaf_nodes: Vec::new(),
-            roots: Vec::new(),
-            _hasher: PhantomData,
-        }
-    }
 }
 
 impl<H, const HEIGHT: usize, const MAX_ROOTS: usize> MerkleTree<H, HEIGHT, MAX_ROOTS>
@@ -68,6 +59,7 @@ where
         Ok(Self {
             leaf_nodes,
             roots,
+            rightmost_index: 0,
             _hasher: PhantomData,
         })
     }
@@ -168,6 +160,12 @@ where
     pub fn update(&mut self, leaf: &[u8; 32], leaf_idx: usize) -> Result<(), HasherError> {
         self.leaf_nodes[leaf_idx].borrow_mut().node = Some(*leaf);
         self.update_root_from_leaf(leaf_idx)
+    }
+
+    pub fn append(&mut self, leaf: &[u8; 32]) -> Result<(), HasherError> {
+        self.update(leaf, self.rightmost_index)?;
+        self.rightmost_index = self.rightmost_index.saturating_add(1);
+        Ok(())
     }
 
     pub fn leaf(&self, leaf_idx: usize) -> [u8; 32] {

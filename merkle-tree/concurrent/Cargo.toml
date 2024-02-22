@@ -6,6 +6,7 @@ description = "Concurrent Merkle tree implementation"
 license = "Apache-2.0"
 
 [features]
+heavy-tests = []
 solana = [
   "light-hasher/solana",
   "solana-program"
@@ -20,6 +21,7 @@ thiserror = "1.0"
 [dev-dependencies]
 ark-bn254 = "0.4"
 ark-ff = "0.4"
+light-merkle-tree-event = { path = "../event" }
 light-merkle-tree-reference = { path = "../reference", version = "0.1.0" }
 rand = "0.8"
 spl-concurrent-merkle-tree = "0.2.0"

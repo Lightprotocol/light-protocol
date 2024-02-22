@@ -1,5 +1,6 @@
-use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
-use light_hasher::errors::HasherError;
+use light_concurrent_merkle_tree::{
+    errors::ConcurrentMerkleTreeError, light_hasher::errors::HasherError,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

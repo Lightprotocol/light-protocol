@@ -6,7 +6,6 @@ edition = "2021"
 [features]
 solana = [
   "light-concurrent-merkle-tree/solana",
-  "light-hasher/solana",
   "solana-program"
 ]
 
@@ -14,7 +13,6 @@ solana = [
 ark-ff = "0.4"
 borsh = { version = "0.10" }
 light-concurrent-merkle-tree = { path = "../concurrent", version = "0.1.0" }
-light-hasher = { path = "../hasher", version = "0.1.0" }
 light-merkle-tree-reference = { path = "../reference", version = "0.1.0" }
 light-utils = { path = "../../utils", version = "0.1.0" }
 num-traits = "0.2"

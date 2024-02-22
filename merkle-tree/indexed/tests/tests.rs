@@ -1,8 +1,7 @@
 use std::cell::{RefCell, RefMut};
 
 use ark_ff::{BigInteger, BigInteger256};
-use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
-use light_hasher::{Hasher, Poseidon};
+use light_concurrent_merkle_tree::light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{
     array::{IndexingArray, IndexingElement},
     errors::IndexedMerkleTreeError,
@@ -346,18 +345,11 @@ where
     .unwrap();
     // We expect exactly two errors (for the invalid nullifiers). No more, no
     // less.
-    let _expected_err: Result<(), RelayerUpdateError> =
-        Err(RelayerUpdateError::MerkleTreeUpdate(vec![
-            IndexedMerkleTreeError::ConcurrentMerkleTree(ConcurrentMerkleTreeError::InvalidProof),
-            IndexedMerkleTreeError::ConcurrentMerkleTree(ConcurrentMerkleTreeError::InvalidProof),
-        ]));
-    assert!(matches!(
-        relayer_update::<H>(
-            &mut onchain_queue.borrow_mut(),
-            &mut onchain_tree.borrow_mut(),
-        ),
-        _expected_err,
-    ));
+    let res = relayer_update::<H>(
+        &mut onchain_queue.borrow_mut(),
+        &mut onchain_tree.borrow_mut(),
+    );
+    assert!(matches!(res, Err(RelayerUpdateError::MerkleTreeUpdate(_))));
 }
 
 #[test]

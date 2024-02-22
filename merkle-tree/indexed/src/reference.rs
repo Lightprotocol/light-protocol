@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use ark_ff::BigInteger;
-use light_hasher::Hasher;
+use light_concurrent_merkle_tree::light_hasher::Hasher;
 use light_merkle_tree_reference::MerkleTree;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
