@@ -1,0 +1,3 @@
+[submodule "gnark-prover"]
+	path = gnark-prover
+	url = git@github.com:Lightprotocol/gnark-prover.git

@@ -6,6 +6,8 @@
   "scripts": {
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**/*.ts --exit",
     "test-merkle": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/merkle-tree.test.ts --exit",
+    "test-gnark": "pnpm gnark-prover && ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/gnark.test.ts --exit",
+    "gnark-prover": "./scripts/prover.sh",
     "format": "prettier --write \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\"",
     "lint": "pnpm prettier \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\" --check",
     "build": "rimraf lib && pnpm tsc"
@@ -25,6 +27,7 @@
     "@types/chai-as-promised": "^7.1.6",
     "@types/mocha": "^10.0.3",
     "@types/node-fetch": "^2.6.2",
+    "axios": "^1.5.0",
     "chai": "^4.3.10",
     "chai-as-promised": "^7.1.1",
     "circom_tester": "^0.0.19",
