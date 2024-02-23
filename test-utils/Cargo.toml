@@ -2,6 +2,9 @@
 name = "light-test-utils"
 version = "0.1.0"
 edition = "2021"
+[features]
+light_program = ["light", "account-compression"]
+default = ["light_program"]
 
 [dependencies]
 anchor-lang = "0.29.0"
@@ -10,6 +13,10 @@ ark-ff = "0.4"
 solana-program-test = "1.17.4"
 solana-sdk = "1.17.4"
 thiserror = "1.0"
+light-macros = {path = "../macros/light"}
+
+light = {path = "../programs/light", features = ["cpi"],  optional= true}
+account-compression = {path = "../programs/account-compression", features = ["cpi"],  optional= true}
 
 [dev-dependencies]
 rand = "0.8"

@@ -3174,6 +3174,7 @@ dependencies = [
  "anchor-lang",
  "bytemuck",
  "light-hasher",
+ "light-macros",
  "light-test-utils",
  "light-verifier-sdk",
  "solana-program-test",
@@ -3324,9 +3325,12 @@ dependencies = [
 name = "light-test-utils"
 version = "0.1.0"
 dependencies = [
+ "account-compression",
  "anchor-lang",
  "anyhow",
  "ark-ff 0.4.2",
+ "light",
+ "light-macros",
  "rand 0.8.5",
  "solana-program-test",
  "solana-sdk",
@@ -4278,6 +4282,7 @@ dependencies = [
  "light-hasher",
  "light-verifier-sdk",
  "solana-program-test",
+ "solana-sdk",
  "tokio",
 ]
 

@@ -122,7 +122,6 @@ pub fn sum_check(
     }
 
     for utxo in out_utxos.iter() {
-        println!("utxo.lamports {}", utxo.lamports);
         sum = sum
             .checked_sub(utxo.lamports)
             .ok_or(ProgramError::InvalidAccountData)?;
@@ -848,8 +847,6 @@ mod tests {
             .iter()
             .enumerate()
             .for_each(|(i, u)| {
-                println!("u {:?}", u);
-                println!("out_utxo {:?}", out_utxos[i]);
                 assert!(
                     u.owner == out_utxos[i].owner
                         && u.lamports == out_utxos[i].lamports

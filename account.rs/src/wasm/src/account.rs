@@ -639,7 +639,6 @@ mod tests {
     #[test]
     fn seed_init_test() {
         let seed32 = bs58::encode(vec![2u8; 32]).into_string();
-        println!("seed32: {:?}", seed32);
         let a0 = Account::new(&seed32).unwrap();
         let a1 = Account::new(&seed32).unwrap();
         assert_account_equality(&a0, &a1);
