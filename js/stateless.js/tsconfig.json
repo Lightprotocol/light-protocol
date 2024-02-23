@@ -5,7 +5,9 @@
     "rootDir": "src",
     "baseUrl": "src",
     "esModuleInterop": true
+    // "target": "ES2020"
+    // "module": "ESNext"
   },
-  "extends": "@lightprotocol/tsconfig/base.json",
+  // "extends": "@lightprotocol/tsconfig/base.json",
   "include": ["src"]
 }

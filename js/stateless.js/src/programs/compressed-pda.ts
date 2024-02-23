@@ -12,7 +12,7 @@ import { UtxoWithMerkleProof } from "../state";
 
 export type CompressedTransferParams = {
   /** Utxos with lamports to spend as transaction inputs */
-  fromBalance: UtxoWithMerkleProof[];
+  fromBalance: UtxoWithMerkleProof[] | UtxoWithMerkleProof;
   /** Solana Account that will receive transferred compressed lamports as utxo  */
   toPubkey: PublicKey;
   /** Amount of compressed lamports to transfer */
@@ -132,3 +132,6 @@ export class LightSystemProgram {
 
   //   }
 }
+
+
+export function transferSol

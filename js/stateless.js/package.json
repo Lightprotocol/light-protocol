@@ -17,7 +17,10 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
+    "@solana/buffer-layout": "^4.0.1",
+    "@solana/buffer-layout-utils": "^0.2.0",
     "@solana/web3.js": "^1.90.0",
+    "buffer": "^6.0.3",
     "tweetnacl": "^1.0.3"
   }
 }

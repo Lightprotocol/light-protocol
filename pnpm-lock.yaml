@@ -382,9 +382,18 @@ importers:
       '@coral-xyz/anchor':
         specifier: 0.28.0
         version: 0.28.0
+      '@solana/buffer-layout':
+        specifier: ^4.0.1
+        version: 4.0.1
+      '@solana/buffer-layout-utils':
+        specifier: ^0.2.0
+        version: 0.2.0
       '@solana/web3.js':
         specifier: ^1.90.0
         version: 1.90.0
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
       tweetnacl:
         specifier: ^1.0.3
         version: 1.0.3
@@ -4987,7 +4996,7 @@ packages:
     engines: {node: '>= 10'}
     dependencies:
       '@solana/buffer-layout': 4.0.1
-      '@solana/web3.js': 1.87.6
+      '@solana/web3.js': 1.90.0
       bigint-buffer: 1.1.5
       bignumber.js: 9.1.2
     transitivePeerDependencies:
@@ -12152,6 +12161,7 @@ packages:
   /node-gyp-build@4.6.1:
     resolution: {integrity: sha512-24vnklJmyRS8ViBNI8KbtK/r/DmXQMRiOMXTNz2nrTnAYUwjmEEbnnpB/+kt+yWRv73bPsSPRFddrcIbAxSiMQ==}
     hasBin: true
+    requiresBuild: true
 
   /node-gyp@8.4.1:
     resolution: {integrity: sha512-olTJRgUtAb/hOXG0E93wZDs5YiJlgbXxTwQAFHyNlRsXQnYzUaF2aGgujZbw+hR8aF4ZG/rST57bWMWD16jr9w==}
