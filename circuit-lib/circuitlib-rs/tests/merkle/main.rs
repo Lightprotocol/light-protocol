@@ -28,11 +28,11 @@ macro_rules! test_and_prove {
     };
 }
 
-test_and_prove!(test_and_prove_22_1, MerkleTreeInfo::H22, 1);
-test_and_prove!(test_and_prove_22_2, MerkleTreeInfo::H22, 2);
-test_and_prove!(test_and_prove_22_3, MerkleTreeInfo::H22, 3);
-test_and_prove!(test_and_prove_22_4, MerkleTreeInfo::H22, 4);
-test_and_prove!(test_and_prove_22_8, MerkleTreeInfo::H22, 8);
+test_and_prove!(test_and_prove_26_1, MerkleTreeInfo::H26, 1);
+test_and_prove!(test_and_prove_26_2, MerkleTreeInfo::H26, 2);
+test_and_prove!(test_and_prove_26_3, MerkleTreeInfo::H26, 3);
+test_and_prove!(test_and_prove_26_4, MerkleTreeInfo::H26, 4);
+test_and_prove!(test_and_prove_26_8, MerkleTreeInfo::H26, 8);
 
 fn init_logger() {
     let _ = Builder::new()

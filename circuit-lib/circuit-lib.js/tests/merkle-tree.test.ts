@@ -29,7 +29,7 @@ describe("Tests", () => {
 
   it("merkle proofgen", async () => {
     const hasher = await WasmFactory.getInstance();
-    const merkleHeights = [22]; //[22, 30, 40, 128];
+    const merkleHeights = [26];
     const utxos = [1, 2, 3, 4, 8];
     const outPath = "/tmp";
     for (let i = 0; i < merkleHeights.length; i++) {

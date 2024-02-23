@@ -9,17 +9,17 @@ use once_cell::{self, sync::Lazy};
 
 use crate::merkle_proof_inputs::{MerkleTreeInfo, MerkleTreeProofInput};
 
-pub static MT_PROOF_INPUTS_22: Lazy<Mutex<MerkleTreeProofInput>> =
-    Lazy::new(|| Mutex::new(merkle_tree_inputs_22()));
+pub static MT_PROOF_INPUTS_26: Lazy<Mutex<MerkleTreeProofInput>> =
+    Lazy::new(|| Mutex::new(merkle_tree_inputs_26()));
 
 pub fn merkle_tree_inputs(mt_height: MerkleTreeInfo) -> MerkleTreeProofInput {
     match mt_height {
-        MerkleTreeInfo::H22 => (*MT_PROOF_INPUTS_22.lock().unwrap()).clone(),
+        MerkleTreeInfo::H26 => (*MT_PROOF_INPUTS_26.lock().unwrap()).clone(),
     }
 }
 
-fn merkle_tree_inputs_22() -> MerkleTreeProofInput {
-    const HEIGHT: usize = 22;
+fn merkle_tree_inputs_26() -> MerkleTreeProofInput {
+    const HEIGHT: usize = 26;
     const ROOTS: usize = 1;
 
     info!("initializing merkle tree");
