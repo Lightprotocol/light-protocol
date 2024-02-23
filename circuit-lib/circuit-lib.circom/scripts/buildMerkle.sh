@@ -46,11 +46,15 @@ function execute_commands {
   echo "Verifying proof..."
   npx snarkjs zkey verify "$temp_directory/merkle${merkle_number}_$utxo_count.r1cs" "$temp_directory/ptau$ptau_number" "$temp_directory/circuit.zkey" || { echo "snarkjs zkey verify failed"; exit 1; }
 
+  echo "Exporting verification key..."
+  npx snarkjs zkey export verificationkey "$temp_directory/circuit.zkey" "$temp_directory/merkle${merkle_number}_$utxo_count.json"
+
   cp "$temp_directory/circuit.zkey" "$build_directory/circuit.zkey"
   cp "$temp_directory/merkle${merkle_number}_${utxo_count}_js/merkle${merkle_number}_${utxo_count}.wasm" "$build_directory/circuit.wasm"
 
+
   echo "Parsing verification key to Rust..."
-  npx ts-node "$circuits_circom_directory/scripts/parseVerifiyingKeyToRust.js" "$build_directory/merkle${merkle_number}_$utxo_count.json" "$src_directory"
+  npx ts-node "$circuits_circom_directory/scripts/parseVerifyingKeyToRust.js" "$temp_directory/merkle${merkle_number}_$utxo_count.json" "$src_directory"
   echo "mod merkle${merkle_number}_$utxo_count;" >> "$CIRCUIT_RS_VERIFYINGKEY_DIR/mod.rs";
   echo "pub use crate::verifying_keys::merkle${merkle_number}_$utxo_count::VERIFYINGKEY as VK${merkle_number}_$utxo_count;" >> "$CIRCUIT_RS_VERIFYINGKEY_DIR/mod.rs";
 
@@ -70,16 +74,9 @@ echo "pub use crate::verifying_keys::helpers::vk;" >> "$CIRCUIT_RS_VERIFYINGKEY_
 POWERS_OF_TAU=16
 MAX_COUNT=4
 
-MERKLE_TREE_HEIGHT=22
+MERKLE_TREE_HEIGHT=26
 for ((i=1; i<=MAX_COUNT; i++)); do
   execute_commands "$MERKLE_TREE_HEIGHT" "$i" "$POWERS_OF_TAU" || exit
 done
 
 execute_commands "$MERKLE_TREE_HEIGHT" 8 "$POWERS_OF_TAU" || exit
-
-#
-#POWERS_OF_TAU=18
-#MERKLE_TREE_HEIGHT=30
-#for ((i=1; i<=MAX_COUNT; i++)); do
-#  execute_commands "$MERKLE_TREE_HEIGHT" "$i" "$POWERS_OF_TAU" || exit
-#done

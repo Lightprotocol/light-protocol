@@ -5,6 +5,7 @@
   "license": "GPL-3.0",
   "scripts": {
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**/*.ts --exit",
+    "test-merkle": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/merkle-tree.test.ts --exit",
     "format": "prettier --write \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\"",
     "lint": "pnpm prettier \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\" --check",
     "build": "rimraf lib && pnpm tsc"
@@ -18,6 +19,7 @@
     "ffjavascript": "^0.2.62"
   },
   "devDependencies": {
+    "@coral-xyz/anchor": "0.29.0",
     "@solana/web3.js": "^1.87.6",
     "@types/chai": "^4.3.9",
     "@types/chai-as-promised": "^7.1.6",
