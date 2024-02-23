@@ -1,18 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 import { bigint254 } from "./bigint254";
-import { LightSystemProgram } from "../programs/compressed-pda";
-import { Buffer } from "buffer";
-
-/** Describe the generic details applicable to every data block */
-export type TlvDataElement = {
-  discriminator: Uint8Array;
-  /** Public key of the ownerProgram of the data block */
-  owner: PublicKey;
-  /** Variable-length data */
-  data: Uint8Array;
-  /** Poseidon hash of data */
-  dataHash: Uint8Array; // Consider using bigint254
-};
+import { TlvDataElement } from "./utxo-data";
 
 /** Describe the generic utxo details applicable to every utxo. */
 export type Utxo = {
@@ -59,7 +47,7 @@ export const createUtxo = (
   ...merkleContext,
 });
 
-/** Adds Merkle tree context to a utxo */
+/** Add Merkle tree context to a utxo */
 export const addMerkleContextToUtxo = (
   utxo: Utxo,
   hash: bigint254,
@@ -74,7 +62,7 @@ export const addMerkleContextToUtxo = (
   merkleProof,
 });
 
-/** Appends a merkle proof to a utxo */
+/** Append a merkle proof to a utxo */
 export const addMerkleProofToUtxo = (
   utxo: UtxoWithMerkleContext,
   proof: string[]
@@ -96,21 +84,9 @@ export const createTlvDataElement = (
   dataHash,
 });
 
-/** Filter utxos with native compressed lamports, excluding PDAs and token accounts */
+/** Filter utxos with compressed lamports. Excludes PDAs and token accounts */
 export function getCompressedSolUtxos(utxos: Utxo[]): Utxo[] {
   return utxos.filter(
     (utxo) => utxo.lamports > BigInt(0) && utxo.data.length === 0
   );
-}
-
-const { coder } = LightSystemProgram.program;
-
-/** Decode TLV data elements from a buffer */
-export function decodeUtxoData(buffer: Buffer): TlvDataElement[] {
-  return coder.types.decode("Tlv", buffer);
-}
-
-/** Encode TLV data elements into a buffer */
-export function encodeUtxoData(data: TlvDataElement[]): Buffer {
-  return coder.types.encode("Tlv", data);
 }
