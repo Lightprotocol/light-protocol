@@ -1,4 +1,4 @@
-import { MerkleTree } from "./utils/merkle-tree";
+import { MerkleTree } from "../src";
 import { readFileSync, writeFileSync } from "fs";
 
 const snarkjs = require("snarkjs");
