@@ -18,8 +18,6 @@ pub enum UtilsError {
     InvalidInputSize(usize, usize),
     #[error("Invalid chunk size")]
     InvalidChunkSize,
-    #[error("Invalid seeds")]
-    InvalidSeeds,
 }
 
 pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
@@ -71,17 +69,16 @@ pub fn is_smaller_than_bn254_field_size_le(bytes: &[u8; 32]) -> Result<bool, Uti
 
 pub fn hash_to_bn254_field_size_le(bytes: &[u8]) -> Option<([u8; 32], u8)> {
     let mut bump_seed = [std::u8::MAX];
+    // loop with decreasing bump seed to find a valid hash which is less than bn254 Fr modulo field size
     for _ in 0..std::u8::MAX {
         {
             let mut hashed_value: [u8; 32] = hashv(&[bytes, bump_seed.as_ref()]).to_bytes();
-            // TODO: revisit truncation
-            // truncate to 31 bytes so that value is less than bn254 Fr modulo field
+            // TODO: revisit truncation (without truncation it takes up to 30 hashes to find a valid one, this is not acceptable onchain)
+            // truncate to 31 bytes so that value is less than bn254 Fr modulo field size
             hashed_value[31] = 0;
 
-            match is_smaller_than_bn254_field_size_le(&hashed_value) {
-                Ok(true) => return Some((hashed_value, bump_seed[0])),
-                Ok(false) => (),
-                Err(_) => (),
+            if let Ok(true) = is_smaller_than_bn254_field_size_le(&hashed_value) {
+                return Some((hashed_value, bump_seed[0]));
             }
         }
         bump_seed[0] -= 1;
@@ -131,14 +128,12 @@ mod tests {
     fn test_hash_to_bn254_field_size_le() {
         for _ in 0..1000_0000 {
             let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
-            if let Some((hashed_value, _)) = hash_to_bn254_field_size_le(input_bytes.as_slice()) {
-                assert!(
-                    is_smaller_than_bn254_field_size_le(&hashed_value).unwrap(),
-                    "Hashed value should be within BN254 field size"
-                );
-            } else {
-                panic!("Failed to find a hash within BN254 field size");
-            }
+            let (hashed_value, _) = hash_to_bn254_field_size_le(input_bytes.as_slice())
+                .expect("Failed to find a hash within BN254 field size");
+            assert!(
+                is_smaller_than_bn254_field_size_le(&hashed_value).unwrap(),
+                "Hashed value should be within BN254 field size"
+            );
         }
     }
 }
