@@ -194,7 +194,7 @@ describe("verifier_program", () => {
     authorityKeypair.publicKey,
     mintKeypair.publicKey,
   );
-  
+
   before("init test setup Merkle tree lookup table etc", async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
 
@@ -220,17 +220,6 @@ describe("verifier_program", () => {
       lamports: 1000 * 1e9,
       recipientPublicKey: authorityKeypair.publicKey,
     });
-    await initializeMerkleTree({
-      feePayer: ADMIN_AUTH_KEYPAIR,
-      merkleTreeKeypair: merkleTreeKeyPair,
-      connection: provider.connection,
-    });
-
-    await initializeIndexedArray({
-      feePayer: ADMIN_AUTH_KEYPAIR,
-      indexedArrayKeypair,
-      connection: provider.connection,
-    });
     const merkleTreeConfig = new MerkleTreeConfig({
       payer: ADMIN_AUTH_KEYPAIR,
       anchorProvider: provider,
@@ -238,73 +227,6 @@ describe("verifier_program", () => {
     await merkleTreeConfig.registerVerifier(
       getVerifierProgramId(IDL_PSP_COMPRESSED_TOKEN),
     );
-  });
-
-  it(" create mint", async () => {
-    const createAccountInstruction = SystemProgram.createAccount({
-      fromPubkey: authorityKeypair.publicKey,
-      lamports:
-        await provider.connection.getMinimumBalanceForRentExemption(MINT_SIZE),
-      newAccountPubkey: mintKeypair.publicKey,
-      programId: TOKEN_PROGRAM_ID,
-      space: MINT_SIZE,
-    });
-
-    const createMintInstruciton = createInitializeMint2Instruction(
-      mintKeypair.publicKey,
-      2,
-      authorityPda,
-      null,
-      TOKEN_PROGRAM_ID,
-    );
-    const transferInstruction = web3.SystemProgram.transfer({
-      fromPubkey: authorityKeypair.publicKey,
-      toPubkey: authorityPda,
-      lamports:
-        (await provider.connection.getMinimumBalanceForRentExemption(80)) +
-        (await provider.connection.getMinimumBalanceForRentExemption(165)),
-    });
-
-    const ix = await compressedTokenProgram.methods
-      .createMint()
-      .accounts({
-        feePayer: authorityKeypair.publicKey,
-        authority: authorityKeypair.publicKey,
-        mint: mintKeypair.publicKey,
-        authorityPda,
-        systemProgram: SystemProgram.programId,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        merkleTreeProgram: merkleTreeProgramId,
-        tokenAuthority: getTokenAuthorityPda(),
-        merkleTreePdaToken: MerkleTreeConfig.getSplPoolPdaToken(
-          mintKeypair.publicKey,
-        ),
-        registeredAssetPoolPda: MerkleTreeConfig.getSplPoolPda(
-          mintKeypair.publicKey,
-        ),
-        merkleTreeAuthorityPda: MerkleTreeConfig.getMerkleTreeAuthorityPda(),
-        registeredPoolTypePda: MerkleTreeConfig.getPoolTypePda(
-          new Uint8Array(32).fill(0),
-        ),
-      })
-      .signers([authorityKeypair, mintKeypair])
-      .instruction();
-    const transaction = new Transaction()
-      .add(createAccountInstruction)
-      .add(createMintInstruciton)
-      .add(transferInstruction)
-      .add(ix);
-    try {
-      const txHash = await sendAndConfirmTransaction(
-        provider.connection,
-        transaction,
-        [authorityKeypair, mintKeypair],
-        confirmConfig,
-      );
-      console.log(txHash);
-    } catch (e) {
-      console.log(e);
-    }
   });
 
   it("Mint to", async () => {
