@@ -36,7 +36,6 @@ describe("Tests", () => {
       for (let j = 0; j < utxos.length; j++) {
         const completePathZkey = zk(merkleHeights[i], utxos[j]);
         const buffer = wasm(merkleHeights[i], utxos[j]);
-        // const leaf = "1"; //hasher.poseidonHashString(["1"]);
         const leaf = hasher.poseidonHashString(["1"]);
         const merkleTree = new MerkleTree(merkleHeights[i], hasher, [leaf]);
 

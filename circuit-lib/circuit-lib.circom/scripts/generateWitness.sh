@@ -18,16 +18,11 @@ REPO_TOP_DIR=$(git rev-parse --show-toplevel)
 
 CIRCUIT_RS_DIR="$REPO_TOP_DIR/circuit-lib/circuitlib-rs"
 
-MAX_COUNT=3
+MAX_COUNT=4
 
-MERKLE_TREE_HEIGHT=22
+MERKLE_TREE_HEIGHT=26
 for ((i=1; i<=MAX_COUNT; i++)); do
   execute_commands "$MERKLE_TREE_HEIGHT" "$i" || exit
 done
 
-#
-#POWERS_OF_TAU=18
-#MERKLE_TREE_HEIGHT=30
-#for ((i=1; i<=MAX_COUNT; i++)); do
-#  execute_commands "$MERKLE_TREE_HEIGHT" "$i" "$POWERS_OF_TAU" || exit
-#done
+execute_commands 26 8 || exit
