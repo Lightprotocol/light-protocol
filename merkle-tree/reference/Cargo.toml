@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+light-bounded-vec = { path = "../bounded-vec", version = "0.1.0" }
 light-hasher = { path = "../hasher", version = "0.1.0" }
 thiserror = "1.0"

@@ -7,7 +7,7 @@ use ark_serialize::CanonicalDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexingArray;
 
-use crate::RegisteredProgram;
+use crate::{utils::constants::STATE_INDEXED_ARRAY_SIZE, RegisteredProgram};
 
 #[derive(Accounts)]
 pub struct InsertIntoIndexedArrays<'info> {
@@ -92,12 +92,12 @@ pub struct IndexedArrayAccount {
     pub owner: Pubkey,
     pub delegate: Pubkey,
     pub array: Pubkey,
-    pub indexed_array: [u8; 112008],
+    pub indexed_array: [u8; 192008],
 }
 
-pub type IndexedArray = IndexingArray<Poseidon, u16, BigInteger256, 2800>;
+pub type IndexedArray = IndexingArray<Poseidon, u16, BigInteger256, STATE_INDEXED_ARRAY_SIZE>;
 
-pub fn indexed_array_from_bytes(bytes: &[u8; 112008]) -> &IndexedArray {
+pub fn indexed_array_from_bytes(bytes: &[u8; 192008]) -> &IndexedArray {
     // SAFETY: We make sure that the size of the byte slice is equal to
     // the size of `IndexedArray`.
     // The only reason why we are doing this is that Anchor is struggling with
@@ -109,7 +109,7 @@ pub fn indexed_array_from_bytes(bytes: &[u8; 112008]) -> &IndexedArray {
     }
 }
 
-pub fn indexed_array_from_bytes_mut(bytes: &mut [u8; 112008]) -> &mut IndexedArray {
+pub fn indexed_array_from_bytes_mut(bytes: &mut [u8; 192008]) -> &mut IndexedArray {
     // SAFETY: We make sure that the size of the byte slice is equal to
     // the size of `IndexedArray`.
     // The only reason why we are doing this is that Anchor is struggling with
@@ -121,7 +121,7 @@ pub fn indexed_array_from_bytes_mut(bytes: &mut [u8; 112008]) -> &mut IndexedArr
     }
 }
 
-pub fn initialize_default_indexed_array(indexed_array: &mut [u8; 112008]) {
+pub fn initialize_default_indexed_array(indexed_array: &mut [u8; 192008]) {
     // SAFETY: We make sure that the size of the byte slice is equal to
     // the size of `IndexedArray`.
 
@@ -130,7 +130,7 @@ pub fn initialize_default_indexed_array(indexed_array: &mut [u8; 112008]) {
         // Assuming IndexedArray implements Default and Poseidon, BigInteger256 are types that fit into the generic parameters
         std::ptr::write(
             ptr,
-            IndexingArray::<Poseidon, u16, BigInteger256, 2800>::default(),
+            IndexingArray::<Poseidon, u16, BigInteger256, STATE_INDEXED_ARRAY_SIZE>::default(),
         );
     }
 }

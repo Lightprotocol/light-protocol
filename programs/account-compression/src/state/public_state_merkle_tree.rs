@@ -1,41 +1,15 @@
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
-use light_concurrent_merkle_tree::ConcurrentMerkleTree;
+use light_bounded_vec::CyclicBoundedVec;
+use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
 use light_hasher::Poseidon;
 
-use crate::utils::constants::{MERKLE_TREE_CHANGELOG, MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS};
-
-pub type StateMerkleTree =
-    ConcurrentMerkleTree<Poseidon, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS>;
-
-pub fn state_merkle_tree_from_bytes(bytes: &[u8; 90368]) -> &StateMerkleTree {
-    // SAFETY: We make sure that the size of the byte slice is equal to
-    // the size of `StateMerkleTree`.
-    // The only reason why we are doing this is that Anchor is struggling with
-    // generating IDL when `ConcurrentMerkleTree` with generics is used
-    // directly as a field.
-    unsafe {
-        let ptr = bytes.as_ptr() as *const StateMerkleTree;
-        &*ptr
-    }
-}
-
-pub fn state_merkle_tree_from_bytes_mut(bytes: &mut [u8; 90368]) -> &mut StateMerkleTree {
-    // SAFETY: We make sure that the size of the byte slice is equal to
-    // the size of `StateMerkleTree`.
-    // The only reason why we are doing this is that Anchor is struggling with
-    // generating IDL when `ConcurrentMerkleTree` with generics is used
-    // directly as a field.
-    unsafe {
-        let ptr = bytes.as_ptr() as *mut StateMerkleTree;
-        &mut *ptr
-    }
-}
+pub type StateMerkleTree<'a> = ConcurrentMerkleTree26<'a, Poseidon>;
 
 /// Concurrent state Merkle tree used for public compressed transactions.
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
-#[derive(Debug)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
 pub struct StateMerkleTreeAccount {
     /// Unique index.
     pub index: u64,
@@ -45,24 +19,126 @@ pub struct StateMerkleTreeAccount {
     pub owner: Pubkey,
     /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
     pub delegate: Pubkey,
-    // TODO: add Merkle tree parameters, in combination with a deserialize function
-    //    this will allow for flexibly sized Merkle trees, change log and roots lengths.
-    // change_log_length: u64,
-    // height: u64,
-    // roots_length: u64,
-    // canopy_depth: u64,
+
     /// Merkle tree for the transaction state.
-    pub state_merkle_tree: [u8; 90368],
+    pub state_merkle_tree_struct: [u8; 224],
+    pub state_merkle_tree_filled_subtrees: [u8; 832],
+    pub state_merkle_tree_changelog: [u8; 1220800],
+    pub state_merkle_tree_roots: [u8; 76800],
 }
 
 impl StateMerkleTreeAccount {
-    pub fn init(&mut self, index: u64) -> Result<()> {
-        self.index = index;
+    pub fn copy_merkle_tree(&self) -> Result<ConcurrentMerkleTree26<Poseidon>> {
+        let tree = unsafe {
+            ConcurrentMerkleTree26::copy_from_bytes(
+                &self.state_merkle_tree_struct,
+                &self.state_merkle_tree_filled_subtrees,
+                &self.state_merkle_tree_changelog,
+                &self.state_merkle_tree_roots,
+            )
+            .map_err(ProgramError::from)?
+        };
+        Ok(tree)
+    }
 
-        state_merkle_tree_from_bytes_mut(&mut self.state_merkle_tree)
-            .init()
-            .unwrap();
+    pub fn load_merkle_tree(&self) -> Result<&ConcurrentMerkleTree26<Poseidon>> {
+        let tree = unsafe {
+            ConcurrentMerkleTree26::<Poseidon>::from_bytes(
+                &self.state_merkle_tree_struct,
+                &self.state_merkle_tree_filled_subtrees,
+                &self.state_merkle_tree_changelog,
+                &self.state_merkle_tree_roots,
+            )
+            .map_err(ProgramError::from)?
+        };
+        Ok(tree)
+    }
 
-        Ok(())
+    pub fn load_merkle_tree_init(
+        &mut self,
+        height: usize,
+        changelog_size: usize,
+        roots_size: usize,
+    ) -> Result<&mut ConcurrentMerkleTree26<Poseidon>> {
+        let tree = unsafe {
+            ConcurrentMerkleTree26::<Poseidon>::from_bytes_init(
+                &mut self.state_merkle_tree_struct,
+                &mut self.state_merkle_tree_filled_subtrees,
+                &mut self.state_merkle_tree_changelog,
+                &mut self.state_merkle_tree_roots,
+                height,
+                changelog_size,
+                roots_size,
+            )
+            .map_err(ProgramError::from)?
+        };
+        tree.init().map_err(ProgramError::from)?;
+        Ok(tree)
+    }
+
+    pub fn load_merkle_tree_mut(&mut self) -> Result<&mut ConcurrentMerkleTree26<Poseidon>> {
+        let tree = unsafe {
+            ConcurrentMerkleTree26::<Poseidon>::from_bytes_mut(
+                &mut self.state_merkle_tree_struct,
+                &mut self.state_merkle_tree_filled_subtrees,
+                &mut self.state_merkle_tree_changelog,
+                &mut self.state_merkle_tree_roots,
+            )
+            .map_err(ProgramError::from)?
+        };
+        Ok(tree)
+    }
+
+    pub fn load_next_index(&self) -> Result<usize> {
+        let tree = unsafe {
+            ConcurrentMerkleTree26::<Poseidon>::struct_from_bytes(&self.state_merkle_tree_struct)
+                .map_err(ProgramError::from)?
+        };
+        Ok(tree.next_index)
+    }
+
+    pub fn load_roots(&self) -> Result<CyclicBoundedVec<[u8; 32]>> {
+        let tree = unsafe {
+            ConcurrentMerkleTree26::<Poseidon>::struct_from_bytes(&self.state_merkle_tree_struct)
+                .map_err(ProgramError::from)?
+        };
+        let roots = unsafe {
+            ConcurrentMerkleTree26::<Poseidon>::roots_from_bytes(
+                &self.state_merkle_tree_roots,
+                tree.current_root_index + 1,
+                tree.roots_length,
+                tree.roots_capacity,
+            )
+            .map_err(ProgramError::from)?
+        };
+        Ok(roots)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_load_merkle_tree() {
+        let mut account = StateMerkleTreeAccount {
+            index: 1,
+            next_merkle_tree: Pubkey::new_from_array([0u8; 32]),
+            owner: Pubkey::new_from_array([2u8; 32]),
+            delegate: Pubkey::new_from_array([3u8; 32]),
+            state_merkle_tree_struct: [0u8; 224],
+            state_merkle_tree_filled_subtrees: [0u8; 832],
+            state_merkle_tree_changelog: [0u8; 1220800],
+            state_merkle_tree_roots: [0u8; 76800],
+        };
+
+        let merkle_tree = account.load_merkle_tree_init(26, 1400, 2400).unwrap();
+        for _ in 0..(1 << 8) {
+            merkle_tree.append(&[4u8; 32]).unwrap();
+        }
+        let root = merkle_tree.root().unwrap();
+
+        let merkle_tree_2 = account.load_merkle_tree().unwrap();
+        assert_eq!(root, merkle_tree_2.root().unwrap())
     }
 }

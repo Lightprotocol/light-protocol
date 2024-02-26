@@ -24,12 +24,14 @@ dependencies = [
  "ark-serialize 0.4.2",
  "borsh 0.10.3",
  "bytemuck",
+ "light-bounded-vec",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-macros",
  "light-test-utils",
  "light-utils",
+ "log",
  "memoffset 0.9.0",
  "solana-client-wasm",
  "solana-program-test",
@@ -45,6 +47,7 @@ name = "account-compression-state"
 version = "0.1.0"
 dependencies = [
  "ark-ff 0.4.2",
+ "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
 ]
@@ -3232,15 +3235,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-bounded-vec"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "solana-program",
+ "thiserror",
+]
+
+[[package]]
 name = "light-concurrent-merkle-tree"
 version = "0.1.0"
 dependencies = [
  "ark-bn254 0.4.0",
  "ark-ff 0.4.2",
  "bytemuck",
+ "light-bounded-vec",
  "light-hasher",
  "light-merkle-tree-event",
  "light-merkle-tree-reference",
+ "memoffset 0.8.0",
  "rand 0.8.5",
  "solana-program",
  "spl-concurrent-merkle-tree",
@@ -3267,6 +3281,7 @@ dependencies = [
  "ark-bn254 0.4.0",
  "ark-ff 0.4.2",
  "borsh 0.10.3",
+ "light-bounded-vec",
  "light-concurrent-merkle-tree",
  "light-merkle-tree-reference",
  "light-utils",
@@ -3343,6 +3358,7 @@ dependencies = [
 name = "light-merkle-tree-reference"
 version = "0.1.0"
 dependencies = [
+ "light-bounded-vec",
  "light-hasher",
  "thiserror",
 ]
@@ -3537,6 +3553,15 @@ name = "memoffset"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
+name = "memoffset"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d61c719bcfbcf5d62b3a09efa6088de8c54bc0bfcd3ea7ae39fcc186108b8de1"
 dependencies = [
  "autocfg",
 ]
@@ -8311,10 +8336,14 @@ dependencies = [
 name = "xtask"
 version = "0.1.0"
 dependencies = [
+ "account-compression",
  "account-compression-state",
  "anyhow",
+ "ark-ff 0.4.2",
  "clap 4.4.11",
+ "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-indexed-merkle-tree",
  "light-merkle-tree-program",
  "light-utils",
  "quote",

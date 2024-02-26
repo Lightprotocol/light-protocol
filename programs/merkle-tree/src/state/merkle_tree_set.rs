@@ -1,12 +1,9 @@
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
-use light_concurrent_merkle_tree::ConcurrentMerkleTree;
+use light_concurrent_merkle_tree::ConcurrentMerkleTree22;
 use light_hasher::{Poseidon, Sha256};
 
-use crate::utils::config::{MERKLE_TREE_CHANGELOG, MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS};
-
-pub type StateMerkleTree =
-    ConcurrentMerkleTree<Poseidon, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS>;
+pub type StateMerkleTree<'a> = ConcurrentMerkleTree22<'a, Poseidon>;
 
 pub fn state_merkle_tree_from_bytes(bytes: &[u8; 90368]) -> &StateMerkleTree {
     // SAFETY: We make sure that the size of the byte slice is equal to
@@ -32,8 +29,7 @@ pub fn state_merkle_tree_from_bytes_mut(bytes: &mut [u8; 90368]) -> &mut StateMe
     }
 }
 
-pub type EventMerkleTree =
-    ConcurrentMerkleTree<Sha256, MERKLE_TREE_HEIGHT, MERKLE_TREE_CHANGELOG, MERKLE_TREE_ROOTS>;
+pub type EventMerkleTree<'a> = ConcurrentMerkleTree22<'a, Sha256>;
 
 pub fn event_merkle_tree_from_bytes(bytes: &[u8; 90368]) -> &EventMerkleTree {
     // SAFETY: We make sure that the size of the byte slice is equal to
