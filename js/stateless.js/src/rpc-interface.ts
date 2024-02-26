@@ -1,23 +1,19 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, DataSizeFilter, MemcmpFilter } from "@solana/web3.js";
 
 import {
   type as pick,
   number,
   string,
   array,
-  boolean,
   literal,
-  record,
   union,
   optional,
-  nullable,
   coerce,
   instance,
   create,
   tuple,
   unknown,
   any,
-  define,
 } from "superstruct";
 import type { Struct } from "superstruct";
 import {
@@ -25,9 +21,13 @@ import {
   decodeUtxoData,
   isValidTlvDataElement,
 } from "./state/utxo-data";
-import { PublicKey254, UtxoWithMerkleContext } from "./state";
-
-// const TlvDataElementStruct = define("TlvDataElement", isValidTlvDataElement);
+import {
+  MerkleContext,
+  MerkleContextWithMerkleProof,
+  MerkleUpdateContext,
+  PublicKey254,
+  UtxoWithMerkleContext,
+} from "./state";
 
 const PublicKeyFromString = coerce(
   instance(PublicKey),
@@ -97,24 +97,15 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
     pick({
       context: pick({
         slot: number(),
-        sequence: number(),
       }),
       value,
     })
   );
 }
 
-/** Extra contextual information for RPC responses */
-export type Context = {
-  slot: number;
-  sequence: number;
-};
-/**
- * RPC Response with extra contextual information
- */
-export type RpcResponseAndContext<T> = {
+export type WithMerkleUpdateContext<T> = {
   /** response context */
-  context: Context;
+  context: MerkleUpdateContext;
   /** response value */
   value: T;
 };
@@ -122,84 +113,104 @@ export type RpcResponseAndContext<T> = {
 /**
  * @internal
  */
-/// TODO: ensure consistency with photon
-export const UtxoWithMerkleContextResult = pick({
+/// utxo with merkle context
+export const UtxoResult = pick({
   owner: PublicKeyFromString,
   lamports: number(),
   data: TlvFromBase64EncodedUtxoData,
   address: optional(PublicKeyFromString), // account
-
   leafIndex: number(), // bigint?
-  hash: PublicKeyFromString,
   merkleTree: PublicKeyFromString,
+  slotUpdated: number(),
+  seq: number(),
 });
 
-/// These should be the actual structs returned from the rpc
-export interface UtxoRpcResponse {
-  data: Buffer;
-  owner: PublicKey;
-  blinding: string; // TODO: to leafIndex
-  slotUpdated: number;
-  seq: number;
-  address?: PublicKey;
-}
+/**
+ * @internal
+ */
+/// Same as Utxo but expects hash instead of address
+export const CompressedAccountResult = pick({
+  owner: PublicKeyFromString,
+  lamports: number(),
+  data: TlvFromBase64EncodedUtxoData,
+  hash: PublicKeyFromString,
+  leafIndex: number(),
+  merkleTree: PublicKeyFromString,
+  slotUpdated: number(),
+  seq: number(),
+});
 
-export interface UtxoProofRpcResponse {
-  merkleTree: PublicKey;
-  proof: PublicKey[];
-  slotUpdated: number;
-  seq: number;
-}
+/**
+ * @internal
+ */
+/// Same as Utxo but expects hash instead of address
+export const CompressedAccountsResult = pick({
+  owner: PublicKeyFromString,
+  address: PublicKeyFromString,
+  lamports: number(),
+  data: TlvFromBase64EncodedUtxoData,
+  hash: PublicKeyFromString,
+  leafIndex: number(),
+  merkleTree: PublicKeyFromString,
+  slotUpdated: number(),
+  seq: number(),
+});
 
-export interface CompressedAccountInfoRpcResponse {
-  data: Buffer;
-  owner: PublicKey;
-  utxoHash: string;
-  merkleTree: PublicKey;
-  slotUpdated: number;
-  seq: number;
-}
+/**
+ * @internal
+ */
+export const MerkleProofResult = pick({
+  merkleTree: PublicKeyFromString,
+  leafIndex: number(),
+  proof: array(PublicKeyFromString),
+});
 
-export interface CompressedAccountProofRpcResponse {
-  utxoHash: string;
-  merkleTree: PublicKey;
-  slotUpdated: number;
-  seq: number;
-  proof: PublicKey[];
-}
+/**
+ * @internal
+ */
+export const CompressedAccountMerkleProofResult = pick({
+  utxoHash: PublicKeyFromString,
+  merkleTree: PublicKeyFromString,
+  leafIndex: number(),
+  proof: array(PublicKeyFromString),
+});
 
-export type ProgramAccountsFilterOptions = {
-  filters: Array<{
-    memcmp: {
-      offset: number;
-      bytes: string; // base64
-    };
-  }>;
+/// TODO: add dataSizeFilter
+export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
+
+export type GetUtxoConfig = {
+  encoding?: string;
+};
+
+export type GetCompressedAccountConfig = GetUtxoConfig;
+
+export type GetCompressedAccountsConfig = {
+  encoding?: string;
+  filters?: GetCompressedAccountsFilter[];
 };
 
 export interface CompressionApiInterface {
   /** Retrieve a utxo */
   getUtxo(
     utxoHash: PublicKey254,
-    encoding?: string
-  ): Promise<RpcResponseAndContext<UtxoWithMerkleContext>>;
+    config?: GetUtxoConfig
+  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null>;
   /** Retrieve the proof for a utxo */
-  getUTXOProof(utxoHash: string): Promise<UtxoProofRpcResponse>;
+  getUtxoProof(utxoHash: PublicKey254): Promise<MerkleContext | null>;
   /** Retrieve a compressed account */
   getCompressedAccount(
     address: PublicKey,
-    encoding?: "base64"
-  ): Promise<CompressedAccountInfoRpcResponse>;
+    config?: GetCompressedAccountConfig
+  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null>;
 
   /** Retrieve a recent Merkle proof for a compressed account */
-  getCompressedProgramAccountProof(
+  getCompressedAccountProof(
     address: PublicKey
-  ): Promise<CompressedAccountProofRpcResponse>;
+  ): Promise<MerkleContextWithMerkleProof | null>;
 
   /** Retrieve all compressed accounts for a given owner */
   getCompressedAccounts( // GPA
     owner: PublicKey,
-    encoding?: "base64",
-    filters?: ProgramAccountsFilterOptions
-  ): Promise<CompressedAccountInfoRpcResponse[]>;
+    config?: GetCompressedAccountsConfig
+  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext>[]>;
 }

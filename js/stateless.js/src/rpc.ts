@@ -5,20 +5,26 @@ import {
   SolanaJSONRPCError,
 } from "@solana/web3.js";
 import {
-  CompressedAccountInfoRpcResponse,
-  CompressedAccountProofRpcResponse,
+  CompressedAccountMerkleProofResult,
+  CompressedAccountResult,
+  CompressedAccountsResult,
   CompressionApiInterface,
-  ProgramAccountsFilterOptions,
-  RpcResponseAndContext,
-  UtxoProofRpcResponse,
+  GetCompressedAccountConfig,
+  GetCompressedAccountsConfig,
+  GetUtxoConfig,
+  MerkleProofResult,
   UtxoResult,
-  UtxoRpcResponse,
-  UtxoWithMerkleContextResult,
+  WithMerkleUpdateContext,
   jsonRpcResultAndContext,
 } from "./rpc-interface";
-import { PublicKey254, Utxo, UtxoWithMerkleContext } from "./state";
-import { decodeUtxoData } from "./state/utxo-data";
-import { create, nullable } from "superstruct";
+import {
+  PublicKey254,
+  UtxoWithMerkleContext,
+  MerkleContextWithMerkleProof,
+  MerkleUpdateContext,
+} from "./state";
+import { array, create, nullable } from "superstruct";
+import { toCamelCase } from "./utils/toCamelCase";
 
 export function createRpc(
   endpointOrWeb3JsConnection: string | Connection,
@@ -33,7 +39,8 @@ export function createRpc(
 const rpcRequest = async (
   rpcEndpoint: string,
   method: string,
-  params: any[] = []
+  params: any[] = [],
+  convertToCamelCase = true
 ): Promise<any> => {
   const body = JSON.stringify({
     jsonrpc: "2.0",
@@ -52,6 +59,10 @@ const rpcRequest = async (
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
+  if (convertToCamelCase) {
+    const res = await response.json();
+    return toCamelCase(res);
+  }
   return await response.json();
 };
 
@@ -63,46 +74,187 @@ export class Rpc extends Connection implements CompressionApiInterface {
   /** Retrieve a utxo with context */
   async getUtxo(
     utxoHash: PublicKey254,
-    _encoding?: string
-  ): Promise<RpcResponseAndContext<UtxoWithMerkleContext>> {
-    const unsafeRes = rpcRequest(this.rpcEndpoint, "getUtxo", [
+    config?: GetUtxoConfig
+  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null> {
+    const unsafeRes = await rpcRequest(this.rpcEndpoint, "getUtxo", [
       utxoHash.toString(),
+      config?.encoding || "base64",
     ]);
     const res = create(
       unsafeRes,
-      jsonRpcResultAndContext(nullable(UtxoWithMerkleContextResult))
+      jsonRpcResultAndContext(nullable(UtxoResult))
     );
+
     if ("error" in res) {
       throw new SolanaJSONRPCError(
         res.error,
         `failed to get info about utxo ${utxoHash.toString()}`
       );
     }
-    return res.result;
+
+    if (res.result.value === null) {
+      return null;
+    }
+
+    const context: MerkleUpdateContext = {
+      slotUpdated: res.result.value.slotUpdated,
+      seq: res.result.value.seq,
+    };
+
+    const value: UtxoWithMerkleContext = {
+      owner: res.result.value.owner,
+      lamports: res.result.value.lamports,
+      data: res.result.value.data,
+      hash: utxoHash,
+      merkleTree: res.result.value.merkleTree,
+      leafIndex: res.result.value.leafIndex,
+      address: res.result.value.address,
+    };
+
+    return { context, value };
   }
 
   /** Retrieve the proof for a utxo */
-  async getUTXOProof(utxoHash: string): Promise<UtxoProofRpcResponse> {}
+  async getUtxoProof(
+    utxoHash: PublicKey254
+  ): Promise<MerkleContextWithMerkleProof | null> {
+    const unsafeRes = await rpcRequest(this.rpcEndpoint, "getUtxoProof", [
+      utxoHash.toString(),
+    ]);
+    const res = create(
+      unsafeRes,
+      jsonRpcResultAndContext(nullable(MerkleProofResult))
+    );
+    if ("error" in res) {
+      throw new SolanaJSONRPCError(
+        res.error,
+        `failed to get proof for utxo ${utxoHash.toString()}`
+      );
+    }
+    if (res.result.value === null) {
+      return null;
+    }
+    const value: MerkleContextWithMerkleProof = {
+      hash: utxoHash,
+      merkleTree: res.result.value.merkleTree,
+      leafIndex: res.result.value.leafIndex,
+      merkleProof: res.result.value.proof,
+    };
+    return value;
+  }
 
   /** Retrieve a compressed account */
   async getCompressedAccount(
     address: PublicKey,
-    encoding?: string
-  ): Promise<CompressedAccountInfoRpcResponse> {}
+    config?: GetCompressedAccountConfig
+  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null> {
+    const unsafeRes = await rpcRequest(
+      this.rpcEndpoint,
+      "getCompressedAccount",
+      [address.toString(), config?.encoding || "base64"]
+    );
+    const res = create(
+      unsafeRes,
+      jsonRpcResultAndContext(nullable(CompressedAccountResult))
+    );
+    if ("error" in res) {
+      throw new SolanaJSONRPCError(
+        res.error,
+        `failed to get info about utxo ${address.toString()}`
+      );
+    }
+
+    if (res.result.value === null) {
+      return null;
+    }
+
+    const context: MerkleUpdateContext = {
+      slotUpdated: res.result.value.slotUpdated,
+      seq: res.result.value.seq,
+    };
+
+    const value: UtxoWithMerkleContext = {
+      owner: res.result.value.owner,
+      lamports: res.result.value.lamports,
+      data: res.result.value.data,
+      hash: res.result.value.hash,
+      merkleTree: res.result.value.merkleTree,
+      leafIndex: res.result.value.leafIndex,
+      address,
+    };
+    return { context, value };
+  }
 
   /** Retrieve a recent Merkle proof for a compressed account */
-  getCompressedProgramAccountProof(
+  async getCompressedAccountProof(
     address: PublicKey
-  ): Promise<CompressedAccountProofRpcResponse> {}
+  ): Promise<MerkleContextWithMerkleProof | null> {
+    const unsafeRes = await rpcRequest(
+      this.rpcEndpoint,
+      "getCompressedAccountProof",
+      [address.toString()]
+    );
+    const res = create(
+      unsafeRes,
+      jsonRpcResultAndContext(nullable(CompressedAccountMerkleProofResult))
+    );
+    if ("error" in res) {
+      throw new SolanaJSONRPCError(
+        res.error,
+        `failed to get proof for compressed account ${address.toString()}`
+      );
+    }
+    if (res.result.value === null) {
+      return null;
+    }
+
+    const value = {
+      hash: res.result.value.utxoHash,
+      merkleTree: res.result.value.merkleTree,
+      leafIndex: res.result.value.leafIndex,
+      merkleProof: res.result.value.proof,
+    };
+
+    return value;
+  }
 
   /** Retrieve all compressed accounts for a given owner */
   async getCompressedAccounts(
     owner: PublicKey,
-    encoding?: "base64",
-    filters?: ProgramAccountsFilterOptions
-  ): Promise<CompressedAccountInfoRpcResponse[]> {
-    return rpcRequest(this.rpcEndpoint, "getCompressedProgramAccounts", [
-      owner.toString(),
-    ]);
+    config?: GetCompressedAccountsConfig
+  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext>[]> {
+    const unsafeRes = await rpcRequest(
+      this.rpcEndpoint,
+      "getCompressedAccounts",
+      [owner.toString(), config?.encoding || "base64", config?.filters]
+    );
+    const baseSchema = array(CompressedAccountsResult);
+    const res = create(unsafeRes, jsonRpcResultAndContext(baseSchema));
+    if ("error" in res) {
+      throw new SolanaJSONRPCError(
+        res.error,
+        `failed to get compressed accounts for owner ${owner.toString()}`
+      );
+    }
+
+    const values = res.result.value.map((value) => {
+      const context: MerkleUpdateContext = {
+        slotUpdated: value.slotUpdated,
+        seq: value.seq,
+      };
+      return {
+        context,
+        value: {
+          owner: value.owner,
+          lamports: value.lamports,
+          data: value.data,
+          hash: value.hash,
+          merkleTree: value.merkleTree,
+          leafIndex: value.leafIndex,
+          address: value.address,
+        },
+      };
+    });
+    return values;
   }
 }

@@ -1,5 +1,4 @@
 import { PublicKey } from "@solana/web3.js";
-import { bigint254 } from "./bigint254";
 import { TlvDataElement } from "./utxo-data";
 
 /// TODO: implement our own PublicKey254 type
@@ -31,16 +30,25 @@ export type MerkleContext = {
   /** 'hash' position within the Merkle tree */
   leafIndex: number;
   /** Recent valid 'hash' proof path, expiring after n slots */
-  merkleProof?: PublicKey254[];
+  // merkleProof?: PublicKey254[]; // TODO: evaluate whether to extract this to a separate type
+};
+
+export type MerkleUpdateContext = {
+  /** Slot that the utxo was appended at */
+  slotUpdated: number;
+  /** Sequence */
+  seq: number;
+};
+
+export type MerkleContextWithMerkleProof = MerkleContext & {
+  merkleProof: PublicKey254[];
 };
 
 /** Utxo with Merkle tree context */
 export type UtxoWithMerkleContext = Utxo & MerkleContext;
 
 /** Utxo with Merkle proof and context */
-export type UtxoWithMerkleProof = UtxoWithMerkleContext & {
-  merkleProof: PublicKey254[];
-};
+export type UtxoWithMerkleProof = Utxo & MerkleContextWithMerkleProof;
 
 /** Utxo object factory */
 export const createUtxo = (
@@ -62,21 +70,25 @@ export const addMerkleContextToUtxo = (
   utxo: Utxo,
   hash: PublicKey254,
   merkleTree: PublicKey,
-  leafIndex: number,
-  merkleProof?: PublicKey254[]
+  leafIndex: number
+  // slotUpdated: number,
+  // seq: number
+  // merkleProof?: PublicKey254[] // TODO evaluate whether to add as optional
 ): UtxoWithMerkleContext => ({
   ...utxo,
   leafIndex,
   hash,
   merkleTree,
-  merkleProof,
+  // slotUpdated,
+  // seq,
+  // merkleProof,
 });
 
 /** Append a merkle proof to a utxo */
 export const addMerkleProofToUtxo = (
   utxo: UtxoWithMerkleContext,
   proof: PublicKey254[]
-): UtxoWithMerkleContext => ({
+): UtxoWithMerkleProof => ({
   ...utxo,
   merkleProof: proof,
 });
