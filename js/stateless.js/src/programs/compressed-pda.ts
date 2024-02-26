@@ -8,11 +8,11 @@ import {
 import { IDL, PspCompressedPda } from "../idls/psp_compressed_pda";
 import { confirmConfig } from "../constants";
 import { useWallet } from "../wallet";
-import { UtxoWithMerkleProof } from "../state";
+import { UtxoWithMerkleContext } from "../state";
 
 export type CompressedTransferParams = {
   /** Utxos with lamports to spend as transaction inputs */
-  fromBalance: UtxoWithMerkleProof[] | UtxoWithMerkleProof;
+  fromBalance: UtxoWithMerkleContext[] | UtxoWithMerkleContext;
   /** Solana Account that will receive transferred compressed lamports as utxo  */
   toPubkey: PublicKey;
   /** Amount of compressed lamports to transfer */
@@ -23,12 +23,12 @@ export type CompressedTransferParams = {
  * Create compressed account system transaction params
  */
 export type CreateCompressedAccountParams = {
-  /**
+  /*
    * Optional utxos with lamports to spend as transaction inputs.
    * Not required unless 'lamports' are specified, as Light doesn't
    * enforce rent on the protocol level.
-   * */
-  fromBalance: UtxoWithMerkleProof[];
+   */
+  fromBalance: UtxoWithMerkleContext[] | UtxoWithMerkleContext;
   /** Public key of the created account */
   newAccountPubkey: PublicKey;
   /** Amount of lamports to transfer to the created compressed account */
@@ -69,7 +69,7 @@ export class LightSystemProgram {
   static programId: PublicKey = new PublicKey(
     // TODO: replace with actual program id
     // can add check to ensure its consistent with the idl
-    "11111111111111111111111111111111"
+    "42111111111111111111111111111111"
   );
 
   private static _program: Program<PspCompressedPda> | null = null;
@@ -132,6 +132,3 @@ export class LightSystemProgram {
 
   //   }
 }
-
-
-export function transferSol

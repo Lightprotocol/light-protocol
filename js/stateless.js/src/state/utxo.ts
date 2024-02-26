@@ -2,12 +2,17 @@ import { PublicKey } from "@solana/web3.js";
 import { bigint254 } from "./bigint254";
 import { TlvDataElement } from "./utxo-data";
 
+/// TODO: implement our own PublicKey254 type
+/// figure which fmt to use in indexer and on client side: since solana's regluar 'PublicKey' expects padding to 32.
+export type PublicKey254 = PublicKey;
+// export type PublicKey254 = bigint254;
+
 /** Describe the generic utxo details applicable to every utxo. */
 export type Utxo = {
   /** Public key of program or user that owns the utxo */
   owner: PublicKey;
   /** Optional lamports attached to the utxo */
-  lamports: bigint;
+  lamports: number | bigint;
   /** Optional data attached to the utxo */
   data: TlvDataElement[];
   /**
@@ -20,17 +25,22 @@ export type Utxo = {
 /** Context for utxos inserted into a state Merkle tree */
 export type MerkleContext = {
   /** Poseidon hash of the utxo preimage  */
-  hash: bigint254;
-  /** State Merkle tree ID */
-  merkletreeId: bigint;
+  hash: PublicKey254;
+  /** State Merkle tree */
+  merkleTree: PublicKey;
   /** 'hash' position within the Merkle tree */
-  leafIndex: bigint;
+  leafIndex: number;
   /** Recent valid 'hash' proof path, expiring after n slots */
-  merkleProof?: string[];
+  merkleProof?: PublicKey254[];
 };
 
 /** Utxo with Merkle tree context */
 export type UtxoWithMerkleContext = Utxo & MerkleContext;
+
+/** Utxo with Merkle proof and context */
+export type UtxoWithMerkleProof = UtxoWithMerkleContext & {
+  merkleProof: PublicKey254[];
+};
 
 /** Utxo object factory */
 export const createUtxo = (
@@ -50,40 +60,28 @@ export const createUtxo = (
 /** Add Merkle tree context to a utxo */
 export const addMerkleContextToUtxo = (
   utxo: Utxo,
-  hash: bigint254,
-  merkletreeId: bigint,
-  leafIndex: bigint,
-  merkleProof?: string[]
+  hash: PublicKey254,
+  merkleTree: PublicKey,
+  leafIndex: number,
+  merkleProof?: PublicKey254[]
 ): UtxoWithMerkleContext => ({
   ...utxo,
   leafIndex,
   hash,
-  merkletreeId,
+  merkleTree,
   merkleProof,
 });
 
 /** Append a merkle proof to a utxo */
 export const addMerkleProofToUtxo = (
   utxo: UtxoWithMerkleContext,
-  proof: string[]
+  proof: PublicKey254[]
 ): UtxoWithMerkleContext => ({
   ...utxo,
   merkleProof: proof,
 });
 
-/** Factory for TLV data elements */
-export const createTlvDataElement = (
-  discriminator: Uint8Array,
-  owner: PublicKey,
-  data: Uint8Array,
-  dataHash: Uint8Array
-): TlvDataElement => ({
-  discriminator,
-  owner,
-  data,
-  dataHash,
-});
-
+// TODO: move to a separate file
 /** Filter utxos with compressed lamports. Excludes PDAs and token accounts */
 export function getCompressedSolUtxos(utxos: Utxo[]): Utxo[] {
   return utxos.filter(

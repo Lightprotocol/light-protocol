@@ -1,8 +1,24 @@
-import { Connection, ConnectionConfig, PublicKey } from "@solana/web3.js";
+import {
+  Connection,
+  ConnectionConfig,
+  PublicKey,
+  SolanaJSONRPCError,
+} from "@solana/web3.js";
 import {
   CompressedAccountInfoRpcResponse,
+  CompressedAccountProofRpcResponse,
   CompressionApiInterface,
+  ProgramAccountsFilterOptions,
+  RpcResponseAndContext,
+  UtxoProofRpcResponse,
+  UtxoResult,
+  UtxoRpcResponse,
+  UtxoWithMerkleContextResult,
+  jsonRpcResultAndContext,
 } from "./rpc-interface";
+import { PublicKey254, Utxo, UtxoWithMerkleContext } from "./state";
+import { decodeUtxoData } from "./state/utxo-data";
+import { create, nullable } from "superstruct";
 
 export function createRpc(
   endpointOrWeb3JsConnection: string | Connection,
@@ -44,19 +60,49 @@ export class Rpc extends Connection implements CompressionApiInterface {
     super(endpoint, config);
   }
 
-  async getCompressedAccountInfo(
-    address: PublicKey
-  ): Promise<CompressedAccountInfoRpcResponse> {
-    return rpcRequest(this.rpcEndpoint, "getCompressedAccountInfo", [
-      address.toString(),
+  /** Retrieve a utxo with context */
+  async getUtxo(
+    utxoHash: PublicKey254,
+    _encoding?: string
+  ): Promise<RpcResponseAndContext<UtxoWithMerkleContext>> {
+    const unsafeRes = rpcRequest(this.rpcEndpoint, "getUtxo", [
+      utxoHash.toString(),
     ]);
+    const res = create(
+      unsafeRes,
+      jsonRpcResultAndContext(nullable(UtxoWithMerkleContextResult))
+    );
+    if ("error" in res) {
+      throw new SolanaJSONRPCError(
+        res.error,
+        `failed to get info about utxo ${utxoHash.toString()}`
+      );
+    }
+    return res.result;
   }
 
-  async getCompressedProgramAccounts(
-    programId: PublicKey
+  /** Retrieve the proof for a utxo */
+  async getUTXOProof(utxoHash: string): Promise<UtxoProofRpcResponse> {}
+
+  /** Retrieve a compressed account */
+  async getCompressedAccount(
+    address: PublicKey,
+    encoding?: string
+  ): Promise<CompressedAccountInfoRpcResponse> {}
+
+  /** Retrieve a recent Merkle proof for a compressed account */
+  getCompressedProgramAccountProof(
+    address: PublicKey
+  ): Promise<CompressedAccountProofRpcResponse> {}
+
+  /** Retrieve all compressed accounts for a given owner */
+  async getCompressedAccounts(
+    owner: PublicKey,
+    encoding?: "base64",
+    filters?: ProgramAccountsFilterOptions
   ): Promise<CompressedAccountInfoRpcResponse[]> {
     return rpcRequest(this.rpcEndpoint, "getCompressedProgramAccounts", [
-      programId.toString(),
+      owner.toString(),
     ]);
   }
 }
