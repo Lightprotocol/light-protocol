@@ -56,14 +56,12 @@ pub fn spawn_gnark_server() -> Child {
 }
 
 pub fn kill_gnark_server(gnark: &mut Child) {
-    println!("kill gnark!");
     Command::new("sh")
         .arg("-c")
         .arg("killall light-prover")
         .spawn()
         .unwrap();
     gnark.kill().unwrap();
-    println!("gnark killed!");
 }
 
 pub async fn health_check() {
