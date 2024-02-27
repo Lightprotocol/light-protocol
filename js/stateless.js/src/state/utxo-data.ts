@@ -42,7 +42,7 @@ export const isValidTlvDataElement = (value: any): value is TlvDataElement => {
   if (!value) return false;
   if (typeof value !== "object") return false;
   if (!(value.discriminator instanceof Uint8Array)) return false;
-  if (!(value.owner instanceof PublicKey)) return false; // Assuming PublicKey is a class or constructor function
+  if (!(value.owner instanceof PublicKey)) return false;
   if (!(value.data instanceof Uint8Array)) return false;
   if (!(value.dataHash instanceof Uint8Array)) return false;
   return true;

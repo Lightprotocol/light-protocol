@@ -1,10 +1,9 @@
 import { PublicKey } from "@solana/web3.js";
 import { TlvDataElement } from "./utxo-data";
 
-/// TODO: implement our own PublicKey254 type
+/// TODO: implement PublicKey254 type based on bigint254
 /// figure which fmt to use in indexer and on client side: since solana's regluar 'PublicKey' expects padding to 32.
 export type PublicKey254 = PublicKey;
-// export type PublicKey254 = bigint254;
 
 /** Describe the generic utxo details applicable to every utxo. */
 export type Utxo = {
@@ -29,8 +28,6 @@ export type MerkleContext = {
   merkleTree: PublicKey;
   /** 'hash' position within the Merkle tree */
   leafIndex: number;
-  /** Recent valid 'hash' proof path, expiring after n slots */
-  // merkleProof?: PublicKey254[]; // TODO: evaluate whether to extract this to a separate type
 };
 
 export type MerkleUpdateContext = {
@@ -41,6 +38,7 @@ export type MerkleUpdateContext = {
 };
 
 export type MerkleContextWithMerkleProof = MerkleContext & {
+  /** Recent valid 'hash' proof path, expires after n slots */
   merkleProof: PublicKey254[];
 };
 
@@ -71,17 +69,12 @@ export const addMerkleContextToUtxo = (
   hash: PublicKey254,
   merkleTree: PublicKey,
   leafIndex: number
-  // slotUpdated: number,
-  // seq: number
   // merkleProof?: PublicKey254[] // TODO evaluate whether to add as optional
 ): UtxoWithMerkleContext => ({
   ...utxo,
   leafIndex,
   hash,
   merkleTree,
-  // slotUpdated,
-  // seq,
-  // merkleProof,
 });
 
 /** Append a merkle proof to a utxo */

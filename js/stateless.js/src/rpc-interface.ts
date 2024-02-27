@@ -29,14 +29,44 @@ import {
   UtxoWithMerkleContext,
 } from "./state";
 
+/// TODO: add dataSizeFilter
+export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
+
+export type GetUtxoConfig = {
+  encoding?: string;
+};
+
+export type GetCompressedAccountConfig = GetUtxoConfig;
+
+export type GetCompressedAccountsConfig = {
+  encoding?: string;
+  filters?: GetCompressedAccountsFilter[];
+};
+
+export type WithMerkleUpdateContext<T> = {
+  /** response context */
+  context: MerkleUpdateContext;
+  /** response value */
+  value: T;
+};
+
+/**
+ * @internal
+ */
 const PublicKeyFromString = coerce(
   instance(PublicKey),
   string(),
   (value) => new PublicKey(value)
 );
 
+/**
+ * @internal
+ */
 const Base64EncodedUtxoDataResult = tuple([string(), literal("base64")]);
 
+/**
+ * @internal
+ */
 const TlvFromBase64EncodedUtxoData = coerce(
   instance(Array<TlvDataElement>),
   Base64EncodedUtxoDataResult,
@@ -72,6 +102,9 @@ export function createRpcResult<T, U>(result: Struct<T, U>) {
   ]);
 }
 
+/**
+ * @internal
+ */
 const UnknownRpcResult = createRpcResult(unknown());
 
 /**
@@ -89,6 +122,7 @@ export function jsonRpcResult<T, U>(schema: Struct<T, U>) {
     }
   });
 }
+
 /**
  * @internal
  */
@@ -103,17 +137,10 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
   );
 }
 
-export type WithMerkleUpdateContext<T> = {
-  /** response context */
-  context: MerkleUpdateContext;
-  /** response value */
-  value: T;
-};
-
 /**
  * @internal
  */
-/// utxo with merkle context
+/// Utxo with merkle context
 export const UtxoResult = pick({
   owner: PublicKeyFromString,
   lamports: number(),
@@ -128,7 +155,6 @@ export const UtxoResult = pick({
 /**
  * @internal
  */
-/// Same as Utxo but expects hash instead of address
 export const CompressedAccountResult = pick({
   owner: PublicKeyFromString,
   lamports: number(),
@@ -143,7 +169,6 @@ export const CompressedAccountResult = pick({
 /**
  * @internal
  */
-/// Same as Utxo but expects hash instead of address
 export const CompressedAccountsResult = pick({
   owner: PublicKeyFromString,
   address: PublicKeyFromString,
@@ -175,20 +200,6 @@ export const CompressedAccountMerkleProofResult = pick({
   proof: array(PublicKeyFromString),
 });
 
-/// TODO: add dataSizeFilter
-export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
-
-export type GetUtxoConfig = {
-  encoding?: string;
-};
-
-export type GetCompressedAccountConfig = GetUtxoConfig;
-
-export type GetCompressedAccountsConfig = {
-  encoding?: string;
-  filters?: GetCompressedAccountsFilter[];
-};
-
 export interface CompressionApiInterface {
   /** Retrieve a utxo */
   getUtxo(
@@ -202,12 +213,10 @@ export interface CompressionApiInterface {
     address: PublicKey,
     config?: GetCompressedAccountConfig
   ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null>;
-
   /** Retrieve a recent Merkle proof for a compressed account */
   getCompressedAccountProof(
     address: PublicKey
   ): Promise<MerkleContextWithMerkleProof | null>;
-
   /** Retrieve all compressed accounts for a given owner */
   getCompressedAccounts( // GPA
     owner: PublicKey,
