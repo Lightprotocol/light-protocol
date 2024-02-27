@@ -1,3 +1,6 @@
+use env_logger::Builder;
+use log::LevelFilter;
+
 pub fn change_endianness(bytes: &[u8]) -> Vec<u8> {
     let mut vec = Vec::new();
     for b in bytes.chunks(32) {
@@ -12,4 +15,10 @@ pub fn convert_endianness_128(bytes: &[u8]) -> Vec<u8> {
         .chunks(64)
         .flat_map(|b| b.iter().copied().rev().collect::<Vec<u8>>())
         .collect::<Vec<u8>>()
+}
+
+pub fn init_logger() {
+    let _ = Builder::new()
+        .filter_module("circuitlib_rs", LevelFilter::Info)
+        .try_init();
 }
