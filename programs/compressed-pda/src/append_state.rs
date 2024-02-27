@@ -13,8 +13,8 @@ pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
 ) -> anchor_lang::Result<()> {
     let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
-    let mut out_utxo_index: Vec<u32> = Vec::new();
-    let mut leaves: Vec<[u8; 32]> = Vec::new();
+    let mut out_utxo_index: Vec<u32> = Vec::with_capacity(inputs.out_utxos.len());
+    let mut leaves: Vec<[u8; 32]> = Vec::with_capacity(inputs.out_utxos.len());
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
     for (j, (out_utxo, i)) in inputs.out_utxos.iter().enumerate() {
         let index = merkle_tree_indices.get_mut(&ctx.remaining_accounts[*i as usize].key());

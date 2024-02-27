@@ -31,7 +31,7 @@ impl SerializedUtxos {
         accounts: &[Pubkey],
         merkle_tree_accounts: &[Pubkey],
     ) -> Result<Vec<(Utxo, u8, u8)>> {
-        let mut in_utxos = Vec::new();
+        let mut in_utxos = Vec::with_capacity(self.in_utxos.len());
         for (i, (in_utxo, index_mt_account, index_nullifier_array_account)) in
             self.in_utxos.iter().enumerate()
         {
@@ -62,7 +62,7 @@ impl SerializedUtxos {
         &self,
         accounts: &[Pubkey],
     ) -> Result<Vec<(OutUtxo, u8)>> {
-        let mut out_utxos = Vec::new();
+        let mut out_utxos = Vec::with_capacity(self.out_utxos.len());
         for (out_utxo, index_mt_account) in self.out_utxos.iter() {
             let owner = if (out_utxo.owner as usize) < accounts.len() {
                 accounts[out_utxo.owner as usize]
@@ -105,7 +105,7 @@ impl SerializedUtxos {
         if utxos_to_add.len() != nullifier_array_pubkeys.len() {
             return Err(ErrorCode::NullifierArrayPubkeysMissmatch.into());
         }
-        let mut utxos = Vec::new();
+        let mut utxos = Vec::with_capacity(utxos_to_add.len());
         for (i, utxo) in utxos_to_add.iter().enumerate() {
             // Determine the owner index
             let owner_index = match accounts.iter().position(|&p| p == utxo.owner) {
@@ -177,7 +177,7 @@ impl SerializedUtxos {
         remaining_accounts_pubkeys: &[Pubkey],
         out_utxo_merkle_tree_pubkeys: &[Pubkey],
     ) -> Result<()> {
-        let mut utxos = Vec::new();
+        let mut utxos = Vec::with_capacity(utxos_to_add.len());
         for utxo in utxos_to_add.iter() {
             // Determine the owner index
             let owner_index = match accounts.iter().position(|&p| p == utxo.owner) {

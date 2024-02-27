@@ -7,7 +7,7 @@ pub struct TlvSerializable {
 
 impl TlvSerializable {
     pub fn tlv_from_serializable_tlv(&self, accounts: &[Pubkey]) -> Tlv {
-        let mut tlv_elements = Vec::new();
+        let mut tlv_elements = Vec::with_capacity(self.tlv_elements.len());
         for tlv_element in &self.tlv_elements {
             let owner = accounts[tlv_element.owner as usize];
             tlv_elements.push(TlvDataElement {
