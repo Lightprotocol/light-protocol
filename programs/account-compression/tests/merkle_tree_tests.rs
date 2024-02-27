@@ -187,7 +187,8 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
     let context_keypair = context.payer.insecure_clone();
     let context_pubkey = context.payer.pubkey();
 
-    let (merkle_tree_keypair, account_create_ix) = create_account_instruction(
+    let merkle_tree_keypair = Keypair::new();
+    let account_create_ix = create_account_instruction(
         &context.payer.pubkey(),
         StateMerkleTreeAccount::LEN,
         context
@@ -197,6 +198,7 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
             .unwrap()
             .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
         &ID,
+        Some(&merkle_tree_keypair),
     );
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
 
@@ -324,7 +326,9 @@ async fn test_init_and_insert_into_indexed_array() {
     let context_keypair = context.payer.insecure_clone();
     let context_pubkey = context_keypair.pubkey();
 
-    let (indexed_array_keypair, account_create_ix) = create_account_instruction(
+    let indexed_array_keypair = Keypair::new();
+
+    let account_create_ix = create_account_instruction(
         &context_pubkey,
         account_compression::IndexedArrayAccount::LEN,
         context
@@ -334,6 +338,7 @@ async fn test_init_and_insert_into_indexed_array() {
             .unwrap()
             .minimum_balance(account_compression::IndexedArrayAccount::LEN),
         &ID,
+        Some(&indexed_array_keypair),
     );
     let indexed_array_pubkey = indexed_array_keypair.pubkey();
 

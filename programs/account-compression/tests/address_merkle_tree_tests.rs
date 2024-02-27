@@ -53,7 +53,8 @@ fn initialize_address_queue_ix(context: &ProgramTestContext, pubkey: Pubkey) -> 
 }
 
 async fn create_and_initialize_address_queue(context: &mut ProgramTestContext) -> Keypair {
-    let (address_queue_keypair, account_create_ix) = create_account_instruction(
+    let address_queue_keypair = Keypair::new();
+    let account_create_ix = create_account_instruction(
         &context.payer.pubkey(),
         AddressQueueAccount::LEN,
         context
@@ -63,6 +64,7 @@ async fn create_and_initialize_address_queue(context: &mut ProgramTestContext) -
             .unwrap()
             .minimum_balance(account_compression::AddressQueueAccount::LEN),
         &ID,
+        Some(&address_queue_keypair),
     );
     // Instruction: initialize address queue.
     let initialize_ix = initialize_address_queue_ix(context, address_queue_keypair.pubkey());
@@ -96,7 +98,8 @@ fn initialize_address_merkle_tree_ix(context: &ProgramTestContext, pubkey: Pubke
 }
 
 async fn create_and_initialize_address_merkle_tree(context: &mut ProgramTestContext) -> Keypair {
-    let (address_merkle_tree_keypair, account_create_ix) = create_account_instruction(
+    let address_merkle_tree_keypair = Keypair::new();
+    let account_create_ix = create_account_instruction(
         &context.payer.pubkey(),
         AddressMerkleTreeAccount::LEN,
         context
@@ -106,6 +109,7 @@ async fn create_and_initialize_address_merkle_tree(context: &mut ProgramTestCont
             .unwrap()
             .minimum_balance(account_compression::AddressMerkleTreeAccount::LEN),
         &ID,
+        Some(&address_merkle_tree_keypair),
     );
     // Instruction: initialize address Merkle tree.
     let initialize_ix =

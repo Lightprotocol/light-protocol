@@ -93,9 +93,11 @@ pub fn create_account_instruction(
     size: usize,
     rent: u64,
     id: &Pubkey,
-) -> (Keypair, Instruction) {
-    let keypair = Keypair::new();
-    let instruction =
-        system_instruction::create_account(payer, &keypair.pubkey(), rent, size as u64, id);
-    (keypair, instruction)
+    keypair: Option<&Keypair>,
+) -> Instruction {
+    let keypair = match keypair {
+        Some(keypair) => keypair.insecure_clone(),
+        None => Keypair::new(),
+    };
+    system_instruction::create_account(payer, &keypair.pubkey(), rent, size as u64, id)
 }
