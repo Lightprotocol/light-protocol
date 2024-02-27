@@ -16,22 +16,12 @@ export type PspCompressedPda = {
           "isSigner": true
         },
         {
-          "name": "authorityPda",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "registeredProgramPda",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "noopProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -72,22 +62,12 @@ export type PspCompressedPda = {
           "isSigner": true
         },
         {
-          "name": "authorityPda",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "registeredProgramPda",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "noopProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -174,7 +154,7 @@ export type PspCompressedPda = {
           {
             "name": "rootIndices",
             "type": {
-              "vec": "u64"
+              "vec": "u16"
             }
           },
           {
@@ -187,7 +167,7 @@ export type PspCompressedPda = {
             "name": "inUtxos",
             "type": {
               "vec": {
-                "defined": "Utxo"
+                "defined": "(Utxo,u8,u8)"
               }
             }
           },
@@ -195,21 +175,9 @@ export type PspCompressedPda = {
             "name": "outUtxos",
             "type": {
               "vec": {
-                "defined": "OutUtxo"
+                "defined": "(OutUtxo,u8)"
               }
             }
-          },
-          {
-            "name": "inUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "inUtxoNullifierQueueRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "outUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
           }
         ]
       }
@@ -255,7 +223,7 @@ export type PspCompressedPda = {
           {
             "name": "rootIndices",
             "type": {
-              "vec": "u64"
+              "vec": "u16"
             }
           },
           {
@@ -269,18 +237,6 @@ export type PspCompressedPda = {
             "type": {
               "defined": "SerializedUtxos"
             }
-          },
-          {
-            "name": "inUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "inUtxoNullifierQueueRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "outUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
           }
         ]
       }
@@ -424,42 +380,6 @@ export type PspCompressedPda = {
       }
     },
     {
-      "name": "SerializedUtxos",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pubkeyArray",
-            "type": {
-              "vec": "publicKey"
-            }
-          },
-          {
-            "name": "u64Array",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "InUtxoSerializable"
-              }
-            }
-          },
-          {
-            "name": "outUtxos",
-            "type": {
-              "vec": {
-                "defined": "OutUtxoSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "TlvSerializable",
       "type": {
         "kind": "struct",
@@ -589,6 +509,42 @@ export type PspCompressedPda = {
           }
         ]
       }
+    },
+    {
+      "name": "SerializedUtxos",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkeyArray",
+            "type": {
+              "vec": "publicKey"
+            }
+          },
+          {
+            "name": "u64Array",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "(InUtxoSerializable,u8,u8)"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "(OutUtxoSerializable,u8)"
+              }
+            }
+          }
+        ]
+      }
     }
   ],
   "errors": [
@@ -596,6 +552,51 @@ export type PspCompressedPda = {
       "code": 6000,
       "name": "SumCheckFailed",
       "msg": "Sum check failed"
+    },
+    {
+      "code": 6001,
+      "name": "SignerCheckFailed",
+      "msg": "Signer check failed"
+    },
+    {
+      "code": 6002,
+      "name": "CpiSignerCheckFailed",
+      "msg": "Cpi signer check failed"
+    },
+    {
+      "code": 6003,
+      "name": "ComputeInputSumFailed",
+      "msg": "Computing input sum failed."
+    },
+    {
+      "code": 6004,
+      "name": "ComputeOutputSumFailed",
+      "msg": "Computing output sum failed."
+    },
+    {
+      "code": 6005,
+      "name": "ComputeRpcSumFailed",
+      "msg": "Computing rpc sum failed."
+    },
+    {
+      "code": 6006,
+      "name": "InUtxosAlreadyAdded",
+      "msg": "InUtxosAlreadyAdded"
+    },
+    {
+      "code": 6007,
+      "name": "NumberOfLeavesMissmatch",
+      "msg": "NumberOfLeavesMissmatch"
+    },
+    {
+      "code": 6008,
+      "name": "MerkleTreePubkeysMissmatch",
+      "msg": "MerkleTreePubkeysMissmatch"
+    },
+    {
+      "code": 6009,
+      "name": "NullifierArrayPubkeysMissmatch",
+      "msg": "NullifierArrayPubkeysMissmatch"
     }
   ]
 };
@@ -618,22 +619,12 @@ export const IDL: PspCompressedPda = {
           "isSigner": true
         },
         {
-          "name": "authorityPda",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "registeredProgramPda",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "noopProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -674,22 +665,12 @@ export const IDL: PspCompressedPda = {
           "isSigner": true
         },
         {
-          "name": "authorityPda",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "registeredProgramPda",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "noopProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -776,7 +757,7 @@ export const IDL: PspCompressedPda = {
           {
             "name": "rootIndices",
             "type": {
-              "vec": "u64"
+              "vec": "u16"
             }
           },
           {
@@ -789,7 +770,7 @@ export const IDL: PspCompressedPda = {
             "name": "inUtxos",
             "type": {
               "vec": {
-                "defined": "Utxo"
+                "defined": "(Utxo,u8,u8)"
               }
             }
           },
@@ -797,21 +778,9 @@ export const IDL: PspCompressedPda = {
             "name": "outUtxos",
             "type": {
               "vec": {
-                "defined": "OutUtxo"
+                "defined": "(OutUtxo,u8)"
               }
             }
-          },
-          {
-            "name": "inUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "inUtxoNullifierQueueRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "outUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
           }
         ]
       }
@@ -857,7 +826,7 @@ export const IDL: PspCompressedPda = {
           {
             "name": "rootIndices",
             "type": {
-              "vec": "u64"
+              "vec": "u16"
             }
           },
           {
@@ -871,18 +840,6 @@ export const IDL: PspCompressedPda = {
             "type": {
               "defined": "SerializedUtxos"
             }
-          },
-          {
-            "name": "inUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "inUtxoNullifierQueueRemainingAccountIndex",
-            "type": "bytes"
-          },
-          {
-            "name": "outUtxoMerkleTreeRemainingAccountIndex",
-            "type": "bytes"
           }
         ]
       }
@@ -1026,42 +983,6 @@ export const IDL: PspCompressedPda = {
       }
     },
     {
-      "name": "SerializedUtxos",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pubkeyArray",
-            "type": {
-              "vec": "publicKey"
-            }
-          },
-          {
-            "name": "u64Array",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "inUtxos",
-            "type": {
-              "vec": {
-                "defined": "InUtxoSerializable"
-              }
-            }
-          },
-          {
-            "name": "outUtxos",
-            "type": {
-              "vec": {
-                "defined": "OutUtxoSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "TlvSerializable",
       "type": {
         "kind": "struct",
@@ -1191,6 +1112,42 @@ export const IDL: PspCompressedPda = {
           }
         ]
       }
+    },
+    {
+      "name": "SerializedUtxos",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkeyArray",
+            "type": {
+              "vec": "publicKey"
+            }
+          },
+          {
+            "name": "u64Array",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "(InUtxoSerializable,u8,u8)"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "(OutUtxoSerializable,u8)"
+              }
+            }
+          }
+        ]
+      }
     }
   ],
   "errors": [
@@ -1198,6 +1155,51 @@ export const IDL: PspCompressedPda = {
       "code": 6000,
       "name": "SumCheckFailed",
       "msg": "Sum check failed"
+    },
+    {
+      "code": 6001,
+      "name": "SignerCheckFailed",
+      "msg": "Signer check failed"
+    },
+    {
+      "code": 6002,
+      "name": "CpiSignerCheckFailed",
+      "msg": "Cpi signer check failed"
+    },
+    {
+      "code": 6003,
+      "name": "ComputeInputSumFailed",
+      "msg": "Computing input sum failed."
+    },
+    {
+      "code": 6004,
+      "name": "ComputeOutputSumFailed",
+      "msg": "Computing output sum failed."
+    },
+    {
+      "code": 6005,
+      "name": "ComputeRpcSumFailed",
+      "msg": "Computing rpc sum failed."
+    },
+    {
+      "code": 6006,
+      "name": "InUtxosAlreadyAdded",
+      "msg": "InUtxosAlreadyAdded"
+    },
+    {
+      "code": 6007,
+      "name": "NumberOfLeavesMissmatch",
+      "msg": "NumberOfLeavesMissmatch"
+    },
+    {
+      "code": 6008,
+      "name": "MerkleTreePubkeysMissmatch",
+      "msg": "MerkleTreePubkeysMissmatch"
+    },
+    {
+      "code": 6009,
+      "name": "NullifierArrayPubkeysMissmatch",
+      "msg": "NullifierArrayPubkeysMissmatch"
     }
   ]
 };

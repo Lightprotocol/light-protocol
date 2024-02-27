@@ -404,12 +404,6 @@ export type AccountCompression = {
               ]
             }
           }
-        },
-        {
-          "name": "lowElementIndexes",
-          "type": {
-            "vec": "u16"
-          }
         }
       ]
     }
@@ -1161,12 +1155,6 @@ export const IDL: AccountCompression = {
                 32
               ]
             }
-          }
-        },
-        {
-          "name": "lowElementIndexes",
-          "type": {
-            "vec": "u16"
           }
         }
       ]

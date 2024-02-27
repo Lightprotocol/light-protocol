@@ -77,8 +77,8 @@ pub fn hash_to_bn254_field_size_le(bytes: &[u8]) -> Option<([u8; 32], u8)> {
             let mut hashed_value: [u8; 32] = hashv(&[bytes, bump_seed.as_ref()]).to_bytes();
             // TODO: revisit truncation (without truncation it takes up to 30 hashes to find a valid one, this is not acceptable onchain)
             // truncate to 31 bytes so that value is less than bn254 Fr modulo field size
-            hashed_value[31] = 0;
-
+            hashed_value[0] = 0;
+            hashed_value[1] = 0;
             if let Ok(true) = is_smaller_than_bn254_field_size_le(&hashed_value) {
                 return Some((hashed_value, bump_seed[0]));
             }

@@ -13,3 +13,6 @@ npx nx run-many --target=build --all \
   --exclude cli \
   --exclude web-wallet \
   --exclude zk.js
+
+wget https://github.com/Lightprotocol/light-protocol/releases/download/spl-noop-v0.2.0/spl_noop.so
+mv spl_noop.so ./target/deploy/spl_noop.so

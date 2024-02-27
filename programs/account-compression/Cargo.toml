@@ -37,6 +37,8 @@ ahash = "=0.8.6"
 
 ark-serialize = "^0.4.0"
 
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+solana-sdk = "1.17.4"
 
 [dev-dependencies]
 memoffset = "0.9"

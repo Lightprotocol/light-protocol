@@ -123,9 +123,8 @@ pub mod account_compression {
     pub fn insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoIndexedArrays<'info>>,
         elements: Vec<[u8; 32]>,
-        low_element_indexes: Vec<u16>,
     ) -> Result<()> {
-        process_insert_into_indexed_arrays(ctx, &elements, &low_element_indexes)
+        process_insert_into_indexed_arrays(ctx, &elements)
     }
 
     // TODO: insert into indexed array just insert into one array instead of possibly multiple

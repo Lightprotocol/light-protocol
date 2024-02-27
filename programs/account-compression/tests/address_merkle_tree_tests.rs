@@ -20,14 +20,14 @@ use light_indexed_merkle_tree::{
     array::{IndexingArray, RawIndexingElement},
     reference,
 };
-use light_test_utils::AccountZeroCopy;
+use light_test_utils::{create_account_instruction, AccountZeroCopy};
 use light_utils::bigint::bigint_to_be_bytes;
 use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
-    system_instruction, system_program,
+    system_program,
     transaction::Transaction,
 };
 use thiserror::Error;
@@ -36,26 +36,6 @@ use thiserror::Error;
 enum RelayerUpdateError {
     #[error("Updating Merkle tree failed: {0:?}")]
     MerkleTreeUpdate(Vec<BanksClientError>),
-}
-
-async fn create_account_ix(
-    context: &mut ProgramTestContext,
-    size: usize,
-) -> (Keypair, Instruction) {
-    let keypair = Keypair::new();
-    let instruction = system_instruction::create_account(
-        &context.payer.pubkey(),
-        &keypair.pubkey(),
-        context
-            .banks_client
-            .get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(size),
-        size as u64,
-        &ID,
-    );
-    (keypair, instruction)
 }
 
 fn initialize_address_queue_ix(context: &ProgramTestContext, pubkey: Pubkey) -> Instruction {
@@ -73,8 +53,17 @@ fn initialize_address_queue_ix(context: &ProgramTestContext, pubkey: Pubkey) -> 
 }
 
 async fn create_and_initialize_address_queue(context: &mut ProgramTestContext) -> Keypair {
-    let (address_queue_keypair, account_create_ix) =
-        create_account_ix(context, AddressQueueAccount::LEN).await;
+    let (address_queue_keypair, account_create_ix) = create_account_instruction(
+        &context.payer.pubkey(),
+        AddressQueueAccount::LEN,
+        context
+            .banks_client
+            .get_rent()
+            .await
+            .unwrap()
+            .minimum_balance(account_compression::AddressQueueAccount::LEN),
+        &ID,
+    );
     // Instruction: initialize address queue.
     let initialize_ix = initialize_address_queue_ix(context, address_queue_keypair.pubkey());
     // Transaction: initialize address queue.
@@ -107,8 +96,17 @@ fn initialize_address_merkle_tree_ix(context: &ProgramTestContext, pubkey: Pubke
 }
 
 async fn create_and_initialize_address_merkle_tree(context: &mut ProgramTestContext) -> Keypair {
-    let (address_merkle_tree_keypair, account_create_ix) =
-        create_account_ix(context, AddressMerkleTreeAccount::LEN).await;
+    let (address_merkle_tree_keypair, account_create_ix) = create_account_instruction(
+        &context.payer.pubkey(),
+        AddressMerkleTreeAccount::LEN,
+        context
+            .banks_client
+            .get_rent()
+            .await
+            .unwrap()
+            .minimum_balance(account_compression::AddressMerkleTreeAccount::LEN),
+        &ID,
+    );
     // Instruction: initialize address Merkle tree.
     let initialize_ix =
         initialize_address_merkle_tree_ix(context, address_merkle_tree_keypair.pubkey());

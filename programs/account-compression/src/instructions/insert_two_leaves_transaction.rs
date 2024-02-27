@@ -96,3 +96,61 @@ pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 
     Ok(())
 }
+
+#[cfg(not(target_os = "solana"))]
+pub mod sdk {
+    use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+    use solana_sdk::{
+        instruction::{AccountMeta, Instruction},
+        pubkey::Pubkey,
+    };
+
+    pub fn create_initialize_merkle_tree_instruction(
+        payer: Pubkey,
+        merkle_tree_pubkey: Pubkey,
+    ) -> Instruction {
+        let instruction_data: crate::instruction::InitializeConcurrentMerkleTree =
+            crate::instruction::InitializeConcurrentMerkleTree {
+                index: 1u64,
+                owner: payer,
+                delegate: None,
+            };
+        Instruction {
+            program_id: crate::ID,
+            accounts: vec![
+                AccountMeta::new(payer, true),
+                AccountMeta::new(merkle_tree_pubkey, false),
+                AccountMeta::new_readonly(system_program::ID, false),
+            ],
+            data: instruction_data.data(),
+        }
+    }
+
+    pub fn create_insert_leaves_instruction(
+        leaves: Vec<[u8; 32]>,
+        payer: Pubkey,
+        merkle_tree_pubkeys: Vec<Pubkey>,
+    ) -> Instruction {
+        let instruction_data = crate::instruction::InsertLeavesIntoMerkleTrees { leaves };
+
+        let accounts = crate::accounts::InsertTwoLeavesParallel {
+            authority: payer,
+            registered_program_pda: None,
+            log_wrapper: crate::state::change_log_event::NOOP_PROGRAM_ID,
+        };
+        let merkle_tree_account_metas = merkle_tree_pubkeys
+            .iter()
+            .map(|pubkey| AccountMeta::new(*pubkey, false))
+            .collect::<Vec<AccountMeta>>();
+
+        Instruction {
+            program_id: crate::ID,
+            accounts: [
+                accounts.to_account_metas(Some(true)),
+                merkle_tree_account_metas,
+            ]
+            .concat(),
+            data: instruction_data.data(),
+        }
+    }
+}
