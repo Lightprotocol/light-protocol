@@ -16,8 +16,6 @@ Developers can use Light to build applications such as
 - on-chain games with encrypted game state
 - zk-identity
 
-
-
 ## ZK Anchor
 
 ZK Anchor is what we call the collection of developer tools for writing Private Solana Programs (PSPs). 
@@ -34,6 +32,20 @@ To get started, a good PSP reference implementation is available [here](https://
 
 Otherwise, to work with this Monorepo, read below: 
 
+## Git Large File Storage (LFS)
+This project uses Git LFS to manage and version large files. Before you can clone the project and fetch all the necessary data, you need to install and configure Git LFS on your machine.
+
+If you already have Git installed, run the following command: 
+```
+git lfs install
+```
+
+To verify that Git LFS is properly configured, use: 
+```
+git lfs env
+```
+
+The output should show that Git LFS is installed and configured correctly. After setting up Git LFS, you can proceed to clone the project.
 
 ## Development environment
 
@@ -95,6 +107,10 @@ If you still want to setup dependencies manually, these are the requirements:
 * [Rust installed with Rustup](https://rustup.rs/), stable and nightly toolchains
 * [NodeJS](https://nodejs.org/) [(16.16 LTS)](https://nodejs.org/en/blog/release/v16.16.0)
 * [Anchor](https://www.anchor-lang.com/) [(0.26.0)](https://crates.io/crates/anchor-cli/0.26.0)
+
+## Initializing Submodules
+Before building, make sure to initialize the submodules:
+```git submodule update --init```
 
 ## Building
 
