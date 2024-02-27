@@ -1,0 +1,13 @@
+.DS_Store
+.idea
+out
+light-prover
+light-prover.exe
+formal-verification/build
+formal-verification/.cache
+formal-verification/lean-packages/*
+formal-verification/lake-packages/*
+!formal-verification/lake-manifest.json
+
+inputs_*
+log.txt

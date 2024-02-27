@@ -1,0 +1,26 @@
+name: Test
+on: push
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 600
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      - name: Cache dependencies
+        uses: actions/cache@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: './gnark-prover/go.mod'
+      - name: Build
+        run: |
+          cd gnark-prover
+          go build
+      - name: Test
+        run: |
+          cd gnark-prover
+          go test

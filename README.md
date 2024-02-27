@@ -18,34 +18,43 @@ Developers can use Light to build applications such as
 
 ## ZK Anchor
 
-ZK Anchor is what we call the collection of developer tools for writing Private Solana Programs (PSPs). 
+ZK Anchor is what we call the collection of developer tools for writing Private Solana Programs (PSPs).
 It consists of the following:
 
 - [Macro Circom](https://github.com/Lightprotocol/light-protocol/tree/main/macro-circom) DSL for writing PSPs.
 - [CLI](https://github.com/Lightprotocol/light-protocol/tree/main/cli) for writing and testing full Applications
-- [RPC Node](https://github.com/Lightprotocol/light-protocol/tree/main/rpc) (rpc) - for indexing and forwarding Light transactions to the Solana network.
-- [zk.js](https://github.com/Lightprotocol/light-protocol/tree/main/zk.js) - web3.js-esque helpers to build transactions and interact with your PSP.
-  
-Note: All these tools and the protocol are in active development and unaudited. You can currently test and deploy your PSP on Localnet, Testnet, and Devnet.
+- [RPC Node](https://github.com/Lightprotocol/light-protocol/tree/main/rpc) (rpc) - for indexing and forwarding Light
+  transactions to the Solana network.
+- [zk.js](https://github.com/Lightprotocol/light-protocol/tree/main/zk.js) - web3.js-esque helpers to build transactions
+  and interact with your PSP.
 
-To get started, a good PSP reference implementation is available [here](https://github.com/Lightprotocol/breakpoint-workshop).
+Note: All these tools and the protocol are in active development and unaudited. You can currently test and deploy your
+PSP on Localnet, Testnet, and Devnet.
 
-Otherwise, to work with this Monorepo, read below: 
+To get started, a good PSP reference implementation is
+available [here](https://github.com/Lightprotocol/breakpoint-workshop).
+
+Otherwise, to work with this Monorepo, read below:
 
 ## Git Large File Storage (LFS)
-This project uses Git LFS to manage and version large files. Before you can clone the project and fetch all the necessary data, you need to install and configure Git LFS on your machine.
 
-If you already have Git installed, run the following command: 
+This project uses Git LFS to manage and version large files. Before you can clone the project and fetch all the
+necessary data, you need to install and configure Git LFS on your machine.
+
+If you already have Git installed, run the following command:
+
 ```
 git lfs install
 ```
 
-To verify that Git LFS is properly configured, use: 
+To verify that Git LFS is properly configured, use:
+
 ```
 git lfs env
 ```
 
-The output should show that Git LFS is installed and configured correctly. After setting up Git LFS, you can proceed to clone the project.
+The output should show that Git LFS is installed and configured correctly. After setting up Git LFS, you can proceed to
+clone the project.
 
 ## Development environment
 
@@ -57,7 +66,6 @@ There are three ways of setting up the development environment:
   unfortunately has performance problems on macOS.
 * [Manual setup](#manual-setup) - not recommended, but may be useful if the
   methods above don't work for you.
-
 
 ### devenv.sh
 
@@ -108,10 +116,6 @@ If you still want to setup dependencies manually, these are the requirements:
 * [NodeJS](https://nodejs.org/) [(16.16 LTS)](https://nodejs.org/en/blog/release/v16.16.0)
 * [Anchor](https://www.anchor-lang.com/) [(0.26.0)](https://crates.io/crates/anchor-cli/0.26.0)
 
-## Initializing Submodules
-Before building, make sure to initialize the submodules:
-```git submodule update --init```
-
 ## Building
 
 To build the project, use the following commands:
@@ -119,7 +123,6 @@ To build the project, use the following commands:
 ```bash
 ./scripts/build.sh
 ```
-
 
 ## Solana keypair
 
@@ -176,9 +179,12 @@ pnpm test-merkle-tree
 ```
 
 ## Common errors
+
 If you're seeing this error:
+
 - ``` error: package `solana-program v1.16.4` cannot be built because it requires rustc 1.68.0 or newer, while the currently active rustc version is 1.65.0-dev ```
 
 update your solana-cli version to >=1.16.4.
 
-For more support from the community and core developers, open a GitHub issue or join the Light Protocol Discord: https://discord.gg/J3KvDfZpyp
+For more support from the community and core developers, open a GitHub issue or join the Light Protocol
+Discord: https://discord.gg/J3KvDfZpyp
