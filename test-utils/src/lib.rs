@@ -87,3 +87,15 @@ pub async fn create_and_send_transaction(
     );
     context.banks_client.process_transaction(transaction).await
 }
+
+pub fn create_account_instruction(
+    payer: &Pubkey,
+    size: usize,
+    rent: u64,
+    id: &Pubkey,
+) -> (Keypair, Instruction) {
+    let keypair = Keypair::new();
+    let instruction =
+        system_instruction::create_account(payer, &keypair.pubkey(), rent, size as u64, id);
+    (keypair, instruction)
+}

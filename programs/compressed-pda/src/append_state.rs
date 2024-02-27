@@ -1,0 +1,101 @@
+use std::collections::HashMap;
+
+use account_compression::{state_merkle_tree_from_bytes, StateMerkleTreeAccount};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+
+use crate::{
+    instructions::{InstructionDataTransfer, TransferInstruction},
+    utxo::Utxo,
+};
+
+pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
+    inputs: &'a InstructionDataTransfer,
+    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+) -> anchor_lang::Result<()> {
+    let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
+    let mut out_utxo_index: Vec<u32> = Vec::with_capacity(inputs.out_utxos.len());
+    let mut leaves: Vec<[u8; 32]> = Vec::with_capacity(inputs.out_utxos.len());
+    let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
+    for (j, (out_utxo, i)) in inputs.out_utxos.iter().enumerate() {
+        let index = merkle_tree_indices.get_mut(&ctx.remaining_accounts[*i as usize].key());
+        out_merkle_trees_account_infos.push(ctx.remaining_accounts[*i as usize].clone());
+        match index {
+            Some(index) => {
+                out_utxo_index.push(*index as u32);
+            }
+            None => {
+                let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(
+                    &ctx.remaining_accounts[*i as usize],
+                )
+                .unwrap();
+                let merkle_tree_account = merkle_tree.load()?;
+                let merkle_tree =
+                    state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
+                let index = merkle_tree.next_index as usize;
+                merkle_tree_indices.insert(ctx.remaining_accounts[*i as usize].key(), index);
+
+                out_utxo_index.push(index as u32);
+            }
+        }
+        let mut utxo = Utxo {
+            owner: out_utxo.owner,
+            blinding: [0u8; 32],
+            lamports: out_utxo.lamports,
+            data: out_utxo.data.clone(),
+        };
+        utxo.update_blinding(
+            ctx.remaining_accounts[*i as usize].key(),
+            out_utxo_index[j] as usize,
+        )
+        .unwrap();
+        leaves.push(utxo.hash())
+    }
+
+    insert_two_leaves_cpi(
+        ctx.program_id,
+        &ctx.accounts.account_compression_program,
+        &ctx.accounts.psp_account_compression_authority,
+        &ctx.accounts.registered_program_pda,
+        &ctx.accounts.noop_program,
+        out_merkle_trees_account_infos,
+        leaves,
+    )
+}
+#[allow(clippy::too_many_arguments)]
+#[allow(unused_variables)]
+#[inline(never)]
+pub fn insert_two_leaves_cpi<'a, 'b>(
+    program_id: &Pubkey,
+    account_compression_program_id: &'b AccountInfo<'a>,
+    authority: &'b AccountInfo<'a>,
+    registered_program_pda: &'b AccountInfo<'a>,
+    log_wrapper: &'b AccountInfo<'a>,
+    out_merkle_trees_account_infos: Vec<AccountInfo<'a>>,
+    leaves: Vec<[u8; 32]>,
+) -> Result<()> {
+    let (seed, bump) = get_seeds(program_id, &authority.key())?;
+    let bump = &[bump];
+    let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
+
+    let accounts = account_compression::cpi::accounts::InsertTwoLeavesParallel {
+        authority: authority.to_account_info(),
+        registered_program_pda: Some(registered_program_pda.to_account_info()),
+        log_wrapper: log_wrapper.to_account_info(),
+    };
+
+    let mut cpi_ctx =
+        CpiContext::new_with_signer(account_compression_program_id.clone(), accounts, seeds);
+    cpi_ctx.remaining_accounts = out_merkle_trees_account_infos;
+    account_compression::cpi::insert_leaves_into_merkle_trees(cpi_ctx, leaves)?;
+    Ok(())
+}
+#[inline(never)]
+pub fn get_seeds<'a>(program_id: &'a Pubkey, cpi_signer: &'a Pubkey) -> Result<([u8; 32], u8)> {
+    let seed = account_compression::ID.key().to_bytes();
+    let (key, bump) = anchor_lang::prelude::Pubkey::find_program_address(
+        &[b"cpi_authority", seed.as_slice()],
+        program_id,
+    );
+    assert_eq!(key, *cpi_signer);
+    Ok((seed, bump))
+}

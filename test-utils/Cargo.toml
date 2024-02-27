@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 [features]
 light_program = ["light", "account-compression"]
-default = ["light_program"]
+account_compression = ["account-compression"]
+default = ["light_program", "account_compression"]
 
 [dependencies]
 anchor-lang = "0.29.0"

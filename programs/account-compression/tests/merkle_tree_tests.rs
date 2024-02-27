@@ -3,20 +3,30 @@
 use std::str::FromStr;
 
 use account_compression::{
-    self, indexed_array_from_bytes, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, ID,
+    self, indexed_array_from_bytes,
+    indexed_array_sdk::create_initialize_indexed_array_instruction,
+    instructions::insert_two_leaves_transaction::sdk::{
+        create_initialize_merkle_tree_instruction, create_insert_leaves_instruction,
+    },
+    state_merkle_tree_from_bytes,
+    utils::constants::GROUP_AUTHORITY_SEED,
+    GroupAuthority, StateMerkleTreeAccount, ID,
 };
-use anchor_lang::{system_program, AnchorDeserialize, InstructionData, ToAccountMetas};
+use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use ark_ff::BigInteger256;
 use ark_serialize::CanonicalDeserialize;
+use light_concurrent_merkle_tree::ConcurrentMerkleTree;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexingArray;
-use light_test_utils::{airdrop_lamports, get_account, AccountZeroCopy};
-use solana_program_test::{ProgramTest, ProgramTestContext};
+use light_test_utils::{
+    airdrop_lamports, create_account_instruction, create_and_send_transaction, get_account,
+    AccountZeroCopy,
+};
+use solana_program_test::ProgramTest;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
-    system_instruction,
     transaction::Transaction,
 };
 
@@ -165,41 +175,33 @@ async fn test_create_and_update_group() {
 async fn test_init_and_insert_leaves_into_merkle_tree() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
+    program_test.add_program(
+        "spl_noop",
+        account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+        None,
+    );
 
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
 
+    let context_keypair = context.payer.insecure_clone();
     let context_pubkey = context.payer.pubkey();
-    let merkle_tree_keypair = Keypair::new();
-    let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
-    let instruction_data = account_compression::instruction::InitializeConcurrentMerkleTree {
-        index: 1u64,
-        owner: context.payer.pubkey(),
-        delegate: None,
-    };
 
-    let account_create_ix = system_instruction::create_account(
+    let (merkle_tree_keypair, account_create_ix) = create_account_instruction(
         &context.payer.pubkey(),
-        &merkle_tree_pubkey,
+        StateMerkleTreeAccount::LEN,
         context
             .banks_client
             .get_rent()
             .await
             .unwrap()
             .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
-        account_compression::StateMerkleTreeAccount::LEN as u64,
-        &account_compression::ID,
+        &ID,
     );
+    let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
 
-    let instruction = Instruction {
-        program_id: account_compression::ID,
-        accounts: vec![
-            AccountMeta::new(context.payer.pubkey(), true),
-            AccountMeta::new(merkle_tree_pubkey, false),
-            AccountMeta::new_readonly(system_program::ID, false),
-        ],
-        data: instruction_data.data(),
-    };
+    let instruction =
+        create_initialize_merkle_tree_instruction(context.payer.pubkey(), merkle_tree_pubkey);
 
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
@@ -251,77 +253,97 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
     let remaining_accounts_missmatch_error =
         context.banks_client.process_transaction(transaction).await;
     assert!(remaining_accounts_missmatch_error.is_err());
-    // let merkle_tree =
-    //     get_account_zero_copy::<account_compression::StateMerkleTreeAccount>(
-    //         &mut context,
-    //         merkle_tree_pubkey,
-    //     )
-    //     .await;
-    // assert_eq!(merkle_tree.owner, context_pubkey);
-    // assert_eq!(merkle_tree.delegate, context_pubkey);
-    // assert_eq!(merkle_tree.index, 1);
-    // let merkle_tree_struct = state_merkle_tree_from_bytes(&merkle_tree.state_merkle_tree);
 
-    // let mut reference_merkle_tree = ConcurrentMerkleTree::<
-    //     Poseidon,
-    //     MERKLE_TREE_HEIGHT,
-    //     MERKLE_TREE_CHANGELOG,
-    //     MERKLE_TREE_ROOTS,
-    // >::default();
-    // reference_merkle_tree.init().unwrap();
-    // reference_merkle_tree
-    //     .append_two(&[1u8; 32], &[2u8; 32])
-    //     .unwrap();
-    // assert_eq!(
-    //     merkle_tree_struct.root().unwrap(),
-    //     reference_merkle_tree.root().unwrap()
-    // );
+    let instruction = [create_insert_leaves_instruction(
+        vec![[1u8; 32], [2u8; 32]],
+        context.payer.pubkey(),
+        vec![merkle_tree_pubkey, merkle_tree_pubkey],
+    )];
+    let old_merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
+        &mut context,
+        merkle_tree_pubkey,
+    )
+    .await;
+    create_and_send_transaction(&mut context, &instruction, &context_keypair)
+        .await
+        .unwrap();
+
+    let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
+        &mut context,
+        merkle_tree_pubkey,
+    )
+    .await;
+    let merkle_tree_struct =
+        state_merkle_tree_from_bytes(&merkle_tree.deserialized.state_merkle_tree);
+    assert_eq!(
+        state_merkle_tree_from_bytes(&old_merkle_tree.deserialized.state_merkle_tree).next_index
+            + 2,
+        merkle_tree_struct.next_index,
+    );
+    assert_eq!(
+        state_merkle_tree_from_bytes(&old_merkle_tree.deserialized.state_merkle_tree)
+            .current_root_index
+            + 2,
+        merkle_tree_struct.current_root_index,
+    );
+    assert_ne!(
+        state_merkle_tree_from_bytes(&old_merkle_tree.deserialized.state_merkle_tree)
+            .root()
+            .unwrap(),
+        merkle_tree_struct.root().unwrap(),
+    );
+
+    let mut reference_merkle_tree = ConcurrentMerkleTree::<
+        Poseidon,
+        { account_compression::utils::constants::MERKLE_TREE_HEIGHT },
+        { account_compression::utils::constants::MERKLE_TREE_CHANGELOG },
+        { account_compression::utils::constants::MERKLE_TREE_ROOTS },
+    >::default();
+    reference_merkle_tree.init().unwrap();
+    reference_merkle_tree
+        .append_batch(&[&[1u8; 32], &[2u8; 32]])
+        .unwrap();
+    assert_eq!(
+        merkle_tree_struct.root().unwrap(),
+        reference_merkle_tree.root().unwrap()
+    );
 }
 
 #[tokio::test]
 async fn test_init_and_insert_into_indexed_array() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
+    program_test.add_program(
+        "spl_noop",
+        account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+        None,
+    );
 
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
+    let context_keypair = context.payer.insecure_clone();
+    let context_pubkey = context_keypair.pubkey();
 
-    let context_pubkey = context.payer.pubkey();
-    let merkle_tree_keypair = Keypair::new();
-    let indexed_array_pubkey = merkle_tree_keypair.pubkey();
-    let instruction_data = account_compression::instruction::InitializeIndexedArray {
-        index: 1u64,
-        owner: context.payer.pubkey(),
-        delegate: None,
-    };
-
-    let account_create_ix = system_instruction::create_account(
-        &context.payer.pubkey(),
-        &indexed_array_pubkey,
+    let (indexed_array_keypair, account_create_ix) = create_account_instruction(
+        &context_pubkey,
+        account_compression::IndexedArrayAccount::LEN,
         context
             .banks_client
             .get_rent()
             .await
             .unwrap()
             .minimum_balance(account_compression::IndexedArrayAccount::LEN),
-        account_compression::IndexedArrayAccount::LEN as u64,
-        &account_compression::ID,
+        &ID,
     );
+    let indexed_array_pubkey = indexed_array_keypair.pubkey();
 
-    let instruction = Instruction {
-        program_id: account_compression::ID,
-        accounts: vec![
-            AccountMeta::new(context.payer.pubkey(), true),
-            AccountMeta::new(indexed_array_pubkey, false),
-            AccountMeta::new_readonly(system_program::ID, false),
-        ],
-        data: instruction_data.data(),
-    };
+    let instruction =
+        create_initialize_indexed_array_instruction(context_pubkey, indexed_array_pubkey, 1u64);
 
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
         Some(&context.payer.pubkey()),
-        &vec![&context.payer, &merkle_tree_keypair],
+        &vec![&context.payer, &indexed_array_keypair],
         context.last_blockhash,
     );
     context
@@ -353,7 +375,6 @@ async fn test_init_and_insert_into_indexed_array() {
     // TODO: investigate why this fails with 0 0
     let instruction_data = account_compression::instruction::InsertIntoIndexedArrays {
         elements: vec![[1u8; 32], [2u8; 32]],
-        low_element_indexes: vec![0, 1],
     };
     let accounts = account_compression::accounts::InsertIntoIndexedArrays {
         authority: context.payer.pubkey(),

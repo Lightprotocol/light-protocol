@@ -790,108 +790,21 @@ export type LightMerkleTreeProgram = {
   ],
   "types": [
     {
-      "name": "Changelogs",
+      "name": "StateMerkleTree",
       "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "changelogs",
-            "type": {
-              "vec": {
-                "defined": "ChangelogEvent"
-              }
-            }
-          }
-        ]
+        "kind": "alias",
+        "value": {
+          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
+        }
       }
     },
     {
-      "name": "PathNode",
-      "docs": [
-        "Node of the Merkle path with an index representing the position in a",
-        "non-sparse Merkle tree."
-      ],
+      "name": "EventMerkleTree",
       "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "node",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "index",
-            "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ChangelogEventV1",
-      "docs": [
-        "Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent)."
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "id",
-            "docs": [
-              "Public key of the tree."
-            ],
-            "type": "publicKey"
-          },
-          {
-            "name": "paths",
-            "type": {
-              "vec": {
-                "vec": {
-                  "defined": "PathNode"
-                }
-              }
-            }
-          },
-          {
-            "name": "seq",
-            "docs": [
-              "Number of successful operations on the on-chain tree."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "index",
-            "docs": [
-              "Changelog event index."
-            ],
-            "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ChangelogEvent",
-      "docs": [
-        "Event containing the Merkle path of the given",
-        "[`StateMerkleTree`](light_merkle_tree_program::state::StateMerkleTree)",
-        "change. Indexers can use this type of events to re-build a non-sparse",
-        "version of state Merkle tree."
-      ],
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "V1",
-            "fields": [
-              {
-                "defined": "ChangelogEventV1"
-              }
-            ]
-          }
-        ]
+        "kind": "alias",
+        "value": {
+          "defined": "ConcurrentMerkleTree<Sha256,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
+        }
       }
     },
     {
@@ -1849,108 +1762,21 @@ export const IDL: LightMerkleTreeProgram = {
   ],
   "types": [
     {
-      "name": "Changelogs",
+      "name": "StateMerkleTree",
       "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "changelogs",
-            "type": {
-              "vec": {
-                "defined": "ChangelogEvent"
-              }
-            }
-          }
-        ]
+        "kind": "alias",
+        "value": {
+          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
+        }
       }
     },
     {
-      "name": "PathNode",
-      "docs": [
-        "Node of the Merkle path with an index representing the position in a",
-        "non-sparse Merkle tree."
-      ],
+      "name": "EventMerkleTree",
       "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "node",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "index",
-            "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ChangelogEventV1",
-      "docs": [
-        "Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent)."
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "id",
-            "docs": [
-              "Public key of the tree."
-            ],
-            "type": "publicKey"
-          },
-          {
-            "name": "paths",
-            "type": {
-              "vec": {
-                "vec": {
-                  "defined": "PathNode"
-                }
-              }
-            }
-          },
-          {
-            "name": "seq",
-            "docs": [
-              "Number of successful operations on the on-chain tree."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "index",
-            "docs": [
-              "Changelog event index."
-            ],
-            "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ChangelogEvent",
-      "docs": [
-        "Event containing the Merkle path of the given",
-        "[`StateMerkleTree`](light_merkle_tree_program::state::StateMerkleTree)",
-        "change. Indexers can use this type of events to re-build a non-sparse",
-        "version of state Merkle tree."
-      ],
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "V1",
-            "fields": [
-              {
-                "defined": "ChangelogEventV1"
-              }
-            ]
-          }
-        ]
+        "kind": "alias",
+        "value": {
+          "defined": "ConcurrentMerkleTree<Sha256,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
+        }
       }
     },
     {

@@ -51,7 +51,9 @@ jobs:
 
       - name: ${{ matrix.test }}
         run: |
-          source ./scripts/devenv.sh          
+          source ./scripts/devenv.sh   
+          mkdir -p ./target/deploy
+          wget https://github.com/Lightprotocol/light-protocol/releases/download/spl-noop-v0.2.0/spl_noop.so -O ./target/deploy/spl_noop.so   
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do

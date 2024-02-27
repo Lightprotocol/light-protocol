@@ -14,8 +14,9 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = []
+default = ["custom-heap"]
 test-sbf = []
+custom-heap = []
 
 [dependencies]
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }

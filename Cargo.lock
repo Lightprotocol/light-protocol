@@ -4303,11 +4303,15 @@ dependencies = [
 name = "psp-compressed-pda"
 version = "0.3.0"
 dependencies = [
+ "account-compression",
  "ahash 0.8.6",
  "aligned-sized",
  "anchor-lang",
  "bytemuck",
+ "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-test-utils",
+ "light-utils",
  "light-verifier-sdk",
  "solana-program-test",
  "solana-sdk",

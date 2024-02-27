@@ -23,16 +23,7 @@ pub struct InsertIntoIndexedArrays<'info> {
 pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, InsertIntoIndexedArrays<'info>>,
     elements: &'a [[u8; 32]],
-    low_element_indexes: &'a [u16],
 ) -> Result<()> {
-    if low_element_indexes.len() != elements.len() {
-        msg!(
-            "Number of low  does not match number elements {} != {}",
-            low_element_indexes.len(),
-            elements.len()
-        );
-        return err!(crate::errors::AccountCompressionErrorCode::NumberOfLeavesMismatch);
-    }
     if elements.len() != ctx.remaining_accounts.len() {
         msg!(
             "Number of elements does not match number of indexed arrays accounts {} != {}",
@@ -42,32 +33,25 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
         return err!(crate::errors::AccountCompressionErrorCode::NumberOfLeavesMismatch);
     }
     // for every index
-    let mut array_map = HashMap::<Pubkey, (&'info AccountInfo, Vec<[u8; 32]>, Vec<u16>)>::new();
+    let mut array_map = HashMap::<Pubkey, (&'info AccountInfo, Vec<[u8; 32]>)>::new();
     for (i, mt) in ctx.remaining_accounts.iter().enumerate() {
         match array_map.get(&mt.key()) {
             Some(_) => {}
             None => {
-                array_map.insert(mt.key(), (mt, Vec::new(), Vec::new()));
+                array_map.insert(mt.key(), (mt, Vec::new()));
             }
         };
         array_map.get_mut(&mt.key()).unwrap().1.push(elements[i]);
-        array_map
-            .get_mut(&mt.key())
-            .unwrap()
-            .2
-            .push(low_element_indexes[i]);
     }
 
-    for (mt, elements, low_element_indexes) in array_map.values() {
+    for (mt, elements) in array_map.values() {
+        msg!("Inserting into indexed array {:?}", mt.key());
         let array = AccountLoader::<IndexedArrayAccount>::try_from(mt).unwrap();
         let mut array_account = array.load_mut()?;
         let array = indexed_array_from_bytes_mut(&mut array_account.indexed_array);
-        for (element, _index) in elements.iter().zip(low_element_indexes) {
-            //   msg!("Inserting element {:?} into indexed array", element);
-
+        for element in elements.iter() {
             array
                 .append(
-                    // *index, TODO: enable index once we have rpc to get the low elements from indexer and a correction function inside the append function the index should just be a starting point
                     BigInteger256::deserialize_uncompressed_unchecked(element.as_slice()).unwrap(),
                 )
                 .unwrap();
@@ -148,5 +132,36 @@ pub fn initialize_default_indexed_array(indexed_array: &mut [u8; 112008]) {
             ptr,
             IndexingArray::<Poseidon, u16, BigInteger256, 2800>::default(),
         );
+    }
+}
+
+#[cfg(not(target_os = "solana"))]
+pub mod indexed_array_sdk {
+    use anchor_lang::{system_program, InstructionData};
+    use solana_sdk::{
+        instruction::{AccountMeta, Instruction},
+        pubkey::Pubkey,
+    };
+
+    pub fn create_initialize_indexed_array_instruction(
+        payer: Pubkey,
+        indexed_array_pubkey: Pubkey,
+        index: u64,
+    ) -> Instruction {
+        let instruction_data: crate::instruction::InitializeIndexedArray =
+            crate::instruction::InitializeIndexedArray {
+                index,
+                owner: payer,
+                delegate: None,
+            };
+        Instruction {
+            program_id: crate::ID,
+            accounts: vec![
+                AccountMeta::new(payer, true),
+                AccountMeta::new(indexed_array_pubkey, false),
+                AccountMeta::new_readonly(system_program::ID, false),
+            ],
+            data: instruction_data.data(),
+        }
     }
 }

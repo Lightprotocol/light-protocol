@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_le;
-use psp_compressed_pda::SerializedUtxos;
+use psp_compressed_pda::utxo::SerializedUtxos;
 // use light_verifier_sdk::light_transaction::ProofCompressed;
 
 // use crate::utxo::{TokenInUtxo, TokenOutUtxo};
@@ -249,7 +249,10 @@ impl DataHasher for TokenTlvData {
 
 #[cfg(test)]
 mod test {
-    use psp_compressed_pda::{OutUtxo, SerializedUtxos, Tlv, TlvDataElement, Utxo};
+    use psp_compressed_pda::{
+        tlv::{Tlv, TlvDataElement},
+        utxo::{OutUtxo, SerializedUtxos, Utxo},
+    };
 
     use super::*;
 
@@ -268,7 +271,11 @@ mod test {
         let mint_pubkey = Pubkey::new_unique();
         let delegate_pubkey = Pubkey::new_unique(); // Assuming there's a delegate for this example
         let accounts = vec![owner_pubkey, mint_pubkey, token_program];
-
+        let merkle_tree_pubkey_0 = Pubkey::new_unique();
+        let nullifier_array_pubkey_0 = Pubkey::new_unique();
+        let in_utxo_merkle_tree_pubkeys = vec![merkle_tree_pubkey_0];
+        let nullifier_array_pubkeys = vec![nullifier_array_pubkey_0];
+        let remaing_accounts_pubkeys = vec![merkle_tree_pubkey_0, nullifier_array_pubkey_0];
         // Creating TokenTlvData
         let token_tlv_data = TokenTlvData {
             mint: mint_pubkey,
@@ -313,7 +320,13 @@ mod test {
 
         // Assuming add_in_utxos is modified to accept UTXOs with TLV data correctly
         serialized_utxos
-            .add_in_utxos(&[utxo.clone()], &accounts, &[leaf_index])
+            .add_in_utxos(
+                &[utxo.clone()],
+                &accounts,
+                &[leaf_index],
+                &in_utxo_merkle_tree_pubkeys,
+                &nullifier_array_pubkeys,
+            )
             .unwrap();
 
         // Create OutUtxo
@@ -325,7 +338,12 @@ mod test {
 
         // Add OutUtxo
         serialized_utxos
-            .add_out_utxos(&[out_utxo], &accounts)
+            .add_out_utxos(
+                &[out_utxo.clone()],
+                &accounts,
+                &remaing_accounts_pubkeys,
+                &[merkle_tree_pubkey_0],
+            )
             .unwrap();
 
         assert_eq!(
@@ -334,7 +352,7 @@ mod test {
             "Should have added one UTXO with TLV data"
         );
         assert!(
-            serialized_utxos.in_utxos[0].data.is_some(),
+            serialized_utxos.in_utxos[0].0.data.is_some(),
             "UTXO should contain TLV data"
         );
         assert_eq!(
@@ -343,11 +361,11 @@ mod test {
             "Should have added one out UTXO with TLV data"
         );
         assert!(
-            serialized_utxos.out_utxos[0].data.is_some(),
+            serialized_utxos.out_utxos[0].0.data.is_some(),
             "UTXO should contain TLV data"
         );
         // Verify that TLV data was serialized correctly
-        let serialized_tlv_data = serialized_utxos.in_utxos[0].data.as_ref().unwrap();
+        let serialized_tlv_data = serialized_utxos.in_utxos[0].0.data.as_ref().unwrap();
         assert_eq!(
             *serialized_tlv_data, tlv_serializable,
             "Serialized TLV data should match the expected serialized version"
@@ -355,11 +373,11 @@ mod test {
         let deserialized_in_utxos = serialized_utxos
             .in_utxos_from_serialized_utxos(&accounts, &[merkle_tree_pda])
             .unwrap();
-        assert_eq!(deserialized_in_utxos[0], utxo);
+        assert_eq!(deserialized_in_utxos[0].0, utxo);
 
         let deserialized_out_utxos = serialized_utxos
-            .out_utxos_from_serialized_utxos(&accounts, &[merkle_tree_pda], &[1u32])
+            .out_utxos_from_serialized_utxos(&accounts)
             .unwrap();
-        assert_eq!(deserialized_out_utxos[0], utxo);
+        assert_eq!(deserialized_out_utxos[0].0, out_utxo);
     }
 }
