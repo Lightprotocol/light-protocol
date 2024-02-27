@@ -51,8 +51,8 @@ export type UtxoWithMerkleProof = Utxo & MerkleContextWithMerkleProof;
 /** Utxo object factory */
 export const createUtxo = (
   owner: PublicKey,
-  lamports: bigint,
-  data: TlvDataElement[],
+  lamports: number | bigint,
+  data: TlvDataElement[] = [],
   address?: PublicKey,
   merkleContext?: MerkleContext
 ): Utxo | UtxoWithMerkleContext => ({
@@ -89,7 +89,5 @@ export const addMerkleProofToUtxo = (
 // TODO: move to a separate file
 /** Filter utxos with compressed lamports. Excludes PDAs and token accounts */
 export function getCompressedSolUtxos(utxos: Utxo[]): Utxo[] {
-  return utxos.filter(
-    (utxo) => utxo.lamports > BigInt(0) && utxo.data.length === 0
-  );
+  return utxos.filter((utxo) => utxo.lamports > BigInt(0) && !utxo.data);
 }

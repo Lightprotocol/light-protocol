@@ -8,11 +8,20 @@ import {
 import { IDL, PspCompressedPda } from "../idls/psp_compressed_pda";
 import { confirmConfig } from "../constants";
 import { useWallet } from "../wallet";
-import { UtxoWithMerkleContext } from "../state";
+import {
+  UtxoWithMerkleContext,
+  UtxoWithMerkleProof,
+  createUtxo,
+} from "../state";
+import { toArray } from "../utils/conversion";
 
 export type CompressedTransferParams = {
   /** Utxos with lamports to spend as transaction inputs */
-  fromBalance: UtxoWithMerkleContext[] | UtxoWithMerkleContext;
+  fromBalance:
+    | UtxoWithMerkleContext[]
+    | UtxoWithMerkleContext
+    | UtxoWithMerkleProof
+    | UtxoWithMerkleProof[];
   /** Solana Account that will receive transferred compressed lamports as utxo  */
   toPubkey: PublicKey;
   /** Amount of compressed lamports to transfer */
@@ -37,26 +46,6 @@ export type CreateCompressedAccountParams = {
   newAccountOwner: PublicKey;
 };
 
-/**
- * Example usage:
- * ```typescript
- * const ix = await LightSystemProgram.transfer({
- *  fromBalance: [
- *   {
- *      owner: new PublicKey("..."),
- *      data: [],
- *      lamports: 2000000000n,
- *      leafIndex: 0n,
- *      hash: 0n,
- *      merkletreeId: 0n,
- *      merkleProof: [],
- *   },
- * ],
- * toPubkey: new PublicKey("..."),
- * lamports: 1000000000n,
- * });
- * ```
- */
 export class LightSystemProgram {
   /**
    * @internal
@@ -108,16 +97,47 @@ export class LightSystemProgram {
   static async transfer(
     params: CompressedTransferParams
   ): Promise<TransactionInstruction> {
-    this.initializeProgram();
-
-    /// TODO: call the packer function with the transfer params instead
-    /// const systemKeys = getLightSystemProgramAccountKeys() /// this should return the respective lookupTable too. this could include: const mtKeys = getLightSystemProgramActiveMerkleTreeKeys()
-    /// const outputUtxos = createTxOutputUtxosForTransfer(params.fromBalance, params.lamports, params.toPubkey)
-    /// const {data, keys} = pack(systemKeys, mtKeys, outputUtxos) /// efficiently packs ixData
+    const program = this.program;
     const data = Buffer.from([]) as any;
     const keys = [] as any;
 
-    const ix = await this._program.methods
+    const recipientUtxo = createUtxo(params.toPubkey, params.lamports);
+
+    const fromUtxos = toArray<UtxoWithMerkleContext | UtxoWithMerkleProof>(
+      params.fromBalance
+    );
+
+    /// find sort utxos by size, then add utxos up until the amount is at least reached, return the selected utxos
+    if (new Set(fromUtxos.map((utxo) => utxo.owner.toString())).size > 1) {
+      throw new Error("All input utxos must have the same owner");
+    }
+    const selectedInputUtxos = fromUtxos
+      .sort((a, b) => Number(BigInt(a.lamports) - BigInt(b.lamports)))
+      .reduce<{
+        utxos: (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
+        total: bigint;
+      }>(
+        (acc, utxo) => {
+          if (acc.total < params.lamports) {
+            acc.utxos.push(utxo);
+            acc.total = BigInt(acc.total) + BigInt(utxo.lamports);
+          }
+          return acc;
+        },
+        { utxos: [], total: BigInt(0) }
+      );
+
+    let changeUtxo;
+    const changeAmount = selectedInputUtxos.total - BigInt(params.lamports);
+    if (changeAmount > 0) {
+      changeUtxo = createUtxo(selectedInputUtxos.utxos[0].owner, changeAmount);
+    }
+
+    const outputUtxos = [recipientUtxo, changeUtxo];
+
+    // pack. based on onchain. i think its fine dont need lut here even.
+
+    const ix = await program.methods
       .executeCompressedTransaction2(data)
       .accounts(keys)
       .instruction();

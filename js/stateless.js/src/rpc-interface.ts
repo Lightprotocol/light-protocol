@@ -29,13 +29,11 @@ import {
   UtxoWithMerkleContext,
 } from "./state";
 
-/// TODO: add dataSizeFilter
 export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
 
 export type GetUtxoConfig = {
   encoding?: string;
 };
-
 export type GetCompressedAccountConfig = GetUtxoConfig;
 
 export type GetCompressedAccountsConfig = {
@@ -44,7 +42,7 @@ export type GetCompressedAccountsConfig = {
 };
 
 export type WithMerkleUpdateContext<T> = {
-  /** response context */
+  /** merkle update context */
   context: MerkleUpdateContext;
   /** response value */
   value: T;
