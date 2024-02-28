@@ -6,6 +6,7 @@ pub mod store;
 
 /// Reference implementation of Merkle tree which stores all nodes. Used for
 /// testing.
+#[derive(Debug)]
 pub struct MerkleTree<H, const HEIGHT: usize, const MAX_ROOTS: usize>
 where
     H: Hasher,

@@ -3,9 +3,11 @@ use std::collections::HashMap;
 
 use account_compression::{AccountMeta, Pubkey};
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use light_verifier_sdk::light_transaction::ProofCompressed;
 use solana_sdk::instruction::Instruction;
 
 use crate::{
+    utils::{get_cpi_authority_pda, get_registered_program_pda},
     utxo::{OutUtxo, SerializedUtxos, Utxo},
     InstructionDataTransfer, InstructionDataTransfer2,
 };
@@ -16,6 +18,7 @@ pub struct CompressedProof {
     pub proof_b: [u8; 64],
     pub proof_c: [u8; 32],
 }
+
 #[allow(clippy::too_many_arguments)]
 pub fn create_execute_compressed_instruction(
     payer: &Pubkey,
@@ -85,9 +88,11 @@ pub fn create_execute_compressed_instruction(
         in_utxos: _in_utxos,
         out_utxos: _out_utxos,
         root_indices: root_indices.to_vec(),
-        proof_a: proof.proof_a,
-        proof_b: proof.proof_b,
-        proof_c: proof.proof_c,
+        proof: Some(ProofCompressed {
+            a: proof.proof_a,
+            b: proof.proof_b,
+            c: proof.proof_c,
+        }),
     };
 
     let mut inputs = Vec::new();
@@ -211,9 +216,11 @@ pub fn create_execute_compressed_opt_instruction(
         rpc_fee: None,
         root_indices: root_indices.to_vec(),
         utxos,
-        proof_a: proof.proof_a,
-        proof_b: proof.proof_b,
-        proof_c: proof.proof_c,
+        proof: Some(ProofCompressed {
+            a: proof.proof_a,
+            b: proof.proof_b,
+            c: proof.proof_c,
+        }),
     };
     InstructionDataTransfer2::serialize(&inputs_struct, &mut inputs).unwrap();
     let instruction_data = crate::instruction::ExecuteCompressedTransaction2 { inputs };
@@ -222,25 +229,6 @@ pub fn create_execute_compressed_opt_instruction(
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     }
-}
-
-fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(
-        &[program_id.to_bytes().as_slice()],
-        &account_compression::ID,
-    )
-    .0
-}
-
-pub fn get_cpi_authority_pda(program_id: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(
-        &[
-            b"cpi_authority",
-            account_compression::ID.to_bytes().as_slice(),
-        ],
-        program_id,
-    )
-    .0
 }
 
 #[test]
@@ -322,9 +310,18 @@ fn test_create_execute_compressed_transaction() {
     assert_eq!(deserialized_instruction_data.in_utxos.len(), 2);
     assert_eq!(deserialized_instruction_data.out_utxos.len(), 2);
     assert_eq!(deserialized_instruction_data.root_indices, root_indices);
-    assert_eq!(deserialized_instruction_data.proof_a, proof.proof_a);
-    assert_eq!(deserialized_instruction_data.proof_b, proof.proof_b);
-    assert_eq!(deserialized_instruction_data.proof_c, proof.proof_c);
+    assert_eq!(
+        deserialized_instruction_data.proof.clone().unwrap().a,
+        proof.proof_a
+    );
+    assert_eq!(
+        deserialized_instruction_data.proof.clone().unwrap().b,
+        proof.proof_b
+    );
+    assert_eq!(
+        deserialized_instruction_data.proof.clone().unwrap().c,
+        proof.proof_c
+    );
     assert_eq!(instruction.accounts[0], AccountMeta::new(payer, true));
     assert_eq!(deserialized_instruction_data.in_utxos[0].2, 1);
     assert_eq!(deserialized_instruction_data.in_utxos[1].2, 1);

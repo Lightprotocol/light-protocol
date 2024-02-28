@@ -25,18 +25,21 @@ pub mod psp_compressed_token {
 
     use super::*;
 
+    /// This instruction expects a mint account to be created in a separate token program instruction
+    /// with token authority as mint authority.
+    /// This instruction creates a token pool account for that mint owned by token authority.
     pub fn create_mint<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
+        _ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
     ) -> Result<()> {
-        process_create_mint(ctx)
+        Ok(())
     }
 
     pub fn mint_to<'info>(
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-        compression_public_keys: Vec<[u8; 32]>,
+        public_keys: Vec<Pubkey>,
         amounts: Vec<u64>,
     ) -> Result<()> {
-        process_mint_to(ctx, compression_public_keys, amounts)
+        process_mint_to(ctx, public_keys, amounts)
     }
 
     pub fn transfer<'info>(

@@ -11,6 +11,11 @@ export type PspCompressedToken = {
   "instructions": [
     {
       "name": "createMint",
+      "docs": [
+        "This instruction expects a mint account to be created in a separate token program instruction",
+        "with token authority as mint authority.",
+        "This instruction creates a token pool account for that mint owned by token authority."
+      ],
       "accounts": [
         {
           "name": "feePayer",
@@ -23,15 +28,7 @@ export type PspCompressedToken = {
           "isSigner": true
         },
         {
-          "name": "authorityPda",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Mint authority, ensures that this program needs to be used as a proxy to mint tokens"
-          ]
-        },
-        {
-          "name": "mint",
+          "name": "tokenPoolPda",
           "isMut": true,
           "isSigner": false
         },
@@ -41,40 +38,17 @@ export type PspCompressedToken = {
           "isSigner": false
         },
         {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintAuthorityPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "registeredAssetPoolPda",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "registeredPoolTypePda",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "merkleTreePdaToken",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
-        },
-        {
-          "name": "merkleTreeAuthorityPda",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -95,12 +69,7 @@ export type PspCompressedToken = {
           "isSigner": true
         },
         {
-          "name": "merkleTreeAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authorityPda",
+          "name": "mintAuthorityPda",
           "isMut": true,
           "isSigner": false
         },
@@ -110,22 +79,22 @@ export type PspCompressedToken = {
           "isSigner": false
         },
         {
+          "name": "tokenPoolPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "registeredVerifierPda",
-          "isMut": true,
+          "name": "compressedPdaProgram",
+          "isMut": false,
           "isSigner": false
         },
         {
-          "name": "merkleTreePdaToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "merkleTreeSet",
+          "name": "registeredProgramPda",
           "isMut": true,
           "isSigner": false
         },
@@ -135,8 +104,8 @@ export type PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "merkleTreeProgram",
-          "isMut": false,
+          "name": "pspAccountCompressionAuthority",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -145,21 +114,16 @@ export type PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompressionAuthority",
+          "name": "merkleTree",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
         {
-          "name": "compressionPublicKeys",
+          "name": "publicKeys",
           "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
+            "vec": "publicKey"
           }
         },
         {
@@ -400,6 +364,11 @@ export const IDL: PspCompressedToken = {
   "instructions": [
     {
       "name": "createMint",
+      "docs": [
+        "This instruction expects a mint account to be created in a separate token program instruction",
+        "with token authority as mint authority.",
+        "This instruction creates a token pool account for that mint owned by token authority."
+      ],
       "accounts": [
         {
           "name": "feePayer",
@@ -412,15 +381,7 @@ export const IDL: PspCompressedToken = {
           "isSigner": true
         },
         {
-          "name": "authorityPda",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Mint authority, ensures that this program needs to be used as a proxy to mint tokens"
-          ]
-        },
-        {
-          "name": "mint",
+          "name": "tokenPoolPda",
           "isMut": true,
           "isSigner": false
         },
@@ -430,40 +391,17 @@ export const IDL: PspCompressedToken = {
           "isSigner": false
         },
         {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintAuthorityPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "registeredAssetPoolPda",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "registeredPoolTypePda",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "merkleTreePdaToken",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK this account in merkle tree program"
-          ]
-        },
-        {
-          "name": "merkleTreeAuthorityPda",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -484,12 +422,7 @@ export const IDL: PspCompressedToken = {
           "isSigner": true
         },
         {
-          "name": "merkleTreeAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authorityPda",
+          "name": "mintAuthorityPda",
           "isMut": true,
           "isSigner": false
         },
@@ -499,22 +432,22 @@ export const IDL: PspCompressedToken = {
           "isSigner": false
         },
         {
+          "name": "tokenPoolPda",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "registeredVerifierPda",
-          "isMut": true,
+          "name": "compressedPdaProgram",
+          "isMut": false,
           "isSigner": false
         },
         {
-          "name": "merkleTreePdaToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "merkleTreeSet",
+          "name": "registeredProgramPda",
           "isMut": true,
           "isSigner": false
         },
@@ -524,8 +457,8 @@ export const IDL: PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "merkleTreeProgram",
-          "isMut": false,
+          "name": "pspAccountCompressionAuthority",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -534,21 +467,16 @@ export const IDL: PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "pspAccountCompressionAuthority",
+          "name": "merkleTree",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
         {
-          "name": "compressionPublicKeys",
+          "name": "publicKeys",
           "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
+            "vec": "publicKey"
           }
         },
         {

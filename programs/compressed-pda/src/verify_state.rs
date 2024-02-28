@@ -25,11 +25,19 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
     }
     Ok(())
 }
+pub fn hash_in_utxos<'a, 'b, 'c: 'info, 'info>(
+    inputs: &'a InstructionDataTransfer,
+    leaves: &'a mut [[u8; 32]],
+) -> anchor_lang::Result<()> {
+    for (j, (utxo, _, _)) in inputs.in_utxos.iter().enumerate() {
+        leaves[j] = utxo.hash();
+    }
+    Ok(())
+}
 
-pub fn hash_utxos<'a, 'b, 'c: 'info, 'info>(
+pub fn out_utxos_to_utxos<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    leaves: &'a mut [[u8; 32]],
     utxos: &'a mut [Utxo],
     out_utxo_index: &'a mut [u32],
 ) -> anchor_lang::Result<()> {
@@ -67,7 +75,6 @@ pub fn hash_utxos<'a, 'b, 'c: 'info, 'info>(
             out_utxo_index[j] as usize,
         )
         .unwrap();
-        leaves[j] = utxo.hash();
         utxos[j] = utxo;
     }
     Ok(())

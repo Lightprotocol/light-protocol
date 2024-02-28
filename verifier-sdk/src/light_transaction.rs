@@ -76,7 +76,7 @@ impl<'a> Message<'a> {
         Message { hash, content }
     }
 }
-
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct ProofCompressed {
     pub a: [u8; 32],
     pub b: [u8; 64],

@@ -5,7 +5,7 @@ use crate::{
     Hash, Hasher,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Poseidon;
 
 impl Hasher for Poseidon {

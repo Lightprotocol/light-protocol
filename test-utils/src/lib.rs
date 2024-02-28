@@ -4,10 +4,14 @@ use anchor_lang::{
 };
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
-    account::Account, instruction::Instruction, signature::Keypair, signer::Signer,
+    account::Account,
+    instruction::Instruction,
+    signature::{Keypair, Signature},
+    signer::Signer,
     transaction::Transaction,
 };
 
+pub mod spl;
 pub mod test_env;
 
 pub struct AccountZeroCopy<'a, T> {
@@ -77,15 +81,21 @@ pub async fn airdrop_lamports(
 pub async fn create_and_send_transaction(
     context: &mut ProgramTestContext,
     instruction: &[Instruction],
-    payer: &Keypair,
-) -> Result<(), BanksClientError> {
+    payer: &Pubkey,
+    signers: &[&Keypair],
+) -> Result<Signature, BanksClientError> {
     let transaction = Transaction::new_signed_with_payer(
         instruction,
-        Some(&payer.pubkey()),
-        &vec![&payer],
+        Some(payer),
+        &signers.to_vec(),
         context.last_blockhash,
     );
-    context.banks_client.process_transaction(transaction).await
+    let signature = transaction.signatures[0];
+    context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(signature)
 }
 
 pub fn create_account_instruction(

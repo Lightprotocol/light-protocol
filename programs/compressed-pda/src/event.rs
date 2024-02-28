@@ -7,7 +7,7 @@ use anchor_lang::{
 
 use crate::{utxo::Utxo, InstructionDataTransfer, TransferInstruction};
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PublicTransactionEvent {
     pub in_utxos: Vec<Utxo>,
     pub out_utxos: Vec<Utxo>,
@@ -41,7 +41,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     out_utxos: &[Utxo],
     out_utxo_indices: &[u32],
-) -> anchor_lang::Result<()> {
+) -> anchor_lang::Result<PublicTransactionEvent> {
     let event = PublicTransactionEvent {
         in_utxos: inputs
             .in_utxos
@@ -55,5 +55,5 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
         message: None,
     };
     invoke_indexer_transaction_event(&event, &ctx.accounts.noop_program)?;
-    Ok(())
+    Ok(event)
 }

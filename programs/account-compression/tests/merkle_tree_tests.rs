@@ -266,9 +266,14 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
         merkle_tree_pubkey,
     )
     .await;
-    create_and_send_transaction(&mut context, &instruction, &context_keypair)
-        .await
-        .unwrap();
+    create_and_send_transaction(
+        &mut context,
+        &instruction,
+        &context_keypair.pubkey(),
+        &[&context_keypair],
+    )
+    .await
+    .unwrap();
 
     let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
         &mut context,

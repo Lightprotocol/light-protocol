@@ -3384,6 +3384,7 @@ dependencies = [
  "rand 0.8.5",
  "solana-program-test",
  "solana-sdk",
+ "spl-token 3.5.0",
  "thiserror",
 ]
 
@@ -4362,15 +4363,23 @@ dependencies = [
 name = "psp-compressed-token"
 version = "0.3.0"
 dependencies = [
+ "account-compression",
  "ahash 0.8.6",
  "aligned-sized",
  "anchor-lang",
  "anchor-spl",
  "bytemuck",
+ "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-merkle-tree-reference",
+ "light-test-utils",
  "light-utils",
  "psp-compressed-pda",
+ "solana-program-test",
+ "solana-sdk",
  "solana-security-txt",
+ "spl-token 3.5.0",
+ "tokio",
 ]
 
 [[package]]
