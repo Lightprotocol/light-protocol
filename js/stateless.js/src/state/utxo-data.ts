@@ -13,6 +13,8 @@ export type TlvDataElement = {
   dataHash: Uint8Array; // Consider using bigint254
 };
 
+export type Tlv = TlvDataElement[];
+
 /** Factory for TLV data elements */
 export const createTlvDataElement = (
   discriminator: Uint8Array,
@@ -29,12 +31,12 @@ export const createTlvDataElement = (
 const { coder } = LightSystemProgram.program;
 
 /** Decode system-level utxo data into tlvs from a buffer */
-export function decodeUtxoData(buffer: Buffer): TlvDataElement[] {
+export function decodeUtxoData(buffer: Buffer): Tlv {
   return coder.types.decode("Tlv", buffer);
 }
 
 /** Encode tlv blocks into a buffer */
-export function encodeUtxoData(data: TlvDataElement[]): Buffer {
+export function encodeUtxoData(data: Tlv): Buffer {
   return coder.types.encode("Tlv", data);
 }
 
