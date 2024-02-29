@@ -1,5 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 import { TlvDataElement } from "./utxo-data";
+import { bigint254 } from "./bigint254";
 
 /// TODO: implement PublicKey254 type based on bigint254
 /// figure which fmt to use in indexer and on client side: since solana's regluar 'PublicKey' expects padding to 32.
@@ -23,7 +24,7 @@ export type Utxo = {
 /** Context for utxos inserted into a state Merkle tree */
 export type MerkleContext = {
   /** Poseidon hash of the utxo preimage  */
-  hash: PublicKey254;
+  hash: bigint254;
   /** State Merkle tree */
   merkleTree: PublicKey;
   /** 'hash' position within the Merkle tree */
@@ -40,6 +41,8 @@ export type MerkleUpdateContext = {
 export type MerkleContextWithMerkleProof = MerkleContext & {
   /** Recent valid 'hash' proof path, expires after n slots */
   merkleProof: PublicKey254[];
+  /** Index of state root the merkleproof is valid for, expires after n slots  */
+  rootIndex: number;
 };
 
 /** Utxo with Merkle tree context */
@@ -66,7 +69,7 @@ export const createUtxo = (
 /** Add Merkle tree context to a utxo */
 export const addMerkleContextToUtxo = (
   utxo: Utxo,
-  hash: PublicKey254,
+  hash: bigint254,
   merkleTree: PublicKey,
   leafIndex: number
   // merkleProof?: PublicKey254[] // TODO evaluate whether to add as optional
@@ -80,10 +83,12 @@ export const addMerkleContextToUtxo = (
 /** Append a merkle proof to a utxo */
 export const addMerkleProofToUtxo = (
   utxo: UtxoWithMerkleContext,
-  proof: PublicKey254[]
+  merkleProof: PublicKey254[],
+  recentRootIndex: number
 ): UtxoWithMerkleProof => ({
   ...utxo,
-  merkleProof: proof,
+  merkleProof,
+  rootIndex: recentRootIndex,
 });
 
 // TODO: move to a separate file

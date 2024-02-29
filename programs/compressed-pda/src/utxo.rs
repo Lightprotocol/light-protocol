@@ -278,7 +278,7 @@ impl Utxo {
     pub fn update_blinding(&mut self, merkle_tree_pda: Pubkey, index_of_leaf: usize) -> Result<()> {
         self.blinding = Poseidon::hashv(&[
             &hash_to_bn254_field_size_le(&merkle_tree_pda.to_bytes())
-                .unwrap()
+                .unwrap()  
                 .0,
             index_of_leaf.to_le_bytes().as_slice(),
         ])

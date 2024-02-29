@@ -1,139 +1,160 @@
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct SerializedUtxos {
-    pub pubkey_array: Vec<Pubkey>,
-    pub u64_array: Vec<u64>,
-    pub in_utxos: Vec<InUtxoSerializable>,
-    pub out_utxos: Vec<OutUtxoSerializable>,
+import { PublicKey } from "@solana/web3.js";
+import { Tlv, TlvDataElement } from "../state/utxo-data";
+import {
+  MerkleContext,
+  Utxo,
+  UtxoWithMerkleContext,
+  createUtxo,
+} from "../state";
+
+type u64 = bigint;
+type InputUtxoSerial = {
+  owner: number;
+  leafIndex: number;
+  lamports: number;
+  data: TlvSerial | null;
+};
+
+type OutputUtxoSerial = {
+  owner: number;
+  lamports: number;
+  data: TlvSerial | null;
+};
+
+type TlvSerial = TlvDataElementSerial[];
+
+type TlvDataElementSerial = {
+  discriminator: number[];
+  owner: number;
+  data: number[];
+  dataHash: number[];
+};
+
+export class SerializedUtxos = {
+  validityProof: Uint8Array;
+  publicKeyArray: PublicKey[];
+  u64Array: BigUint64Array;
+  inputUtxos: InputUtxoSerial[];
+  outputUtxos: OutputUtxoSerial[];
+};
+
+
+
+
+
 }
 
-impl SerializedUtxos {
-   
+function packOutUtxos() {}
 
-    pub fn add_out_utxos(&mut self, utxos_to_add: &[OutUtxo], accounts: &[Pubkey]) -> Result<()> {
-        for utxo in utxos_to_add.iter() {
-            // Determine the owner index
-            let owner_index = match accounts.iter().position(|&p| p == utxo.owner) {
-                Some(index) => index as u8, // Found in accounts
-                None => match self.pubkey_array.iter().position(|&p| p == utxo.owner) {
-                    Some(index) => (accounts.len() + index) as u8, // Found in accounts
-                    None => {
-                        // Not found, add to pubkey_array and use index
-                        self.pubkey_array.push(utxo.owner);
-                        (accounts.len() + self.pubkey_array.len() - 1) as u8
-                    }
-                },
-            };
+/// TODO: add hashing
+function unpackOutputUtxosWithMerkleContext(
+  packer: InstructionPacker,
+  accounts: PublicKey[]
+  //   merkleTreeAccounts: PublicKey[],
+  //   leafIndices: number[]
+): Utxo[] {
+  const outUtxos: Utxo[] = [];
+  packer.outputUtxos.forEach((outUtxo, i) => {
+    const ownerIndex =
+      outUtxo.owner < accounts.length
+        ? outUtxo.owner
+        : outUtxo.owner - accounts.length;
+    const owner =
+      ownerIndex < accounts.length
+        ? accounts[ownerIndex]
+        : packer.publicKeyArray[ownerIndex - accounts.length];
+    const lamports = packer.u64Array[outUtxo.lamports];
+    const data = outUtxo.data
+      ? unpackTlv(outUtxo.data, [...accounts, ...packer.publicKeyArray])
+      : undefined;
 
-            // Add the lamports index
-            let lamports_index = match self.u64_array.iter().position(|&p| p == utxo.lamports) {
-                Some(index) => index as u8, // Found in accounts
-                None => {
-                    // Not found, add to u64_array and use index
-                    self.u64_array.push(utxo.lamports);
-                    (self.u64_array.len() - 1) as u8
-                }
-            };
+    // const merkleCtx: MerkleContext = {
+    //   hash: merkleTreeAccounts[i],
+    //   merkleTree: merkleTreeAccounts[i],
+    //   leafIndex: leafIndices[i],
+    // };
+    const utxo = createUtxo(owner, lamports, data);
+    outUtxos.push(utxo);
+  });
+  return outUtxos;
+}
 
-            // Serialize the UTXO data, if present
-            let data_serializable = utxo.data.as_ref().map(|data| {
-                // This transformation needs to be defined based on how Tlv can be converted to TlvSerializable
-                Tlv::to_serializable_tlv(data, &mut self.pubkey_array, accounts)
-            });
+function unpackInputUtxos(
+  inputUtxos: InputUtxoSerial[],
+  accounts: PublicKey[],
+  merkleTreeAccounts: PublicKey[],
+  publicKeyArray: PublicKey[],
+  u64Array: number[]
+): Utxo[] {
+  const inUtxos: Utxo[] = [];
 
-            // Create and add the InUtxoSerializable
-            let in_utxo_serializable = OutUtxoSerializable {
-                owner: owner_index,
-                lamports: lamports_index,
-                data: data_serializable,
-            };
-            self.out_utxos.push(in_utxo_serializable);
-        }
-        Ok(())
+  inputUtxos.forEach((inUtxo, i) => {
+    const ownerIndex =
+      inUtxo.owner < accounts.length
+        ? inUtxo.owner
+        : inUtxo.owner - accounts.length;
+    const owner =
+      ownerIndex < accounts.length
+        ? accounts[ownerIndex]
+        : publicKeyArray[ownerIndex - accounts.length];
+    const lamports = u64Array[inUtxo.lamports];
+    let data = null; // Replace with actual deserialization logic for `inUtxo.data`
+
+    const utxo = createUtxo(owner, lamports, data);
+    // Assuming updateBlinding is a method of Utxo or a utility function
+    // updateBlinding(utxo, merkleTreeAccounts[i], inUtxo.leafIndex);
+
+    inUtxos.push(utxo);
+  });
+
+  return inUtxos;
+}
+
+function unpackTlv(tlvElements: TlvSerial, accounts: PublicKey[]): Tlv {
+  const _tlvElements: TlvDataElement[] = [];
+  for (const tlvElement of tlvElements) {
+    const owner = accounts[tlvElement.owner];
+    _tlvElements.push({
+      discriminator: new Uint8Array(tlvElement.discriminator),
+      owner,
+      data: new Uint8Array([...tlvElement.data]),
+      dataHash: new Uint8Array([...tlvElement.dataHash]),
+    });
+  }
+  return _tlvElements;
+}
+
+function packTlv(
+  tlv: Tlv,
+  pubkeyArray: PublicKey[],
+  accounts: PublicKey[]
+): TlvSerial {
+  let tlvElementsSerial: TlvDataElementSerial[] = [];
+
+  tlv.forEach((tlvElement) => {
+    // Try to find the owner in the accounts array.
+    let ownerIndex = accounts.findIndex((p) => p === tlvElement.owner);
+    if (ownerIndex === -1) {
+      ownerIndex = pubkeyArray.findIndex((p) => p === tlvElement.owner);
+      if (ownerIndex === -1) {
+        // Owner not found, append to pubkeyArray and use new index
+        pubkeyArray.push(tlvElement.owner);
+        ownerIndex = accounts.length + pubkeyArray.length - 1;
+      } else {
+        // Owner found in pubkeyArray, adjust index to account for accounts length
+        ownerIndex += accounts.length;
+      }
     }
-}
 
-#[derive(Debug, PartialEq)]
-#[account]
-pub struct InUtxoSerializable {
-    pub owner: u8,
-    pub leaf_index: u32,
-    pub lamports: u8,
-    pub data: Option<TlvSerializable>,
-}
+    const serial: TlvDataElementSerial = {
+      discriminator: Array.from(tlvElement.discriminator),
+      owner: ownerIndex,
+      data: Array.from(tlvElement.data),
+      dataHash: Array.from(tlvElement.dataHash),
+    };
 
-// no need to send blinding is computed onchain
-#[derive(Debug, PartialEq)]
-#[account]
-pub struct OutUtxoSerializable {
-    pub owner: u8,
-    pub lamports: u8,
-    pub data: Option<TlvSerializable>,
-}
+    tlvElementsSerial.push(serial);
+  });
 
-#[derive(Debug)]
-#[account]
-pub struct OutUtxo {
-    pub owner: Pubkey,
-    pub lamports: u64,
-    pub data: Option<Tlv>,
-}
-
-// blinding we just need to send the leafIndex
-#[derive(Debug, PartialEq)]
-#[account]
-pub struct Utxo {
-    pub owner: Pubkey,
-    pub blinding: [u8; 32],
-    pub lamports: u64,
-    pub data: Option<Tlv>,
-}
-
-impl Utxo {
-    pub fn update_blinding(&mut self, merkle_tree_pda: Pubkey, index_of_leaf: usize) -> Result<()> {
-        self.blinding = Poseidon::hashv(&[
-            &hash(merkle_tree_pda.to_bytes().as_slice()).to_bytes()[0..30],
-            index_of_leaf.to_le_bytes().as_slice(),
-        ])
-        .unwrap();
-        Ok(())
-    }
-}
-
-
-
-/// Time lock escrow example:
-/// escrow tlv data -> compressed token program
-/// let escrow_data = {
-///   owner: Pubkey, // owner is the user pubkey
-///   release_slot: u64,
-///   deposit_slot: u64,
-/// };
-///
-/// let escrow_tlv_data = TlvDataElement {
-///   discriminator: [1,0,0,0,0,0,0,0],
-///   owner: escrow_program_id,
-///   data: escrow_data.try_to_vec()?,
-/// };
-/// let token_tlv = TlvDataElement {
-///   discriminator: [2,0,0,0,0,0,0,0],
-///   owner: token_program,
-///   data: token_data.try_to_vec()?,
-/// };
-/// let token_data = Account {
-///  mint,
-///  owner,
-///  amount: 10_000_000u64,
-///  delegate: None,
-///  state: Initialized, (u64)
-///  is_native: None,
-///  delegated_amount: 0u64,
-///  close_authority: None,
-/// };
-///
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
-pub struct TlvDataElement {
-    pub discriminator: [u8; 8],
-    pub owner: Pubkey,
-    pub data: Vec<u8>,
-    pub data_hash: [u8; 32],
+  return tlvElementsSerial;
 }

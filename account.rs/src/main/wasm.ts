@@ -103,6 +103,14 @@ interface HashStrategy {
   ): Uint8Array;
 }
 
+function arrayToBigint(byteArray: Uint8Array): bigint {
+  let result = BigInt(0);
+  for (let i = 0; i < byteArray.length; i++) {
+    result = (result << BigInt(8)) | BigInt(byteArray[i]);
+  }
+  return result;
+}
+
 function wasmAccount(hasher: HashStrategy): LightWasmCreator {
   const WasmFactory = class implements LightWasm {
     blakeHash(input: string | Uint8Array, hashLength: number): Uint8Array {
@@ -115,6 +123,10 @@ function wasmAccount(hasher: HashStrategy): LightWasmCreator {
 
     poseidonHash(input: string[] | []): Uint8Array {
       return hasher.poseidon(stringify(input));
+    }
+
+    poseidonHashBigint(input: string[] | []): bigint {
+      return arrayToBigint(this.poseidonHash(input));
     }
 
     poseidonHashBN(input: string[] | []): BN {
