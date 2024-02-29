@@ -140,7 +140,7 @@ use solana_cli_output::CliAccount;
 use tokio::fs::write as async_write;
 #[ignore = "this is a helper function to regenerate accounts"]
 #[tokio::test]
-async fn regnerate_accounts() {
+async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
     let env = setup_test_programs_with_accounts().await;
     let mut context = env.context;

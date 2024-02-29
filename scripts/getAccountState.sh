@@ -7,4 +7,4 @@
 # group_pda
 # 
 # to add more accounts to regenerate, add them to setup_test_programs_with_accounts and test script
-cd programs/compressed-pda && cargo test-sbf regnerate_accounts -- --ignored && cd -
+cd programs/compressed-pda && cargo test-sbf regenerate_accounts -- --ignored && cd -
