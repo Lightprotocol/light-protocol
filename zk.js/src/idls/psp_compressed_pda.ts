@@ -353,6 +353,54 @@ export type PspCompressedPda = {
   ],
   "types": [
     {
+      "name": "PublicTransactionEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "Utxo"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "Utxo"
+              }
+            }
+          },
+          {
+            "name": "outUtxoIndices",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "deCompressAmount",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "message",
+            "type": {
+              "option": "bytes"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "CpiSignature",
       "type": {
         "kind": "struct",
@@ -597,6 +645,11 @@ export type PspCompressedPda = {
       "code": 6009,
       "name": "NullifierArrayPubkeysMissmatch",
       "msg": "NullifierArrayPubkeysMissmatch"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidNoopPubkey",
+      "msg": "InvalidNoopPubkey"
     }
   ]
 };
@@ -956,6 +1009,54 @@ export const IDL: PspCompressedPda = {
   ],
   "types": [
     {
+      "name": "PublicTransactionEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "Utxo"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "Utxo"
+              }
+            }
+          },
+          {
+            "name": "outUtxoIndices",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "deCompressAmount",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "message",
+            "type": {
+              "option": "bytes"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "CpiSignature",
       "type": {
         "kind": "struct",
@@ -1200,6 +1301,11 @@ export const IDL: PspCompressedPda = {
       "code": 6009,
       "name": "NullifierArrayPubkeysMissmatch",
       "msg": "NullifierArrayPubkeysMissmatch"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidNoopPubkey",
+      "msg": "InvalidNoopPubkey"
     }
   ]
 };

@@ -10,11 +10,6 @@ import { setAnchorProvider, setLookUpTable, setRpcRecipient } from "./utils";
 import { Keypair } from "@solana/web3.js";
 import {
   LIGHT_MERKLE_TREE_PROGRAM_TAG,
-  LIGHT_PSP10IN2OUT_TAG,
-  LIGHT_PSP2IN2OUT_STORAGE_TAG,
-  LIGHT_PSP2IN2OUT_TAG,
-  LIGHT_PSP4IN4OUT_APP_STORAGE_TAG,
-  LIGHT_USER_REGISTRY_TAG,
   SPL_NOOP_PROGRAM_TAG,
   downloadBinIfNotExists,
   executeCommand,
@@ -45,11 +40,12 @@ export async function initTestEnv({
       recipientPublicKey: ADMIN_AUTH_KEYPAIR.publicKey,
     });
 
-    await createTestAccounts(anchorProvider.connection);
+    // leaving this here for now maybe we can use it for
+    // await createTestAccounts(anchorProvider.connection);
 
-    const lookupTable = await initLookUpTableFromFile(anchorProvider);
+    // const lookupTable = await initLookUpTableFromFile(anchorProvider);
 
-    setLookUpTable(lookupTable.toString());
+    // setLookUpTable(lookupTable.toString());
 
     const rpcRecipientSol = Keypair.generate().publicKey;
 
@@ -136,6 +132,7 @@ export async function getSolanaArgs({
   const LIMIT_LEDGER_SIZE = "500000000";
 
   type Program = { id: string; name?: string; tag?: string; path?: string };
+  // TODO: adjust program tags
   const programs: Program[] = [
     {
       id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
@@ -143,34 +140,24 @@ export async function getSolanaArgs({
       tag: SPL_NOOP_PROGRAM_TAG,
     },
     {
-      id: "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6",
-      name: "light_merkle_tree_program.so",
+      id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
+      name: "psp_compressed_pda.so",
       tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {
-      id: "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i",
-      name: "light_psp2in2out.so",
-      tag: LIGHT_PSP2IN2OUT_TAG,
+      id: "9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE",
+      name: "psp_compressed_token.so",
+      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {
-      id: "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj",
-      name: "light_psp2in2out_storage.so",
-      tag: LIGHT_PSP2IN2OUT_STORAGE_TAG,
+      id: "5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN",
+      name: "account_compression.so",
+      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {
-      id: "2cxC8e8uNYLcymH6RTGuJs3N8fXGkwmMpw45pY65Ay86",
-      name: "light_psp4in4out_app_storage.so",
-      tag: LIGHT_PSP4IN4OUT_APP_STORAGE_TAG,
-    },
-    {
-      id: "J85SuNBBsba7FQS66BiBCQjiQrQTif7v249zL2ffmRZc",
-      name: "light_psp10in2out.so",
-      tag: LIGHT_PSP10IN2OUT_TAG,
-    },
-    {
-      id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
-      name: "light_user_registry.so",
-      tag: LIGHT_USER_REGISTRY_TAG,
+      id: "5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP",
+      name: "light.so",
+      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
   ];
   if (additionalPrograms)

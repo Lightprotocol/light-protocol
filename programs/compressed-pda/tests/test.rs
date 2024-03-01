@@ -136,3 +136,36 @@ async fn test_create_execute_compressed_transaction_2() {
     let res = create_and_send_transaction(&mut context, &[instruction], &payer).await;
     assert!(res.is_err());
 }
+use solana_cli_output::CliAccount;
+use tokio::fs::write as async_write;
+#[ignore = "this is a helper function to regenerate accounts"]
+#[tokio::test]
+async fn regenerate_accounts() {
+    let output_dir = "../../cli/accounts/";
+    let env = setup_test_programs_with_accounts().await;
+    let mut context = env.context;
+
+    // List of public keys to fetch and export
+    let pubkeys = vec![
+        ("merkle_tree_pubkey", env.merkle_tree_pubkey),
+        ("indexed_array_pubkey", env.indexed_array_pubkey),
+        ("governance_authority_pda", env.governance_authority_pda),
+        ("group_pda", env.group_pda),
+    ];
+
+    for (name, pubkey) in pubkeys {
+        // Fetch account data. Adjust this part to match how you retrieve and structure your account data.
+        let account = context.banks_client.get_account(pubkey).await.unwrap();
+        let account = CliAccount::new(&pubkey, &account.unwrap(), true);
+        // Serialize the account data to JSON. Adjust according to your data structure.
+        let json_data = serde_json::to_vec(&account).unwrap();
+
+        // Construct the output file path
+        let file_name = format!("{}_{}.json", name, pubkey);
+        let file_path = format!("{}{}", output_dir, file_name);
+        println!("Writing account data to {}", file_path);
+
+        // Write the JSON data to a file in the specified directory
+        async_write(file_path.clone(), json_data).await.unwrap();
+    }
+}
