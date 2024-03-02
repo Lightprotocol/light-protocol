@@ -43,13 +43,13 @@ export const createTlvDataElement = (
 const { coder } = LightSystemProgram.program;
 
 /** Decode system-level utxo data into tlvs from a buffer */
-export function decodeUtxoData(buffer: Buffer, accounts: PublicKey[]): Tlv {
+function decodeUtxoData(buffer: Buffer, accounts: PublicKey[]): Tlv {
   const serial = coder.types.decode("TlvSerializable", buffer);
   return deserializeTlv(serial, accounts);
 }
 
 /** Encode tlv blocks into a buffer  */
-export function encodeUtxoData(
+function encodeUtxoData(
   data: Tlv,
   pubkeyArray: PublicKey[],
   accounts: PublicKey[]

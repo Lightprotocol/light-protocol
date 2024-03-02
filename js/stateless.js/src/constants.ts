@@ -14,6 +14,25 @@ export const FIELD_SIZE = BigInt(
   "21888242871839275222246405745257275088548364400416034343698204186575808495617"
 );
 
+// TODO: implement properly
+export const noopProgram = "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
+export const accountCompressionProgram =
+  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
+export const registeredProgramPda =
+  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
+export const accountCompressionAuthority =
+  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
+export const cpiSignatureAccount =
+  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
+
+export const defaultStaticAccounts = () => [
+  registeredProgramPda,
+  noopProgram,
+  accountCompressionProgram,
+  accountCompressionAuthority,
+  cpiSignatureAccount,
+];
+
 export const TYPE_PUBKEY = { array: ["u8", 32] };
 export const TYPE_SEED = { defined: "&[u8]" };
 export const TYPE_INIT_DATA = { array: ["u8", 642] };

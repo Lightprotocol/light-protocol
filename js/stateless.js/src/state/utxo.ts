@@ -29,6 +29,8 @@ export type MerkleContext = {
   merkleTree: PublicKey;
   /** 'hash' position within the Merkle tree */
   leafIndex: number;
+  /** the state nullfier queue belonging to merkleTree */
+  stateNullifierQueue: PublicKey;
 };
 
 export type MerkleUpdateContext = {
@@ -71,13 +73,15 @@ export const addMerkleContextToUtxo = (
   utxo: Utxo,
   hash: bigint254,
   merkleTree: PublicKey,
-  leafIndex: number
+  leafIndex: number,
+  stateNullifierQueue: PublicKey
   // merkleProof?: PublicKey254[] // TODO evaluate whether to add as optional
 ): UtxoWithMerkleContext => ({
   ...utxo,
   leafIndex,
   hash,
   merkleTree,
+  stateNullifierQueue,
 });
 
 /** Append a merkle proof to a utxo */
