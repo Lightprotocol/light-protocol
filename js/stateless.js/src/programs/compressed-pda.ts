@@ -6,7 +6,7 @@ import {
   Connection,
 } from "@solana/web3.js";
 import { IDL, PspCompressedPda } from "../idls/psp_compressed_pda";
-import { confirmConfig } from "../constants";
+import { confirmConfig, defaultStaticAccounts } from "../constants";
 import { useWallet } from "../wallet";
 import {
   UtxoWithMerkleContext,
@@ -14,18 +14,23 @@ import {
   createUtxo,
 } from "../state";
 import { toArray } from "../utils/conversion";
+import { packInstruction } from "../instruction/pack-instruction";
+import { pipe } from "../utils/pipe";
+import { placeholderValidityProof } from "../instruction/validity-proof";
 
 export type CompressedTransferParams = {
   /** Utxos with lamports to spend as transaction inputs */
   fromBalance:
-    | UtxoWithMerkleContext[]
     | UtxoWithMerkleContext
     | UtxoWithMerkleProof
-    | UtxoWithMerkleProof[];
+    | (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
   /** Solana Account that will receive transferred compressed lamports as utxo  */
   toPubkey: PublicKey;
   /** Amount of compressed lamports to transfer */
   lamports: number | bigint;
+  // TODO: add
+  // /** Optional: if different feepayer than owner of utxos */
+  // payer?: PublicKey;
 };
 
 /**
@@ -94,19 +99,19 @@ export class LightSystemProgram {
    * Generate a transaction instruction that transfers compressed
    * lamports from one compressed balance to another solana address
    */
+  /// TODO: should just define the createoutput utxo selection + packing
   static async transfer(
     params: CompressedTransferParams
   ): Promise<TransactionInstruction> {
-    const program = this.program;
-    const data = Buffer.from([]) as any;
-    const keys = [] as any;
-
     const recipientUtxo = createUtxo(params.toPubkey, params.lamports);
 
-    const fromUtxos = toArray<UtxoWithMerkleContext | UtxoWithMerkleProof>(
-      params.fromBalance
-    );
+    // unnecessary if after
+    const fromUtxos = pipe(
+      toArray<UtxoWithMerkleContext | UtxoWithMerkleProof>,
+      coerceIntoUtxoWithMerkleContext
+    )(params.fromBalance);
 
+    // TODO: move outside of transfer, selection and (getting merkleproofs and zkp) should happen BEFORE call
     /// find sort utxos by size, then add utxos up until the amount is at least reached, return the selected utxos
     if (new Set(fromUtxos.map((utxo) => utxo.owner.toString())).size > 1) {
       throw new Error("All input utxos must have the same owner");
@@ -127,21 +132,30 @@ export class LightSystemProgram {
         { utxos: [], total: BigInt(0) }
       );
 
+    /// transfer logic
     let changeUtxo;
     const changeAmount = selectedInputUtxos.total - BigInt(params.lamports);
     if (changeAmount > 0) {
       changeUtxo = createUtxo(selectedInputUtxos.utxos[0].owner, changeAmount);
     }
 
-    const outputUtxos = [recipientUtxo, changeUtxo];
+    const outputUtxos = changeUtxo
+      ? [recipientUtxo, changeUtxo]
+      : [recipientUtxo];
 
-    // pack. based on onchain. i think its fine dont need lut here even.
+    // TODO: move zkp and merkleproof generation, rootindices outside of transfer
+    const recentValidityProof = placeholderValidityProof();
+    const recentInputStateRootIndices = selectedInputUtxos.utxos.map((_) => 0);
+    const staticAccounts = defaultStaticAccounts();
 
-    const ix = await program.methods
-      .executeCompressedTransaction2(data)
-      .accounts(keys)
-      .instruction();
-
+    const ix = await packInstruction({
+      inputState: coerceIntoUtxoWithMerkleContext(selectedInputUtxos.utxos),
+      outputState: outputUtxos,
+      recentValidityProof,
+      recentInputStateRootIndices,
+      payer: selectedInputUtxos.utxos[0].owner, // TODO: dynamic payer,
+      staticAccounts,
+    });
     return ix;
   }
 
@@ -151,4 +165,16 @@ export class LightSystemProgram {
   //   static createAccount(params: CreateAccountParams): TransactionInstruction {
 
   //   }
+}
+
+function coerceIntoUtxoWithMerkleContext(
+  utxos: (UtxoWithMerkleContext | UtxoWithMerkleProof)[]
+): UtxoWithMerkleContext[] {
+  return utxos.map((utxo): UtxoWithMerkleContext => {
+    if ("merkleProof" in utxo && "rootIndex" in utxo) {
+      const { merkleProof, rootIndex, ...rest } = utxo;
+      return rest;
+    }
+    return utxo;
+  });
 }

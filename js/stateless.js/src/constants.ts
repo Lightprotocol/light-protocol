@@ -26,11 +26,11 @@ export const cpiSignatureAccount =
   "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
 
 export const defaultStaticAccounts = () => [
-  registeredProgramPda,
-  noopProgram,
-  accountCompressionProgram,
-  accountCompressionAuthority,
-  cpiSignatureAccount,
+  new PublicKey(registeredProgramPda),
+  new PublicKey(noopProgram),
+  new PublicKey(accountCompressionProgram),
+  new PublicKey(accountCompressionAuthority),
+  new PublicKey(cpiSignatureAccount),
 ];
 
 export const TYPE_PUBKEY = { array: ["u8", 32] };

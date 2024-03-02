@@ -18,6 +18,7 @@ export interface InstructionDataTransfer2 {
   rpc_fee: bigint;
   utxos: UtxoSerde;
 }
+
 /** Instruction context for state  */
 export type InputState = {
   /** The utxos describing the state that is to be consumed  */
