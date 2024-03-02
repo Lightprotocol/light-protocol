@@ -1,4 +1,3 @@
-/// TODO: fix. i manually adapted to remove tuple.
 export type PspCompressedPda = {
   version: "0.3.0";
   name: "psp_compressed_pda";
@@ -114,7 +113,66 @@ export type PspCompressedPda = {
         ];
       };
     },
-
+    {
+      name: "instructionDataTransfer";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "proofA";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "proofB";
+            type: {
+              array: ["u8", 64];
+            };
+          },
+          {
+            name: "proofC";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "lowElementIndices";
+            type: {
+              vec: "u16";
+            };
+          },
+          {
+            name: "rootIndices";
+            type: {
+              vec: "u16";
+            };
+          },
+          {
+            name: "rpcFee";
+            type: {
+              option: "u64";
+            };
+          },
+          {
+            name: "inUtxos";
+            type: {
+              vec: {
+                defined: "(Utxo,u8,u8)";
+              };
+            };
+          },
+          {
+            name: "outUtxos";
+            type: {
+              vec: {
+                defined: "(OutUtxo,u8)";
+              };
+            };
+          },
+        ];
+      };
+    },
     {
       name: "instructionDataTransfer2";
       type: {
@@ -481,22 +539,22 @@ export type PspCompressedPda = {
               vec: "u64";
             };
           },
-          // {
-          //   name: "inUtxos";
-          //   type: {
-          //     vec: {
-          //       defined: "(InUtxoSerializable,u8,u8)";
-          //     };
-          //   };
-          // },
-          // {
-          //   name: "outUtxos";
-          //   type: {
-          //     vec: {
-          //       defined: "(OutUtxoSerializable,u8)";
-          //     };
-          //   };
-          // },
+          {
+            name: "inUtxos";
+            type: {
+              vec: {
+                defined: "(InUtxoSerializable,u8,u8)";
+              };
+            };
+          },
+          {
+            name: "outUtxos";
+            type: {
+              vec: {
+                defined: "(OutUtxoSerializable,u8)";
+              };
+            };
+          },
         ];
       };
     },
@@ -669,6 +727,66 @@ export const IDL: PspCompressedPda = {
             type: {
               vec: {
                 defined: "CpiSignature",
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: "instructionDataTransfer",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "proofA",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "proofB",
+            type: {
+              array: ["u8", 64],
+            },
+          },
+          {
+            name: "proofC",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "lowElementIndices",
+            type: {
+              vec: "u16",
+            },
+          },
+          {
+            name: "rootIndices",
+            type: {
+              vec: "u16",
+            },
+          },
+          {
+            name: "rpcFee",
+            type: {
+              option: "u64",
+            },
+          },
+          {
+            name: "inUtxos",
+            type: {
+              vec: {
+                defined: "(Utxo,u8,u8)",
+              },
+            },
+          },
+          {
+            name: "outUtxos",
+            type: {
+              vec: {
+                defined: "(OutUtxo,u8)",
               },
             },
           },
@@ -1041,22 +1159,22 @@ export const IDL: PspCompressedPda = {
               vec: "u64",
             },
           },
-          // {
-          //   name: "inUtxos",
-          //   type: {
-          //     vec: {
-          //       defined: "(InUtxoSerializable,u8,u8)",
-          //     },
-          //   },
-          // },
-          // {
-          //   name: "outUtxos",
-          //   type: {
-          //     vec: {
-          //       defined: "(OutUtxoSerializable,u8)",
-          //     },
-          //   },
-          // },
+          {
+            name: "inUtxos",
+            type: {
+              vec: {
+                defined: "(InUtxoSerializable,u8,u8)",
+              },
+            },
+          },
+          {
+            name: "outUtxos",
+            type: {
+              vec: {
+                defined: "(OutUtxoSerializable,u8)",
+              },
+            },
+          },
         ],
       },
     },
