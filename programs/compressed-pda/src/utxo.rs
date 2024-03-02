@@ -238,8 +238,8 @@ impl SerializedUtxos {
     }
 }
 
-#[derive(Debug, PartialEq)]
-#[account]
+// #[account]
+#[derive(Debug, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InUtxoSerializable {
     pub owner: u8,
     pub leaf_index: u32,
@@ -248,16 +248,16 @@ pub struct InUtxoSerializable {
 }
 
 // no need to send blinding is computed onchain
-#[derive(Debug, PartialEq)]
-#[account]
+// #[account]
+#[derive(Debug, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct OutUtxoSerializable {
     pub owner: u8,
     pub lamports: u8,
     pub data: Option<TlvSerializable>,
 }
 
-#[derive(Debug, PartialEq)]
-#[account]
+// #[account]
+#[derive(Debug, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct OutUtxo {
     pub owner: Pubkey,
     pub lamports: u64,
@@ -265,8 +265,8 @@ pub struct OutUtxo {
 }
 
 // blinding we just need to send the leafIndex
-#[derive(Debug, PartialEq, Default)]
-#[account]
+// #[account]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct Utxo {
     pub owner: Pubkey,
     pub blinding: [u8; 32],
