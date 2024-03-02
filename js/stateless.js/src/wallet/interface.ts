@@ -8,7 +8,7 @@ import {
 } from "@solana/web3.js";
 import { PublicKey, Transaction } from "@solana/web3.js";
 import { sign } from "tweetnacl";
-import { Proof, getProofInternal } from "./get-proof";
+import { Proof } from "./get-proof";
 import { Idl } from "@coral-xyz/anchor";
 import { IDL } from "../idls/psp_compressed_pda";
 

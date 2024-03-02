@@ -1,3 +1,4 @@
+/// TODO: fix. i manually adapted to remove tuple.
 export type PspCompressedPda = {
   version: "0.3.0";
   name: "psp_compressed_pda";
@@ -113,66 +114,7 @@ export type PspCompressedPda = {
         ];
       };
     },
-    {
-      name: "instructionDataTransfer";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "proofA";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-          {
-            name: "proofB";
-            type: {
-              array: ["u8", 64];
-            };
-          },
-          {
-            name: "proofC";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-          {
-            name: "lowElementIndices";
-            type: {
-              vec: "u16";
-            };
-          },
-          {
-            name: "rootIndices";
-            type: {
-              vec: "u16";
-            };
-          },
-          {
-            name: "rpcFee";
-            type: {
-              option: "u64";
-            };
-          },
-          {
-            name: "inUtxos";
-            type: {
-              vec: {
-                defined: "(Utxo,u8,u8)";
-              };
-            };
-          },
-          {
-            name: "outUtxos";
-            type: {
-              vec: {
-                defined: "(OutUtxo,u8)";
-              };
-            };
-          },
-        ];
-      };
-    },
+
     {
       name: "instructionDataTransfer2";
       type: {
@@ -218,6 +160,112 @@ export type PspCompressedPda = {
             name: "utxos";
             type: {
               defined: "SerializedUtxos";
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: "inUtxoSerializable";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "owner";
+            type: "u8";
+          },
+          {
+            name: "leafIndex";
+            type: "u32";
+          },
+          {
+            name: "lamports";
+            type: "u8";
+          },
+          {
+            name: "data";
+            type: {
+              option: {
+                defined: "TlvSerializable";
+              };
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: "outUtxoSerializable";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "owner";
+            type: "u8";
+          },
+          {
+            name: "lamports";
+            type: "u8";
+          },
+          {
+            name: "data";
+            type: {
+              option: {
+                defined: "TlvSerializable";
+              };
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: "outUtxo";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "owner";
+            type: "publicKey";
+          },
+          {
+            name: "lamports";
+            type: "u64";
+          },
+          {
+            name: "data";
+            type: {
+              option: {
+                defined: "Tlv";
+              };
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: "utxo";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "owner";
+            type: "publicKey";
+          },
+          {
+            name: "blinding";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "lamports";
+            type: "u64";
+          },
+          {
+            name: "data";
+            type: {
+              option: {
+                defined: "Tlv";
+              };
             };
           },
         ];
@@ -433,128 +481,22 @@ export type PspCompressedPda = {
               vec: "u64";
             };
           },
-          {
-            name: "inUtxos";
-            type: {
-              vec: {
-                defined: "(InUtxoSerializable,u8,u8)";
-              };
-            };
-          },
-          {
-            name: "outUtxos";
-            type: {
-              vec: {
-                defined: "(OutUtxoSerializable,u8)";
-              };
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "InUtxoSerializable";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "owner";
-            type: "u8";
-          },
-          {
-            name: "leafIndex";
-            type: "u32";
-          },
-          {
-            name: "lamports";
-            type: "u8";
-          },
-          {
-            name: "data";
-            type: {
-              option: {
-                defined: "TlvSerializable";
-              };
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "OutUtxoSerializable";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "owner";
-            type: "u8";
-          },
-          {
-            name: "lamports";
-            type: "u8";
-          },
-          {
-            name: "data";
-            type: {
-              option: {
-                defined: "TlvSerializable";
-              };
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "OutUtxo";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "owner";
-            type: "publicKey";
-          },
-          {
-            name: "lamports";
-            type: "u64";
-          },
-          {
-            name: "data";
-            type: {
-              option: {
-                defined: "Tlv";
-              };
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "Utxo";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "owner";
-            type: "publicKey";
-          },
-          {
-            name: "blinding";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-          {
-            name: "lamports";
-            type: "u64";
-          },
-          {
-            name: "data";
-            type: {
-              option: {
-                defined: "Tlv";
-              };
-            };
-          },
+          // {
+          //   name: "inUtxos";
+          //   type: {
+          //     vec: {
+          //       defined: "(InUtxoSerializable,u8,u8)";
+          //     };
+          //   };
+          // },
+          // {
+          //   name: "outUtxos";
+          //   type: {
+          //     vec: {
+          //       defined: "(OutUtxoSerializable,u8)";
+          //     };
+          //   };
+          // },
         ];
       };
     },
@@ -734,66 +676,6 @@ export const IDL: PspCompressedPda = {
       },
     },
     {
-      name: "instructionDataTransfer",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "proofA",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-          {
-            name: "proofB",
-            type: {
-              array: ["u8", 64],
-            },
-          },
-          {
-            name: "proofC",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-          {
-            name: "lowElementIndices",
-            type: {
-              vec: "u16",
-            },
-          },
-          {
-            name: "rootIndices",
-            type: {
-              vec: "u16",
-            },
-          },
-          {
-            name: "rpcFee",
-            type: {
-              option: "u64",
-            },
-          },
-          {
-            name: "inUtxos",
-            type: {
-              vec: {
-                defined: "(Utxo,u8,u8)",
-              },
-            },
-          },
-          {
-            name: "outUtxos",
-            type: {
-              vec: {
-                defined: "(OutUtxo,u8)",
-              },
-            },
-          },
-        ],
-      },
-    },
-    {
       name: "instructionDataTransfer2",
       type: {
         kind: "struct",
@@ -838,6 +720,112 @@ export const IDL: PspCompressedPda = {
             name: "utxos",
             type: {
               defined: "SerializedUtxos",
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: "inUtxoSerializable",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "owner",
+            type: "u8",
+          },
+          {
+            name: "leafIndex",
+            type: "u32",
+          },
+          {
+            name: "lamports",
+            type: "u8",
+          },
+          {
+            name: "data",
+            type: {
+              option: {
+                defined: "TlvSerializable",
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: "outUtxoSerializable",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "owner",
+            type: "u8",
+          },
+          {
+            name: "lamports",
+            type: "u8",
+          },
+          {
+            name: "data",
+            type: {
+              option: {
+                defined: "TlvSerializable",
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: "outUtxo",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "owner",
+            type: "publicKey",
+          },
+          {
+            name: "lamports",
+            type: "u64",
+          },
+          {
+            name: "data",
+            type: {
+              option: {
+                defined: "Tlv",
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: "utxo",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "owner",
+            type: "publicKey",
+          },
+          {
+            name: "blinding",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "lamports",
+            type: "u64",
+          },
+          {
+            name: "data",
+            type: {
+              option: {
+                defined: "Tlv",
+              },
             },
           },
         ],
@@ -1053,128 +1041,22 @@ export const IDL: PspCompressedPda = {
               vec: "u64",
             },
           },
-          {
-            name: "inUtxos",
-            type: {
-              vec: {
-                defined: "(InUtxoSerializable,u8,u8)",
-              },
-            },
-          },
-          {
-            name: "outUtxos",
-            type: {
-              vec: {
-                defined: "(OutUtxoSerializable,u8)",
-              },
-            },
-          },
-        ],
-      },
-    },
-    {
-      name: "InUtxoSerializable",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "owner",
-            type: "u8",
-          },
-          {
-            name: "leafIndex",
-            type: "u32",
-          },
-          {
-            name: "lamports",
-            type: "u8",
-          },
-          {
-            name: "data",
-            type: {
-              option: {
-                defined: "TlvSerializable",
-              },
-            },
-          },
-        ],
-      },
-    },
-    {
-      name: "OutUtxoSerializable",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "owner",
-            type: "u8",
-          },
-          {
-            name: "lamports",
-            type: "u8",
-          },
-          {
-            name: "data",
-            type: {
-              option: {
-                defined: "TlvSerializable",
-              },
-            },
-          },
-        ],
-      },
-    },
-    {
-      name: "OutUtxo",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "owner",
-            type: "publicKey",
-          },
-          {
-            name: "lamports",
-            type: "u64",
-          },
-          {
-            name: "data",
-            type: {
-              option: {
-                defined: "Tlv",
-              },
-            },
-          },
-        ],
-      },
-    },
-    {
-      name: "Utxo",
-      type: {
-        kind: "struct",
-        fields: [
-          {
-            name: "owner",
-            type: "publicKey",
-          },
-          {
-            name: "blinding",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-          {
-            name: "lamports",
-            type: "u64",
-          },
-          {
-            name: "data",
-            type: {
-              option: {
-                defined: "Tlv",
-              },
-            },
-          },
+          // {
+          //   name: "inUtxos",
+          //   type: {
+          //     vec: {
+          //       defined: "(InUtxoSerializable,u8,u8)",
+          //     },
+          //   },
+          // },
+          // {
+          //   name: "outUtxos",
+          //   type: {
+          //     vec: {
+          //       defined: "(OutUtxoSerializable,u8)",
+          //     },
+          //   },
+          // },
         ],
       },
     },

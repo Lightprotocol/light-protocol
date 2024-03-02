@@ -1,4 +1,4 @@
-import { Program, Idl } from "@coral-xyz/anchor";
+import { Idl } from "@coral-xyz/anchor";
 import { IDL as IDL_PSP_COMPRESSED_PDA } from "./idls/psp_compressed_pda";
 
 import {
