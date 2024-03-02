@@ -10,14 +10,14 @@ import { TlvSerial, deserializeTlv, serializeTlv } from "./utxo-data";
 import { bufToDecStr, hashToBn254FieldSizeLe } from "../utils/conversion";
 import { bigint254 } from "./bigint254";
 
-export type InputUtxoSerial = {
+export type InUtxoSerializable = {
   owner: number;
   leafIndex: number;
   lamports: number;
   data: TlvSerial | null;
 };
 
-export type OutputUtxoSerial = {
+export type OutUtxoSerializable = {
   owner: number;
   lamports: number;
   data: TlvSerial | null;
@@ -26,14 +26,14 @@ export type OutputUtxoSerial = {
 export class UtxoSerde {
   pubkeyArray: PublicKey[];
   u64Array: bigint[];
-  inputUtxos: [InputUtxoSerial, number, number][];
-  outputUtxos: [OutputUtxoSerial, number][];
+  inUtxos: [InUtxoSerializable, number, number][];
+  outUtxos: [OutUtxoSerializable, number][];
 
   constructor() {
     this.pubkeyArray = [];
     this.u64Array = [];
-    this.inputUtxos = [];
-    this.outputUtxos = [];
+    this.inUtxos = [];
+    this.outUtxos = [];
   }
   addinputUtxos(
     utxosToAdd: Utxo[],
@@ -42,7 +42,7 @@ export class UtxoSerde {
     inputUtxoMerkleTreePubkeys: PublicKey[],
     nullifierArrayPubkeys: PublicKey[]
   ): UtxoSerde {
-    if (this.inputUtxos.length > 0) {
+    if (this.inUtxos.length > 0) {
       throw new Error("inputUtxosAlreadyAdded");
     }
     if (
@@ -53,7 +53,7 @@ export class UtxoSerde {
       throw new Error("ArrayLengthMismatch");
     }
 
-    const utxos: [InputUtxoSerial, number, number][] = [];
+    const utxos: [InUtxoSerializable, number, number][] = [];
     const merkleTreeIndices = new Map<string, number>();
     const nullifierIndices = new Map<string, number>();
 
@@ -73,7 +73,7 @@ export class UtxoSerde {
         ? serializeTlv(utxo.data, this.pubkeyArray, accounts)
         : null;
 
-      const inputUtxoSerializable: InputUtxoSerial = {
+      const inputUtxoSerializable: InUtxoSerializable = {
         owner,
         leafIndex: leafIndices[i],
         lamports,
@@ -107,7 +107,7 @@ export class UtxoSerde {
     });
 
     // Extend SerializedUtxos
-    this.inputUtxos.push(...utxos);
+    this.inUtxos.push(...utxos);
     return this;
   }
 
@@ -119,7 +119,7 @@ export class UtxoSerde {
   ): UtxoSerde {
     if (utxosToAdd.length === 0) return this;
 
-    const utxos: [OutputUtxoSerial, number][] = [];
+    const utxos: [OutUtxoSerializable, number][] = [];
     const merkleTreeIndices = new Map<string, number>();
     const remainingAccountsIndices = new Map<string, number>();
 
@@ -150,7 +150,7 @@ export class UtxoSerde {
         ? serializeTlv(utxo.data, this.pubkeyArray, accounts)
         : null;
 
-      const outputUtxoSerializable: OutputUtxoSerial = {
+      const outputUtxoSerializable: OutUtxoSerializable = {
         owner,
         lamports,
         data,
@@ -178,7 +178,7 @@ export class UtxoSerde {
     });
 
     // Extend SerializedUtxos
-    this.outputUtxos.push(...utxos);
+    this.outUtxos.push(...utxos);
     return this;
   }
 
@@ -188,9 +188,9 @@ export class UtxoSerde {
     merkleTreeAccounts: PublicKey[],
     stateNullifierQueues: PublicKey[]
   ): Promise<UtxoWithMerkleContext[]> {
-    const inputUtxos: UtxoWithMerkleContext[] = [];
+    const inUtxos: UtxoWithMerkleContext[] = [];
 
-    this.inputUtxos.forEach(async (inputUtxoSerialized, i) => {
+    this.inUtxos.forEach(async (inputUtxoSerialized, i) => {
       const [inputUtxo, merkleTreeAccountIndex, stateNullifierQueueIndex] =
         inputUtxoSerialized;
 
@@ -224,17 +224,17 @@ export class UtxoSerde {
         stateNullifierQueues[stateNullifierQueueIndex]
       );
 
-      inputUtxos.push(utxoWithMerkleContext);
+      inUtxos.push(utxoWithMerkleContext);
     });
 
-    return inputUtxos;
+    return inUtxos;
   }
 
   deserializeOutputUtxos(accounts: PublicKey[]): [Utxo, number][] {
-    const outputUtxos: [Utxo, number][] = [];
+    const outUtxos: [Utxo, number][] = [];
 
     for (const [outputUtxoSerialized, indexMerkleTreeAccount] of this
-      .outputUtxos) {
+      .outUtxos) {
       // Resolve owner
       const owner =
         outputUtxoSerialized.owner < accounts.length
@@ -255,10 +255,10 @@ export class UtxoSerde {
       // Reconstruct Utxo
       const utxo = createUtxo(owner, lamports, data);
 
-      outputUtxos.push([utxo, indexMerkleTreeAccount]);
+      outUtxos.push([utxo, indexMerkleTreeAccount]);
     }
 
-    return outputUtxos;
+    return outUtxos;
   }
 }
 

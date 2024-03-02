@@ -1,5 +1,6 @@
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { FIELD_SIZE } from "../constants";
+import { PublicKey } from "@solana/web3.js";
 
 /** bigint with <254-bit max size */
 export type bigint254 = bigint;
@@ -47,4 +48,16 @@ function enforceSize(bigintNumber: bigint): bigint254 {
 export function bigint254toBase58(bigintNumber: bigint254): string {
   const buffer = Buffer.from(bigintNumber.toString(16), "hex");
   return bs58.encode(buffer);
+}
+
+/** Convert Base58 string to <254-bit Solana Public key*/
+export function bigint254ToPublicKey(bigintNumber: bigint254): PublicKey {
+  return new PublicKey(bigint254toBase58(bigintNumber));
+}
+
+// FIXME: assumes <254 bit pubkey.
+// just use consistent type (pubkey254)
+/** Convert Solana Public key to <254-bit bigint */
+export function PublicKeyToBigint254(publicKey: PublicKey): bigint254 {
+  return createBigint254(publicKey.toBuffer());
 }

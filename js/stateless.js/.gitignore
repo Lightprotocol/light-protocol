@@ -1,3 +1,6 @@
 node_modules
 test-ledger
 lib
+**/lib/**
+**/lib/*
+

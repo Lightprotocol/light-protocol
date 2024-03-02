@@ -25,8 +25,8 @@ import {
   MerkleContext,
   MerkleContextWithMerkleProof,
   MerkleUpdateContext,
-  PublicKey254,
   UtxoWithMerkleContext,
+  bigint254,
 } from "./state";
 
 export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
@@ -146,6 +146,7 @@ export const UtxoResult = pick({
   address: optional(PublicKeyFromString), // account
   leafIndex: number(), // bigint?
   merkleTree: PublicKeyFromString,
+  stateNullifierQueue: PublicKeyFromString,
   slotUpdated: number(),
   seq: number(),
 });
@@ -160,6 +161,7 @@ export const CompressedAccountResult = pick({
   hash: PublicKeyFromString,
   leafIndex: number(),
   merkleTree: PublicKeyFromString,
+  stateNullifierQueue: PublicKeyFromString,
   slotUpdated: number(),
   seq: number(),
 });
@@ -175,6 +177,7 @@ export const CompressedAccountsResult = pick({
   hash: PublicKeyFromString,
   leafIndex: number(),
   merkleTree: PublicKeyFromString,
+  stateNullifierQueue: PublicKeyFromString,
   slotUpdated: number(),
   seq: number(),
 });
@@ -186,6 +189,8 @@ export const MerkleProofResult = pick({
   merkleTree: PublicKeyFromString,
   leafIndex: number(),
   proof: array(PublicKeyFromString),
+  stateNullifierQueue: PublicKeyFromString,
+  rootIndex: number(),
 });
 
 /**
@@ -196,16 +201,18 @@ export const CompressedAccountMerkleProofResult = pick({
   merkleTree: PublicKeyFromString,
   leafIndex: number(),
   proof: array(PublicKeyFromString),
+  stateNullifierQueue: PublicKeyFromString,
+  rootIndex: number(),
 });
 
 export interface CompressionApiInterface {
   /** Retrieve a utxo */
   getUtxo(
-    utxoHash: PublicKey254,
+    utxoHash: bigint254,
     config?: GetUtxoConfig
   ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null>;
   /** Retrieve the proof for a utxo */
-  getUtxoProof(utxoHash: PublicKey254): Promise<MerkleContext | null>;
+  getUtxoProof(utxoHash: bigint254): Promise<MerkleContext | null>;
   /** Retrieve a compressed account */
   getCompressedAccount(
     address: PublicKey,

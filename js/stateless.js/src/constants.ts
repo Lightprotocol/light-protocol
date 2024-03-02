@@ -49,7 +49,7 @@ export const LOOK_UP_TABLE = new PublicKey(
 );
 
 /// TODO: replace mock
-export type merkleTreeProgram = Program<null>;
+// export type merkleTreeProgram = Program<>;
 
 /// TODO: replace mock
 export const MERKLE_TREE_SIGNER_AUTHORITY = new PublicKey([

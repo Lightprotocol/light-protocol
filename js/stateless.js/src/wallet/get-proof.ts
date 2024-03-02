@@ -1,4 +1,5 @@
 import { Idl } from "@coral-xyz/anchor";
+//@ts-ignore
 import { Prover } from "@lightprotocol/prover.js";
 import { ProofError, ProofErrorCode } from "../errors";
 import { InclusionProofInputs } from "./interface";

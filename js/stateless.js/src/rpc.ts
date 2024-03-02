@@ -18,10 +18,11 @@ import {
   jsonRpcResultAndContext,
 } from "./rpc-interface";
 import {
-  PublicKey254,
   UtxoWithMerkleContext,
   MerkleContextWithMerkleProof,
   MerkleUpdateContext,
+  bigint254,
+  PublicKeyToBigint254,
 } from "./state";
 import { array, create, nullable } from "superstruct";
 import { toCamelCase } from "./utils/toCamelCase";
@@ -73,7 +74,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
   /** Retrieve a utxo with context */
   async getUtxo(
-    utxoHash: PublicKey254,
+    utxoHash: bigint254,
     config?: GetUtxoConfig
   ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null> {
     const unsafeRes = await rpcRequest(this.rpcEndpoint, "getUtxo", [
@@ -109,6 +110,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
       merkleTree: res.result.value.merkleTree,
       leafIndex: res.result.value.leafIndex,
       address: res.result.value.address,
+      stateNullifierQueue: res.result.value.stateNullifierQueue,
     };
 
     return { context, value };
@@ -116,7 +118,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
   /** Retrieve the proof for a utxo */
   async getUtxoProof(
-    utxoHash: PublicKey254
+    utxoHash: bigint254
   ): Promise<MerkleContextWithMerkleProof | null> {
     const unsafeRes = await rpcRequest(this.rpcEndpoint, "getUtxoProof", [
       utxoHash.toString(),
@@ -139,6 +141,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
       merkleTree: res.result.value.merkleTree,
       leafIndex: res.result.value.leafIndex,
       merkleProof: res.result.value.proof,
+      stateNullifierQueue: res.result.value.stateNullifierQueue,
+      rootIndex: res.result.value.rootIndex,
     };
     return value;
   }
@@ -177,8 +181,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
       owner: res.result.value.owner,
       lamports: res.result.value.lamports,
       data: res.result.value.data,
-      hash: res.result.value.hash,
+      hash: PublicKeyToBigint254(res.result.value.hash),
       merkleTree: res.result.value.merkleTree,
+      stateNullifierQueue: res.result.value.stateNullifierQueue,
       leafIndex: res.result.value.leafIndex,
       address,
     };
@@ -209,10 +214,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     const value = {
-      hash: res.result.value.utxoHash,
+      hash: PublicKeyToBigint254(res.result.value.utxoHash),
       merkleTree: res.result.value.merkleTree,
       leafIndex: res.result.value.leafIndex,
       merkleProof: res.result.value.proof,
+      stateNullifierQueue: res.result.value.stateNullifierQueue,
+      rootIndex: res.result.value.rootIndex,
     };
 
     return value;
@@ -248,8 +255,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
           owner: value.owner,
           lamports: value.lamports,
           data: value.data,
-          hash: value.hash,
+          hash: PublicKeyToBigint254(value.hash),
           merkleTree: value.merkleTree,
+          stateNullifierQueue: value.stateNullifierQueue,
           leafIndex: value.leafIndex,
           address: value.address,
         },

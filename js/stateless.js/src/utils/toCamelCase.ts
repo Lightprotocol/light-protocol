@@ -10,7 +10,7 @@ export function toCamelCase(
       });
       result[camelCaseKey] = toCamelCase(obj[key]);
       return result;
-    }, {});
+    }, {} as any);
   }
   return obj;
 }

@@ -11,6 +11,7 @@ import { useWallet } from "../wallet";
 import {
   UtxoWithMerkleContext,
   UtxoWithMerkleProof,
+  coerceIntoUtxoWithMerkleContext,
   createUtxo,
 } from "../state";
 import { toArray } from "../utils/conversion";
@@ -63,7 +64,7 @@ export class LightSystemProgram {
   static programId: PublicKey = new PublicKey(
     // TODO: replace with actual program id
     // can add check to ensure its consistent with the idl
-    "42111111111111111111111111111111"
+    "11111111111111111111111111111111"
   );
 
   private static _program: Program<PspCompressedPda> | null = null;
@@ -158,16 +159,4 @@ export class LightSystemProgram {
     });
     return ix;
   }
-}
-
-function coerceIntoUtxoWithMerkleContext(
-  utxos: (UtxoWithMerkleContext | UtxoWithMerkleProof)[]
-): UtxoWithMerkleContext[] {
-  return utxos.map((utxo): UtxoWithMerkleContext => {
-    if ("merkleProof" in utxo && "rootIndex" in utxo) {
-      const { merkleProof, rootIndex, ...rest } = utxo;
-      return rest;
-    }
-    return utxo;
-  });
 }

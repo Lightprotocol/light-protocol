@@ -96,7 +96,7 @@ export async function hashToBn254FieldSizeLe(
   return null;
 }
 
-/** Mutates input array in place */
+/** Mutates array in place */
 export function pushUniqueItems<T>(items: T[], map: T[]): void {
   items.forEach((item) => {
     if (!map.includes(item)) {

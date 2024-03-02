@@ -2,7 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import { LightSystemProgram } from "../programs/compressed-pda";
 import { Buffer } from "buffer";
 import { PublicKey254 } from "./utxo";
-import { bigint254 } from "./bigint254";
+import { bigint254, createBigint254 } from "./bigint254";
 import { arrayToBigint, bigintToArray } from "../utils/conversion";
 
 /** Describe the generic details applicable to every data block */
@@ -43,13 +43,15 @@ export const createTlvDataElement = (
 const { coder } = LightSystemProgram.program;
 
 /** Decode system-level utxo data into tlvs from a buffer */
-function decodeUtxoData(buffer: Buffer, accounts: PublicKey[]): Tlv {
+export function decodeUtxoData(buffer: Buffer, accounts?: PublicKey[]): Tlv {
   const serial = coder.types.decode("TlvSerializable", buffer);
-  return deserializeTlv(serial, accounts);
+  // TODO: check if need to unpack
+  // return deserializeTlv(serial, accounts);
+  return serial;
 }
 
 /** Encode tlv blocks into a buffer  */
-function encodeUtxoData(
+export function encodeUtxoData(
   data: Tlv,
   pubkeyArray: PublicKey[],
   accounts: PublicKey[]
@@ -102,6 +104,8 @@ export function serializeTlv(
   return tlvElementsSerializable;
 }
 
+// TODO: check how events get emitted on-chain!
+// we might not need to unpack the tlvs
 export function deserializeTlv(
   serializable: TlvDataElementSerial[],
   accounts: PublicKey[]
