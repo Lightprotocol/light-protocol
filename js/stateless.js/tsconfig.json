@@ -5,9 +5,14 @@
     "rootDir": "src",
     "baseUrl": "src",
     "esModuleInterop": true,
-    "strict": true
-    // "target": "ES2020"
-    // "module": "ESNext"
+    "strict": true,
+    // "target": "ESNext",
+    // "module": "ESNext",
+    "types": ["vitest/importMeta", "node"],
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "lib": ["ESNext"]
   },
   // "extends": "@lightprotocol/tsconfig/base.json",
   "include": ["src"]

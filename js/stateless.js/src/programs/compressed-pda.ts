@@ -20,8 +20,8 @@ import { placeholderValidityProof } from "../instruction/validity-proof";
 
 export type CompressedTransferParams = {
   /** Utxos with lamports to spend as transaction inputs */
-  fromBalance:
-    | UtxoWithMerkleContext
+  fromBalance: // TODO: selection upfront
+  | UtxoWithMerkleContext
     | UtxoWithMerkleProof
     | (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
   /** Solana Account that will receive transferred compressed lamports as utxo  */
@@ -143,7 +143,7 @@ export class LightSystemProgram {
       ? [recipientUtxo, changeUtxo]
       : [recipientUtxo];
 
-    // TODO: move zkp and merkleproof generation, rootindices outside of transfer
+    // TODO: move zkp, merkleproof generation, and rootindices outside of transfer
     const recentValidityProof = placeholderValidityProof();
     const recentInputStateRootIndices = selectedInputUtxos.utxos.map((_) => 0);
     const staticAccounts = defaultStaticAccounts();
@@ -158,13 +158,6 @@ export class LightSystemProgram {
     });
     return ix;
   }
-
-  /**
-   * Generate a transaction instruction that creates a new account
-   */
-  //   static createAccount(params: CreateAccountParams): TransactionInstruction {
-
-  //   }
 }
 
 function coerceIntoUtxoWithMerkleContext(

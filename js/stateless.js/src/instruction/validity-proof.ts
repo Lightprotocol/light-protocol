@@ -12,9 +12,9 @@ export type ValidityProof = {
 };
 
 export const placeholderValidityProof = () => ({
-  proofA: new Uint8Array(32),
-  proofB: new Uint8Array(64),
-  proofC: new Uint8Array(32),
+  proofA: new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1)),
+  proofB: new Uint8Array(Array.from({ length: 64 }, (_, i) => i + 1)),
+  proofC: new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1)),
 });
 
 export const checkValidityProofShape = (proof: ValidityProof) => {
