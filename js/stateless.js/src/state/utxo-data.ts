@@ -1,8 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { LightSystemProgram } from "../programs/compressed-pda";
 import { Buffer } from "buffer";
-import { PublicKey254 } from "./utxo";
-import { bigint254, createBigint254 } from "./bigint254";
+import { bigint254 } from "./bigint254";
 import { arrayToBigint, bigintToArray } from "../utils/conversion";
 
 /** Describe the generic details applicable to every data block */
