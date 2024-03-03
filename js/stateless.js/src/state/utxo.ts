@@ -116,7 +116,6 @@ export function coerceIntoUtxoWithMerkleContext(
   });
 }
 
-/// akin to in conversion.ts, add vitest best practice unit test cases for the above functions
 //@ts-ignore
 if (import.meta.vitest) {
   //@ts-ignore
