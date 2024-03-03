@@ -47,7 +47,10 @@ export type PspCompressedPda = {
           "name": "inputs",
           "type": "bytes"
         }
-      ]
+      ],
+      "returns": {
+        "defined": "crate::event::PublicTransactionEvent"
+      }
     },
     {
       "name": "executeCompressedTransaction2",
@@ -93,7 +96,10 @@ export type PspCompressedPda = {
           "name": "inputs",
           "type": "bytes"
         }
-      ]
+      ],
+      "returns": {
+        "defined": "crate::event::PublicTransactionEvent"
+      }
     }
   ],
   "accounts": [
@@ -119,30 +125,11 @@ export type PspCompressedPda = {
         "kind": "struct",
         "fields": [
           {
-            "name": "proofA",
+            "name": "proof",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "option": {
+                "defined": "ProofCompressed"
+              }
             }
           },
           {
@@ -188,30 +175,11 @@ export type PspCompressedPda = {
         "kind": "struct",
         "fields": [
           {
-            "name": "proofA",
+            "name": "proof",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "option": {
+                "defined": "ProofCompressed"
+              }
             }
           },
           {
@@ -703,7 +671,10 @@ export const IDL: PspCompressedPda = {
           "name": "inputs",
           "type": "bytes"
         }
-      ]
+      ],
+      "returns": {
+        "defined": "crate::event::PublicTransactionEvent"
+      }
     },
     {
       "name": "executeCompressedTransaction2",
@@ -749,7 +720,10 @@ export const IDL: PspCompressedPda = {
           "name": "inputs",
           "type": "bytes"
         }
-      ]
+      ],
+      "returns": {
+        "defined": "crate::event::PublicTransactionEvent"
+      }
     }
   ],
   "accounts": [
@@ -775,30 +749,11 @@ export const IDL: PspCompressedPda = {
         "kind": "struct",
         "fields": [
           {
-            "name": "proofA",
+            "name": "proof",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "option": {
+                "defined": "ProofCompressed"
+              }
             }
           },
           {
@@ -844,30 +799,11 @@ export const IDL: PspCompressedPda = {
         "kind": "struct",
         "fields": [
           {
-            "name": "proofA",
+            "name": "proof",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "option": {
+                "defined": "ProofCompressed"
+              }
             }
           },
           {

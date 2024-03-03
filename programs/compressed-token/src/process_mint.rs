@@ -1,221 +1,161 @@
-// use account_compression::ConcurrentMerkleTreeAccount;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-// use psp_compressed_pda::program::PspCompressedPda;
-// use light_merkle_tree_program::{program::LightMerkleTreeProgram, state_merkle_tree_from_bytes};
-// use light_verifier_sdk::{public_transaction::PublicTransactionEvent, utxo::Utxo};
+use light_hasher::DataHasher;
+use psp_compressed_pda::{
+    tlv::{Tlv, TlvDataElement},
+    utxo::OutUtxo,
+    InstructionDataTransfer,
+};
 
-pub fn process_create_mint<'info>(
-    ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
-) -> Result<()> {
-    cpi_register_merkle_tree_token_pool(&ctx)?;
-    Ok(())
-}
+use crate::{AccountState, TokenTlvData};
+pub const POOL_SEED: &[u8] = b"pool";
+pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority_pda";
 
+/// creates a token pool account which is owned by the token authority pda
 #[derive(Accounts)]
 pub struct CreateMintInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// Mint authority, ensures that this program needs to be used as a proxy to mint tokens
-    /// CHECK: this account in merkle tree program
-    #[account(mut, seeds = [b"authority",authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump,)]
-    pub authority_pda: UncheckedAccount<'info>,
-    #[account(mut, constraint = mint.mint_authority.unwrap() == authority_pda.key())]
-    pub mint: Account<'info, Mint>,
+    #[account(init,
+              seeds = [
+                POOL_SEED, &mint.key().to_bytes(),
+              ],
+              bump,
+              payer = fee_payer,
+              token::mint = mint,
+              token::authority = mint_authority_pda
+    )]
+    pub token_pool_pda: Account<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
+    /// CHECK:
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+    /// CHECK:
+    #[account(mut, seeds=[MINT_AUTHORITY_SEED, authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump)]
+    pub mint_authority_pda: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
-    /// CHECK: this account in merkle tree program
-    #[account(mut)]
-    pub registered_asset_pool_pda: UncheckedAccount<'info>,
-    /// CHECK: this account in merkle tree program
-    pub registered_pool_type_pda: UncheckedAccount<'info>,
-    /// CHECK this account in merkle tree program
-    #[account(mut)]
-    pub merkle_tree_pda_token: UncheckedAccount<'info>,
-    /// CHECK: this account in merkle tree program
-    #[account(mut)]
-    pub merkle_tree_authority_pda: UncheckedAccount<'info>,
-    /// CHECK: this account in merkle tree program
-    #[account(mut)]
-    pub token_authority: UncheckedAccount<'info>,
-    /// CHECK: this account in merkle tree program
-    pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
 }
 
-pub fn cpi_register_merkle_tree_token_pool<'a, 'info>(
-    ctx: &'a Context<'a, '_, '_, 'info, CreateMintInstruction<'info>>,
+pub fn process_mint_to<'info>(
+    ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+    compression_public_keys: Vec<Pubkey>,
+    amounts: Vec<u64>,
 ) -> Result<()> {
+    if compression_public_keys.len() != amounts.len() {
+        return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
+    }
+    mint_spl_to_pool_pda(&ctx, &amounts)?;
+    let out_utxos = create_out_utxos(
+        ctx.accounts.mint.to_account_info().key(),
+        compression_public_keys.as_slice(),
+        &amounts,
+    );
+    cpi_create_execute_compressed_instruction(&ctx, &out_utxos)?;
+    Ok(())
+}
+
+pub fn create_out_utxos(mint_pubkey: Pubkey, pubkeys: &[Pubkey], amounts: &[u64]) -> Vec<OutUtxo> {
+    pubkeys
+        .iter()
+        .zip(amounts.iter())
+        .map(|(pubkey, amount)| {
+            let token_tlv_data = TokenTlvData {
+                mint: mint_pubkey,
+                owner: *pubkey,
+                amount: *amount,
+                delegate: None,
+                state: AccountState::Initialized,
+                is_native: None,
+                delegated_amount: 0,
+                close_authority: None,
+            };
+            let mut token_data = Vec::new();
+            token_tlv_data.serialize(&mut token_data).unwrap();
+            let data: TlvDataElement = TlvDataElement {
+                discriminator: 2u64.to_le_bytes(),
+                owner: Token::id(),
+                data: token_data,
+                data_hash: token_tlv_data.hash().unwrap(),
+            };
+            OutUtxo {
+                owner: Token::id(),
+                lamports: 0,
+                data: Some(Tlv {
+                    tlv_elements: vec![data],
+                }),
+            }
+        })
+        .collect()
+}
+
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+pub fn cpi_create_execute_compressed_instruction<'info>(
+    ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+    out_utxos: &[OutUtxo],
+) -> Result<()> {
+    let mut _out_utxos = Vec::<(OutUtxo, u8)>::new();
+    for utxo in out_utxos.iter() {
+        _out_utxos.push((utxo.clone(), 0));
+    }
+
+    let inputs_struct = InstructionDataTransfer {
+        low_element_indices: Vec::new(),
+        rpc_fee: None,
+        in_utxos: Vec::new(),
+        out_utxos: _out_utxos,
+        root_indices: Vec::new(),
+        proof: None,
+    };
+
+    let mut inputs = Vec::new();
+    InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
     let authority_bytes = ctx.accounts.authority.key().to_bytes();
     let mint_bytes = ctx.accounts.mint.key().to_bytes();
     let seeds = [
-        b"authority".as_slice(),
+        MINT_AUTHORITY_SEED,
         authority_bytes.as_slice(),
         mint_bytes.as_slice(),
     ];
-    // let seeds = seeds.concat();
-    let (address, bump) =
+    let (_, bump) =
         anchor_lang::prelude::Pubkey::find_program_address(seeds.as_slice(), ctx.program_id);
-    // let (seed, bump) = get_seeds(ctx.program_id, &ctx.accounts.authority)?;
     let bump = &[bump];
     let seeds = [
-        b"authority".as_slice(),
+        MINT_AUTHORITY_SEED,
         authority_bytes.as_slice(),
         mint_bytes.as_slice(),
         bump,
     ];
-    msg!("address: {:?}", address);
-    msg!("seeds: {:?}", seeds);
-    // let seeds = &[seeds, bump.as_slice()][..];
-    // let signer_seeds = &[&seeds[..]];
-    // let cpi_accounts = psp_authority_program::cpi::accounts::RegisterSplPool {
-    //     registered_asset_pool_pda: ctx.accounts.registered_asset_pool_pda.to_account_info(),
-    //     registered_pool_type_pda: ctx.accounts.registered_pool_type_pda.to_account_info(),
-    //     authority: ctx.accounts.authority_pda.to_account_info(),
-    //     mint: ctx.accounts.mint.to_account_info(),
-    //     system_program: ctx.accounts.system_program.to_account_info(),
-    //     token_program: ctx.accounts.token_program.to_account_info(),
-    //     token_authority: ctx.accounts.token_authority.to_account_info(),
-    //     merkle_tree_pda_token: ctx.accounts.merkle_tree_pda_token.to_account_info(),
-    //     merkle_tree_authority_pda: ctx.accounts.merkle_tree_authority_pda.to_account_info(),
-    // };
-    // let cpi_ctx = CpiContext::new_with_signer(
-    //     ctx.accounts.authority_program.to_account_info(),
-    //     cpi_accounts,
-    //     signer_seeds,
-    // );
-    // psp_authority_program::cpi::register_spl_pool(cpi_ctx)?;
-    Ok(())
-}
 
-pub fn process_mint_to<'info>(
-    _ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    _compression_public_keys: Vec<[u8; 32]>,
-    _amounts: Vec<u64>,
-) -> Result<()> {
-    // // TODO: adapt for flexible number of amounts blocker is batched Merkle tree update
-    // if amounts.len() != 2 {
-    //     panic!("Only 2 amounts supported");
-    // }
-    // if compression_public_keys.len() != amounts.len() {
-    //     return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
-    // }
+    let signer_seeds = &[&seeds[..]];
+    let cpi_accounts = psp_compressed_pda::cpi::accounts::TransferInstruction {
+        signer: ctx.accounts.mint_authority_pda.to_account_info(),
+        registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+        noop_program: ctx.accounts.noop_program.to_account_info(),
+        psp_account_compression_authority: ctx
+            .accounts
+            .psp_account_compression_authority
+            .to_account_info(),
+        account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
+        cpi_signature_account: None,
+    };
+    let mut cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.compressed_pda_program.to_account_info(),
+        cpi_accounts,
+        signer_seeds,
+    );
 
-    // let merkle_tree_account = ctx.accounts.merkle_tree_set.load_mut()?;
-    // // let merkle_tree = state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
-
-    // let mut utxos = Vec::with_capacity(compression_public_keys.len());
-    // let mut utxo_indexes: Vec<u64> = Vec::with_capacity(compression_public_keys.len());
-    // for (i, (public_key, amount)) in compression_public_keys.iter().zip(&amounts).enumerate() {
-    //     let mut utxo = Utxo {
-    //         version: 0,
-    //         pool_type: 0,
-    //         amounts: [0, *amount],
-    //         spl_asset_mint: Some(ctx.accounts.mint.to_account_info().key()),
-    //         owner: *public_key,
-    //         blinding: [0u8; 32],
-    //         data_hash: [0u8; 32],
-    //         meta_hash: [0u8; 32],
-    //         address: [0u8; 32],
-    //         message: None,
-    //     };
-    //     utxo.update_blinding(
-    //         ctx.accounts.merkle_tree_set.key(),
-    //         (merkle_tree.next_index + i as u64) as usize,
-    //     )
-    //     .unwrap();
-    //     utxo_indexes.push(merkle_tree.next_index + i as u64);
-    //     utxos.push(utxo);
-    // }
-    // drop(merkle_tree_account);
-    // let utxo_hashes = utxos
-    //     .iter()
-    //     .map(|utxo| utxo.hash().unwrap())
-    //     .collect::<Vec<[u8; 32]>>();
-
-    // mint_spl_to_merkle_tree(&ctx, amounts)?;
-
-    // msg!("self.out_utxo_hashes.to_vec(), {:?}", utxo_hashes.to_vec());
-    // msg!("out utxo version {:?}", utxos[0].version);
-    // msg!("out utxo amounts {:?}", utxos[0].amounts);
-    // msg!("out utxo spl_asset_mint {:?}", utxos[0].spl_asset_mint);
-    // msg!("out utxo owner {:?}", utxos[0].owner);
-    // msg!("out utxo blinding {:?}", utxos[0].blinding);
-    // msg!("out utxo data_hash {:?}", utxos[0].data_hash);
-    // msg!("out utxo meta_hash {:?}", utxos[0].meta_hash);
-    // msg!("out utxo address {:?}", utxos[0].address);
-    // msg!("out utxo message {:?}", utxos[0].message);
-    // msg!("out utxo  utxo_hashes {:?}", utxo_hashes[0]);
-
-    // msg!("out utxo 1 version {:?}", utxos[1].version);
-    // msg!("out utxo 1 amounts {:?}", utxos[1].amounts);
-    // msg!("out utxo 1 spl_asset_mint {:?}", utxos[1].spl_asset_mint);
-    // msg!("out utxo 1 owner {:?}", utxos[1].owner);
-    // msg!("out utxo 1 blinding {:?}", utxos[1].blinding);
-    // msg!("out utxo 1 data_hash {:?}", utxos[1].data_hash);
-    // msg!("out utxo 1 meta_hash {:?}", utxos[1].meta_hash);
-    // msg!("out utxo 1 address {:?}", utxos[1].address);
-    // msg!("out utxo 1 message {:?}", utxos[1].message);
-    // msg!("out utxo 1 utxo_hashes {:?}", utxo_hashes[1]);
-
-    // // TODO: switch to batched update
-    // cpi_merkle_tree(&ctx, utxo_hashes)?;
-
-    // let event = PublicTransactionEvent {
-    //     in_utxo_hashes: Vec::<[u8; 32]>::new(),
-    //     out_utxos: utxos.to_vec(),
-    //     // .iter()
-    //     // .map(|utxo| utxo.try_to_vec().unwrap())
-    //     // .collect(),
-    //     public_amount_spl: None,
-    //     public_amount_sol: None,
-    //     out_utxo_indexes: utxo_indexes,
-    //     rpc_fee: None,
-    //     message: None,
-    //     transaction_hash: None,
-    //     program_id: None,
-    // };
-    // light_verifier_sdk::cpi_instructions::invoke_indexer_transaction_event::<PublicTransactionEvent>(
-    //     &event,
-    //     &ctx.accounts.noop_program.to_account_info(),
-    // )?;
+    cpi_ctx.remaining_accounts = vec![ctx.accounts.merkle_tree.to_account_info()];
+    psp_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
     Ok(())
 }
 
 #[inline(never)]
-pub fn cpi_merkle_tree<'info>(
+pub fn mint_spl_to_pool_pda<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    utxo_hashes: Vec<[u8; 32]>,
-) -> Result<()> {
-    let mut merkle_tree_accounts = Vec::new();
-    for _ in 0..utxo_hashes.len() {
-        merkle_tree_accounts.push(ctx.accounts.merkle_tree_set.to_account_info().clone());
-    }
-    // light_verifier_sdk::cpi_instructions::insert_two_leaves_parallel_cpi(
-    //     ctx.program_id,
-    //     &ctx.accounts
-    //         .account_compression_program
-    //         .to_account_info()
-    //         .clone(),
-    //     &ctx.accounts
-    //         .psp_account_compression_authority
-    //         .to_account_info()
-    //         .clone(),
-    //     &ctx.accounts
-    //         .registered_verifier_pda
-    //         .to_account_info()
-    //         .clone(),
-    //     utxo_hashes,
-    //     merkle_tree_accounts,
-    //     &ctx.accounts.noop_program.to_account_info(),
-    // )?;
-    Ok(())
-}
-#[inline(never)]
-pub fn mint_spl_to_merkle_tree<'info>(
-    ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    amounts: Vec<u64>,
+    amounts: &[u64],
 ) -> Result<()> {
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
@@ -224,7 +164,7 @@ pub fn mint_spl_to_merkle_tree<'info>(
     let authority_bytes = ctx.accounts.authority.key().to_bytes();
     let mint_bytes = ctx.accounts.mint.key().to_bytes();
     let seeds = [
-        b"authority".as_slice(),
+        MINT_AUTHORITY_SEED,
         authority_bytes.as_slice(),
         mint_bytes.as_slice(),
     ];
@@ -232,16 +172,16 @@ pub fn mint_spl_to_merkle_tree<'info>(
         anchor_lang::prelude::Pubkey::find_program_address(seeds.as_slice(), ctx.program_id);
     let bump = &[bump];
     let seeds = [
-        b"authority".as_slice(),
+        MINT_AUTHORITY_SEED,
         authority_bytes.as_slice(),
         mint_bytes.as_slice(),
         bump,
     ];
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = anchor_spl::token::MintTo {
-        authority: ctx.accounts.authority_pda.to_account_info(),
+        authority: ctx.accounts.mint_authority_pda.to_account_info(),
         mint: ctx.accounts.mint.to_account_info(),
-        to: ctx.accounts.merkle_tree_pda_token.to_account_info(),
+        to: ctx.accounts.token_pool_pda.to_account_info(),
     };
     let cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
@@ -259,32 +199,125 @@ pub struct MintToInstruction<'info> {
     pub fee_payer: Signer<'info>,
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// CHECK: is checked in Merkle tree program
-    #[account(mut)]
-    pub merkle_tree_authority: UncheckedAccount<'info>,
+    // This is the cpi signer
     /// CHECK: that mint authority is derived from signer
-    #[account(mut, seeds = [b"authority", authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump,)]
-    pub authority_pda: UncheckedAccount<'info>,
+    #[account(mut, seeds = [MINT_AUTHORITY_SEED, authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump,)]
+    pub mint_authority_pda: UncheckedAccount<'info>,
     /// CHECK: that authority is mint authority
-    #[account(mut, constraint = mint.mint_authority.unwrap() == authority_pda.key())]
+    #[account(mut, constraint = mint.mint_authority.unwrap() == mint_authority_pda.key())]
     pub mint: Account<'info, Mint>,
-    // pub system_program: Program<'info, System>,
+    /// CHECK: this account
+    #[account(mut)]
+    pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
+    pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
     /// CHECK: this account
     #[account(mut)]
-    pub registered_verifier_pda: UncheckedAccount<'info>,
-    /// CHECK: this account
-    #[account(mut)]
-    pub merkle_tree_pda_token: Account<'info, TokenAccount>,
-    /// CHECK: this account
-    #[account(mut)]
-    pub merkle_tree_set: UncheckedAccount<'info>, // AccountLoader<'info, ConcurrentMerkleTreeAccount>,
+    pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
-    /// CHECK: this account
-    pub merkle_tree_program: UncheckedAccount<'info>, //Program<'info, LightMerkleTreeProgram>,
-    pub account_compression_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
     /// CHECK: this account in psp account compression program
-    #[account(mut)]
+    #[account(mut, seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = psp_compressed_pda::ID,)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,
+    /// CHECK: this account in psp account compression program
+    pub account_compression_program:
+        Program<'info, account_compression::program::AccountCompression>,
+    /// CHECK: this account will be checked by psp compressed pda program
+    #[account(mut)]
+    pub merkle_tree: UncheckedAccount<'info>,
+}
+
+pub fn get_token_authority_pda(signer: &Pubkey, mint: &Pubkey) -> Pubkey {
+    let signer_seed = signer.to_bytes();
+    let mint_seed = mint.to_bytes();
+    let seeds = &[
+        MINT_AUTHORITY_SEED,
+        signer_seed.as_slice(),
+        mint_seed.as_slice(),
+    ];
+    let (address, _) = anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+    address
+}
+
+pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
+    let seeds = &[POOL_SEED, mint.as_ref()];
+    let (address, _) = anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+    address
+}
+
+#[cfg(not(target_os = "solana"))]
+pub mod mint_sdk {
+    use account_compression::NOOP_PROGRAM_ID;
+    use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+    use anchor_spl;
+    use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
+
+    use crate::{get_token_authority_pda, get_token_pool_pda};
+
+    pub fn create_initiatialize_mint_instruction(
+        fee_payer: &Pubkey,
+        authority: &Pubkey,
+        mint: &Pubkey,
+    ) -> Instruction {
+        let token_pool_pda = get_token_pool_pda(mint);
+        let mint_authority_pda = get_token_authority_pda(authority, mint);
+        let instruction_data = crate::instruction::CreateMint {};
+
+        let accounts = crate::accounts::CreateMintInstruction {
+            fee_payer: *fee_payer,
+            authority: *authority,
+            token_pool_pda,
+            system_program: system_program::ID,
+            mint: *mint,
+            mint_authority_pda,
+            token_program: anchor_spl::token::ID,
+        };
+
+        Instruction {
+            program_id: crate::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        }
+    }
+
+    pub fn create_mint_to_instruction(
+        fee_payer: &Pubkey,
+        authority: &Pubkey,
+        mint: &Pubkey,
+        merkle_tree: &Pubkey,
+        amounts: Vec<u64>,
+        public_keys: Vec<Pubkey>,
+    ) -> Instruction {
+        let token_pool_pda = get_token_pool_pda(mint);
+        let mint_authority_pda = get_token_authority_pda(authority, mint);
+        let instruction_data = crate::instruction::MintTo {
+            amounts,
+            public_keys,
+        };
+
+        let accounts = crate::accounts::MintToInstruction {
+            fee_payer: *fee_payer,
+            authority: *authority,
+            mint_authority_pda,
+            mint: *mint,
+            token_pool_pda,
+            token_program: anchor_spl::token::ID,
+            compressed_pda_program: psp_compressed_pda::ID,
+            registered_program_pda: psp_compressed_pda::utils::get_registered_program_pda(
+                &psp_compressed_pda::ID,
+            ),
+            noop_program: NOOP_PROGRAM_ID,
+            psp_account_compression_authority: psp_compressed_pda::utils::get_cpi_authority_pda(
+                &psp_compressed_pda::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            merkle_tree: *merkle_tree,
+        };
+
+        Instruction {
+            program_id: crate::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        }
+    }
 }

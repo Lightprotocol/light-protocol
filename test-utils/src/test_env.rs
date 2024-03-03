@@ -93,7 +93,7 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
     let payer = context.payer.insecure_clone();
     let instruction =
         create_initialize_governance_authority_instruction(payer.pubkey(), payer.pubkey());
-    create_and_send_transaction(&mut context, &[instruction], &payer)
+    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
     let (group_pda, seed) = get_group_account();
@@ -101,7 +101,7 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
     let instruction =
         create_initiatialize_group_authority_instruction(payer.pubkey(), group_pda, seed);
 
-    create_and_send_transaction(&mut context, &[instruction], &payer)
+    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
     let group_authority = get_account::<GroupAuthority>(&mut context, group_pda).await;
@@ -130,11 +130,16 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
             .minimum_balance(RegisteredProgram::LEN),
     );
 
-    create_and_send_transaction(&mut context, &[transfer_instruction, instruction], &payer)
-        .await
-        .unwrap();
-
+    create_and_send_transaction(
+        &mut context,
+        &[transfer_instruction, instruction],
+        &payer.pubkey(),
+        &[&payer],
+    )
+    .await
+    .unwrap();
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
+
     let account_create_ix = crate::create_account_instruction(
         &context.payer.pubkey(),
         account_compression::state::StateMerkleTreeAccount::LEN,

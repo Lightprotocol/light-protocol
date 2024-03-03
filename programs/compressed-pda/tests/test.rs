@@ -48,7 +48,7 @@ async fn test_execute_compressed_transactio() {
         &proof_mock,
     );
 
-    create_and_send_transaction(&mut context, &[instruction], &payer)
+    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
     let invalid_signer_utxos = vec![Utxo {
@@ -67,7 +67,8 @@ async fn test_execute_compressed_transactio() {
         &vec![0u16],
         &proof_mock,
     );
-    let res = create_and_send_transaction(&mut context, &[instruction], &payer).await;
+    let res =
+        create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
     assert!(res.is_err());
 }
 
@@ -113,7 +114,7 @@ async fn test_create_execute_compressed_transaction_2() {
         &proof_mock,
     );
 
-    create_and_send_transaction(&mut context, &[instruction], &payer)
+    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
     let invalid_signer_utxos = vec![Utxo {
@@ -133,7 +134,8 @@ async fn test_create_execute_compressed_transaction_2() {
         &vec![0u16],
         &proof_mock,
     );
-    let res = create_and_send_transaction(&mut context, &[instruction], &payer).await;
+    let res =
+        create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
     assert!(res.is_err());
 }
 use solana_cli_output::CliAccount;

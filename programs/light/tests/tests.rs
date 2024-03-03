@@ -22,7 +22,7 @@ pub async fn setup_test_programs_with_accounts() -> ProgramTestContext {
     let payer = context.payer.insecure_clone();
     let instruction =
         create_initialize_governance_authority_instruction(payer.pubkey(), payer.pubkey());
-    create_and_send_transaction(&mut context, &[instruction], &payer)
+    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
     let (group_account, seed) = get_group_account();
@@ -30,7 +30,7 @@ pub async fn setup_test_programs_with_accounts() -> ProgramTestContext {
     let instruction =
         create_initiatialize_group_authority_instruction(payer.pubkey(), group_account, seed);
 
-    create_and_send_transaction(&mut context, &[instruction], &payer)
+    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
     let group_authority = get_account::<GroupAuthority>(&mut context, group_account).await;
@@ -59,9 +59,14 @@ pub async fn setup_test_programs_with_accounts() -> ProgramTestContext {
             .minimum_balance(RegisteredProgram::LEN),
     );
 
-    create_and_send_transaction(&mut context, &[transfer_instruction, instruction], &payer)
-        .await
-        .unwrap();
+    create_and_send_transaction(
+        &mut context,
+        &[transfer_instruction, instruction],
+        &payer.pubkey(),
+        &[&payer],
+    )
+    .await
+    .unwrap();
 
     context
 }
@@ -95,7 +100,12 @@ async fn test_e2e() {
             .minimum_balance(RegisteredProgram::LEN),
     );
 
-    create_and_send_transaction(&mut context, &[transfer_instruction, instruction], &payer)
-        .await
-        .unwrap();
+    create_and_send_transaction(
+        &mut context,
+        &[transfer_instruction, instruction],
+        &payer.pubkey(),
+        &[&payer],
+    )
+    .await
+    .unwrap();
 }

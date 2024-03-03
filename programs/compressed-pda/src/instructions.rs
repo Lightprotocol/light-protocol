@@ -2,27 +2,32 @@ use std::borrow::Borrow;
 
 use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
+use light_verifier_sdk::light_transaction::ProofCompressed;
 
 use crate::{
     append_state::insert_out_utxos,
-    event::emit_state_transition_event,
+    event::{emit_state_transition_event, PublicTransactionEvent},
     nullify_state::insert_nullifiers,
     tlv::TlvDataElement,
     utxo::{OutUtxo, SerializedUtxos, Utxo},
-    verify_state::{fetch_roots, hash_utxos, sum_check},
+    verify_state::{fetch_roots, hash_in_utxos, out_utxos_to_utxos, sum_check},
     ErrorCode,
 };
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-) -> anchor_lang::Result<()> {
+) -> anchor_lang::Result<PublicTransactionEvent> {
     // sum check ---------------------------------------------------
     sum_check(&inputs.in_utxos, &inputs.out_utxos, &inputs.rpc_fee)?;
     msg!("sum check success");
     // signer check ---------------------------------------------------
+    // TODO: change the match statement so that we signers for every utxo as soon as any in utxo has tlv
+    // and we need to use the provided tlv in out utxos
+    // TODO: add check that if utxo is program owned that it is signed by the program
     match ctx.accounts.cpi_signature_account.borrow() {
         Some(_cpi_signature_account) => {
             // needs to check every piece of tlv and make sure that signaures exist in cpi_signature_account
+            msg!("cpi_signature check is not implemented");
             err!(ErrorCode::CpiSignerCheckFailed)
         }
         None => inputs.in_utxos.iter().try_for_each(|(utxo, _, _)| {
@@ -40,22 +45,22 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     let mut utxo_hashes = vec![[0u8; 32]; inputs.in_utxos.len()];
     let mut out_utxos = vec![Utxo::default(); inputs.out_utxos.len()];
     let mut out_utxo_indices = vec![0u32; inputs.out_utxos.len()];
-    hash_utxos(
-        inputs,
-        ctx,
-        &mut utxo_hashes,
-        &mut out_utxos,
-        &mut out_utxo_indices,
-    )?;
+    // TODO: add heap neutral
+    hash_in_utxos(inputs, &mut utxo_hashes)?;
+    // TODO: add heap neutral
+    out_utxos_to_utxos(inputs, ctx, &mut out_utxos, &mut out_utxo_indices)?;
     // TODO: verify inclusion proof ---------------------------------------------------
 
     // insert nullifiers (in utxo hashes)---------------------------------------------------
-    insert_nullifiers(inputs, ctx, &utxo_hashes)?;
+    if !inputs.in_utxos.is_empty() {
+        insert_nullifiers(inputs, ctx, &utxo_hashes)?;
+    }
     // insert leaves (out utxo hashes) ---------------------------------------------------
-    insert_out_utxos(inputs, ctx)?;
+    if !inputs.out_utxos.is_empty() {
+        insert_out_utxos(inputs, ctx)?;
+    }
 
-    emit_state_transition_event(inputs, ctx, &out_utxos, &out_utxo_indices)?;
-    Ok(())
+    emit_state_transition_event(inputs, ctx, &out_utxos, &out_utxo_indices)
 }
 
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
@@ -94,9 +99,7 @@ pub struct CpiSignature {
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataTransfer {
-    pub proof_a: [u8; 32],
-    pub proof_b: [u8; 64],
-    pub proof_c: [u8; 32],
+    pub proof: Option<ProofCompressed>,
     // TODO: remove low_element_indices
     pub low_element_indices: Vec<u16>,
     pub root_indices: Vec<u16>,
@@ -108,9 +111,7 @@ pub struct InstructionDataTransfer {
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataTransfer2 {
-    pub proof_a: [u8; 32],
-    pub proof_b: [u8; 64],
-    pub proof_c: [u8; 32],
+    pub proof: Option<ProofCompressed>,
     pub low_element_indices: Vec<u16>,
     pub root_indices: Vec<u16>,
     pub rpc_fee: Option<u64>,
@@ -131,9 +132,7 @@ pub fn into_inputs(
         .out_utxos_from_serialized_utxos(accounts)
         .unwrap();
     Ok(InstructionDataTransfer {
-        proof_a: inputs.proof_a,
-        proof_b: inputs.proof_b,
-        proof_c: inputs.proof_c,
+        proof: inputs.proof,
         low_element_indices: inputs.low_element_indices,
         root_indices: inputs.root_indices,
         rpc_fee: inputs.rpc_fee,

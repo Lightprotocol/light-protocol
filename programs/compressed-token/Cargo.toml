@@ -16,12 +16,13 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = ["custom-heap"]
 custom-heap = []
-test-bpf = []
+test-sbf = []
 
 [dependencies]
 anchor-lang = "0.29.0"
 anchor-spl = "0.29.0"
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
+account-compression = { version = "0.3.1", path = "../account-compression", features = ["cpi"] }
 psp-compressed-pda = { version = "0.3.0", path = "../compressed-pda", features = ["cpi"] }
 bytemuck = "1.14"
 solana-security-txt = "1.1.0"
@@ -30,4 +31,14 @@ light-utils = { version = "0.1.0", path = "../../utils" }
 
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"
+spl-token = "3.5.0"
 
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+solana-sdk = "1.17.4"
+
+[dev-dependencies]
+solana-program-test = "1.17.4"
+light-test-utils = { version = "0.1.0", path = "../../test-utils"}
+tokio = "1.36.0"
+light-merkle-tree-reference = { version = "0.1.0", path = "../../merkle-tree/reference" }
+light-concurrent-merkle-tree = { version = "0.1.0", path = "../../merkle-tree/concurrent" }

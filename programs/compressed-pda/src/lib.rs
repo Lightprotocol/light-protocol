@@ -3,6 +3,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 pub mod append_state;
 pub mod event;
 pub mod instructions;
+pub mod utils;
 pub use instructions::*;
 pub mod nullify_state;
 pub mod sdk;
@@ -52,7 +53,7 @@ pub mod psp_compressed_pda {
     pub fn execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
-    ) -> Result<()> {
+    ) -> Result<crate::event::PublicTransactionEvent> {
         msg!("execute_compressed_transaction");
         let inputs: InstructionDataTransfer = InstructionDataTransfer::try_deserialize_unchecked(
             &mut [vec![0u8; 8], inputs].concat().as_slice(),
@@ -66,7 +67,7 @@ pub mod psp_compressed_pda {
     pub fn execute_compressed_transaction2<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
-    ) -> Result<()> {
+    ) -> Result<crate::event::PublicTransactionEvent> {
         let inputs: InstructionDataTransfer2 = InstructionDataTransfer2::try_deserialize_unchecked(
             &mut [vec![0u8; 8], inputs].concat().as_slice(),
         )?;

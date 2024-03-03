@@ -187,7 +187,7 @@ pub enum AccountState {
     Frozen,
 }
 
-#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct TokenTlvData {
     /// The mint associated with this account
     pub mint: Pubkey,
