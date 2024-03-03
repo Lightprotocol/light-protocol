@@ -177,7 +177,7 @@ if (import.meta.vitest) {
   //   );
 
   describe("LightSystemProgram.transfer function", () => {
-    it.only("should return a transaction instruction that transfers compressed lamports from one compressed balance to another solana address", async () => {
+    it("should return a transaction instruction that transfers compressed lamports from one compressed balance to another solana address", async () => {
       const randomPubKeys = [
         PublicKey.unique(),
         PublicKey.unique(),
@@ -208,6 +208,9 @@ if (import.meta.vitest) {
         toPubkey,
         lamports,
       });
+
+      console.log("ix", ix.data, ix.data.length);
+
       expect(ix).toBeDefined();
     });
 

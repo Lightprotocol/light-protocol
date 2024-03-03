@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { BN, Program, Provider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";
@@ -97,9 +98,7 @@ export class SolMerkleTree {
 
     let onchainMerkleTreeSet =
       await merkleTreeProgram.account.merkleTreeSet.fetch(pubkey, "processed");
-    let   = serializeOnchainMerkleTree(
-      onchainMerkleTreeSet.stateMerkleTree,
-    );
+    let = serializeOnchainMerkleTree(onchainMerkleTreeSet.stateMerkleTree);
 
     indexedTransactions.sort(
       (a, b) =>
@@ -146,6 +145,7 @@ export class SolMerkleTree {
       onchainStateMerkleTree = serializeOnchainMerkleTree(
         onchainMerkleTreeSet.stateMerkleTree,
       );
+
       index = onchainStateMerkleTree.roots.findIndex((root) => {
         return Array.from(builtMerkleTreeRoot).toString() === root.toString();
       });

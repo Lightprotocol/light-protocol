@@ -70,7 +70,7 @@ const TlvFromBase64EncodedUtxoData = coerce(
   Base64EncodedUtxoDataResult,
   (value) => {
     const decodedData = decodeUtxoData(Buffer.from(value[0], "base64"));
-    if (decodedData.every(isValidTlvDataElement)) {
+    if (decodedData.tlvElements.every(isValidTlvDataElement)) {
       return decodedData;
     } else {
       throw new Error("Invalid TlvDataElement structure");

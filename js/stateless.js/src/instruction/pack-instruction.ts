@@ -107,7 +107,9 @@ export interface PackInstructionParams {
  * -- check if can replace coder with sync operation
  * -- check how we can better set writable/signer for static keys
  * -- refactor UtxoSerde to have lowlevel helper function
- *
+ * -- we'd want a addRecentValidityProof/addRecentRootIndices helper that let's developer
+ * recompile the packed instruction without having to pass all inputs again
+ * (akin to how you can re-sign a tx with a fresh blockhash in web3js)
  */
 export async function packInstruction(
   params: PackInstructionParams
