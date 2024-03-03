@@ -139,7 +139,7 @@ pub fn create_execute_compressed_opt_instruction(
         };
     }
     let len: usize = remaining_accounts.len();
-    /// CHECK: this depends on nulif never matching any of the statetrees 
+    /// Note: this depends on nulifier never matching any of the statetrees. 
     for (i, mt) in nullifier_array_pubkeys.iter().enumerate() {
         match remaining_accounts.get(mt) {
             Some(_) => {}
