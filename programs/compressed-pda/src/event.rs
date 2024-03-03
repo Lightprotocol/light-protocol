@@ -46,7 +46,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
         in_utxos: inputs
             .in_utxos
             .iter()
-            .map(|(utxo, _, _)| utxo.clone())
+            .map(|in_utxo_tuple: &crate::utxo::InUtxoTuple| in_utxo_tuple.in_utxo.clone())
             .collect(),
         out_utxos: out_utxos.to_vec(),
         out_utxo_indices: out_utxo_indices.iter().map(|x| *x as u64).collect(),
