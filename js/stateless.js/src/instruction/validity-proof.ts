@@ -1,9 +1,6 @@
 /// actually , we should probably just do the hlper for compilation, otherwise folks will have to set it manually.
-
 //// i.e getRecentValidityProof()
-
 /// addValidityProofToCompiledInstruction()
-
 /// otherwise: compileInstruction(ix, validityProof)
 export type ValidityProof = {
   proofA: Uint8Array;
@@ -26,3 +23,42 @@ export const checkValidityProofShape = (proof: ValidityProof) => {
     throw new Error("ValidityProof has invalid shape");
   }
 };
+
+//@ts-ignore
+if (import.meta.vitest) {
+  //@ts-ignore
+  const { it, expect, describe } = import.meta.vitest;
+
+  describe("Validity Proof Functions", () => {
+    describe("placeholderValidityProof", () => {
+      it("should create a validity proof with correct shape", () => {
+        const validityProof = placeholderValidityProof();
+        expect(validityProof.proofA.length).toBe(32);
+        expect(validityProof.proofB.length).toBe(64);
+        expect(validityProof.proofC.length).toBe(32);
+      });
+    });
+
+    describe("checkValidityProofShape", () => {
+      it("should not throw an error for valid proof shape", () => {
+        const validProof = {
+          proofA: new Uint8Array(32),
+          proofB: new Uint8Array(64),
+          proofC: new Uint8Array(32),
+        };
+        expect(() => checkValidityProofShape(validProof)).not.toThrow();
+      });
+
+      it("should throw an error for an invalid proof", () => {
+        const invalidProof = {
+          proofA: new Uint8Array(31), // incorrect length
+          proofB: new Uint8Array(64),
+          proofC: new Uint8Array(32),
+        };
+        expect(() => checkValidityProofShape(invalidProof)).toThrow(
+          "ValidityProof has invalid shape"
+        );
+      });
+    });
+  });
+}

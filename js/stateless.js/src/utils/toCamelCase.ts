@@ -14,3 +14,28 @@ export function toCamelCase(
   }
   return obj;
 }
+
+//@ts-ignore
+if (import.meta.vitest) {
+  //@ts-ignore
+  const { it, expect, describe } = import.meta.vitest;
+
+  describe("toCamelCase", () => {
+    it("should convert object keys to camelCase", () => {
+      const input = { test_key: 1, "another-testKey": 2 };
+      const expected = { testKey: 1, anotherTestKey: 2 };
+      expect(toCamelCase(input)).toEqual(expected);
+    });
+
+    it("should handle arrays of objects", () => {
+      const input = [{ array_key: 3 }, { "another_array-key": 4 }];
+      const expected = [{ arrayKey: 3 }, { anotherArrayKey: 4 }];
+      expect(toCamelCase(input)).toEqual(expected);
+    });
+
+    it("should return the input if it is neither an object nor an array", () => {
+      const input = "testString";
+      expect(toCamelCase(input)).toBe(input);
+    });
+  });
+}

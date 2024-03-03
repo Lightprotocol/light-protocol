@@ -11,6 +11,7 @@ import { useWallet } from "../wallet";
 import {
   UtxoWithMerkleContext,
   UtxoWithMerkleProof,
+  addMerkleContextToUtxo,
   coerceIntoUtxoWithMerkleContext,
   createUtxo,
 } from "../state";
@@ -159,4 +160,89 @@ export class LightSystemProgram {
     });
     return ix;
   }
+}
+
+/// akin to in conversion.ts, add vitest best practice unit test cases for the above functions without mocking dependencies
+//@ts-ignore
+if (import.meta.vitest) {
+  //@ts-ignore
+  const { it, expect, describe } = import.meta.vitest;
+
+  // const mockTlvDataElement = (): TlvDataElement =>
+  //   createTlvDataElement(
+  //     new Uint8Array([1, 2, 3]),
+  //     new PublicKey(new Uint8Array([1, 2, 3])),
+  //     new Uint8Array([1, 2, 3]),
+  //     createBigint254(1)
+  //   );
+
+  describe("LightSystemProgram.transfer function", () => {
+    it.only("should return a transaction instruction that transfers compressed lamports from one compressed balance to another solana address", async () => {
+      const randomPubKeys = [
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(), // 4th
+      ];
+      const fromBalance = [
+        addMerkleContextToUtxo(
+          createUtxo(randomPubKeys[0], BigInt(1)),
+          BigInt(0),
+          randomPubKeys[3],
+          0,
+          randomPubKeys[4]
+        ),
+        addMerkleContextToUtxo(
+          createUtxo(randomPubKeys[0], BigInt(2)),
+          BigInt(0),
+          randomPubKeys[3],
+          1,
+          randomPubKeys[4]
+        ),
+      ];
+      const toPubkey = PublicKey.unique();
+      const lamports = BigInt(2);
+      const ix = await LightSystemProgram.transfer({
+        fromBalance,
+        toPubkey,
+        lamports,
+      });
+      expect(ix).toBeDefined();
+    });
+
+    it("should throw an error when the input utxos have different owners", async () => {
+      const randomPubKeys = [
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+      ];
+      const fromBalance = [
+        addMerkleContextToUtxo(
+          createUtxo(randomPubKeys[0], BigInt(1)),
+          BigInt(0),
+          randomPubKeys[3],
+          0,
+          randomPubKeys[4]
+        ),
+        addMerkleContextToUtxo(
+          createUtxo(randomPubKeys[1], BigInt(2)), // diff owner key
+          BigInt(0),
+          randomPubKeys[3],
+          1,
+          randomPubKeys[4]
+        ),
+      ];
+      const toPubkey = PublicKey.unique();
+      const lamports = BigInt(2);
+      await expect(
+        LightSystemProgram.transfer({
+          fromBalance,
+          toPubkey,
+          lamports,
+        })
+      ).rejects.toThrow("All input utxos must have the same owner");
+    });
+  });
 }

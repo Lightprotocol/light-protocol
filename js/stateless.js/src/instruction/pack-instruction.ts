@@ -168,8 +168,12 @@ export async function packInstruction(
     params.recentValidityProof,
     serializedUtxos
   );
+  console.log(
+    "LightSystemProgram.program.coder.accounts",
+    LightSystemProgram.program.coder.accounts
+  );
   const data = await LightSystemProgram.program.coder.accounts.encode(
-    "InstructionDataTransfer2",
+    "instructionDataTransfer2",
     rawInputs
   );
   // TODO: check whether other conv. required here
