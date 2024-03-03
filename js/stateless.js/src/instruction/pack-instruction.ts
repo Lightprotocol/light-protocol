@@ -7,15 +7,16 @@ import { Utxo, UtxoSerde, UtxoWithMerkleContext } from "../state";
 import { pushUniqueItems, toArray } from "../utils/conversion";
 import { LightSystemProgram } from "../programs/compressed-pda";
 import { ValidityProof, checkValidityProofShape } from "./validity-proof";
+import { BorshAccountsCoder } from "@coral-xyz/anchor";
 
 /// TODO: from static anchor idl
 export interface InstructionDataTransfer2 {
-  proof_a: number[];
-  proof_b: number[];
-  proof_c: number[];
-  low_element_indices: number[];
-  root_indices: number[];
-  rpc_fee: bigint;
+  proofA: number[];
+  proofB: number[];
+  proofC: number[];
+  lowElementIndices: number[];
+  rootIndices: number[];
+  rpcFee: bigint;
   utxos: UtxoSerde;
 }
 
@@ -47,12 +48,12 @@ const rawInstructionData = (
   serializedUtxos: UtxoSerde
 ): InstructionDataTransfer2 => {
   return {
-    proof_a: Array.from(recentValidityProof.proofA),
-    proof_b: Array.from(recentValidityProof.proofB),
-    proof_c: Array.from(recentValidityProof.proofC),
-    low_element_indices: inputUtxos.map((_) => 0), // TODO: impl.!
-    root_indices: recentInputStateRootIndices,
-    rpc_fee: BigInt(0),
+    proofA: Array.from(recentValidityProof.proofA),
+    proofB: Array.from(recentValidityProof.proofB),
+    proofC: Array.from(recentValidityProof.proofC),
+    lowElementIndices: inputUtxos.map((_) => 0), // TODO: impl.!
+    rootIndices: recentInputStateRootIndices,
+    rpcFee: BigInt(0),
     utxos: serializedUtxos,
   };
 };
@@ -162,7 +163,7 @@ export async function packInstruction(
     );
 
   /// make instruction data
-  const rawInputs = rawInstructionData(
+  const rawInputs: InstructionDataTransfer2 = rawInstructionData(
     inputUtxos,
     params.recentInputStateRootIndices,
     params.recentValidityProof,
@@ -172,6 +173,25 @@ export async function packInstruction(
     "LightSystemProgram.program.coder.accounts",
     LightSystemProgram.program.coder.accounts
   );
+  // console.log("rawInputs", rawInputs);
+
+  console.log("rawInputs pubkeyar", rawInputs.utxos.pubkeyArray);
+  console.log("rawInputs proofA", rawInputs.proofA);
+  console.log("rawInputs proofB", rawInputs.proofB);
+  console.log("rawInputs proofC", rawInputs.proofC);
+  console.log("rawInputs u64ar", rawInputs.utxos.u64Array);
+  console.log("rawInputs lowElemI", rawInputs.lowElementIndices);
+  console.log("rawInputs rpcFee", rawInputs.rpcFee);
+  console.log("rawInputs rootIndices", rawInputs.rootIndices);
+  rawInputs.utxos.inUtxos.forEach((inUtxo) => {
+    console.log("inUtxoSerializable data", inUtxo.inUtxoSerializable.data);
+  });
+  rawInputs.utxos.outUtxos.forEach((outUtxo) => {
+    console.log("outUtxoSerializable data", outUtxo.outUtxoSerializable.data);
+  });
+
+  console.log("all rawInputs", rawInputs);
+
   const data = await LightSystemProgram.program.coder.accounts.encode(
     "instructionDataTransfer2",
     rawInputs

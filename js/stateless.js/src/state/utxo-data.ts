@@ -23,8 +23,14 @@ export type TlvDataElementSerial = {
   dataHash: number[];
 };
 
-export type Tlv = TlvDataElement[];
-export type TlvSerial = TlvDataElementSerial[];
+/// must match on-chain
+export type Tlv = {
+  tlvElements: TlvDataElement[];
+};
+
+export type TlvSerial = {
+  tlvElements: TlvDataElementSerial[];
+};
 
 /** Factory for TLV data elements */
 export const createTlvDataElement = (
@@ -77,7 +83,7 @@ export function serializeTlv(
 ): TlvSerial {
   const tlvElementsSerializable: TlvDataElementSerial[] = [];
 
-  tlv.forEach((element) => {
+  tlv.tlvElements.forEach((element) => {
     let ownerIndex = accounts.findIndex((acc) => acc.equals(element.owner));
     if (ownerIndex === -1) {
       ownerIndex = pubkeyArray.findIndex((pubkey) =>
@@ -101,24 +107,26 @@ export function serializeTlv(
     tlvElementsSerializable.push(serializableElement);
   });
 
-  return tlvElementsSerializable;
+  return { tlvElements: tlvElementsSerializable };
 }
 
 // TODO: check how events get emitted on-chain!
 // we might not need to unpack the tlvs
 export function deserializeTlv(
-  serializable: TlvDataElementSerial[],
+  serializable: TlvSerial,
   accounts: PublicKey[]
 ): Tlv {
-  const tlvElements: TlvDataElement[] = serializable.map((element) => {
-    const owner = accounts[element.owner];
-    return {
-      discriminator: new Uint8Array(element.discriminator),
-      owner,
-      data: new Uint8Array(element.data),
-      dataHash: arrayToBigint(element.dataHash),
-    };
-  });
+  const tlvElements: TlvDataElement[] = serializable.tlvElements.map(
+    (element) => {
+      const owner = accounts[element.owner];
+      return {
+        discriminator: new Uint8Array(element.discriminator),
+        owner,
+        data: new Uint8Array(element.data),
+        dataHash: arrayToBigint(element.dataHash),
+      };
+    }
+  );
 
-  return tlvElements;
+  return { tlvElements };
 }
