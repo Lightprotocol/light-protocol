@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 import { resolve } from "path";
 
 export default defineConfig({
+  logLevel: "info",
   test: {
     // Include both src and tests directories as well as inline tests
     include: ["src/**/__tests__/*.test.ts", "tests/**/*.test.ts"],

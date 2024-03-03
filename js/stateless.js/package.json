@@ -6,9 +6,14 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:verbose": "vitest run --reporter=verbose",
     "build": "rimraf lib && pnpm tsc"
   },
-  "keywords": [],
+  "keywords": [
+    "zk",
+    "stateless",
+    "solana"
+  ],
   "author": "",
   "license": "Apache-2.0",
   "devDependencies": {

@@ -98,7 +98,9 @@ export const addMerkleProofToUtxo = (
 // TODO: move to a separate file
 /** Filter utxos with compressed lamports. Excludes PDAs and token accounts */
 export function getCompressedSolUtxos(utxos: Utxo[]): Utxo[] {
-  return utxos.filter((utxo) => utxo.lamports > BigInt(0) && !utxo.data);
+  return utxos.filter(
+    (utxo) => utxo.lamports > BigInt(0) && utxo.data.length === 0
+  );
 }
 
 /** Converts into UtxoWithMerkleContext[] type */
@@ -129,46 +131,98 @@ if (import.meta.vitest) {
     );
 
   describe("getCompressedSolUtxos function", () => {
-    it("should return utxos with compressed lamports", () => {
-      const utxos = [
-        createUtxo(new PublicKey("1"), BigInt(0), [mockTlvDataElement()]),
-        createUtxo(new PublicKey("2"), BigInt(1)),
-        createUtxo(new PublicKey("3"), BigInt(2)),
-        createUtxo(new PublicKey("4"), BigInt(0)),
+    it("should return utxos with compressed lamports excluding those with data", () => {
+      const randomPubKeys = [
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
       ];
-      expect(getCompressedSolUtxos(utxos)).toEqual([
-        createUtxo(new PublicKey("2"), BigInt(1)),
-        createUtxo(new PublicKey("3"), BigInt(2)),
+      const utxos = [
+        createUtxo(randomPubKeys[0], BigInt(0), [mockTlvDataElement()]), // has data, should be excluded
+        createUtxo(randomPubKeys[1], BigInt(1)), // valid
+        createUtxo(randomPubKeys[2], BigInt(2)), // valid
+        createUtxo(randomPubKeys[3], BigInt(0)), // zero lamports, should be excluded
+      ];
+      const solutxos = getCompressedSolUtxos(utxos);
+      expect(solutxos).toEqual([
+        createUtxo(randomPubKeys[1], BigInt(1)),
+        createUtxo(randomPubKeys[2], BigInt(2)),
       ]);
+    });
+
+    it("should return an empty array when all utxos have data or zero lamports", () => {
+      const randomPubKeys = [PublicKey.unique(), PublicKey.unique()];
+      const utxos = [
+        createUtxo(randomPubKeys[0], BigInt(0), [mockTlvDataElement()]), // has data
+        createUtxo(randomPubKeys[1], BigInt(0)), // zero lamports
+      ];
+      const solutxos = getCompressedSolUtxos(utxos);
+      expect(solutxos).toEqual([]);
     });
   });
 
   describe("coerceIntoUtxoWithMerkleContext function", () => {
-    it("should return utxos with merkle context", () => {
+    it("should return utxos with merkle context, excluding merkleProof and rootIndex", () => {
+      const randomPubKeys = [
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+        PublicKey.unique(),
+      ];
+
+      const utxoWithCtx0 = addMerkleContextToUtxo(
+        createUtxo(randomPubKeys[2], BigInt(1)),
+        BigInt(0),
+        randomPubKeys[3],
+        0,
+        randomPubKeys[4]
+      );
+
+      const utxoWithCtx = addMerkleContextToUtxo(
+        createUtxo(randomPubKeys[5], BigInt(2)),
+        BigInt(1),
+        randomPubKeys[6],
+        1,
+        randomPubKeys[7]
+      );
+
       const utxos = [
-        addMerkleContextToUtxo(
-          createUtxo(new PublicKey("2"), BigInt(1)),
-          BigInt(0),
-          new PublicKey("3"),
-          0,
-          new PublicKey("4")
-        ),
-        addMerkleProofToUtxo(
-          addMerkleContextToUtxo(
-            createUtxo(new PublicKey("5"), BigInt(2)),
-            BigInt(1),
-            new PublicKey("6"),
-            1,
-            new PublicKey("7")
-          ),
-          [new PublicKey("8")],
-          0
-        ),
+        utxoWithCtx0,
+        addMerkleProofToUtxo(utxoWithCtx, [randomPubKeys[8]], 0),
       ];
       expect(coerceIntoUtxoWithMerkleContext(utxos)).toEqual([
-        createUtxo(new PublicKey("1"), BigInt(0), [mockTlvDataElement()]),
-        createUtxo(new PublicKey("2"), BigInt(1)),
+        utxoWithCtx0,
+        utxoWithCtx, // shouldn't have merkleProof and rootIndex
       ]);
+    });
+
+    it("should correctly handle an empty array input", () => {
+      const utxos: (UtxoWithMerkleContext | UtxoWithMerkleProof)[] = [];
+      const result = coerceIntoUtxoWithMerkleContext(utxos);
+      expect(result).toEqual([]);
+    });
+
+    it("should return the same array if no utxos have merkleProof and rootIndex", () => {
+      const randomPubKeys = [PublicKey.unique(), PublicKey.unique()];
+
+      const utxoWithCtx = [
+        addMerkleContextToUtxo(
+          createUtxo(randomPubKeys[0], BigInt(1)),
+          BigInt(0),
+          randomPubKeys[1],
+          0,
+          PublicKey.unique()
+        ),
+      ];
+
+      const result = coerceIntoUtxoWithMerkleContext(utxoWithCtx);
+      expect(result).toEqual(utxoWithCtx);
     });
   });
 }
