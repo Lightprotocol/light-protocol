@@ -270,12 +270,12 @@ mod test {
             "Should have added one UTXO"
         );
         assert!(
-            serialized_utxos.in_utxos[0].0.data.is_some(),
+            serialized_utxos.in_utxos[0].in_utxo_serializable.data.is_some(),
             "UTXO should have TLV data"
         );
 
         // Verify that TLV data was serialized correctly
-        let serialized_tlv_data = serialized_utxos.in_utxos[0].0.data.as_ref().unwrap();
+        let serialized_tlv_data = serialized_utxos.in_utxos[0].in_utxo_serializable.data.as_ref().unwrap();
         assert_eq!(
             *serialized_tlv_data, tlv_serializable,
             "TLV data should match the serialized version"

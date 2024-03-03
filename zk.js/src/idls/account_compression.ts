@@ -666,24 +666,6 @@ export type AccountCompression = {
           }
         ]
       }
-    },
-    {
-      "name": "IndexedArray",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "IndexingArray<Poseidon,u16,BigInteger256,2800>"
-        }
-      }
-    },
-    {
-      "name": "StateMerkleTree",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
-        }
-      }
     }
   ],
   "errors": [
@@ -1417,24 +1399,6 @@ export const IDL: AccountCompression = {
             ]
           }
         ]
-      }
-    },
-    {
-      "name": "IndexedArray",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "IndexingArray<Poseidon,u16,BigInteger256,2800>"
-        }
-      }
-    },
-    {
-      "name": "StateMerkleTree",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
-        }
       }
     }
   ],

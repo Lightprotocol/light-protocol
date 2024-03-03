@@ -788,26 +788,6 @@ export type LightMerkleTreeProgram = {
       }
     }
   ],
-  "types": [
-    {
-      "name": "StateMerkleTree",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
-        }
-      }
-    },
-    {
-      "name": "EventMerkleTree",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "ConcurrentMerkleTree<Sha256,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
-        }
-      }
-    }
-  ],
   "errors": [
     {
       "code": 6000,
@@ -1739,26 +1719,6 @@ export const IDL: LightMerkleTreeProgram = {
             }
           }
         ]
-      }
-    }
-  ],
-  "types": [
-    {
-      "name": "StateMerkleTree",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
-        }
-      }
-    },
-    {
-      "name": "EventMerkleTree",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "ConcurrentMerkleTree<Sha256,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
-        }
       }
     }
   ],
