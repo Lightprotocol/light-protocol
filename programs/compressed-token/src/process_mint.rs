@@ -3,7 +3,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_hasher::DataHasher;
 use psp_compressed_pda::{
     tlv::{Tlv, TlvDataElement},
-    utxo::OutUtxo,
+    utxo::{OutUtxo, OutUtxoTuple},
     InstructionDataTransfer,
 };
 
@@ -96,9 +96,12 @@ pub fn cpi_create_execute_compressed_instruction<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     out_utxos: &[OutUtxo],
 ) -> Result<()> {
-    let mut _out_utxos = Vec::<(OutUtxo, u8)>::new();
+    let mut _out_utxos = Vec::<OutUtxoTuple>::new();
     for utxo in out_utxos.iter() {
-        _out_utxos.push((utxo.clone(), 0));
+        _out_utxos.push(OutUtxoTuple {
+            out_utxo: utxo.clone(),
+            index_mt_account: 0,
+        });
     }
 
     let inputs_struct = InstructionDataTransfer {
