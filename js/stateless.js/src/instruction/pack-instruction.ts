@@ -7,8 +7,7 @@ import { Utxo, UtxoSerde, UtxoWithMerkleContext } from "../state";
 import { pushUniqueItems, toArray } from "../utils/conversion";
 import { LightSystemProgram } from "../programs/compressed-pda";
 import { ValidityProof, checkValidityProofShape } from "./validity-proof";
-import { BorshAccountsCoder } from "@coral-xyz/anchor";
-
+import { BN } from "@coral-xyz/anchor";
 /// TODO: from static anchor idl
 export interface InstructionDataTransfer2 {
   proofA: number[];
@@ -16,7 +15,7 @@ export interface InstructionDataTransfer2 {
   proofC: number[];
   lowElementIndices: number[];
   rootIndices: number[];
-  rpcFee: bigint;
+  rpcFee: bigint | null; // TODO: ideally bigint
   utxos: UtxoSerde;
 }
 
@@ -98,7 +97,17 @@ export interface PackInstructionParams {
 
 /**
  * Compresses instruction data
- * TODO: check if can replace coder with sync operation
+ * TODO:
+ * This should be usable for custom instruction creation
+ * Ideally, we'd be able to pack the custom ixdata e.g. create the ix but allow for more ixdata, programid etc
+ *
+ * TODO:
+ * - refactor packInstruction
+ * -- allow separate payer/signers (all signers must be known upfront. (or at least the number of signers))
+ * -- check if can replace coder with sync operation
+ * -- check how we can better set writable/signer for static keys
+ * -- refactor UtxoSerde to have lowlevel helper function
+ *
  */
 export async function packInstruction(
   params: PackInstructionParams
@@ -163,40 +172,31 @@ export async function packInstruction(
     );
 
   /// make instruction data
-  const rawInputs: InstructionDataTransfer2 = rawInstructionData(
+  let rawInputs: InstructionDataTransfer2 = rawInstructionData(
     inputUtxos,
     params.recentInputStateRootIndices,
     params.recentValidityProof,
     serializedUtxos
   );
-  console.log(
-    "LightSystemProgram.program.coder.accounts",
-    LightSystemProgram.program.coder.accounts
-  );
-  // console.log("rawInputs", rawInputs);
 
-  console.log("rawInputs pubkeyar", rawInputs.utxos.pubkeyArray);
-  console.log("rawInputs proofA", rawInputs.proofA);
-  console.log("rawInputs proofB", rawInputs.proofB);
-  console.log("rawInputs proofC", rawInputs.proofC);
-  console.log("rawInputs u64ar", rawInputs.utxos.u64Array);
-  console.log("rawInputs lowElemI", rawInputs.lowElementIndices);
-  console.log("rawInputs rpcFee", rawInputs.rpcFee);
-  console.log("rawInputs rootIndices", rawInputs.rootIndices);
-  rawInputs.utxos.inUtxos.forEach((inUtxo) => {
-    console.log("inUtxoSerializable data", inUtxo.inUtxoSerializable.data);
-  });
-  rawInputs.utxos.outUtxos.forEach((outUtxo) => {
-    console.log("outUtxoSerializable data", outUtxo.outUtxoSerializable.data);
-  });
-
-  console.log("all rawInputs", rawInputs);
+  // TODO: replace native ts types bigints with BN or change to beet serialization
+  /// convert to BN to support anchor encoding
+  rawInputs = {
+    ...rawInputs,
+    utxos: {
+      ...rawInputs.utxos,
+      //@ts-ignore
+      u64Array: rawInputs.utxos.u64Array.map((item) => new BN(item.toString())),
+    },
+    //@ts-ignore
+    rpcFee: rawInputs.rpcFee ? new BN(rawInputs.rpcFee.toString()) : new BN(0),
+  };
 
   const data = await LightSystemProgram.program.coder.accounts.encode(
     "instructionDataTransfer2",
     rawInputs
   );
-  // TODO: check whether other conv. required here
+
   return new TransactionInstruction({
     keys: [...staticAccountMetas, ...remainingAccountMetas],
     data,

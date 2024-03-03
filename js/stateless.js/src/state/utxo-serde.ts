@@ -28,7 +28,7 @@ export type InUtxoSerializableTuple = {
   indexMtAccount: number;
   indexNullifierArrayAccount: number;
 };
-/// Keep up2date with on-chain
+
 export type OutUtxoSerializableTuple = {
   outUtxoSerializable: OutUtxoSerializable; // field names have to match onchain
   indexMtAccount: number;
@@ -36,7 +36,7 @@ export type OutUtxoSerializableTuple = {
 
 export class UtxoSerde {
   pubkeyArray: PublicKey[];
-  u64Array: bigint[];
+  u64Array: bigint[]; // TODO: check encoding
   inUtxos: InUtxoSerializableTuple[];
   outUtxos: OutUtxoSerializableTuple[];
 
