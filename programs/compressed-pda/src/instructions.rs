@@ -8,7 +8,7 @@ use crate::{
     event::emit_state_transition_event,
     nullify_state::insert_nullifiers,
     tlv::TlvDataElement,
-    utxo::{OutUtxo, SerializedUtxos, Utxo},
+    utxo::{ SerializedUtxos, Utxo, InUtxoTuple, OutUtxoTuple},
     verify_state::{fetch_roots, hash_utxos, sum_check},
     ErrorCode,
 };
@@ -25,8 +25,8 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
             // needs to check every piece of tlv and make sure that signaures exist in cpi_signature_account
             err!(ErrorCode::CpiSignerCheckFailed)
         }
-        None => inputs.in_utxos.iter().try_for_each(|(utxo, _, _)| {
-            if utxo.owner != ctx.accounts.signer.key() {
+        None => inputs.in_utxos.iter().try_for_each(|utxo_tuple: &InUtxoTuple| {
+            if utxo_tuple.in_utxo.owner != ctx.accounts.signer.key() {
                 err!(ErrorCode::SignerCheckFailed)
             } else {
                 Ok(())
@@ -90,6 +90,7 @@ pub struct CpiSignature {
     pub tlv_data: TlvDataElement,
 }
 
+
 // TODO: parse utxos a more efficient way, since owner is sent multiple times this way
 #[derive(Debug)]
 #[account]
@@ -101,8 +102,8 @@ pub struct InstructionDataTransfer {
     pub low_element_indices: Vec<u16>,
     pub root_indices: Vec<u16>,
     pub rpc_fee: Option<u64>,
-    pub in_utxos: Vec<(Utxo, u8, u8)>, // index of Merkle tree, nullifier queue account in remaining accounts
-    pub out_utxos: Vec<(OutUtxo, u8)>, // index of Merkle tree account in remaining accounts
+    pub in_utxos: Vec<InUtxoTuple>, // index of Merkle tree, nullifier queue account in remaining accounts
+    pub out_utxos: Vec<OutUtxoTuple>, // index of Merkle tree account in remaining accounts
 }
 // TODO: add new remaining account indices in SerializedUtxos
 #[derive(Debug)]

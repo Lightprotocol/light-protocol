@@ -3,4 +3,6 @@ test-ledger
 lib
 **/lib/**
 **/lib/*
-
+**/src/idls/psp_compressed_pda_x.ts
+**/src/idls/psp_compressed_pda_OG.ts
+**/src/idls/psp_compressed_pda_REBASE.ts

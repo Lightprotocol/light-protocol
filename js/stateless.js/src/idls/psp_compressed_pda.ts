@@ -158,7 +158,7 @@ export type PspCompressedPda = {
             name: "inUtxos";
             type: {
               vec: {
-                defined: "(Utxo,u8,u8)";
+                defined: "InUtxoTuple";
               };
             };
           },
@@ -166,7 +166,7 @@ export type PspCompressedPda = {
             name: "outUtxos";
             type: {
               vec: {
-                defined: "(OutUtxo,u8)";
+                defined: "OutUtxoTuple";
               };
             };
           },
@@ -417,6 +417,86 @@ export type PspCompressedPda = {
       };
     },
     {
+      name: "InUtxoSerializableTuple";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "inUtxoSerializable";
+            type: {
+              defined: "InUtxoSerializable";
+            };
+          },
+          {
+            name: "indexMtAccount";
+            type: "u8";
+          },
+          {
+            name: "indexNullifierArrayAccount";
+            type: "u8";
+          },
+        ];
+      };
+    },
+    {
+      name: "OutUtxoSerializableTuple";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "outUtxoSerializable";
+            type: {
+              defined: "OutUtxoSerializable";
+            };
+          },
+          {
+            name: "indexMtAccount";
+            type: "u8";
+          },
+        ];
+      };
+    },
+    {
+      name: "InUtxoTuple";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "inUtxo";
+            type: {
+              defined: "Utxo";
+            };
+          },
+          {
+            name: "indexMtAccount";
+            type: "u8";
+          },
+          {
+            name: "indexNullifierArrayAccount";
+            type: "u8";
+          },
+        ];
+      };
+    },
+    {
+      name: "OutUtxoTuple";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "outUtxo";
+            type: {
+              defined: "OutUtxo";
+            };
+          },
+          {
+            name: "indexMtAccount";
+            type: "u8";
+          },
+        ];
+      };
+    },
+    {
       name: "SerializedUtxos";
       type: {
         kind: "struct";
@@ -437,7 +517,7 @@ export type PspCompressedPda = {
             name: "inUtxos";
             type: {
               vec: {
-                defined: "(InUtxoSerializable,u8,u8)";
+                defined: "InUtxoSerializableTuple";
               };
             };
           },
@@ -445,7 +525,7 @@ export type PspCompressedPda = {
             name: "outUtxos";
             type: {
               vec: {
-                defined: "(OutUtxoSerializable,u8)";
+                defined: "OutUtxoSerializableTuple";
               };
             };
           },
@@ -778,7 +858,7 @@ export const IDL: PspCompressedPda = {
             name: "inUtxos",
             type: {
               vec: {
-                defined: "(Utxo,u8,u8)",
+                defined: "InUtxoTuple",
               },
             },
           },
@@ -786,7 +866,7 @@ export const IDL: PspCompressedPda = {
             name: "outUtxos",
             type: {
               vec: {
-                defined: "(OutUtxo,u8)",
+                defined: "OutUtxoTuple",
               },
             },
           },
@@ -1037,6 +1117,86 @@ export const IDL: PspCompressedPda = {
       },
     },
     {
+      name: "InUtxoSerializableTuple",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "inUtxoSerializable",
+            type: {
+              defined: "InUtxoSerializable",
+            },
+          },
+          {
+            name: "indexMtAccount",
+            type: "u8",
+          },
+          {
+            name: "indexNullifierArrayAccount",
+            type: "u8",
+          },
+        ],
+      },
+    },
+    {
+      name: "OutUtxoSerializableTuple",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "outUtxoSerializable",
+            type: {
+              defined: "OutUtxoSerializable",
+            },
+          },
+          {
+            name: "indexMtAccount",
+            type: "u8",
+          },
+        ],
+      },
+    },
+    {
+      name: "InUtxoTuple",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "inUtxo",
+            type: {
+              defined: "Utxo",
+            },
+          },
+          {
+            name: "indexMtAccount",
+            type: "u8",
+          },
+          {
+            name: "indexNullifierArrayAccount",
+            type: "u8",
+          },
+        ],
+      },
+    },
+    {
+      name: "OutUtxoTuple",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "outUtxo",
+            type: {
+              defined: "OutUtxo",
+            },
+          },
+          {
+            name: "indexMtAccount",
+            type: "u8",
+          },
+        ],
+      },
+    },
+    {
       name: "SerializedUtxos",
       type: {
         kind: "struct",
@@ -1057,7 +1217,7 @@ export const IDL: PspCompressedPda = {
             name: "inUtxos",
             type: {
               vec: {
-                defined: "(InUtxoSerializable,u8,u8)",
+                defined: "InUtxoSerializableTuple",
               },
             },
           },
@@ -1065,7 +1225,7 @@ export const IDL: PspCompressedPda = {
             name: "outUtxos",
             type: {
               vec: {
-                defined: "(OutUtxoSerializable,u8)",
+                defined: "OutUtxoSerializableTuple",
               },
             },
           },
