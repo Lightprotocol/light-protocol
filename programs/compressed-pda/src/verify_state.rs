@@ -32,8 +32,8 @@ pub fn hash_in_utxos<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     leaves: &'a mut [[u8; 32]],
 ) -> anchor_lang::Result<()> {
-    for (j, (utxo, _, _)) in inputs.in_utxos.iter().enumerate() {
-        leaves[j] = utxo.hash();
+    for (j, in_utxo_tuple) in inputs.in_utxos.iter().enumerate() {
+        leaves[j] = in_utxo_tuple.in_utxo.hash();
     }
     Ok(())
 }

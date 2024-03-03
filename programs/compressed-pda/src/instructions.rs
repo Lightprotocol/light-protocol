@@ -9,7 +9,7 @@ use crate::{
     event::{emit_state_transition_event, PublicTransactionEvent},
     nullify_state::insert_nullifiers,
     tlv::TlvDataElement,
-    utxo::{OutUtxo, SerializedUtxos, Utxo,InUtxoTuple, OutUtxoTuple},
+    utxo::{SerializedUtxos, Utxo,InUtxoTuple, OutUtxoTuple},
     verify_state::{fetch_roots, hash_in_utxos, out_utxos_to_utxos, sum_check},
     ErrorCode,
 };
