@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
 
