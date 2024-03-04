@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:program": "vitest run tests/e2e/program.test.ts",
+    "start-test-validator": "./../../cli/test_bin/run test-validator -b",
+    "test:program": "pnpm run start-test-validator && vitest run tests/e2e/program.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
     "build": "rimraf lib && pnpm tsc"
   },

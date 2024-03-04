@@ -58,7 +58,7 @@ const rawInstructionData = (
 };
 
 /** Pad output state trees with default tree */
-function padOutputStateTrees(
+export function padOutputStateTrees(
   outputStateTrees: PublicKey[] | undefined,
   defaultTree: PublicKey,
   length: number
@@ -202,6 +202,6 @@ export async function packInstruction(
   return new TransactionInstruction({
     keys: [...staticAccountMetas, ...remainingAccountMetas],
     data,
-    programId: PublicKey.default,
+    programId: LightSystemProgram.programId,
   });
 }
