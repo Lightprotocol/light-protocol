@@ -37,6 +37,7 @@ NPM_CONFIG_PREFIX="${LIGHT_PROTOCOL_TOPLEVEL}/.local/npm-global"
 LIGHT_PROTOCOL_OLD_PATH="${PATH}"
 PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/bin:${PATH}"
 PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/cargo/bin:${PATH}"
+PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/go/bin:${PATH}"
 PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/npm-global/bin:${PATH}"
 
 # Define alias of `light` to use the CLI built from source.
