@@ -6,27 +6,132 @@ import {
   ParsedTransactionWithMeta,
   PublicKey,
 } from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
 
 import {
   SPL_NOOP_ADDRESS,
   SPL_NOOP_PROGRAM_ID,
 } from "@solana/spl-account-compression";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { BorshCoder } from "@coral-xyz/anchor";
-import { IDL } from "../idls/psp_compressed_pda";
 import { sleep } from "../utils/sleep";
-import {
-  accountCompressionProgram,
-  defaultTestStateTreeAccounts,
-} from "../constants";
+import { accountCompressionProgram } from "../constants";
 import { LightSystemProgram } from "../programs/compressed-pda";
+
 type Instruction = {
   accounts: any[];
   data: string;
   programId: PublicKey;
   stackHeight: null | number;
 };
+
+import {
+  array,
+  coption,
+  fixedSizeUint8Array,
+  u64,
+  FixableBeetStruct,
+  bignum,
+  u8,
+} from "@metaplex-foundation/beet";
+import { publicKey } from "@metaplex-foundation/beet-solana";
+export class ParsingTlvElementBeet {
+  constructor(
+    readonly discriminator: Uint8Array,
+    readonly owner: PublicKey,
+    readonly data: number[],
+    readonly dataHash: Uint8Array
+  ) {}
+  static readonly struct = new FixableBeetStruct<
+    ParsingTlvElementBeet,
+    ParsingTlvElementBeet
+  >(
+    [
+      ["discriminator", fixedSizeUint8Array(8)],
+      ["owner", publicKey],
+      ["data", fixedSizeUint8Array(8)],
+      ["dataHash", fixedSizeUint8Array(8)],
+    ],
+    (args) =>
+      new ParsingTlvElementBeet(
+        args.discriminator,
+        args.owner,
+        args.data,
+        args.dataHash
+      ),
+    "ParsingTlvElementBeet"
+  );
+}
+
+export class ParsingTlvBeet {
+  constructor(readonly tlvElements: number[] | null) {}
+
+  static readonly struct = new FixableBeetStruct<
+    ParsingTlvBeet,
+    ParsingTlvBeet
+  >(
+    [["tlvElements", array(u8)]],
+    (args) => new ParsingTlvBeet(args.tlvElements),
+    "ParsingTlvBeet"
+  );
+}
+
+export class ParsingUtxoBeet {
+  constructor(
+    readonly owner: PublicKey,
+    readonly blinding: Uint8Array,
+    readonly lamports: bignum,
+    readonly data: ParsingTlvBeet[] | null
+  ) {}
+
+  static readonly struct = new FixableBeetStruct<
+    ParsingUtxoBeet,
+    ParsingUtxoBeet
+  >(
+    [
+      ["owner", publicKey],
+      ["blinding", fixedSizeUint8Array(32)],
+      ["lamports", u64],
+      ["data", coption(array(ParsingTlvBeet.struct))],
+    ],
+    (args) =>
+      new ParsingUtxoBeet(args.owner, args.blinding, args.lamports, args.data),
+    "ParsingUtxo"
+  );
+}
+
+export class PublicTransactionIndexerEventBeet {
+  constructor(
+    readonly inUtxos: ParsingUtxoBeet[],
+    readonly outUtxos: ParsingUtxoBeet[],
+    readonly outUtxoIndices: bignum[],
+    readonly deCompressAmount: bignum | null,
+    readonly rpcFee: bignum | null,
+    readonly message: number[] | null
+  ) {}
+
+  static readonly struct = new FixableBeetStruct<
+    PublicTransactionIndexerEventBeet,
+    PublicTransactionIndexerEventBeet
+  >(
+    [
+      ["inUtxos", array(ParsingUtxoBeet.struct)],
+      ["outUtxos", array(ParsingUtxoBeet.struct)],
+      ["outUtxoIndices", array(u64)],
+      ["deCompressAmount", coption(u64)],
+      ["rpcFee", coption(u64)],
+      ["message", coption(array(u8))],
+    ],
+    (args) =>
+      new PublicTransactionIndexerEventBeet(
+        args.inUtxos,
+        args.outUtxos,
+        args.outUtxoIndices,
+        args.deCompressAmount,
+        args.rpcFee,
+        args.message
+      ),
+    "PublicTransactionIndexerEvent"
+  );
+}
 
 /**
  *  Call Flow:
@@ -179,34 +284,34 @@ async function getTransactionsBatch({
 }
 
 // // More specific function type for deserializing private events
-// type DeserializePrivateEvents = (
-//   data: Buffer,
-//   tx: ParsedTransactionWithMeta
-// ) => RpcIndexedTransaction | undefined;
+type deserializeTransactionEvents = (
+  data: Buffer,
+  tx: ParsedTransactionWithMeta
+) => PublicTransactionIndexerEventBeet | undefined;
 
-// const deserializePublicEvents = (data: Buffer) => {
-//   data = Buffer.from(Array.from(data).map((x: any) => Number(x)));
+const deserializeTransactionEvents = (data: Buffer) => {
+  data = Buffer.from(Array.from(data).map((x: any) => Number(x)));
 
-//   try {
-//     const event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
-//     return event;
-//   } catch (e) {
-//     return null;
-//   }
-// };
-
-export const deserializeTransactionEvents = (data: Buffer) => {
-  console.log(
-    "LightSystemProgram.program.coder",
-    LightSystemProgram.program.coder
-  );
-  const coder = LightSystemProgram.program.coder.types.decode(
-    "PublicTransactionEvent",
-    data
-  );
-
-  return coder;
+  try {
+    const event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
+    return event;
+  } catch (e) {
+    return null;
+  }
 };
+
+// export const deserializeTransactionEvents = (data: Buffer) => {
+//   console.log(
+//     "LightSystemProgram.program.coder",
+//     LightSystemProgram.program.coder
+//   );
+//   const coder = LightSystemProgram.program.coder.types.decode(
+//     "PublicTransactionEvent",
+//     data
+//   );
+
+//   return coder;
+// };
 
 export async function fetchRecentPublicTransactions({
   connection,

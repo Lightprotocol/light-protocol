@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, assert } from "vitest";
 import { LightSystemProgram } from "../../src/programs/compressed-pda";
 import { addMerkleContextToUtxo, createUtxo } from "../../src/state";
 import {
@@ -27,9 +27,16 @@ import {
 } from "../../src/constants";
 import { TestRpc } from "../../src/test-utils/test-rpc";
 
+// new todo
+// - test case 1 utxo with lamports in - 2 out utxos -> send money
+// - rename rpc fee to relay fee
+// - test changelog event
+// - test rpc get utxo by owner
+// - clean up
+// - script that does one transaction with constanst as amounts so that these are easy to change
+// - readme (start test validator, in separate tab run script that does a transaction)
+
 // TODO add tests for
-// - double spend check
-// - sumcheck fail check
 // - invalid tx signer
 // - asserting emitted events..
 // - repeat: sending fetching balance, sending more
@@ -163,6 +170,17 @@ describe("Program test", () => {
 
     const indexedEvents = await testRpc.getIndexedTransactions();
     console.log("indexedEvents", indexedEvents);
+    console.log("indexedEvents in utxos", indexedEvents[0].inUtxos);
+    console.log("indexedEvents out utxos", indexedEvents[0].outUtxos[0]);
+    assert.equal(indexedEvents.length, 1);
+    assert.equal(indexedEvents[0].inUtxos.length, 1);
+    assert.equal(indexedEvents[0].outUtxos.length, 1);
+    assert.equal(indexedEvents[0].outUtxos[0].lamports, 0);
+    assert.equal(
+      indexedEvents[0].outUtxos[0].owner,
+      payer.publicKey.toBase58()
+    );
+    assert.equal(indexedEvents[0].outUtxos[0].data, null);
   });
 
   it.skip("should build ix and send to chain successfully", async () => {
