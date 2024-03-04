@@ -145,7 +145,7 @@ export type PspCompressedPda = {
             }
           },
           {
-            "name": "rpcFee",
+            "name": "relayFee",
             "type": {
               "option": "u64"
             }
@@ -195,7 +195,7 @@ export type PspCompressedPda = {
             }
           },
           {
-            "name": "rpcFee",
+            "name": "relayFee",
             "type": {
               "option": "u64"
             }
@@ -245,7 +245,7 @@ export type PspCompressedPda = {
             }
           },
           {
-            "name": "rpcFee",
+            "name": "relayFee",
             "type": {
               "option": "u64"
             }
@@ -884,7 +884,7 @@ export const IDL: PspCompressedPda = {
             }
           },
           {
-            "name": "rpcFee",
+            "name": "relayFee",
             "type": {
               "option": "u64"
             }
@@ -934,7 +934,7 @@ export const IDL: PspCompressedPda = {
             }
           },
           {
-            "name": "rpcFee",
+            "name": "relayFee",
             "type": {
               "option": "u64"
             }
@@ -984,7 +984,7 @@ export const IDL: PspCompressedPda = {
             }
           },
           {
-            "name": "rpcFee",
+            "name": "relayFee",
             "type": {
               "option": "u64"
             }

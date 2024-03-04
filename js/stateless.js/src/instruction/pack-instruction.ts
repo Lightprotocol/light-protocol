@@ -15,7 +15,7 @@ export interface InstructionDataTransfer2 {
   proofC: number[];
   lowElementIndices: number[];
   rootIndices: number[];
-  rpcFee: bigint | null; // TODO: ideally bigint
+  relayFee: bigint | null; // TODO: ideally bigint
   utxos: UtxoSerde;
 }
 
@@ -52,7 +52,7 @@ const rawInstructionData = (
     proofC: Array.from(recentValidityProof.proofC),
     lowElementIndices: inputUtxos.map((_) => 0), // TODO: impl.!
     rootIndices: recentInputStateRootIndices,
-    rpcFee: BigInt(0),
+    relayFee: BigInt(0),
     utxos: serializedUtxos,
   };
 };
@@ -191,7 +191,7 @@ export async function packInstruction(
       u64Array: rawInputs.utxos.u64Array.map((item) => new BN(item.toString())),
     },
     //@ts-ignore
-    rpcFee: rawInputs.rpcFee ? new BN(rawInputs.rpcFee.toString()) : new BN(0),
+    relayFee: rawInputs.relayFee ? new BN(rawInputs.relayFee.toString()) : new BN(0),
   };
 
   const data = await LightSystemProgram.program.coder.accounts.encode(

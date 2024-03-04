@@ -227,7 +227,7 @@ export type PspCompressedToken = {
             }
           },
           {
-            "name": "rpcFee",
+            "name": "relayFee",
             "type": {
               "option": "u64"
             }
@@ -580,7 +580,7 @@ export const IDL: PspCompressedToken = {
             }
           },
           {
-            "name": "rpcFee",
+            "name": "relayFee",
             "type": {
               "option": "u64"
             }

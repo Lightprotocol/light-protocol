@@ -7,12 +7,12 @@ use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 // use light_verifier_sdk::light_transaction::ProofCompressed;
 use solana_sdk::instruction::Instruction;
 
+use crate::ProofCompressed;
 use crate::{
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     utxo::{InUtxoTuple, OutUtxo, OutUtxoTuple, SerializedUtxos, Utxo},
     InstructionDataTransfer, InstructionDataTransfer2,
 };
-use crate::ProofCompressed;
 
 // #[derive(Debug, Clone, PartialEq, Eq)]
 // // pub struct ProofCompressed {
@@ -86,18 +86,18 @@ pub fn create_execute_compressed_instruction(
 
     let inputs_struct = InstructionDataTransfer {
         low_element_indices: vec![0u16; in_utxos.len()],
-        rpc_fee: None,
+        relay_fee: None,
         in_utxos: _in_utxos,
         out_utxos: _out_utxos,
         root_indices: root_indices.to_vec(),
-        proof: Some(proof.clone())
+        proof: Some(proof.clone()),
     };
 
     println!("inputs_struct {:?}", inputs_struct);
     let mut inputs = Vec::new();
     // inputs_struct.serialize(&mut inputs).unwrap();
     InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
-    
+
     println!("encoded inputs {:?}", inputs);
     println!("encoded inputs len: {:?}", inputs.len());
     let instruction_data = crate::instruction::ExecuteCompressedTransaction { inputs };
@@ -216,7 +216,7 @@ pub fn create_execute_compressed_opt_instruction(
 
     let inputs_struct = InstructionDataTransfer2 {
         low_element_indices: vec![0u16; in_utxos.len()],
-        rpc_fee: None,
+        relay_fee: None,
         root_indices: root_indices.to_vec(),
         utxos,
         proof: Some(proof.clone()),

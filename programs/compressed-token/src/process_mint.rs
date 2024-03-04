@@ -106,7 +106,7 @@ pub fn cpi_create_execute_compressed_instruction<'info>(
 
     let inputs_struct = InstructionDataTransfer {
         low_element_indices: Vec::new(),
-        rpc_fee: None,
+        relay_fee: None,
         in_utxos: Vec::new(),
         out_utxos: _out_utxos,
         root_indices: Vec::new(),

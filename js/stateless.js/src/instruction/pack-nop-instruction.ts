@@ -82,7 +82,7 @@ export async function createExecuteCompressedInstruction(
   // hack!
   let rawInputs = {
     lowElementIndices: new Array(inUtxos.length).fill(0),
-    rpcFee: null,
+    relayFee: null,
     inUtxos: _inUtxos.map((utxo) => ({
       ...utxo,
       inUtxo: {

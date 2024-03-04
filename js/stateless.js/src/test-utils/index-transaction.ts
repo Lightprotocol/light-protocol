@@ -104,7 +104,7 @@ export class PublicTransactionIndexerEventBeet {
     readonly outUtxos: ParsingUtxoBeet[],
     readonly outUtxoIndices: bignum[],
     readonly deCompressAmount: bignum | null,
-    readonly rpcFee: bignum | null,
+    readonly relayFee: bignum | null,
     readonly message: number[] | null
   ) {}
 
@@ -117,7 +117,7 @@ export class PublicTransactionIndexerEventBeet {
       ["outUtxos", array(ParsingUtxoBeet.struct)],
       ["outUtxoIndices", array(u64)],
       ["deCompressAmount", coption(u64)],
-      ["rpcFee", coption(u64)],
+      ["relayFee", coption(u64)],
       ["message", coption(array(u8))],
     ],
     (args) =>
@@ -126,7 +126,7 @@ export class PublicTransactionIndexerEventBeet {
         args.outUtxos,
         args.outUtxoIndices,
         args.deCompressAmount,
-        args.rpcFee,
+        args.relayFee,
         args.message
       ),
     "PublicTransactionIndexerEvent"

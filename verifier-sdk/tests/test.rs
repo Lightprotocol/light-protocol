@@ -205,7 +205,7 @@
 //                 public_inputs_vec[7].to_vec(),
 //                 public_inputs_vec[8].to_vec(),
 //             ]],
-//             rpc_fee: 0,
+//             relay_fee: 0,
 //             proof_a: change_endianness(&proof_a_neg[..64]).to_vec(),
 //             proof_b: PROOF[64..64 + 128].to_vec(),
 //             proof_c: PROOF[64 + 128..256].to_vec(),
@@ -255,7 +255,7 @@
 //                 public_inputs_vec[7].to_vec(),
 //                 public_inputs_vec[8].to_vec(),
 //             ]],
-//             rpc_fee: 0,
+//             relay_fee: 0,
 //             proof_a: change_endianness(&proof_a_neg[..64]).to_vec(),
 //             proof_b: PROOF[64..64 + 128].to_vec(),
 //             proof_c: PROOF[64 + 128..256].to_vec(),
@@ -287,10 +287,10 @@
 //             .check_amount(1u64, change_endianness(&bytes).clone().try_into().unwrap())
 //             .is_err());
 //
-//         let (amount, rpc_fee) = tx
+//         let (amount, relay_fee) = tx
 //             .check_amount(0u64, change_endianness(&bytes).clone().try_into().unwrap())
 //             .unwrap();
-//         assert_eq!(rpc_fee, 0);
+//         assert_eq!(relay_fee, 0);
 //         assert_eq!(amount, new_bn.0[0]);
 //
 //         // decompress
@@ -304,11 +304,11 @@
 //
 //         // fee less or equal than decompress amount
 //         for i in 0..(new_bn.0[0] + 1) as u64 {
-//             let (amount, rpc_fee) = tx
+//             let (amount, relay_fee) = tx
 //                 .check_amount(i, change_endianness(&bytes).clone().try_into().unwrap())
 //                 .unwrap();
 //             assert_eq!(amount, new_bn.0[0] - i);
-//             assert_eq!(rpc_fee, i);
+//             assert_eq!(relay_fee, i);
 //         }
 //
 //         // fee larger than decompress amount
@@ -365,7 +365,7 @@
 //                 public_inputs_vec[7].to_vec(),
 //                 public_inputs_vec[8].to_vec(),
 //             ]],
-//             rpc_fee: 0,
+//             relay_fee: 0,
 //             proof_a: change_endianness(&proof_a_neg[..64]).to_vec(),
 //             proof_b: PROOF[64..64 + 128].to_vec(),
 //             proof_c: PROOF[64 + 128..256].to_vec(),
