@@ -24,25 +24,29 @@ export const accountCompressionProgram =
   "5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN";
 
 // TODO: make this for any
-export const registeredProgramPda = PublicKey.createProgramAddressSync(
-  [LightSystemProgram.programId.toBytes()],
-  new PublicKey(accountCompressionProgram)
-);
+// Change the constants that depend on LightSystemProgram.programId into functions
 
-export const pspAccountCompressionAuthority =
-  PublicKey.createProgramAddressSync(
+export const getRegisteredProgramPda = () =>
+  PublicKey.findProgramAddressSync(
+    [LightSystemProgram.programId.toBytes()],
+    new PublicKey(accountCompressionProgram)
+  )[0];
+
+export const getPspAccountCompressionAuthority = () =>
+  PublicKey.findProgramAddressSync(
     [
       Buffer.from("cpi_authority"),
       new PublicKey(accountCompressionProgram).toBytes(),
     ],
     LightSystemProgram.programId
-  );
+  )[0];
 
+// Update the defaultStaticAccounts function to use the new getters
 export const defaultStaticAccounts = () => [
-  new PublicKey(registeredProgramPda),
+  new PublicKey(getRegisteredProgramPda()),
   new PublicKey(noopProgram),
   new PublicKey(accountCompressionProgram),
-  new PublicKey(pspAccountCompressionAuthority),
+  new PublicKey(getPspAccountCompressionAuthority()),
   // null, // cpisignatureAccount
 ];
 

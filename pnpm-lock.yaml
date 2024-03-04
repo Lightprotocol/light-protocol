@@ -382,22 +382,25 @@ importers:
 
   js/stateless.js:
     dependencies:
-      '@coral-xyz/anchor':
+      "@coral-xyz/anchor":
         specifier: 0.28.0
         version: 0.28.0
-      '@lightprotocol/account.rs':
+      "@lightprotocol/account.rs":
         specifier: workspace:*
         version: link:../../account.rs
-      '@lightprotocol/prover.js':
+      "@lightprotocol/prover.js":
         specifier: workspace:*
         version: link:../../prover.js
-      '@solana/buffer-layout':
+      "@solana/buffer-layout":
         specifier: ^4.0.1
         version: 4.0.1
-      '@solana/buffer-layout-utils':
+      "@solana/buffer-layout-utils":
         specifier: ^0.2.0
         version: 0.2.0
-      '@solana/web3.js':
+      "@solana/spl-account-compression":
+        specifier: ^0.1.8
+        version: 0.1.10(@solana/web3.js@1.87.6)
+      "@solana/web3.js":
         specifier: ^1.87.6
         version: 1.87.6
       buffer:
@@ -410,7 +413,7 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
     devDependencies:
-      '@types/node':
+      "@types/node":
         specifier: ^20.10.2
         version: 20.10.4
       rimraf:
@@ -19672,8 +19675,11 @@ packages:
       }
 
   /superstruct@1.0.3:
-    resolution: {integrity: sha512-8iTn3oSS8nRGn+C2pgXSKPI3jmpm6FExNazNpjvqS6ZUJQCej3PUXEKM8NjHBOs54ExM+LPW/FBRhymrdcCiSg==}
-    engines: {node: '>=14.0.0'}
+    resolution:
+      {
+        integrity: sha512-8iTn3oSS8nRGn+C2pgXSKPI3jmpm6FExNazNpjvqS6ZUJQCej3PUXEKM8NjHBOs54ExM+LPW/FBRhymrdcCiSg==,
+      }
+    engines: { node: ">=14.0.0" }
     dev: false
 
   /supports-color@5.5.0:
