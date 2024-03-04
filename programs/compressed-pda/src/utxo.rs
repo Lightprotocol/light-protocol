@@ -246,7 +246,7 @@ impl SerializedUtxos {
                 lamports: lamports_index,
                 data: data_serializable,
             };
-            utxos.push(OutUtxoSerializableTuple { out_utxo_serializable: out_utxo_serializable, index_mt_account: 0u8 });
+            utxos.push(OutUtxoSerializableTuple {out_utxo_serializable, index_mt_account: 0u8 });
         }
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
         remaining_accounts_pubkeys
