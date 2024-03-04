@@ -82,6 +82,7 @@ export class LightSystemProgram {
   private static initializeProgram() {
     if (!this._program) {
       const mockKeypair = Keypair.generate();
+      console.log("mockKeypair", mockKeypair.publicKey.toBase58());
       const mockConnection = new Connection(
         "http://localhost:8899",
         "confirmed"
@@ -148,7 +149,7 @@ export class LightSystemProgram {
     const recentValidityProof = placeholderValidityProof();
     const recentInputStateRootIndices = selectedInputUtxos.utxos.map((_) => 0);
     const staticAccounts = defaultStaticAccounts();
-    
+
     const ix = await packInstruction({
       inputState: coerceIntoUtxoWithMerkleContext(selectedInputUtxos.utxos),
       outputState: outputUtxos,

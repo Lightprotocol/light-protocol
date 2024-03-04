@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
-use light_verifier_sdk::light_transaction::ProofCompressed;
+// use light_verifier_sdk::light_transaction::ProofCompressed;
 
 use crate::{
     append_state::insert_out_utxos,
@@ -98,6 +98,13 @@ pub struct CpiSignature {
     pub tlv_data: TlvDataElement,
 }
 
+
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct ProofCompressed {
+    pub a: [u8; 32],
+    pub b: [u8; 64],
+    pub c: [u8; 32],
+}
 // TODO: parse utxos a more efficient way, since owner is sent multiple times this way
 #[derive(Debug)]
 #[account]

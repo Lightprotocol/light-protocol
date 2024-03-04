@@ -27,10 +27,11 @@ export const accountCompressionProgram =
 // Change the constants that depend on LightSystemProgram.programId into functions
 
 export const getRegisteredProgramPda = () =>
-  PublicKey.findProgramAddressSync(
-    [LightSystemProgram.programId.toBytes()],
-    new PublicKey(accountCompressionProgram)
-  )[0];
+  new PublicKey("ytwwVWhQUMoTKdirKmvEW5xCRVr4B2dJZnToiHtE2L2"); // TODO: gov authority pda rn
+// PublicKey.findProgramAddressSync(
+//   [LightSystemProgram.programId.toBytes()],
+//   new PublicKey(accountCompressionProgram)
+// )[0];
 
 export const getPspAccountCompressionAuthority = () =>
   PublicKey.findProgramAddressSync(
@@ -49,6 +50,30 @@ export const defaultStaticAccounts = () => [
   new PublicKey(getPspAccountCompressionAuthority()),
   // null, // cpisignatureAccount
 ];
+export const defaultStaticAccountsStruct = () => {
+  return {
+    registeredProgramPda: new PublicKey(getRegisteredProgramPda()),
+    noopProgram: new PublicKey(noopProgram),
+    accountCompressionProgram: new PublicKey(accountCompressionProgram),
+    pspAccountCompressionAuthority: new PublicKey(
+      getPspAccountCompressionAuthority()
+    ),
+    cpiSignatureAccount: null,
+  };
+};
+
+export const defaultTestStateTreeAccounts = () => {
+  return {
+    stateNullifierQueue: new PublicKey(stateNullifierQueuePubkey),
+    merkleTree: new PublicKey(merkletreePubkey),
+  };
+};
+
+// "indexed array"
+export const stateNullifierQueuePubkey =
+  "44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ";
+
+export const merkletreePubkey = "5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W";
 
 export const TYPE_PUBKEY = { array: ["u8", 32] };
 export const TYPE_SEED = { defined: "&[u8]" };

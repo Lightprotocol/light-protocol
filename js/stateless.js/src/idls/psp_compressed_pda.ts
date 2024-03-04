@@ -1,365 +1,395 @@
 export type PspCompressedPda = {
-  version: "0.3.0";
-  name: "psp_compressed_pda";
-  instructions: [
+  "version": "0.3.0",
+  "name": "psp_compressed_pda",
+  "instructions": [
     {
-      name: "executeCompressedTransaction";
-      docs: [
+      "name": "executeCompressedTransaction",
+      "docs": [
         "This function can be used to transfer sol and execute any other compressed transaction.",
         "Instruction data is not optimized for space.",
-        "This method can be called by cpi so that instruction data can be compressed with a custom algorithm.",
-      ];
-      accounts: [
+        "This method can be called by cpi so that instruction data can be compressed with a custom algorithm."
+      ],
+      "accounts": [
         {
-          name: "signer";
-          isMut: true;
-          isSigner: true;
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "registeredProgramPda";
-          isMut: true;
-          isSigner: false;
+          "name": "registeredProgramPda",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "noopProgram";
-          isMut: false;
-          isSigner: false;
+          "name": "noopProgram",
+          "isMut": false,
+          "isSigner": false
         },
         {
-          name: "pspAccountCompressionAuthority";
-          isMut: true;
-          isSigner: false;
+          "name": "pspAccountCompressionAuthority",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "accountCompressionProgram";
-          isMut: false;
-          isSigner: false;
+          "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
         },
         {
-          name: "cpiSignatureAccount";
-          isMut: false;
-          isSigner: false;
-          isOptional: true;
-        },
-      ];
-      args: [
+          "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        }
+      ],
+      "args": [
         {
-          name: "inputs";
-          type: "bytes";
-        },
-      ];
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ],
+      "returns": {
+        "defined": "crate::event::PublicTransactionEvent"
+      }
     },
     {
-      name: "executeCompressedTransaction2";
-      docs: [
+      "name": "executeCompressedTransaction2",
+      "docs": [
         "This function can be used to transfer sol and execute any other compressed transaction.",
-        "Instruction data is optimized for space.",
-      ];
-      accounts: [
+        "Instruction data is optimized for space."
+      ],
+      "accounts": [
         {
-          name: "signer";
-          isMut: true;
-          isSigner: true;
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "registeredProgramPda";
-          isMut: true;
-          isSigner: false;
+          "name": "registeredProgramPda",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "noopProgram";
-          isMut: false;
-          isSigner: false;
+          "name": "noopProgram",
+          "isMut": false,
+          "isSigner": false
         },
         {
-          name: "pspAccountCompressionAuthority";
-          isMut: true;
-          isSigner: false;
+          "name": "pspAccountCompressionAuthority",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "accountCompressionProgram";
-          isMut: false;
-          isSigner: false;
+          "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
         },
         {
-          name: "cpiSignatureAccount";
-          isMut: false;
-          isSigner: false;
-          isOptional: true;
-        },
-      ];
-      args: [
+          "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        }
+      ],
+      "args": [
         {
-          name: "inputs";
-          type: "bytes";
-        },
-      ];
-    },
-  ];
-  accounts: [
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ],
+      "returns": {
+        "defined": "crate::event::PublicTransactionEvent"
+      }
+    }
+  ],
+  "accounts": [
     {
-      name: "cpiSignatureAccount";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "cpiSignatureAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "signatures";
-            type: {
-              vec: {
-                defined: "CpiSignature";
-              };
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "instructionDataTransfer";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "proofA";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-          {
-            name: "proofB";
-            type: {
-              array: ["u8", 64];
-            };
-          },
-          {
-            name: "proofC";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-          {
-            name: "lowElementIndices";
-            type: {
-              vec: "u16";
-            };
-          },
-          {
-            name: "rootIndices";
-            type: {
-              vec: "u16";
-            };
-          },
-          {
-            name: "rpcFee";
-            type: {
-              option: "u64";
-            };
-          },
-          {
-            name: "inUtxos";
-            type: {
-              vec: {
-                defined: "InUtxoTuple";
-              };
-            };
-          },
-          {
-            name: "outUtxos";
-            type: {
-              vec: {
-                defined: "OutUtxoTuple";
-              };
-            };
-          },
-        ];
-      };
+            "name": "signatures",
+            "type": {
+              "vec": {
+                "defined": "CpiSignature"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "instructionDataTransfer2";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "instructionDataTransfer",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "proofA";
-            type: {
-              array: ["u8", 32];
-            };
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "ProofCompressed"
+              }
+            }
           },
           {
-            name: "proofB";
-            type: {
-              array: ["u8", 64];
-            };
+            "name": "lowElementIndices",
+            "type": {
+              "vec": "u16"
+            }
           },
           {
-            name: "proofC";
-            type: {
-              array: ["u8", 32];
-            };
+            "name": "rootIndices",
+            "type": {
+              "vec": "u16"
+            }
           },
           {
-            name: "lowElementIndices";
-            type: {
-              vec: "u16";
-            };
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
           },
           {
-            name: "rootIndices";
-            type: {
-              vec: "u16";
-            };
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoTuple"
+              }
+            }
           },
           {
-            name: "rpcFee";
-            type: {
-              option: "u64";
-            };
-          },
-          {
-            name: "utxos";
-            type: {
-              defined: "SerializedUtxos";
-            };
-          },
-        ];
-      };
-    },
-  ];
-  types: [
-    {
-      name: "PublicTransactionEvent";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "inUtxos";
-            type: {
-              vec: {
-                defined: "Utxo";
-              };
-            };
-          },
-          {
-            name: "outUtxos";
-            type: {
-              vec: {
-                defined: "Utxo";
-              };
-            };
-          },
-          {
-            name: "outUtxoIndices";
-            type: {
-              vec: "u64";
-            };
-          },
-          {
-            name: "deCompressAmount";
-            type: {
-              option: "u64";
-            };
-          },
-          {
-            name: "rpcFee";
-            type: {
-              option: "u64";
-            };
-          },
-          {
-            name: "message";
-            type: {
-              option: "bytes";
-            };
-          },
-        ];
-      };
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "OutUtxoTuple"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "CpiSignature";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "instructionDataTransfer2",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "program";
-            type: "publicKey";
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "ProofCompressed"
+              }
+            }
           },
           {
-            name: "tlvHash";
-            type: {
-              array: ["u8", 32];
-            };
+            "name": "lowElementIndices",
+            "type": {
+              "vec": "u16"
+            }
           },
           {
-            name: "tlvData";
-            type: {
-              defined: "TlvDataElement";
-            };
+            "name": "rootIndices",
+            "type": {
+              "vec": "u16"
+            }
           },
-        ];
-      };
+          {
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "utxos",
+            "type": {
+              "defined": "SerializedUtxos"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "PublicTransactionEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "Utxo"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "Utxo"
+              }
+            }
+          },
+          {
+            "name": "outUtxoIndices",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "deCompressAmount",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "message",
+            "type": {
+              "option": "bytes"
+            }
+          }
+        ]
+      }
     },
     {
-      name: "TlvSerializable";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "CpiSignature",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "tlvElements";
-            type: {
-              vec: {
-                defined: "TlvDataElementSerializable";
-              };
-            };
+            "name": "program",
+            "type": "publicKey"
           },
-        ];
-      };
+          {
+            "name": "tlvHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "tlvData",
+            "type": {
+              "defined": "TlvDataElement"
+            }
+          }
+        ]
+      }
     },
     {
-      name: "Tlv";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "ProofCompressed",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "tlvElements";
-            type: {
-              vec: {
-                defined: "TlvDataElement";
-              };
-            };
+            "name": "a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
-        ];
-      };
+          {
+            "name": "b",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "c",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "TlvDataElementSerializable";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "TlvSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "discriminator";
-            type: {
-              array: ["u8", 8];
-            };
-          },
-          {
-            name: "owner";
-            type: "u8";
-          },
-          {
-            name: "data";
-            type: "bytes";
-          },
-          {
-            name: "dataHash";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-        ];
-      };
+            "name": "tlvElements",
+            "type": {
+              "vec": {
+                "defined": "TlvDataElementSerializable"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "TlvDataElement";
-      docs: [
+      "name": "Tlv",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tlvElements",
+            "type": {
+              "vec": {
+                "defined": "TlvDataElement"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TlvDataElementSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discriminator",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": "bytes"
+          },
+          {
+            "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TlvDataElement",
+      "docs": [
         "Time lock escrow example:",
         "escrow tlv data -> compressed token program",
         "let escrow_data = {",
@@ -388,678 +418,717 @@ export type PspCompressedPda = {
         "delegated_amount: 0u64,",
         "close_authority: None,",
         "};",
-        "",
-      ];
-      type: {
-        kind: "struct";
-        fields: [
+        ""
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "discriminator";
-            type: {
-              array: ["u8", 8];
-            };
+            "name": "discriminator",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
           },
           {
-            name: "owner";
-            type: "publicKey";
+            "name": "owner",
+            "type": "publicKey"
           },
           {
-            name: "data";
-            type: "bytes";
+            "name": "data",
+            "type": "bytes"
           },
           {
-            name: "dataHash";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-        ];
-      };
+            "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "InUtxoSerializableTuple";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "InUtxoSerializableTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "inUtxoSerializable";
-            type: {
-              defined: "InUtxoSerializable";
-            };
+            "name": "inUtxoSerializable",
+            "type": {
+              "defined": "InUtxoSerializable"
+            }
           },
           {
-            name: "indexMtAccount";
-            type: "u8";
+            "name": "indexMtAccount",
+            "type": "u8"
           },
           {
-            name: "indexNullifierArrayAccount";
-            type: "u8";
-          },
-        ];
-      };
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
     },
     {
-      name: "OutUtxoSerializableTuple";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "OutUtxoSerializableTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "outUtxoSerializable";
-            type: {
-              defined: "OutUtxoSerializable";
-            };
+            "name": "outUtxoSerializable",
+            "type": {
+              "defined": "OutUtxoSerializable"
+            }
           },
           {
-            name: "indexMtAccount";
-            type: "u8";
-          },
-        ];
-      };
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
     },
     {
-      name: "InUtxoTuple";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "InUtxoTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "inUtxo";
-            type: {
-              defined: "Utxo";
-            };
+            "name": "inUtxo",
+            "type": {
+              "defined": "Utxo"
+            }
           },
           {
-            name: "indexMtAccount";
-            type: "u8";
+            "name": "indexMtAccount",
+            "type": "u8"
           },
           {
-            name: "indexNullifierArrayAccount";
-            type: "u8";
-          },
-        ];
-      };
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
     },
     {
-      name: "OutUtxoTuple";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "OutUtxoTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "outUtxo";
-            type: {
-              defined: "OutUtxo";
-            };
+            "name": "outUtxo",
+            "type": {
+              "defined": "OutUtxo"
+            }
           },
           {
-            name: "indexMtAccount";
-            type: "u8";
-          },
-        ];
-      };
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
     },
     {
-      name: "SerializedUtxos";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "SerializedUtxos",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "pubkeyArray";
-            type: {
-              vec: "publicKey";
-            };
+            "name": "pubkeyArray",
+            "type": {
+              "vec": "publicKey"
+            }
           },
           {
-            name: "u64Array";
-            type: {
-              vec: "u64";
-            };
+            "name": "u64Array",
+            "type": {
+              "vec": "u64"
+            }
           },
           {
-            name: "inUtxos";
-            type: {
-              vec: {
-                defined: "InUtxoSerializableTuple";
-              };
-            };
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoSerializableTuple"
+              }
+            }
           },
           {
-            name: "outUtxos";
-            type: {
-              vec: {
-                defined: "OutUtxoSerializableTuple";
-              };
-            };
-          },
-        ];
-      };
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "OutUtxoSerializableTuple"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "InUtxoSerializable";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "InUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "owner";
-            type: "u8";
+            "name": "owner",
+            "type": "u8"
           },
           {
-            name: "leafIndex";
-            type: "u32";
+            "name": "leafIndex",
+            "type": "u32"
           },
           {
-            name: "lamports";
-            type: "u8";
+            "name": "lamports",
+            "type": "u8"
           },
           {
-            name: "data";
-            type: {
-              option: {
-                defined: "TlvSerializable";
-              };
-            };
-          },
-        ];
-      };
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "OutUtxoSerializable";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "OutUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "owner";
-            type: "u8";
-          },
-          {
-            name: "lamports";
-            type: "u8";
+            "name": "owner",
+            "type": "u8"
           },
           {
-            name: "data";
-            type: {
-              option: {
-                defined: "TlvSerializable";
-              };
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "OutUtxo";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "owner";
-            type: "publicKey";
+            "name": "lamports",
+            "type": "u8"
           },
           {
-            name: "lamports";
-            type: "u64";
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
           },
           {
-            name: "data";
-            type: {
-              option: {
-                defined: "Tlv";
-              };
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "Utxo";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "owner";
-            type: "publicKey";
+            "name": "lamports",
+            "type": "u64"
           },
           {
-            name: "blinding";
-            type: {
-              array: ["u8", 32];
-            };
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Utxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
           },
           {
-            name: "lamports";
-            type: "u64";
+            "name": "blinding",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
-            name: "data";
-            type: {
-              option: {
-                defined: "Tlv";
-              };
-            };
+            "name": "lamports",
+            "type": "u64"
           },
-        ];
-      };
-    },
-  ];
-  errors: [
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
     {
-      code: 6000;
-      name: "SumCheckFailed";
-      msg: "Sum check failed";
-    },
-    {
-      code: 6001;
-      name: "SignerCheckFailed";
-      msg: "Signer check failed";
-    },
-    {
-      code: 6002;
-      name: "CpiSignerCheckFailed";
-      msg: "Cpi signer check failed";
+      "code": 6000,
+      "name": "SumCheckFailed",
+      "msg": "Sum check failed"
     },
     {
-      code: 6003;
-      name: "ComputeInputSumFailed";
-      msg: "Computing input sum failed.";
+      "code": 6001,
+      "name": "SignerCheckFailed",
+      "msg": "Signer check failed"
     },
     {
-      code: 6004;
-      name: "ComputeOutputSumFailed";
-      msg: "Computing output sum failed.";
+      "code": 6002,
+      "name": "CpiSignerCheckFailed",
+      "msg": "Cpi signer check failed"
     },
     {
-      code: 6005;
-      name: "ComputeRpcSumFailed";
-      msg: "Computing rpc sum failed.";
+      "code": 6003,
+      "name": "ComputeInputSumFailed",
+      "msg": "Computing input sum failed."
     },
     {
-      code: 6006;
-      name: "InUtxosAlreadyAdded";
-      msg: "InUtxosAlreadyAdded";
+      "code": 6004,
+      "name": "ComputeOutputSumFailed",
+      "msg": "Computing output sum failed."
     },
     {
-      code: 6007;
-      name: "NumberOfLeavesMissmatch";
-      msg: "NumberOfLeavesMissmatch";
+      "code": 6005,
+      "name": "ComputeRpcSumFailed",
+      "msg": "Computing rpc sum failed."
     },
     {
-      code: 6008;
-      name: "MerkleTreePubkeysMissmatch";
-      msg: "MerkleTreePubkeysMissmatch";
+      "code": 6006,
+      "name": "InUtxosAlreadyAdded",
+      "msg": "InUtxosAlreadyAdded"
     },
     {
-      code: 6009;
-      name: "NullifierArrayPubkeysMissmatch";
-      msg: "NullifierArrayPubkeysMissmatch";
+      "code": 6007,
+      "name": "NumberOfLeavesMissmatch",
+      "msg": "NumberOfLeavesMissmatch"
     },
     {
-      code: 6010;
-      name: "InvalidNoopPubkey";
-      msg: "InvalidNoopPubkey";
+      "code": 6008,
+      "name": "MerkleTreePubkeysMissmatch",
+      "msg": "MerkleTreePubkeysMissmatch"
     },
-  ];
+    {
+      "code": 6009,
+      "name": "NullifierArrayPubkeysMissmatch",
+      "msg": "NullifierArrayPubkeysMissmatch"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidNoopPubkey",
+      "msg": "InvalidNoopPubkey"
+    }
+  ]
 };
 
 export const IDL: PspCompressedPda = {
-  version: "0.3.0",
-  name: "psp_compressed_pda",
-  instructions: [
+  "version": "0.3.0",
+  "name": "psp_compressed_pda",
+  "instructions": [
     {
-      name: "executeCompressedTransaction",
-      docs: [
+      "name": "executeCompressedTransaction",
+      "docs": [
         "This function can be used to transfer sol and execute any other compressed transaction.",
         "Instruction data is not optimized for space.",
-        "This method can be called by cpi so that instruction data can be compressed with a custom algorithm.",
+        "This method can be called by cpi so that instruction data can be compressed with a custom algorithm."
       ],
-      accounts: [
+      "accounts": [
         {
-          name: "signer",
-          isMut: true,
-          isSigner: true,
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "registeredProgramPda",
-          isMut: true,
-          isSigner: false,
+          "name": "registeredProgramPda",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "noopProgram",
-          isMut: false,
-          isSigner: false,
+          "name": "noopProgram",
+          "isMut": false,
+          "isSigner": false
         },
         {
-          name: "pspAccountCompressionAuthority",
-          isMut: true,
-          isSigner: false,
+          "name": "pspAccountCompressionAuthority",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "accountCompressionProgram",
-          isMut: false,
-          isSigner: false,
+          "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
         },
         {
-          name: "cpiSignatureAccount",
-          isMut: false,
-          isSigner: false,
-          isOptional: true,
-        },
+          "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "inputs",
-          type: "bytes",
-        },
+          "name": "inputs",
+          "type": "bytes"
+        }
       ],
+      "returns": {
+        "defined": "crate::event::PublicTransactionEvent"
+      }
     },
     {
-      name: "executeCompressedTransaction2",
-      docs: [
+      "name": "executeCompressedTransaction2",
+      "docs": [
         "This function can be used to transfer sol and execute any other compressed transaction.",
-        "Instruction data is optimized for space.",
+        "Instruction data is optimized for space."
       ],
-      accounts: [
+      "accounts": [
         {
-          name: "signer",
-          isMut: true,
-          isSigner: true,
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "registeredProgramPda",
-          isMut: true,
-          isSigner: false,
+          "name": "registeredProgramPda",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "noopProgram",
-          isMut: false,
-          isSigner: false,
+          "name": "noopProgram",
+          "isMut": false,
+          "isSigner": false
         },
         {
-          name: "pspAccountCompressionAuthority",
-          isMut: true,
-          isSigner: false,
+          "name": "pspAccountCompressionAuthority",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "accountCompressionProgram",
-          isMut: false,
-          isSigner: false,
+          "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
         },
         {
-          name: "cpiSignatureAccount",
-          isMut: false,
-          isSigner: false,
-          isOptional: true,
-        },
+          "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "inputs",
-          type: "bytes",
-        },
+          "name": "inputs",
+          "type": "bytes"
+        }
       ],
-    },
+      "returns": {
+        "defined": "crate::event::PublicTransactionEvent"
+      }
+    }
   ],
-  accounts: [
+  "accounts": [
     {
-      name: "cpiSignatureAccount",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "cpiSignatureAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "signatures",
-            type: {
-              vec: {
-                defined: "CpiSignature",
-              },
-            },
-          },
-        ],
-      },
+            "name": "signatures",
+            "type": {
+              "vec": {
+                "defined": "CpiSignature"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "instructionDataTransfer",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "instructionDataTransfer",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "proofA",
-            type: {
-              array: ["u8", 32],
-            },
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "ProofCompressed"
+              }
+            }
           },
           {
-            name: "proofB",
-            type: {
-              array: ["u8", 64],
-            },
+            "name": "lowElementIndices",
+            "type": {
+              "vec": "u16"
+            }
           },
           {
-            name: "proofC",
-            type: {
-              array: ["u8", 32],
-            },
+            "name": "rootIndices",
+            "type": {
+              "vec": "u16"
+            }
           },
           {
-            name: "lowElementIndices",
-            type: {
-              vec: "u16",
-            },
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
           },
           {
-            name: "rootIndices",
-            type: {
-              vec: "u16",
-            },
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoTuple"
+              }
+            }
           },
           {
-            name: "rpcFee",
-            type: {
-              option: "u64",
-            },
-          },
-          {
-            name: "inUtxos",
-            type: {
-              vec: {
-                defined: "InUtxoTuple",
-              },
-            },
-          },
-          {
-            name: "outUtxos",
-            type: {
-              vec: {
-                defined: "OutUtxoTuple",
-              },
-            },
-          },
-        ],
-      },
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "OutUtxoTuple"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "instructionDataTransfer2",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "instructionDataTransfer2",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "proofA",
-            type: {
-              array: ["u8", 32],
-            },
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "ProofCompressed"
+              }
+            }
           },
           {
-            name: "proofB",
-            type: {
-              array: ["u8", 64],
-            },
+            "name": "lowElementIndices",
+            "type": {
+              "vec": "u16"
+            }
           },
           {
-            name: "proofC",
-            type: {
-              array: ["u8", 32],
-            },
+            "name": "rootIndices",
+            "type": {
+              "vec": "u16"
+            }
           },
           {
-            name: "lowElementIndices",
-            type: {
-              vec: "u16",
-            },
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
           },
           {
-            name: "rootIndices",
-            type: {
-              vec: "u16",
-            },
-          },
-          {
-            name: "rpcFee",
-            type: {
-              option: "u64",
-            },
-          },
-          {
-            name: "utxos",
-            type: {
-              defined: "SerializedUtxos",
-            },
-          },
-        ],
-      },
-    },
+            "name": "utxos",
+            "type": {
+              "defined": "SerializedUtxos"
+            }
+          }
+        ]
+      }
+    }
   ],
-  types: [
+  "types": [
     {
-      name: "PublicTransactionEvent",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "PublicTransactionEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "inUtxos",
-            type: {
-              vec: {
-                defined: "Utxo",
-              },
-            },
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "Utxo"
+              }
+            }
           },
           {
-            name: "outUtxos",
-            type: {
-              vec: {
-                defined: "Utxo",
-              },
-            },
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "Utxo"
+              }
+            }
           },
           {
-            name: "outUtxoIndices",
-            type: {
-              vec: "u64",
-            },
+            "name": "outUtxoIndices",
+            "type": {
+              "vec": "u64"
+            }
           },
           {
-            name: "deCompressAmount",
-            type: {
-              option: "u64",
-            },
+            "name": "deCompressAmount",
+            "type": {
+              "option": "u64"
+            }
           },
           {
-            name: "rpcFee",
-            type: {
-              option: "u64",
-            },
+            "name": "rpcFee",
+            "type": {
+              "option": "u64"
+            }
           },
           {
-            name: "message",
-            type: {
-              option: "bytes",
-            },
-          },
-        ],
-      },
+            "name": "message",
+            "type": {
+              "option": "bytes"
+            }
+          }
+        ]
+      }
     },
     {
-      name: "CpiSignature",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "CpiSignature",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "program",
-            type: "publicKey",
+            "name": "program",
+            "type": "publicKey"
           },
           {
-            name: "tlvHash",
-            type: {
-              array: ["u8", 32],
-            },
+            "name": "tlvHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
-            name: "tlvData",
-            type: {
-              defined: "TlvDataElement",
-            },
-          },
-        ],
-      },
+            "name": "tlvData",
+            "type": {
+              "defined": "TlvDataElement"
+            }
+          }
+        ]
+      }
     },
     {
-      name: "TlvSerializable",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "ProofCompressed",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "tlvElements",
-            type: {
-              vec: {
-                defined: "TlvDataElementSerializable",
-              },
-            },
+            "name": "a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
-        ],
-      },
+          {
+            "name": "b",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "c",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "Tlv",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "TlvSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "tlvElements",
-            type: {
-              vec: {
-                defined: "TlvDataElement",
-              },
-            },
-          },
-        ],
-      },
+            "name": "tlvElements",
+            "type": {
+              "vec": {
+                "defined": "TlvDataElementSerializable"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "TlvDataElementSerializable",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "Tlv",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "discriminator",
-            type: {
-              array: ["u8", 8],
-            },
-          },
-          {
-            name: "owner",
-            type: "u8",
-          },
-          {
-            name: "data",
-            type: "bytes",
-          },
-          {
-            name: "dataHash",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-        ],
-      },
+            "name": "tlvElements",
+            "type": {
+              "vec": {
+                "defined": "TlvDataElement"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "TlvDataElement",
-      docs: [
+      "name": "TlvDataElementSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discriminator",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": "bytes"
+          },
+          {
+            "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TlvDataElement",
+      "docs": [
         "Time lock escrow example:",
         "escrow tlv data -> compressed token program",
         "let escrow_data = {",
@@ -1088,312 +1157,321 @@ export const IDL: PspCompressedPda = {
         "delegated_amount: 0u64,",
         "close_authority: None,",
         "};",
-        "",
+        ""
       ],
-      type: {
-        kind: "struct",
-        fields: [
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "discriminator",
-            type: {
-              array: ["u8", 8],
-            },
+            "name": "discriminator",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
           },
           {
-            name: "owner",
-            type: "publicKey",
+            "name": "owner",
+            "type": "publicKey"
           },
           {
-            name: "data",
-            type: "bytes",
+            "name": "data",
+            "type": "bytes"
           },
           {
-            name: "dataHash",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-        ],
-      },
+            "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "InUtxoSerializableTuple",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "InUtxoSerializableTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "inUtxoSerializable",
-            type: {
-              defined: "InUtxoSerializable",
-            },
+            "name": "inUtxoSerializable",
+            "type": {
+              "defined": "InUtxoSerializable"
+            }
           },
           {
-            name: "indexMtAccount",
-            type: "u8",
+            "name": "indexMtAccount",
+            "type": "u8"
           },
           {
-            name: "indexNullifierArrayAccount",
-            type: "u8",
-          },
-        ],
-      },
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
     },
     {
-      name: "OutUtxoSerializableTuple",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "OutUtxoSerializableTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "outUtxoSerializable",
-            type: {
-              defined: "OutUtxoSerializable",
-            },
+            "name": "outUtxoSerializable",
+            "type": {
+              "defined": "OutUtxoSerializable"
+            }
           },
           {
-            name: "indexMtAccount",
-            type: "u8",
-          },
-        ],
-      },
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
     },
     {
-      name: "InUtxoTuple",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "InUtxoTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "inUtxo",
-            type: {
-              defined: "Utxo",
-            },
+            "name": "inUtxo",
+            "type": {
+              "defined": "Utxo"
+            }
           },
           {
-            name: "indexMtAccount",
-            type: "u8",
+            "name": "indexMtAccount",
+            "type": "u8"
           },
           {
-            name: "indexNullifierArrayAccount",
-            type: "u8",
-          },
-        ],
-      },
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
     },
     {
-      name: "OutUtxoTuple",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "OutUtxoTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "outUtxo",
-            type: {
-              defined: "OutUtxo",
-            },
+            "name": "outUtxo",
+            "type": {
+              "defined": "OutUtxo"
+            }
           },
           {
-            name: "indexMtAccount",
-            type: "u8",
-          },
-        ],
-      },
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
     },
     {
-      name: "SerializedUtxos",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "SerializedUtxos",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "pubkeyArray",
-            type: {
-              vec: "publicKey",
-            },
+            "name": "pubkeyArray",
+            "type": {
+              "vec": "publicKey"
+            }
           },
           {
-            name: "u64Array",
-            type: {
-              vec: "u64",
-            },
+            "name": "u64Array",
+            "type": {
+              "vec": "u64"
+            }
           },
           {
-            name: "inUtxos",
-            type: {
-              vec: {
-                defined: "InUtxoSerializableTuple",
-              },
-            },
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoSerializableTuple"
+              }
+            }
           },
           {
-            name: "outUtxos",
-            type: {
-              vec: {
-                defined: "OutUtxoSerializableTuple",
-              },
-            },
-          },
-        ],
-      },
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "OutUtxoSerializableTuple"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "InUtxoSerializable",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "InUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "owner",
-            type: "u8",
+            "name": "owner",
+            "type": "u8"
           },
           {
-            name: "leafIndex",
-            type: "u32",
+            "name": "leafIndex",
+            "type": "u32"
           },
           {
-            name: "lamports",
-            type: "u8",
+            "name": "lamports",
+            "type": "u8"
           },
           {
-            name: "data",
-            type: {
-              option: {
-                defined: "TlvSerializable",
-              },
-            },
-          },
-        ],
-      },
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "OutUtxoSerializable",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "OutUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "owner",
-            type: "u8",
+            "name": "owner",
+            "type": "u8"
           },
           {
-            name: "lamports",
-            type: "u8",
+            "name": "lamports",
+            "type": "u8"
           },
           {
-            name: "data",
-            type: {
-              option: {
-                defined: "TlvSerializable",
-              },
-            },
-          },
-        ],
-      },
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "OutUtxo",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "OutUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "owner",
-            type: "publicKey",
+            "name": "owner",
+            "type": "publicKey"
           },
           {
-            name: "lamports",
-            type: "u64",
+            "name": "lamports",
+            "type": "u64"
           },
           {
-            name: "data",
-            type: {
-              option: {
-                defined: "Tlv",
-              },
-            },
-          },
-        ],
-      },
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "Utxo",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "Utxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "owner",
-            type: "publicKey",
+            "name": "owner",
+            "type": "publicKey"
           },
           {
-            name: "blinding",
-            type: {
-              array: ["u8", 32],
-            },
+            "name": "blinding",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
-            name: "lamports",
-            type: "u64",
+            "name": "lamports",
+            "type": "u64"
           },
           {
-            name: "data",
-            type: {
-              option: {
-                defined: "Tlv",
-              },
-            },
-          },
-        ],
-      },
-    },
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    }
   ],
-  errors: [
+  "errors": [
     {
-      code: 6000,
-      name: "SumCheckFailed",
-      msg: "Sum check failed",
+      "code": 6000,
+      "name": "SumCheckFailed",
+      "msg": "Sum check failed"
     },
     {
-      code: 6001,
-      name: "SignerCheckFailed",
-      msg: "Signer check failed",
+      "code": 6001,
+      "name": "SignerCheckFailed",
+      "msg": "Signer check failed"
     },
     {
-      code: 6002,
-      name: "CpiSignerCheckFailed",
-      msg: "Cpi signer check failed",
+      "code": 6002,
+      "name": "CpiSignerCheckFailed",
+      "msg": "Cpi signer check failed"
     },
     {
-      code: 6003,
-      name: "ComputeInputSumFailed",
-      msg: "Computing input sum failed.",
+      "code": 6003,
+      "name": "ComputeInputSumFailed",
+      "msg": "Computing input sum failed."
     },
     {
-      code: 6004,
-      name: "ComputeOutputSumFailed",
-      msg: "Computing output sum failed.",
+      "code": 6004,
+      "name": "ComputeOutputSumFailed",
+      "msg": "Computing output sum failed."
     },
     {
-      code: 6005,
-      name: "ComputeRpcSumFailed",
-      msg: "Computing rpc sum failed.",
+      "code": 6005,
+      "name": "ComputeRpcSumFailed",
+      "msg": "Computing rpc sum failed."
     },
     {
-      code: 6006,
-      name: "InUtxosAlreadyAdded",
-      msg: "InUtxosAlreadyAdded",
+      "code": 6006,
+      "name": "InUtxosAlreadyAdded",
+      "msg": "InUtxosAlreadyAdded"
     },
     {
-      code: 6007,
-      name: "NumberOfLeavesMissmatch",
-      msg: "NumberOfLeavesMissmatch",
+      "code": 6007,
+      "name": "NumberOfLeavesMissmatch",
+      "msg": "NumberOfLeavesMissmatch"
     },
     {
-      code: 6008,
-      name: "MerkleTreePubkeysMissmatch",
-      msg: "MerkleTreePubkeysMissmatch",
+      "code": 6008,
+      "name": "MerkleTreePubkeysMissmatch",
+      "msg": "MerkleTreePubkeysMissmatch"
     },
     {
-      code: 6009,
-      name: "NullifierArrayPubkeysMissmatch",
-      msg: "NullifierArrayPubkeysMissmatch",
+      "code": 6009,
+      "name": "NullifierArrayPubkeysMissmatch",
+      "msg": "NullifierArrayPubkeysMissmatch"
     },
     {
-      code: 6010,
-      name: "InvalidNoopPubkey",
-      msg: "InvalidNoopPubkey",
-    },
-  ],
+      "code": 6010,
+      "name": "InvalidNoopPubkey",
+      "msg": "InvalidNoopPubkey"
+    }
+  ]
 };

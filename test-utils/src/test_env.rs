@@ -49,6 +49,7 @@ pub struct EnvWithAccounts {
     pub governance_authority: Keypair,
     pub governance_authority_pda: Pubkey,
     pub group_pda: Pubkey,
+    pub registered_program_pda: Pubkey,
 }
 
 // Hardcoded keypairs for deterministic pubkeys for testing
@@ -112,7 +113,7 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
 
     assert_eq!(gov_authority.authority, payer.pubkey());
 
-    let (instruction, _) = create_register_program_instruction(
+    let (instruction, registered_program_pda) = create_register_program_instruction(
         payer.pubkey(),
         authority_pda,
         group_pda,
@@ -206,5 +207,6 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         group_pda,
         governance_authority: payer,
         governance_authority_pda: authority_pda.0,
+        registered_program_pda,
     }
 }

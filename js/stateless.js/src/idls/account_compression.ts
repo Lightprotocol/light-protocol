@@ -1,1393 +1,1503 @@
 export type AccountCompression = {
-  version: "0.3.1";
-  name: "account_compression";
-  constants: [
+  "version": "0.3.1",
+  "name": "account_compression",
+  "constants": [
     {
-      name: "GROUP_AUTHORITY_SEED";
-      type: "bytes";
-      value: "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]";
+      "name": "GROUP_AUTHORITY_SEED",
+      "type": "bytes",
+      "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
     },
     {
-      name: "MERKLE_TREE_HEIGHT";
-      type: {
-        defined: "usize";
-      };
-      value: "22";
+      "name": "MERKLE_TREE_HEIGHT",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "22"
     },
     {
-      name: "MERKLE_TREE_CHANGELOG";
-      type: {
-        defined: "usize";
-      };
-      value: "0";
+      "name": "MERKLE_TREE_CHANGELOG",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "0"
     },
     {
-      name: "MERKLE_TREE_ROOTS";
-      type: {
-        defined: "usize";
-      };
-      value: "2800";
+      "name": "MERKLE_TREE_ROOTS",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "2800"
     },
     {
-      name: "PROGRAM_ID";
-      type: "string";
-      value: '"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN"';
-    },
-  ];
-  instructions: [
+      "name": "PROGRAM_ID",
+      "type": "string",
+      "value": "\"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN\""
+    }
+  ],
+  "instructions": [
     {
-      name: "initializeAddressQueue";
-      accounts: [
+      "name": "initializeAddressQueue",
+      "accounts": [
         {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "queue";
-          isMut: true;
-          isSigner: false;
-        },
-      ];
-      args: [];
-    },
-    {
-      name: "initializeAddressMerkleTree";
-      accounts: [
-        {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
-        },
-        {
-          name: "merkleTree";
-          isMut: true;
-          isSigner: false;
-        },
-      ];
-      args: [];
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
-      name: "insertAddresses";
-      accounts: [
+      "name": "initializeAddressMerkleTree",
+      "accounts": [
         {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "queue";
-          isMut: true;
-          isSigner: false;
-        },
-      ];
-      args: [
-        {
-          name: "addresses";
-          type: {
-            vec: {
-              array: ["u8", 32];
-            };
-          };
-        },
-      ];
+          "name": "merkleTree",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
-      name: "updateAddressMerkleTree";
-      accounts: [
+      "name": "insertAddresses",
+      "accounts": [
         {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "queue";
-          isMut: true;
-          isSigner: false;
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "addresses",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateAddressMerkleTree",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "merkleTree";
-          isMut: true;
-          isSigner: false;
-        },
-      ];
-      args: [
-        {
-          name: "changelogIndex";
-          type: "u16";
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "queueIndex";
-          type: "u16";
+          "name": "merkleTree",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "changelogIndex",
+          "type": "u16"
         },
         {
-          name: "addressNextIndex";
-          type: {
-            defined: "usize";
-          };
+          "name": "queueIndex",
+          "type": "u16"
         },
         {
-          name: "addressNextValue";
-          type: {
-            array: ["u8", 32];
-          };
+          "name": "addressNextIndex",
+          "type": {
+            "defined": "usize"
+          }
         },
         {
-          name: "lowAddress";
-          type: {
-            defined: "RawIndexingElement<usize,32>";
-          };
+          "name": "addressNextValue",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
-          name: "lowAddressNextValue";
-          type: {
-            array: ["u8", 32];
-          };
+          "name": "lowAddress",
+          "type": {
+            "defined": "RawIndexingElement<usize,32>"
+          }
         },
         {
-          name: "lowAddressProof";
-          type: {
-            array: [
+          "name": "lowAddressNextValue",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "lowAddressProof",
+          "type": {
+            "array": [
               {
-                array: ["u8", 32];
+                "array": [
+                  "u8",
+                  32
+                ]
               },
-              22,
-            ];
-          };
+              22
+            ]
+          }
         },
         {
-          name: "nextAddressProof";
-          type: {
-            array: ["u8", 128];
-          };
-        },
-      ];
+          "name": "nextAddressProof",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        }
+      ]
     },
     {
-      name: "initializeGroupAuthority";
-      docs: [
-        "initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)",
-      ];
-      accounts: [
+      "name": "initializeGroupAuthority",
+      "docs": [
+        "initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)"
+      ],
+      "accounts": [
         {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "groupAuthority";
-          isMut: true;
-          isSigner: false;
+          "name": "groupAuthority",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "systemProgram";
-          isMut: false;
-          isSigner: false;
-        },
-      ];
-      args: [
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
         {
-          name: "seed";
-          type: {
-            array: ["u8", 32];
-          };
+          "name": "seed",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
-          name: "authority";
-          type: "publicKey";
-        },
-      ];
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ]
     },
     {
-      name: "updateGroupAuthority";
-      accounts: [
+      "name": "updateGroupAuthority",
+      "accounts": [
         {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "groupAuthority";
-          isMut: true;
-          isSigner: false;
-        },
-      ];
-      args: [
+          "name": "groupAuthority",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
         {
-          name: "authority";
-          type: "publicKey";
-        },
-      ];
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ]
     },
     {
-      name: "registerProgramToGroup";
-      accounts: [
+      "name": "registerProgramToGroup",
+      "accounts": [
         {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "registeredProgramPda";
-          isMut: true;
-          isSigner: false;
+          "name": "registeredProgramPda",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "groupAuthorityPda";
-          isMut: true;
-          isSigner: false;
+          "name": "groupAuthorityPda",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "systemProgram";
-          isMut: false;
-          isSigner: false;
-        },
-      ];
-      args: [
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
         {
-          name: "programId";
-          type: "publicKey";
-        },
-      ];
+          "name": "programId",
+          "type": "publicKey"
+        }
+      ]
     },
     {
-      name: "initializeConcurrentMerkleTree";
-      docs: [
+      "name": "initializeConcurrentMerkleTree",
+      "docs": [
         "Initializes a new Merkle tree from config bytes.",
-        "Can only be called from the merkle_tree_authority.",
-      ];
-      accounts: [
+        "Can only be called from the merkle_tree_authority."
+      ],
+      "accounts": [
         {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "merkleTree";
-          isMut: true;
-          isSigner: false;
+          "name": "merkleTree",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "systemProgram";
-          isMut: false;
-          isSigner: false;
-        },
-      ];
-      args: [
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
         {
-          name: "index";
-          type: "u64";
-        },
-        {
-          name: "owner";
-          type: "publicKey";
+          "name": "index",
+          "type": "u64"
         },
         {
-          name: "delegate";
-          type: {
-            option: "publicKey";
-          };
+          "name": "owner",
+          "type": "publicKey"
         },
-      ];
+        {
+          "name": "delegate",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ]
     },
     {
-      name: "insertLeavesIntoMerkleTrees";
-      accounts: [
+      "name": "insertLeavesIntoMerkleTrees",
+      "accounts": [
         {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "registeredProgramPda";
-          isMut: false;
-          isSigner: false;
-          isOptional: true;
+          "name": "registeredProgramPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         },
         {
-          name: "logWrapper";
-          isMut: false;
-          isSigner: false;
-        },
-      ];
-      args: [
+          "name": "logWrapper",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
         {
-          name: "leaves";
-          type: {
-            vec: {
-              array: ["u8", 32];
-            };
-          };
-        },
-      ];
+          "name": "leaves",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
     },
     {
-      name: "initializeIndexedArray";
-      accounts: [
+      "name": "initializeIndexedArray",
+      "accounts": [
         {
-          name: "authority";
-          isMut: false;
-          isSigner: true;
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
         },
         {
-          name: "indexedArray";
-          isMut: true;
-          isSigner: false;
+          "name": "indexedArray",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "systemProgram";
-          isMut: false;
-          isSigner: false;
-        },
-      ];
-      args: [
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
         {
-          name: "index";
-          type: "u64";
-        },
-        {
-          name: "owner";
-          type: "publicKey";
+          "name": "index",
+          "type": "u64"
         },
         {
-          name: "delegate";
-          type: {
-            option: "publicKey";
-          };
-        },
-      ];
-    },
-    {
-      name: "insertIntoIndexedArrays";
-      accounts: [
-        {
-          name: "authority";
-          isMut: true;
-          isSigner: true;
+          "name": "owner",
+          "type": "publicKey"
         },
         {
-          name: "registeredProgramPda";
-          isMut: false;
-          isSigner: false;
-          isOptional: true;
-        },
-      ];
-      args: [
+          "name": "delegate",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "insertIntoIndexedArrays",
+      "accounts": [
         {
-          name: "elements";
-          type: {
-            vec: {
-              array: ["u8", 32];
-            };
-          };
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
-      ];
-    },
-  ];
-  accounts: [
+        {
+          "name": "registeredProgramPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        }
+      ],
+      "args": [
+        {
+          "name": "elements",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
     {
-      name: "groupAuthority";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "groupAuthority",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "authority";
-            type: "publicKey";
+            "name": "authority",
+            "type": "publicKey"
           },
           {
-            name: "seed";
-            type: {
-              array: ["u8", 32];
-            };
-          },
-        ];
-      };
-    },
-    {
-      name: "indexedArrayAccount";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "index";
-            type: "u64";
-          },
-          {
-            name: "owner";
-            type: "publicKey";
-          },
-          {
-            name: "delegate";
-            type: "publicKey";
-          },
-          {
-            name: "array";
-            type: "publicKey";
-          },
-          {
-            name: "indexedArray";
-            type: {
-              array: ["u8", 112008];
-            };
-          },
-        ];
-      };
+            "name": "seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "registeredProgram";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "indexedArrayAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "pubkey";
-            type: "publicKey";
+            "name": "index",
+            "type": "u64"
           },
-        ];
-      };
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "delegate",
+            "type": "publicKey"
+          },
+          {
+            "name": "array",
+            "type": "publicKey"
+          },
+          {
+            "name": "indexedArray",
+            "type": {
+              "array": [
+                "u8",
+                112008
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "addressQueueAccount";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "registeredProgram",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "queue";
-            type: {
-              array: ["u8", 112008];
-            };
-          },
-        ];
-      };
+            "name": "pubkey",
+            "type": "publicKey"
+          }
+        ]
+      }
     },
     {
-      name: "addressMerkleTreeAccount";
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "addressQueueAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "merkleTree";
-            type: {
-              array: ["u8", 2173568];
-            };
-          },
-        ];
-      };
+            "name": "queue",
+            "type": {
+              "array": [
+                "u8",
+                112008
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "stateMerkleTreeAccount";
-      docs: [
-        "Concurrent state Merkle tree used for public compressed transactions.",
-      ];
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "addressMerkleTreeAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "index";
-            docs: ["Unique index."];
-            type: "u64";
-          },
-          {
-            name: "nextMerkleTree";
-            docs: ["Public key of the next Merkle tree."];
-            type: "publicKey";
-          },
-          {
-            name: "owner";
-            docs: ["Owner of the Merkle tree."];
-            type: "publicKey";
-          },
-          {
-            name: "delegate";
-            docs: [
-              "Delegate of the Merkle tree. This will be used for program owned Merkle trees.",
-            ];
-            type: "publicKey";
-          },
-          {
-            name: "stateMerkleTree";
-            docs: ["Merkle tree for the transaction state."];
-            type: {
-              array: ["u8", 90368];
-            };
-          },
-        ];
-      };
-    },
-  ];
-  types: [
-    {
-      name: "Changelogs";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "changelogs";
-            type: {
-              vec: {
-                defined: "ChangelogEvent";
-              };
-            };
-          },
-        ];
-      };
+            "name": "merkleTree",
+            "type": {
+              "array": [
+                "u8",
+                2173568
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "PathNode";
-      docs: [
+      "name": "stateMerkleTreeAccount",
+      "docs": [
+        "Concurrent state Merkle tree used for public compressed transactions."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "index",
+            "docs": [
+              "Unique index."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "nextMerkleTree",
+            "docs": [
+              "Public key of the next Merkle tree."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "owner",
+            "docs": [
+              "Owner of the Merkle tree."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "delegate",
+            "docs": [
+              "Delegate of the Merkle tree. This will be used for program owned Merkle trees."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "stateMerkleTree",
+            "docs": [
+              "Merkle tree for the transaction state."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                90368
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "Changelogs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "changelogs",
+            "type": {
+              "vec": {
+                "defined": "ChangelogEvent"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PathNode",
+      "docs": [
         "Node of the Merkle path with an index representing the position in a",
-        "non-sparse Merkle tree.",
-      ];
-      type: {
-        kind: "struct";
-        fields: [
+        "non-sparse Merkle tree."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "node";
-            type: {
-              array: ["u8", 32];
-            };
+            "name": "node",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
-            name: "index";
-            type: "u32";
-          },
-        ];
-      };
+            "name": "index",
+            "type": "u32"
+          }
+        ]
+      }
     },
     {
-      name: "ChangelogEventV1";
-      docs: [
-        "Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent).",
-      ];
-      type: {
-        kind: "struct";
-        fields: [
+      "name": "ChangelogEventV1",
+      "docs": [
+        "Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "id";
-            docs: ["Public key of the tree."];
-            type: "publicKey";
+            "name": "id",
+            "docs": [
+              "Public key of the tree."
+            ],
+            "type": "publicKey"
           },
           {
-            name: "paths";
-            type: {
-              vec: {
-                vec: {
-                  defined: "PathNode";
-                };
-              };
-            };
+            "name": "paths",
+            "type": {
+              "vec": {
+                "vec": {
+                  "defined": "PathNode"
+                }
+              }
+            }
           },
           {
-            name: "seq";
-            docs: ["Number of successful operations on the on-chain tree."];
-            type: "u64";
+            "name": "seq",
+            "docs": [
+              "Number of successful operations on the on-chain tree."
+            ],
+            "type": "u64"
           },
           {
-            name: "index";
-            docs: ["Changelog event index."];
-            type: "u32";
-          },
-        ];
-      };
+            "name": "index",
+            "docs": [
+              "Changelog event index."
+            ],
+            "type": "u32"
+          }
+        ]
+      }
     },
     {
-      name: "ChangelogEvent";
-      docs: [
+      "name": "ChangelogEvent",
+      "docs": [
         "Event containing the Merkle path of the given",
         "[`StateMerkleTree`](light_merkle_tree_program::state::StateMerkleTree)",
         "change. Indexers can use this type of events to re-build a non-sparse",
-        "version of state Merkle tree.",
-      ];
-      type: {
-        kind: "enum";
-        variants: [
+        "version of state Merkle tree."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
           {
-            name: "V1";
-            fields: [
+            "name": "V1",
+            "fields": [
               {
-                defined: "ChangelogEventV1";
-              },
-            ];
-          },
-        ];
-      };
+                "defined": "ChangelogEventV1"
+              }
+            ]
+          }
+        ]
+      }
     },
     {
-      name: "IndexedArray";
-      type: {
-        kind: "alias";
-        value: {
-          defined: "IndexingArray<Poseidon,u16,BigInteger256,2800>";
-        };
-      };
+      "name": "IndexedArray",
+      "type": {
+        "kind": "alias",
+        "value": {
+          "defined": "IndexingArray<Poseidon,u16,BigInteger256,2800>"
+        }
+      }
     },
     {
-      name: "StateMerkleTree";
-      type: {
-        kind: "alias";
-        value: {
-          defined: "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>";
-        };
-      };
-    },
-  ];
-  errors: [
+      "name": "StateMerkleTree",
+      "type": {
+        "kind": "alias",
+        "value": {
+          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
+        }
+      }
+    }
+  ],
+  "errors": [
     {
-      code: 6000;
-      name: "AddressQueueInsert";
-      msg: "Failed to insert an element into indexing queue";
-    },
-    {
-      code: 6001;
-      name: "AddressQueueDequeue";
-      msg: "Failed to dequeue an element from indexing queue";
+      "code": 6000,
+      "name": "AddressQueueInsert",
+      "msg": "Failed to insert an element into indexing queue"
     },
     {
-      code: 6002;
-      name: "AddressMerkleTreeInitialize";
-      msg: "Failed to initialize address Merkle tree";
+      "code": 6001,
+      "name": "AddressQueueDequeue",
+      "msg": "Failed to dequeue an element from indexing queue"
     },
     {
-      code: 6003;
-      name: "AddressMerkleTreeUpdate";
-      msg: "Failed to update the address Merkle tree";
+      "code": 6002,
+      "name": "AddressMerkleTreeInitialize",
+      "msg": "Failed to initialize address Merkle tree"
     },
     {
-      code: 6004;
-      name: "InvalidIndex";
-      msg: "No element found under the given index in the queue";
+      "code": 6003,
+      "name": "AddressMerkleTreeUpdate",
+      "msg": "Failed to update the address Merkle tree"
     },
     {
-      code: 6005;
-      name: "BytesToBigint";
-      msg: "Failed to convert bytes to big integer";
+      "code": 6004,
+      "name": "InvalidIndex",
+      "msg": "No element found under the given index in the queue"
     },
     {
-      code: 6006;
-      name: "IntegerOverflow";
-      msg: "Integer overflow";
+      "code": 6005,
+      "name": "BytesToBigint",
+      "msg": "Failed to convert bytes to big integer"
     },
     {
-      code: 6007;
-      name: "InvalidAuthority";
-      msg: "InvalidAuthority";
+      "code": 6006,
+      "name": "IntegerOverflow",
+      "msg": "Integer overflow"
     },
     {
-      code: 6008;
-      name: "InvalidVerifier";
-      msg: "InvalidVerifier";
+      "code": 6007,
+      "name": "InvalidAuthority",
+      "msg": "InvalidAuthority"
     },
     {
-      code: 6009;
-      name: "NumberOfLeavesMismatch";
-      msg: "Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves.";
+      "code": 6008,
+      "name": "InvalidVerifier",
+      "msg": "InvalidVerifier"
     },
     {
-      code: 6010;
-      name: "InvalidNoopPubkey";
-      msg: "Provided noop program public key is invalid";
+      "code": 6009,
+      "name": "NumberOfLeavesMismatch",
+      "msg": "Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves."
     },
     {
-      code: 6011;
-      name: "EventNoChangelogEntry";
-      msg: "Emitting an event requires at least one changelog entry";
+      "code": 6010,
+      "name": "InvalidNoopPubkey",
+      "msg": "Provided noop program public key is invalid"
     },
-  ];
+    {
+      "code": 6011,
+      "name": "EventNoChangelogEntry",
+      "msg": "Emitting an event requires at least one changelog entry"
+    }
+  ]
 };
 
 export const IDL: AccountCompression = {
-  version: "0.3.1",
-  name: "account_compression",
-  constants: [
+  "version": "0.3.1",
+  "name": "account_compression",
+  "constants": [
     {
-      name: "GROUP_AUTHORITY_SEED",
-      type: "bytes",
-      value:
-        "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]",
+      "name": "GROUP_AUTHORITY_SEED",
+      "type": "bytes",
+      "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
     },
     {
-      name: "MERKLE_TREE_HEIGHT",
-      type: {
-        defined: "usize",
+      "name": "MERKLE_TREE_HEIGHT",
+      "type": {
+        "defined": "usize"
       },
-      value: "22",
+      "value": "22"
     },
     {
-      name: "MERKLE_TREE_CHANGELOG",
-      type: {
-        defined: "usize",
+      "name": "MERKLE_TREE_CHANGELOG",
+      "type": {
+        "defined": "usize"
       },
-      value: "0",
+      "value": "0"
     },
     {
-      name: "MERKLE_TREE_ROOTS",
-      type: {
-        defined: "usize",
+      "name": "MERKLE_TREE_ROOTS",
+      "type": {
+        "defined": "usize"
       },
-      value: "2800",
+      "value": "2800"
     },
     {
-      name: "PROGRAM_ID",
-      type: "string",
-      value: '"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN"',
-    },
+      "name": "PROGRAM_ID",
+      "type": "string",
+      "value": "\"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN\""
+    }
   ],
-  instructions: [
+  "instructions": [
     {
-      name: "initializeAddressQueue",
-      accounts: [
+      "name": "initializeAddressQueue",
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "queue",
-          isMut: true,
-          isSigner: false,
-        },
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        }
       ],
-      args: [],
+      "args": []
     },
     {
-      name: "initializeAddressMerkleTree",
-      accounts: [
+      "name": "initializeAddressMerkleTree",
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "merkleTree",
-          isMut: true,
-          isSigner: false,
-        },
+          "name": "merkleTree",
+          "isMut": true,
+          "isSigner": false
+        }
       ],
-      args: [],
+      "args": []
     },
     {
-      name: "insertAddresses",
-      accounts: [
+      "name": "insertAddresses",
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "queue",
-          isMut: true,
-          isSigner: false,
-        },
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "addresses",
-          type: {
-            vec: {
-              array: ["u8", 32],
-            },
-          },
-        },
-      ],
+          "name": "addresses",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
     },
     {
-      name: "updateAddressMerkleTree",
-      accounts: [
+      "name": "updateAddressMerkleTree",
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "queue",
-          isMut: true,
-          isSigner: false,
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "merkleTree",
-          isMut: true,
-          isSigner: false,
-        },
+          "name": "merkleTree",
+          "isMut": true,
+          "isSigner": false
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "changelogIndex",
-          type: "u16",
+          "name": "changelogIndex",
+          "type": "u16"
         },
         {
-          name: "queueIndex",
-          type: "u16",
+          "name": "queueIndex",
+          "type": "u16"
         },
         {
-          name: "addressNextIndex",
-          type: {
-            defined: "usize",
-          },
+          "name": "addressNextIndex",
+          "type": {
+            "defined": "usize"
+          }
         },
         {
-          name: "addressNextValue",
-          type: {
-            array: ["u8", 32],
-          },
+          "name": "addressNextValue",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
-          name: "lowAddress",
-          type: {
-            defined: "RawIndexingElement<usize,32>",
-          },
+          "name": "lowAddress",
+          "type": {
+            "defined": "RawIndexingElement<usize,32>"
+          }
         },
         {
-          name: "lowAddressNextValue",
-          type: {
-            array: ["u8", 32],
-          },
+          "name": "lowAddressNextValue",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
-          name: "lowAddressProof",
-          type: {
-            array: [
+          "name": "lowAddressProof",
+          "type": {
+            "array": [
               {
-                array: ["u8", 32],
+                "array": [
+                  "u8",
+                  32
+                ]
               },
-              22,
-            ],
-          },
+              22
+            ]
+          }
         },
         {
-          name: "nextAddressProof",
-          type: {
-            array: ["u8", 128],
-          },
-        },
-      ],
+          "name": "nextAddressProof",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        }
+      ]
     },
     {
-      name: "initializeGroupAuthority",
-      docs: [
-        "initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)",
+      "name": "initializeGroupAuthority",
+      "docs": [
+        "initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)"
       ],
-      accounts: [
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "groupAuthority",
-          isMut: true,
-          isSigner: false,
+          "name": "groupAuthority",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "systemProgram",
-          isMut: false,
-          isSigner: false,
-        },
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "seed",
-          type: {
-            array: ["u8", 32],
-          },
+          "name": "seed",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
-          name: "authority",
-          type: "publicKey",
-        },
-      ],
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ]
     },
     {
-      name: "updateGroupAuthority",
-      accounts: [
+      "name": "updateGroupAuthority",
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "groupAuthority",
-          isMut: true,
-          isSigner: false,
-        },
+          "name": "groupAuthority",
+          "isMut": true,
+          "isSigner": false
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "authority",
-          type: "publicKey",
-        },
-      ],
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ]
     },
     {
-      name: "registerProgramToGroup",
-      accounts: [
+      "name": "registerProgramToGroup",
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "registeredProgramPda",
-          isMut: true,
-          isSigner: false,
+          "name": "registeredProgramPda",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "groupAuthorityPda",
-          isMut: true,
-          isSigner: false,
+          "name": "groupAuthorityPda",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "systemProgram",
-          isMut: false,
-          isSigner: false,
-        },
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "programId",
-          type: "publicKey",
-        },
-      ],
+          "name": "programId",
+          "type": "publicKey"
+        }
+      ]
     },
     {
-      name: "initializeConcurrentMerkleTree",
-      docs: [
+      "name": "initializeConcurrentMerkleTree",
+      "docs": [
         "Initializes a new Merkle tree from config bytes.",
-        "Can only be called from the merkle_tree_authority.",
+        "Can only be called from the merkle_tree_authority."
       ],
-      accounts: [
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "merkleTree",
-          isMut: true,
-          isSigner: false,
+          "name": "merkleTree",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "systemProgram",
-          isMut: false,
-          isSigner: false,
-        },
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "index",
-          type: "u64",
+          "name": "index",
+          "type": "u64"
         },
         {
-          name: "owner",
-          type: "publicKey",
+          "name": "owner",
+          "type": "publicKey"
         },
         {
-          name: "delegate",
-          type: {
-            option: "publicKey",
-          },
-        },
-      ],
+          "name": "delegate",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ]
     },
     {
-      name: "insertLeavesIntoMerkleTrees",
-      accounts: [
+      "name": "insertLeavesIntoMerkleTrees",
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "registeredProgramPda",
-          isMut: false,
-          isSigner: false,
-          isOptional: true,
+          "name": "registeredProgramPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         },
         {
-          name: "logWrapper",
-          isMut: false,
-          isSigner: false,
-        },
+          "name": "logWrapper",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "leaves",
-          type: {
-            vec: {
-              array: ["u8", 32],
-            },
-          },
-        },
-      ],
+          "name": "leaves",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
     },
     {
-      name: "initializeIndexedArray",
-      accounts: [
+      "name": "initializeIndexedArray",
+      "accounts": [
         {
-          name: "authority",
-          isMut: false,
-          isSigner: true,
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
         },
         {
-          name: "indexedArray",
-          isMut: true,
-          isSigner: false,
+          "name": "indexedArray",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          name: "systemProgram",
-          isMut: false,
-          isSigner: false,
-        },
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "index",
-          type: "u64",
+          "name": "index",
+          "type": "u64"
         },
         {
-          name: "owner",
-          type: "publicKey",
+          "name": "owner",
+          "type": "publicKey"
         },
         {
-          name: "delegate",
-          type: {
-            option: "publicKey",
-          },
-        },
-      ],
+          "name": "delegate",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ]
     },
     {
-      name: "insertIntoIndexedArrays",
-      accounts: [
+      "name": "insertIntoIndexedArrays",
+      "accounts": [
         {
-          name: "authority",
-          isMut: true,
-          isSigner: true,
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
         },
         {
-          name: "registeredProgramPda",
-          isMut: false,
-          isSigner: false,
-          isOptional: true,
-        },
+          "name": "registeredProgramPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        }
       ],
-      args: [
+      "args": [
         {
-          name: "elements",
-          type: {
-            vec: {
-              array: ["u8", 32],
-            },
-          },
-        },
-      ],
-    },
+          "name": "elements",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    }
   ],
-  accounts: [
+  "accounts": [
     {
-      name: "groupAuthority",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "groupAuthority",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "authority",
-            type: "publicKey",
+            "name": "authority",
+            "type": "publicKey"
           },
           {
-            name: "seed",
-            type: {
-              array: ["u8", 32],
-            },
-          },
-        ],
-      },
+            "name": "seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "indexedArrayAccount",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "indexedArrayAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "index",
-            type: "u64",
+            "name": "index",
+            "type": "u64"
           },
           {
-            name: "owner",
-            type: "publicKey",
+            "name": "owner",
+            "type": "publicKey"
           },
           {
-            name: "delegate",
-            type: "publicKey",
+            "name": "delegate",
+            "type": "publicKey"
           },
           {
-            name: "array",
-            type: "publicKey",
+            "name": "array",
+            "type": "publicKey"
           },
           {
-            name: "indexedArray",
-            type: {
-              array: ["u8", 112008],
-            },
-          },
-        ],
-      },
+            "name": "indexedArray",
+            "type": {
+              "array": [
+                "u8",
+                112008
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "registeredProgram",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "registeredProgram",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "pubkey",
-            type: "publicKey",
-          },
-        ],
-      },
+            "name": "pubkey",
+            "type": "publicKey"
+          }
+        ]
+      }
     },
     {
-      name: "addressQueueAccount",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "addressQueueAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "queue",
-            type: {
-              array: ["u8", 112008],
-            },
-          },
-        ],
-      },
+            "name": "queue",
+            "type": {
+              "array": [
+                "u8",
+                112008
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "addressMerkleTreeAccount",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "addressMerkleTreeAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "merkleTree",
-            type: {
-              array: ["u8", 2173568],
-            },
-          },
-        ],
-      },
+            "name": "merkleTree",
+            "type": {
+              "array": [
+                "u8",
+                2173568
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      name: "stateMerkleTreeAccount",
-      docs: [
-        "Concurrent state Merkle tree used for public compressed transactions.",
+      "name": "stateMerkleTreeAccount",
+      "docs": [
+        "Concurrent state Merkle tree used for public compressed transactions."
       ],
-      type: {
-        kind: "struct",
-        fields: [
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "index",
-            docs: ["Unique index."],
-            type: "u64",
-          },
-          {
-            name: "nextMerkleTree",
-            docs: ["Public key of the next Merkle tree."],
-            type: "publicKey",
-          },
-          {
-            name: "owner",
-            docs: ["Owner of the Merkle tree."],
-            type: "publicKey",
-          },
-          {
-            name: "delegate",
-            docs: [
-              "Delegate of the Merkle tree. This will be used for program owned Merkle trees.",
+            "name": "index",
+            "docs": [
+              "Unique index."
             ],
-            type: "publicKey",
+            "type": "u64"
           },
           {
-            name: "stateMerkleTree",
-            docs: ["Merkle tree for the transaction state."],
-            type: {
-              array: ["u8", 90368],
-            },
+            "name": "nextMerkleTree",
+            "docs": [
+              "Public key of the next Merkle tree."
+            ],
+            "type": "publicKey"
           },
-        ],
-      },
-    },
+          {
+            "name": "owner",
+            "docs": [
+              "Owner of the Merkle tree."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "delegate",
+            "docs": [
+              "Delegate of the Merkle tree. This will be used for program owned Merkle trees."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "stateMerkleTree",
+            "docs": [
+              "Merkle tree for the transaction state."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                90368
+              ]
+            }
+          }
+        ]
+      }
+    }
   ],
-  types: [
+  "types": [
     {
-      name: "Changelogs",
-      type: {
-        kind: "struct",
-        fields: [
+      "name": "Changelogs",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "changelogs",
-            type: {
-              vec: {
-                defined: "ChangelogEvent",
-              },
-            },
-          },
-        ],
-      },
+            "name": "changelogs",
+            "type": {
+              "vec": {
+                "defined": "ChangelogEvent"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      name: "PathNode",
-      docs: [
+      "name": "PathNode",
+      "docs": [
         "Node of the Merkle path with an index representing the position in a",
-        "non-sparse Merkle tree.",
+        "non-sparse Merkle tree."
       ],
-      type: {
-        kind: "struct",
-        fields: [
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "node",
-            type: {
-              array: ["u8", 32],
-            },
+            "name": "node",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
-            name: "index",
-            type: "u32",
-          },
-        ],
-      },
+            "name": "index",
+            "type": "u32"
+          }
+        ]
+      }
     },
     {
-      name: "ChangelogEventV1",
-      docs: [
-        "Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent).",
+      "name": "ChangelogEventV1",
+      "docs": [
+        "Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent)."
       ],
-      type: {
-        kind: "struct",
-        fields: [
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            name: "id",
-            docs: ["Public key of the tree."],
-            type: "publicKey",
+            "name": "id",
+            "docs": [
+              "Public key of the tree."
+            ],
+            "type": "publicKey"
           },
           {
-            name: "paths",
-            type: {
-              vec: {
-                vec: {
-                  defined: "PathNode",
-                },
-              },
-            },
+            "name": "paths",
+            "type": {
+              "vec": {
+                "vec": {
+                  "defined": "PathNode"
+                }
+              }
+            }
           },
           {
-            name: "seq",
-            docs: ["Number of successful operations on the on-chain tree."],
-            type: "u64",
+            "name": "seq",
+            "docs": [
+              "Number of successful operations on the on-chain tree."
+            ],
+            "type": "u64"
           },
           {
-            name: "index",
-            docs: ["Changelog event index."],
-            type: "u32",
-          },
-        ],
-      },
+            "name": "index",
+            "docs": [
+              "Changelog event index."
+            ],
+            "type": "u32"
+          }
+        ]
+      }
     },
     {
-      name: "ChangelogEvent",
-      docs: [
+      "name": "ChangelogEvent",
+      "docs": [
         "Event containing the Merkle path of the given",
         "[`StateMerkleTree`](light_merkle_tree_program::state::StateMerkleTree)",
         "change. Indexers can use this type of events to re-build a non-sparse",
-        "version of state Merkle tree.",
+        "version of state Merkle tree."
       ],
-      type: {
-        kind: "enum",
-        variants: [
+      "type": {
+        "kind": "enum",
+        "variants": [
           {
-            name: "V1",
-            fields: [
+            "name": "V1",
+            "fields": [
               {
-                defined: "ChangelogEventV1",
-              },
-            ],
-          },
-        ],
-      },
+                "defined": "ChangelogEventV1"
+              }
+            ]
+          }
+        ]
+      }
     },
     {
-      name: "IndexedArray",
-      type: {
-        kind: "alias",
-        value: {
-          defined: "IndexingArray<Poseidon,u16,BigInteger256,2800>",
-        },
-      },
+      "name": "IndexedArray",
+      "type": {
+        "kind": "alias",
+        "value": {
+          "defined": "IndexingArray<Poseidon,u16,BigInteger256,2800>"
+        }
+      }
     },
     {
-      name: "StateMerkleTree",
-      type: {
-        kind: "alias",
-        value: {
-          defined:
-            "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>",
-        },
-      },
-    },
+      "name": "StateMerkleTree",
+      "type": {
+        "kind": "alias",
+        "value": {
+          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
+        }
+      }
+    }
   ],
-  errors: [
+  "errors": [
     {
-      code: 6000,
-      name: "AddressQueueInsert",
-      msg: "Failed to insert an element into indexing queue",
+      "code": 6000,
+      "name": "AddressQueueInsert",
+      "msg": "Failed to insert an element into indexing queue"
     },
     {
-      code: 6001,
-      name: "AddressQueueDequeue",
-      msg: "Failed to dequeue an element from indexing queue",
+      "code": 6001,
+      "name": "AddressQueueDequeue",
+      "msg": "Failed to dequeue an element from indexing queue"
     },
     {
-      code: 6002,
-      name: "AddressMerkleTreeInitialize",
-      msg: "Failed to initialize address Merkle tree",
+      "code": 6002,
+      "name": "AddressMerkleTreeInitialize",
+      "msg": "Failed to initialize address Merkle tree"
     },
     {
-      code: 6003,
-      name: "AddressMerkleTreeUpdate",
-      msg: "Failed to update the address Merkle tree",
+      "code": 6003,
+      "name": "AddressMerkleTreeUpdate",
+      "msg": "Failed to update the address Merkle tree"
     },
     {
-      code: 6004,
-      name: "InvalidIndex",
-      msg: "No element found under the given index in the queue",
+      "code": 6004,
+      "name": "InvalidIndex",
+      "msg": "No element found under the given index in the queue"
     },
     {
-      code: 6005,
-      name: "BytesToBigint",
-      msg: "Failed to convert bytes to big integer",
+      "code": 6005,
+      "name": "BytesToBigint",
+      "msg": "Failed to convert bytes to big integer"
     },
     {
-      code: 6006,
-      name: "IntegerOverflow",
-      msg: "Integer overflow",
+      "code": 6006,
+      "name": "IntegerOverflow",
+      "msg": "Integer overflow"
     },
     {
-      code: 6007,
-      name: "InvalidAuthority",
-      msg: "InvalidAuthority",
+      "code": 6007,
+      "name": "InvalidAuthority",
+      "msg": "InvalidAuthority"
     },
     {
-      code: 6008,
-      name: "InvalidVerifier",
-      msg: "InvalidVerifier",
+      "code": 6008,
+      "name": "InvalidVerifier",
+      "msg": "InvalidVerifier"
     },
     {
-      code: 6009,
-      name: "NumberOfLeavesMismatch",
-      msg: "Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves.",
+      "code": 6009,
+      "name": "NumberOfLeavesMismatch",
+      "msg": "Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves."
     },
     {
-      code: 6010,
-      name: "InvalidNoopPubkey",
-      msg: "Provided noop program public key is invalid",
+      "code": 6010,
+      "name": "InvalidNoopPubkey",
+      "msg": "Provided noop program public key is invalid"
     },
     {
-      code: 6011,
-      name: "EventNoChangelogEntry",
-      msg: "Emitting an event requires at least one changelog entry",
-    },
-  ],
+      "code": 6011,
+      "name": "EventNoChangelogEntry",
+      "msg": "Emitting an event requires at least one changelog entry"
+    }
+  ]
 };
