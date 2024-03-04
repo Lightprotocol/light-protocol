@@ -148,7 +148,7 @@ export class LightSystemProgram {
     const recentValidityProof = placeholderValidityProof();
     const recentInputStateRootIndices = selectedInputUtxos.utxos.map((_) => 0);
     const staticAccounts = defaultStaticAccounts();
-
+    
     const ix = await packInstruction({
       inputState: coerceIntoUtxoWithMerkleContext(selectedInputUtxos.utxos),
       outputState: outputUtxos,

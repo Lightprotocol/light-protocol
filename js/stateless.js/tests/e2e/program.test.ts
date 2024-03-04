@@ -6,6 +6,9 @@ import {
   PublicKey,
   Connection,
   Transaction,
+  VersionedMessage,
+  TransactionMessage,
+  VersionedTransaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import { placeholderValidityProof } from "../../src/instruction/validity-proof";
@@ -58,13 +61,24 @@ describe("Program test", () => {
       [0, 0], // 2 outputs
       mockProof
     );
-    const tx = new Transaction().add(ix);
-    /// connect to test validator
+
+    const ixs = [ix];
     const connection = new Connection("http://localhost:8899");
-    const sig = await sendAndConfirmTransaction(connection, tx, [payer], {
-      commitment: "single",
-    });
-    console.log("sig", sig); /// actually assert
-    expect(sig).toBeTruthy();
+    const blockhash = (await connection.getLatestBlockhash()).blockhash;
+    const messageV0 = new TransactionMessage({
+      payerKey: payer.publicKey,
+      recentBlockhash: blockhash,
+      instructions: ixs,
+    }).compileToV0Message();
+
+    const tx = new VersionedTransaction(messageV0);
+    tx.sign([payer]);
+
+    const txid = await connection.sendTransaction(tx);
+
+    console.log(
+      `https://explorer.solana.com/tx/${txid}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`
+    );
+    expect(txid).toBeTruthy();
   });
 });
