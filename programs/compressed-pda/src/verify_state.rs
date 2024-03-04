@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use account_compression::{state_merkle_tree_from_bytes, StateMerkleTreeAccount};
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
+#[cfg(test)]
+use crate::utxo::OutUtxo;
 use crate::{
     instructions::{InstructionDataTransfer, TransferInstruction},
     utxo::{InUtxoTuple, OutUtxoTuple, Utxo},
     ErrorCode,
 };
-#[cfg(test)]
-use crate::utxo::OutUtxo;
 
 pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
@@ -47,8 +47,10 @@ pub fn out_utxos_to_utxos<'a, 'b, 'c: 'info, 'info>(
     let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
     for (j, out_utxo_tuple) in inputs.out_utxos.iter().enumerate() {
-        let index = merkle_tree_indices.get_mut(&ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key());
-        out_merkle_trees_account_infos.push(ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].clone());
+        let index = merkle_tree_indices
+            .get_mut(&ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key());
+        out_merkle_trees_account_infos
+            .push(ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].clone());
         match index {
             Some(index) => {
                 out_utxo_index[j] = *index as u32;
@@ -62,7 +64,10 @@ pub fn out_utxos_to_utxos<'a, 'b, 'c: 'info, 'info>(
                 let merkle_tree =
                     state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
                 let index = merkle_tree.next_index as usize;
-                merkle_tree_indices.insert(ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key(), index);
+                merkle_tree_indices.insert(
+                    ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key(),
+                    index,
+                );
 
                 out_utxo_index[j] = index as u32;
             }
@@ -142,15 +147,14 @@ fn test_sum_check_passes() {
         },
     ];
 
-    let out_utxos: Vec<OutUtxoTuple> = vec![
-        OutUtxoTuple {
-            out_utxo: OutUtxo {
-                owner: Pubkey::new_unique(),
+    let out_utxos: Vec<OutUtxoTuple> = vec![OutUtxoTuple {
+        out_utxo: OutUtxo {
+            owner: Pubkey::new_unique(),
             lamports: 150,
             data: None,
-            },
-            index_mt_account: 0,
-        }];
+        },
+        index_mt_account: 0,
+    }];
 
     let rpc_fee = None; // No RPC fee
 
@@ -189,7 +193,7 @@ fn test_sum_check_fails() {
             lamports: 100,
             data: None,
         },
-        index_mt_account: 0
+        index_mt_account: 0,
     }];
 
     let rpc_fee = Some(50); // Adding an RPC fee to ensure the sums don't match

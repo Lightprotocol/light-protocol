@@ -8,7 +8,7 @@ use solana_sdk::instruction::Instruction;
 
 use crate::{
     utils::{get_cpi_authority_pda, get_registered_program_pda},
-    utxo::{OutUtxo, SerializedUtxos, Utxo, InUtxoTuple, OutUtxoTuple},
+    utxo::{InUtxoTuple, OutUtxo, OutUtxoTuple, SerializedUtxos, Utxo},
     InstructionDataTransfer, InstructionDataTransfer2,
 };
 
@@ -31,7 +31,7 @@ pub fn create_execute_compressed_instruction(
     proof: &CompressedProof,
 ) -> Instruction {
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
-    let mut _in_utxos:Vec<InUtxoTuple> = Vec::<InUtxoTuple>::new();
+    let mut _in_utxos: Vec<InUtxoTuple> = Vec::<InUtxoTuple>::new();
     for (i, mt) in in_utxo_merkle_tree_pubkeys.iter().enumerate() {
         match remaining_accounts.get(mt) {
             Some(_) => {}
@@ -56,7 +56,7 @@ pub fn create_execute_compressed_instruction(
         _in_utxos[i].index_nullifier_array_account = *remaining_accounts.get(mt).unwrap() as u8;
     }
     let len: usize = remaining_accounts.len();
-    let mut _out_utxos : Vec<OutUtxoTuple> = Vec::<OutUtxoTuple>::new();
+    let mut _out_utxos: Vec<OutUtxoTuple> = Vec::<OutUtxoTuple>::new();
 
     for (i, mt) in out_utxo_merkle_tree_pubkeys.iter().enumerate() {
         match remaining_accounts.get(mt) {
@@ -139,7 +139,7 @@ pub fn create_execute_compressed_opt_instruction(
         };
     }
     let len: usize = remaining_accounts.len();
-    // Note: this depends on nulifier never matching any of the statetrees. 
+    // Note: this depends on nulifier never matching any of the statetrees.
     for (i, mt) in nullifier_array_pubkeys.iter().enumerate() {
         match remaining_accounts.get(mt) {
             Some(_) => {}
@@ -324,30 +324,42 @@ fn test_create_execute_compressed_transaction() {
         proof.proof_c
     );
     assert_eq!(instruction.accounts[0], AccountMeta::new(payer, true));
-    assert_eq!(deserialized_instruction_data.in_utxos[0].index_nullifier_array_account, 1);
-    assert_eq!(deserialized_instruction_data.in_utxos[1].index_nullifier_array_account, 1);
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.in_utxos[0].index_mt_account as usize],
+        deserialized_instruction_data.in_utxos[0].index_nullifier_array_account,
+        1
+    );
+    assert_eq!(
+        deserialized_instruction_data.in_utxos[1].index_nullifier_array_account,
+        1
+    );
+    assert_eq!(
+        instruction.accounts
+            [6 + deserialized_instruction_data.in_utxos[0].index_mt_account as usize],
         AccountMeta::new(merkle_tree_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.in_utxos[1].index_mt_account as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.in_utxos[1].index_mt_account as usize],
         AccountMeta::new(merkle_tree_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.in_utxos[0].index_nullifier_array_account as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.in_utxos[0].index_nullifier_array_account as usize],
         AccountMeta::new(nullifier_array_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.in_utxos[1].index_nullifier_array_account as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.in_utxos[1].index_nullifier_array_account as usize],
         AccountMeta::new(nullifier_array_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.out_utxos[0].index_mt_account as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.out_utxos[0].index_mt_account as usize],
         AccountMeta::new(merkle_tree_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.out_utxos[1].index_mt_account as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.out_utxos[1].index_mt_account as usize],
         AccountMeta::new(merkle_tree_pubkey, false)
     );
 }

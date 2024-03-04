@@ -17,8 +17,10 @@ pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
     let mut leaves: Vec<[u8; 32]> = Vec::with_capacity(inputs.out_utxos.len());
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
     for (j, out_utxo_tuple) in inputs.out_utxos.iter().enumerate() {
-        let index = merkle_tree_indices.get_mut(&ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key());
-        out_merkle_trees_account_infos.push(ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].clone());
+        let index = merkle_tree_indices
+            .get_mut(&ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key());
+        out_merkle_trees_account_infos
+            .push(ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].clone());
         match index {
             Some(index) => {
                 out_utxo_index.push(*index as u32);
@@ -32,7 +34,10 @@ pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
                 let merkle_tree =
                     state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
                 let index = merkle_tree.next_index as usize;
-                merkle_tree_indices.insert(ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key(), index);
+                merkle_tree_indices.insert(
+                    ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key(),
+                    index,
+                );
 
                 out_utxo_index.push(index as u32);
             }
