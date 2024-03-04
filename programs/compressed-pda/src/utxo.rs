@@ -9,7 +9,6 @@ use crate::{
     ErrorCode,
 };
 
-
 // Anchor idl doesn't like implict tuples, so we're implementing a struct
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InUtxoSerializableTuple {
@@ -64,28 +63,45 @@ impl SerializedUtxos {
         merkle_tree_accounts: &[Pubkey],
     ) -> Result<Vec<InUtxoTuple>> {
         let mut in_utxos = Vec::with_capacity(self.in_utxos.len());
-        for (i,in_utxo_serializable_tuple) in
-            self.in_utxos.iter().enumerate()
-        {
-            let owner = if (in_utxo_serializable_tuple.in_utxo_serializable.owner as usize) < accounts.len() {
+        for (i, in_utxo_serializable_tuple) in self.in_utxos.iter().enumerate() {
+            let owner = if (in_utxo_serializable_tuple.in_utxo_serializable.owner as usize)
+                < accounts.len()
+            {
                 accounts[in_utxo_serializable_tuple.in_utxo_serializable.owner as usize]
             } else {
-                self.pubkey_array[in_utxo_serializable_tuple.in_utxo_serializable.owner.saturating_sub(accounts.len() as u8) as usize]
+                self.pubkey_array[in_utxo_serializable_tuple
+                    .in_utxo_serializable
+                    .owner
+                    .saturating_sub(accounts.len() as u8)
+                    as usize]
             };
-            let lamports = self.u64_array[in_utxo_serializable_tuple.in_utxo_serializable.lamports as usize];
-            let data = in_utxo_serializable_tuple.in_utxo_serializable.data.as_ref().map(|data: &TlvSerializable| {
-                data.tlv_from_serializable_tlv(
-                    [accounts, self.pubkey_array.as_slice()].concat().as_slice(),
-                )
-            });
+            let lamports =
+                self.u64_array[in_utxo_serializable_tuple.in_utxo_serializable.lamports as usize];
+            let data = in_utxo_serializable_tuple
+                .in_utxo_serializable
+                .data
+                .as_ref()
+                .map(|data: &TlvSerializable| {
+                    data.tlv_from_serializable_tlv(
+                        [accounts, self.pubkey_array.as_slice()].concat().as_slice(),
+                    )
+                });
             let mut utxo = Utxo {
                 owner,
                 blinding: [0u8; 32],
                 lamports,
                 data,
             };
-            utxo.update_blinding(merkle_tree_accounts[i].key(), in_utxo_serializable_tuple.in_utxo_serializable.leaf_index as usize)?;
-            in_utxos.push(InUtxoTuple { in_utxo: utxo, index_mt_account: in_utxo_serializable_tuple.index_mt_account, index_nullifier_array_account: in_utxo_serializable_tuple.index_nullifier_array_account });
+            utxo.update_blinding(
+                merkle_tree_accounts[i].key(),
+                in_utxo_serializable_tuple.in_utxo_serializable.leaf_index as usize,
+            )?;
+            in_utxos.push(InUtxoTuple {
+                in_utxo: utxo,
+                index_mt_account: in_utxo_serializable_tuple.index_mt_account,
+                index_nullifier_array_account: in_utxo_serializable_tuple
+                    .index_nullifier_array_account,
+            });
         }
         Ok(in_utxos)
     }
@@ -96,23 +112,37 @@ impl SerializedUtxos {
     ) -> Result<Vec<OutUtxoTuple>> {
         let mut out_utxos = Vec::with_capacity(self.out_utxos.len());
         for out_utxo_serializable_tuple in self.out_utxos.iter() {
-            let owner = if (out_utxo_serializable_tuple.out_utxo_serializable.owner as usize) < accounts.len() {
+            let owner = if (out_utxo_serializable_tuple.out_utxo_serializable.owner as usize)
+                < accounts.len()
+            {
                 accounts[out_utxo_serializable_tuple.out_utxo_serializable.owner as usize]
             } else {
-                self.pubkey_array[out_utxo_serializable_tuple.out_utxo_serializable.owner.saturating_sub(accounts.len() as u8) as usize]
+                self.pubkey_array[out_utxo_serializable_tuple
+                    .out_utxo_serializable
+                    .owner
+                    .saturating_sub(accounts.len() as u8)
+                    as usize]
             };
-            let lamports = self.u64_array[out_utxo_serializable_tuple.out_utxo_serializable.lamports as usize];
-            let data = out_utxo_serializable_tuple.out_utxo_serializable.data.as_ref().map(|data: &TlvSerializable| {
-                data.tlv_from_serializable_tlv(
-                    [accounts, self.pubkey_array.as_slice()].concat().as_slice(),
-                )
-            });
+            let lamports =
+                self.u64_array[out_utxo_serializable_tuple.out_utxo_serializable.lamports as usize];
+            let data = out_utxo_serializable_tuple
+                .out_utxo_serializable
+                .data
+                .as_ref()
+                .map(|data: &TlvSerializable| {
+                    data.tlv_from_serializable_tlv(
+                        [accounts, self.pubkey_array.as_slice()].concat().as_slice(),
+                    )
+                });
             let utxo = OutUtxo {
                 owner,
                 lamports,
                 data,
             };
-            out_utxos.push(OutUtxoTuple { out_utxo: utxo, index_mt_account: out_utxo_serializable_tuple.index_mt_account });
+            out_utxos.push(OutUtxoTuple {
+                out_utxo: utxo,
+                index_mt_account: out_utxo_serializable_tuple.index_mt_account,
+            });
         }
         Ok(out_utxos)
     }
@@ -175,7 +205,11 @@ impl SerializedUtxos {
                 lamports: lamports_index,
                 data: data_serializable,
             };
-            utxos.push(InUtxoSerializableTuple { in_utxo_serializable, index_mt_account: 0u8, index_nullifier_array_account: 0u8 });
+            utxos.push(InUtxoSerializableTuple {
+                in_utxo_serializable,
+                index_mt_account: 0u8,
+                index_nullifier_array_account: 0u8,
+            });
         }
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
 
@@ -246,7 +280,10 @@ impl SerializedUtxos {
                 lamports: lamports_index,
                 data: data_serializable,
             };
-            utxos.push(OutUtxoSerializableTuple {out_utxo_serializable, index_mt_account: 0u8 });
+            utxos.push(OutUtxoSerializableTuple {
+                out_utxo_serializable,
+                index_mt_account: 0u8,
+            });
         }
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
         remaining_accounts_pubkeys
@@ -310,7 +347,7 @@ impl Utxo {
     pub fn update_blinding(&mut self, merkle_tree_pda: Pubkey, index_of_leaf: usize) -> Result<()> {
         self.blinding = Poseidon::hashv(&[
             &hash_to_bn254_field_size_le(&merkle_tree_pda.to_bytes())
-                .unwrap()  
+                .unwrap()
                 .0,
             index_of_leaf.to_le_bytes().as_slice(),
         ])
@@ -415,7 +452,10 @@ mod tests {
             }
         );
         assert_eq!(serialized_utxos.in_utxos[0].index_mt_account, 0);
-        assert_eq!(serialized_utxos.in_utxos[0].index_nullifier_array_account, 2);
+        assert_eq!(
+            serialized_utxos.in_utxos[0].index_nullifier_array_account,
+            2
+        );
 
         assert_eq!(serialized_utxos.pubkey_array.len(), 1);
         assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
@@ -430,7 +470,10 @@ mod tests {
             }
         );
         assert_eq!(serialized_utxos.in_utxos[1].index_mt_account, 1);
-        assert_eq!(serialized_utxos.in_utxos[1].index_nullifier_array_account, 3);
+        assert_eq!(
+            serialized_utxos.in_utxos[1].index_nullifier_array_account,
+            3
+        );
 
         assert_eq!(serialized_utxos.pubkey_array.len(), 1);
         assert_eq!(serialized_utxos.pubkey_array[0], owner2_pubkey);
@@ -446,7 +489,10 @@ mod tests {
             }
         );
         assert_eq!(serialized_utxos.in_utxos[2].index_mt_account, 0);
-        assert_eq!(serialized_utxos.in_utxos[2].index_nullifier_array_account, 3);
+        assert_eq!(
+            serialized_utxos.in_utxos[2].index_nullifier_array_account,
+            3
+        );
     }
 
     #[test]
@@ -635,29 +681,38 @@ mod tests {
 
         // Assertions for InUtxo
         assert_eq!(serialized_utxos.in_utxos.len(), 1);
-        assert!(serialized_utxos.in_utxos.iter().any(
-            |in_utxo_tuple| in_utxo_tuple.in_utxo_serializable.owner == 0
-                && in_utxo_tuple.in_utxo_serializable.lamports == 0
-                && in_utxo_tuple.in_utxo_serializable.leaf_index == 0
-                && in_utxo_tuple.in_utxo_serializable.data.is_none()
-                && in_utxo_tuple.index_mt_account == 0
-                && in_utxo_tuple.index_nullifier_array_account == 1
-        ));
-        
+        assert!(serialized_utxos
+            .in_utxos
+            .iter()
+            .any(
+                |in_utxo_tuple| in_utxo_tuple.in_utxo_serializable.owner == 0
+                    && in_utxo_tuple.in_utxo_serializable.lamports == 0
+                    && in_utxo_tuple.in_utxo_serializable.leaf_index == 0
+                    && in_utxo_tuple.in_utxo_serializable.data.is_none()
+                    && in_utxo_tuple.index_mt_account == 0
+                    && in_utxo_tuple.index_nullifier_array_account == 1
+            ));
+
         // Assertions for OutUtxo
         assert_eq!(serialized_utxos.out_utxos.len(), 2);
-        assert!(serialized_utxos.out_utxos.iter().any(
-            |out_utxo_tuple| out_utxo_tuple.out_utxo_serializable.owner == 0
-                && out_utxo_tuple.out_utxo_serializable.lamports == 0
-                && out_utxo_tuple.out_utxo_serializable.data.is_none()
-                && out_utxo_tuple.index_mt_account == 2
-        ));
-        assert!(serialized_utxos.out_utxos.iter().any(
-            |out_utxo_tuple| out_utxo_tuple.out_utxo_serializable.owner == 1
-                && out_utxo_tuple.out_utxo_serializable.lamports == 1
-                && out_utxo_tuple.out_utxo_serializable.data.is_none()
-                && out_utxo_tuple.index_mt_account == 0
-        ));
+        assert!(serialized_utxos
+            .out_utxos
+            .iter()
+            .any(
+                |out_utxo_tuple| out_utxo_tuple.out_utxo_serializable.owner == 0
+                    && out_utxo_tuple.out_utxo_serializable.lamports == 0
+                    && out_utxo_tuple.out_utxo_serializable.data.is_none()
+                    && out_utxo_tuple.index_mt_account == 2
+            ));
+        assert!(serialized_utxos
+            .out_utxos
+            .iter()
+            .any(
+                |out_utxo_tuple| out_utxo_tuple.out_utxo_serializable.owner == 1
+                    && out_utxo_tuple.out_utxo_serializable.lamports == 1
+                    && out_utxo_tuple.out_utxo_serializable.data.is_none()
+                    && out_utxo_tuple.index_mt_account == 0
+            ));
         // Checking pubkey_array and u64_array
         assert_eq!(
             serialized_utxos.pubkey_array.len(),
@@ -674,11 +729,15 @@ mod tests {
             "Should contain exactly two unique lamport values"
         );
         assert_eq!(
-            serialized_utxos.u64_array[serialized_utxos.out_utxos[0].out_utxo_serializable.lamports as usize], 100,
+            serialized_utxos.u64_array
+                [serialized_utxos.out_utxos[0].out_utxo_serializable.lamports as usize],
+            100,
             "Should contain lamports value 100"
         );
         assert_eq!(
-            serialized_utxos.u64_array[serialized_utxos.out_utxos[1].out_utxo_serializable.lamports as usize], 200,
+            serialized_utxos.u64_array
+                [serialized_utxos.out_utxos[1].out_utxo_serializable.lamports as usize],
+            200,
             "Should contain lamports value 200"
         );
         let merkle_tree_accounts = vec![Pubkey::new_unique(), Pubkey::new_unique()]; // Mocked merkle tree accounts for blinding computation
@@ -710,7 +769,6 @@ mod tests {
                         && out_utxo_tuple.out_utxo.data == out_utxos[i].data
                 )
             });
-           
     }
 
     #[test]
@@ -738,7 +796,7 @@ mod tests {
 
         let in_utxos: Vec<InUtxoTuple> = serialized_utxos
             .in_utxos_from_serialized_utxos(&accounts, &merkle_tree_accounts)
-            .unwrap();  
+            .unwrap();
 
         assert_eq!(in_utxos.len(), 1);
         let utxo = &in_utxos[0];

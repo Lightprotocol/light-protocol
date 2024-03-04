@@ -352,7 +352,10 @@ mod test {
             "Should have added one UTXO with TLV data"
         );
         assert!(
-            serialized_utxos.in_utxos[0].in_utxo_serializable.data.is_some(),
+            serialized_utxos.in_utxos[0]
+                .in_utxo_serializable
+                .data
+                .is_some(),
             "UTXO should contain TLV data"
         );
         assert_eq!(
@@ -361,11 +364,18 @@ mod test {
             "Should have added one out UTXO with TLV data"
         );
         assert!(
-            serialized_utxos.out_utxos[0].out_utxo_serializable.data.is_some(),
+            serialized_utxos.out_utxos[0]
+                .out_utxo_serializable
+                .data
+                .is_some(),
             "UTXO should contain TLV data"
         );
         // Verify that TLV data was serialized correctly
-        let serialized_tlv_data = serialized_utxos.in_utxos[0].in_utxo_serializable.data.as_ref().unwrap();
+        let serialized_tlv_data = serialized_utxos.in_utxos[0]
+            .in_utxo_serializable
+            .data
+            .as_ref()
+            .unwrap();
         assert_eq!(
             *serialized_tlv_data, tlv_serializable,
             "Serialized TLV data should match the expected serialized version"

@@ -11,7 +11,9 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
 ) -> anchor_lang::Result<()> {
     let mut indexed_array_account_infos = Vec::<AccountInfo>::new();
     for in_utxo_tuple in inputs.in_utxos.iter() {
-        indexed_array_account_infos.push(ctx.remaining_accounts[in_utxo_tuple.index_nullifier_array_account as usize].clone());
+        indexed_array_account_infos.push(
+            ctx.remaining_accounts[in_utxo_tuple.index_nullifier_array_account as usize].clone(),
+        );
     }
 
     insert_nullifiers_cpi(

@@ -9,7 +9,7 @@ use crate::{
     event::{emit_state_transition_event, PublicTransactionEvent},
     nullify_state::insert_nullifiers,
     tlv::TlvDataElement,
-    utxo::{SerializedUtxos, Utxo,InUtxoTuple, OutUtxoTuple},
+    utxo::{InUtxoTuple, OutUtxoTuple, SerializedUtxos, Utxo},
     verify_state::{fetch_roots, hash_in_utxos, out_utxos_to_utxos, sum_check},
     ErrorCode,
 };
@@ -30,13 +30,16 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
             msg!("cpi_signature check is not implemented");
             err!(ErrorCode::CpiSignerCheckFailed)
         }
-        None => inputs.in_utxos.iter().try_for_each(|utxo_tuple: &InUtxoTuple| {
-            if utxo_tuple.in_utxo.owner != ctx.accounts.signer.key() {
-                err!(ErrorCode::SignerCheckFailed)
-            } else {
-                Ok(())
-            }
-        }),
+        None => inputs
+            .in_utxos
+            .iter()
+            .try_for_each(|utxo_tuple: &InUtxoTuple| {
+                if utxo_tuple.in_utxo.owner != ctx.accounts.signer.key() {
+                    err!(ErrorCode::SignerCheckFailed)
+                } else {
+                    Ok(())
+                }
+            }),
     }?;
 
     let mut roots = vec![[0u8; 32]; inputs.in_utxos.len()];
@@ -94,7 +97,6 @@ pub struct CpiSignature {
     pub tlv_hash: [u8; 32],
     pub tlv_data: TlvDataElement,
 }
-
 
 // TODO: parse utxos a more efficient way, since owner is sent multiple times this way
 #[derive(Debug)]
