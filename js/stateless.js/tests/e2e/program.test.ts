@@ -5,7 +5,7 @@ import {
   PAYER_KEYPAIR,
   byteArrayToKeypair,
 } from "../../src/test-utils/init-accounts";
-import { sleep } from "../../src/utils/sleep";
+
 import {
   PublicKey,
   Connection,
@@ -15,7 +15,6 @@ import {
   VersionedTransaction,
   TransactionConfirmationStrategy,
 } from "@solana/web3.js";
-import { placeholderValidityProof } from "../../src/instruction/validity-proof";
 import { BN } from "@coral-xyz/anchor";
 import {
   MockProof,
@@ -26,6 +25,7 @@ import {
   COMPRESSED_LAMPORTS_MINIMUM,
   defaultTestStateTreeAccounts,
 } from "../../src/constants";
+import { TestRpc } from "../../src/test-utils/test-rpc";
 
 // TODO add tests for
 // - double spend check
@@ -147,6 +147,22 @@ describe("Program test", () => {
       `https://explorer.solana.com/tx/${txid}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`
     );
     expect(txid).toBeTruthy();
+
+    const transactionConfirmationStrategy0: TransactionConfirmationStrategy = {
+      signature: txid,
+      blockhash,
+      lastValidBlockHeight,
+    };
+    await connection.confirmTransaction(
+      transactionConfirmationStrategy0,
+      "confirmed"
+    );
+    const testRpc = new TestRpc({
+      connection,
+    });
+
+    const indexedEvents = await testRpc.getIndexedTransactions();
+    console.log("indexedEvents", indexedEvents);
   });
 
   it.skip("should build ix and send to chain successfully", async () => {

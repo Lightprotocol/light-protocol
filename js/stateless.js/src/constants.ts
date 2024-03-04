@@ -20,7 +20,7 @@ export const FIELD_SIZE = BigInt(
 // TODO: implement properly
 export const noopProgram = "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
 export const lightProgram = "5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP";
-export const accountCompressionProgram =
+export const accountCompressionProgram = // also: merkletree program
   "5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN";
 
 // TODO: make this for any
