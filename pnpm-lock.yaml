@@ -380,6 +380,49 @@ importers:
         specifier: 5.3.2
         version: 5.3.2
 
+  js/stateless.js:
+    dependencies:
+      '@coral-xyz/anchor':
+        specifier: 0.28.0
+        version: 0.28.0
+      '@lightprotocol/account.rs':
+        specifier: workspace:*
+        version: link:../../account.rs
+      '@lightprotocol/prover.js':
+        specifier: workspace:*
+        version: link:../../prover.js
+      '@solana/buffer-layout':
+        specifier: ^4.0.1
+        version: 4.0.1
+      '@solana/buffer-layout-utils':
+        specifier: ^0.2.0
+        version: 0.2.0
+      '@solana/web3.js':
+        specifier: ^1.87.6
+        version: 1.87.6
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
+      superstruct:
+        specifier: ^1.0.3
+        version: 1.0.3
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.2
+        version: 20.10.4
+      rimraf:
+        specifier: ^5.0.5
+        version: 5.0.5
+      typescript:
+        specifier: 5.3.2
+        version: 5.3.2
+      vitest:
+        specifier: ^0.34.6
+        version: 0.34.6(@vitest/browser@0.34.6)(playwright@1.40.1)
+
   programs: {}
 
   prover.js:
@@ -16133,6 +16176,7 @@ packages:
         integrity: sha512-24vnklJmyRS8ViBNI8KbtK/r/DmXQMRiOMXTNz2nrTnAYUwjmEEbnnpB/+kt+yWRv73bPsSPRFddrcIbAxSiMQ==,
       }
     hasBin: true
+    requiresBuild: true
 
   /node-gyp@8.4.1:
     resolution:
@@ -19626,6 +19670,11 @@ packages:
       {
         integrity: sha512-4AOeU+P5UuE/4nOUkmcQdW5y7i9ndt1cQd/3iUe+LTz3RxESf/W/5lg4B74HbDMMv8PHnPnGCQFH45kBcrQYoQ==,
       }
+
+  /superstruct@1.0.3:
+    resolution: {integrity: sha512-8iTn3oSS8nRGn+C2pgXSKPI3jmpm6FExNazNpjvqS6ZUJQCej3PUXEKM8NjHBOs54ExM+LPW/FBRhymrdcCiSg==}
+    engines: {node: '>=14.0.0'}
+    dev: false
 
   /supports-color@5.5.0:
     resolution:
