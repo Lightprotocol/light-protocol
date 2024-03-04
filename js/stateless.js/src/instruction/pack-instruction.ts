@@ -141,7 +141,7 @@ export async function packInstruction(
   const remainingAccountMetas = remainingAccounts.map(
     (account): AccountMeta => ({
       pubkey: account,
-      isWritable: true, // TODO: inputmerkletrees no write
+      isWritable: true, // TODO: check if inputmerkletrees should write
       isSigner: false,
     })
   );

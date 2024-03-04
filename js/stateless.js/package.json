@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:program": "vitest run tests/e2e/program.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
     "build": "rimraf lib && pnpm tsc"
   },
@@ -28,6 +29,7 @@
     "@lightprotocol/prover.js": "workspace:*",
     "@solana/buffer-layout": "^4.0.1",
     "@solana/buffer-layout-utils": "^0.2.0",
+    "@solana/spl-account-compression": "^0.1.8",
     "@solana/web3.js": "^1.87.6",
     "buffer": "^6.0.3",
     "superstruct": "^1.0.3",

@@ -8,7 +8,10 @@ import {
   SYSVAR_CLOCK_PUBKEY,
   SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
+// TODO: remove dependency
+// import { PROGRAM_ID } from "@solana/spl-account-compression";
 import { utf8 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { LightSystemProgram } from "./programs/compressed-pda";
 
 export const FIELD_SIZE = BigInt(
   "21888242871839275222246405745257275088548364400416034343698204186575808495617"
@@ -16,21 +19,31 @@ export const FIELD_SIZE = BigInt(
 
 // TODO: implement properly
 export const noopProgram = "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
+export const lightProgram = "5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP";
 export const accountCompressionProgram =
-  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
-export const registeredProgramPda =
-  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
-export const accountCompressionAuthority =
-  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
-export const cpiSignatureAccount =
-  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
+  "5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN";
+
+// TODO: make this for any
+export const registeredProgramPda = PublicKey.createProgramAddressSync(
+  [LightSystemProgram.programId.toBytes()],
+  new PublicKey(accountCompressionProgram)
+);
+
+export const pspAccountCompressionAuthority =
+  PublicKey.createProgramAddressSync(
+    [
+      Buffer.from("cpi_authority"),
+      new PublicKey(accountCompressionProgram).toBytes(),
+    ],
+    LightSystemProgram.programId
+  );
 
 export const defaultStaticAccounts = () => [
   new PublicKey(registeredProgramPda),
   new PublicKey(noopProgram),
   new PublicKey(accountCompressionProgram),
-  new PublicKey(accountCompressionAuthority),
-  new PublicKey(cpiSignatureAccount),
+  new PublicKey(pspAccountCompressionAuthority),
+  // null, // cpisignatureAccount
 ];
 
 export const TYPE_PUBKEY = { array: ["u8", 32] };

@@ -63,9 +63,8 @@ export class LightSystemProgram {
    * Public key that identifies the CompressedPda program
    */
   static programId: PublicKey = new PublicKey(
-    // TODO: replace with actual program id
-    // can add check to ensure its consistent with the idl
-    "11111111111111111111111111111111"
+    // TODO: can add check to ensure its consistent with the idl
+    "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ"
   );
 
   private static _program: Program<PspCompressedPda> | null = null;
@@ -162,7 +161,6 @@ export class LightSystemProgram {
   }
 }
 
-/// akin to in conversion.ts, add vitest best practice unit test cases for the above functions without mocking dependencies
 //@ts-ignore
 if (import.meta.vitest) {
   //@ts-ignore
