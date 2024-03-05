@@ -44,12 +44,14 @@ This runs ./tests/e2e/transfer-emit-events.test.ts once which executes a simple 
 
 If you're having trouble building the project or cli,
 
-- Nuke your git chache `git clean -xfd` (careful) and re-run the steps from the start.
+- Consider nuking your git cache `git clean -xfd` (careful) and re-run the steps from the start.
 
-- you may want to manually build the programs (anchor build). The IDLs will be auto-generated into stateless.js/src/idls/
+This should resolve any issues. Otherwise,
+
+- you may also want to manually build the programs (anchor build). The IDLs will be auto-generated into stateless.js/src/idls/
 
 - if you're running into issues with the CLI (e.g. if you're seeing "Warning: test-validator is not a light command.". before re-building the CLI or running `./cli/test_bin/run test-validator`, consider ensuring that the cli's dependencies (zk.js, account.rs) are built (`pnpm run build` in their respective directory)
 
-### Other
+### Other notes
 
 On-chain we don't verify the ZKP yet, nor do we check tree roots. therefore we can make up input-utxos with random leafIndices/blindings and root indices for emit-event:transfer
