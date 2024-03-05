@@ -49,7 +49,6 @@ If you're having trouble building the project or cli,
   or manually build the cli (`pnpm run build` in ./cli) before running
   `./cli/test_bin/run test-validator`
 
-### Other side notes
+### Other
 
-1. This is unsafe. On-chain we don't verify the validity of the ZKP yet, nor do we validate tree roots.
-2. this is also what allows us to make up input-utxos with random leafIndices/blindings and root indices for emit-event:transfer
+On-chain we don't verify the ZKP yet, nor do we check tree roots. therefore we can make up input-utxos with random leafIndices/blindings and root indices for emit-event:transfer
