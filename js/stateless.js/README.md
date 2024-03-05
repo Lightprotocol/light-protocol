@@ -47,7 +47,7 @@ If you're having trouble building the project or cli,
 
 - you may want to manually build the programs (anchor build)
   or manually build the cli (`pnpm run build` in ./cli) before running
-  `./cli/test_bin/run test-validator`
+  `./cli/test_bin/run test-validator`.
 
 ### Other
 
