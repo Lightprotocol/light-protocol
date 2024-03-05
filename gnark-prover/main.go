@@ -4,19 +4,20 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/consensys/gnark/constraint"
-	gnarkLogger "github.com/consensys/gnark/logger"
-	"github.com/urfave/cli/v2"
 	"io"
 	"light/light-prover/config"
 	"light/light-prover/logging"
-	"light/light-prover/merkle-tree"
+	merkle_tree "light/light-prover/merkle-tree"
 	"light/light-prover/prover"
 	"light/light-prover/server"
 	"math/big"
 	"os"
 	"os/signal"
 	"strings"
+
+	"github.com/consensys/gnark/constraint"
+	gnarkLogger "github.com/consensys/gnark/logger"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
