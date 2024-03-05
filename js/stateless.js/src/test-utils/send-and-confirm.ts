@@ -4,13 +4,13 @@ import {
   TransactionConfirmationStrategy,
   SignatureResult,
   RpcResponseAndContext,
-  Transaction,
 } from "@solana/web3.js";
 
+/** @returns txId */
 export async function sendAndConfirmTx(
   connection: Connection,
   tx: VersionedTransaction
-) {
+): Promise<string> {
   const txId = await connection.sendTransaction(tx);
   const { blockhash, lastValidBlockHeight } =
     await connection.getLatestBlockhash();
@@ -19,11 +19,11 @@ export async function sendAndConfirmTx(
     blockhash,
     lastValidBlockHeight,
   };
-  const res = await connection.confirmTransaction(
+  await connection.confirmTransaction(
     transactionConfirmationStrategy0,
     connection.commitment
   );
-  return res;
+  return txId;
 }
 
 export async function confirmTx(

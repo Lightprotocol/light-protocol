@@ -32,8 +32,8 @@ export class MockRpc {
   // accountCompressionProgram: Program<any>;
   constructor({
     connection, // lightWasm,
-    /// TODO: implement once we enable ZKP verification
-  } // _merkleTreeAccount,
+    // _merkleTreeAccount,
+  } /// TODO: implement once we enable ZKP verification
   : {
     // _merkleTreeAccount?: PublicKey;
 

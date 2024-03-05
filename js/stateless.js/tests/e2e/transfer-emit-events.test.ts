@@ -15,7 +15,7 @@ import {
 import { FIELD_SIZE, defaultTestStateTreeAccounts } from "../../src/constants";
 import { confirmTx, sendAndConfirmTx } from "../../src/test-utils";
 
-/// fixed testing key
+/// static testing key. don't use in prod.
 const FIXED_PAYER = byteArrayToKeypair([
   122, 239, 192, 18, 21, 29, 237, 120, 104, 95, 247, 150, 181, 218, 207, 60,
   158, 110, 200, 246, 74, 226, 30, 223, 142, 138, 133, 194, 30, 254, 132, 236,
@@ -23,8 +23,9 @@ const FIXED_PAYER = byteArrayToKeypair([
   118, 21, 155, 87, 11, 53, 153, 130, 178, 126, 151, 86, 225, 36, 251, 130,
 ]);
 
-// <254bit, random to generate unique utxos. currently we don't enforce root/index/ checks.
-// This will be  blinding(merkletreePubkey,leafIndex)
+// creates mock blinding < bn254 field size.
+// random to generate unique utxos. currently we don't enforce root/index/ checks.
+// This will be replaced by blinding(merkletreePubkey,leafIndex)
 const rndMockedBlinding = () =>
   bn(Array.from(crypto.getRandomValues(new Uint8Array(32))))
     .mod(bn(FIELD_SIZE.toString()))
@@ -34,7 +35,7 @@ const rndMockedBlinding = () =>
 const rounds = 1;
 
 describe("Emit events", () => {
-  it("should emit events", async () => {
+  it("should execute a compressed lamport transfer and emit events correctly", async () => {
     for (let i = 0; i < rounds; i++) {
       /// Get testing keys. tree and queue are auto-initialized with the test-validator env.
       const keys = defaultTestStateTreeAccounts();
@@ -94,6 +95,9 @@ describe("Emit events", () => {
         c: Array.from({ length: 32 }, () => 0),
       };
 
+      /// Packs the utxos into ixdata and encodes the data with the relevant system keys.
+      /// This is the "not-optimized" version. devs will use the more efficient packInstruction() instead.
+      /// The packing doesnt have any impact on the emitted events / indexing experience though.
       const ix = await createExecuteCompressedInstruction(
         alice.publicKey,
         in_utxos,
@@ -118,10 +122,14 @@ describe("Emit events", () => {
       const tx = new VersionedTransaction(messageV0);
       tx.sign([alice]);
 
-      await sendAndConfirmTx(connection, tx);
+      const txId = await sendAndConfirmTx(connection, tx);
 
+      /// Prints
       console.log(
-        `\n\n\n\n\x1b[32mTransferred ${lamportsToSend} lamports from Alice (${alice.publicKey.toBase58()}) to Bob (${bob.publicKey.toBase58()})\x1b[0m`
+        `\n\n\n\n tx: https://explorer.solana.com/tx/${txId}?cluster=custom`
+      );
+      console.log(
+        `\x1b[32mTransferred ${lamportsToSend} lamports from Alice (${alice.publicKey.toBase58()}) to Bob (${bob.publicKey.toBase58()})\x1b[0m`
       );
       console.log("\x1b[34mInput mock-utxos (consumed):\x1b[0m");
       console.log(
